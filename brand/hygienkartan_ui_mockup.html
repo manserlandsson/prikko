@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hygienkartan — designmockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181a; --ink2:#4b5559; --line:#e6e9e7; --bg:#f6f7f5; --card:#ffffff;
+    --brand:#0e7c66; --brand-ink:#0a5a4a;
+    --a:#1a9e4b; --b:#7cb342; --c:#e2a52b; --d:#e2711d; --f:#d23b3b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:inherit;text-decoration:none}
+
+  header{border-bottom:1px solid var(--line);background:rgba(246,247,245,.85);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
+  .nav{display:flex;align-items:center;gap:22px;height:64px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:19px;letter-spacing:-.02em}
+  .logo .mark{width:26px;height:26px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:800}
+  .nav .links{margin-left:auto;display:flex;gap:24px;color:var(--ink2);font-size:14px;font-weight:500}
+  .nav .links a:hover{color:var(--ink)}
+
+  .hero{padding:64px 0 40px}
+  .hero h1{font-size:44px;line-height:1.05;letter-spacing:-.03em;font-weight:800;margin:0 0 14px;max-width:620px}
+  .hero p{font-size:18px;color:var(--ink2);margin:0 0 28px;max-width:540px}
+  .search{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 20px;max-width:560px;box-shadow:0 6px 24px rgba(20,24,26,.05)}
+  .search input{border:0;outline:0;flex:1;font-size:16px;font-family:inherit;background:transparent}
+  .search button{border:0;background:var(--brand);color:#fff;font-weight:600;font-size:15px;padding:0 22px;border-radius:999px;cursor:pointer}
+  .trust{display:flex;gap:22px;margin-top:20px;color:var(--ink2);font-size:13px;font-weight:500}
+  .trust b{color:var(--ink)}
+
+  .grid{display:grid;grid-template-columns:1.25fr .9fr;gap:22px;padding:8px 0 56px}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}.hero h1{font-size:34px}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+  .maphead{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .maphead h3{margin:0;font-size:15px;font-weight:600}
+  .legend{display:flex;gap:12px;font-size:12px;color:var(--ink2)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .map{position:relative;height:340px;border-radius:0 0 var(--radius) var(--radius);overflow:hidden;
+       background:
+        radial-gradient(circle at 30% 40%, #eef2ee 0, transparent 40%),
+        linear-gradient(0deg,#eef1ee,#eef1ee)}
+  .map::before{content:"";position:absolute;inset:0;
+       background-image:linear-gradient(#e2e7e2 1px,transparent 1px),linear-gradient(90deg,#e2e7e2 1px,transparent 1px);
+       background-size:44px 44px;opacity:.7}
+  .pin{position:absolute;width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+
+  .board{padding:6px 0}
+  .board h3{margin:0;padding:16px 18px;font-size:15px;font-weight:600;border-bottom:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .n{flex:1;min-width:0}
+  .row .n b{font-weight:600;font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .n span{font-size:12px;color:var(--ink2)}
+  .grade{width:34px;height:34px;border-radius:9px;color:#fff;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+  .section-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-ink);margin:0 0 14px}
+  .profile{padding:0 0 72px}
+  .pcard{overflow:hidden}
+  .ptop{display:flex;gap:20px;padding:24px;flex-wrap:wrap;align-items:flex-start}
+  .ptop .info{flex:1;min-width:240px}
+  .ptop h2{margin:0;font-size:26px;letter-spacing:-.02em;font-weight:700}
+  .ptop .addr{color:var(--ink2);font-size:15px;margin-top:2px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chip{font-size:12px;color:var(--ink2);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+  .bigrate{text-align:center;min-width:132px}
+  .bigrate .g{width:92px;height:92px;border-radius:20px;color:#fff;font-weight:800;font-size:46px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+  .bigrate .lbl{font-weight:600;font-size:14px;margin-top:8px}
+  .bigrate .sub{font-size:12px;color:var(--ink2)}
+  .pmap{height:150px;border-top:1px solid var(--line);position:relative;background:linear-gradient(0deg,#eef1ee,#eef1ee)}
+  .pmap::before{content:"";position:absolute;inset:0;background-image:linear-gradient(#e2e7e2 1px,transparent 1px),linear-gradient(90deg,#e2e7e2 1px,transparent 1px);background-size:34px 34px;opacity:.7}
+  .pmap .pin{left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:var(--a)}
+
+  .timeline{margin-top:22px}
+  .timeline h4{margin:0 0 10px;font-size:14px;font-weight:600}
+  .tl{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+  .tl .r{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .tl .r:last-child{border-bottom:0}
+  .tl .r .sd{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+  .tl .r .d{flex:1}
+  .tl .r .d b{font-size:14px;font-weight:600;display:block}
+  .tl .r .d span{font-size:12.5px;color:var(--ink2)}
+  .tl .r .st{font-size:12.5px;font-weight:600}
+  .reply{margin-top:16px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px}
+  .reply .k{font-size:12px;color:var(--ink2);margin-bottom:4px}
+  .reply p{margin:0;font-size:14px}
+  .src{margin-top:14px;font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+  .footer{border-top:1px solid var(--line);padding:26px 0;color:var(--ink2);font-size:13px}
+</style>
+</head>
+<body>
+
+<header><div class="wrap nav">
+  <div class="logo"><span class="mark">H</span>Hygienkartan</div>
+  <nav class="links"><a>Städer</a><a>Så funkar betyget</a><a>För restauranger</a><a>Om oss</a></nav>
+</div></header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <h1>Kolla hygienen innan du bokar bord.</h1>
+    <p>Samlade resultat från kommunernas livsmedelskontroller — för varje restaurang, café och butik i Sverige.</p>
+    <div class="search">
+      <input placeholder="Sök restaurang, stadsdel eller stad">
+      <button>Sök</button>
+    </div>
+    <div class="trust"><span><b>29 400</b> ställen</span><span><b>112</b> kommuner</span><span>Uppdaterat dagligen</span></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="maphead">
+        <h3>Karta — Stockholm</h3>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--a)"></span>Bra</span>
+          <span><span class="dot" style="background:var(--c)"></span>Anmärkning</span>
+          <span><span class="dot" style="background:var(--f)"></span>Allvarlig</span>
+        </div>
+      </div>
+      <div class="map">
+        <span class="pin" style="left:24%;top:30%;background:var(--a)"></span>
+        <span class="pin" style="left:42%;top:52%;background:var(--a)"></span>
+        <span class="pin" style="left:60%;top:38%;background:var(--c)"></span>
+        <span class="pin" style="left:71%;top:62%;background:var(--f)"></span>
+        <span class="pin" style="left:35%;top:70%;background:var(--a)"></span>
+        <span class="pin" style="left:55%;top:22%;background:var(--b)"></span>
+        <span class="pin" style="left:80%;top:34%;background:var(--a)"></span>
+      </div>
+    </div>
+
+    <div class="card board">
+      <h3>Flest anmärkningar i Stockholm</h3>
+      <div class="row"><span class="grade" style="background:var(--f)">F</span><div class="n"><b>Hörnans Grill</b><span>Kungsholmen · 6 anmärkningar</span></div></div>
+      <div class="row"><span class="grade" style="background:var(--d)">D</span><div class="n"><b>Pasta Palazzo</b><span>Södermalm · 4 anmärkningar</span></div></div>
+      <div class="row"><span class="grade" style="background:var(--c)">C</span><div class="n"><b>Sushi Express Vasastan</b><span>Vasastan · 3 anmärkningar</span></div></div>
+      <div class="row"><span class="grade" style="background:var(--c)">C</span><div class="n"><b>Kebab House</b><span>Norrmalm · 2 anmärkningar</span></div></div>
+    </div>
+  </section>
+
+  <section class="profile">
+    <p class="section-label">Restaurangsida — SEO-sidan</p>
+    <div class="card pcard">
+      <div class="ptop">
+        <div class="info">
+          <h2>Pizzeria Vesuvio</h2>
+          <div class="addr">Restaurang · Stortorget 12, Malmö</div>
+          <div class="chips">
+            <span class="chip">Riskklass 5</span>
+            <span class="chip">Senast kontrollerad 19 mar 2026</span>
+            <span class="chip">Org.nr 165511-2233</span>
+          </div>
+        </div>
+        <div class="bigrate">
+          <div class="g" style="background:var(--a)">A</div>
+          <div class="lbl" style="color:var(--a)">Mycket bra hygien</div>
+          <div class="sub">inga avvikelser senaste kontrollen</div>
+        </div>
+      </div>
+      <div class="pmap"><span class="pin"></span></div>
+    </div>
+
+    <div class="timeline">
+      <h4>Kontrollhistorik</h4>
+      <div class="tl">
+        <div class="r"><span class="sd" style="background:var(--a)"></span><div class="d"><b>19 mars 2026</b><span>Inga avvikelser · 8 kontrollpunkter godkända</span></div><span class="st" style="color:var(--a)">Godkänd</span></div>
+        <div class="r"><span class="sd" style="background:var(--c)"></span><div class="d"><b>4 september 2025</b><span>2 anmärkningar · rengöring, temperatur</span></div><span class="st" style="color:var(--c)">Mindre brister</span></div>
+        <div class="r"><span class="sd" style="background:var(--a)"></span><div class="d"><b>11 februari 2025</b><span>Inga avvikelser · 6 kontrollpunkter godkända</span></div><span class="st" style="color:var(--a)">Godkänd</span></div>
+      </div>
+      <div class="reply">
+        <div class="k">Verksamhetens svar</div>
+        <p>”Bristerna från kontrollen i september är åtgärdade. Ny rutin för temperaturkontroll infördes direkt.”</p>
+      </div>
+      <div class="src">Källa: Malmö stad · öppna data (CC0) · betyg enligt vår <a style="color:var(--brand);font-weight:600">öppna metodik</a></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer"><div class="wrap">Hygienkartan (arbetsnamn) · designmockup · data från kommunernas livsmedelskontroll</div></div>
+
+</body>
+</html>

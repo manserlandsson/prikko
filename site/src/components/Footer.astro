@@ -1,0 +1,81 @@
+---
+/**
+ * Global footer. Bär E-E-A-T-signalerna från bibeln §6: namngiven utgivare,
+ * öppen metodik, källhänvisning. Dessa länkar ska finnas på VARJE sida —
+ * både Google och LLM:er använder dem för att bedöma trovärdighet.
+ */
+import { SITE } from '../lib/site';
+
+const year = new Date().getFullYear();
+---
+
+<footer>
+  <div class="container inner">
+    <div class="col">
+      <p class="eyebrow">Om datan</p>
+      <p class="caption text-secondary">
+        Prikko visar resultat från kommunernas offentliga livsmedelskontroller.
+        Betyget beräknas med en öppet publicerad metodik. Varje verksamhet har
+        rätt att svara — svaren publiceras oredigerade.
+      </p>
+    </div>
+
+    <nav class="col" aria-label="Sidfotsmeny">
+      <p class="eyebrow">Prikko</p>
+      <a href="/metodik">Så beräknas betyget</a>
+      <a href="/kallor">Källor och uppdatering</a>
+      <a href="/om">Om Prikko</a>
+      <a href="/ratta">Rätta en uppgift</a>
+    </nav>
+  </div>
+
+  <div class="container legal">
+    <p class="caption text-muted">
+      © {year} {SITE.legalName}. Uppgifterna kommer från respektive kommuns
+      livsmedelskontroll och är allmänna handlingar.
+    </p>
+  </div>
+</footer>
+
+<style>
+  footer {
+    background: var(--card);
+    border-top: 1px solid var(--hairline);
+    margin-top: var(--s-16);
+    padding-top: var(--s-8);
+  }
+
+  .inner {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--s-8);
+    padding-bottom: var(--s-8);
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .col a {
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+  }
+
+  .col a:hover {
+    color: var(--text);
+  }
+
+  .legal {
+    border-top: 1px solid var(--hairline);
+    padding-block: var(--s-4);
+  }
+
+  @media (max-width: 640px) {
+    .inner {
+      grid-template-columns: 1fr;
+      gap: var(--s-6);
+    }
+  }
+</style>

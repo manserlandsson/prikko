@@ -1,0 +1,122 @@
+---
+/**
+ * Baslayout — bär hela sajtens SEO/AEO-kontrakt.
+ *
+ * Varje indexerbar sida MÅSTE ha: unik title, unik description, kanonisk URL
+ * och (för entitetssidor) JSON-LD. `noindex` är kvalitetsgrinden från bibeln
+ * §6 — tunna sidor utan data får aldrig indexeras, för "svagaste länken"
+ * drar ner hela domänen vid scaled-content-bedömning.
+ */
+import '@fontsource-variable/inter';
+import '../styles/tokens.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { SITE } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Sätts av kvalitetsgrinden när sidan saknar tillräcklig data. */
+  noindex?: boolean;
+  /** JSON-LD, ett eller flera objekt. Renderas server-side. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Absolut eller rotrelativ sökväg till delningsbild. */
+  ogImage?: string;
+  /** ISO-datum då sidans DATA senast uppdaterades (färskhet = AEO-signal). */
+  dataUpdated?: string;
+}
+
+const {
+  title,
+  description,
+  noindex = false,
+  jsonLd,
+  ogImage = '/og-default.png',
+  dataUpdated,
+} = Astro.props;
+
+// Kanonisk URL: alltid utan query/hash, alltid mot produktionsdomänen.
+const canonical = new URL(Astro.url.pathname, SITE.url).href;
+const ogImageUrl = new URL(ogImage, SITE.url).href;
+
+// Title-mönster: sidan leder, varumärket följer. Undvik dubblering på startsidan.
+const fullTitle = title === SITE.name ? title : `${title} | ${SITE.name}`;
+
+const structuredData = jsonLd
+  ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd])
+  : [];
+---
+
+<!doctype html>
+<html lang={SITE.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    {noindex && <meta name="robots" content="noindex, follow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:locale" content={SITE.locale} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    {dataUpdated && <meta name="last-modified" content={dataUpdated} />}
+
+    <meta name="theme-color" content={SITE.themeColor} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+
+    {structuredData.map((data) => (
+      <script
+        type="application/ld+json"
+        set:html={JSON.stringify(data)}
+      />
+    ))}
+  </head>
+
+  <body>
+    <a href="#main" class="skip-link">Hoppa till innehåll</a>
+    <Header />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  main {
+    flex: 1;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    background: var(--card);
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-control);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .skip-link:focus {
+    left: var(--s-4);
+    top: var(--s-4);
+  }
+</style>

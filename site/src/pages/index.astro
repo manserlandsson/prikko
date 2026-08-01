@@ -1,0 +1,188 @@
+---
+/**
+ * Startsidan. Struktur enligt bibeln §13b: stor självsäker rubrik + EN
+ * dominant sökruta (Ratsit/Zillow-mönstret), senare kompletterad med
+ * IQAir-splitens karta till höger när data finns.
+ *
+ * OBS: inga påhittade siffror eller exempeldata får ligga här. Täckning
+ * anges först när pipelinen levererar riktiga tal.
+ */
+import Base from '../layouts/Base.astro';
+import { SITE } from '../lib/site';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: SITE.url,
+    inLanguage: 'sv-SE',
+    description: SITE.description,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE.legalName,
+    url: SITE.url,
+    logo: `${SITE.url}/prikko-mark.svg`,
+  },
+];
+---
+
+<Base
+  title={SITE.name}
+  description={SITE.description}
+  jsonLd={jsonLd}
+>
+  <section class="hero container">
+    <p class="eyebrow">Offentlig livsmedelskontroll, samlad</p>
+    <h1>Hur ren är din restaurang?</h1>
+    <p class="lede text-secondary">
+      Kommunerna kontrollerar restaurangernas hygien och resultaten är
+      offentliga — men de ligger utspridda hos 290 kommuner. Prikko samlar dem
+      och räknar om dem till ett jämförbart betyg.
+    </p>
+
+    <form class="search" action="/sok" method="get" role="search">
+      <label for="q" class="visually-hidden">
+        Sök på restaurang, adress eller ort
+      </label>
+      <input
+        id="q"
+        name="q"
+        type="search"
+        placeholder="Sök på restaurang, adress eller ort"
+        autocomplete="off"
+      />
+      <button type="submit" class="btn-primary">Sök</button>
+    </form>
+  </section>
+
+  <section class="container how">
+    <h2>Så fungerar betyget</h2>
+    <div class="steps">
+      <article class="card step">
+        <h3>Offentliga kontroller</h3>
+        <p class="text-secondary">
+          Underlaget är kommunernas egna kontrollrapporter — allmänna
+          handlingar, inte tyckande och inte recensioner.
+        </p>
+      </article>
+      <article class="card step">
+        <h3>Normaliserat betyg</h3>
+        <p class="text-secondary">
+          Kommuner bedömer olika. Vi räknar om resultaten till en gemensam
+          skala så att två restauranger i olika städer går att jämföra.
+        </p>
+      </article>
+      <article class="card step">
+        <h3>Öppen metodik</h3>
+        <p class="text-secondary">
+          Hela beräkningen är publicerad. Verksamheten har rätt att svara, och
+          svaret publiceras oredigerat bredvid betyget.
+        </p>
+      </article>
+    </div>
+    <p class="method-link">
+      <a href="/metodik">Läs hela metodiken</a>
+    </p>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    padding-block: var(--s-16) var(--s-12);
+    max-width: var(--readcol);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .hero h1 {
+    margin-block: var(--s-3) var(--s-4);
+  }
+
+  .lede {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  .search {
+    display: flex;
+    gap: var(--s-2);
+    margin-top: var(--s-8);
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    height: 50px;
+    padding-inline: var(--s-4);
+    font-family: inherit;
+    font-size: var(--fs-body);
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+  }
+
+  .search input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .search .btn-primary {
+    padding-inline: var(--s-6);
+  }
+
+  .how {
+    padding-bottom: var(--s-12);
+  }
+
+  .how h2 {
+    text-align: center;
+    margin-bottom: var(--s-6);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--s-4);
+  }
+
+  .step {
+    padding: var(--s-6);
+  }
+
+  .step h3 {
+    margin-bottom: var(--s-2);
+  }
+
+  .step p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .method-link {
+    text-align: center;
+    margin-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding-block: var(--s-12) var(--s-8);
+    }
+
+    .hero h1 {
+      font-size: 32px;
+      line-height: 36px;
+    }
+
+    .search {
+      flex-direction: column;
+    }
+
+    .search .btn-primary {
+      height: 50px;
+    }
+  }
+</style>

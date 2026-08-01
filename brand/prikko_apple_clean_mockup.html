@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prikko — Apple-clean mockup</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73; --hair:#e3e3e6;
+    --accent:#0a2540;
+    --a:#248a3d; --b:#34c759; --c:#ff9f0a; --d:#ff9500; --e:#ff3b30;
+    --r:18px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Inter,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.47}
+  .wrap{max-width:600px;margin:0 auto;padding:0 20px 64px}
+  .nav{height:52px;display:flex;align-items:center;gap:7px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .nav .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);display:inline-block}
+  .nav .sub{margin-left:auto;font-weight:400;font-size:15px;color:var(--sub)}
+
+  h1{font-size:30px;line-height:1.12;letter-spacing:-.022em;font-weight:700;margin:14px 0 3px}
+  .addr{color:var(--sub);font-size:16px;margin:0 0 18px}
+
+  .hero{background:var(--card);border-radius:var(--r);padding:22px;display:flex;align-items:center;gap:20px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .grade{width:96px;height:96px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#fff;flex-shrink:0}
+  .grade .g{font-size:46px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .hero .meta{flex:1;min-width:0}
+  .hero .lbl{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .hero .lbl.ok{color:var(--a)}
+  .hero .desc{color:var(--sub);font-size:15px;margin-top:2px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .pill{font-size:13px;color:var(--sub);background:var(--bg);border-radius:9px;padding:5px 11px}
+
+  .map{margin-top:14px;height:150px;border-radius:var(--r);background:#e9eef2;position:relative;overflow:hidden;
+    box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .map::before{content:"";position:absolute;inset:0;
+    background-image:linear-gradient(#dfe6ec 1px,transparent 1px),linear-gradient(90deg,#dfe6ec 1px,transparent 1px);
+    background-size:30px 30px}
+  .map .pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);
+    width:24px;height:24px;border-radius:50% 50% 50% 0;rotate:-45deg;background:var(--a);border:3px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+
+  .label{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--sub);margin:28px 4px 8px}
+  .group{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .row{display:flex;align-items:center;gap:14px;padding:14px 18px}
+  .row + .row{border-top:1px solid var(--hair)}
+  .row .sd{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+  .row .c{flex:1;min-width:0}
+  .row .c b{font-weight:600;font-size:16px;display:block;letter-spacing:-.01em}
+  .row .c span{color:var(--sub);font-size:14px}
+  .row .st{font-size:14px;font-weight:600}
+  .row .chev{color:#c7c7cc;font-size:19px}
+
+  .reply{padding:16px 18px}
+  .reply .k{font-size:13px;color:var(--sub);margin-bottom:5px}
+  .reply p{margin:0;font-size:16px;letter-spacing:-.01em}
+  .foot{color:var(--sub);font-size:13px;margin:18px 4px 0;display:flex;gap:6px;align-items:center}
+
+  .btn{margin-top:18px;display:flex;gap:10px}
+  .btn a{flex:1;text-align:center;padding:13px;border-radius:13px;font-weight:600;font-size:16px;text-decoration:none}
+  .btn .p{background:var(--accent);color:#fff}
+  .btn .s{background:var(--card);color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav"><span class="dot"></span>Prikko<span class="sub">Malmö</span></div>
+
+  <h1>Pizzeria Vesuvio</h1>
+  <p class="addr">Restaurang · Stortorget 12, Malmö</p>
+
+  <div class="hero">
+    <div class="grade" style="background:var(--a)"><span class="g">A</span></div>
+    <div class="meta">
+      <div class="lbl ok">Mycket bra hygien</div>
+      <div class="desc">Inga avvikelser vid senaste kontrollen 19 mars 2026.</div>
+      <div class="pills">
+        <span class="pill">Riskklass 5</span>
+        <span class="pill">Org.nr 165511-2233</span>
+        <span class="pill">3 kontroller</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="map"><span class="pin"></span></div>
+
+  <div class="btn">
+    <a class="p" href="#">Följ</a>
+    <a class="s" href="#">Anmäl en brist</a>
+  </div>
+
+  <div class="label">Kontrollhistorik</div>
+  <div class="group">
+    <div class="row"><span class="sd" style="background:var(--a)"></span><div class="c"><b>19 mars 2026</b><span>Inga avvikelser · 8 punkter godkända</span></div><span class="st" style="color:var(--a)">Godkänd</span><span class="chev">›</span></div>
+    <div class="row"><span class="sd" style="background:var(--c)"></span><div class="c"><b>4 september 2025</b><span>2 anmärkningar · rengöring, temperatur</span></div><span class="st" style="color:var(--c)">Brister</span><span class="chev">›</span></div>
+    <div class="row"><span class="sd" style="background:var(--a)"></span><div class="c"><b>11 februari 2025</b><span>Inga avvikelser · 6 punkter godkända</span></div><span class="st" style="color:var(--a)">Godkänd</span><span class="chev">›</span></div>
+  </div>
+
+  <div class="label">Verksamhetens svar</div>
+  <div class="group">
+    <div class="reply">
+      <div class="k">Pizzeria Vesuvio</div>
+      <p>”Bristerna från kontrollen i september är åtgärdade. Ny rutin för temperaturkontroll infördes direkt.”</p>
+    </div>
+  </div>
+
+  <div class="foot">Källa: Malmö stad · öppna data (CC0) · betyg enligt Prikkos öppna metodik</div>
+</div>
+</body>
+</html>

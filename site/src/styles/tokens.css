@@ -1,0 +1,152 @@
+/* Prikko — designsystem (tokens).
+   Källa: docs/11_master_projektbibel.md §14. Ändra aldrig värden här utan att
+   uppdatera bibeln — det här är sanningen för hela sajten.
+   Inter laddas självhostat via @fontsource-variable/inter (ingen render-blockerande
+   Google Fonts-import: Core Web Vitals är en rankningssignal). */
+
+:root {
+  /* Brand */
+  --brand: #007BE0;            /* prikko-blå (exakt från Figma) */
+  --brand-ink: #0063B4;        /* mörkare för hover/text-på-ljust */
+
+  /* Ytor */
+  --canvas: #F5F5F7;           /* sidbakgrund (Apple-grå) */
+  --card: #FFFFFF;
+
+  /* Text */
+  --text: #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-muted: #A1A1A6;
+  --hairline: rgba(0, 0, 0, .08);
+
+  /* Betygsskala (färg = betydelse; kombineras ALLTID med bokstav + form) */
+  --grade-a: #0E7A4B;
+  --grade-b: #34C759;
+  --grade-c: #E3A008;
+  --grade-d: #E8730C;
+  --grade-e: #D0342C;
+  --grade-none: #8E8E93;       /* otillräckligt underlag — aldrig ett betyg */
+
+  /* Radier */
+  --r-card: 12px;
+  --r-control: 10px;
+  --r-pill: 999px;
+  --r-chip: 20px;              /* betygschip/ansiktsmärke */
+
+  /* Skuggor (sparsamt — annars hairline + luft) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .06);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, .12);
+
+  /* Spacing (4px-grid) */
+  --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-6: 24px; --s-8: 32px;  --s-12: 48px; --s-16: 64px;
+
+  /* Typografi */
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --fs-eyebrow: 12px;  --lh-eyebrow: 16px;
+  --fs-caption: 13px;  --lh-caption: 18px;
+  --fs-body-s: 14px;   --lh-body-s: 20px;
+  --fs-body: 17px;     --lh-body: 25px;
+  --fs-h-s: 21px;      --lh-h-s: 25px;
+  --fs-h: 24px;        --lh-h: 28px;
+  --fs-display: 40px;  --lh-display: 44px;
+
+  /* Layout */
+  --container: 1080px;
+  --readcol: 680px;
+}
+
+/* Reset (minimal) */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Bas */
+html {
+  background: var(--canvas);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: 400;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* VIKTER: använd endast 400 och 600 (Apple-disciplin, aldrig 700). */
+h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: -.022em; margin: 0; }
+h2 { font-size: var(--fs-h);       line-height: var(--lh-h);       font-weight: 600; letter-spacing: -.02em;  margin: 0; }
+h3 { font-size: var(--fs-h-s);     line-height: var(--lh-h-s);     font-weight: 600; margin: 0; }
+p  { margin: 0; }
+
+a { color: var(--brand); text-decoration: none; }
+a:hover { color: var(--brand-ink); text-decoration: underline; }
+
+img, svg { max-width: 100%; height: auto; }
+
+/* Fokus — tillgänglighet, aldrig borttagen */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hjälpklasser */
+.eyebrow {
+  font-size: var(--fs-eyebrow);
+  line-height: var(--lh-eyebrow);
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.caption { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+
+.container {
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: var(--s-4);
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  border-radius: var(--r-pill);
+  padding: 12px 22px;
+  font: 600 var(--fs-body-s)/1 var(--font-sans);
+  cursor: pointer;
+}
+.btn-primary:hover { background: var(--brand-ink); color: #fff; text-decoration: none; }
+
+/* Skärmläsare-only (för SEO-korrekta men visuellt dolda rubriker) */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

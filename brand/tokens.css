@@ -1,0 +1,82 @@
+/* Prikko — designsystem (tokens). Byt --brand mot exakt hex från Figma. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Brand */
+  --brand: #007BE0;            /* prikko-blå (exakt från Figma) */
+  --brand-ink: #0063B4;        /* mörkare för hover/text-på-ljust */
+
+  /* Ytor */
+  --canvas: #F5F5F7;           /* sidbakgrund (Apple-grå) */
+  --card: #FFFFFF;
+
+  /* Text */
+  --text: #1D1D1F;
+  --text-secondary: #6E6E73;
+  --text-muted: #A1A1A6;
+  --hairline: rgba(0,0,0,.08);
+
+  /* Betygsskala (färg = betydelse; kombineras ALLTID med bokstav + form) */
+  --grade-a: #0E7A4B;
+  --grade-b: #34C759;
+  --grade-c: #E3A008;
+  --grade-d: #E8730C;
+  --grade-e: #D0342C;
+
+  /* Radier */
+  --r-card: 12px;
+  --r-control: 10px;
+  --r-pill: 999px;
+  --r-chip: 20px;   /* betygschip/ansiktsmärke */
+
+  /* Skuggor (sparsamt — annars hairline + luft) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-pop: 0 8px 30px rgba(0,0,0,.12);
+
+  /* Spacing (4px-grid) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-6: 24px; --s-8: 32px; --s-12: 48px; --s-16: 64px;
+
+  /* Typografi */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --fs-eyebrow: 12px;  --lh-eyebrow: 16px;
+  --fs-caption: 13px;  --lh-caption: 18px;
+  --fs-body-s: 14px;   --lh-body-s: 20px;
+  --fs-body: 17px;     --lh-body: 25px;
+  --fs-h-s: 21px;      --lh-h-s: 25px;
+  --fs-h: 24px;        --lh-h: 28px;
+  --fs-display: 40px;  --lh-display: 44px;
+
+  /* Layout */
+  --container: 1080px;
+  --readcol: 680px;
+}
+
+/* Bas */
+html { background: var(--canvas); }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: 400;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: -.022em; margin: 0; }
+h2 { font-size: var(--fs-h);       line-height: var(--lh-h);       font-weight: 600; letter-spacing: -.02em;  margin: 0; }
+h3 { font-size: var(--fs-h-s);     line-height: var(--lh-h-s);     font-weight: 600; margin: 0; }
+
+/* Hjälpklasser */
+.eyebrow { font-size: var(--fs-eyebrow); font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--text-secondary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+
+.card { background: var(--card); border-radius: var(--r-card); box-shadow: var(--shadow-sm); }
+.btn-primary { background: var(--brand); color: #fff; border: 0; border-radius: var(--r-pill); padding: 12px 22px; font: 600 var(--fs-body-s)/1 var(--font-sans); cursor: pointer; }
+.btn-primary:hover { background: var(--brand-ink); }
+
+/* Betygschip — fyll med rätt --grade-* i markup/inline */
+.grade-chip { display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:var(--r-chip); color:#fff; font-weight:600; font-size:46px; }
+
+/* VIKTER: använd endast 400 och 600 (Apple-disciplin, aldrig 700). */

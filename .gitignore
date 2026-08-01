@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Byggartefakter
+dist/
+.astro/
+.output/
+.vercel/
+.wrangler/
+
+# Miljö och hemligheter — får ALDRIG committas
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Datadumpar från pipelinen (kan vara stora; hör hemma i Supabase/objektlagring)
+pipeline/data/raw/
+pipeline/data/interim/
+*.sqlite
+*.db
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
