@@ -1,14 +1,42 @@
 ---
 /**
- * Startsidan. Struktur enligt bibeln §13b: stor självsäker rubrik + EN
- * dominant sökruta (Ratsit/Zillow-mönstret), senare kompletterad med
- * IQAir-splitens karta till höger när data finns.
+ * Startsidan.
  *
- * OBS: inga påhittade siffror eller exempeldata får ligga här. Täckning
- * anges först när pipelinen levererar riktiga tal.
+ * Struktur enligt bibeln §13b: stor självsäker rubrik + EN dominant sökruta
+ * (Ratsit- och Zillow-mönstret), sedan ingångar till det folk faktiskt söker.
+ *
+ * Prioriteringen är styrd av SEO-dimensioneringen: leaderboards har verklig
+ * dragkraft ("sämsta restaurangen i [stad]" autocompletar i åtta städer),
+ * medan enskilda restaurangnamn inte söks alls. Därför får leaderboards
+ * plats högt upp och katalogen ligger bakom sökrutan.
+ *
+ * Inga påhittade siffror: allt som visas räknas ur den faktiska datan.
  */
 import Base from '../layouts/Base.astro';
-import { SITE } from '../lib/site';
+import FaceMark from '../components/FaceMark.astro';
+import {
+  MUNICIPALITY,
+  allEstablishments,
+  formatDate,
+  latestInspectionDate,
+} from '../lib/data';
+import { SITE, VERDICT } from '../lib/site';
+
+const all = allEstablishments();
+const assessed = all.filter((e) => e.verdict !== null);
+const inspections = all.reduce((n, e) => n + e.inspections.length, 0);
+// Allvarliga först — det är det besökaren har mest nytta av att se.
+const severity = { major: 0, minor: 1, clean: 2 } as const;
+const withRemarks = assessed
+  .filter((e) => e.verdict !== 'clean')
+  .sort((a, b) => severity[a.verdict!] - severity[b.verdict!]);
+
+// Senast kontrollerade. Färskhet är en dokumenterad citeringsfaktor för
+// AI-svar, och det är också det enda på sidan som ändras av sig självt.
+const recent = [...assessed]
+  .filter((e) => latestInspectionDate(e))
+  .sort((a, b) => (latestInspectionDate(b)! > latestInspectionDate(a)! ? 1 : -1))
+  .slice(0, 6);
 
 const jsonLd = [
   {
@@ -18,6 +46,14 @@ const jsonLd = [
     url: SITE.url,
     inLanguage: 'sv-SE',
     description: SITE.description,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE.url}/sok?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
   },
   {
     '@context': 'https://schema.org',
@@ -29,81 +65,141 @@ const jsonLd = [
 ];
 ---
 
-<Base
-  title={SITE.name}
-  description={SITE.description}
-  jsonLd={jsonLd}
->
-  <section class="hero container">
-    <p class="eyebrow">Offentlig livsmedelskontroll, samlad</p>
-    <h1>Hur ren är din restaurang?</h1>
-    <p class="lede text-secondary">
-      Kommunerna kontrollerar restaurangernas hygien och resultaten är
-      offentliga — men de ligger utspridda hos 290 kommuner. Prikko samlar dem
-      och räknar om dem till ett jämförbart betyg.
-    </p>
+<Base title={SITE.name} description={SITE.description} jsonLd={jsonLd}>
+  <section class="hero">
+    <div class="container hero-inner">
+      <h1>Hur ren är restaurangen du tänkte gå till?</h1>
+      <p class="lede">
+        Kommunerna kontrollerar hygienen och resultaten är offentliga — men de
+        ligger utspridda hos 290 kommuner. Prikko samlar dem.
+      </p>
 
-    <form class="search" action="/sok" method="get" role="search">
-      <label for="q" class="visually-hidden">
-        Sök på restaurang, adress eller ort
-      </label>
-      <input
-        id="q"
-        name="q"
-        type="search"
-        placeholder="Sök på restaurang, adress eller ort"
-        autocomplete="off"
-      />
-      <button type="submit" class="btn-primary">Sök</button>
-    </form>
+      <form class="search" action="/sok" method="get" role="search">
+        <label for="q" class="visually-hidden">Sök restaurang eller adress</label>
+        <input
+          id="q"
+          name="q"
+          type="search"
+          placeholder="Sök restaurang, café eller adress"
+          autocomplete="off"
+        />
+        <button type="submit" class="btn-primary">Sök</button>
+      </form>
+
+      <p class="counts">
+        <strong>{all.length}</strong> verksamheter ·
+        <strong>{inspections}</strong> kontroller ·
+        <strong>{MUNICIPALITY.city}</strong>
+      </p>
+    </div>
   </section>
 
-  <section class="container how">
-    <h2>Så fungerar betyget</h2>
+  <section class="container block">
+    <div class="block-head">
+      <h2>Verksamheter med anmärkningar</h2>
+      <a href={`/${MUNICIPALITY.slug}/anmarkningar`}>Se hela listan</a>
+    </div>
+    <p class="block-lede text-secondary">
+      {withRemarks.length} av {assessed.length} bedömda verksamheter i
+      {' '}{MUNICIPALITY.city} har anmärkningar vid sin senaste kontroll.
+    </p>
+
+    <ul class="cards">
+      {withRemarks.slice(0, 3).map((e) => (
+        <li class="card-item">
+          <a href={`/${MUNICIPALITY.slug}/${e.slug}`}>
+            <FaceMark verdict={e.verdict} size={40} />
+            <span class="card-body">
+              <b>{e.name}</b>
+              <span class="text-secondary">{e.address}</span>
+              <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
+                {VERDICT[e.verdict!].label}
+              </span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="container block">
+    <div class="block-head">
+      <h2>Senast kontrollerade</h2>
+      <a href={`/${MUNICIPALITY.slug}`}>Alla i {MUNICIPALITY.city}</a>
+    </div>
+
+    <ul class="rows">
+      {recent.map((e) => (
+        <li>
+          <a href={`/${MUNICIPALITY.slug}/${e.slug}`}>
+            <FaceMark verdict={e.verdict} size={32} />
+            <span class="row-body">
+              <b>{e.name}</b>
+              <span class="text-secondary">
+                {formatDate(latestInspectionDate(e)!)}
+              </span>
+            </span>
+            <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
+              {VERDICT[e.verdict!].label}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="container block how">
+    <h2>Så fungerar bedömningen</h2>
     <div class="steps">
-      <article class="card step">
-        <h3>Offentliga kontroller</h3>
+      <article>
+        <h3>Officiella kontroller</h3>
         <p class="text-secondary">
           Underlaget är kommunernas egna kontrollrapporter — allmänna
           handlingar, inte tyckande och inte recensioner.
         </p>
       </article>
-      <article class="card step">
-        <h3>Normaliserat betyg</h3>
+      <article>
+        <h3>Tre nivåer</h3>
         <p class="text-secondary">
-          Kommuner bedömer olika. Vi räknar om resultaten till en gemensam
-          skala så att två restauranger i olika städer går att jämföra.
+          Vi speglar myndighetens egen skala: inga anmärkningar, mindre
+          brister eller allvarliga brister. Saknas underlag bedömer vi inte.
         </p>
       </article>
-      <article class="card step">
+      <article>
         <h3>Öppen metodik</h3>
         <p class="text-secondary">
-          Hela beräkningen är publicerad. Verksamheten har rätt att svara, och
-          svaret publiceras oredigerat bredvid betyget.
+          Hela beräkningen är publicerad, och verksamheten har rätt att svara.
+          Svaret publiceras oredigerat.
         </p>
       </article>
     </div>
-    <p class="method-link">
-      <a href="/metodik">Läs hela metodiken</a>
-    </p>
+    <p class="method-link"><a href="/metodik">Läs hela metodiken</a></p>
   </section>
 </Base>
 
 <style>
   .hero {
-    padding-block: var(--s-16) var(--s-12);
-    max-width: var(--readcol);
-    margin-inline: auto;
+    background: var(--card);
+    border-bottom: 1px solid var(--hairline);
+    padding-block: var(--s-16);
+  }
+
+  .hero-inner {
+    max-width: 660px;
     text-align: center;
   }
 
-  .hero h1 {
-    margin-block: var(--s-3) var(--s-4);
+  h1 {
+    font-size: 44px;
+    line-height: 48px;
+    letter-spacing: -.028em;
   }
 
   .lede {
+    margin-top: var(--s-4);
     font-size: var(--fs-body);
     line-height: var(--lh-body);
+    color: var(--text-secondary);
   }
 
   .search {
@@ -115,7 +211,7 @@ const jsonLd = [
   .search input {
     flex: 1;
     min-width: 0;
-    height: 50px;
+    height: 54px;
     padding-inline: var(--s-4);
     font-family: inherit;
     font-size: var(--fs-body);
@@ -125,64 +221,101 @@ const jsonLd = [
     border-radius: var(--r-control);
   }
 
-  .search input::placeholder {
+  .search input::placeholder { color: var(--text-muted); }
+  .search .btn-primary { padding-inline: var(--s-8); }
+
+  .counts {
+    margin-top: var(--s-4);
+    font-size: var(--fs-caption);
     color: var(--text-muted);
   }
 
-  .search .btn-primary {
-    padding-inline: var(--s-6);
-  }
+  .counts strong { font-weight: 600; color: var(--text-secondary); }
 
-  .how {
-    padding-bottom: var(--s-12);
-  }
+  .block { padding-block: var(--s-12) 0; max-width: 880px; }
 
-  .how h2 {
-    text-align: center;
-    margin-bottom: var(--s-6);
-  }
-
-  .steps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  .block-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     gap: var(--s-4);
   }
 
-  .step {
-    padding: var(--s-6);
-  }
+  .block-head a { font-size: var(--fs-body-s); }
 
-  .step h3 {
-    margin-bottom: var(--s-2);
-  }
-
-  .step p {
+  .block-lede {
+    margin-top: var(--s-2);
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    line-height: 21px;
   }
 
-  .method-link {
-    text-align: center;
+  .cards {
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--s-3);
+  }
+
+  .card-item a {
+    display: flex;
+    gap: var(--s-3);
+    align-items: flex-start;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+    height: 100%;
+    color: var(--text);
+  }
+
+  .card-item a:hover { text-decoration: none; box-shadow: var(--shadow-pop); }
+
+  .card-body { min-width: 0; }
+  .card-body b { display: block; font-size: var(--fs-body-s); font-weight: 600; }
+  .card-body > span { display: block; font-size: var(--fs-caption); }
+  .card-body .verdict { margin-top: var(--s-2); font-weight: 600; }
+
+  .rows { list-style: none; margin: var(--s-4) 0 0; padding: 0; }
+  .rows li { border-top: 1px solid var(--hairline); }
+
+  .rows a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    color: var(--text);
+  }
+
+  .rows a:hover { text-decoration: none; }
+  .rows a:hover b { color: var(--brand); }
+
+  .row-body { flex: 1; min-width: 0; }
+  .row-body b { display: block; font-size: var(--fs-body-s); font-weight: 600; }
+  .row-body span { font-size: var(--fs-caption); }
+
+  .verdict { font-size: var(--fs-caption); font-weight: 600; }
+
+  .how { padding-bottom: var(--s-12); }
+  .how h2 { text-align: center; }
+
+  .steps {
     margin-top: var(--s-6);
-    font-size: var(--fs-body-s);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--s-6);
   }
+
+  .steps h3 { font-size: var(--fs-body); }
+  .steps p { margin-top: var(--s-2); font-size: var(--fs-body-s); line-height: 21px; }
+
+  .method-link { text-align: center; margin-top: var(--s-8); font-size: var(--fs-body-s); }
 
   @media (max-width: 640px) {
-    .hero {
-      padding-block: var(--s-12) var(--s-8);
-    }
-
-    .hero h1 {
-      font-size: 32px;
-      line-height: 36px;
-    }
-
-    .search {
-      flex-direction: column;
-    }
-
-    .search .btn-primary {
-      height: 50px;
-    }
+    .hero { padding-block: var(--s-12); }
+    h1 { font-size: 32px; line-height: 36px; }
+    .search { flex-direction: column; }
+    .search .btn-primary { height: 50px; }
   }
 </style>

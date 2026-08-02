@@ -7,6 +7,13 @@
  * panelen bär det man vill ha kvar i blickfånget — bedömningen, kartan och
  * åtgärderna. En centrerad enkolumn ser generisk ut och slösar bredden.
  *
+ * Titeln leder med NAKET NAMN + ORT, inte med "hygienkontroll". Skälet är
+ * mätt: i Storbritannien, världens mognaste marknad för hygienbetyg, ger
+ * "food hygiene rating" 54,7 i söktrend medan "nandos food hygiene rating"
+ * ger 0,04 — under 0,1 % för en av landets största kedjor. Ingen söker på
+ * "[restaurang] hygien". Sidan måste vinna på namnet, som hitta.se gör, och
+ * hygienen är differentieraren i beskrivningen.
+ *
  * Två SEO/AEO-krav styr innehållet:
  *
  * 1. Led med svaret. Första meningen ska vara självbärande och citerbar.
@@ -104,7 +111,7 @@ const breadcrumbs = {
 ---
 
 <Base
-  title={`${e.name} — hygienkontroll`}
+  title={`${e.name}, ${MUNICIPALITY.city}`}
   description={description}
   noindex={!indexable}
   jsonLd={[jsonLd, breadcrumbs]}
