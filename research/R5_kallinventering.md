@@ -128,17 +128,50 @@ korrigera sin position via rättelsefunktionen.
 
 ## Kartlagd, ej inläst
 
-### Örebro — 1 234 verksamheter, NÄSTA ATT BYGGA
+### Örebro — 1 234 verksamheter, NÄSTA ATT BYGGA — RIKASTE KÄLLAN
+
+Kartlagd i sin helhet 2026-08-02. Tre steg:
+
 ```
-GET /rest-api/foodreport/search          hela listan, utan parametrar
-    → [{Registrerades, Objektsnamn, Typ, AnlaggningId, Adress}]
-Resultat per verksamhet:
-    https://www.orebro.se/foretag--naringsliv/driva-foretag/livsmedelsverksamhet
-    /resultat-fran-livsmedelskontroller/resu…?facility=<AnlaggningId>
+1) GET /rest-api/foodreport/search        hela listan, utan parametrar
+     → [{Registrerades, Objektsnamn, Typ, AnlaggningId, Adress}]   1 234 st
+
+2) GET …/resultat-fran-livsmedelskontroller---verksamhet.html?facility=<id>
+     → HTML med "const INSPECTIONS = [{id, reason, date, recent}]" inbäddat
+
+3) GET /rest-api/foodreport/reports/<inspectionId>
+     → [{Nr, Beskrivning, Kontrollomrade, Anmarkning,
+         TillsynsDatum, "Anmald-oanmald"}]
 ```
-Listan är ren JSON och kräver inga parametrar. Kontrollresultaten renderas på
-en separat sida per verksamhet, alltså ett anrop per objekt som i Linköping
-och Uppsala. Adress finns; koordinater inte kontrollerade.
+
+**Steg 3 är inte gissad.** Den står i kommunens egen `food-report-page.js`.
+Sökvägen `/rest-api/foodreport/inspection/<id>` finns också, svarar 200 och
+returnerar alltid en tom lista — 0 av 52 testade kontroller gav något. Den
+ser ut att fungera och gör det inte. Använd `/reports/`.
+
+Varför källan är den bästa hittills:
+
+- **Både godkända och brustna kontrollpunkter redovisas.** Stockholm listar
+  bara avvikelser; Örebro ger hela den kontrollerade ytan, vilket gör det
+  möjligt att visa vad som faktiskt granskats.
+- **Kontrollområde och punktkod följer Livsmedelsverkets A–Q**, samma
+  indelning som `LEGISLATION_AREAS` i sajten redan använder.
+- **Kvarstår-etikett finns**, tillsammans med `Åtgärdad` och `Avskriven`.
+  Örebro blir därmed tredje källan med etiketten, efter Linköping och Uppsala.
+- `Anmald-oanmald` fyller fältet `prenotified`, som annars mest står tomt.
+
+Observerade värden i `Anmarkning`: `Utan avvikelse`, `Avvikelse`, `Åtgärdad`,
+`Kvarstår`, `Avskriven`. Legenden på kommunens sida beskriver dessutom
+`Handläggning pågår` — men det är inget källvärde utan något sidans kod
+räknar fram: kontroller nyare än 30 dagar döljs och märks så. **Vår adaptern
+måste göra samma sak**, annars publicerar vi resultat innan verksamheten
+hunnit yttra sig, vilket är hela skälet till fördröjningen.
+
+Kostnad: 1 anrop för listan, 1 234 för verksamhetssidorna och cirka 8 000 för
+kontrollpunkterna. Det är den dyraste källan hittills — men också den enda
+utanför Linköping som ger full detaljnivå.
+
+Koordinater saknas; adress finns.
 
 ### Göteborg — 4 786 verksamheter, MEN INGA RESULTAT
 ```
