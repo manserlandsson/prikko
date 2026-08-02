@@ -24,6 +24,16 @@ interface Props {
   ogImage?: string;
   /** ISO-datum då sidans DATA senast uppdaterades (färskhet = AEO-signal). */
   dataUpdated?: string;
+  /**
+   * Absoluta URL:er till föregående/nästa sida i en sidindelad serie.
+   *
+   * Google säger sig inte längre använda rel=prev/next som indexeringssignal,
+   * men Bing gör det — och Bing driver ChatGPT:s webbsökning, vilket är en
+   * uttalad kanal för oss (bibeln §6b). Taggarna kostar två rader och gör
+   * dessutom seriens ordning explicit för varje annan läsare av sidan.
+   */
+  prev?: string;
+  next?: string;
 }
 
 const {
@@ -33,6 +43,8 @@ const {
   jsonLd,
   ogImage = '/og-default.png',
   dataUpdated,
+  prev,
+  next,
 } = Astro.props;
 
 // Kanonisk URL: alltid utan query/hash, alltid mot produktionsdomänen.
@@ -56,6 +68,8 @@ const structuredData = jsonLd
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {prev && <link rel="prev" href={prev} />}
+    {next && <link rel="next" href={next} />}
 
     {noindex && <meta name="robots" content="noindex, follow" />}
 

@@ -1,0 +1,97 @@
+---
+/**
+ * Kommunhubbens lista. Delas av sida 1 (/[kommun]) och resten
+ * (/[kommun]/sida/[n]) — markup får inte glida isär mellan dem.
+ */
+import FaceRef from './FaceRef.astro';
+import FaceSprite from './FaceSprite.astro';
+import { formatDate, isIndexable, latestInspectionDate, type Establishment } from '../lib/data';
+import { VERDICT } from '../lib/site';
+
+interface Props {
+  items: Establishment[];
+  kommunSlug: string;
+}
+
+const { items, kommunSlug } = Astro.props;
+---
+
+<FaceSprite />
+
+<ul class="list">
+  {items.map((e) => {
+    const date = latestInspectionDate(e);
+    return (
+      <li class="item card">
+        <a href={`/${kommunSlug}/${e.slug}`} rel={isIndexable(e) ? undefined : 'nofollow'}>
+          <FaceRef verdict={e.verdict} size={38} />
+          <span class="info">
+            <b>{e.name}</b>
+            <span class="meta text-secondary">
+              {/* Karlstad publicerar ingen adress. Utan filtret blir raden
+                  " · kontrollerad 17 juni 2026" med en hängande punkt. */}
+              {[e.address, date && `kontrollerad ${formatDate(date)}`].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+          <span
+            class="verdict"
+            style={`color: ${e.verdict ? VERDICT[e.verdict].colorVar : 'var(--verdict-none-ink)'}`}
+          >
+            {e.verdict ? VERDICT[e.verdict].label : 'Ingen kontroll'}
+          </span>
+        </a>
+      </li>
+    );
+  })}
+</ul>
+
+<style>
+  .list {
+    list-style: none;
+    margin: var(--s-8) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .item a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    color: var(--text);
+  }
+
+  .item a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
+    border-radius: var(--r-card);
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .info b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .meta {
+    font-size: var(--fs-caption);
+  }
+
+  .verdict {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 560px) {
+    .verdict { display: none; }
+  }
+</style>

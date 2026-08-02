@@ -1,0 +1,40 @@
+---
+/** Anmärkningar, sida 2 och framåt. Sida 1 bor på seriens rot. */
+import RemarkHub from '../../../../components/RemarkHub.astro';
+import {
+  establishments,
+  municipalities,
+  municipalityRemarks,
+  sourceFor,
+} from '../../../../lib/data';
+import { slicePage, tailPages } from '../../../../lib/pagination';
+
+export async function getStaticPaths() {
+  return municipalities().flatMap((m) => {
+    const listed = municipalityRemarks(m.slug);
+    return tailPages(listed.length).map((n) => ({
+      params: { kommun: m.slug, page: String(n) },
+      props: { kommun: m, n },
+    }));
+  });
+}
+
+const { kommun, n } = Astro.props;
+const listed = municipalityRemarks(kommun.slug);
+const page = slicePage(listed, n);
+const assessed = establishments(kommun.slug).filter((e) => e.verdict !== null).length;
+const major = listed.filter((e) => e.verdict === 'major').length;
+const source = sourceFor(kommun.slug)!;
+---
+
+<RemarkHub
+  kommun={kommun}
+  items={page.items}
+  currentPage={page.currentPage}
+  lastPage={page.lastPage}
+  start={page.start}
+  total={page.total}
+  assessed={assessed}
+  major={major}
+  fetchedAt={source.fetchedAt}
+/>

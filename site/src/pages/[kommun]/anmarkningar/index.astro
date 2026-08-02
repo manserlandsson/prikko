@@ -1,0 +1,37 @@
+---
+/** Anmärkningar, sida 1. Allt gemensamt bor i RemarkHub.astro. */
+import RemarkHub from '../../../components/RemarkHub.astro';
+import {
+  establishments,
+  municipalities,
+  municipalityRemarks,
+  sourceFor,
+} from '../../../lib/data';
+import { slicePage } from '../../../lib/pagination';
+
+export async function getStaticPaths() {
+  return municipalities().map((m) => ({
+    params: { kommun: m.slug },
+    props: { kommun: m },
+  }));
+}
+
+const { kommun } = Astro.props;
+const listed = municipalityRemarks(kommun.slug);
+const page = slicePage(listed, 1);
+const assessed = establishments(kommun.slug).filter((e) => e.verdict !== null).length;
+const major = listed.filter((e) => e.verdict === 'major').length;
+const source = sourceFor(kommun.slug)!;
+---
+
+<RemarkHub
+  kommun={kommun}
+  items={page.items}
+  currentPage={page.currentPage}
+  lastPage={page.lastPage}
+  start={page.start}
+  total={page.total}
+  assessed={assessed}
+  major={major}
+  fetchedAt={source.fetchedAt}
+/>

@@ -1,0 +1,29 @@
+---
+/**
+ * Bedömningsmärke som pekar på sidans sprite (se FaceSprite.astro).
+ *
+ * Använd i listor. För ett enstaka märke — verksamhetens egen sida, en
+ * kartnål — använd FaceMark, som är fristående och kan rita box-varianten.
+ * Kräver att FaceSprite ligger någonstans i samma dokument.
+ */
+import { FACE_SPRITE_ID, faceKey } from '../lib/face';
+import type { VerdictOrNone } from '../lib/site';
+
+interface Props {
+  verdict: VerdictOrNone;
+  size?: number;
+}
+
+const { verdict, size = 38 } = Astro.props;
+---
+
+<svg class="face" width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" focusable="false"
+  ><use href={`#${FACE_SPRITE_ID}-${faceKey(verdict)}`} /></svg
+>
+
+<style>
+  .face {
+    display: block;
+    flex-shrink: 0;
+  }
+</style>

@@ -1,0 +1,135 @@
+---
+/**
+ * Sidnavigering.
+ *
+ * Rena <a>-element. Inget JavaScript, inga knappar som byter innehåll på
+ * plats — varje sida i serien har en egen URL som går att länka, dela,
+ * bokmärka och indexera. Tangentbord fungerar därför gratis: det är länkar.
+ *
+ * Föregående/nästa ligger först och sist i DOM-ordningen så att tabbordningen
+ * följer den visuella ordningen.
+ */
+import { pageHref, pageNumbers } from '../lib/pagination';
+
+interface Props {
+  /** Seriens rot, t.ex. "/stockholm" eller "/stockholm/anmarkningar". */
+  base: string;
+  current: number;
+  last: number;
+  /** Vad serien listar, för skärmläsarens etiketter. */
+  label: string;
+}
+
+const { base, current, last, label } = Astro.props;
+const numbers = pageNumbers(current, last);
+---
+
+{last > 1 && (
+  <nav class="pager" aria-label={`Sidnavigering, ${label}`}>
+    <a
+      class="step"
+      href={current > 1 ? pageHref(base, current - 1) : undefined}
+      rel={current > 1 ? 'prev' : undefined}
+      aria-disabled={current > 1 ? undefined : 'true'}
+    >
+      <span aria-hidden="true">‹</span> Föregående
+    </a>
+
+    <ol class="numbers">
+      {numbers.map((n) =>
+        n === null ? (
+          <li class="gap" aria-hidden="true">…</li>
+        ) : (
+          <li>
+            <a
+              href={pageHref(base, n)}
+              aria-label={`Sida ${n}`}
+              aria-current={n === current ? 'page' : undefined}
+            >{n}</a>
+          </li>
+        ),
+      )}
+    </ol>
+
+    <a
+      class="step"
+      href={current < last ? pageHref(base, current + 1) : undefined}
+      rel={current < last ? 'next' : undefined}
+      aria-disabled={current < last ? undefined : 'true'}
+    >
+      Nästa <span aria-hidden="true">›</span>
+    </a>
+  </nav>
+)}
+
+<style>
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-8);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .numbers {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    order: 2;
+  }
+
+  .step { order: 1; }
+  .step + .numbers + .step { order: 3; }
+
+  .pager a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-1);
+    min-width: 40px;
+    height: 40px;
+    padding-inline: var(--s-3);
+    border-radius: var(--r-control);
+    font-size: var(--fs-body-s);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+  }
+
+  .pager a:hover {
+    text-decoration: none;
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .pager a[aria-current='page'] {
+    background: var(--brand);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Ändlägena får inte försvinna — det gör hoppet i layouten värre än en
+     nedtonad etikett. De renderas utan href och tar därför ingen fokus. */
+  .pager a[aria-disabled='true'] {
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .gap {
+    color: var(--text-muted);
+    padding-inline: var(--s-1);
+    font-size: var(--fs-body-s);
+  }
+
+  @media (max-width: 560px) {
+    .pager { justify-content: center; }
+    .numbers { order: 1; width: 100%; justify-content: center; }
+    .step { order: 2; }
+    .step + .numbers + .step { order: 3; }
+  }
+</style>

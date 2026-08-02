@@ -1,0 +1,44 @@
+---
+/**
+ * Sprite för bedömningsmärket — läggs ut EN gång per sida, listorna pekar
+ * på den med <use>.
+ *
+ * Varför: på en kommunlista står märket bredvid varje rad. Inlinat är varje
+ * märke ~700 byte SVG, och Stockholms hubb hade 8 511 rader. Det var den
+ * enskilt största posten i ett 11 MB-dokument. Symbolerna nedan renderar
+ * pixelidentiskt med FaceMark round-varianten — samma banor, samma färger,
+ * de kommer ur samma modul.
+ *
+ * Bara den runda varianten finns här. Box-varianten bär gradienter och
+ * används en gång per sida, där lönar sig ingen sprite.
+ */
+import {
+  FACE_EYE_LEFT,
+  FACE_EYE_RIGHT,
+  FACE_KEYS,
+  FACE_MOUTH,
+  FACE_MOUTH_WIDTH,
+  FACE_RING,
+  FACE_SPRITE_ID,
+} from '../lib/face';
+---
+
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  {FACE_KEYS.map((key) => (
+    <symbol id={`${FACE_SPRITE_ID}-${key}`} viewBox="0 0 100 100">
+      <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff" stroke={FACE_RING[key]} stroke-width="7" />
+      <path d={FACE_EYE_LEFT} fill={FACE_RING[key]} />
+      <path d={FACE_EYE_RIGHT} fill={FACE_RING[key]} />
+      <path d={FACE_MOUTH[key]} stroke={FACE_RING[key]} stroke-width={FACE_MOUTH_WIDTH} stroke-linecap="round" fill="none" />
+    </symbol>
+  ))}
+</svg>
+
+<style>
+  .sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+</style>

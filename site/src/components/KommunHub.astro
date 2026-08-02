@@ -1,0 +1,193 @@
+---
+/**
+ * Kommunhubben — hela sidan, delad mellan sida 1 och resten av serien.
+ *
+ * Bär den interna länkgrafen: utan den här sidan är varje restaurangsida
+ * föräldralös, och Google hittar dem bara via sitemap — vilket är en svagare
+ * signal än en riktig länk från en sida med kontext.
+ *
+ * Sidan är indelad i riktiga sidor (se lib/pagination.ts). Sida 1 ligger på
+ * /[kommun] och har ingen egen /sida/1 — annars hade vi publicerat samma
+ * innehåll på två URL:er.
+ */
+import Base from '../layouts/Base.astro';
+import EstablishmentList from './EstablishmentList.astro';
+import Pagination from './Pagination.astro';
+import { formatNumber, type Establishment, type Municipality } from '../lib/data';
+import { pageUrl } from '../lib/pagination';
+import { SITE } from '../lib/site';
+
+interface Props {
+  kommun: Municipality;
+  /** Verksamheter på just den här sidan. */
+  items: Establishment[];
+  currentPage: number;
+  lastPage: number;
+  /** Ordningsnummer för första raden på sidan, 1-baserat. */
+  start: number;
+  /** Antal i hela kommunen, inte bara på sidan. */
+  total: number;
+  counts: { clean: number; minor: number; major: number; none: number };
+}
+
+const { kommun, items, currentPage, lastPage, start, total, counts } = Astro.props;
+
+const city = kommun.city;
+const base = `/${kommun.slug}`;
+const remarks = counts.minor + counts.major;
+
+// Titel och beskrivning måste skilja sig mellan sidorna i serien, annars
+// rapporterar Search Console dubbletter genom hela katalogen.
+const title =
+  currentPage === 1
+    ? `Hygienkontroller i ${city}`
+    : `Hygienkontroller i ${city} — sida ${currentPage} av ${lastPage}`;
+
+const description =
+  currentPage === 1
+    ? `Hygienkontroller för ${formatNumber(total)} restauranger och livsmedelsverksamheter i ${city}. ${formatNumber(remarks)} har anmärkningar vid senaste kontrollen.`
+    : `Verksamheter ${formatNumber(start)}–${formatNumber(start + items.length - 1)} av ${formatNumber(total)} i ${city}, i bokstavsordning. Sida ${currentPage} av ${lastPage}.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
+    ...(currentPage === 1
+      ? [{ '@type': 'ListItem', position: 2, name: kommun.name }]
+      : [
+          { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}${base}` },
+          { '@type': 'ListItem', position: 3, name: `Sida ${currentPage}` },
+        ]),
+  ],
+};
+
+const prev = currentPage > 1 ? pageUrl(base, currentPage - 1, SITE.url) : undefined;
+const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) : undefined;
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} prev={prev} next={next}>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      {currentPage > 1 && (
+        <>
+          <span aria-hidden="true">›</span>
+          <a href={base}>{city}</a>
+        </>
+      )}
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">{kommun.name}</p>
+      <h1>
+        Hygienkontroller i {city}
+        {currentPage > 1 && <span class="text-secondary"> — sida {currentPage}</span>}
+      </h1>
+      <p class="lede text-secondary">
+        {currentPage === 1 ? (
+          <>
+            {formatNumber(total)} verksamheter från {kommun.name}s livsmedelskontroll,
+            i bokstavsordning. Bedömningen speglar den senaste kontrollen.
+          </>
+        ) : (
+          <>
+            Verksamhet {formatNumber(start)}–{formatNumber(start + items.length - 1)} av
+            {' '}{formatNumber(total)} i {kommun.name}s livsmedelskontroll.
+          </>
+        )}
+      </p>
+    </header>
+
+    {currentPage === 1 && (
+      <>
+        <ul class="stats">
+          <li>
+            <b style="color: var(--verdict-clean-ink)">{formatNumber(counts.clean)}</b>
+            <span class="text-secondary">utan anmärkningar</span>
+          </li>
+          <li>
+            <b style="color: var(--verdict-minor-ink)">{formatNumber(counts.minor)}</b>
+            <span class="text-secondary">med brister</span>
+          </li>
+          <li>
+            <b style="color: var(--verdict-major-ink)">{formatNumber(counts.major)}</b>
+            <span class="text-secondary">med kvarstående brister</span>
+          </li>
+        </ul>
+
+        {remarks > 0 && (
+          <p class="jump">
+            {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
+                vill se det som avviker ska inte behöva bläddra sig fram. */}
+            <a href={`${base}/anmarkningar`}>
+              Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
+            </a>
+          </p>
+        )}
+      </>
+    )}
+
+    <EstablishmentList items={items} kommunSlug={kommun.slug} />
+
+    <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: 780px;
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .head h1 {
+    font-size: 32px;
+    line-height: 36px;
+    margin-top: var(--s-1);
+  }
+
+  .head h1 span {
+    font-weight: 400;
+  }
+
+  .lede {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-8);
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+  }
+
+  .stats b {
+    display: block;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats span {
+    font-size: var(--fs-caption);
+  }
+
+  .jump {
+    margin-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+</style>

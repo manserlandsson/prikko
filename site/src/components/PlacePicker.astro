@@ -1,0 +1,425 @@
+---
+/**
+ * Platsväljaren — sajtens sätt att byta kommun.
+ *
+ * Grundläget är ett <details>. Det är inte en genväg: elementet ger
+ * öppna/stäng, tangentbord och skärmläsarsemantik utan en rad JavaScript,
+ * och kommunlistan ligger i DOM:en som vanliga länkar. Utan skript fungerar
+ * väljaren alltså fullt ut som en meny, och Google följer länkarna. Sajten
+ * är noll-JS av princip; det som JavaScript lägger till här är bekvämlighet
+ * ovanpå något som redan går att använda.
+ *
+ * Skriptet tillför tre saker: sökfältet, platsknappen och en fokusfälla.
+ * De två första ligger i markup men dolda, så att de aldrig syns för någon
+ * som inte kan använda dem.
+ *
+ * Platsdelning utlöses ALDRIG av sidladdning. Webbläsarens tillståndsdialog
+ * som dyker upp oombedd är påträngande, och en besökare som möts av den
+ * innan hen sett något litar mindre på sajten efteråt. Den kommer bara när
+ * någon aktivt trycker på knappen.
+ */
+import { municipalities, municipalityPoints } from '../lib/data';
+
+const kommuner = municipalities();
+const points = municipalityPoints();
+---
+
+<details class="picker" data-picker>
+  <summary class="trigger">
+    <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+    </svg>
+    <span>Kommun</span>
+  </summary>
+
+  <div class="panel" data-panel>
+    <p class="eyebrow head">Välj kommun</p>
+
+    <div class="tools" hidden data-tools>
+      <label class="visually-hidden" for="picker-q">Sök kommun</label>
+      <input
+        id="picker-q"
+        type="search"
+        placeholder="Sök kommun"
+        autocomplete="off"
+        data-search
+      />
+      <button type="button" class="locate" data-locate>
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <circle cx="10" cy="10" r="3.2" stroke="currentColor" stroke-width="1.6" fill="none" />
+          <circle cx="10" cy="10" r="6.6" stroke="currentColor" stroke-width="1.6" fill="none" />
+          <path d="M10 1.2v2.2M10 16.6v2.2M1.2 10h2.2M16.6 10h2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        Använd min plats
+      </button>
+    </div>
+
+    <p class="message" role="status" aria-live="polite" hidden data-message></p>
+
+    <ul class="kommuner" data-list>
+      {kommuner.map((m) => (
+        <li data-name={m.city.toLowerCase()} data-slug={m.slug}>
+          <a href={`/${m.slug}`}>
+            <span class="city">{m.city}</span>
+            <span class="admin text-muted">{m.name}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <p class="empty" hidden data-empty>Ingen kommun matchar sökningen.</p>
+
+    <p class="foot text-muted">
+      Prikko täcker {kommuner.length} {kommuner.length === 1 ? 'kommun' : 'kommuner'} i dag.
+      <a href="/om">Fler tillkommer efterhand</a>.
+    </p>
+  </div>
+</details>
+
+<script type="application/json" data-points set:html={JSON.stringify(points)} />
+
+<style>
+  .picker {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 36px;
+    padding-inline: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    font-size: var(--fs-body-s);
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  /* Safari ritar en egen triangel på summary. */
+  .trigger::-webkit-details-marker { display: none; }
+
+  .trigger:hover { border-color: var(--text-muted); }
+
+  .glyph {
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+  }
+
+  /* Det svävande lagret. Här — och bara här — får ytan vara genomskinlig:
+     inget av det som ligger under bär betydelse, och glaset markerar att
+     lagret ligger ovanpå sidan snarare än i den. Aldrig bakom brödtext och
+     aldrig bakom ett hygienbetyg, där kontrast går före effekt. */
+  .panel {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    right: 0;
+    z-index: 50;
+    width: 340px;
+    max-width: calc(100vw - var(--s-8));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    background: color-mix(in srgb, var(--card) 82%, transparent);
+    /* Skriv ALDRIG -webkit-backdrop-filter för hand här. Byggets
+       CSS-optimerare slår ihop de två deklarationerna och behåller bara
+       prefixvarianten, som Chrome inte känner igen — resultatet blir ett
+       halvgenomskinligt lager utan oskärpa, med sidans text läsbar rakt
+       igenom kommunnamnen. Låt verktyget sätta prefixen. */
+    backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* Ingen backdrop-filter → ogenomskinligt kort. Halvgenomskinligt utan
+     oskärpa är oläsligt, inte "nästan lika bra". */
+  @supports not (backdrop-filter: blur(1px)) {
+    .panel { background: var(--card); }
+  }
+
+  .head { margin-bottom: var(--s-3); }
+
+  .tools {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-bottom: var(--s-3);
+  }
+
+  .tools input {
+    width: 100%;
+    height: 40px;
+    padding-inline: var(--s-3);
+    font-family: inherit;
+    font-size: var(--fs-body-s);
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+  }
+
+  .tools input::placeholder { color: var(--text-muted); }
+
+  .locate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    height: 40px;
+    padding-inline: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    font: 400 var(--fs-body-s)/1 var(--font-sans);
+    color: var(--brand);
+    cursor: pointer;
+  }
+
+  .locate:hover { border-color: var(--brand); }
+  .locate:disabled { color: var(--text-muted); cursor: default; }
+
+  .locate svg { width: 16px; height: 16px; }
+
+  .message {
+    margin-bottom: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--brand) 7%, var(--card));
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text);
+  }
+
+  .kommuner {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .kommuner a {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  .kommuner a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+
+  .city { font-size: var(--fs-body-s); font-weight: 600; }
+  .admin { font-size: var(--fs-eyebrow); }
+
+  .empty,
+  .foot {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .foot {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .empty { padding: var(--s-2) var(--s-3); }
+
+  @media (max-width: 480px) {
+    .trigger span { display: none; }
+    .trigger { padding-inline: var(--s-2); }
+    .panel { width: calc(100vw - var(--s-4) * 2); right: calc(var(--s-4) * -1); }
+  }
+</style>
+
+<script>
+  /**
+   * Progressiv förstärkning av platsväljaren. Allt här är sådant som inte
+   * går att göra utan skript — markupen ovanför fungerar utan.
+   */
+  const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
+  if (picker) {
+    const summary = picker.querySelector('summary')!;
+    const panel = picker.querySelector<HTMLElement>('[data-panel]')!;
+    const tools = picker.querySelector<HTMLElement>('[data-tools]')!;
+    const search = picker.querySelector<HTMLInputElement>('[data-search]')!;
+    const locate = picker.querySelector<HTMLButtonElement>('[data-locate]')!;
+    const message = picker.querySelector<HTMLElement>('[data-message]')!;
+    const list = picker.querySelector<HTMLElement>('[data-list]')!;
+    const empty = picker.querySelector<HTMLElement>('[data-empty]')!;
+    const items = Array.from(list.querySelectorAll<HTMLLIElement>('li'));
+
+    // Skriptet kör — nu får de skriptberoende kontrollerna synas.
+    tools.hidden = false;
+    summary.setAttribute('aria-expanded', 'false');
+
+    function say(text: string) {
+      message.textContent = text;
+      message.hidden = false;
+    }
+
+    // --- Öppna och stäng -----------------------------------------------
+
+    picker.addEventListener('toggle', () => {
+      summary.setAttribute('aria-expanded', String(picker.open));
+      if (picker.open) {
+        search.focus();
+      } else {
+        search.value = '';
+        filter('');
+        message.hidden = true;
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      if (picker.open && !picker.contains(event.target as Node)) picker.open = false;
+    });
+
+    picker.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        picker.open = false;
+        summary.focus();
+        return;
+      }
+      if (event.key !== 'Tab' || !picker.open) return;
+
+      // Fokusfälla: lagret ligger ovanpå sidan, och att tabba ut ur det utan
+      // att stänga det lämnar användaren med fokus på något osynligt.
+      const focusable = [
+        summary,
+        ...panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled])',
+        ),
+      ].filter((el) => el.offsetParent !== null || el === summary);
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    // --- Sök i listan ---------------------------------------------------
+
+    function normalise(s: string) {
+      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    function filter(term: string) {
+      const q = normalise(term.trim());
+      let shown = 0;
+      for (const li of items) {
+        const hit = !q || normalise(li.dataset.name || '').includes(q);
+        li.hidden = !hit;
+        if (hit) shown++;
+      }
+      empty.hidden = shown > 0;
+    }
+
+    search.addEventListener('input', () => filter(search.value));
+
+    // Enter i sökfältet går till första träffen — annars måste man byta hand
+    // mellan tangentbord och mus för att avsluta något man började skriva.
+    search.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const first = items.find((li) => !li.hidden)?.querySelector('a');
+      if (first) first.click();
+    });
+
+    // --- Använd min plats -----------------------------------------------
+
+    interface Point { slug: string; city: string; lat: number; lng: number }
+
+    const pointsEl = document.querySelector('[data-points]');
+    const points: Point[] = pointsEl ? JSON.parse(pointsEl.textContent || '[]') : [];
+
+    /** Avstånd i meter (haversine). Samma formel som lib/data.ts. */
+    function distance(aLat: number, aLng: number, bLat: number, bLng: number) {
+      const R = 6371000;
+      const rad = (d: number) => (d * Math.PI) / 180;
+      const dLat = rad(bLat - aLat);
+      const dLng = rad(bLng - aLng);
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    /** Så långt bort en kommun får ligga för att räknas som "din". Grovt
+     *  tilltaget: en kommun är stor, och punkten är verksamheternas median,
+     *  inte en gräns. */
+    const NEAR_METRES = 40000;
+
+    if (!('geolocation' in navigator)) {
+      locate.disabled = true;
+      locate.title = 'Din webbläsare kan inte dela plats.';
+    }
+
+    locate.addEventListener('click', () => {
+      if (!('geolocation' in navigator)) {
+        say('Din webbläsare kan inte dela din plats. Välj kommun i listan i stället.');
+        return;
+      }
+      if (points.length === 0) {
+        say('Vi kan inte matcha en plats mot kommun just nu. Välj i listan i stället.');
+        return;
+      }
+
+      locate.disabled = true;
+      say('Hämtar din plats…');
+
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          locate.disabled = false;
+          let nearest = points[0];
+          let best = Infinity;
+          for (const p of points) {
+            const d = distance(coords.latitude, coords.longitude, p.lat, p.lng);
+            if (d < best) {
+              best = d;
+              nearest = p;
+            }
+          }
+
+          if (best <= NEAR_METRES) {
+            say(`Närmast dig: ${nearest.city}. Öppnar…`);
+            location.href = `/${nearest.slug}`;
+            return;
+          }
+
+          // Utanför täckningen. Att säga vad som ÄR närmast är mer användbart
+          // än att bara konstatera att vi inte hittade något.
+          const km = Math.round(best / 1000);
+          say(
+            `Vi har ingen kommun där du är än. Närmast dig är ${nearest.city}, ungefär ${km} km bort.`,
+          );
+        },
+        (error) => {
+          locate.disabled = false;
+          if (error.code === error.PERMISSION_DENIED) {
+            say('Du delade inte din plats. Välj kommun i listan i stället.');
+          } else if (error.code === error.TIMEOUT) {
+            say('Det tog för lång tid att hämta din plats. Försök igen, eller välj i listan.');
+          } else {
+            say('Din plats gick inte att avgöra. Välj kommun i listan i stället.');
+          }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      );
+    });
+  }
+</script>

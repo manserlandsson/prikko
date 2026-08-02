@@ -1,0 +1,42 @@
+---
+/**
+ * Kommunhubb, sida 2 och framåt.
+ *
+ * Sida 1 genereras INTE här. Den bor på /[kommun], och att också publicera
+ * den på /[kommun]/sida/1 hade varit samma innehåll på två URL:er.
+ */
+import KommunHub from '../../../components/KommunHub.astro';
+import { establishments, municipalities, municipalityListing } from '../../../lib/data';
+import { slicePage, tailPages } from '../../../lib/pagination';
+
+export async function getStaticPaths() {
+  return municipalities().flatMap((m) => {
+    const listing = municipalityListing(m.slug);
+    return tailPages(listing.length).map((n) => ({
+      params: { kommun: m.slug, page: String(n) },
+      props: { kommun: m, n },
+    }));
+  });
+}
+
+const { kommun, n } = Astro.props;
+const all = establishments(kommun.slug);
+const page = slicePage(municipalityListing(kommun.slug), n);
+
+const counts = {
+  clean: all.filter((e) => e.verdict === 'clean').length,
+  minor: all.filter((e) => e.verdict === 'minor').length,
+  major: all.filter((e) => e.verdict === 'major').length,
+  none: all.filter((e) => e.verdict === null).length,
+};
+---
+
+<KommunHub
+  kommun={kommun}
+  items={page.items}
+  currentPage={page.currentPage}
+  lastPage={page.lastPage}
+  start={page.start}
+  total={page.total}
+  counts={counts}
+/>

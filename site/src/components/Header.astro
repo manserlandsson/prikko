@@ -7,8 +7,12 @@
  * finns även i brand/prikko-wordmark.svg — ändras den ena ska den andra följa.
  *
  * Länkar alltid till roten. Googles interna länkgraf börjar här.
+ *
+ * Platsväljaren ligger längst till höger. Att byta kommun är den vanligaste
+ * saken någon vill göra härifrån, och den låg tidigare inte någonstans alls.
  */
 import { SITE } from '../lib/site';
+import PlacePicker from './PlacePicker.astro';
 ---
 
 <header>
@@ -35,6 +39,8 @@ import { SITE } from '../lib/site';
       <a href="/metodik">Metodik</a>
       <a href="/om">Om</a>
     </nav>
+
+    <PlacePicker />
   </div>
 </header>
 
@@ -83,5 +89,13 @@ import { SITE } from '../lib/site';
   nav a:hover {
     color: var(--text);
     text-decoration: none;
+  }
+
+  /* Under ~480 px får wordmark + väljare plats, men inte länkarna. De finns
+     kvar i sidfoten, som är fullständig. */
+  @media (max-width: 480px) {
+    nav { display: none; }
+    .bar { gap: var(--s-3); }
+    .bar :global(.picker) { margin-left: auto; }
   }
 </style>

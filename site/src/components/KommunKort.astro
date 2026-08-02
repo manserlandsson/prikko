@@ -1,0 +1,343 @@
+---
+/**
+ * Kommunkort — ingången till en kommun från startsidan.
+ *
+ * Foto med kommunens namn liggande på bilden över en bottenscrim, därunder en
+ * vit kropp med ett hårfint fördelningsband och två metarader. Kortet räknar
+ * inte själv: det tar en färdig `MunicipalitySummary` från `lib/data`, så att
+ * startsidan och kortet omöjligt kan visa olika tal.
+ *
+ * ── Varför inget kommunvapen ──────────────────────────────────────────────
+ * Svenska kommunvapen skyddas av lag (1970:498) om skydd för vapen och vissa
+ * andra officiella beteckningar. Ett vapen på kortet skulle antyda att
+ * kommunen står bakom Prikkos bedömningar — det gör den inte. Färgen kommer i
+ * stället ur fotot; se `scripts/palette.mjs`.
+ */
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+import { formatNumber, type MunicipalitySummary } from '../lib/data';
+import { VERDICT } from '../lib/site';
+
+interface Props {
+  kommun: MunicipalitySummary;
+  /** Sant för korten ovanför vikningen — hoppar över lazy-loading. */
+  eager?: boolean;
+}
+
+const { kommun, eager = false } = Astro.props;
+
+// --- foton ----------------------------------------------------------------
+// Upptäcks från filsystemet, precis som kommunerna i `db.ts`: lägg
+// `src/assets/stad/<slug>.jpg` (1400×788, mozjpeg q80) och kortet får bild.
+// Ingen lista i kod, inget att glömma uppdatera.
+const files = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/stad/*.jpg',
+  { eager: true },
+);
+const photos: Record<string, ImageMetadata> = Object.fromEntries(
+  Object.entries(files).map(([path, mod]) => [
+    path.split('/').pop()!.replace('.jpg', ''),
+    mod.default,
+  ]),
+);
+
+/**
+ * Härledda gradientfärger, utskrivna som "r g b" så CSS kan skriva
+ * `rgb(var(--deep) / .6)` och variera alpha utan att upprepa färgen.
+ *
+ * Värdena kommer från `node scripts/palette.mjs ../brand/<fil>.png`: k-means i
+ * CIELAB, en körning på hela bilden och en på nedre 45 % — den zon scrimen
+ * faktiskt ligger över. Kulören är bottenzonens mättnadsviktade medelkulör,
+ * ljusheten låst till 12 % / 24 % med verifierad kontrast mot vit text
+ * (16:1 respektive ~10:1, WCAG kräver 4,5:1).
+ *
+ * De ligger som konstanter och inte som ett byggsteg eftersom de ändras exakt
+ * lika ofta som fotot byts, alltså nästan aldrig. Scrimen kan inte bli lila:
+ * det finns inget lila i bilderna.
+ *
+ * Prövat och förkastat: att blanda in Prikko-blått i de här värdena för att
+ * få den genomgående tonen. Färgerna är så mörka (L 12 %) och så lågmättade
+ * (14–27 %) att deras egen kulör bara är ~10 RGB-enheter bred. Redan 5 %
+ * inblandad mättad blå är lika mycket kulör åt andra hållet, så Uppsalas
+ * varma brunsvart blir neutralt och vid 45 % landar alla sex på samma navy.
+ * Då är palette.mjs bortkastad. Den gemensamma tonen ligger i stället som ett
+ * eget lager över fotot — se `.scrim::after` i stilarna.
+ */
+const PALETTE: Record<string, { deep: string; mid: string }> = {
+  // Riddarholmen från luften. Nedre halvan är vatten och skuggor, entydigt
+  // blå — marinblå scrim. 209°, 27 %.
+  stockholm: { deep: '22 31 39', mid: '46 61 76' },
+  // Marknivå vid strömmande vatten. Nedre zonen är sten, jord och lövverk i
+  // skugga: varmt och lågmättat. 29°, 18 %.
+  linkoping: { deep: '36 30 25', mid: '71 61 51' },
+  // Förhöjd stadsvy i kvällsljus. Bottenzonen är lövverk och tegeltak i varmt
+  // motljus. 36°, 16 %.
+  uppsala: { deep: '35 32 26', mid: '70 63 53' },
+  // Vätterns strand. Bottenzonen är stadens tak och träd, inte sjön —
+  // därför varm och inte blå, trots att bilden minns som blå. 33°, 18 %.
+  jonkoping: { deep: '36 31 25', mid: '71 62 51' },
+  // Klarälven. Nedre 45 % är älvvatten som speglar sandbotten plus mörk
+  // trädrad: olivgrönt, inte himmelsblått. 107°, 14 %.
+  karlstad: { deep: '28 35 26', mid: '57 69 54' },
+  // Örebro slott. Bottenzonen är häck, gräs och slottets sandsten —
+  // dämpat olivbrunt. 69°, 15 %.
+  orebro: { deep: '34 35 26', mid: '67 70 53' },
+};
+
+/**
+ * Beskärningspunkt per kommun.
+ *
+ * Bilderna är 16:9 men bildzonen är 168 px hög, så vid bredare kort skärs upp
+ * till en tredjedel av höjden bort. Vilken tredjedel är inte likgiltig — de
+ * sex fotona har olika bildspråk och en rak centrering behandlar dem som om de
+ * vore samma bild. Värdena är valda genom att rendera den faktiska
+ * beskärningen i flera kortbredder och titta på resultatet, inte gissade.
+ *
+ * Det som saknas i tabellen faller tillbaka på 50 % 50 %.
+ */
+const CROP: Record<string, string> = {
+  // Flygfoto. Motivet är komponerat mitt i bild av fotografen — centrerat är
+  // det enda som håller ihop ön, vattnet och skyline.
+  stockholm: '50% 50%',
+  // Marknivå. Takåsen ligger högt och strömmen lågt; centrerat får med båda.
+  linkoping: '50% 50%',
+  // Förhöjd stadsvy med mycket himmel över horisonten. 60 % skjuter bort den
+  // tomma himlen och behåller både det gula landmärket och takåsarna i
+  // förgrunden.
+  uppsala: '50% 60%',
+  // Kyrktornet är motivets ankare och står strax över mitten. Över ~55 % blir
+  // spiran kapad vid överkanten i de bredaste korten, så 48 % — då ryms tornet
+  // med marginal och sjön blir ett band i stället för halva bilden.
+  jonkoping: '50% 48%',
+  // Vidvinkel med mycket himmel. Centrerat ger nästan bara himmel och vatten;
+  // 55 % lyfter strandkanten med husen och folket upp i den övre halvan, där
+  // scrimen inte ligger.
+  karlstad: '50% 55%',
+  // Landmärke i marknivå: slottets tak och kopparspira är det som gör bilden
+  // till Örebro, och de sitter i bildens övre tredjedel. Centrerat ger en
+  // slottsmur. 22 % behåller taket, spiran och de gula husen vid torget.
+  orebro: '50% 22%',
+};
+
+const photo = photos[kommun.slug] ?? null;
+const palette = PALETTE[kommun.slug] ?? null;
+const crop = CROP[kommun.slug] ?? '50% 50%';
+
+/** Segmenten i fördelningsbandet, i allvarlighetsordning. */
+const segments = [
+  { n: kommun.clean, color: 'var(--verdict-clean)', label: VERDICT.clean.label },
+  { n: kommun.minor, color: 'var(--verdict-minor)', label: VERDICT.minor.label },
+  { n: kommun.major, color: 'var(--verdict-major)', label: VERDICT.major.label },
+  { n: kommun.unassessed, color: 'var(--verdict-none)', label: 'Ingen bedömning' },
+];
+
+const barLabel = segments
+  .filter((s) => s.n > 0)
+  .map((s) => `${s.label}: ${formatNumber(s.n)}`)
+  .join('. ');
+
+/**
+ * Astro genererar srcset ur de här bredderna. Korten är ~280–340 px breda, så
+ * 680 täcker 2× på retina. Den största sätts också som `width` — utan den
+ * lägger Astro originalet på 1400 px som `src`, och då bygger vi ut 150 kB per
+ * kommun som ingen webbläsare med srcset-stöd någonsin hämtar.
+ */
+const WIDTHS = [340, 480, 680];
+const SIZES = '(max-width: 560px) 100vw, 320px';
+---
+
+<a
+  class:list={['kort', !photo && 'no-photo']}
+  href={`/${kommun.slug}`}
+  style={palette ? `--deep:${palette.deep};--mid:${palette.mid}` : undefined}
+>
+  <span class="photo">
+    {photo ? (
+      <>
+        <Image
+          src={photo}
+          alt=""
+          width={WIDTHS.at(-1)}
+          widths={WIDTHS}
+          sizes={SIZES}
+          loading={eager ? 'eager' : 'lazy'}
+          style={`object-position:${crop}`}
+        />
+        <span class="scrim"></span>
+        <span class="on-photo"><b>{kommun.city}</b></span>
+      </>
+    ) : (
+      <span class="blank">
+        <span class="eyebrow">Ingen bild ännu</span>
+        <b>{kommun.city}</b>
+      </span>
+    )}
+  </span>
+
+  <span class="body">
+    <span class="bar" role="img" aria-label={barLabel}>
+      {segments.map((s) => s.n > 0 && (
+        <span
+          style={`width:${(s.n / kommun.total) * 100}%;background:${s.color}`}
+          title={`${s.label}: ${formatNumber(s.n)}`}
+        ></span>
+      ))}
+    </span>
+    <span class="meta">
+      {formatNumber(kommun.total)} verksamheter · {formatNumber(kommun.assessed)} bedömda
+    </span>
+    <span class="meta">
+      <b>{kommun.cleanShare} %</b> av bedömda utan anmärkningar
+    </span>
+  </span>
+</a>
+
+<style>
+  /* Inga nya färger, radier eller skuggor — allt kommer ur tokens.css. Det
+     enda som är eget här är de två gradientfärgerna, och de är hämtade ur
+     fotot av scripts/palette.mjs. */
+  .kort {
+    display: block;
+    position: relative;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    color: var(--text);
+    transition: box-shadow .18s ease;
+  }
+  .kort:hover { text-decoration: none; box-shadow: var(--shadow-pop); }
+
+  .photo { display: block; position: relative; overflow: hidden; height: 168px; }
+  .photo :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Ingen avmättning och inget filter på själva fotot. Prövat: saturate(.94)
+       drar visserligen ihop sex bilder med olika efterbehandling, men gör
+       samtidigt vad avmättningar gör — tar färgen ur dem. Den gemensamma tonen
+       ligger i scrimens kulör i stället (se `towardsBrand` ovan). */
+    transition: transform .4s cubic-bezier(.2, .6, .2, 1);
+  }
+  /* Återhållsam: 1,5 %, inte en zoom man lägger märke till. */
+  .kort:hover .photo :global(img) { transform: scale(1.015); }
+
+  /* Bottenscrim i sju steg. Varje steg anger SAMMA rgb med olika alpha — går
+     man mot `transparent` interpolerar vissa renderare mot rgba(0,0,0,0) och
+     lägger ett grått spöke mitt i övergången. */
+  .scrim {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      rgb(var(--deep) / .90)   0%,
+      rgb(var(--deep) / .84)  11%,
+      rgb(var(--deep) / .68)  25%,
+      rgb(var(--mid)  / .46)  41%,
+      rgb(var(--mid)  / .25)  57%,
+      rgb(var(--mid)  / .09)  76%,
+      rgb(var(--mid)  / 0)   100%
+    );
+  }
+
+  /* DEN GENOMGÅENDE TONEN. Ett tunt lager i Prikkos egen blå, identiskt på
+     alla sex korten, ovanpå den fotospecifika gradienten. Det är det som gör
+     att bilder från sex olika fotografer med sex olika vitbalanser läser som
+     tagna för samma sajt.
+
+     Den avtar uppåt och är noll i bildens övre fjärdedel. En platt hinna över
+     hela bildzonen provades först och plattade ut fotot: den lägger sig lika
+     tungt på himlen, som inte har något att dölja, som på skuggorna. Genom att
+     följa scrimen ligger tonen bara där bilden ändå mörknar — 8 % där texten
+     står, ingenting där himlen står.
+
+     8 % låter mycket och är det inte: lagret ligger över en scrim som redan är
+     90 % ogenomskinlig, så det som faktiskt syns är en aning kallare svärta.
+     Testat mot 4 % (går inte att se ens sida vid sida) och 15 % (då syns
+     färgen som färg, och det är ett filter). Ligger på ett eget element och
+     inte som ett extra lager i `.scrim`, så att en webbläsare utan
+     `color-mix` tappar tonen i stället för hela scrimen — utan scrim blir den
+     vita texten oläsbar. */
+  .scrim::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--brand) 8%, transparent)   0%,
+      color-mix(in srgb, var(--brand) 5%, transparent)  45%,
+      color-mix(in srgb, var(--brand) 0%, transparent) 100%
+    );
+  }
+
+  /* Text direkt på fotot. Ingen text-shadow: scrimen gör jobbet, och en skugga
+     under vit text på foto är det säkraste tecknet på att scrimen är för svag.
+     Kontrasten är räknad, inte gissad — se scripts/palette.mjs. */
+  .on-photo {
+    position: absolute;
+    left: var(--s-4);
+    right: var(--s-4);
+    bottom: var(--s-3);
+    color: #fff;
+  }
+  .on-photo b {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    font-weight: 600;
+    letter-spacing: -.02em;
+  }
+
+  /* Utan foto. De allra flesta av 290 kommuner kommer sakna bild länge, så
+     fallbacken är ett normaltillstånd och inte ett undantag: bildzonen behåller
+     sin höjd så rutnätet inte hackar, och fylls med kortets egen vita yta.
+     Ingen platshållarbild och ingen ikon — ett tomt fält läser som "bild
+     kommer", en generisk stockbild läser som fusk. Fältet är VITT, inte i
+     sidans grå: en grå zon får kortets överkant att försvinna mot bakgrunden
+     och kortet ser trasigt ut i stället för tomt. */
+  .no-photo .photo {
+    background: var(--card);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .blank {
+    position: absolute;
+    inset: auto var(--s-4) var(--s-3) var(--s-4);
+    color: var(--text);
+  }
+  .blank .eyebrow { display: block; color: var(--text-muted); }
+  .blank b {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    font-weight: 600;
+    letter-spacing: -.02em;
+  }
+
+  .body { display: block; padding: var(--s-4); }
+
+  /* Fördelningsband. Hårfint — det ska läsas som en form på en halv sekund,
+     inte som ett diagram. Grått är verksamheter vi saknar underlag för, och
+     de ligger sist eftersom "okänt" inte är en bedömningsnivå. */
+  .bar {
+    display: flex;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: var(--s-3);
+    background: var(--verdict-none);
+  }
+  .bar > span { display: block; height: 100%; }
+
+  .meta {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+  .meta b { font-weight: 600; color: var(--text); }
+
+  /* Kortet med foto svarar med skugga och den knappt märkbara zoomen. Kortet
+     utan foto har varken, så namnet får bära hovern i stället — annars är det
+     enda kortet i rutnätet som inte reagerar på pekaren. */
+  .kort:hover .blank b { color: var(--brand); }
+</style>

@@ -2,47 +2,36 @@
 /**
  * Sök.
  *
- * Söker i webbläsaren mot ett litet index som bakas in i sidan. Vid nuvarande
- * storlek är det snabbare än ett serveranrop och kräver ingen backend.
+ * Söker i webbläsaren mot ett register som hämtas som egen fil
+ * (/sok-index.json). Registret låg tidigare inbakat i den här sidan, vilket
+ * gjorde HTML-dokumentet 2,4 MB — hela registret måste laddas ner innan
+ * sökrutan ens ritades. Nu ritas sidan direkt och registret kommer efter.
  *
- * När beståndet växer nationellt byts index mot ett serveranrop — då ändras
- * bara hur `data` fylls, inte gränssnittet. Därför ligger sökningen redan nu
+ * När beståndet växer nationellt byts filen mot ett serveranrop. Då ändras
+ * bara hur `rows` fylls, inte gränssnittet. Därför ligger sökningen redan nu
  * mot en tydlig datastruktur i stället för mot DOM:en.
  *
  * Sidan är indexerbar, men robots.txt blockerar sökningar med query så att
  * tunna resultatsidor aldrig hamnar i Googles index.
  */
 import Base from '../layouts/Base.astro';
-import { coverage, establishments, formatNumber } from '../lib/data';
+import FaceSprite from '../components/FaceSprite.astro';
+import { coverage, formatNumber, municipalities } from '../lib/data';
+import { FACE_SPRITE_ID } from '../lib/face';
 import { VERDICT } from '../lib/site';
 
 const total = coverage();
+const kommuner = municipalities();
 
-const index = establishments().map((e) => ({
-  n: e.name,
-  a: e.address ?? '',
-  s: e.slug,
-  // Kommunens slug per post — sökningen spänner över hela landet.
-  k: e.municipality.slug,
-  c: e.municipality.city,
-  v: e.verdict,
-  // Normaliserad sökbar sträng: gemener utan diakriter, så "malmo" hittar
-  // "Malmö" och "kott" hittar "Kött".
-  q: `${e.name} ${e.address ?? ''} ${e.municipality.city}`
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, ''),
-}));
-
-const labels = Object.fromEntries(
-  Object.entries(VERDICT).map(([k, v]) => [k, v.label]),
-);
+const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
 ---
 
 <Base
   title="Sök verksamhet"
   description="Sök på restaurang, café, adress eller skola och se hur den klarade sin senaste hygienkontroll."
 >
+  <FaceSprite />
+
   <div class="container page">
     <header>
       <h1>Sök verksamhet</h1>
@@ -66,13 +55,19 @@ const labels = Object.fromEntries(
 
     <p id="status" class="status text-secondary" aria-live="polite"></p>
     <ul id="results" class="results"></ul>
-  </div>
 
-  <script
-    type="application/json"
-    id="index"
-    set:html={JSON.stringify({ index, labels })}
-  />
+    {/* Utan JavaScript finns ingen sökning — men kommunerna ska ändå gå att
+        nå härifrån, och Google ska hitta vidare. Listan är inte en reserv,
+        den är sidans enda indexerbara innehåll. */}
+    <nav class="fallback" aria-label="Kommuner">
+      <h2>Bläddra per kommun</h2>
+      <ul>
+        {kommuner.map((m) => (
+          <li><a href={`/${m.slug}`}>Hygienkontroller i {m.city}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
 </Base>
 
 <style>
@@ -149,53 +144,49 @@ const labels = Object.fromEntries(
     font-weight: 600;
     flex-shrink: 0;
   }
-</style>
 
-<script>
-  const payload = JSON.parse(document.getElementById('index')!.textContent!);
-  const input = document.getElementById('q') as HTMLInputElement;
-  const results = document.getElementById('results')!;
-  const status = document.getElementById('status')!;
-
-  // Ringfärger ur brand/*-smiley-round.svg. Runda varianten används i
-  // listor: många fyllda rutor bredvid varandra blir tungt.
-  const RING: Record<string, string> = {
-    clean: '#00B92B',
-    minor: '#FECB00',
-    major: '#FF0000',
-    none: '#C7C7CC',
-  };
-  const INK: Record<string, string> = {
-    clean: 'var(--verdict-clean-ink)',
-    minor: 'var(--verdict-minor-ink)',
-    major: 'var(--verdict-major-ink)',
-    none: 'var(--verdict-none-ink)',
-  };
-  const MOUTHS: Record<string, string> = {
-    clean: 'M32 57.4883C44.2457 69.1509 56.4915 69.1509 68.7372 57.4883',
-    minor: 'M32 61.0004C44.5 61 56.5 60.9995 68.7372 61.0004',
-    major: 'M32 64.2196C44.5511 57.3262 56.6858 57.1944 68.7372 64.2196',
-    none: 'M40 61.0004C46 61 54 61 60 61.0004',
-  };
-  const EYE_L = 'M39.8719 45.2457C43.2535 45.2457 45.9948 42.5044 45.9948 39.1229C45.9948 35.7413 43.2535 33 39.8719 33C36.4903 33 33.749 35.7413 33.749 39.1229C33.749 42.5044 36.4903 45.2457 39.8719 45.2457Z';
-  const EYE_R = 'M62.6141 45.2457C65.9957 45.2457 68.737 42.5044 68.737 39.1229C68.737 35.7413 65.9957 33 62.6141 33C59.2325 33 56.4912 35.7413 56.4912 39.1229C56.4912 42.5044 59.2325 45.2457 62.6141 45.2457Z';
-
-  function face(v: string) {
-    const c = RING[v];
-    return `<svg class="face" viewBox="0 0 100 100" aria-hidden="true">
-      <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff"
-            stroke="${c}" stroke-width="7"/>
-      <path d="${EYE_L}" fill="${c}"/>
-      <path d="${EYE_R}" fill="${c}"/>
-      <path d="${MOUTHS[v]}" stroke="${c}" stroke-width="7.87"
-            stroke-linecap="round" fill="none"/></svg>`;
+  .fallback {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
   }
 
-  function normalise(s: string) {
+  .fallback h2 { font-size: var(--fs-h-s); line-height: var(--lh-h-s); }
+
+  .fallback ul {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-6);
+  }
+
+  .fallback li { font-size: var(--fs-body-s); }
+</style>
+
+<script define:vars={{ labels, spriteId: FACE_SPRITE_ID }}>
+  const input = document.getElementById('q');
+  const results = document.getElementById('results');
+  const status = document.getElementById('status');
+
+  const INK = ['var(--verdict-clean-ink)', 'var(--verdict-minor-ink)', 'var(--verdict-major-ink)'];
+
+  /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
+  let rows = null;
+  /** Normaliserad söksträng per rad, byggd en gång när registret laddats. */
+  let haystack = null;
+  let kommuner = [];
+
+  function normalise(s) {
     return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
 
-  function render(term: string) {
+  function escapeHtml(s) {
+    return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  }
+
+  function render(term) {
     const q = normalise(term.trim());
     if (q.length < 2) {
       results.innerHTML = '';
@@ -203,25 +194,56 @@ const labels = Object.fromEntries(
       return;
     }
 
-    const hits = payload.index.filter((e: any) => e.q.includes(q)).slice(0, 40);
+    if (!rows) {
+      status.textContent = 'Hämtar registret…';
+      return;
+    }
+
+    const hits = [];
+    for (let i = 0; i < haystack.length && hits.length < 40; i++) {
+      if (haystack[i].includes(q)) hits.push(rows[i]);
+    }
+
     status.textContent = hits.length
-      ? `${hits.length} träffar`
+      ? `${hits.length}${hits.length === 40 ? '+' : ''} träffar`
       : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
 
     results.innerHTML = hits
-      .map((e: any) => {
-        const key = e.v ?? 'none';
-        const label = payload.labels[e.v] ?? 'Ingen kontroll';
-        return `<li><a href="/${e.k}/${e.s}">
-          ${face(key)}
-          <span class="info"><b>${e.n}</b><span>${e.a} · ${e.c}</span></span>
-          <span class="verdict" style="color:${INK[key]}">${label}</span>
+      .map(([name, address, slug, k, v]) => {
+        const key = v < 0 ? 'none' : ['clean', 'minor', 'major'][v];
+        const label = v < 0 ? 'Ingen kontroll' : labels[v];
+        const ink = v < 0 ? 'var(--verdict-none-ink)' : INK[v];
+        const meta = [address, kommuner[k][1]].filter(Boolean).join(' · ');
+        return `<li><a href="/${kommuner[k][0]}/${slug}">
+          <svg class="face" viewBox="0 0 100 100" aria-hidden="true"><use href="#${spriteId}-${key}"/></svg>
+          <span class="info"><b>${escapeHtml(name)}</b><span>${escapeHtml(meta)}</span></span>
+          <span class="verdict" style="color:${ink}">${label}</span>
         </a></li>`;
       })
       .join('');
   }
 
   input.addEventListener('input', () => render(input.value));
+
+  fetch('/sok-index.json')
+    .then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    })
+    .then((data) => {
+      kommuner = data.k;
+      rows = data.e;
+      // Byggs här i stället för att skickas med — samma sträng i filen hade
+      // varit en ren kopia av namn, adress och ort, och nästan halva vikten.
+      haystack = rows.map(
+        ([name, address, , k]) => normalise(`${name} ${address} ${kommuner[k][1]}`),
+      );
+      render(input.value);
+    })
+    .catch(() => {
+      status.textContent =
+        'Sökregistret gick inte att hämta. Bläddra per kommun längre ner på sidan.';
+    });
 
   // Stöd för /sok?q=... så att länkar utifrån fungerar direkt.
   const initial = new URLSearchParams(location.search).get('q');

@@ -1,31 +1,93 @@
 ---
 /**
- * Global footer. Bär E-E-A-T-signalerna från bibeln §6: namngiven utgivare,
- * öppen metodik, källhänvisning. Dessa länkar ska finnas på VARJE sida —
+ * Global sidfot.
+ *
+ * Två uppgifter. Den första är E-E-A-T-signalerna från bibeln §6: namngiven
+ * utgivare, öppen metodik, källhänvisning — de ska finnas på VARJE sida, för
  * både Google och LLM:er använder dem för att bedöma trovärdighet.
+ *
+ * Den andra är den interna länkgrafen. Kommunsidorna är sajtens bärande
+ * sidtyp (~38 % av trafiken hos den brittiska motsvarigheten mot 5,8 % för
+ * enskilda restaurangsidor), och en länk från varje sida till varje
+ * kommunhubb är den billigaste vägen att ge dem tyngd.
+ *
+ * Regel för den här filen: varje länk pekar på en sida som finns och som bär
+ * eget innehåll. Ingen länk får läggas till "för att fylla kolumnen". En
+ * sidfot av länkar till tomma sidor är länkspam, och Google känner igen den.
+ *
+ * Skalning: vid 100+ kommuner blir en full lista i varje dokument dyr. Därför
+ * `MAX_PER_COLUMN` — resten når man via platsväljaren i sidhuvudet, som har
+ * hela listan och ett sökfält.
  */
+import { establishments, municipalities } from '../lib/data';
 import { SITE } from '../lib/site';
 
 const year = new Date().getFullYear();
+
+/**
+ * Hur många kommuner varje kolumn rymmer innan sidfoten blir en vägg.
+ * Sex i dag, så gränsen märks inte än — men den ska finnas på plats innan
+ * den behövs, inte efteråt.
+ */
+const MAX_PER_COLUMN = 12;
+
+const all = municipalities();
+
+// Störst först: har vi fler kommuner än kolumnen rymmer är det de största
+// som gör mest nytta i en global sidfot. Antalet avgör, inte alfabetet.
+const bySize = all
+  .map((m) => ({ ...m, count: establishments(m.slug).length }))
+  .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, 'sv'));
+
+const listed = bySize.slice(0, MAX_PER_COLUMN);
+const truncated = bySize.length > MAX_PER_COLUMN;
+
+// Bara kommuner som faktiskt HAR anmärkningar får en länk hit. En
+// leaderboard utan rader är precis den tunna sida kvalitetsgrinden finns
+// för att hålla borta.
+const withRemarks = bySize
+  .map((m) => ({
+    ...m,
+    remarks: establishments(m.slug).filter((e) => e.verdict === 'minor' || e.verdict === 'major')
+      .length,
+  }))
+  .filter((m) => m.remarks > 0)
+  .slice(0, MAX_PER_COLUMN);
 ---
 
 <footer>
   <div class="container inner">
-    <div class="col">
+    <div class="col about">
       <p class="eyebrow">Om datan</p>
       <p class="caption text-secondary">
         Prikko visar resultat från kommunernas offentliga livsmedelskontroller.
-        Betyget beräknas med en öppet publicerad metodik. Varje verksamhet har
-        rätt att svara — svaren publiceras oredigerade.
+        Bedömningen beräknas med en öppet publicerad metodik. Varje verksamhet
+        har rätt att svara — svaren publiceras oredigerade.
       </p>
     </div>
 
-    <nav class="col" aria-label="Sidfotsmeny">
+    <nav class="col" aria-label="Kontroller per kommun">
+      <p class="eyebrow">Hygienkontroller</p>
+      {listed.map((m) => (
+        <a href={`/${m.slug}`}>Kontroller i {m.city}</a>
+      ))}
+      {truncated && <a href="/sok">Fler kommuner</a>}
+    </nav>
+
+    <nav class="col" aria-label="Anmärkningar per kommun">
+      <p class="eyebrow">Anmärkningar</p>
+      {withRemarks.map((m) => (
+        <a href={`/${m.slug}/anmarkningar`}>Anmärkningar i {m.city}</a>
+      ))}
+    </nav>
+
+    <nav class="col" aria-label="Om Prikko">
       <p class="eyebrow">Prikko</p>
-      <a href="/metodik">Så beräknas betyget</a>
+      <a href="/metodik">Så beräknas bedömningen</a>
       <a href="/kallor">Källor och uppdatering</a>
       <a href="/om">Om Prikko</a>
       <a href="/ratta">Rätta en uppgift</a>
+      <a href="/sok">Sök verksamhet</a>
     </nav>
   </div>
 
@@ -47,7 +109,7 @@ const year = new Date().getFullYear();
 
   .inner {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
     gap: var(--s-8);
     padding-bottom: var(--s-8);
   }
@@ -56,23 +118,30 @@ const year = new Date().getFullYear();
     display: flex;
     flex-direction: column;
     gap: var(--s-2);
+    align-items: flex-start;
   }
+
+  .col .eyebrow { margin-bottom: var(--s-1); }
 
   .col a {
     font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
     color: var(--text-secondary);
   }
 
-  .col a:hover {
-    color: var(--text);
-  }
+  .col a:hover { color: var(--text); }
 
   .legal {
     border-top: 1px solid var(--hairline);
     padding-block: var(--s-4);
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 900px) {
+    .inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .about { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 480px) {
     .inner {
       grid-template-columns: 1fr;
       gap: var(--s-6);

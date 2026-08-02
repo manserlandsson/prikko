@@ -15,30 +15,22 @@
  */
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
+import KommunKort from '../components/KommunKort.astro';
 import {
   coverage,
   establishments,
   formatDate,
   formatNumber,
   latestInspectionDate,
-  municipalities,
+  municipalitySummaries,
 } from '../lib/data';
 import { SITE, VERDICT } from '../lib/site';
 
 const total = coverage();
 
-const summaries = municipalities().map((m) => {
-  const all = establishments(m.slug);
-  const assessed = all.filter((e) => e.verdict !== null);
-  const remarks = assessed.filter((e) => e.verdict !== 'clean');
-  return {
-    ...m,
-    count: all.length,
-    assessed: assessed.length,
-    remarks: remarks.length,
-    major: remarks.filter((e) => e.verdict === 'major').length,
-  };
-});
+// Sammanräkningen ligger i lib/data — kortet och sidan får aldrig räkna var
+// för sig.
+const summaries = municipalitySummaries();
 
 // Senast kontrollerade i landet. Färskhet är en dokumenterad citeringsfaktor
 // för AI-svar, och det enda på sidan som ändras av sig självt.
@@ -112,24 +104,11 @@ const jsonLd = [
     </div>
 
     <ul class="kommuner">
-      {summaries.map((m) => (
+      {summaries.map((m, i) => (
         <li>
-          <a href={`/${m.slug}`}>
-            <span class="k-head">
-              <b>{m.city}</b>
-              <span class="k-count text-muted">{formatNumber(m.count)} verksamheter</span>
-            </span>
-            <span class="k-bar" aria-hidden="true">
-              <span
-                class="k-fill"
-                style={`width: ${Math.round(((m.assessed - m.remarks) / Math.max(m.assessed, 1)) * 100)}%`}
-              ></span>
-            </span>
-            <span class="k-meta text-secondary">
-              {m.remarks} med anmärkningar
-              {m.major > 0 && <> · {m.major} kvarstående</>}
-            </span>
-          </a>
+          {/* Översta raden ligger nära vikningen på de flesta skärmar och
+              laddas därför direkt; resten lazy. */}
+          <KommunKort kommun={m} eager={i < 3} />
         </li>
       ))}
     </ul>
@@ -240,51 +219,17 @@ const jsonLd = [
 
   .block-head a { font-size: var(--fs-body-s); }
 
-  /* Kommunkort. Andelen utan anmärkning visas som ett band — en siffra till
-     säger mindre än en form man uppfattar på en halv sekund. */
+  /* Kommunkorten. Rutnätet äger bara placeringen — kortets egen form bor i
+     KommunKort.astro. Minsta spalt 250 px: under det blir bildzonen bredare i
+     förhållande till sin höjd än fotot tål. */
   .kommuner {
     list-style: none;
     margin: var(--s-6) 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: var(--s-3);
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--s-4);
   }
-
-  .kommuner a {
-    display: block;
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-    padding: var(--s-4);
-    color: var(--text);
-  }
-
-  .kommuner a:hover { text-decoration: none; box-shadow: var(--shadow-pop); }
-  .kommuner a:hover b { color: var(--brand); }
-
-  .k-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-2);
-  }
-
-  .k-head b { font-size: var(--fs-h-s); font-weight: 600; letter-spacing: -.01em; }
-  .k-count { font-size: var(--fs-caption); }
-
-  .k-bar {
-    display: block;
-    height: 5px;
-    border-radius: 3px;
-    background: var(--verdict-minor);
-    margin: var(--s-3) 0 var(--s-2);
-    overflow: hidden;
-  }
-
-  .k-fill { display: block; height: 100%; background: var(--verdict-clean); }
-
-  .k-meta { display: block; font-size: var(--fs-caption); }
 
   .rows { list-style: none; margin: var(--s-4) 0 0; padding: 0; }
   .rows li { border-top: 1px solid var(--hairline); }
