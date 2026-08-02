@@ -21,10 +21,13 @@ Tre begränsningar som är värda att känna till innan modulen återanvänds:
 
 1. **Bara Flate-komprimerade strömmar.** LZW, RunLength och okomprimerade
    strömmar hoppas över. Samtliga 224 rapporter från Svenljunga är Flate.
-2. **Bara enkelbyte-teckenkodning.** Text i Type0/CID-teckensnitt kommer ut
-   som skräp, eftersom byten då är glyfnummer och kräver rapportens egen
-   ToUnicode-tabell. I Svenljungas rapporter används CID-teckensnittet bara
-   till symboler i marginalen, inte till brödtext.
+2. **Teckensnittens ToUnicode-tabeller slås ihop till EN tabell per
+   dokument.** Rätt väg vore att slå upp vilket teckensnitt varje textlöpa
+   använder och avkoda mot just dess tabell, men det kräver att indirekta
+   referenser och sidans resursordlista löses upp — en riktig PDF-läsare.
+   Genvägen håller så länge dokumentets subsetade teckensnitt inte ger olika
+   betydelse åt samma kod. Det kontrolleras vid inläsningen: krockar en kod
+   används ingen tabell alls, och texten blir tom i stället för fel.
 3. **Ingen kryptering.** En lösenordsskyddad eller krypterad PDF ger tom text.
 
 Var och en av begränsningarna ger TOM eller TRASIG text, aldrig felaktig text
@@ -37,7 +40,7 @@ from __future__ import annotations
 
 import re
 import zlib
-from typing import Iterator, List
+from typing import Dict, Iterator, List
 
 #: Objektets ordlista står mellan "N 0 obj" och "stream". Den behövs för att
 #: skilja innehållsströmmar från teckensnittsfiler och bilder.
@@ -55,13 +58,27 @@ _NOT_CONTENT = (
     b"/Metadata",
 )
 
-#: Innehållsströmmens tokens: en sträng, ett tal, eller en textoperator.
+#: Innehållsströmmens tokens: en sträng inom parenteser, en hexsträng, ett
+#: tal, eller en textoperator.
+#:
+#: Hexsträngen kräver minst en hexsiffra direkt efter `<`, så mönstret kan
+#: aldrig råka fånga en ordlista (`<</Filter…>>`).
 _TOKEN = re.compile(
-    rb"(\((?:\\.|[^()\\])*\))|(-?\d+(?:\.\d+)?)|(BT|ET|TJ|Tj|TD|Td|T\*|Tm|'|\")",
+    rb"(\((?:\\.|[^()\\])*\))"
+    rb"|<([0-9A-Fa-f][0-9A-Fa-f\s]*)>"
+    rb"|(-?\d+(?:\.\d+)?)"
+    rb"|(BT|ET|TJ|Tj|TD|Td|T\*|Tm|'|\")",
     re.S,
 )
 
 _OCTAL = re.compile(rb"\\([0-7]{1,3})")
+
+#: ToUnicode-tabellernas två former. `bfchar` mappar en kod i taget,
+#: `bfrange` ett intervall.
+_CMAP_BFCHAR = re.compile(rb"beginbfchar(.*?)endbfchar", re.S)
+_CMAP_BFRANGE = re.compile(rb"beginbfrange(.*?)endbfrange", re.S)
+_CMAP_PAIR = re.compile(rb"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]*)>")
+_CMAP_TRIPLE = re.compile(rb"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>")
 
 #: Operatorer som flyttar textmarkören till en ny rad eller avslutar ett
 #: textblock. De blir radbrytningar; utan dem klistras rubriker ihop med
@@ -91,11 +108,9 @@ def _unescape(raw: bytes) -> str:
     return body.decode("cp1252", "replace")
 
 
-def content_streams(document: bytes) -> Iterator[bytes]:
-    """Ge de uppackade strömmar som ser ut att vara sidinnehåll."""
+def _streams(document: bytes) -> Iterator[tuple]:
+    """Ge (ordlista, uppackad ström) för varje Flate-packad ström."""
     for match in _OBJECT.finditer(document):
-        if any(marker in match.group(1) for marker in _NOT_CONTENT):
-            continue
         start = match.end()
         end = document.find(b"endstream", start)
         if end < 0:
@@ -105,6 +120,64 @@ def content_streams(document: bytes) -> Iterator[bytes]:
         except zlib.error:
             # Okomprimerad, LZW-kodad eller trasig. Hellre ingen text än
             # slumpbyten som ser ut som text.
+            continue
+        yield match.group(1), data
+
+
+def tounicode(document: bytes) -> Dict[int, str]:
+    """Slå ihop dokumentets ToUnicode-tabeller till en.
+
+    Returnerar en tom tabell när dokumentet saknar sådana, och ÄVEN när två
+    teckensnitt ger samma kod olika betydelse. Det senare är genvägens enda
+    verkliga risk, och en tom tabell betyder tom text — inte fel text.
+    """
+    mapping: Dict[int, str] = {}
+    for _, data in _streams(document):
+        if b"begincmap" not in data:
+            continue
+        for block in _CMAP_BFCHAR.findall(data):
+            for source, target in _CMAP_PAIR.findall(block):
+                code = int(source, 16)
+                text = "".join(
+                    chr(int(target[i:i + 4], 16)) for i in range(0, len(target), 4)
+                )
+                if mapping.setdefault(code, text) != text:
+                    return {}
+        for block in _CMAP_BFRANGE.findall(data):
+            for low, high, target in _CMAP_TRIPLE.findall(block):
+                base = int(target, 16)
+                for step, code in enumerate(range(int(low, 16), int(high, 16) + 1)):
+                    text = chr(base + step)
+                    if mapping.setdefault(code, text) != text:
+                        return {}
+    return mapping
+
+
+def _from_hex(raw: bytes, mapping: Dict[int, str]) -> str:
+    """Avkoda en hexsträng.
+
+    Med en ToUnicode-tabell läses byten parvis som teckenkoder, vilket är vad
+    ett Type0-teckensnitt skriver. Utan tabell läses de som enkla byten.
+    Okända koder blir tomma i stället för ersättningstecken: en lucka syns
+    inte i en fras vi letar efter, men ett tecken vi hittat på kan förstöra
+    den.
+    """
+    digits = re.sub(rb"\s", b"", raw)
+    if len(digits) % 2:
+        digits += b"0"
+    data = bytes.fromhex(digits.decode("ascii"))
+    if not mapping:
+        return data.decode("cp1252", "replace")
+    return "".join(
+        mapping.get(int.from_bytes(data[i:i + 2], "big"), "")
+        for i in range(0, len(data) - 1, 2)
+    )
+
+
+def content_streams(document: bytes) -> Iterator[bytes]:
+    """Ge de uppackade strömmar som ser ut att vara sidinnehåll."""
+    for header, data in _streams(document):
+        if any(marker in header for marker in _NOT_CONTENT):
             continue
         if b"BT" in data and (b"Tj" in data or b"TJ" in data):
             yield data
@@ -116,13 +189,16 @@ def extract_lines(document: bytes) -> List[str]:
     Varje rad är normaliserad på blanksteg. Tomma rader utelämnas: de bär
     ingen information och gör bara mönstren i anroparen skörare.
     """
+    mapping = tounicode(document)
     lines: List[str] = []
     for data in content_streams(document):
         current = ""
         for match in _TOKEN.finditer(data):
-            text, number, operator = match.groups()
+            text, hexed, number, operator = match.groups()
             if text is not None:
                 current += _unescape(text)
+            elif hexed is not None:
+                current += _from_hex(hexed, mapping)
             elif number is not None:
                 if current and float(number) < _SPACE_KERN:
                     current += " "

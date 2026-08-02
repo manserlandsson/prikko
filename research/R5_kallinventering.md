@@ -21,9 +21,9 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Lomma | 153 | Öppen webbsida | **HTML, handredigerad** | **Saknas** | **Nej** | **Ja, fritext per område** |
 | Höganäs | 310 | Öppet filarkiv | **Filnamn** | **Saknas** | **Nej** | **Nej** (bara i PDF) |
 | Svenljunga | 99 | Öppen webbsida | **PDF-rapporter** | **Saknas** | **Nej** | Ja i rapporten, ej utvinnbart |
+| Kristinehamn | 170 | ArcGIS REST | JSON + **PDF-bilagor** | SWEREF 99 13 30 | **Nej** — men kontrolltyp finns | Ja i rapporten, ej utvinnbart |
 
-Nästa att bygga: **Kristinehamn** och **Borgholm**, som båda kräver
-PDF-tolkning. Se R6. Västerås och Hallstahammar publicerar inte längre
+Nästa att bygga: **Borgholm**, som kräver tolkning av en PDF-TABELL. Se R6. Västerås och Hallstahammar publicerar inte längre
 trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
 av fallen — ingen av de tre är byggbar.
 
@@ -414,6 +414,68 @@ kontroll som `reportUrl`. Ingen gatuadress publiceras, bara ort, så
 Sidan säger själv att "dokumentationen av uppföljning publiceras inte alltid
 här". Historiken är alltså ofullständig även bortsett från de inskannade
 rapporterna, och får inte presenteras som komplett.
+
+### Kristinehamn — 170 verksamheter, register i ArcGIS och rapporter som bilagor
+```
+https://portal.kristinehamn.se/arcgis/rest/services/Portal/Livsmedelsprotokoll
+  /MapServer/14/query?where=1=1&outFields=*&outSR=3008&f=json          180 rader
+  /MapServer/14/queryAttachments?objectIds=1,2,3,…                     354 bilagor
+  /MapServer/14/<objectid>/attachments/<attachmentid>                  en rapport
+```
+Ett anrop för registret, fyra för bilagsförteckningen, ett per rapport.
+Attributen innehåller **inget resultatfält** — bedömningen finns bara inuti
+PDF:en.
+
+Utfall vid inläsningen: 170 anläggningar, 220 kontroller, 99 bedömda — 83
+utan anmärkningar, 15 med brister, 1 med kvarstående brister, 1 utmärkelse,
+9 överhoppade rader, 95 olästa rapporter.
+
+Sex saker som avgjorde bygget:
+
+- **Rapporterna krävde att `pdf.py` lärde sig ToUnicode.** Kristinehamns
+  ärendesystem skriver all text med Type0-teckensnitt och hexsträngar, alltså
+  glyfnummer i stället för bokstäver. Utan teckensnittets egen tabell kommer
+  "Dnr LIV" ut som "'QU/,9". Tabellerna slås ihop till en per dokument, och
+  krockar två koder kasseras hela tabellen — sju bilagor blir tomma i stället
+  för halvrätt lästa.
+- **Källan har både historik och kontrolltyp**, vilket gör den till den bästa
+  av de fem nya. 54 rapporter säger "Det var en extrakontroll för att följa
+  upp om avvikelser från livsmedelslagstiftningen åtgärdats". En sådan
+  kontroll som ändå finner avvikelser beskriver per kommunens egen definition
+  en brist som inte åtgärdats, precis som Karlstads extrakontroll, och
+  `grading.py` läser den som kvarstående. Kommunen anger dessutom om besöket
+  var oanmält (145) eller föranmält (73).
+- **Ordet "extrakontroll" står också i standardtexten** ("Avvikelsen kommer
+  att följas upp vid en extrakontroll"), i 164 av 258 rapporter. Frasen måste
+  därför vara förankrad i "Det var en", annars blir varannan planerad
+  kontroll en uppföljning och allvarsgraden skjuter i höjden.
+- **Nio bilagor är förelägganden, inte kontrollrapporter.** De känns igen
+  både på rubriken DELEGATIONSBESLUT och på filnamnet — filnamnet behövs
+  eftersom ett inskannat föreläggande inte har någon text att läsa rubriken
+  ur, och annars skulle spärra verksamhetens omdöme som en oläsbar senaste
+  rapport. Kontrollen som ledde fram till beslutet publiceras som en egen
+  rapport, så uppgiften går inte förlorad.
+- **`EcosOBJID` duger inte som identitet** trots att det är ärendesystemets
+  eget nyckelfält: det är `null` i 108 av 180 rader. ArcGIS `OBJECTID`
+  numreras om vid ompublicering. Identiteten hashas därför ur namn och
+  adress, verifierat unikt över beståndet. `Nock` ligger två gånger utan
+  adress, en gång som Restaurang och en gång som Övrigt, och slås ihop med
+  bilagorna från båda raderna.
+- **Tre rader är avregistrerade** (`Aktiv = 0`) och publiceras inte, en av dem
+  med sex bilagor. Ett hygienomdöme om en restaurang som har lagt ned är fel
+  oavsett vad rapporten säger. Sex rader saknar namn och kan inte publiceras
+  alls. `Aktiv = null` (21 rader) betyder att fältet inte fyllts i, inte att
+  verksamheten är borta.
+
+78 av 354 bilagor är inskannade bilder utan textlager, och nio till är i en
+mall vi inte känner igen. Samma regel som i Svenljunga gäller: är den senast
+publicerade rapporten oläsbar publiceras inget omdöme alls. Kontrollområdena
+räknas upp i rapporten, både de utan och de med avvikelse, men de tas inte
+med av samma skäl som i Svenljunga — texten kommer styckad ur PDF:en och
+områdesnamnen skulle kräva en sluten ordlista källan inte håller sig till.
+
+Koordinaterna kommer i SWEREF 99 13 30 (EPSG:3008), samma zon som Karlstad,
+och samtliga 170 verksamheter får en kartnål. 103 har dessutom gatuadress.
 
 ## Kartlagd, ej inläst
 

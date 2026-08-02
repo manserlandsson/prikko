@@ -14,7 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from prikko.pdf import content_streams, extract_lines, extract_text  # noqa: E402
+from prikko.pdf import (  # noqa: E402
+    content_streams,
+    extract_lines,
+    extract_text,
+    tounicode,
+)
 
 # Verkliga byten ur rapportens första sida. Notera tre saker som är hela
 # skälet till att modulen ser ut som den gör: texten kommer i småbitar
@@ -34,6 +39,22 @@ REAL_CONTENT = (
 # innehåller byten som ser ut som text. Utan filtret hamnar hela glyftabeller
 # mitt i rapporten.
 FONT_PROGRAM = b"BT (E:\\261 -, E\\260%Ead\\260PQXED!!Y-,) Tj ET"
+
+
+# Verklig ToUnicode-tabell ur Kristinehamns kontrollrapport för Stora Coop
+# 2024-11-18, förkortad. Koderna är glyfnummer i ett subsatt teckensnitt och
+# säger ingenting utan tabellen: utan den blir "Dnr" till "'QU".
+REAL_CMAP = (
+    b"/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n"
+    b"/CMapName /DEVEXP def\n/CMapType 2 def\n"
+    b"1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n"
+    b"6 beginbfchar\n<0027> <0044>\n<0051> <006E>\n<0055> <0072>\n"
+    b"<0010> <002D>\n<007C> <00F6>\n<0044> <0061>\nendbfchar\nendcmap\n"
+)
+
+# Verkliga operatorbyten ur samma rapport: hexsträngar i stället för
+# parenteser, eftersom texten skrivs med ett Type0-teckensnitt.
+HEX_CONTENT = b"BT /FNT0 10 Tf 42 700 Td [ <0027005100550010007C0044> ] TJ ET"
 
 
 def pdf(*objects) -> bytes:
@@ -93,6 +114,31 @@ class Lines(unittest.TestCase):
 
     def test_a_document_without_text_gives_nothing_not_an_error(self):
         self.assertEqual(extract_lines(b"%PDF-1.6\n%%EOF\n"), [])
+
+
+class ToUnicode(unittest.TestCase):
+    """Kristinehamns rapporter skriver all text som glyfnummer."""
+
+    def test_the_table_is_read_from_the_cmap_stream(self):
+        mapping = tounicode(pdf((b"", REAL_CMAP), (b"", HEX_CONTENT)))
+        self.assertEqual(mapping[0x0027], "D")
+        self.assertEqual(mapping[0x007C], "ö")
+
+    def test_hex_strings_are_decoded_through_the_table(self):
+        self.assertEqual(
+            extract_lines(pdf((b"", REAL_CMAP), (b"", HEX_CONTENT))), ["Dnr-öa"]
+        )
+
+    def test_a_conflicting_table_is_discarded_whole_rather_than_guessed(self):
+        # Två subsatta teckensnitt som ger samma kod olika betydelse är
+        # genvägens enda verkliga risk. Sju av Kristinehamns 354 bilagor gör
+        # det, och de blir tomma i stället för halvrätt lästa.
+        other = REAL_CMAP.replace(b"<0027> <0044>", b"<0027> <0041>")
+        self.assertEqual(tounicode(pdf((b"", REAL_CMAP), (b"", other))), {})
+
+    def test_a_hex_string_without_a_table_is_read_as_plain_bytes(self):
+        self.assertEqual(extract_lines(pdf((b"", b"BT (x) Tj <41427A> Tj ET"))),
+                         ["xABz"])
 
 
 if __name__ == "__main__":
