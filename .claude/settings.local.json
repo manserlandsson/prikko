@@ -126,7 +126,13 @@
       "Bash(curl -s -m 40 -L \"https://www.uppsala.se/foretag-och-naringsliv/tillstand-regler-och-tillsyn/livsmedelskollen/Details?id=1059622379\" -o up_d.html -w \"HTTP %{http_code} size=%{size_download}\\\\n\")",
       "Bash(python3 -)",
       "WebFetch(domain:bolagsverket.se)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(touch pipeline/prikko/__init__.py)",
+      "Bash(python3 -m unittest discover -s pipeline/tests -t pipeline -v)",
+      "Bash(python3 pipeline/tests/test_grading.py -v)",
+      "Bash(git add *)",
+      "Bash(git -c 'user.name=Måns Erlandsson' -c user.email=mans.erlandsson1@gmail.com commit -q -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
