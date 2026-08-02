@@ -80,16 +80,31 @@ const answer = latest
 
 const description = `${answer} Se vilka kontrollområden som granskades och hela kontrollhistoriken.`;
 
+/**
+ * Statistiken räknas på ADRESSEN, inte på företaget.
+ *
+ * Kommunerna registrerar kontrollerna på anläggningen, alltså lokalen, och
+ * ingen av de nio källorna säger när verksamheten startade eller om ägaren
+ * bytt. Tar en ny restaurang över en adress ärver den föregångarens hela
+ * historik. Rutan hette tidigare "Först kontrollerad", vilket läses rakt av
+ * som verksamhetens ålder — ett påstående vi inte har täckning för.
+ *
+ * Talen är oförändrade. Det är etiketterna som slutar tillskriva dem fel part.
+ */
 const facts = [
-  { label: 'Kontroller totalt', value: String(stats.total),
-    tip: `Samtliga registrerade livsmedelskontroller sedan ${stats.firstYear}.` },
+  { label: 'Kontroller på adressen', value: String(stats.total),
+    tip: `Samtliga kontroller kommunen publicerar på den här adressen, från ${stats.oldestYear} och framåt. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller.` },
   { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
     color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
-    tip: 'Andel av kontrollerna där inga avvikelser noterades.' },
+    tip: 'Andel av kontrollerna på adressen där inga avvikelser noterades.' },
   { label: 'Återbesök', value: String(stats.followUps),
     tip: 'Uppföljande kontroller som gjorts för att se om tidigare avvikelser åtgärdats.' },
-  { label: 'Först kontrollerad', value: stats.firstYear ?? '–' },
+  { label: 'Äldsta kontroll', value: stats.oldestYear ?? '–',
+    tip: 'Året för den äldsta kontroll kommunen publicerar på adressen. Det är inte nödvändigtvis året verksamheten startade — kommunerna publicerar bara ett begränsat antal år bakåt, och historiken följer lokalen.' },
 ];
+
+/** Uppehållet i hela år, avrundat nedåt. Används bara när det är minst två. */
+const gapYears = Math.floor(stats.longestGapDays / 365);
 
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
@@ -157,7 +172,7 @@ const breadcrumbs = {
 
         <FactGrid
           title="Statistik"
-          titleTip="Sammanräknat från verksamhetens hela kontrollhistorik hos kommunen."
+          titleTip="Sammanräknat från kontrollhistoriken på adressen. Kommunen registrerar kontrollerna på lokalen och inte på företaget, så historik från en tidigare verksamhet på samma adress följer med."
           facts={facts}
         />
 
@@ -173,6 +188,19 @@ const breadcrumbs = {
         <InspectionHistory inspections={e.inspections} />
 
         <footer class="source">
+          {/*
+            Uppehållet sägs rakt ut när det finns. Kommunen har ingen uppgift om
+            när verksamheten startade eller om ägaren bytt, så vi kan inte veta
+            att kontrollerna före uppehållet gäller den här verksamheten — och
+            får då inte skriva sidan som om vi visste.
+          */}
+          {stats.hasHistoryGap && (
+            <p class="caption text-muted">
+              Kontrollerna är registrerade på adressen, inte på företaget. I den
+              här historiken finns ett uppehåll på {gapYears} år, och kontroller
+              före uppehållet kan höra till en tidigare verksamhet i lokalen.
+            </p>
+          )}
           <p class="caption text-muted">
             Källa: {kommun.name}, hämtat {formatDate(source.fetchedAt.slice(0, 10))}.
             Bedömningen är Prikkos. <a href="/metodik">Så räknas den fram</a>.

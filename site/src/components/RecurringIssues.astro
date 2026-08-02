@@ -18,6 +18,24 @@ interface Props {
 }
 
 const { issues } = Astro.props;
+
+/**
+ * Historiken följer LOKALEN.
+ *
+ * Kommunen registrerar kontrollerna på anläggningen, och ingen av källorna
+ * säger när verksamheten startade eller om ägaren bytt. En brist som noterats
+ * 2018 och igen 2025 behöver därför inte vara samma verksamhet som inte rättat
+ * sig — det kan vara två företag som fått samma anmärkning i samma kök.
+ *
+ * Att påstå det förra om ett namngivet företag är rubrikens allvarligaste
+ * felkälla, och den enda på sidan som anklagar. Därför får en sådan brist
+ * varken toppa listan (sorteringen sköter det i recurringIssues) eller stå
+ * omärkt här.
+ */
+const straddling = issues.filter((i) => i.straddlesGap);
+const gapYears = straddling.length
+  ? Math.floor(Math.max(...straddling.map((i) => i.gapDays)) / 365)
+  : 0;
 ---
 
 {issues.length > 0 && (
@@ -27,13 +45,22 @@ const { issues } = Astro.props;
         Återkommande brister
         <InfoTip
           label="återkommande brister"
-          text="Brister som kommunen noterat vid mer än en kontroll. En enskild avvikelse säger lite. Att samma sak återkommer säger mer."
+          text="Brister som kommunen noterat vid mer än en kontroll. En enskild avvikelse säger lite. Att samma sak återkommer säger mer. Kontrollerna är registrerade på lokalen och inte på företaget, så noteringar från en tidigare verksamhet på adressen räknas med."
         />
       </h2>
       <p class="count text-secondary">
         {issues.length} {issues.length === 1 ? 'brist' : 'brister'} vid mer än en kontroll
       </p>
     </div>
+
+    {straddling.length > 0 && (
+      <p class="caveat">
+        {straddling.length === 1 ? 'En av bristerna' : `${straddling.length} av bristerna`} nedan
+        har noterats vid kontroller med upp till {gapYears} års mellanrum. Kommunen registrerar
+        kontrollerna på adressen och inte på företaget, och anger inte när en verksamhet startat
+        eller bytt ägare. Noteringarna behöver därför inte gälla samma verksamhet.
+      </p>
+    )}
 
     <ul class="rows">
       {issues.map((issue) => {
@@ -49,6 +76,9 @@ const { issues } = Astro.props;
                 {issue.dates.slice(0, 4).map(formatDate).join(' · ')}
                 {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
               </span>
+              {issue.straddlesGap && (
+                <span class="maybe">Kan gälla olika verksamheter i lokalen</span>
+              )}
             </span>
           </li>
         );
@@ -69,6 +99,30 @@ const { issues } = Astro.props;
   .head h2 { display: flex; align-items: center; }
 
   .count { font-size: var(--fs-body-s); }
+
+  /* Förbehållet, inte en varning.
+   *
+   * Neutral yta och hårfin ram med avsikt: det här är en upplysning om vad
+   * datan inte kan visa, inte ett omdöme om verksamheten. Röd eller gul hade
+   * lånat betydelse från bedömningsnivåerna och lagt ännu ett larm på en sida
+   * som redan har ett. */
+  .caveat {
+    margin-top: var(--s-4);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .maybe {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 15px;
+    color: var(--text-muted);
+  }
 
   .rows {
     list-style: none;

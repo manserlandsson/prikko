@@ -22,6 +22,26 @@ import {
   type Verdict,
 } from './db';
 
+import {
+  SUB_CATEGORIES,
+  TOP_CATEGORIES,
+  assertKnown,
+  classify,
+  coverageGaps,
+  noteUnknown,
+  rawValues,
+  scheduleUnknownLog,
+  subCategory,
+  subCategoryBySlug,
+  subCategoryRank,
+  topCategory,
+  topCategoryBySlug,
+  type Categorised,
+  type SubCategory,
+  type TopCategory,
+  type TopCategoryId,
+} from './categories';
+
 export {
   coverage,
   establishments,
@@ -30,6 +50,15 @@ export {
   municipality,
   sourceFor,
 };
+export {
+  SUB_CATEGORIES,
+  TOP_CATEGORIES,
+  subCategory,
+  subCategoryBySlug,
+  topCategory,
+  topCategoryBySlug,
+};
+export type { SubCategory, TopCategory, TopCategoryId };
 export type {
   AreaStatus,
   ControlArea,
@@ -156,12 +185,69 @@ export function legislationArea(code: string) {
 // Härledd statistik och närhet
 // ---------------------------------------------------------------------------
 
+/**
+ * Uppehåll efter vilket historiken före uppehållet inte längre kan tillskrivas
+ * samma verksamhet.
+ *
+ * Kommunernas kontroller är registrerade på ANLÄGGNINGEN, alltså lokalen, och
+ * följer med när en ny verksamhet tar över adressen. Ingen av de nio källorna
+ * har ett fält för när verksamheten startade eller för om ägaren bytt, så
+ * bytet går inte att läsa direkt. Det som går att läsa är uppehållet: en lokal
+ * som byter hand står ofta tom eller bygger om, och kontrollerna upphör under
+ * tiden.
+ *
+ * Två år är valt ur beståndet, inte ur luften. Av de 48 230 uppehållen mellan
+ * två på varandra följande kontroller ligger medianen på 267 dagar och nittionde
+ * percentilen på 724. Ett uppehåll på två år är alltså längre än nio av tio
+ * normala kontrollintervall.
+ *
+ * Tröskeln påstår INTE att ett ägarbyte skett. Den säger att vi inte vet, och
+ * däri ligger hela skillnaden mellan det vi får skriva och det vi inte får.
+ */
+export const HISTORY_GAP_DAYS = 730;
+
+const DAY_MS = 86_400_000;
+
+/** Hela dagar mellan två ISO-datum. Alltid positivt. */
+function daysBetween(a: string, b: string): number {
+  return Math.abs(Date.parse(a) - Date.parse(b)) / DAY_MS;
+}
+
+/**
+ * Längsta uppehållet mellan två på varandra följande datum i en fallande serie.
+ * Noll när serien har färre än två datum.
+ */
+function longestGap(datesNewestFirst: string[]): number {
+  let longest = 0;
+  for (let i = 0; i + 1 < datesNewestFirst.length; i += 1) {
+    const gap = daysBetween(datesNewestFirst[i], datesNewestFirst[i + 1]);
+    if (gap > longest) longest = gap;
+  }
+  return longest;
+}
+
 export interface Stats {
   total: number;
   clean: number;
   cleanShare: number;
   followUps: number;
-  firstYear: string | null;
+  /**
+   * Året för den ÄLDSTA publicerade kontrollen på adressen.
+   *
+   * Hette tidigare `firstYear` och visades som "Först kontrollerad", vilket
+   * läses som verksamhetens ålder. Det är inte vad talet betyder: det är den
+   * äldsta kontroll kommunen råkar publicera på lokalen, begränsad av
+   * kommunens eget publiceringsfönster och orörd av att verksamheten bytt.
+   */
+  oldestYear: string | null;
+  /** Längsta uppehållet mellan två kontroller i följd, i hela dagar. */
+  longestGapDays: number;
+  /**
+   * Sant när historiken bär ett uppehåll på minst HISTORY_GAP_DAYS. Då kan
+   * kontrollerna före uppehållet höra till en tidigare verksamhet i lokalen,
+   * och sidan måste säga det i stället för att räkna ihop allt som ett.
+   */
+  hasHistoryGap: boolean;
 }
 
 export function statistics(e: Establishment): Stats {
@@ -169,12 +255,18 @@ export function statistics(e: Establishment): Stats {
   const clean = e.inspections.filter((i) => i.assessment === 0).length;
   const followUps = e.inspections.filter((i) => i.type === 1).length;
   const oldest = e.inspections[e.inspections.length - 1];
+
+  // Historiken är sorterad nyast först (verifierat: 0 av 15 241 avviker).
+  const gap = longestGap(e.inspections.map((i) => i.date));
+
   return {
     total,
     clean,
     cleanShare: total ? Math.round((clean / total) * 100) : 0,
     followUps,
-    firstYear: oldest ? oldest.date.slice(0, 4) : null,
+    oldestYear: oldest ? oldest.date.slice(0, 4) : null,
+    longestGapDays: gap,
+    hasHistoryGap: gap >= HISTORY_GAP_DAYS,
   };
 }
 
@@ -331,6 +423,15 @@ export interface RecurringIssue {
   dates: string[];
   /** Kvarstod den vid senaste kontrollen den noterades? */
   latestPersisting: boolean;
+  /** Längsta uppehållet mellan två noteringar av bristen, i hela dagar. */
+  gapDays: number;
+  /**
+   * Sant när noteringarna ligger på var sin sida av ett uppehåll på minst
+   * HISTORY_GAP_DAYS. Då är "återkommande" inget vi kan stå för: lokalen kan
+   * ha bytt verksamhet under uppehållet, och då är det två olika företag som
+   * fått samma anmärkning, inte ett företag som inte rättat sig.
+   */
+  straddlesGap: boolean;
 }
 
 /**
@@ -341,6 +442,16 @@ export interface RecurringIssue {
  * något helt annat, och det syns inte om man bara läser kontrollerna var för
  * sig. Vi har datan för hela historiken; utan den här sammanställningen
  * visades bara den senaste kontrollen.
+ *
+ * Det är också sidans farligaste påstående. Kommunen registrerar kontrollerna
+ * på lokalen, inte på företaget, så en "återkommande" brist kan vara två
+ * företag som råkat få samma anmärkning i samma kök med flera år emellan.
+ * Uppmätt i beståndet: av 3 376 verksamheter med minst en återkommande brist
+ * har 1 968 minst en brist vars noteringar ligger två år eller mer isär.
+ *
+ * Vi tar inte bort dem — de finns i kommunens data och Stockholms egen
+ * e-tjänst visar dem. Vi slutar bara låta dem gå före de brister vi faktiskt
+ * kan stå för, och märker dem så att sidan säger vad den vet.
  */
 export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[] {
   const seen = new Map<string, RecurringIssue>();
@@ -367,14 +478,34 @@ export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[
           // Inspektionerna är sorterade nyast först, så första förekomsten
           // är den senaste.
           latestPersisting: area.status === 'persisting',
+          gapDays: 0,
+          straddlesGap: false,
         });
       }
     }
   }
 
-  return [...seen.values()]
-    .filter((i) => i.count >= minCount)
-    .sort((a, b) => b.count - a.count || b.dates[0].localeCompare(a.dates[0]));
+  const issues: RecurringIssue[] = [];
+  for (const issue of seen.values()) {
+    if (issue.count < minCount) continue;
+    // Samma kontrolldatum kan bära flera rader som normaliseras till samma
+    // brist. Uppehållet ska mätas mellan KONTROLLTILLFÄLLEN, annars räknas ett
+    // dubblerat datum som ett uppehåll på noll och döljer ett verkligt.
+    const unique = issue.dates.filter((d, i) => i === 0 || d !== issue.dates[i - 1]);
+    issue.gapDays = longestGap(unique);
+    issue.straddlesGap = issue.gapDays >= HISTORY_GAP_DAYS;
+    issues.push(issue);
+  }
+
+  // De brister vi kan stå för först. En brist som spänner över ett långt
+  // uppehåll kan gälla två olika verksamheter och får inte toppa listan bara
+  // för att den råkar ha noterats fler gånger.
+  return issues.sort(
+    (a, b) =>
+      Number(a.straddlesGap) - Number(b.straddlesGap) ||
+      b.count - a.count ||
+      b.dates[0].localeCompare(a.dates[0]),
+  );
 }
 
 /** Avvikelser vid en enskild kontroll. */
@@ -626,6 +757,270 @@ export function municipalityRemarks(slug: string): RemarkedEstablishment[] {
         (latestInspectionDate(b) ?? '').localeCompare(latestInspectionDate(a) ?? '') ||
         a.slug.localeCompare(b.slug, 'sv'),
     );
+}
+
+// ---------------------------------------------------------------------------
+// Kategorier
+// ---------------------------------------------------------------------------
+
+/**
+ * Minsta antal verksamheter för att en kategori ska få en egen sida.
+ *
+ * Under gränsen syns kategorin fortfarande på hubben, med sin siffra, men utan
+ * länk. En sida med tjugo rader är ett utsnitt av hubbens första sida och
+ * ingenting mer — den bär ingen egen information, och tunna sidor i tiotal
+ * drar ner hela domänen vid Googles bedömning av skalat innehåll (bibeln §6).
+ * Hellre en siffra som stämmer än en sida som inte förtjänar sin URL.
+ */
+export const MIN_CATEGORY_PAGE = 25;
+
+/**
+ * Detsamma för underkategorier, men högre.
+ *
+ * Underkategorin ligger ett steg längre in och konkurrerar med sin egen
+ * toppkategori om samma sökning. Den måste bära mer för att vara värd en URL.
+ */
+export const MIN_SUB_PAGE = 50;
+
+/** Bedömningarna inom ett utsnitt. Bär kategorisidans svarsmening. */
+export interface SliceVerdicts {
+  clean: number;
+  minor: number;
+  major: number;
+  /** clean + minor + major. Nämnaren, aldrig totalen. */
+  assessed: number;
+}
+
+export interface CategorySlice extends SliceVerdicts {
+  category: TopCategory;
+  count: number;
+  /** Har kategorin en egen sida i den här kommunen? */
+  linked: boolean;
+  /**
+   * Varför kategorin är tom här, i klarspråk. Null när den går att fylla.
+   * Sätts bara när källan är orsaken, aldrig när kommunen helt enkelt saknar
+   * den sortens verksamheter.
+   */
+  note: string | null;
+}
+
+export interface SubCategorySlice extends SliceVerdicts {
+  sub: SubCategory;
+  count: number;
+  linked: boolean;
+}
+
+function verdictCounts(items: readonly Establishment[]): SliceVerdicts {
+  let clean = 0;
+  let minor = 0;
+  let major = 0;
+  for (const e of items) {
+    if (e.verdict === 'clean') clean += 1;
+    else if (e.verdict === 'minor') minor += 1;
+    else if (e.verdict === 'major') major += 1;
+  }
+  return { clean, minor, major, assessed: clean + minor + major };
+}
+
+export interface MunicipalityCategories {
+  slug: string;
+  /** Alla fem toppkategorier i visningsordning, även de tomma. */
+  slices: CategorySlice[];
+  /** Underkategorier per toppkategori. Bara de kommunen faktiskt levererar. */
+  subs: Map<TopCategoryId, SubCategorySlice[]>;
+  /** Verksamheter helt utan kategori. */
+  uncategorised: number;
+  /** Varför de saknar kategori, i klarspråk. Null när ingen gör det. */
+  gapNote: string | null;
+}
+
+interface CategoryIndex extends MunicipalityCategories {
+  /** Medlemmar per toppkategori, i hubbens bokstavsordning. */
+  members: Map<TopCategoryId, Establishment[]>;
+  /** Medlemmar per underkategori, nyckel `${top}/${sub}`. */
+  subMembers: Map<string, Establishment[]>;
+}
+
+const categoryIndexes = new Map<string, CategoryIndex>();
+
+function categoryIndex(slug: string): CategoryIndex {
+  const cached = categoryIndexes.get(slug);
+  if (cached) return cached;
+
+  // Bokstavsordning redan här, så att varje kategorisida ärver hubbens ordning
+  // utan att sortera om. municipalityListing kopierar innan den sorterar; det
+  // som establishments() lämnar ut får inte röras (se db.ts).
+  const listing = municipalityListing(slug);
+  const city = listing[0]?.municipality.city ?? slug;
+
+  const members = new Map<TopCategoryId, Establishment[]>();
+  const subMembers = new Map<string, Establishment[]>();
+  const counts = new Map<TopCategoryId, number>();
+  const subCounts = new Map<string, number>();
+  const vocabulary = new Set<string>();
+
+  let uncategorised = 0;
+  let spanning = 0;
+  let noType = 0;
+  let unknownRows = 0;
+
+  for (const e of listing) {
+    for (const v of rawValues(slug, e.types)) vocabulary.add(v);
+
+    const c = classify(slug, e.types);
+
+    for (const value of c.unknown) {
+      noteUnknown(slug, value, c.status === 'unknown');
+      scheduleUnknownLog();
+    }
+
+    if (c.status === 'spanning') spanning += 1;
+    else if (c.status === 'no_type') noType += 1;
+    else if (c.status === 'unknown') unknownRows += 1;
+
+    if (c.categories.length === 0) {
+      uncategorised += 1;
+      continue;
+    }
+
+    for (const id of c.categories) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+      const bucket = members.get(id);
+      if (bucket) bucket.push(e);
+      else members.set(id, [e]);
+    }
+
+    for (const sub of c.subcategories) {
+      const key = `${subCategory(sub).top}/${sub}`;
+      subCounts.set(key, (subCounts.get(key) ?? 0) + 1);
+      const bucket = subMembers.get(key);
+      if (bucket) bucket.push(e);
+      else subMembers.set(key, [e]);
+    }
+  }
+
+  // Grinden. Över en procent okategoriserade har källan lagt om sin modell,
+  // och då ska bygget stanna i stället för att publicera gissningar.
+  assertKnown(slug, listing.length);
+
+  const gaps = coverageGaps(slug, vocabulary);
+  const gapByCategory = new Map(gaps.map((g) => [g.category, g]));
+
+  // Den odelbara gruppen är EN företeelse, inte tre. Höganäs blandar
+  // restauranger, caféer och butiker i samma hink, och tre nästan identiska
+  // meningar under filtret hade läst som tre olika problem. Notisen sätts
+  // därför på den första av dem och räknar upp allihop.
+  const spanningGroup = gaps
+    .filter((g) => g.kind === 'spanning' && (counts.get(g.category) ?? 0) === 0)
+    .map((g) => topCategory(g.category));
+  const spanningNote =
+    spanningGroup.length > 0
+      ? `${city} källa lägger ${joinSv(spanningGroup.map((c) => c.short))} i en enda grupp ` +
+        'och skiljer dem inte åt. Ingen av dem går att filtrera här.'
+      : null;
+
+  const slices: CategorySlice[] = TOP_CATEGORIES.map((category) => {
+    const count = counts.get(category.id) ?? 0;
+    const gap = count === 0 ? gapByCategory.get(category.id) : undefined;
+
+    let note: string | null = null;
+    if (gap?.kind === 'absorbed') {
+      const into = gap.into.map((id) => topCategory(id));
+      note =
+        `${city} skiljer inte ${category.plural} från ${joinSv(into.map((c) => c.plural))}. ` +
+        `De ligger under ${joinSv(into.map((c) => c.name))}.`;
+    } else if (gap?.kind === 'spanning' && category.id === spanningGroup[0]?.id) {
+      note = spanningNote;
+    }
+
+    return {
+      category,
+      count,
+      linked: count >= MIN_CATEGORY_PAGE,
+      note,
+      ...verdictCounts(members.get(category.id) ?? []),
+    };
+  });
+
+  const subs = new Map<TopCategoryId, SubCategorySlice[]>();
+  for (const [key, count] of subCounts) {
+    const sub = subCategory(key.slice(key.indexOf('/') + 1));
+    const list = subs.get(sub.top) ?? [];
+    list.push({
+      sub,
+      count,
+      linked: count >= MIN_SUB_PAGE,
+      ...verdictCounts(subMembers.get(key) ?? []),
+    });
+    subs.set(sub.top, list);
+  }
+  for (const list of subs.values()) {
+    list.sort((a, b) => b.count - a.count || subCategoryRank(a.sub.id) - subCategoryRank(b.sub.id));
+  }
+
+  // En verksamhet utan kategori försvinner ur varje filter. Då måste hubben
+  // säga att den finns och varför den inte syns — annars ser summan av
+  // kategorierna ut som hela kommunen, och den som räknar efter blir lurad.
+  let gapNote: string | null = null;
+  if (uncategorised > 0) {
+    const causes: string[] = [];
+    if (spanning > 0) {
+      causes.push(
+        spanningGroup.length > 0
+          ? `${formatNumber(spanning)} ligger i en grupp där källan blandar ` +
+            joinSv(spanningGroup.map((c) => c.short))
+          : `${formatNumber(spanning)} ligger i en grupp källan inte delar upp`,
+      );
+    }
+    if (noType > 0) causes.push(`${formatNumber(noType)} saknar verksamhetstyp i källan`);
+    if (unknownRows > 0) {
+      causes.push(`${formatNumber(unknownRows)} har en typ vi ännu inte känner igen`);
+    }
+    gapNote =
+      `${formatNumber(uncategorised)} av ${formatNumber(listing.length)} verksamheter i ${city} ` +
+      `saknar kategori: ${joinSv(causes)}. De finns kvar i listan ovan och har egna sidor, ` +
+      'men syns inte i något filter.';
+  }
+
+  const index: CategoryIndex = {
+    slug,
+    slices,
+    subs,
+    uncategorised,
+    gapNote,
+    members,
+    subMembers,
+  };
+  categoryIndexes.set(slug, index);
+  return index;
+}
+
+/** Kommunens kategorier med antal, länkbarhet och förklaringar. */
+export function municipalityCategories(slug: string): MunicipalityCategories {
+  return categoryIndex(slug);
+}
+
+/**
+ * Verksamheterna i en kategori, i hubbens bokstavsordning.
+ *
+ * Listan är delad med registret och får inte sorteras eller muteras av
+ * anroparen, precis som establishments(). Sidmallarna skär bara ut en sida.
+ */
+export function categoryListing(slug: string, category: TopCategoryId): Establishment[] {
+  return categoryIndex(slug).members.get(category) ?? [];
+}
+
+export function subCategoryListing(
+  slug: string,
+  category: TopCategoryId,
+  sub: string,
+): Establishment[] {
+  return categoryIndex(slug).subMembers.get(`${category}/${sub}`) ?? [];
+}
+
+/** Kategoriseringen av en enskild verksamhet. */
+export function categoriesOf(e: Establishment): Categorised {
+  return classify(e.municipality.slug, e.types);
 }
 
 // ---------------------------------------------------------------------------

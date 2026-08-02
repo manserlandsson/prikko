@@ -25,13 +25,17 @@ interface Props {
   /** Låt munnen ritas upp när märket kommer in. */
   animate?: boolean;
   /**
-   * Låt märket blinka en gång, kort efter att munnen ritats.
+   * Låt märket blinka, med långt uppehåll mellan blinkningarna.
    *
-   * Bara för godkända verksamheter, och bara EN gång — aldrig i loop.
-   * Måste sättas medvetet per användning: en kommunsida listar hundratals
-   * gröna ansikten, och skulle de blinka allihop vore sidan oläslig. Blinkningen
-   * hör hemma på det stora märket högst upp på en verksamhets sida, där den är
-   * ett enskilt tecken och inte ett myller.
+   * Bara för godkända verksamheter. Måste sättas medvetet per användning: en
+   * kommunsida listar hundratals gröna ansikten, och skulle de blinka allihop
+   * vore sidan oläslig. Blinkningen hör hemma på det stora märket högst upp på
+   * en verksamhets sida, där den är ett enskilt tecken och inte ett myller.
+   *
+   * Låg tidigare som en enda blinkning strax efter att munnen ritats. Den
+   * gick tekniskt igång men syntes aldrig: den var över på 0,4 sekunder, ögat
+   * var hoptryckt i 0,16 av dem, och det inträffade en enda gång medan
+   * besökaren fortfarande läste rubriken. Se stilarna längre ner.
    */
   wink?: boolean;
 }
@@ -130,19 +134,43 @@ const winking = wink && verdict === 'clean';
     to { stroke-dashoffset: 0; }
   }
 
-  /* Blinkningen. Höger öga plattas till och öppnas igen, en gång, efter att
-     munnen ritats klart. Ögat skalas kring sin EGEN mittpunkt — utan
-     fill-box räknar webbläsaren origo från hela svg:n och ögat glider
-     iväg i stället för att blinka. */
+  /* Blinkningen. Höger öga plattas till och öppnas igen. Ögat skalas kring
+     sin EGEN mittpunkt. Utan fill-box räknar webbläsaren origo från hela
+     svg:n, och då glider ögat iväg i stället för att blinka.
+
+     Namnet måste vara unikt. @keyframes är GLOBALA i CSS. Astro scopar
+     selektorer men inte keyframe-namn, och den här hette tidigare `wink`,
+     vilket krockade med sidhuvudets, som numera heter `wordmark-wink`.
+
+     ── Varför den inte syntes förut ──────────────────────────────────────
+     Den gamla versionen var 0,4 sekunder lång, kördes en enda gång 0,65 s
+     efter sidladdning och tryckte ihop ögat till 12 %. Det gav 0,04 sekunder
+     helt hoptryckt och knappt två tiondelar där ihoptryckningen alls var
+     märkbar. Den avlöpte medan besökaren fortfarande läste verksamhetens
+     namn, och var över innan blicken hann till märket. En animation som bara
+     syns om man råkar titta på rätt plats vid rätt tiondels sekund finns i
+     praktiken inte.
+
+     Nu är den byggd som sidhuvudets wordmark, som fungerar: långsam,
+     nästan fullständig, och upprepad med långt uppehåll. Cykeln är 8
+     sekunder och blinkningen upptar de första tio procenten. Ögat sluts på
+     0,32 s, står slutet i 0,12 s och öppnas på 0,32 s, alltså 0,76 sekunder
+     rörelse följt av drygt sju sekunders stillhet. Uppehållet är det som gör
+     att upprepningen läser som ett andetag och inte som en tic.
+
+     Fördröjningen på 0,9 s låter munnen ritas klart först (0,1 s väntan plus
+     0,45 s uppritning). Två animationer på samma ansikte samtidigt läser som
+     en glitch. */
   .winking .eye.right {
     transform-box: fill-box;
     transform-origin: center;
-    animation: wink .4s cubic-bezier(.4, 0, .2, 1) .65s 1;
+    animation: facemark-wink 8s cubic-bezier(.4, 0, .2, 1) .9s infinite;
   }
 
-  @keyframes wink {
-    0%, 100% { transform: scaleY(1); }
-    45%, 55% { transform: scaleY(.12); }
+  @keyframes facemark-wink {
+    0%, 1%      { transform: scaleY(1); }
+    5%, 6.5%    { transform: scaleY(.06); }
+    10.5%, 100% { transform: scaleY(1); }
   }
 
   /* Rörelse kan utlösa yrsel och illamående hos den som har en vestibulär

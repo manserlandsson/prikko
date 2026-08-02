@@ -207,6 +207,73 @@ create index if not exists images_establishment_idx
     on images (establishment_id, position);
 
 -- ---------------------------------------------------------------------------
+-- Namnhistorik per anläggning
+--
+-- Kommunernas kontroller är registrerade på ANLÄGGNINGEN, alltså lokalen, och
+-- inte på företaget. Tar en ny restaurang över en adress ärver den
+-- föregångarens hela kontrollhistorik. Ingen av de nio källorna har ett fält
+-- för när verksamheten startade eller för om ägaren bytt, och Stockholms
+-- `date` är null. Bytet går alltså inte att läsa ur en enskild hämtning.
+--
+-- Det går däremot att SE över tid. Pipelinen kör varje natt mot samma
+-- anläggnings-id. Byter namnet på ett id mellan två körningar har verksamheten
+-- med stor sannolikhet bytt, och tidpunkten då vi först såg det nya namnet är
+-- en övre gräns för när bytet skedde.
+--
+-- Tabellen är en LOGG, inte en sanning om ägarskap. Varje (anläggning, namn)
+-- får en rad; `first_seen_at` är första gången vi såg namnet på det id:t.
+--
+-- REGELN SOM MÅSTE FÖLJA MED TILL VARJE LÄSARE:
+--   `first_seen_at` säger något om verksamheten ENDAST när anläggningen har
+--   mer än en namnrad. Vid första körningen får varje befintlig anläggning
+--   sin rad daterad till den natten, och den datumstämpeln betyder då bara
+--   "då började vi titta" — aldrig "då öppnade stället". Sidan får inte
+--   skriva ut den för anläggningar med en enda namnrad.
+--
+-- Löser inte historiken som redan finns. Ser till att problemet inte växer.
+-- ---------------------------------------------------------------------------
+create table if not exists establishment_names (
+    id                  bigserial primary key,
+    establishment_id    text not null
+                            references establishments (id) on delete cascade,
+    name                text not null,
+
+    -- Första respektive senaste körning som såg namnet på det här id:t.
+    first_seen_at       timestamptz not null default now(),
+    last_seen_at        timestamptz not null default now(),
+
+    unique (establishment_id, name)
+);
+
+create index if not exists establishment_names_establishment_idx
+    on establishment_names (establishment_id, first_seen_at);
+
+-- Anläggningar som burit mer än ett namn. Det här är larmlistan: varje rad är
+-- en lokal där kontrollhistoriken sannolikt spänner över mer än en verksamhet.
+--
+-- `current_name` läses ur establishments och inte ur loggen, eftersom loggen
+-- inte vet vilket namn som gäller i dag — bara vilka vi har sett.
+drop view if exists establishment_name_changes;
+
+create view establishment_name_changes as
+select
+    e.id                            as establishment_id,
+    m.slug                          as municipality_slug,
+    e.name                          as current_name,
+    e.street_address,
+    count(*)                        as names_seen,
+    min(n.first_seen_at)            as first_observed_at,
+    -- När vi först såg det namn som gäller nu. Kontroller före den här
+    -- tidpunkten kan höra till en tidigare verksamhet i lokalen.
+    max(n.first_seen_at) filter (where n.name = e.name) as current_name_since,
+    array_agg(n.name order by n.first_seen_at)          as names
+from establishment_names n
+join establishments e   on e.id = n.establishment_id
+join municipalities m   on m.code = e.municipality_code
+group by e.id, m.slug, e.name, e.street_address
+having count(*) > 1;
+
+-- ---------------------------------------------------------------------------
 -- Bedömning (härledd — vår slutsats, inte kommunens)
 --
 -- Tre nivåer, speglar källdatans assessment 0/1/2 ett till ett. Ingen
@@ -319,6 +386,23 @@ alter view publishable_establishments set (security_invoker = true);
 
 -- Vyn ärver inte rättigheter från sina tabeller.
 grant select on publishable_establishments to anon, authenticated;
+
+-- Namnhistoriken är ett INTERNT observationsunderlag, inte publicerat innehåll.
+--
+-- Den släpps därför medvetet INTE fram till anon. Radsäkerhet på utan någon
+-- select-policy betyder att bara service_role kommer åt den, och pipelinen och
+-- exporten kör båda med den nyckeln. Skulle sajten en dag visa "under detta
+-- namn sedan ..." går datan genom exporten, som redan är den enda vägen från
+-- databasen till bygget.
+--
+-- Skälet att inte bara följa mönstret ovan: en anläggning där vi sett två namn
+-- är ett påstående om att ett företag bytts ut, och ett sådant påstående ska
+-- inte ligga öppet på ett API innan vi bestämt hur det formuleras.
+alter table establishment_names enable row level security;
+drop policy if exists public_read_establishment_names on establishment_names;
+revoke all on table establishment_names from anon, authenticated;
+alter view establishment_name_changes set (security_invoker = true);
+revoke all on establishment_name_changes from anon, authenticated;
 
 -- Ingen roll utom service_role får skriva. service_role går förbi RLS och
 -- används enbart av pipelinen.

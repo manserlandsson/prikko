@@ -61,6 +61,20 @@ class Supabase:
             detail = exc.read().decode("utf-8", "replace")[:500]
             raise SupabaseError(f"{method} {path} → {exc.code}: {detail}") from exc
 
+    def has_column(self, table: str, column: str) -> bool:
+        """Finns kolumnen? PostgREST svarar 400 när den inte gör det.
+
+        Schemat lever i schema.sql och körs för hand i Supabase SQL Editor.
+        Pipelinen ska därför inte krascha mot en databas som ännu inte fått
+        senaste migreringen — den ska skriva det den kan och säga vad som
+        saknas.
+        """
+        try:
+            self._request("GET", f"{table}?select={column}&limit=1")
+            return True
+        except SupabaseError:
+            return False
+
     def upsert(self, table: str, rows: list, on_conflict: str) -> None:
         """Upsert i portionsvis storlek. Tomma listor hoppas över."""
         if not rows:
@@ -75,6 +89,26 @@ class Supabase:
                 prefer="resolution=merge-duplicates,return=minimal",
             )
 
+    def select_all(self, table: str, query: str) -> list:
+        """Hämta samtliga rader för en fråga, sidvis.
+
+        PostgREST returnerar högst 1 000 rader per svar. Utan sidbrytning
+        hade en namnjämförelse i Stockholm tyst tappat 7 500 av 8 511
+        anläggningar och därmed missat exakt de byten den finns för.
+        """
+        rows: list = []
+        page = 1000
+        while True:
+            start = len(rows)
+            data = self._request(
+                "GET",
+                f"{table}?{query}&limit={page}&offset={start}",
+            )
+            chunk = json.loads(data.decode("utf-8"))
+            rows.extend(chunk)
+            if len(chunk) < page:
+                return rows
+
     def delete_where_in(self, table: str, column: str, values: Iterable[str]) -> None:
         """Rensa rader vars förälder vi är på väg att skriva om."""
         values = list(values)
@@ -85,7 +119,80 @@ class Supabase:
             self._request("DELETE", f"{table}?{query}", prefer="return=minimal")
 
 
-def load(path: Path, client: Supabase) -> None:
+def record_names(
+    client: Supabase,
+    municipality_code: str,
+    establishments: list,
+    fetched_at: str | None,
+) -> list:
+    """Skriv namnhistorik per anläggning och larma när ett namn bytts.
+
+    Kommunernas kontroller hänger på ANLÄGGNINGEN, alltså lokalen, inte på
+    företaget. Tar en ny restaurang över en adress ärver den föregångarens hela
+    kontrollhistorik, och ingen av källorna säger att bytet skett — Stockholms
+    `date` är null och det finns inget fält för verksamhetens start.
+
+    Ett byte går ändå att se över tid, eftersom vi kör mot samma anläggnings-id
+    varje natt: byter NAMNET på ett id har verksamheten sannolikt bytt.
+
+    Måste anropas FÖRE upserten av establishments. Efteråt är det gamla namnet
+    överskrivet och jämförelsen har inget att jämföra mot.
+
+    Returnerar de upptäckta bytena som (id, gammalt namn, nytt namn).
+    """
+    known = {
+        row["id"]: row["name"]
+        for row in client.select_all(
+            "establishments",
+            f"select=id,name&municipality_code=eq.{urllib.parse.quote(municipality_code)}",
+        )
+    }
+
+    changes = []
+    for e in establishments:
+        previous = known.get(e["id"])
+        # Okänt id = ny anläggning hos kommunen, inte ett byte. Att larma på
+        # den hade dränkt de verkliga bytena i brus.
+        if previous is not None and previous != e["name"]:
+            changes.append((e["id"], previous, e["name"]))
+
+    # Loggen skrivs oavsett om något bytts: `last_seen_at` ska betyda "senast
+    # sedd", och `first_seen_at` sätts av kolumnens default bara vid insert.
+    # Skickas first_seen_at med i nyttolasten skriver PostgREST över den vid
+    # varje körning och hela poängen med tabellen går förlorad.
+    client.upsert(
+        "establishment_names",
+        [
+            {
+                "establishment_id": e["id"],
+                "name": e["name"],
+                "last_seen_at": fetched_at,
+            }
+            for e in establishments
+        ],
+        on_conflict="establishment_id,name",
+    )
+
+    if changes:
+        print(
+            f"  NAMNBYTE på {len(changes)} anläggning(ar). Kontrollhistoriken på\n"
+            "  dessa id:n spänner sannolikt över mer än en verksamhet:",
+            file=sys.stderr,
+        )
+        for eid, before, after in changes[:20]:
+            print(f"    {eid}: {before!r} -> {after!r}", file=sys.stderr)
+        if len(changes) > 20:
+            print(f"    ... och {len(changes) - 20} till", file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(
+                f"::warning title=Namnbyte upptäckt::{len(changes)} anläggningar "
+                f"i {municipality_code} har bytt namn sedan förra körningen."
+            )
+
+    return changes
+
+
+def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
     payload = json.loads(path.read_text(encoding="utf-8"))
     municipality = payload["municipality"]
     source = payload.get("source", {})
@@ -110,8 +217,20 @@ def load(path: Path, client: Supabase) -> None:
         on_conflict="code",
     )
 
-    establishment_rows = [
-        {
+    # Härledda koordinater bär sitt ursprung med sig. Kolumnerna kom till i en
+    # senare migrering; mot en databas utan dem skriver vi resten ändå.
+    geo_marked = client.has_column("establishments", "geo_source")
+    if not geo_marked and any(e.get("geoSource") for e in establishments):
+        print(
+            "  VARNING: establishments saknar geo_source/geo_precision.\n"
+            "  Kör om pipeline/schema.sql i Supabase SQL Editor, annars kan sidan\n"
+            "  inte skilja en härledd koordinat från kommunens egen.",
+            file=sys.stderr,
+        )
+
+    establishment_rows = []
+    for e in establishments:
+        row = {
             "id": e["id"],
             "municipality_code": municipality["code"],
             "id_local": e["id"].rsplit("-", 1)[-1],
@@ -125,10 +244,31 @@ def load(path: Path, client: Supabase) -> None:
             "active": 2,
             "fetched_at": source.get("fetchedAt"),
         }
-        for e in establishments
-    ]
+        if geo_marked:
+            row["geo_source"] = e.get("geoSource")
+            row["geo_precision"] = e.get("geoPrecision")
+        establishment_rows.append(row)
+
+    # FÖRE upserten: efteråt är det gamla namnet borta och bytet osynligt.
+    # Tabellen kom till i en senare migrering, så en databas som inte fått den
+    # ska varna och ladda vidare i stället för att fälla hela nattkörningen.
+    if client.has_column("establishment_names", "name"):
+        record_names(client, municipality["code"], establishments, source.get("fetchedAt"))
+    else:
+        print(
+            "  VARNING: tabellen establishment_names saknas. Namnbyten kan inte\n"
+            "  upptäckas, och kontrollhistorik från en tidigare verksamhet i samma\n"
+            "  lokal går därför inte att skilja ut. Kör om pipeline/schema.sql.",
+            file=sys.stderr,
+        )
+
     client.upsert("establishments", establishment_rows, on_conflict="id")
     print(f"  anläggningar skrivna", file=sys.stderr)
+
+    if geo_only:
+        placed = sum(1 for e in establishments if e.get("lat") is not None)
+        print(f"  {placed} koordinater skrivna; hoppar över kontrollhistoriken", file=sys.stderr)
+        return
 
     # Inspektioner ersätts helt per körning: en kontroll som kommunen tagit
     # bort ska försvinna även hos oss. Kontrollområden städas av kaskaden.
@@ -186,6 +326,11 @@ def load(path: Path, client: Supabase) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="+", type=Path)
+    parser.add_argument(
+        "--geo-only",
+        action="store_true",
+        help="skriv bara anläggningarna (koordinater), rör inte kontrollhistoriken",
+    )
     args = parser.parse_args()
 
     url = os.environ.get("SUPABASE_URL")
@@ -198,7 +343,7 @@ def main() -> None:
 
     client = Supabase(url, key)
     for path in args.files:
-        load(path, client)
+        load(path, client, geo_only=args.geo_only)
 
     print("\nKlart.", file=sys.stderr)
 
