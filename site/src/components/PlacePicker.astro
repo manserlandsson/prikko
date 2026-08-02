@@ -137,20 +137,37 @@ const points = municipalityPoints();
     flex-shrink: 0;
   }
 
+  /* Kvadratiska mått, inte höjd plus padding.
+   *
+   * Knappen var ett piller med texten "Kommun" bredvid ikonen. När texten
+   * togs bort behöll den `padding-inline`, så bredden blev ikonen plus två
+   * paddingar medan höjden satt låst på 36. Resultatet blev en oval.
+   *
+   * Nu samma tal på båda ledder, och cirkeln följer av det.
+   *
+   * Cirkeln får vara kvar och den får vara tom. Den markerar att ikonen är
+   * något man trycker på och ger en träffyta på 36 px, vilket är ungefär
+   * gränsen för en fingertopp. En fylld yta hade vägt lika tungt som
+   * wordmarken i andra änden av raden, och sidhuvudet ska vara lugnt.
+   * Fyllningen kommer i stället vid hover, som en kvittens. */
   .trigger {
     display: inline-flex;
     align-items: center;
-    gap: var(--s-2);
+    justify-content: center;
+    width: 36px;
     height: 36px;
-    padding-inline: var(--s-3);
     border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
+    border-radius: 50%;
     background: var(--card);
-    font-size: var(--fs-body-s);
     color: var(--text);
     cursor: pointer;
     list-style: none;
     user-select: none;
+  }
+
+  .trigger:hover {
+    background: var(--canvas);
+    border-color: var(--text-muted);
   }
 
   /* Safari ritar en egen triangel på summary. */
