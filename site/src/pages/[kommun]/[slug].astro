@@ -75,11 +75,55 @@ const neighbours = nearby(e);
 const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
 
-const answer = latest
-  ? `${e.name} ${presentation.sentence} den ${formatDate(latest)}.`
-  : `${e.name} ${presentation.sentence}.`;
+/**
+ * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
+ * sannolikt citerar. Måste vara självbärande och sann i varje utfall.
+ *
+ * Den här limmade tidigare ihop ett datumled på ALLA utfall:
+ * `${namn} ${sentence} den ${datum}.` Det bär bara när meningen handlar om
+ * en kontroll som faktiskt ägt rum. På 2 136 sidor gjorde den inte det:
+ *
+ *  - 857 sidor läste "…så nuläget går inte att bedöma den 17 maj 2023",
+ *    eftersom meningen för `stale_inspections` slutar i en bisats som inte
+ *    tar något datumled. Det går inte att läsa.
+ *  - 1 279 sidor sade "har ingen registrerad hygienkontroll hos kommunen"
+ *    och bjöd i nästa mening in till att läsa kontrollhistoriken.
+ *
+ * Därför en gren per utfall i stället för en mall plus konkatenering. Datumet
+ * får en egen mening när det inte hör hemma i den första, och den fasta
+ * svansen sätts bara när det finns något att se.
+ */
+const areas = latestInspection?.areas.length ?? 0;
 
-const description = `${answer} Se vilka kontrollområden som granskades och hela kontrollhistoriken.`;
+let answer: string;
+let detail: string;
+
+if (e.verdict !== null && latest) {
+  // Bedömd. Datumet hör till kontrollen meningen handlar om.
+  answer = `${e.name} ${presentation.sentence} den ${formatDate(latest)}.`;
+  detail =
+    areas > 0
+      ? 'Se vilka kontrollområden som granskades och hela kontrollhistoriken.'
+      : 'Se hela kontrollhistoriken hos kommunen.';
+} else if (latest) {
+  // För gammal kontroll. Kontrollen finns, men den är för gammal för att säga
+  // något om nuläget, och då är datumet ett eget påstående, inte ett led i
+  // meningen om att bedömningen uteblir.
+  answer =
+    `${e.name} ${presentation.sentence}. ` +
+    `Den senaste kontrollen gjordes den ${formatDate(latest)}.`;
+  detail =
+    areas > 0
+      ? 'Se vad som granskades då och hela kontrollhistoriken.'
+      : 'Se hela kontrollhistoriken hos kommunen.';
+} else {
+  // Ingen kontroll alls. Ingen historik att hänvisa till, alltså ingen svans
+  // om kontrollområden. Den var det som gjorde beskrivningen självmotsägande.
+  answer = `${e.name} ${presentation.sentence}.`;
+  detail = `Verksamheten finns i kommunens register, men ${kommun.name} har inte publicerat någon kontroll av den.`;
+}
+
+const description = `${answer} ${detail}`;
 
 /**
  * Statistiken räknas på ADRESSEN, inte på företaget.
