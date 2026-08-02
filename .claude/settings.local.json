@@ -160,7 +160,17 @@
       "WebFetch(domain:hypestat.com)",
       "WebFetch(domain:data.gov.uk)",
       "WebFetch(domain:data.food.gov.uk)",
-      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://data.gov.uk/api/3/action/package_show?id=c4047886-c3ba-427f-bafc-9804c11a5ab9\" -o pages.json -w \"%{http_code}\\\\n\")"
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://data.gov.uk/api/3/action/package_show?id=c4047886-c3ba-427f-bafc-9804c11a5ab9\" -o pages.json -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s \"http://archive.org/wayback/available?url=data.gov.uk/dataset/c4047886-c3ba-427f-bafc-9804c11a5ab9/food-hygiene-ratings-website-pages\")",
+      "Bash(curl -s \"http://archive.org/wayback/available?url=www.data.gov.uk/dataset/3e358499-eb65-4dde-9b08-9de6cac52efb/food-hygiene-ratings-website-traffic\")",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://data.food.gov.uk/catalog/datasets/81628871-423d-4639-96c7-cebadec01563\" -w \"\\\\nHTTP:%{http_code}\\\\n\")",
+      "WebFetch(domain:data.riksdagen.se)",
+      "Bash(curl -s -c cj.txt -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120 Safari/537.36\" \"https://trends.google.com/trends/?geo=SE\" -o /dev/null -w \"home:%{http_code}\\\\n\")",
+      "Bash(curl -s -b cj.txt -c cj.txt -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120 Safari/537.36\" -H \"Accept-Language: sv-SE,sv;q=0.9\" -H \"Referer: https://trends.google.com/trends/explore?geo=SE\" \"https://trends.google.com/trends/api/explore?hl=sv&tz=-120&geo=SE&req=%7B%22comparisonItem%22%3A%5B%7B%22keyword%22%3A%22livsmedelskontroll%22%2C%22geo%22%3A%22SE%22%2C%22time%22%3A%22today%205-y%22%7D%5D%2C%22category%22%3A0%2C%22property%22%3A%22%22%7D\" -w \"\\\\nexplore:%{http_code}\\\\n\")",
+      "Bash(python3 tr.py \"matförgiftning|livsmedelskontroll|livsmedelskollen|hygienbetyg\" \"SE\" \"today 5-y\")",
+      "Bash(python3 tr.py \"livsmedelskontroll|restaurang hygien|matsnusk|anmäla restaurang|hygienbetyg\" \"SE\" \"today 5-y\")",
+      "Bash(python3 tr.py \"matförgiftning|food hygiene rating\" \"\" \"today 5-y\")",
+      "Bash(python3 tr.py \"food hygiene rating|nandos food hygiene|wetherspoons food hygiene rating\" \"GB\" \"today 5-y\")"
     ]
   }
 }

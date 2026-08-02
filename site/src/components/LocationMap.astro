@@ -86,59 +86,92 @@ const key = verdict ?? 'none';
 </style>
 
 <script>
-  // Laddar MapLibre först när kartan syns. Sparar ~200 kB på sidvisningar
-  // där besökaren aldrig scrollar ner till panelen.
-  const nodes = document.querySelectorAll<HTMLElement>('.map[data-lat]');
+  // NAMNGIVNA importer. maplibre-gl har ingen default-export — bygget säger
+  // rakt ut: [MISSING_EXPORT] "default" is not exported by maplibre-gl.mjs.
+  // Tidigare kod gjorde `(await import(...)).default ?? mod` och föll därför
+  // tillbaka på namnrymdsobjektet, vilket betedde sig olika i dev och i byggd
+  // chunk och fick kartan att tyst misslyckas i produktion.
+  import { Map as MapLibreMap, Marker, NavigationControl } from 'maplibre-gl';
 
-  const observer = new IntersectionObserver(async (entries, obs) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      const el = entry.target as HTMLElement;
-      obs.unobserve(el);
+  function initMaps() {
+    const nodes = document.querySelectorAll<HTMLElement>('.map[data-lat]');
+    if (!nodes.length) return;
 
+    for (const el of nodes) {
       try {
+        const lat = Number(el.dataset.lat);
+        const lng = Number(el.dataset.lng);
 
-      // Namngiven kontra default-export skiljer sig mellan dev och byggd
-      // chunk. Utan den här normaliseringen kastar maplibregl.Map i produktion,
-      // och eftersom det sker i en async callback syns felet inte i konsolen.
-      const mod = await import('maplibre-gl');
-      const maplibregl = (mod as any).default ?? mod;
+        const map = new MapLibreMap({
+          container: el,
+          style: 'https://tiles.openfreemap.org/styles/positron',
+          center: [lng, lat],
+          zoom: 15.5,
+          attributionControl: false,
+          dragRotate: false,
+        });
 
-      const lat = Number(el.dataset.lat);
-      const lng = Number(el.dataset.lng);
+        map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+        map.scrollZoom.disable();
 
-      const map = new maplibregl.Map({
-        container: el,
-        style: 'https://tiles.openfreemap.org/styles/positron',
-        center: [lng, lat],
-        zoom: 15.5,
-        attributionControl: false,
-        interactive: true,
-        dragRotate: false,
-      });
+        // Panelen kan sakna slutgiltig storlek när kartan skapas. Utan detta
+        // beräknar MapLibre noll synliga rutor och hämtar aldrig några tiles.
+        new ResizeObserver(() => map.resize()).observe(el);
 
-      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-      map.scrollZoom.disable();
+        map.on('load', () => {
+          // Dämpa bakgrunden. Apples kartor ser rena ut för att de är
+          // återhållsamma: POI-brus bort, etiketter små och grå, vägar ljusa.
+          // Kvar blir en yta där bara vår nål drar blicken.
+          for (const layer of map.getStyle().layers ?? []) {
+            const id = layer.id;
+            try {
+              if (/poi|aeroway|airport|transit/i.test(id)) {
+                map.setLayoutProperty(id, 'visibility', 'none');
+              } else if (layer.type === 'symbol') {
+                map.setPaintProperty(id, 'text-color', '#8A8A8E');
+                map.setPaintProperty(id, 'text-halo-color', '#FFFFFF');
+              } else if (layer.type === 'line' && /road|street|bridge|tunnel/i.test(id)) {
+                map.setPaintProperty(id, 'line-color', '#E8E8EC');
+              } else if (layer.type === 'fill' && /water/i.test(id)) {
+                map.setPaintProperty(id, 'fill-color', '#DCE7F0');
+              } else if (layer.type === 'fill' && /landuse|park|wood/i.test(id)) {
+                map.setPaintProperty(id, 'fill-color', '#F0F3EE');
+              }
+            } catch {
+              // Alla lager stödjer inte alla egenskaper. Hoppa vidare.
+            }
+          }
+          map.resize();
+        });
 
-      const pin = document.createElement('div');
-      pin.className = 'prikko-pin';
-      pin.innerHTML = `
-        <svg viewBox="0 0 96 96" width="30" height="30" aria-hidden="true">
-          <rect width="96" height="96" rx="26" fill="${el.dataset.color}"
-                stroke="#fff" stroke-width="6"/>
-          <circle cx="37.87" cy="37.12" r="6.12" fill="#fff"/>
-          <circle cx="60.61" cy="37.12" r="6.12" fill="#fff"/>
-          <path d="${el.dataset.mouth}" stroke="#fff" stroke-width="7.87"
-                stroke-linecap="round" fill="none"/>
-        </svg>`;
+        map.on('idle', () => { el.dataset.mapReady = '1'; });
+        map.on('error', (event: any) => {
+          console.error('Kartfel', event?.error?.message ?? event);
+        });
 
-      new maplibregl.Marker({ element: pin }).setLngLat([lng, lat]).addTo(map);
+        const pin = document.createElement('div');
+        pin.className = 'prikko-pin';
+        pin.innerHTML = `
+          <svg viewBox="0 0 96 96" width="30" height="30" aria-hidden="true">
+            <rect width="96" height="96" rx="26" fill="${el.dataset.color}"
+                  stroke="#fff" stroke-width="6"/>
+            <circle cx="37.87" cy="37.12" r="6.12" fill="#fff"/>
+            <circle cx="60.61" cy="37.12" r="6.12" fill="#fff"/>
+            <path d="${el.dataset.mouth}" stroke="#fff" stroke-width="7.87"
+                  stroke-linecap="round" fill="none"/>
+          </svg>`;
+
+        new Marker({ element: pin }).setLngLat([lng, lat]).addTo(map);
       } catch (error) {
         // Kartan är kontext, inte huvudinnehåll — sidan ska fungera utan den.
         console.error('Kartan kunde inte laddas', error);
       }
     }
-  }, { rootMargin: '200px' });
+  }
 
-  nodes.forEach((n) => observer.observe(n));
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => initMaps(), { timeout: 1500 });
+  } else {
+    setTimeout(initMaps, 200);
+  }
 </script>
