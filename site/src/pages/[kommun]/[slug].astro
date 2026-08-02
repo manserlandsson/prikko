@@ -47,6 +47,7 @@ import {
   type Establishment,
 } from '../../lib/data';
 import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
 
 export async function getStaticPaths() {
   // Alla kommuner vi har data för. Ingen lista i kod — db.ts upptäcker dem.
@@ -110,7 +111,7 @@ const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'FoodEstablishment',
   name: e.name,
-  url: new URL(Astro.url.pathname, SITE.url).href,
+  url: absolute(kommun.slug, e.slug),
   address: {
     '@type': 'PostalAddress',
     streetAddress: e.address ?? undefined,
@@ -126,8 +127,8 @@ const breadcrumbs = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-    { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}/${kommun.slug}` },
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+    { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommun.slug) },
     { '@type': 'ListItem', position: 3, name: e.name },
   ],
 };
@@ -144,7 +145,7 @@ const breadcrumbs = {
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={`/${kommun.slug}`}>{kommun.city}</a>
+      <a href={path(kommun.slug)}>{kommun.city}</a>
     </nav>
 
     <header class="masthead">
@@ -203,8 +204,8 @@ const breadcrumbs = {
           )}
           <p class="caption text-muted">
             Källa: {kommun.name}, hämtat {formatDate(source.fetchedAt.slice(0, 10))}.
-            Bedömningen är Prikkos. <a href="/metodik">Så räknas den fram</a>.
-            <a href="/ratta">Rätta en uppgift</a>.
+            Bedömningen är Prikkos. <a href="/metodik/">Så räknas den fram</a>.
+            <a href="/ratta/">Rätta en uppgift</a>.
           </p>
         </footer>
       </main>
@@ -245,7 +246,7 @@ const breadcrumbs = {
             <ul class="near">
               {neighbours.map((n) => (
                 <li>
-                  <a href={`/${kommun.slug}/${n.slug}`}>
+                  <a href={path(kommun.slug, n.slug)}>
                     <FaceMark verdict={n.verdict} size={30} variant="round" />
                     <span class="near-info">
                       <b>{n.name}</b>

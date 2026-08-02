@@ -7,6 +7,7 @@ import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
 import { formatDate, isIndexable, latestInspectionDate, type Establishment } from '../lib/data';
 import { VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
 
 interface Props {
   items: Establishment[];
@@ -23,7 +24,7 @@ const { items, kommunSlug } = Astro.props;
     const date = latestInspectionDate(e);
     return (
       <li class="item card">
-        <a href={`/${kommunSlug}/${e.slug}`} rel={isIndexable(e) ? undefined : 'nofollow'}>
+        <a href={path(kommunSlug, e.slug)} rel={isIndexable(e) ? undefined : 'nofollow'}>
           <FaceRef verdict={e.verdict} size={38} />
           <span class="info">
             <b>{e.name}</b>

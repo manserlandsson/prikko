@@ -27,6 +27,7 @@ import {
 } from '../lib/data';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
 
 interface Props {
   kommun: Municipality;
@@ -83,15 +84,15 @@ const description =
       `${formatNumber(total)} i ${city}, i bokstavsordning. Sida ${currentPage} av ${lastPage}.`;
 
 const crumbs = [
-  { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-  { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}${kommunBase}` },
+  { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+  { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommunBase) },
   ...(sub
     ? [
         {
           '@type': 'ListItem',
           position: 3,
           name: slice.category.name,
-          item: `${SITE.url}${categoryBase}`,
+          item: absolute(categoryBase),
         },
         { '@type': 'ListItem', position: 4, name: sub.sub.name },
       ]
@@ -109,7 +110,7 @@ const jsonLd = [
     itemListElement: items.slice(0, 25).map((e, i) => ({
       '@type': 'ListItem',
       position: start + i,
-      url: `${SITE.url}${kommunBase}/${e.slug}`,
+      url: absolute(kommunBase, e.slug),
       name: e.name,
     })),
   },
@@ -130,17 +131,17 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={kommunBase}>{city}</a>
+      <a href={path(kommunBase)}>{city}</a>
       {sub && (
         <>
           <span aria-hidden="true">›</span>
-          <a href={categoryBase}>{slice.category.name}</a>
+          <a href={path(categoryBase)}>{slice.category.name}</a>
         </>
       )}
       {currentPage > 1 && (
         <>
           <span aria-hidden="true">›</span>
-          <a href={base}>{heading}</a>
+          <a href={path(base)}>{heading}</a>
         </>
       )}
     </nav>
@@ -169,12 +170,12 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
         {/* Bara de underkategorier just den här kommunen levererar. Ingen
             underkategori finns i alla kommuner, så listan kan aldrig vara
             densamma två kommuner emellan. */}
-        <a href={categoryBase} class="chip" aria-current={sub ? undefined : 'page'}>
+        <a href={path(categoryBase)} class="chip" aria-current={sub ? undefined : 'page'}>
           Alla <span class="n">{formatNumber(slice.count)}</span>
         </a>
         {linkedSubs.map((s) => (
           <a
-            href={`${categoryBase}/${s.sub.slug}`}
+            href={path(categoryBase, s.sub.slug)}
             class="chip"
             aria-current={sub && sub.sub.id === s.sub.id ? 'page' : undefined}
           >
@@ -195,7 +196,7 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
           <ul class="others">
             {linkedSiblings.map((s) => (
               <li>
-                <a href={`${kommunBase}/kategori/${s.category.slug}`}>
+                <a href={path(kommunBase, 'kategori', s.category.slug)}>
                   {s.category.name} <span class="text-muted">{formatNumber(s.count)}</span>
                 </a>
               </li>
@@ -204,7 +205,7 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
         </nav>
       )}
       <p>
-        <a href={kommunBase}>Se alla verksamheter i {city}</a>
+        <a href={path(kommunBase)}>Se alla verksamheter i {city}</a>
       </p>
     </footer>
   </div>

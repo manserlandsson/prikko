@@ -17,6 +17,7 @@ import type { ImageMetadata } from 'astro';
 import { Image } from 'astro:assets';
 import { formatNumber, type MunicipalitySummary } from '../lib/data';
 import { VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
 
 interface Props {
   kommun: MunicipalitySummary;
@@ -187,7 +188,7 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
 
 <a
   class:list={['kort', !photo && 'no-photo']}
-  href={`/${kommun.slug}`}
+  href={path(kommun.slug)}
   style={palette ? `--deep:${palette.deep};--mid:${palette.mid}` : undefined}
 >
   <span class="photo">

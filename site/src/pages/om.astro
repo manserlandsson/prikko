@@ -8,12 +8,13 @@
  */
 import Base from '../layouts/Base.astro';
 import { SITE } from '../lib/site';
+import { absolute } from '../lib/urls';
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: SITE.legalName,
-  url: SITE.url,
+  url: absolute(),
   description: SITE.description,
   founder: { '@type': 'Person', name: 'Måns Erlandsson' },
 };
@@ -64,7 +65,7 @@ const jsonLd = {
           utpressning, oavsett hur det formulerades.
         </li>
         <li>
-          <a href="/metodik">Metodiken är publicerad i sin helhet</a> så att
+          <a href="/metodik/">Metodiken är publicerad i sin helhet</a> så att
           vem som helst kan kontrollera hur en bedömning räknats fram.
         </li>
       </ul>
@@ -77,7 +78,7 @@ const jsonLd = {
         rättad, och rätt att kommentera en kontroll. Kommentarer publiceras
         oredigerat bredvid bedömningen. Vi redigerar inte och vi svarar inte
         emot i samma text.
-        <a href="/ratta">Så begär du rättelse</a>.
+        <a href="/ratta/">Så begär du rättelse</a>.
       </p>
     </section>
 
@@ -86,7 +87,7 @@ const jsonLd = {
       <p>
         Prikko byggs av Måns Erlandsson. Tjänsten är under uppbyggnad och
         täcker i dag en kommun; fler tillkommer efterhand.
-        <a href="/kallor">Aktuell täckning och källor</a>.
+        <a href="/kallor/">Aktuell täckning och källor</a>.
       </p>
     </section>
   </article>

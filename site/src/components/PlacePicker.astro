@@ -31,6 +31,7 @@
  * utom räckhåll så fort täckningen växer.
  */
 import { municipalities, municipalityPoints } from '../lib/data';
+import { path } from '../lib/urls';
 
 const kommuner = municipalities();
 const points = municipalityPoints();
@@ -79,7 +80,7 @@ const points = municipalityPoints();
       <ul class="kommuner" aria-label="Kommuner med kontroller" data-list>
         {kommuner.map((m) => (
           <li data-name={m.city.toLowerCase()} data-slug={m.slug}>
-            <a href={`/${m.slug}`}>
+            <a href={path(m.slug)}>
               <span class="city">{m.city}</span>
               <span class="admin text-muted">{m.name}</span>
             </a>
@@ -99,7 +100,7 @@ const points = municipalityPoints();
       </p>
     </div>
 
-    <a class="feature" href="/ratta">
+    <a class="feature" href="/ratta/">
       <span class="feature-text">
         <span class="feature-title">Rätta en uppgift</span>
         <span class="feature-body">
@@ -122,9 +123,9 @@ const points = municipalityPoints();
     </a>
 
     <nav class="more" aria-label="Mer om Prikko">
-      <a href="/metodik">Metodik</a>
-      <a href="/kallor">Källor</a>
-      <a href="/om">Om Prikko</a>
+      <a href="/metodik/">Metodik</a>
+      <a href="/kallor/">Källor</a>
+      <a href="/om/">Om Prikko</a>
     </nav>
   </div>
 </details>

@@ -22,6 +22,7 @@ import {
 } from '../lib/data';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
 
 interface Props {
   kommun: Municipality;
@@ -74,11 +75,11 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
     ...(currentPage === 1
       ? [{ '@type': 'ListItem', position: 2, name: kommun.name }]
       : [
-          { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}${base}` },
+          { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(base) },
           { '@type': 'ListItem', position: 3, name: `Sida ${currentPage}` },
         ]),
   ],
@@ -95,7 +96,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       {currentPage > 1 && (
         <>
           <span aria-hidden="true">›</span>
-          <a href={base}>{city}</a>
+          <a href={path(base)}>{city}</a>
         </>
       )}
     </nav>
@@ -140,7 +141,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
         {limits.note && (
           <p class="limits">
-            {limits.note} <a href="/metodik#jamfor">Så påverkar källan bedömningen</a>.
+            {limits.note} <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
           </p>
         )}
 
@@ -148,7 +149,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           <p class="jump">
             {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
                 vill se det som avviker ska inte behöva bläddra sig fram. */}
-            <a href={`${base}/anmarkningar`}>
+            <a href={path(base, 'anmarkningar')}>
               Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
             </a>
           </p>
@@ -163,7 +164,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           {categories.slices.map(({ category, count, linked }) =>
             linked ? (
               <li>
-                <a href={`${base}/kategori/${category.slug}`} class="chip">
+                <a href={path(base, 'kategori', category.slug)} class="chip">
                   {category.name} <span class="n">{formatNumber(count)}</span>
                 </a>
               </li>

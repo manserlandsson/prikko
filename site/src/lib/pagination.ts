@@ -11,6 +11,7 @@
  * samma innehåll är dubblettinnehåll, och den kanoniska formen ska vara den
  * kortaste.
  */
+import { path } from './urls';
 
 /**
  * Rader per sida.
@@ -62,23 +63,23 @@ export function tailPages(total: number, perPage = PER_PAGE): number[] {
   return Array.from({ length: Math.max(0, last - 1) }, (_, i) => i + 2);
 }
 
-/** URL till en sida i en serie. Sida 1 = seriens rot, utan suffix. */
+/**
+ * Sökväg till en sida i en serie. Sida 1 = seriens rot, utan suffix.
+ *
+ * Snedstrecket på slutet är inte kosmetik, och det är därför formen byggs i
+ * lib/urls.ts och inte här: canonical byggs ur `Astro.url.pathname`, som med
+ * `build.format: 'directory'` alltid slutar med ett. Den här funktionen
+ * saknade tidigare snedstrecket medan `pageUrl` hade det, så sidnavigeringens
+ * `<a href>` och sidans eget `rel=next` pekade på olika URL:er och serien gick
+ * att läsa som två.
+ */
 export function pageHref(base: string, n: number): string {
-  return n <= 1 ? base : `${base}/sida/${n}`;
+  return n <= 1 ? path(base) : path(base, 'sida', n);
 }
 
-/**
- * Absolut URL till en sida, i exakt den form Base sätter canonical.
- *
- * Snedstrecket på slutet är inte kosmetik: canonical byggs ur
- * `Astro.url.pathname`, som med `build.format: 'directory'` alltid slutar med
- * ett. Skulle rel=prev/next peka på formen utan snedstreck vore det enligt
- * sökmotorerna en annan URL än den kanoniska, och hela seriens ordning
- * skulle läsas fel.
- */
+/** Absolut URL till en sida, i exakt den form Base sätter canonical. */
 export function pageUrl(base: string, n: number, origin: string): string {
-  const path = pageHref(base, n);
-  return new URL(path.endsWith('/') ? path : `${path}/`, origin).href;
+  return new URL(pageHref(base, n), origin).href;
 }
 
 /**

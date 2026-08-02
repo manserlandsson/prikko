@@ -35,6 +35,7 @@
  */
 import { establishments, municipalities } from '../lib/data';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
+import { path } from '../lib/urls';
 
 //: Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
 //: på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
@@ -55,10 +56,10 @@ const cities = municipalities()
   .map((m) => ({ ...m, count: establishments(m.slug).length }))
   .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, 'sv'))
   .slice(0, TOP_MUNICIPALITIES)
-  .map((m) => ({ href: `/${m.slug}`, name: m.city, meta: 'Kommun', kind: 'kommun' as const }));
+  .map((m) => ({ href: path(m.slug), name: m.city, meta: 'Kommun', kind: 'kommun' as const }));
 
 const chains = CHAINS.map((c) => ({
-  href: `/sok?q=${encodeURIComponent(c.query)}`,
+  href: `/sok/?q=${encodeURIComponent(c.query)}`,
   name: c.query,
   meta: `${c.count} ställen`,
   kind: 'kedja' as const,
@@ -74,7 +75,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
 >
-  <form class="field" role="search" action="/sok" method="get">
+  <form class="field" role="search" action="/sok/" method="get">
     <label class="visually-hidden" for="site-search-q">Sök verksamhet eller kommun</label>
     <input
       id="site-search-q"
@@ -448,7 +449,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       for (let i = 0; i < kommuner.length; i++) {
         const [slug, city] = kommuner[i];
         const c = normalise(city);
-        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}`, kind: 'kommun' };
+        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
         if (c.startsWith(q)) kommunPrefix.push(item);
         else if (c.includes(q)) kommunLoose.push(item);
       }
@@ -464,7 +465,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
         const item: Suggestion = {
           label: name,
           meta: address ? `${address} · ${city}` : city,
-          href: `/${kommuner[k][0]}/${slug}`,
+          href: `/${kommuner[k][0]}/${slug}/`,
           kind: 'place',
         };
 
@@ -619,7 +620,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       items.push({
         label: raw.trim(),
         meta: 'Visa alla träffar',
-        href: `/sok?q=${encodeURIComponent(raw.trim())}`,
+        href: `/sok/?q=${encodeURIComponent(raw.trim())}`,
         kind: 'query',
       });
 

@@ -25,6 +25,7 @@ import { coverage, formatNumber, municipalities } from '../lib/data';
 import { FACE_SPRITE_ID } from '../lib/face';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
 
 const total = coverage();
 const kommuner = municipalities();
@@ -69,7 +70,7 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
       <h2>Bläddra per kommun</h2>
       <ul>
         {kommuner.map((m) => (
-          <li><a href={`/${m.slug}`}>Hygienkontroller i {m.city}</a></li>
+          <li><a href={path(m.slug)}>Hygienkontroller i {m.city}</a></li>
         ))}
       </ul>
     </nav>
@@ -227,7 +228,7 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
         const label = v < 0 ? 'Ingen kontroll' : labels[v];
         const ink = v < 0 ? 'var(--verdict-none-ink)' : INK[v];
         const meta = [address, kommuner[k][1]].filter(Boolean).join(' · ');
-        return `<li><a href="/${kommuner[k][0]}/${slug}">
+        return `<li><a href="/${kommuner[k][0]}/${slug}/">
           <svg class="face" viewBox="0 0 100 100" aria-hidden="true"><use href="#${spriteId}-${key}"/></svg>
           <span class="info"><b>${escapeHtml(name)}</b><span>${escapeHtml(meta)}</span></span>
           <span class="verdict" style="color:${ink}">${label}</span>

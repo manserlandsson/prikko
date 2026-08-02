@@ -18,6 +18,7 @@ import {
   sourceLimits,
 } from '../lib/data';
 import { SITE } from '../lib/site';
+import { path } from '../lib/urls';
 
 // MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
 // CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
@@ -93,7 +94,7 @@ const jsonLd = {
   headline: 'Så räknar Prikko fram hygienbedömningen',
   inLanguage: 'sv-SE',
   publisher: { '@type': 'Organization', name: SITE.legalName },
-  url: `${SITE.url}/metodik`,
+  url: `${SITE.url}/metodik/`,
 };
 ---
 
@@ -255,7 +256,7 @@ const jsonLd = {
         <ul class="plain">
           {limited.map((m) => (
             <li>
-              {m.limits.note} <a href={`/${m.slug}`}>Se {m.city}</a>.
+              {m.limits.note} <a href={path(m.slug)}>Se {m.city}</a>.
             </li>
           ))}
         </ul>
@@ -303,7 +304,7 @@ const jsonLd = {
         Menar du att en uppgift är fel har du rätt att få det rättat, och
         verksamheter har rätt att svara. Svar publiceras oredigerat bredvid
         bedömningen.
-        <a href="/ratta">Rätta en uppgift</a>.
+        <a href="/ratta/">Rätta en uppgift</a>.
       </p>
       <p class="text-secondary">
         Modellen är versionerad. Varje publicerad bedömning bär numret på den

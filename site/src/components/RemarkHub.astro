@@ -25,6 +25,7 @@ import {
 } from '../lib/data';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
+import { absolute, path } from '../lib/urls';
 
 interface Props {
   kommun: Municipality;
@@ -63,12 +64,12 @@ const jsonLd = [
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-      { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}/${kommun.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+      { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommun.slug) },
       ...(currentPage === 1
         ? [{ '@type': 'ListItem', position: 3, name: 'Anmärkningar' }]
         : [
-            { '@type': 'ListItem', position: 3, name: 'Anmärkningar', item: `${SITE.url}${base}` },
+            { '@type': 'ListItem', position: 3, name: 'Anmärkningar', item: absolute(base) },
             { '@type': 'ListItem', position: 4, name: `Sida ${currentPage}` },
           ]),
     ],
@@ -82,7 +83,7 @@ const jsonLd = [
     itemListElement: items.slice(0, 25).map((e, i) => ({
       '@type': 'ListItem',
       position: start + i,
-      url: `${SITE.url}/${kommun.slug}/${e.slug}`,
+      url: absolute(kommun.slug, e.slug),
       name: e.name,
     })),
   },
@@ -106,11 +107,11 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={`/${kommun.slug}`}>{city}</a>
+      <a href={path(kommun.slug)}>{city}</a>
       {currentPage > 1 && (
         <>
           <span aria-hidden="true">›</span>
-          <a href={base}>Anmärkningar</a>
+          <a href={path(base)}>Anmärkningar</a>
         </>
       )}
     </nav>
@@ -125,7 +126,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       <p class="caption text-muted">
         Bygger på kommunens senaste kontroll av varje verksamhet, hämtad
         {' '}{formatDate(fetchedAt.slice(0, 10))}.
-        <a href="/metodik">Så räknas bedömningen fram</a>.
+        <a href="/metodik/">Så räknas bedömningen fram</a>.
       </p>
     </header>
 
@@ -134,7 +135,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         const date = latestInspectionDate(e);
         return (
           <li>
-            <a href={`/${kommun.slug}/${e.slug}`}>
+            <a href={path(kommun.slug, e.slug)}>
               <span class="rank text-muted">{start + i}</span>
               <FaceRef verdict={e.verdict} size={36} />
               <span class="body">
@@ -174,7 +175,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         Varje verksamhets sida visar hela historiken.
       </p>
       <p>
-        <a href={`/${kommun.slug}`}>Se alla verksamheter i {city}</a>
+        <a href={path(kommun.slug)}>Se alla verksamheter i {city}</a>
       </p>
     </footer>
   </div>
