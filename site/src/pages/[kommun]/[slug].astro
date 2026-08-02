@@ -2,27 +2,39 @@
 /**
  * Restaurangsidan — sajtens viktigaste sidtyp.
  *
- * Två krav styr allt här:
+ * Layout: tvåkolumn med sticky sidopanel, mönstret som hitta.se, ednia,
+ * TheFork och Zillow alla använder. Huvudinnehållet läses uppifrån och ner;
+ * panelen bär det man vill ha kvar i blickfånget — bedömningen, kartan och
+ * åtgärderna. En centrerad enkolumn ser generisk ut och slösar bredden.
  *
- * 1. Led med svaret. Första meningen ska vara självbärande och citerbar rakt
- *    av: "X fick inga anmärkningar vid den senaste hygienkontrollen den 19
- *    mars 2026." Det är så AI-svar extraherar fakta (bibeln §6b).
- * 2. Aldrig `Review`- eller `AggregateRating`-schema. Vår bedömning bygger på
- *    myndighetsdata, inte på omdömen insamlade hos oss; att märka upp den som
- *    recensioner bryter mot Googles policy och riskerar manuell åtgärd.
- *    Schemat är `FoodEstablishment` med rena entitetsfakta.
+ * Två SEO/AEO-krav styr innehållet:
+ *
+ * 1. Led med svaret. Första meningen ska vara självbärande och citerbar.
+ *    Så extraherar AI-svar fakta (bibeln §6b).
+ * 2. Aldrig `Review`- eller `AggregateRating`-schema för hygienbedömningen.
+ *    Den bygger på myndighetsdata, inte på omdömen insamlade hos oss.
+ *    Schemat är `FoodEstablishment`. (När förstapartsomdömen finns får de
+ *    eget schema — men hålls visuellt och strukturellt åtskilda.)
  */
 import Base from '../../layouts/Base.astro';
-import VerdictMark from '../../components/VerdictMark.astro';
+import FaceMark from '../../components/FaceMark.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import InfoTip from '../../components/InfoTip.astro';
+import LocationMap from '../../components/LocationMap.astro';
+import StreetView from '../../components/StreetView.astro';
+import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import {
   MUNICIPALITY,
   SOURCE,
   allEstablishments,
   formatDate,
+  formatDistance,
   isIndexable,
   latestInspectionDate,
   missingReason,
+  nearby,
+  statistics,
   type Establishment,
 } from '../../lib/data';
 import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
@@ -42,19 +54,27 @@ const { establishment: e } = Astro.props;
 
 const presentation = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 const latest = latestInspectionDate(e);
+const latestInspection = e.inspections[0];
+const stats = statistics(e);
+const neighbours = nearby(e);
 const indexable = isIndexable(e);
 
-// Den självbärande meningen. Byggs deterministiskt ur datan — ingen genererad
-// brödtext får förekomma på sajten.
 const answer = latest
   ? `${e.name} ${presentation.sentence} den ${formatDate(latest)}.`
   : `${e.name} ${presentation.sentence}.`;
 
-const placeLabel = [e.address, MUNICIPALITY.city]
-  .filter(Boolean)
-  .join(', ');
+const description = `${answer} Se vilka kontrollområden som granskades och hela kontrollhistoriken.`;
 
-const description = `${answer} Se kontrollhistorik och hur bedömningen räknas fram.`;
+const facts = [
+  { label: 'Kontroller totalt', value: String(stats.total),
+    tip: `Samtliga registrerade livsmedelskontroller sedan ${stats.firstYear}.` },
+  { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
+    color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
+    tip: 'Andel av kontrollerna där inga avvikelser noterades.' },
+  { label: 'Återbesök', value: String(stats.followUps),
+    tip: 'Uppföljande kontroller som gjorts för att se om tidigare avvikelser åtgärdats.' },
+  { label: 'Först kontrollerad', value: stats.firstYear ?? '–' },
+];
 
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
@@ -68,7 +88,6 @@ const jsonLd: Record<string, unknown> = {
     addressCountry: 'SE',
   },
 };
-
 if (e.lat && e.lng) {
   jsonLd.geo = { '@type': 'GeoCoordinates', latitude: e.lat, longitude: e.lng };
 }
@@ -78,12 +97,7 @@ const breadcrumbs = {
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-    {
-      '@type': 'ListItem',
-      position: 2,
-      name: MUNICIPALITY.name,
-      item: `${SITE.url}/${MUNICIPALITY.slug}`,
-    },
+    { '@type': 'ListItem', position: 2, name: MUNICIPALITY.name, item: `${SITE.url}/${MUNICIPALITY.slug}` },
     { '@type': 'ListItem', position: 3, name: e.name },
   ],
 };
@@ -96,172 +110,304 @@ const breadcrumbs = {
   jsonLd={[jsonLd, breadcrumbs]}
   dataUpdated={latest ?? undefined}
 >
-  <article class="container page">
+  <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={`/${MUNICIPALITY.slug}`}>{MUNICIPALITY.name}</a>
+      <a href={`/${MUNICIPALITY.slug}`}>{MUNICIPALITY.city}</a>
     </nav>
 
-    <header class="head">
+    <header class="masthead">
       <h1>{e.name}</h1>
-      <p class="place text-secondary">{placeLabel}</p>
+      <p class="place text-secondary">
+        {[e.address, MUNICIPALITY.city].filter(Boolean).join(', ')}
+        {e.types.length > 0 && <> · {e.types[0]}</>}
+      </p>
     </header>
 
-    <section class="hero card">
-      <VerdictMark
-        verdict={e.verdict}
-        missingReason={missingReason(e)}
-        distinction={e.distinction}
-      />
-      <div class="summary">
-        <p class="label" style={`color: ${presentation.colorVar}`}>
-          {presentation.label}
-        </p>
-        <p class="answer">{answer}</p>
+    <div class="layout">
+      <main class="main">
+        <section class="statement">
+          <FaceMark verdict={e.verdict} size={52} animate />
+          <div>
+            <p class="level">
+              {presentation.label}
+              {e.distinction && (
+                <span class="badge" title={DISTINCTION.label}>★ {DISTINCTION.short}</span>
+              )}
+            </p>
+            <p class="answer">{answer}</p>
+          </div>
+        </section>
 
-        {e.distinction && (
-          <p class="distinction">
-            <span aria-hidden="true">★</span> {DISTINCTION.label} vid de tre
-            senaste kontrollerna.
+        <FactGrid
+          title="Statistik"
+          titleTip="Sammanräknat från verksamhetens hela kontrollhistorik hos kommunen."
+          facts={facts}
+        />
+
+        {latestInspection && latestInspection.areas.length > 0 && (
+          <ControlBreakdown
+            areas={latestInspection.areas}
+            inspectedAt={formatDate(latestInspection.date)}
+          />
+        )}
+
+        <InspectionHistory inspections={e.inspections} />
+
+        <footer class="source">
+          <p class="caption text-muted">
+            Källa: {MUNICIPALITY.name}, hämtat {formatDate(SOURCE.fetchedAt.slice(0, 10))}.
+            Bedömningen är Prikkos — <a href="/metodik">så räknas den fram</a>.
+            <a href="/ratta">Rätta en uppgift</a>.
           </p>
+        </footer>
+      </main>
+
+      <aside class="side">
+        <div class="panel">
+          {e.lat && e.lng && (
+            <>
+              <LocationMap lat={e.lat} lng={e.lng} name={e.name} verdict={e.verdict} />
+              <StreetView lat={e.lat} lng={e.lng} name={e.name} />
+            </>
+          )}
+
+          <div class="actions">
+            <button type="button" class="btn-primary" disabled>Följ verksamheten</button>
+            <button type="button" class="btn-ghost" disabled>Anmäl en brist</button>
+            <button type="button" class="btn-ghost" disabled>Skriv ett omdöme</button>
+          </div>
+          <p class="soon caption text-muted">
+            Bevakning, anmälan och omdömen öppnar när fler kommuner är på plats.
+          </p>
+        </div>
+
+        {neighbours.length > 0 && (
+          <div class="panel">
+            <h2 class="panel-title">
+              Närliggande
+              <InfoTip
+                label="närliggande"
+                text="Verksamheter med registrerad kontroll inom gångavstånd, sorterade efter avstånd."
+              />
+            </h2>
+            <ul class="near">
+              {neighbours.map((n) => (
+                <li>
+                  <a href={`/${MUNICIPALITY.slug}/${n.slug}`}>
+                    <FaceMark verdict={n.verdict} size={28} />
+                    <span class="near-info">
+                      <b>{n.name}</b>
+                      <span class="text-muted">{formatDistance(n.metres)}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
-
-        {e.types.length > 0 && (
-          <ul class="tags">
-            {e.types.slice(0, 3).map((t) => <li>{t}</li>)}
-          </ul>
-        )}
-      </div>
-    </section>
-
-    {e.uncertain && (
-      <p class="caveat">
-        Bedömningen bygger delvis på kontrollresultatet ”Godtagbar”, vars exakta
-        innebörd vi ännu inte fått bekräftad av kommunen.
-        <a href="/metodik">Så här tolkar vi det.</a>
-      </p>
-    )}
-
-    <InspectionHistory inspections={e.inspections} />
-
-    <footer class="source">
-      <h2 class="eyebrow">Källa</h2>
-      <p class="text-secondary">
-        Uppgifterna kommer från {MUNICIPALITY.name}s livsmedelskontroll och är
-        allmänna handlingar. Bedömningen är Prikkos och räknas fram med en
-        <a href="/metodik">öppet publicerad metodik</a> (version {e.modelVersion}).
-        Verksamheten har rätt att svara — hör av dig via
-        <a href="/ratta">rätta en uppgift</a>.
-      </p>
-      <p class="caption text-muted">
-        Hämtad från <a href={SOURCE.url} rel="nofollow">kommunens öppna API</a>
-        {' '}den {formatDate(SOURCE.fetchedAt.slice(0, 10))}.
-      </p>
-    </footer>
-  </article>
+      </aside>
+    </div>
+  </div>
 </Base>
 
 <style>
   .page {
-    max-width: var(--readcol);
-    padding-block: var(--s-8) var(--s-12);
+    max-width: 1080px;
+    padding-block: var(--s-6) var(--s-16);
   }
 
   .crumbs {
     display: flex;
     gap: var(--s-2);
     align-items: center;
-    font-size: var(--fs-body-s);
+    font-size: var(--fs-caption);
     color: var(--text-muted);
-    margin-bottom: var(--s-4);
+    margin-bottom: var(--s-3);
   }
 
   .crumbs a { color: var(--text-secondary); }
 
-  .head h1 {
-    font-size: 32px;
-    line-height: 36px;
+  .masthead h1 {
+    font-size: 34px;
+    line-height: 38px;
+    letter-spacing: -.024em;
   }
 
   .place {
-    margin-top: var(--s-1);
+    margin-top: 2px;
+    font-size: var(--fs-body-s);
   }
 
-  .hero {
-    display: flex;
-    align-items: center;
-    gap: var(--s-6);
-    padding: var(--s-6);
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--s-8);
+    align-items: start;
     margin-top: var(--s-6);
   }
 
-  .summary { min-width: 0; }
+  .main {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-6) var(--s-8);
+  }
 
-  .label {
+  /* :global krävs — Astros scopeade selektorer korsar inte komponentgränser. */
+  .main > :global(* + *) {
+    margin-top: var(--s-6);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .statement {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-4);
+  }
+
+  .level {
+    color: var(--text);
     font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
+    line-height: 26px;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--distinction);
+    border: 1px solid color-mix(in srgb, var(--distinction) 45%, transparent);
+    border-radius: var(--r-pill);
+    padding: 2px 9px;
   }
 
   .answer {
     margin-top: var(--s-1);
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    line-height: 21px;
     color: var(--text-secondary);
-  }
-
-  .distinction {
-    margin-top: var(--s-3);
-    font-size: var(--fs-body-s);
-    font-weight: 600;
-    color: var(--distinction);
-  }
-
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-    margin: var(--s-4) 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .tags li {
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
-    background: var(--canvas);
-    border-radius: 9px;
-    padding: 5px 11px;
-  }
-
-  .caveat {
-    margin-top: var(--s-4);
-    padding: var(--s-3) var(--s-4);
-    border-left: 3px solid var(--verdict-minor);
-    background: var(--card);
-    border-radius: 0 var(--r-control) var(--r-control) 0;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-  }
-
-  .source {
-    margin-top: var(--s-12);
-    padding-top: var(--s-6);
-    border-top: 1px solid var(--hairline);
   }
 
   .source p {
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    margin-top: var(--s-2);
+    line-height: 21px;
+    color: var(--text-secondary);
   }
 
-  @media (max-width: 560px) {
-    .hero {
-      flex-direction: column;
-      align-items: flex-start;
+  .source p + p { margin-top: var(--s-2); }
+
+  /* Sidopanel */
+  .side {
+    position: sticky;
+    top: var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+
+  .panel {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .panel-title {
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--s-3);
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+  }
+
+  .actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 11px 22px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .actions button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+
+  .soon {
+    margin-top: var(--s-3);
+    text-align: center;
+  }
+
+  .near {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .near a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    color: var(--text);
+  }
+
+  .near a:hover { text-decoration: none; }
+  .near a:hover b { color: var(--brand); }
+
+  .near li + li { border-top: 1px solid var(--hairline); }
+
+  .near-info { min-width: 0; }
+
+  .near-info b {
+    display: block;
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    line-height: 17px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .near-info span { font-size: 11px; }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .side {
+      position: static;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .main { padding: var(--s-6) var(--s-4); }
+
+    .masthead h1 {
+      font-size: 27px;
+      line-height: 31px;
     }
   }
 </style>

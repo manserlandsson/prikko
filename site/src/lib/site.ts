@@ -48,19 +48,19 @@ export const VERDICT: Record<Verdict, VerdictPresentation> = {
   clean: {
     label: 'Inga anmärkningar',
     sentence: 'fick inga anmärkningar vid den senaste hygienkontrollen',
-    colorVar: 'var(--verdict-clean)',
+    colorVar: 'var(--verdict-clean-ink)',
     glyph: '✓',
   },
   minor: {
     label: 'Mindre brister',
     sentence: 'fick anmärkningar på mindre brister vid den senaste hygienkontrollen',
-    colorVar: 'var(--verdict-minor)',
+    colorVar: 'var(--verdict-minor-ink)',
     glyph: '!',
   },
   major: {
     label: 'Allvarliga brister',
     sentence: 'fick anmärkningar på allvarliga brister vid den senaste hygienkontrollen',
-    colorVar: 'var(--verdict-major)',
+    colorVar: 'var(--verdict-major-ink)',
     glyph: '✕',
   },
 };
@@ -69,14 +69,14 @@ export const MISSING: Record<MissingReason, VerdictPresentation> = {
   no_inspections: {
     label: 'Ingen kontroll',
     sentence: 'har ingen registrerad hygienkontroll hos kommunen',
-    colorVar: 'var(--verdict-none)',
+    colorVar: 'var(--verdict-none-ink)',
     glyph: '–',
   },
   stale_inspections: {
     label: 'Ingen aktuell kontroll',
     sentence:
       'har ingen hygienkontroll de senaste tre åren, så nuläget går inte att bedöma',
-    colorVar: 'var(--verdict-none)',
+    colorVar: 'var(--verdict-none-ink)',
     glyph: '–',
   },
 };

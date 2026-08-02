@@ -1,0 +1,144 @@
+---
+/**
+ * Karta i sidopanelen.
+ *
+ * MapLibre GL med OpenFreeMaps Positron-stil: ljus, avskalad och nedtonad,
+ * så nålen är det enda som drar blicken. OpenFreeMap är öppen källkod, kräver
+ * ingen API-nyckel och har inget användningstak — till skillnad från Mapbox
+ * (50 000/mån) och Apple MapKit (kräver Developer Program, 99 USD/år).
+ *
+ * Prestanda: biblioteket laddas först när kartan faktiskt scrollas in i vy
+ * (IntersectionObserver + dynamisk import). Restaurangsidans LCP påverkas
+ * alltså inte — kartan är kontext, inte huvudinnehåll. Ingen JS alls skickas
+ * till sidor utan karta.
+ *
+ * Nålen är Prikkos ansiktsmärke i bedömningens färg. Bibeln §14 vill att
+ * märket dubblar som kartnål; det är också det som gör kartan igenkännbart
+ * vår i stället för generisk.
+ */
+import 'maplibre-gl/dist/maplibre-gl.css';
+import type { VerdictOrNone } from '../lib/site';
+
+interface Props {
+  lat: number;
+  lng: number;
+  name: string;
+  verdict: VerdictOrNone;
+}
+
+const { lat, lng, name, verdict } = Astro.props;
+
+const COLORS: Record<string, string> = {
+  clean: '#2CB700',
+  minor: '#E3A008',
+  major: '#D0342C',
+  none: '#8E8E93',
+};
+
+const MOUTHS: Record<string, string> = {
+  clean: 'M30 55.5c12.25 11.7 24.5 11.7 36.75 0',
+  minor: 'M31 60.5h34.75',
+  major: 'M30 64c12.25 -11.7 24.5 -11.7 36.75 0',
+  none: 'M38 60.5h20',
+};
+
+const key = verdict ?? 'none';
+---
+
+<figure class="wrap">
+  <div
+    class="map"
+    data-lat={lat}
+    data-lng={lng}
+    data-color={COLORS[key]}
+    data-mouth={MOUTHS[key]}
+    role="img"
+    aria-label={`Karta som visar var ${name} ligger`}
+  ></div>
+  <figcaption class="text-muted">© OpenStreetMap · OpenFreeMap</figcaption>
+</figure>
+
+<style>
+  .wrap { margin: 0; }
+
+  .map {
+    width: 100%;
+    height: 180px;
+    border-radius: var(--r-control);
+    overflow: hidden;
+    background: var(--canvas);
+  }
+
+  figcaption {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  /* MapLibres egna kontroller — dämpade så de inte konkurrerar. */
+  .map :global(.maplibregl-ctrl-attrib) { display: none; }
+
+  .map :global(.prikko-pin) {
+    width: 30px;
+    height: 30px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+  }
+</style>
+
+<script>
+  // Laddar MapLibre först när kartan syns. Sparar ~200 kB på sidvisningar
+  // där besökaren aldrig scrollar ner till panelen.
+  const nodes = document.querySelectorAll<HTMLElement>('.map[data-lat]');
+
+  const observer = new IntersectionObserver(async (entries, obs) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const el = entry.target as HTMLElement;
+      obs.unobserve(el);
+
+      try {
+
+      // Namngiven kontra default-export skiljer sig mellan dev och byggd
+      // chunk. Utan den här normaliseringen kastar maplibregl.Map i produktion,
+      // och eftersom det sker i en async callback syns felet inte i konsolen.
+      const mod = await import('maplibre-gl');
+      const maplibregl = (mod as any).default ?? mod;
+
+      const lat = Number(el.dataset.lat);
+      const lng = Number(el.dataset.lng);
+
+      const map = new maplibregl.Map({
+        container: el,
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        center: [lng, lat],
+        zoom: 15.5,
+        attributionControl: false,
+        interactive: true,
+        dragRotate: false,
+      });
+
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      map.scrollZoom.disable();
+
+      const pin = document.createElement('div');
+      pin.className = 'prikko-pin';
+      pin.innerHTML = `
+        <svg viewBox="0 0 96 96" width="30" height="30" aria-hidden="true">
+          <rect width="96" height="96" rx="26" fill="${el.dataset.color}"
+                stroke="#fff" stroke-width="6"/>
+          <circle cx="37.87" cy="37.12" r="6.12" fill="#fff"/>
+          <circle cx="60.61" cy="37.12" r="6.12" fill="#fff"/>
+          <path d="${el.dataset.mouth}" stroke="#fff" stroke-width="7.87"
+                stroke-linecap="round" fill="none"/>
+        </svg>`;
+
+      new maplibregl.Marker({ element: pin }).setLngLat([lng, lat]).addTo(map);
+      } catch (error) {
+        // Kartan är kontext, inte huvudinnehåll — sidan ska fungera utan den.
+        console.error('Kartan kunde inte laddas', error);
+      }
+    }
+  }, { rootMargin: '200px' });
+
+  nodes.forEach((n) => observer.observe(n));
+</script>

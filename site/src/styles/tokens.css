@@ -24,10 +24,24 @@
   /* Bedömningsnivåer. Tre steg, speglar källdatan (Sambruk assessment 0/1/2).
      Färg = betydelse, men kombineras ALLTID med symbol + textetikett:
      8 % av män är färgblinda och färg ensam är inte ett budskap. */
-  --verdict-clean: #0E7A4B;
-  --verdict-minor: #E3A008;
-  --verdict-major: #D0342C;
-  --verdict-none:  #8E8E93;    /* otillräckligt underlag — aldrig en dålig bedömning */
+  /* Ytfärg = mark, prick, kartnål. Textfärg = etiketter och rubriker.
+     De måste vara olika: den ljusa gula ligger på 1,5:1 mot vitt och är
+     oläsbar som text, medan den som yta är den tydligaste av de tre. */
+  --verdict-clean:      #2CB700;
+  --verdict-clean-ink:  #218700;   /* 4,6:1 mot vitt */
+  --verdict-minor:      #FFCB2C;
+  --verdict-minor-ink:  #957100;   /* 4,5:1 mot vitt */
+  --verdict-major:      #D0342C;
+  --verdict-major-ink:  #D0342C;   /* klarar 5,0:1 redan som den är */
+  --verdict-none:       #8E8E93;
+  --verdict-none-ink:   #6E6E73;
+
+  /* Symbolen på märket. Vit funkar på grönt och rött, men försvinner på
+     gult — där används mörk symbol i stället (11:1). */
+  --on-clean: #FFFFFF;
+  --on-minor: #1D1D1F;
+  --on-major: #FFFFFF;
+  --on-none:  #FFFFFF;
 
   /* Utmärkelse för genomgående skötsamhet (vår Elite-Smiley).
      Mässing, inte guld — ska läsa institutionellt, inte som en rabattstämpel. */

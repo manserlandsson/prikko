@@ -5,14 +5,13 @@
  * vilket är en svagare signal än en riktig länk från en sida med kontext.
  */
 import Base from '../../layouts/Base.astro';
-import VerdictMark from '../../components/VerdictMark.astro';
+import FaceMark from '../../components/FaceMark.astro';
 import {
   MUNICIPALITY,
   allEstablishments,
   formatDate,
   isIndexable,
   latestInspectionDate,
-  missingReason,
 } from '../../lib/data';
 import { SITE, VERDICT } from '../../lib/site';
 
@@ -89,12 +88,7 @@ const jsonLd = {
       {sorted.map((e) => (
         <li class="item card">
           <a href={`/${MUNICIPALITY.slug}/${e.slug}`} rel={isIndexable(e) ? undefined : 'nofollow'}>
-            <VerdictMark
-              verdict={e.verdict}
-              missingReason={missingReason(e)}
-              distinction={e.distinction}
-              size="sm"
-            />
+            <FaceMark verdict={e.verdict} size={40} />
             <span class="info">
               <b>{e.name}</b>
               <span class="meta text-secondary">

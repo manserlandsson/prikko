@@ -1,0 +1,73 @@
+---
+/**
+ * Ikon per lagstiftningsområde.
+ *
+ * Koden "J03" säger ingenting för en besökare. Ikonen bär kategorin visuellt
+ * så listan går att skumma, och koden flyttas ner till en detalj för den som
+ * vill kunna slå upp punkten hos Livsmedelsverket.
+ *
+ * Egna ikoner, ritade på samma 24-rutnät med 1.6 px streck — inga lånade
+ * emoji och inget ikonbibliotek. Det är en del av att inte se generisk ut.
+ */
+interface Props {
+  /** Bokstaven i rapporteringspunkten, t.ex. "J" i "J03". */
+  letter: string;
+  size?: number;
+}
+
+const { letter, size = 20 } = Astro.props;
+
+const PATHS: Record<string, string> = {
+  // Administrativa krav — dokument
+  A: 'M6 3h8l4 4v14H6zM14 3v4h4',
+  // Allmän livsmedelsinformation — etikett
+  B: 'M3 7h13l5 5-5 5H3zM7 12h.01',
+  // Särskild märkning — märke
+  C: 'M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L4.8 8.2l5-.7z',
+  // Skyddade beteckningar — sigill
+  D: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z',
+  // Handelsnormer — vågskål
+  E: 'M12 4v16M6 8h12M6 8l-3 6h6zM18 8l3 6h-6z',
+  // Varustandarder — burk
+  F: 'M7 7h10v13H7zM7 7c0-1.5 2-3 5-3s5 1.5 5 3',
+  // Särskilda grupper — nappflaska
+  G: 'M10 3h4v3h-4zM9 6h6v15H9zM9 11h6',
+  // Spårbarhet — kedja
+  H: 'M9.5 14.5l5-5M8 12l-2 2a3.5 3.5 0 005 5l2-2M16 12l2-2a3.5 3.5 0 00-5-5l-2 2',
+  // Ingredienser — kolv
+  I: 'M10 3h4M11 3v6l-5 9a2 2 0 002 3h8a2 2 0 002-3l-5-9V3M8 15h8',
+  // Hygien — droppe
+  J: 'M12 3c3.5 4.5 6 7.5 6 10.5a6 6 0 01-12 0C6 10.5 8.5 7.5 12 3z',
+  // HACCP — sköld med bock
+  K: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6zM9 12l2 2 4-4',
+  // Egenkontroller — checklista
+  L: 'M8 4h8a2 2 0 012 2v13a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2zM9.5 10l1.5 1.5 3-3M9.5 16h5',
+  // Import och export — glob
+  M: 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18',
+  // Dricksvatten — kran
+  N: 'M4 8h7v4H4zM11 10h4a3 3 0 013 3v2M18 17v4M16 21h4',
+  // Övrigt — cirkel med streck
+  O: 'M12 3a9 9 0 100 18 9 9 0 000-18zM8 12h8',
+  // Operativa mål — måltavla
+  P: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 8a4 4 0 100 8 4 4 0 000-8zM12 11.5a.5.5 0 100 1 .5.5 0 000-1z',
+  // Kontaktmaterial — behållare
+  Q: 'M5 7h14l-1.5 13h-11zM3 4h18',
+};
+
+const path = PATHS[letter.toUpperCase()] ?? PATHS.O;
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.6"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={path} />
+</svg>

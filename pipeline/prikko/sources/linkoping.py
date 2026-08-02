@@ -46,21 +46,23 @@ PROJECTION = SWEREF99_1500
 # anläggningar, 2026-08-02), inte gissade. Antal inom parentes.
 # ---------------------------------------------------------------------------
 
+# Linköpings egen läsanvisning (Livsmedelskollen) definierar utfallen:
+#   Utan avvikelse  — inga avvikelser, verksamheten uppfyller kraven
+#   Med avvikelse   — avvikelser som kräver en extra kontroll
+#   Kvarstår        — tidigare avvikelser är inte åtgärdade vid uppföljning
 ASSESSMENT_MAP = {
-    "Utan Avvikelse": NO_REMARKS,      # 545 — inga anmärkningar
+    "Utan Avvikelse": NO_REMARKS,      # 545 — uppfyller kraven
     "Åtgärdad": NO_REMARKS,            # 284 — tidigare avvikelse är avhjälpt
-    "Godtagbar": MINOR_REMARKS,        #  75 — se osäkerhetsnot nedan
-    "Avvikelse": MINOR_REMARKS,        #  72 — avvikelse konstaterad
-    "Kvarstår": MAJOR_REMARKS,         #   4 — avvikelsen kvarstår vid uppföljning
+    "Godtagbar": NO_REMARKS,           #  75 — godtagbar, motsatsen till "Ej godtagbar"
+    "Avvikelse": MINOR_REMARKS,        #  72 — avvikelse som kräver extra kontroll
+    "Kvarstår": MAJOR_REMARKS,         #   4 — inte åtgärdad vid uppföljning
     "Ej godtagbar": MAJOR_REMARKS,     #   3 — underkänd
 }
 
-# OSÄKERT: "Godtagbar" tolkas här som mindre anmärkning, eftersom kommunen
-# har ett separat och vanligare värde ("Utan Avvikelse") för helt rent
-# resultat — ett eget värde bör betyda något annat. Tolkningen påverkar 75
-# anläggningar och bör bekräftas mot Linköpings egen dokumentation innan
-# betygen publiceras.
-UNCERTAIN_ASSESSMENTS = {"Godtagbar"}
+# Inga tolkningar är längre osäkra. "Godtagbar" lästes tidigare som en mindre
+# anmärkning; den läsningen var fel. Värdet är motsatsen till "Ej godtagbar"
+# och betyder att verksamheten är godtagbar.
+UNCERTAIN_ASSESSMENTS: set = set()
 
 TYPE_MAP = {
     "Planerad": ROUTINE,                        # 653
@@ -82,6 +84,39 @@ class UnknownSourceValue(Exception):
     """
 
 
+# Utfall per kontrollområde. Fyra distinkta lägen — "Åtgärdad" och "Kvarstår"
+# är egen information och får inte plattas ihop med godkänt respektive brist.
+AREA_OK = "ok"
+AREA_FIXED = "fixed"
+AREA_DEVIATION = "deviation"
+AREA_PERSISTING = "persisting"
+
+AREA_STATUS_MAP = {
+    "Utan avvikelse": AREA_OK,
+    "Åtgärdad": AREA_FIXED,
+    "Avskriven": AREA_FIXED,      # avvikelsen är avskriven, alltså inte längre öppen
+    "Avvikelse": AREA_DEVIATION,
+    "Kvarstår": AREA_PERSISTING,
+}
+
+#: Områden som räknas som brist i Brister/Godkänt-uppdelningen.
+AREA_IS_REMARK = {AREA_DEVIATION, AREA_PERSISTING}
+
+
+@dataclass(frozen=True)
+class ControlArea:
+    """Ett granskat kontrollområde inom en kontroll.
+
+    `code` är Livsmedelsverkets rapporteringspunkt (t.ex. "J03"), där
+    bokstaven anger lagstiftningsområde — J = hygien, K = HACCP och så vidare.
+    """
+
+    code: str
+    group: str
+    description: str
+    status: str
+
+
 @dataclass(frozen=True)
 class NormalizedInspection:
     id_national: str
@@ -90,6 +125,11 @@ class NormalizedInspection:
     assessment: int
     type: int
     prenotified: Optional[bool]
+    #: Revision enligt kommunens fält, inte en ordinarie kontroll.
+    audit: bool
+    #: Om kontrollen innefattade platsbesök.
+    on_site: bool
+    areas: list
     uncertain: bool
 
 
@@ -173,6 +213,27 @@ def normalize_inspection(raw: dict, establishment_id: str) -> Optional[Normalize
     elif raw.get("anmald") == "Oanmäld":
         prenotified = False
 
+    areas = []
+    for area in raw.get("kontrollomraden") or []:
+        outcome = area.get("anmarkning")
+        if not outcome:
+            # Området finns med men saknar utfall. Att gissa "godkänt" vore
+            # fel — ett okontrollerat område är inte ett godkänt område.
+            continue
+        status = AREA_STATUS_MAP.get(outcome)
+        if status is None:
+            raise UnknownSourceValue(
+                f"Okänt områdesutfall {outcome!r} för {establishment_id}"
+            )
+        areas.append(
+            ControlArea(
+                code=(area.get("nr") or "").strip(),
+                group=(area.get("Kontrollomrade") or "").strip(),
+                description=(area.get("beskrivning") or "").strip(),
+                status=status,
+            )
+        )
+
     return NormalizedInspection(
         id_national=f"I-{MUNICIPALITY_CODE}-{raw['tillsynsId']}",
         establishment_id=establishment_id,
@@ -180,5 +241,8 @@ def normalize_inspection(raw: dict, establishment_id: str) -> Optional[Normalize
         assessment=ASSESSMENT_MAP[assessment_raw],
         type=TYPE_MAP.get(reason_raw, ROUTINE),
         prenotified=prenotified,
+        audit=raw.get("revision") == "Ja",
+        on_site=raw.get("platsbesok") != "Nej",
+        areas=areas,
         uncertain=assessment_raw in UNCERTAIN_ASSESSMENTS,
     )

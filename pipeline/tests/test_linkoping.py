@@ -20,6 +20,9 @@ from prikko.grading import (  # noqa: E402
     ROUTINE,
 )
 from prikko.sources.linkoping import (  # noqa: E402
+    AREA_IS_REMARK,
+    AREA_OK,
+    AREA_PERSISTING,
     UnknownSourceValue,
     normalize_establishment,
     normalize_inspection,
@@ -81,7 +84,7 @@ class Inspections(unittest.TestCase):
         expected = {
             "Utan Avvikelse": NO_REMARKS,
             "Åtgärdad": NO_REMARKS,
-            "Godtagbar": MINOR_REMARKS,
+            "Godtagbar": NO_REMARKS,
             "Avvikelse": MINOR_REMARKS,
             "Kvarstår": MAJOR_REMARKS,
             "Ej godtagbar": MAJOR_REMARKS,
@@ -106,12 +109,18 @@ class Inspections(unittest.TestCase):
             raw = dict(RAW_INSPECTION, orsak=reason)
             self.assertEqual(normalize_inspection(raw, "F-0580-x").type, type_)
 
-    def test_godtagbar_is_flagged_as_uncertain(self):
-        """75 anläggningar hänger på den tolkningen — den ska synas."""
+    def test_godtagbar_means_acceptable(self):
+        """Motsatsen till "Ej godtagbar" — inte en mindre anmärkning.
+
+        Lästes först fel. Linköpings egen läsanvisning har bara tre utfall
+        (utan avvikelse, med avvikelse, kvarstår), och "Godtagbar" hör till
+        den godkända sidan.
+        """
         raw = dict(RAW_INSPECTION)
         raw["helhetsbedomning av tillsynen"] = "Godtagbar"
-        self.assertTrue(normalize_inspection(raw, "F-0580-x").uncertain)
-        self.assertFalse(normalize_inspection(RAW_INSPECTION, "F-0580-x").uncertain)
+        result = normalize_inspection(raw, "F-0580-x")
+        self.assertEqual(result.assessment, NO_REMARKS)
+        self.assertFalse(result.uncertain)
 
     def test_facility_without_inspection_returns_none(self):
         """258 av 1 241 saknar kontroll — de ska sakna betyg, inte få ett dåligt."""
@@ -125,6 +134,46 @@ class Inspections(unittest.TestCase):
         raw["helhetsbedomning av tillsynen"] = "Något helt nytt"
         with self.assertRaises(UnknownSourceValue):
             normalize_inspection(raw, "F-0580-x")
+
+    def test_control_areas_are_normalized(self):
+        """Kontrollområdena bär breakdownen — utan dem finns ingen sida."""
+        raw = dict(
+            RAW_INSPECTION,
+            kontrollomraden=[
+                {
+                    "Kontrollomrade": "Grundförutsättningar, hygien",
+                    "nr": "J03",
+                    "beskrivning": "Hygien före, under och efter processen",
+                    "anmarkning": "Kvarstår",
+                },
+                {
+                    "Kontrollomrade": "HACCP",
+                    "nr": "K01",
+                    "beskrivning": "Faroanalys",
+                    "anmarkning": "Utan avvikelse",
+                },
+            ],
+        )
+        areas = normalize_inspection(raw, "F-0580-x").areas
+        self.assertEqual([a.code for a in areas], ["J03", "K01"])
+        self.assertEqual(areas[0].status, AREA_PERSISTING)
+        self.assertEqual(areas[1].status, AREA_OK)
+        self.assertIn(areas[0].status, AREA_IS_REMARK)
+        self.assertNotIn(areas[1].status, AREA_IS_REMARK)
+
+    def test_unknown_area_outcome_raises(self):
+        raw = dict(
+            RAW_INSPECTION,
+            kontrollomraden=[{"nr": "J03", "anmarkning": "Något nytt"}],
+        )
+        with self.assertRaises(UnknownSourceValue):
+            normalize_inspection(raw, "F-0580-x")
+
+    def test_audit_and_on_site_flags_are_captured(self):
+        raw = dict(RAW_INSPECTION, revision="Ja", platsbesok="Nej")
+        result = normalize_inspection(raw, "F-0580-x")
+        self.assertTrue(result.audit)
+        self.assertFalse(result.on_site)
 
     def test_handles_two_digit_fractional_seconds(self):
         """Källan levererar '...27.07', vilket Pythons ISO-parser vägrar."""

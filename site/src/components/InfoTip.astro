@@ -1,0 +1,104 @@
+---
+/**
+ * (i)-symbol med förklaring vid hover och tangentbordsfokus.
+ *
+ * Ren CSS och HTML — ingen JavaScript. Mönstret är hämtat från ednia, som
+ * sätter en (i) vid varje rubrik där datan behöver förklaras.
+ *
+ * Tillgänglighet: knapp (inte span) så den nås med tangentbord, och
+ * förklaringen kopplas med aria-describedby så skärmläsare läser upp den.
+ * Texten ligger alltid i DOM:en — den får inte vara beroende av hover för
+ * att existera, eftersom sökmotorer och AI-crawlers också ska läsa den.
+ */
+interface Props {
+  label: string;
+  text: string;
+}
+
+const { label, text } = Astro.props;
+const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<span class="wrap">
+  <button
+    type="button"
+    class="dot"
+    aria-label={`Vad betyder ${label}?`}
+    aria-describedby={id}
+  >
+    i
+  </button>
+  <span class="bubble" id={id} role="tooltip">{text}</span>
+</span>
+
+<style>
+  .wrap {
+    position: relative;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+
+  .dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--text-muted);
+    background: transparent;
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-sans);
+    cursor: help;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dot:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  .bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    width: max-content;
+    max-width: 260px;
+    background: var(--text);
+    color: #fff;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-pop);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .12s ease;
+  }
+
+  .bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--text);
+  }
+
+  .wrap:hover .bubble,
+  .dot:focus-visible + .bubble {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bubble { transition: none; }
+  }
+</style>

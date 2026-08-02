@@ -159,6 +159,17 @@ def build(limit: Optional[int], today: date) -> dict:
                         "assessment": i.assessment,
                         "type": i.type,
                         "prenotified": i.prenotified,
+                        "audit": i.audit,
+                        "onSite": i.on_site,
+                        "areas": [
+                            {
+                                "code": a.code,
+                                "group": a.group,
+                                "description": a.description,
+                                "status": a.status,
+                            }
+                            for a in i.areas
+                        ],
                     }
                     for i in sorted(
                         inspections, key=lambda x: x.inspected_at, reverse=True

@@ -1,17 +1,20 @@
 ---
 /**
- * Kontrollhistorik — Yuka-mönstret ur bibeln §13c, fast med kontroller
- * i stället för ingredienser: färgprick + rad + status.
+ * Kontrollhistorik. Ligger inuti restaurangsidans ark, så raderna skiljs av
+ * hårfina linjer i stället för att vara egna kort.
  *
- * De tre senaste markeras som de som ligger till grund för bedömningen.
- * Resten fälls ihop; de är relevanta för den som vill gräva, men får inte
- * konkurrera med nuläget om uppmärksamheten.
+ * De tre senaste markeras som de bedömningen vilar på. Resten fälls ihop —
+ * relevanta för den som vill gräva, men de ska inte konkurrera med nuläget.
+ * Varje rad visar även om kontrollen var oanmäld, vilket är en verklig
+ * kvalitetsskillnad: en föranmäld kontroll säger mindre om vardagen.
  */
 import {
   ASSESSMENT_COLOR,
+  ASSESSMENT_INK,
   ASSESSMENT_LABEL,
   INSPECTION_TYPE_LABEL,
   formatDate,
+  isRemark,
   type Inspection,
 } from '../lib/data';
 
@@ -20,13 +23,30 @@ interface Props {
 }
 
 const { inspections } = Astro.props;
-
 const decisive = inspections.slice(0, 3);
 const older = inspections.slice(3);
+
+function detail(i: Inspection): string {
+  const parts = [INSPECTION_TYPE_LABEL[i.type]];
+  if (i.prenotified === false) parts.push('oanmäld');
+  else if (i.prenotified === true) parts.push('föranmäld');
+  if (i.audit) parts.push('revision');
+  if (!i.onSite) parts.push('utan platsbesök');
+  const remarks = i.areas.filter(isRemark).length;
+  if (remarks > 0) parts.push(`${remarks} ${remarks === 1 ? 'avvikelse' : 'avvikelser'}`);
+  return parts.join(' · ');
+}
 ---
 
 <section class="history">
-  <h2>Kontrollhistorik</h2>
+  <div class="head">
+    <h2>Kontrollhistorik</h2>
+    {inspections.length > 0 && (
+      <p class="note text-secondary">
+        Bedömningen vilar på {decisive.length === 1 ? 'den senaste kontrollen' : `de ${decisive.length} senaste`}.
+      </p>
+    )}
+  </div>
 
   {inspections.length === 0 ? (
     <p class="empty text-secondary">
@@ -36,22 +56,15 @@ const older = inspections.slice(3);
     </p>
   ) : (
     <>
-      <p class="note text-secondary">
-        Bedömningen bygger på {decisive.length === 1 ? 'den senaste kontrollen' : `de ${decisive.length} senaste kontrollerna`}.
-      </p>
-
-      <ol class="rows card">
+      <ol class="rows">
         {decisive.map((i) => (
           <li class="row">
             <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
-            <div class="cell">
+            <span class="cell">
               <b>{formatDate(i.date)}</b>
-              <span class="text-secondary">
-                {INSPECTION_TYPE_LABEL[i.type]}
-                {i.prenotified === false && ' · oanmäld'}
-              </span>
-            </div>
-            <span class="status" style={`color: ${ASSESSMENT_COLOR[i.assessment]}`}>
+              <span class="text-secondary">{detail(i)}</span>
+            </span>
+            <span class="status" style={`color: ${ASSESSMENT_INK[i.assessment]}`}>
               {ASSESSMENT_LABEL[i.assessment]}
             </span>
           </li>
@@ -63,17 +76,15 @@ const older = inspections.slice(3);
           <summary>
             Visa {older.length} tidigare {older.length === 1 ? 'kontroll' : 'kontroller'}
           </summary>
-          <ol class="rows card">
+          <ol class="rows">
             {older.map((i) => (
               <li class="row">
                 <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
-                <div class="cell">
+                <span class="cell">
                   <b>{formatDate(i.date)}</b>
-                  <span class="text-secondary">{INSPECTION_TYPE_LABEL[i.type]}</span>
-                </div>
-                <span class="status" style={`color: ${ASSESSMENT_COLOR[i.assessment]}`}>
-                  {ASSESSMENT_LABEL[i.assessment]}
+                  <span class="text-secondary">{detail(i)}</span>
                 </span>
+                <span class="status text-secondary">{ASSESSMENT_LABEL[i.assessment]}</span>
               </li>
             ))}
           </ol>
@@ -84,51 +95,50 @@ const older = inspections.slice(3);
 </section>
 
 <style>
-  .history {
-    margin-top: var(--s-12);
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+    flex-wrap: wrap;
   }
 
   .note,
   .empty {
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    margin-top: var(--s-2);
+    line-height: 20px;
   }
+
+  .empty { margin-top: var(--s-2); }
 
   .rows {
     list-style: none;
     margin: var(--s-4) 0 0;
     padding: 0;
-    overflow: hidden;
   }
 
   .row {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    align-items: baseline;
     gap: var(--s-3);
-    padding: var(--s-3) var(--s-4);
-  }
-
-  .row + .row {
+    padding: var(--s-3) 0;
     border-top: 1px solid var(--hairline);
   }
 
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .cell {
-    flex: 1;
-    min-width: 0;
+    align-self: center;
   }
 
   .cell b {
     display: block;
     font-size: var(--fs-body-s);
     font-weight: 600;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
   }
 
   .cell span {
@@ -139,6 +149,7 @@ const older = inspections.slice(3);
     font-size: var(--fs-caption);
     font-weight: 600;
     text-align: right;
+    min-width: 92px;
   }
 
   .older {

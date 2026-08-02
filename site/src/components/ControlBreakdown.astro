@@ -1,0 +1,205 @@
+---
+/**
+ * Vad kontrollen visade — Yuka-mönstret ur bibeln §13c.
+ *
+ * Brister först, godkänt sedan. Varje rad bär en ikon för sitt
+ * lagstiftningsområde och en (i) som förklarar vad området innebär. Koden
+ * ("J03") står kvar men nedtonad — den är till för den som vill slå upp
+ * punkten hos Livsmedelsverket, inte för att förklara något för en besökare.
+ */
+import AreaIcon from './AreaIcon.astro';
+import InfoTip from './InfoTip.astro';
+import {
+  AREA_STATUS_COLOR,
+  AREA_STATUS_INK,
+  AREA_STATUS_LABEL,
+  isRemark,
+  legislationArea,
+  type ControlArea,
+} from '../lib/data';
+
+interface Props {
+  areas: ControlArea[];
+  inspectedAt: string;
+}
+
+const { areas, inspectedAt } = Astro.props;
+
+const remarks = areas.filter(isRemark);
+const passed = areas.filter((a) => !isRemark(a));
+const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områden');
+---
+
+<section class="breakdown">
+  <div class="head">
+    <h2>
+      Vad kontrollen visade
+      <InfoTip
+        label="kontrollområden"
+        text="Kommunen granskar verksamheten mot Livsmedelsverkets lagstiftningsområden. Alla områden granskas inte vid varje besök — kontrollerna sprids över en treårscykel."
+      />
+    </h2>
+    <p class="count text-secondary">
+      {remarks.length === 0
+        ? `Samtliga ${passed.length} ${areaWord(passed.length)} utan avvikelse.`
+        : `${remarks.length} ${remarks.length === 1 ? 'avvikelse' : 'avvikelser'} av ${areas.length} ${areaWord(areas.length)}.`}
+    </p>
+  </div>
+
+  {remarks.length > 0 && (
+    <ul class="rows">
+      {remarks.map((a) => {
+        const area = legislationArea(a.code);
+        return (
+          <li class="row">
+            <span
+              class="icon"
+              style={`color: ${AREA_STATUS_INK[a.status]}; background: color-mix(in srgb, ${AREA_STATUS_COLOR[a.status]} 18%, transparent)`}
+            >
+              <AreaIcon letter={a.code} />
+            </span>
+            <span class="what">
+              <b>{a.description}</b>
+              <span class="group text-secondary">
+                {area?.name ?? a.group}
+                {area && <InfoTip label={area.name} text={area.explanation} />}
+              </span>
+            </span>
+            <span class="code text-muted">{a.code}</span>
+            <span class="status" style={`color: ${AREA_STATUS_INK[a.status]}`}>
+              {AREA_STATUS_LABEL[a.status]}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+
+  {passed.length > 0 && (
+    <details class="passed">
+      <summary>Visa {passed.length} {areaWord(passed.length)} utan avvikelse</summary>
+      <ul class="rows">
+        {passed.map((a) => {
+          const area = legislationArea(a.code);
+          return (
+            <li class="row">
+              <span class="icon muted">
+                <AreaIcon letter={a.code} />
+              </span>
+              <span class="what">
+                <b>{a.description}</b>
+                <span class="group text-secondary">
+                  {area?.name ?? a.group}
+                  {area && <InfoTip label={area.name} text={area.explanation} />}
+                </span>
+              </span>
+              <span class="code text-muted">{a.code}</span>
+              <span class="status text-secondary">{AREA_STATUS_LABEL[a.status]}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  )}
+
+  <p class="asof caption text-muted">
+    Avser kontrollen den {inspectedAt}. Områden som inte granskades vid detta
+    besök saknas i listan — de är okontrollerade, inte godkända.
+  </p>
+</section>
+
+<style>
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+    flex-wrap: wrap;
+  }
+
+  .head h2 {
+    display: flex;
+    align-items: center;
+  }
+
+  .count {
+    font-size: var(--fs-body-s);
+  }
+
+  .rows {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon.muted {
+    color: var(--text-muted);
+    background: var(--canvas);
+  }
+
+  .what b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  .group {
+    font-size: var(--fs-caption);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .code {
+    font-size: var(--fs-caption);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+  }
+
+  .status {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+    min-width: 88px;
+  }
+
+  .passed {
+    margin-top: var(--s-4);
+  }
+
+  .passed summary {
+    font-size: var(--fs-body-s);
+    color: var(--brand);
+    cursor: pointer;
+  }
+
+  .asof {
+    margin-top: var(--s-4);
+  }
+
+  @media (max-width: 560px) {
+    .row {
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+    }
+
+    .code { display: none; }
+  }
+</style>

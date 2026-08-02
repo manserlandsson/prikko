@@ -1,0 +1,99 @@
+---
+/**
+ * Ansiktsmärket — varumärket och bedömningen i samma tecken.
+ *
+ * Prikkos logotyp är två prickar och en mun. Munnens kurva bär de tre
+ * nivåerna: glad utan anmärkningar, rak vid mindre brister, ledsen vid
+ * allvarliga. Samma princip som Norges Smilefjes, men med vårt eget ansikte —
+ * aldrig ordet "smiley" (varumärkesskyddat) och aldrig en lånad emoji.
+ *
+ * Ögonen och geometrin är identiska med favikonen så märket är igenkännbart
+ * i alla storlekar. Bara munnen ändras.
+ *
+ * Tillgänglighet: ansiktet är dekor. Betydelsen bärs alltid av intilliggande
+ * text — färg och min får aldrig vara enda bäraren.
+ */
+import type { VerdictOrNone } from '../lib/site';
+
+interface Props {
+  verdict: VerdictOrNone;
+  size?: number;
+  /** Låt munnen animera in. Stängs av vid prefers-reduced-motion. */
+  animate?: boolean;
+}
+
+const { verdict, size = 56, animate = false } = Astro.props;
+
+// Munkurvor i favikonens koordinatsystem (96×96).
+const MOUTHS: Record<string, string> = {
+  clean: 'M30 55.5c12.25 11.7 24.5 11.7 36.75 0',
+  minor: 'M31 60.5h34.75',
+  major: 'M30 64c12.25 -11.7 24.5 -11.7 36.75 0',
+  none: 'M38 60.5h20',
+};
+
+const COLORS: Record<string, string> = {
+  clean: 'var(--verdict-clean)',
+  minor: 'var(--verdict-minor)',
+  major: 'var(--verdict-major)',
+  none: 'var(--verdict-none)',
+};
+
+// Symbolens färg. Vit försvinner på den ljusa gula (1,5:1) — där används
+// mörk symbol i stället, vilket ger 11:1.
+const INK: Record<string, string> = {
+  clean: 'var(--on-clean)',
+  minor: 'var(--on-minor)',
+  major: 'var(--on-major)',
+  none: 'var(--on-none)',
+};
+
+const key = verdict ?? 'none';
+---
+
+<svg
+  class:list={['face', { animate }]}
+  width={size}
+  height={size}
+  viewBox="0 0 96 96"
+  fill="none"
+  aria-hidden="true"
+  focusable="false"
+>
+  <rect width="96" height="96" rx="26" fill={COLORS[key]} />
+  <circle cx="37.87" cy="37.12" r="6.12" fill={INK[key]} />
+  <circle cx="60.61" cy="37.12" r="6.12" fill={INK[key]} />
+  <path
+    d={MOUTHS[key]}
+    stroke={INK[key]}
+    stroke-width="7.87"
+    stroke-linecap="round"
+    fill="none"
+  />
+</svg>
+
+<style>
+  .face {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  /* Munnen ritas upp när märket kommer in. Diskret — det här är ett
+     register, inte en app-onboarding. */
+  .animate path {
+    stroke-dasharray: 60;
+    stroke-dashoffset: 60;
+    animation: draw .5s cubic-bezier(.4, 0, .2, 1) .1s forwards;
+  }
+
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate path {
+      animation: none;
+      stroke-dashoffset: 0;
+    }
+  }
+</style>

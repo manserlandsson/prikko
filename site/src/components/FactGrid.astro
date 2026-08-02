@@ -1,0 +1,99 @@
+---
+/**
+ * Faktarutor i rutnät — mönstret från ednia.
+ *
+ * Stort värde, liten etikett, tunn ram mellan cellerna. Skälet det fungerar:
+ * siffran blir skumbar på en halv sekund, och rutnätet ger sidan struktur
+ * utan att lägga till ännu ett flytande kort.
+ */
+import InfoTip from './InfoTip.astro';
+
+export interface Fact {
+  label: string;
+  value: string;
+  /** Liten enhet efter värdet, t.ex. "%" eller "kontroller". */
+  unit?: string;
+  /** Färgar värdet. Utelämna för neutral text. */
+  color?: string;
+  tip?: string;
+}
+
+interface Props {
+  title?: string;
+  titleTip?: string;
+  facts: Fact[];
+}
+
+const { title, titleTip, facts } = Astro.props;
+---
+
+<section class="factgrid">
+  {title && (
+    <h3 class="title">
+      {title}
+      {titleTip && <InfoTip label={title} text={titleTip} />}
+    </h3>
+  )}
+
+  <div class="grid">
+    {facts.map((f) => (
+      <div class="cell">
+        <p class="label">
+          {f.label}
+          {f.tip && <InfoTip label={f.label} text={f.tip} />}
+        </p>
+        <p class="value" style={f.color ? `color: ${f.color}` : undefined}>
+          {f.value}
+          {f.unit && <span class="unit">{f.unit}</span>}
+        </p>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .title {
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    color: var(--brand);
+    margin-bottom: var(--s-3);
+  }
+
+  /* Delade ramar: ett rutnät, inte fyra fristående kort. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+  }
+
+  .cell {
+    padding: var(--s-3) var(--s-4);
+    border-right: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .label {
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+  }
+
+  .value {
+    margin-top: 2px;
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 26px;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .unit {
+    font-size: var(--fs-body-s);
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-left: 3px;
+  }
+</style>

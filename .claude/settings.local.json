@@ -144,7 +144,17 @@
       "Bash(git reflog *)",
       "Bash(git gc *)",
       "Bash(PYTHONPATH=pipeline python3 -c ' *)",
-      "Bash(python3 pipeline/fetch_linkoping.py --limit 120 --out site/src/data/linkoping.json)"
+      "Bash(python3 pipeline/fetch_linkoping.py --limit 120 --out site/src/data/linkoping.json)",
+      "Bash(curl -s --max-time 30 https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar/__CMDSUB_OUTPUT__ -o sr.json)",
+      "Bash(python3 pipeline/tests/test_linkoping.py)",
+      "Bash(rm -f site/src/components/VerdictMark.astro)",
+      "Bash(python3 pipeline/tests/test_grading.py)",
+      "WebFetch(domain:www.maptiler.com)",
+      "WebFetch(domain:www.mapbox.com)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(curl -s \"http://localhost:4321/@id/astro:scripts/page.js\")",
+      "Bash(curl -s \"http://localhost:4321/linkoping/brokinds-skola\")",
+      "Bash(curl -s \"http://localhost:4322/_astro/LocationMap.astro_astro_type_script_index_0_lang.BpoN4EmV.js\")"
     ]
   }
 }
