@@ -143,9 +143,7 @@ const breadcrumbs = {
     <div class="layout">
       <main class="main">
         <section class="statement">
-          <span class:list={['markring', e.verdict === 'clean' && 'spins']}>
-            <FaceMark verdict={e.verdict} size={52} animate wink />
-          </span>
+          <FaceMark verdict={e.verdict} size={52} animate wink />
           <div>
             <p class="level">
               {presentation.label}
@@ -283,79 +281,6 @@ const breadcrumbs = {
     display: flex;
     align-items: flex-start;
     gap: var(--s-4);
-  }
-
-  /* Ringen runt bedömningsmärket. Snurrar ETT varv när sidan öppnas och
-     stannar sedan — den ska lyfta fram beskedet, inte snurra som en
-     laddningsindikator och antyda att något är på väg att hända.
-     Bara på godkänt: en ring som firar runt "brister som kvarstår" vore
-     att fira fel sak. */
-  .markring {
-    position: relative;
-    display: inline-flex;
-    flex-shrink: 0;
-  }
-
-  /* Kanten följer märkets form — en rundad kvadrat, inte en cirkel.
-     Märket har rx 17 på ett 100-rutnät och renderas i 52 px, alltså 8,8 px
-     radie; plus 6 px utanförliggande inset blir ytterradien knappt 15.
-
-     Kanten ligger I LIV med märket, inte utanför det: inset 0 och samma
-     radie som märkets egen, så den läser som märkets kant och inte som en
-     ring runt omkring.
-
-     Två tekniker samverkar:
-     1) Gradientkant. Ett vanligt `border` kan inte ha gradient. Elementet
-        får därför gradienten som bakgrund, en padding lika bred som kanten,
-        och en mask som skär bort allt utom paddingen. Kvar blir en kant som
-        följer border-radius.
-     2) Svepet roterar GRADIENTENS vinkel, inte elementet. Roteras elementet
-        snurrar hela rektangeln som ett hjul; här står formen still medan
-        ljuset vandrar runt den. Det kräver att vinkeln är en registrerad
-        egenskap — annars kan CSS inte interpolera den. */
-  @property --prikko-sweep {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-  }
-
-  .markring.spins::before {
-    content: '';
-    position: absolute;
-    /* I liv med märket: inset 0 och samma radie som märkets egen.
-       Märket har rx 17 på ett 100-rutnät och renderas i 52 px → 8,8 px. */
-    inset: 0;
-    border-radius: 8.8px;
-    padding: 1.5px;
-    /* Nästan vitt, inte grönt. Svepet låg tidigare i samma gröna som märkets
-       egen fyllning och var därför osynligt — grönt på grönt. Ett ljust svep
-       läser som en glans över kanten och fungerar mot alla tre
-       betygsfärgerna, inte bara den gröna. */
-    background: conic-gradient(
-      from var(--prikko-sweep),
-      rgba(255, 255, 255, 0) 0deg,
-      rgba(255, 255, 255, .35) 55deg,
-      rgba(255, 255, 255, .95) 150deg,
-      rgba(255, 255, 255, .35) 230deg,
-      rgba(255, 255, 255, 0) 310deg
-    );
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    animation: markring-sweep 1.2s cubic-bezier(.3, 0, .2, 1) .15s 1 both;
-    pointer-events: none;
-  }
-
-  @keyframes markring-sweep {
-    from { --prikko-sweep: 0deg;   opacity: 0; }
-    15%  { opacity: 1; }
-    75%  { opacity: 1; }
-    to   { --prikko-sweep: 360deg; opacity: 0; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .markring.spins::before { animation: none; opacity: 0; }
   }
 
   .level {
