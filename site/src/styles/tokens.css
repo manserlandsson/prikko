@@ -1,8 +1,10 @@
 /* Prikko — designsystem (tokens).
    Källa: docs/11_master_projektbibel.md §14. Ändra aldrig värden här utan att
    uppdatera bibeln — det här är sanningen för hela sajten.
-   Inter laddas självhostat via @fontsource-variable/inter (ingen render-blockerande
-   Google Fonts-import: Core Web Vitals är en rankningssignal). */
+   Typsnitt: Instrument Sans, självhostat via @fontsource-variable/instrument-sans.
+   Ingen render-blockerande Google Fonts-import — Core Web Vitals är en
+   rankningssignal. Valt över Inter: Inter är default i praktiskt taget varje
+   AI-genererad sajt och signalerar mall snarare än register. */
 
 :root {
   /* Brand */
@@ -42,7 +44,7 @@
   --s-6: 24px; --s-8: 32px;  --s-12: 48px; --s-16: 64px;
 
   /* Typografi */
-  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Instrument Sans Variable', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --fs-eyebrow: 12px;  --lh-eyebrow: 16px;
   --fs-caption: 13px;  --lh-caption: 18px;
   --fs-body-s: 14px;   --lh-body-s: 20px;

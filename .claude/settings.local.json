@@ -115,7 +115,18 @@
       "Bash(grep -o -E \"urlSearch2?[^,}]{0,120}\" map.js)",
       "Bash(grep -o -E \"foodInspection[^,}]{0,200}\" map.js)",
       "Bash(grep -o -E \"urlSearch[^\\\\\"']{0,200}\" lk_st.html)",
-      "Bash(grep -o -E \"actions[^<]{0,400}\" lk_st.html)"
+      "Bash(grep -o -E \"actions[^<]{0,400}\" lk_st.html)",
+      "Bash(curl -s -m 40 -L -H 'Accept: application/ld+json' 'https://admin.dataportal.se/store/389/data?resource=' -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s -m 40 -L 'https://www.dataportal.se/datasets/389_3139')",
+      "Bash(curl -s -m 60 https://etjanster.stockholm.se/Livsmedelsinspektioner/Livsmedelsinspektioner/SearchFacilitiesMap -H 'Content-Type: application/json; charset=utf-8' -H 'X-Requested-With: XMLHttpRequest' -d '{\"FoodPlaceName\":\"pizzeria\",\"FoodPlaceAddress\":\"\",\"FoodPlaceOrgNr\":\"\",\"NoDeficiency\":false,\"MinorDeficiency\":false,\"Revisit\":false,\"FacilityTypeGroups\":[],\"SortByName\":null,\"NorthCoordinate\":null,\"EastCoordinate\":null,\"MaxDistanceAllowedFromPoint\":null,\"Ids\":null}' -o lk_resp.txt -w 'HTTP %{http_code} size=%{size_download}\\\\n')",
+      "WebFetch(domain:www.vgregion.se)",
+      "Bash(curl -s -m 40 -L \"https://www.uppsala.se/livsmedelskollen\" -o up.html -w \"HTTP %{http_code} size=%{size_download} final=%{url_effective}\\\\n\")",
+      "Bash(grep -o -E \"Senaste kontroll[^<]{0,40}\" up.html)",
+      "Bash(python3 pageaudit.py \"https://ratings.food.gov.uk/business/1451191\")",
+      "Bash(curl -s -m 40 -L \"https://www.uppsala.se/foretag-och-naringsliv/tillstand-regler-och-tillsyn/livsmedelskollen/Details?id=1059622379\" -o up_d.html -w \"HTTP %{http_code} size=%{size_download}\\\\n\")",
+      "Bash(python3 -)",
+      "WebFetch(domain:bolagsverket.se)",
+      "Bash(npm uninstall *)"
     ]
   }
 }
