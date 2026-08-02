@@ -30,6 +30,7 @@ import InfoTip from '../../components/InfoTip.astro';
 import LocationMap from '../../components/LocationMap.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
+import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import {
   establishments,
@@ -41,6 +42,7 @@ import {
   latestInspectionDate,
   missingReason,
   nearby,
+  recurringIssues,
   statistics,
   type Establishment,
 } from '../../lib/data';
@@ -69,6 +71,7 @@ const latest = latestInspectionDate(e);
 const latestInspection = e.inspections[0];
 const stats = statistics(e);
 const neighbours = nearby(e);
+const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
 
 const answer = latest
@@ -164,6 +167,8 @@ const breadcrumbs = {
             inspectedAt={formatDate(latestInspection.date)}
           />
         )}
+
+        <RecurringIssues issues={recurring} />
 
         <InspectionHistory inspections={e.inspections} />
 

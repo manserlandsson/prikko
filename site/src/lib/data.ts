@@ -230,3 +230,69 @@ export function formatDate(iso: string): string {
 export function formatNumber(n: number): string {
   return n.toLocaleString('sv-SE');
 }
+
+// ---------------------------------------------------------------------------
+// Återkommande brister
+// ---------------------------------------------------------------------------
+
+export interface RecurringIssue {
+  /** Vad bristen gäller, med kommunens egna ord. */
+  description: string;
+  group: string;
+  code: string;
+  /** Hur många kontroller den noterats vid. */
+  count: number;
+  /** Datum för de kontroller där den noterats, nyast först. */
+  dates: string[];
+  /** Kvarstod den vid senaste kontrollen den noterades? */
+  latestPersisting: boolean;
+}
+
+/**
+ * Brister som noterats vid mer än en kontroll.
+ *
+ * Det här är sidans egentliga insikt. En enskild avvikelse säger lite — alla
+ * får en emellanåt. Att samma kylkedja underkänts fyra gånger på två år säger
+ * något helt annat, och det syns inte om man bara läser kontrollerna var för
+ * sig. Vi har datan för hela historiken; utan den här sammanställningen
+ * visades bara den senaste kontrollen.
+ */
+export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[] {
+  const seen = new Map<string, RecurringIssue>();
+
+  for (const inspection of e.inspections) {
+    for (const area of inspection.areas) {
+      if (!isRemark(area)) continue;
+      // Nyckeln är beskrivningen: koden saknas i Stockholms data, och samma
+      // brist ska räknas som samma oavsett vilken kommun den kommer från.
+      const key = (area.description || area.group).toLowerCase();
+      if (!key) continue;
+
+      const existing = seen.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.dates.push(inspection.date);
+      } else {
+        seen.set(key, {
+          description: area.description || area.group,
+          group: area.group,
+          code: area.code,
+          count: 1,
+          dates: [inspection.date],
+          // Inspektionerna är sorterade nyast först, så första förekomsten
+          // är den senaste.
+          latestPersisting: area.status === 'persisting',
+        });
+      }
+    }
+  }
+
+  return [...seen.values()]
+    .filter((i) => i.count >= minCount)
+    .sort((a, b) => b.count - a.count || b.dates[0].localeCompare(a.dates[0]));
+}
+
+/** Avvikelser vid en enskild kontroll. */
+export function deviations(inspection: Inspection): ControlArea[] {
+  return inspection.areas.filter(isRemark);
+}

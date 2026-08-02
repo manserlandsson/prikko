@@ -1,20 +1,22 @@
 ---
 /**
- * Kontrollhistorik. Ligger inuti restaurangsidans ark, så raderna skiljs av
- * hårfina linjer i stället för att vara egna kort.
+ * Kontrollhistorik.
  *
- * De tre senaste markeras som de bedömningen vilar på. Resten fälls ihop —
- * relevanta för den som vill gräva, men de ska inte konkurrera med nuläget.
- * Varje rad visar även om kontrollen var oanmäld, vilket är en verklig
- * kvalitetsskillnad: en föranmäld kontroll säger mindre om vardagen.
+ * Varje kontroll som hade avvikelser går att fälla ut och visa vad de gällde.
+ * Vi håller den datan för hela historiken — tidigare visades den bara för den
+ * senaste kontrollen, alltså låg ungefär 87 % av materialet oanvänt.
+ *
+ * Progressiv fördjupning: den som bara vill veta läget ser raden, den som vill
+ * gräva öppnar den. Rader utan avvikelser är inte klickbara — en tom utfällning
+ * är sämre än ingen.
  */
 import {
   ASSESSMENT_COLOR,
   ASSESSMENT_INK,
   ASSESSMENT_LABEL,
   INSPECTION_TYPE_LABEL,
+  deviations,
   formatDate,
-  isRemark,
   type Inspection,
 } from '../lib/data';
 
@@ -32,8 +34,6 @@ function detail(i: Inspection): string {
   else if (i.prenotified === true) parts.push('föranmäld');
   if (i.audit) parts.push('revision');
   if (!i.onSite) parts.push('utan platsbesök');
-  const remarks = i.areas.filter(isRemark).length;
-  if (remarks > 0) parts.push(`${remarks} ${remarks === 1 ? 'avvikelse' : 'avvikelser'}`);
   return parts.join(' · ');
 }
 ---
@@ -57,18 +57,51 @@ function detail(i: Inspection): string {
   ) : (
     <>
       <ol class="rows">
-        {decisive.map((i) => (
-          <li class="row">
-            <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
-            <span class="cell">
-              <b>{formatDate(i.date)}</b>
-              <span class="text-secondary">{detail(i)}</span>
-            </span>
-            <span class="status" style={`color: ${ASSESSMENT_INK[i.assessment]}`}>
-              {ASSESSMENT_LABEL[i.assessment]}
-            </span>
-          </li>
-        ))}
+        {decisive.map((i) => {
+          const found = deviations(i);
+          return (
+            <li>
+              {found.length > 0 ? (
+                <details class="row expandable">
+                  <summary>
+                    <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+                    <span class="cell">
+                      <b>{formatDate(i.date)}</b>
+                      <span class="text-secondary">
+                        {detail(i)} · {found.length} {found.length === 1 ? 'avvikelse' : 'avvikelser'}
+                      </span>
+                    </span>
+                    <span class="status" style={`color: ${ASSESSMENT_INK[i.assessment]}`}>
+                      {ASSESSMENT_LABEL[i.assessment]}
+                    </span>
+                  </summary>
+                  <ul class="what">
+                    {found.map((a) => (
+                      <li>
+                        <b>{a.description}</b>
+                        {a.group && a.group !== a.description && (
+                          <span class="text-secondary"> · {a.group}</span>
+                        )}
+                        {a.code && <span class="code text-muted"> {a.code}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : (
+                <div class="row">
+                  <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+                  <span class="cell">
+                    <b>{formatDate(i.date)}</b>
+                    <span class="text-secondary">{detail(i)}</span>
+                  </span>
+                  <span class="status" style={`color: ${ASSESSMENT_INK[i.assessment]}`}>
+                    {ASSESSMENT_LABEL[i.assessment]}
+                  </span>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ol>
 
       {older.length > 0 && (
@@ -77,16 +110,46 @@ function detail(i: Inspection): string {
             Visa {older.length} tidigare {older.length === 1 ? 'kontroll' : 'kontroller'}
           </summary>
           <ol class="rows">
-            {older.map((i) => (
-              <li class="row">
-                <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
-                <span class="cell">
-                  <b>{formatDate(i.date)}</b>
-                  <span class="text-secondary">{detail(i)}</span>
-                </span>
-                <span class="status text-secondary">{ASSESSMENT_LABEL[i.assessment]}</span>
-              </li>
-            ))}
+            {older.map((i) => {
+              const found = deviations(i);
+              return (
+                <li>
+                  {found.length > 0 ? (
+                    <details class="row expandable">
+                      <summary>
+                        <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+                        <span class="cell">
+                          <b>{formatDate(i.date)}</b>
+                          <span class="text-secondary">
+                            {detail(i)} · {found.length} {found.length === 1 ? 'avvikelse' : 'avvikelser'}
+                          </span>
+                        </span>
+                        <span class="status text-secondary">{ASSESSMENT_LABEL[i.assessment]}</span>
+                      </summary>
+                      <ul class="what">
+                        {found.map((a) => (
+                          <li>
+                            <b>{a.description}</b>
+                            {a.group && a.group !== a.description && (
+                              <span class="text-secondary"> · {a.group}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : (
+                    <div class="row">
+                      <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+                      <span class="cell">
+                        <b>{formatDate(i.date)}</b>
+                        <span class="text-secondary">{detail(i)}</span>
+                      </span>
+                      <span class="status text-secondary">{ASSESSMENT_LABEL[i.assessment]}</span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </details>
       )}
@@ -104,27 +167,34 @@ function detail(i: Inspection): string {
   }
 
   .note,
-  .empty {
-    font-size: var(--fs-body-s);
-    line-height: 20px;
-  }
-
+  .empty { font-size: var(--fs-body-s); line-height: 20px; }
   .empty { margin-top: var(--s-2); }
 
-  .rows {
-    list-style: none;
-    margin: var(--s-4) 0 0;
-    padding: 0;
-  }
+  .rows { list-style: none; margin: var(--s-4) 0 0; padding: 0; }
+  .rows > li { border-top: 1px solid var(--hairline); }
 
-  .row {
+  .row,
+  .row.expandable > summary {
     display: grid;
     grid-template-columns: 8px minmax(0, 1fr) auto;
     align-items: baseline;
     gap: var(--s-3);
     padding: var(--s-3) 0;
-    border-top: 1px solid var(--hairline);
   }
+
+  /* details får ALDRIG vara grid: då hamnar hela summary i första kolumnen,
+     som är 8 px bred, och raden kollapsar till en tecken-per-rad-spalt. */
+  .row.expandable {
+    display: block;
+    padding: 0;
+  }
+
+  .row.expandable > summary {
+    cursor: pointer;
+    list-style: none;
+  }
+  .row > summary::-webkit-details-marker { display: none; }
+  .row > summary:hover b { color: var(--brand); }
 
   .dot {
     width: 8px;
@@ -141,9 +211,7 @@ function detail(i: Inspection): string {
     font-variant-numeric: tabular-nums;
   }
 
-  .cell span {
-    font-size: var(--fs-caption);
-  }
+  .cell span { font-size: var(--fs-caption); }
 
   .status {
     font-size: var(--fs-caption);
@@ -152,11 +220,26 @@ function detail(i: Inspection): string {
     min-width: 92px;
   }
 
-  .older {
-    margin-top: var(--s-4);
+  /* Utfälld lista över vad kontrollen faktiskt anmärkte på. */
+  .what {
+    list-style: none;
+    margin: 0 0 var(--s-3);
+    padding: var(--s-3) 0 0 20px;
+    border-top: 1px dashed var(--hairline);
   }
 
-  .older summary {
+  .what li {
+    font-size: var(--fs-caption);
+    line-height: 19px;
+    padding: 3px 0;
+  }
+
+  .what b { font-weight: 600; }
+  .code { font-variant-numeric: tabular-nums; }
+
+  .older { margin-top: var(--s-4); }
+
+  .older > summary {
     font-size: var(--fs-body-s);
     color: var(--brand);
     cursor: pointer;

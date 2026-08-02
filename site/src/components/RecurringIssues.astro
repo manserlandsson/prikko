@@ -1,0 +1,127 @@
+---
+/**
+ * Återkommande brister.
+ *
+ * Sidans egentliga insikt. En enskild avvikelse säger lite — alla får en
+ * emellanåt. Att samma kylkedja underkänts fyra gånger på två år säger något
+ * helt annat, och det syns inte om man läser kontrollerna var för sig.
+ *
+ * Visas bara när det finns något att visa. En verksamhet utan mönster ska
+ * inte få en tom rubrik som antyder att vi letat och hittat något.
+ */
+import AreaIcon from './AreaIcon.astro';
+import InfoTip from './InfoTip.astro';
+import { formatDate, legislationArea, type RecurringIssue } from '../lib/data';
+
+interface Props {
+  issues: RecurringIssue[];
+}
+
+const { issues } = Astro.props;
+---
+
+{issues.length > 0 && (
+  <section class="recurring">
+    <div class="head">
+      <h2>
+        Återkommande brister
+        <InfoTip
+          label="återkommande brister"
+          text="Brister som kommunen noterat vid mer än en kontroll. En enskild avvikelse säger lite — att samma sak återkommer säger mer."
+        />
+      </h2>
+      <p class="count text-secondary">
+        {issues.length} {issues.length === 1 ? 'brist' : 'brister'} vid mer än en kontroll
+      </p>
+    </div>
+
+    <ul class="rows">
+      {issues.map((issue) => {
+        const area = legislationArea(issue.code);
+        return (
+          <li class="row">
+            <span class="icon">
+              <AreaIcon letter={issue.code || issue.group.charAt(0)} />
+            </span>
+            <span class="what">
+              <b>{issue.description}</b>
+              <span class="when text-secondary">
+                {issue.dates.slice(0, 4).map(formatDate).join(' · ')}
+                {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
+              </span>
+            </span>
+            <span class="times">
+              {issue.count} <span class="unit">ggr</span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+)}
+
+<style>
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+    flex-wrap: wrap;
+  }
+
+  .head h2 { display: flex; align-items: center; }
+
+  .count { font-size: var(--fs-body-s); }
+
+  .rows {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--verdict-major-ink);
+    background: color-mix(in srgb, var(--verdict-major) 15%, transparent);
+  }
+
+  .what b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  .when {
+    font-size: var(--fs-caption);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .times {
+    font-size: var(--fs-h-s);
+    font-weight: 600;
+    color: var(--verdict-major-ink);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .unit {
+    font-size: var(--fs-caption);
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+</style>
