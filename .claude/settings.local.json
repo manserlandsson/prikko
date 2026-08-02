@@ -155,7 +155,12 @@
       "Bash(curl -s \"http://localhost:4321/@id/astro:scripts/page.js\")",
       "Bash(curl -s \"http://localhost:4321/linkoping/brokinds-skola\")",
       "Bash(curl -s \"http://localhost:4322/_astro/LocationMap.astro_astro_type_script_index_0_lang.BpoN4EmV.js\")",
-      "Bash(curl -s --max-time 10 \"http://localhost:4321/linkoping/berlin-doner-foodtruck\" -o dev.html -w \"status=%{http_code}\\\\n\")"
+      "Bash(curl -s --max-time 10 \"http://localhost:4321/linkoping/berlin-doner-foodtruck\" -o dev.html -w \"status=%{http_code}\\\\n\")",
+      "WebFetch(domain:www.data.gov.uk)",
+      "WebFetch(domain:hypestat.com)",
+      "WebFetch(domain:data.gov.uk)",
+      "WebFetch(domain:data.food.gov.uk)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://data.gov.uk/api/3/action/package_show?id=c4047886-c3ba-427f-bafc-9804c11a5ab9\" -o pages.json -w \"%{http_code}\\\\n\")"
     ]
   }
 }
