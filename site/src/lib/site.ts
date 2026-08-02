@@ -18,7 +18,21 @@ export const SITE = {
 } as const;
 
 /**
- * Bedömningsnivåer. Speglar källdatans tre steg ett till ett
+ * Bedömningsnivåer.
+ *
+ * Etiketterna beskriver vad som HÄNT, inte hur allvarligt vi tycker att det
+ * är. Tidigare stod det "Allvarliga brister" — men ingen kommun använder det
+ * ordet. Linköping skriver "Kvarstår" och "Ej godtagbar", Stockholm skriver
+ * ingenting alls. Att gradera allvar var alltså vårt eget påstående att
+ * försvara, och det riskerade dessutom att låta som råttor och salmonella när
+ * det i praktiken kan gälla en oåtgärdad allergenmärkning.
+ *
+ * "Brister som kvarstår" säger exakt det vi kan bevisa: kommunen påpekade
+ * något, kom tillbaka, och det var inte åtgärdat. Sant, verifierbart, och
+ * mer användbart för besökaren än en gradering — det säger något om
+ * verksamhetens vilja att rätta till, inte bara om ett ögonblick.
+ *
+ * Speglar källdatans tre steg ett till ett
  * (Sambruk `assessment` 0/1/2). Se pipeline/prikko/grading.py för varför det
  * inte är en bokstavsskala: en femgradig skala hade krävt precision som datan
  * inte innehåller, och A–E krockar med de svenska skolbetygen där E är
@@ -52,14 +66,14 @@ export const VERDICT: Record<Verdict, VerdictPresentation> = {
     glyph: '✓',
   },
   minor: {
-    label: 'Mindre brister',
-    sentence: 'fick anmärkningar på mindre brister vid den senaste hygienkontrollen',
+    label: 'Brister',
+    sentence: 'fick anmärkningar vid den senaste hygienkontrollen',
     colorVar: 'var(--verdict-minor-ink)',
     glyph: '!',
   },
   major: {
-    label: 'Allvarliga brister',
-    sentence: 'fick anmärkningar på allvarliga brister vid den senaste hygienkontrollen',
+    label: 'Brister som kvarstår',
+    sentence: 'har brister som inte åtgärdats vid kommunens uppföljning',
     colorVar: 'var(--verdict-major-ink)',
     glyph: '✕',
   },

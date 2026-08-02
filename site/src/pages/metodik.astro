@@ -24,13 +24,13 @@ const levels = [
   },
   {
     verdict: 'minor' as const,
-    label: 'Mindre brister',
-    when: 'Kommunen noterade avvikelser som kräver en extra kontroll.',
+    label: 'Brister',
+    when: 'Kommunen noterade avvikelser vid den senaste kontrollen.',
   },
   {
     verdict: 'major' as const,
-    label: 'Allvarliga brister',
-    when: 'Verksamheten bedömdes som ej godtagbar, eller tidigare avvikelser kvarstod vid uppföljning.',
+    label: 'Brister som kvarstår',
+    when: 'Bristerna fanns kvar när kommunen följde upp, eller verksamheten bedömdes som ej godtagbar.',
   },
   {
     verdict: null,
@@ -68,9 +68,11 @@ const jsonLd = {
     <section>
       <h2>De tre nivåerna</h2>
       <p>
-        Nivåerna speglar källdatan exakt. Kommunernas kontrollresultat har tre
-        grader av allvar, varken fler eller färre, och vi lägger inte till steg
-        som underlaget inte bär.
+        Nivåerna beskriver vad som hänt, inte hur allvarligt vi tycker att det
+        är. Vi säger inte "allvarliga brister", eftersom ingen kommun använder
+        det ordet och en gradering av allvar vore vårt eget påstående. Vi säger
+        i stället om bristerna åtgärdats eller inte — det är verifierbart, och
+        säger mer om verksamheten än ett ögonblicksvärde.
       </p>
       <ul class="levels">
         {levels.map((l) => (
@@ -94,8 +96,8 @@ const jsonLd = {
         sedan.
       </p>
       <p>
-        Det betyder också att ett återbesök som är rent efter allvarliga
-        brister läses som rent. Den som åtgärdar ska inte straffas för sin
+        Det betyder också att ett återbesök utan anmärkning läses som rent,
+        även om föregående kontroll hade brister. Den som åtgärdar ska inte straffas för sin
         historia — men historiken göms inte, den visas alltid i sin helhet på
         verksamhetens sida.
       </p>

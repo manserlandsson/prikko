@@ -97,10 +97,11 @@ export const AREA_STATUS_INK: Record<AreaStatus, string> = {
   persisting: 'var(--verdict-major-ink)',
 };
 
+/** Etikett för en ENSKILD kontroll i historiken, inte för helhetsbedömningen. */
 export const ASSESSMENT_LABEL: Record<Inspection['assessment'], string> = {
   0: 'Inga anmärkningar',
-  1: 'Mindre brister',
-  2: 'Allvarliga brister',
+  1: 'Avvikelse',
+  2: 'Kvarstående avvikelse',
 };
 
 export const ASSESSMENT_COLOR: Record<Inspection['assessment'], string> = {
