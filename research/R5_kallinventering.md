@@ -20,9 +20,10 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Oskarshamn | 239 | ArcGIS REST | JSON | SWEREF 99 16 30 | **Nej** — ordet finns, betyder annat | **Nej** |
 | Lomma | 153 | Öppen webbsida | **HTML, handredigerad** | **Saknas** | **Nej** | **Ja, fritext per område** |
 | Höganäs | 310 | Öppet filarkiv | **Filnamn** | **Saknas** | **Nej** | **Nej** (bara i PDF) |
+| Svenljunga | 99 | Öppen webbsida | **PDF-rapporter** | **Saknas** | **Nej** | Ja i rapporten, ej utvinnbart |
 
-Nästa att bygga: **Svenljunga**, **Kristinehamn** och **Borgholm**, som alla
-kräver PDF-tolkning. Se R6. Västerås och Hallstahammar publicerar inte längre
+Nästa att bygga: **Kristinehamn** och **Borgholm**, som båda kräver
+PDF-tolkning. Se R6. Västerås och Hallstahammar publicerar inte längre
 trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
 av fallen — ingen av de tre är byggbar.
 
@@ -346,6 +347,73 @@ klarar sig utan. Länken bärs i stället vidare per kontroll som `reportUrl`,
 så att besökaren kan läsa originalet och en senare PDF-tolkning har adressen
 kvar. Ingen gatuadress publiceras, bara ort, så `geocode.py` kan inte ge
 Höganäs några kartnålar.
+
+### Svenljunga — 99 verksamheter, hela rapporten men en femtedel inskannad
+```
+https://www.svenljunga.se/naringsliv--arbete/tillstand-regler-och-tillsyn
+  /livsmedel/livsmedelskontroll-och-avgifter/resultat-fran-livsmedelskontrollen
+https://www.svenljunga.se/download/<id>/<tid>/<filnamn>.pdf
+```
+Ett anrop för listan, ett per rapport. Sex kategorier, 107 rubriker, 224
+PDF-rapporter från 2016 till 2026. Rapportlistan ligger som JSON i sidans
+egen JavaScript (SiteVisions `AppRegistry.registerInitialState`).
+
+Utfall vid inläsningen: 99 anläggningar, 146 kontroller, 62 bedömda — 28 utan
+anmärkningar, 23 med brister, 11 med kvarstående brister, 1 utmärkelse, 68
+olästa rapporter.
+
+Först källan där omdömet bara finns inuti PDF:en. Det krävde en egen
+textutvinning, `prikko/pdf.py`, ren Python utan beroenden av samma skäl som
+`geo.py`: pipelinen ska kunna köras i en tom container. Modulen betalar sig
+igen på Kristinehamn och Borgholm.
+
+Sex saker som avgjorde bygget:
+
+- **En femtedel av rapporterna är inskannade papper.** 45 av 224 saknar
+  textlager helt, 17 är för gamla mallar eller teckensnitt vi inte kan
+  avkoda, och 11 saknar resultatmening eller kontrolldatum. Det finns ingen
+  väg runt det utan OCR, och OCR går inte att köra i en tom container.
+- **Är den NYASTE rapporten oläsbar publiceras inget omdöme alls**, trots att
+  en äldre rapport finns tolkad. Att visa den vore att påstå ett nuläge
+  kommunen redan har kontrollerat om. Gäller åtta verksamheter. Tillsammans
+  med 21 utan någon läsbar rapport och 16 utanför treårsfönstret blir 37 av
+  99 obedömda.
+- **Resultatmeningen förekommer i sju formuleringar** och de delar beståndet
+  rent: 82 rapporter säger inga avvikelser, 77 säger avvikelser, ingen säger
+  båda. Skalan är alltså tvågradig, och Svenljunga blir femte källan utan
+  kvarstår-etikett. Men källan har historik — 45 verksamheter har två eller
+  fler kontroller — så `grading.py` kan härleda kvarstående brister ur
+  mönstret. Elva verksamheter når allvarlig nivå på det sättet, och en når
+  utmärkelsen.
+- **Den FÖRSTA resultatmeningen gäller.** Rapportens standardtext längre ned
+  innehåller meningen "Inga avvikelser kunde konstateras" om något helt
+  annat — i en rapport handlar den om rökförbudet. Samma sak med
+  förhandsbeskedet: standardtexten säger "oanmälda inspektioner samt
+  föranmälda revisioner" i 77 av 176 läsbara rapporter, så det får bara
+  läsas ur inledningsmeningen.
+- **Kontrolldatumet är förankrat i "gjorde vi", inte i ordet "Den".** Varje
+  rapport bär sitt brevhuvuddatum högre upp på sidan, och det är datumet
+  rapporten skrevs, upp till nitton dagar efter kontrollen. Ett omankrat
+  mönster hade daterat kontrollen fel. 24 rapporter utelämnar årtalet; då
+  hämtas året ur filnamnets datum, aldrig hela datumet.
+- **Åtta rubriker bär två fildelningsmoduler**, verksamheten och dess
+  dricksvattenanläggning (`Backa Loge Café` och `Backa Loge
+  Dricksvattenanläggning`). Kommunen grupperar dem själv under ett namn, så
+  de blir en verksamhet. Kontrolleras båda samma dag slås de ihop till en
+  kontroll med det sämre utfallet, samma regel som i Linköping.
+
+**Avvikelserna specificeras i rapporten men tas inte med.** Texten kommer ur
+PDF:en styckad i korta löpor, ofta mitt i ett ord ("åtgärda t s", "La gkrav").
+Det duger för att leta efter kända fraser och inte alls för att återge en
+mening ordagrant på en sida om en namngiven restaurang. Kontrollområdenas
+namn skulle dessutom kräva en sluten ordlista, och rapporterna använder minst
+40 olika områdesnamn. Länken till originalrapporten bärs i stället vidare per
+kontroll som `reportUrl`. Ingen gatuadress publiceras, bara ort, så
+`geocode.py` kan inte ge Svenljunga några kartnålar.
+
+Sidan säger själv att "dokumentationen av uppföljning publiceras inte alltid
+här". Historiken är alltså ofullständig även bortsett från de inskannade
+rapporterna, och får inte presenteras som komplett.
 
 ## Kartlagd, ej inläst
 
