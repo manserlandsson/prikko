@@ -1,0 +1,319 @@
+---
+/**
+ * Kategorisida — hela sidan, delad mellan toppkategori och underkategori och
+ * mellan sida 1 och resten av serien.
+ *
+ * DET HÄR ÄR FILTRET. Sajten är noll-JS av princip och listorna är sidindelade,
+ * så ett kryssrutefilter hade inte kunnat filtrera något: rutan hade bara nått
+ * de hundra raderna på just den sidan, och de övriga 3 456 hade legat kvar
+ * osynliga på sida 2 och framåt. Ett filter som ljuger om vad det filtrerar är
+ * värre än inget filter.
+ *
+ * Egna URL:er löser båda problemen på en gång. /stockholm/kategori/restauranger
+ * filtrerar hela kommunen, inte en sida av den, och den går att länka, dela,
+ * bokmärka och indexera. "Restauranger i Stockholm" är dessutom en sökning folk
+ * faktiskt gör — ett JS-filter hade gett noll av den trafiken, eftersom Google
+ * inte klickar i kryssrutor.
+ */
+import Base from '../layouts/Base.astro';
+import EstablishmentList from './EstablishmentList.astro';
+import Pagination from './Pagination.astro';
+import {
+  formatNumber,
+  type CategorySlice,
+  type Establishment,
+  type Municipality,
+  type SubCategorySlice,
+} from '../lib/data';
+import { pageUrl } from '../lib/pagination';
+import { SITE } from '../lib/site';
+
+interface Props {
+  kommun: Municipality;
+  /** Toppkategorin sidan gäller. */
+  slice: CategorySlice;
+  /** Underkategorin, när sidan gäller en sådan. */
+  sub: SubCategorySlice | null;
+  /** Toppkategorins underkategorier i kommunen, för filterraden. */
+  subs: SubCategorySlice[];
+  /** Kommunens övriga toppkategorier, för filterraden. */
+  siblings: CategorySlice[];
+  items: Establishment[];
+  currentPage: number;
+  lastPage: number;
+  start: number;
+  total: number;
+}
+
+const { kommun, slice, sub, subs, siblings, items, currentPage, lastPage, start, total } =
+  Astro.props;
+
+const city = kommun.city;
+const kommunBase = `/${kommun.slug}`;
+const categoryBase = `${kommunBase}/kategori/${slice.category.slug}`;
+const base = sub ? `${categoryBase}/${sub.sub.slug}` : categoryBase;
+
+/** Rubrikens huvudord. Underkategorin styr när sidan gäller en sådan. */
+const heading = sub ? sub.sub.plural : slice.category.name;
+const noun = sub ? sub.sub.plural.toLowerCase() : slice.category.plural;
+const verdicts = sub ?? slice;
+
+// Självbärande första mening, skriven för att kunna citeras rakt av. Andelen
+// räknas på BEDÖMDA och aldrig på totalen: med totalen som nämnare hade en
+// kategori där kommunen kontrollerat lite sett sämre ut än en där den
+// kontrollerat mycket, vilket är precis fel signal.
+const answer =
+  verdicts.assessed > 0
+    ? `Kommunens livsmedelskontroll omfattar ${formatNumber(total)} ${noun} i ${city}. ` +
+      `Av de ${formatNumber(verdicts.assessed)} som har en kontroll att bedöma fick ` +
+      `${formatNumber(verdicts.clean)} inga anmärkningar vid den senaste, och ` +
+      `${formatNumber(verdicts.minor + verdicts.major)} fick anmärkningar.`
+    : `Kommunens livsmedelskontroll omfattar ${formatNumber(total)} ${noun} i ${city}. ` +
+      'Ingen av dem har en kontroll som går att bedöma.';
+
+const title =
+  currentPage === 1
+    ? `${heading} i ${city}`
+    : `${heading} i ${city}, sida ${currentPage} av ${lastPage}`;
+
+const description =
+  currentPage === 1
+    ? answer
+    : `${heading} ${formatNumber(start)}–${formatNumber(start + items.length - 1)} av ` +
+      `${formatNumber(total)} i ${city}, i bokstavsordning. Sida ${currentPage} av ${lastPage}.`;
+
+const crumbs = [
+  { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
+  { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}${kommunBase}` },
+  ...(sub
+    ? [
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: slice.category.name,
+          item: `${SITE.url}${categoryBase}`,
+        },
+        { '@type': 'ListItem', position: 4, name: sub.sub.name },
+      ]
+    : [{ '@type': 'ListItem', position: 3, name: slice.category.name }]),
+];
+
+const jsonLd = [
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `${heading} i ${city}`,
+    numberOfItems: total,
+    // Bara sidans egna poster, med sin riktiga position i hela listan.
+    itemListElement: items.slice(0, 25).map((e, i) => ({
+      '@type': 'ListItem',
+      position: start + i,
+      url: `${SITE.url}${kommunBase}/${e.slug}`,
+      name: e.name,
+    })),
+  },
+];
+
+const prev = currentPage > 1 ? pageUrl(base, currentPage - 1, SITE.url) : undefined;
+const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) : undefined;
+
+// Filterraden visas bara på sida 1. På sida 40 av en serie är den brus: den
+// som bläddrar har redan valt.
+const showFilters = currentPage === 1;
+const linkedSubs = subs.filter((s) => s.linked);
+const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slice.category.id);
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} prev={prev} next={next}>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={kommunBase}>{city}</a>
+      {sub && (
+        <>
+          <span aria-hidden="true">›</span>
+          <a href={categoryBase}>{slice.category.name}</a>
+        </>
+      )}
+      {currentPage > 1 && (
+        <>
+          <span aria-hidden="true">›</span>
+          <a href={base}>{heading}</a>
+        </>
+      )}
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">{kommun.name}</p>
+      <h1>
+        {heading} i {city}
+        {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
+      </h1>
+      {currentPage === 1 ? (
+        <p class="answer">{answer}</p>
+      ) : (
+        <p class="answer">
+          {heading} {formatNumber(start)}–{formatNumber(start + items.length - 1)} av
+          {' '}{formatNumber(total)} i {city}, i bokstavsordning.
+        </p>
+      )}
+      {currentPage === 1 && !sub && (
+        <p class="blurb text-muted">{slice.category.blurb}.</p>
+      )}
+    </header>
+
+    {showFilters && linkedSubs.length > 0 && (
+      <nav class="chips" aria-label={`Underkategorier bland ${noun} i ${city}`}>
+        {/* Bara de underkategorier just den här kommunen levererar. Ingen
+            underkategori finns i alla kommuner, så listan kan aldrig vara
+            densamma två kommuner emellan. */}
+        <a href={categoryBase} class="chip" aria-current={sub ? undefined : 'page'}>
+          Alla <span class="n">{formatNumber(slice.count)}</span>
+        </a>
+        {linkedSubs.map((s) => (
+          <a
+            href={`${categoryBase}/${s.sub.slug}`}
+            class="chip"
+            aria-current={sub && sub.sub.id === s.sub.id ? 'page' : undefined}
+          >
+            {s.sub.name} <span class="n">{formatNumber(s.count)}</span>
+          </a>
+        ))}
+      </nav>
+    )}
+
+    <EstablishmentList items={items} kommunSlug={kommun.slug} />
+
+    <Pagination base={base} current={currentPage} last={lastPage} label={`${noun} i ${city}`} />
+
+    <footer class="foot">
+      {linkedSiblings.length > 0 && (
+        <nav aria-label={`Andra kategorier i ${city}`}>
+          <p class="text-secondary">Andra kategorier i {city}</p>
+          <ul class="others">
+            {linkedSiblings.map((s) => (
+              <li>
+                <a href={`${kommunBase}/kategori/${s.category.slug}`}>
+                  {s.category.name} <span class="text-muted">{formatNumber(s.count)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <p>
+        <a href={kommunBase}>Se alla verksamheter i {city}</a>
+      </p>
+    </footer>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: 780px;
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: 32px;
+    line-height: 36px;
+    margin-top: var(--s-1);
+  }
+
+  .head h1 span { font-weight: 400; }
+
+  .answer {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .blurb {
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Filterraden. Länkar, inte knappar — tangentbord och skärmläsare fungerar
+     därför gratis, och varje val har en egen adress. */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-6);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    font-weight: 600;
+  }
+
+  .chip:hover {
+    text-decoration: none;
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  /* Samma aktiva tillstånd som sidnavigeringen, av samma skäl: det är samma
+     sorts val, och två olika markeringar för "du är här" hade läst som två
+     olika kontroller. */
+  .chip[aria-current='page'] {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+
+  .chip .n {
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+
+  .foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .foot p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .others {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    list-style: none;
+    margin: var(--s-2) 0 var(--s-6);
+    padding: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .others .text-muted {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

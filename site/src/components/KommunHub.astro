@@ -13,7 +13,13 @@
 import Base from '../layouts/Base.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import Pagination from './Pagination.astro';
-import { formatNumber, sourceLimits, type Establishment, type Municipality } from '../lib/data';
+import {
+  formatNumber,
+  municipalityCategories,
+  sourceLimits,
+  type Establishment,
+  type Municipality,
+} from '../lib/data';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
 
@@ -40,6 +46,17 @@ const remarks = counts.minor + counts.major;
 // Då är en nolla i tabellen ovan ett besked om källan, inte om verksamheterna,
 // och det måste stå på den sida där siffran visas. Se sourceLimits i data.ts.
 const limits = sourceLimits(kommun.slug);
+
+// Kategorierna. Filtret är länkar till egna sidor, inte kryssrutor: sajten
+// kör inget JavaScript, och listan är dessutom sidindelad — en kryssruta hade
+// bara nått de hundra raderna på just den här sidan. Se KategoriHub.astro.
+//
+// Kategorier utan egen sida visas ändå, med sin siffra men utan länk. Antingen
+// är de för små för att förtjäna en URL, eller så kan kommunens källa inte
+// skilja dem åt. I det andra fallet står det VARFÖR: ett filter som inte finns
+// ljuger inte, men ett filter som ger noll träffar gör det.
+const categories = currentPage === 1 ? municipalityCategories(kommun.slug) : null;
+const categoryNotes = categories?.slices.map((s) => s.note).filter((n): n is string => n !== null) ?? [];
 
 // Titel och beskrivning måste skilja sig mellan sidorna i serien, annars
 // rapporterar Search Console dubbletter genom hela katalogen.
@@ -139,6 +156,39 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       </>
     )}
 
+    {categories && (
+      <section class="filter" aria-labelledby="kategorier">
+        <h2 id="kategorier">Verksamheter efter typ</h2>
+        <ul class="chips">
+          {categories.slices.map(({ category, count, linked }) =>
+            linked ? (
+              <li>
+                <a href={`${base}/kategori/${category.slug}`} class="chip">
+                  {category.name} <span class="n">{formatNumber(count)}</span>
+                </a>
+              </li>
+            ) : (
+              <li>
+                {/* Ingen länk. En kategori med en handfull verksamheter, eller
+                    ingen alls, förtjänar ingen egen URL — men siffran ska stå
+                    där ändå, annars ser summan ut som hela kommunen. */}
+                <span class="chip off">
+                  {category.name} <span class="n">{formatNumber(count)}</span>
+                </span>
+              </li>
+            ),
+          )}
+        </ul>
+
+        {(categoryNotes.length > 0 || categories.gapNote) && (
+          <div class="notes">
+            {categoryNotes.map((note) => <p>{note}</p>)}
+            {categories.gapNote && <p>{categories.gapNote}</p>}
+          </div>
+        )}
+      </section>
+    )}
+
     <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
     <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
@@ -201,6 +251,73 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     margin-top: var(--s-6);
     font-size: var(--fs-body-s);
   }
+
+  .filter {
+    margin-top: var(--s-8);
+  }
+
+  .filter h2 {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    font-weight: 600;
+  }
+
+  a.chip:hover {
+    text-decoration: none;
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  /* Utan länk: kategorin finns men förtjänar ingen egen sida, eller går inte
+     att fylla i den här kommunen. Nedtonad, aldrig dold — siffran är svaret. */
+  .chip.off {
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .chip .n {
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+
+  .notes {
+    margin-top: var(--s-4);
+    padding-left: var(--s-4);
+    border-left: 3px solid var(--verdict-none);
+  }
+
+  .notes p {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .notes p + p { margin-top: var(--s-2); }
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {

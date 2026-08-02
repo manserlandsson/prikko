@@ -1,0 +1,103 @@
+---
+/**
+ * Kategorisidorna: /[kommun]/kategori/[kategori][/[underkategori]][/sida/[n]].
+ *
+ * En enda routefil för alla fyra formerna. Anmärkningarna ligger i två filer
+ * (rot och /sida/[n]) för att Astros inbyggda paginate() lägger sida 1 på
+ * seriens rotparameter; här finns ingen sådan begränsning eftersom vi räknar
+ * ut sidorna själva med slicePage. Med fyra former hade det annars blivit fyra
+ * routefiler som inte får glida isär, och det är precis den sortens
+ * dubblering som gav kommunhubben en KommunHub-komponent.
+ *
+ * VARFÖR EGNA SIDOR OCH INTE ETT FILTER I SIDHUVUDET:
+ *
+ * 1. Utan JavaScript kan ingen kryssruta filtrera något. Det finns ingen
+ *    plats att köra filtreringen på.
+ * 2. Även med JavaScript hade listorna varit sidindelade. Ett filter hade
+ *    bara nått de hundra raderna på den aktuella sidan.
+ * 3. "Restauranger i Stockholm" är en sökning. Ett tillstånd i en kryssruta
+ *    är det inte, och kan aldrig indexeras.
+ *
+ * Ett kategoriläge som inte förtjänar en URL får ingen. Se MIN_CATEGORY_PAGE
+ * och MIN_SUB_PAGE i data.ts.
+ */
+import KategoriHub from '../../../components/KategoriHub.astro';
+import {
+  categoryListing,
+  municipalities,
+  municipalityCategories,
+  subCategoryListing,
+  type CategorySlice,
+  type Municipality,
+  type SubCategorySlice,
+} from '../../../lib/data';
+import { slicePage, tailPages } from '../../../lib/pagination';
+
+interface PathProps {
+  kommun: Municipality;
+  categoryId: string;
+  subId: string | null;
+  n: number;
+}
+
+export async function getStaticPaths() {
+  const paths: Array<{ params: { kommun: string; path: string }; props: PathProps }> = [];
+
+  for (const kommun of municipalities()) {
+    const { slices, subs } = municipalityCategories(kommun.slug);
+
+    for (const slice of slices) {
+      if (!slice.linked) continue;
+
+      const push = (path: string, subId: string | null, n: number) => {
+        paths.push({
+          params: { kommun: kommun.slug, path },
+          props: { kommun, categoryId: slice.category.id, subId, n },
+        });
+      };
+
+      const base = slice.category.slug;
+      push(base, null, 1);
+      for (const n of tailPages(slice.count)) push(`${base}/sida/${n}`, null, n);
+
+      for (const s of subs.get(slice.category.id) ?? []) {
+        // En underkategori är alltid en delmängd av sin toppkategori, och
+        // gränsen för underkategorier är den högre av de två. Föräldern kan
+        // därför aldrig sakna sida när barnet har en.
+        if (!s.linked) continue;
+        const subBase = `${base}/${s.sub.slug}`;
+        push(subBase, s.sub.id, 1);
+        for (const n of tailPages(s.count)) push(`${subBase}/sida/${n}`, s.sub.id, n);
+      }
+    }
+  }
+
+  return paths;
+}
+
+const { kommun, categoryId, subId, n } = Astro.props as PathProps;
+
+const { slices, subs } = municipalityCategories(kommun.slug);
+const slice = slices.find((s) => s.category.id === categoryId) as CategorySlice;
+const siblingSubs = subs.get(slice.category.id) ?? [];
+const sub = (subId ? siblingSubs.find((s) => s.sub.id === subId) : null) as SubCategorySlice | null;
+
+const listed = sub
+  ? subCategoryListing(kommun.slug, slice.category.id, sub.sub.id)
+  : categoryListing(kommun.slug, slice.category.id);
+
+const page = slicePage(listed, n);
+---
+
+<KategoriHub
+  kommun={kommun}
+  slice={slice}
+  sub={sub}
+  subs={siblingSubs}
+  siblings={slices}
+  items={page.items}
+  currentPage={page.currentPage}
+  lastPage={page.lastPage}
+  start={page.start}
+  total={page.total}
+/>
