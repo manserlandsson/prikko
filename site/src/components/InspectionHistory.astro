@@ -1,0 +1,153 @@
+---
+/**
+ * Kontrollhistorik — Yuka-mönstret ur bibeln §13c, fast med kontroller
+ * i stället för ingredienser: färgprick + rad + status.
+ *
+ * De tre senaste markeras som de som ligger till grund för bedömningen.
+ * Resten fälls ihop; de är relevanta för den som vill gräva, men får inte
+ * konkurrera med nuläget om uppmärksamheten.
+ */
+import {
+  ASSESSMENT_COLOR,
+  ASSESSMENT_LABEL,
+  INSPECTION_TYPE_LABEL,
+  formatDate,
+  type Inspection,
+} from '../lib/data';
+
+interface Props {
+  inspections: Inspection[];
+}
+
+const { inspections } = Astro.props;
+
+const decisive = inspections.slice(0, 3);
+const older = inspections.slice(3);
+---
+
+<section class="history">
+  <h2>Kontrollhistorik</h2>
+
+  {inspections.length === 0 ? (
+    <p class="empty text-secondary">
+      Kommunen har inte registrerat någon livsmedelskontroll för den här
+      verksamheten. Det betyder inte att hygienen är dålig — bara att underlag
+      saknas.
+    </p>
+  ) : (
+    <>
+      <p class="note text-secondary">
+        Bedömningen bygger på {decisive.length === 1 ? 'den senaste kontrollen' : `de ${decisive.length} senaste kontrollerna`}.
+      </p>
+
+      <ol class="rows card">
+        {decisive.map((i) => (
+          <li class="row">
+            <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+            <div class="cell">
+              <b>{formatDate(i.date)}</b>
+              <span class="text-secondary">
+                {INSPECTION_TYPE_LABEL[i.type]}
+                {i.prenotified === false && ' · oanmäld'}
+              </span>
+            </div>
+            <span class="status" style={`color: ${ASSESSMENT_COLOR[i.assessment]}`}>
+              {ASSESSMENT_LABEL[i.assessment]}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      {older.length > 0 && (
+        <details class="older">
+          <summary>
+            Visa {older.length} tidigare {older.length === 1 ? 'kontroll' : 'kontroller'}
+          </summary>
+          <ol class="rows card">
+            {older.map((i) => (
+              <li class="row">
+                <span class="dot" style={`background: ${ASSESSMENT_COLOR[i.assessment]}`}></span>
+                <div class="cell">
+                  <b>{formatDate(i.date)}</b>
+                  <span class="text-secondary">{INSPECTION_TYPE_LABEL[i.type]}</span>
+                </div>
+                <span class="status" style={`color: ${ASSESSMENT_COLOR[i.assessment]}`}>
+                  {ASSESSMENT_LABEL[i.assessment]}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+    </>
+  )}
+</section>
+
+<style>
+  .history {
+    margin-top: var(--s-12);
+  }
+
+  .note,
+  .empty {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    margin-top: var(--s-2);
+  }
+
+  .rows {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+  }
+
+  .row + .row {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cell {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cell b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .cell span {
+    font-size: var(--fs-caption);
+  }
+
+  .status {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .older {
+    margin-top: var(--s-4);
+  }
+
+  .older summary {
+    font-size: var(--fs-body-s);
+    color: var(--brand);
+    cursor: pointer;
+  }
+</style>

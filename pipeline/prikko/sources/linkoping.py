@@ -30,6 +30,9 @@ from ..grading import COMPLAINT, FOLLOWUP, MAJOR_REMARKS, MINOR_REMARKS, NO_REMA
 
 MUNICIPALITY_CODE = "0580"  # Linköping, SCB REGINA
 MUNICIPALITY_NAME = "Linköpings kommun"
+# Orten, i grundform. Får ALDRIG härledas ur kommunnamnet — "Linköpings
+# kommun" minus " kommun" ger genitivformen "Linköpings".
+MUNICIPALITY_CITY = "Linköping"
 
 # Linköping projicerar i den lokala zonen, inte i rikszonen SWEREF 99 TM.
 # Verifierat: Platensgatan 6A ger 58.41202, 15.62044 med SWEREF 99 15 00,

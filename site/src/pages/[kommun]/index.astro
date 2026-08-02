@@ -1,0 +1,206 @@
+---
+/**
+ * Kommunhubb. Bär den interna länkgrafen: utan den här sidan är varje
+ * restaurangsida föräldralös, och Google hittar dem bara via sitemap —
+ * vilket är en svagare signal än en riktig länk från en sida med kontext.
+ */
+import Base from '../../layouts/Base.astro';
+import VerdictMark from '../../components/VerdictMark.astro';
+import {
+  MUNICIPALITY,
+  allEstablishments,
+  formatDate,
+  isIndexable,
+  latestInspectionDate,
+  missingReason,
+} from '../../lib/data';
+import { SITE, VERDICT } from '../../lib/site';
+
+export async function getStaticPaths() {
+  return [{ params: { kommun: MUNICIPALITY.slug } }];
+}
+
+const establishments = allEstablishments();
+const city = MUNICIPALITY.city;
+
+const counts = {
+  clean: establishments.filter((e) => e.verdict === 'clean').length,
+  minor: establishments.filter((e) => e.verdict === 'minor').length,
+  major: establishments.filter((e) => e.verdict === 'major').length,
+  none: establishments.filter((e) => e.verdict === null).length,
+};
+
+// Sortera så det som avviker syns först — det är också det besökaren söker.
+const severity = { major: 0, minor: 1, clean: 2 } as const;
+const sorted = [...establishments].sort((a, b) => {
+  const sa = a.verdict ? severity[a.verdict] : 3;
+  const sb = b.verdict ? severity[b.verdict] : 3;
+  if (sa !== sb) return sa - sb;
+  return a.name.localeCompare(b.name, 'sv');
+});
+
+const description = `Hygienkontroller för ${establishments.length} restauranger och livsmedelsverksamheter i ${city}. ${counts.major + counts.minor} har anmärkningar vid senaste kontrollen.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
+    { '@type': 'ListItem', position: 2, name: MUNICIPALITY.name },
+  ],
+};
+---
+
+<Base
+  title={`Hygienkontroller i ${city}`}
+  description={description}
+  jsonLd={jsonLd}
+>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">{MUNICIPALITY.name}</p>
+      <h1>Hygienkontroller i {city}</h1>
+      <p class="lede text-secondary">
+        {establishments.length} verksamheter, hämtade från kommunens öppna
+        livsmedelsdata. Bedömningen speglar den senaste kontrollen.
+      </p>
+    </header>
+
+    <ul class="stats">
+      <li>
+        <b style="color: var(--verdict-clean)">{counts.clean}</b>
+        <span class="text-secondary">utan anmärkningar</span>
+      </li>
+      <li>
+        <b style="color: var(--verdict-minor)">{counts.minor}</b>
+        <span class="text-secondary">med mindre brister</span>
+      </li>
+      <li>
+        <b style="color: var(--verdict-major)">{counts.major}</b>
+        <span class="text-secondary">med allvarliga brister</span>
+      </li>
+    </ul>
+
+    <ul class="list">
+      {sorted.map((e) => (
+        <li class="item card">
+          <a href={`/${MUNICIPALITY.slug}/${e.slug}`} rel={isIndexable(e) ? undefined : 'nofollow'}>
+            <VerdictMark
+              verdict={e.verdict}
+              missingReason={missingReason(e)}
+              distinction={e.distinction}
+              size="sm"
+            />
+            <span class="info">
+              <b>{e.name}</b>
+              <span class="meta text-secondary">
+                {e.address}
+                {latestInspectionDate(e) && ` · kontrollerad ${formatDate(latestInspectionDate(e)!)}`}
+              </span>
+            </span>
+            <span class="verdict" style={`color: ${e.verdict ? VERDICT[e.verdict].colorVar : 'var(--verdict-none)'}`}>
+              {e.verdict ? VERDICT[e.verdict].label : 'Ingen kontroll'}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: 780px;
+  }
+
+  .crumbs {
+    font-size: var(--fs-body-s);
+    margin-bottom: var(--s-4);
+  }
+
+  .head h1 {
+    font-size: 32px;
+    line-height: 36px;
+    margin-top: var(--s-1);
+  }
+
+  .lede {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-8);
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+  }
+
+  .stats b {
+    display: block;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .stats span {
+    font-size: var(--fs-caption);
+  }
+
+  .list {
+    list-style: none;
+    margin: var(--s-8) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .item a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    color: var(--text);
+  }
+
+  .item a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
+    border-radius: var(--r-card);
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .info b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .meta {
+    font-size: var(--fs-caption);
+  }
+
+  .verdict {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 560px) {
+    .verdict { display: none; }
+  }
+</style>

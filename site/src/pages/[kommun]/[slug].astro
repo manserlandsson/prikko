@@ -1,0 +1,267 @@
+---
+/**
+ * Restaurangsidan — sajtens viktigaste sidtyp.
+ *
+ * Två krav styr allt här:
+ *
+ * 1. Led med svaret. Första meningen ska vara självbärande och citerbar rakt
+ *    av: "X fick inga anmärkningar vid den senaste hygienkontrollen den 19
+ *    mars 2026." Det är så AI-svar extraherar fakta (bibeln §6b).
+ * 2. Aldrig `Review`- eller `AggregateRating`-schema. Vår bedömning bygger på
+ *    myndighetsdata, inte på omdömen insamlade hos oss; att märka upp den som
+ *    recensioner bryter mot Googles policy och riskerar manuell åtgärd.
+ *    Schemat är `FoodEstablishment` med rena entitetsfakta.
+ */
+import Base from '../../layouts/Base.astro';
+import VerdictMark from '../../components/VerdictMark.astro';
+import InspectionHistory from '../../components/InspectionHistory.astro';
+import {
+  MUNICIPALITY,
+  SOURCE,
+  allEstablishments,
+  formatDate,
+  isIndexable,
+  latestInspectionDate,
+  missingReason,
+  type Establishment,
+} from '../../lib/data';
+import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
+
+export async function getStaticPaths() {
+  return allEstablishments().map((e) => ({
+    params: { kommun: MUNICIPALITY.slug, slug: e.slug },
+    props: { establishment: e },
+  }));
+}
+
+interface Props {
+  establishment: Establishment;
+}
+
+const { establishment: e } = Astro.props;
+
+const presentation = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
+const latest = latestInspectionDate(e);
+const indexable = isIndexable(e);
+
+// Den självbärande meningen. Byggs deterministiskt ur datan — ingen genererad
+// brödtext får förekomma på sajten.
+const answer = latest
+  ? `${e.name} ${presentation.sentence} den ${formatDate(latest)}.`
+  : `${e.name} ${presentation.sentence}.`;
+
+const placeLabel = [e.address, MUNICIPALITY.city]
+  .filter(Boolean)
+  .join(', ');
+
+const description = `${answer} Se kontrollhistorik och hur bedömningen räknas fram.`;
+
+const jsonLd: Record<string, unknown> = {
+  '@context': 'https://schema.org',
+  '@type': 'FoodEstablishment',
+  name: e.name,
+  url: new URL(Astro.url.pathname, SITE.url).href,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: e.address ?? undefined,
+    addressLocality: MUNICIPALITY.city,
+    addressCountry: 'SE',
+  },
+};
+
+if (e.lat && e.lng) {
+  jsonLd.geo = { '@type': 'GeoCoordinates', latitude: e.lat, longitude: e.lng };
+}
+
+const breadcrumbs = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: MUNICIPALITY.name,
+      item: `${SITE.url}/${MUNICIPALITY.slug}`,
+    },
+    { '@type': 'ListItem', position: 3, name: e.name },
+  ],
+};
+---
+
+<Base
+  title={`${e.name} — hygienkontroll`}
+  description={description}
+  noindex={!indexable}
+  jsonLd={[jsonLd, breadcrumbs]}
+  dataUpdated={latest ?? undefined}
+>
+  <article class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={`/${MUNICIPALITY.slug}`}>{MUNICIPALITY.name}</a>
+    </nav>
+
+    <header class="head">
+      <h1>{e.name}</h1>
+      <p class="place text-secondary">{placeLabel}</p>
+    </header>
+
+    <section class="hero card">
+      <VerdictMark
+        verdict={e.verdict}
+        missingReason={missingReason(e)}
+        distinction={e.distinction}
+      />
+      <div class="summary">
+        <p class="label" style={`color: ${presentation.colorVar}`}>
+          {presentation.label}
+        </p>
+        <p class="answer">{answer}</p>
+
+        {e.distinction && (
+          <p class="distinction">
+            <span aria-hidden="true">★</span> {DISTINCTION.label} vid de tre
+            senaste kontrollerna.
+          </p>
+        )}
+
+        {e.types.length > 0 && (
+          <ul class="tags">
+            {e.types.slice(0, 3).map((t) => <li>{t}</li>)}
+          </ul>
+        )}
+      </div>
+    </section>
+
+    {e.uncertain && (
+      <p class="caveat">
+        Bedömningen bygger delvis på kontrollresultatet ”Godtagbar”, vars exakta
+        innebörd vi ännu inte fått bekräftad av kommunen.
+        <a href="/metodik">Så här tolkar vi det.</a>
+      </p>
+    )}
+
+    <InspectionHistory inspections={e.inspections} />
+
+    <footer class="source">
+      <h2 class="eyebrow">Källa</h2>
+      <p class="text-secondary">
+        Uppgifterna kommer från {MUNICIPALITY.name}s livsmedelskontroll och är
+        allmänna handlingar. Bedömningen är Prikkos och räknas fram med en
+        <a href="/metodik">öppet publicerad metodik</a> (version {e.modelVersion}).
+        Verksamheten har rätt att svara — hör av dig via
+        <a href="/ratta">rätta en uppgift</a>.
+      </p>
+      <p class="caption text-muted">
+        Hämtad från <a href={SOURCE.url} rel="nofollow">kommunens öppna API</a>
+        {' '}den {formatDate(SOURCE.fetchedAt.slice(0, 10))}.
+      </p>
+    </footer>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-8) var(--s-12);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: 32px;
+    line-height: 36px;
+  }
+
+  .place {
+    margin-top: var(--s-1);
+  }
+
+  .hero {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    padding: var(--s-6);
+    margin-top: var(--s-6);
+  }
+
+  .summary { min-width: 0; }
+
+  .label {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+  }
+
+  .answer {
+    margin-top: var(--s-1);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .distinction {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    color: var(--distinction);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tags li {
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+    background: var(--canvas);
+    border-radius: 9px;
+    padding: 5px 11px;
+  }
+
+  .caveat {
+    margin-top: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    border-left: 3px solid var(--verdict-minor);
+    background: var(--card);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .source {
+    margin-top: var(--s-12);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .source p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    margin-top: var(--s-2);
+  }
+
+  @media (max-width: 560px) {
+    .hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
