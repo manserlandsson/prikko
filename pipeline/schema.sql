@@ -224,9 +224,10 @@ select
 from establishments e
 join municipalities m on m.code = e.municipality_code
 left join assessments a on a.establishment_id = e.id
-where coalesce(e.active, 2) = 2
-  and e.lat is not null
-  and e.lng is not null;
+-- Koordinater är INTE ett krav. Uppsala publicerar inga, och en verksamhet
+-- utan kartnål är ändå fullt publicerbar: namn, adress, bedömning och
+-- historik finns. Kvalitetsgrinden sitter i bedömningen, inte i kartan.
+where coalesce(e.active, 2) = 2;
 
 -- ---------------------------------------------------------------------------
 -- Radsäkerhet
