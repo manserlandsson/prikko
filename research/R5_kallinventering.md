@@ -19,11 +19,12 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Örebro | 1 234 | REST + inbäddad JS | JSON + HTML | **Saknas** | Ja | **Ja, båda utfallen** |
 | Oskarshamn | 239 | ArcGIS REST | JSON | SWEREF 99 16 30 | **Nej** — ordet finns, betyder annat | **Nej** |
 | Lomma | 153 | Öppen webbsida | **HTML, handredigerad** | **Saknas** | **Nej** | **Ja, fritext per område** |
+| Höganäs | 310 | Öppet filarkiv | **Filnamn** | **Saknas** | **Nej** | **Nej** (bara i PDF) |
 
-Nästa att bygga: **Höganäs** (333, färgen står i filnamnet). Se R6. Västerås
-och Hallstahammar publicerar inte längre trots vad deras egna sidor påstår,
-och Sjöbos HTML motsäger sig själv i 19 % av fallen — ingen av de tre är
-byggbar.
+Nästa att bygga: **Svenljunga**, **Kristinehamn** och **Borgholm**, som alla
+kräver PDF-tolkning. Se R6. Västerås och Hallstahammar publicerar inte längre
+trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
+av fallen — ingen av de tre är byggbar.
 
 Stockholms, Jönköpings, Karlstads och Oskarshamns avsaknad av "kvarstår" är
 skälet till att bedömningsmodellen härleder allvarsgraden ur mönstret i
@@ -283,6 +284,68 @@ Den sista behåller sitt omdöme, eftersom färgen är entydig, men märks
 `pipeline/geocode.py` att använda: Lomma får inga kartnålar alls. Ingen
 historik och ingen kontrollorsak heller, så utmärkelsen kan aldrig nås och
 `grading.py` kan aldrig skärpa ett gult till allvarligt.
+
+### Höganäs — 310 verksamheter, TRE ANROP, ingen PDF öppnad
+```
+https://www.hoganas.se/boende-trafik--miljo/boendemiljo/livsmedel
+  /livsmedelskontroller.html?folder=<mapp>&sv.url=12.33c1739617a7615ad6625ea9
+```
+Tre mappar i ett SiteVision-filarkiv: Butiker/restauranger/serveringar/övrigt
+(228 filer), Livsmedelstillverkare och grossister (25), Barnomsorg, skolkök,
+vård och omsorg (80). 333 PDF-filer, och hela resultatet står i filnamnet:
+`<namn>, <ort>, <ÅÅÅÅ-MM-DD>, <färg>.pdf`.
+
+Utfall vid inläsningen: 310 anläggningar, 330 kontroller, 290 bedömda — 264
+utan anmärkningar, 25 med brister, 1 med kvarstående brister, 0 utmärkelser,
+2 överhoppade filnamn.
+
+Fem saker som avgjorde bygget:
+
+- **Källan HAR historik**, tvärtemot vad R6 antog. 19 verksamheter har fler
+  än en rapport, och 15 av dem är en gul rapport följd av en grön 7 till 55
+  dagar senare — alltså återbesöket. Höganäs publicerar uppföljningen.
+- **Därför är Höganäs den enda tunna källan där modellen kan härleda en
+  kvarstående brist.** `Rewi AB` har gul 2025-12-12, gul 2026-01-21 och gul
+  2026-02-27. Kommunen har inget ord för "kvarstår", men tre gula i rad ÄR en
+  brist som överlevt två besök, och `grading.py` läser det ur mönstret. Det
+  är precis det fall modellen byggdes för.
+- **Röd är mappad till allvarlig, men förekommer inte** (0 av 333). Ordet
+  ("kräver återbesök") liknar Lommas GULA nivå, så mappningen vilar inte på
+  formuleringen utan på tre andra saker: röd är toppen av kommunens egen
+  tregradiga skala vars mellansteg redan täcker varje avvikelse; gul ligger
+  på 13 % vilket är Jönköpings "med avvikelse"-nivå; och gula rapporter får
+  redan återbesök i praktiken, så röd måste betyda något utöver det. Det är
+  ändå den enda mappning i projektet som inte gått att pröva mot verklig
+  data. Dyker en röd rapport upp bör den läsas innan omdömet publiceras.
+- **Orten får inte ingå i identiteten.** `Jonstorpsskolans kök` har tre
+  rapporter med tre olika orter (`Höganäs`, `Jonstorp`, `Högnäs` — och skolan
+  ligger i Jonstorp) och `Ingelsträde Gård` två. Med orten i nyckeln blev en
+  skolmatsal tre verksamheter med tre olika omdömen, två av dem publicerade
+  under samma namn. Namnet ensamt räcker: 310 distinkta namn på 332 läsbara
+  rapporter, och samtliga 20 namn som återkommer är verkligen samma
+  verksamhet. Filens SiteVision-nyckel duger inte heller — den hör till
+  dokumentet och byts vid varje uppladdning.
+- **Fältordningen i filnamnet är inte pålitlig.** 12 av 333 avviker: färgen
+  före datumet, ort och datum ihopskrivna, komma saknas mellan datum och
+  färg, orten utelämnad, ett extra led mellan namn och ort (`City Food,
+  mobil`), ett diarienummer där orten skulle stå, komma inuti namnet
+  (`Nyhamnsskolan (hemkunskap, fritids)`), en punkt i datumet (`2025-11.10`).
+  Datum och färg plockas därför ut på mönster och resten läses positionellt.
+  Färgordet måste matchas med ordgräns: utan den träffar "röd" inne i
+  `Heljarödsgården` och `Långarödsvägen`, och två filer hade fått fel omdöme.
+
+Två filnamn går inte att läsa och hoppas över med utskrivet skäl:
+`cReal Food, Höganäs, 14 nov 20204, grön.pdf` (årtalet kan vara 2024 eller
+2020) och `Cake & Bake, Höganäs, 2024-00-05, grön.pdf` (månad 00). Cake & Bake
+finns kvar via sin andra rapport; cReal Food försvinner tills kommunen rättar
+filnamnet.
+
+**PDF:erna hämtas medvetet inte.** Avvikelserna står bara inne i dem, och 333
+extra anrop varje natt mot en kommunwebbplats är inte värt en detalj sidan
+klarar sig utan. Länken bärs i stället vidare per kontroll som `reportUrl`,
+så att besökaren kan läsa originalet och en senare PDF-tolkning har adressen
+kvar. Ingen gatuadress publiceras, bara ort, så `geocode.py` kan inte ge
+Höganäs några kartnålar.
 
 ## Kartlagd, ej inläst
 
