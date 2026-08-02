@@ -83,26 +83,39 @@ import PlacePicker from './PlacePicker.astro';
     transform-origin: center;
   }
 
-  .brand:hover .eye-right {
-    animation: wink .42s cubic-bezier(.4, 0, .2, 1) 1;
+  /* Namnet måste vara unikt. @keyframes är GLOBALA i CSS — Astro scopar
+     selektorer men inte keyframe-namn, så en `wink` här och en `wink` i
+     FaceMark.astro skrev över varandra beroende på laddningsordning. */
+  /* Blinkar av sig själv med långt uppehåll, inte vid hover.
+     Hela cykeln är 9 sekunder och blinkningen upptar de första 8 procenten
+     — ungefär 0,7 sekunder. Resten står ögat stilla. Det ger ett liv i
+     märket utan att bli en tic på en sida man läser länge.
+
+     Ögat renderas under fyra pixlar brett vid 36 px logohöjd, så själva
+     ihoptryckningen måste vara långsam och nästan fullständig för att alls
+     gå att uppfatta. */
+  .eye-right {
+    animation: wordmark-wink 9s cubic-bezier(.4, 0, .2, 1) 2s infinite;
   }
 
-  @keyframes wink {
-    0%, 100% { transform: scaleY(1); }
-    45%, 55% { transform: scaleY(.1); }
+  @keyframes wordmark-wink {
+    0%, 2%   { transform: scaleY(1); }
+    5%, 6%   { transform: scaleY(.06); }
+    9%, 100% { transform: scaleY(1); }
   }
 
   /* Rörelse kan utlösa yrsel hos den som har en vestibulär sjukdom. Den som
      bett om mindre rörelse har oftast ett medicinskt skäl. */
   @media (prefers-reduced-motion: reduce) {
-    .brand:hover .eye-right { animation: none; }
+    .eye-right { animation: none; }
   }
 
   .wordmark {
-    /* 30px, inte 26. Wordmarken är sajtens enda varumärkesbärare i sidhuvudet
-       och låg tidigare i samma optiska vikt som navigationslänkarna bredvid,
-       vilket fick den att läsa som ännu en meny­post. */
-    height: 30px;
+    /* 36px. Var 26 och sedan 30 — båda för små. Hela märket skalas, ordet och
+       ansiktet tillsammans, eftersom de sitter i samma viewBox.
+       Wordmarken är sajtens enda varumärkesbärare i sidhuvudet och ska väga
+       tyngre än navigationslänkarna bredvid, inte läsa som ännu en menypost. */
+    height: 36px;
     width: auto;
     display: block;
   }

@@ -143,7 +143,9 @@ const breadcrumbs = {
     <div class="layout">
       <main class="main">
         <section class="statement">
-          <FaceMark verdict={e.verdict} size={52} animate wink />
+          <span class:list={['markring', e.verdict === 'clean' && 'spins']}>
+            <FaceMark verdict={e.verdict} size={52} animate wink />
+          </span>
           <div>
             <p class="level">
               {presentation.label}
@@ -281,6 +283,48 @@ const breadcrumbs = {
     display: flex;
     align-items: flex-start;
     gap: var(--s-4);
+  }
+
+  /* Ringen runt bedömningsmärket. Snurrar ETT varv när sidan öppnas och
+     stannar sedan — den ska lyfta fram beskedet, inte snurra som en
+     laddningsindikator och antyda att något är på väg att hända.
+     Bara på godkänt: en ring som firar runt "brister som kvarstår" vore
+     att fira fel sak. */
+  .markring {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  /* Ringen ritas som en konisk gradient som maskeras till en cirkelkant.
+     Ett vanligt border kan inte ha gradient; det här kan. */
+  .markring.spins::before {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      rgba(124, 229, 143, 0) 0deg,
+      rgba(124, 229, 143, .55) 70deg,
+      #2CB700 190deg,
+      rgba(44, 183, 0, 0) 320deg
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+    animation: markring-sweep 1.1s cubic-bezier(.3, 0, .2, 1) .15s 1 both;
+    pointer-events: none;
+  }
+
+  @keyframes markring-sweep {
+    from { transform: rotate(0deg);   opacity: 0; }
+    15%  { opacity: 1; }
+    75%  { opacity: 1; }
+    to   { transform: rotate(360deg); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .markring.spins::before { animation: none; opacity: 0; }
   }
 
   .level {
