@@ -14,18 +14,51 @@
  * och i webbläsarens cache (max-age=3600) resten av besöket.
  *
  * "Populära sökningar" renderas server-side. Panelen ska vara ifylld i samma
- * ögonblick som fältet fokuseras, inte efter en hämtning. Vi har ingen
- * söktrafik att räkna på än, så "populära" är i praktiken kommunerna med
- * flest verksamheter — den bästa gissning vi kan göra utan att hitta på.
+ * ögonblick som fältet fokuseras, inte efter en hämtning.
+ *
+ * Listan blandar kommuner med kända kedjor. Skälet till att kedjorna INTE
+ * pekar på en enskild restaurang: att lyfta fram ett namngivet ställe i en
+ * förvald lista är ett redaktionellt val vi inte har underlag för. Har det
+ * brister ser det ut som att vi pekar ut någon, har det inga ser det ut som
+ * reklam. En kedjesökning är i stället en verklig fråga med ett verkligt
+ * svar: hur ser det ut på alla Espresso House i landet?
+ *
+ * Vi har ingen söktrafik att räkna på än. "Populära" betyder därför de
+ * kommuner som har flest verksamheter och de kedjor som förekommer oftast i
+ * datat, vilket är den bästa gissning som går att göra utan att hitta på.
  */
 import { establishments, municipalities } from '../lib/data';
 
-const POPULAR_COUNT = 5;
+//: Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
+//: på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
+//: ställe man väljer att äta på, så listan tar de tre största kedjorna som
+//: någon faktiskt planerar ett besök till.
+//: Stavningen måste matcha datat, inte hur kedjan skriver sig själv.
+//: "McDonald's" med apostrof ger noll träffar: kommunerna registrerar dem
+//: som "Mcdonalds" och "McDonalds", aldrig med apostrof.
+const CHAINS = [
+  { query: 'Espresso House', count: 51 },
+  { query: 'Max', count: 43 },
+  { query: 'McDonalds', count: 38 },
+];
 
-const popular = municipalities()
+const TOP_MUNICIPALITIES = 3;
+
+const cities = municipalities()
   .map((m) => ({ ...m, count: establishments(m.slug).length }))
   .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, 'sv'))
-  .slice(0, POPULAR_COUNT);
+  .slice(0, TOP_MUNICIPALITIES)
+  .map((m) => ({ href: `/${m.slug}`, name: m.city, meta: 'Kommun', kind: 'kommun' as const }));
+
+const chains = CHAINS.map((c) => ({
+  href: `/sok?q=${encodeURIComponent(c.query)}`,
+  name: c.query,
+  meta: `${c.count} ställen`,
+  kind: 'kedja' as const,
+}));
+
+// Varvade, så listan inte läser som två separata block.
+const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 ---
 
 <div class="site-search" data-sitesearch>
@@ -60,29 +93,36 @@ const popular = municipalities()
       aria-labelledby="site-search-head"
       data-list
     >
-      {popular.map((m, i) => (
+      {popular.map((p, i) => (
         <li role="presentation">
           <a
-            href={`/${m.slug}`}
+            href={p.href}
             role="option"
             id={`site-search-o${i}`}
             aria-selected="false"
           >
             <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 20 20" focusable="false">
-                <path
-                  d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linejoin="round"
-                />
-                <circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5" />
-              </svg>
+              {p.kind === 'kommun' ? (
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <path
+                    d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                </svg>
+              )}
             </span>
             <span class="body">
-              <span class="name">{m.city}</span>
-              <span class="meta">Kommun</span>
+              <span class="name">{p.name}</span>
+              <span class="meta">{p.meta}</span>
             </span>
           </a>
         </li>
