@@ -66,7 +66,7 @@ const withRemarks = bySize
 <footer>
   <div class="container inner">
     <div class="col brand-col">
-      <a href="/" class="brand" aria-label={`${SITE.name} — till startsidan`}>
+      <a href="/" class="brand" aria-label={`${SITE.name}, till startsidan`}>
         <Wordmark height={32} label={null} />
       </a>
       <p class="blurb">
@@ -112,6 +112,15 @@ const withRemarks = bySize
       © {year} {SITE.legalName}. Uppgifterna kommer från respektive kommuns
       livsmedelskontroll och är allmänna handlingar.
     </p>
+    {/* Policylänkarna hör hemma här, inte i en femte kolumn. De ska vara
+        nåbara från varje sida (8 § e-handelslagen kräver att uppgifterna om
+        tjänsteleverantören är enkelt och stadigvarande tillgängliga), men de
+        ska inte konkurrera med de länkar som faktiskt bär sajten. */}
+    <nav class="policy" aria-label="Villkor och policyer">
+      <a href="/integritetspolicy">Integritetspolicy</a>
+      <a href="/villkor">Användarvillkor</a>
+      <a href="/cookies">Kakor</a>
+    </nav>
   </div>
 </footer>
 
@@ -131,10 +140,15 @@ const withRemarks = bySize
    * nedan till --card / --text / --text-secondary / --hairline. Resten av
    * filen refererar bara till dem. */
   footer {
-    --footer-bg: var(--brand-ink);
-    --footer-ink: var(--card);        /* rubriker, länkar, wordmark — 6,10:1 */
-    --footer-ink-soft: var(--canvas); /* brödtext och copyright — 5,60:1 */
-    --footer-rule: var(--hairline);   /* svart 8 % mörknar blått och syns */
+    /* Vit sidfot. Den blå provades och ägaren tyckte det blev för mycket
+       färg. Kontrasterna nedan är räknade, inte gissade.
+
+       Wordmarken går tillbaka till Prikkos blå. I den blå sidfoten var den
+       vit av nödvändighet, eftersom blått på blått inte syns. */
+    --footer-bg: var(--card);
+    --footer-ink: var(--text);           /* rubriker och länkar, 16,83:1 */
+    --footer-ink-soft: var(--text-secondary); /* brödtext, 5,07:1 */
+    --footer-rule: var(--hairline);
 
     background: var(--footer-bg);
     margin-top: var(--s-16);
@@ -161,13 +175,16 @@ const withRemarks = bySize
     min-width: 0;
   }
 
+  /* Wordmarken bär varumärkesfärgen, inte sidfotens bläck. Den var vit i den
+     blå sidfoten av nödvändighet; på vit botten finns ingen sådan tvingande
+     anledning, och märket ska se likadant ut i sidhuvudet och sidfoten. */
   .brand {
     display: inline-flex;
-    color: var(--footer-ink);
+    color: var(--brand);
   }
 
   .brand:hover {
-    color: var(--footer-ink);
+    color: var(--brand-ink);
     text-decoration: none;
   }
 
@@ -228,6 +245,13 @@ const withRemarks = bySize
   .legal {
     border-top: 1px solid var(--footer-rule);
     padding-block: var(--s-6);
+    /* Copyright till vänster, policylänkar till höger. Bryter till två rader
+       på smala skärmar i stället för att pressa ihop raden. */
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-6);
+    align-items: baseline;
+    justify-content: space-between;
   }
 
   .legal p {
@@ -235,6 +259,25 @@ const withRemarks = bySize
     line-height: var(--lh-caption);
     /* Var --text-muted mot vitt: 2,57:1, alltså under WCAG. */
     color: var(--footer-ink-soft); /* 5,60:1 */
+  }
+
+  .policy {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-6);
+  }
+
+  .policy a {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--footer-ink); /* 6,10:1 */
+    white-space: nowrap;
+  }
+
+  .policy a:hover {
+    color: var(--footer-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   /* Surfplatta: märkeskolumnen lägger sig ovanför och tar hela bredden, de
