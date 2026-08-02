@@ -12,12 +12,14 @@
   --brand-ink: #0063B4;        /* mörkare för hover/text-på-ljust */
 
   /* Ytor */
-  /* Sidbakgrund. Var #F5F5F7, Apples grå, sedan #FBFBFC, nu ren vit på
-     ägarens begäran för att se hur det ser ut.
-     OBS: --card är också #FFFFFF, så kort och bakgrund är nu identiska.
-     Det som avgränsar ett kort är därmed bara dess hårlinje eller skugga.
-     Saknar en yta båda flyter den ihop med sidan. */
-  --canvas: #FFFFFF;
+  /* Sidbakgrund. Så nära vitt som den kan komma och ändå vara grå.
+     Vägen hit: #F5F5F7 (Apples grå, för mörk), #FBFBFC, ren vit (då blev
+     kort och bakgrund identiska), och nu #FCFCFD.
+
+     Tre steg från vitt är ungefär gränsen för vad ögat uppfattar på en bra
+     skärm. Går den ett steg till försvinner korten, eftersom --card är
+     #FFFFFF och skillnaden är det enda som avgränsar dem. */
+  --canvas: #FCFCFD;
   --card: #FFFFFF;
 
   /* Text */
