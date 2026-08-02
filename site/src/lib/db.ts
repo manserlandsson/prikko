@@ -47,6 +47,12 @@ export interface StreetImage {
   capturedAt: string | null;
 }
 
+export type SourceType =
+  | 'open_data'          // kommunen publicerar en öppen datamängd
+  | 'reverse_engineered' // vi anropar samma gränssnitt som kommunens egen tjänst
+  | 'scrape'
+  | 'foi_request';
+
 export interface Municipality {
   code: string;
   /** Formellt namn: "Stockholms stad". */
@@ -54,6 +60,7 @@ export interface Municipality {
   /** Orten i grundform: "Stockholm". Härled aldrig ur `name`. */
   city: string;
   slug: string;
+  sourceType?: SourceType;
 }
 
 export interface Establishment {
