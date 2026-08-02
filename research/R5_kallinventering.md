@@ -16,8 +16,10 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Uppsala | 1 843 | E-tjänstens gränssnitt | **HTML** | **Saknas** | Ja | Ja |
 | Jönköping | 1 120 | ArcGIS REST | JSON + fritext | **WGS84 färdigt** | **Nej** | **Nej** |
 | Karlstad | 694 | GeoServer WFS | JSON | SWEREF 99 13 30 | **Nej** | **Nej** |
+| Örebro | 1 234 | REST + inbäddad JS | JSON + HTML | **Saknas** | Ja | **Ja, båda utfallen** |
 
-Nästa att bygga: **Örebro**.
+Nästa att bygga: kontrollera Origo-mönstret mot **Västerås, Oskarshamn,
+Hallstahammar och Sjöbo** innan fler enskilda adaptrar skrivs.
 
 Stockholms, Jönköpings och Karlstads avsaknad av "kvarstår" är skälet till att
 bedömningsmodellen härleder allvarsgraden ur mönstret i stället för ur
