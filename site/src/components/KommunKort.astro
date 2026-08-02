@@ -46,11 +46,17 @@ const photos: Record<string, ImageMetadata> = Object.fromEntries(
  * Härledda gradientfärger, utskrivna som "r g b" så CSS kan skriva
  * `rgb(var(--deep) / .6)` och variera alpha utan att upprepa färgen.
  *
- * Värdena kommer från `node scripts/palette.mjs ../brand/<fil>.png`: k-means i
- * CIELAB, en körning på hela bilden och en på nedre 45 % — den zon scrimen
- * faktiskt ligger över. Kulören är bottenzonens mättnadsviktade medelkulör,
- * ljusheten låst till 12 % / 24 % med verifierad kontrast mot vit text
- * (16:1 respektive ~10:1, WCAG kräver 4,5:1).
+ * Värdena kommer från `node scripts/palette.mjs <fil>`: k-means i CIELAB, en
+ * körning på hela bilden och en på nedre 45 %, alltså den zon scrimen faktiskt
+ * ligger över. Kulören är bottenzonens mättnadsviktade medelkulör, ljusheten
+ * låst till 12 % / 24 % med verifierad kontrast mot vit text (16:1 respektive
+ * ~10:1, WCAG kräver 4,5:1).
+ *
+ * Kör skriptet på den FÄRDIGA filen i src/assets/stad, inte på originalet i
+ * brand. De första sex originalen var redan 16:9 och det spelade ingen roll,
+ * men nyare källor är 4:3 eller 3:2 och beskärs på höjden. Nedre 45 % av
+ * originalet är då en annan zon än nedre 45 % av det kortet visar, och färgen
+ * beskriver en bild som aldrig renderas.
  *
  * ── Varför scrimen ändå är blå och inte fotohärledd ───────────────────────
  * Kulörerna nedan användes en tid rakt av. Utfallet var att fyra av sex
@@ -93,16 +99,22 @@ const PALETTE: Record<string, { deep: string; mid: string }> = {
   // Örebro slott. Bottenzonen är häck, gräs och slottets sandsten —
   // dämpat olivbrunt. 69°, 15 %.
   orebro: { deep: '34 35 26', mid: '67 70 53' },
+  // Hamnen i kvällsljus, uppifrån. Nedre 45 % är spegelblankt hamnvatten och
+  // bryggor: grönblått och mycket lågmättat. 180°, 8 %.
+  oskarshamn: { deep: '28 33 33', mid: '57 66 66' },
+  // Kustsamhället från luften. Bottenzonen är tak, tomter och strandsten,
+  // alltså varmt och grått på en gång. 36°, 9 %.
+  hoganas: { deep: '33 31 28', mid: '66 62 56' },
 };
 
 /**
  * Beskärningspunkt per kommun.
  *
  * Bilderna är 16:9 men bildzonen är 168 px hög, så vid bredare kort skärs upp
- * till en tredjedel av höjden bort. Vilken tredjedel är inte likgiltig — de
- * sex fotona har olika bildspråk och en rak centrering behandlar dem som om de
- * vore samma bild. Värdena är valda genom att rendera den faktiska
- * beskärningen i flera kortbredder och titta på resultatet, inte gissade.
+ * till en tredjedel av höjden bort. Vilken tredjedel är inte likgiltig: fotona
+ * har olika bildspråk och en rak centrering behandlar dem som om de vore samma
+ * bild. Värdena är valda genom att rendera den faktiska beskärningen i flera
+ * kortbredder och titta på resultatet, inte gissade.
  *
  * Det som saknas i tabellen faller tillbaka på 50 % 50 %.
  */
@@ -128,6 +140,16 @@ const CROP: Record<string, string> = {
   // till Örebro, och de sitter i bildens övre tredjedel. Centrerat ger en
   // slottsmur. 22 % behåller taket, spiran och de gula husen vid torget.
   orebro: '50% 22%',
+  // Flygfoto i kvällsljus. Stadskärnan ligger som ett band strax över mitten
+  // och hamnen under den. 45 % behåller en remsa gyllene himmel i överkant och
+  // låter hamnbassängen ta den nedre delen, där scrimen ändå ligger. Centrerat
+  // kapar himlen utan att ge något tillbaka.
+  oskarshamn: '50% 45%',
+  // Flygfoto snett över kustsamhället. Husen fyller mitten, skogsåsen ligger
+  // över dem och havet skär in nedtill vänster. 55 % lyfter takens röda fält
+  // upp i den ljusa halvan och lämnar strandkanten åt scrimen. Högre värden
+  // äter upp åsen, som är det enda som ger bilden djup.
+  hoganas: '50% 55%',
 };
 
 /**
