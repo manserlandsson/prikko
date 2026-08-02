@@ -74,6 +74,16 @@ create table if not exists establishments (
     lat                 double precision check (lat between 55 and 70),
     lng                 double precision check (lng between 10 and 25),
 
+    -- Var koordinaten kommer ifrån. NULL = kommunen publicerade den själv.
+    -- Uppsala och Örebro publicerar inga koordinater; deras nålar är HÄRLEDDA
+    -- ur adressen mot OpenStreetMap. Skillnaden måste synas i datat, annars
+    -- kan sidan inte säga den — och en härledd nål som utger sig för att vara
+    -- kommunens är precis den sortens tyst osanning projektet inte lever på.
+    geo_source          text check (geo_source in ('osm')),
+    -- 'address'      = adressen finns som punkt i källan
+    -- 'approximate'  = grannporten på samma sida av gatan, mätt medianfel 54 m
+    geo_precision       text check (geo_precision in ('address', 'approximate')),
+
     -- URL-segment. Unikt inom kommunen så /stockholm/<slug> är entydig.
     slug                text not null,
 
@@ -83,6 +93,29 @@ create table if not exists establishments (
 
     unique (municipality_code, slug)
 );
+
+-- Efterhandsmigrering. `create table if not exists` rör inte en tabell som
+-- redan finns, så nya kolumner måste läggas till uttryckligen för att en
+-- omkörning ska ge samma schema oavsett när databasen först skapades.
+alter table establishments
+    add column if not exists geo_source    text,
+    add column if not exists geo_precision text;
+
+do $$
+begin
+    alter table establishments
+        add constraint establishments_geo_source_check
+        check (geo_source in ('osm'));
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+    alter table establishments
+        add constraint establishments_geo_precision_check
+        check (geo_precision in ('address', 'approximate'));
+exception when duplicate_object then null;
+end $$;
 
 create index if not exists establishments_municipality_idx
     on establishments (municipality_code);
@@ -209,7 +242,23 @@ create index if not exists assessments_verdict_idx
 -- Publiceringsvy: vad sajten får rendera som indexerbar sida.
 -- Kvalitetsgrinden i SQL i stället för utspridd i sidmallar.
 -- ---------------------------------------------------------------------------
-create or replace view publishable_establishments as
+-- Vyn släpps innan den skapas om, i stället för `create or replace`.
+--
+-- Vyn väljer `e.*`. Läggs en ny kolumn till på `establishments` expanderas
+-- stjärnan med den, vilket flyttar alla kolumner som står efter ett steg åt
+-- höger. `create or replace view` får inte byta namn eller ordning på
+-- befintliga kolumner, bara lägga till sist, så den vägrar med:
+--
+--   ERROR: cannot change name of view column "municipality_slug"
+--
+-- En vy innehåller ingen data, bara en fråga, så att släppa den kostar
+-- ingenting. Rättigheterna längre ner i filen sätts om direkt efteråt.
+--
+-- Utan `cascade` med avsikt: finns det något vi inte känner till som beror
+-- på vyn ska kommandot fälla, inte tyst riva med sig det också.
+drop view if exists publishable_establishments;
+
+create view publishable_establishments as
 select
     e.*,
     m.slug          as municipality_slug,

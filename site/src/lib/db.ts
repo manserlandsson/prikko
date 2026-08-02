@@ -71,6 +71,14 @@ export interface Establishment {
   types: string[];
   lat: number | null;
   lng: number | null;
+  /**
+   * Satt bara när koordinaten är HÄRLEDD ur adressen i stället för publicerad
+   * av kommunen. Uppsala och Örebro lämnar inga koordinater; deras nålar är
+   * geokodade mot OpenStreetMap. Saknas fältet kommer punkten från källan.
+   */
+  geoSource?: 'osm';
+  /** 'address' = adressens egen punkt. 'approximate' = grannporten. */
+  geoPrecision?: 'address' | 'approximate';
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;
@@ -118,10 +126,32 @@ function withMunicipality(d: Dataset): Establishment[] {
   return d.establishments.map((e) => ({ ...e, municipality: d.municipality }));
 }
 
+/**
+ * Färdiga listor per kommun, plus rikslistan under nyckeln ''.
+ *
+ * Utan minnet byggdes listan om vid VARJE anrop, och anropen är inte få:
+ * sidfoten och sökrutan ligger i baslayouten och frågar efter varje kommun på
+ * varje sida. Med 14 950 sidor blev det närmare en miljard objektkopior per
+ * bygge och ungefär två tredjedelar av byggtiden.
+ *
+ * Datan är oföränderlig under ett bygg. Filerna läses in en gång via
+ * import.meta.glob, så en delad instans är säker. Villkoret är att ingen
+ * anropare sorterar eller muterar listan hon får tillbaka. Alla anropare
+ * filtrerar eller kopierar först (se municipalityListing), och nya måste göra
+ * detsamma: sortera aldrig direkt på det establishments() returnerar.
+ */
+const listCache = new Map<string, Establishment[]>();
+
 /** Alla verksamheter i landet, eller i en kommun om slug anges. */
 export function establishments(slug?: string): Establishment[] {
+  const key = slug ?? '';
+  const cached = listCache.get(key);
+  if (cached) return cached;
+
   const wanted = slug ? datasets.filter((d) => d.municipality.slug === slug) : datasets;
-  return wanted.flatMap(withMunicipality);
+  const built = wanted.flatMap(withMunicipality);
+  listCache.set(key, built);
+  return built;
 }
 
 export function findEstablishment(

@@ -178,33 +178,118 @@ export function statistics(e: Establishment): Stats {
   };
 }
 
-/** Avstånd i meter mellan två WGS84-punkter (haversine). */
-function distance(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(bLat - aLat);
-  const dLng = toRad(bLng - aLng);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
+/**
+ * Kandidatregister per kommun: verksamheter som alls kan bli en granne, med
+ * koordinaterna förkonverterade till radianer.
+ *
+ * Finns för att nearby() körs en gång per restaurangsida. Utan registret gjorde
+ * varje sida om filtreringen och radiankonverteringen för hela kommunen, ett
+ * kvadratiskt arbete som i Stockholm ensamt kostade ett halvt bygge.
+ *
+ * Ordningen är densamma som i establishments(), vilket är det som gör att den
+ * stabila topplistan nedan ger exakt samma svar som den gamla sorteringen.
+ */
+interface NearbyIndex {
+  items: Establishment[];
+  lat: Float64Array;
+  lng: Float64Array;
+  cosLat: Float64Array;
+}
+
+const nearbyIndexes = new Map<string, NearbyIndex>();
+
+function nearbyIndex(slug: string): NearbyIndex {
+  const cached = nearbyIndexes.get(slug);
+  if (cached) return cached;
+
+  const items: Establishment[] = [];
+  const lat: number[] = [];
+  const lng: number[] = [];
+  const cosLat: number[] = [];
+
+  for (const o of establishments(slug)) {
+    if (o.lat === null || o.lng === null || o.verdict === null) continue;
+    const rad = (o.lat * Math.PI) / 180;
+    items.push(o);
+    lat.push(rad);
+    lng.push((o.lng * Math.PI) / 180);
+    cosLat.push(Math.cos(rad));
+  }
+
+  const index: NearbyIndex = {
+    items,
+    lat: Float64Array.from(lat),
+    lng: Float64Array.from(lng),
+    cosLat: Float64Array.from(cosLat),
+  };
+  nearbyIndexes.set(slug, index);
+  return index;
 }
 
 /**
  * Närmaste verksamheter inom samma kommun. Ger besökaren ett alternativ när
  * stället hen tittar på har brister, och binder samman den interna
  * länkgrafen mellan restaurangsidor — inte bara uppåt till kommunhubben.
+ *
+ * Här låg tidigare en filter/map/sort-kedja över hela kommunen. Den gav rätt
+ * svar men byggde 8 500 objektkopior och sorterade dem, för att sedan behålla
+ * fyra. Nu svepes kandidaterna i stället en gång och bara de fyra bästa
+ * kopieras.
+ *
+ * Rangordningen sker på AVRUNDADE meter, precis som förut, och insättningen
+ * flyttar bara element som är strikt större. Det bevarar registrets ordning
+ * mellan grannar på samma avstånd, vilket är exakt vad den stabila sorteringen
+ * gjorde. Utfallet är verifierat identiskt för samtliga sidor.
  */
 export function nearby(
   e: Establishment,
   limit = 4,
 ): Array<Establishment & { metres: number }> {
   if (e.lat === null || e.lng === null) return [];
-  return establishments(e.municipality.slug)
-    .filter((o) => o.id !== e.id && o.lat !== null && o.lng !== null && o.verdict !== null)
-    .map((o) => ({ ...o, metres: Math.round(distance(e.lat!, e.lng!, o.lat!, o.lng!)) }))
-    .sort((a, b) => a.metres - b.metres)
-    .slice(0, limit);
+
+  const index = nearbyIndex(e.municipality.slug);
+
+  // Haversine mot jordens medelradie, samma formel som förut men inlagd i
+  // svepet: kandidaternas radianer och cosinus är redan uträknade i registret.
+  const R = 6371000;
+  const lat = (e.lat * Math.PI) / 180;
+  const lng = (e.lng * Math.PI) / 180;
+  const cosLat = Math.cos(lat);
+
+  // Topplista med `limit` platser. Fylld med Infinity betyder "ledig plats".
+  const bestMetres = new Float64Array(limit).fill(Infinity);
+  const bestIndex = new Int32Array(limit).fill(-1);
+  let cutoff = Infinity;
+
+  for (let i = 0; i < index.items.length; i += 1) {
+    if (index.items[i].id === e.id) continue;
+
+    const sinLat = Math.sin((index.lat[i] - lat) / 2);
+    const sinLng = Math.sin((index.lng[i] - lng) / 2);
+    const h = sinLat * sinLat + cosLat * index.cosLat[i] * sinLng * sinLng;
+    const metres = Math.round(2 * R * Math.asin(Math.sqrt(h)));
+
+    // Lika långt bort som den sämsta på listan räcker inte: den som stod först
+    // i registret behåller platsen.
+    if (metres >= cutoff) continue;
+
+    let slot = limit - 1;
+    while (slot > 0 && bestMetres[slot - 1] > metres) {
+      bestMetres[slot] = bestMetres[slot - 1];
+      bestIndex[slot] = bestIndex[slot - 1];
+      slot -= 1;
+    }
+    bestMetres[slot] = metres;
+    bestIndex[slot] = i;
+    cutoff = bestMetres[limit - 1];
+  }
+
+  const result: Array<Establishment & { metres: number }> = [];
+  for (let k = 0; k < limit; k += 1) {
+    if (bestIndex[k] < 0) continue;
+    result.push({ ...index.items[bestIndex[k]], metres: bestMetres[k] });
+  }
+  return result;
 }
 
 export function formatDistance(metres: number): string {
@@ -573,7 +658,11 @@ function median(values: number[]): number {
  * av sig själv — eller när datafilens `municipality` får egna lat/lng, som
  * läses först här nedan.
  */
+let pointsCache: MunicipalityPoint[] | null = null;
+
 export function municipalityPoints(): MunicipalityPoint[] {
+  if (pointsCache) return pointsCache;
+
   const points: MunicipalityPoint[] = [];
 
   for (const m of municipalities()) {
@@ -596,5 +685,10 @@ export function municipalityPoints(): MunicipalityPoint[] {
     }
   }
 
+  // Punkterna ligger i platsväljaren, och platsväljaren ligger i sidhuvudet på
+  // varje sida. Utan minnet sorterades alltså varje kommuns hela koordinatlista
+  // om 14 950 gånger per bygge, mätt till 28 % av byggtiden. Datan ändras inte
+  // under ett bygg, så en körning räcker.
+  pointsCache = points;
   return points;
 }
