@@ -34,7 +34,17 @@ export const PUBLISHER = {
   email: 'dataskydd@prikko.se',
   /** Befintlig väg för rättelse och genmäle, se /ratta. */
   correctionEmail: 'ratta@prikko.se',
-  /** Postadress. TODO: fylls i av ägaren, krävs enligt 8 § e-handelslagen. */
+  /**
+   * Postadress. Utelämnad efter ägarens beslut: e-post räcker som kontaktväg.
+   *
+   * Det stämmer för integritetspolicyn. GDPR artikel 13 kräver "kontaktuppgifter",
+   * och en e-postadress uppfyller det.
+   *
+   * Det stämmer INTE för villkorssidan. 8 § lagen (2002:562) om elektronisk
+   * handel räknar upp adress i etableringsstaten som en egen punkt vid sidan
+   * av e-post. Punkten står kvar på advokatens lista. Fylls fältet i skrivs
+   * adressen ut automatiskt på båda sidorna.
+   */
   address: null as string | null,
 } as const;
 
