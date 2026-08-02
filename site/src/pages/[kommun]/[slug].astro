@@ -296,31 +296,51 @@ const breadcrumbs = {
     flex-shrink: 0;
   }
 
-  /* Ringen ritas som en konisk gradient som maskeras till en cirkelkant.
-     Ett vanligt border kan inte ha gradient; det här kan. */
+  /* Kanten följer märkets form — en rundad kvadrat, inte en cirkel.
+     Märket har rx 17 på ett 100-rutnät och renderas i 52 px, alltså 8,8 px
+     radie; plus 6 px utanförliggande inset blir ytterradien knappt 15.
+
+     Två tekniker samverkar:
+     1) Gradientkant. Ett vanligt `border` kan inte ha gradient. Elementet
+        får därför gradienten som bakgrund, en padding lika bred som kanten,
+        och en mask som skär bort allt utom paddingen. Kvar blir en kant som
+        följer border-radius.
+     2) Svepet roterar GRADIENTENS vinkel, inte elementet. Roteras elementet
+        snurrar hela rektangeln som ett hjul; här står formen still medan
+        ljuset vandrar runt den. Det kräver att vinkeln är en registrerad
+        egenskap — annars kan CSS inte interpolera den. */
+  @property --prikko-sweep {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
   .markring.spins::before {
     content: '';
     position: absolute;
-    inset: -7px;
-    border-radius: 50%;
+    inset: -6px;
+    border-radius: 15px;
+    padding: 2.5px;
     background: conic-gradient(
-      from 0deg,
+      from var(--prikko-sweep),
       rgba(124, 229, 143, 0) 0deg,
-      rgba(124, 229, 143, .55) 70deg,
-      #2CB700 190deg,
-      rgba(44, 183, 0, 0) 320deg
+      rgba(124, 229, 143, .5) 60deg,
+      #2CB700 170deg,
+      rgba(44, 183, 0, 0) 300deg
     );
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-    animation: markring-sweep 1.1s cubic-bezier(.3, 0, .2, 1) .15s 1 both;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: markring-sweep 1.2s cubic-bezier(.3, 0, .2, 1) .15s 1 both;
     pointer-events: none;
   }
 
   @keyframes markring-sweep {
-    from { transform: rotate(0deg);   opacity: 0; }
+    from { --prikko-sweep: 0deg;   opacity: 0; }
     15%  { opacity: 1; }
     75%  { opacity: 1; }
-    to   { transform: rotate(360deg); opacity: 0; }
+    to   { --prikko-sweep: 360deg; opacity: 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {
