@@ -327,12 +327,17 @@ const breadcrumbs = {
     inset: 0;
     border-radius: 8.8px;
     padding: 1.5px;
+    /* Nästan vitt, inte grönt. Svepet låg tidigare i samma gröna som märkets
+       egen fyllning och var därför osynligt — grönt på grönt. Ett ljust svep
+       läser som en glans över kanten och fungerar mot alla tre
+       betygsfärgerna, inte bara den gröna. */
     background: conic-gradient(
       from var(--prikko-sweep),
-      rgba(124, 229, 143, 0) 0deg,
-      rgba(124, 229, 143, .5) 60deg,
-      #2CB700 170deg,
-      rgba(44, 183, 0, 0) 300deg
+      rgba(255, 255, 255, 0) 0deg,
+      rgba(255, 255, 255, .35) 55deg,
+      rgba(255, 255, 255, .95) 150deg,
+      rgba(255, 255, 255, .35) 230deg,
+      rgba(255, 255, 255, 0) 310deg
     );
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
