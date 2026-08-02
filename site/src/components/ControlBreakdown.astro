@@ -28,6 +28,36 @@ const { areas, inspectedAt } = Astro.props;
 const remarks = areas.filter(isRemark);
 const passed = areas.filter((a) => !isRemark(a));
 const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områden');
+
+/**
+ * Rubrik och underrad per område.
+ *
+ * Alla källor har inte Livsmedelsverkets områdeskoder. Lomma och Uppsala
+ * saknar dem helt, och då hittas ingen förklaring att visa. Mallen föll
+ * tidigare tillbaka på källans egen grupptext, som i de kommunerna nästan
+ * alltid är EXAKT samma ord som beskrivningen: "svårstädad lokal" med
+ * "Svårstädad lokal" under. 114 av 120 rader i Lomma, 858 av 858 i Uppsala.
+ *
+ * En underrad som upprepar rubriken tillför ingenting och får läsaren att
+ * tro att sidan är trasig. Den utelämnas nu när den inte skiljer sig.
+ *
+ * Källorna skriver dessutom med olika inledande versal. Beskrivningen får
+ * stor bokstav här i stället för att bära igenom kommunens godtycke.
+ */
+function present(a: ControlArea) {
+  const known = legislationArea(a.code);
+  const title = a.description.trim() || a.group.trim();
+  const sub = known?.name ?? a.group.trim();
+  return {
+    title: title.charAt(0).toUpperCase() + title.slice(1),
+    // Bara när underraden faktiskt säger något nytt.
+    sub: sub && sub.toLowerCase() !== title.toLowerCase() ? sub : null,
+    explanation: known?.explanation ?? null,
+    // Utan kod finns ingen meningsfull ikon, bara reservcirkeln. Sex
+    // identiska cirklar i rad är brus, inte information.
+    icon: known ? a.code : null,
+  };
+}
 ---
 
 <section class="breakdown">
@@ -49,18 +79,22 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
   {remarks.length > 0 && (
     <ul class="rows">
       {remarks.map((a) => {
-        const area = legislationArea(a.code);
+        const p = present(a);
         return (
-          <li class="row">
-            <span class="icon">
-              <AreaIcon letter={a.code} />
-            </span>
-            <span class="what">
-              <b>{a.description}</b>
-              <span class="group text-secondary">
-                {area?.name ?? a.group}
-                {area && <InfoTip label={area.name} text={area.explanation} />}
+          <li class:list={['row', !p.icon && 'no-icon']}>
+            {p.icon && (
+              <span class="icon">
+                <AreaIcon letter={p.icon} />
               </span>
+            )}
+            <span class="what">
+              <b>{p.title}</b>
+              {p.sub && (
+                <span class="group text-secondary">
+                  {p.sub}
+                  {p.explanation && <InfoTip label={p.sub} text={p.explanation} />}
+                </span>
+              )}
             </span>
             <span class="code text-muted">{a.code}</span>
             <span class="status" style={`color: ${AREA_STATUS_INK[a.status]}`}>
@@ -77,18 +111,22 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
       <summary>Visa {passed.length} {areaWord(passed.length)} utan avvikelse</summary>
       <ul class="rows">
         {passed.map((a) => {
-          const area = legislationArea(a.code);
+          const p = present(a);
           return (
-            <li class="row">
-              <span class="icon muted">
-                <AreaIcon letter={a.code} />
-              </span>
-              <span class="what">
-                <b>{a.description}</b>
-                <span class="group text-secondary">
-                  {area?.name ?? a.group}
-                  {area && <InfoTip label={area.name} text={area.explanation} />}
+            <li class:list={['row', !p.icon && 'no-icon']}>
+              {p.icon && (
+                <span class="icon muted">
+                  <AreaIcon letter={p.icon} />
                 </span>
+              )}
+              <span class="what">
+                <b>{p.title}</b>
+                {p.sub && (
+                  <span class="group text-secondary">
+                    {p.sub}
+                    {p.explanation && <InfoTip label={p.sub} text={p.explanation} />}
+                  </span>
+                )}
               </span>
               <span class="code text-muted">{a.code}</span>
               <span class="status text-secondary">{AREA_STATUS_LABEL[a.status]}</span>
@@ -154,6 +192,12 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
 
   .icon.muted {
     color: var(--text-muted);
+  }
+
+  /* Utan ikon faller ikonkolumnen bort helt, annars börjar texten 34 px in
+     med tomrum framför sig. */
+  .row.no-icon {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .what b {
