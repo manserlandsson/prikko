@@ -51,7 +51,7 @@ const answer = `${formatNumber(total)} av ${formatNumber(assessed)} kontrollerad
 const title =
   currentPage === 1
     ? `Restauranger med anmärkningar i ${city}`
-    : `Restauranger med anmärkningar i ${city} — sida ${currentPage} av ${lastPage}`;
+    : `Restauranger med anmärkningar i ${city}, sida ${currentPage} av ${lastPage}`;
 
 const description =
   currentPage === 1
@@ -119,7 +119,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       <p class="eyebrow">{kommun.name}</p>
       <h1>
         Restauranger med anmärkningar i {city}
-        {currentPage > 1 && <span class="text-secondary"> — sida {currentPage}</span>}
+        {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
       </h1>
       <p class="answer">{answer}</p>
       <p class="caption text-muted">
@@ -170,8 +170,8 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     <footer class="foot">
       <p class="text-secondary">
         En anmärkning betyder att kommunen konstaterat en avvikelse vid
-        kontrollen. Många åtgärdas snabbt och följs upp vid ett återbesök —
-        varje verksamhets sida visar hela historiken.
+        kontrollen. Många åtgärdas snabbt och följs upp vid ett återbesök.
+        Varje verksamhets sida visar hela historiken.
       </p>
       <p>
         <a href={`/${kommun.slug}`}>Se alla verksamheter i {city}</a>

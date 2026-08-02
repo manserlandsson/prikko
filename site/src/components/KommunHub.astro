@@ -41,7 +41,7 @@ const remarks = counts.minor + counts.major;
 const title =
   currentPage === 1
     ? `Hygienkontroller i ${city}`
-    : `Hygienkontroller i ${city} — sida ${currentPage} av ${lastPage}`;
+    : `Hygienkontroller i ${city}, sida ${currentPage} av ${lastPage}`;
 
 const description =
   currentPage === 1
@@ -82,7 +82,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       <p class="eyebrow">{kommun.name}</p>
       <h1>
         Hygienkontroller i {city}
-        {currentPage > 1 && <span class="text-secondary"> — sida {currentPage}</span>}
+        {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
       </h1>
       <p class="lede text-secondary">
         {currentPage === 1 ? (

@@ -48,6 +48,7 @@ SWEREF99_TM = Projection(
 SWEREF99_1500 = Projection(name="SWEREF 99 15 00", central_meridian=15.0)
 SWEREF99_1330 = Projection(name="SWEREF 99 13 30", central_meridian=13.5)
 SWEREF99_1200 = Projection(name="SWEREF 99 12 00", central_meridian=12.0)
+SWEREF99_1630 = Projection(name="SWEREF 99 16 30", central_meridian=16.5)
 SWEREF99_1800 = Projection(name="SWEREF 99 18 00", central_meridian=18.0)
 
 

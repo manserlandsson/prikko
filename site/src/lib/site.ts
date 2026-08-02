@@ -13,7 +13,7 @@ export const SITE = {
   locale: 'sv_SE',
   lang: 'sv',
   description:
-    'Prikko samlar kommunernas offentliga livsmedelskontroller och visar hur varje restaurang klarade sin senaste hygienkontroll — med karta, kontrollhistorik och verksamhetens svar.',
+    'Prikko samlar kommunernas offentliga livsmedelskontroller och visar hur varje restaurang klarade sin senaste hygienkontroll, med karta, kontrollhistorik och verksamhetens svar.',
   themeColor: '#007BE0',
 } as const;
 

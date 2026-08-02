@@ -18,9 +18,17 @@
  * Skalning: vid 100+ kommuner blir en full lista i varje dokument dyr. Därför
  * `MAX_PER_COLUMN` — resten når man via platsväljaren i sidhuvudet, som har
  * hela listan och ett sökfält.
+ *
+ * FORMEN (omgjord): kolumnrubrikerna var tidigare versala 12-punktsetiketter
+ * i grått. De var alltså både mindre och svagare än länkarna de skulle leda —
+ * en omvänd hierarki som läser som skrik utan att styra ögat. Nu är rubriken
+ * det största och mörkaste i sin kolumn, precis som hos JobbSafari och
+ * Airbnb, och hierarkin bärs av storlek och vikt i stället för av VERSALER.
+ * Wordmarken ligger uppe till vänster och ger blocket en startpunkt.
  */
 import { establishments, municipalities } from '../lib/data';
 import { SITE } from '../lib/site';
+import Wordmark from './Wordmark.astro';
 
 const year = new Date().getFullYear();
 
@@ -57,9 +65,11 @@ const withRemarks = bySize
 
 <footer>
   <div class="container inner">
-    <div class="col about">
-      <p class="eyebrow">Om datan</p>
-      <p class="caption text-secondary">
+    <div class="col brand-col">
+      <a href="/" class="brand" aria-label={`${SITE.name} — till startsidan`}>
+        <Wordmark height={32} label={null} />
+      </a>
+      <p class="blurb">
         Prikko visar resultat från kommunernas offentliga livsmedelskontroller.
         Bedömningen beräknas med en öppet publicerad metodik. Varje verksamhet
         har rätt att svara — svaren publiceras oredigerade.
@@ -67,32 +77,38 @@ const withRemarks = bySize
     </div>
 
     <nav class="col" aria-label="Kontroller per kommun">
-      <p class="eyebrow">Hygienkontroller</p>
-      {listed.map((m) => (
-        <a href={`/${m.slug}`}>Kontroller i {m.city}</a>
-      ))}
-      {truncated && <a href="/sok">Fler kommuner</a>}
+      <p class="col-title">Hygienkontroller</p>
+      <ul>
+        {listed.map((m) => (
+          <li><a href={`/${m.slug}`}>Kontroller i {m.city}</a></li>
+        ))}
+        {truncated && <li><a href="/sok">Fler kommuner</a></li>}
+      </ul>
     </nav>
 
     <nav class="col" aria-label="Anmärkningar per kommun">
-      <p class="eyebrow">Anmärkningar</p>
-      {withRemarks.map((m) => (
-        <a href={`/${m.slug}/anmarkningar`}>Anmärkningar i {m.city}</a>
-      ))}
+      <p class="col-title">Anmärkningar</p>
+      <ul>
+        {withRemarks.map((m) => (
+          <li><a href={`/${m.slug}/anmarkningar`}>Anmärkningar i {m.city}</a></li>
+        ))}
+      </ul>
     </nav>
 
     <nav class="col" aria-label="Om Prikko">
-      <p class="eyebrow">Prikko</p>
-      <a href="/metodik">Så beräknas bedömningen</a>
-      <a href="/kallor">Källor och uppdatering</a>
-      <a href="/om">Om Prikko</a>
-      <a href="/ratta">Rätta en uppgift</a>
-      <a href="/sok">Sök verksamhet</a>
+      <p class="col-title">Prikko</p>
+      <ul>
+        <li><a href="/metodik">Så beräknas bedömningen</a></li>
+        <li><a href="/kallor">Källor och uppdatering</a></li>
+        <li><a href="/om">Om Prikko</a></li>
+        <li><a href="/ratta">Rätta en uppgift</a></li>
+        <li><a href="/sok">Sök verksamhet</a></li>
+      </ul>
     </nav>
   </div>
 
   <div class="container legal">
-    <p class="caption text-muted">
+    <p>
       © {year} {SITE.legalName}. Uppgifterna kommer från respektive kommuns
       livsmedelskontroll och är allmänna handlingar.
     </p>
@@ -100,51 +116,162 @@ const withRemarks = bySize
 </footer>
 
 <style>
+  /* FÄRGSÄTTNING PÅ ETT STÄLLE.
+   *
+   * Sidfoten var tidigare vit på sidans --canvas. Skillnaden mellan de två
+   * ytorna är 1,09:1 — i praktiken osynlig, och sidfoten läste därför inte
+   * som ett eget rum utan som att sidan bara tog slut.
+   *
+   * Nu bär färgen gränsen. Tonen är --brand-ink, inte --brand: vit text på
+   * --brand (#007BE0) ger 4,28:1 och underkänns av WCAG för brödtext, medan
+   * samma vita på --brand-ink (#0063B4) ger 6,10:1. En sidfot som nästan
+   * bara består av länkar får inte vara stället där kontrasten fallerar.
+   *
+   * Vill man tillbaka till vit sidfot räcker det att byta de fyra raderna
+   * nedan till --card / --text / --text-secondary / --hairline. Resten av
+   * filen refererar bara till dem. */
   footer {
-    background: var(--card);
-    border-top: 1px solid var(--hairline);
+    --footer-bg: var(--brand-ink);
+    --footer-ink: var(--card);        /* rubriker, länkar, wordmark — 6,10:1 */
+    --footer-ink-soft: var(--canvas); /* brödtext och copyright — 5,60:1 */
+    --footer-rule: var(--hairline);   /* svart 8 % mörknar blått och syns */
+
+    background: var(--footer-bg);
     margin-top: var(--s-16);
-    padding-top: var(--s-8);
+  }
+
+  /* Fokusringen är annars --brand, som mot --brand-ink ligger på 1,43:1 och
+     alltså är osynlig. Vit ring i stället — samma token som texten. */
+  footer :global(:focus-visible) {
+    outline-color: var(--footer-ink);
   }
 
   .inner {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
-    gap: var(--s-8);
-    padding-bottom: var(--s-8);
+    /* Märkeskolumnen är bredare: den bär löpande text, de andra listor. */
+    grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
+    /* 48 px radluft om kolumnerna bryter, 32 px mellan kolumnerna. */
+    gap: var(--s-12) var(--s-8);
+    /* 48 px in och 48 px ut. Var 32 — för lite för ett block med 24 länkar,
+       sidfoten läste som en remsa i stället för som ett eget rum. */
+    padding-block: var(--s-12);
   }
 
   .col {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-    align-items: flex-start;
+    min-width: 0;
   }
 
-  .col .eyebrow { margin-bottom: var(--s-1); }
+  .brand {
+    display: inline-flex;
+    color: var(--footer-ink);
+  }
 
-  .col a {
+  .brand:hover {
+    color: var(--footer-ink);
+    text-decoration: none;
+  }
+
+  .blurb {
+    margin-top: var(--s-4);
+    max-width: 34em;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    color: var(--text-secondary);
+    color: var(--footer-ink-soft); /* 5,60:1 */
   }
 
-  .col a:hover { color: var(--text); }
+  /* Rubriken är kolumnens tyngdpunkt: större än länkarna och halvfet.
+     Gemener — versaler tvingar läsaren att stava sig igenom ordet och ger
+     ingen extra betydelse. */
+  .col-title {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    color: var(--footer-ink); /* 6,10:1 */
+  }
 
+  /* INGA PUNKTER. Listelementen finns för att en länksamling är en lista för
+     en skärmläsare, inte för att den ska se ut som en. Både JobbSafari och
+     Airbnb har rena länkkolumner. */
+  ul {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    /* 12 px mellan rader med 20 px radhöjd ger 32 px steg. Var 8 px, vilket
+       pressade ihop listan till en textmassa. */
+    display: grid;
+    gap: var(--s-3);
+  }
+
+  ul li {
+    list-style: none;
+  }
+
+  /* `ul` i selektorn, inte bara `.col a` — annars vinner den här regeln över
+     `.brand` och äter wordmarken. */
+  .col ul a {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    /* Samma vita som rubriken, 6,10:1. Hierarkin sköts av storlek och vikt,
+       inte av en svagare ton: en dämpad grå på den här blå (--text-muted
+       ligger på 2,37:1) hade varit precis den fällan sidfoten inte får gå i. */
+    color: var(--footer-ink);
+  }
+
+  .col ul a:hover {
+    color: var(--footer-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Tunn avdelare mot understa raden, som hos Airbnb. */
   .legal {
-    border-top: 1px solid var(--hairline);
-    padding-block: var(--s-4);
+    border-top: 1px solid var(--footer-rule);
+    padding-block: var(--s-6);
   }
 
+  .legal p {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    /* Var --text-muted mot vitt: 2,57:1, alltså under WCAG. */
+    color: var(--footer-ink-soft); /* 5,60:1 */
+  }
+
+  /* Surfplatta: märkeskolumnen lägger sig ovanför och tar hela bredden, de
+     tre listorna står kvar på rad. Två kolumner hade lämnat den tredje
+     listan ensam på en egen rad. */
   @media (max-width: 900px) {
-    .inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .about { grid-column: 1 / -1; }
+    .inner {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-12) var(--s-8);
+    }
+
+    .brand-col {
+      grid-column: 1 / -1;
+    }
   }
 
-  @media (max-width: 480px) {
+  /* Mobil: en kolumn, men fortfarande kolumner — varje lista får en egen
+     hårlinje så att strukturen syns. Utan den blir sidfoten en enda 25 rader
+     lång länklista. */
+  @media (max-width: 620px) {
     .inner {
       grid-template-columns: 1fr;
-      gap: var(--s-6);
+      gap: 0;
+      padding-block: var(--s-8);
+    }
+
+    .brand-col {
+      padding-bottom: var(--s-6);
+    }
+
+    nav.col {
+      border-top: 1px solid var(--footer-rule);
+      padding-block: var(--s-6);
+    }
+
+    nav.col:last-of-type {
+      padding-bottom: 0;
     }
   }
 </style>

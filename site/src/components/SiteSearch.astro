@@ -1,0 +1,700 @@
+---
+/**
+ * Sökfältet i sidhuvudet.
+ *
+ * Grundläget är ett vanligt formulär som postar till /sok. Det fungerar utan
+ * en rad JavaScript, och det är därför /sok ligger kvar även sedan länken
+ * försvann ur menyn: sidan är formulärets mål, inte en meningslös dubblett.
+ *
+ * Ovanpå det lägger skriptet förslagslistan. Registret (/sok-index.json,
+ * ~970 kB) hämtas FÖRST när någon fokuserar fältet. Sidhuvudet finns på
+ * 14 711 sidor — hämtades registret vid sidladdning skulle varje besök på
+ * varje restaurangsida dra ner en megabyte som de allra flesta aldrig
+ * använder. Efter första hämtningen ligger det i minnet resten av sidans liv
+ * och i webbläsarens cache (max-age=3600) resten av besöket.
+ *
+ * "Populära sökningar" renderas server-side. Panelen ska vara ifylld i samma
+ * ögonblick som fältet fokuseras, inte efter en hämtning. Vi har ingen
+ * söktrafik att räkna på än, så "populära" är i praktiken kommunerna med
+ * flest verksamheter — den bästa gissning vi kan göra utan att hitta på.
+ */
+import { establishments, municipalities } from '../lib/data';
+
+const POPULAR_COUNT = 5;
+
+const popular = municipalities()
+  .map((m) => ({ ...m, count: establishments(m.slug).length }))
+  .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, 'sv'))
+  .slice(0, POPULAR_COUNT);
+---
+
+<div class="site-search" data-sitesearch>
+  <form class="field" role="search" action="/sok" method="get">
+    <label class="visually-hidden" for="site-search-q">Sök verksamhet eller kommun</label>
+    <input
+      id="site-search-q"
+      name="q"
+      type="text"
+      placeholder="Sök restaurang, café eller kommun"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      data-input
+    />
+    <button type="submit" class="go" aria-label="Sök">
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.9" />
+        <path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+      </svg>
+    </button>
+  </form>
+
+  <div class="panel" hidden data-panel>
+    <p class="eyebrow head" id="site-search-head" data-head>Populära sökningar</p>
+
+    <ul
+      class="list"
+      id="site-search-list"
+      role="listbox"
+      aria-labelledby="site-search-head"
+      data-list
+    >
+      {popular.map((m, i) => (
+        <li role="presentation">
+          <a
+            href={`/${m.slug}`}
+            role="option"
+            id={`site-search-o${i}`}
+            aria-selected="false"
+          >
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" focusable="false">
+                <path
+                  d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+            </span>
+            <span class="body">
+              <span class="name">{m.city}</span>
+              <span class="meta">Kommun</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <p class="note" hidden data-note></p>
+  </div>
+</div>
+
+<style>
+  .site-search {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 380px;
+  }
+
+  /* Piller, som Airbnbs — men ETT fält. Knappen sitter inuti pillret och är
+     rund; den är fältets enda färgade yta och därmed dess tyngdpunkt. */
+  .field {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 40px;
+    padding: 3px 3px 3px var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .field:hover { border-color: var(--text-muted); }
+  .field:focus-within { border-color: var(--brand); }
+
+  /* Ringen ligger på pillret, inte på input-elementet: ett textfält matchar
+     alltid :focus-visible, och en ring runt den osynliga inre rutan hade
+     ritats tvärs över pillrets rundning. */
+  .field:has(input:focus-visible) {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .field input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: var(--fs-body-s);
+    color: var(--text);
+  }
+
+  .field input:focus { outline: none; }
+  .field input::placeholder { color: var(--text-muted); }
+
+  .go {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .go:hover { background: var(--brand-ink); }
+  .go svg { width: 18px; height: 18px; }
+
+  /* Samma svävande lager som platsväljaren bredvid. De två panelerna ligger
+     tio centimeter från varandra i sidhuvudet och måste läsa som syskon. */
+  .panel {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    left: 0;
+    z-index: 50;
+    width: 100%;
+    min-width: 340px;
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    background: color-mix(in srgb, var(--card) 82%, transparent);
+    /* Skriv aldrig -webkit-backdrop-filter för hand här — se PlacePicker. */
+    backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: var(--shadow-pop);
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .panel { background: var(--card); }
+  }
+
+  .head {
+    margin: var(--s-1) var(--s-2) var(--s-2);
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .list :global(a) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  .list :global(a:hover),
+  .list :global(a[data-active]) {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+
+  .list :global(.icon) {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+    color: var(--text-secondary);
+  }
+
+  .list :global(.icon svg) { width: 20px; height: 20px; }
+
+  .list :global(.body) {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list :global(.name),
+  .list :global(.meta) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list :global(.name) {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .list :global(.meta) {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .note {
+    margin: var(--s-2) var(--s-2) var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Under 900 px konkurrerar fältet med menyn om bredden; menyn får vika
+     först, den finns i sin helhet i sidfoten. */
+  @media (max-width: 900px) {
+    .site-search { max-width: 300px; }
+  }
+
+  @media (max-width: 640px) {
+    .site-search {
+      /* Panelen ankras till hela sidhuvudsraden i stället för till fältet.
+         Ett fält som börjar 110 px in på skärmen kan inte bära en panel som
+         är bredare än resten av raden. */
+      position: static;
+    }
+
+    /* 17px, inte 14: iOS zoomar in hela sidan när ett fokuserat fält har
+       mindre än 16 px text, och zoomen går inte tillbaka av sig själv. */
+    .field input { font-size: var(--fs-body); }
+
+    .panel {
+      left: var(--s-4);
+      right: var(--s-4);
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .field { padding-left: var(--s-3); }
+  }
+</style>
+
+<script>
+  /**
+   * Förslagslistan. Allt här är förstärkning — formuläret ovanför fungerar
+   * utan skript och postar till /sok.
+   */
+  interface Suggestion {
+    /** Raden som fyller fältet vid val och autoifyllnad. */
+    label: string;
+    /** Den dämpade underraden. */
+    meta: string;
+    href: string;
+    kind: 'kommun' | 'place' | 'query';
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-sitesearch]');
+
+  if (root) {
+    const input = root.querySelector<HTMLInputElement>('[data-input]')!;
+    const panel = root.querySelector<HTMLElement>('[data-panel]')!;
+    const list = root.querySelector<HTMLElement>('[data-list]')!;
+    const head = root.querySelector<HTMLElement>('[data-head]')!;
+    const note = root.querySelector<HTMLElement>('[data-note]')!;
+
+    /** Server-renderade populära sökningar, sparade för att kunna återställas. */
+    const popularHtml = list.innerHTML;
+
+    /** Så många förslag panelen visar. Fler blir en katalog, inte ett förslag. */
+    const MAX_SUGGESTIONS = 7;
+    /** Så många kandidater vi samlar per klass innan vi slutar leta. Långt
+     *  fler än vi visar: urvalet rankas efteråt, och de sju första i filens
+     *  ordning är inte de sju mest relevanta. */
+    const SCAN_CAP = 60;
+
+    // Rollerna sätts av skriptet. Utan skript finns ingen combobox, och då
+    // ska en skärmläsare heller inte få höra att det finns en.
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-controls', 'site-search-list');
+    input.setAttribute('aria-autocomplete', 'both');
+    input.setAttribute('aria-haspopup', 'listbox');
+
+    // ---- Registret ------------------------------------------------------
+
+    /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
+    type Row = [string, string, string, number, number];
+
+    let rows: Row[] = [];
+    /** Normaliserad "namn adress ort" per rad. Byggs en gång.
+     *  Att namnet ligger FÖRST är avsiktligt: en prefixträff på hela strängen
+     *  är därmed samma sak som en prefixträff på namnet. */
+    let hay: string[] = [];
+    let kommuner: Array<[string, string]> = [];
+    let loading: Promise<void> | null = null;
+    let failed = false;
+
+    function normalise(s: string) {
+      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    function loadIndex() {
+      if (loading) return loading;
+      loading = fetch('/sok-index.json')
+        .then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then((data) => {
+          kommuner = data.k;
+          rows = data.e;
+          hay = rows.map(([name, address, , k]) =>
+            normalise(`${name} ${address} ${kommuner[k][1]}`),
+          );
+        })
+        .catch(() => {
+          failed = true;
+        });
+      return loading;
+    }
+
+    // ---- Sökning --------------------------------------------------------
+
+    /**
+     * Kandidaterna i den ordning de rankas, indelade i klasser.
+     *
+     * Klasserna är inte kosmetik — de bär autoifyllnaden. En prefixträff på
+     * en kommun är entydig på ett sätt som en prefixträff på ett verksamhets-
+     * namn sällan är: "sto" träffar kommunen Stockholm och 112 verksamheter,
+     * och det är kommunen som är svaret.
+     */
+    function collect(q: string) {
+      const kommunPrefix: Suggestion[] = [];
+      const kommunLoose: Suggestion[] = [];
+      const namePrefix: Suggestion[] = [];
+      const loose: Suggestion[] = [];
+
+      for (let i = 0; i < kommuner.length; i++) {
+        const [slug, city] = kommuner[i];
+        const c = normalise(city);
+        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}`, kind: 'kommun' };
+        if (c.startsWith(q)) kommunPrefix.push(item);
+        else if (c.includes(q)) kommunLoose.push(item);
+      }
+
+      for (let i = 0; i < rows.length; i++) {
+        if (namePrefix.length >= SCAN_CAP && loose.length >= SCAN_CAP) break;
+        const h = hay[i];
+        const at = h.indexOf(q);
+        if (at < 0) continue;
+
+        const [name, address, slug, k] = rows[i];
+        const city = kommuner[k][1];
+        const item: Suggestion = {
+          label: name,
+          meta: address ? `${address} · ${city}` : city,
+          href: `/${kommuner[k][0]}/${slug}`,
+          kind: 'place',
+        };
+
+        if (at === 0) {
+          if (namePrefix.length < SCAN_CAP) namePrefix.push(item);
+        } else if (loose.length < SCAN_CAP) {
+          loose.push(item);
+        }
+      }
+
+      // Kortast namn först. Vi har ingen popularitetssignal att ranka med,
+      // och datafilens ordning är inte en. Längden är däremot ett rimligt
+      // mått på hur nära namnet ligger det skrivna: söker man "espresso
+      // house" ska "Espresso House" ligga före "Espresso House Gränden 4".
+      const byLength = (a: Suggestion, b: Suggestion) =>
+        a.label.length - b.label.length || a.label.localeCompare(b.label, 'sv');
+      namePrefix.sort(byLength);
+      loose.sort(byLength);
+
+      return { kommunPrefix, namePrefix, kommunLoose, loose };
+    }
+
+    const ICONS = {
+      kommun:
+        '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+      place:
+        '<path d="M3.6 8.4V16.4h12.8V8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2.6 8.4 4.4 3.6h11.2l1.8 4.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.4v-4.2h3.6v4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+      query:
+        '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    };
+
+    function escapeHtml(s: string) {
+      return s.replace(
+        /[&<>"]/g,
+        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+      );
+    }
+
+    function draw(items: Suggestion[]) {
+      list.innerHTML = items
+        .map(
+          (s, i) => `<li role="presentation"><a href="${escapeHtml(s.href)}" role="option"
+            id="site-search-o${i}" aria-selected="false">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false">${ICONS[s.kind]}</svg></span>
+            <span class="body"><span class="name">${escapeHtml(s.label)}</span><span class="meta">${escapeHtml(s.meta)}</span></span>
+          </a></li>`,
+        )
+        .join('');
+    }
+
+    // ---- Panelens tillstånd ---------------------------------------------
+
+    let options: HTMLAnchorElement[] = [];
+    let active = -1;
+
+    function refreshOptions() {
+      options = Array.from(list.querySelectorAll<HTMLAnchorElement>('a[role="option"]'));
+      active = -1;
+      input.removeAttribute('aria-activedescendant');
+    }
+
+    function setActive(i: number) {
+      const previous = options[active];
+      if (previous) {
+        previous.removeAttribute('data-active');
+        previous.setAttribute('aria-selected', 'false');
+      }
+      active = i;
+      const next = options[active];
+      if (!next) {
+        input.removeAttribute('aria-activedescendant');
+        return;
+      }
+      next.setAttribute('data-active', '');
+      next.setAttribute('aria-selected', 'true');
+      input.setAttribute('aria-activedescendant', next.id);
+      next.scrollIntoView({ block: 'nearest' });
+    }
+
+    function open() {
+      if (!panel.hidden) return;
+      panel.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      // Två svävande lager i samma sidhuvud får aldrig stå öppna samtidigt.
+      const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
+      if (picker) picker.open = false;
+    }
+
+    function close() {
+      if (panel.hidden) return;
+      panel.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      setActive(-1);
+    }
+
+    function say(text: string) {
+      note.textContent = text;
+      note.hidden = !text;
+    }
+
+    // ---- Rendering ------------------------------------------------------
+
+    /**
+     * Kan det skrivna fyllas ut entydigt?
+     *
+     * Regeln: den högst rankade klass som har prefixträffar måste innehålla
+     * exakt EN etikett. Träffar "stora c" två olika Stora Coop fylls inget i,
+     * precis som det ska. Att kommunklassen prövas först är det som gör att
+     * "sto" blir Stockholm trots att hundra verksamheter också börjar så.
+     */
+    function completionFor(groups: ReturnType<typeof collect>) {
+      const tier = groups.kommunPrefix.length ? groups.kommunPrefix : groups.namePrefix;
+      if (!tier.length) return null;
+      const distinct = new Set(tier.map((s) => s.label));
+      return distinct.size === 1 ? tier[0].label : null;
+    }
+
+    /** Sant när senaste ändringen var framåtskrivning, inte radering. */
+    let forward = false;
+
+    function render(allowComplete: boolean) {
+      const raw = input.value;
+      const q = normalise(raw.trim());
+
+      if (!q) {
+        list.innerHTML = popularHtml;
+        head.hidden = false;
+        say('');
+        refreshOptions();
+        return;
+      }
+
+      head.hidden = true;
+
+      if (!rows.length) {
+        list.innerHTML = '';
+        refreshOptions();
+        say(failed ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
+        return;
+      }
+
+      const groups = collect(q);
+      const items = [
+        ...groups.kommunPrefix,
+        ...groups.namePrefix,
+        ...groups.kommunLoose,
+        ...groups.loose,
+      ].slice(0, MAX_SUGGESTIONS);
+
+      // Sista raden går alltid till /sok. Panelen visar sju förslag; den som
+      // söker något bredare ska inte hamna i en återvändsgränd.
+      items.push({
+        label: raw.trim(),
+        meta: 'Visa alla träffar',
+        href: `/sok?q=${encodeURIComponent(raw.trim())}`,
+        kind: 'query',
+      });
+
+      draw(items);
+      refreshOptions();
+      say(items.length === 1 ? 'Ingen verksamhet och ingen kommun matchar.' : '');
+
+      if (!allowComplete || !forward) return;
+      // Utfyllnad bara vid framåtskrivning. Vid backsteg måste fältet lyda —
+      // annars går det inte att radera det man skrivit.
+      if (raw !== raw.trim() || q.length < 2) return;
+
+      const completion = completionFor(groups);
+      if (!completion || completion.length <= raw.length) return;
+      if (normalise(completion).slice(0, q.length) !== q) return;
+
+      input.value = raw + completion.slice(raw.length);
+      input.setSelectionRange(raw.length, input.value.length);
+      setActive(0);
+    }
+
+    // ---- Händelser ------------------------------------------------------
+
+    let lastLength = input.value.length;
+
+    input.addEventListener('focus', () => {
+      loadIndex().then(() => {
+        // Registret kan komma efter att fältet fått text. Rita om, men fyll
+        // inte i något — användaren kan ha markerat eller flyttat markören
+        // sedan dess.
+        if (document.activeElement === input) render(false);
+      });
+      open();
+      render(false);
+    });
+
+    input.addEventListener('input', (event) => {
+      const e = event as InputEvent;
+      if (e.isComposing) return;
+      forward = e.inputType
+        ? e.inputType.startsWith('insert')
+        : input.value.length > lastLength;
+      lastLength = input.value.length;
+      open();
+      render(true);
+      lastLength = input.value.length;
+    });
+
+    input.addEventListener('keydown', (event) => {
+      const key = event.key;
+
+      if (key === 'Escape') {
+        if (!panel.hidden) {
+          event.preventDefault();
+          close();
+        }
+        return;
+      }
+
+      if (key === 'ArrowDown' || key === 'ArrowUp') {
+        event.preventDefault();
+        if (panel.hidden) {
+          open();
+          render(false);
+        }
+        if (!options.length) return;
+        const step = key === 'ArrowDown' ? 1 : -1;
+        const next = (active + step + options.length + 1) % (options.length + 1);
+        // Ett varv går genom listan och tillbaka till fältet självt (-1), så
+        // att man kan bläddra sig ur listan utan att välja något.
+        setActive(next === options.length ? -1 : next);
+        return;
+      }
+
+      if (key === 'Enter') {
+        const chosen = options[active];
+        if (!panel.hidden && chosen) {
+          event.preventDefault();
+          window.location.assign(chosen.href);
+        }
+        // Annars får formuläret gå till /sok, precis som utan skript.
+        return;
+      }
+
+      if (key === 'Tab') close();
+    });
+
+    // Musen ska markera samma rad som tangentbordet skulle ha gjort.
+    list.addEventListener('mousemove', (event) => {
+      const link = (event.target as HTMLElement).closest('a[role="option"]');
+      if (!link) return;
+      const i = options.indexOf(link as HTMLAnchorElement);
+      if (i >= 0 && i !== active) setActive(i);
+    });
+
+    /**
+     * Att klicka på ett förslag ska ta en dit. Direkt.
+     *
+     * Det är svårare än det låter. Raderna ÄR länkar, men ett klick i panelen
+     * tar först fokus från fältet. Stänger vi panelen när fokus försvinner
+     * hinner raden försvinna innan musknappen släpps — klicket landar på
+     * sidan bakom och ingenting händer. Precis det felet fanns här: fältet
+     * fylldes i, men man kom ingenstans.
+     *
+     * Tre spärrar, för de tre vägarna in:
+     *  - mousedown utan default → mus flyttar aldrig fokus från fältet
+     *  - pointerdown-flaggan    → pekskärm, där fokus tappas ändå
+     *  - egen click-hanterare   → navigerar även om länkens default missas
+     */
+    panel.addEventListener('mousedown', (event) => event.preventDefault());
+
+    let pointerHeld = false;
+    panel.addEventListener('pointerdown', () => { pointerHeld = true; });
+    document.addEventListener('pointerup', () => { pointerHeld = false; });
+
+    list.addEventListener('click', (event) => {
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>(
+        'a[role="option"]',
+      );
+      if (!link) return;
+      const e = event as MouseEvent;
+      // Cmd/Ctrl/shift och mittenklick öppnar i ny flik — rör dem inte.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      event.preventDefault();
+      window.location.assign(link.href);
+    });
+
+    root.addEventListener('focusout', (event) => {
+      if (pointerHeld) return;
+      const to = (event as FocusEvent).relatedTarget as Node | null;
+      if (!to || !root.contains(to)) close();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!root.contains(event.target as Node)) close();
+    });
+
+    // Öppnas platsväljaren ska sökpanelen stänga, och tvärtom.
+    const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
+    if (picker) picker.addEventListener('toggle', () => { if (picker.open) close(); });
+  }
+</script>

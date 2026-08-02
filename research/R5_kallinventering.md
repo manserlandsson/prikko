@@ -17,16 +17,27 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Jönköping | 1 120 | ArcGIS REST | JSON + fritext | **WGS84 färdigt** | **Nej** | **Nej** |
 | Karlstad | 694 | GeoServer WFS | JSON | SWEREF 99 13 30 | **Nej** | **Nej** |
 | Örebro | 1 234 | REST + inbäddad JS | JSON + HTML | **Saknas** | Ja | **Ja, båda utfallen** |
+| Oskarshamn | 239 | ArcGIS REST | JSON | SWEREF 99 16 30 | **Nej** — ordet finns, betyder annat | **Nej** |
 
-Nästa att bygga: kontrollera Origo-mönstret mot **Västerås, Oskarshamn,
-Hallstahammar och Sjöbo** innan fler enskilda adaptrar skrivs.
+Nästa att bygga: **Lomma** (156 verksamheter, fyra HTML-sidor, avvikelser
+specificerade som fritext per område) och därefter **Höganäs** (333, färgen
+står i filnamnet). Se R6. Västerås och Hallstahammar publicerar inte längre
+trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
+av fallen — ingen av de tre är byggbar.
 
-Stockholms, Jönköpings och Karlstads avsaknad av "kvarstår" är skälet till att
-bedömningsmodellen härleder allvarsgraden ur mönstret i stället för ur
-etiketten (se `grading.py`). **Tre av fem källor saknar etiketten** — det var
-inget undantag, det är normalläget. Hade modellen byggt på etiketten hade
-bara Linköping och Uppsala någonsin kunnat visa allvarliga brister, och
-jämförbarheten mellan kommuner — hela poängen med Prikko — hade fallit.
+Stockholms, Jönköpings, Karlstads och Oskarshamns avsaknad av "kvarstår" är
+skälet till att bedömningsmodellen härleder allvarsgraden ur mönstret i
+stället för ur etiketten (se `grading.py`). **Fyra av sju källor saknar
+etiketten** — det var inget undantag, det är normalläget. Hade modellen byggt
+på etiketten hade bara Linköping, Uppsala och Örebro någonsin kunnat visa
+allvarliga brister, och jämförbarheten mellan kommuner — hela poängen med
+Prikko — hade fallit.
+
+Oskarshamn visar dessutom varför etiketten inte går att lita på ens när den
+ser ut att finnas: kommunen har ett värde som *heter* "Kvarstående
+avvikelser", men som betyder "det finns öppna avvikelser" — inte Linköpings
+"avvikelsen överlevde en uppföljning". Ord som ser lika ut betyder olika
+saker i olika kommuner. Se avsnittet nedan.
 
 ## Inlästa i detalj
 
@@ -127,6 +138,88 @@ från Stora torget, och ett tydligt kluster vid Bergviks köpcentrum. Det är
 alltså en enskild felregistrering hos kommunen. **Vi återger källan, vi
 rättar den inte** — men det är ett argument för att låta verksamheter
 korrigera sin position via rättelsefunktionen.
+
+### Oskarshamn — 239 verksamheter, HELA BESTÅNDET I SEX ANROP
+```
+https://gisrest.oskarshamn.se/server/rest/services/Externt
+  /Livsmedelskontroller_2024/MapServer/{0,2,3,4,5,6}
+  /query?where=1=1&outFields=*&outSR=3010&f=json
+```
+Restauranger (62), Caféer och bagerier (16), Kiosker (10), Butiker (41),
+Skolkök (21), Övriga (91) — 241 rader. Lager-id 1 finns inte; luckan är
+kommunens egen. Ingen token krävs, `maxRecordCount` är 2 000 och räcker.
+
+**Varning:** kommunens webbkarta pekar även på en tjänst
+`Externt/Livsmedelskontroller2`, som svarar `{"error":{"code":499,"message":
+"Token Required"}}`. Rätt tjänst är `Livsmedelskontroller_2024`, som trots
+årtalet innehåller kontroller in i juli 2026.
+
+Utfall vid inläsningen: 239 anläggningar (241 rader minus två som publicerats
+i två lager var), 214 kontroller, 208 bedömda — 151 utan anmärkningar, 57 med
+brister, 0 med kvarstående brister, 0 utmärkelser, 0 överhoppade.
+
+Fem saker som avgjorde bygget:
+
+- **`Bedomning` bär två skalor samtidigt.** Kommunen bytte kontrollmodell
+  1 januari 2024 och skriver det själv i kartan: före 2024 gavs
+  `Godtagbar` / `Ej godtagbar`, efter 2024 `Inga avvikelser` / `Kvarstående
+  avvikelser`. Uppdelningen syns i datan utan undantag — alla 7 `Godtagbar`
+  har tillsynsdatum före 2024-01-01, alla 209 av den nya modellen efter.
+- **"Godtagbar" betyder godkänd**, precis som i Linköping. Tre oberoende
+  belägg: lagrets egen ArcGIS-renderer grupperar `Godtagbar` och `Inga
+  avvikelser` i samma klass ("Inga avvikelser | Godtagbar"); oskarshamn.se
+  beskriver båda som blå symbol, *"Företaget är godtagbart eller eventuella
+  brister är inte allvarliga"*; och alla 7 har `AntalKvarstAvvikelser = 0`.
+- **"Kvarstående avvikelser" är INTE Linköpings "Kvarstår".** Det betyder
+  "det finns öppna avvikelser", inte "avvikelsen överlevde en uppföljning".
+  Kommunens läsanvisning ställer värdet mot "inte finns några avvikelser" som
+  ett tvåvärt val, och de två delar hela den kontrollerade populationen
+  (152 + 57 = 209 av 209) — fanns ett tredje tillstånd skulle det synas.
+  Andelen säger samma sak: 27 %, mot under en procent i kommuner som verkligen
+  mäter kvarstående efter uppföljning (Linköping: 4 av 1 241). Värdet mappas
+  därför till *mindre* anmärkning. Källan saknar både historik och
+  kontrolltyp, så `grading.py` kan aldrig skärpa till allvarlig i
+  Oskarshamn — samma asymmetri som i Karlstad, och den hör hemma på
+  metodiksidan.
+- **`Bedomning = null` betyder ALDRIG KONTROLLERAD**, inte godkänd. Exakt de
+  25 rader som saknar värdet saknar också `TillsynsDatum`. De blir obedömda
+  och no-indexerade. Ytterligare 6 föll ur treårsfönstret (gamla modellens
+  `Godtagbar`, äldst 2019-03-19).
+- **`AnlaggningId` är en riktig identitet** — ett GUID ur ärendesystemet, 239
+  distinkta. Det behövs: `Ik Oskarshamn` förekommer två gånger på
+  Döderhultsvägen 5A med skilda GUID, så Jönköpings hash av namn+adress hade
+  slagit ihop två verksamheter till en. ArcGIS `ESRI_OID` duger inte alls —
+  det är unikt per lager, bara 91 distinkta värden för 241 rader.
+
+**Unikt för källan: `AntalKvarstAvvikelser` är ett numeriskt mått**, 0–5, och
+den första källa vi sett som anger HUR MÅNGA avvikelser som är öppna:
+
+| Öppna avvikelser | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---:|---:|---:|---:|---:|---:|
+| Verksamheter | 183 | 38 | 12 | 5 | 2 | 1 |
+
+Sambandet mot etiketten är exakt och används som oberoende facit i adaptern,
+på samma sätt som Jönköpings `har_avvikelse`: `Inga avvikelser` / `Godtagbar`
+har alltid 0, `Kvarstående avvikelser` alltid minst 1. Gällde i 241 fall av
+241. Ett känt undantag finns — `Mäster palm enhet 2` har 2 kvarstående
+avvikelser men varken datum eller bedömning, och blir obedömd.
+
+Datamodellen har ingen kolumn för måttet. Det bärs vidare i JSON-utdatan som
+`openDeviations` per kontroll så att det inte tappas, och förslaget är en
+nullbar `open_deviations integer` på `inspections`. Ändringen är medvetet inte
+gjord: den berör alla kommuner och bör tas när en andra källa levererar samma
+mått, så att kolumnen betyder samma sak tvärs över källor.
+
+Två begränsningar: **ingen historik** (en rad per anläggning, senaste
+kontrollen) och **avvikelserna specificeras inte** — fältet
+`AvvikelseAnteckningar` finns i schemat men är null i samtliga 241 rader.
+
+Koordinaterna kommer i SWEREF 99 16 30 (EPSG:3010), en zon `geo.py` inte hade
+sedan tidigare. Transformen validerades mot serverns egen omprojicering: hämtas
+samma lager med `outSR=4326` skiljer vår beräkning på nionde decimalen, cirka
+en tiondels millimeter över alla 62 punkter i lager 0. En verksamhet
+(`Klintemåla vattenverk`) har `x=16, y=57` — någon har skrivit WGS84-grader i
+ett SWEREF-fält — och fångas av `looks_like_sweden()`.
 
 ## Kartlagd, ej inläst
 
