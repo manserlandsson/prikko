@@ -18,12 +18,12 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Karlstad | 694 | GeoServer WFS | JSON | SWEREF 99 13 30 | **Nej** | **Nej** |
 | Örebro | 1 234 | REST + inbäddad JS | JSON + HTML | **Saknas** | Ja | **Ja, båda utfallen** |
 | Oskarshamn | 239 | ArcGIS REST | JSON | SWEREF 99 16 30 | **Nej** — ordet finns, betyder annat | **Nej** |
+| Lomma | 153 | Öppen webbsida | **HTML, handredigerad** | **Saknas** | **Nej** | **Ja, fritext per område** |
 
-Nästa att bygga: **Lomma** (156 verksamheter, fyra HTML-sidor, avvikelser
-specificerade som fritext per område) och därefter **Höganäs** (333, färgen
-står i filnamnet). Se R6. Västerås och Hallstahammar publicerar inte längre
-trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
-av fallen — ingen av de tre är byggbar.
+Nästa att bygga: **Höganäs** (333, färgen står i filnamnet). Se R6. Västerås
+och Hallstahammar publicerar inte längre trots vad deras egna sidor påstår,
+och Sjöbos HTML motsäger sig själv i 19 % av fallen — ingen av de tre är
+byggbar.
 
 Stockholms, Jönköpings, Karlstads och Oskarshamns avsaknad av "kvarstår" är
 skälet till att bedömningsmodellen härleder allvarsgraden ur mönstret i
@@ -220,6 +220,69 @@ samma lager med `outSR=4326` skiljer vår beräkning på nionde decimalen, cirka
 en tiondels millimeter över alla 62 punkter i lager 0. En verksamhet
 (`Klintemåla vattenverk`) har `x=16, y=57` — någon har skrivit WGS84-grader i
 ett SWEREF-fält — och fångas av `looks_like_sweden()`.
+
+### Lomma — 153 verksamheter, FYRA ANROP, men helt handredigerad
+```
+https://lomma.se/jobbochforetagande/tillstandreglerochtillsyn/livsmedel
+  /livsmedelsinspektioner/{restaurangerochcafeer.1220, butiker.1219,
+   skolorforskolorochannanomsorg.1221, ovrigaverksamheter.1222}.html
+```
+Restauranger och caféer (60), Butiker (19), Skolor och omsorg (40), Övriga
+(38) — 157 poster, 154 distinkta namn. R6 räknade 156 i juli; sidorna
+redigeras för hand och beståndet rör sig.
+
+Utfall vid inläsningen: 153 anläggningar, 150 kontroller, 128 bedömda — 57
+utan anmärkningar, 69 med brister, 2 med kvarstående brister, 0 utmärkelser,
+1 överhoppad.
+
+Fem saker som avgjorde bygget:
+
+- **Grön prick betyder INTE felfri.** Kommunens egen läsanvisning säger
+  "inga eller ett fåtal avvikelser som inte leder till en extra kontroll",
+  och 67 av 143 gröna poster räknar upp avvikelser i texten. Omdömet inom
+  grönt avgörs därför av avvikelsetexten, inte av färgen. Annars hade sidan
+  skrivit "inga anmärkningar" ovanför en lista med anmärkningar.
+- **Följden är att Lomma ser sämre ut än alla andra inlästa kommuner:**
+  54 % med anmärkning, mot Jönköpings 14 %, Karlstads 21 % och Oskarshamns
+  27 %. Det är samma REGEL som i de andra kommunerna — varje noterad
+  avvikelse ger mindre anmärkning — men Lomma redovisar avvikelser mer
+  finkornigt. Skillnaden är alltså troligen redovisningspraxis, inte hygien,
+  och den hör hemma på metodiksidan tillsammans med Karlstads och
+  Oskarshamns motsatta asymmetri. Skulle vi i stället låta färgen ensam
+  bestämma landade Lomma på 8 % och såg konstlat rent ut.
+- **Gul prick är MINDRE anmärkning.** "Avvikelser som leder till en extra
+  kontroll" beskriver en uppföljning som ska ske, inte en avvikelse som
+  överlevt en. Samma fälla som Oskarshamns "Kvarstående avvikelser". Röd är
+  däremot strängare definierad än de flesta källors högsta nivå: den kräver
+  myndighetsåtgärd, föreläggande eller förbud.
+- **Läsanvisningen kontrolleras vid varje körning.** Färgen är hela omdömet,
+  och det enda som binder färgen till en betydelse är texten överst på
+  sidan. Ändras den stoppar inläsningen. Antalet poster stäms dessutom av
+  mot antalet "Senaste inspektion" i innehållet, så att en post som hamnar
+  utanför en färgrubrik räknas i stället för att tappas tyst. Det är den
+  konsistenskontroll R6 efterlyste för handredigerade källor.
+- **Identiteten hashas ur namnet**, eftersom kommunen varken publicerar id
+  eller adress. Sidans rubrik ingår inte i nyckeln: flyttas en verksamhet
+  mellan sidorna ska URL och historik följa med. Tre namn står på två sidor
+  var; de slås ihop till en verksamhet med alla sidors typer, och den
+  senast daterade posten avgör omdömet. Att i stället bygga en historik av
+  två poster hade varit farligt — `grading.py` läser föregående kontroll som
+  tecken på kvarstående brist, och Lomma publicerar bara senaste kontrollen.
+
+Handredigeringen syns i datan: 20 textformer för 15 kontrollområden med
+stavfelen `tempratur`, `persolig hygien`, `personlig hygie`, `utforming av
+lokal` och tre stavningar av `separering allergener`; åtta former av "inga
+avvikelser"; tre poster under en färgrubrik utan datum; en post med
+`2025-11-?` som datum (skippas — ett kontrolldatum får inte avrundas fram);
+och en gul post där frasen "inga avvikelser" står kvar hopskriven med nästa
+område (`inga avvikelserseparering avfall, svårstädad lokal, förvaring`).
+Den sista behåller sitt omdöme, eftersom färgen är entydig, men märks
+`uncertain` för att områdeslistan är ofullständig.
+
+**Ingen adress publiceras**, bara namn. Därmed går inte heller
+`pipeline/geocode.py` att använda: Lomma får inga kartnålar alls. Ingen
+historik och ingen kontrollorsak heller, så utmärkelsen kan aldrig nås och
+`grading.py` kan aldrig skärpa ett gult till allvarligt.
 
 ## Kartlagd, ej inläst
 
