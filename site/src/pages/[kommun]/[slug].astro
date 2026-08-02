@@ -300,6 +300,10 @@ const breadcrumbs = {
      Märket har rx 17 på ett 100-rutnät och renderas i 52 px, alltså 8,8 px
      radie; plus 6 px utanförliggande inset blir ytterradien knappt 15.
 
+     Kanten ligger I LIV med märket, inte utanför det: inset 0 och samma
+     radie som märkets egen, så den läser som märkets kant och inte som en
+     ring runt omkring.
+
      Två tekniker samverkar:
      1) Gradientkant. Ett vanligt `border` kan inte ha gradient. Elementet
         får därför gradienten som bakgrund, en padding lika bred som kanten,
@@ -318,9 +322,11 @@ const breadcrumbs = {
   .markring.spins::before {
     content: '';
     position: absolute;
-    inset: -6px;
-    border-radius: 15px;
-    padding: 2.5px;
+    /* I liv med märket: inset 0 och samma radie som märkets egen.
+       Märket har rx 17 på ett 100-rutnät och renderas i 52 px → 8,8 px. */
+    inset: 0;
+    border-radius: 8.8px;
+    padding: 1.5px;
     background: conic-gradient(
       from var(--prikko-sweep),
       rgba(124, 229, 143, 0) 0deg,
