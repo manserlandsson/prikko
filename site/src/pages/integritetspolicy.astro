@@ -1,0 +1,408 @@
+---
+/**
+ * Integritetspolicy.
+ *
+ * ============================================================================
+ * UTKAST. INTE GRANSKAT AV JURIST. INTE JURIDISK RÅDGIVNING.
+ * Sidan är skriven för att en advokat ska kunna granska den snabbt, inte för
+ * att publiceras som den är. Ingenting här är ett avgjort rättsläge.
+ * ============================================================================
+ *
+ * Underlag: research/R4_juridik_utgivningsbevis.md (sammanställd 2026-08-02).
+ * Den rapporten är förutsättningen för den här sidan och motsägs inte här.
+ *
+ * FAKTAGRUND, verifierad i koden 2026-08-02:
+ *  - Sajten är statisk (Astro SSG). Ingen inloggning, inga konton, ingen
+ *    formulärinlämning, ingen databas mot besökaren.
+ *  - Inga kakor sätts. Ingen webbanalys är installerad (kontrollerat mot
+ *    package.json, Base.astro och byggd dist/).
+ *  - Enda tredjepartsanropet från besökarens webbläsare är Mapbox Static
+ *    Images API på restaurangsidorna, se LocationMap.astro.
+ *  - StreetPhoto.astro finns men ingen datamängd innehåller ännu `image`.
+ *    Om Mapillary-bilder börjar serveras från Mapillarys egen domän i stället
+ *    för vår, blir det en tredje part till och sidan måste uppdateras.
+ *  - Supabase finns i pipelinen (serverledet), aldrig i besökarens webbläsare.
+ *  - Platstjänsten i PlacePicker.astro läser koordinaten i webbläsaren och
+ *    skickar den aldrig vidare. Verifierat i källkoden.
+ *
+ * ADVOKATEN MÅSTE TA STÄLLNING TILL (numren återkommer i rapporten):
+ *  A1. Enskild firma. Verksamhetsnamnet är ofta en fysisk persons namn och
+ *      adressen kan vara hemadress. Är publiceringen av kontrollresultat om
+ *      dem personuppgiftsbehandling, och i så fall i vilken omfattning?
+ *  A2. Förhållandet utgivningsbevis / GDPR efter C-199/24 (9 juli 2026).
+ *      Utkastet utgår från att GDPR gäller parallellt och att 1 kap. 7 §
+ *      dataskyddslagen bara kan åberopas i den mån verksamheten faktiskt
+ *      uppfyller domstolens kriterier. Är den formuleringen rätt vald?
+ *  A3. Radering av en bedömning som bygger på en allmän handling. Utkastet
+ *      lovar prövning, inte utfall. Räcker det?
+ *  A4. Artikel 22. Bedömningen räknas fram maskinellt. Är det ett
+ *      automatiserat beslut med rättslig verkan eller liknande betydande
+ *      påverkan för en enskild firma?
+ *  A5. Dataskyddsombud enligt artikel 37.1 b. Publicering i skala, men är det
+ *      "regelbunden och systematisk övervakning"?
+ *  A6. Är Mapbox personuppgiftsbiträde eller självständigt ansvarig för det
+ *      anrop besökarens webbläsare gör? Utkastet påstår ingetdera.
+ *  A7. Intresseavvägningen enligt artikel 6.1 f är inte dokumenterad. Den
+ *      måste finnas skriftligt innan sidan publiceras.
+ *  A8. Konsekvensbedömning enligt artikel 35. Storskalig publicering av
+ *      uppgifter med negativ laddning talar för att en DPIA krävs.
+ *
+ * Sidan ska indexeras. Den är inte innehåll vi vill ranka på, men den ska gå
+ * att hitta och citera.
+ */
+import Base from '../layouts/Base.astro';
+import { PUBLISHER } from '../lib/site';
+
+const UPDATED = '2 augusti 2026';
+---
+
+<Base
+  title="Integritetspolicy"
+  description="Så behandlar Prikko personuppgifter: vilka uppgifter som publiceras om verksamheter, vad som händer när du besöker sajten, och vilka rättigheter du har."
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Integritetspolicy</p>
+      <h1>Hur vi hanterar personuppgifter</h1>
+      <p class="lede text-secondary">
+        Prikko publicerar kommunernas offentliga livsmedelskontroller. Det
+        mesta vi visar handlar om företag, inte om personer. Men en del av det
+        är ändå personuppgifter, och då gäller dataskyddsförordningen. Här står
+        vad vi gör, varför, och vad du kan kräva av oss.
+      </p>
+      <p class="text-muted meta">Senast uppdaterad {UPDATED}.</p>
+    </header>
+
+    <section>
+      <h2>Kort version</h2>
+      <ul class="plain">
+        <li>Vi har ingen inloggning, inga konton och ingen spårning.</li>
+        <li>Vi sätter inga kakor. <a href="/cookies/">Läs mer om kakor</a>.</li>
+        <li>Vi säljer aldrig uppgifter vidare.</li>
+        <li>
+          Det som kan vara personuppgifter är i första hand uppgifter om
+          verksamheter som drivs som enskild firma, eftersom firmanamnet ofta
+          är en persons namn.
+        </li>
+        <li>
+          Anser du att en uppgift är fel eller inte borde ligga uppe kan du
+          höra av dig. Vi prövar varje begäran.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Vem som ansvarar</h2>
+      <p>
+        Prikko är ett varumärke. Bakom det står {PUBLISHER.legalName}, som är
+        personuppgiftsansvarig för behandlingen på den här webbplatsen.
+      </p>
+      <dl class="facts">
+        <div><dt>Företag</dt><dd>{PUBLISHER.legalName}</dd></div>
+        <div><dt>Organisationsnummer</dt><dd>{PUBLISHER.orgNumber}</dd></div>
+        <div><dt>Momsregistreringsnummer</dt><dd>{PUBLISHER.vatNumber}</dd></div>
+        <div>
+          <dt>Kontakt i dataskyddsfrågor</dt>
+          <dd><a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a></dd>
+        </div>
+      </dl>
+      <p class="text-secondary">
+        Vi har inget dataskyddsombud. Skriv till adressen ovan, så hanteras
+        ärendet av den som ansvarar för tjänsten.
+      </p>
+    </section>
+
+    <section>
+      <h2>Uppgifter om verksamheter</h2>
+      <p>
+        Det här är kärnan i tjänsten, och det är här dataskyddsfrågan faktiskt
+        uppstår.
+      </p>
+
+      <h3>Varifrån uppgifterna kommer</h3>
+      <p>
+        Vi samlar inte in uppgifterna från verksamheterna själva. De kommer
+        från kommunernas livsmedelskontroll och är allmänna handlingar. Varje
+        källa redovisas öppet. <a href="/kallor/">Se källor och hämtdatum</a>.
+      </p>
+
+      <h3>Vad vi publicerar</h3>
+      <ul class="plain">
+        <li>Verksamhetens namn och besöksadress.</li>
+        <li>Ungefärlig position på karta.</li>
+        <li>Typ av verksamhet, till exempel restaurang eller kafé.</li>
+        <li>
+          Datum för kommunens kontroller, vilken sorts kontroll det var, och
+          vad kommunen noterade.
+        </li>
+        <li>
+          Vår egen bedömning, uträknad ur kommunens uppgifter enligt en
+          <a href="/metodik/">öppet publicerad metodik</a>.
+        </li>
+      </ul>
+
+      <h3>Vad vi aldrig publicerar</h3>
+      <ul class="plain">
+        <li>
+          Organisationsnummer för enskild firma. För en enskild firma är
+          organisationsnumret innehavarens personnummer.
+        </li>
+        <li>Personnummer i någon form.</li>
+        <li>Folkbokföringsadresser. Bara verksamhetsställets adress.</li>
+        <li>Namn på inspektörer, anställda eller andra enskilda personer.</li>
+      </ul>
+
+      <h3>När det är personuppgifter</h3>
+      <p>
+        Ett aktiebolag är ingen fysisk person, och uppgifter om bolaget är
+        därför normalt inte personuppgifter. En enskild firma är däremot inte
+        skild från sin innehavare. Heter verksamheten samma sak som personen
+        som driver den, är uppgiften om verksamheten också en uppgift om
+        personen. Den gruppen är vanlig bland små restauranger, och det är
+        främst för den här policyn finns.
+      </p>
+      <p class="callout">
+        Vi bygger varje sida runt anläggningen, inte runt näringsidkaren.
+        Rubriken är serveringsstället. Det är ett medvetet val, just för att
+        hålla nere hur mycket sidan handlar om en person.
+      </p>
+
+      <h3>Rättslig grund</h3>
+      <p>
+        Vi stödjer publiceringen på berättigat intresse enligt artikel 6.1 f i
+        dataskyddsförordningen. Intresset är att göra offentlig
+        livsmedelskontroll begriplig och jämförbar för allmänheten. Det är
+        samma intresse som gör att kommunerna publicerar uppgifterna från
+        början.
+      </p>
+      <p>
+        Vi lämnar också in ansökan om utgivningsbevis. Ett utgivningsbevis ger
+        skydd enligt yttrandefrihetsgrundlagen, och 1 kap. 7 § lagen (2018:218)
+        med kompletterande bestämmelser till EU:s dataskyddsförordning
+        undantar behandling för journalistiska ändamål från stora delar av
+        förordningen. Vi vill vara raka med hur vi ser på det: EU-domstolen
+        slog i mål C-199/24 den 9 juli 2026 fast att ett utgivningsbevis inte
+        i sig räcker för att GDPR ska sättas åt sidan. Vi utgår därför från
+        att dataskyddsförordningen gäller parallellt, och vi hanterar
+        begäranden som om den gör det.
+      </p>
+      <p>
+        Att vi informerar här på sidan i stället för att kontakta varje
+        verksamhet följer artikel 14.5 b. Uppgifterna kommer från allmänna
+        handlingar och rör tusentals verksamheter. Att skriva till var och en
+        vore inte rimligt.
+      </p>
+
+      <h3>Hur länge uppgifterna ligger uppe</h3>
+      <p>
+        Vi visar kontroller från de senaste åren och sätter ingen bedömning
+        alls om den senaste kontrollen är äldre än tre år. Historiken finns
+        kvar på verksamhetens sida så länge kommunen redovisar den, eftersom
+        en enskild kontroll blir missvisande utan sitt sammanhang.
+      </p>
+      <p class="text-secondary">
+        Vi sparar också ögonblicksbilder av publicerade sidor. Det krävs av
+        den som har utgivningsbevis, och det gör att en tidigare bedömning
+        alltid går att härleda.
+      </p>
+    </section>
+
+    <section>
+      <h2>Uppgifter om dig som besöker Prikko</h2>
+      <p>
+        Sajten är statisk. Det finns inget konto att skapa, inget formulär att
+        skicka och ingenting som sparas om dig mellan besöken.
+      </p>
+
+      <h3>Vad värdtjänsten registrerar</h3>
+      <p>
+        Som på varje webbplats registrerar servern att ett anrop kommit in.
+        Det innebär IP-adress, tidpunkt, vilken sida som hämtades och vilken
+        webbläsare som användes. Vi använder det för drift och säkerhet, till
+        exempel för att stoppa överbelastning. Vi kopplar det inte till någon
+        person och vi bygger inga profiler.
+      </p>
+      <p>
+        Rättslig grund är berättigat intresse enligt artikel 6.1 f: att kunna
+        hålla tjänsten uppe och skydda den mot angrepp.
+      </p>
+
+      <h3>Kartbilder</h3>
+      <p>
+        Kartan på en verksamhets sida är en bild som hämtas från Mapbox. När
+        sidan laddas går alltså din IP-adress till Mapbox, precis som till
+        vilken bildserver som helst. Mapbox Inc. är amerikanskt och är
+        anslutet till EU:s och USA:s dataskyddsram, Data Privacy Framework.
+      </p>
+
+      <h3>Platstjänsten</h3>
+      <p>
+        Väljer du "min plats" i platsväljaren frågar webbläsaren om lov och
+        räknar sedan ut vilken kommun som ligger närmast. Det sker helt i din
+        webbläsare. Din position skickas aldrig till oss och lämnar aldrig din
+        enhet.
+      </p>
+
+      <h3>Sökfunktionen</h3>
+      <p>
+        Sökningen körs i din webbläsare mot en lista som laddas ned från vår
+        egen server. Vad du söker på skickas aldrig till oss.
+      </p>
+    </section>
+
+    <section>
+      <h2>När du mejlar oss</h2>
+      <p>
+        Skriver du till oss behandlar vi det du skickar för att kunna svara och
+        för att kunna visa att vi hanterat ärendet. Rättslig grund är
+        berättigat intresse, och för begäranden enligt dataskyddsförordningen
+        vår rättsliga förpliktelse enligt artikel 6.1 c.
+      </p>
+      <p>
+        Vi sparar korrespondens om rättelser och dataskyddsärenden så länge det
+        behövs för att kunna visa hur ärendet hanterats, och rensar därefter.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vilka som får se uppgifterna</h2>
+      <p>
+        Vi säljer inte och lämnar inte ut personuppgifter för andras
+        marknadsföring. De som ändå behandlar uppgifter åt oss är
+        leverantörerna av värdtjänst, e-post och den databas där kontrollerna
+        lagras. De arbetar på vårt uppdrag och enligt avtal.
+      </p>
+      <p>
+        Det som publiceras på sajten är däremot offentligt. Det är hela
+        poängen med tjänsten.
+      </p>
+    </section>
+
+    <section>
+      <h2>Överföring utanför EU och EES</h2>
+      <p>
+        Kartbilderna hämtas från Mapbox i USA, som beskrivits ovan. I övrigt
+        strävar vi efter att data ska ligga inom EU och EES. Använder en
+        leverantör servrar utanför området sker överföringen med stöd av
+        EU-kommissionens beslut om adekvat skyddsnivå eller
+        standardavtalsklausuler.
+      </p>
+    </section>
+
+    <section>
+      <h2>Dina rättigheter</h2>
+      <p>
+        Är du en fysisk person vars personuppgifter vi behandlar har du rätt
+        att:
+      </p>
+      <ul class="plain">
+        <li>få veta vilka uppgifter vi behandlar om dig, och få en kopia,</li>
+        <li>få felaktiga uppgifter rättade,</li>
+        <li>begära radering,</li>
+        <li>begära att behandlingen begränsas medan något utreds,</li>
+        <li>
+          invända mot behandling som vi stödjer på berättigat intresse. Då
+          slutar vi, om vi inte kan visa tvingande berättigade skäl som väger
+          tyngre än dina.
+        </li>
+      </ul>
+      <p>
+        Hör av dig till <a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>.
+        Vi svarar normalt inom en månad.
+      </p>
+      <p class="callout">
+        Är du inte nöjd med hur vi hanterat dina uppgifter kan du klaga till
+        Integritetsskyddsmyndigheten, IMY. Box 8114, 104 20 Stockholm,
+        <a href="https://www.imy.se/">imy.se</a>, imy@imy.se, 08-657 61 00.
+        Du behöver inte gå via oss först.
+      </p>
+    </section>
+
+    <section>
+      <h2>Om du driver en verksamhet som finns på Prikko</h2>
+      <p>
+        Du har rätt att få fel rättade och rätt att kommentera en kontroll.
+        Kommentaren publiceras oredigerad bredvid bedömningen, och vi lägger
+        inte till ett bemötande i samma text.
+        <a href="/ratta/">Så begär du rättelse eller lämnar en kommentar</a>.
+      </p>
+      <p>
+        Är det kommunens egen uppgift som är fel ska den rättas hos kommunen,
+        eftersom vi speglar deras handling. Hör ändå av dig, så markerar vi
+        uppgiften som bestridd medan den utreds.
+      </p>
+      <p>
+        Vill du att en bedömning tas bort helt prövar vi begäran. Vi vill vara
+        ärliga om vad den prövningen innebär: uppgiften kommer från en allmän
+        handling som kommunen själv publicerat, och allmänintresset av att den
+        är tillgänglig väger tungt. Vi kan alltså inte lova radering på
+        förhand. Vi lovar att pröva varje begäran individuellt, att svara med
+        skäl, och att tala om att du kan vända dig till IMY om du är oenig.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ändringar</h2>
+      <p>
+        Ändrar vi den här policyn uppdaterar vi datumet överst. Rättsläget
+        kring publicering av offentlig data om namngivna verksamheter rör sig
+        just nu, och sidan kommer att ändras när det gör det.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 42px; margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+  .meta { margin-top: var(--s-3); font-size: var(--fs-caption); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section h3 {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .plain { margin: 0; padding-left: var(--s-4); }
+  .plain li { margin-top: var(--s-3); line-height: 26px; }
+
+  .facts {
+    display: grid;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    margin: var(--s-4) 0 0;
+  }
+
+  .facts > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    justify-content: space-between;
+    padding: var(--s-3) var(--s-4);
+  }
+
+  .facts > div + div { border-top: 1px solid var(--hairline); }
+  .facts dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
+  .facts dd { margin: 0; font-size: var(--fs-body-s); font-weight: 600; }
+
+  .callout {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+</style>

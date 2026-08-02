@@ -1,0 +1,163 @@
+---
+/**
+ * Kakor.
+ *
+ * ============================================================================
+ * UTKAST. INTE GRANSKAT AV JURIST. INTE JURIDISK RÅDGIVNING.
+ * ============================================================================
+ *
+ * Sidan beskriver ett faktiskt tillstånd, inte en tänkt cookiebanner. Läget
+ * kontrollerat i koden 2026-08-02:
+ *  - Ingen kod i site/src sätter document.cookie, localStorage eller
+ *    sessionStorage. Kontrollerat med sökning över hela src/.
+ *  - Ingen webbanalys finns installerad. package.json har fyra beroenden:
+ *    @astrojs/sitemap, @fontsource-variable/instrument-sans, astro och
+ *    maplibre-gl. Det sista används inte i någon renderad komponent.
+ *  - Typsnittet är självhostat via fontsource. Inga Google Fonts.
+ *  - Byggd output innehåller inga externa värdar utom api.mapbox.com på
+ *    restaurangsidorna.
+ *
+ * DÄRFÖR: ingen samtyckesruta. En banner som frågar om lov att sätta kakor
+ * som inte finns är både falsk och irriterande.
+ *
+ * REGELN: 9 kap. 28 § lagen (2022:482) om elektronisk kommunikation. Den
+ * kräver informerat samtycke innan uppgifter lagras i eller hämtas från
+ * användarens terminalutrustning, med undantag för överföring och för det som
+ * är absolut nödvändigt för en tjänst användaren uttryckligen begärt. PTS är
+ * tillsynsmyndighet för den bestämmelsen, IMY för dataskyddet.
+ * ADVOKAT: verifiera paragrafnumret och lydelsen mot SFS. Numret är belagt
+ * via PTS tillsynsdokumentation, inte läst i författningstexten i original.
+ *
+ * ADVOKATEN MÅSTE TA STÄLLNING TILL:
+ *  C1. Sätter Mapbox Static Images API någon kaka i svarshuvudet när
+ *      besökarens webbläsare hämtar kartbilden? Det är en <img>-hämtning, men
+ *      en Set-Cookie i svaret vore ändå lagring i terminalutrustningen. MÅSTE
+ *      mätas i en riktig webbläsare innan sidan publiceras. Gör den det krävs
+ *      antingen samtycke eller att kartbilden proxas via vår egen domän.
+ *  C2. Om Mapillary-bilder börjar serveras direkt från Mapillarys domän, se
+ *      StreetPhoto.astro, gäller samma fråga där.
+ *
+ * UNDERHÅLLSREGEL: läggs webbanalys, inbäddad video, delningsknappar eller
+ * något annat tredjepartsskript till, är den här sidan osann samma dag. Då
+ * krävs samtyckesruta först.
+ */
+import Base from '../layouts/Base.astro';
+import { PUBLISHER } from '../lib/site';
+
+const UPDATED = '2 augusti 2026';
+---
+
+<Base
+  title="Kakor"
+  description="Prikko sätter inga kakor och har ingen spårning. Här står vad det betyder, vad som ändå händer tekniskt när du besöker sajten, och vilken regel som gäller."
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Kakor</p>
+      <h1>Prikko sätter inga kakor</h1>
+      <p class="lede text-secondary">
+        Därför finns det ingen ruta att klicka bort. Vi lagrar ingenting i din
+        webbläsare, vi känner inte igen dig mellan besöken och vi har ingen
+        spårning installerad.
+      </p>
+      <p class="text-muted meta">Senast uppdaterad {UPDATED}.</p>
+    </header>
+
+    <section>
+      <h2>Vad vi inte har</h2>
+      <ul class="plain">
+        <li>Inga kakor, varken egna eller andras.</li>
+        <li>Ingen webbanalys och ingen statistik om enskilda besökare.</li>
+        <li>Inga annonsnätverk och inga spårpixlar.</li>
+        <li>Inga delningsknappar från sociala medier.</li>
+        <li>Inget sparat i webbläsarens lokala lagring.</li>
+      </ul>
+      <p>
+        Sajten är statisk. Sidorna byggs i förväg och skickas färdiga. Det
+        finns ingenting som behöver komma ihåg vem du är.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vad som ändå händer när du besöker oss</h2>
+      <p>
+        Två saker sker som inte är kakor men som ändå är värda att nämna, för
+        att du ska ha hela bilden.
+      </p>
+      <h3>Serverns loggar</h3>
+      <p>
+        Vår värdtjänst registrerar att ett anrop kommit in: IP-adress,
+        tidpunkt, sida och webbläsare. Det används för drift och säkerhet.
+        <a href="/integritetspolicy/">Mer om det i integritetspolicyn</a>.
+      </p>
+      <h3>Kartbilden</h3>
+      <p>
+        På en verksamhets sida ligger en karta som hämtas som bild från
+        Mapbox. Din webbläsare kontaktar då Mapbox direkt, vilket innebär att
+        din IP-adress syns för dem. Det är samma sak som händer med vilken
+        extern bild som helst på webben.
+      </p>
+    </section>
+
+    <section>
+      <h2>Platstjänsten är inte en kaka</h2>
+      <p>
+        Väljer du att visa kommuner nära dig frågar din webbläsare om lov. Det
+        är webbläsarens egen behörighet, inte en kaka, och positionen används
+        bara för att räkna ut vilken kommun som ligger närmast. Den skickas
+        aldrig till oss. Du kan när som helst ta tillbaka behörigheten i
+        webbläsarens inställningar.
+      </p>
+    </section>
+
+    <section>
+      <h2>Regeln vi följer</h2>
+      <p>
+        Enligt 9 kap. 28 § lagen (2022:482) om elektronisk kommunikation krävs
+        informerat samtycke innan uppgifter lagras i eller hämtas från din
+        utrustning. Undantag gäller för det som är nödvändigt för att överföra
+        meddelandet eller för att kunna leverera en tjänst du uttryckligen
+        begärt. Post- och telestyrelsen har tillsyn över den regeln.
+      </p>
+      <p>
+        Eftersom vi inte lagrar någonting alls behöver vi inte be om samtycke.
+        Skulle det ändras kommer vi att fråga först, och den här sidan skrivs
+        om samma dag.
+      </p>
+    </section>
+
+    <section>
+      <h2>Frågor</h2>
+      <p>
+        Hittar du något som motsäger det som står här, hör av dig till
+        <a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>. Vi vill
+        veta det.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 42px; margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+  .meta { margin-top: var(--s-3); font-size: var(--fs-caption); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section h3 {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .plain { margin: 0; padding-left: var(--s-4); }
+  .plain li { margin-top: var(--s-3); line-height: 26px; }
+</style>

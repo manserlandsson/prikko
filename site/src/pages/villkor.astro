@@ -1,0 +1,244 @@
+---
+/**
+ * Användarvillkor.
+ *
+ * ============================================================================
+ * UTKAST. INTE GRANSKAT AV JURIST. INTE JURIDISK RÅDGIVNING.
+ * ============================================================================
+ *
+ * Sidan bär två saker samtidigt:
+ *  1. Informationsplikten enligt 8 § lagen (2002:562) om elektronisk handel
+ *     och andra informationssamhällets tjänster. Den kräver att
+ *     tjänsteleverantören anger namn, adress i etableringsstaten,
+ *     e-postadress samt i förekommande fall organisationsnummer,
+ *     momsregistreringsnummer och behörig tillståndsmyndighet. Informationen
+ *     ska vara enkelt, direkt och stadigvarande tillgänglig, vilket är skälet
+ *     till att sidfoten länkar hit från varje sida.
+ *  2. Ansvarsbegränsningen och gränsdragningen mellan kommunens uppgift och
+ *     Prikkos egen slutsats.
+ *
+ * SAKNAS: postadress. Se PUBLISHER i src/lib/site.ts. Utan den uppfyller
+ * sidan inte 8 § e-handelslagen och får inte publiceras.
+ *
+ * ADVOKATEN MÅSTE TA STÄLLNING TILL:
+ *  B1. Ansvarsbegränsningens räckvidd. Utkastet friskriver inte från uppsåt
+ *      eller grov vårdslöshet, men formuleringen är inte prövad. Besökare är
+ *      dessutom konsumenter, vilket begränsar vad som går att avtala bort
+ *      utan att villkoret blir oskäligt enligt avtalsvillkorslagarna.
+ *  B2. Kan användarvillkor över huvud taget binda en besökare som bara läser
+ *      en sida, utan att klicka i något? Utkastet formulerar dem därför som
+ *      förutsättningar för tjänsten snarare än som ett avtal.
+ *  B3. Ansvarig utgivare och utgivningsbevis är INTE på plats. Sidan påstår
+ *      inte att de är det. När beviset finns MÅSTE databasens namn,
+ *      leverantör och utgivare anges, se R4 avsnitt 1.
+ *  B4. Formuleringen om skrapning och vidareanvändning. Underlaget är
+ *      allmänna handlingar under öppna data-lagen (2022:818) och ofta CC0.
+ *      Vi kan skydda sammanställningen och bedömningen, men inte fakta.
+ *      Databasskydd enligt 49 § upphovsrättslagen bör bedömas.
+ *  B5. Tvistlösning. Utkastet anger svensk lag och allmän domstol. Ska ARN
+ *      nämnas? Vi säljer inget till konsument i dag.
+ *  B6. Marknadsföringsrättslig exponering när SaaS-delen lanseras, se R4
+ *      avsnitt 3.4. Villkoren behöver då en skarp gräns mellan redaktion och
+ *      försäljning.
+ */
+import Base from '../layouts/Base.astro';
+import { PUBLISHER, SITE } from '../lib/site';
+
+const UPDATED = '2 augusti 2026';
+---
+
+<Base
+  title="Användarvillkor"
+  description="Villkoren för att använda Prikko: vad tjänsten gör, vad den inte gör, vem som står bakom den och vad vi ansvarar för."
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Användarvillkor</p>
+      <h1>Villkor för att använda Prikko</h1>
+      <p class="lede text-secondary">
+        Prikko är gratis att använda och kräver inget konto. Villkoren nedan
+        beskriver vad tjänsten är, vad den inte är, och vad du kan och inte kan
+        förvänta dig av oss.
+      </p>
+      <p class="text-muted meta">Senast uppdaterad {UPDATED}.</p>
+    </header>
+
+    <section>
+      <h2>Vem som driver tjänsten</h2>
+      <dl class="facts">
+        <div><dt>Företag</dt><dd>{PUBLISHER.legalName}</dd></div>
+        <div><dt>Organisationsnummer</dt><dd>{PUBLISHER.orgNumber}</dd></div>
+        <div><dt>Momsregistreringsnummer</dt><dd>{PUBLISHER.vatNumber}</dd></div>
+        <div><dt>Webbplats</dt><dd>{SITE.url.replace('https://', '')}</dd></div>
+        <div>
+          <dt>E-post</dt>
+          <dd><a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a></dd>
+        </div>
+      </dl>
+      <p class="text-secondary">
+        Prikko är varumärket. {PUBLISHER.legalName} är den juridiska person som
+        står bakom det och som ansvarar för innehållet.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vad Prikko gör</h2>
+      <p>
+        Vi hämtar kommunernas offentliga livsmedelskontroller, gör om dem till
+        ett gemensamt format och räknar fram en bedömning per verksamhet enligt
+        en <a href="/metodik/">öppet publicerad metodik</a>. Varje källa och
+        hämtdatum redovisas på <a href="/kallor/">källsidan</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vad Prikko inte är</h2>
+      <ul class="plain">
+        <li>
+          Vi är inte en myndighet, företräder ingen myndighet och har inget
+          uppdrag från någon. Kommunens kontroll är myndighetsutövning. Vår
+          sammanställning är det inte.
+        </li>
+        <li>
+          Bedömningen är inte ett officiellt betyg. Sverige har inget nationellt
+          hygienbetygssystem. Det är just därför tjänsten finns.
+        </li>
+        <li>
+          Bedömningen är ingen garanti för hur det ser ut i köket i dag. Den
+          beskriver vad kommunen såg vid sitt senaste besök.
+        </li>
+        <li>
+          Bedömningen är inte en recension och säger ingenting om maten,
+          servicen eller priset.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Bedömningen är vår egen slutsats</h2>
+      <p>
+        Det här är viktigt nog att stå för sig. Kontrolluppgifterna är
+        kommunens. Bedömningen som visas som ansiktsmärke och etikett är
+        Prikkos egen slutsats, uträknad ur kommunens uppgifter. Ingen kommun
+        och ingen myndighet har satt den, godkänt den eller ställt sig bakom
+        den.
+      </p>
+      <p>
+        Hela beräkningen är publicerad, och varje bedömning bär numret på den
+        modellversion som räknade fram den. Du ska kunna kontrollera oss.
+        <a href="/metodik/">Så räknas bedömningen fram</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vad vi ansvarar för</h2>
+      <p>
+        Vi arbetar för att uppgifterna ska vara riktiga och aktuella. Vi kan
+        ändå inte lova att de alltid är det. Fel kan uppstå i kommunens data,
+        i vår hämtning eller i vår tolkning, och en kontroll kan ha gjorts
+        efter att vi senast hämtade uppgifterna.
+      </p>
+      <p>
+        Tjänsten tillhandahålls i befintligt skick. Vi ansvarar inte för
+        beslut som fattas enbart utifrån innehållet här, och inte för indirekta
+        skador eller följdskador. Begränsningen gäller inte skada som vi orsakat
+        uppsåtligen eller genom grov vårdslöshet, och den inskränker inte
+        rättigheter du har enligt tvingande lag.
+      </p>
+      <p>
+        Vi lovar inte att sajten alltid är tillgänglig. Vi kan ändra, pausa
+        eller lägga ned tjänsten.
+      </p>
+    </section>
+
+    <section>
+      <h2>Om du driver en verksamhet som finns här</h2>
+      <p>
+        Du har rätt att få felaktiga uppgifter rättade och rätt att kommentera
+        en kontroll. Kommentaren publiceras oredigerad bredvid bedömningen.
+        <a href="/ratta/">Så begär du rättelse</a>.
+        Rör det personuppgifter finns dina rättigheter beskrivna i
+        <a href="/integritetspolicy/">integritetspolicyn</a>.
+      </p>
+      <p>
+        Du behöver inte betala något för att synas, och du kan inte betala för
+        att slippa. En bedömning går aldrig att köpa eller påverka med pengar.
+        Vi säljer inga förbättringstjänster till verksamheter vi själva bedömt.
+      </p>
+    </section>
+
+    <section>
+      <h2>Innehåll och rättigheter</h2>
+      <p>
+        Underlaget är allmänna handlingar från kommunerna. Fakta i dem äger
+        ingen. Normaliseringen, bedömningsmodellen, texterna, formgivningen och
+        databasen som helhet är däremot vårt arbete.
+      </p>
+      <p>
+        Du får gärna länka till oss och citera enskilda uppgifter med
+        källhänvisning. Systematisk kopiering av hela eller väsentliga delar av
+        databasen, eller automatiserad hämtning som belastar tjänsten, är
+        däremot inte tillåten. Vill du använda datan i ett eget sammanhang,
+        hör av dig, så hittar vi en väg.
+      </p>
+    </section>
+
+    <section>
+      <h2>Länkar till andra webbplatser</h2>
+      <p>
+        Vi länkar till kommunernas källor och till kartor. Vi ansvarar inte för
+        innehållet på andras webbplatser.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ändringar, lag och tvist</h2>
+      <p>
+        Villkoren kan komma att ändras. Den gällande versionen är alltid den
+        som ligger här, med datumet överst.
+      </p>
+      <p>
+        Svensk lag gäller. Tvist prövas av svensk allmän domstol.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 42px; margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+  .meta { margin-top: var(--s-3); font-size: var(--fs-caption); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .plain { margin: 0; padding-left: var(--s-4); }
+  .plain li { margin-top: var(--s-3); line-height: 26px; }
+
+  .facts {
+    display: grid;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .facts > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    justify-content: space-between;
+    padding: var(--s-3) var(--s-4);
+  }
+
+  .facts > div + div { border-top: 1px solid var(--hairline); }
+  .facts dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
+  .facts dd { margin: 0; font-size: var(--fs-body-s); font-weight: 600; }
+</style>
