@@ -15,6 +15,9 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Stockholm | 8 511 | E-tjänstens gränssnitt | JSON, egen modell | SWEREF 99 18 00 | **Nej** |
 | Uppsala | 1 843 | E-tjänstens gränssnitt | **HTML** | **Saknas** | Ja |
 
+Nästa två att bygga, i den ordningen: **Jönköping** (billigast per
+verksamhet — fem anrop mot 1 843) och **Örebro**.
+
 Stockholms avsaknad av "kvarstår" är skälet till att bedömningsmodellen härleder
 allvarsgraden ur mönstret i stället för ur etiketten (se `grading.py`).
 
@@ -31,6 +34,36 @@ Resultat per verksamhet:
 Listan är ren JSON och kräver inga parametrar. Kontrollresultaten renderas på
 en separat sida per verksamhet, alltså ett anrop per objekt som i Linköping
 och Uppsala. Adress finns; koordinater inte kontrollerade.
+
+### Jönköping — 1 120 verksamheter, BÄSTA KÄLLAN HITTILLS
+```
+https://gis.jonkoping.se/arcgis/rest/services
+  /kommunatlas/Kommunatlas_Naringsliv_och_Arbete/MapServer/{10,11,12,13,14}
+  /query?where=1=1&outFields=*&outSR=4326&f=json
+```
+ArcGIS REST. Fem underlager: Restaurang och servering (526), Butik och handel
+(198), Skola och omsorg (308), Tillverkare (40), Övrigt (48).
+
+Varför den är bäst: **hela beståndet hämtas med fem anrop.** Ingen
+detaljsida per verksamhet, till skillnad från Linköping (1 241 anrop),
+Uppsala (1 843) och Örebro. Koordinaterna kommer dessutom färdiga i WGS84
+när `outSR=4326` anges — ingen SWEREF-transform behövs.
+
+Hela kontrollhistoriken ligger i fältet `senaste_kontroller` som text:
+```
+2026-07-09 Planerad kontroll <br>Kontrollresultat: Med avvikelse<br>
+2025-09-08 Uppföljande kontroll <br>Kontrollresultat: Utan avvikelse<br>…
+```
+Uträknade värden (500 restauranger):
+- Resultat: `Utan avvikelse` (844), `Med avvikelse` (145) — **ingen
+  kvarstår-etikett**, alltså samma situation som Stockholm. Den härledda
+  allvarsgraden i `grading.py` behövs.
+- Orsak: Planerad (701), Uppföljande (198), Händelsestyrd (81), plus
+  kombinationer som `Planerad, Uppföljande kontroll` — innehåller strängen
+  "Uppföljande" ska den räknas som uppföljning.
+
+Avvikelserna specificeras däremot inte alls; fältet `har_avvikelse` är 0/1.
+Ingen breakdown, alltså sämre detaljnivå än Linköping och Uppsala.
 
 ### Göteborg — 4 786 verksamheter, MEN INGA RESULTAT
 ```
