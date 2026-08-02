@@ -51,17 +51,27 @@ const photos: Record<string, ImageMetadata> = Object.fromEntries(
  * ljusheten låst till 12 % / 24 % med verifierad kontrast mot vit text
  * (16:1 respektive ~10:1, WCAG kräver 4,5:1).
  *
- * De ligger som konstanter och inte som ett byggsteg eftersom de ändras exakt
- * lika ofta som fotot byts, alltså nästan aldrig. Scrimen kan inte bli lila:
- * det finns inget lila i bilderna.
+ * ── Varför scrimen ändå är blå och inte fotohärledd ───────────────────────
+ * Kulörerna nedan användes en tid rakt av. Utfallet var att fyra av sex
+ * bottenzoner blev varma eller oliva och i praktiken omöjliga att skilja åt;
+ * bara Stockholm lästes tydligt som blå. Den gemensamma tonen låg då som en
+ * separat 4-procentig vask över fotot, vilket mätbart låg på
+ * perceptionströskeln — man såg den bara genom att växla lagret av och på.
  *
- * Prövat och förkastat: att blanda in Prikko-blått i de här värdena för att
- * få den genomgående tonen. Färgerna är så mörka (L 12 %) och så lågmättade
- * (14–27 %) att deras egen kulör bara är ~10 RGB-enheter bred. Redan 5 %
- * inblandad mättad blå är lika mycket kulör åt andra hållet, så Uppsalas
- * varma brunsvart blir neutralt och vid 45 % landar alla sex på samma navy.
- * Då är palette.mjs bortkastad. Den gemensamma tonen ligger i stället som ett
- * eget lager över fotot — se `.scrim::after` i stilarna.
+ * Två effekter som ingen ser är sämre än en effekt som gör jobbet. Korten
+ * ska läsas som en uppsättning, och Prikkos blå är sajtens enda egna färg.
+ * Därför dras varje kulör mot `--brand` medan LJUSHETEN låses vid
+ * originalets.
+ *
+ * Att ljusheten låses är inte kosmetik: kontrasten mot den vita texten på
+ * fotot är uträknad på de ursprungliga värdena (15,9–16,3:1 för deep,
+ * 9,7–10,5:1 för mid). Ändras kulören men inte luminansen står de
+ * beräkningarna kvar.
+ *
+ * Priset, uttryckligen: de sex scrimarna blir nästan omöjliga att skilja åt i
+ * kulör och skiljer sig bara i ljushet. Färgerna nedan behålls ändå — de är
+ * `palette.mjs` verifierade ljushetsvärden, och det är dem kontrastkravet
+ * vilar på.
  */
 const PALETTE: Record<string, { deep: string; mid: string }> = {
   // Riddarholmen från luften. Nedre halvan är vatten och skuggor, entydigt
@@ -119,8 +129,37 @@ const CROP: Record<string, string> = {
   orebro: '50% 22%',
 };
 
+/**
+ * Drar en scrimfärg mot Prikkos blå utan att ändra dess ljushet.
+ *
+ * Se resonemanget vid PALETTE. Kort: kulören byts ut, luminansen bevaras, och
+ * därmed står den uträknade kontrasten mot den vita texten kvar.
+ *
+ * Andelen är satt så att resultatet otvetydigt läser som blått. Lägre värden
+ * har provats och hamnar i ingenmansland — varken fotots egen kulör eller
+ * sajtens, bara en gråbrun sörja.
+ */
+const BRAND_RGB = [0, 123, 224];
+const BLEND = 0.5;
+
+function luminance([r, g, b]: number[]): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function towardsBrand(triplet: string): string {
+  const rgb = triplet.split(' ').map(Number);
+  const mixed = rgb.map((c, i) => c * (1 - BLEND) + BRAND_RGB[i] * BLEND);
+  const target = luminance(rgb);
+  const actual = luminance(mixed);
+  const scale = actual > 0 ? target / actual : 1;
+  return mixed.map((c) => Math.round(Math.min(255, c * scale))).join(' ');
+}
+
 const photo = photos[kommun.slug] ?? null;
-const palette = PALETTE[kommun.slug] ?? null;
+const raw = PALETTE[kommun.slug] ?? null;
+const palette = raw
+  ? { deep: towardsBrand(raw.deep), mid: towardsBrand(raw.mid) }
+  : null;
 const crop = CROP[kommun.slug] ?? '50% 50%';
 
 /** Segmenten i fördelningsbandet, i allvarlighetsordning. */
@@ -216,8 +255,10 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
     object-fit: cover;
     /* Ingen avmättning och inget filter på själva fotot. Prövat: saturate(.94)
        drar visserligen ihop sex bilder med olika efterbehandling, men gör
-       samtidigt vad avmättningar gör — tar färgen ur dem. Den gemensamma tonen
-       ligger i scrimens kulör i stället (se `towardsBrand` ovan). */
+       samtidigt vad avmättningar gör — tar färgen ur dem. Himlen blev grå,
+       teglet blekt.
+       Sammanhållningen ligger i stället i scrimens kulör, som dras mot
+       `--brand` i frontmattern. Fotot ovanför scrimen är helt obehandlat. */
     transition: transform .4s cubic-bezier(.2, .6, .2, 1);
   }
   /* Återhållsam: 1,5 %, inte en zoom man lägger märke till. */
@@ -242,35 +283,21 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
     );
   }
 
-  /* DEN GENOMGÅENDE TONEN. Ett tunt lager i Prikkos egen blå, identiskt på
-     alla sex korten, ovanpå den fotospecifika gradienten. Det är det som gör
-     att bilder från sex olika fotografer med sex olika vitbalanser läser som
-     tagna för samma sajt.
+  /* Här låg en separat vask i Prikkos blå över hela bildzonen, på 4 %.
+     Den är borttagen av två skäl som pekar åt samma håll.
 
-     Den avtar uppåt och är noll i bildens övre fjärdedel. En platt hinna över
-     hela bildzonen provades först och plattade ut fotot: den lägger sig lika
-     tungt på himlen, som inte har något att dölja, som på skuggorna. Genom att
-     följa scrimen ligger tonen bara där bilden ändå mörknar — 8 % där texten
-     står, ingenting där himlen står.
+     Den syntes inte. Vid 4 % gick skillnaden bara att uppfatta genom att
+     växla lagret av och på på samma kort — alltså inte av en besökare.
+     Uppåt gick den inte att skruva: scrimfärgernas egen kulör var bara ~10
+     RGB-enheter bred, så redan 8 % neutraliserade dem.
 
-     8 % låter mycket och är det inte: lagret ligger över en scrim som redan är
-     90 % ogenomskinlig, så det som faktiskt syns är en aning kallare svärta.
-     Testat mot 4 % (går inte att se ens sida vid sida) och 15 % (då syns
-     färgen som färg, och det är ett filter). Ligger på ett eget element och
-     inte som ett extra lager i `.scrim`, så att en webbläsare utan
-     `color-mix` tappar tonen i stället för hela scrimen — utan scrim blir den
-     vita texten oläsbar. */
-  .scrim::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to top,
-      color-mix(in srgb, var(--brand) 8%, transparent)   0%,
-      color-mix(in srgb, var(--brand) 5%, transparent)  45%,
-      color-mix(in srgb, var(--brand) 0%, transparent) 100%
-    );
-  }
+     Och den behövs inte längre. Sammanhållningen sitter nu i scrimens egen
+     kulör, som dras mot `--brand` i frontmatterns `towardsBrand`. Ett lager
+     som gör jobbet slår två som inte gör det.
+
+     En heltäckande hinna lägger sig dessutom lika mycket över himlen som
+     över skuggorna. Tillsammans med den avmättning som också är struken var
+     det den som fick fotona att se matta ut. */
 
   /* Text direkt på fotot. Ingen text-shadow: scrimen gör jobbet, och en skugga
      under vit text på foto är det säkraste tecknet på att scrimen är för svag.

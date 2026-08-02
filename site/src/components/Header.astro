@@ -25,7 +25,7 @@ import PlacePicker from './PlacePicker.astro';
         aria-label={SITE.name}
       >
         <path d="M139.5 20.5c1.657 0 3 1.343 3 3s-1.343 3-3 3-3-1.343-3-3 1.343-3 3-3Z" fill="currentColor" stroke="currentColor"/>
-        <path d="M152.5 20.5c1.657 0 3 1.343 3 3s-1.343 3-3 3-3-1.343-3-3 1.343-3 3-3Z" fill="currentColor" stroke="currentColor"/>
+        <path class="eye-right" d="M152.5 20.5c1.657 0 3 1.343 3 3s-1.343 3-3 3-3-1.343-3-3 1.343-3 3-3Z" fill="currentColor" stroke="currentColor"/>
         <path d="M135 34c7 6.667 14 6.667 21 0" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" fill="none"/>
         <path
           fill="currentColor"
@@ -68,8 +68,41 @@ import PlacePicker from './PlacePicker.astro';
     color: var(--brand-ink);
   }
 
+  /* Wordmarken blinkar när man för muspekaren över den.
+   *
+   * Hover, inte vid sidladdning. Sidhuvudet finns på 14 711 sidor, och ett
+   * ansikte som blinkar vid varje laddning blir en tic i stället för en
+   * detalj. Vid hover styr besökaren själv, och den som aldrig hittar den
+   * förlorar ingenting.
+   *
+   * Ögat skalas kring sin EGEN mittpunkt — utan fill-box räknar webbläsaren
+   * origo från hela svg:n och ögat glider iväg över texten i stället för att
+   * blinka. */
+  .eye-right {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .brand:hover .eye-right {
+    animation: wink .42s cubic-bezier(.4, 0, .2, 1) 1;
+  }
+
+  @keyframes wink {
+    0%, 100% { transform: scaleY(1); }
+    45%, 55% { transform: scaleY(.1); }
+  }
+
+  /* Rörelse kan utlösa yrsel hos den som har en vestibulär sjukdom. Den som
+     bett om mindre rörelse har oftast ett medicinskt skäl. */
+  @media (prefers-reduced-motion: reduce) {
+    .brand:hover .eye-right { animation: none; }
+  }
+
   .wordmark {
-    height: 26px;
+    /* 30px, inte 26. Wordmarken är sajtens enda varumärkesbärare i sidhuvudet
+       och låg tidigare i samma optiska vikt som navigationslänkarna bredvid,
+       vilket fick den att läsa som ännu en meny­post. */
+    height: 30px;
     width: auto;
     display: block;
   }

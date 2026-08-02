@@ -213,7 +213,8 @@
       "Bash(rm -rf site/dist)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code} %{size_download}\\\\n\" http://localhost:4322/sok/)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code} %{size_download}\\\\n\" http://localhost:4322/sok-index.json)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{size_download}\\\\n\" http://localhost:4322/sok-index.json)",
+      "Bash(node -e \"console.log\\(require\\('fs'\\).statSync\\('site/src/pages/index.astro'\\).mtime\\)\")"
     ]
   }
 }
