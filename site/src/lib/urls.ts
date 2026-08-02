@@ -22,7 +22,7 @@
  * `https://prikko.se/stockholm/sida/2/`.
  *
  * Frågesträng och fragment hör inte hemma här. `path('/sok') + '?q=…'` är
- * rätt väg — hjälparen bygger sökvägen, anroparen hänger på resten.
+ * rätt väg: hjälparen bygger sökvägen, anroparen hänger på resten.
  */
 import { SITE } from './site';
 
