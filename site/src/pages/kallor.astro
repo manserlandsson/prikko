@@ -8,15 +8,25 @@
  * tappar förtroendet för allt annat vi visar.
  */
 import Base from '../layouts/Base.astro';
-import { MUNICIPALITY, SOURCE, allEstablishments, formatDate } from '../lib/data';
+import {
+  coverage,
+  establishments,
+  formatDate,
+  formatNumber,
+  municipalities,
+  sourceFor,
+} from '../lib/data';
 import { SITE } from '../lib/site';
 
-const establishments = allEstablishments();
-const assessed = establishments.filter((e) => e.verdict !== null).length;
-const inspections = establishments.reduce((n, e) => n + e.inspections.length, 0);
-const dates = establishments
-  .flatMap((e) => e.inspections.map((i) => i.date))
-  .sort();
+const total = coverage();
+const all = establishments();
+const dates = all.flatMap((e) => e.inspections.map((i) => i.date)).sort();
+
+const sources = municipalities().map((m) => ({
+  ...m,
+  count: establishments(m.slug).length,
+  source: sourceFor(m.slug),
+}));
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -32,7 +42,7 @@ const jsonLd = {
 
 <Base
   title="Källor och uppdatering"
-  description={`Prikko bygger på ${inspections} livsmedelskontroller från svenska kommuner. Här redovisas varje källa, hur ofta den hämtas och vilka kommuner som ännu saknas.`}
+  description={`Prikko bygger på ${formatNumber(total.inspections)} livsmedelskontroller från svenska kommuner. Här redovisas varje källa, hur ofta den hämtas och vilka kommuner som ännu saknas.`}
   jsonLd={jsonLd}
 >
   <article class="container page">
@@ -49,10 +59,10 @@ const jsonLd = {
     <section>
       <h2>Täckning just nu</h2>
       <dl class="stats">
-        <div><dt>Kommuner</dt><dd>1 av 290</dd></div>
-        <div><dt>Verksamheter</dt><dd>{establishments.length}</dd></div>
-        <div><dt>Kontroller</dt><dd>{inspections}</dd></div>
-        <div><dt>Med bedömning</dt><dd>{assessed}</dd></div>
+        <div><dt>Kommuner</dt><dd>{total.municipalities} av 290</dd></div>
+        <div><dt>Verksamheter</dt><dd>{formatNumber(total.establishments)}</dd></div>
+        <div><dt>Kontroller</dt><dd>{formatNumber(total.inspections)}</dd></div>
+        <div><dt>Med bedömning</dt><dd>{formatNumber(total.assessed)}</dd></div>
       </dl>
       <p class="text-secondary">
         Kontrollerna sträcker sig från {formatDate(dates[0])} till{' '}
@@ -64,16 +74,19 @@ const jsonLd = {
       <h2>Källor</h2>
       <table>
         <thead>
-          <tr><th>Kommun</th><th>Källa</th><th>Hämtad</th></tr>
+          <tr><th>Kommun</th><th>Verksamheter</th><th>Källa</th><th>Hämtad</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{MUNICIPALITY.name}</td>
-            <td>
-              <a href={SOURCE.url} rel="nofollow">Öppet API</a>
-            </td>
-            <td>{formatDate(SOURCE.fetchedAt.slice(0, 10))}</td>
-          </tr>
+          {sources.map((m) => (
+            <tr>
+              <td>{m.name}</td>
+              <td>{formatNumber(m.count)}</td>
+              <td>
+                {m.source && <a href={m.source.url} rel="nofollow">Källa</a>}
+              </td>
+              <td>{m.source && formatDate(m.source.fetchedAt.slice(0, 10))}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </section>

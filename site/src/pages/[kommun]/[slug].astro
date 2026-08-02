@@ -32,9 +32,9 @@ import StreetPhoto from '../../components/StreetPhoto.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import {
-  MUNICIPALITY,
-  SOURCE,
-  allEstablishments,
+  establishments,
+  municipalities,
+  sourceFor,
   formatDate,
   formatDistance,
   isIndexable,
@@ -47,10 +47,13 @@ import {
 import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
 
 export async function getStaticPaths() {
-  return allEstablishments().map((e) => ({
-    params: { kommun: MUNICIPALITY.slug, slug: e.slug },
-    props: { establishment: e },
-  }));
+  // Alla kommuner vi har data för. Ingen lista i kod — db.ts upptäcker dem.
+  return municipalities().flatMap((m) =>
+    establishments(m.slug).map((e) => ({
+      params: { kommun: m.slug, slug: e.slug },
+      props: { establishment: e },
+    })),
+  );
 }
 
 interface Props {
@@ -58,6 +61,8 @@ interface Props {
 }
 
 const { establishment: e } = Astro.props;
+const kommun = e.municipality;
+const source = sourceFor(kommun.slug)!;
 
 const presentation = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 const latest = latestInspectionDate(e);
@@ -91,7 +96,7 @@ const jsonLd: Record<string, unknown> = {
   address: {
     '@type': 'PostalAddress',
     streetAddress: e.address ?? undefined,
-    addressLocality: MUNICIPALITY.city,
+    addressLocality: kommun.city,
     addressCountry: 'SE',
   },
 };
@@ -104,14 +109,14 @@ const breadcrumbs = {
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-    { '@type': 'ListItem', position: 2, name: MUNICIPALITY.name, item: `${SITE.url}/${MUNICIPALITY.slug}` },
+    { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}/${kommun.slug}` },
     { '@type': 'ListItem', position: 3, name: e.name },
   ],
 };
 ---
 
 <Base
-  title={`${e.name}, ${MUNICIPALITY.city}`}
+  title={`${e.name}, ${kommun.city}`}
   description={description}
   noindex={!indexable}
   jsonLd={[jsonLd, breadcrumbs]}
@@ -121,13 +126,13 @@ const breadcrumbs = {
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={`/${MUNICIPALITY.slug}`}>{MUNICIPALITY.city}</a>
+      <a href={`/${kommun.slug}`}>{kommun.city}</a>
     </nav>
 
     <header class="masthead">
       <h1>{e.name}</h1>
       <p class="place text-secondary">
-        {[e.address, MUNICIPALITY.city].filter(Boolean).join(', ')}
+        {[e.address, kommun.city].filter(Boolean).join(', ')}
         {e.types.length > 0 && <> · {e.types[0]}</>}
       </p>
     </header>
@@ -164,7 +169,7 @@ const breadcrumbs = {
 
         <footer class="source">
           <p class="caption text-muted">
-            Källa: {MUNICIPALITY.name}, hämtat {formatDate(SOURCE.fetchedAt.slice(0, 10))}.
+            Källa: {kommun.name}, hämtat {formatDate(source.fetchedAt.slice(0, 10))}.
             Bedömningen är Prikkos — <a href="/metodik">så räknas den fram</a>.
             <a href="/ratta">Rätta en uppgift</a>.
           </p>
@@ -200,8 +205,8 @@ const breadcrumbs = {
             <ul class="near">
               {neighbours.map((n) => (
                 <li>
-                  <a href={`/${MUNICIPALITY.slug}/${n.slug}`}>
-                    <FaceMark verdict={n.verdict} size={28} />
+                  <a href={`/${kommun.slug}/${n.slug}`}>
+                    <FaceMark verdict={n.verdict} size={30} variant="round" />
                     <span class="near-info">
                       <b>{n.name}</b>
                       <span class="text-muted">{formatDistance(n.metres)}</span>

@@ -2,41 +2,52 @@
 /**
  * Startsidan.
  *
- * Struktur enligt bibeln §13b: stor självsäker rubrik + EN dominant sökruta
- * (Ratsit- och Zillow-mönstret), sedan ingångar till det folk faktiskt söker.
+ * Struktur: stor rubrik + EN dominant sökruta (Ratsit- och Zillow-mönstret),
+ * därefter kommunerna som egna ingångar — samma grepp som ednia använder för
+ * program.
  *
- * Prioriteringen är styrd av SEO-dimensioneringen: leaderboards har verklig
- * dragkraft ("sämsta restaurangen i [stad]" autocompletar i åtta städer),
- * medan enskilda restaurangnamn inte söks alls. Därför får leaderboards
- * plats högt upp och katalogen ligger bakom sökrutan.
+ * Kommunlistan är inte bara navigation. SEO-mätningen mot den brittiska
+ * motsvarigheten visade att områdes- och kommunsidor stod för ~90 % av
+ * trafiken medan enskilda restaurangsidor stod för 5,8 %. Kommunnivån är
+ * alltså den bärande sidtypen, inte katalogen.
  *
- * Inga påhittade siffror: allt som visas räknas ur den faktiska datan.
+ * Inga påhittade siffror: allt räknas ur faktisk data.
  */
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
 import {
-  MUNICIPALITY,
-  allEstablishments,
+  coverage,
+  establishments,
   formatDate,
+  formatNumber,
   latestInspectionDate,
+  municipalities,
 } from '../lib/data';
 import { SITE, VERDICT } from '../lib/site';
 
-const all = allEstablishments();
-const assessed = all.filter((e) => e.verdict !== null);
-const inspections = all.reduce((n, e) => n + e.inspections.length, 0);
-// Allvarliga först — det är det besökaren har mest nytta av att se.
-const severity = { major: 0, minor: 1, clean: 2 } as const;
-const withRemarks = assessed
-  .filter((e) => e.verdict !== 'clean')
-  .sort((a, b) => severity[a.verdict!] - severity[b.verdict!]);
+const total = coverage();
 
-// Senast kontrollerade. Färskhet är en dokumenterad citeringsfaktor för
-// AI-svar, och det är också det enda på sidan som ändras av sig självt.
-const recent = [...assessed]
-  .filter((e) => latestInspectionDate(e))
+const summaries = municipalities().map((m) => {
+  const all = establishments(m.slug);
+  const assessed = all.filter((e) => e.verdict !== null);
+  const remarks = assessed.filter((e) => e.verdict !== 'clean');
+  return {
+    ...m,
+    count: all.length,
+    assessed: assessed.length,
+    remarks: remarks.length,
+    major: remarks.filter((e) => e.verdict === 'major').length,
+  };
+});
+
+// Senast kontrollerade i landet. Färskhet är en dokumenterad citeringsfaktor
+// för AI-svar, och det enda på sidan som ändras av sig självt.
+const recent = establishments()
+  .filter((e) => e.verdict !== null && latestInspectionDate(e))
   .sort((a, b) => (latestInspectionDate(b)! > latestInspectionDate(a)! ? 1 : -1))
-  .slice(0, 6);
+  .slice(0, 8);
+
+const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
 const jsonLd = [
   {
@@ -65,7 +76,7 @@ const jsonLd = [
 ];
 ---
 
-<Base title={SITE.name} description={SITE.description} jsonLd={jsonLd}>
+<Base title={SITE.name} description={description} jsonLd={jsonLd}>
   <section class="hero">
     <div class="container hero-inner">
       <h1>Hur ren är restaurangen du tänkte gå till?</h1>
@@ -87,34 +98,36 @@ const jsonLd = [
       </form>
 
       <p class="counts">
-        <strong>{all.length}</strong> verksamheter ·
-        <strong>{inspections}</strong> kontroller ·
-        <strong>{MUNICIPALITY.city}</strong>
+        <strong>{formatNumber(total.establishments)}</strong> verksamheter ·
+        <strong>{formatNumber(total.inspections)}</strong> kontroller ·
+        <strong>{total.municipalities}</strong> {total.municipalities === 1 ? 'kommun' : 'kommuner'}
       </p>
     </div>
   </section>
 
   <section class="container block">
     <div class="block-head">
-      <h2>Verksamheter med anmärkningar</h2>
-      <a href={`/${MUNICIPALITY.slug}/anmarkningar`}>Se hela listan</a>
+      <h2>Välj kommun</h2>
+      <a href="/kallor">Om täckningen</a>
     </div>
-    <p class="block-lede text-secondary">
-      {withRemarks.length} av {assessed.length} bedömda verksamheter i
-      {' '}{MUNICIPALITY.city} har anmärkningar vid sin senaste kontroll.
-    </p>
 
-    <ul class="cards">
-      {withRemarks.slice(0, 3).map((e) => (
-        <li class="card-item">
-          <a href={`/${MUNICIPALITY.slug}/${e.slug}`}>
-            <FaceMark verdict={e.verdict} size={40} />
-            <span class="card-body">
-              <b>{e.name}</b>
-              <span class="text-secondary">{e.address}</span>
-              <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
-                {VERDICT[e.verdict!].label}
-              </span>
+    <ul class="kommuner">
+      {summaries.map((m) => (
+        <li>
+          <a href={`/${m.slug}`}>
+            <span class="k-head">
+              <b>{m.city}</b>
+              <span class="k-count text-muted">{formatNumber(m.count)} verksamheter</span>
+            </span>
+            <span class="k-bar" aria-hidden="true">
+              <span
+                class="k-fill"
+                style={`width: ${Math.round(((m.assessed - m.remarks) / Math.max(m.assessed, 1)) * 100)}%`}
+              ></span>
+            </span>
+            <span class="k-meta text-secondary">
+              {m.remarks} med anmärkningar
+              {m.major > 0 && <> · {m.major} allvarliga</>}
             </span>
           </a>
         </li>
@@ -125,18 +138,18 @@ const jsonLd = [
   <section class="container block">
     <div class="block-head">
       <h2>Senast kontrollerade</h2>
-      <a href={`/${MUNICIPALITY.slug}`}>Alla i {MUNICIPALITY.city}</a>
+      <a href="/sok">Sök alla</a>
     </div>
 
     <ul class="rows">
       {recent.map((e) => (
         <li>
-          <a href={`/${MUNICIPALITY.slug}/${e.slug}`}>
-            <FaceMark verdict={e.verdict} size={32} />
+          <a href={`/${e.municipality.slug}/${e.slug}`}>
+            <FaceMark verdict={e.verdict} size={32} variant="round" />
             <span class="row-body">
               <b>{e.name}</b>
               <span class="text-secondary">
-                {formatDate(latestInspectionDate(e)!)}
+                {e.municipality.city} · {formatDate(latestInspectionDate(e)!)}
               </span>
             </span>
             <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
@@ -184,16 +197,9 @@ const jsonLd = [
     padding-block: var(--s-16);
   }
 
-  .hero-inner {
-    max-width: 660px;
-    text-align: center;
-  }
+  .hero-inner { max-width: 660px; text-align: center; }
 
-  h1 {
-    font-size: 44px;
-    line-height: 48px;
-    letter-spacing: -.028em;
-  }
+  h1 { font-size: 44px; line-height: 48px; letter-spacing: -.028em; }
 
   .lede {
     margin-top: var(--s-4);
@@ -202,11 +208,7 @@ const jsonLd = [
     color: var(--text-secondary);
   }
 
-  .search {
-    display: flex;
-    gap: var(--s-2);
-    margin-top: var(--s-8);
-  }
+  .search { display: flex; gap: var(--s-2); margin-top: var(--s-8); }
 
   .search input {
     flex: 1;
@@ -224,15 +226,10 @@ const jsonLd = [
   .search input::placeholder { color: var(--text-muted); }
   .search .btn-primary { padding-inline: var(--s-8); }
 
-  .counts {
-    margin-top: var(--s-4);
-    font-size: var(--fs-caption);
-    color: var(--text-muted);
-  }
-
+  .counts { margin-top: var(--s-4); font-size: var(--fs-caption); color: var(--text-muted); }
   .counts strong { font-weight: 600; color: var(--text-secondary); }
 
-  .block { padding-block: var(--s-12) 0; max-width: 880px; }
+  .block { padding-block: var(--s-12) 0; max-width: 900px; }
 
   .block-head {
     display: flex;
@@ -243,39 +240,51 @@ const jsonLd = [
 
   .block-head a { font-size: var(--fs-body-s); }
 
-  .block-lede {
-    margin-top: var(--s-2);
-    font-size: var(--fs-body-s);
-    line-height: 21px;
-  }
-
-  .cards {
+  /* Kommunkort. Andelen utan anmärkning visas som ett band — en siffra till
+     säger mindre än en form man uppfattar på en halv sekund. */
+  .kommuner {
     list-style: none;
     margin: var(--s-6) 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: var(--s-3);
   }
 
-  .card-item a {
-    display: flex;
-    gap: var(--s-3);
-    align-items: flex-start;
+  .kommuner a {
+    display: block;
     background: var(--card);
     border-radius: var(--r-card);
     box-shadow: var(--shadow-sm);
     padding: var(--s-4);
-    height: 100%;
     color: var(--text);
   }
 
-  .card-item a:hover { text-decoration: none; box-shadow: var(--shadow-pop); }
+  .kommuner a:hover { text-decoration: none; box-shadow: var(--shadow-pop); }
+  .kommuner a:hover b { color: var(--brand); }
 
-  .card-body { min-width: 0; }
-  .card-body b { display: block; font-size: var(--fs-body-s); font-weight: 600; }
-  .card-body > span { display: block; font-size: var(--fs-caption); }
-  .card-body .verdict { margin-top: var(--s-2); font-weight: 600; }
+  .k-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-2);
+  }
+
+  .k-head b { font-size: var(--fs-h-s); font-weight: 600; letter-spacing: -.01em; }
+  .k-count { font-size: var(--fs-caption); }
+
+  .k-bar {
+    display: block;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--verdict-minor);
+    margin: var(--s-3) 0 var(--s-2);
+    overflow: hidden;
+  }
+
+  .k-fill { display: block; height: 100%; background: var(--verdict-clean); }
+
+  .k-meta { display: block; font-size: var(--fs-caption); }
 
   .rows { list-style: none; margin: var(--s-4) 0 0; padding: 0; }
   .rows li { border-top: 1px solid var(--hairline); }
@@ -295,7 +304,7 @@ const jsonLd = [
   .row-body b { display: block; font-size: var(--fs-body-s); font-weight: 600; }
   .row-body span { font-size: var(--fs-caption); }
 
-  .verdict { font-size: var(--fs-caption); font-weight: 600; }
+  .verdict { font-size: var(--fs-caption); font-weight: 600; flex-shrink: 0; }
 
   .how { padding-bottom: var(--s-12); }
   .how h2 { text-align: center; }
@@ -317,5 +326,6 @@ const jsonLd = [
     h1 { font-size: 32px; line-height: 36px; }
     .search { flex-direction: column; }
     .search .btn-primary { height: 50px; }
+    .verdict { display: none; }
   }
 </style>

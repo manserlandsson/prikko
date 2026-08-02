@@ -14,9 +14,9 @@
 import Base from '../../layouts/Base.astro';
 import FaceMark from '../../components/FaceMark.astro';
 import {
-  MUNICIPALITY,
-  SOURCE,
-  allEstablishments,
+  establishments,
+  municipalities,
+  sourceFor,
   formatDate,
   isRemark,
   latestInspectionDate,
@@ -24,10 +24,15 @@ import {
 import { SITE, VERDICT } from '../../lib/site';
 
 export async function getStaticPaths() {
-  return [{ params: { kommun: MUNICIPALITY.slug } }];
+  return municipalities().map((m) => ({
+    params: { kommun: m.slug },
+    props: { kommun: m },
+  }));
 }
 
-const assessed = allEstablishments().filter((e) => e.verdict !== null);
+const { kommun } = Astro.props;
+const source = sourceFor(kommun.slug)!;
+const assessed = establishments(kommun.slug).filter((e) => e.verdict !== null);
 
 // Allvarliga först, sedan mindre. Inom varje nivå: flest avvikelser överst,
 // därefter senast kontrollerad — så listan är stabil mellan bygg.
@@ -46,7 +51,7 @@ const listed = assessed
   });
 
 const major = listed.filter((e) => e.verdict === 'major').length;
-const city = MUNICIPALITY.city;
+const city = kommun.city;
 
 // Självbärande första mening, skriven för att kunna citeras rakt av.
 const answer = `${listed.length} av ${assessed.length} kontrollerade verksamheter i ${city} hade anmärkningar vid sin senaste hygienkontroll, varav ${major} med allvarliga brister.`;
@@ -57,7 +62,7 @@ const jsonLd = [
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Prikko', item: SITE.url },
-      { '@type': 'ListItem', position: 2, name: MUNICIPALITY.name, item: `${SITE.url}/${MUNICIPALITY.slug}` },
+      { '@type': 'ListItem', position: 2, name: kommun.name, item: `${SITE.url}/${kommun.slug}` },
       { '@type': 'ListItem', position: 3, name: 'Anmärkningar' },
     ],
   },
@@ -69,7 +74,7 @@ const jsonLd = [
     itemListElement: listed.slice(0, 25).map((e, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${SITE.url}/${MUNICIPALITY.slug}/${e.slug}`,
+      url: `${SITE.url}/${kommun.slug}/${e.slug}`,
       name: e.name,
     })),
   },
@@ -80,22 +85,22 @@ const jsonLd = [
   title={`Restauranger med anmärkningar i ${city}`}
   description={answer}
   jsonLd={jsonLd}
-  dataUpdated={SOURCE.fetchedAt.slice(0, 10)}
+  dataUpdated={source.fetchedAt.slice(0, 10)}
 >
   <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
-      <a href={`/${MUNICIPALITY.slug}`}>{city}</a>
+      <a href={`/${kommun.slug}`}>{city}</a>
     </nav>
 
     <header>
-      <p class="eyebrow">{MUNICIPALITY.name}</p>
+      <p class="eyebrow">{kommun.name}</p>
       <h1>Restauranger med anmärkningar i {city}</h1>
       <p class="answer">{answer}</p>
       <p class="caption text-muted">
         Bygger på kommunens senaste kontroll av varje verksamhet, hämtad
-        {' '}{formatDate(SOURCE.fetchedAt.slice(0, 10))}.
+        {' '}{formatDate(source.fetchedAt.slice(0, 10))}.
         <a href="/metodik">Så räknas bedömningen fram</a>.
       </p>
     </header>
@@ -103,9 +108,9 @@ const jsonLd = [
     <ol class="list">
       {listed.map((e, i) => (
         <li>
-          <a href={`/${MUNICIPALITY.slug}/${e.slug}`}>
+          <a href={`/${kommun.slug}/${e.slug}`}>
             <span class="rank text-muted">{i + 1}</span>
-            <FaceMark verdict={e.verdict} size={36} />
+            <FaceMark verdict={e.verdict} size={36} variant="round" />
             <span class="body">
               <b>{e.name}</b>
               <span class="meta text-secondary">
@@ -129,7 +134,7 @@ const jsonLd = [
         varje verksamhets sida visar hela historiken.
       </p>
       <p>
-        <a href={`/${MUNICIPALITY.slug}`}>Se alla verksamheter i {city}</a>
+        <a href={`/${kommun.slug}`}>Se alla verksamheter i {city}</a>
       </p>
     </footer>
   </div>

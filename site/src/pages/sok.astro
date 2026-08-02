@@ -13,17 +13,22 @@
  * tunna resultatsidor aldrig hamnar i Googles index.
  */
 import Base from '../layouts/Base.astro';
-import { MUNICIPALITY, allEstablishments } from '../lib/data';
+import { coverage, establishments, formatNumber } from '../lib/data';
 import { VERDICT } from '../lib/site';
 
-const index = allEstablishments().map((e) => ({
+const total = coverage();
+
+const index = establishments().map((e) => ({
   n: e.name,
   a: e.address ?? '',
   s: e.slug,
+  // Kommunens slug per post — sökningen spänner över hela landet.
+  k: e.municipality.slug,
+  c: e.municipality.city,
   v: e.verdict,
   // Normaliserad sökbar sträng: gemener utan diakriter, så "malmo" hittar
   // "Malmö" och "kott" hittar "Kött".
-  q: `${e.name} ${e.address ?? ''}`
+  q: `${e.name} ${e.address ?? ''} ${e.municipality.city}`
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, ''),
@@ -42,8 +47,9 @@ const labels = Object.fromEntries(
     <header>
       <h1>Sök verksamhet</h1>
       <p class="lede text-secondary">
-        Sök bland {index.length} verksamheter i {MUNICIPALITY.city}. Fler
-        kommuner tillkommer efterhand.
+        Sök bland {formatNumber(total.establishments)} verksamheter i
+        {' '}{total.municipalities} {total.municipalities === 1 ? 'kommun' : 'kommuner'}.
+        Fler tillkommer efterhand.
       </p>
     </header>
 
@@ -65,7 +71,7 @@ const labels = Object.fromEntries(
   <script
     type="application/json"
     id="index"
-    set:html={JSON.stringify({ index, labels, kommun: MUNICIPALITY.slug })}
+    set:html={JSON.stringify({ index, labels })}
   />
 </Base>
 
@@ -120,9 +126,8 @@ const labels = Object.fromEntries(
   .results :global(a:hover b) { color: var(--brand); }
 
   .results :global(.face) {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
   }
 
@@ -152,11 +157,13 @@ const labels = Object.fromEntries(
   const results = document.getElementById('results')!;
   const status = document.getElementById('status')!;
 
-  const COLORS: Record<string, string> = {
-    clean: 'var(--verdict-clean)',
-    minor: 'var(--verdict-minor)',
-    major: 'var(--verdict-major)',
-    none: 'var(--verdict-none)',
+  // Ringfärger ur brand/*-smiley-round.svg. Runda varianten används i
+  // listor: många fyllda rutor bredvid varandra blir tungt.
+  const RING: Record<string, string> = {
+    clean: '#00B92B',
+    minor: '#FECB00',
+    major: '#FF0000',
+    none: '#C7C7CC',
   };
   const INK: Record<string, string> = {
     clean: 'var(--verdict-clean-ink)',
@@ -165,18 +172,22 @@ const labels = Object.fromEntries(
     none: 'var(--verdict-none-ink)',
   };
   const MOUTHS: Record<string, string> = {
-    clean: 'M30 55.5c12.25 11.7 24.5 11.7 36.75 0',
-    minor: 'M31 60.5h34.75',
-    major: 'M30 64c12.25 -11.7 24.5 -11.7 36.75 0',
-    none: 'M38 60.5h20',
+    clean: 'M32 57.4883C44.2457 69.1509 56.4915 69.1509 68.7372 57.4883',
+    minor: 'M32 61.0004C44.5 61 56.5 60.9995 68.7372 61.0004',
+    major: 'M32 64.2196C44.5511 57.3262 56.6858 57.1944 68.7372 64.2196',
+    none: 'M40 61.0004C46 61 54 61 60 61.0004',
   };
+  const EYE_L = 'M39.8719 45.2457C43.2535 45.2457 45.9948 42.5044 45.9948 39.1229C45.9948 35.7413 43.2535 33 39.8719 33C36.4903 33 33.749 35.7413 33.749 39.1229C33.749 42.5044 36.4903 45.2457 39.8719 45.2457Z';
+  const EYE_R = 'M62.6141 45.2457C65.9957 45.2457 68.737 42.5044 68.737 39.1229C68.737 35.7413 65.9957 33 62.6141 33C59.2325 33 56.4912 35.7413 56.4912 39.1229C56.4912 42.5044 59.2325 45.2457 62.6141 45.2457Z';
 
   function face(v: string) {
-    return `<svg class="face" viewBox="0 0 96 96" aria-hidden="true">
-      <rect width="96" height="96" rx="26" fill="${COLORS[v]}"/>
-      <circle cx="37.87" cy="37.12" r="6.12" fill="#fff"/>
-      <circle cx="60.61" cy="37.12" r="6.12" fill="#fff"/>
-      <path d="${MOUTHS[v]}" stroke="#fff" stroke-width="7.87"
+    const c = RING[v];
+    return `<svg class="face" viewBox="0 0 100 100" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff"
+            stroke="${c}" stroke-width="7"/>
+      <path d="${EYE_L}" fill="${c}"/>
+      <path d="${EYE_R}" fill="${c}"/>
+      <path d="${MOUTHS[v]}" stroke="${c}" stroke-width="7.87"
             stroke-linecap="round" fill="none"/></svg>`;
   }
 
@@ -201,9 +212,9 @@ const labels = Object.fromEntries(
       .map((e: any) => {
         const key = e.v ?? 'none';
         const label = payload.labels[e.v] ?? 'Ingen kontroll';
-        return `<li><a href="/${payload.kommun}/${e.s}">
+        return `<li><a href="/${e.k}/${e.s}">
           ${face(key)}
-          <span class="info"><b>${e.n}</b><span>${e.a}</span></span>
+          <span class="info"><b>${e.n}</b><span>${e.a} · ${e.c}</span></span>
           <span class="verdict" style="color:${INK[key]}">${label}</span>
         </a></li>`;
       })

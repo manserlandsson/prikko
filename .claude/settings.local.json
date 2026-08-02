@@ -172,7 +172,11 @@
       "Bash(python3 tr.py \"matförgiftning|food hygiene rating\" \"\" \"today 5-y\")",
       "Bash(python3 tr.py \"food hygiene rating|nandos food hygiene|wetherspoons food hygiene rating\" \"GB\" \"today 5-y\")",
       "Bash(python3 tr.py \"food hygiene rating|nandos food hygiene rating|greggs food hygiene rating\" \"GB\" \"today 5-y\")",
-      "Bash(python3 tr.py \"food hygiene rating|food hygiene rating manchester|scores on the doors\" \"GB\" \"today 5-y\")"
+      "Bash(python3 tr.py \"food hygiene rating|food hygiene rating manchester|scores on the doors\" \"GB\" \"today 5-y\")",
+      "Bash(xargs -I{} echo \"processer igång: {}\")",
+      "WebFetch(domain:jobbsafari.se)",
+      "Bash(grep -oE '.{90}\\(ajax|\\\\$\\\\.get|\\\\$\\\\.post|SearchContract|getJSON\\).{140}' mapbundle.js)",
+      "Bash(grep -oE 'urlSearch2?[^,}]{0,120}|actions\\\\s*:\\\\s*\\\\{[^}]{0,400}' sthlm.html)"
     ]
   }
 }
