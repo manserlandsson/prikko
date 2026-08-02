@@ -274,6 +274,92 @@ const jsonLd = {
       </p>
     </section>
 
+    <section id="lokalen">
+      <h2>Historiken följer lokalen, inte företaget</h2>
+      <p>
+        Kommunerna registrerar sina livsmedelskontroller på <strong>anläggningen</strong>,
+        alltså på lokalen och adressen. De registrerar dem inte på företaget som
+        driver verksamheten. Tar en ny restaurang över en adress följer den
+        tidigare verksamhetens kontrollhistorik med.
+      </p>
+      <p>
+        Ingen av våra källor har ett fält för när en verksamhet startade eller
+        för om ägaren bytt. Vi kan alltså inte se bytet, och vi kan inte dela
+        historiken vid rätt punkt. Det betyder att statistiken på en
+        verksamhetssida är räknad på adressen: antalet kontroller, andelen utan
+        anmärkning och året för den äldsta kontrollen kan alla omfatta ett
+        företag som inte längre finns på platsen.
+      </p>
+      <p>
+        Vi skriver därför aldrig att en verksamhet är "först kontrollerad" ett
+        visst år, och vi låter aldrig en sida antyda hur gammal en verksamhet är.
+        Där siffrorna summerar över flera kontroller står det på sidan att de
+        avser adressen.
+      </p>
+
+      <h3>Särskilt om återkommande brister</h3>
+      <p>
+        Att samma brist noterats vid flera kontroller är sidans skarpaste
+        iakttagelse, och den enda som kan läsas som en anklagelse. Den är också
+        den som drabbas hårdast av att historiken hänger på lokalen: två företag
+        som fått samma anmärkning i samma kök med flera år emellan ser i datan ut
+        som ett företag som inte rättat sig.
+      </p>
+      <p>
+        Vi tar inte bort dem. De är kommunens egna uppgifter och kommunernas
+        egna e-tjänster visar dem. Men vi låter aldrig en brist vars noteringar
+        ligger långt isär toppa listan, och vi skriver ut hur lång tid det gått
+        mellan noteringarna så att läsaren kan väga det själv.
+      </p>
+
+      <h3>Varför vi inte gissar när bytet skedde</h3>
+      <p>
+        Ett långt uppehåll mellan två kontroller ser ut som en rimlig ledtråd:
+        en lokal som byter hand står ofta tom eller byggs om. Vi har mätt det på
+        hela vårt bestånd, och ledtråden håller inte.
+      </p>
+      <p>
+        Uppehållen styrs av hur ofta kommunen kontrollerar just den sortens
+        verksamhet, inte av om lokalen bytt ägare. I Stockholm har 28 procent av
+        restaurangerna ett uppehåll på två år eller mer, mot 79 procent av
+        matmäklarna och 72 procent av förskolorna med mottagningskök. I Örebro är
+        siffran 6 procent för pizzerior och 67 procent för bufféverksamheter. Ett
+        apotek som kontrolleras vart femte år ger ett långt uppehåll utan att
+        något har hänt.
+      </p>
+      <p>
+        Sambandet går dessutom åt fel håll. Restauranger kontrolleras oftast och
+        byter ägare oftast. Av de restaurangliknande verksamheterna i våra tre
+        kommuner med djup historik skulle 64 procent aldrig få ett uppehåll långt
+        nog att märkas. Medianintervallet mellan två kontroller av en restaurang
+        i Stockholm är 272 dagar; ett ägarbyte däremellan syns inte alls.
+      </p>
+      <p class="callout">
+        Därför visar vi upplysningen om att historiken följer lokalen på alla
+        verksamheter, inte bara på dem med ett uppehåll. Ett förbehåll som bara
+        dyker upp ibland lär läsaren att frånvaron betyder att historiken är
+        säker, och det vore en falsk trygghet på just de sidor där risken är
+        störst.
+      </p>
+
+      <h3>Vad kommunerna själva säger</h3>
+      <p>
+        En kommun uppger att den hanterar detta. Örebro kommun skriver på sina
+        verksamhetssidor att resultat från tidigare kontroller tas bort vid
+        ägarbyte. Vi återger den uppgiften på verksamheternas sidor i Örebro. Vi
+        går inte i god för den och vi motsäger den inte: vi har inte kunnat
+        bekräfta den i datan, och kommunen kan bara rensa när den fått veta att
+        bytet skett.
+      </p>
+      <p>
+        Framåt går problemet delvis att lösa. Vi hämtar datan varje natt mot
+        samma anläggnings-id, så när namnet på ett id ändras mellan två
+        körningar har verksamheten sannolikt bytt. Vi sparar namnhistoriken per
+        anläggning för att kunna säga det. Det rättar inte historiken som redan
+        finns, men det gör att problemet inte växer.
+      </p>
+    </section>
+
     <section>
       <h2>Vad vi inte gör</h2>
       <ul class="plain">

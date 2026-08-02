@@ -227,7 +227,7 @@ create index if not exists images_establishment_idx
 --   `first_seen_at` säger något om verksamheten ENDAST när anläggningen har
 --   mer än en namnrad. Vid första körningen får varje befintlig anläggning
 --   sin rad daterad till den natten, och den datumstämpeln betyder då bara
---   "då började vi titta" — aldrig "då öppnade stället". Sidan får inte
+--   "då började vi titta", aldrig "då öppnade stället". Sidan får inte
 --   skriva ut den för anläggningar med en enda namnrad.
 --
 -- Löser inte historiken som redan finns. Ser till att problemet inte växer.
@@ -252,7 +252,7 @@ create index if not exists establishment_names_establishment_idx
 -- en lokal där kontrollhistoriken sannolikt spänner över mer än en verksamhet.
 --
 -- `current_name` läses ur establishments och inte ur loggen, eftersom loggen
--- inte vet vilket namn som gäller i dag — bara vilka vi har sett.
+-- inte vet vilket namn som gäller i dag, bara vilka vi har sett.
 drop view if exists establishment_name_changes;
 
 create view establishment_name_changes as

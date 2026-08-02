@@ -20,22 +20,24 @@ interface Props {
 const { issues } = Astro.props;
 
 /**
- * Historiken följer LOKALEN.
+ * Historiken följer LOKALEN, och det sägs OVILLKORLIGT.
  *
  * Kommunen registrerar kontrollerna på anläggningen, och ingen av källorna
  * säger när verksamheten startade eller om ägaren bytt. En brist som noterats
  * 2018 och igen 2025 behöver därför inte vara samma verksamhet som inte rättat
- * sig — det kan vara två företag som fått samma anmärkning i samma kök.
+ * sig. Det kan vara två företag som fått samma anmärkning i samma kök.
  *
  * Att påstå det förra om ett namngivet företag är rubrikens allvarligaste
- * felkälla, och den enda på sidan som anklagar. Därför får en sådan brist
- * varken toppa listan (sorteringen sköter det i recurringIssues) eller stå
- * omärkt här.
+ * felkälla, och den enda på sidan som anklagar. Den gäller varje verksamhet
+ * här, inte bara dem med ett uppehåll i historiken, och förbehållet visas
+ * därför alltid. Villkorat blev det en falsk trygghetssignal på de sidor där
+ * risken är störst. Se HISTORY_GAP_DAYS i data.ts.
+ *
+ * Uppehållet får bara två uppgifter kvar: rangordna ner en gles brist
+ * (sorteringen i recurringIssues) och tala om hur lång tid det gått. Det sista
+ * är en ren observation och säger ingenting om ägarbyte.
  */
-const straddling = issues.filter((i) => i.straddlesGap);
-const gapYears = straddling.length
-  ? Math.floor(Math.max(...straddling.map((i) => i.gapDays)) / 365)
-  : 0;
+const years = (days: number) => Math.floor(days / 365);
 ---
 
 {issues.length > 0 && (
@@ -45,7 +47,7 @@ const gapYears = straddling.length
         Återkommande brister
         <InfoTip
           label="återkommande brister"
-          text="Brister som kommunen noterat vid mer än en kontroll. En enskild avvikelse säger lite. Att samma sak återkommer säger mer. Kontrollerna är registrerade på lokalen och inte på företaget, så noteringar från en tidigare verksamhet på adressen räknas med."
+          text="Brister som kommunen noterat vid mer än en kontroll. En enskild avvikelse säger lite. Att samma sak återkommer säger mer. Kontrollerna är registrerade på lokalen och inte på företaget, så noteringar från en tidigare verksamhet på adressen räknas med. Brister vars noteringar ligger långt isär rangordnas därför ner."
         />
       </h2>
       <p class="count text-secondary">
@@ -53,14 +55,12 @@ const gapYears = straddling.length
       </p>
     </div>
 
-    {straddling.length > 0 && (
-      <p class="caveat">
-        {straddling.length === 1 ? 'En av bristerna' : `${straddling.length} av bristerna`} nedan
-        har noterats vid kontroller med upp till {gapYears} års mellanrum. Kommunen registrerar
-        kontrollerna på adressen och inte på företaget, och anger inte när en verksamhet startat
-        eller bytt ägare. Noteringarna behöver därför inte gälla samma verksamhet.
-      </p>
-    )}
+    <p class="caveat">
+      Kommunen registrerar kontrollerna på lokalen och inte på företaget, och
+      anger inte när en verksamhet startat eller bytt ägare. Noteringarna nedan
+      behöver därför inte gälla samma verksamhet.
+      {' '}<a href="/metodik/#lokalen">Så hanterar vi det</a>.
+    </p>
 
     <ul class="rows">
       {issues.map((issue) => {
@@ -76,8 +76,9 @@ const gapYears = straddling.length
                 {issue.dates.slice(0, 4).map(formatDate).join(' · ')}
                 {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
               </span>
+              {/* Ren observation. Inget påstående om ägarbyte. */}
               {issue.straddlesGap && (
-                <span class="maybe">Kan gälla olika verksamheter i lokalen</span>
+                <span class="maybe">{years(issue.gapDays)} år mellan noteringarna</span>
               )}
             </span>
           </li>

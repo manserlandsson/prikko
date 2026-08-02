@@ -186,23 +186,49 @@ export function legislationArea(code: string) {
 // ---------------------------------------------------------------------------
 
 /**
- * Uppehåll efter vilket historiken före uppehållet inte längre kan tillskrivas
- * samma verksamhet.
+ * Ovanligt långt uppehåll mellan två kontroller.
  *
- * Kommunernas kontroller är registrerade på ANLÄGGNINGEN, alltså lokalen, och
- * följer med när en ny verksamhet tar över adressen. Ingen av de nio källorna
- * har ett fält för när verksamheten startade eller för om ägaren bytt, så
- * bytet går inte att läsa direkt. Det som går att läsa är uppehållet: en lokal
- * som byter hand står ofta tom eller bygger om, och kontrollerna upphör under
- * tiden.
+ * Två år är hämtat ur beståndet, inte ur luften. Av de 48 230 uppehållen mellan
+ * två på varandra följande kontroller ligger medianen på 267 dagar och
+ * nittionde percentilen på 724. Ett uppehåll på två år är alltså längre än nio
+ * av tio normala kontrollintervall.
  *
- * Två år är valt ur beståndet, inte ur luften. Av de 48 230 uppehållen mellan
- * två på varandra följande kontroller ligger medianen på 267 dagar och nittionde
- * percentilen på 724. Ett uppehåll på två år är alltså längre än nio av tio
- * normala kontrollintervall.
+ * ## LÄS DETTA INNAN DU ANVÄNDER TRÖSKELN TILL NÅGOT NYTT
  *
- * Tröskeln påstår INTE att ett ägarbyte skett. Den säger att vi inte vet, och
- * däri ligger hela skillnaden mellan det vi får skriva och det vi inte får.
+ * Tröskeln får ANVÄNDAS TILL: att rangordna ner en återkommande brist vars
+ * noteringar ligger långt isär, och att skriva ut hur lång tid det gått.
+ *
+ * Tröskeln får INTE ANVÄNDAS TILL: att dra slutsatser om ägarbyte, om att
+ * lokalen bytt verksamhet, eller om att historiken före uppehållet hör till
+ * någon annan. Den bar det påståendet en kort tid och det var fel.
+ *
+ * Skälet är mätt. Uppehållet styrs av hur ofta kommunen kontrollerar just den
+ * sortens verksamhet, inte av om lokalen bytt hand. Andel med uppehåll >= 2 år,
+ * per verksamhetstyp:
+ *
+ *     Stockholm   restaurang 28 %   butik 55 %   förskola mottagning 72 %
+ *                 matmäklare 79 %
+ *     Örebro      pizzeria    6 %   restaurang 13 %   buffert 67 %
+ *     Linköping   restaurang 26 %   skola och omsorg 60 %
+ *
+ * Tre Apotek Hjärtat i Örebro har samma uppehåll på 2 086 dagar med exakt samma
+ * datumpar. Det är kommunen som sveper en lågriskkategori på en flerårscykel,
+ * inte tre lokaler som bytt ägare samtidigt.
+ *
+ * Sambandet går dessutom åt FEL HÅLL. Restauranger kontrolleras oftast och
+ * byter ägare oftast, alltså är de minst flaggade: av 4 678 restaurangliknande
+ * verksamheter med minst två kontroller i Stockholm, Linköping och Örebro får
+ * 3 015 (64 %) ingen flagga alls. Medianintervallet för en restaurang i
+ * Stockholm är 272 dagar, och ett ägarbyte däremellan ger inget uppehåll över
+ * huvud taget.
+ *
+ * Att historiken följer lokalen och inte företaget är sant för VARJE verksamhet
+ * i varje kommun som publicerar mer än en kontroll. Den upplysningen är därför
+ * ovillkorlig i gränssnittet. Villkorar man den på det här uppehållet lär man
+ * läsaren att frånvaron betyder att historiken är säker, och det är falskt
+ * just på restaurangsidorna där risken är störst. Ett villkorat förbehåll
+ * tillverkar en falsk trygghetssignal, vilket är värre än problemet det skulle
+ * lösa.
  */
 export const HISTORY_GAP_DAYS = 730;
 
@@ -240,24 +266,19 @@ export interface Stats {
    * kommunens eget publiceringsfönster och orörd av att verksamheten bytt.
    */
   oldestYear: string | null;
-  /** Längsta uppehållet mellan två kontroller i följd, i hela dagar. */
-  longestGapDays: number;
-  /**
-   * Sant när historiken bär ett uppehåll på minst HISTORY_GAP_DAYS. Då kan
-   * kontrollerna före uppehållet höra till en tidigare verksamhet i lokalen,
-   * och sidan måste säga det i stället för att räkna ihop allt som ett.
-   */
-  hasHistoryGap: boolean;
 }
 
+/**
+ * Här fanns tidigare `longestGapDays` och `hasHistoryGap`, som drev ett
+ * förbehåll i sidfoten om att historiken kunde gälla en tidigare verksamhet.
+ * De är borttagna med avsikt: uppehållet kan inte bära den slutsatsen, och
+ * upplysningen om lokalen är nu ovillkorlig i stället. Se HISTORY_GAP_DAYS.
+ */
 export function statistics(e: Establishment): Stats {
   const total = e.inspections.length;
   const clean = e.inspections.filter((i) => i.assessment === 0).length;
   const followUps = e.inspections.filter((i) => i.type === 1).length;
   const oldest = e.inspections[e.inspections.length - 1];
-
-  // Historiken är sorterad nyast först (verifierat: 0 av 15 241 avviker).
-  const gap = longestGap(e.inspections.map((i) => i.date));
 
   return {
     total,
@@ -265,8 +286,6 @@ export function statistics(e: Establishment): Stats {
     cleanShare: total ? Math.round((clean / total) * 100) : 0,
     followUps,
     oldestYear: oldest ? oldest.date.slice(0, 4) : null,
-    longestGapDays: gap,
-    hasHistoryGap: gap >= HISTORY_GAP_DAYS,
   };
 }
 
@@ -427,9 +446,12 @@ export interface RecurringIssue {
   gapDays: number;
   /**
    * Sant när noteringarna ligger på var sin sida av ett uppehåll på minst
-   * HISTORY_GAP_DAYS. Då är "återkommande" inget vi kan stå för: lokalen kan
-   * ha bytt verksamhet under uppehållet, och då är det två olika företag som
-   * fått samma anmärkning, inte ett företag som inte rättat sig.
+   * HISTORY_GAP_DAYS.
+   *
+   * Betyder ENBART att det gått ovanligt lång tid mellan två noteringar, och
+   * att ordet "återkommande" därför väger lättare. Det är inte ett tecken på
+   * ägarbyte: läs varningen vid HISTORY_GAP_DAYS innan du bygger vidare på
+   * fältet.
    */
   straddlesGap: boolean;
 }
@@ -449,7 +471,7 @@ export interface RecurringIssue {
  * Uppmätt i beståndet: av 3 376 verksamheter med minst en återkommande brist
  * har 1 968 minst en brist vars noteringar ligger två år eller mer isär.
  *
- * Vi tar inte bort dem — de finns i kommunens data och Stockholms egen
+ * Vi tar inte bort dem. De finns i kommunens data och Stockholms egen
  * e-tjänst visar dem. Vi slutar bara låta dem gå före de brister vi faktiskt
  * kan stå för, och märker dem så att sidan säger vad den vet.
  */
@@ -497,9 +519,10 @@ export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[
     issues.push(issue);
   }
 
-  // De brister vi kan stå för först. En brist som spänner över ett långt
-  // uppehåll kan gälla två olika verksamheter och får inte toppa listan bara
-  // för att den råkar ha noterats fler gånger.
+  // De tätast noterade bristerna först. En brist vars noteringar ligger flera
+  // år isär är ett svagare belägg för att något återkommer, och ska inte toppa
+  // listan bara för att den råkar ha noterats fler gånger. Rangordningen är
+  // det enda uppehållet får styra.
   return issues.sort(
     (a, b) =>
       Number(a.straddlesGap) - Number(b.straddlesGap) ||
@@ -634,6 +657,39 @@ function joinSv(parts: string[]): string {
  * ut. Räknas fram ur datan i stället för att listas i kod, så att den inte kan
  * bli inaktuell när en kommun börjar publicera mer.
  */
+/**
+ * Vad kommunen SJÄLV säger om hur den hanterar ägarbyte.
+ *
+ * Detta är kommunens utsaga, inte vår slutsats, och måste återges så. Vi går
+ * inte i god för den och vi motsäger den inte. Örebros formulering står
+ * ordagrant på deras verksamhetssidor under rubriken "Vad betyder resultatet?":
+ *
+ *   "Vid ägarbyte tar vi bort resultatet från tidigare kontroller."
+ *
+ * Jag har inte kunnat bekräfta den i datan. Fyra oberoende test mot Stockholm
+ * och Linköping i identiskt tidsfönster visar ingen rensningssignatur i Örebro:
+ * de har snarast FLER långa uppehåll (12,2 % mot 9,4 % respektive 7,6 %), lika
+ * många historiker som återupptas efter ett uppehåll (5,8 %, samma som
+ * Stockholm) och samma fördelning av när historiken börjar. En kommun kan
+ * dessutom bara rensa när den fått veta att bytet skett.
+ *
+ * Att därför TA BORT upplysningen om lokalen i Örebro vore att hävda att deras
+ * historik säkert gäller ett och samma företag. Det är ett starkare påstående
+ * än det vi försöker undvika. Vi lägger till kommunens uppgift, vi drar inte
+ * ifrån vår egen.
+ *
+ * Nyckeln är kommunens slug. Saknas den har kommunen inte sagt något om saken,
+ * vilket inte betyder att de inte rensar.
+ */
+export const OWNERSHIP_POLICY: Record<string, string> = {
+  orebro:
+    'Örebro kommun uppger att resultat från tidigare kontroller tas bort vid ägarbyte.',
+};
+
+export function ownershipPolicy(slug: string): string | null {
+  return OWNERSHIP_POLICY[slug] ?? null;
+}
+
 export function sourceLimits(slug: string): SourceLimits {
   const cached = limitsCache.get(slug);
   if (cached) return cached;

@@ -42,6 +42,7 @@ import {
   latestInspectionDate,
   missingReason,
   nearby,
+  ownershipPolicy,
   recurringIssues,
   statistics,
   type Establishment,
@@ -132,7 +133,7 @@ const description = `${answer} ${detail}`;
  * ingen av de nio källorna säger när verksamheten startade eller om ägaren
  * bytt. Tar en ny restaurang över en adress ärver den föregångarens hela
  * historik. Rutan hette tidigare "Först kontrollerad", vilket läses rakt av
- * som verksamhetens ålder — ett påstående vi inte har täckning för.
+ * som verksamhetens ålder, ett påstående vi inte har täckning för.
  *
  * Talen är oförändrade. Det är etiketterna som slutar tillskriva dem fel part.
  */
@@ -145,11 +146,27 @@ const facts = [
   { label: 'Återbesök', value: String(stats.followUps),
     tip: 'Uppföljande kontroller som gjorts för att se om tidigare avvikelser åtgärdats.' },
   { label: 'Äldsta kontroll', value: stats.oldestYear ?? '–',
-    tip: 'Året för den äldsta kontroll kommunen publicerar på adressen. Det är inte nödvändigtvis året verksamheten startade — kommunerna publicerar bara ett begränsat antal år bakåt, och historiken följer lokalen.' },
+    tip: 'Året för den äldsta kontroll kommunen publicerar på adressen. Det är inte nödvändigtvis året verksamheten startade. Kommunerna publicerar bara ett begränsat antal år bakåt, och historiken följer lokalen.' },
 ];
 
-/** Uppehållet i hela år, avrundat nedåt. Används bara när det är minst två. */
-const gapYears = Math.floor(stats.longestGapDays / 365);
+/**
+ * Kommunens egen utsaga om ägarbyte, när den finns. Återges attribuerad, aldrig
+ * som vår slutsats. Se OWNERSHIP_POLICY i data.ts.
+ */
+const policy = ownershipPolicy(kommun.slug);
+
+/**
+ * Upplysningen om lokalen visas på ALLA verksamheter med mer än en kontroll,
+ * aldrig villkorad av ett uppehåll i historiken.
+ *
+ * Ett villkorat förbehåll lär läsaren att frånvaron betyder att historiken är
+ * säker. Det är falskt: 64 % av de restaurangliknande verksamheterna i våra
+ * djupa kommuner har inget uppehåll alls, och medianintervallet mellan två
+ * restaurangkontroller i Stockholm är 272 dagar, så ett ägarbyte däremellan
+ * syns inte. Den falska tryggheten hade legat just på de sidor där risken är
+ * störst. Se HISTORY_GAP_DAYS i data.ts för mätningen.
+ */
+const sharedHistory = stats.total > 1;
 
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
@@ -253,17 +270,13 @@ const breadcrumbs = {
         <InspectionHistory inspections={e.inspections} />
 
         <footer class="source">
-          {/*
-            Uppehållet sägs rakt ut när det finns. Kommunen har ingen uppgift om
-            när verksamheten startade eller om ägaren bytt, så vi kan inte veta
-            att kontrollerna före uppehållet gäller den här verksamheten — och
-            får då inte skriva sidan som om vi visste.
-          */}
-          {stats.hasHistoryGap && (
+          {sharedHistory && (
             <p class="caption text-muted">
-              Kontrollerna är registrerade på adressen, inte på företaget. I den
-              här historiken finns ett uppehåll på {gapYears} år, och kontroller
-              före uppehållet kan höra till en tidigare verksamhet i lokalen.
+              Kontrollerna är registrerade på adressen, inte på företaget.
+              Kommunen anger inte när en verksamhet startat eller bytt ägare, så
+              historiken kan omfatta en tidigare verksamhet i samma lokal.
+              {policy && <> {policy}</>}
+              {' '}<a href="/metodik/#lokalen">Varför vi säger det här</a>.
             </p>
           )}
           <p class="caption text-muted">

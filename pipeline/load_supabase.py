@@ -129,7 +129,7 @@ def record_names(
 
     Kommunernas kontroller hänger på ANLÄGGNINGEN, alltså lokalen, inte på
     företaget. Tar en ny restaurang över en adress ärver den föregångarens hela
-    kontrollhistorik, och ingen av källorna säger att bytet skett — Stockholms
+    kontrollhistorik, och ingen av källorna säger att bytet skett. Stockholms
     `date` är null och det finns inget fält för verksamhetens start.
 
     Ett byte går ändå att se över tid, eftersom vi kör mot samma anläggnings-id
