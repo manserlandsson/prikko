@@ -31,8 +31,9 @@
  *    kravet.
  * 2. Redaktionellt, och det tyngre skälet. En nål som ser likadan ut oavsett
  *    om kommunen lämnat punkten eller om vi räknat fram den påstår en säkerhet
- *    vi inte har. Härledda nålar får därför en synlig osäkerhetsring, och de
- *    228 som bara matchat grannporten en vidare ring.
+ *    vi inte har. Härledda nålar ritas därför med streckad kant, och texten
+ *    under kartan säger det rakt ut. De 228 som bara matchat grannporten får
+ *    en extra mening om just det.
  */
 import FaceMark from './FaceMark.astro';
 import type { VerdictOrNone } from '../lib/site';
@@ -85,7 +86,7 @@ const alt = derived
         loading="lazy"
         decoding="async"
       />
-      <span class:list={['pin', derived && 'derived', approximate && 'wide']}>
+      <span class:list={['pin', derived && 'derived']}>
         <FaceMark verdict={verdict} size={34} />
       </span>
     </div>
@@ -138,26 +139,18 @@ const alt = derived
     border-radius: 11px;
   }
 
-  /* Osäkerhetsring för härledd punkt. Samma grepp som mobilkartornas
-     positionsring: nålen står kvar där den står, men ringen visar att den
-     har en tolerans. Ritad på ::before så den ligger under märket. */
-  .pin.derived::before {
-    content: '';
-    position: absolute;
-    top: 60%;
-    left: 50%;
-    width: 66px;
-    height: 66px;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, .22);
-    background: rgba(0, 0, 0, .06);
-  }
-
-  /* Grannportsträff: samma signal, vidare ring. */
-  .pin.wide::before {
-    width: 104px;
-    height: 104px;
+  /* Härledd punkt: streckad kant i stället för hel.
+     Samma konvention som kartor använder för en preliminär gräns, och den
+     säger "den här punkten är inte fastställd" utan att påstå hur långt fel
+     den kan vara.
+     Här stod först en osäkerhetsring i stil med mobilkartornas
+     positionsring. Den fick skrotas: vid zoom 14.2 motsvarar en ring som alls
+     syns bakom det 34 px stora märket runt 280 meter, medan geokodningens
+     verkliga tolerans är tiotals meter. En ring som är ärlig är mindre än
+     nålen, och en ring som syns ljuger grovt. Kanten kan inte göra det
+     felet, eftersom den inte mäter något. */
+  .pin.derived :global(.face) {
+    border-style: dashed;
   }
 
   /* Kartbildens egen attribution bakas in av Mapbox. Texten här gäller något
