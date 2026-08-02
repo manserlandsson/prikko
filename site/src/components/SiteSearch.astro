@@ -6,12 +6,18 @@
  * en rad JavaScript, och det är därför /sok ligger kvar även sedan länken
  * försvann ur menyn: sidan är formulärets mål, inte en meningslös dubblett.
  *
- * Ovanpå det lägger skriptet förslagslistan. Registret (/sok-index.json,
- * ~970 kB) hämtas FÖRST när någon fokuserar fältet. Sidhuvudet finns på
- * 14 711 sidor — hämtades registret vid sidladdning skulle varje besök på
- * varje restaurangsida dra ner en megabyte som de allra flesta aldrig
- * använder. Efter första hämtningen ligger det i minnet resten av sidans liv
- * och i webbläsarens cache (max-age=3600) resten av besöket.
+ * Ovanpå det lägger skriptet förslagslistan. Registret
+ * (/sok-index/<hash>.json, ~970 kB) hämtas FÖRST när någon fokuserar fältet.
+ * Sidhuvudet finns på 14 711 sidor. Hämtades registret vid sidladdning skulle
+ * varje besök på varje restaurangsida dra ner en megabyte som de allra flesta
+ * aldrig använder. Efter första hämtningen ligger det i minnet resten av
+ * sidans liv och i webbläsarens cache resten av besöket.
+ *
+ * Adressen är innehållsbaserad och kommer från lib/search-index. Den får
+ * därför inte skrivas som en konstant i klientskriptet: skriptet är en egen
+ * bunt utan tillgång till frontmattern, och adressen skickas i stället som
+ * data-attribut på roten. Skrivs den för hand hamnar sidhuvudet och /sok förr
+ * eller senare på olika adresser.
  *
  * "Populära sökningar" renderas server-side. Panelen ska vara ifylld i samma
  * ögonblick som fältet fokuseras, inte efter en hämtning.
@@ -28,6 +34,7 @@
  * datat, vilket är den bästa gissning som går att göra utan att hitta på.
  */
 import { establishments, municipalities } from '../lib/data';
+import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 
 //: Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
 //: på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
@@ -61,7 +68,12 @@ const chains = CHAINS.map((c) => ({
 const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 ---
 
-<div class="site-search" data-sitesearch>
+<div
+  class="site-search"
+  data-sitesearch
+  data-index={SEARCH_INDEX_URL}
+  data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+>
   <form class="field" role="search" action="/sok" method="get">
     <label class="visually-hidden" for="site-search-q">Sök verksamhet eller kommun</label>
     <input
@@ -385,13 +397,25 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     }
 
+    /**
+     * Hämtar registret från den hashade adressen, med den gamla som reserv.
+     *
+     * Reserven är inte paranoia. Det här dokumentet kan ha legat i cachen
+     * sedan förra bygget och peka på en hash som inte längre finns på
+     * servern. Att sökningen då blir helt död vore ett värre fel än det
+     * inaktuella register vi gick ifrån.
+     */
+    function fetchIndex(url: string, fallback: string | null): Promise<any> {
+      return fetch(url).then((r) => {
+        if (r.ok) return r.json();
+        if (fallback) return fetchIndex(fallback, null);
+        throw new Error(String(r.status));
+      });
+    }
+
     function loadIndex() {
       if (loading) return loading;
-      loading = fetch('/sok-index.json')
-        .then((r) => {
-          if (!r.ok) throw new Error(String(r.status));
-          return r.json();
-        })
+      loading = fetchIndex(root!.dataset.index!, root!.dataset.indexFallback ?? null)
         .then((data) => {
           kommuner = data.k;
           rows = data.e;
