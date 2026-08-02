@@ -1,6 +1,6 @@
 ---
 /**
- * Platsväljaren — sajtens sätt att byta kommun.
+ * Platsväljaren, sajtens meny i sidhuvudet.
  *
  * Grundläget är ett <details>. Det är inte en genväg: elementet ger
  * öppna/stäng, tangentbord och skärmläsarsemantik utan en rad JavaScript,
@@ -17,6 +17,18 @@
  * som dyker upp oombedd är påträngande, och en besökare som möts av den
  * innan hen sett något litar mindre på sajten efteråt. Den kommer bara när
  * någon aktivt trycker på knappen.
+ *
+ * Panelen är mer än en lista. Överst det som folk kommer hit för: välja
+ * kommun. Under en hårfin avdelare den framhävda raden till /ratta, som är
+ * sajtens replikrätt och det enda vi ber besökaren om. Längst ned de
+ * sekundära vägarna till hur bedömningen räknas fram, var datan kommer
+ * ifrån och vilka vi är. Ingen inloggning: sajten har ingen och ska inte
+ * låtsas att den har det.
+ *
+ * Bara kommunlistan rullar. Panelen är en flexkolumn där listan är enda
+ * elementet som får krympa, så att raderna under den ligger kvar även när
+ * listan innehåller 290 kommuner. Ligger de i samma rullande yta hamnar de
+ * utom räckhåll så fort täckningen växer.
  */
 import { municipalities, municipalityPoints } from '../lib/data';
 
@@ -56,23 +68,57 @@ const points = municipalityPoints();
 
     <p class="message" role="status" aria-live="polite" hidden data-message></p>
 
-    <ul class="kommuner" data-list>
-      {kommuner.map((m) => (
-        <li data-name={m.city.toLowerCase()} data-slug={m.slug}>
-          <a href={`/${m.slug}`}>
-            <span class="city">{m.city}</span>
-            <span class="admin text-muted">{m.name}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <div class="scroll">
+      <ul class="kommuner" aria-label="Kommuner med kontroller" data-list>
+        {kommuner.map((m) => (
+          <li data-name={m.city.toLowerCase()} data-slug={m.slug}>
+            <a href={`/${m.slug}`}>
+              <span class="city">{m.city}</span>
+              <span class="admin text-muted">{m.name}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
 
-    <p class="empty" hidden data-empty>Ingen kommun matchar sökningen.</p>
+      <p class="empty" hidden data-empty>Ingen kommun matchar sökningen.</p>
 
-    <p class="foot text-muted">
-      Prikko täcker {kommuner.length} {kommuner.length === 1 ? 'kommun' : 'kommuner'} i dag.
-      <a href="/om">Fler tillkommer efterhand</a>.
-    </p>
+      {/* Täckningen står sist i den rullande ytan, inte i panelens fasta
+          nederkant. Den hör ihop med listan och är det man vill läsa när
+          man rullat igenom den utan att hitta sin kommun. I den fasta
+          delen hade den dessutom stulit höjd från just listan. */}
+      <p class="coverage text-muted">
+        Prikko täcker {kommuner.length} {kommuner.length === 1 ? 'kommun' : 'kommuner'} i dag.
+        Fler tillkommer efterhand.
+      </p>
+    </div>
+
+    <a class="feature" href="/ratta">
+      <span class="feature-text">
+        <span class="feature-title">Rätta en uppgift</span>
+        <span class="feature-body">
+          Ser något fel ut, eller vill du svara på en kontroll? Hör av dig.
+        </span>
+      </span>
+      {/* Linjeteckning, inte ikon: raden ska väga tyngre än länkarna under
+          den. Bladet i sekundärgrå, pennan i brandblått. En enda accent,
+          ingen toning. */}
+      <svg class="art" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="6" width="19" height="28" rx="3" />
+          <path d="M8 14h11M8 20h11M8 26h7" />
+        </g>
+        <g class="pen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M24.5 33 26 29.6l7.5-7.4 1.8 1.8-7.4 7.5Z" />
+          <path d="M26 29.6l1.9 1.9" />
+        </g>
+      </svg>
+    </a>
+
+    <nav class="more" aria-label="Mer om Prikko">
+      <a href="/metodik">Metodik</a>
+      <a href="/kallor">Källor</a>
+      <a href="/om">Om Prikko</a>
+    </nav>
   </div>
 </details>
 
@@ -120,9 +166,18 @@ const points = municipalityPoints();
     top: calc(100% + var(--s-2));
     right: 0;
     z-index: 50;
+    display: flex;
+    flex-direction: column;
     width: 340px;
     max-width: calc(100vw - var(--s-8));
-    max-height: min(70vh, 560px);
+    /* Höjd tagen ur menyns nya innehåll: den framhävda raden och länkarna
+       under den äter drygt 200 px som listan förut hade. 620 ger listan
+       omkring sex synliga kommuner på en normal laptop, vilket är vad som
+       krävs för att den ska läsa som en lista och inte som en glugg. */
+    max-height: min(76vh, 620px);
+    /* Sista utvägen. Normalt rullar bara .scroll, men på en riktigt låg
+       skärm räcker inte höjden ens till listans minsta mått, och då är en
+       rullande panel bättre än avklippta länkar. */
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: var(--s-4);
@@ -144,6 +199,12 @@ const points = municipalityPoints();
     .panel { background: var(--card); }
   }
 
+  /* Rubriken, sökfältet och statusraden ska aldrig krympa när listan växer.
+     Det är listan som ger vika, inte kontrollerna som styr den. */
+  .head,
+  .tools,
+  .message { flex-shrink: 0; }
+
   .head { margin-bottom: var(--s-3); }
 
   .tools {
@@ -164,6 +225,12 @@ const points = municipalityPoints();
     border: 1px solid var(--hairline);
     border-radius: var(--r-control);
   }
+
+  /* display på en klass slår [hidden] i webbläsarens egen stilmall, eftersom
+     författarens regler alltid vinner över UA:ns. Utan den här raden syntes
+     sökfältet och platsknappen för den som saknar JavaScript, alltså precis
+     de två kontroller som inte gör någonting utan skript. */
+  .tools[hidden] { display: none; }
 
   .tools input::placeholder { color: var(--text-muted); }
 
@@ -197,6 +264,20 @@ const points = municipalityPoints();
     color: var(--text);
   }
 
+  /* Enda ytan som rullar. min-height: 0 måste stå ut: utan den vägrar ett
+     flexbarn krympa under sitt innehåll, och 290 kommuner hade tryckt ut
+     raderna under panelens nederkant. */
+  .scroll {
+    flex: 1 1 auto;
+    min-height: 88px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-inline: calc(var(--s-1) * -1);
+    padding-inline: var(--s-1);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
   .kommuner {
     list-style: none;
     margin: 0;
@@ -221,23 +302,95 @@ const points = municipalityPoints();
   .admin { font-size: var(--fs-eyebrow); }
 
   .empty,
-  .foot {
+  .coverage {
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
   }
 
-  .foot {
-    margin-top: var(--s-3);
-    padding-top: var(--s-3);
+  .empty { padding: var(--s-2) var(--s-3); }
+
+  /* Avdelarna ligger på texten och på nav-behållaren, aldrig på länkarna
+     själva: en border-top följer border-radius och hade böjt sig runt den
+     framhävda radens hörn i stället för att gå rakt tvärs över panelen. */
+  .coverage {
+    padding: var(--s-3) var(--s-3) var(--s-1);
+  }
+
+  /* Den framhävda raden. Avdelarna omkring är hela skillnaden mellan en
+     lista som fortsätter och ett nytt stycke i menyn. */
+  .feature {
+    flex-shrink: 0;
+    margin-top: var(--s-2);
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  .feature:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+
+  .feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .feature-title {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .feature-body {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .art {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    color: var(--text-secondary);
+  }
+
+  .art .pen { color: var(--brand); }
+
+  .more {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
     border-top: 1px solid var(--hairline);
   }
 
-  .empty { padding: var(--s-2) var(--s-3); }
+  .more a {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+  }
+
+  .more a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
 
   @media (max-width: 480px) {
     .trigger span { display: none; }
     .trigger { padding-inline: var(--s-2); }
-    .panel { width: calc(100vw - var(--s-4) * 2); right: calc(var(--s-4) * -1); }
+    /* right: 0, inte ett negativt utfall. Containern har redan 16 px luft åt
+       höger, och drog panelen ut lika mycket låg den dikt an mot skärmkanten
+       med 32 px kvar på andra sidan. Nu står den lika långt in på båda. */
+    .panel { width: calc(100vw - var(--s-4) * 2); right: 0; }
   }
 </style>
 
