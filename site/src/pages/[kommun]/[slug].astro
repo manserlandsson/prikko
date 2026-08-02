@@ -21,7 +21,7 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import LocationMap from '../../components/LocationMap.astro';
-import StreetView from '../../components/StreetView.astro';
+import StreetPhoto from '../../components/StreetPhoto.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import {
@@ -166,11 +166,9 @@ const breadcrumbs = {
 
       <aside class="side">
         <div class="panel">
+          {e.image && <StreetPhoto image={e.image} name={e.name} />}
           {e.lat && e.lng && (
-            <>
-              <LocationMap lat={e.lat} lng={e.lng} name={e.name} verdict={e.verdict} />
-              <StreetView lat={e.lat} lng={e.lng} name={e.name} />
-            </>
+            <LocationMap lat={e.lat} lng={e.lng} name={e.name} verdict={e.verdict} />
           )}
 
           <div class="actions">

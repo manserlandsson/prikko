@@ -1,0 +1,66 @@
+---
+/**
+ * Gatubild på verksamheten.
+ *
+ * Bilden kommer från Mapillary och serveras direkt — ingen knapp att klicka,
+ * ingen iframe, inget samtycke. Antingen finns bilden och visas, eller så
+ * finns den inte och panelen börjar med kartan i stället.
+ *
+ * Licensen (CC-BY-SA) kräver attribution, vilket ligger som bildtext.
+ *
+ * `loading="lazy"` plus explicita mått: bilden ska aldrig orsaka layoutskift,
+ * och den ska aldrig konkurrera med sidans LCP. Bedömningen är hjälten.
+ */
+import type { StreetImage } from '../lib/data';
+
+interface Props {
+  image: StreetImage;
+  name: string;
+}
+
+const { image, name } = Astro.props;
+
+const year = image.capturedAt
+  ? new Date(Number(image.capturedAt)).getFullYear()
+  : null;
+---
+
+<figure class="photo">
+  <img
+    src={image.url}
+    alt={`Gatubild vid ${name}`}
+    width="600"
+    height="400"
+    loading="lazy"
+    decoding="async"
+  />
+  <figcaption class="text-muted">
+    Gatubild {year && `från ${year} `}·
+    <a
+      href={`https://www.mapillary.com/app/?pKey=${image.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >Mapillary</a>, CC BY-SA
+  </figcaption>
+</figure>
+
+<style>
+  .photo {
+    margin: 0 0 var(--s-3);
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: var(--r-control);
+    background: var(--canvas);
+  }
+
+  figcaption {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 14px;
+  }
+</style>

@@ -29,6 +29,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from prikko.grading import Inspection, assess  # noqa: E402
+from prikko.imagery import find_street_image  # noqa: E402
 from prikko.sources.linkoping import (  # noqa: E402
     MUNICIPALITY_CITY,
     MUNICIPALITY_CODE,
@@ -119,6 +120,18 @@ def build(limit: Optional[int], today: date) -> dict:
 
         inspections = [i for i in inspections if i is not None]
 
+        # Gatubild. Saknas token eller täckning blir det None, och sidan
+        # designas så den fungerar utan bild — de flesta kommer sakna en.
+        image = None
+        if establishment.lat and establishment.lng:
+            found = find_street_image(establishment.lat, establishment.lng)
+            if found:
+                image = {
+                    "url": found.url,
+                    "id": found.id,
+                    "capturedAt": found.captured_at,
+                }
+
         result = assess(
             [
                 Inspection(
@@ -141,6 +154,7 @@ def build(limit: Optional[int], today: date) -> dict:
                 "types": establishment.types,
                 "lat": establishment.lat,
                 "lng": establishment.lng,
+                "image": image,
                 "verdict": result.verdict,
                 "distinction": result.distinction,
                 "reason": result.reason,

@@ -36,10 +36,12 @@
   --verdict-none:       #8E8E93;
   --verdict-none-ink:   #6E6E73;
 
-  /* Symbolen på märket. Vit funkar på grönt och rött, men försvinner på
-     gult — där används mörk symbol i stället (11:1). */
+  /* Symbolen på märket är alltid vit — designbeslut av Måns.
+     Not: vit på den ljusa gulan ger 1,5:1, under WCAG:s 3:1 för grafik.
+     Det är acceptabelt här eftersom betydelsen ALLTID bärs av texten
+     bredvid; ansiktet är förstärkning, aldrig ensam informationsbärare. */
   --on-clean: #FFFFFF;
-  --on-minor: #1D1D1F;
+  --on-minor: #FFFFFF;
   --on-major: #FFFFFF;
   --on-none:  #FFFFFF;
 

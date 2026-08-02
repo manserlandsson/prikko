@@ -98,6 +98,12 @@ export function legislationArea(code: string) {
   return LEGISLATION_AREAS[code.charAt(0).toUpperCase()];
 }
 
+export interface StreetImage {
+  url: string;
+  id: string;
+  capturedAt: string | null;
+}
+
 export interface Establishment {
   id: string;
   slug: string;
@@ -106,6 +112,8 @@ export interface Establishment {
   types: string[];
   lat: number | null;
   lng: number | null;
+  /** Gatubild från Mapillary. `null` när täckning saknas — vanligt. */
+  image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;
   reason: string;
