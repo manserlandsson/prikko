@@ -139,7 +139,11 @@
       "Bash(grep -oE '\\(configUrl|urls?\\)[^,;]{0,120}' ijs.js)",
       "Bash(curl -s --max-time 25 -o sw.json \"https://livsmedelsdata.linkoping.se/swagger/v1.0/swagger.json\")",
       "Bash(curl -s --max-time 40 -o data.json -w \"status=%{http_code} bytes=%{size_download}\\\\n\" \"https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar?pageSize=25&page=1\")",
-      "Bash(curl -s --max-time 90 -o all.json \"https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar/medsenastetillsyn?pageSize=1300&page=1\")"
+      "Bash(curl -s --max-time 90 -o all.json \"https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar/medsenastetillsyn?pageSize=1300&page=1\")",
+      "Bash(rm -rf .git/refs/original)",
+      "Bash(git reflog *)",
+      "Bash(git gc *)",
+      "Bash(PYTHONPATH=pipeline python3 -c ' *)"
     ]
   }
 }

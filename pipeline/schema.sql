@@ -120,24 +120,37 @@ create table inspections (
 create index on inspections (establishment_id, inspected_at desc);
 
 -- ---------------------------------------------------------------------------
--- Betyg (härlett — vår bedömning, inte kommunens)
+-- Bedömning (härledd — vår slutsats, inte kommunens)
+--
+-- Tre nivåer, speglar källdatans `assessment` 0/1/2 ett till ett. Ingen
+-- bokstavsskala: den hade krävt precision datan inte har, och A–E krockar med
+-- de svenska skolbetygen där E är lägsta godkända.
 -- ---------------------------------------------------------------------------
-create table grades (
+create table assessments (
     establishment_id    text primary key
                             references establishments (id_national)
                             on delete cascade,
 
-    -- NULL = otillräckligt underlag. Detta är ett giltigt utfall och betyder
-    -- ALDRIG dåligt betyg. Sidor med NULL no-indexeras av kvalitetsgrinden.
-    grade               char(1) check (grade in ('A', 'B', 'C', 'D', 'E')),
+    -- NULL = otillräckligt underlag. Ett giltigt utfall som ALDRIG betyder
+    -- dålig hygien. Sidor med NULL no-indexeras av kvalitetsgrinden.
+    verdict             text check (verdict in ('clean', 'minor', 'major')),
 
-    reason              text not null,      -- 'graded' | 'stale_inspections' | ...
+    -- Genomgående utan anmärkningar vid de tre senaste kontrollerna.
+    -- Vår motsvarighet till Danmarks Elite-Smiley: historiken ger ett
+    -- erkännande, aldrig en ändrad allvarlighetsgrad.
+    distinction         boolean not null default false,
+
+    reason              text not null,      -- 'assessed' | 'stale_inspections' | 'no_inspections'
     model_version       integer not null,   -- måste matcha grading.MODEL_VERSION
     based_on            text[] not null default '{}',   -- inspektions-id, nyast först
-    computed_at         timestamptz not null default now()
+    computed_at         timestamptz not null default now(),
+
+    -- En utmärkelse utan ren bedömning vore självmotsägande.
+    constraint distinction_requires_clean
+        check (not distinction or verdict = 'clean')
 );
 
-create index on grades (grade) where grade is not null;
+create index on assessments (verdict) where verdict is not null;
 
 -- ---------------------------------------------------------------------------
 -- Publiceringsvy: vad sajten får rendera som en indexerbar sida.
@@ -146,14 +159,15 @@ create index on grades (grade) where grade is not null;
 create view publishable_establishments as
 select
     e.*,
-    g.grade,
-    g.reason        as grade_reason,
-    g.model_version as grade_model_version,
-    g.based_on      as grade_based_on,
-    g.computed_at   as grade_computed_at
+    a.verdict,
+    a.distinction,
+    a.reason        as assessment_reason,
+    a.model_version as assessment_model_version,
+    a.based_on      as assessment_based_on,
+    a.computed_at   as assessed_at
 from establishments e
-join grades g on g.establishment_id = e.id_national
+join assessments a on a.establishment_id = e.id_national
 where e.active = 2
-  and g.grade is not null
+  and a.verdict is not null
   and e.lat is not null
   and e.lng is not null;

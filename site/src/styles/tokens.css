@@ -21,13 +21,17 @@
   --text-muted: #A1A1A6;
   --hairline: rgba(0, 0, 0, .08);
 
-  /* Betygsskala (färg = betydelse; kombineras ALLTID med bokstav + form) */
-  --grade-a: #0E7A4B;
-  --grade-b: #34C759;
-  --grade-c: #E3A008;
-  --grade-d: #E8730C;
-  --grade-e: #D0342C;
-  --grade-none: #8E8E93;       /* otillräckligt underlag — aldrig ett betyg */
+  /* Bedömningsnivåer. Tre steg, speglar källdatan (Sambruk assessment 0/1/2).
+     Färg = betydelse, men kombineras ALLTID med symbol + textetikett:
+     8 % av män är färgblinda och färg ensam är inte ett budskap. */
+  --verdict-clean: #0E7A4B;
+  --verdict-minor: #E3A008;
+  --verdict-major: #D0342C;
+  --verdict-none:  #8E8E93;    /* otillräckligt underlag — aldrig en dålig bedömning */
+
+  /* Utmärkelse för genomgående skötsamhet (vår Elite-Smiley).
+     Mässing, inte guld — ska läsa institutionellt, inte som en rabattstämpel. */
+  --distinction: #C8A24B;
 
   /* Radier */
   --r-card: 12px;

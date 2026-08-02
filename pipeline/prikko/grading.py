@@ -1,26 +1,41 @@
-"""Prikkos betygsmodell.
+"""Prikkos hygienbedömning.
 
 Det här är produktens kärna och dess juridiska exponering i samma funktion.
-Betyget är INTE kommunens bedömning — det är vår, härledd ur kommunens data.
-Därför gäller tre regler för den här modulen:
+Bedömningen är INTE kommunens — den är vår, härledd ur kommunens data. Därför
+gäller tre regler för den här modulen:
 
-1. Den är en ren funktion. Inga databasanrop, ingen I/O, ingen klocka som
-   läses internt (`today` skickas in). Då går den att testa uttömmande.
-2. Den är versionerad. `MODEL_VERSION` sparas tillsammans med varje betyg, så
-   att vi i efterhand kan säga exakt hur ett publicerat betyg räknades fram.
-3. Den vägrar gissa. Otillräckligt eller för gammalt underlag ger inget betyg
-   alls — aldrig ett dåligt betyg. Ett gissat E på en restaurang som åtgärdade
-   sina brister för fem år sedan är både orättvist och den mest berättigade
-   klagomålsgrund någon kan ha mot oss.
+1. Den är en ren funktion. Inga databasanrop, ingen I/O, ingen klocka som läses
+   internt (`today` skickas in). Då går den att testa uttömmande.
+2. Den är versionerad. `MODEL_VERSION` sparas med varje bedömning, så att ett
+   publicerat omdöme går att härleda i efterhand.
+3. Den vägrar gissa. Otillräckligt eller för gammalt underlag ger ingen
+   bedömning alls — aldrig en dålig. Ett påstått "allvarliga brister" på en
+   restaurang som åtgärdade allt för fem år sedan är både orättvist och den
+   mest berättigade klagomålsgrund någon kan ha mot oss.
 
-Modellen i en mening, som den ska stå på metodiksidan:
-    Senaste kontrollen avgör betyget, historiken justerar det ett steg.
+## Varför tre nivåer och inte en bokstavsskala
 
-Bygger på fältet `assessment` (inspektörens egen sammanvägda bedömning i tre
-steg), inte på enskilda kontrollpunkter. Se research/R1_sambruk_datamodell.md
-för varför: `assessment` är ovillkorligt obligatoriskt i Sambruk-specen medan
-kontrollpunkterna bara publiceras ibland, och att återge myndighetens egen
-slutsats står starkare än att göra en egen tolkning av punktkoder.
+Källdatan har tre nivåer. Sambruk/NSÖD-specens `assessment` är 0 = inga
+anmärkningar, 1 = mindre, 2 = allvarliga, och Linköpings faktiska värden
+faller i samma tre grader av allvar. En femgradig bokstavsskala hade krävt att
+vi uppfann precision som datan inte innehåller — svagt redaktionellt, och
+svagare juridiskt, eftersom varje steg bort från myndighetens egen formulering
+är ett påstående vi själva måste försvara.
+
+En bokstavsskala vore dessutom direkt vilseledande i Sverige: skolbetygen är
+A–F där E är det lägsta *godkända* betyget. Ett "E" för allvarliga brister
+läses som "godkänt, nätt och jämnt".
+
+Norge kom till tre nivåer av samma skäl. Danmark har fyra för att deras egen
+kontrollskala har fyra utfall — inte för att fyra är bättre.
+
+## Varför historiken ger en utmärkelse, inte ett betygssteg
+
+Med tre nivåer hamnar ungefär två tredjedelar av beståndet på den bästa. För
+att ändå skilja de genomgående skötsamma används historiken till en separat
+utmärkelse — samma idé som Danmarks Elite-Smiley. Historiken påverkar alltså
+aldrig hur allvarligt något bedöms, bara om verksamheten förtjänar ett
+erkännande. Nuläget avgör bedömningen; historiken avgör utmärkelsen.
 """
 
 from __future__ import annotations
@@ -29,13 +44,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Sequence
 
-MODEL_VERSION = 1
+MODEL_VERSION = 2
 
 # Livsmedelsverkets kontroller sprids normalt över en treårscykel. Är senaste
 # kontrollen äldre än så säger den inget om nuläget.
 FRESHNESS_WINDOW_DAYS = 3 * 365
 
-# Hur många kontroller som väger in. Tre är Danmarks Smiley-praxis och räcker
+# Hur många kontroller som vägs in. Tre är Danmarks Smiley-praxis och räcker
 # för att skilja engångsmiss från mönster.
 HISTORY_DEPTH = 3
 
@@ -49,10 +64,27 @@ ROUTINE = 0
 FOLLOWUP = 1
 COMPLAINT = 2
 
+# Bedömningsnivåer. Speglar källans tre steg ett till ett.
+CLEAN = "clean"
+MINOR = "minor"
+MAJOR = "major"
+
+_VERDICT_BY_ASSESSMENT = {
+    NO_REMARKS: CLEAN,
+    MINOR_REMARKS: MINOR,
+    MAJOR_REMARKS: MAJOR,
+}
+
+# Skälstexter. Exponeras i API och på sidan — håll dem begripliga för en
+# besökare, inte bara för oss.
+REASON_NO_INSPECTIONS = "no_inspections"
+REASON_STALE = "stale_inspections"
+REASON_ASSESSED = "assessed"
+
 
 @dataclass(frozen=True)
 class Inspection:
-    """En kontroll, normaliserad från Sambruk-formatet."""
+    """En kontroll, normaliserad från källans format."""
 
     id_national: str
     inspected_at: date
@@ -61,49 +93,36 @@ class Inspection:
 
 
 @dataclass(frozen=True)
-class GradeResult:
-    """Utfallet. `grade is None` betyder otillräckligt underlag, inte dåligt."""
+class Assessment:
+    """Utfallet. `verdict is None` betyder otillräckligt underlag."""
 
-    grade: Optional[str]
+    verdict: Optional[str]
+    #: Genomgående utan anmärkningar vid alla kontroller i fönstret.
+    distinction: bool
     reason: str
     model_version: int
     based_on: List[str]
 
     @property
     def publishable(self) -> bool:
-        """Styr kvalitetsgrinden: sidor utan betyg no-indexeras."""
-        return self.grade is not None
+        """Styr kvalitetsgrinden: sidor utan bedömning no-indexeras."""
+        return self.verdict is not None
 
 
-# Skälstexter. Exponeras i API och på sidan — håll dem begripliga för en
-# besökare, inte bara för oss.
-REASON_NO_INSPECTIONS = "no_inspections"
-REASON_STALE = "stale_inspections"
-REASON_GRADED = "graded"
-
-
-def calculate_grade(
+def assess(
     inspections: Sequence[Inspection],
     today: date,
-) -> GradeResult:
-    """Räkna fram hygienbetyget för en anläggning.
+) -> Assessment:
+    """Bedöm hygienen för en anläggning.
 
-    Trappan, given senaste kontrollens bedömning och om det finns anmärkningar
-    tidigare i historiken:
+    Senaste kontrollen avgör nivån:
 
-        senaste = inga anmärkningar   + ren historik      -> A
-        senaste = inga anmärkningar   + anmärkning förut  -> B
-        senaste = mindre anmärkningar + ren historik      -> C
-        senaste = mindre anmärkningar + anmärkning förut  -> D
-        senaste = allvarliga anmärkningar                 -> E
+        inga anmärkningar   -> clean
+        mindre anmärkningar -> minor
+        allvarliga          -> major
 
-    En uppföljningskontroll som är ren efter allvarliga brister lyfter alltså
-    betyget — men bara till B, aldrig till A, eftersom historiken finns kvar.
-    Det är avsiktligt: den som åtgärdat ska belönas, men inte som om inget hänt.
-
-    Allvarliga anmärkningar vid senaste kontrollen ger alltid E. Historiken kan
-    inte mildra det, för det är nuläget som är relevant för någon som står
-    utanför och funderar på att gå in.
+    Utmärkelsen ges när samtliga kontroller i fönstret — minst tre stycken —
+    är utan anmärkning. Den kan aldrig höja eller sänka nivån.
     """
     window_start = date.fromordinal(today.toordinal() - FRESHNESS_WINDOW_DAYS)
 
@@ -117,29 +136,26 @@ def calculate_grade(
         # Skilj på "aldrig kontrollerad" och "kontrollerad men för länge sedan".
         # Besökaren har rätt att veta vilket det är.
         had_any = any(i.inspected_at <= today for i in inspections)
-        return GradeResult(
-            grade=None,
+        return Assessment(
+            verdict=None,
+            distinction=False,
             reason=REASON_STALE if had_any else REASON_NO_INSPECTIONS,
             model_version=MODEL_VERSION,
             based_on=[],
         )
 
     latest = recent[0]
-    history = recent[1:]
-    based_on = [i.id_national for i in recent]
+    verdict = _VERDICT_BY_ASSESSMENT[latest.assessment]
 
-    if latest.assessment >= MAJOR_REMARKS:
-        grade = "E"
-    else:
-        blemished_history = any(i.assessment > NO_REMARKS for i in history)
-        if latest.assessment == NO_REMARKS:
-            grade = "B" if blemished_history else "A"
-        else:
-            grade = "D" if blemished_history else "C"
+    distinction = (
+        len(recent) >= HISTORY_DEPTH
+        and all(i.assessment == NO_REMARKS for i in recent)
+    )
 
-    return GradeResult(
-        grade=grade,
-        reason=REASON_GRADED,
+    return Assessment(
+        verdict=verdict,
+        distinction=distinction,
+        reason=REASON_ASSESSED,
         model_version=MODEL_VERSION,
-        based_on=based_on,
+        based_on=[i.id_national for i in recent],
     )

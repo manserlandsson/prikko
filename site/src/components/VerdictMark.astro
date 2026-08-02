@@ -1,0 +1,141 @@
+---
+/**
+ * Bedömningsmärket — sajtens viktigaste komponent.
+ *
+ * Samma märke används på restaurangsidan, i kort, som kartnål, på
+ * fönsterdekalen och i den inbäddningsbara badgen. Håll det därför fritt från
+ * sidspecifik logik.
+ *
+ * Tillgänglighetsregel: bedömningen kommuniceras ALDRIG med enbart färg.
+ * Alltid färg + symbol + textetikett. Symbolen är avsiktligt inte en bokstav —
+ * dels för att den ska funka i en kartnål oberoende av språk, dels för att en
+ * bokstavsskala krockar med de svenska skolbetygen (se lib/site.ts).
+ */
+import {
+  DISTINCTION,
+  MISSING,
+  VERDICT,
+  type MissingReason,
+  type VerdictOrNone,
+} from '../lib/site';
+
+interface Props {
+  verdict: VerdictOrNone;
+  /** Krävs när verdict är null, för att skilja "aldrig kontrollerad" från "för gammal". */
+  missingReason?: MissingReason;
+  /** Genomgående utan anmärkningar vid de tre senaste kontrollerna. */
+  distinction?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  showLabel?: boolean;
+}
+
+const {
+  verdict,
+  missingReason = 'no_inspections',
+  distinction = false,
+  size = 'lg',
+  showLabel = false,
+} = Astro.props;
+
+const p = verdict ? VERDICT[verdict] : MISSING[missingReason];
+const showDistinction = distinction && verdict === 'clean';
+---
+
+<div class="wrap">
+  <div class="markbox">
+    <div
+      class:list={['mark', size]}
+      style={`--mark-color: ${p.colorVar}`}
+      role="img"
+      aria-label={p.label}
+    >
+      <span class="glyph" aria-hidden="true">{p.glyph}</span>
+    </div>
+    {showDistinction && (
+      <span class="star" title={DISTINCTION.label} aria-hidden="true">★</span>
+    )}
+  </div>
+
+  {showLabel && (
+    <span class="label" style={`color: ${p.colorVar}`}>{p.label}</span>
+  )}
+  {showLabel && showDistinction && (
+    <span class="distinction">{DISTINCTION.short}</span>
+  )}
+</div>
+
+<style>
+  .wrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-2);
+    flex-shrink: 0;
+  }
+
+  .markbox {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mark-color);
+    color: #fff;
+    border-radius: var(--r-chip);
+  }
+
+  .glyph {
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .lg { width: 96px; height: 96px; }
+  .lg .glyph { font-size: 48px; }
+
+  .md { width: 64px; height: 64px; border-radius: 16px; }
+  .md .glyph { font-size: 32px; }
+
+  .sm { width: 40px; height: 40px; border-radius: 11px; }
+  .sm .glyph { font-size: 20px; }
+
+  /* Utmärkelsen sitter som en dekoration på märket, aldrig som en egen nivå. */
+  .star {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #fff;
+    background: var(--distinction);
+    border: 2px solid var(--card);
+    border-radius: 50%;
+  }
+
+  .sm ~ .star {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    top: -4px;
+    right: -4px;
+  }
+
+  .label {
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .distinction {
+    font-size: var(--fs-caption);
+    color: var(--distinction);
+    font-weight: 600;
+    text-align: center;
+  }
+</style>
