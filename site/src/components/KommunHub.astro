@@ -13,7 +13,7 @@
 import Base from '../layouts/Base.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import Pagination from './Pagination.astro';
-import { formatNumber, type Establishment, type Municipality } from '../lib/data';
+import { formatNumber, sourceLimits, type Establishment, type Municipality } from '../lib/data';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
 
@@ -35,6 +35,11 @@ const { kommun, items, currentPage, lastPage, start, total, counts } = Astro.pro
 const city = kommun.city;
 const base = `/${kommun.slug}`;
 const remarks = counts.minor + counts.major;
+
+// Vissa kommuner lämnar ut så lite att modellen aldrig kan nå alla utfall.
+// Då är en nolla i tabellen ovan ett besked om källan, inte om verksamheterna,
+// och det måste stå på den sida där siffran visas. Se sourceLimits i data.ts.
+const limits = sourceLimits(kommun.slug);
 
 // Titel och beskrivning måste skilja sig mellan sidorna i serien, annars
 // rapporterar Search Console dubbletter genom hela katalogen.
@@ -116,6 +121,12 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           </li>
         </ul>
 
+        {limits.note && (
+          <p class="limits">
+            {limits.note} <a href="/metodik#jamfor">Så påverkar källan bedömningen</a>.
+          </p>
+        )}
+
         {remarks > 0 && (
           <p class="jump">
             {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
@@ -189,5 +200,15 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   .jump {
     margin-top: var(--s-6);
     font-size: var(--fs-body-s);
+  }
+
+  /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
+  .limits {
+    margin-top: var(--s-6);
+    padding-left: var(--s-4);
+    border-left: 3px solid var(--verdict-none);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
   }
 </style>

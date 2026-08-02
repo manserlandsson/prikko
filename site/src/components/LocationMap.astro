@@ -14,11 +14,25 @@
  * karta sparas till vyer där kartan ÄR huvudsaken. Den kommer på stadssidan.
  *
  * Mapbox Static Images API: 50 000 bilder/mån gratis, kommersiellt tillåtet.
- * Attribution bakas in i bilden av API:et.
+ * Attribution för själva KARTBILDEN bakas in i bilden av API:et.
  *
  * Nålen ritas som vårt eget ansiktsmärke ovanpå bilden i stället för att
  * skickas som overlay till Mapbox. Då slipper vi hosta en markörbild, och
  * märket blir exakt vårt — samma tecken som på resten av sajten.
+ *
+ * ## Varför härledda nålar måste märkas
+ *
+ * Uppsala och Örebro lämnar inga koordinater. Deras nålar är geokodade mot
+ * OpenStreetMap i pipelinen (se prikko/geocode.py). Två skäl att skriva ut det:
+ *
+ * 1. Juridiskt. OSMF:s Geocoding Guideline tillåter att en härledd koordinat
+ *    lagras och visas, men kräver attribution DÄR den visas. Mapbox inbakade
+ *    "© OpenStreetMap" gäller kartbilden, inte vår nål, och täcker alltså inte
+ *    kravet.
+ * 2. Redaktionellt, och det tyngre skälet. En nål som ser likadan ut oavsett
+ *    om kommunen lämnat punkten eller om vi räknat fram den påstår en säkerhet
+ *    vi inte har. Härledda nålar får därför en synlig osäkerhetsring, och de
+ *    228 som bara matchat grannporten en vidare ring.
  */
 import FaceMark from './FaceMark.astro';
 import type { VerdictOrNone } from '../lib/site';
@@ -28,9 +42,17 @@ interface Props {
   lng: number;
   name: string;
   verdict: VerdictOrNone;
+  /** Satt bara när koordinaten är härledd ur adressen, inte lämnad av kommunen. */
+  geoSource?: 'osm';
+  /** 'address' = adressens egen punkt. 'approximate' = grannporten. */
+  geoPrecision?: 'address' | 'approximate';
 }
 
-const { lat, lng, name, verdict } = Astro.props;
+const { lat, lng, name, verdict, geoSource, geoPrecision } = Astro.props;
+
+// Saknas geoSource kommer punkten från kommunen och ska inte märkas.
+const derived = geoSource === 'osm';
+const approximate = derived && geoPrecision === 'approximate';
 
 const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 
@@ -46,6 +68,10 @@ const src = token
   : null;
 
 const osm = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
+
+const alt = derived
+  ? `Karta som visar den beräknade platsen för ${name}`
+  : `Karta som visar var ${name} ligger`;
 ---
 
 {src && (
@@ -53,17 +79,29 @@ const osm = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat
     <div class="frame">
       <img
         src={src}
-        alt={`Karta som visar var ${name} ligger`}
+        alt={alt}
         width={WIDTH}
         height={HEIGHT}
         loading="lazy"
         decoding="async"
       />
-      <span class="pin">
+      <span class:list={['pin', derived && 'derived', approximate && 'wide']}>
         <FaceMark verdict={verdict} size={34} />
       </span>
     </div>
     <figcaption class="text-muted">
+      {derived && (
+        <span class="derived-note">
+          Platsen är beräknad från adressen, inte lämnad av kommunen.
+          {approximate && ' Husnumret saknas i kartdatan, så nålen står vid närmaste grannport.'}
+          {' '}Kartdata ©{' '}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noopener noreferrer"
+          >OpenStreetMap</a>.
+        </span>
+      )}
       <a href={osm} target="_blank" rel="noopener noreferrer">Öppna större karta</a>
     </figcaption>
   </figure>
@@ -100,10 +138,38 @@ const osm = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat
     border-radius: 11px;
   }
 
-  /* Attribution bakas in i bilden av Mapbox — ingen egen text behövs. */
+  /* Osäkerhetsring för härledd punkt. Samma grepp som mobilkartornas
+     positionsring: nålen står kvar där den står, men ringen visar att den
+     har en tolerans. Ritad på ::before så den ligger under märket. */
+  .pin.derived::before {
+    content: '';
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    width: 66px;
+    height: 66px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, .22);
+    background: rgba(0, 0, 0, .06);
+  }
+
+  /* Grannportsträff: samma signal, vidare ring. */
+  .pin.wide::before {
+    width: 104px;
+    height: 104px;
+  }
+
+  /* Kartbildens egen attribution bakas in av Mapbox. Texten här gäller något
+     annat: att NÅLEN är härledd ur OpenStreetMap. Se komponentens inledning. */
   figcaption {
     margin-top: 6px;
     font-size: 11px;
     line-height: 14px;
+  }
+
+  .derived-note {
+    display: block;
+    margin-bottom: 4px;
   }
 </style>

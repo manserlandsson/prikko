@@ -372,6 +372,122 @@ export function municipalitySummaries(): MunicipalitySummary[] {
 }
 
 // ---------------------------------------------------------------------------
+// Vad källan gör omöjligt
+// ---------------------------------------------------------------------------
+
+/**
+ * Hur många kontroller modellen väger in. Speglar HISTORY_DEPTH i
+ * pipeline/prikko/grading.py och måste ändras i takt med den.
+ */
+export const HISTORY_DEPTH = 3;
+
+export interface SourceLimits {
+  /** Djupaste kontrollhistorik någon verksamhet i kommunen har. */
+  maxHistory: number;
+  /**
+   * Sant när ingen kontroll i kommunen är märkt som återbesök. Då kan modellen
+   * inte se att en avvikelse överlevt en uppföljning.
+   */
+  noInspectionType: boolean;
+  /** Kan någon verksamhet i kommunen alls nå utmärkelsen? */
+  distinctionPossible: boolean;
+  /** Kan modellen alls härleda kvarstående brister i kommunen? */
+  persistingPossible: boolean;
+  /** Notis i klarspråk, eller null när källan inte begränsar något. */
+  note: string | null;
+}
+
+const limitsCache = new Map<string, SourceLimits>();
+
+function joinSv(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} och ${parts[parts.length - 1]}`;
+}
+
+/**
+ * Vad kommunens datakälla gör strukturellt omöjligt.
+ *
+ * Modellen är densamma överallt, men källorna är det inte. Karlstad publicerar
+ * bara den senaste kontrollen, så ingen verksamhet där kan visa tre rena i rad
+ * och utmärkelsen är utom räckhåll för alla 694. Oskarshamn saknar dessutom
+ * kontrolltyp, så modellen aldrig kan se att en avvikelse överlevt en
+ * uppföljning: noll av 239 kan hamna på "Brister som kvarstår".
+ *
+ * Utan den här upplysningen läser besökaren frånvaron som ett omdöme om
+ * verksamheten, när den i själva verket är ett omdöme om vad kommunen lämnar
+ * ut. Räknas fram ur datan i stället för att listas i kod, så att den inte kan
+ * bli inaktuell när en kommun börjar publicera mer.
+ */
+export function sourceLimits(slug: string): SourceLimits {
+  const cached = limitsCache.get(slug);
+  if (cached) return cached;
+
+  const all = establishments(slug);
+  const name = all[0]?.municipality.name ?? slug;
+
+  let maxHistory = 0;
+  let typedInspections = 0;
+  for (const e of all) {
+    if (e.inspections.length > maxHistory) maxHistory = e.inspections.length;
+    for (const i of e.inspections) if (i.type !== 0) typedInspections += 1;
+  }
+
+  const noInspectionType = typedInspections === 0;
+
+  // Utmärkelsen kräver HISTORY_DEPTH kontroller utan anmärkning. Räcker inte
+  // historiken till så många kontroller kan ingen få den.
+  const distinctionPossible = maxHistory >= HISTORY_DEPTH;
+
+  // Kvarstående brister härleds ur två tecken: senaste kontrollen är ett
+  // återbesök, eller föregående kontroll hade också avvikelser. Saknas både
+  // kontrolltyp och en föregående kontroll finns inget av tecknen.
+  const persistingPossible = !noInspectionType || maxHistory >= 2;
+
+  // Kommuner som lämnar ut mer än modellens fönster begränsar ingenting.
+  const causes: string[] = [];
+  if (maxHistory <= 1) {
+    causes.push('publicerar bara den senaste kontrollen');
+  } else if (maxHistory <= HISTORY_DEPTH) {
+    causes.push(
+      `lämnar ut högst ${maxHistory === 2 ? 'två' : 'tre'} kontroller per verksamhet`,
+    );
+  }
+  if (noInspectionType) causes.push('anger inte om en kontroll är ett återbesök');
+
+  let note: string | null = null;
+  if (causes.length > 0) {
+    const missing: string[] = [];
+    if (!distinctionPossible) missing.push('utmärkelsen för genomgående skötsamhet');
+    if (!persistingPossible) missing.push('nivån ”Brister som kvarstår”');
+
+    note =
+      missing.length > 0
+        ? `${name} ${joinSv(causes)}. Därför kan ingen verksamhet här nå ${joinSv(missing)}, ` +
+          'hur kontrollerna än ser ut. Frånvaron säger något om vad kommunen lämnar ut, ' +
+          'inte om verksamheterna.'
+        : `${name} ${joinSv(causes)}. Historiken är alltså precis så djup som modellen ` +
+          'väger in, och kortare än i de flesta andra kommuner.';
+  }
+
+  const limits: SourceLimits = {
+    maxHistory,
+    noInspectionType,
+    distinctionPossible,
+    persistingPossible,
+    note,
+  };
+  limitsCache.set(slug, limits);
+  return limits;
+}
+
+/** Kommuner där källan stänger ute något utfall, i bokstavsordning. */
+export function limitedMunicipalities(): Array<Municipality & { limits: SourceLimits }> {
+  return municipalities()
+    .map((m) => ({ ...m, limits: sourceLimits(m.slug) }))
+    .filter((m) => m.limits.note !== null);
+}
+
+// ---------------------------------------------------------------------------
 // Kommunhubbens ordning
 // ---------------------------------------------------------------------------
 

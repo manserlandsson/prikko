@@ -185,7 +185,14 @@ const breadcrumbs = {
         <div class="panel">
           {e.image && <StreetPhoto image={e.image} name={e.name} />}
           {e.lat && e.lng && (
-            <LocationMap lat={e.lat} lng={e.lng} name={e.name} verdict={e.verdict} />
+            <LocationMap
+              lat={e.lat}
+              lng={e.lng}
+              name={e.name}
+              verdict={e.verdict}
+              geoSource={e.geoSource}
+              geoPrecision={e.geoPrecision}
+            />
           )}
 
           <div class="actions">

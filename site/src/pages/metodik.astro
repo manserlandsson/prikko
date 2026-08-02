@@ -12,9 +12,16 @@
  */
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
+import {
+  limitedMunicipalities,
+  municipalitySummaries,
+  sourceLimits,
+} from '../lib/data';
 import { SITE } from '../lib/site';
 
-const MODEL_VERSION = 2;
+// MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
+// CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
+const MODEL_VERSION = 3;
 
 const levels = [
   {
@@ -25,12 +32,12 @@ const levels = [
   {
     verdict: 'minor' as const,
     label: 'Brister',
-    when: 'Kommunen noterade avvikelser vid den senaste kontrollen.',
+    when: 'Kommunen noterade avvikelser vid den senaste kontrollen, och inget tyder på att de fanns där redan innan.',
   },
   {
     verdict: 'major' as const,
     label: 'Brister som kvarstår',
-    when: 'Bristerna fanns kvar när kommunen följde upp, eller verksamheten bedömdes som ej godtagbar.',
+    when: 'Antingen bedömde kommunen bristerna som allvarliga, eller så visade sig bristerna leva vidare: kontrollen var ett återbesök som ändå hittade avvikelser, eller så fanns avvikelser redan vid kontrollen innan.',
   },
   {
     verdict: null,
@@ -38,6 +45,47 @@ const levels = [
     when: 'Det saknas kontroll, eller så är den senaste äldre än tre år. Detta betyder aldrig att hygienen är dålig.',
   },
 ];
+
+/**
+ * Andel med kvarstående brister per kommun, räknad på BEDÖMDA verksamheter.
+ *
+ * Hämtas ur datan i stället för att skrivas i löptext. Sidan är vårt
+ * juridiska försvar; en siffra som blivit inaktuell efter en datakörning vore
+ * exakt det fel sidan finns till för att undvika. Kommuner där modellen
+ * strukturellt inte kan nå nivån utelämnas ur spannet, annars jämför vi en
+ * verklig andel med en omöjlighet.
+ */
+const shares = municipalitySummaries()
+  .filter((m) => m.assessed > 0 && sourceLimits(m.slug).persistingPossible)
+  .map((m) => ({ city: m.city, share: (m.major / m.assessed) * 100 }))
+  .sort((a, b) => a.share - b.share);
+
+const lowest = shares[0];
+const highest = shares[shares.length - 1];
+
+/** Svensk decimal, en siffra. */
+const pct = (n: number) => n.toFixed(1).replace('.', ',');
+
+// Räknat på de VISADE talen, så att en läsare som dividerar dem själv får
+// samma svar. Avrundat nedåt till jämnt tiotal: påståendet ska hålla.
+const ratio =
+  lowest && highest && Number(lowest.share.toFixed(1)) > 0
+    ? Math.floor(
+        Number(highest.share.toFixed(1)) / Number(lowest.share.toFixed(1)) / 10,
+      ) * 10
+    : 0;
+
+// Byggs som en sträng, inte som JSX. Splitsade uttryck i löptext ger extra
+// blanksteg före kommatecken i utfallet.
+const spread =
+  lowest && highest
+    ? `${pct(lowest.share)} procent i ${lowest.city} till ` +
+      `${pct(highest.share)} procent i ${highest.city}` +
+      (ratio >= 10 ? `, alltså mer än ${ratio} gångers skillnad.` : '.')
+    : null;
+
+/** Kommuner där källan stänger ute ett utfall helt. */
+const limited = limitedMunicipalities();
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -51,7 +99,7 @@ const jsonLd = {
 
 <Base
   title="Så räknas bedömningen fram"
-  description="Hela Prikkos metodik, öppet publicerad: vilka nivåer som finns, hur den senaste kontrollen avgör, varför historiken ger en utmärkelse i stället för ett betygssteg, och när vi vägrar bedöma."
+  description="Hela Prikkos metodik, öppet publicerad: vilka nivåer som finns, hur den senaste kontrollen avgör, hur kvarstående brister läses ur mönstret i kontrollhistoriken, varför historiken ger en utmärkelse i stället för ett betygssteg, och när vi vägrar bedöma."
   jsonLd={jsonLd}
 >
   <article class="container page">
@@ -104,6 +152,44 @@ const jsonLd = {
     </section>
 
     <section>
+      <h2>Kvarstående brister läses ur mönstret, inte ur ordvalet</h2>
+      <p>
+        Kommunerna använder olika ord för samma sak. Linköping har ett eget
+        värde för ”Kvarstår” när en avvikelse inte åtgärdats vid uppföljning.
+        Stockholms skala slutar vid ”Med avvikelser” och har inget sådant ord
+        alls.
+      </p>
+      <p>
+        Läste vi bara etiketten skulle följden bli orimlig: ingen verksamhet i
+        Stockholm kunde någonsin hamna på den allvarligaste nivån, hur illa det
+        än vore, medan en verksamhet i Linköping kunde det. Då går städerna inte
+        att jämföra, och jämförbarheten är hela poängen med Prikko.
+      </p>
+      <p>
+        Därför bedömer vi vad som <strong>hände</strong> i stället för vad
+        kommunen råkade kalla det. En avvikelse räknas som kvarstående när ett
+        av två tecken finns, och båda går att läsa i alla kommuners data:
+      </p>
+      <ul class="plain">
+        <li>
+          Kontrollen var ett <strong>återbesök</strong> och hittade ändå
+          avvikelser. Kommunen kom tillbaka för att se att bristen var åtgärdad,
+          och den var inte det.
+        </li>
+        <li>
+          <strong>Föregående kontroll hade också avvikelser.</strong> Problemet
+          upprepas i stället för att vara en engångsmiss.
+        </li>
+      </ul>
+      <p>
+        Det här är enda stället där något skärps utöver kommunens egen
+        notering, och det bygger på kommunens egna uppgifter om vilken sorts
+        kontroll det var och vad den förra visade. Vi tolkar aldrig innehållet i
+        en avvikelse, bara mönstret.
+      </p>
+    </section>
+
+    <section>
       <h2>Historiken ger en utmärkelse, inte ett betygssteg</h2>
       <p>
         De allra flesta verksamheter sköter sig. Med tre nivåer skulle ungefär
@@ -115,6 +201,12 @@ const jsonLd = {
         senaste kontrollerna</strong> en utmärkelse. Den påverkar aldrig hur
         allvarligt något bedöms, bara om verksamheten förtjänar ett
         erkännande. Nuläget avgör bedömningen, historiken avgör utmärkelsen.
+      </p>
+      <p>
+        Tre kontroller är också ett krav. Finns bara en eller två i kommunens
+        register ges ingen utmärkelse, oavsett hur rena de är. Det är ett medvetet
+        val: utmärkelsen ska betyda att vi sett ett mönster, inte att vi gissat
+        på ett.
       </p>
     </section>
 
@@ -136,21 +228,44 @@ const jsonLd = {
       </p>
     </section>
 
-    <section>
+    <section id="jamfor">
       <h2>Jämför verksamheter, inte kommuner</h2>
-      <p>
-        Samma modell körs på alla kommuner, men kommunerna arbetar inte likadant.
-        Andelen verksamheter med kvarstående brister varierar från 0,3 procent i
-        Jönköping till 11,8 procent i Örebro, alltså fyrtio gångers skillnad.
-      </p>
+      {spread && (
+        <p>
+          Samma modell körs på alla kommuner, men kommunerna arbetar inte likadant.
+          Andelen bedömda verksamheter med kvarstående brister varierar från {spread}
+        </p>
+      )}
       <p>
         Den skillnaden speglar med största sannolikhet inte hygienen. Den speglar
-        hur ofta kommunen gör uppföljande kontroller och hur den beskriver dem.
-        Örebro publicerar varje granskad kontrollpunkt och skriver ut när en
-        avvikelse kvarstår. Jönköping har ingen sådan etikett alls, så vi måste
-        härleda kvarstående brister ur mönstret i kontrollhistoriken. Två sätt att
-        redovisa samma verklighet ger olika siffror.
+        hur ofta kommunen gör uppföljande kontroller, hur många av dem den lämnar
+        ut och hur den beskriver dem. En kommun som gör många återbesök och
+        publicerar hela historiken får fler kvarstående brister än en som gör få
+        och publicerar lite. Två sätt att redovisa samma verklighet ger olika
+        siffror.
       </p>
+
+      <h3>Vissa utfall är omöjliga i vissa kommuner</h3>
+      <p>
+        Det går längre än så. I några kommuner räcker inte det kommunen lämnar ut
+        för att modellen ska kunna nå alla sina utfall. En nolla där betyder inte
+        att det aldrig hänt, utan att det aldrig kunde synas.
+      </p>
+      {limited.length > 0 && (
+        <ul class="plain">
+          {limited.map((m) => (
+            <li>
+              {m.limits.note} <a href={`/${m.slug}`}>Se {m.city}</a>.
+            </li>
+          ))}
+        </ul>
+      )}
+      <p>
+        Detta står också på respektive kommuns sida, intill de siffror det
+        gäller. Vi räknar fram listan ur datan, så att en kommun som börjar
+        publicera mer försvinner ur den av sig själv.
+      </p>
+
       <p class="callout">
         Därför publicerar vi ingen rangordning av kommuner. Att göra det vore att
         utse den kommun som redovisar minst till den renaste. Inom en kommun är
@@ -223,6 +338,11 @@ const jsonLd = {
 
   section h2 {
     margin-bottom: var(--s-4);
+  }
+
+  section h3 {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
   }
 
   section p + p {

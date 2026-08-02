@@ -41,10 +41,14 @@ import SiteSearch from './SiteSearch.astro';
 
     <SiteSearch />
 
-    <nav aria-label="Huvudmeny">
-      <a href="/metodik">Metodik</a>
-      <a href="/om">Om</a>
-    </nav>
+    {/*
+      Metodik och Om låg tidigare här bredvid menyknappen. De finns nu i
+      menyn, och att visa samma två länkar på två ställen i samma rad gör
+      raden rörig utan att göra något lättare att hitta.
+
+      Sidhuvudet är därmed tre saker: märket, sökfältet och menyn. Allt
+      annat bor i menyn eller i sidfoten, som är fullständig.
+    */}
 
     <PlacePicker />
   </div>
@@ -133,32 +137,11 @@ import SiteSearch from './SiteSearch.astro';
     display: block;
   }
 
-  nav {
-    display: flex;
-    gap: var(--s-6);
-    flex-shrink: 0;
-  }
-
-  nav a {
-    font-size: var(--fs-body-s);
-    font-weight: 400;
-    color: var(--text-secondary);
-  }
-
-  nav a:hover {
-    color: var(--text);
-    text-decoration: none;
-  }
-
   @media (max-width: 900px) {
     .bar { gap: var(--s-4); }
   }
 
-  /* Under ~640 px får wordmark + sökfält + väljare plats, men inte länkarna.
-     De finns kvar i sidfoten, som är fullständig. Sökfältet väger tyngre än
-     två menyrader: det är den enda vägen till en enskild verksamhet. */
   @media (max-width: 640px) {
-    nav { display: none; }
     .bar { gap: var(--s-3); }
   }
 </style>

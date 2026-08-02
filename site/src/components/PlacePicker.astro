@@ -37,11 +37,18 @@ const points = municipalityPoints();
 ---
 
 <details class="picker" data-picker>
-  <summary class="trigger">
+  {/*
+    Bara ikonen, ingen etikett. Knappen hette "Kommun" när panelen bara
+    innehöll kommunväljaren. Nu rymmer den även rättelse, metodik, källor och
+    om, och då ljuger etiketten om vad som finns bakom.
+
+    Namnet ligger i aria-label i stället, så att den som använder skärmläsare
+    får veta vad knappen gör utan att texten begränsar innehållet.
+  */}
+  <summary class="trigger" aria-label="Meny">
     <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
     </svg>
-    <span>Kommun</span>
   </summary>
 
   <div class="panel" data-panel>

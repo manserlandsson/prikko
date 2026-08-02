@@ -32,10 +32,21 @@ jobs:
           # Metodiksidan beskriver modellen för besökaren och är dessutom vårt
           # juridiska försvar. Ändras modellen utan att sidan följer med står
           # det fel på den sida vars enda syfte är att stämma.
+          #
+          # Detta var tidigare en warning. Den glapp den skulle fånga uppstod
+          # ändå: modellen gick till version 3 medan sidan stod kvar på 2, och
+          # varningen drunknade i loggen. Ett hårt fel är hela poängen.
           v=$(grep -oE 'MODEL_VERSION = [0-9]+' pipeline/prikko/grading.py | grep -oE '[0-9]+')
-          if ! grep -q "MODEL_VERSION = $v" site/src/pages/metodik.astro; then
-            echo "::warning::grading.py är på version $v — kontrollera att metodiksidan stämmer."
+          if [ -z "$v" ]; then
+            echo "::error::Hittade ingen MODEL_VERSION i pipeline/prikko/grading.py"
+            exit 1
           fi
+          if ! grep -q "MODEL_VERSION = $v" site/src/pages/metodik.astro; then
+            page=$(grep -oE 'MODEL_VERSION = [0-9]+' site/src/pages/metodik.astro | grep -oE '[0-9]+' | head -1)
+            echo "::error::grading.py är på version $v men metodiksidan säger ${page:-inget}. Uppdatera site/src/pages/metodik.astro, och kontrollera att sidans TEXT beskriver version $v."
+            exit 1
+          fi
+          echo "Metodiksidan och modellen är båda på version $v."
 
       - uses: actions/setup-node@v4
         with:

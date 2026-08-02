@@ -6,6 +6,38 @@
  * ad hoc i mallarna.
  */
 
+/**
+ * Juridisk avsändare.
+ *
+ * UTKAST, EJ GRANSKAT AV JURIST. Uppgifterna här återges på policysidorna och
+ * måste stämma exakt.
+ *
+ * Varför bolagsnamnet står publikt trots att ägaren först ville hålla det
+ * utanför: GDPR artikel 13.1 a kräver den personuppgiftsansvariges identitet
+ * och kontaktuppgifter, och 8 § lagen (2002:562) om elektronisk handel kräver
+ * att tjänsteleverantören anger namn, adress, e-post, organisationsnummer och
+ * momsregistreringsnummer. Ett varumärke är inte en juridisk person och kan
+ * inte vara personuppgiftsansvarig. Magoed AB står därför i policyerna.
+ * Prikko är varumärket överallt annars.
+ *
+ * ADVOKAT / ÄGARE, KONTROLLERA:
+ *  1. `address` saknas. 8 § e-handelslagen kräver adress i etableringsstaten.
+ *     Sidorna kan inte publiceras utan den.
+ *  2. `email` finns ännu inte som brevlåda. GDPR-begäranden har en
+ *     månadsfrist; adressen måste fungera innan sidorna går live.
+ */
+export const PUBLISHER = {
+  legalName: 'Magoed AB',
+  orgNumber: '559386-1015',
+  vatNumber: 'SE559386101501',
+  /** Brevlåda för dataskyddsärenden. MÅSTE SKAPAS innan publicering. */
+  email: 'dataskydd@prikko.se',
+  /** Befintlig väg för rättelse och genmäle, se /ratta. */
+  correctionEmail: 'ratta@prikko.se',
+  /** Postadress. TODO: fylls i av ägaren, krävs enligt 8 § e-handelslagen. */
+  address: null as string | null,
+} as const;
+
 export const SITE = {
   name: 'Prikko',
   legalName: 'Prikko',
