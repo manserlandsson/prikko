@@ -132,7 +132,14 @@
       "Bash(python3 pipeline/tests/test_grading.py -v)",
       "Bash(git add *)",
       "Bash(git -c 'user.name=Måns Erlandsson' -c user.email=mans.erlandsson1@gmail.com commit -q -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(grep -viE \"^\\\\s*$\")",
+      "Bash(curl -s --max-time 20 \"https://livsmedelsdata.linkoping.se/swagger/index.js\")",
+      "Bash(curl -s --max-time 20 -o ijs.js \"https://livsmedelsdata.linkoping.se/swagger/index.js\")",
+      "Bash(grep -oE '\\(configUrl|urls?\\)[^,;]{0,120}' ijs.js)",
+      "Bash(curl -s --max-time 25 -o sw.json \"https://livsmedelsdata.linkoping.se/swagger/v1.0/swagger.json\")",
+      "Bash(curl -s --max-time 40 -o data.json -w \"status=%{http_code} bytes=%{size_download}\\\\n\" \"https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar?pageSize=25&page=1\")",
+      "Bash(curl -s --max-time 90 -o all.json \"https://livsmedelsdata.linkoping.se/api/v1/Anlaggningar/medsenastetillsyn?pageSize=1300&page=1\")"
     ]
   }
 }
