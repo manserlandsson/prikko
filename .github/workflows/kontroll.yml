@@ -1,0 +1,86 @@
+name: Kontroll
+
+# Körs på varje push. Bedömningsmodellen publicerar omdömen om namngivna
+# verksamheter — den får aldrig gå sönder obemärkt.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tester:
+    name: Tester och bygge
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Testa bedömningsmodellen
+        run: |
+          for t in pipeline/tests/test_*.py; do
+            echo "→ $t"
+            python3 "$t"
+          done
+
+      - name: Kontrollera att modellversionen följt med
+        run: |
+          # Metodiksidan beskriver modellen för besökaren och är dessutom vårt
+          # juridiska försvar. Ändras modellen utan att sidan följer med står
+          # det fel på den sida vars enda syfte är att stämma.
+          v=$(grep -oE 'MODEL_VERSION = [0-9]+' pipeline/prikko/grading.py | grep -oE '[0-9]+')
+          if ! grep -q "MODEL_VERSION = $v" site/src/pages/metodik.astro; then
+            echo "::warning::grading.py är på version $v — kontrollera att metodiksidan stämmer."
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Installera
+        run: npm ci --prefix site
+
+      - name: Bygg
+        env:
+          PUBLIC_MAPBOX_TOKEN: ${{ secrets.PUBLIC_MAPBOX_TOKEN }}
+        run: npm run build --prefix site
+
+      - name: Kontrollera SEO-kontraktet i utfallet
+        run: |
+          cd site
+          # Måste vara en RESTAURANGSIDA, inte kommunhubben — det är där
+          # FoodEstablishment-schemat sitter. mindepth 2 hoppar över hubben.
+          page=$(find dist/linkoping -mindepth 2 -name index.html | head -1)
+          echo "Kontrollerar $page"
+
+          # Vår bedömning bygger på myndighetsdata, inte på omdömen insamlade
+          # hos oss. Att märka upp den som recensioner bryter mot Googles
+          # policy och riskerar manuell åtgärd.
+          if grep -qE 'AggregateRating|"Review"' "$page"; then
+            echo "::error::Review- eller AggregateRating-schema hittat. Se README."
+            exit 1
+          fi
+
+          grep -q '<link rel="canonical"' "$page" || { echo "::error::Kanonisk URL saknas"; exit 1; }
+          grep -q 'FoodEstablishment' "$page" || { echo "::error::FoodEstablishment-schema saknas"; exit 1; }
+          grep -q 'name="description"' "$page" || { echo "::error::Metabeskrivning saknas"; exit 1; }
+
+          echo "SEO-kontraktet håller."
+
+      - name: Kontrollera att inga interna länkar är döda
+        run: |
+          cd site/dist
+          missing=0
+          for path in metodik kallor om ratta sok; do
+            if [ ! -d "$path" ]; then
+              echo "::error::/$path saknas men länkas från varje sida"
+              missing=1
+            fi
+          done
+          exit $missing

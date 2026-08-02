@@ -1,0 +1,124 @@
+name: Uppdatera data
+
+# Hämtar kommunernas kontroller, skriver till Supabase och exporterar en
+# ögonblicksbild som bygget läser.
+#
+# Färskhet är inte kosmetik: sidor uppdaterade de senaste två månaderna får
+# dokumenterat fler citeringar i AI-svar, och "senast uppdaterad" är en
+# rankningssignal. Datan ska därför uppdateras av sig själv, inte av att
+# någon minns att köra ett skript.
+
+on:
+  schedule:
+    # 03:17 UTC. Udda minut med avsikt — hela världens cron-jobb ligger på
+    # heltimmen, och GitHubs köer är långsammast just då.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      kommun:
+        description: 'Enskild kommun att hämta (tomt = alla)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  hamta:
+    name: Hämta ${{ matrix.kommun }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # Alla kommuner parallellt: samma antal minuter totalt, men klockan
+      # går fortare. En kommun som fallerar ska inte stoppa de andra.
+      fail-fast: false
+      matrix:
+        kommun: [linkoping, stockholm, uppsala]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Hämta
+        if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
+        run: |
+          python3 pipeline/fetch_${{ matrix.kommun }}.py \
+            --out data/${{ matrix.kommun }}.json
+
+      - name: Spara som artefakt
+        if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-${{ matrix.kommun }}
+          path: data/${{ matrix.kommun }}.json
+          retention-days: 7
+
+  ladda:
+    name: Ladda och exportera
+    needs: hamta
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Hämta artefakter
+        uses: actions/download-artifact@v4
+        with:
+          path: data
+          merge-multiple: true
+
+      - name: Skriv till Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          shopt -s nullglob
+          files=(data/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Inga datafiler att ladda — avbryter."
+            exit 1
+          fi
+          python3 pipeline/load_supabase.py "${files[@]}"
+
+      - name: Exportera ögonblicksbild till bygget
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 pipeline/export_supabase.py --out site/src/data
+
+      - name: Sammanfatta förändringen
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, glob, collections
+          print('## Datauppdatering\n')
+          print('| Kommun | Verksamheter | Kontroller | Utan anm. | Brister | Kvarstår |')
+          print('|---|---:|---:|---:|---:|---:|')
+          for path in sorted(glob.glob('site/src/data/*.json')):
+              d = json.load(open(path))
+              es = d['establishments']
+              c = collections.Counter(e['verdict'] for e in es)
+              print(f"| {d['municipality']['city']} | {len(es)} | "
+                    f"{sum(len(e['inspections']) for e in es)} | "
+                    f"{c.get('clean',0)} | {c.get('minor',0)} | {c.get('major',0)} |")
+          PY
+
+      - name: Committa om något ändrats
+        run: |
+          git config user.name  "prikko-bot"
+          git config user.email "bot@prikko.se"
+          git add site/src/data
+          if git diff --staged --quiet; then
+            echo "Inga förändringar i datan."
+          else
+            git commit -m "Uppdatera data $(date -u +%Y-%m-%d)"
+            git push
+          fi
