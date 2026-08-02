@@ -1,0 +1,255 @@
+---
+/**
+ * Metodiksidan.
+ *
+ * Det här är projektets viktigaste textsida. Den är tre saker samtidigt:
+ * vår IP (hur bedömningen räknas fram), vårt juridiska försvar (öppenhet om
+ * att bedömningen är vår och hur den härleds) och en E-E-A-T-signal som varje
+ * annan sida länkar till.
+ *
+ * Innehållet måste alltid spegla pipeline/prikko/grading.py exakt. Ändras
+ * modellen ska den här sidan ändras i samma commit, och modellversionen höjas.
+ */
+import Base from '../layouts/Base.astro';
+import FaceMark from '../components/FaceMark.astro';
+import { SITE } from '../lib/site';
+
+const MODEL_VERSION = 2;
+
+const levels = [
+  {
+    verdict: 'clean' as const,
+    label: 'Inga anmärkningar',
+    when: 'Kommunen noterade inga avvikelser vid den senaste kontrollen.',
+  },
+  {
+    verdict: 'minor' as const,
+    label: 'Mindre brister',
+    when: 'Kommunen noterade avvikelser som kräver en extra kontroll.',
+  },
+  {
+    verdict: 'major' as const,
+    label: 'Allvarliga brister',
+    when: 'Verksamheten bedömdes som ej godtagbar, eller tidigare avvikelser kvarstod vid uppföljning.',
+  },
+  {
+    verdict: null,
+    label: 'Ingen bedömning',
+    when: 'Det saknas kontroll, eller så är den senaste äldre än tre år. Detta betyder aldrig att hygienen är dålig.',
+  },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: 'Så räknar Prikko fram hygienbedömningen',
+  inLanguage: 'sv-SE',
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  url: `${SITE.url}/metodik`,
+};
+---
+
+<Base
+  title="Så räknas bedömningen fram"
+  description="Hela Prikkos metodik, öppet publicerad: vilka nivåer som finns, hur den senaste kontrollen avgör, varför historiken ger en utmärkelse i stället för ett betygssteg, och när vi vägrar bedöma."
+  jsonLd={jsonLd}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Metodik · version {MODEL_VERSION}</p>
+      <h1>Så räknas bedömningen fram</h1>
+      <p class="lede text-secondary">
+        Prikko visar kommunernas offentliga livsmedelskontroller. Själva
+        bedömningen är däremot vår egen slutsats, härledd ur kommunens data.
+        Därför publicerar vi hela beräkningen — du ska kunna kontrollera oss.
+      </p>
+    </header>
+
+    <section>
+      <h2>De tre nivåerna</h2>
+      <p>
+        Nivåerna speglar källdatan exakt. Kommunernas kontrollresultat har tre
+        grader av allvar, varken fler eller färre, och vi lägger inte till steg
+        som underlaget inte bär.
+      </p>
+      <ul class="levels">
+        {levels.map((l) => (
+          <li>
+            <FaceMark verdict={l.verdict} size={44} />
+            <div>
+              <b>{l.label}</b>
+              <p class="text-secondary">{l.when}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section>
+      <h2>Senaste kontrollen avgör</h2>
+      <p>
+        Bedömningen speglar den <strong>senaste</strong> kontrollen, inte den
+        värsta och inte ett genomsnitt. Skälet är enkelt: den som står utanför
+        dörren vill veta hur det ser ut nu, inte hur det såg ut för fyra år
+        sedan.
+      </p>
+      <p>
+        Det betyder också att ett återbesök som är rent efter allvarliga
+        brister läses som rent. Den som åtgärdar ska inte straffas för sin
+        historia — men historiken göms inte, den visas alltid i sin helhet på
+        verksamhetens sida.
+      </p>
+    </section>
+
+    <section>
+      <h2>Historiken ger en utmärkelse, inte ett betygssteg</h2>
+      <p>
+        De allra flesta verksamheter sköter sig. Med tre nivåer skulle ungefär
+        två tredjedelar hamna på den bästa, vilket gör det svårt att skilja de
+        genomgående skötsamma från de nyss godkända.
+      </p>
+      <p>
+        Därför får verksamheter med rent resultat vid <strong>samtliga tre
+        senaste kontrollerna</strong> en utmärkelse. Den påverkar aldrig hur
+        allvarligt något bedöms — bara om verksamheten förtjänar ett
+        erkännande. Nuläget avgör bedömningen, historiken avgör utmärkelsen.
+      </p>
+    </section>
+
+    <section>
+      <h2>När vi vägrar bedöma</h2>
+      <p>
+        Saknas kontroll, eller är den senaste äldre än tre år, sätter vi ingen
+        bedömning alls. Vi gissar aldrig.
+      </p>
+      <p>
+        Tre år är inte godtyckligt: Livsmedelsverkets kontroller sprids normalt
+        över en treårscykel, så en äldre kontroll säger inget om nuläget. Att
+        publicera ”allvarliga brister” om en verksamhet som åtgärdade allt för
+        fem år sedan vore både orättvist och missvisande.
+      </p>
+      <p class="callout">
+        Ingen bedömning betyder aldrig dålig hygien. Det betyder att vi saknar
+        underlag för att säga något.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vad vi inte gör</h2>
+      <ul class="plain">
+        <li>
+          Vi blandar aldrig ihop den officiella kontrollen med omdömen. Det
+          kommunen konstaterat är fakta; vad någon tycker om maten är något
+          annat, och redovisas separat.
+        </li>
+        <li>
+          Vi märker aldrig upp bedömningen som betyg eller recension i
+          sökmotorernas strukturerade data. Den bygger på myndighetsdata, inte
+          på omdömen insamlade hos oss.
+        </li>
+        <li>
+          Vi säljer aldrig en bättre bedömning, och vi säljer inga
+          förbättringstjänster till verksamheter vi själva bedömt.
+        </li>
+        <li>
+          Vi skriver ingen text med AI. Sidorna byggs av datan; formuleringarna
+          är mallar som fylls med kommunens uppgifter.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Rätta oss</h2>
+      <p>
+        Menar du att en uppgift är fel har du rätt att få det rättat, och
+        verksamheter har rätt att svara. Svar publiceras oredigerat bredvid
+        bedömningen.
+        <a href="/ratta">Rätta en uppgift</a>.
+      </p>
+      <p class="text-secondary">
+        Modellen är versionerad. Varje publicerad bedömning bär numret på den
+        version som räknade fram den, så att ett tidigare resultat alltid går
+        att härleda. Nuvarande version: {MODEL_VERSION}.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  section h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  section p + p {
+    margin-top: var(--s-4);
+  }
+
+  section p {
+    line-height: 26px;
+  }
+
+  .levels {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .levels li {
+    display: flex;
+    gap: var(--s-4);
+    align-items: flex-start;
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .levels b {
+    font-weight: 600;
+  }
+
+  .levels p {
+    margin-top: 2px;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .plain {
+    margin: 0;
+    padding-left: var(--s-4);
+  }
+
+  .plain li {
+    margin-top: var(--s-3);
+    line-height: 26px;
+  }
+
+  .callout {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--verdict-none);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+</style>

@@ -1,0 +1,111 @@
+---
+/**
+ * Om-sidan. Bär E-E-A-T: namngiven utgivare, tydligt oberoende, kontaktväg.
+ *
+ * OBS: uppgifter som organisationsnummer, utgivningsbevis och postadress är
+ * medvetet utelämnade tills de faktiskt finns. Att skriva in dem i förväg vore
+ * att publicera osanning på just den sida vars enda syfte är trovärdighet.
+ */
+import Base from '../layouts/Base.astro';
+import { SITE } from '../lib/site';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE.legalName,
+  url: SITE.url,
+  description: SITE.description,
+  founder: { '@type': 'Person', name: 'Måns Erlandsson' },
+};
+---
+
+<Base
+  title="Om Prikko"
+  description="Prikko är en oberoende tjänst som samlar svenska kommuners offentliga livsmedelskontroller och gör dem jämförbara. Vi är inte en myndighet och tar inte betalt av verksamheterna vi bedömer."
+  jsonLd={jsonLd}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Om</p>
+      <h1>Det nationella lagret som aldrig byggdes</h1>
+      <p class="lede text-secondary">
+        Kommunerna kontrollerar restaurangernas hygien och resultaten är
+        offentliga. Men de ligger utspridda hos 290 kommuner, i 290 olika
+        format, och de flesta publicerar dem inte alls. Prikko samlar dem.
+      </p>
+    </header>
+
+    <section>
+      <h2>Varför</h2>
+      <p>
+        Danmark har haft sitt smiley-system sedan 2001, Norge sedan 2016 och
+        Storbritannien sedan 2010. I Sverige föreslogs samma sak i en statlig
+        utredning 2005. Förslaget drogs tillbaka året därpå och har inte
+        återupptagits sedan dess.
+      </p>
+      <p>
+        Under tiden fortsätter kontrollerna att göras, och resultaten fortsätter
+        att vara offentliga handlingar. De är bara inte samlade någonstans där
+        en vanlig människa hittar dem. Det är hela luckan Prikko fyller.
+      </p>
+    </section>
+
+    <section>
+      <h2>Oberoende</h2>
+      <ul class="plain">
+        <li>Vi är inte en myndighet och företräder ingen myndighet.</li>
+        <li>
+          Vi tar inte betalt av verksamheterna för att synas, och en bedömning
+          går aldrig att köpa eller påverka med pengar.
+        </li>
+        <li>
+          Vi säljer inga förbättringstjänster till verksamheter vi själva
+          bedömt. Att både sätta omdömet och sälja lösningen på det vore
+          utpressning, oavsett hur det formulerades.
+        </li>
+        <li>
+          <a href="/metodik">Metodiken är publicerad i sin helhet</a> så att
+          vem som helst kan kontrollera hur en bedömning räknats fram.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verksamheters rätt att svara</h2>
+      <p>
+        En verksamhet som anser att en uppgift är fel har rätt att få den
+        rättad, och rätt att kommentera en kontroll. Kommentarer publiceras
+        oredigerat bredvid bedömningen — vi redigerar inte och vi svarar inte
+        emot i samma text.
+        <a href="/ratta">Så begär du rättelse</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vem som ligger bakom</h2>
+      <p>
+        Prikko byggs av Måns Erlandsson. Tjänsten är under uppbyggnad och
+        täcker i dag en kommun; fler tillkommer efterhand.
+        <a href="/kallor">Aktuell täckning och källor</a>.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 42px; margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .plain { margin: 0; padding-left: var(--s-4); }
+  .plain li { margin-top: var(--s-3); line-height: 26px; }
+</style>

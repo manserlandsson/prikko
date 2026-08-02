@@ -1,0 +1,90 @@
+---
+/**
+ * Rättelsesidan. Bär replikrätten, som är ett av våra juridiska skydd.
+ *
+ * Formuläret skickar ännu ingenting — det kräver en backend vi inte har.
+ * I stället en riktig e-postväg, som fungerar i dag. Ett formulär som ser ut
+ * att skicka men inte gör det vore värre än inget formulär, särskilt på den
+ * sida där en verksamhet ska kunna försvara sig.
+ */
+import Base from '../layouts/Base.astro';
+
+const CONTACT = 'ratta@prikko.se';
+---
+
+<Base
+  title="Rätta en uppgift"
+  description="Anser du att en uppgift på Prikko är felaktig, eller vill du som verksamhet kommentera en kontroll? Så här går det till."
+  noindex={true}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Rättelse och svar</p>
+      <h1>Rätta en uppgift</h1>
+      <p class="lede text-secondary">
+        Uppgifterna kommer från kommunernas kontrollrapporter, men fel kan
+        uppstå — i deras data, i vår hämtning eller i vår tolkning. Hör av dig
+        så rättar vi.
+      </p>
+    </header>
+
+    <section>
+      <h2>Om du driver verksamheten</h2>
+      <p>
+        Du har rätt att kommentera en kontroll. Din kommentar publiceras
+        oredigerat bredvid bedömningen — vi kortar inte och vi lägger inte till
+        ett bemötande i samma text.
+      </p>
+      <p>
+        Anser du att kommunens uppgift i sig är fel ska den rättas hos
+        kommunen, eftersom vi speglar deras handling. Hör ändå av dig, så
+        markerar vi uppgiften som bestridd medan den utreds.
+      </p>
+    </section>
+
+    <section>
+      <h2>Om något ser tekniskt fel ut</h2>
+      <p>
+        Fel adress, fel position på kartan, dubblerad verksamhet eller en
+        bedömning som inte stämmer med kontrollrapporten — allt sådant vill vi
+        veta. Skriv gärna vilken sida det gäller.
+      </p>
+    </section>
+
+    <section class="how">
+      <h2>Så gör du</h2>
+      <p>
+        Mejla <a href={`mailto:${CONTACT}`}>{CONTACT}</a> med länk till sidan
+        och vad som är fel. Vi svarar normalt inom några dagar.
+      </p>
+      <p class="text-secondary">
+        Ett formulär direkt på sidan kommer när vi har stöd för det. Tills dess
+        är e-post den väg som faktiskt fungerar.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 40px; margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .how {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-6);
+  }
+
+  .how h2 { margin-top: 0; }
+</style>

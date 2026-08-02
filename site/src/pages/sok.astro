@@ -1,0 +1,221 @@
+---
+/**
+ * Sök.
+ *
+ * Söker i webbläsaren mot ett litet index som bakas in i sidan. Vid nuvarande
+ * storlek är det snabbare än ett serveranrop och kräver ingen backend.
+ *
+ * När beståndet växer nationellt byts index mot ett serveranrop — då ändras
+ * bara hur `data` fylls, inte gränssnittet. Därför ligger sökningen redan nu
+ * mot en tydlig datastruktur i stället för mot DOM:en.
+ *
+ * Sidan är indexerbar, men robots.txt blockerar sökningar med query så att
+ * tunna resultatsidor aldrig hamnar i Googles index.
+ */
+import Base from '../layouts/Base.astro';
+import { MUNICIPALITY, allEstablishments } from '../lib/data';
+import { VERDICT } from '../lib/site';
+
+const index = allEstablishments().map((e) => ({
+  n: e.name,
+  a: e.address ?? '',
+  s: e.slug,
+  v: e.verdict,
+  // Normaliserad sökbar sträng: gemener utan diakriter, så "malmo" hittar
+  // "Malmö" och "kott" hittar "Kött".
+  q: `${e.name} ${e.address ?? ''}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, ''),
+}));
+
+const labels = Object.fromEntries(
+  Object.entries(VERDICT).map(([k, v]) => [k, v.label]),
+);
+---
+
+<Base
+  title="Sök verksamhet"
+  description="Sök på restaurang, café, adress eller skola och se hur den klarade sin senaste hygienkontroll."
+>
+  <div class="container page">
+    <header>
+      <h1>Sök verksamhet</h1>
+      <p class="lede text-secondary">
+        Sök bland {index.length} verksamheter i {MUNICIPALITY.city}. Fler
+        kommuner tillkommer efterhand.
+      </p>
+    </header>
+
+    <form class="search" role="search" onsubmit="return false">
+      <label for="q" class="visually-hidden">Sök på namn eller adress</label>
+      <input
+        id="q"
+        type="search"
+        placeholder="Namn eller adress"
+        autocomplete="off"
+        autofocus
+      />
+    </form>
+
+    <p id="status" class="status text-secondary" aria-live="polite"></p>
+    <ul id="results" class="results"></ul>
+  </div>
+
+  <script
+    type="application/json"
+    id="index"
+    set:html={JSON.stringify({ index, labels, kommun: MUNICIPALITY.slug })}
+  />
+</Base>
+
+<style>
+  .page {
+    max-width: 720px;
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 34px; line-height: 38px; }
+  .lede { margin-top: var(--s-2); font-size: var(--fs-body-s); }
+
+  .search { margin-top: var(--s-6); }
+
+  .search input {
+    width: 100%;
+    height: 52px;
+    padding-inline: var(--s-4);
+    font-family: inherit;
+    font-size: var(--fs-body);
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+  }
+
+  .search input::placeholder { color: var(--text-muted); }
+
+  .status {
+    margin-top: var(--s-4);
+    font-size: var(--fs-caption);
+    min-height: 18px;
+  }
+
+  .results {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+  }
+
+  .results :global(li) { border-top: 1px solid var(--hairline); }
+
+  .results :global(a) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    color: var(--text);
+  }
+
+  .results :global(a:hover) { text-decoration: none; }
+  .results :global(a:hover b) { color: var(--brand); }
+
+  .results :global(.face) {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    flex-shrink: 0;
+  }
+
+  .results :global(.info) { flex: 1; min-width: 0; }
+
+  .results :global(.info b) {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .results :global(.info span) {
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  .results :global(.verdict) {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+</style>
+
+<script>
+  const payload = JSON.parse(document.getElementById('index')!.textContent!);
+  const input = document.getElementById('q') as HTMLInputElement;
+  const results = document.getElementById('results')!;
+  const status = document.getElementById('status')!;
+
+  const COLORS: Record<string, string> = {
+    clean: 'var(--verdict-clean)',
+    minor: 'var(--verdict-minor)',
+    major: 'var(--verdict-major)',
+    none: 'var(--verdict-none)',
+  };
+  const INK: Record<string, string> = {
+    clean: 'var(--verdict-clean-ink)',
+    minor: 'var(--verdict-minor-ink)',
+    major: 'var(--verdict-major-ink)',
+    none: 'var(--verdict-none-ink)',
+  };
+  const MOUTHS: Record<string, string> = {
+    clean: 'M30 55.5c12.25 11.7 24.5 11.7 36.75 0',
+    minor: 'M31 60.5h34.75',
+    major: 'M30 64c12.25 -11.7 24.5 -11.7 36.75 0',
+    none: 'M38 60.5h20',
+  };
+
+  function face(v: string) {
+    return `<svg class="face" viewBox="0 0 96 96" aria-hidden="true">
+      <rect width="96" height="96" rx="26" fill="${COLORS[v]}"/>
+      <circle cx="37.87" cy="37.12" r="6.12" fill="#fff"/>
+      <circle cx="60.61" cy="37.12" r="6.12" fill="#fff"/>
+      <path d="${MOUTHS[v]}" stroke="#fff" stroke-width="7.87"
+            stroke-linecap="round" fill="none"/></svg>`;
+  }
+
+  function normalise(s: string) {
+    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function render(term: string) {
+    const q = normalise(term.trim());
+    if (q.length < 2) {
+      results.innerHTML = '';
+      status.textContent = '';
+      return;
+    }
+
+    const hits = payload.index.filter((e: any) => e.q.includes(q)).slice(0, 40);
+    status.textContent = hits.length
+      ? `${hits.length} träffar`
+      : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
+
+    results.innerHTML = hits
+      .map((e: any) => {
+        const key = e.v ?? 'none';
+        const label = payload.labels[e.v] ?? 'Ingen kontroll';
+        return `<li><a href="/${payload.kommun}/${e.s}">
+          ${face(key)}
+          <span class="info"><b>${e.n}</b><span>${e.a}</span></span>
+          <span class="verdict" style="color:${INK[key]}">${label}</span>
+        </a></li>`;
+      })
+      .join('');
+  }
+
+  input.addEventListener('input', () => render(input.value));
+
+  // Stöd för /sok?q=... så att länkar utifrån fungerar direkt.
+  const initial = new URLSearchParams(location.search).get('q');
+  if (initial) {
+    input.value = initial;
+    render(initial);
+  }
+</script>

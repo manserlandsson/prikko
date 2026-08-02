@@ -1,0 +1,172 @@
+---
+/**
+ * Källsidan. Redovisar exakt vilken data vi har, varifrån den kommer och hur
+ * färsk den är — inklusive vad som SAKNAS.
+ *
+ * Att vara öppen med luckorna är inte blygsamhet utan strategi: täckningen är
+ * gles i början, och en besökare som upptäcker det själv utan att vi sagt det
+ * tappar förtroendet för allt annat vi visar.
+ */
+import Base from '../layouts/Base.astro';
+import { MUNICIPALITY, SOURCE, allEstablishments, formatDate } from '../lib/data';
+import { SITE } from '../lib/site';
+
+const establishments = allEstablishments();
+const assessed = establishments.filter((e) => e.verdict !== null).length;
+const inspections = establishments.reduce((n, e) => n + e.inspections.length, 0);
+const dates = establishments
+  .flatMap((e) => e.inspections.map((i) => i.date))
+  .sort();
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name: 'Livsmedelskontroller i Sverige, normaliserade av Prikko',
+  description: 'Kommunala livsmedelskontroller sammanställda till ett jämförbart format.',
+  inLanguage: 'sv-SE',
+  url: `${SITE.url}/kallor`,
+  license: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  creator: { '@type': 'Organization', name: SITE.legalName },
+};
+---
+
+<Base
+  title="Källor och uppdatering"
+  description={`Prikko bygger på ${inspections} livsmedelskontroller från svenska kommuner. Här redovisas varje källa, hur ofta den hämtas och vilka kommuner som ännu saknas.`}
+  jsonLd={jsonLd}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Källor</p>
+      <h1>Varifrån datan kommer</h1>
+      <p class="lede text-secondary">
+        Allt Prikko visar är allmänna handlingar från kommunernas
+        livsmedelskontroll. Här står exakt vilka källor vi använder, när de
+        senast hämtades och vad som ännu saknas.
+      </p>
+    </header>
+
+    <section>
+      <h2>Täckning just nu</h2>
+      <dl class="stats">
+        <div><dt>Kommuner</dt><dd>1 av 290</dd></div>
+        <div><dt>Verksamheter</dt><dd>{establishments.length}</dd></div>
+        <div><dt>Kontroller</dt><dd>{inspections}</dd></div>
+        <div><dt>Med bedömning</dt><dd>{assessed}</dd></div>
+      </dl>
+      <p class="text-secondary">
+        Kontrollerna sträcker sig från {formatDate(dates[0])} till{' '}
+        {formatDate(dates[dates.length - 1])}.
+      </p>
+    </section>
+
+    <section>
+      <h2>Källor</h2>
+      <table>
+        <thead>
+          <tr><th>Kommun</th><th>Källa</th><th>Hämtad</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{MUNICIPALITY.name}</td>
+            <td>
+              <a href={SOURCE.url} rel="nofollow">Öppet API</a>
+            </td>
+            <td>{formatDate(SOURCE.fetchedAt.slice(0, 10))}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Varför så få kommuner</h2>
+      <p>
+        Sverige saknar ett nationellt system för publicering av
+        livsmedelskontroller. Varje kommun bestämmer själv, och de allra flesta
+        publicerar ingenting alls. Ett fåtal har öppna gränssnitt, några
+        publicerar på egen webbplats, och resten lämnar ut uppgifterna först på
+        begäran enligt offentlighetsprincipen.
+      </p>
+      <p>
+        Det är därför den här sajten inte fanns tidigare, och det är arbetet vi
+        gör: hämta, normalisera och göra jämförbart. Nya kommuner tillkommer
+        efterhand.
+      </p>
+    </section>
+
+    <section>
+      <h2>Hur ofta uppdateras det</h2>
+      <p>
+        Källorna hämtas om regelbundet, och varje verksamhets sida visar
+        datumet för den senaste hämtningen. Kontrollresultat kan dröja innan de
+        publiceras av kommunen — en kontroll som gjordes i går syns alltså inte
+        nödvändigtvis här i dag.
+      </p>
+    </section>
+
+    <section>
+      <h2>Licens</h2>
+      <p>
+        Underlaget är allmänna handlingar. Normaliseringen och bedömningen är
+        Prikkos eget arbete — <a href="/metodik">metodiken är publicerad</a>.
+        Vill du använda datan i egna sammanhang, hör av dig.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: 36px; line-height: 40px; margin-top: var(--s-2); }
+
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: 26px; }
+  section p + p { margin-top: var(--s-4); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    margin: 0 0 var(--s-4);
+  }
+
+  .stats > div {
+    padding: var(--s-3) var(--s-4);
+    border-right: 1px solid var(--hairline);
+  }
+
+  .stats dt { font-size: var(--fs-caption); color: var(--text-secondary); }
+  .stats dd {
+    margin: 2px 0 0;
+    font-size: 21px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+  }
+
+  th, td {
+    text-align: left;
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  th {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+</style>
