@@ -96,8 +96,14 @@ const jsonLd = {
             <span class="info">
               <b>{e.name}</b>
               <span class="meta text-secondary">
-                {e.address}
-                {latestInspectionDate(e) && ` · kontrollerad ${formatDate(latestInspectionDate(e)!)}`}
+                {/* Karlstad publicerar ingen adress. Utan filtret blir raden
+                    " · kontrollerad 17 juni 2026" med en hängande punkt. */}
+                {[
+                  e.address,
+                  latestInspectionDate(e) && `kontrollerad ${formatDate(latestInspectionDate(e)!)}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             </span>
             <span class="verdict" style={`color: ${e.verdict ? VERDICT[e.verdict].colorVar : 'var(--verdict-none)'}`}>

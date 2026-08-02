@@ -15,13 +15,16 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Stockholm | 8 511 | E-tjänstens gränssnitt | JSON, egen modell | SWEREF 99 18 00 | **Nej** | Ja |
 | Uppsala | 1 843 | E-tjänstens gränssnitt | **HTML** | **Saknas** | Ja | Ja |
 | Jönköping | 1 120 | ArcGIS REST | JSON + fritext | **WGS84 färdigt** | **Nej** | **Nej** |
+| Karlstad | 694 | GeoServer WFS | JSON | SWEREF 99 13 30 | **Nej** | **Nej** |
 
-Nästa att bygga: **Karlstad** (kartlagd, se nedan) och **Örebro**.
+Nästa att bygga: **Örebro**.
 
-Stockholms och Jönköpings avsaknad av "kvarstår" är skälet till att
+Stockholms, Jönköpings och Karlstads avsaknad av "kvarstår" är skälet till att
 bedömningsmodellen härleder allvarsgraden ur mönstret i stället för ur
-etiketten (se `grading.py`). Två av fyra källor saknar etiketten — det var
-inget undantag, det är normalläget.
+etiketten (se `grading.py`). **Tre av fem källor saknar etiketten** — det var
+inget undantag, det är normalläget. Hade modellen byggt på etiketten hade
+bara Linköping och Uppsala någonsin kunnat visa allvarliga brister, och
+jämförbarheten mellan kommuner — hela poängen med Prikko — hade fallit.
 
 ## Inlästa i detalj
 
@@ -65,9 +68,7 @@ finns ingen uppdelning per kontrollområde. Sidorna kan visa ATT en avvikelse
 noterats men inte VAD den gällde. Det är den sämsta detaljnivån av de fyra
 inlästa källorna.
 
-## Kartlagd, ej inläst
-
-### Karlstad — 694 verksamheter, NÄSTA ATT BYGGA
+### Karlstad — 694 verksamheter
 Tidigare avskriven som "avstängd under systembyte". **Det var fel** — kartan
 fungerar, och avskrivningen byggde på en sökträff i stället för ett anrop.
 
@@ -91,17 +92,43 @@ Fält: `namn, kategori, inriktning, senaste_tillsyn_datum, kontroll,
 avvikelser, arendenummer`. Resultatet är `avvikelser: Ja/Nej` och
 kontrolltypen `Ordinarie kontroll` / `Extra kontroll`.
 
-Två varningar inför bygget:
+Utfall vid inläsningen: 601 av 694 bedömda, 474 utan anmärkningar, 92 med
+brister, 35 med kvarstående brister, 0 överhoppade.
+
+Fyra saker som avgjorde bygget:
+
 - **Begär inte `srsName=EPSG:4326`.** Servern avrundar då till två decimaler,
   alltså ungefär en kilometers fel. I inhemsk projektion (EPSG:3008 =
-  SWEREF 99 13 30) kommer full precision, och `geo.py` klarar den zonen.
-- **Bara senaste kontrollen publiceras.** Ingen historik alls, och inga
-  specificerade avvikelser. Modellen kan då bara härleda kvarstående brister
-  ur att senaste kontrollen är en extrakontroll med avvikelse, och
-  utmärkelsen (tre rena i rad) blir omöjlig att nå. Det är en verklig
-  asymmetri mot Linköping och ska framgå av metodiksidan.
+  SWEREF 99 13 30) kommer full precision, och `geo.py` klarar zonen. Vår
+  transform validerades mot `pyproj` — 0,000 m skillnad — och mot serverns
+  egen WGS84 över 338 punkter, där största avvikelsen var 621 m mot ett
+  teoretiskt avrundningsmax på 624 m.
+- **"Extra kontroll" är uppföljningen**, och det är kommunens egen
+  definition, inte vår tolkning: *"När verksamheten har fått en eller fler
+  avvikelser som behöver följas upp kan det behövas extra kontrollbesök"*
+  (karlstad.se). En extrakontroll som ändå finner avvikelser beskriver
+  alltså per kommunens definition brister som inte åtgärdats. Det är grunden
+  för de 35 med kvarstående brister.
+- **Bara senaste kontrollen publiceras**, och bara kontroller efter
+  1 januari 2024. Ingen historik alls, inga specificerade avvikelser.
+  Utmärkelsen (tre rena i rad) blir därmed omöjlig att nå i Karlstad — 0 av
+  694. Det är en verklig asymmetri mot Linköping och ska framgå av
+  metodiksidan, inte döljas.
+- **Ingen adress publiceras** — bara namn och position. Sajtens listor måste
+  därför tåla att adressfältet är tomt; separatorerna hängde löst tills det
+  rättades.
 
-### Örebro — 1 234 verksamheter
+Ett fynd om källans kvalitet: `Skutbergets Motionscentral` ligger enligt
+kommunens data 13,545 °Ö, medan verkliga Skutberget ligger väster om centrum.
+Beståndet i övrigt är rumsligt korrekt — 209 verksamheter inom en kilometer
+från Stora torget, och ett tydligt kluster vid Bergviks köpcentrum. Det är
+alltså en enskild felregistrering hos kommunen. **Vi återger källan, vi
+rättar den inte** — men det är ett argument för att låta verksamheter
+korrigera sin position via rättelsefunktionen.
+
+## Kartlagd, ej inläst
+
+### Örebro — 1 234 verksamheter, NÄSTA ATT BYGGA
 ```
 GET /rest-api/foodreport/search          hela listan, utan parametrar
     → [{Registrerades, Objektsnamn, Typ, AnlaggningId, Adress}]
@@ -139,8 +166,8 @@ och som koordinatkälla.
 
 ## Vad inventeringen säger om planen
 
-Fyra kommuner inlästa täcker ungefär 12 700 verksamheter. De återstående
-webbpublicerande ger kanske 9 000 till. Därefter tar de lätta källorna slut
+Fem kommuner inlästa täcker 13 306 verksamheter. De återstående
+webbpublicerande ger kanske 8 000 till. Därefter tar de lätta källorna slut
 och resten av landets 290 kommuner kräver framställan enligt
 offentlighetsprincipen.
 
@@ -148,18 +175,25 @@ Arbetet per kommun ligger på några timmar: hitta gränssnittet, räkna ut de
 faktiska värdena, skriva adapter, verifiera. Det låter mycket, men det är
 själva moaten — varje adapter är arbete en konkurrent också måste göra.
 
-**Origo är den enda hävstången vi hittat.** Karlstads karta bygger på det
-öppna ramverket, som används av flera svenska kommuner. Mönstret därifrån —
-läs `index_ssl.json`, hitta GeoServer-URL:en, hämta lagret via WFS — är
-återanvändbart. Det är värt att kontrollera mot Västerås, Oskarshamn,
-Hallstahammar och Sjöbo innan fler enskilda adaptrar skrivs.
+**Origo är den enda hävstången vi hittat, och den är nu bevisad.** Karlstad
+är inläst via mönstret: läs `index_ssl.json`, hitta GeoServer-URL:en, hämta
+lagret via WFS. Origo används av flera svenska kommuner, och adaptern för
+nästa Origo-kommun blir i huvudsak ett byte av lagernamn och projektionszon.
+Det är värt att kontrollera mot Västerås, Oskarshamn, Hallstahammar och Sjöbo
+innan fler enskilda adaptrar skrivs.
 
 **Detaljnivån varierar mer än antalet.** Linköping, Stockholm och Uppsala
 anger vilka kontrollområden som brustit; Jönköping och Karlstad gör det inte,
-och Karlstad publicerar inte ens historik. Modellen hanterar det, men
-verksamhetssidorna blir tunnare i de kommunerna. Det talar för att kvalitet
-per kommun ska vägas mot antalet nya sidor — inte bara mot antalet
+och Karlstad publicerar varken historik eller adress. Modellen hanterar det,
+men verksamhetssidorna blir tunnare i de kommunerna. Det talar för att
+kvalitet per kommun ska vägas mot antalet nya sidor — inte bara mot antalet
 verksamheter vi kan räkna.
+
+En kolumn i tabellen ovan är värd att bevaka: **utmärkelsen kräver tre rena
+kontroller i rad**, alltså en historik. Karlstad kan aldrig nå den. Om fler
+tunna källor läggs till blir "ingen utmärkelse" ett tecken på källans
+begränsningar snarare än på verksamheten, och då behöver utmärkelsen
+antingen villkoras på tillgänglig historik eller redovisas per kommun.
 
 ### En läxa om metod
 

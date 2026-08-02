@@ -114,9 +114,15 @@ const jsonLd = [
             <span class="body">
               <b>{e.name}</b>
               <span class="meta text-secondary">
-                {e.address}
-                {latestInspectionDate(e) && ` · ${formatDate(latestInspectionDate(e)!)}`}
-                {e.remarks > 0 && ` · ${e.remarks} ${e.remarks === 1 ? 'avvikelse' : 'avvikelser'}`}
+                {/* Adressen saknas i vissa kommuner — Karlstad publicerar
+                    ingen. Separatorerna får inte hänga löst då. */}
+                {[
+                  e.address,
+                  latestInspectionDate(e) && formatDate(latestInspectionDate(e)!),
+                  e.remarks > 0 && `${e.remarks} ${e.remarks === 1 ? 'avvikelse' : 'avvikelser'}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             </span>
             <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
