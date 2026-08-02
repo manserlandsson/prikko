@@ -31,6 +31,27 @@ from pathlib import Path
 
 PAGE = 1000
 
+#: Decimaler att behålla i koordinaterna. Sex ger ungefär elva centimeters
+#: upplösning — långt mer än en kartnål behöver.
+#:
+#: Varför avrundning alls: databasrundturen ger tillbaka flyttal med en
+#: decimal mindre än de skrevs (58.39034461245975 blir 58.3903446124597).
+#: Förflyttningen är noll millimeter, men textrepresentationen skiljer sig,
+#: så en fil skriven av fetch_*.py och samma fil skriven av den här exporten
+#: blev olika. Eftersom snapshotarna checkas in gav det en diff på en halv
+#: miljon rader utan en enda faktisk ändring, varje gång pipelinen bytte väg.
+#: Med avrundningen är de två vägarna bitidentiska (verifierat: 0 av 1 120
+#: koordinater skilde för Jönköping). Verklig förändring ska synas i diffen;
+#: brus ska inte dränka den.
+#:
+#: Fjorton signifikanta siffror var dessutom falsk precision till att börja
+#: med — ingen kommun mäter sin verksamhet på nanometern.
+COORDINATE_DECIMALS = 6
+
+
+def _round(value):
+    return round(value, COORDINATE_DECIMALS) if isinstance(value, (int, float)) else value
+
 
 class Supabase:
     def __init__(self, url: str, key: str) -> None:
@@ -126,8 +147,8 @@ def export(client: Supabase, out_dir: Path) -> None:
                     "name": e["name"],
                     "address": e.get("street_address"),
                     "types": e.get("types") or [],
-                    "lat": e.get("lat"),
-                    "lng": e.get("lng"),
+                    "lat": _round(e.get("lat")),
+                    "lng": _round(e.get("lng")),
                     "image": (
                         {
                             "url": image["url"],
