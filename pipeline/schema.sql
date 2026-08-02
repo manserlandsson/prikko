@@ -262,6 +262,11 @@ begin
     end loop;
 end $$;
 
+-- Låt vyn respektera anroparens radsäkerhet i stället för att kringgå den.
+-- Utan detta kör vyn som sin ägare (security definer) och skulle kunna
+-- exponera framtida känsliga kolumner förbi RLS.
+alter view publishable_establishments set (security_invoker = true);
+
 -- Vyn ärver inte rättigheter från sina tabeller.
 grant select on publishable_establishments to anon, authenticated;
 

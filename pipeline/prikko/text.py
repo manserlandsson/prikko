@@ -33,9 +33,17 @@ def dedupe_slugs(records: list, key: str = "slug") -> None:
     Två verksamheter kan heta likadant, och gör det ofta — kedjor med flera
     adresser i samma kommun.
     """
-    seen: dict = {}
+    taken: set = set()
     for record in records:
         base = record[key]
-        seen[base] = seen.get(base, 0) + 1
-        if seen[base] > 1:
-            record[key] = f"{base}-{seen[base]}"
+        candidate = base
+        suffix = 1
+        # Räkna upp tills sluggen är ledig. Att bara suffixa efter antal
+        # räcker inte: en verksamhet kan HETA "Joe The Juice 2", vilket ger
+        # den naturliga sluggen "joe-the-juice-2" och krockar med den
+        # numrerade dubbletten av "Joe The Juice".
+        while candidate in taken:
+            suffix += 1
+            candidate = f"{base}-{suffix}"
+        taken.add(candidate)
+        record[key] = candidate

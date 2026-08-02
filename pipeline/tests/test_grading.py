@@ -90,6 +90,51 @@ class LatestDecides(unittest.TestCase):
         self.assertFalse(result.distinction)
 
 
+class PersistingDeviations(unittest.TestCase):
+    """Allvarsgraden härleds ur mönstret, inte ur kommunens ordval.
+
+    Stockholm saknar helt ett värde för "kvarstår" — deras skala slutar vid
+    "med avvikelser". Utan den här härledningen kan ingen verksamhet i
+    Stockholm någonsin hamna på allvarligaste nivån, medan en i Linköping kan.
+    Då går städerna inte att jämföra, och jämförbarheten är hela produkten.
+    """
+
+    def test_single_minor_remark_stays_minor(self):
+        """En engångsavvikelse är inte allvarlig."""
+        self.assertEqual(assess([insp(30, MINOR_REMARKS)], TODAY).verdict, MINOR)
+
+    def test_deviation_found_at_followup_becomes_major(self):
+        """Kommunen kom tillbaka för att kontrollera åtgärden. Den räckte inte."""
+        result = assess([insp(20, MINOR_REMARKS, type_=FOLLOWUP)], TODAY)
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_repeated_deviation_becomes_major(self):
+        """Samma problem två kontroller i rad."""
+        result = assess(
+            [insp(30, MINOR_REMARKS), insp(300, MINOR_REMARKS)], TODAY
+        )
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_deviation_after_clean_history_stays_minor(self):
+        """Nytt problem hos en tidigare skötsam verksamhet skärps inte."""
+        result = assess(
+            [insp(30, MINOR_REMARKS), insp(300, NO_REMARKS), insp(600, NO_REMARKS)],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MINOR)
+
+    def test_clean_followup_is_not_escalated(self):
+        """Ett återbesök UTAN avvikelse betyder att problemet är löst."""
+        result = assess(
+            [insp(20, NO_REMARKS, type_=FOLLOWUP), insp(60, MINOR_REMARKS)], TODAY
+        )
+        self.assertEqual(result.verdict, CLEAN)
+
+    def test_explicit_major_is_unaffected(self):
+        """Källor som själva säger 'allvarlig' ska inte påverkas av härledningen."""
+        self.assertEqual(assess([insp(30, MAJOR_REMARKS)], TODAY).verdict, MAJOR)
+
+
 class Distinction(unittest.TestCase):
     """Utmärkelsen ersätter de betygssteg vi inte kan belägga."""
 

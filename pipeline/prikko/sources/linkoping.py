@@ -235,7 +235,10 @@ def normalize_inspection(raw: dict, establishment_id: str) -> Optional[Normalize
         )
 
     return NormalizedInspection(
-        id_national=f"I-{MUNICIPALITY_CODE}-{raw['tillsynsId']}",
+        # Scopat till anläggningen: Linköping kopplar samma tillsynsId till
+        # flera anläggningar (olika lokaler, samma kontrolltillfälle), så id:t
+        # måste innehålla båda för att vara unikt.
+        id_national=f"I-{MUNICIPALITY_CODE}-{raw.get('anlaggningsId', '')}-{raw['tillsynsId']}",
         establishment_id=establishment_id,
         inspected_at=_parse_date(raw["tillsynsDatumTid"]),
         assessment=ASSESSMENT_MAP[assessment_raw],

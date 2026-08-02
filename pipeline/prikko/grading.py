@@ -29,6 +29,34 @@ läses som "godkänt, nätt och jämnt".
 Norge kom till tre nivåer av samma skäl. Danmark har fyra för att deras egen
 kontrollskala har fyra utfall — inte för att fyra är bättre.
 
+## Varför allvarsgraden härleds ur mönstret, inte ur etiketten
+
+Kommunerna använder olika ord för samma verklighet. Linköping har ett eget
+värde för "Kvarstår" när en avvikelse inte åtgärdats vid uppföljning.
+Stockholm har inget sådant värde alls — deras skala slutar vid "Med
+avvikelser", vilket i praktiken gör den tvågradig.
+
+Läser vi bara etiketten blir följden orimlig: ingen verksamhet i Stockholm
+kan någonsin hamna på den allvarligaste nivån, hur illa det än är, medan en
+verksamhet i Linköping kan det. Då går städerna inte att jämföra, och
+jämförbarheten är hela produktlöftet.
+
+Lösningen är att bedöma vad som faktiskt hände i stället för vad kommunen
+råkade kalla det. En avvikelse som ÖVERLEVT ett återbesök, eller som
+upprepas från föregående kontroll, är en kvarstående avvikelse oavsett
+kommun. Mönstret finns i alla källor; etiketterna kommer aldrig att stämma
+överens.
+
+Uppmätt effekt (2026-08-02): Stockholm gick från 0 till 187 kvarstående av
+776 avvikelser. Linköping från 8 till 12 av 100 — alltså de explicit märkta
+plus fyra som etiketten missade.
+
+**Kalibrering krävs.** Stockholm hamnar på 24 % kvarstående och Linköping på
+12 %. Det kan spegla verklig skillnad i hygien, men lika gärna att Stockholm
+gör fler återbesök. Skillnaden ska följas när fler kommuner tillkommer — vi
+får inte råka återinföra just det likvärdighetsproblem vi finns till för att
+lösa.
+
 ## Varför historiken ger en utmärkelse, inte ett betygssteg
 
 Med tre nivåer hamnar ungefär två tredjedelar av beståndet på den bästa. För
@@ -44,7 +72,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Sequence
 
-MODEL_VERSION = 2
+MODEL_VERSION = 3
 
 # Livsmedelsverkets kontroller sprids normalt över en treårscykel. Är senaste
 # kontrollen äldre än så säger den inget om nuläget.
@@ -109,6 +137,21 @@ class Assessment:
         return self.verdict is not None
 
 
+def _is_persisting(recent: Sequence[Inspection]) -> bool:
+    """Har avvikelsen överlevt en uppföljning?
+
+    Två oberoende tecken, båda hämtade ur källdata som alla kommuner har:
+
+    1. Den senaste kontrollen ÄR ett återbesök och hittade ändå avvikelser.
+       Kommunen kom tillbaka för att kontrollera åtgärden, och den räckte inte.
+    2. Föregående kontroll hade också avvikelser. Problemet upprepas.
+    """
+    latest = recent[0]
+    if latest.type == FOLLOWUP:
+        return True
+    return len(recent) > 1 and recent[1].assessment > NO_REMARKS
+
+
 def assess(
     inspections: Sequence[Inspection],
     today: date,
@@ -120,6 +163,10 @@ def assess(
         inga anmärkningar   -> clean
         mindre anmärkningar -> minor
         allvarliga          -> major
+
+    En mindre anmärkning skärps till allvarlig när den visat sig kvarstå:
+    antingen hittades den vid ett återbesök, eller så fanns den redan vid
+    föregående kontroll.
 
     Utmärkelsen ges när samtliga kontroller i fönstret — minst tre stycken —
     är utan anmärkning. Den kan aldrig höja eller sänka nivån.
@@ -146,6 +193,12 @@ def assess(
 
     latest = recent[0]
     verdict = _VERDICT_BY_ASSESSMENT[latest.assessment]
+
+    # Härledd allvarsgrad. En avvikelse som överlevt ett återbesök, eller som
+    # upprepas från föregående kontroll, räknas som kvarstående — även när
+    # kommunen saknar ord för det. Se modulens inledning.
+    if verdict == MINOR and _is_persisting(recent):
+        verdict = MAJOR
 
     distinction = (
         len(recent) >= HISTORY_DEPTH
