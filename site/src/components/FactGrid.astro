@@ -59,13 +59,23 @@ const { title, titleTip, facts } = Astro.props;
     margin-bottom: var(--s-3);
   }
 
-  /* Delade ramar: ett rutnät, inte fyra fristående kort. */
+  /* Delade ramar: ett rutnät, inte fyra fristående kort.
+   *
+   * INGEN overflow: hidden här. Den satt tidigare för att kapa cellernas
+   * ramar vid de rundade hörnen — men den kapade också InfoTip-bubblorna,
+   * som ligger ovanför sin cell. Följden var att förklaringarna till
+   * "Kontroller totalt", "Utan anmärkning" och "Återbesök" inte gick att
+   * läsa alls.
+   *
+   * Rundade hörn och utstickande bubblor går inte att förena i ren CSS, och
+   * sajten är noll-JS. Då väger informationen tyngre än hörnen: kvar blir en
+   * hårfin linje som korsar kurvan i nedre högra hörnet. Den kostnaden är
+   * mindre än en förklaring ingen kan läsa. */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     border: 1px solid var(--hairline);
     border-radius: var(--r-control);
-    overflow: hidden;
   }
 
   .cell {

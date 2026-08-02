@@ -27,6 +27,7 @@ from prikko.sources.orebro import (  # noqa: E402
     RawInspection,
     UnknownSourceValue,
     assessment_from_areas,
+    merge_duplicates,
     normalize_areas,
     normalize_establishment,
     normalize_inspection,
@@ -110,6 +111,38 @@ class Establishment(unittest.TestCase):
     def test_facility_without_id_raises(self):
         with self.assertRaises(UnknownSourceValue):
             normalize_establishment(dict(RAW_FACILITY, AnlaggningId=""))
+
+
+class Duplicates(unittest.TestCase):
+    """Källan listar samma verksamhet en gång per registrerad typ.
+
+    Verkligt fall: "Tant Gredelin" på Kungsgatan 48A förekommer två gånger
+    med identiskt AnlaggningId — en gång som Café, en gång som Butik.
+    """
+
+    PAIR = [
+        dict(RAW_FACILITY, Objektsnamn="Tant Gredelin", Typ="Café",
+             AnlaggningId="2109884c-3642-44dd-8089-4dcc548c03e4"),
+        dict(RAW_FACILITY, Objektsnamn="Tant Gredelin", Typ="Butik",
+             AnlaggningId="2109884c-3642-44dd-8089-4dcc548c03e4"),
+    ]
+
+    def test_same_id_becomes_one_establishment(self):
+        self.assertEqual(len(merge_duplicates(self.PAIR)), 1)
+
+    def test_types_are_unioned_rather_than_dropped(self):
+        # Verksamheten ÄR både café och butik. Att kasta den ena vore att
+        # tappa information källan faktiskt ger.
+        merged = merge_duplicates(self.PAIR)
+        e = normalize_establishment(merged[0])
+        self.assertEqual(e.types, ["Café", "Butik"])
+
+    def test_distinct_facilities_are_left_alone(self):
+        self.assertEqual(len(merge_duplicates([RAW_FACILITY, self.PAIR[0]])), 2)
+
+    def test_single_facility_still_gets_its_type(self):
+        e = normalize_establishment(merge_duplicates([RAW_FACILITY])[0])
+        self.assertEqual(e.types, ["Restaurang"])
 
 
 class History(unittest.TestCase):

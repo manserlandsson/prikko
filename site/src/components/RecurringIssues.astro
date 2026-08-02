@@ -85,15 +85,18 @@ const { issues } = Astro.props;
     border-top: 1px solid var(--hairline);
   }
 
+  /* Bara ikonen — ingen färgad platta bakom.
+   *
+   * Plattan gjorde varje rad till ett litet kort och lade färg på något som
+   * redan är allvarligt av sin text. Ikonen i bläckfärg låter innehållet
+   * bära tyngden i stället för dekoren. */
   .icon {
     width: 34px;
     height: 34px;
-    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--verdict-major-ink);
-    background: color-mix(in srgb, var(--verdict-major) 15%, transparent);
+    color: var(--text);
   }
 
   .what b {

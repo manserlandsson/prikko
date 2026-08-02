@@ -168,13 +168,39 @@ def reports_url(inspection_id: str) -> str:
     return f"{REPORTS_URL}/{inspection_id}"
 
 
+def merge_duplicates(facilities: list) -> list:
+    """Slå ihop verksamheter som delar AnlaggningId.
+
+    Källan listar samma verksamhet en gång per registrerad typ. "Tant
+    Gredelin" på Kungsgatan 48A förekommer två gånger med identiskt id —
+    en gång som Café, en gång som Butik.
+
+    Utan sammanslagning blir det två sidor för samma ställe, och eftersom
+    inläsningen skriver på id skulle den ena tyst skriva över den andra.
+    Typerna förenas i stället, vilket är sannare: verksamheten ÄR både café
+    och butik.
+    """
+    merged: dict = {}
+    for raw in facilities:
+        key = (raw.get("AnlaggningId") or "").strip()
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = dict(raw, _types=[t for t in [(raw.get("Typ") or "").strip()] if t])
+            continue
+        kind = (raw.get("Typ") or "").strip()
+        if kind and kind not in existing["_types"]:
+            existing["_types"].append(kind)
+    return list(merged.values())
+
+
 def normalize_establishment(raw: dict) -> NormalizedEstablishment:
     id_local = (raw.get("AnlaggningId") or "").strip()
     if not id_local:
         raise UnknownSourceValue("Verksamhet utan AnlaggningId")
 
+    # `_types` sätts av merge_duplicates(); enskilda poster har bara `Typ`.
     types = []
-    for value in (raw.get("Typ"),):
+    for value in raw.get("_types") or [raw.get("Typ")]:
         value = (value or "").strip()
         if value and value not in types:
             types.append(value)

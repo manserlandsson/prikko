@@ -24,9 +24,19 @@ interface Props {
   variant?: 'box' | 'round';
   /** Låt munnen ritas upp när märket kommer in. */
   animate?: boolean;
+  /**
+   * Låt märket blinka en gång, kort efter att munnen ritats.
+   *
+   * Bara för godkända verksamheter, och bara EN gång — aldrig i loop.
+   * Måste sättas medvetet per användning: en kommunsida listar hundratals
+   * gröna ansikten, och skulle de blinka allihop vore sidan oläslig. Blinkningen
+   * hör hemma på det stora märket högst upp på en verksamhets sida, där den är
+   * ett enskilt tecken och inte ett myller.
+   */
+  wink?: boolean;
 }
 
-const { verdict, size = 56, variant = 'box', animate = false } = Astro.props;
+const { verdict, size = 56, variant = 'box', animate = false, wink = false } = Astro.props;
 
 const key = verdict ?? 'none';
 
@@ -60,13 +70,22 @@ const EYE_RIGHT =
   'M62.6141 45.2457C65.9957 45.2457 68.737 42.5044 68.737 39.1229C68.737 35.7413 65.9957 33 62.6141 33C59.2325 33 56.4912 35.7413 56.4912 39.1229C56.4912 42.5044 59.2325 45.2457 62.6141 45.2457Z';
 
 // Unikt id per instans — flera märken på samma sida får inte dela gradient.
-const gradientId = `pg-${key}-${Math.random().toString(36).slice(2, 8)}`;
+//
+// Räknare, inte slump. Math.random() gav ett nytt id vid varje bygge, vilket
+// betydde att varenda sida ändrades i utfallet även när ingen data gjort det:
+// omöjligt att se verkliga skillnader, och CDN:er fick ompröva allt i onödan.
+let counter = 0;
+const gradientId = `pg-${key}-${counter++}`;
 
 const ink = variant === 'box' ? '#fff' : RING[key];
+
+// Blinkningen är förstärkning av ett gott besked. Att låta en verksamhet med
+// brister blinka vore att sockra ett underkännande.
+const winking = wink && verdict === 'clean';
 ---
 
 <svg
-  class:list={['face', variant, { animate }]}
+  class:list={['face', variant, { animate, winking }]}
   width={size}
   height={size}
   viewBox="0 0 100 100"
@@ -88,9 +107,9 @@ const ink = variant === 'box' ? '#fff' : RING[key];
     <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff" stroke={RING[key]} stroke-width="7" />
   )}
 
-  <path d={EYE_LEFT} fill={ink} />
-  <path d={EYE_RIGHT} fill={ink} />
-  <path d={MOUTH[key]} stroke={ink} stroke-width="7.87226" stroke-linecap="round" fill="none" />
+  <path class="eye" d={EYE_LEFT} fill={ink} />
+  <path class="eye right" d={EYE_RIGHT} fill={ink} />
+  <path class="mouth" d={MOUTH[key]} stroke={ink} stroke-width="7.87226" stroke-linecap="round" fill="none" />
 </svg>
 
 <style>
@@ -101,7 +120,7 @@ const ink = variant === 'box' ? '#fff' : RING[key];
 
   /* Munnen ritas upp när märket kommer in. Diskret — det här är ett
      register, inte en app-onboarding. */
-  .animate path:last-child {
+  .animate .mouth {
     stroke-dasharray: 60;
     stroke-dashoffset: 60;
     animation: draw .45s cubic-bezier(.4, 0, .2, 1) .1s forwards;
@@ -111,10 +130,32 @@ const ink = variant === 'box' ? '#fff' : RING[key];
     to { stroke-dashoffset: 0; }
   }
 
+  /* Blinkningen. Höger öga plattas till och öppnas igen, en gång, efter att
+     munnen ritats klart. Ögat skalas kring sin EGEN mittpunkt — utan
+     fill-box räknar webbläsaren origo från hela svg:n och ögat glider
+     iväg i stället för att blinka. */
+  .winking .eye.right {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: wink .4s cubic-bezier(.4, 0, .2, 1) .65s 1;
+  }
+
+  @keyframes wink {
+    0%, 100% { transform: scaleY(1); }
+    45%, 55% { transform: scaleY(.12); }
+  }
+
+  /* Rörelse kan utlösa yrsel och illamående hos den som har en vestibulär
+     sjukdom. Att respektera inställningen är inte en artighet — den som
+     bett om mindre rörelse har oftast ett medicinskt skäl. */
   @media (prefers-reduced-motion: reduce) {
-    .animate path:last-child {
+    .animate .mouth {
       animation: none;
       stroke-dashoffset: 0;
+    }
+
+    .winking .eye.right {
+      animation: none;
     }
   }
 </style>

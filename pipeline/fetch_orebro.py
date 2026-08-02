@@ -37,6 +37,7 @@ from prikko.sources.orebro import (  # noqa: E402
     SOURCE_URL,
     UnknownSourceValue,
     facility_url,
+    merge_duplicates,
     normalize_establishment,
     normalize_inspection,
     parse_history,
@@ -109,7 +110,13 @@ def collect_facility(raw: dict, today: date) -> Optional[dict]:
 
 def build(today: date, limit: Optional[int]) -> dict:
     facilities = get(SEARCH_URL)
-    print(f"Listan: {len(facilities)} verksamheter", file=sys.stderr)
+    raw_count = len(facilities)
+    facilities = merge_duplicates(facilities)
+    print(
+        f"Listan: {raw_count} poster → {len(facilities)} verksamheter"
+        f" ({raw_count - len(facilities)} dubbletter sammanslagna)",
+        file=sys.stderr,
+    )
     if limit:
         facilities = facilities[:limit]
 

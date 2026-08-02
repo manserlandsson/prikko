@@ -52,10 +52,7 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
         const area = legislationArea(a.code);
         return (
           <li class="row">
-            <span
-              class="icon"
-              style={`color: ${AREA_STATUS_INK[a.status]}; background: color-mix(in srgb, ${AREA_STATUS_COLOR[a.status]} 18%, transparent)`}
-            >
+            <span class="icon">
               <AreaIcon letter={a.code} />
             </span>
             <span class="what">
@@ -141,18 +138,22 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
     border-top: 1px solid var(--hairline);
   }
 
+  /* Bara ikonen, i bläckfärg — ingen färgad platta bakom.
+   *
+   * Statusen står redan utskriven i klartext längst till höger på raden och
+   * är färgad där. Att dessutom färga en platta bakom ikonen sa samma sak en
+   * tredje gången och gjorde listan rörig. */
   .icon {
     width: 34px;
     height: 34px;
-    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text);
   }
 
   .icon.muted {
     color: var(--text-muted);
-    background: var(--canvas);
   }
 
   .what b {
