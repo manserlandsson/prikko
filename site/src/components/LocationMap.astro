@@ -39,7 +39,7 @@ const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 const STYLE = 'mapbox/light-v11';
 const WIDTH = 300;
 const HEIGHT = 170;
-const ZOOM = 15.2;
+const ZOOM = 14.2;   // utzoomad så kvarteret syns, inte bara huset
 
 const src = token
   ? `https://api.mapbox.com/styles/v1/${STYLE}/static/${lng},${lat},${ZOOM},0/${WIDTH}x${HEIGHT}@2x?access_token=${token}`

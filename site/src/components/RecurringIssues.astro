@@ -50,9 +50,6 @@ const { issues } = Astro.props;
                 {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
               </span>
             </span>
-            <span class="times">
-              {issue.count} <span class="unit">ggr</span>
-            </span>
           </li>
         );
       })}
@@ -81,7 +78,7 @@ const { issues } = Astro.props;
 
   .row {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
     gap: var(--s-3);
     padding: var(--s-3) 0;
@@ -111,17 +108,4 @@ const { issues } = Astro.props;
     font-variant-numeric: tabular-nums;
   }
 
-  .times {
-    font-size: var(--fs-h-s);
-    font-weight: 600;
-    color: var(--verdict-major-ink);
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
-
-  .unit {
-    font-size: var(--fs-caption);
-    font-weight: 400;
-    color: var(--text-secondary);
-  }
 </style>
