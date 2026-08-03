@@ -70,9 +70,36 @@ import SiteSearch from './SiteSearch.astro';
     height: 58px;
   }
 
-  /* Sökfältet får det lediga utrymmet mellan wordmark och meny. Det är
-     därför nav inte längre behöver någon egen margin-left: auto. */
+  /* Sökfältet ska ligga i RADENS mitt, inte i mitten av det som blir över.
+     Med margin-inline: auto centrerades det mellan wordmarken (97 px) och
+     menyknappen (36 px), alltså 30 px för långt åt höger, precis halva
+     skillnaden mellan dem. Snedheten syns tydligast på verksamhetssidan,
+     där innehållet under är symmetriskt och avslöjar den.
+
+     Absolut positionering i stället, ankrad i .bar som redan är relative.
+
+     Brytpunkten 640 px är räknad, inte vald. Ett centrerat fält på 300 px
+     har sin vänsterkant vid W/2 minus 150. Wordmarken slutar vid 113 och
+     behöver 24 px luft, alltså krävs W över 574. Menyn kräver bara 452.
+     640 är närmaste befintliga brytpunkt i filen med marginal. Under den
+     får fältet flyta som förut. */
   .bar :global(.site-search) { margin-inline: auto; }
+
+  @media (min-width: 640px) {
+    .bar :global(.site-search) {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-inline: 0;
+      width: min(380px, 34vw);
+    }
+
+    /* Menyn måste knuffas ut själv nu. Sökfältets margin-inline: auto var
+       inte bara det som centrerade fältet, det var också det som sköt menyn
+       till högerkanten. Tas fältet ur flödet blir raden wordmark följt av
+       meny, och menyn hamnar dikt an mot logotypen. */
+    .bar :global(.picker) { margin-left: auto; }
+  }
 
   .brand {
     display: inline-flex;
