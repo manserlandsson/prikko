@@ -54,7 +54,19 @@ const PATHS: Record<string, string> = {
   Q: 'M5 7h14l-1.5 13h-11zM3 4h18',
 };
 
-const path = PATHS[letter.toUpperCase()] ?? PATHS.O;
+/*
+ * Ta FÖRSTA tecknet, inte hela strängen.
+ *
+ * Anroparna skickar hela rapporteringspunkten, alltså "J08" och inte "J".
+ * Uppslaget PATHS["J08"] missar därför alltid och föll tillbaka på PATHS.O,
+ * reservcirkeln. Följden var att varenda rad i kontrollistan fick samma
+ * generiska ikon, oavsett område, på varje verksamhetssida med
+ * kontrollpunkter.
+ *
+ * Bokstaven ÄR lagstiftningsområdet, siffrorna är punkten inom det. Att slå
+ * upp på bokstaven är alltså inte en genväg utan det som avsågs hela tiden.
+ */
+const path = PATHS[letter.trim().charAt(0).toUpperCase()] ?? PATHS.O;
 ---
 
 <svg
