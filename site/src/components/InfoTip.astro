@@ -2,13 +2,38 @@
 /**
  * (i)-symbol med förklaring vid hover och tangentbordsfokus.
  *
- * Ren CSS och HTML — ingen JavaScript. Mönstret är hämtat från ednia, som
- * sätter en (i) vid varje rubrik där datan behöver förklaras.
+ * Mönstret är hämtat från ednia, som sätter en (i) vid varje rubrik där datan
+ * behöver förklaras.
  *
- * Tillgänglighet: knapp (inte span) så den nås med tangentbord, och
+ * ---------------------------------------------------------------------------
+ * VARFÖR BUBBLAN LIGGER I TOPPSKIKTET
+ * ---------------------------------------------------------------------------
+ * Komponenten var tidigare ren CSS med en absolut positionerad bubbla. Det
+ * kostade två saker som båda syntes:
+ *
+ *   Rutnätet i FactGrid kunde inte klippa sina hörn, eftersom overflow: hidden
+ *   hade kapat bubblan. Följden var att cellernas raka hörn målades ovanpå den
+ *   rundade ramen, och kanterna såg trasiga ut. Det lappades en gång med en
+ *   mindre hörnradie, vilket dolde symptomet i stället för att laga felet.
+ *
+ *   Bubblan är 260 px bred och tog plats i layouten även dold, vilket gav
+ *   vågrät rullning på telefon.
+ *
+ * Bubblan är nu en popover. Webbläsaren ritar den i sitt toppskikt, utanför
+ * varje förälders overflow och utan att påverka sidans bredd. Båda felen
+ * försvinner av samma ändring.
+ *
+ * Placeringen sker med script, inte med CSS-ankarpositionering. Ankarstödet
+ * gick inte att belägga för Safari och Firefox vid skrivande stund, och en
+ * popover utan ankare hamnar mitt på skärmen. Femton rader script är billigare
+ * än en bubbla som landar fel hos en tredjedel av besökarna.
+ *
+ * Sajten är noll-JS av princip, och det gäller fortfarande: texten ligger i
+ * DOM:en och läses av sökmotorer utan att något körs. Scriptet flyttar bara en
+ * ruta som redan finns.
+ *
+ * Tillgänglighet: knapp och inte span så den nås med tangentbord, och
  * förklaringen kopplas med aria-describedby så skärmläsare läser upp den.
- * Texten ligger alltid i DOM:en — den får inte vara beroende av hover för
- * att existera, eftersom sökmotorer och AI-crawlers också ska läsa den.
  */
 interface Props {
   label: string;
@@ -19,16 +44,21 @@ const { label, text } = Astro.props;
 const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
 ---
 
-<span class="wrap">
+<span class="wrap" data-tip>
   <button
     type="button"
     class="dot"
     aria-label={`Vad betyder ${label}?`}
     aria-describedby={id}
+    popovertarget={id}
   >
     i
   </button>
-  <span class="bubble glass glass-dark" id={id} role="tooltip">{text}</span>
+  {/* `popover="manual"` och inte "auto": auto stänger varje annan öppen
+      popover när en ny öppnas, vilket är rätt för menyer men fel här, och
+      auto stängs dessutom av ett klick var som helst vilket krockar med att
+      vi öppnar på hover. Vi styr öppning och stängning själva. */}
+  <span class="bubble glass glass-dark" id={id} role="tooltip" popover="manual">{text}</span>
 </span>
 
 <style>
@@ -68,11 +98,11 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
      glas hade smält ihop med sidan bakom. Radien är dessutom mindre än
      --r-card. 12 px på en ruta som ofta är två rader hög blir en tablett. */
   .bubble {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 20;
+    /* Popover ritas i toppskiktet och positioneras mot vyporten. Måtten sätts
+       av scriptet vid varje öppning; här står bara utseendet. */
+    position: fixed;
+    margin: 0;
+    inset: auto;
     width: max-content;
     max-width: 260px;
     font-size: var(--fs-caption);
@@ -82,9 +112,15 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     letter-spacing: 0;
     padding: 8px 10px;
     border-radius: 9px;
+    border: 0;
     opacity: 0;
-    visibility: hidden;
     transition: opacity .12s ease;
+  }
+
+  /* En popover är display: none tills den öppnas, så ingen egen döljning
+     behövs. Toningen sker när den redan är öppen. */
+  .bubble:popover-open {
+    opacity: 1;
   }
 
   /* Pilen hämtar samma --glass-fill som bubblan, alltså även den solida
@@ -94,19 +130,91 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     content: '';
     position: absolute;
     top: 100%;
-    left: 50%;
+    left: var(--arrow, 50%);
     transform: translateX(-50%);
     border: 5px solid transparent;
     border-top-color: var(--glass-fill);
   }
 
-  .wrap:hover .bubble,
-  .dot:focus-visible + .bubble {
-    opacity: 1;
-    visibility: visible;
+  /* Bubblan under knappen: pilen vänds och flyttas till överkanten. */
+  .bubble.is-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--glass-fill);
   }
 
   @media (prefers-reduced-motion: reduce) {
     .bubble { transition: none; }
   }
 </style>
+
+<script>
+  /**
+   * Öppnar och placerar bubblorna.
+   *
+   * En popover ligger i toppskiktet och positioneras mot vyporten, inte mot
+   * sin förälder. Den måste därför få sina koordinater när den öppnas, och
+   * räknas om vid rullning eftersom knappen rör sig men bubblan inte gör det.
+   *
+   * `is-below` vänder pilen. Får bubblan inte plats ovanför knappen, alltså
+   * nära sidans överkant, hamnar den under i stället.
+   */
+  const GAP = 8;
+
+  function place(dot: HTMLElement, bubble: HTMLElement) {
+    const b = dot.getBoundingClientRect();
+    const w = bubble.offsetWidth;
+    const h = bubble.offsetHeight;
+
+    // Vågrätt centrerad över knappen, men aldrig utanför skärmen.
+    const half = w / 2;
+    const centre = b.left + b.width / 2;
+    const left = Math.min(Math.max(centre - half, GAP), window.innerWidth - w - GAP);
+
+    const below = b.top - h - GAP < GAP;
+    bubble.classList.toggle('is-below', below);
+    bubble.style.left = `${left}px`;
+    bubble.style.top = below ? `${b.bottom + GAP}px` : `${b.top - h - GAP}px`;
+
+    // Pilen följer knappen och inte bubblans mitt, som kan ha flyttats av
+    // kanten ovan. Utan detta pekar pilen bredvid symbolen den hör till.
+    bubble.style.setProperty('--arrow', `${centre - left}px`);
+  }
+
+  for (const wrap of document.querySelectorAll<HTMLElement>('[data-tip]')) {
+    const dot = wrap.querySelector<HTMLButtonElement>('.dot');
+    const bubble = wrap.querySelector<HTMLElement>('.bubble');
+    if (!dot || !bubble || !('showPopover' in bubble)) continue;
+
+    let open = false;
+    const show = () => {
+      if (open) return;
+      bubble.showPopover();
+      place(dot, bubble);
+      open = true;
+    };
+    const hide = () => {
+      if (!open) return;
+      bubble.hidePopover();
+      open = false;
+    };
+
+    wrap.addEventListener('pointerenter', show);
+    wrap.addEventListener('pointerleave', hide);
+    dot.addEventListener('focus', show);
+    dot.addEventListener('blur', hide);
+
+    /* Knappen bär popovertarget, så webbläsaren växlar bubblan vid klick av
+       sig själv. På pekskärm är det den enda vägen in, och där finns ingen
+       pointerleave att stänga med, så Escape och nästa tryck utanför får
+       göra jobbet. */
+    dot.addEventListener('click', () => {
+      open = bubble.matches(':popover-open');
+      if (open) place(dot, bubble);
+    });
+
+    document.addEventListener('scroll', () => open && place(dot, bubble), { passive: true });
+    window.addEventListener('resize', hide);
+  }
+</script>

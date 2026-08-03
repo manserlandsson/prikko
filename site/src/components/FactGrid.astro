@@ -71,40 +71,32 @@ const { title, titleTip, facts } = Astro.props;
    * sajten är noll-JS. Då väger informationen tyngre än hörnen: kvar blir en
    * hårfin linje som korsar kurvan i nedre högra hörnet. Den kostnaden är
    * mindre än en förklaring ingen kan läsa. */
-  /* Linjerna mellan cellerna är MELLANRUM, inte ramar.
+  /* Ett rutnät, inte fyra fristående kort.
    *
-   * Cellerna hade tidigare border-right och border-bottom var. De ritades
-   * ovanpå rutnätets egen ram, så höger- och underkanten fick dubbla linjer,
-   * och eftersom overflow: hidden är borttagen korsade de raka cellramarna de
-   * rundade hörnen. Resultatet såg ut som en grå fyrkant runt en redan rundad
-   * ruta.
+   * Linjerna är MELLANRUM och inte ramar: rutnätets botten är hårlinjefärgen
+   * och cellerna ligger med en pixels glapp ovanpå. Linjerna blir därmed exakt
+   * en pixel, aldrig dubbla, och de slutar av sig själva vid kanten. Det
+   * fungerar också när rutnätet bryter till flera rader på smal skärm, vilket
+   * en border-lösning gör klumpigt.
    *
-   * Nu är rutnätets bakgrund hårlinjefärgen och cellerna ligger med en pixels
-   * mellanrum ovanpå den. Linjerna blir exakt en pixel, aldrig dubbla, och de
-   * slutar av sig själva vid kanten. Det fungerar dessutom när rutnätet bryter
-   * till flera rader på smal skärm, vilket en border-lösning gör klumpigt. */
+   * overflow: hidden är TILLBAKA, och med den full hörnradie.
+   *
+   * Den togs bort en gång för att den kapade InfoTip-bubblorna, som ligger
+   * utanför sin cell, och förklaringarna blev då oläsbara. Radien sänktes
+   * senare till 4 px för att dölja att cellernas raka hörn målades ovanpå den
+   * rundade ramen. Båda var lappningar på samma grundfel.
+   *
+   * Grundfelet är borta: InfoTip ritar numera sin bubbla som en popover i
+   * webbläsarens toppskikt, utanför varje förälders overflow. Det finns alltså
+   * inget kvar att kapa, och rutan kan vara rund på riktigt. */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1px;
     background: var(--hairline);
     border: 1px solid var(--hairline);
-    /*
-     * 4 px och inte kontrollradien 10.
-     *
-     * Cellerna har raka hörn och vit botten, och de målas ovanpå ramen. Vid
-     * radie 10 täcker det vita hörnet en synlig bit av kurvan, så ramen ser
-     * ut att sakna kant just där. Den vanliga lösningen är overflow: hidden
-     * på rutnätet, men den kapar InfoTip-bubblorna, som ligger utanför sin
-     * cell, och då blir förklaringarna oläsbara. Det var därför den togs bort
-     * en gång.
-     *
-     * Vid 4 px är den övertäckta biten under en pixel och ramen läser som
-     * sluten hela vägen runt. Det är en kompromiss, inte en lösning: den
-     * riktiga vägen är att låta bubblorna ligga i webbläsarens toppskikt med
-     * popover, och då kan radien gå tillbaka till 10.
-     */
-    border-radius: 4px;
+    border-radius: var(--r-control);
+    overflow: hidden;
   }
 
   .cell {
