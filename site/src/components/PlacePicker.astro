@@ -589,7 +589,24 @@ const points = municipalityPoints();
         (error) => {
           locate.disabled = false;
           if (error.code === error.PERMISSION_DENIED) {
-            say('Du delade inte din plats. Välj kommun i listan i stället.');
+            /* Nekad kan betyda två helt olika saker, och besökaren kan bara
+               åtgärda den ena. Antingen sa hen nej nyss, eller så är
+               platsdelning blockerad sedan tidigare och webbläsaren svarar
+               nej UTAN att ens fråga. Det andra fallet ser ut som att
+               knappen är trasig.
+
+               navigator.permissions säger vilket det är. Saknas API:et
+               (Safari länge) faller vi tillbaka på den neutrala texten. */
+            const blockerad = 'Platsdelning är blockerad för den här sidan. '
+              + 'Ändra det i webbläsarens adressfält, eller välj kommun i listan.';
+            const nekad = 'Du delade inte din plats. Välj kommun i listan i stället.';
+            if (navigator.permissions?.query) {
+              navigator.permissions.query({ name: 'geolocation' })
+                .then((p) => say(p.state === 'denied' ? blockerad : nekad))
+                .catch(() => say(nekad));
+            } else {
+              say(nekad);
+            }
           } else if (error.code === error.TIMEOUT) {
             say('Det tog för lång tid att hämta din plats. Försök igen, eller välj i listan.');
           } else {
