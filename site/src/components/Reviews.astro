@@ -65,12 +65,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     />
   </h2>
 
-  <p class="apart">
-    Omdömen är besökarnas egna ord och ingår <b>inte</b> i hygienbedömningen
-    ovan. Den bygger på kommunens kontroller och räknas fram enligt vår
-    publicerade <a href="/metodik/">metodik</a>. Alla omdömen granskas av
-    redaktionen innan de publiceras.
-  </p>
+  {/* Stycket som stod här är borttaget. Det sa i fyra rader precis det som
+      redan står i (i)-tipset vid rubriken, och det upprepade dessutom
+      metodiklänken som finns i sidfoten på varje sida.
+
+      Åtskillnaden mellan omdöme och bedömning bärs av att de ligger i olika
+      avsnitt med egna rubriker, inte av en brasklapp. */}
 
   {/* Tom i HTML-filen med avsikt. Fylls i webbläsaren, aldrig vid bygget. */}
   <div id="review-list" class="list"></div>
