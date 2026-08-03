@@ -244,6 +244,11 @@ const GLOBAL: Record<string, Rule> = {
   'Restaurang och servering': coarse('restaurang', ['cafe']),
   'Restaurang och café': coarse('restaurang', ['cafe']), // Lomma
   'Restauranger och pizzerior': coarse('restaurang'), // Svenljunga
+  // Borgholm, 230 av 406. Samma form som Uppsalas grovetikett: kommunens
+  // caféer ligger delvis här och delvis under Bageri/konditori. Caféfiltret
+  // blir alltså inte tomt i Borgholm, bara inte uttömmande, precis som i
+  // Jönköping, Karlstad och Linköping.
+  Servering: coarse('restaurang', ['cafe']),
   // Svenljunga. Namnet säger gatukök, innehållet säger café: tio av elva
   // heter Café något, den elfte är Torgkiosken. Källans egen gruppering
   // väger tyngre än ordet, precis som för Bageri och Kiosk i R7. Kommunens
@@ -254,11 +259,18 @@ const GLOBAL: Record<string, Rule> = {
   'Skolor, förskolor och annan omsorg': coarse('skola'), // Uppsala
   'Skolor och förskolor': coarse('skola'), // Svenljunga
   'Vård och omsorgsverksamheter': coarse('skola'), // Svenljunga
+  'Omsorg/skola/vård': coarse('skola'), // Borgholm
   'Butik och handel': coarse('butik'),
   'Butiker och annan handel': coarse('butik'), // Uppsala
   Butiker: coarse('butik'), // Svenljunga
   Butik: coarse('butik'),
   'Café och bageri': coarse('cafe'), // Oskarshamn
+  // Borgholm. Konditorier och kaffestugor med disk: Gallericafeet, Café
+  // Göthlin, Kaffestugan i Böda, Löttorps Konditori. Kommunens rena
+  // produktionsbagerier ligger under Tillverkning, precis som Kristinehamns.
+  // Ingen underkategori — hinken är både Café och Bageri, båda under samma
+  // toppkategori, och källan säger inte vilket.
+  'Bageri/konditori': coarse('cafe'),
   'Övriga verksamheter': coarse('ovrigt'),
   Övriga: coarse('ovrigt'),
   Övrigt: coarse('ovrigt'),
@@ -276,6 +288,9 @@ const GLOBAL: Record<string, Rule> = {
   Hamburgare: specific('restaurang', 'snabbmat'),
   Korv: specific('restaurang', 'snabbmat'),
   Frukostservering: specific('restaurang', 'enklare-servering'),
+  // Borgholm. Pensionat och bed and breakfast är registrerade för frukosten,
+  // vilket är exakt vad Enklare servering betyder.
+  'B & B': specific('restaurang', 'enklare-servering'),
   'Mobil verksamhet': specific('restaurang', 'mobilt'),
   'Mobil anläggning': specific('restaurang', 'mobilt'),
   'Food trucks': specific('restaurang', 'mobilt'),
@@ -287,12 +302,19 @@ const GLOBAL: Record<string, Rule> = {
   // servering, Karlstad säger handel, Linköping säger övrigt), så vi måste
   // välja. Besökaren gör ingen skillnad på ett bageri med disk och ett café.
   Café: specific('cafe', 'kafe'),
+  Kafé: specific('cafe', 'kafe'), // Kristinehamns stavning, samma sak
   Bageri: specific('cafe', 'bageri'),
   'Konditori med eget bageri': specific('cafe', 'bageri'), // Oskarshamn
 
   // --- Butiker ------------------------------------------------------------
   'Butik utan egen beredning': specific('butik', 'livsmedelsbutik'),
   'Butik med egen beredning': specific('butik', 'livsmedelsbutik'),
+  // Kristinehamn skriver samma distinktion utan ordet "egen". Kommunens fem
+  // apotek ligger inne i "utan beredning" och får därför Livsmedelsbutik i
+  // stället för Hälsokost och apotek. Toppkategorin är rätt, och vi följer
+  // källans egen gruppering hellre än vår läsning av namnen.
+  'Butik utan beredning': specific('butik', 'livsmedelsbutik'),
+  'Butik med beredning': specific('butik', 'livsmedelsbutik'),
   'Livsmedelsbutik ej hantering': specific('butik', 'livsmedelsbutik'),
   'Livsmedelsbutik med hantering': specific('butik', 'livsmedelsbutik'),
   Kiosk: specific('butik', 'kiosk'),
@@ -340,15 +362,32 @@ const GLOBAL: Record<string, Rule> = {
   'Tillverkare övriga livsmedel': specific('ovrigt', 'tillverkning'),
   Viltanläggning: specific('ovrigt', 'tillverkning'),
   'Egen tillverkning': specific('ovrigt', 'tillverkning'), // Oskarshamn
+  // Kristinehamn. Bryter INTE mot R7:s beslut att bagerier hör till caféerna —
+  // det gällde värdet `Bageri`, som inte kan skilja produktion från disk. Här
+  // gör källan skillnaden själv: Drevstabageriet ligger under `Kafé`, medan
+  // Bageri Höghuset, Vetekransen, Sockerslottet och Chocolate by L ligger här.
+  // Ordet är tillverkning, och ett tillverkningsställe svarar inte på frågan
+  // "kan jag fika där".
+  Bagerivarutillverkning: specific('ovrigt', 'tillverkning'),
+  // Borgholm: bryggerier, musterier, rökerier, glassfabrik, gårdsmjölk och de
+  // rena produktionsbagerierna. Kommunens bagerier med disk ligger under
+  // Bageri/konditori.
+  Tillverkning: specific('ovrigt', 'tillverkning'),
   Grossist: specific('ovrigt', 'grossist'),
   'Grossist/lager/transport': specific('ovrigt', 'grossist'),
   Distributör: specific('ovrigt', 'lager'),
+  Distribution: specific('ovrigt', 'lager'), // Borgholm
+  Lager: specific('ovrigt', 'lager'), // Borgholm
   Livsmedelslager: specific('ovrigt', 'lager'),
   'Lager/Transport/Omlastning': specific('ovrigt', 'lager'),
   Transportör: specific('ovrigt', 'lager'),
   Matmäklare: specific('ovrigt', 'mellanhand'),
   Kosttillskott: specific('ovrigt', 'mellanhand'),
   Huvudkontor: specific('ovrigt', 'huvudkontor'),
+  // Borgholm. Vattenverk, samfälligheter och enskilda dricksvattenanläggningar.
+  // Campingar och stugbyar förekommer, men de är registrerade för sitt vatten;
+  // deras servering är en egen post under Servering.
+  Vattenverk: specific('ovrigt', 'dricksvatten'),
 
   // --- Attribut (rang 0) --------------------------------------------------
   Säsong: attribute,
@@ -387,6 +426,31 @@ const PER_MUNICIPALITY: Record<string, Record<string, Rule>> = {
       tops: ['restaurang', 'butik'],
       absorbs: ['cafe'],
     },
+  },
+
+  kristinehamn: {
+    // Varje verksamhet i Kristinehamn bär exakt ETT värde. Det gör rangen
+    // verkningslös inom kommunen, men den sätts ändå rätt: står strängen en
+    // dag bredvid en riktig typ i en annan källa ska den typen vinna.
+    //
+    // Namnet säger vem som driver stället, inte vad det är. Innehållet svarar
+    // ändå: 23 av 24 är förskolor, skolor, fritidshem, gruppboenden,
+    // äldreboenden och hemvård. Den tjugofjärde är Landa café. Samma sorts
+    // dominansbeslut som R7 gjorde för Örebros `Buffert` och Jönköpings
+    // `Förening`. Ingen underkategori — gruppen blandar förskola, skola och
+    // äldreomsorg utan att säga vilket.
+    'Kommunal livsmedelsverksamhet': coarse('skola'),
+
+    // Inte ett attribut, trots att ordet låter så. Oskarshamns `Fritering` och
+    // `Matsal` står BREDVID en riktig typ och är därför tillägg; det här är
+    // det enda källan säger om de nio, och att kalla det rang 0 vore att
+    // påstå att källan inte sagt något.
+    //
+    // Men det går inte heller att lösa upp. Sju av nio serverar (två hotell,
+    // ett cateringföretag, RIA, Träffpunkten, en friluftsgård, Krongården) och
+    // två tillverkar (Björns Bigårdar, Mor Carins Ostkaka). Känt värde, ingen
+    // kategori vi kan stå för. Det är precis vad `spanning` finns för.
+    'Mindre beredning': { kind: 'spanning', tops: ['restaurang', 'ovrigt'] },
   },
 
   linkoping: {

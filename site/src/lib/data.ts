@@ -966,9 +966,17 @@ function categoryIndex(slug: string): CategoryIndex {
   // restauranger, caféer och butiker i samma hink, och tre nästan identiska
   // meningar under filtret hade läst som tre olika problem. Notisen sätts
   // därför på den första av dem och räknar upp allihop.
-  const spanningGroup = gaps
-    .filter((g) => g.kind === 'spanning' && (counts.get(g.category) ?? 0) === 0)
+  //
+  // Två uppräkningar, för de är svar på olika frågor. Filternotisen gäller
+  // bara de kategorier gruppen gör OMÖJLIGA att fylla, alltså de som står på
+  // noll. Notisen om verksamheterna utan kategori ska räkna upp allt gruppen
+  // blandar, även kategorier som kommunen kan fylla från andra värden:
+  // Kristinehamns nio "Mindre beredning" blandar servering och tillverkning
+  // trots att både Restauranger och Övrigt är välfyllda där.
+  const spanningAll = gaps
+    .filter((g) => g.kind === 'spanning')
     .map((g) => topCategory(g.category));
+  const spanningGroup = spanningAll.filter((c) => (counts.get(c.id) ?? 0) === 0);
   const spanningNote =
     spanningGroup.length > 0
       ? `${city} källa lägger ${joinSv(spanningGroup.map((c) => c.short))} i en enda grupp ` +
@@ -1022,9 +1030,9 @@ function categoryIndex(slug: string): CategoryIndex {
     const causes: string[] = [];
     if (spanning > 0) {
       causes.push(
-        spanningGroup.length > 0
+        spanningAll.length > 0
           ? `${formatNumber(spanning)} ligger i en grupp där källan blandar ` +
-            joinSv(spanningGroup.map((c) => c.short))
+            joinSv(spanningAll.map((c) => c.short))
           : `${formatNumber(spanning)} ligger i en grupp källan inte delar upp`,
       );
     }
