@@ -66,7 +66,18 @@ const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 const STYLE = 'mapbox/light-v11';
 const WIDTH = 300;
 const HEIGHT = 170;
-const ZOOM = 14.2;   // utzoomad så kvarteret syns, inte bara huset
+/*
+ * 13.4. Var 14.2, och dessförinnan högre.
+ *
+ * En karta som visar kvarteret svarar på frågan "exakt var ligger porten",
+ * men det är inte den fråga någon ställer här. Den som läser om en restaurang
+ * vill veta VAR I STAN den ligger, och vid 14.2 fanns inte tillräckligt många
+ * kända hållpunkter i bild för att man skulle kunna placera den.
+ *
+ * Ett steg ut, alltså några kvarter i stället för ett. Nålen är fortfarande
+ * exakt, det är omgivningen som blivit läsbar.
+ */
+const ZOOM = 13.4;
 
 const src = token
   ? `https://api.mapbox.com/styles/v1/${STYLE}/static/${lng},${lat},${ZOOM},0/${WIDTH}x${HEIGHT}@2x?access_token=${token}`
