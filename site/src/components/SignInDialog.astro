@@ -318,6 +318,14 @@ import '../styles/konto.css';
     color: #C40000;
   }
 
+  /* Måste stå här och inte bara i konto.css. `.notice[hidden]` är klass plus
+     attribut och `.sheet .notice-error` är klass plus klass, alltså samma
+     specificitet, och då vinner den som laddas sist. Det är den här filen.
+     Utan raden nedan visas den tomma rutan alltid, som en ensam röd ikon. */
+  .sheet .notice-error[hidden] {
+    display: none;
+  }
+
   .sheet .notice-error::before {
     content: '';
     flex: none;

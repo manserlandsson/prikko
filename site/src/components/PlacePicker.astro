@@ -22,8 +22,11 @@
  * kommun. Under en hårfin avdelare den framhävda raden till /ratta, som är
  * sajtens replikrätt och det enda vi ber besökaren om. Längst ned de
  * sekundära vägarna till hur bedömningen räknas fram, var datan kommer
- * ifrån och vilka vi är. Ingen inloggning: sajten har ingen och ska inte
- * låtsas att den har det.
+ * ifrån och vilka vi är. Allra sist, under en egen linje, kontoraden.
+ *
+ * Kontoraden placerades där med avsikt och efter förebild. Den som kommer hit
+ * kommer för att välja kommun eller rätta en uppgift; inloggningen är det
+ * fåtal återvändande gör och hör därför sist. Airbnb löser det likadant.
  *
  * Bara kommunlistan rullar. Panelen är en flexkolumn där listan är enda
  * elementet som får krympa, så att raderna under den ligger kvar även när
@@ -127,6 +130,29 @@ const points = municipalityPoints();
       <a href="/kallor/">Källor</a>
       <a href="/om/">Om Prikko</a>
     </nav>
+
+    {/* Kontoraden, längst ned under en egen linje. Samma placering som
+        Airbnb: menyns innehåll först, sedan en avdelare, sedan en enda rad
+        om vem du är.
+
+        Server-renderad som utloggad. Sajten är statisk och sidhuvudet ligger
+        på 16 000 sidor, så vem som är inloggad kan omöjligt vara känt vid
+        bygget. Skriptet nedan skriver om raden när det vet bättre. Det gör
+        att en utloggad besökare ser rätt sak utan att något behöver köras,
+        och en inloggad ser fel i några millisekunder. Motsatt förval hade
+        visat "Ditt konto" för alla som har JavaScript avstängt.
+
+        `hidden` på den inloggade delen i stället för två separata
+        renderingar: raden ska inte hoppa i höjd när skriptet byter läge. */}
+    <div class="account">
+      <button type="button" class="account-in" data-signin>Logga in eller skapa konto</button>
+
+      <div class="account-out" hidden data-account>
+        <p class="who" data-who></p>
+        <a href="/konto/">Ditt konto</a>
+        <button type="button" class="linky" data-signout>Logga ut</button>
+      </div>
+    </div>
   </div>
 </details>
 
@@ -398,6 +424,61 @@ const points = municipalityPoints();
     color: var(--text);
   }
 
+  /* Kontoraden. Egen linje ovanför, så att den läser som en avdelning för sig
+     och inte som en fjärde länk bland Metodik, Källor och Om. */
+  .account {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Knappen ska se ut som länkarna ovanför, inte som en knapp. Den gör samma
+     sorts sak: den tar dig vidare. Att den tekniskt är en <button> beror bara
+     på att den öppnar en ruta i stället för att byta sida, och det är ett
+     genomförandedetalj som inte ska synas. */
+  .account-in,
+  .account-out a,
+  .linky {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    font: inherit;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .account-in:hover,
+  .account-out a:hover,
+  .linky:hover {
+    background: var(--canvas);
+    text-decoration: none;
+  }
+
+  .account-out {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .account-out[hidden] { display: none; }
+
+  /* Adressen man loggat in med. Inte en länk och inte klickbar: den är en
+     upplysning om vem sajten tror att du är, och det enda man vill göra med
+     den är att läsa den. */
+  .who {
+    padding: var(--s-2) var(--s-3) 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+  }
+
   .more a:hover {
     text-decoration: none;
     background: color-mix(in srgb, var(--brand) 6%, transparent);
@@ -414,6 +495,58 @@ const points = municipalityPoints();
 </style>
 
 <script>
+  import { configured, currentUser, signedIn, signOut } from '../lib/community';
+  import { openSignIn, signInAvailable } from '../lib/signin-dialog';
+
+  /**
+   * Kontoraden längst ned i menyn.
+   *
+   * Ligger före platsväljarens egen kod eftersom den inte har med platser att
+   * göra och inte får falla bort om något i den delen brister.
+   *
+   * Server-renderad som utloggad, se markupen. Den här funktionen skriver om
+   * raden när den vet bättre. Är inloggning inte uppsatt alls, alltså när
+   * anon-nyckeln saknas vid bygget, döljs raden helt: en knapp som öppnar en
+   * ruta som aldrig kan logga in någon är sämre än ingen knapp.
+   */
+  {
+    const box = document.querySelector<HTMLElement>('.account');
+    const signin = document.querySelector<HTMLButtonElement>('[data-signin]');
+    const out = document.querySelector<HTMLElement>('[data-account]');
+    const who = document.querySelector<HTMLElement>('[data-who]');
+    const signout = document.querySelector<HTMLButtonElement>('[data-signout]');
+
+    if (box && signin && out && who && signout) {
+      if (!configured || !signInAvailable()) {
+        box.hidden = true;
+      } else {
+        const paint = async () => {
+          const authed = await signedIn();
+          const user = authed ? currentUser() : null;
+          signin.hidden = authed;
+          out.hidden = !authed;
+          who.textContent = user?.email ?? '';
+        };
+
+        signin.addEventListener('click', async () => {
+          if (await openSignIn(signin)) await paint();
+        });
+
+        signout.addEventListener('click', async () => {
+          await signOut();
+          await paint();
+          /* Sidan laddas om. Bevakningsknappen på verksamhetssidan och
+             omdömesformuläret har egna tillstånd som satts vid laddning, och
+             att låta dem tro att någon fortfarande är inloggad är värre än en
+             omladdning. */
+          location.reload();
+        });
+
+        void paint();
+      }
+    }
+  }
+
   /**
    * Progressiv förstärkning av platsväljaren. Allt här är sådant som inte
    * går att göra utan skript — markupen ovanför fungerar utan.
