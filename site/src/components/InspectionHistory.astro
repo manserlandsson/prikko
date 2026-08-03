@@ -10,6 +10,7 @@
  * gräva öppnar den. Rader utan avvikelser är inte klickbara — en tom utfällning
  * är sämre än ingen.
  */
+import OwnerReply from './OwnerReply.astro';
 import {
   ASSESSMENT_COLOR,
   ASSESSMENT_INK,
@@ -98,6 +99,7 @@ function detail(i: Inspection): string {
                   </span>
                 </div>
               )}
+              {i.ownerComment && <OwnerReply text={i.ownerComment} />}
             </li>
           );
         })}
@@ -146,6 +148,7 @@ function detail(i: Inspection): string {
                       <span class="status text-secondary">{ASSESSMENT_LABEL[i.assessment]}</span>
                     </div>
                   )}
+                  {i.ownerComment && <OwnerReply text={i.ownerComment} />}
                 </li>
               );
             })}

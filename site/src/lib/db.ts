@@ -39,6 +39,20 @@ export interface Inspection {
   audit: boolean;
   onSite: boolean;
   areas: ControlArea[];
+  /**
+   * Verksamhetens replikrätt, publicerad ORDAGRANT.
+   *
+   * Sidfoten och metodiksidan lovar att svaren publiceras oredigerade, och
+   * det löftet hålls i tre steg. Verksamheten skriver i schemat `community`,
+   * där en trigger fryser texten så att ingen kan ändra den efter
+   * insändning. Redaktionen väljer sedan mellan att publicera ordagrant och
+   * att avslå; någon ändra-väg finns inte. Först vid publicering skrivs
+   * texten till `inspections.owner_comment` och följer med exporten hit.
+   *
+   * Att fältet är satt betyder alltså att en människa släppt fram exakt de
+   * tecknen. Se pipeline/schema_community.sql och pipeline/moderate.py.
+   */
+  ownerComment?: string | null;
 }
 
 export interface StreetImage {

@@ -1,0 +1,71 @@
+---
+/**
+ * Verksamhetens svar på en kontroll.
+ *
+ * Replikrätten är utlovad på metodiksidan och i sidfoten, med orden "svaren
+ * publiceras oredigerade". Den här komponenten är den enda platsen där löftet
+ * blir synligt, och därför den plats där det måste vara sant.
+ *
+ * Texten skrivs ut som den kom in. Ingen trunkering, ingen normalisering av
+ * radbrytningar, ingen städning av versaler. `white-space: pre-wrap` behåller
+ * styckena verksamheten själv satte. Astro escapar innehållet, så markup i
+ * texten visas som text och kan inte köra något.
+ *
+ * Rutan är visuellt AVSKILD från kontrollraden ovanför. Det är ett annat
+ * påstående av en annan avsändare, och läsaren ska aldrig behöva gissa vem
+ * som säger vad. Av samma skäl står "Verksamhetens svar" utskrivet i klartext
+ * i stället för som en ikon.
+ *
+ * Svaret är INTE strukturerad data. Det finns ingen `Review`, ingen
+ * `AggregateRating` och inget betyg. Se .github/workflows/kontroll.yml.
+ */
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+---
+
+<div class="reply">
+  <p class="reply-head">Verksamhetens svar</p>
+  <p class="reply-body">{text}</p>
+  <p class="reply-note text-muted">
+    Publicerat ordagrant. Prikko har inte ändrat i texten och går inte i god
+    för den. <a href="/metodik/">Så fungerar replikrätten</a>.
+  </p>
+</div>
+
+<style>
+  .reply {
+    margin: 0 0 var(--s-3) 20px;
+    padding: var(--s-3) var(--s-4);
+    background: var(--canvas);
+    border-left: 2px solid var(--hairline);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+  }
+
+  .reply-head {
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  .reply-body {
+    margin-top: var(--s-1);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    /* Behåller verksamhetens egna radbrytningar. Att slå ihop dem vore en
+       redigering, och vi redigerar inte. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .reply-note {
+    margin-top: var(--s-2);
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+  }
+</style>

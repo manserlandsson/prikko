@@ -1,0 +1,539 @@
+---
+/**
+ * Verksamhetens sida: anspråk, svar på kontroll och bilder.
+ *
+ * ---------------------------------------------------------------------------
+ * DET SVÅRA: ATT NÅGON FÖRETRÄDER VERKSAMHETEN
+ * ---------------------------------------------------------------------------
+ * Detta är den enda delen av bygget som inte går att lösa med kod. Ingen
+ * teknisk konstruktion kan avgöra om personen bakom en e-postadress verkligen
+ * är den som driver Pizzeria Napoli på Storgatan.
+ *
+ * Fyra vägar övervägdes:
+ *
+ *   BankID mot Bolagsverkets firmatecknare  Starkast, och det enda som
+ *     verkligen bevisar något. Kostar pengar, kräver avtal med en
+ *     BankID-förmedlare, och är fel investering innan någon faktiskt vill
+ *     svara. Rätt slutmål.
+ *   Brev med engångskod till adressen  Näst starkast och billigt.
+ *     Verksamhetsställets adress finns redan i datan, och den som hämtar
+ *     posten där är rimligen på plats. Samma ordning som Google Business
+ *     Profile. Förberedd i databasen (`postal_code`), inte byggd.
+ *   E-post på verksamhetens egen domän  Går inte. Vi lagrar inga webbplatser.
+ *   Manuell registerkontroll  Redaktionen slår upp firmatecknare eller
+ *     verklig huvudman och jämför med det den sökande uppgett.
+ *
+ * BYGGT: den sista. Ett anspråk är en ANSÖKAN, inte ett konto. Den ger noll
+ * rättigheter innan en människa godkänt den, och spärren sitter i
+ * radsäkerheten och inte i den här sidan: policyn på community.owner_responses
+ * kräver ett godkänt anspråk för att en rad över huvud taget ska få skrivas.
+ *
+ * VAD SOM INTE ÄR VERIFIERAT: allt den sökande skriver i formuläret. Namn,
+ * roll och organisationsnummer är påståenden. Vad redaktionen kontrollerar är
+ * att de påståendena stämmer mot ett offentligt register. Det är inte samma
+ * sak som att personen har fullmakt, och det ska sägas rakt ut.
+ */
+import Base from '../../layouts/Base.astro';
+import SignInDialog from '../../components/SignInDialog.astro';
+import '../../styles/konto.css';
+---
+
+<Base
+  title="Din verksamhet"
+  description="Svara på en kontroll och ladda upp bilder av din verksamhet."
+  noindex
+>
+  <div class="container konto-page konto-wide">
+    <div class="konto-card">
+      <h1 id="title">Din verksamhet</h1>
+      <p class="konto-lead" id="lead">Läser in.</p>
+      <p class="notice notice-error" id="error" hidden role="alert"></p>
+      <div class="konto-actions" id="signin-row" hidden>
+        <button type="button" class="btn-primary" id="signin">Logga in eller bli medlem</button>
+      </div>
+    </div>
+
+    {/* Ansökan om att företräda verksamheten. */}
+    <div class="konto-card" id="claim-card" hidden>
+      <h2>Ansök om att företräda verksamheten</h2>
+      <p class="konto-lead">
+        Vi kontrollerar uppgifterna mot Bolagsverket innan du får svara. Det
+        görs för hand och kan ta någon dag. Uppgifterna nedan publiceras aldrig.
+      </p>
+
+      <form id="claim-form" novalidate>
+        <label class="field">
+          <span>Ditt namn</span>
+          <input type="text" name="claimantName" maxlength="100" required autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span>Din roll i verksamheten</span>
+          <input
+            type="text"
+            name="claimantRole"
+            maxlength="100"
+            required
+            placeholder="Ägare, restaurangchef, firmatecknare"
+          />
+        </label>
+
+        <label class="field">
+          <span>
+            Organisationsnummer
+            <span class="hint">
+              Verksamhetens, inte ditt personnummer. Används bara för
+              kontrollen och publiceras aldrig.
+            </span>
+          </span>
+          <input type="text" name="organizationNumber" maxlength="20" />
+        </label>
+
+        <label class="field">
+          <span>E-post vi kan nå dig på</span>
+          <input type="email" name="contactEmail" required autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span>Telefon <span class="hint">Frivilligt. Snabbare om något behöver redas ut.</span></span>
+          <input type="tel" name="contactPhone" maxlength="30" autocomplete="tel" />
+        </label>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="claim-submit">Skicka ansökan</button>
+        </div>
+
+        <p class="konto-legal">
+          Att ansöka ger ingen rätt att svara. Rätten uppstår först när
+          redaktionen kontrollerat att du företräder verksamheten. Lämnar du
+          medvetet oriktiga uppgifter stängs kontot av.
+        </p>
+      </form>
+    </div>
+
+    {/* Svar på en kontroll. */}
+    <div class="konto-card" id="respond-card" hidden>
+      <h2>Svara på en kontroll</h2>
+      <p class="konto-lead">
+        Ditt svar publiceras <b>ordagrant</b> bredvid kontrollen. Vi ändrar
+        aldrig ett ord. Redaktionen läser det innan det publiceras och kan bara
+        välja mellan att publicera det som det är eller att inte publicera det,
+        och i så fall säga varför.
+      </p>
+
+      <form id="respond-form" novalidate>
+        <label class="field">
+          <span>Vilken kontroll gäller svaret?</span>
+          <select name="inspection" id="inspection" required></select>
+        </label>
+
+        <label class="field">
+          <span>
+            Ditt svar
+            <span class="hint">
+              Minst tio tecken, högst 2 000. Skriv om kontrollen och vad ni
+              gjort. Namnge inte enskilda inspektörer eller anställda.
+            </span>
+          </span>
+          <textarea name="body" maxlength="2000" required></textarea>
+        </label>
+
+        <p class="notice notice-error" id="respond-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="respond-submit">Skicka svar</button>
+        </div>
+
+        <p class="konto-legal">
+          Texten fryses när du skickar den. Varken vi eller du kan ändra den i
+          efterhand, och det är själva poängen: det är så vi kan lova att svar
+          publiceras oredigerade. Vill du säga något annat får det gamla svaret
+          tas bort först. Skriv till
+          <a href="/ratta/">redaktionen</a> om det behövs.
+        </p>
+      </form>
+
+      <h3 class="sub">Dina svar</h3>
+      <ul class="konto-list" id="responses"></ul>
+      <p class="konto-empty" id="responses-empty">Du har inte skickat något svar än.</p>
+    </div>
+
+    {/* Bilder. */}
+    <div class="konto-card" id="image-card" hidden>
+      <h2>Bilder på verksamheten</h2>
+      <p class="konto-lead">
+        Bilder granskas av en människa innan de publiceras. Fram till dess är
+        de inte synliga för någon annan än dig och redaktionen, och de har
+        ingen adress som går att sprida.
+      </p>
+
+      <form id="image-form" novalidate>
+        <label class="field">
+          <span>
+            Bild
+            <span class="hint">JPEG, PNG eller WebP. Högst 8 MB.</span>
+          </span>
+          <input type="file" name="file" accept="image/jpeg,image/png,image/webp" required />
+        </label>
+
+        <label class="field">
+          <span>Bildtext <span class="hint">Frivilligt.</span></span>
+          <input type="text" name="caption" maxlength="200" />
+        </label>
+
+        <p class="notice notice-error" id="image-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="image-submit">Ladda upp</button>
+        </div>
+
+        <p class="konto-legal">
+          Ladda bara upp bilder du själv tagit eller har rätt att använda, och
+          som föreställer verksamheten. Bilder med igenkännbara gäster
+          publiceras inte.
+        </p>
+      </form>
+
+      <h3 class="sub">Dina bilder</h3>
+      <ul class="konto-list" id="uploads"></ul>
+      <p class="konto-empty" id="uploads-empty">Du har inte laddat upp någon bild än.</p>
+    </div>
+  </div>
+
+  <SignInDialog />
+</Base>
+
+<style>
+  .sub {
+    margin-top: var(--s-6);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-body);
+  }
+</style>
+
+<script>
+  import {
+    configured,
+    signedIn,
+    claimFor,
+    submitClaim,
+    inspectionsFor,
+    ownerResponses,
+    submitOwnerResponse,
+    uploads,
+    uploadImage,
+    CommunityError,
+  } from '../../lib/community';
+  import { openSignIn } from '../../lib/signin-dialog';
+
+  const title = document.getElementById('title') as HTMLHeadingElement;
+  const lead = document.getElementById('lead') as HTMLParagraphElement;
+  const error = document.getElementById('error') as HTMLParagraphElement;
+
+  const claimCard = document.getElementById('claim-card') as HTMLDivElement;
+  const claimForm = document.getElementById('claim-form') as HTMLFormElement;
+  const claimSubmit = document.getElementById('claim-submit') as HTMLButtonElement;
+
+  const respondCard = document.getElementById('respond-card') as HTMLDivElement;
+  const respondForm = document.getElementById('respond-form') as HTMLFormElement;
+  const respondError = document.getElementById('respond-error') as HTMLParagraphElement;
+  const respondSubmit = document.getElementById('respond-submit') as HTMLButtonElement;
+  const inspectionSelect = document.getElementById('inspection') as HTMLSelectElement;
+  const responseList = document.getElementById('responses') as HTMLUListElement;
+  const responseEmpty = document.getElementById('responses-empty') as HTMLParagraphElement;
+
+  const imageCard = document.getElementById('image-card') as HTMLDivElement;
+  const imageForm = document.getElementById('image-form') as HTMLFormElement;
+  const imageError = document.getElementById('image-error') as HTMLParagraphElement;
+  const imageSubmit = document.getElementById('image-submit') as HTMLButtonElement;
+  const uploadList = document.getElementById('uploads') as HTMLUListElement;
+  const uploadEmpty = document.getElementById('uploads-empty') as HTMLParagraphElement;
+
+  const STATUS_LABEL: Record<string, string> = {
+    pending: 'Väntar på granskning',
+    published: 'Publicerat',
+    rejected: 'Avslaget',
+  };
+
+  const dates = new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const ASSESSMENT: Record<number, string> = {
+    0: 'inga anmärkningar',
+    1: 'mindre anmärkningar',
+    2: 'allvarliga anmärkningar',
+  };
+
+  function show(message: string) {
+    error.innerHTML = `<b>Fel.</b> ${message}`;
+    error.hidden = false;
+  }
+
+  function tag(status: string): HTMLSpanElement {
+    const span = document.createElement('span');
+    span.className = `status-tag status-${status}`;
+    span.textContent = STATUS_LABEL[status] ?? status;
+    return span;
+  }
+
+  async function start() {
+    if (!configured) {
+      lead.textContent = 'Funktionen är inte konfigurerad på den här installationen.';
+      return;
+    }
+
+    // Verksamheten kommer med i adressen från knappen på verksamhetssidan.
+    const query = new URLSearchParams(location.search);
+    const place = {
+      id: query.get('id') ?? '',
+      name: query.get('namn') ?? '',
+      municipalitySlug: query.get('kommun') ?? '',
+    };
+
+    if (!/^F-\d{4}-.+$/.test(place.id)) {
+      lead.textContent =
+        'Öppna den här sidan från verksamhetens egen sida, via länken "Driver du verksamheten?".';
+      return;
+    }
+
+    // Utloggad: en knapp, aldrig en ruta som öppnar sig själv.
+    if (!(await signedIn())) {
+      const row = document.getElementById('signin-row') as HTMLDivElement;
+      const button = document.getElementById('signin') as HTMLButtonElement;
+      lead.textContent = place.name
+        ? `Logga in för att svara för ${place.name}.`
+        : 'Logga in för att fortsätta.';
+      row.hidden = false;
+      button.addEventListener('click', async () => {
+        if (!(await openSignIn(button))) return;
+        row.hidden = true;
+        await load(place);
+      });
+      return;
+    }
+
+    await load(place);
+  }
+
+  async function load(place: { id: string; name: string; municipalitySlug: string }) {
+    if (place.name) title.textContent = place.name;
+    const link = place.municipalitySlug
+      ? ` <a href="/${place.municipalitySlug}/">Till ${place.municipalitySlug}</a>.`
+      : '';
+
+    let claim = null;
+    try {
+      claim = await claimFor(place.id);
+    } catch (err) {
+      show(err instanceof CommunityError ? err.message : 'Kunde inte läsa ditt anspråk.');
+      return;
+    }
+
+    if (!claim) {
+      lead.innerHTML =
+        'Du företräder inte den här verksamheten hos oss än. Ansök nedan.' + link;
+      claimCard.hidden = false;
+      wireClaim(place);
+      return;
+    }
+
+    if (claim.status === 'pending') {
+      lead.innerHTML =
+        '<b>Väntar.</b> Din ansökan är inskickad och granskas för hand. Du får ' +
+        'besked på den e-postadress du angav.';
+      return;
+    }
+
+    if (claim.status === 'rejected') {
+      lead.innerHTML =
+        '<b>Avslaget.</b> ' +
+        (claim.rejection_reason ?? 'Ansökan godkändes inte.') +
+        ' Hör av dig till <a href="/ratta/">redaktionen</a> om det är fel.';
+      return;
+    }
+
+    lead.textContent = 'Du är godkänd som företrädare för den här verksamheten.';
+    respondCard.hidden = false;
+    imageCard.hidden = false;
+    await wireRespond(place);
+    await wireImages(place);
+  }
+
+  function wireClaim(place: { id: string; name: string; municipalitySlug: string }) {
+    claimForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      error.hidden = true;
+      claimSubmit.disabled = true;
+      claimSubmit.textContent = 'Skickar';
+
+      const data = new FormData(claimForm);
+      try {
+        await submitClaim(place, {
+          claimantName: String(data.get('claimantName') ?? '').trim(),
+          claimantRole: String(data.get('claimantRole') ?? '').trim(),
+          organizationNumber: String(data.get('organizationNumber') ?? '').trim(),
+          contactEmail: String(data.get('contactEmail') ?? '').trim(),
+          contactPhone: String(data.get('contactPhone') ?? '').trim(),
+        });
+        claimCard.hidden = true;
+        lead.innerHTML =
+          '<b>Väntar.</b> Tack. Ansökan granskas för hand och du får besked per e-post.';
+      } catch (err) {
+        show(err instanceof CommunityError ? err.message : 'Kunde inte skicka ansökan.');
+        claimSubmit.disabled = false;
+        claimSubmit.textContent = 'Skicka ansökan';
+      }
+    });
+  }
+
+  async function paintResponses(establishmentId: string) {
+    let rows: Awaited<ReturnType<typeof ownerResponses>> = [];
+    try {
+      rows = await ownerResponses(establishmentId);
+    } catch {
+      return;
+    }
+    responseList.textContent = '';
+    for (const row of rows) {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = row.body.slice(0, 80) + (row.body.length > 80 ? '…' : '');
+      li.append(text, tag(row.status));
+      if (row.status === 'rejected' && row.rejection_reason) {
+        const why = document.createElement('span');
+        why.className = 'caption text-muted';
+        why.textContent = row.rejection_reason;
+        li.append(why);
+      }
+      responseList.append(li);
+    }
+    responseEmpty.hidden = rows.length > 0;
+  }
+
+  async function wireRespond(place: { id: string; name: string; municipalitySlug: string }) {
+    let inspections: Awaited<ReturnType<typeof inspectionsFor>> = [];
+    try {
+      inspections = await inspectionsFor(place.id);
+    } catch {
+      show('Kunde inte hämta kontrollerna.');
+    }
+
+    if (inspections.length === 0) {
+      respondForm.hidden = true;
+      const note = document.createElement('p');
+      note.className = 'konto-empty';
+      note.textContent =
+        'Kommunen har inte publicerat någon kontroll av verksamheten, så det finns inget att svara på än.';
+      respondCard.append(note);
+    }
+
+    for (const i of inspections) {
+      const option = document.createElement('option');
+      option.value = i.id;
+      const answered = i.owner_comment ? ' (redan besvarad)' : '';
+      option.textContent = `${dates.format(new Date(i.inspected_at))} — ${
+        ASSESSMENT[i.assessment] ?? ''
+      }${answered}`;
+      option.disabled = Boolean(i.owner_comment);
+      inspectionSelect.append(option);
+    }
+
+    await paintResponses(place.id);
+
+    respondForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      respondError.hidden = true;
+
+      const data = new FormData(respondForm);
+      const body = String(data.get('body') ?? '').trim();
+      const inspectionId = String(data.get('inspection') ?? '');
+
+      if (!inspectionId) {
+        respondError.innerHTML = '<b>Fel.</b> Välj vilken kontroll svaret gäller.';
+        respondError.hidden = false;
+        return;
+      }
+      if (body.length < 10) {
+        respondError.innerHTML = '<b>Fel.</b> Skriv minst tio tecken.';
+        respondError.hidden = false;
+        return;
+      }
+
+      respondSubmit.disabled = true;
+      respondSubmit.textContent = 'Skickar';
+
+      try {
+        await submitOwnerResponse(place, inspectionId, body);
+        respondForm.reset();
+        await paintResponses(place.id);
+      } catch (err) {
+        respondError.innerHTML = `<b>Fel.</b> ${
+          err instanceof CommunityError ? err.message : 'Kunde inte skicka svaret.'
+        }`;
+        respondError.hidden = false;
+      } finally {
+        respondSubmit.disabled = false;
+        respondSubmit.textContent = 'Skicka svar';
+      }
+    });
+  }
+
+  async function paintUploads(establishmentId: string) {
+    let rows: Awaited<ReturnType<typeof uploads>> = [];
+    try {
+      rows = await uploads(establishmentId);
+    } catch {
+      return;
+    }
+    uploadList.textContent = '';
+    for (const row of rows) {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = row.caption || 'Utan bildtext';
+      li.append(text, tag(row.status));
+      uploadList.append(li);
+    }
+    uploadEmpty.hidden = rows.length > 0;
+  }
+
+  async function wireImages(place: { id: string; name: string; municipalitySlug: string }) {
+    await paintUploads(place.id);
+
+    imageForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      imageError.hidden = true;
+
+      const input = imageForm.elements.namedItem('file') as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) {
+        imageError.innerHTML = '<b>Fel.</b> Välj en bild.';
+        imageError.hidden = false;
+        return;
+      }
+
+      imageSubmit.disabled = true;
+      imageSubmit.textContent = 'Laddar upp';
+
+      try {
+        const caption = String(new FormData(imageForm).get('caption') ?? '').trim();
+        await uploadImage(place, file, caption);
+        imageForm.reset();
+        await paintUploads(place.id);
+      } catch (err) {
+        imageError.innerHTML = `<b>Fel.</b> ${
+          err instanceof CommunityError ? err.message : 'Kunde inte ladda upp bilden.'
+        }`;
+        imageError.hidden = false;
+      } finally {
+        imageSubmit.disabled = false;
+        imageSubmit.textContent = 'Ladda upp';
+      }
+    });
+  }
+
+  void start();
+</script>

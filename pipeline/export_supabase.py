@@ -172,6 +172,16 @@ def export(client: Supabase, out_dir: Path) -> None:
                             "prenotified": i.get("prenotified"),
                             "audit": i.get("audit", False),
                             "onSite": i.get("on_site", True),
+                            # Verksamhetens svar. Följer med ordagrant, och
+                            # utelämnas helt när det inte finns, så att inte
+                            # varje kontroll utan svar får ett tomt fält i
+                            # snapshoten. Se pipeline/moderate.py för hur ett
+                            # svar tar sig hit.
+                            **(
+                                {"ownerComment": i["owner_comment"]}
+                                if i.get("owner_comment")
+                                else {}
+                            ),
                             "areas": [
                                 {
                                     "code": a.get("code") or "",
