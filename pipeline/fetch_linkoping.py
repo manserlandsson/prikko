@@ -29,7 +29,6 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from prikko.grading import Inspection, assess  # noqa: E402
-from prikko.imagery import find_street_image  # noqa: E402
 from prikko.sources.linkoping import (  # noqa: E402
     MUNICIPALITY_CITY,
     MUNICIPALITY_CODE,
@@ -123,17 +122,17 @@ def build(limit: Optional[int], today: date) -> dict:
         # Samma tillsynsId kan komma två gånger, se merge_duplicate_inspections.
         inspections = merge_duplicate_inspections(inspections)
 
-        # Gatubild. Saknas token eller täckning blir det None, och sidan
-        # designas så den fungerar utan bild — de flesta kommer sakna en.
+        # Gatubild hämtas INTE här. Den hörde hemma här så länge vi bara sparade
+        # en URL, men den URL:en var Mapillarys signerade miniatyr och gick ut
+        # en tid efter varje körning. Nu laddas bildens bytes ned och lagras hos
+        # oss, och det ska ske en gång per verksamhet i stället för en gång per
+        # hämtning av kommunen:
+        #
+        #     python3 pipeline/hamta_gatubilder.py --fil site/src/data/linkoping.json
+        #
+        # Sidan är byggd för att fungera utan bild, vilket de flesta kommer att
+        # göra. Se pipeline/prikko/imagery.py.
         image = None
-        if establishment.lat and establishment.lng:
-            found = find_street_image(establishment.lat, establishment.lng)
-            if found:
-                image = {
-                    "url": found.url,
-                    "id": found.id,
-                    "capturedAt": found.captured_at,
-                }
 
         result = assess(
             [
@@ -223,6 +222,37 @@ def build(limit: Optional[int], today: date) -> dict:
     }
 
 
+def keep_images(out: Path, data: dict) -> None:
+    """Bär över gatubilder från den befintliga filen.
+
+    Bilderna hämtas av pipeline/hamta_gatubilder.py och kostar ett anrop mot en
+    gratis och delad tjänst styck. En hämtning av kommunen får inte kasta bort
+    dem bara för att den skriver om filen.
+    """
+    if not out.exists():
+        return
+    try:
+        previous = json.loads(out.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+
+    images = {
+        e["id"]: e["image"]
+        for e in previous.get("establishments", [])
+        if e.get("image")
+    }
+    if not images:
+        return
+
+    carried = 0
+    for record in data["establishments"]:
+        image = images.get(record["id"])
+        if image:
+            record["image"] = image
+            carried += 1
+    print(f"Bar över {carried} gatubilder från föregående fil.", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None)
@@ -230,6 +260,7 @@ def main() -> None:
     args = parser.parse_args()
 
     data = build(args.limit, date.today())
+    keep_images(args.out, data)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(

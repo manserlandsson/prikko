@@ -149,11 +149,20 @@ def export(client: Supabase, out_dir: Path) -> None:
                     "types": e.get("types") or [],
                     "lat": _round(e.get("lat")),
                     "lng": _round(e.get("lng")),
+                    # `url` pekar på VÅR kopia, aldrig på källans adress.
+                    # Mapillarys miniatyr-URL:er är signerade och går ut; en
+                    # sådan i databasen är en bild som slutar visas utan att
+                    # något bygge klagar. Se pipeline/prikko/imagery.py.
+                    # `source` följer med eftersom attributionskravet skiljer
+                    # sig åt: Mapillary kräver sin logotyp, inte bara en länk.
                     "image": (
                         {
                             "url": image["url"],
                             "id": image.get("source_id") or "",
                             "capturedAt": image.get("captured_at"),
+                            "source": image.get("source") or "own",
+                            "licence": image.get("licence"),
+                            "attribution": image.get("attribution"),
                         }
                         if image
                         else None

@@ -56,9 +56,28 @@ export interface Inspection {
 }
 
 export interface StreetImage {
+  /**
+   * VÅR kopia av bilden, i vår egen objektlagring.
+   *
+   * Aldrig källans egen adress. Mapillarys miniatyr-URL:er är signerade och har
+   * en utgångstid, så en sådan här ger en bild som slutar visas en tid efter
+   * bygget utan att något klagar. Pipelinen laddar ned bytesen och lägger dem i
+   * Cloudflare R2. Se pipeline/prikko/imagery.py.
+   */
   url: string;
+  /** Bildens id hos källan, för länken tillbaka dit. */
   id: string;
+  /** ISO-datum, YYYY-MM-DD, eller null. */
   capturedAt: string | null;
+  /**
+   * Var bilden kommer ifrån. Styr attributionen, som skiljer sig åt: Mapillarys
+   * villkor kräver deras logotyp och en länk, inte bara en textrad.
+   */
+  source?: 'mapillary' | 'panoramax' | 'owner' | 'own' | 'wikimedia';
+  /** SPDX-beteckning, t.ex. "CC-BY-SA-4.0". */
+  licence?: string | null;
+  /** Färdig attributionstext, t.ex. "Mapillary, CC BY-SA 4.0". */
+  attribution?: string | null;
 }
 
 export type SourceType =

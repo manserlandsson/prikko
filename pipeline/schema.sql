@@ -182,9 +182,17 @@ create index if not exists control_areas_inspection_idx
 -- ---------------------------------------------------------------------------
 -- Bilder
 --
--- Gatubilder (Mapillary, CC-BY-SA) och senare verksamheternas egna
--- uppladdningar. Google Places-foton får INTE lagras här — deras villkor
--- förbjuder cachning.
+-- Gatubilder (Mapillary och Panoramax, båda CC BY-SA) och verksamheternas egna
+-- uppladdningar. Google Places-foton och Street View får INTE lagras här —
+-- deras villkor förbjuder cachning, Places-foton är dessutom inte en tillåten
+-- användning för en katalogtjänst i EES, och Street View-innehåll får inte
+-- visas bredvid en karta. Se docs/13_bilder_och_verksamhetsdata.md del A1.
+--
+-- `url` ska ALLTID peka på vår egen kopia i vår egen lagring. Källornas egna
+-- bild-URL:er är efemära: Mapillarys miniatyrer är signerade och går ut, och en
+-- sådan här är en bild som slutar visas i drift utan att något bygge klagar.
+-- Pipelinen laddar därför ned bytesen och lägger dem i Cloudflare R2, vilket
+-- CC BY-SA uttryckligen tillåter. Se pipeline/prikko/imagery.py.
 -- ---------------------------------------------------------------------------
 create table if not exists images (
     id                  bigserial primary key,
@@ -192,7 +200,8 @@ create table if not exists images (
 
     url                 text not null,
     source              text not null
-                            check (source in ('mapillary', 'owner', 'own', 'wikimedia')),
+                            check (source in ('mapillary', 'panoramax', 'owner',
+                                              'own', 'wikimedia')),
     source_id           text,
     licence             text,
     attribution         text,

@@ -2,11 +2,19 @@
 /**
  * Gatubild på verksamheten.
  *
- * Bilden kommer från Mapillary och serveras direkt — ingen knapp att klicka,
- * ingen iframe, inget samtycke. Antingen finns bilden och visas, eller så
- * finns den inte och panelen börjar med kartan i stället.
+ * Bilden serveras direkt — ingen knapp att klicka, ingen iframe, inget
+ * samtycke. Antingen finns bilden och visas, eller så finns den inte och
+ * panelen börjar med kartan i stället.
  *
- * Licensen (CC-BY-SA) kräver attribution, vilket ligger som bildtext.
+ * `image.url` pekar på VÅR kopia i vår egen objektlagring, aldrig på källans
+ * adress. Tidigare stod Mapillarys `thumb_1024_url` här, och den är signerad
+ * med en utgångstid: bilderna slutade visas en tid efter varje bygge utan att
+ * något klagade. Pipelinen laddar nu ned bytesen, vilket CC BY-SA uttryckligen
+ * tillåter. Se pipeline/prikko/imagery.py.
+ *
+ * Attributionen är ett licensvillkor och inte en artighet. Mapillarys
+ * utvecklarvillkor kräver dessutom att deras logotyp visas och inte bara en
+ * textlänk — se kommentaren vid `logo` nedan för vad som återstår där.
  *
  * `loading="lazy"` plus explicita mått: bilden ska aldrig orsaka layoutskift,
  * och den ska aldrig konkurrera med sidans LCP. Bedömningen är hjälten.
@@ -20,9 +28,39 @@ interface Props {
 
 const { image, name } = Astro.props;
 
-const year = image.capturedAt
-  ? new Date(Number(image.capturedAt)).getFullYear()
-  : null;
+/**
+ * Fångstdatum är ett ISO-datum (YYYY-MM-DD), så som kolumnen `captured_at` är
+ * deklarerad. Tidigare skrev pipelinen Mapillarys epoktid i millisekunder hit
+ * och sidan tolkade den som ett tal — två oförenliga former för samma fält.
+ * Nu normaliseras den i pipelinen och läses som ett datum här.
+ */
+const year = /^\d{4}/.exec(image.capturedAt ?? '')?.[0] ?? null;
+
+const source = image.source ?? 'own';
+
+const CREDIT: Record<string, { label: string; href: (id: string) => string | null }> = {
+  mapillary: {
+    label: 'Mapillary',
+    href: (id) => (id ? `https://www.mapillary.com/app/?pKey=${id}` : 'https://www.mapillary.com'),
+  },
+  panoramax: {
+    label: 'Panoramax',
+    href: (id) => (id ? `https://api.panoramax.xyz/#focus=pic&pic=${id}` : 'https://panoramax.xyz'),
+  },
+};
+
+const credit = CREDIT[source];
+const href = credit?.href(image.id) ?? null;
+
+/**
+ * Attributionstexten kommer från databasen när den finns, så att licensraden
+ * följer bilden i stället för att gissas här. Reserven är källans namn.
+ */
+const attribution =
+  image.attribution ??
+  (credit ? `${credit.label}, CC BY-SA 4.0` : 'Verksamhetens egen bild');
+const [creditLabel, ...licenceParts] = attribution.split(',');
+const licence = licenceParts.join(',').trim();
 ---
 
 <figure class="photo">
@@ -35,12 +73,20 @@ const year = image.capturedAt
     decoding="async"
   />
   <figcaption class="text-muted">
-    Gatubild {year && `från ${year} `}·
-    <a
-      href={`https://www.mapillary.com/app/?pKey=${image.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-    >Mapillary</a>, CC BY-SA
+    Gatubild {year && `från ${year} `}·{' '}
+    {/*
+      ÅTERSTÅR, och det är en manuell uppgift: Mapillarys utvecklarvillkor
+      kräver att bilder attribueras genom att "prominently displaying the
+      Mapillary logo and including a link". Länken finns, logotypen inte.
+      Den ska hämtas från Mapillarys egna varumärkessidor och läggas i brand/,
+      inte ritas av på fri hand — en felaktig återgivning av någon annans
+      varumärke är sämre än ingen. Tills dess står källans namn som text.
+    */}
+    {href ? (
+      <a href={href} target="_blank" rel="noopener noreferrer">{creditLabel}</a>
+    ) : (
+      <span>{creditLabel}</span>
+    )}{licence && `, ${licence}`}
   </figcaption>
 </figure>
 
