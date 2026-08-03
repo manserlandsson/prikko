@@ -149,7 +149,11 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
     let following = false;
 
     function paint() {
-      button!.textContent = following ? 'Slutar följa' : 'Följ verksamheten';
+      /* "Sluta följa" och inte "Slutar följa". Etiketten på en knapp är det
+         man ber den göra, i infinitiv, inte en beskrivning av vad som pågår.
+         "Slutar följa" läser som en pågående händelse och får det att se ut
+         som att något redan sker. */
+      button!.textContent = following ? 'Sluta följa' : 'Följ verksamheten';
       button!.classList.toggle('btn-primary', !following);
       button!.classList.toggle('btn-ghost', following);
     }
