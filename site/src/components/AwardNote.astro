@@ -11,12 +11,16 @@
  *   bygge. Det försvinner samma dag kommunen hittar en avvikelse.
  *
  * Slutar de säga samma sak är det inte ett fel, utan hela skälet till att
- * märket bär ett årtal. Den sista meningen här skrivs därför om efter vilket av
- * de två fallen som gäller, så att en läsare som ser ett märke från 2026
- * bredvid "Brister som kvarstår" får veta varför båda står där.
+ * märket bär ett årtal. DÅ, och bara då, skrivs en andra mening ut, så att en
+ * läsare som ser ett märke från 2026 bredvid "Brister som kvarstår" får veta
+ * varför båda står där. Säger de samma sak tillför meningen ingenting, och det
+ * som inte tillför något står inte här.
+ *
+ * Serien och listan räcker alltså som text. Datumintervallet och frysdatumet
+ * stod här förut och bar inget på just den här sidan: den som vill ha dem
+ * hittar dem på utgåvesidan, ett klick bort.
  */
 import AwardSeal from './AwardSeal.astro';
-import { formatDate } from '../lib/data';
 import { path } from '../lib/urls';
 import { awardsFor, capitalise, numeral } from '../lib/utmarkelser';
 import type { Establishment } from '../lib/data';
@@ -36,22 +40,18 @@ const earlier = awards.slice(1);
 {newest && (
   <section class="award">
     <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
-      <AwardSeal year={newest.year} width={168} decorative />
+      <AwardSeal year={newest.year} width={56} decorative />
     </a>
     <div>
       <h2>Utmärkelsen {newest.year}</h2>
       <p>
-        {capitalise(numeral(newest.entry.run))} kontroller i rad utan en enda anmärkning,
-        mellan {formatDate(newest.entry.from)} och {formatDate(newest.entry.to)}.
-        Det räckte för att {e.name} skulle stå i
-        {' '}<a href={path('utmarkelser', newest.year)}>{newest.year} års lista</a>,
-        som frystes {formatDate(newest.asOf)}.
+        {capitalise(numeral(newest.entry.run))} kontroller i rad utan anmärkning.
+        Verksamheten står i
+        {' '}<a href={path('utmarkelser', newest.year)}>{newest.year} års lista</a>.
       </p>
-      <p>
-        {e.distinction
-          ? 'Utmärkelsen gäller fortfarande: de tre senaste kontrollerna är alltjämt utan anmärkning.'
-          : 'Utmärkelsen avser den utgåvan och räknas inte om. Vad som gäller nu står i bedömningen ovan.'}
-      </p>
+      {!e.distinction && (
+        <p>Utmärkelsen avser den utgåvan. Vad som gäller nu står ovan.</p>
+      )}
       {earlier.length > 0 && (
         <p>
           Verksamheten står också i {earlier.map((a, i) => (
@@ -67,12 +67,14 @@ const earlier = awards.slice(1);
 )}
 
 <style>
+  /* Luften följer märket. Med ett 56 px brett sigill i stället för en
+     banderoll skulle 24 px runtom göra kortet till mest tomrum. */
   .award {
     display: flex;
     align-items: center;
-    gap: var(--s-6);
+    gap: var(--s-4);
     margin-top: var(--s-8);
-    padding: var(--s-6);
+    padding: var(--s-4);
     background: var(--card);
     border: 1px solid var(--hairline);
     border-radius: var(--r-card);
@@ -83,10 +85,14 @@ const earlier = awards.slice(1);
     flex: none;
   }
 
+  /* `h2` som element, brödtextstorlek som form. Rutan är en notis bredvid
+     innehållet och inte ett eget avsnitt, så den ska inte bära ett avsnitts
+     rubrikstorlek. Dokumentstrukturen är en annan fråga än typografin. */
   .award h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    margin-bottom: var(--s-2);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    margin-bottom: var(--s-1);
   }
 
   .award p {

@@ -126,10 +126,9 @@ const jsonLd = {
       <div>
         <h2>Märket för {e.year}</h2>
         <p>
-          Står verksamheten i listan ovan får den använda märket. Årtalet är det
-          som syns mest, eftersom märket säger att verksamheten fanns med i
-          {' '}{e.year} års utgåva och ingenting om nuläget. Ett märke som sitter
-          kvar i ett fönster kan därför inte bli osant.
+          Står verksamheten i listan ovan får den använda märket. Årtalet säger
+          att den fanns med i {e.year} års utgåva, inte hur det ser ut i dag, så
+          ett märke som sitter kvar i ett fönster kan inte bli osant.
         </p>
         <p>
           <a href={path('utmarkelser', e.year) + 'marke.svg'} download={`prikko-${e.year}.svg`}>
