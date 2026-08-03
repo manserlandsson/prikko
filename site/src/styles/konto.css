@@ -1,0 +1,208 @@
+/* Formulär och kontoytor.
+   Egen fil i stället för scopeade stilar per sida: samma fält återkommer på
+   fem kontosidor och i panelen på verksamhetssidan, och Astros scoping korsar
+   inte komponentgränser. Alla värden kommer ur tokens.css. */
+
+.konto-page {
+  max-width: 460px;
+  margin-inline: auto;
+  padding-block: var(--s-12) var(--s-16);
+}
+
+.konto-wide {
+  max-width: var(--readcol);
+}
+
+.konto-card {
+  background: var(--card);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+  padding: var(--s-8);
+}
+
+.konto-card + .konto-card { margin-top: var(--s-4); }
+
+.konto-card h1 {
+  font-size: var(--fs-h);
+  line-height: var(--lh-h);
+  letter-spacing: -.02em;
+}
+
+.konto-card h2 {
+  font-size: var(--fs-h-s);
+  line-height: var(--lh-h-s);
+}
+
+.konto-lead {
+  margin-top: var(--s-2);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+}
+
+/* Fält */
+.field { display: block; margin-top: var(--s-4); }
+
+.field > span {
+  display: block;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 600;
+  margin-bottom: var(--s-1);
+}
+
+.field .hint {
+  display: block;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-bottom: var(--s-1);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  font: 400 var(--fs-body-s)/var(--lh-body-s) var(--font-sans);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-control);
+  padding: 10px 12px;
+}
+
+.field textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand);
+  outline-offset: 0;
+}
+
+/* Knappar */
+.konto-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  margin-top: var(--s-6);
+}
+
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+  padding: 11px 22px;
+  font: 600 var(--fs-body-s)/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.btn-quiet:hover { background: var(--canvas); text-decoration: none; }
+
+button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/* Meddelanden.
+   Färg räcker aldrig som budskap (8 % av män är färgblinda, se tokens.css),
+   så varje ruta bär också ett ord: "Fel", "Klart" eller "Väntar". */
+.notice {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-control);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  border: 1px solid var(--hairline);
+}
+
+.notice[hidden] { display: none; }
+
+.notice b { font-weight: 600; }
+
+.notice-error {
+  border-color: color-mix(in srgb, var(--verdict-major) 40%, transparent);
+  color: var(--verdict-major-ink);
+}
+
+.notice-ok {
+  border-color: color-mix(in srgb, var(--verdict-clean) 40%, transparent);
+  color: var(--verdict-clean-ink);
+}
+
+.notice-wait {
+  border-color: color-mix(in srgb, var(--verdict-minor) 55%, transparent);
+  color: var(--verdict-minor-ink);
+}
+
+.konto-links {
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+}
+
+.konto-links a + a { margin-left: var(--s-3); }
+
+.konto-list {
+  list-style: none;
+  margin: var(--s-4) 0 0;
+  padding: 0;
+}
+
+.konto-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+}
+
+.konto-list li + li { border-top: 1px solid var(--hairline); }
+
+.konto-empty {
+  margin-top: var(--s-3);
+  font-size: var(--fs-body-s);
+  color: var(--text-secondary);
+}
+
+.status-tag {
+  font-size: var(--fs-eyebrow);
+  line-height: var(--lh-eyebrow);
+  font-weight: 600;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.status-pending { color: var(--verdict-minor-ink); }
+.status-published { color: var(--verdict-clean-ink); }
+.status-rejected { color: var(--verdict-major-ink); }
+
+/* Rättslig upplysningsruta. Står på varje yta där någon skriver text som
+   kan bli publik. Aldrig hopblandad med formuläret den beskriver. */
+.konto-legal {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .konto-card { padding: var(--s-6) var(--s-4); }
+}

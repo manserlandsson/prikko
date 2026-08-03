@@ -35,13 +35,21 @@ import { path } from './src/lib/urls.ts';
  * och inte ur någon datamängd. Den och varje framtida syskonsida fångas av
  * `sitemapGuard` nedan, som mäter utfallet i stället för att lita på den här
  * funktionen.
+ *
+ * Kontosidorna står också här. De har inget innehåll att indexera: HTML-filen
+ * är ett tomt formulär som fylls i webbläsaren av den som är inloggad. En
+ * inloggningssida i sökresultatet är tunt innehåll i bibelns mening, och
+ * kvalitetsgrinden gäller våra egna sidor lika mycket som datans.
  */
+const ACCOUNT_PAGES = ['konto', 'konto/inloggad', 'konto/verksamhet'];
+
 function noindexPaths() {
   const paths = new Set();
   for (const e of establishments()) {
     if (!isIndexable(e)) paths.add(path(e.municipality.slug, e.slug));
   }
   paths.add(path('ratta'));
+  for (const page of ACCOUNT_PAGES) paths.add(path(page));
   return paths;
 }
 

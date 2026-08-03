@@ -1,0 +1,309 @@
+---
+/**
+ * Kontosidan.
+ *
+ * Byggs statiskt som alla andra sidor och fylls i webbläsaren. Ingen personlig
+ * uppgift finns i HTML-filen; den ligger i databasen och hämtas av den som är
+ * inloggad. Ett bygge kan därför inte råka publicera någons bevakningslista.
+ *
+ * Utloggad möts man av en knapp, inte av en ruta som poppar upp. Det är samma
+ * regel som gäller överallt: inloggning utlöses av ett tryck, aldrig av en
+ * sidladdning.
+ */
+import Base from '../../layouts/Base.astro';
+import SignInDialog from '../../components/SignInDialog.astro';
+import '../../styles/konto.css';
+---
+
+<Base title="Ditt konto" description="Ditt konto på Prikko." noindex>
+  <div class="container konto-page konto-wide">
+    {/* Utloggad */}
+    <div class="konto-card" id="guest" hidden>
+      <h1>Ditt konto</h1>
+      <p class="konto-lead">
+        Logga in för att se dina bevakade verksamheter, dina omdömen och dina
+        ansökningar. Att läsa Prikko kräver aldrig konto.
+      </p>
+      <div class="konto-actions">
+        <button type="button" class="btn-primary" id="signin">Logga in eller bli medlem</button>
+      </div>
+    </div>
+
+    {/* Inloggad */}
+    <div class="konto-card" id="account" hidden>
+      <h1>Ditt konto</h1>
+      <p class="konto-lead" id="who"></p>
+
+      <p class="notice notice-error" id="error" hidden role="alert"></p>
+
+      <form id="name-form" novalidate>
+        <label class="field">
+          <span>
+            Visningsnamn
+            <span class="hint">
+              Namnet som står bredvid dina omdömen. Lämnas det tomt står det
+              bara Besökare.
+            </span>
+          </span>
+          <input type="text" name="display_name" maxlength="40" autocomplete="nickname" />
+        </label>
+        <div class="konto-actions">
+          <button type="submit" class="btn-quiet" id="save-name">Spara namn</button>
+          <span class="caption text-muted" id="name-saved" hidden>Sparat.</span>
+        </div>
+      </form>
+
+      <div class="konto-actions">
+        <button type="button" class="btn-quiet" id="signout">Logga ut</button>
+      </div>
+    </div>
+
+    <div class="konto-card" id="follows-card" hidden>
+      <h2>Bevakade verksamheter</h2>
+      <p class="konto-lead">
+        Din egen lista. Ingen annan ser den, och vi skickar inga utskick om
+        den. <a href="/sok/">Sök upp fler</a>.
+      </p>
+      <ul class="konto-list" id="follows"></ul>
+      <p class="konto-empty" id="follows-empty">Du bevakar ingen verksamhet än.</p>
+    </div>
+
+    <div class="konto-card" id="reviews-card" hidden>
+      <h2>Dina omdömen</h2>
+      <p class="konto-lead">
+        Omdömen granskas av redaktionen innan de publiceras, och publiceras då
+        ordagrant. Du kan ta bort ditt omdöme när du vill, även efter att det
+        publicerats.
+      </p>
+      <ul class="konto-list" id="reviews"></ul>
+      <p class="konto-empty" id="reviews-empty">Du har inte skrivit något omdöme än.</p>
+    </div>
+
+    <div class="konto-card" id="claims-card" hidden>
+      <h2>Verksamheter du företräder</h2>
+      <ul class="konto-list" id="claims"></ul>
+      <p class="konto-empty" id="claims-empty">
+        Du har inte ansökt om att företräda någon verksamhet. Ansökan görs från
+        verksamhetens egen sida.
+      </p>
+    </div>
+  </div>
+
+  <SignInDialog />
+</Base>
+
+<script>
+  import {
+    configured,
+    currentUser,
+    signedIn,
+    signOut,
+    captureLinkSession,
+    displayName,
+    setDisplayName,
+    follows,
+    unfollow,
+    myReviews,
+    deleteReview,
+    claims,
+    CommunityError,
+  } from '../../lib/community';
+  import { openSignIn } from '../../lib/signin-dialog';
+
+  const guest = document.getElementById('guest') as HTMLDivElement;
+  const account = document.getElementById('account') as HTMLDivElement;
+  const who = document.getElementById('who') as HTMLParagraphElement;
+  const error = document.getElementById('error') as HTMLParagraphElement;
+  const signinButton = document.getElementById('signin') as HTMLButtonElement;
+  const signoutButton = document.getElementById('signout') as HTMLButtonElement;
+  const nameForm = document.getElementById('name-form') as HTMLFormElement;
+  const nameSaved = document.getElementById('name-saved') as HTMLSpanElement;
+
+  const followsCard = document.getElementById('follows-card') as HTMLDivElement;
+  const followList = document.getElementById('follows') as HTMLUListElement;
+  const followEmpty = document.getElementById('follows-empty') as HTMLParagraphElement;
+
+  const reviewsCard = document.getElementById('reviews-card') as HTMLDivElement;
+  const reviewList = document.getElementById('reviews') as HTMLUListElement;
+  const reviewEmpty = document.getElementById('reviews-empty') as HTMLParagraphElement;
+
+  const claimsCard = document.getElementById('claims-card') as HTMLDivElement;
+  const claimList = document.getElementById('claims') as HTMLUListElement;
+  const claimEmpty = document.getElementById('claims-empty') as HTMLParagraphElement;
+
+  const STATUS_LABEL: Record<string, string> = {
+    pending: 'Väntar på granskning',
+    published: 'Publicerat',
+    rejected: 'Avslaget',
+  };
+
+  function show(message: string) {
+    error.innerHTML = `<b>Fel.</b> ${message}`;
+    error.hidden = false;
+  }
+
+  function tag(status: string): HTMLSpanElement {
+    const span = document.createElement('span');
+    span.className = `status-tag status-${status}`;
+    span.textContent = STATUS_LABEL[status] ?? status;
+    return span;
+  }
+
+  async function paintFollows() {
+    let rows: Awaited<ReturnType<typeof follows>> = [];
+    try {
+      rows = await follows();
+    } catch {
+      return;
+    }
+    followList.textContent = '';
+    for (const row of rows) {
+      const li = document.createElement('li');
+
+      const link = document.createElement('a');
+      link.href = `/${row.municipality_slug}/`;
+      link.textContent = row.establishment_name;
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn-quiet';
+      remove.textContent = 'Sluta följa';
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try {
+          await unfollow(row.establishment_id);
+          li.remove();
+          followEmpty.hidden = followList.children.length > 0;
+        } catch {
+          remove.disabled = false;
+        }
+      });
+
+      li.append(link, remove);
+      followList.append(li);
+    }
+    followEmpty.hidden = rows.length > 0;
+  }
+
+  async function paintReviews() {
+    let rows: Awaited<ReturnType<typeof myReviews>> = [];
+    try {
+      rows = await myReviews();
+    } catch {
+      return;
+    }
+    reviewList.textContent = '';
+    for (const row of rows) {
+      const li = document.createElement('li');
+
+      const text = document.createElement('span');
+      text.textContent = row.body.slice(0, 90) + (row.body.length > 90 ? '…' : '');
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn-quiet';
+      remove.textContent = 'Ta bort';
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try {
+          await deleteReview(row.id);
+          li.remove();
+          reviewEmpty.hidden = reviewList.children.length > 0;
+        } catch {
+          remove.disabled = false;
+        }
+      });
+
+      li.append(text, tag(row.status), remove);
+      reviewList.append(li);
+    }
+    reviewEmpty.hidden = rows.length > 0;
+  }
+
+  async function paintClaims() {
+    let rows: Awaited<ReturnType<typeof claims>> = [];
+    try {
+      rows = await claims();
+    } catch {
+      return;
+    }
+    claimList.textContent = '';
+    for (const row of rows) {
+      const li = document.createElement('li');
+
+      const link = document.createElement('a');
+      link.href =
+        `/konto/verksamhet/?id=${encodeURIComponent(row.establishment_id)}` +
+        `&kommun=${encodeURIComponent(row.municipality_slug)}` +
+        `&namn=${encodeURIComponent(row.establishment_name)}`;
+      link.textContent = row.establishment_name;
+
+      li.append(link, tag(row.status));
+      claimList.append(li);
+    }
+    claimEmpty.hidden = rows.length > 0;
+  }
+
+  async function loadAccount() {
+    guest.hidden = true;
+    account.hidden = false;
+    followsCard.hidden = false;
+    reviewsCard.hidden = false;
+    claimsCard.hidden = false;
+
+    const user = currentUser();
+    who.textContent = user?.email ? `Inloggad som ${user.email}.` : 'Inloggad.';
+
+    const input = nameForm.elements.namedItem('display_name') as HTMLInputElement;
+    try {
+      input.value = (await displayName()) ?? '';
+    } catch {
+      /* Ingen profilrad ännu. Fältet står tomt, vilket är rätt. */
+    }
+
+    await Promise.all([paintFollows(), paintReviews(), paintClaims()]);
+  }
+
+  async function start() {
+    if (!configured) {
+      guest.hidden = false;
+      signinButton.disabled = true;
+      signinButton.textContent = 'Inloggning är inte konfigurerad';
+      return;
+    }
+
+    // Kommer man tillbaka från Google eller Apple ligger sessionen i
+    // fragmentet. Normalt går den vägen genom /konto/inloggad/, men om någon
+    // landat direkt här ska den ändå tas om hand.
+    captureLinkSession();
+
+    if (await signedIn()) {
+      await loadAccount();
+    } else {
+      guest.hidden = false;
+      signinButton.addEventListener('click', async () => {
+        if (await openSignIn(signinButton)) await loadAccount();
+      });
+    }
+
+    nameForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      error.hidden = true;
+      nameSaved.hidden = true;
+      const input = nameForm.elements.namedItem('display_name') as HTMLInputElement;
+      try {
+        await setDisplayName(input.value.trim());
+        nameSaved.hidden = false;
+      } catch (err) {
+        show(err instanceof CommunityError ? err.message : 'Kunde inte spara namnet.');
+      }
+    });
+
+    signoutButton.addEventListener('click', async () => {
+      await signOut();
+      location.href = '/';
+    });
+  }
+
+  void start();
+</script>

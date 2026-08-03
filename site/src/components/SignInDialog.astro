@@ -1,0 +1,567 @@
+---
+/**
+ * Inloggningsrutan. Två steg: adress, sedan kod.
+ *
+ * ---------------------------------------------------------------------------
+ * EN VÄG IN
+ * ---------------------------------------------------------------------------
+ * Förlagan är Airbnbs ruta, och det som är värt att ta med sig därifrån är
+ * inte utseendet utan principen: EN väg in för både ny och återkommande, ETT
+ * fält, och tredjepartsinloggning som ett litet alternativ under i stället för
+ * som huvudspår.
+ *
+ * Det går att göra så här bara för att inloggningen är kodbaserad. Ett
+ * lösenord tvingar fram två vägar, eftersom sajten måste veta om kontot finns
+ * innan den kan fråga efter något. En engångskod behöver inte veta det:
+ * samma anrop skapar kontot om adressen är ny och loggar in om den inte är
+ * det. Rubriken "Logga in eller bli medlem" är därför inte en hopslagning av
+ * två flöden, den beskriver ett.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD SOM ÄNDRATS MOT FÖRLAGAN, OCH VARFÖR
+ * ---------------------------------------------------------------------------
+ *   Landsväljaren +46 och telefonfältet är BORTA. E-post är enda kanalen,
+ *     beslutat av ägaren. Ett telefonfält som inte skickar något vore en
+ *     avstängd kontroll mitt i den ruta som byggs för att bli av med
+ *     avstängda kontroller.
+ *   "Prova på ett annat sätt" är utbytt mot "Skicka en ny kod". Förlagans
+ *     knapp byter kanal, och vi har bara en. En knapp som erbjuder ett val
+ *     som inte finns är samma fel som en avstängd knapp. Att begära en ny kod
+ *     är däremot något man faktiskt vill kunna göra när mejlet dröjer.
+ *   Google och Apple renderas bara om PUBLIC_OAUTH_PROVIDERS nämner dem.
+ *     Tom lista ger ingen avdelare och inga knappar, alltså ingen antydan om
+ *     en väg som inte finns.
+ *   Rosa gradient utbytt mot --brand. Alla värden kommer ur tokens.css.
+ *
+ * ---------------------------------------------------------------------------
+ * TILLGÄNGLIGHET
+ * ---------------------------------------------------------------------------
+ * Byggd på <dialog> och showModal(), som ger fokusfälla, Esc och aria-modal
+ * från webbläsaren i stället för från kod som kan glömma ett fall. Det som
+ * inte är gratis görs för hand: fokus flyttas in i första fältet vid öppning,
+ * och tillbaka till knappen som öppnade rutan vid stängning, oavsett om det
+ * var krysset, Esc eller en lyckad inloggning som stängde den.
+ *
+ * Rutan öppnas ALDRIG av sidladdning. Den finns i DOM:en men showModal() kan
+ * bara kallas av openSignIn(), som i sin tur bara kallas ur en klickhanterare.
+ * Samma regel som PlacePicker följer för platsdelning.
+ */
+import Wordmark from './Wordmark.astro';
+import { OAUTH_PROVIDERS } from '../lib/community';
+import '../styles/konto.css';
+---
+
+<dialog class="signin" id="signin-dialog" aria-labelledby="signin-title">
+  <div class="sheet">
+    <header class="bar">
+      <button type="button" class="icon" data-back hidden aria-label="Tillbaka till e-postadressen">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M12 4 6 10l6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <p class="bar-title" id="signin-title">Logga in eller bli medlem</p>
+      <button type="button" class="icon" data-close aria-label="Stäng">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="body">
+      <p class="mark"><Wordmark height={26} label={null} /></p>
+
+      {/* Steg 1 */}
+      <form data-step="email" novalidate>
+        <label class="field">
+          <span>E-postadress</span>
+          <input type="email" name="email" autocomplete="email" required
+                 placeholder="du@exempel.se" />
+        </label>
+
+        {/* Hjälptexten sitter under fältet och FÖRE knappen: man ska veta vad
+            som händer innan man trycker, inte efteråt. */}
+        <p class="help">
+          Vi skickar en sexsiffrig kod till din e-post. Inget lösenord att
+          komma ihåg. Så behandlar vi adressen:
+          <a href="/integritetspolicy/">integritetspolicyn</a>.
+        </p>
+
+        <p class="notice notice-error" data-error hidden role="alert"></p>
+
+        <button type="submit" class="btn-primary wide" data-submit>Fortsätt</button>
+
+        {OAUTH_PROVIDERS.length > 0 && (
+          <>
+            <p class="divider"><span>eller</span></p>
+            <div class="providers">
+              {OAUTH_PROVIDERS.includes('google') && (
+                <button type="button" class="provider" data-provider="google"
+                        aria-label="Fortsätt med Google">
+                  {/* Officiella märken måste hämtas ur respektive bolags
+                      riktlinjer innan lansering. Knapparna renderas ändå bara
+                      när leverantören faktiskt är uppsatt. */}
+                  <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                    <path fill="#4285F4" d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.859-3.048.859-2.344 0-4.328-1.583-5.036-3.71H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.346l2.582-2.582C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                  </svg>
+                </button>
+              )}
+              {OAUTH_PROVIDERS.includes('apple') && (
+                <button type="button" class="provider" data-provider="apple"
+                        aria-label="Fortsätt med Apple">
+                  <svg viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M12.36 9.54c-.02-2.02 1.65-2.99 1.72-3.04-.94-1.37-2.4-1.56-2.92-1.58-1.24-.13-2.42.73-3.05.73-.63 0-1.6-.71-2.63-.69-1.35.02-2.6.79-3.3 2-1.4 2.44-.36 6.05 1.01 8.03.67.97 1.47 2.06 2.52 2.02 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.57.65 2.63.63 1.09-.02 1.78-.99 2.44-1.96.77-1.12 1.09-2.21 1.11-2.27-.02-.01-2.13-.82-2.15-3.24zM10.4 3.6c.55-.68.93-1.62.82-2.56-.8.03-1.77.53-2.34 1.2-.51.6-.96 1.56-.84 2.47.89.07 1.8-.45 2.36-1.11z"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </form>
+
+      {/* Steg 2 */}
+      <form data-step="code" novalidate hidden>
+        <p class="sent">Vi har skickat en kod till <b data-sent-to></b></p>
+
+        {/* Sex rutor, inte dekor: uppdelningen är vad som gör att
+            autocomplete="one-time-code" kan fyllas i av webbläsaren, och den
+            gör dessutom att man ser hur många siffror som saknas. */}
+        <div class="code" data-code role="group" aria-labelledby="code-label">
+          <span class="visually-hidden" id="code-label">Sexsiffrig kod från mejlet</span>
+          <input inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                 aria-label="Siffra 1" />
+          <input inputmode="numeric" maxlength="1" aria-label="Siffra 2" />
+          <input inputmode="numeric" maxlength="1" aria-label="Siffra 3" />
+          <input inputmode="numeric" maxlength="1" aria-label="Siffra 4" />
+          <input inputmode="numeric" maxlength="1" aria-label="Siffra 5" />
+          <input inputmode="numeric" maxlength="1" aria-label="Siffra 6" />
+        </div>
+
+        <p class="notice notice-error" data-error hidden role="alert"></p>
+
+        <button type="submit" class="btn-primary wide" data-submit>Bekräfta</button>
+
+        <button type="button" class="btn-link" data-resend>Skicka en ny kod</button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .signin {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .signin::backdrop {
+    background: rgba(0, 0, 0, .45);
+  }
+
+  .sheet {
+    width: min(420px, calc(100vw - var(--s-8)));
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+
+  .bar {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .bar-title {
+    grid-column: 2;
+    text-align: center;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .icon:hover { background: var(--canvas); }
+  .icon svg { width: 20px; height: 20px; }
+  .icon[hidden] { display: none; }
+  /* Krysset ligger alltid längst till höger, även när tillbakapilen är dold. */
+  .icon[data-close] { grid-column: 3; }
+
+  .body { padding: var(--s-6) var(--s-6) var(--s-8); }
+
+  .mark {
+    display: flex;
+    justify-content: center;
+    color: var(--text);
+    margin-bottom: var(--s-6);
+  }
+
+  .help {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .wide {
+    width: 100%;
+    margin-top: var(--s-4);
+    padding-block: 14px;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-6);
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+
+  .providers {
+    display: flex;
+    justify-content: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+  }
+
+  .provider {
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .provider:hover { background: var(--canvas); }
+  .provider svg { width: 20px; height: 20px; }
+
+  .sent {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  .sent b { font-weight: 600; color: var(--text); }
+
+  .code {
+    display: flex;
+    justify-content: center;
+    gap: var(--s-2);
+    margin-top: var(--s-6);
+  }
+
+  .code input {
+    width: 44px;
+    height: 54px;
+    text-align: center;
+    font: 600 22px/1 var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+  }
+
+  .code input:focus-visible {
+    border-color: var(--brand);
+    outline: 2px solid var(--brand);
+    outline-offset: 0;
+  }
+
+  /* Första rutan bär autocomplete och kan därför få hela koden av
+     webbläsaren. Den får inte bli bredare för det. */
+  .code input:first-child { width: 44px; }
+
+  .btn-link {
+    display: block;
+    margin: var(--s-4) auto 0;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand-ink);
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .btn-link:hover { text-decoration: underline; }
+
+  @media (max-width: 420px) {
+    .code { gap: 6px; }
+    .code input { width: 40px; height: 50px; }
+  }
+</style>
+
+<script>
+  import {
+    configured,
+    requestCode,
+    verifyCode,
+    oauthUrl,
+    OAUTH_PROVIDERS,
+    CommunityError,
+  } from '../lib/community';
+  import { registerSignInDialog } from '../lib/signin-dialog';
+
+  const dialog = document.getElementById('signin-dialog') as HTMLDialogElement | null;
+
+  if (dialog) {
+    const title = document.getElementById('signin-title') as HTMLParagraphElement;
+    const back = dialog.querySelector('[data-back]') as HTMLButtonElement;
+    const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
+
+    const emailStep = dialog.querySelector('[data-step="email"]') as HTMLFormElement;
+    const codeStep = dialog.querySelector('[data-step="code"]') as HTMLFormElement;
+    const sentTo = dialog.querySelector('[data-sent-to]') as HTMLElement;
+    const boxes = Array.from(
+      dialog.querySelectorAll('[data-code] input'),
+    ) as HTMLInputElement[];
+    const resend = dialog.querySelector('[data-resend]') as HTMLButtonElement;
+
+    const TITLES = {
+      email: 'Logga in eller bli medlem',
+      code: 'Bekräfta att det är du',
+    };
+
+    let address = '';
+    let done: ((ok: boolean) => void) | null = null;
+    let opener: HTMLElement | null = null;
+
+    function errorBox(form: HTMLFormElement) {
+      return form.querySelector('[data-error]') as HTMLParagraphElement;
+    }
+
+    function showError(form: HTMLFormElement, message: string) {
+      const box = errorBox(form);
+      box.innerHTML = `<b>Fel.</b> ${message}`;
+      box.hidden = false;
+    }
+
+    function clearErrors() {
+      for (const form of [emailStep, codeStep]) errorBox(form).hidden = true;
+    }
+
+    /** Byter steg. Adressen står kvar i fältet, så tillbakapilen är gratis. */
+    function goto(step: 'email' | 'code') {
+      clearErrors();
+      emailStep.hidden = step !== 'email';
+      codeStep.hidden = step !== 'code';
+      back.hidden = step !== 'code';
+      title.textContent = TITLES[step];
+
+      if (step === 'email') {
+        (emailStep.elements.namedItem('email') as HTMLInputElement).focus();
+      } else {
+        for (const box of boxes) box.value = '';
+        boxes[0].focus();
+      }
+    }
+
+    /**
+     * Stängning på ett ställe.
+     *
+     * Esc, krysset och en lyckad inloggning tar alla samma väg, så fokus
+     * hamnar tillbaka på knappen som öppnade rutan i alla tre fallen. Att
+     * webbläsaren ofta gör det själv räcker inte: gjorde vi det bara ibland
+     * hade det blivit ibland.
+     */
+    function finish(ok: boolean) {
+      if (dialog!.open) dialog!.close();
+      const callback = done;
+      const trigger = opener;
+      done = null;
+      opener = null;
+      trigger?.focus();
+      callback?.(ok);
+    }
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      finish(false);
+    });
+
+    close.addEventListener('click', () => finish(false));
+    back.addEventListener('click', () => goto('email'));
+
+    // Klick utanför arket stänger. Backdrop-klick landar på <dialog> självt.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) finish(false);
+    });
+
+    /* Steg 1 ---------------------------------------------------------- */
+    emailStep.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearErrors();
+
+      const input = emailStep.elements.namedItem('email') as HTMLInputElement;
+      const value = input.value.trim();
+      if (!value.includes('@') || value.length < 5) {
+        showError(emailStep, 'Skriv en riktig e-postadress.');
+        return;
+      }
+
+      const button = emailStep.querySelector('[data-submit]') as HTMLButtonElement;
+      button.disabled = true;
+      button.textContent = 'Skickar';
+
+      try {
+        await requestCode(value);
+        address = value;
+        sentTo.textContent = value;
+        goto('code');
+      } catch (err) {
+        showError(
+          emailStep,
+          err instanceof CommunityError ? err.message : 'Kunde inte skicka koden.',
+        );
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Fortsätt';
+      }
+    });
+
+    /* Steg 2 ---------------------------------------------------------- */
+
+    /** Fördelar en klistrad eller autofylld sträng över rutorna. */
+    function spread(value: string, from: number) {
+      const digits = value.replace(/\D/g, '').slice(0, boxes.length - from);
+      for (let i = 0; i < digits.length; i += 1) boxes[from + i].value = digits[i];
+      const next = Math.min(from + digits.length, boxes.length - 1);
+      boxes[next].focus();
+      if (digits.length > 0 && from + digits.length >= boxes.length) codeStep.requestSubmit();
+    }
+
+    boxes.forEach((box, index) => {
+      box.addEventListener('input', () => {
+        if (box.value.length > 1) {
+          // Webbläsarens autofyll lägger hela koden i första rutan.
+          const all = box.value;
+          box.value = '';
+          spread(all, index);
+          return;
+        }
+        if (box.value && index < boxes.length - 1) boxes[index + 1].focus();
+        if (box.value && index === boxes.length - 1) codeStep.requestSubmit();
+      });
+
+      box.addEventListener('keydown', (event) => {
+        if (event.key === 'Backspace' && !box.value && index > 0) {
+          boxes[index - 1].focus();
+          boxes[index - 1].value = '';
+          event.preventDefault();
+        }
+        if (event.key === 'ArrowLeft' && index > 0) boxes[index - 1].focus();
+        if (event.key === 'ArrowRight' && index < boxes.length - 1) boxes[index + 1].focus();
+      });
+
+      box.addEventListener('paste', (event) => {
+        event.preventDefault();
+        spread(event.clipboardData?.getData('text') ?? '', index);
+      });
+    });
+
+    codeStep.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearErrors();
+
+      const code = boxes.map((b) => b.value).join('');
+      if (code.length !== boxes.length) {
+        showError(codeStep, 'Fyll i alla sex siffror.');
+        return;
+      }
+
+      const button = codeStep.querySelector('[data-submit]') as HTMLButtonElement;
+      button.disabled = true;
+      button.textContent = 'Kontrollerar';
+
+      try {
+        await verifyCode(address, code);
+        finish(true);
+      } catch (err) {
+        showError(codeStep, err instanceof CommunityError ? err.message : 'Koden godtogs inte.');
+        for (const box of boxes) box.value = '';
+        boxes[0].focus();
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Bekräfta';
+      }
+    });
+
+    resend.addEventListener('click', async () => {
+      clearErrors();
+      resend.disabled = true;
+      resend.textContent = 'Skickar';
+      try {
+        await requestCode(address);
+        resend.textContent = 'En ny kod är skickad';
+      } catch (err) {
+        showError(codeStep, err instanceof CommunityError ? err.message : 'Kunde inte skicka.');
+        resend.textContent = 'Skicka en ny kod';
+      } finally {
+        setTimeout(() => {
+          resend.disabled = false;
+          resend.textContent = 'Skicka en ny kod';
+        }, 5000);
+      }
+    });
+
+    /* Tredjepartsinloggning ------------------------------------------- */
+    for (const provider of OAUTH_PROVIDERS) {
+      const button = dialog.querySelector(`[data-provider="${provider}"]`) as HTMLButtonElement;
+      button?.addEventListener('click', () => {
+        location.href = oauthUrl(provider, location.pathname + location.search);
+      });
+    }
+
+    /**
+     * Registrerar rutan hos modulen som resten av sajten anropar.
+     *
+     * Öppningen sker bara härifrån, och bara när någon tryckt på något.
+     */
+    registerSignInDialog((trigger, callback) => {
+      if (!configured) {
+        callback(false);
+        return;
+      }
+      opener = trigger;
+      done = callback;
+      goto('email');
+      dialog.showModal();
+      (emailStep.elements.namedItem('email') as HTMLInputElement).focus();
+    });
+  }
+</script>

@@ -1,0 +1,59 @@
+---
+/**
+ * Landningssida för tredjepartsinloggning.
+ *
+ * Google och Apple skickar tillbaka besökaren hit med en session i
+ * adressfragmentet. Sidan finns för att det ska räcka att tillåta EN
+ * returadress i Supabase (Authentication → URL Configuration → Redirect URLs),
+ * i stället för ett jokertecken över hela sajten. En smal lista är en smal
+ * angreppsyta.
+ *
+ * Vart man ska efteråt sparas i sessionStorage innan man skickas iväg, inte i
+ * adressen. Då kan returadressen vara en enda oföränderlig sträng.
+ *
+ * Sidan behövs INTE för e-postkoden. Den växlas in på plats i rutan, utan att
+ * någon lämnar sidan.
+ */
+import Base from '../../layouts/Base.astro';
+import '../../styles/konto.css';
+---
+
+<Base title="Loggar in" description="Slutför inloggningen." noindex>
+  <div class="container konto-page">
+    <div class="konto-card">
+      <h1>Loggar in</h1>
+      <p class="konto-lead" id="status">Ett ögonblick.</p>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { captureLinkSession, signedIn } from '../../lib/community';
+
+  const status = document.getElementById('status') as HTMLParagraphElement;
+
+  async function start() {
+    captureLinkSession();
+
+    let next = '/konto/';
+    try {
+      const stored = sessionStorage.getItem('prikko.next');
+      // Bara interna sökvägar. En öppen omdirigering är en klassisk
+      // nätfiskeväg, och den ska inte finnas ens på en sida ingen länkar till.
+      if (stored && stored.startsWith('/') && !stored.startsWith('//')) next = stored;
+      sessionStorage.removeItem('prikko.next');
+    } catch {
+      /* Utan lagring hamnar man på kontosidan. */
+    }
+
+    if (await signedIn()) {
+      location.replace(next);
+      return;
+    }
+
+    status.innerHTML =
+      'Inloggningen gick inte igenom. <a href="/konto/">Försök igen</a>.';
+  }
+
+  void start();
+</script>
