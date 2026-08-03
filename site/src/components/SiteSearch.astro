@@ -75,7 +75,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
 >
-  <form class="field" role="search" action="/sok/" method="get">
+  <form class="search-field" role="search" action="/sok/" method="get">
     <label class="visually-hidden" for="site-search-q">Sök verksamhet eller kommun</label>
     <input
       id="site-search-q"
@@ -155,8 +155,19 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   }
 
   /* Piller, som Airbnbs — men ETT fält. Knappen sitter inuti pillret och är
-     rund; den är fältets enda färgade yta och därmed dess tyngdpunkt. */
-  .field {
+     rund; den är fältets enda färgade yta och därmed dess tyngdpunkt.
+
+     Klassen hette .field och FICK inte heta så. styles/konto.css är ett
+     globalt, oscopeat ark med en `.field { display: block; margin-top:
+     var(--s-4) }` för kontoformulären. Det arket laddas av ActionPanel,
+     Reviews och SignInDialog, alltså på varje verksamhetssida, och träffade
+     då sökfältet i sidhuvudet. Astros scoping skyddar inte: den höjer bara
+     specificiteten på de deklarationer komponenten själv skriver, och
+     margin-top skrevs inte här. Fältet fick 16 px marginal ovanför sig och
+     hängde 8 px för lågt i raden, men bara på de sidor som laddade konto.css.
+     Det var därför snedheten syntes på verksamhetssidan och inte på
+     startsidan. Namnet måste vara unikt så länge konto.css är globalt. */
+  .search-field {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -168,18 +179,18 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     box-shadow: var(--shadow-sm);
   }
 
-  .field:hover { border-color: var(--text-muted); }
-  .field:focus-within { border-color: var(--brand); }
+  .search-field:hover { border-color: var(--text-muted); }
+  .search-field:focus-within { border-color: var(--brand); }
 
   /* Ringen ligger på pillret, inte på input-elementet: ett textfält matchar
      alltid :focus-visible, och en ring runt den osynliga inre rutan hade
      ritats tvärs över pillrets rundning. */
-  .field:has(input:focus-visible) {
+  .search-field:has(input:focus-visible) {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
-  .field input {
+  .search-field input {
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -191,8 +202,8 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     color: var(--text);
   }
 
-  .field input:focus { outline: none; }
-  .field input::placeholder { color: var(--text-muted); }
+  .search-field input:focus { outline: none; }
+  .search-field input::placeholder { color: var(--text-muted); }
 
   .go {
     flex-shrink: 0;
@@ -316,7 +327,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 
     /* 17px, inte 14: iOS zoomar in hela sidan när ett fokuserat fält har
        mindre än 16 px text, och zoomen går inte tillbaka av sig själv. */
-    .field input { font-size: var(--fs-body); }
+    .search-field input { font-size: var(--fs-body); }
 
     .panel {
       left: var(--s-4);
@@ -327,7 +338,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   }
 
   @media (max-width: 380px) {
-    .field { padding-left: var(--s-3); }
+    .search-field { padding-left: var(--s-3); }
   }
 </style>
 
