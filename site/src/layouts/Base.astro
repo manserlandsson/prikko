@@ -11,6 +11,7 @@ import '@fontsource-variable/instrument-sans';
 import '../styles/tokens.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import SignInDialog from '../components/SignInDialog.astro';
 import { SITE } from '../lib/site';
 
 interface Props {
@@ -104,6 +105,18 @@ const structuredData = jsonLd
       <slot />
     </main>
     <Footer />
+
+    {/* Inloggningsrutan hör till layouten och inte till enskilda sidor.
+        Den låg tidigare på tre sidtyper: kontosidorna och verksamhetssidan.
+        openSignIn() svarar false när rutan saknas, alltså hände ingenting
+        alls om något annat än de tre försökte öppna den. En inloggningsrad i
+        menyn var därför omöjlig, eftersom menyn finns i sidhuvudet på varje
+        sida medan rutan fanns på tre.
+
+        Rutan renderas som ett stängt <dialog> och öppnas aldrig av sig själv,
+        så att lägga den överallt kostar bara markup. Den väger runt tre
+        kilobyte och skriptet laddas ändå bara en gång per sida. */}
+    <SignInDialog />
   </body>
 </html>
 

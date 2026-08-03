@@ -36,7 +36,6 @@ import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import Reviews from '../../components/Reviews.astro';
 import ActionPanel from '../../components/ActionPanel.astro';
-import SignInDialog from '../../components/SignInDialog.astro';
 import {
   categoriesOf,
   establishments,
@@ -439,12 +438,6 @@ const breadcrumbs = {
     </div>
   </div>
 
-  {/*
-    Inloggningsrutan ligger i DOM:en men är stängd. Den öppnas bara av
-    openSignIn(), som bara kallas ur en klickhanterare, aldrig av sidladdning.
-    Se SignInDialog.astro.
-  */}
-  <SignInDialog />
 </Base>
 
 <style>
