@@ -3,42 +3,44 @@
  * Rättelsesidan. Bär replikrätten, som är ett av våra juridiska skydd.
  *
  * ---------------------------------------------------------------------------
- * VARFÖR ETT MEJLUTKAST OCH INGEN DATABASRAD
+ * ETT VANLIGT FORMULÄR SOM SKICKAR
  * ---------------------------------------------------------------------------
- * Tre vägar fanns, och valet avgjordes av var meddelandet HAMNAR, inte av
- * vilken teknik som är finast.
+ * Formuläret gör en POST till /api/ratta, som är en Cloudflare Pages Function
+ * i site/functions/api/ratta.ts. Den skickar brevet till redaktionen genom
+ * Resend. Ingen inloggning, ingen mejlklient, ingen tom textruta.
  *
- *   Rad i community-schemat   Samma väg som omdömen och anspråk. Robust i
- *     bemärkelsen att inget kan gå förlorat på vägen. Men ingen läser den.
- *     moderate.py kan svar, omdöme, anspråk och bild, och inget annat, och
- *     det finns ingen notis när en rad skrivs. En rättelse hade legat i en
- *     tabell tills någon råkade titta. För en laglig replikväg är det värre
- *     än ingen väg alls, för tystnaden ser likadan ut från utsidan.
- *     Dessutom kräver skrivningen inloggning, och den som just upptäckt att
- *     vi publicerar en kontroll av hans restaurang ska inte mötas av ett
- *     konto han måste skapa först. Att i stället släppa in anon hade betytt
- *     en oautentiserad skrivväg utan spärr på ett schema där varenda annan
- *     skrivning kräver inloggning.
+ * Det bryter inte mot ADR 0001. Beslutet säger "statiskt genererat till att
+ * börja med, med en planerad migration till hybridrendering på Cloudflare
+ * Workers", och sajten ligger redan på Cloudflare Pages. Varje SIDA förblir
+ * statiskt genererad; det är bara den här slutpunkten som körs vid förfrågan,
+ * och Pages Functions ligger bredvid det statiska bygget utan att tvinga
+ * någon sida att renderas om.
  *
- *   Kombinationen   Inloggade skriver till databasen, övriga får ett utkast.
- *     Delar en juridiskt laddad väg i två inkorgar och lägger till tabellen,
- *     radsäkerheten och migrationen ovanpå. Vinsten tillfaller bara den som
- *     redan har konto, alltså inte den formuläret finns för.
+ * En rad i community-schemat övervägdes och valdes bort. moderate.py läser
+ * inte en sådan tabell och ingen notis går ut, så en rättelse hade legat
+ * oläst, och skrivningen hade krävt inloggning av just den person formuläret
+ * finns för. Ett brev landar i en inkorg som läses varje dag.
  *
- *   BYGGT: mejlutkast.   Formuläret ställer frågorna, sätter ihop svaren och
- *     lämnar över en färdig text till mejlprogrammet. Meddelandet landar i en
- *     inkorg en människa läser varje dag. Ingen server, vilket ADR 0001
- *     kräver, och ingen inloggning.
+ * RESERVVÄGEN ÄR KVAR. Går slutpunkten ned, saknas nyckeln eller svarar
+ * Resend fel, visas samma text på sidan med adressen utskriven och en
+ * kopieringsknapp. Ett formulär som bara misslyckas är oacceptabelt på den
+ * sida där en verksamhet ska kunna försvara sig.
  *
- * Svagheten i mailto är den som inte har något mejlprogram uppsatt: hos honom
- * händer ingenting när länken öppnas. Den luckan går att täppa utan backend,
- * och därför gör vi det: samma text visas på sidan efter insändning, med
- * adressen utskriven och en knapp som kopierar. Alla har alltså en väg fram,
- * och ingen ruta låtsas skicka något den inte skickar.
+ * KRÄVER AV ÄGAREN: brevlådan ratta@prikko.se måste finnas, annars skickas
+ * brevet utan fel men landar ingenstans. Se docs/13_epost_pa_prikko_se.md
+ * steg 1. Dessutom måste RESEND_API_KEY ligga som Secret i Pages.
  *
- * KRÄVER AV ÄGAREN: brevlådan ratta@prikko.se måste finnas. Se
- * docs/13_epost_pa_prikko_se.md steg 1. Adressen står redan i site.ts och är
- * utlovad i sidfoten, menyn och integritetspolicyn.
+ * ---------------------------------------------------------------------------
+ * SKRÄPPOST
+ * ---------------------------------------------------------------------------
+ * En honungsfälla, alltså ett dolt fält som bara en robot fyller i, plus en
+ * kontroll av hur snabbt formuläret fylldes och en takregel per IP i
+ * funktionen. Ingen Turnstile: den lägger ett tredjepartsskript och egen
+ * lagring på en sajt som just dokumenterat i docs/14 att den inte har vare
+ * sig spårpixlar eller Google Fonts, och det skulle göra /cookies och
+ * /integritetspolicy osanna igen veckan efter att de gjordes sanna. Kommer
+ * det faktisk skräppost är Turnstile nästa steg, och då ska de sidorna
+ * uppdateras i samma ändring.
  *
  * ---------------------------------------------------------------------------
  * RÄTTELSE ÄR INTE GENMÄLE
@@ -137,8 +139,7 @@ const GROUPS: Array<{
     <div class="konto-card">
       <h1>Rätta en uppgift</h1>
       <p class="konto-lead">
-        Svara på frågorna nedan. Vi sätter ihop ett mejl till redaktionen av
-        dina svar, och du trycker skicka.
+        Svara på frågorna nedan, så går rättelsen till redaktionen.
       </p>
 
       <form id="form" novalidate>
@@ -260,23 +261,46 @@ const GROUPS: Array<{
           <textarea name="note" id="note" maxlength="1200"></textarea>
         </label>
 
+        {/* Honungsfällan.
+
+            Dold för människor med CSS och för skärmläsare med aria-hidden och
+            tabindex, alltså aldrig något en besökare kan hamna i av misstag.
+            Namnet är valt för att locka: en ifyllningsrobot som känner igen
+            "webbplats" fyller i den gärna. autocomplete="off" hindrar
+            webbläsaren från att fylla i den åt en människa, vilket annars
+            hade spärrat ute en riktig rättelse. */}
+        <div class="trap" aria-hidden="true">
+          <label for="webbplats">Lämna det här fältet tomt</label>
+          <input type="text" id="webbplats" name="webbplats" tabindex="-1" autocomplete="off" />
+        </div>
+
         <p class="notice notice-error" id="error" hidden role="alert"></p>
 
         <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="submit">Skapa mejlet</button>
+          <button type="submit" class="btn-primary" id="submit">Skicka rättelsen</button>
         </div>
       </form>
 
-      {/* Efter insändning. Bär hela texten, så att den som saknar
-          mejlprogram inte står utan väg. */}
+      {/* Kvittensen. Ersätter formuläret, för det finns inget kvar att göra. */}
+      <div class="receipt" id="receipt" hidden>
+        {/* Ingen svarstid här: raden under formuläret säger redan det, och
+            den står kvar på kvittensskärmen. */}
+        <p class="notice notice-ok" role="status">
+          <b>Tack.</b> Rättelsen är skickad till redaktionen.
+        </p>
+      </div>
+
+      {/* Reservvägen. Visas bara när utskicket faktiskt misslyckades, och bär
+          då hela texten så att ingen står utan väg fram. Formuläret ligger
+          kvar ovanför, så att ett nytt försök går att göra direkt. */}
       <div class="handoff" id="handoff" hidden>
-        <p class="notice notice-ok">
-          <b>Klart.</b> Ditt mejlprogram ska ha öppnats med texten ifylld.
-          Tryck skicka där.
+        <p class="notice notice-error" role="alert" id="handoff-why">
+          <b>Kunde inte skicka.</b>
         </p>
         <p class="fallback">
-          Hände ingenting? Mejla <a href={`mailto:${CONTACT}`}>{CONTACT}</a> och
-          klistra in texten nedan.
+          Rättelsen är alltså inte inskickad. Mejla
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a> och klistra in texten
+          nedan, så tappas ingenting bort.
         </p>
         <textarea id="draft" readonly rows="12" aria-label="Texten till mejlet"></textarea>
         <div class="konto-actions">
@@ -359,7 +383,23 @@ const GROUPS: Array<{
   .from[hidden],
   .hint[hidden],
   .handoff[hidden],
+  .receipt[hidden],
   .copied[hidden] { display: none; }
+
+  /* Honungsfällan.
+
+     Inte `display: none` och inte `hidden`: en del robotar hoppar över just
+     de två, eftersom de är det uppenbara sättet att gömma en fälla. Att i
+     stället flytta fältet ur bild träffar fler, och för en människa är
+     resultatet detsamma. `aria-hidden` och `tabindex="-1"` i markupen gör att
+     varken skärmläsare eller tabbning når det. */
+  .trap {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
 
   .handoff { margin-top: var(--s-6); }
 
@@ -409,8 +449,23 @@ const GROUPS: Array<{
   const replyLink = document.getElementById('reply-link') as HTMLAnchorElement;
   const phoneField = document.getElementById('phone-field') as HTMLLabelElement;
 
+  const submit = document.getElementById('submit') as HTMLButtonElement;
+  const receipt = document.getElementById('receipt') as HTMLDivElement;
+  const trap = document.getElementById('webbplats') as HTMLInputElement;
+
   const handoff = document.getElementById('handoff') as HTMLDivElement;
+  const handoffWhy = document.getElementById('handoff-why') as HTMLParagraphElement;
   const draft = document.getElementById('draft') as HTMLTextAreaElement;
+  const copy = document.getElementById('copy') as HTMLButtonElement;
+  const copied = document.getElementById('copied') as HTMLSpanElement;
+
+  /**
+   * När formuläret ritades.
+   *
+   * Skickas med och jämförs i funktionen. En människa som läser tio alternativ
+   * och fyller i fem fält är inte klar på tre sekunder; en robot är det.
+   */
+  const startedAt = Date.now();
 
   /**
    * Verksamheten kommer med i adressen från knappen på verksamhetssidan,
@@ -497,12 +552,16 @@ const GROUPS: Array<{
   paint();
 
   /**
-   * Sätter ihop mejlet.
+   * Samlar ihop svaren.
    *
-   * Etiketterna står i texten och inte bara värdena, för mottagaren läser
-   * detta som ett brev och inte som ett formulärsvar.
+   * Returnerar två saker: fälten som skickas till slutpunkten, och en färdig
+   * text till reservvägen. Texten byggs alltså på två ställen, här och i
+   * funktionen, och det är med avsikt. Funktionen får aldrig lita på en kropp
+   * som klienten satt ihop, och reservvägen måste fungera just när funktionen
+   * inte svarar. Den enda som ser båda är den vars utskick misslyckades, och
+   * för honom är formuleringarna desamma.
    */
-  function compose(): { subject: string; body: string } | null {
+  function collect(): { payload: Record<string, unknown>; draft: string } | null {
     const issue = selectedIssue();
     if (!issue) {
       fail('Välj vad som är fel.');
@@ -565,7 +624,30 @@ const GROUPS: Array<{
         ? `Rättelse: ${pageUrl.value.trim()}`
         : `Rättelse: ${placeName.value.trim()}`;
 
-    return { subject, body: lines.join('\n') };
+    const useFix = !fixField.hidden && fix.value.trim();
+
+    return {
+      payload: {
+        issue: issue.value,
+        fixLabel: useFix ? fixLabel.textContent : '',
+        fix: useFix ? fix.value.trim() : '',
+        placeName: scope === 'other' ? '' : placeName.value.trim(),
+        placeMunicipality: scope === 'other' ? '' : placeMunicipality.value.trim(),
+        placeId: scope === 'other' ? '' : arrivedFrom.id,
+        placePath: scope === 'other' ? '' : arrivedFrom.path,
+        pageUrl: scope === 'other' ? pageUrl.value.trim() : '',
+        role: role.value,
+        name,
+        email,
+        phone,
+        note,
+        /* Fällan skickas med som den står. Är den ifylld är det inte en
+           människa som fyllt i den, och funktionen avgör vad som ska hända. */
+        webbplats: trap.value,
+        startedAt,
+      },
+      draft: `Till: ${CONTACT}\nÄmne: ${subject}\n\n${lines.join('\n')}`,
+    };
   }
 
   function fail(message: string) {
@@ -575,30 +657,76 @@ const GROUPS: Array<{
     error.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    error.hidden = true;
-
-    const message = compose();
-    if (!message) return;
-
-    draft.value = `Till: ${CONTACT}\nÄmne: ${message.subject}\n\n${message.body}`;
+  /**
+   * Reservvägen: texten kvar på sidan med adressen utskriven.
+   *
+   * Visas BARA när utskicket verkligen gick fel. Ett valideringsfel hör inte
+   * hit, för då finns det något att rätta i formuläret i stället.
+   */
+  function showFallback(text: string, why: string) {
+    draft.value = text;
+    handoffWhy.innerHTML = '<b>Kunde inte skicka.</b> ';
+    handoffWhy.append(why);
     handoff.hidden = false;
     /* Kvittensen gäller den gamla texten. Rättar man ett fält och skickar om
        står "Kopierad" annars kvar över något man inte kopierat. */
     copied.hidden = true;
-
-    /* Utkastet först, mejlprogrammet sedan. Öppnas inget program händer
-       ingenting synligt, och då står texten redan kvar på sidan. */
-    location.href =
-      `mailto:${CONTACT}?subject=${encodeURIComponent(message.subject)}` +
-      `&body=${encodeURIComponent(message.body)}`;
-
     handoff.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  });
+  }
 
-  const copy = document.getElementById('copy') as HTMLButtonElement;
-  const copied = document.getElementById('copied') as HTMLSpanElement;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    error.hidden = true;
+    handoff.hidden = true;
+
+    const filled = collect();
+    if (!filled) return;
+
+    submit.disabled = true;
+    submit.textContent = 'Skickar';
+
+    try {
+      const res = await fetch('/api/ratta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(filled.payload),
+      });
+
+      /* Svaret är JSON när slutpunkten finns. Gör den inte det, till exempel
+         under `astro dev` där Pages Functions inte körs, kommer en HTML-sida
+         i stället och den här ska inte kasta. */
+      let data: { ok?: boolean; error?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        /* Inte JSON. `data` förblir null och fallen nedan tar hand om det. */
+      }
+
+      if (res.ok && data?.ok) {
+        form.hidden = true;
+        receipt.hidden = false;
+        receipt.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+
+      /* Fel vi själva ställt: fyll i något annat. Att lägga fram en text att
+         kopiera hade varit fel svar på "du glömde din e-postadress". */
+      if (res.status === 400 || res.status === 429) {
+        fail(data?.error ?? 'Kunde inte skicka.');
+        return;
+      }
+
+      showFallback(
+        filled.draft,
+        data?.error ?? `Servern svarade ${res.status}. Rättelsen är inte inskickad.`,
+      );
+    } catch {
+      showFallback(filled.draft, 'Ingen kontakt med servern. Rättelsen är inte inskickad.');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Skicka rättelsen';
+    }
+  });
 
   copy.addEventListener('click', async () => {
     try {
