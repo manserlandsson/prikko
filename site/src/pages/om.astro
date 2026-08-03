@@ -7,8 +7,10 @@
  * att publicera osanning på just den sida vars enda syfte är trovärdighet.
  */
 import Base from '../layouts/Base.astro';
-import { SITE } from '../lib/site';
+import { SITE, PUBLISHER } from '../lib/site';
 import { absolute } from '../lib/urls';
+import { coverage } from '../lib/db';
+import { numeral } from '../lib/utmarkelser';
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -16,7 +18,9 @@ const jsonLd = {
   name: SITE.legalName,
   url: absolute(),
   description: SITE.description,
-  founder: { '@type': 'Person', name: 'Måns Erlandsson' },
+  /* Ingen `founder`. Fältet namngav en privatperson i strukturerad data, vilket
+     Google plockar upp och kan visa i sökresultatet. Prikko står för sig själv,
+     och bolaget bakom identifieras med momsnummer i sidfoten och här nedan. */
 };
 ---
 
@@ -82,11 +86,15 @@ const jsonLd = {
       </p>
     </section>
 
+    {/* Antalet kommuner räknas ur beståndet vid varje bygge. Det stod
+        "en kommun" här långt efter att vi passerat tio, vilket är den sortens
+        påstående som undergräver en sida som ber om att bli trodd på siffror. */}
     <section>
       <h2>Vem som ligger bakom</h2>
       <p>
-        Prikko byggs av Måns Erlandsson. Tjänsten är under uppbyggnad och
-        täcker i dag en kommun; fler tillkommer efterhand.
+        Prikko drivs av ett svenskt aktiebolag, momsregistrerat som
+        {' '}{PUBLISHER.vatNumber}. Tjänsten är under uppbyggnad och täcker i dag
+        {' '}{numeral(coverage().municipalities)} kommuner, fler tillkommer efterhand.
         <a href="/kallor/">Aktuell täckning och källor</a>.
       </p>
     </section>
