@@ -2,89 +2,612 @@
 /**
  * Rättelsesidan. Bär replikrätten, som är ett av våra juridiska skydd.
  *
- * Formuläret skickar ännu ingenting — det kräver en backend vi inte har.
- * I stället en riktig e-postväg, som fungerar i dag. Ett formulär som ser ut
- * att skicka men inte gör det vore värre än inget formulär, särskilt på den
- * sida där en verksamhet ska kunna försvara sig.
+ * ---------------------------------------------------------------------------
+ * VARFÖR ETT MEJLUTKAST OCH INGEN DATABASRAD
+ * ---------------------------------------------------------------------------
+ * Tre vägar fanns, och valet avgjordes av var meddelandet HAMNAR, inte av
+ * vilken teknik som är finast.
+ *
+ *   Rad i community-schemat   Samma väg som omdömen och anspråk. Robust i
+ *     bemärkelsen att inget kan gå förlorat på vägen. Men ingen läser den.
+ *     moderate.py kan svar, omdöme, anspråk och bild, och inget annat, och
+ *     det finns ingen notis när en rad skrivs. En rättelse hade legat i en
+ *     tabell tills någon råkade titta. För en laglig replikväg är det värre
+ *     än ingen väg alls, för tystnaden ser likadan ut från utsidan.
+ *     Dessutom kräver skrivningen inloggning, och den som just upptäckt att
+ *     vi publicerar en kontroll av hans restaurang ska inte mötas av ett
+ *     konto han måste skapa först. Att i stället släppa in anon hade betytt
+ *     en oautentiserad skrivväg utan spärr på ett schema där varenda annan
+ *     skrivning kräver inloggning.
+ *
+ *   Kombinationen   Inloggade skriver till databasen, övriga får ett utkast.
+ *     Delar en juridiskt laddad väg i två inkorgar och lägger till tabellen,
+ *     radsäkerheten och migrationen ovanpå. Vinsten tillfaller bara den som
+ *     redan har konto, alltså inte den formuläret finns för.
+ *
+ *   BYGGT: mejlutkast.   Formuläret ställer frågorna, sätter ihop svaren och
+ *     lämnar över en färdig text till mejlprogrammet. Meddelandet landar i en
+ *     inkorg en människa läser varje dag. Ingen server, vilket ADR 0001
+ *     kräver, och ingen inloggning.
+ *
+ * Svagheten i mailto är den som inte har något mejlprogram uppsatt: hos honom
+ * händer ingenting när länken öppnas. Den luckan går att täppa utan backend,
+ * och därför gör vi det: samma text visas på sidan efter insändning, med
+ * adressen utskriven och en knapp som kopierar. Alla har alltså en väg fram,
+ * och ingen ruta låtsas skicka något den inte skickar.
+ *
+ * KRÄVER AV ÄGAREN: brevlådan ratta@prikko.se måste finnas. Se
+ * docs/13_epost_pa_prikko_se.md steg 1. Adressen står redan i site.ts och är
+ * utlovad i sidfoten, menyn och integritetspolicyn.
+ *
+ * ---------------------------------------------------------------------------
+ * RÄTTELSE ÄR INTE GENMÄLE
+ * ---------------------------------------------------------------------------
+ * Rättelse: uppgiften är fel och ska ändras. Genmäle: uppgiften stämmer, men
+ * verksamheten vill svara på den. Det andra har en egen väg, /konto/verksamhet,
+ * som kräver inloggning och godkänt anspråk. Formuläret frågar därför i vilken
+ * egenskap man hör av sig och visar vägen till genmäle för den som företräder
+ * verksamheten, i stället för att ta emot ett genmäle i fel kanal.
+ *
+ * Kommunens kontrolluppgift kan vi inte rätta. Vi återger den. Alternativet
+ * "uppgiften i kommunens kontrollrapport är fel" leder därför till kommunen
+ * och har inget svarsfält, för det finns inget vi kan skriva om.
  */
 import Base from '../layouts/Base.astro';
+import '../styles/konto.css';
+import { PUBLISHER } from '../lib/site';
 
-const CONTACT = 'ratta@prikko.se';
+const CONTACT = PUBLISHER.correctionEmail;
+
+/**
+ * Alternativen, och vad var och en frågar efter härnäst.
+ *
+ * `fix` är frågan på fältet "vad ska det vara i stället". Att den bor på
+ * alternativet och inte i koden är hela poängen med formuläret: frågan blir
+ * den rätta i stället för att en tom ruta får bära allt. Saknas `fix` finns
+ * inget att rätta till ett bestämt värde, och fältet visas inte.
+ *
+ * `hint` står separat och inte som en andra mening i `fix`, eftersom frågan
+ * följer med in i mejlet men handledningen inte ska göra det. "Vilka sidor är
+ * dubbletter? Klistra in länkarna." lästes som en uppmaning till redaktionen
+ * när den hamnade i brevet.
+ *
+ * Etiketten är också radioknappens värde, alltså ordagrant det som hamnar i
+ * mejlet. Ingen kod ska behöva slå upp vad "dubblett" betydde, och den som
+ * läser mejlet ser samma mening som den som fyllde i formuläret.
+ */
+const GROUPS: Array<{
+  legend: string;
+  scope: 'place' | 'inspection' | 'other';
+  options: Array<{ label: string; fix?: string; hint?: string; toMunicipality?: boolean }>;
+}> = [
+  {
+    legend: 'Uppgifter om en verksamhet',
+    scope: 'place',
+    options: [
+      { label: 'Fel adress', fix: 'Vilken adress är den rätta?' },
+      { label: 'Fel namn', fix: 'Vad heter verksamheten?' },
+      {
+        label: 'Fel plats på kartan',
+        fix: 'Var ligger den?',
+        hint: 'Adress eller närmaste korsning räcker.',
+      },
+      { label: 'Fel bild på verksamheten', fix: 'Vad är det bilden visar?' },
+      {
+        label: 'Verksamheten har upphört',
+        fix: 'När stängde den?',
+        hint: 'Ungefär räcker.',
+      },
+      {
+        label: 'Verksamheten finns med flera gånger',
+        fix: 'Vilka sidor är dubbletter?',
+        hint: 'Klistra in länkarna.',
+      },
+    ],
+  },
+  {
+    legend: 'En kontroll',
+    scope: 'inspection',
+    options: [
+      {
+        label: 'Kontrollen gäller en tidigare verksamhet i lokalen',
+        fix: 'När tog ni över lokalen?',
+      },
+      {
+        label: 'Bedömningen stämmer inte med kontrollrapporten',
+        fix: 'Vad står det i rapporten?',
+      },
+      { label: 'Uppgiften i kommunens kontrollrapport är fel', toMunicipality: true },
+    ],
+  },
+  {
+    legend: 'Något annat',
+    scope: 'other',
+    options: [{ label: 'Något annat på sajten' }],
+  },
+];
 ---
 
 <Base
   title="Rätta en uppgift"
-  description="Anser du att en uppgift på Prikko är felaktig, eller vill du som verksamhet kommentera en kontroll? Så här går det till."
+  description="Anser du att en uppgift på Prikko är felaktig? Fyll i vad som är fel, så går det till redaktionen."
   noindex={true}
 >
-  <article class="container page">
-    <header>
-      <p class="eyebrow">Rättelse och svar</p>
+  <div class="container konto-page konto-wide">
+    <div class="konto-card">
       <h1>Rätta en uppgift</h1>
-      <p class="lede text-secondary">
-        Uppgifterna kommer från kommunernas kontrollrapporter, men fel kan
-        uppstå: i deras data, i vår hämtning eller i vår tolkning. Hör av dig
-        så rättar vi.
+      <p class="konto-lead">
+        Svara på frågorna nedan. Vi sätter ihop ett mejl till redaktionen av
+        dina svar, och du trycker skicka.
       </p>
-    </header>
 
-    <section>
-      <h2>Om du driver verksamheten</h2>
-      <p>
-        Du har rätt att kommentera en kontroll. Din kommentar publiceras
-        oredigerat bredvid bedömningen. Vi kortar inte och vi lägger inte till
-        ett bemötande i samma text.
-      </p>
-      <p>
-        Anser du att kommunens uppgift i sig är fel ska den rättas hos
-        kommunen, eftersom vi speglar deras handling. Hör ändå av dig, så
-        markerar vi uppgiften som bestridd medan den utreds.
-      </p>
-    </section>
+      <form id="form" novalidate>
+        <h2 class="q">Vad är fel?</h2>
 
-    <section>
-      <h2>Om något ser tekniskt fel ut</h2>
-      <p>
-        Fel adress, fel position på kartan, dubblerad verksamhet eller en
-        bedömning som inte stämmer med kontrollrapporten. Allt sådant vill vi
-        veta. Skriv gärna vilken sida det gäller.
-      </p>
-    </section>
+        {GROUPS.map((group) => (
+          <fieldset class="group">
+            <legend>{group.legend}</legend>
+            {group.options.map((option) => (
+              <label class="choice">
+                <input
+                  type="radio"
+                  name="issue"
+                  value={option.label}
+                  data-scope={group.scope}
+                  data-fix={option.fix ?? ''}
+                  data-hint={option.hint ?? ''}
+                  data-kommun={option.toMunicipality ? 'ja' : ''}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+        ))}
 
-    <section class="how">
-      <h2>Så gör du</h2>
-      <p>
-        Mejla <a href={`mailto:${CONTACT}`}>{CONTACT}</a> med länk till sidan
-        och vad som är fel. Vi svarar normalt inom några dagar.
+        {/* Kommunens uppgift. Ingen väg framåt hos oss, och det ska stå
+            innan någon skriver en text vi inte kan göra något med. */}
+        <p class="notice notice-wait" id="to-municipality" hidden role="status">
+          <b>Det här kan vi inte rätta.</b> Vi återger kommunens kontrollrapport
+          och ändrar den aldrig. Rättelse begärs hos kommunens miljöförvaltning.
+          Hör ändå av dig, så markerar vi uppgiften som bestridd medan den utreds.
+        </p>
+
+        {/* Verksamheten. Ifylld i förväg när man kommer från verksamhetssidan. */}
+        <div class="block" id="place-block" hidden>
+          <h2 class="q">Vilken verksamhet?</h2>
+
+          <p class="from" id="from" hidden>
+            Kommer från <a id="from-link" href="/">sidan du var på</a>.
+          </p>
+
+          <label class="field">
+            <span>Namn</span>
+            <input type="text" name="placeName" id="place-name" maxlength="150" />
+          </label>
+
+          <label class="field">
+            <span>Kommun</span>
+            <input type="text" name="placeMunicipality" id="place-municipality" maxlength="80" />
+          </label>
+        </div>
+
+        {/* Allt annat på sajten. Då är sidan det enda som pekar ut vad det gäller. */}
+        <div class="block" id="page-block" hidden>
+          <h2 class="q">Vilken sida?</h2>
+          <label class="field">
+            <span>
+              Adress
+              <span class="hint">Kopiera från adressfältet.</span>
+            </span>
+            <input type="url" name="pageUrl" id="page-url" maxlength="300" placeholder="https://prikko.se/..." />
+          </label>
+        </div>
+
+        {/* Rättelsen. Etiketten byts mot alternativets egen fråga. */}
+        <label class="field fix" id="fix-field" hidden>
+          <span>
+            <span id="fix-label">Vad ska det vara i stället?</span>
+            <span class="hint" id="fix-hint" hidden></span>
+          </span>
+          <input type="text" name="fix" id="fix" maxlength="300" />
+        </label>
+
+        <h2 class="q">Vem hör av sig?</h2>
+        <fieldset class="group">
+          <legend class="visually-hidden">Din roll</legend>
+          <label class="choice">
+            <input type="radio" name="role" value="Besökare" data-role="visitor" />
+            <span>Jag är besökare</span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="role" value="Företrädare för verksamheten" data-role="owner" />
+            <span>Jag företräder verksamheten</span>
+          </label>
+        </fieldset>
+
+        {/* Genmäle är något annat än rättelse, och den som företräder
+            verksamheten har rätt till båda. Vägen dit visas här, inte i ett
+            stycke text ovanför formuläret. */}
+        <p class="notice notice-wait" id="reply-right" hidden role="status">
+          <b>Stämmer uppgiften men ni vill svara på den?</b> Det är ett genmäle,
+          inte en rättelse. Svaret publiceras ordagrant bredvid kontrollen.
+          <a id="reply-link" href="/konto/verksamhet/">Svara på en kontroll</a>.
+        </p>
+
+        <label class="field">
+          <span>Ditt namn</span>
+          <input type="text" name="name" id="name" maxlength="100" autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span>E-post vi kan svara på</span>
+          <input type="email" name="email" id="email" maxlength="150" autocomplete="email" />
+        </label>
+
+        <label class="field" id="phone-field" hidden>
+          <span>
+            Telefon
+            <span class="hint">Frivilligt. Snabbare om vi behöver reda ut vem du är.</span>
+          </span>
+          <input type="tel" name="phone" id="phone" maxlength="30" autocomplete="tel" />
+        </label>
+
+        <label class="field">
+          <span>
+            Något mer vi behöver veta?
+            <span class="hint">Frivilligt.</span>
+          </span>
+          <textarea name="note" id="note" maxlength="1200"></textarea>
+        </label>
+
+        <p class="notice notice-error" id="error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="submit">Skapa mejlet</button>
+        </div>
+      </form>
+
+      {/* Efter insändning. Bär hela texten, så att den som saknar
+          mejlprogram inte står utan väg. */}
+      <div class="handoff" id="handoff" hidden>
+        <p class="notice notice-ok">
+          <b>Klart.</b> Ditt mejlprogram ska ha öppnats med texten ifylld.
+          Tryck skicka där.
+        </p>
+        <p class="fallback">
+          Hände ingenting? Mejla <a href={`mailto:${CONTACT}`}>{CONTACT}</a> och
+          klistra in texten nedan.
+        </p>
+        <textarea id="draft" readonly rows="12" aria-label="Texten till mejlet"></textarea>
+        <div class="konto-actions">
+          <button type="button" class="btn-quiet" id="copy">Kopiera texten</button>
+          <span class="copied caption text-muted" id="copied" hidden>Kopierad.</span>
+        </div>
+      </div>
+
+      <p class="konto-legal">
+        Vi svarar normalt inom några dagar. Uppgifterna du lämnar används för
+        att utreda och besvara din rättelse, inget annat. Se
+        <a href="/integritetspolicy/">integritetspolicyn</a>.
       </p>
-      <p class="text-secondary">
-        Ett formulär direkt på sidan kommer när vi har stöd för det. Tills dess
-        är e-post den väg som faktiskt fungerar.
-      </p>
-    </section>
-  </article>
+    </div>
+  </div>
 </Base>
 
 <style>
-  .page {
-    max-width: var(--readcol);
-    padding-block: var(--s-12) var(--s-16);
+  .q {
+    margin-top: var(--s-8);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
   }
 
-  h1 { font-size: 36px; line-height: 40px; margin-top: var(--s-2); }
-  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+  form > .q:first-child { margin-top: var(--s-6); }
 
-  section { margin-top: var(--s-12); }
-  section h2 { margin-bottom: var(--s-4); }
-  section p { line-height: 26px; }
-  section p + p { margin-top: var(--s-4); }
-
-  .how {
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-    padding: var(--s-6);
+  /* Grupperna delar radioknapparnas namn, så de är EN fråga trots tre
+     fieldsets. Uppdelningen finns för att legenden ska kunna säga vilken
+     sorts fel raderna under handlar om, vilket är den enda förklaring
+     alternativen behöver. */
+  .group {
+    border: 0;
+    padding: 0;
+    margin: var(--s-4) 0 0;
+    min-width: 0;
   }
 
-  .how h2 { margin-top: 0; }
+  .group legend {
+    padding: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    cursor: pointer;
+  }
+
+  .choice + .choice { border-top: 1px solid var(--hairline); }
+
+  .choice input {
+    flex: none;
+    width: 17px;
+    height: 17px;
+    /* Radioknappen är rund och texten fyrkantig. Utan knuffen ligger den
+       på textens överkant i stället för mitt för första raden. */
+    margin: 1px 0 0;
+    accent-color: var(--brand);
+  }
+
+  .from {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* `hidden` måste vinna över display-reglerna i konto.css, som sätts av en
+     klass och därmed har högre specificitet än webbläsarens [hidden]. Samma
+     fälla som redan är dokumenterad på .konto-actions där. */
+  .field[hidden],
+  .block[hidden],
+  .from[hidden],
+  .hint[hidden],
+  .handoff[hidden],
+  .copied[hidden] { display: none; }
+
+  .handoff { margin-top: var(--s-6); }
+
+  .fallback {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  #draft {
+    width: 100%;
+    margin-top: var(--s-3);
+    font: 400 var(--fs-body-s)/var(--lh-body-s) var(--font-sans);
+    color: var(--text);
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    padding: 10px 12px;
+    resize: vertical;
+  }
 </style>
+
+<script>
+  import { PUBLISHER } from '../lib/site';
+
+  const CONTACT = PUBLISHER.correctionEmail;
+
+  const form = document.getElementById('form') as HTMLFormElement;
+  const error = document.getElementById('error') as HTMLParagraphElement;
+
+  const placeBlock = document.getElementById('place-block') as HTMLDivElement;
+  const placeName = document.getElementById('place-name') as HTMLInputElement;
+  const placeMunicipality = document.getElementById('place-municipality') as HTMLInputElement;
+  const pageBlock = document.getElementById('page-block') as HTMLDivElement;
+  const pageUrl = document.getElementById('page-url') as HTMLInputElement;
+
+  const from = document.getElementById('from') as HTMLParagraphElement;
+  const fromLink = document.getElementById('from-link') as HTMLAnchorElement;
+
+  const fixField = document.getElementById('fix-field') as HTMLLabelElement;
+  const fixLabel = document.getElementById('fix-label') as HTMLSpanElement;
+  const fixHint = document.getElementById('fix-hint') as HTMLSpanElement;
+  const fix = document.getElementById('fix') as HTMLInputElement;
+
+  const toMunicipality = document.getElementById('to-municipality') as HTMLParagraphElement;
+  const replyRight = document.getElementById('reply-right') as HTMLParagraphElement;
+  const replyLink = document.getElementById('reply-link') as HTMLAnchorElement;
+  const phoneField = document.getElementById('phone-field') as HTMLLabelElement;
+
+  const handoff = document.getElementById('handoff') as HTMLDivElement;
+  const draft = document.getElementById('draft') as HTMLTextAreaElement;
+
+  /**
+   * Verksamheten kommer med i adressen från knappen på verksamhetssidan,
+   * samma mönster som /konto/verksamhet redan använder. `sida` är vår egen
+   * tilläggsparameter och bär sökvägen till sidan man stod på, för den är
+   * det mest användbara redaktionen kan få.
+   */
+  const query = new URLSearchParams(location.search);
+  const arrivedFrom = {
+    id: query.get('id') ?? '',
+    name: query.get('namn') ?? '',
+    municipality: query.get('kommun') ?? '',
+    /**
+     * Adressen kommer utifrån och får aldrig bli ett href rakt av. En
+     * `javascript:`-sträng i en länk vi själva renderar är en färdig XSS.
+     * Bara rotrelativa sökvägar på vår egen sajt släpps fram, och `//` faller
+     * eftersom det är en protokollrelativ adress till en främmande värd.
+     */
+    path: (() => {
+      const raw = query.get('sida') ?? '';
+      return raw.startsWith('/') && !raw.startsWith('//') ? raw : '';
+    })(),
+  };
+
+  if (arrivedFrom.name) placeName.value = arrivedFrom.name;
+
+  /* Kommunen kommer som slug, alltså "uppsala". Fältet läses av en människa
+     och citeras rakt in i mejlet, så versalen sätts tillbaka. Bara första
+     bokstaven: sammansatta slugar som "upplands-vasby" får en människa reda
+     ut, och fältet går att skriva i. */
+  if (arrivedFrom.municipality) {
+    placeMunicipality.value =
+      arrivedFrom.municipality.charAt(0).toUpperCase() + arrivedFrom.municipality.slice(1);
+  }
+
+  if (arrivedFrom.path) {
+    fromLink.href = arrivedFrom.path;
+    fromLink.textContent = arrivedFrom.name || 'sidan du var på';
+    from.hidden = false;
+  }
+
+  /* Genmälesvägen behöver samma tre parametrar som verksamhetssidan skickar.
+     Utan id leder länken ingenstans användbart, och då pekar den på kontot. */
+  if (arrivedFrom.id) {
+    replyLink.href =
+      '/konto/verksamhet/?id=' +
+      encodeURIComponent(arrivedFrom.id) +
+      '&kommun=' +
+      encodeURIComponent(arrivedFrom.municipality) +
+      '&namn=' +
+      encodeURIComponent(arrivedFrom.name);
+  }
+
+  function selectedIssue(): HTMLInputElement | null {
+    return form.querySelector<HTMLInputElement>('input[name="issue"]:checked');
+  }
+
+  function selectedRole(): HTMLInputElement | null {
+    return form.querySelector<HTMLInputElement>('input[name="role"]:checked');
+  }
+
+  /** Visar bara det som det valda alternativet faktiskt behöver. */
+  function paint() {
+    const issue = selectedIssue();
+    const scope = issue?.dataset.scope ?? '';
+    const fixText = issue?.dataset.fix ?? '';
+
+    placeBlock.hidden = !(scope === 'place' || scope === 'inspection');
+    pageBlock.hidden = scope !== 'other';
+    toMunicipality.hidden = issue?.dataset.kommun !== 'ja';
+
+    const hintText = issue?.dataset.hint ?? '';
+    fixField.hidden = !fixText;
+    if (fixText) fixLabel.textContent = fixText;
+    fixHint.textContent = hintText;
+    fixHint.hidden = !hintText;
+
+    const owner = selectedRole()?.dataset.role === 'owner';
+    replyRight.hidden = !owner;
+    phoneField.hidden = !owner;
+  }
+
+  form.addEventListener('change', paint);
+  paint();
+
+  /**
+   * Sätter ihop mejlet.
+   *
+   * Etiketterna står i texten och inte bara värdena, för mottagaren läser
+   * detta som ett brev och inte som ett formulärsvar.
+   */
+  function compose(): { subject: string; body: string } | null {
+    const issue = selectedIssue();
+    if (!issue) {
+      fail('Välj vad som är fel.');
+      return null;
+    }
+
+    const scope = issue.dataset.scope ?? '';
+    const role = selectedRole();
+    const email = (document.getElementById('email') as HTMLInputElement).value.trim();
+    const name = (document.getElementById('name') as HTMLInputElement).value.trim();
+    const phone = (document.getElementById('phone') as HTMLInputElement).value.trim();
+    const note = (document.getElementById('note') as HTMLTextAreaElement).value.trim();
+
+    if (scope !== 'other' && !placeName.value.trim()) {
+      fail('Skriv vilken verksamhet det gäller.');
+      return null;
+    }
+    if (scope === 'other' && !pageUrl.value.trim()) {
+      fail('Skriv vilken sida det gäller.');
+      return null;
+    }
+    if (!role) {
+      fail('Välj om du är besökare eller företräder verksamheten.');
+      return null;
+    }
+    if (!name) {
+      fail('Skriv ditt namn.');
+      return null;
+    }
+    /* Grov kontroll, inte en fullständig. En adress som inte går fram
+       studsar hos avsändaren, och det är ett bättre besked än vårt. */
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      fail('Skriv en e-postadress vi kan svara på.');
+      return null;
+    }
+
+    const lines: string[] = [`Vad är fel: ${issue.value}`];
+
+    if (scope === 'other') {
+      lines.push(`Sida: ${pageUrl.value.trim()}`);
+    } else {
+      const municipality = placeMunicipality.value.trim();
+      lines.push(
+        `Verksamhet: ${placeName.value.trim()}${municipality ? `, ${municipality}` : ''}`,
+      );
+      if (arrivedFrom.path) lines.push(`Sida: ${location.origin}${arrivedFrom.path}`);
+      if (arrivedFrom.id) lines.push(`Id: ${arrivedFrom.id}`);
+    }
+
+    if (!fixField.hidden && fix.value.trim()) {
+      lines.push(`${fixLabel.textContent} ${fix.value.trim()}`);
+    }
+
+    lines.push('', `Avsändare: ${name}, ${role.value}`, `E-post: ${email}`);
+    if (phone) lines.push(`Telefon: ${phone}`);
+    if (note) lines.push('', note);
+
+    const subject =
+      scope === 'other'
+        ? `Rättelse: ${pageUrl.value.trim()}`
+        : `Rättelse: ${placeName.value.trim()}`;
+
+    return { subject, body: lines.join('\n') };
+  }
+
+  function fail(message: string) {
+    error.innerHTML = '<b>Fel.</b> ';
+    error.append(message);
+    error.hidden = false;
+    error.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    error.hidden = true;
+
+    const message = compose();
+    if (!message) return;
+
+    draft.value = `Till: ${CONTACT}\nÄmne: ${message.subject}\n\n${message.body}`;
+    handoff.hidden = false;
+    /* Kvittensen gäller den gamla texten. Rättar man ett fält och skickar om
+       står "Kopierad" annars kvar över något man inte kopierat. */
+    copied.hidden = true;
+
+    /* Utkastet först, mejlprogrammet sedan. Öppnas inget program händer
+       ingenting synligt, och då står texten redan kvar på sidan. */
+    location.href =
+      `mailto:${CONTACT}?subject=${encodeURIComponent(message.subject)}` +
+      `&body=${encodeURIComponent(message.body)}`;
+
+    handoff.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+
+  const copy = document.getElementById('copy') as HTMLButtonElement;
+  const copied = document.getElementById('copied') as HTMLSpanElement;
+
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(draft.value);
+    } catch {
+      /* Utan behörighet till urklipp får markeringen göra jobbet. */
+      draft.select();
+      return;
+    }
+    copied.hidden = false;
+  });
+</script>

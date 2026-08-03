@@ -18,7 +18,9 @@
  *                       öppnas den genom review-dialog.ts, som är samma
  *                       lösning som inloggningsrutan använder.
  *   Rätta en uppgift    till /ratta, som redan är den publicerade vägen för
- *                       rättelse och genmäle.
+ *                       rättelse och genmäle. Verksamheten följer med i
+ *                       adressen, så att formuläret där står ifyllt i stället
+ *                       för att be någon skriva av sin egen restaurangs namn.
  *
  * "Anmäl en brist" är borttagen med avsikt. Prikko är ingen tillsynsmyndighet
  * och kan inte ta emot en anmälan om dålig hygien; den ska till kommunens
@@ -35,6 +37,22 @@ interface Props {
 }
 
 const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
+
+/**
+ * Verksamheten med i adressen till båda formulären.
+ *
+ * `sida` finns bara på rättelselänken och bär sökvägen hit. Redaktionen får
+ * då veta exakt vilken sida anmälaren stod på, vilket är mer värt än namnet:
+ * två verksamheter kan heta samma sak i samma kommun.
+ */
+const params = new URLSearchParams({
+  id: establishmentId,
+  kommun: municipalitySlug,
+  namn: establishmentName,
+});
+
+const ownerHref = `/konto/verksamhet/?${params}`;
+const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pathname)}`;
 ---
 
 <div
@@ -46,7 +64,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 >
   <button type="button" class="btn-primary" id="follow">Följ verksamheten</button>
   <button type="button" class="btn-ghost" id="review-write">Skriv ett omdöme</button>
-  <a class="btn-ghost" href="/ratta/">Rätta en uppgift</a>
+  <a class="btn-ghost" href={correctionHref}>Rätta en uppgift</a>
 </div>
 
 {/* Tom från början. Raden är en kvittens på något man gjort, inte en
@@ -56,9 +74,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 <p class="follow-note caption text-muted" id="follow-note"></p>
 
 <p class="owner caption">
-  <a href={`/konto/verksamhet/?id=${encodeURIComponent(establishmentId)}&kommun=${encodeURIComponent(municipalitySlug)}&namn=${encodeURIComponent(establishmentName)}`}>
-    Driver du verksamheten? Svara på en kontroll
-  </a>
+  <a href={ownerHref}>Driver du verksamheten? Svara på en kontroll</a>
 </p>
 
 <style>
