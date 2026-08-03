@@ -486,7 +486,20 @@ export async function isFollowing(establishmentId: string): Promise<boolean> {
 export async function follow(place: Place): Promise<void> {
   const user = currentUser();
   await rest('POST', 'follows', {
-    prefer: 'resolution=merge-duplicates',
+    /*
+     * ignore-duplicates, ALDRIG merge-duplicates.
+     *
+     * merge-duplicates blir en upsert, och en upsert kräver UPDATE-rättighet.
+     * Rollen authenticated har select, insert och delete på follows men aldrig
+     * update, vilket är medvetet i schema_community.sql. PostgREST svarade
+     * därför 403 med "permission denied for table follows", och det såg ut som
+     * ett fel i inloggningen fastän det var ett fel i det här ordet.
+     *
+     * Semantiskt är ignore rätt ändå: att följa något man redan följer ska
+     * inte skriva om raden, det ska inte göra någonting. Verifierat mot
+     * databasen, två anrop i rad ger 201 båda gångerna och en enda rad.
+     */
+    prefer: 'resolution=ignore-duplicates',
     body: {
       user_id: user?.id,
       establishment_id: place.id,
