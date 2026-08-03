@@ -1,4 +1,6 @@
-"""Gatubilder från Mapillary, med Panoramax som andrahandskälla.
+"""Gatubilder från Mapillary.
+
+Panoramax finns i filen men är AVSTÄNGD, se best_photo() för varför.
 
 Varför inte Google Street View eller Google Places Photos:
 
@@ -286,15 +288,22 @@ def find_candidate(
     token: Optional[str] = None,
     max_distance: float = MAX_DISTANCE_M,
 ) -> Optional[Candidate]:
-    """Bästa gatubild för en punkt, Mapillary först och Panoramax sedan.
+    """Bästa gatubild för en punkt. Bara Mapillary.
 
-    Ordningen är inte godtycklig. Mapillary har mest kod bakom sig och grundades
-    i Malmö, så den svenska täckningen väntas vara högre. Panoramax står efter
-    som komplement eftersom den är gratis, tokenfri och mätt.
+    PANORAMAX ÄR AVSTÄNGD, beslutat av ägaren efter mätningen.
+
+    Skälen står i docs och är tre. Täckningen var 11,5 procent inom 60 meter
+    och noll utanför Stockholm, Uppsala, Jönköping och Linköping, alltså ingen
+    grund att bygga på. Tre av tolv träffar var ekvirektangulära
+    360-utvikningar som beskurna visade bilens tak. Och en gatubild som är
+    flera år gammal av en lokal som bytt skylt sedan dess gör mer skada än
+    nytta, eftersom hela poängen är igenkänning.
+
+    Koden för Panoramax står kvar i filen. Den är mätt, fungerande och
+    kostnadsfri, och skulle deras svenska täckning växa är den en rad att
+    koppla in igen. Att radera den hade betytt att någon får skriva om den.
     """
-    return find_mapillary(lat, lng, token, max_distance) or find_panoramax(
-        lat, lng, max_distance, prefer_large=_can_resize()
-    )
+    return find_mapillary(lat, lng, token, max_distance)
 
 
 # ---------------------------------------------------------------------------

@@ -130,14 +130,25 @@ class TestSokning(unittest.TestCase):
         found = imagery.find_panoramax(LAT, LNG, prefer_large=False)
         self.assertTrue(found.fetch_url.endswith("/thumb.jpg"))
 
-    def test_panoramax_tar_over_nar_mapillary_ar_tom(self):
+    def test_panoramax_anvands_inte_som_reserv(self):
+        """Panoramax är avstängd. Utan Mapillary blir det ingen bild alls.
+
+        Testet hette tidigare att Panoramax tar över, och vaktade motsatsen.
+        Ägaren stängde av källan efter mätningen: 11,5 procents täckning inom
+        60 meter, noll utanför fyra kommuner, och tre av tolv träffar var
+        360-utvikningar som beskurna visade bilens tak.
+
+        Funktionen find_panoramax står kvar och testas fortfarande för sig.
+        Det som vaktas här är att den inte kopplas in i urvalet igen av
+        misstag.
+        """
+
         def fake(url, timeout=30):
             return MAPILLARY_PAYLOAD if "mapillary" in url else PANORAMAX_PAYLOAD
 
         imagery._get = fake
-        # Utan token hoppas Mapillary över helt.
-        found = imagery.find_candidate(LAT, LNG, token="")
-        self.assertEqual(found.source, "panoramax")
+        # Utan token hoppas Mapillary över helt, och då finns ingen reserv.
+        self.assertIsNone(imagery.find_candidate(LAT, LNG, token=""))
 
 
 class TestLagring(unittest.TestCase):
