@@ -77,6 +77,21 @@ function readSession(): Session | null {
   }
 }
 
+/**
+ * Namnet på händelsen som säger att inloggningsläget ändrats.
+ *
+ * En sida bär flera ytor som var för sig bryr sig om vem som är inloggad:
+ * bevakningsknappen, omdömesformuläret och kontoraden i menyn. Var och en
+ * frågade tidigare `signedIn()` när den startade och behöll svaret. Loggade
+ * man in via en av dem visste de andra ingenting om det, och omdömesknappen
+ * bad om inloggning igen fastän man just loggat in på samma sida.
+ *
+ * Den som lyssnar behöver inte veta VEM som ändrade läget, bara att det
+ * ändrats. Alternativet, att varje yta pollar, hade betytt att de fortfarande
+ * kan visa fel under tiden.
+ */
+export const AUTH_EVENT = 'prikko:auth';
+
 function writeSession(s: Session | null): void {
   try {
     if (s) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
@@ -84,6 +99,18 @@ function writeSession(s: Session | null): void {
   } catch {
     /* Privat läge utan lagring. Sessionen lever då bara sidan ut. */
   }
+  /* Efter skrivningen, aldrig före: den som lyssnar ska kunna läsa det nya
+     läget direkt i sin hanterare. */
+  try {
+    window.dispatchEvent(new CustomEvent(AUTH_EVENT, { detail: { signedIn: s !== null } }));
+  } catch {
+    /* Ingen window, alltså inget att uppdatera. */
+  }
+}
+
+/** Kör `fn` varje gång någon loggar in eller ut på den här sidan. */
+export function onAuthChange(fn: () => void): void {
+  window.addEventListener(AUTH_EVENT, fn);
 }
 
 function toSession(payload: any): Session {

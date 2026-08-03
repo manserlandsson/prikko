@@ -499,7 +499,7 @@ const points = municipalityPoints();
 </style>
 
 <script>
-  import { configured, currentUser, signedIn, signOut } from '../lib/community';
+  import { configured, currentUser, onAuthChange, signedIn, signOut } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
 
   /**
@@ -554,6 +554,10 @@ const points = municipalityPoints();
              omladdning. */
           location.reload();
         });
+
+        /* Loggar man in via bevakningsknappen eller omdömesknappen ska
+           raden här visa det utan omladdning. */
+        onAuthChange(() => void paint());
 
         void paint();
       }

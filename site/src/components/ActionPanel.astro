@@ -112,6 +112,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     follow,
     unfollow,
     CommunityError,
+    onAuthChange,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
 
@@ -198,6 +199,25 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         }
       });
     }
+
+    /* Loggar någon in eller ut på en annan yta ska knappen följa med.
+       Utloggad betyder att bevakningen inte längre är känd, alltså tillbaka
+       till "Följ verksamheten" och en tom notisrad. */
+    onAuthChange(() => {
+      void (async () => {
+        if (await signedIn()) {
+          try {
+            following = await isFollowing(place.id);
+          } catch {
+            /* Behåll antagandet. */
+          }
+        } else {
+          following = false;
+          note!.textContent = '';
+        }
+        paint();
+      })();
+    });
 
     void start();
   }

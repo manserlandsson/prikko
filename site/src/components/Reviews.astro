@@ -162,6 +162,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     myReview,
     submitReview,
     CommunityError,
+    onAuthChange,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
 
@@ -233,21 +234,39 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       // aldrig ett hinder som visas i stället för handlingen.
       open.hidden = false;
 
-      if (!(await signedIn())) {
-        open.addEventListener(
-          'click',
-          async () => {
-            if (!(await openSignIn(open))) return;
-            // Klicket var redan gjort. Formuläret ska fällas ut direkt, inte
-            // vänta på ännu ett klick på samma knapp.
-            await afterSignIn(true);
-          },
-          { once: true },
-        );
-        return;
-      }
+      /*
+       * EN hanterare, och frågan om inloggning ställs INUTI den.
+       *
+       * Tidigare stod kontrollen här ute och kördes en gång vid sidladdning.
+       * Var man utloggad då fastnade knappen i sitt utloggade läge för alltid:
+       * loggade man in via bevakningsknappen längre upp på samma sida bad
+       * omdömesknappen om inloggning igen, fastän man just loggat in. Det var
+       * inte ett fel i inloggningen utan i att den här ytan höll ett eget
+       * tillstånd som ingen uppdaterade.
+       *
+       * Inte `{ once: true }` heller. Hanteraren ska överleva att man loggar
+       * ut och in igen utan att ladda om.
+       */
+      open.addEventListener('click', async () => {
+        if (!(await signedIn())) {
+          if (!(await openSignIn(open))) return;
+          // Klicket var redan gjort. Formuläret ska fällas ut direkt, inte
+          // vänta på ännu ett klick på samma knapp.
+          await afterSignIn(true);
+          return;
+        }
+        await afterSignIn(true);
+      });
 
-      await afterSignIn(false);
+      /* Loggar någon in eller ut på en annan yta, exempelvis kontoraden i
+         menyn eller bevakningsknappen, ska den här också veta om det. */
+      onAuthChange(() => {
+        void signedIn().then((yes) => {
+          if (yes) void afterSignIn(false);
+        });
+      });
+
+      if (await signedIn()) await afterSignIn(false);
     }
 
     /** Läget för den som är inloggad: eget omdöme, eller ett formulär. */
