@@ -1116,10 +1116,44 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         })();
       });
 
-      try {
-        render(await publishedReviews(place.id));
-      } catch {
-        empty.textContent = 'Omdömena kunde inte hämtas just nu.';
+      /*
+       * Omdömena hämtas när avsnittet kommer i sikte, inte vid sidladdning.
+       *
+       * Anropet går till Supabase, och Supabase ligger bakom Cloudflare som
+       * sätter en kaka, `__cf_bm`, för att skilja människa från bot. Hämtade
+       * vi direkt vid laddning kontaktades alltså en tredjepart och en kaka
+       * sattes hos var och en som öppnade en verksamhetssida, även den som
+       * bara ville läsa hygienbedömningen högst upp och aldrig rullade ned.
+       *
+       * Det är ingen spårning och den täcks sannolikt av
+       * säkerhetsundantaget, men den enklaste vägen ur frågan är att inte
+       * göra anropet. Den som rullar ned till omdömena har efterfrågat dem.
+       *
+       * Utan IntersectionObserver hämtas de direkt, som förut. Ingen ska
+       * missa omdömen för att webbläsaren är gammal.
+       */
+      const fetchList = async () => {
+        try {
+          render(await publishedReviews(place.id));
+        } catch {
+          empty.textContent = 'Omdömena kunde inte hämtas just nu.';
+        }
+      };
+
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((e) => e.isIntersecting)) return;
+            io.disconnect();
+            void fetchList();
+          },
+          /* Marginalen gör att hämtningen hinner bli klar innan avsnittet
+             faktiskt syns, så listan aldrig blinkar fram. */
+          { rootMargin: '400px' },
+        );
+        io.observe(section);
+      } else {
+        await fetchList();
       }
 
       if (await signedIn()) await refreshMine();
