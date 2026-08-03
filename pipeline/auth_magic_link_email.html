@@ -2,96 +2,137 @@
   Mejlmallen för inloggningskoden.
 
   KLISTRAS IN I SUPABASE, byggs inte av sajten:
-  Authentication  ->  Emails  ->  Magic Link  ->  ersätt hela innehållet.
-  Ämnesrad: Din kod till Prikko
+  Authentication -> Emails -> Magic link or OTP   OCH   Confirm sign up
+  Ämnesrad på båda: Din kod till Prikko
 
-  Supabase skickar som förval en LÄNK. Vi vill ha SIFFROR, och det är
-  {{ .Token }} på rad 63 som gör hela skillnaden. Utan den variabeln kommer
-  mejlet fram men utan något att skriva in, och verifyCode i
-  site/src/lib/community.ts har ingenting att växla in.
+  Båda mallarna får samma innehåll. Confirm sign up är bara det som skickas
+  till en adress vi aldrig sett förut, och den personen ska göra exakt samma
+  sak som alla andra. Den som loggar in för första gången ska inte behöva
+  förstå att hen råkade vara ny.
 
-  Varför tabeller och inline-stil i stället för vanlig CSS: Outlook på Windows
-  renderar med Word och struntar i det mesta i en <style>-tagg. Gmail rensar
-  bort hela taggen. Det här är den enda formen som håller överallt, hur gammal
-  den än ser ut.
+  {{ .Token }} är det som gör att Supabase skickar SIFFROR. Finns
+  {{ .ConfirmationURL }} kvar någonstans skickas en länk i stället, och
+  verifyCode i site/src/lib/community.ts har ingenting att växla in.
 
-  Mörkt läge är avsiktligt inte hanterat. Gmail och Outlook inverterar färger
-  på egen hand och gör det olika, och varje försök att styra det slutar med en
+  Varför tabeller och inline-stil: Outlook på Windows renderar med Word och
+  struntar i det mesta i en <style>-tagg. Gmail rensar bort taggen helt. Det
+  här är den enda formen som håller överallt, hur gammal den än ser ut.
+
+  Mörkt läge hanteras avsiktligt inte. Gmail och Outlook inverterar färger på
+  egen hand och gör det olika, och varje försök att styra det slutar med en
   ruta som ser trasig ut i minst en klient. Vit botten och mörk text överlever
   inverteringen läsbart.
 -->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FCFCFD;margin:0;padding:32px 12px;">
+
+<!-- Förhandsraden. Den syns i inkorgen bredvid ämnet och ingen annanstans:
+     nollställd höjd, nollställd opacitet och vit text. Utan den plockar
+     klienten den första texten den hittar, vilket blir wordmarkens alt-text
+     och alltså ordet "Prikko" två gånger i rad. Nbsp-serien efter texten
+     hindrar Gmail från att fylla ut raden med början av brödtexten. -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#FFFFFF;opacity:0;">
+  Sex siffror som gäller i en timme.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FCFCFD;margin:0;padding:40px 12px;">
   <tr>
     <td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;background:#FFFFFF;border:1px solid rgba(0,0,0,.08);border-radius:14px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;background:#FFFFFF;border:1px solid rgba(0,0,0,.08);border-radius:16px;overflow:hidden;">
+
+        <!-- Två pixlar prikko-blått längs överkanten. Hela identiteten i mejlet
+             utan ett färgat block: kortet läser som vårt redan innan bilderna
+             laddat, och en mottagare som blockerar bilder ser ändå en avsändare
+             med en avsikt. Bredare hade det blivit en banderoll. -->
+        <tr>
+          <td style="height:2px;line-height:2px;font-size:0;background:#007BE0;">&nbsp;</td>
+        </tr>
 
         <tr>
           <td style="padding:32px 32px 0;">
-            <!-- Logotypen som PNG, inte som SVG. Gmail rensar bort SVG helt
-                 och Outlook renderar den inte alls, så en inlinad vektor hade
-                 gett tom yta hos de två klienter flest mottagare använder.
-                 Filen ligger i site/public och följer med varje bygge.
+            <!-- PNG och inte SVG. Gmail rensar bort SVG helt och Outlook
+                 renderar den inte alls, så en inlinad vektor hade gett tom yta
+                 hos de två klienter flest mottagare använder.
 
                  Bredd och höjd står som ATTRIBUT och inte bara i stilen.
                  Outlook läser Word-motorn och struntar i CSS-mått, och utan
                  attributen ritas bilden i sin fulla pixelbredd, alltså tre
-                 gånger för stor. Källan är 228x85 för att vara skarp på
-                 skärmar med hög täthet.
+                 gånger för stor.
 
-                 De flesta klienter blockerar bilder tills mottagaren klickat
-                 "visa bilder". Färg, storlek och vikt sitter därför på
-                 img-taggen själv: alt-texten ÄRVER dem, så det blockerade
-                 läget visar ordet Prikko i blått och fetstil i stället för en
-                 trasig ruta. Det är hela poängen med att skriva stilen här
-                 och inte på en omslutande div. -->
+                 Färg, storlek och vikt sitter på img-taggen själv: alt-texten
+                 ÄRVER dem, så det blockerade läget visar ordet Prikko i blått
+                 och fetstil i stället för en trasig ruta. -->
             <img src="https://prikko.se/prikko-wordmark-email.png"
                  alt="Prikko"
-                 width="76" height="28"
-                 style="display:block;border:0;outline:none;text-decoration:none;width:76px;height:28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:24px;font-weight:700;letter-spacing:-.02em;color:#007BE0;">
+                 width="96" height="36"
+                 style="display:block;border:0;outline:none;text-decoration:none;width:96px;height:36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:-.02em;color:#007BE0;">
           </td>
         </tr>
 
         <tr>
-          <td style="padding:24px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55;color:#1D1D1F;">
-            Här är din kod. Den gäller i en timme.
+          <td style="padding:26px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:19px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:#1D1D1F;">
+            Din inloggningskod
           </td>
         </tr>
 
         <tr>
-          <td align="center" style="padding:24px 32px 0;">
-            <!-- Siffrorna är själva mejlet. Stora nog att läsas på en telefon
-                 i en restaurang, glest spärrade så att två ettor inte flyter
-                 ihop, och i monospace så att koden går att jämföra tecken för
-                 tecken med det man skrivit in. -->
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:#FCFCFD;border:1px solid rgba(0,0,0,.08);border-radius:10px;">
+          <td style="padding:8px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#56565B;">
+            Skriv in den i webbläsaren där du började logga in. Den gäller i en timme.
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 32px 0;">
+            <!-- Siffrorna är hela mejlet, och rutan är därför full bredd i
+                 stället för att krympa runt talet. Ett fält läser som något
+                 man ska hämta något ur.
+
+                 SAMMA SANS SOM RUBRIKEN, inte monospace. Monospace signalerar
+                 kod till en utvecklare, och mottagaren här är någon som står i
+                 en restaurang och vill läsa om den. Det enda monospace hade
+                 gett oss är lika breda siffror, vilket spelar roll när man
+                 jämför långa strängar och inte när man läser sex tecken. Det
+                 är också vad Airbnb och Apple gör i exakt den här rutan.
+
+                 Ingen webbfont: Gmail rensar bort @font-face, så det enda som
+                 renderar är det mottagaren redan har installerat.
+
+                 text-indent kompenserar för att letter-spacing lägger sitt
+                 mellanrum även EFTER sista siffran, vilket annars drar talet
+                 ur centrum med ett halvt mellanrum. -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F6F9FD;border:1px solid rgba(0,123,224,.18);border-radius:12px;">
               <tr>
-                <td style="padding:18px 28px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:600;letter-spacing:.22em;color:#1D1D1F;text-indent:.22em;">{{ .Token }}</td>
+                <td align="center" style="padding:22px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:36px;font-weight:700;letter-spacing:.18em;color:#1D1D1F;text-indent:.18em;">{{ .Token }}</td>
               </tr>
             </table>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:24px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#56565B;">
-            Skriv in koden i webbläsaren där du började logga in.
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding:20px 32px 0;">
+          <td style="padding:26px 32px 0;">
             <div style="height:1px;background:rgba(0,0,0,.08);font-size:0;line-height:0;">&nbsp;</div>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:16px 32px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#56565B;">
-            Har du inte försökt logga in på Prikko? Då kan du strunta i det här
-            mejlet. Ingen kommer in på ditt konto utan koden, och den är bara
-            skickad till dig.
+          <td style="padding:14px 32px 30px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#77777C;">
+            Har du inte försökt logga in? Strunta i det här mejlet. Ingen kommer
+            in på ditt konto utan koden, och den är bara skickad till dig.
           </td>
         </tr>
 
       </table>
+
+      <!-- Avsändaren utanför kortet. Ett mejl utan avsändarrad ser ut som
+           något automatiskt som ingen står bakom, och det är precis fel signal
+           för en tjänst som ber om förtroende. -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;">
+        <tr>
+          <td style="padding:18px 4px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8A8A8F;">
+            Prikko samlar kommunernas livsmedelskontroller.
+            <a href="https://prikko.se/" style="color:#8A8A8F;text-decoration:underline;">prikko.se</a>
+          </td>
+        </tr>
+      </table>
+
     </td>
   </tr>
 </table>

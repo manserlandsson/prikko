@@ -21,11 +21,19 @@
  *
  * ## Vad som räknas
  *
- * Utmärkelsen är den som redan finns i pipeline/prikko/grading.py: minst tre
- * kontroller inom treårsfönstret, samtliga utan anmärkning. Vi hittar inte på
- * något nytt kriterium här. Fältet `distinction` i datan är sanningen, och
- * skriptet räknar fram serien enbart för att kunna ORDNA listan, och stannar
- * om de två någonsin säger emot varandra.
+ * Två olika saker som är lätta att blanda ihop:
+ *
+ *   `distinction` i datan   Nuläget, satt av pipeline/prikko/grading.py: minst
+ *                           tre kontroller inom treårsfönstret, alla utan
+ *                           anmärkning. Det är chipet på verksamhetssidan.
+ *
+ *   Årsutgåvan              Kräver AWARD_RUN i följd, alltså mer. Se den
+ *                           konstanten för varför.
+ *
+ * Skriptet kontrollerar fortfarande att `distinction` betyder exakt tre i rad,
+ * och stannar om grading.py glider. Den vakten är kvar även när ribban för
+ * listan ligger högre, för den skyddar mot något annat: att pipelinen tyst
+ * ändrar vad chipet betyder.
  *
  * Kör:  node scripts/utmarkelser.mjs [år]
  */
@@ -41,6 +49,29 @@ const OUT = join(here, '..', 'src', 'editions');
 const WINDOW_DAYS = 3 * 365;
 /** Speglar HISTORY_DEPTH i samma modul. */
 const HISTORY_DEPTH = 3;
+
+/**
+ * Ribban för att stå i årsutgåvan. HÖGRE än pipelinens `distinction`.
+ *
+ * De två var samma sak fram till 2026 års utgåva, och då blev resultatet att
+ * 1 541 verksamheter fick utmärkelsen, varav 1 086 i Stockholm. Det är 38
+ * procent av Stockholms kontrollerade bestånd. En utmärkelse som drygt en
+ * tredjedel får är inte en utmärkelse, den är ett deltagandebevis.
+ *
+ * Fem i rad ger 148 i stället för 1 541.
+ *
+ * Varför en ribba och inte ett fast antal per kommun: ägaren bad om ungefär
+ * tre per kommun, och det går inte att härleda ur datan. Jönköping lämnar
+ * aldrig ut mer än tre kontroller per verksamhet, och 121 verksamheter där
+ * ligger på exakt tre. Att välja ut tre av 121 identiska hade betytt att vi
+ * sorterar på bokstavsordning och kallar det en bedömning. En ribba plockar
+ * ingen: den som når den står med, den som inte gör det står inte med.
+ *
+ * Priset är att kommuner som publicerar grunt får noll. Det är inte ett
+ * omdöme om deras verksamheter utan om deras utlämnande, och sidorna skriver
+ * ut skillnaden i klartext.
+ */
+const AWARD_RUN = 5;
 
 function minusDays(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -103,7 +134,10 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
 
     const recent = inWindow(e, asOf);
     if (recent.length > deepestWindow) deepestWindow = recent.length;
-    if (recent.length >= HISTORY_DEPTH) pool += 1;
+    /* Poolen mäts mot utgåvans ribba, inte mot pipelinens. Annars skulle
+       "av 310 kontrollerade tillräckligt många gånger klarade 0" räknas mot
+       ett tal som ingen av dem ens kunde tävla om. */
+    if (recent.length >= AWARD_RUN) pool += 1;
 
     const run = cleanRun(recent);
 
@@ -124,7 +158,10 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
           'glidit isär mellan grading.py och det här skriptet.',
       );
     }
-    if (!e.distinction) continue;
+    /* Här skiljer utgåvan ut sig från pipelinen. Spärren ovanför vaktar
+       fortfarande att `distinction` betyder tre i rad, så en glidning i
+       grading.py fångas. Men listan kräver AWARD_RUN. */
+    if (run < AWARD_RUN) continue;
 
     const series = recent.slice(0, run);
     qualified.push({
@@ -166,7 +203,7 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
      * serielängder inte jämförs mellan kommuner.
      */
     deepestWindow,
-    /** Verksamheter som kontrollerats minst tre gånger inom fönstret. */
+    /** Verksamheter som kontrollerats minst AWARD_RUN gånger inom fönstret. */
     pool,
     qualified,
   });
@@ -181,6 +218,10 @@ const edition = {
   /** Speglar MODEL_VERSION i grading.py vid frysningen. */
   windowDays: WINDOW_DAYS,
   historyDepth: HISTORY_DEPTH,
+  /* Ribban som gällde när utgåvan frystes. Skrivs ut i filen så att en gammal
+     utgåva går att läsa korrekt även om vi höjer eller sänker den senare: den
+     som slår upp 2026 ska få veta vad som krävdes 2026, inte vad som krävs nu. */
+  awardRun: AWARD_RUN,
   totals: {
     municipalities: municipalities.length,
     establishments: establishmentCount,
