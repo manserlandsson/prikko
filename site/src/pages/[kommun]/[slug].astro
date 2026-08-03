@@ -192,7 +192,11 @@ const description = `${answer} ${detail}`;
  * Talen är oförändrade. Det är etiketterna som slutar tillskriva dem fel part.
  */
 const facts = [
-  { label: 'Kontroller på adressen', value: String(stats.total),
+  /* "Kontroller" och inte "Kontroller på adressen". Den längre etiketten bröt
+     till två rader medan de tre andra fick plats på en, och rutan tappade sin
+     linje. Att räkningen gäller adressen och inte företaget står redan i
+     tipset, som är hela skälet till att tipset finns. */
+  { label: 'Kontroller', value: String(stats.total),
     tip: `Samtliga kontroller kommunen publicerar på den här adressen, från ${stats.oldestYear} och framåt. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller.` },
   { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
     color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
