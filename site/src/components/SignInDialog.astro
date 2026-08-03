@@ -442,6 +442,45 @@ import '../styles/konto.css';
     .code { gap: 6px; }
     .code input { width: 40px; height: 50px; }
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Mobil: ark mot underkanten, inte ruta i mitten                       */
+  /* ------------------------------------------------------------------ */
+  /*
+   * En centrerad ruta med ett fokuserat fält är fel på telefon. Tangentbordet
+   * tar halva skärmen, rutan trycks uppåt eller hamnar delvis under
+   * tangentbordet, och sidan hoppar när den öppnas och stängs. Det är samma
+   * skäl som gör att Airbnb, Google och alla andra lägger inloggningen mot
+   * underkanten på mobil.
+   *
+   * Arket är förankrat nedtill. Växer tangentbordet fram krymper arket uppåt
+   * i stället för att flytta sig, och fältet man skriver i står kvar.
+   *
+   * `dvh` och inte `vh`: vh räknar med adressfältet utfällt även när det är
+   * ihopdraget, så arket hade blivit högre än skärmen och sista raden hamnat
+   * utanför.
+   */
+  @media (max-width: 560px) {
+    .signin {
+      /* Fyller bredden och ligger mot underkanten. `margin: auto auto 0`
+         är det som skjuter dialogen dit; ett dialog-element centreras
+         annars av webbläsaren. */
+      width: 100%;
+      max-width: 100%;
+      margin: auto auto 0;
+      max-height: 92dvh;
+    }
+
+    .sheet {
+      width: 100%;
+      max-height: 92dvh;
+      overflow-y: auto;
+      border-radius: var(--r-card) var(--r-card) 0 0;
+      /* Under systemets svepfält på iPhone. Utan detta hamnar sista knappen
+         under strecket och går inte att träffa. */
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
 </style>
 
 <script>
@@ -526,8 +565,35 @@ import '../styles/konto.css';
      * webbläsaren ofta gör det själv räcker inte: gjorde vi det bara ibland
      * hade det blivit ibland.
      */
+    /*
+     * Låser sidan bakom rutan.
+     *
+     * showModal() gör bakgrunden oåtkomlig för fokus och klick, men INTE för
+     * rullning. På telefon betyder det att sidan glider omkring bakom arket
+     * medan man skriver, och på skrivbord försvinner rullningslisten när
+     * overflow sätts, vilket flyttar hela layouten några pixlar i sidled.
+     * Båda upplevs som att sidan "hoppar".
+     *
+     * padding-right kompenserar exakt den bredd rullningslisten hade. På
+     * telefon är den noll och raden gör ingenting.
+     */
+    let lockedScrollbar = '';
+
+    function lockPage() {
+      const gap = window.innerWidth - document.documentElement.clientWidth;
+      lockedScrollbar = document.body.style.paddingRight;
+      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function unlockPage() {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = lockedScrollbar;
+    }
+
     function finish(ok: boolean) {
       if (dialog!.open) dialog!.close();
+      unlockPage();
       const callback = done;
       const trigger = opener;
       done = null;
@@ -687,6 +753,7 @@ import '../styles/konto.css';
       opener = trigger;
       done = callback;
       goto('email');
+      lockPage();
       dialog.showModal();
       (emailStep.elements.namedItem('email') as HTMLInputElement).focus();
     });

@@ -53,6 +53,18 @@ const points = municipalityPoints();
     <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
     </svg>
+
+    {/* Avataren. Dold tills skriptet vet att någon är inloggad.
+
+        Bokstaven är e-postadressens första tecken, inte en gubbe. En generisk
+        siluett säger "någon är inloggad", en bokstav säger "DU är inloggad",
+        och skillnaden märks på en delad dator. Ingen bilduppladdning finns för
+        profiler, så alternativet hade varit samma siluett för alla.
+
+        aria-hidden: knappen heter redan Meny, och att skärmläsaren läser upp
+        en ensam bokstav efter det är brus. Vem man är står i klartext i
+        panelen, som är där man kan göra något åt det. */}
+    <span class="avatar" hidden data-avatar aria-hidden="true"></span>
   </summary>
 
   <div class="panel glass" data-panel>
@@ -177,6 +189,33 @@ const points = municipalityPoints();
    * gränsen för en fingertopp. En fylld yta hade vägt lika tungt som
    * wordmarken i andra änden av raden, och sidhuvudet ska vara lugnt.
    * Fyllningen kommer i stället vid hover, som en kvittens. */
+  /* Inloggad blir knappen ett piller med hamburgaren och avataren bredvid
+     varandra, som hos Airbnb. Utloggad är den en tom cirkel som förut.
+     Bredden får växa, höjden aldrig: sidhuvudet är 58 px och en knapp som
+     ändrar höjd skulle flytta wordmarken och sökfältet när man loggar in. */
+  .picker[data-signed-in] .trigger {
+    width: auto;
+    gap: 6px;
+    padding: 0 5px 0 10px;
+    border-radius: var(--r-pill);
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .avatar[hidden] { display: none; }
+
   .trigger {
     display: inline-flex;
     align-items: center;
@@ -533,12 +572,27 @@ const points = municipalityPoints();
       if (!configured) {
         box.hidden = true;
       } else {
+        const picker = document.querySelector<HTMLElement>('[data-picker]');
+        const avatar = document.querySelector<HTMLElement>('[data-avatar]');
+
         const paint = async () => {
           const authed = await signedIn();
           const user = authed ? currentUser() : null;
           signin.hidden = authed;
           out.hidden = !authed;
           who.textContent = user?.email ?? '';
+
+          /* Sidhuvudet ska visa att någon är inloggad utan att man behöver
+             öppna menyn för att få veta det. */
+          if (avatar) {
+            const letter = (user?.email ?? '').trim().charAt(0);
+            avatar.textContent = letter;
+            avatar.hidden = !authed || letter === '';
+          }
+          if (picker) {
+            if (authed) picker.dataset.signedIn = '';
+            else delete picker.dataset.signedIn;
+          }
         };
 
         signin.addEventListener('click', async () => {
