@@ -13,9 +13,15 @@
  * ── Kontrast ──────────────────────────────────────────────────────────────
  * Vit text ligger på ett foto, och ett foto kan innehålla vilken pixel som
  * helst. Scrimen är därför satt så att den GARANTERAR kontrasten oavsett
- * bild: i textzonen (nedre 45 %) är den minst 60 % svart. Värsta tänkbara
- * underlag är en helvit pixel, och 60 % svart över vitt ger #666666, vilket
- * är 5,74:1 mot vit text. Kravet är 4,5:1.
+ * bild: i nedre HALVAN är den minst 60 % svart. Värsta tänkbara underlag är
+ * en helvit pixel, och 60 % svart över vitt ger #666666, vilket är 5,74:1
+ * mot vit text. Kravet är 4,5:1.
+ *
+ * Rubrikblocket är mätt till 33 % av banderollens höjd räknat från
+ * underkanten vid full bredd, alltså med god marginal inom garantin. Flyttas
+ * det uppåt, eller växer det, måste antingen stoppen eller placeringen räknas
+ * om — 50 % från underkanten är gränsen, och redan vid 55 % ligger det på
+ * 3,95:1 och underkänt.
  *
  * Ingen text-shadow. Behöver vit text på foto en skugga är scrimen för svag,
  * och då ska scrimen ändras, inte texten.
