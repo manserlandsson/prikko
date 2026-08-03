@@ -28,7 +28,7 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
   >
     i
   </button>
-  <span class="bubble" id={id} role="tooltip">{text}</span>
+  <span class="bubble glass glass-dark" id={id} role="tooltip">{text}</span>
 </span>
 
 <style>
@@ -59,6 +59,14 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     color: var(--brand);
   }
 
+  /* Bubblan är ett svävande lager och bär därför sajtens glasyta: .glass för
+     oskärpa, kant och lyft, .glass-dark för den mörka fyllningen. Allt det
+     står i tokens.css. Här bor bara måtten.
+
+     Mörk och inte ljus, till skillnad från panelerna i sidhuvudet: tipset är
+     ett påpekande ovanpå en text, inte en yta att arbeta i, och ett ljust
+     glas hade smält ihop med sidan bakom. Radien är dessutom mindre än
+     --r-card. 12 px på en ruta som ofta är två rader hög blir en tablett. */
   .bubble {
     position: absolute;
     bottom: calc(100% + 8px);
@@ -67,21 +75,21 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     z-index: 20;
     width: max-content;
     max-width: 260px;
-    background: var(--text);
-    color: #fff;
     font-size: var(--fs-caption);
     line-height: 17px;
     font-weight: 400;
     text-transform: none;
     letter-spacing: 0;
     padding: 8px 10px;
-    border-radius: 8px;
-    box-shadow: var(--shadow-pop);
+    border-radius: 9px;
     opacity: 0;
     visibility: hidden;
     transition: opacity .12s ease;
   }
 
+  /* Pilen hämtar samma --glass-fill som bubblan, alltså även den solida
+     färgen när reservregeln slår till. Den kan inte sudda bakgrunden bakom
+     sig, men fem pixlar utan oskärpa syns inte mot en bubbla som har den. */
   .bubble::after {
     content: '';
     position: absolute;
@@ -89,7 +97,7 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-top-color: var(--text);
+    border-top-color: var(--glass-fill);
   }
 
   .wrap:hover .bubble,

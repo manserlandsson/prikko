@@ -98,7 +98,7 @@ const structuredData = jsonLd
   </head>
 
   <body>
-    <a href="#main" class="skip-link">Hoppa till innehåll</a>
+    <a href="#main" class="skip-link glass">Hoppa till innehåll</a>
     <Header />
     <main id="main">
       <slot />
@@ -118,15 +118,19 @@ const structuredData = jsonLd
     flex: 1;
   }
 
+  /* Hoppa-länken svävar över sidhuvudet när den får fokus och bär därför
+     samma glasyta som resten av lagren, via .glass i tokens.css. Den landar
+     i praktiken alltid över sidhuvudet, som är --card, så fyllningen blir
+     rent vit och länken lika läsbar som förut. Glaset syns här på kanten
+     och lyftet, inte på genomskinligheten. Radien är kontrollradien, inte
+     kortradien: det är en knappstor yta. */
   .skip-link {
     position: absolute;
     left: -9999px;
     top: 0;
     z-index: 100;
-    background: var(--card);
     padding: var(--s-3) var(--s-4);
     border-radius: var(--r-control);
-    box-shadow: var(--shadow-pop);
   }
 
   .skip-link:focus {

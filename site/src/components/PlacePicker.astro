@@ -52,7 +52,7 @@ const points = municipalityPoints();
     </svg>
   </summary>
 
-  <div class="panel" data-panel>
+  <div class="panel glass" data-panel>
     <p class="eyebrow head">Välj kommun</p>
 
     <div class="tools" hidden data-tools>
@@ -182,10 +182,12 @@ const points = municipalityPoints();
     color: var(--text-secondary);
   }
 
-  /* Det svävande lagret. Här — och bara här — får ytan vara genomskinlig:
-     inget av det som ligger under bär betydelse, och glaset markerar att
-     lagret ligger ovanpå sidan snarare än i den. Aldrig bakom brödtext och
-     aldrig bakom ett hygienbetyg, där kontrast går före effekt. */
+  /* Det svävande lagret. Ytan står i .glass i tokens.css: kant, fyllning,
+     oskärpa, lyft och reservregeln utan backdrop-filter. Sätt aldrig någon
+     av dem här: den här filen och SiteSearch hade var sin kopia av samma
+     yta, och två kopior glider isär.
+
+     Här bor bara panelens mått och layout. */
   .panel {
     position: absolute;
     top: calc(100% + var(--s-2));
@@ -206,22 +208,6 @@ const points = municipalityPoints();
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: var(--s-4);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: color-mix(in srgb, var(--card) 82%, transparent);
-    /* Skriv ALDRIG -webkit-backdrop-filter för hand här. Byggets
-       CSS-optimerare slår ihop de två deklarationerna och behåller bara
-       prefixvarianten, som Chrome inte känner igen — resultatet blir ett
-       halvgenomskinligt lager utan oskärpa, med sidans text läsbar rakt
-       igenom kommunnamnen. Låt verktyget sätta prefixen. */
-    backdrop-filter: saturate(180%) blur(24px);
-    box-shadow: var(--shadow-pop);
-  }
-
-  /* Ingen backdrop-filter → ogenomskinligt kort. Halvgenomskinligt utan
-     oskärpa är oläsligt, inte "nästan lika bra". */
-  @supports not (backdrop-filter: blur(1px)) {
-    .panel { background: var(--card); }
   }
 
   /* Rubriken, sökfältet och statusraden ska aldrig krympa när listan växer.
@@ -257,7 +243,10 @@ const points = municipalityPoints();
      de två kontroller som inte gör någonting utan skript. */
   .tools[hidden] { display: none; }
 
-  .tools input::placeholder { color: var(--text-muted); }
+  /* --ink-faint och inte --text-muted: fältet har en egen vit fyllning och
+     ligger alltså inte på glaset. Lagrets mörkare bläck hade gjort en
+     platshållare lika tung som en ifylld sökning. */
+  .tools input::placeholder { color: var(--ink-faint); }
 
   .locate {
     display: inline-flex;
@@ -270,14 +259,19 @@ const points = municipalityPoints();
     border-radius: var(--r-control);
     background: var(--card);
     font: 400 var(--fs-body-s)/1 var(--font-sans);
-    color: var(--brand);
+    /* Etiketten är --text, inte --brand. Knappen ligger i ett glaslager som
+       kan falla över en stadsbild, och --brand (#007BE0) ligger på 2,80:1
+       mot den ytan, och --brand-ink hjälper inte heller, den når 3,99:1. Blån
+       sitter kvar där den klarar sig: på ikonen, som är grafik bredvid en
+       läsbar etikett och inte ensam informationsbärare. */
+    color: var(--text);
     cursor: pointer;
   }
 
   .locate:hover { border-color: var(--brand); }
-  .locate:disabled { color: var(--text-muted); cursor: default; }
+  .locate:disabled { color: var(--text-secondary); cursor: default; }
 
-  .locate svg { width: 16px; height: 16px; }
+  .locate svg { width: 16px; height: 16px; color: var(--brand); }
 
   .message {
     margin-bottom: var(--s-3);

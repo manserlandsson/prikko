@@ -24,8 +24,15 @@
 
   /* Text */
   --text: #1D1D1F;
-  --text-secondary: #6E6E73;
-  --text-muted: #A1A1A6;
+  /* --text-secondary och --text-muted skrivs om inne i ett glaslager, se
+     .glass längre ned. --ink-quiet och --ink-faint gör det aldrig: de finns
+     för de få ställen som ligger på en ogenomskinlig yta inne i ett lager
+     och därför ska ha sajtens vanliga grå. Peka på dem bara när du vet att
+     ytan under är solid. */
+  --ink-quiet: #6E6E73;
+  --ink-faint: #A1A1A6;
+  --text-secondary: var(--ink-quiet);
+  --text-muted: var(--ink-faint);
   --hairline: rgba(0, 0, 0, .08);
 
   /* Bedömningsnivåer. Tre steg, speglar källdatan (Sambruk assessment 0/1/2).
@@ -80,6 +87,40 @@
      linje läses där ett lika stort fältskillnad inte gör det. */
   --shadow-sm: 0 0 0 1px var(--hairline), 0 1px 2px rgba(0, 0, 0, .05);
   --shadow-pop: 0 0 0 1px var(--hairline), 0 8px 30px rgba(0, 0, 0, .12);
+
+  /* Glas (Liquid Glass). Delarna av ytan; själva ytan är klassen .glass
+     längre ned. Ändra här, aldrig i en komponent.
+
+     Kanten är starkare än --hairline med flit. Ett glaslager mot vår egen
+     bakgrund har nästan ingenting att bryta mot: --canvas är #FCFCFD och
+     --card är #FFFFFF, tre RGB-steg isär, och en 82-procentig vit yta över
+     det ger en ruta som är omätbart ljusare än sidan under. Det som gör att
+     lagret läses som ett lager är alltså inte fyllningen utan kanten, lyftet
+     och glansen. Mer opacitet hade tagit bort glaset utan att lösa något. */
+  --glass-blur: 24px;
+  --glass-saturate: 180%;
+  --glass-edge: rgba(0, 0, 0, .10);
+  --glass-sheen: rgba(255, 255, 255, .55);
+  --glass-lift: 0 10px 34px rgba(0, 0, 0, .14);
+
+  /* Den tysta texten inne i ett glaslager. Mörkare än --text-secondary, och
+     det är räknat, inte tyckt.
+
+     Ett lager kan hamna över en stadsbild. Mätt över sajtens åtta heron är
+     den mörkaste fläck en 24-pixlars oskärpa kan ge rgb(14,18,10), i
+     Karlstads bild, i praktiken svart. En yta på 82 procent vitt över svart
+     kompositeras till #D1D1D1, och mot den ligger --text-secondary (#6E6E73)
+     på 3,32:1 och --text-muted (#A1A1A6) på 1,68:1. Båda under WCAG:s 4,5.
+
+     Lösningen är inte mer opacitet. Det hade krävt över 92 procent för att
+     rädda --text-secondary, och då är glaset borta. Lösningen är bläcket:
+     #56565B ligger på 4,78:1 mot #D1D1D1 och 7,30:1 mot vitt, alltså över
+     kravet mot varje tänkbar bakgrund lagret kan hamna över.
+
+     Inne i lagret finns därför två nivåer, inte tre. Den tredje bars av en
+     grå som inte gick att läsa där; hierarkin bärs i stället av storlek och
+     vikt, som klarar sig utan kontrast. */
+  --glass-ink-quiet: #56565B;
 
   /* Spacing (4px-grid) */
   --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
@@ -172,6 +213,67 @@ img, svg { max-width: 100%; height: auto; }
   background: var(--card);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-sm);
+}
+
+/* Det svävande lagret. Sajtens enda glasyta. Den låg kopierad i två filer
+   och hann glida isär en gång, därför bor den här nu.
+
+   VAR DEN FÅR LIGGA: bara på lager som svävar ovanpå sidan. Menyer, ark,
+   paneler, verktygstips. Apples eget Liquid Glass gör likadant; att lägga
+   det på innehåll vore inte mer Apple utan mindre.
+
+   VAR DEN ALDRIG FÅR LIGGA: bakom brödtext och bakom ett hygienbetyg.
+   Genomskinlighet sänker kontrasten, och betygen är det enda på sidan som
+   måste vara läsbart för alla. Inte heller på kort. Kommunkorten och
+   panelerna på verksamhetssidan är innehåll, inte svävande lager, och de
+   har .card.
+
+   Fyllningen går via --glass-fill och inte direkt i background, så att
+   reservregeln längst ned bara behöver byta ett värde, och så att en pil
+   eller ett hörn i en komponent kan hämta exakt samma färg. */
+.glass {
+  --glass-fill: color-mix(in srgb, var(--card) 82%, transparent);
+  /* Bläcket skrivs om på lagret självt och inte i en selektor per komponent.
+     Custom properties ärvs, så varje regel inne i lagret som redan säger
+     var(--text-secondary) eller var(--text-muted) får det nya värdet utan
+     att komponentens egen CSS behöver röras, och utan specificitetsbråk
+     med Astros scopade selektorer, som annars alltid vinner över en global
+     klass. Utanför lagret är tokens orörda. */
+  --text-secondary: var(--glass-ink-quiet);
+  --text-muted: var(--glass-ink-quiet);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r-card);
+  background: var(--glass-fill);
+  /* Skriv ALDRIG -webkit-backdrop-filter för hand. Byggets CSS-optimerare
+     slår ihop de två deklarationerna och behåller bara prefixvarianten, som
+     Chrome inte känner igen. Resultatet blir ett halvgenomskinligt lager
+     utan oskärpa, med sidans text läsbar rakt igenom panelens egen. Låt
+     verktyget sätta prefixen. */
+  backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
+  box-shadow: var(--glass-lift), inset 0 1px 0 var(--glass-sheen);
+}
+
+/* Mörk variant. Samma oskärpa, samma lyft, omvänd fyllning. Används där
+   lagret är litet och ska läsa som ett påpekande snarare än en yta att
+   arbeta i, alltså verktygstipsen. */
+.glass-dark {
+  --glass-fill: color-mix(in srgb, var(--text) 82%, transparent);
+  --glass-edge: rgba(255, 255, 255, .16);
+  --glass-sheen: rgba(255, 255, 255, .12);
+  /* Bläcket vänder med ytan. Mot den mörka fyllningens ljusaste utfall
+     (#464647, alltså över rent vitt) ligger vit text på 9,43:1 och den
+     tysta på 5,81:1. */
+  --text-secondary: rgba(255, 255, 255, .72);
+  --text-muted: rgba(255, 255, 255, .72);
+  color: #fff;
+}
+
+/* Ingen backdrop-filter → ogenomskinlig yta. Halvgenomskinligt utan oskärpa
+   är oläsligt, inte "nästan lika bra". En besökare i en gammal webbläsare
+   ska få en läsbar ruta, inte en trasig. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass { --glass-fill: var(--card); }
+  .glass-dark { --glass-fill: var(--text); }
 }
 
 .btn-primary {

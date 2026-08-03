@@ -96,7 +96,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     </button>
   </form>
 
-  <div class="panel" hidden data-panel>
+  <div class="panel glass" hidden data-panel>
     <p class="eyebrow head" id="site-search-head" data-head>Populära sökningar</p>
 
     <ul
@@ -213,7 +213,9 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   .go svg { width: 18px; height: 18px; }
 
   /* Samma svävande lager som platsväljaren bredvid. De två panelerna ligger
-     tio centimeter från varandra i sidhuvudet och måste läsa som syskon. */
+     tio centimeter från varandra i sidhuvudet och måste läsa som syskon,
+     numera garanterat, eftersom ytan står en gång i .glass i tokens.css i
+     stället för i en kopia per fil. Här bor bara mått och layout. */
   .panel {
     position: absolute;
     top: calc(100% + var(--s-2));
@@ -225,16 +227,6 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: var(--s-3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: color-mix(in srgb, var(--card) 82%, transparent);
-    /* Skriv aldrig -webkit-backdrop-filter för hand här — se PlacePicker. */
-    backdrop-filter: saturate(180%) blur(24px);
-    box-shadow: var(--shadow-pop);
-  }
-
-  @supports not (backdrop-filter: blur(1px)) {
-    .panel { background: var(--card); }
   }
 
   .head {
