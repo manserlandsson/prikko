@@ -22,8 +22,11 @@ egen adapter. Det är dyrt — och det är precis därför ingen byggt det här 
 | Höganäs | 310 | Öppet filarkiv | **Filnamn** | **Saknas** | **Nej** | **Nej** (bara i PDF) |
 | Svenljunga | 99 | Öppen webbsida | **PDF-rapporter** | **Saknas** | **Nej** | Ja i rapporten, ej utvinnbart |
 | Kristinehamn | 170 | ArcGIS REST | JSON + **PDF-bilagor** | SWEREF 99 13 30 | **Nej** — men kontrolltyp finns | Ja i rapporten, ej utvinnbart |
+| Borgholm | 406 | Öppen webbsida | **PDF-tabell** | **Saknas** | **Nej** — men kontrolltyp finns | **Ja, kodade enligt Livsmedelsverket** |
 
-Nästa att bygga: **Borgholm**, som kräver tolkning av en PDF-TABELL. Se R6. Västerås och Hallstahammar publicerar inte längre
+Alla källor R6 kartlade är nu inlästa. Kvar att bevaka: Hallstahammar och
+Västerås, vars kartor kan komma tillbaka, och Sjöbo, om kommunen städar sin
+HTML. Därefter tar de lätta källorna slut. Västerås och Hallstahammar publicerar inte längre
 trots vad deras egna sidor påstår, och Sjöbos HTML motsäger sig själv i 19 %
 av fallen — ingen av de tre är byggbar.
 
@@ -476,6 +479,61 @@ områdesnamnen skulle kräva en sluten ordlista källan inte håller sig till.
 
 Koordinaterna kommer i SWEREF 99 13 30 (EPSG:3008), samma zon som Karlstad,
 och samtliga 170 verksamheter får en kartnål. 103 har dessutom gatuadress.
+
+### Borgholm — 406 verksamheter i EN PDF-tabell, med kodade avvikelser
+```
+https://www.borgholm.se/resultat-livsmedelskontroller/
+https://www.borgholm.se/wp-content/uploads/2025/07/Kontrollresultat2025_v42.pdf
+```
+Två anrop för hela beståndet. Filnamnet är versionerat (`_v42`) och byts vid
+varje uppdatering, så länken skrapas ur sidan och hårdkodas aldrig.
+
+Utfall vid inläsningen: 406 anläggningar, 413 kontroller, 305 bedömda — 283
+utan anmärkningar, 17 med brister, 5 med kvarstående brister, 67
+kontrollområden, 1 oläst rad.
+
+Sex saker som avgjorde bygget:
+
+- **En PDF vet inget om tabeller.** Kolumnerna finns bara som x-positioner
+  och raderna som y-positioner. `pdf.py` fick därför `extract_blocks`, som
+  lämnar ut sida, x och y för varje textlöpa. Vad en x-position BETYDER
+  tolkas i adaptern — modulen kan omöjligt veta att 458 är avvikelsekolumnen.
+- **Ort, Typ och Namn skrivs bara när de ändras** och bärs vidare nedåt. En
+  verksamhet med tre kontroller står med sitt namn en gång och sina tre datum
+  under varandra. 94 verksamheter har mer än en kontroll, så källan har
+  historik.
+- **Radbrytningen inuti en cell bär information.** En cell som bryts mellan
+  två ord slutar med blanksteg, en som bryts mitt i ett ord gör det inte.
+  Utan den regeln blir "Bageri/ko" plus "nditori" antingen "Bageri/ko
+  nditori" eller "Äppelträdets Bed &Breakfast", och båda är fel. Regeln är
+  källans egen och ligger i `pdf.join_wrapped`.
+- **`EA` betyder att ingen kontroll utförts**, inte att den gick bra.
+  Kommunens egen läsanvisning säger det, och avvikelsekolumnen står ändå på
+  `0` för de raderna. 101 av 406 verksamheter har bara EA-rader och blir
+  obedömda. Samma fälla som Oskarshamns `Bedomning = null`.
+- **Avvikelserna är kodade enligt Livsmedelsverket** — `J03 – Hygien före,
+  under och efter processen` — alltså samma bokstavsindelning som sajtens
+  `LEGISLATION_AREAS`. Tio distinkta poster förekommer. Det är den enda av de
+  fem nya källorna som ger kontrollområden i strukturerad form.
+- **En cell kan bära flera poster staplade.** Är den SISTA posten `0` är det
+  senast kända läget utan avvikelser och koderna före har åtgärdats, vilket
+  ger samma utfall som Uppsalas "Avvikelse åtgärdad". Är den sista posten en
+  kod står avvikelsen kvar. Kontrollorsaken bär på samma sätt flera värden,
+  ibland kommaseparerade och ibland staplade utan avskiljare
+  (`PlaneradUppföljning avvikelser utan id`), och läses därför med nyckelord
+  i rangordning precis som i Jönköping.
+
+En rad har fått datumet utskrivet som kalkylbladstalet `45474`. Den hoppas
+över med utskrivet skäl; verksamheten (`Arnolds Delikatesser`) har två andra
+rader och bedöms på dem. Inga koordinater och ingen gatuadress publiceras,
+bara ort, så `geocode.py` kan inte ge Borgholm några kartnålar.
+
+Notera att Borgholm ser renare ut än alla andra inlästa kommuner: 283 av 305
+utan anmärkningar, alltså 93 procent. Tabellen redovisar 85 avvikelseposter
+på 593 kontrollposter, och en verksamhet vars uppföljning slutade på `0`
+räknas som ren. Det är källans egen sammanfattningsnivå, inte en mildare
+mappning, men skillnaden hör hemma på metodiksidan tillsammans med Lommas
+motsatta utslag.
 
 ## Kartlagd, ej inläst
 

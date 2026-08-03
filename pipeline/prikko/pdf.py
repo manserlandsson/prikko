@@ -13,9 +13,14 @@ standardbiblioteket, och de rapporter vi läser är genererade av ett
 ## Vad modulen gör, och inte gör
 
 Den plockar ut TEXT, i den ordning strängarna står i innehållsströmmen. Den
-gör INTE layoutanalys: den vet inget om kolumner, tabeller eller var på sidan
-en rad står. Det räcker för rapporter med löpande text och rubriker, och det
-räcker inte för en PDF vars innehåll bara går att förstå ur sin placering.
+gör INTE layoutanalys: den tolkar inte kolumner och slår inte ihop celler.
+Det räcker för rapporter med löpande text och rubriker, och det räcker inte
+för en PDF vars innehåll bara går att förstå ur sin placering.
+
+För det senare finns `extract_blocks`, som lämnar ut varje textlöpas SIDA, X
+och Y tillsammans med texten. Tolkningen av vad en x-position betyder hör
+hemma hos den som känner dokumentet — Borgholms tabell vet vilka sex
+kolumner den har, modulen kan omöjligt veta det.
 
 Tre begränsningar som är värda att känna till innan modulen återanvänds:
 
@@ -40,11 +45,20 @@ from __future__ import annotations
 
 import re
 import zlib
+from dataclasses import dataclass
 from typing import Dict, Iterator, List
 
-#: Objektets ordlista står mellan "N 0 obj" och "stream". Den behövs för att
-#: skilja innehållsströmmar från teckensnittsfiler och bilder.
-_OBJECT = re.compile(rb"\d+\s+\d+\s+obj\b(.{0,2000}?)\bstream\r?\n", re.S)
+#: Strömmens början. Ordlistan som beskriver den står strax före, mellan
+#: objektets `obj` och `stream`, och plockas ut genom att söka bakåt — se
+#: `_streams`. Att i stället matcha framåt från `obj` går inte: ett objekt
+#: utan ström (dokumentets katalog, till exempel) fångas då tillsammans med
+#: nästa objekts ström, och katalogens `/Metadata` får hela sidan att se ut
+#: som något annat än sidinnehåll.
+_STREAM = re.compile(rb"stream\r?\n")
+
+#: Så långt bakåt vi letar efter objektets ordlista. En sidordlista med
+#: teckensnitt och XObject blir sällan mer än ett par kilobyte.
+_HEADER_WINDOW = 3000
 
 #: Strömmar som inte är sidinnehåll. Ett inbäddat teckensnitt dekomprimeras
 #: utan problem och innehåller byten som ser ut som text — utan det här
@@ -110,7 +124,11 @@ def _unescape(raw: bytes) -> str:
 
 def _streams(document: bytes) -> Iterator[tuple]:
     """Ge (ordlista, uppackad ström) för varje Flate-packad ström."""
-    for match in _OBJECT.finditer(document):
+    for match in _STREAM.finditer(document):
+        window = document[max(0, match.start() - _HEADER_WINDOW):match.start()]
+        cut = window.rfind(b"obj")
+        header = window[cut:] if cut >= 0 else window
+
         start = match.end()
         end = document.find(b"endstream", start)
         if end < 0:
@@ -121,7 +139,7 @@ def _streams(document: bytes) -> Iterator[tuple]:
             # Okomprimerad, LZW-kodad eller trasig. Hellre ingen text än
             # slumpbyten som ser ut som text.
             continue
-        yield match.group(1), data
+        yield header, data
 
 
 def tounicode(document: bytes) -> Dict[int, str]:
@@ -183,6 +201,78 @@ def content_streams(document: bytes) -> Iterator[bytes]:
             yield data
 
 
+@dataclass(frozen=True)
+class Block:
+    """En textlöpa med sin plats på sidan.
+
+    `text` är RÅ: inledande och avslutande blanksteg är kvar. De bär
+    information i en tabell — en cell som bryts mitt i ett ord slutar utan
+    blanksteg, en som bryts mellan två ord slutar med. Utan den skillnaden
+    blir "Bageri/ko" plus "nditori" antingen "Bageri/ko nditori" eller
+    "Äppelträdets Bed &Breakfast", och båda är fel.
+    """
+
+    page: int
+    #: Textlöpans vänsterkant och baslinje i PDF-punkter. Y ökar UPPÅT, så en
+    #: rad längre ned på sidan har ett lägre värde.
+    x: float
+    y: float
+    text: str
+
+
+def extract_blocks(document: bytes) -> List[Block]:
+    """Läs ut varje textlöpa med sida, x, y och rå text.
+
+    Positionen kommer ur textmatrisen (`Tm`) och de relativa förflyttningarna
+    (`Td`, `TD`). Modulen tolkar inte vad positionen betyder — se modulens
+    inledning.
+    """
+    mapping = tounicode(document)
+    blocks: List[Block] = []
+
+    for page, data in enumerate(content_streams(document)):
+        numbers: List[float] = []
+        current = ""
+        x = y = 0.0
+
+        def flush() -> None:
+            nonlocal current
+            if current.strip():
+                blocks.append(Block(page=page, x=round(x, 1), y=round(y, 1),
+                                    text=current))
+            current = ""
+
+        for match in _TOKEN.finditer(data):
+            text, hexed, number, operator = match.groups()
+            if text is not None:
+                current += _unescape(text)
+                continue
+            if hexed is not None:
+                current += _from_hex(hexed, mapping)
+                continue
+            if number is not None:
+                numbers.append(float(number))
+                continue
+
+            if operator == b"Tm" and len(numbers) >= 6:
+                flush()
+                x, y = numbers[-2], numbers[-1]
+            elif operator in (b"Td", b"TD") and len(numbers) >= 2:
+                flush()
+                x += numbers[-2]
+                y += numbers[-1]
+            elif operator in _BREAKS:
+                flush()
+            elif operator in (b"TJ", b"Tj"):
+                # Kerningtalen inne i en TJ-array är inte förflyttningar.
+                pass
+            numbers = []
+
+        flush()
+
+    return blocks
+
+
 def extract_lines(document: bytes) -> List[str]:
     """Läs ut rapportens textrader, i den ordning de står i filen.
 
@@ -211,6 +301,17 @@ def extract_lines(document: bytes) -> List[str]:
         if collapsed:
             lines.append(collapsed)
     return lines
+
+
+def join_wrapped(parts: List[str]) -> str:
+    """Slå ihop en cells radbrutna löpor till en text.
+
+    En cell som bryts mellan två ord slutar med blanksteg, en som bryts mitt
+    i ett ord gör det inte. Regeln är alltså inte en gissning utan källans
+    egen: `"Bageri/ko" + "nditori"` blir `Bageri/konditori`, medan
+    `"Äppelträdets Bed & " + "Breakfast"` blir `Äppelträdets Bed & Breakfast`.
+    """
+    return " ".join("".join(parts).split())
 
 
 def extract_text(document: bytes) -> str:
