@@ -14,8 +14,10 @@ import Base from '../layouts/Base.astro';
 import CommonIssues from './CommonIssues.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import FaceMark from './FaceMark.astro';
+import FollowUpRate from './FollowUpRate.astro';
 import KommunBanner from './KommunBanner.astro';
 import Pagination from './Pagination.astro';
+import Uncovered from './Uncovered.astro';
 import VerdictBar from './VerdictBar.astro';
 import {
   formatDate,
@@ -27,7 +29,7 @@ import {
   type Establishment,
   type Municipality,
 } from '../lib/data';
-import { kommunProfil, recentlyInspected } from '../lib/kommunprofil';
+import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -52,20 +54,34 @@ const base = `/${kommun.slug}`;
 const remarks = counts.minor + counts.major;
 
 // Vissa kommuner lämnar ut så lite att modellen aldrig kan nå alla utfall.
-// Då är en nolla i tabellen ovan ett besked om källan, inte om verksamheterna,
-// och det måste stå på den sida där siffran visas. Se sourceLimits i data.ts.
+// Då är en nolla i stapeln nedan ett besked om källan, inte om verksamheterna,
+// och det måste stå på den sida där siffran visas. `distributionNote` och inte
+// `note`: bara utfall stapeln faktiskt visar hör hemma här. Utmärkelsen syns
+// inte på den här sidan, och en mening om att den är onåbar hade infört ett
+// begrepp bara för att meddela att det saknas. Se sourceLimits i data.ts.
 const limits = sourceLimits(kommun.slug);
 
-// Kategorierna. Filtret är länkar till egna sidor, inte kryssrutor: sajten
-// kör inget JavaScript, och listan är dessutom sidindelad — en kryssruta hade
-// bara nått de hundra raderna på just den här sidan. Se KategoriHub.astro.
-//
-// Kategorier utan egen sida visas ändå, med sin siffra men utan länk. Antingen
-// är de för små för att förtjäna en URL, eller så kan kommunens källa inte
-// skilja dem åt. I det andra fallet står det VARFÖR: ett filter som inte finns
-// ljuger inte, men ett filter som ger noll träffar gör det.
-const categories = currentPage === 1 ? municipalityCategories(kommun.slug) : null;
-const categoryNotes = categories?.slices.map((s) => s.note).filter((n): n is string => n !== null) ?? [];
+/*
+ * Kategorierna. Filtret är länkar till egna sidor, inte kryssrutor: sajten kör
+ * inget JavaScript, och listan är dessutom sidindelad — en kryssruta hade bara
+ * nått de hundra raderna på just den här sidan. Se KategoriHub.astro.
+ *
+ * Bara kategorier kommunen faktiskt har verksamheter i visas, och bara i
+ * kommuner där filtret kan filtrera. Här stod tidigare ett chip per kategori
+ * även när det var tomt, plus en mening under filtret som förklarade varför
+ * det var tomt. "Caféer 0" i Uppsala är inte en tom hylla utan ett felaktigt
+ * besked, och förklaringen under var en rättelse av ett påstående sidan själv
+ * hittat på. Se municipalityCategories i data.ts.
+ */
+const cats = currentPage === 1 ? municipalityCategories(kommun.slug) : null;
+const categories = cats?.usable ? cats : null;
+
+/*
+ * Kommunens två egna insikter. Båda är påståenden om KOMMUNEN och aldrig om en
+ * namngiven verksamhet, vilket är vad som gör dem trygga att publicera.
+ */
+const record = currentPage === 1 ? followUpRecord(kommun.slug) : null;
+const unassessed = currentPage === 1 ? unseen(kommun.slug) : null;
 
 /**
  * Sida 1 bär kommunens profil. Sidorna 2 och framåt är fortsättningen på ett
@@ -169,9 +185,10 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
               remarksHref={remarks > 0 ? path(base, 'anmarkningar') : undefined}
             />
 
-            {limits.note && (
+            {limits.distributionNote && (
               <p class="limits">
-                {limits.note} <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
+                {limits.distributionNote}{' '}
+                <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
               </p>
             )}
 
@@ -182,6 +199,10 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 city={city}
               />
             )}
+
+            <FollowUpRate record={record} city={city} />
+
+            {unassessed && <Uncovered unseen={unassessed} city={city} />}
 
             {remarks > 0 && (
               <p class="jump">
@@ -199,7 +220,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           <section class="filter" aria-labelledby="kategorier">
             <h2 id="kategorier">Verksamheter efter typ</h2>
             <ul class="chips">
-              {categories.slices.map(({ category, count, linked }) =>
+              {categories.shown.map(({ category, count, linked }) =>
                 linked ? (
                   <li>
                     <a href={path(base, 'kategori', category.slug)} class="chip">
@@ -208,9 +229,9 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                   </li>
                 ) : (
                   <li>
-                    {/* Ingen länk. En kategori med en handfull verksamheter, eller
-                        ingen alls, förtjänar ingen egen URL — men siffran ska stå
-                        där ändå, annars ser summan ut som hela kommunen. */}
+                    {/* Ingen länk. En kategori med en handfull verksamheter
+                        förtjänar ingen egen URL — men siffran är sann och står
+                        kvar. */}
                     <span class="chip off">
                       {category.name} <span class="n">{formatNumber(count)}</span>
                     </span>
@@ -218,13 +239,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 ),
               )}
             </ul>
-
-            {(categoryNotes.length > 0 || categories.gapNote) && (
-              <div class="notes">
-                {categoryNotes.map((note) => <p>{note}</p>)}
-                {categories.gapNote && <p>{categories.gapNote}</p>}
-              </div>
-            )}
           </section>
         )}
 
@@ -388,20 +402,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     font-variant-numeric: tabular-nums;
     opacity: 0.7;
   }
-
-  .notes {
-    margin-top: var(--s-4);
-    padding-left: var(--s-4);
-    border-left: 3px solid var(--verdict-none);
-  }
-
-  .notes p {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  .notes p + p { margin-top: var(--s-2); }
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {

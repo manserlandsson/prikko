@@ -1,0 +1,142 @@
+---
+/**
+ * Ledde återbesöken till åtgärd, i kommunen?
+ *
+ * Hubbens andra egentliga insikt, vid sidan av vad som brister oftast. Den
+ * svarar på något ingen enskild verksamhetssida kan svara på och som ingen
+ * annan svensk sajt publicerar: när kommunen väl kommer tillbaka, är det då
+ * åtgärdat?
+ *
+ * Talet är en summa av per-verksamhetsutfall och inte starkare än varje
+ * enskilt utfall. Det är därför nämnaren är byggd som den är: varje rad i den
+ * är TVÅ KONKRETA KONTROLLER på samma adress med veckor emellan, inte en
+ * summering av en verksamhets historia över år. Se followUpRecord() i
+ * kommunprofil.ts och followUp() i data.ts.
+ *
+ * Kommuner utan underlag får ingen ruta, inte en tom sådan.
+ */
+import InfoTip from './InfoTip.astro';
+import { formatNumber } from '../lib/data';
+import type { FollowUpRecord } from '../lib/kommunprofil';
+
+interface Props {
+  record: FollowUpRecord | null;
+  city: string;
+}
+
+const { record: r, city } = Astro.props;
+---
+
+{r && (
+  <section class="rate" aria-labelledby="uppfoljning">
+    <h2 id="uppfoljning">
+      Ledde återbesöken till åtgärd i {city}?
+      <InfoTip
+        label="återbesöken"
+        text="Räknat per verksamhet. Varje fall är två kontroller på samma adress med veckor emellan: en som noterade brister och en uppföljning. Utfallet är kommunens egen anteckning eller bedömning av uppföljningen, aldrig vår slutsats."
+      />
+    </h2>
+
+    <p class="answer">
+      Kommunen följde upp en anmärkning hos <b>{formatNumber(r.total)}</b> verksamheter.
+      Vid <b>{formatNumber(r.resolved)}</b> av dem fanns inget kvar att anmärka på när
+      inspektören kom tillbaka.
+    </p>
+
+    {/* Neutral stapel. Andelen står i klartext bredvid, så stapeln bär ingen
+        egen information — och bedömningens grön, gul och röd betyder något och
+        får inte lånas ut till dekor. */}
+    <div class="meter" role="img" aria-label={`${r.share} procent av ${formatNumber(r.total)} uppföljningar utan kvarstående anmärkning`}>
+      <span style={`width:${r.share}%`}></span>
+    </div>
+
+    <ul class="split">
+      <li>
+        <b>{formatNumber(r.resolved)}</b>
+        <span>utan kvarstående anmärkning</span>
+      </li>
+      <li>
+        <b>{formatNumber(r.remaining)}</b>
+        <span>där något kvarstod</span>
+      </li>
+    </ul>
+
+    <p class="caveat caption text-secondary">
+      Talet går inte att ställa mot en annan kommuns: källorna redovisar
+      uppföljningen på olika sätt.
+      {' '}<a href="/metodik/#jamfor">Varför vi inte rangordnar kommuner</a>.
+    </p>
+  </section>
+)}
+
+<style>
+  .rate {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .rate h2 {
+    display: flex;
+    align-items: center;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .answer {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .answer b {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .meter {
+    display: block;
+    height: 8px;
+    border-radius: 4px;
+    margin-top: var(--s-4);
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .meter > span {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--text);
+  }
+
+  .split {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--s-3) var(--s-4);
+    margin: var(--s-3) 0 0;
+    padding: 0;
+  }
+
+  .split b {
+    display: block;
+    font-size: 21px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .split span {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .caveat { margin-top: var(--s-4); }
+</style>

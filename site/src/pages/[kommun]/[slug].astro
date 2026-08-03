@@ -415,8 +415,11 @@ const breadcrumbs = {
             <li><a href={path(kommun.slug)}>Alla hygienkontroller i {kommun.city}</a></li>
             {ownCategories.map((s) => (
               <li>
+                {/* `short` och inte `plural`: Övrigts plural är "verksamheter",
+                    och "Alla verksamheter i Uppsala" läses som hela kommunen —
+                    alltså samma sak som länken raden ovanför. */}
                 <a href={path(kommun.slug, 'kategori', s.category.slug)}>
-                  Alla {s.category.plural} i {kommun.city}
+                  Alla {s.category.short} i {kommun.city}
                 </a>
               </li>
             ))}

@@ -1,0 +1,199 @@
+---
+/**
+ * Ledde uppföljningen till åtgärd?
+ *
+ * Sidans enda framåtblickande besked. Allt annat på en verksamhetssida svarar
+ * på "vad hittade kommunen", och det är ett ögonblick. Det här svarar på vad
+ * som HÄNDE sedan, vilket är den fråga en besökare faktiskt har: alla får en
+ * anmärkning emellanåt, frågan är om stället rättade till den.
+ *
+ * Blocket är byggt för att tåla att en namngiven företagare ringer. Det säger
+ * ingenting om verksamhetens historia, ingenting om ägare, ingenting om
+ * mönster. Det ställer TVÅ KONKRETA KONTROLLER bredvid varandra, båda med
+ * datum, och återger vad kommunen skrev vid den senare. Se followUp() i
+ * data.ts för varför just den formen är den enda som håller.
+ *
+ * Vi drar aldrig slutsatsen själva. Antingen har kommunen märkt raderna
+ * "Åtgärdad" och "Kvarstår" — då står kommunens ord här — eller så har
+ * kommunen satt en bedömning på återbesöket, och då står den. Läsaren drar
+ * slutsatsen.
+ *
+ * Visas bara när det finns ett utfall. En verksamhet utan uppföljning får
+ * ingen tom rubrik som antyder att vi letat och hittat något.
+ */
+import InfoTip from './InfoTip.astro';
+import {
+  ASSESSMENT_COLOR,
+  ASSESSMENT_LABEL,
+  FOLLOW_UP_DAYS,
+  INSPECTION_TYPE_LABEL,
+  formatDate,
+  type FollowUp,
+} from '../lib/data';
+
+interface Props {
+  followUp: FollowUp | null;
+  /** Kommunens formella namn. Utfallet tillskrivs den, aldrig oss. */
+  kommun: string;
+}
+
+const { followUp: f, kommun } = Astro.props;
+
+const brist = (n: number) => (n === 1 ? 'brist' : 'brister');
+const avvikelse = (n: number) => (n === 1 ? 'avvikelse' : 'avvikelser');
+
+/**
+ * Får kontrollen före stå med?
+ *
+ * Bara när den faktiskt hade något att följa upp och ligger nära nog i tiden
+ * för att uppföljningen ska handla om just den. I den härledda formen är det
+ * redan ett villkor för att blocket alls finns; i den explicita kan kommunens
+ * uppmärkning gälla en äldre kontroll, och då visas bara besöket självt.
+ */
+const pair =
+  f !== null &&
+  f.before !== null &&
+  f.raised > 0 &&
+  f.days !== null &&
+  f.days <= FOLLOW_UP_DAYS;
+
+let answer = '';
+if (f && f.explicit) {
+  /*
+   * Kommunens egen uppmärkning på kontrollraderna.
+   *
+   * Substantivet står i den första leden och underförstås i den andra, så
+   * uppräkningen måste veta om den är först. Utan det blev meningen
+   * "antecknade Örebro kommun 3 som kvarstående" när ingenting var åtgärdat.
+   */
+  const parts: string[] = [];
+  if (f.fixed > 0) {
+    parts.push(`${f.fixed} ${brist(f.fixed)} som ${f.fixed === 1 ? 'åtgärdad' : 'åtgärdade'}`);
+  }
+  if (f.persisting > 0) {
+    parts.push(
+      parts.length > 0
+        ? `${f.persisting} som kvarstående`
+        : `${f.persisting} ${brist(f.persisting)} som kvarstående`,
+    );
+  }
+  answer =
+    `Vid återbesöket den ${formatDate(f.visit.date)} antecknade ${kommun} ` +
+    `${parts.join(' och ')}.`;
+  if (f.persisting === 0) answer += ' Ingen brist antecknades som kvarstående.';
+} else if (f) {
+  // Kommunens egen bedömning av återbesöket.
+  const outcome =
+    f.visit.assessment === 0
+      ? 'noterade inga anmärkningar'
+      : f.visit.assessment === 1
+        ? 'noterade anmärkningar igen'
+        : 'fann brister som kvarstod';
+  answer =
+    `${f.raised} ${avvikelse(f.raised)} noterades vid kontrollen den ` +
+    `${formatDate(f.before!.date)}. ${kommun} kom tillbaka ${f.days} ` +
+    `${f.days === 1 ? 'dag' : 'dagar'} senare, den ${formatDate(f.visit.date)}, ` +
+    `och ${outcome}.`;
+}
+---
+
+{f && (
+  <section class="followup">
+    <div class="head">
+      <h2>
+        Ledde uppföljningen till åtgärd?
+        <InfoTip
+          label="uppföljningen"
+          text="Två kontroller på den här adressen, med veckor emellan: en som noterade brister och en uppföljning. Utfallet är kommunens egen anteckning, inte vår slutsats. Att kontrollerna ligger nära i tid är skälet till att beskedet går att lita på — det handlar om samma verksamhet, till skillnad från jämförelser över flera år."
+        />
+      </h2>
+    </div>
+
+    <p class="answer">{answer}</p>
+
+    <ol class="steps">
+      {pair && (
+        <li>
+          <span class="dot" style={`background: ${ASSESSMENT_COLOR[f.before!.assessment]}`}></span>
+          <span class="cell">
+            <b>{formatDate(f.before!.date)}</b>
+            <span class="text-secondary">
+              {INSPECTION_TYPE_LABEL[f.before!.type]} · {f.raised} {avvikelse(f.raised)}
+            </span>
+          </span>
+        </li>
+      )}
+      <li>
+        <span class="dot" style={`background: ${ASSESSMENT_COLOR[f.visit.assessment]}`}></span>
+        <span class="cell">
+          <b>{formatDate(f.visit.date)}</b>
+          <span class="text-secondary">
+            {INSPECTION_TYPE_LABEL[f.visit.type]}
+            {f.explicit && f.fixed > 0 && <> · {f.fixed} åtgärdad{f.fixed === 1 ? '' : 'e'}</>}
+            {f.explicit && f.persisting > 0 && <> · {f.persisting} kvarstår</>}
+            {!f.explicit && <> · {ASSESSMENT_LABEL[f.visit.assessment]}</>}
+          </span>
+        </span>
+      </li>
+    </ol>
+
+    {/* text-secondary, inte text-muted. Uträknat: --text-secondary ligger på
+        5,07:1 mot --card och klarar WCAG 1.4.3, medan --text-muted ligger på
+        2,57:1 och inte gör det vid 13 px. */}
+    <p class="whose caption text-secondary">
+      {f.explicit
+        ? `Åtgärdat och kvarstående är ${kommun}s egen uppmärkning på kontrollrapporten.`
+        : `Utfallet är ${kommun}s egen bedömning av återbesöket.`}
+    </p>
+  </section>
+)}
+
+<style>
+  .head h2 { display: flex; align-items: center; }
+
+  .answer {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Två steg, inte ett diagram. Poängen med blocket är att man SER att det
+     bara är två kontroller — det är därför beskedet håller. En sammanslagen
+     rad hade dolt just det. */
+  .steps {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .steps li {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Färgen är bedömningens egen och betyder här precis vad den betyder i
+     kontrollhistoriken. Prickens innebörd står dessutom i text bredvid. */
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    align-self: center;
+  }
+
+  .cell b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cell span { font-size: var(--fs-caption); }
+
+  .whose { margin-top: var(--s-3); }
+</style>

@@ -27,9 +27,7 @@ import {
   TOP_CATEGORIES,
   assertKnown,
   classify,
-  coverageGaps,
   noteUnknown,
-  rawValues,
   scheduleUnknownLog,
   subCategory,
   subCategoryBySlug,
@@ -537,6 +535,125 @@ export function deviations(inspection: Inspection): ControlArea[] {
 }
 
 // ---------------------------------------------------------------------------
+// Uppföljningen
+// ---------------------------------------------------------------------------
+
+/**
+ * Längsta avstånd mellan en kontroll och det återbesök vi låter höra ihop med
+ * den.
+ *
+ * Mätt i beståndet. Av de 14 582 återbesök som har en föregående kontroll
+ * ligger fjärdedelen på fyra dagar, medianen på 24 och tre fjärdedelar inom
+ * 111. Vid 180 dagar är 81 procent med. Svansen därefter är inte uppföljningar
+ * av kontrollen före: Örebros nittionde percentil ligger på 723 dagar, alltså
+ * två år, och ett besök två år senare svarar inte på om just den bristen
+ * rättades.
+ *
+ * Gränsen används bara för att avgöra vilka två kontroller som får ställas
+ * bredvid varandra. Ingenting härleds ur själva avståndet.
+ */
+export const FOLLOW_UP_DAYS = 180;
+
+export interface FollowUp {
+  /** Återbesöket, eller den kontroll där utfallet antecknades. */
+  visit: Inspection;
+  /** Kontrollen som bristerna noterades vid, när den går att peka ut. */
+  before: Inspection | null;
+  /** Antal brister vid `before`. Noll när `before` saknas. */
+  raised: number;
+  /** Brister kommunen uttryckligen antecknat som åtgärdade vid `visit`. */
+  fixed: number;
+  /** Brister kommunen uttryckligen antecknat som kvarstående vid `visit`. */
+  persisting: number;
+  /**
+   * Sant när kommunen SJÄLV märker upp åtgärdat eller kvarstående på
+   * kontrollraden. Då är utfallet kommunens ord, inte vår slutsats.
+   */
+  explicit: boolean;
+  /** Dagar mellan `before` och `visit`, eller null när `before` saknas. */
+  days: number | null;
+}
+
+/**
+ * Ledde uppföljningen till åtgärd?
+ *
+ * Det här är den enda insikt sajten kan bygga som varken summerar över tid
+ * eller över kommungränser. Den handlar om TVÅ KONKRETA KONTROLLER på samma
+ * adress, några veckor isär: kommunen påpekade något, kom tillbaka, och
+ * antecknade vad den då såg. Ett ägarbyte hinner i praktiken inte ske i det
+ * fönstret, och även om det gjorde det är påståendet fortfarande sant — det
+ * säger vad kommunen antecknade vid ett besök, inte vem som drev stället.
+ *
+ * Två former, i fallande styrka:
+ *
+ * 1. EXPLICIT. Källan märker kontrollraderna "Åtgärdad" respektive "Kvarstår".
+ *    Linköping, Örebro, Uppsala och Borgholm gör det. Då behövs ingen
+ *    hopparning alls: en enda kontrollrapport bär både bristen och utfallet,
+ *    och vi återger kommunens egen uppmärkning. Noll inferens.
+ *
+ * 2. HÄRLEDD. Källan saknar den uppmärkningen, men märker kontrollen som
+ *    återbesök. Stockholm är fallet. Då ställs återbesöket bredvid kontrollen
+ *    före, och utfallet läses ur ÅTERBESÖKETS EGEN BEDÖMNING — kommunens
+ *    tresteg 0/1/2 på just det besöket.
+ *
+ * Att läsa utfallet ur bedömningen och inte ur frånvaron av avvikelserader är
+ * avgörande. 3 495 av Stockholms 3 603 återbesök redovisar inga
+ * kontrollpunkter alls, eftersom Stockholm sällan lämnar ut dem. Hade vi läst
+ * "inga rader" som "bristen borta" hade 341 återbesök som kommunen själv
+ * bedömt till en etta räknats som åtgärdade. Frånvaro av rader är inte ett
+ * besked; bedömningen är det.
+ *
+ * Returnerar det SENASTE utfallet i historiken, eller null när inget finns.
+ * Utan block är sidan tyst: en verksamhet utan uppföljning ska inte få en
+ * rubrik som antyder att vi letat och hittat något.
+ */
+export function followUp(e: Establishment): FollowUp | null {
+  const ins = e.inspections;
+
+  for (let k = 0; k < ins.length; k += 1) {
+    const visit = ins[k];
+    const before = ins[k + 1] ?? null;
+    const days = before ? Math.round(daysBetween(visit.date, before.date)) : null;
+    const raised = before ? before.areas.filter(isRemark).length : 0;
+
+    let fixed = 0;
+    let persisting = 0;
+    for (const area of visit.areas) {
+      if (area.status === 'fixed') fixed += 1;
+      else if (area.status === 'persisting') persisting += 1;
+    }
+
+    /*
+     * 1. Kommunens egen uppmärkning, på ett besök som ÄR ett återbesök.
+     *
+     * Kravet på kontrolltyp hör hit trots att uppmärkningen står på egna ben.
+     * Uppsala sätter "Kvarstår" även på planerade kontroller, och då betyder
+     * det att bristen levt kvar sedan ett tidigare besök som kan ligga år
+     * tillbaka. Det är ett annat påstående än det här blocket gör — det ärver
+     * anläggningsproblemet, eftersom "sedan förra gången" kan spänna över ett
+     * ägarbyte — och rubriken "Ledde uppföljningen till åtgärd?" hade dessutom
+     * varit falsk på en kontroll som ingen följt upp något med.
+     */
+    if (visit.type === 1 && (fixed > 0 || persisting > 0)) {
+      return { visit, before, raised, fixed, persisting, explicit: true, days };
+    }
+
+    // 2. Ett äkta återbesök på en kontroll som faktiskt hade något att följa upp.
+    if (
+      visit.type === 1 &&
+      before &&
+      raised > 0 &&
+      days !== null &&
+      days <= FOLLOW_UP_DAYS
+    ) {
+      return { visit, before, raised, fixed: 0, persisting: 0, explicit: false, days };
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Kommunens sammanräkning
 // ---------------------------------------------------------------------------
 
@@ -632,8 +749,32 @@ export interface SourceLimits {
   distinctionPossible: boolean;
   /** Kan modellen alls härleda kvarstående brister i kommunen? */
   persistingPossible: boolean;
-  /** Notis i klarspråk, eller null när källan inte begränsar något. */
+  /**
+   * Fullständig notis i klarspråk, eller null.
+   *
+   * Sätts BARA när källan stänger ute ett av modellens utfall. Att en kommun
+   * lämnar ut kortare historik än en annan är i sig ingen upplysning: inget
+   * blir fel av det, och en mening om saken är då bara en ursäkt.
+   *
+   * Hör hemma på /metodik, där modellens utfall är beskrivna. Se
+   * `distributionNote` för den som får stå på kommunsidan.
+   */
   note: string | null;
+  /**
+   * Notisen som hör hemma intill fördelningsstapeln på kommunhubben.
+   *
+   * Skiljer sig från `note` genom att bara nämna utfall besökaren FAKTISKT SER
+   * en nolla för på just den sidan. Stapeln visar bedömningsnivåerna, alltså
+   * även ”Brister som kvarstår”. Den visar inte utmärkelsen för genomgående
+   * skötsamhet.
+   *
+   * Karlstad är fallet som visade skillnaden. Hubben skrev tidigare ut att
+   * ingen verksamhet där kan nå utmärkelsen — ett begrepp sidan aldrig nämner
+   * någon annanstans, infört enbart för att meddela att det inte finns.
+   * Samtidigt stod 35 verksamheter under ”Brister som kvarstår” några rader
+   * ovanför, så ingenting på sidan kunde missförstås. Kvar blev en ursäkt.
+   */
+  distributionNote: string | null;
 }
 
 const limitsCache = new Map<string, SourceLimits>();
@@ -699,9 +840,13 @@ export function sourceLimits(slug: string): SourceLimits {
 
   let maxHistory = 0;
   let typedInspections = 0;
+  let statedPersisting = 0;
   for (const e of all) {
     if (e.inspections.length > maxHistory) maxHistory = e.inspections.length;
-    for (const i of e.inspections) if (i.type !== 0) typedInspections += 1;
+    for (const i of e.inspections) {
+      if (i.type !== 0) typedInspections += 1;
+      if (i.assessment === 2) statedPersisting += 1;
+    }
   }
 
   const noInspectionType = typedInspections === 0;
@@ -710,12 +855,21 @@ export function sourceLimits(slug: string): SourceLimits {
   // historiken till så många kontroller kan ingen få den.
   const distinctionPossible = maxHistory >= HISTORY_DEPTH;
 
-  // Kvarstående brister härleds ur två tecken: senaste kontrollen är ett
-  // återbesök, eller föregående kontroll hade också avvikelser. Saknas både
-  // kontrolltyp och en föregående kontroll finns inget av tecknen.
-  const persistingPossible = !noInspectionType || maxHistory >= 2;
+  /*
+   * Kvarstående brister härleds ur två tecken: senaste kontrollen är ett
+   * återbesök, eller föregående kontroll hade också avvikelser. Saknas båda
+   * finns inget av tecknen — MEN källan kan också säga det rakt ut.
+   *
+   * Lomma är fallet som visade att villkoret var för snävt. Kommunen
+   * publicerar en enda kontroll per verksamhet och märker ingen som återbesök,
+   * så de två strukturella tecknen saknas. Ändå har två verksamheter nivån
+   * "Brister som kvarstår", eftersom Lommas egen bedömning på kontrollen är en
+   * tvåa. Sidan skrev alltså ut att ingen kunde nå nivån, med de två som nått
+   * den synliga i samma stapel några rader ovanför.
+   */
+  const persistingPossible =
+    !noInspectionType || maxHistory >= 2 || statedPersisting > 0;
 
-  // Kommuner som lämnar ut mer än modellens fönster begränsar ingenting.
   const causes: string[] = [];
   if (maxHistory <= 1) {
     causes.push('publicerar bara den senaste kontrollen');
@@ -726,27 +880,38 @@ export function sourceLimits(slug: string): SourceLimits {
   }
   if (noInspectionType) causes.push('anger inte om en kontroll är ett återbesök');
 
-  let note: string | null = null;
-  if (causes.length > 0) {
-    const missing: string[] = [];
-    if (!distinctionPossible) missing.push('utmärkelsen för genomgående skötsamhet');
-    if (!persistingPossible) missing.push('nivån ”Brister som kvarstår”');
+  /*
+   * Notisen sätts bara när ett utfall är OMÖJLIGT.
+   *
+   * Här stod tidigare också en andra mening för kommuner vars historik råkar
+   * vara grund utan att stänga ute något: "Historiken är alltså precis så djup
+   * som modellen väger in, och kortare än i de flesta andra kommuner." Den
+   * förklarade ingenting man kunde se. Höganäs och Jönköping bar den, och i
+   * båda kommunerna kan varje utfall nås — inga nollor att missförstå, alltså
+   * inget att förklara. Kvar blev en ursäkt överst på sidan.
+   *
+   * Regeln: en frånvaro som kan MISSFÖRSTÅS förklaras, en frånvaro som bara är
+   * en frånvaro är tyst.
+   */
+  const write = (missing: string[]) =>
+    missing.length > 0 && causes.length > 0
+      ? `${name} ${joinSv(causes)}. Därför kan ingen verksamhet här nå ${joinSv(missing)}, ` +
+        'hur kontrollerna än ser ut. Frånvaron säger något om vad kommunen lämnar ut, ' +
+        'inte om verksamheterna.'
+      : null;
 
-    note =
-      missing.length > 0
-        ? `${name} ${joinSv(causes)}. Därför kan ingen verksamhet här nå ${joinSv(missing)}, ` +
-          'hur kontrollerna än ser ut. Frånvaron säger något om vad kommunen lämnar ut, ' +
-          'inte om verksamheterna.'
-        : `${name} ${joinSv(causes)}. Historiken är alltså precis så djup som modellen ` +
-          'väger in, och kortare än i de flesta andra kommuner.';
-  }
+  const missing: string[] = [];
+  if (!distinctionPossible) missing.push('utmärkelsen för genomgående skötsamhet');
+  if (!persistingPossible) missing.push('nivån ”Brister som kvarstår”');
 
   const limits: SourceLimits = {
     maxHistory,
     noInspectionType,
     distinctionPossible,
     persistingPossible,
-    note,
+    note: write(missing),
+    // Bara det fördelningsstapeln faktiskt visar en nolla för.
+    distributionNote: write(persistingPossible ? [] : ['nivån ”Brister som kvarstår”']),
   };
   limitsCache.set(slug, limits);
   return limits;
@@ -852,12 +1017,6 @@ export interface CategorySlice extends SliceVerdicts {
   count: number;
   /** Har kategorin en egen sida i den här kommunen? */
   linked: boolean;
-  /**
-   * Varför kategorin är tom här, i klarspråk. Null när den går att fylla.
-   * Sätts bara när källan är orsaken, aldrig när kommunen helt enkelt saknar
-   * den sortens verksamheter.
-   */
-  note: string | null;
 }
 
 export interface SubCategorySlice extends SliceVerdicts {
@@ -878,16 +1037,43 @@ function verdictCounts(items: readonly Establishment[]): SliceVerdicts {
   return { clean, minor, major, assessed: clean + minor + major };
 }
 
+/**
+ * Minsta andel av kommunens bestånd som måste gå att kategorisera för att
+ * filtret alls ska visas.
+ *
+ * Höganäs är fallet gränsen finns för. Källan där lägger butik, restaurang och
+ * servering i en enda hink, så 212 av 310 verksamheter hamnar utanför varje
+ * kategori. Kvar blev två chips som täckte knappt en tredjedel av kommunen,
+ * plus tre meningar som förklarade varför de tre andra stod på noll.
+ *
+ * Ett filter som inte kan filtrera är ingen funktion, det är en förklaring med
+ * chips runt. Under gränsen visas ingenting alls: listan under är fullständig
+ * och sökrutan hittar varje verksamhet ändå.
+ */
+export const MIN_CATEGORY_COVERAGE = 0.5;
+
 export interface MunicipalityCategories {
   slug: string;
   /** Alla fem toppkategorier i visningsordning, även de tomma. */
   slices: CategorySlice[];
+  /**
+   * Kategorier kommunen faktiskt har verksamheter i, i visningsordning.
+   *
+   * Det är den här listan gränssnittet visar. Ett chip som står på noll är
+   * inte en tom hylla utan ett felaktigt besked: "Caféer 0" i Uppsala läses som
+   * att staden saknar kaféer, när sanningen är att källan lägger dem under
+   * Restauranger. Nollan tvingade fram en mening som förklarade bort den, och
+   * det enklaste sättet att slippa förklaringen är att inte påstå nollan.
+   */
+  shown: CategorySlice[];
   /** Underkategorier per toppkategori. Bara de kommunen faktiskt levererar. */
   subs: Map<TopCategoryId, SubCategorySlice[]>;
   /** Verksamheter helt utan kategori. */
   uncategorised: number;
-  /** Varför de saknar kategori, i klarspråk. Null när ingen gör det. */
-  gapNote: string | null;
+  /** Andel av beståndet som hamnar i minst en kategori, 0–1. */
+  coverage: number;
+  /** Ska filtret visas alls i den här kommunen? */
+  usable: boolean;
 }
 
 interface CategoryIndex extends MunicipalityCategories {
@@ -907,32 +1093,21 @@ function categoryIndex(slug: string): CategoryIndex {
   // utan att sortera om. municipalityListing kopierar innan den sorterar; det
   // som establishments() lämnar ut får inte röras (se db.ts).
   const listing = municipalityListing(slug);
-  const city = listing[0]?.municipality.city ?? slug;
 
   const members = new Map<TopCategoryId, Establishment[]>();
   const subMembers = new Map<string, Establishment[]>();
   const counts = new Map<TopCategoryId, number>();
   const subCounts = new Map<string, number>();
-  const vocabulary = new Set<string>();
 
   let uncategorised = 0;
-  let spanning = 0;
-  let noType = 0;
-  let unknownRows = 0;
 
   for (const e of listing) {
-    for (const v of rawValues(slug, e.types)) vocabulary.add(v);
-
     const c = classify(slug, e.types);
 
     for (const value of c.unknown) {
       noteUnknown(slug, value, c.status === 'unknown');
       scheduleUnknownLog();
     }
-
-    if (c.status === 'spanning') spanning += 1;
-    else if (c.status === 'no_type') noType += 1;
-    else if (c.status === 'unknown') unknownRows += 1;
 
     if (c.categories.length === 0) {
       uncategorised += 1;
@@ -959,49 +1134,28 @@ function categoryIndex(slug: string): CategoryIndex {
   // och då ska bygget stanna i stället för att publicera gissningar.
   assertKnown(slug, listing.length);
 
-  const gaps = coverageGaps(slug, vocabulary);
-  const gapByCategory = new Map(gaps.map((g) => [g.category, g]));
-
-  // Den odelbara gruppen är EN företeelse, inte tre. Höganäs blandar
-  // restauranger, caféer och butiker i samma hink, och tre nästan identiska
-  // meningar under filtret hade läst som tre olika problem. Notisen sätts
-  // därför på den första av dem och räknar upp allihop.
-  //
-  // Två uppräkningar, för de är svar på olika frågor. Filternotisen gäller
-  // bara de kategorier gruppen gör OMÖJLIGA att fylla, alltså de som står på
-  // noll. Notisen om verksamheterna utan kategori ska räkna upp allt gruppen
-  // blandar, även kategorier som kommunen kan fylla från andra värden:
-  // Kristinehamns nio "Mindre beredning" blandar servering och tillverkning
-  // trots att både Restauranger och Övrigt är välfyllda där.
-  const spanningAll = gaps
-    .filter((g) => g.kind === 'spanning')
-    .map((g) => topCategory(g.category));
-  const spanningGroup = spanningAll.filter((c) => (counts.get(c.id) ?? 0) === 0);
-  const spanningNote =
-    spanningGroup.length > 0
-      ? `${city} källa lägger ${joinSv(spanningGroup.map((c) => c.short))} i en enda grupp ` +
-        'och skiljer dem inte åt. Ingen av dem går att filtrera här.'
-      : null;
-
+  /*
+   * Här räknades tidigare fram tre sorters förklarande text: varför en kategori
+   * står på noll ("Uppsala skiljer inte caféer och bagerier från restauranger"),
+   * varför en hel grupp inte går att dela upp, och hur många verksamheter som
+   * faller utanför varje filter. Femton kommunsidor bar dem, och tillsammans
+   * blev de ett stycke ursäkter ovanför själva registret.
+   *
+   * Alla tre var svar på en fråga gränssnittet ställde själv. Nollan var
+   * påståendet; meningen under var rättelsen. Utan nollan behövs ingen
+   * rättelse. Kategorier utan verksamheter visas därför inte alls, och
+   * kommuner vars källa inte kan kategorisera tillräckligt får inget filter.
+   *
+   * coverageGaps finns kvar i categories.ts. Den bär täckningskartan som
+   * mappningen underhålls mot, och den kartan ska inte försvinna för att
+   * gränssnittet slutat skriva ut den.
+   */
   const slices: CategorySlice[] = TOP_CATEGORIES.map((category) => {
     const count = counts.get(category.id) ?? 0;
-    const gap = count === 0 ? gapByCategory.get(category.id) : undefined;
-
-    let note: string | null = null;
-    if (gap?.kind === 'absorbed') {
-      const into = gap.into.map((id) => topCategory(id));
-      note =
-        `${city} skiljer inte ${category.plural} från ${joinSv(into.map((c) => c.plural))}. ` +
-        `De ligger under ${joinSv(into.map((c) => c.name))}.`;
-    } else if (gap?.kind === 'spanning' && category.id === spanningGroup[0]?.id) {
-      note = spanningNote;
-    }
-
     return {
       category,
       count,
       linked: count >= MIN_CATEGORY_PAGE,
-      note,
       ...verdictCounts(members.get(category.id) ?? []),
     };
   });
@@ -1022,36 +1176,25 @@ function categoryIndex(slug: string): CategoryIndex {
     list.sort((a, b) => b.count - a.count || subCategoryRank(a.sub.id) - subCategoryRank(b.sub.id));
   }
 
-  // En verksamhet utan kategori försvinner ur varje filter. Då måste hubben
-  // säga att den finns och varför den inte syns — annars ser summan av
-  // kategorierna ut som hela kommunen, och den som räknar efter blir lurad.
-  let gapNote: string | null = null;
-  if (uncategorised > 0) {
-    const causes: string[] = [];
-    if (spanning > 0) {
-      causes.push(
-        spanningAll.length > 0
-          ? `${formatNumber(spanning)} ligger i en grupp där källan blandar ` +
-            joinSv(spanningAll.map((c) => c.short))
-          : `${formatNumber(spanning)} ligger i en grupp källan inte delar upp`,
-      );
-    }
-    if (noType > 0) causes.push(`${formatNumber(noType)} saknar verksamhetstyp i källan`);
-    if (unknownRows > 0) {
-      causes.push(`${formatNumber(unknownRows)} har en typ vi ännu inte känner igen`);
-    }
-    gapNote =
-      `${formatNumber(uncategorised)} av ${formatNumber(listing.length)} verksamheter i ${city} ` +
-      `saknar kategori: ${joinSv(causes)}. De finns kvar i listan ovan och har egna sidor, ` +
-      'men syns inte i något filter.';
-  }
+  const shown = slices.filter((s) => s.count > 0);
+  const coverage = listing.length ? (listing.length - uncategorised) / listing.length : 0;
+
+  /*
+   * Ett filter behöver två val för att vara ett val, och det måste nå de
+   * flesta. En ensam kategori filtrerar ingenting bort, och två som täcker en
+   * tredjedel av kommunen ger en lista som ser fullständig ut utan att vara
+   * det.
+   */
+  const usable = shown.length >= 2 && coverage >= MIN_CATEGORY_COVERAGE;
 
   const index: CategoryIndex = {
     slug,
     slices,
+    shown,
     subs,
     uncategorised,
-    gapNote,
+    coverage,
+    usable,
     members,
     subMembers,
   };

@@ -1,0 +1,130 @@
+---
+/**
+ * Vad kommunens kontroll inte når.
+ *
+ * Fördelningsstapeln har alltid haft ett grått segment, "Ingen bedömning". Vad
+ * grått betyder har aldrig stått någonstans, och det är två helt olika saker:
+ * ett ställe som aldrig kontrollerats, och ett som kontrollerats men för länge
+ * sedan. Skillnaden finns i datan sedan första dagen och används redan på
+ * verksamhetssidan för att välja svarsmening. På hubben har den aldrig visats.
+ *
+ * Det här är ett påstående om KOMMUNEN och aldrig om en namngiven verksamhet.
+ * Vi skriver inte att ett visst ställe är ohygieniskt för att det saknar
+ * kontroll; vi skriver hur stor del av registret kontrollen inte har nått.
+ *
+ * Förbehållet om nedlagda verksamheter är obligatoriskt och får inte kortas
+ * bort. En registerpost utan kontroll kan lika gärna vara ett ställe som
+ * stängt utan att avregistreras, och utan den meningen läses siffran som en
+ * anklagelse mot kommunen som vi inte kan belägga.
+ */
+import InfoTip from './InfoTip.astro';
+import { formatNumber } from '../lib/data';
+import type { Unseen } from '../lib/kommunprofil';
+
+interface Props {
+  unseen: Unseen;
+  city: string;
+}
+
+const { unseen: u, city } = Astro.props;
+
+/**
+ * Under tio är talet trivia, inte en insikt. Jönköping har två verksamheter
+ * utan kontroll av 1 120, och en egen rubrik för dem säger mer om att vi ville
+ * fylla sidan än om Jönköping.
+ */
+const worthShowing = u.total >= 10;
+---
+
+{worthShowing && (
+  <section class="uncovered" aria-labelledby="utan-kontroll">
+    <h2 id="utan-kontroll">
+      Utan aktuell kontroll i {city}
+      <InfoTip
+        label="utan aktuell kontroll"
+        text="Verksamheter i kommunens register som saknar bedömning hos oss. Antingen finns ingen publicerad kontroll alls, eller så är den senaste äldre än tre år och säger inget om nuläget."
+      />
+    </h2>
+
+    <p class="answer">
+      <b>{formatNumber(u.total)}</b> av {formatNumber(u.register)} verksamheter i
+      kommunens register har ingen kontroll som säger något om läget i dag.
+    </p>
+
+    <ul class="split">
+      {u.never > 0 && (
+        <li>
+          <b>{formatNumber(u.never)}</b>
+          <span>har ingen publicerad kontroll alls</span>
+        </li>
+      )}
+      {u.stale > 0 && (
+        <li>
+          <b>{formatNumber(u.stale)}</b>
+          <span>kontrollerades senast för mer än tre år sedan</span>
+        </li>
+      )}
+    </ul>
+
+    <p class="caveat caption text-secondary">
+      En verksamhet utan kontroll kan också ha upphört utan att strykas ur
+      registret. Vi kan inte skilja de två fallen åt.
+    </p>
+  </section>
+)}
+
+<style>
+  .uncovered {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .uncovered h2 {
+    display: flex;
+    align-items: center;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .answer {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .answer b {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .split {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--s-3) var(--s-4);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .split b {
+    display: block;
+    font-size: 21px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .split span {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .caveat { margin-top: var(--s-4); }
+</style>
