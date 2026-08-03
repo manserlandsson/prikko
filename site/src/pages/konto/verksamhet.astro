@@ -461,7 +461,9 @@ import '../../styles/konto.css';
       const option = document.createElement('option');
       option.value = i.id;
       const answered = i.owner_comment ? ' (redan besvarad)' : '';
-      option.textContent = `${dates.format(new Date(i.inspected_at))} — ${
+      /* Punkt och inte långt tankstreck. Samma avdelare som omdömesradens
+         metatext på verksamhetssidan. */
+      option.textContent = `${dates.format(new Date(i.inspected_at))} · ${
         ASSESSMENT[i.assessment] ?? ''
       }${answered}`;
       option.disabled = Boolean(i.owner_comment);
