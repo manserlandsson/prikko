@@ -40,7 +40,12 @@ const earlier = awards.slice(1);
 {newest && (
   <section class="award">
     <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
-      <AwardSeal year={newest.year} width={68} decorative />
+      {/* 88 px. Kransen är bred och låg, 507 mot 236, till skillnad från en
+          rund lagerkrans. Vid samma höjd som en rund läser den därför som
+          tunnare, och behöver mer bredd för att väga lika tungt bredvid
+          texten. 88 ger 41 px höjd, ungefär höjden på rubriken plus raden
+          under. */}
+      <AwardSeal year={newest.year} width={88} decorative />
     </a>
     <div>
       <h2>Utmärkelsen {newest.year}</h2>
