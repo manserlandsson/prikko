@@ -1,12 +1,37 @@
-<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M70 0H26C11.6406 0 0 11.6406 0 26V70C0 84.3594 11.6406 96 26 96H70C84.3594 96 96 84.3594 96 70V26C96 11.6406 84.3594 0 70 0Z" fill="url(#paint0_linear_3309_193)"/>
-<path d="M37.8719 43.2457C41.2535 43.2457 43.9948 40.5044 43.9948 37.1229C43.9948 33.7413 41.2535 31 37.8719 31C34.4903 31 31.749 33.7413 31.749 37.1229C31.749 40.5044 34.4903 43.2457 37.8719 43.2457Z" fill="white"/>
-<path d="M60.6141 43.2457C63.9957 43.2457 66.737 40.5044 66.737 37.1229C66.737 33.7413 63.9957 31 60.6141 31C57.2325 31 54.4912 33.7413 54.4912 37.1229C54.4912 40.5044 57.2325 43.2457 60.6141 43.2457Z" fill="white"/>
-<path d="M30 55.4883C42.2457 67.1509 54.4915 67.1509 66.7372 55.4883" stroke="white" stroke-width="7.87226" stroke-linecap="round"/>
-<defs>
-<linearGradient id="paint0_linear_3309_193" x1="48" y1="0" x2="48" y2="96" gradientUnits="userSpaceOnUse">
-<stop stop-color="#007BE0"/>
-<stop offset="1" stop-color="#005EAB"/>
-</linearGradient>
-</defs>
+<svg viewBox="23.4 24 50 50" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Bara smileyn, ingen platta, genomskinlig botten.
+
+    viewBox är beskuren till märkets egen yta i stället för till den gamla
+    96-rutan, som var ritad för att rymma en bakgrundsplatta som inte längre
+    finns. Måtten är räknade ur banorna: innehållet ligger mellan x 26,1 och
+    70,7 och y 31 och 67, alltså mitt i (48,4, 49) och en kvadrat på 50 runt
+    den. Geometrin är oförändrad, bara ramen runt.
+
+    FÄRGEN STÅR BOKSTAVLIGT i attributen och inte som var(). En custom property
+    i ett presentationsattribut resolveras inte av alla renderare, och när den
+    faller bort blir fill svart och stroke ingenting alls. Provrenderat i 16, 32
+    och 64 px: med var() försvann munnen helt och ögonen blev svarta.
+
+    Mörkt läge skrivs över med en vanlig CSS-regel i stället, vilket fungerar
+    överallt där mediefrågan alls läses. En favicon ligger mot flikradens
+    botten, som är nästan svart i mörkt tema, och prikko-blått mot den ytan
+    hamnar runt 3,2:1. Formen syns men blir mörk, därför en ljusare blå. Safari
+    läser inte mediefrågor i en SVG-favicon och får den vanliga blån, vilket är
+    läsbart och inte fel.
+
+    apple-touch-icon.png rörs INTE och ska förbli fylld. iOS lägger den mot en
+    egen bakgrund och gör genomskinligt till svart, så en transparent ikon blir
+    en svart fyrkant på hemskärmen.
+  -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #4DA6F0; }
+      .ink-stroke { stroke: #4DA6F0; }
+    }
+  </style>
+
+  <path class="ink" fill="#007BE0" d="M37.8719 43.2457C41.2535 43.2457 43.9948 40.5044 43.9948 37.1229C43.9948 33.7413 41.2535 31 37.8719 31C34.4903 31 31.749 33.7413 31.749 37.1229C31.749 40.5044 34.4903 43.2457 37.8719 43.2457Z"/>
+  <path class="ink" fill="#007BE0" d="M60.6141 43.2457C63.9957 43.2457 66.737 40.5044 66.737 37.1229C66.737 33.7413 63.9957 31 60.6141 31C57.2325 31 54.4912 33.7413 54.4912 37.1229C54.4912 40.5044 57.2325 43.2457 60.6141 43.2457Z"/>
+  <path class="ink-stroke" d="M30 55.4883C42.2457 67.1509 54.4915 67.1509 66.7372 55.4883" stroke="#007BE0" stroke-width="7.87226" stroke-linecap="round" fill="none"/>
 </svg>
