@@ -89,7 +89,22 @@ const { title, titleTip, facts } = Astro.props;
     gap: 1px;
     background: var(--hairline);
     border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
+    /*
+     * 4 px och inte kontrollradien 10.
+     *
+     * Cellerna har raka hörn och vit botten, och de målas ovanpå ramen. Vid
+     * radie 10 täcker det vita hörnet en synlig bit av kurvan, så ramen ser
+     * ut att sakna kant just där. Den vanliga lösningen är overflow: hidden
+     * på rutnätet, men den kapar InfoTip-bubblorna, som ligger utanför sin
+     * cell, och då blir förklaringarna oläsbara. Det var därför den togs bort
+     * en gång.
+     *
+     * Vid 4 px är den övertäckta biten under en pixel och ramen läser som
+     * sluten hela vägen runt. Det är en kompromiss, inte en lösning: den
+     * riktiga vägen är att låta bubblorna ligga i webbläsarens toppskikt med
+     * popover, och då kan radien gå tillbaka till 10.
+     */
+    border-radius: 4px;
   }
 
   .cell {
