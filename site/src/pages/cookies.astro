@@ -1,24 +1,37 @@
 ---
 /**
- * Kakor.
+ * Kakor och lagring i webbläsaren.
  *
  * ============================================================================
  * UTKAST. INTE GRANSKAT AV JURIST. INTE JURIDISK RÅDGIVNING.
  * ============================================================================
  *
- * Sidan beskriver ett faktiskt tillstånd, inte en tänkt cookiebanner. Läget
- * kontrollerat i koden 2026-08-02:
- *  - Ingen kod i site/src sätter document.cookie, localStorage eller
- *    sessionStorage. Kontrollerat med sökning över hela src/.
- *  - Ingen webbanalys finns installerad. package.json har fyra beroenden:
- *    @astrojs/sitemap, @fontsource-variable/instrument-sans, astro och
- *    maplibre-gl. Det sista används inte i någon renderad komponent.
- *  - Typsnittet är självhostat via fontsource. Inga Google Fonts.
- *  - Byggd output innehåller inga externa värdar utom api.mapbox.com på
- *    restaurangsidorna.
+ * Sidan beskriver ett MÄTT tillstånd, inte ett tänkt. Underlaget är
+ * docs/14_samtycke_och_lagring_i_webblasaren.md, där varje siffra och varje
+ * svarshuvud står med det kommando som producerade det.
  *
- * DÄRFÖR: ingen samtyckesruta. En banner som frågar om lov att sätta kakor
- * som inte finns är både falsk och irriterande.
+ * Läget mätt 2026-08-03 mot den publicerade sajten och mot de riktiga
+ * endpointsen, inte mot källkoden:
+ *  - prikko.se sätter ingen kaka. Kontrollerat på HTML, på en asset, på POST
+ *    och med bot-lik user agent. Cloudflare skickar däremot NEL och Report-To.
+ *  - api.mapbox.com sätter INGEN kaka. Frågan C1 som stod här tidigare är
+ *    därmed besvarad med en mätning i stället för en brasklapp.
+ *  - <projekt>.supabase.co sätter __cf_bm, Cloudflares botkaka, på både
+ *    förhandsanropet och det riktiga anropet. Den sätts vid SIDLADDNING på
+ *    varje verksamhetssida, eftersom Reviews.astro hämtar omdömeslistan i
+ *    start() utan att vänta på en handling.
+ *  - localStorage: prikko.session, efter inloggning. sessionStorage:
+ *    prikko.next, bara vid OAuth, som är avstängt.
+ *  - Ingen document.cookie-skrivning, ingen IndexedDB, ingen service worker,
+ *    ingen Cache API i den byggda koden.
+ *  - Ingen webbanalys. Typsnittet är självhostat, inga Google Fonts.
+ *
+ * DÄRFÖR: fortfarande ingen samtyckesruta. Men sidan får inte längre påstå att
+ * ingenting lagras, för det gör den sedan inloggningen byggdes.
+ *
+ * DEN VERSION SOM LÅG HÄR FÖRE 2026-08-03 VAR OSANN. Den sa "Vi lagrar
+ * ingenting i din webbläsare" och "Ingen inloggning". Skriv aldrig om sidan
+ * utifrån en kommentar i koden igen. Mät.
  *
  * REGELN: 9 kap. 28 § lagen (2022:482) om elektronisk kommunikation. Den
  * kräver informerat samtycke innan uppgifter lagras i eller hämtas från
@@ -29,84 +42,156 @@
  * via PTS tillsynsdokumentation, inte läst i författningstexten i original.
  *
  * ADVOKATEN MÅSTE TA STÄLLNING TILL:
- *  C1. Sätter Mapbox Static Images API någon kaka i svarshuvudet när
- *      besökarens webbläsare hämtar kartbilden? Det är en <img>-hämtning, men
- *      en Set-Cookie i svaret vore ändå lagring i terminalutrustningen. MÅSTE
- *      mätas i en riktig webbläsare innan sidan publiceras. Gör den det krävs
- *      antingen samtycke eller att kartbilden proxas via vår egen domän.
- *  C2. Om Mapillary-bilder börjar serveras direkt från Mapillarys domän, se
- *      StreetPhoto.astro, gäller samma fråga där.
+ *  C1. LÖST. Mapbox sätter ingen kaka. Kvar är att IP-adressen syns för dem,
+ *      vilket är en utlämning och inte en lagring. Behandlas i policyn.
+ *  C2. __cf_bm från supabase.co sätts före all interaktion. Cloudflare kallar
+ *      den strikt nödvändig och den skiljer bara människa från bot framför det
+ *      API som levererar sidans innehåll. Räcker säkerhetsundantaget? Sidan
+ *      utgår från att det gör det.
+ *  C3. Om Mapillary-bilder börjar serveras direkt från Mapillarys domän, se
+ *      StreetPhoto.astro, måste samma mätning göras där.
+ *
+ * BÖR GÖRAS OAVSETT JURIDIKEN: skjut upp publishedReviews() till första
+ * interaktionen eller till att avsnittet rullas in i vyn. Då kontaktas ingen
+ * tredjepart alls för den som bara läser en bedömning, och C2 blir hypotetisk.
  *
  * UNDERHÅLLSREGEL: läggs webbanalys, inbäddad video, delningsknappar eller
  * något annat tredjepartsskript till, är den här sidan osann samma dag. Då
- * krävs samtyckesruta först.
+ * krävs samtyckesruta först, och den byggs i Base.astro med neka lika lätt
+ * tillgängligt som godta.
  */
 import Base from '../layouts/Base.astro';
 import { PUBLISHER } from '../lib/site';
 
-const UPDATED = '2 augusti 2026';
+const UPDATED = '3 augusti 2026';
 ---
 
 <Base
-  title="Kakor"
-  description="Prikko sätter inga kakor och har ingen spårning. Här står vad det betyder, vad som ändå händer tekniskt när du besöker sajten, och vilken regel som gäller."
+  title="Kakor och lagring"
+  description="Prikko har ingen spårning och ingen samtyckesruta. Här står exakt vad som lagras i din webbläsare, av vem, när det sker och varför det inte kräver ditt samtycke."
 >
   <article class="container page">
     <header>
-      <p class="eyebrow">Kakor</p>
-      <h1>Prikko sätter inga kakor</h1>
+      <p class="eyebrow">Kakor och lagring</p>
+      <h1>Vad som lagras i din webbläsare</h1>
       <p class="lede text-secondary">
-        Därför finns det ingen ruta att klicka bort. Vi lagrar ingenting i din
-        webbläsare, vi känner inte igen dig mellan besöken och vi har ingen
-        spårning installerad.
+        Vi har ingen spårning, inga annonser och ingen webbanalys. Därför finns
+        det ingen ruta att klicka bort. Men "inga kakor" vore inte hela
+        sanningen, så här står listan i sin helhet.
       </p>
       <p class="text-muted meta">Senast uppdaterad {UPDATED}.</p>
     </header>
 
     <section>
-      <h2>Vad vi inte har</h2>
+      <h2>Det vi inte har</h2>
       <ul class="plain">
-        <li>Inga kakor, varken egna eller andras.</li>
         <li>Ingen webbanalys och ingen statistik om enskilda besökare.</li>
         <li>Inga annonsnätverk och inga spårpixlar.</li>
         <li>Inga delningsknappar från sociala medier.</li>
-        <li>Inget sparat i webbläsarens lokala lagring.</li>
+        <li>Inga typsnitt från Google. De ligger på vår egen server.</li>
+        <li>Ingen kaka satt av oss, på någon sida.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Det som faktiskt lagras</h2>
       <p>
-        Sajten är statisk. Sidorna byggs i förväg och skickas färdiga. Det
-        finns ingenting som behöver komma ihåg vem du är.
+        Tre poster, och ingen av dem finns för vår skull.
+      </p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Vad</th><th>Var</th><th>När det sätts</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Din inloggning</td>
+              <td>Lokal lagring hos oss, <code>prikko.session</code></td>
+              <td>Först när du loggat in</td>
+            </tr>
+            <tr>
+              <td>Vilken sida du ska tillbaka till</td>
+              <td>Sessionslagring hos oss, <code>prikko.next</code></td>
+              <td>Bara vid inloggning via Google eller Apple, som inte är påslaget</td>
+            </tr>
+            <tr>
+              <td>Botskydd, <code>__cf_bm</code></td>
+              <td>Kaka på Supabase domän, satt av Cloudflare</td>
+              <td>När sidan hämtar omdömen, alltså på verksamhetssidor</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Din inloggning</h3>
+      <p>
+        Loggar du in sparas din session i webbläsarens lokala lagring, inte i en
+        kaka. Den innehåller din e-postadress och de nycklar som gör att du
+        slipper logga in på nytt varje gång. Loggar du ut raderas den direkt.
+        Skapar du aldrig ett konto skrivs den aldrig.
+      </p>
+      <p>
+        Det här är lagring för en tjänst du själv bett om, och sådan kräver
+        inte samtycke. Att fråga om lov att komma ihåg en inloggning man just
+        genomfört vore en fråga utan mening.
+      </p>
+
+      <h3>Kakan vi inte råder över</h3>
+      <p>
+        Omdömen och bevakningar ligger hos Supabase, som driver sin tjänst
+        bakom Cloudflare. När din webbläsare hämtar omdömena på en
+        verksamhetssida svarar Cloudflare med kakan <code>__cf_bm</code>. Den
+        skiljer människa från bot och upphör efter ungefär en halvtimmes
+        inaktivitet. Den sätts på Supabase domän, inte på vår, och vi kan
+        varken läsa den eller stänga av den.
+      </p>
+      <p>
+        Den mäter dig inte och följer dig inte mellan sajter. Den finns för att
+        databasen inte ska kunna skrivas sönder av automatiserad trafik. Sådant
+        skydd räknas som nödvändigt för att kunna leverera tjänsten.
+      </p>
+      <p class="callout">
+        Vi är inte nöjda med att den sätts innan du gjort något. Nästa steg är
+        att omdömena hämtas först när du visar att du vill läsa dem. Då
+        kontaktas ingen utomstående alls av den som bara läser en bedömning och
+        går vidare.
       </p>
     </section>
 
     <section>
-      <h2>Vad som ändå händer när du besöker oss</h2>
-      <p>
-        Två saker sker som inte är kakor men som ändå är värda att nämna, för
-        att du ska ha hela bilden.
-      </p>
+      <h2>Det som händer utan att något lagras</h2>
+
       <h3>Serverns loggar</h3>
       <p>
         Vår värdtjänst registrerar att ett anrop kommit in: IP-adress,
         tidpunkt, sida och webbläsare. Det används för drift och säkerhet.
         <a href="/integritetspolicy/">Mer om det i integritetspolicyn</a>.
       </p>
+
       <h3>Kartbilden</h3>
       <p>
         På en verksamhets sida ligger en karta som hämtas som bild från
         Mapbox. Din webbläsare kontaktar då Mapbox direkt, vilket innebär att
-        din IP-adress syns för dem. Det är samma sak som händer med vilken
+        din IP-adress syns för dem. Vi har mätt svaret: Mapbox lagrar
+        ingenting i din webbläsare. Det är samma sak som händer med vilken
         extern bild som helst på webben.
       </p>
-    </section>
 
-    <section>
-      <h2>Platstjänsten är inte en kaka</h2>
+      <h3>Sökningen</h3>
+      <p>
+        Sökningen körs i din webbläsare mot en lista som laddas ned från vår
+        egen server. Vad du söker på skickas aldrig till oss och sparas
+        ingenstans.
+      </p>
+
+      <h3>Platstjänsten</h3>
       <p>
         Väljer du att visa kommuner nära dig frågar din webbläsare om lov. Det
         är webbläsarens egen behörighet, inte en kaka, och positionen används
         bara för att räkna ut vilken kommun som ligger närmast. Den skickas
-        aldrig till oss. Du kan när som helst ta tillbaka behörigheten i
-        webbläsarens inställningar.
+        aldrig till oss och sparas inte. Du kan när som helst ta tillbaka
+        behörigheten i webbläsarens inställningar.
       </p>
     </section>
 
@@ -120,9 +205,16 @@ const UPDATED = '2 augusti 2026';
         begärt. Post- och telestyrelsen har tillsyn över den regeln.
       </p>
       <p>
-        Eftersom vi inte lagrar någonting alls behöver vi inte be om samtycke.
-        Skulle det ändras kommer vi att fråga först, och den här sidan skrivs
-        om samma dag.
+        De tre posterna ovan faller under det undantaget: en inloggning du
+        själv begärt, en returadress som hör till samma inloggning, och ett
+        botskydd framför den databas som levererar innehållet. Ingenting av det
+        finns för att mäta dig. Därför frågar vi inte om lov.
+      </p>
+      <p>
+        Den dagen vi vill lägga till något som inte ryms i undantaget, till
+        exempel besöksstatistik, frågar vi först. Rutan byggs då med ett neka
+        som är precis lika lätt att träffa som ett godta, och den här sidan
+        skrivs om samma dag.
       </p>
     </section>
 
@@ -160,4 +252,49 @@ const UPDATED = '2 augusti 2026';
 
   .plain { margin: 0; padding-left: var(--s-4); }
   .plain li { margin-top: var(--s-3); line-height: 26px; }
+
+  /* Tabellen har tre kolumner som alla bär text. På en telefon får den rulla
+     i sin egen yta i stället för att pressa sidan i sidled. */
+  .scroll {
+    margin-top: var(--s-4);
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+    min-width: 30rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: var(--s-3) var(--s-4) var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+    line-height: 21px;
+  }
+
+  th {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  code {
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--card);
+  }
+
+  .callout {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
 </style>

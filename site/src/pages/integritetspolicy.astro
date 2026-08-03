@@ -8,20 +8,35 @@
  * att publiceras som den är. Ingenting här är ett avgjort rättsläge.
  * ============================================================================
  *
- * Underlag: research/R4_juridik_utgivningsbevis.md (sammanställd 2026-08-02).
- * Den rapporten är förutsättningen för den här sidan och motsägs inte här.
+ * Underlag: research/R4_juridik_utgivningsbevis.md (sammanställd 2026-08-02)
+ * och docs/14_samtycke_och_lagring_i_webblasaren.md (2026-08-03). Den senare
+ * bär mätningarna: varje svarshuvud står där med kommandot som gav det.
  *
- * FAKTAGRUND, verifierad i koden 2026-08-02:
- *  - Sajten är statisk (Astro SSG). Ingen inloggning, inga konton, ingen
- *    formulärinlämning, ingen databas mot besökaren.
- *  - Inga kakor sätts. Ingen webbanalys är installerad (kontrollerat mot
- *    package.json, Base.astro och byggd dist/).
- *  - Enda tredjepartsanropet från besökarens webbläsare är Mapbox Static
- *    Images API på restaurangsidorna, se LocationMap.astro.
+ * VARNING TILL NÄSTA LÄSARE. Faktagrunden som stod här före 2026-08-03 var
+ * osann. Den sa "Ingen inloggning, inga konton, ingen formulärinlämning, ingen
+ * databas mot besökaren", skrivet innan community.ts byggdes och aldrig
+ * uppdaterad. Sidans text påstod samma sak i klartext för läsaren. Kontrollera
+ * mot den byggda koden och mot de riktiga endpointsen, aldrig mot en kommentar.
+ *
+ * FAKTAGRUND, mätt mot den publicerade sajten 2026-08-03:
+ *  - Sajten är statisk (Astro SSG), men den har konto. Inloggning sker med
+ *    engångskod till e-post via Supabase Auth, se lib/community.ts. Den
+ *    inloggade kan skriva omdömen, ladda upp bilder, bevaka verksamheter och
+ *    ansöka om att företräda en verksamhet.
+ *  - I webbläsaren lagras `prikko.session` i localStorage efter inloggning och
+ *    `prikko.next` i sessionStorage vid OAuth, som är avstängt. Ingen
+ *    document.cookie-skrivning, ingen IndexedDB, ingen service worker.
+ *  - prikko.se sätter ingen kaka. Mätt på HTML, asset, POST och bot-lik UA.
+ *  - Supabase svarar med Cloudflares `__cf_bm` på varje anrop. Den sätts vid
+ *    sidladdning på verksamhetssidor eftersom omdömeslistan hämtas direkt.
+ *  - Mapbox Static Images API sätter INGEN kaka. Mätt. Kvar är att IP-adressen
+ *    syns för Mapbox. Punkt A6 nedan står därför kvar.
+ *  - Ingen webbanalys är installerad. Typsnittet är självhostat.
+ *  - Supabase-projektets databas ligger på AWS eu-north-1, Stockholm. Härlett
+ *    ur Amazons egen ip-ranges.json.
  *  - StreetPhoto.astro finns men ingen datamängd innehåller ännu `image`.
  *    Om Mapillary-bilder börjar serveras från Mapillarys egen domän i stället
  *    för vår, blir det en tredje part till och sidan måste uppdateras.
- *  - Supabase finns i pipelinen (serverledet), aldrig i besökarens webbläsare.
  *  - Platstjänsten i PlacePicker.astro läser koordinaten i webbläsaren och
  *    skickar den aldrig vidare. Verifierat i källkoden.
  *
@@ -46,6 +61,17 @@
  *      måste finnas skriftligt innan sidan publiceras.
  *  A8. Konsekvensbedömning enligt artikel 35. Storskalig publicering av
  *      uppgifter med negativ laddning talar för att en DPIA krävs.
+ *  A9. Anspråkstabellen samlar namn, roll, organisationsnummer, e-post och
+ *      telefon om en fysisk person som själv lämnat dem. Det är sidans mest
+ *      direkta personuppgiftsbehandling och den saknade beskrivning helt fram
+ *      till 2026-08-03. Rättslig grund här är avtal eller berättigat intresse,
+ *      inte samma som för publiceringen. Vilken?
+ * A10. Biträdesavtal. Cloudflare, Supabase och Resend behandlar uppgifter åt
+ *      oss och står nu namngivna på sidan. Avtalen måste finnas på papper.
+ *      Cloudflare skriver själva att kakdata som förval kan behandlas i deras
+ *      amerikanska datacenter.
+ * A11. Gallring av kontodata. Sidan lovar radering av konto på begäran men
+ *      sätter ingen automatisk frist för vilande konton. Behövs en?
  *
  * Sidan ska indexeras. Den är inte innehåll vi vill ranka på, men den ska gå
  * att hitta och citera.
@@ -53,7 +79,7 @@
 import Base from '../layouts/Base.astro';
 import { PUBLISHER } from '../lib/site';
 
-const UPDATED = '2 augusti 2026';
+const UPDATED = '3 augusti 2026';
 ---
 
 <Base
@@ -76,8 +102,16 @@ const UPDATED = '2 augusti 2026';
     <section>
       <h2>Kort version</h2>
       <ul class="plain">
-        <li>Vi har ingen inloggning, inga konton och ingen spårning.</li>
-        <li>Vi sätter inga kakor. <a href="/cookies/">Läs mer om kakor</a>.</li>
+        <li>
+          Vi har ingen spårning, ingen webbanalys och inga annonser. Vi sätter
+          själva inga kakor.
+          <a href="/cookies/">Här står allt som lagras i din webbläsare</a>.
+        </li>
+        <li>
+          Du behöver inget konto för att läsa. Vill du skriva ett omdöme,
+          bevaka en verksamhet eller svara som ägare krävs ett, och då sparar
+          vi din e-postadress och det du skriver.
+        </li>
         <li>Vi säljer aldrig uppgifter vidare.</li>
         <li>
           Det som kan vara personuppgifter är i första hand uppgifter om
@@ -210,8 +244,18 @@ const UPDATED = '2 augusti 2026';
     <section>
       <h2>Uppgifter om dig som besöker Prikko</h2>
       <p>
-        Sajten är statisk. Det finns inget konto att skapa, inget formulär att
-        skicka och ingenting som sparas om dig mellan besöken.
+        Sidorna är statiska och byggda i förväg. Läser du bara sparar vi
+        ingenting om dig mellan besöken, och det finns ingen mätning som följer
+        dig runt på sajten.
+      </p>
+
+      <h3>Vad som lagras i din webbläsare</h3>
+      <p>
+        Ingen kaka från oss. Loggar du in sparas din session i webbläsarens
+        lokala lagring så att du slipper logga in på nytt, och när sidan hämtar
+        omdömen svarar Cloudflare, som skyddar Supabase, med en kaka för
+        botskydd på sin egen domän.
+        <a href="/cookies/">Hela listan med vad, var och när</a>.
       </p>
 
       <h3>Vad värdtjänsten registrerar</h3>
@@ -251,6 +295,84 @@ const UPDATED = '2 augusti 2026';
     </section>
 
     <section>
+      <h2>Om du skapar ett konto</h2>
+      <p>
+        Att läsa Prikko kräver inget konto. Vill du skriva ett omdöme, bevaka
+        en verksamhet, ladda upp en bild eller svara som ägare behöver vi veta
+        att du är samma person nästa gång, och då krävs ett.
+      </p>
+
+      <h3>Så går inloggningen till</h3>
+      <p>
+        Du skriver din e-postadress och får en sexsiffrig kod. Det finns inget
+        lösenord, alltså ingenting att glömma och ingen lösenordsdatabas som
+        kan läcka. Kontot skapas första gången du loggar in.
+      </p>
+
+      <h3>Vad vi sparar om dig</h3>
+      <ul class="plain">
+        <li>Din e-postadress och ett internt användar-id.</li>
+        <li>
+          De omdömen du skrivit: texten, ett frivilligt betyg, en frivillig
+          besöksmånad och när det skickades in.
+        </li>
+        <li>
+          Vilka verksamheter du bevakar, och vilka notismejl som redan gått ut
+          till dig, så att samma mejl inte skickas två gånger.
+        </li>
+        <li>
+          Bilder du laddat upp, med filtyp, storlek och din bildtext. De ligger
+          i en privat inkorg tills en människa granskat dem.
+        </li>
+        <li>
+          Ansöker du om att företräda en verksamhet: ditt namn, din roll,
+          verksamhetens organisationsnummer och de kontaktuppgifter du lämnar.
+          De används för att kontrollera att du har rätt att svara för
+          verksamheten och publiceras aldrig.
+        </li>
+      </ul>
+      <p>
+        Rättslig grund är artikel 6.1 b, att kunna leverera den funktion du
+        själv begärt, och för granskningen före publicering artikel 6.1 f: en
+        text som ska stå bredvid en namngiven verksamhet måste läsas av en
+        människa först.
+      </p>
+
+      <h3>Vad som blir synligt för andra</h3>
+      <p>
+        Omdömen publiceras utan namn. Vi skickar aldrig med något namn, och
+        under texten står bara "Besökare". Betyg och besöksmånad visas om du
+        angett dem, men aldrig vilken dag. Inget omdöme syns för någon annan
+        förrän en människa släppt fram det.
+      </p>
+      <p>
+        Svarar du som ägare på en kontroll publiceras svaret bredvid
+        bedömningen, tillsammans med verksamhetens namn.
+      </p>
+
+      <h3>Notismejl</h3>
+      <p>
+        Bevakar du en verksamhet mejlar vi dig när kommunen registrerat en ny
+        kontroll med anmärkningar. Inget annat. Varje mejl bär en länk som
+        stoppar bevakningen på ett klick, utan inloggning. Mejlen skickas via
+        Resend.
+      </p>
+
+      <h3>Att ta bort</h3>
+      <p>
+        Du kan ta bort ett eget omdöme när du vill från
+        <a href="/konto/">din kontosida</a>, även efter att det publicerats.
+        Vill du att hela kontot raderas, mejla
+        <a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>. Då tas
+        kontot bort, och med det dina omdömen, bevakningar, bilder och anspråk.
+      </p>
+      <p class="text-secondary">
+        Kommunens kontrolluppgifter påverkas inte av det. De är allmänna
+        handlingar och handlar om verksamheten, inte om dig.
+      </p>
+    </section>
+
+    <section>
       <h2>När du mejlar oss</h2>
       <p>
         Skriver du till oss behandlar vi det du skickar för att kunna svara och
@@ -268,10 +390,27 @@ const UPDATED = '2 augusti 2026';
       <h2>Vilka som får se uppgifterna</h2>
       <p>
         Vi säljer inte och lämnar inte ut personuppgifter för andras
-        marknadsföring. De som ändå behandlar uppgifter åt oss är
-        leverantörerna av värdtjänst, e-post och den databas där kontrollerna
-        lagras. De arbetar på vårt uppdrag och enligt avtal.
+        marknadsföring. De som behandlar uppgifter åt oss står namngivna här,
+        och de arbetar på vårt uppdrag och enligt avtal.
       </p>
+      <dl class="facts">
+        <div>
+          <dt>Cloudflare</dt>
+          <dd>Värdtjänst för sajten, och proxy för trafiken</dd>
+        </div>
+        <div>
+          <dt>Supabase</dt>
+          <dd>Konton, omdömen, bevakningar och bilder</dd>
+        </div>
+        <div>
+          <dt>Resend</dt>
+          <dd>Utskick av inloggningskoder och notismejl</dd>
+        </div>
+        <div>
+          <dt>Mapbox</dt>
+          <dd>Kartbilden, som din webbläsare hämtar direkt</dd>
+        </div>
+      </dl>
       <p>
         Det som publiceras på sajten är däremot offentligt. Det är hela
         poängen med tjänsten.
@@ -281,10 +420,18 @@ const UPDATED = '2 augusti 2026';
     <section>
       <h2>Överföring utanför EU och EES</h2>
       <p>
-        Kartbilderna hämtas från Mapbox i USA, som beskrivits ovan. I övrigt
-        strävar vi efter att data ska ligga inom EU och EES. Använder en
-        leverantör servrar utanför området sker överföringen med stöd av
-        EU-kommissionens beslut om adekvat skyddsnivå eller
+        Databasen med konton, omdömen och bevakningar ligger i Stockholm.
+        Kartbilderna hämtas från Mapbox i USA, som beskrivits ovan.
+      </p>
+      <p>
+        Cloudflare, som både står för värdtjänsten och skyddar databasen mot
+        automatiserad trafik, är amerikanskt och skriver själva att uppgifter
+        från deras kakor som förval kan behandlas i deras datacenter i USA.
+        Det gäller det botskydd som beskrivs på <a href="/cookies/">kaksidan</a>.
+      </p>
+      <p>
+        Där en leverantör använder servrar utanför EU och EES sker överföringen
+        med stöd av EU-kommissionens beslut om adekvat skyddsnivå eller
         standardavtalsklausuler.
       </p>
     </section>
