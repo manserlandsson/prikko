@@ -35,6 +35,7 @@ from prikko.sources.linkoping import (  # noqa: E402
     MUNICIPALITY_CODE,
     MUNICIPALITY_NAME,
     UnknownSourceValue,
+    merge_duplicate_inspections,
     normalize_establishment,
     normalize_inspection,
 )
@@ -119,6 +120,8 @@ def build(limit: Optional[int], today: date) -> dict:
             continue
 
         inspections = [i for i in inspections if i is not None]
+        # Samma tillsynsId kan komma två gånger, se merge_duplicate_inspections.
+        inspections = merge_duplicate_inspections(inspections)
 
         # Gatubild. Saknas token eller täckning blir det None, och sidan
         # designas så den fungerar utan bild — de flesta kommer sakna en.

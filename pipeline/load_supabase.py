@@ -76,9 +76,41 @@ class Supabase:
             return False
 
     def upsert(self, table: str, rows: list, on_conflict: str) -> None:
-        """Upsert i portionsvis storlek. Tomma listor hoppas över."""
+        """Upsert i portionsvis storlek. Tomma listor hoppas över.
+
+        Rader med samma konfliktnyckel slås ihop innan de skickas, med den
+        SISTA av dem som vinnare. Postgres vägrar nämligen `ON CONFLICT DO
+        UPDATE` när samma rad skulle träffas två gånger i ETT kommando:
+
+            21000: ON CONFLICT DO UPDATE command cannot affect row a second time
+
+        Det är precis vad som fällde den nattliga körningen 2026-08-03.
+        Linköpings API returnerar samma tillsynsId två gånger för en del
+        anläggningar, och adaptern skickade båda vidare.
+
+        Felet är lömskt för att det är INTERMITTENT. Hamnar de två raderna i
+        olika portioner går det igenom, och det hade det gjort i veckor. Det
+        smäller först den natt de råkar landa i samma portion.
+
+        Sammanslagningen här ersätter inte att adaptern ska lämna rena data.
+        Den finns för att en enda kommuns trasiga id aldrig ska stoppa
+        inläsningen av de elva andra.
+        """
         if not rows:
             return
+
+        keys = [k.strip() for k in on_conflict.split(",")]
+        merged: dict = {}
+        for row in rows:
+            merged[tuple(row.get(k) for k in keys)] = row
+        if len(merged) != len(rows):
+            print(
+                f"  ! {len(rows) - len(merged)} rader i {table} delade "
+                f"konfliktnyckel ({on_conflict}) och slogs ihop",
+                file=sys.stderr,
+            )
+        rows = list(merged.values())
+
         query = urllib.parse.urlencode({"on_conflict": on_conflict})
         for start in range(0, len(rows), BATCH):
             chunk = rows[start : start + BATCH]

@@ -166,6 +166,19 @@ def set_after(mapping: dict, after: str, key: str, value) -> None:
     mapping.update(rebuilt)
 
 
+def forget(establishment: dict) -> None:
+    """Nolla koordinaten helt.
+
+    Körningen ska vara bestämd av cachen och ingenting annat. Skärps en regel
+    måste en koordinat som satts av en tidigare, slappare regel försvinna —
+    annars blir filen ett lager av gamla beslut som ingen kan härleda.
+    """
+    establishment["lat"] = None
+    establishment["lng"] = None
+    establishment.pop("geoSource", None)
+    establishment.pop("geoPrecision", None)
+
+
 def resolve(index: AddressIndex, raw: Optional[str], municipality) -> tuple[Optional[Match], str]:
     """Slå upp en adress och verifiera träffen innan den får finnas."""
     if not raw or not raw.strip():
@@ -224,8 +237,7 @@ def process(path: Path, entries: dict, refresh: bool) -> Counter:
         raw = establishment.get("address")
         if not raw or not raw.strip():
             stats[MISS_NO_ADDRESS] += 1
-            establishment["lat"] = None
-            establishment["lng"] = None
+            forget(establishment)
             continue
 
         key = cache_key(code, raw)
@@ -245,10 +257,7 @@ def process(path: Path, entries: dict, refresh: bool) -> Counter:
 
         stats[cached["reason"]] += 1
         if cached["lat"] is None:
-            establishment["lat"] = None
-            establishment["lng"] = None
-            establishment.pop("geoSource", None)
-            establishment.pop("geoPrecision", None)
+            forget(establishment)
             continue
 
         establishment["lat"] = cached["lat"]

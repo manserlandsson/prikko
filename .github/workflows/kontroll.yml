@@ -88,7 +88,7 @@ jobs:
         run: |
           cd site/dist
           missing=0
-          for path in metodik kallor om ratta sok; do
+          for path in metodik kallor om ratta sok integritetspolicy villkor cookies; do
             if [ ! -d "$path" ]; then
               echo "::error::/$path saknas men länkas från varje sida"
               missing=1

@@ -15,10 +15,11 @@ Datakvaliteten är däremot den bästa hittills. Uppsala har ett eget värde fö
 och kontrollområdena är lika detaljerade som Linköpings. De anger dessutom
 diarienummer per kontroll.
 
-SAKNAS: koordinater. Uppsala publicerar inga. Verksamheterna får därför ingen
-kartnål förrän vi geokodar adresserna, men allt annat — namn, adress, omdöme,
-historik, kontrollområden — finns. Att sakna karta är ingen anledning att
-utelämna en verksamhet.
+SAKNAS: koordinater. Uppsala publicerar inga. Adaptern lämnar därför lat/lng
+tomma — den ljuger inte ihop en punkt. Kartnålen sätts i ett eget, senare steg
+(pipeline/geocode.py) som härleder koordinaten ur adressen och märker den som
+härledd. Allt annat — namn, adress, omdöme, historik, kontrollområden — finns.
+Att sakna karta är ingen anledning att utelämna en verksamhet.
 """
 
 from __future__ import annotations
@@ -155,7 +156,7 @@ def normalize_establishment(record: dict, detail: str = "") -> NormalizedEstabli
         name=record["name"],
         street_address=(_clean(address.group(1)) if address else record.get("address")) or None,
         types=[_clean(verksamhet.group(1))] if verksamhet else [],
-        # Uppsala publicerar inga koordinater.
+        # Uppsala publicerar inga koordinater. Se pipeline/geocode.py.
         lat=None,
         lng=None,
     )

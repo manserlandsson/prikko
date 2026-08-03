@@ -21,7 +21,7 @@ detaljhämtning sker inkrementellt.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Optional
 
@@ -249,3 +249,51 @@ def normalize_inspection(raw: dict, establishment_id: str) -> Optional[Normalize
         areas=areas,
         uncertain=assessment_raw in UNCERTAIN_ASSESSMENTS,
     )
+
+
+def merge_duplicate_inspections(inspections: list) -> list:
+    """Slå ihop kontroller som delar id_national.
+
+    Linköpings API returnerar samma `tillsynsId` två gånger för en del
+    anläggningar: 148 av 9 249 kontroller i hämtningen 2026-08-03. Posterna
+    har samma datum och samma helhetsbedömning men olika `orsak` och olika
+    kontrollområden. Det ser ut som att kommunen registrerar en planerad och
+    en uppföljande del av samma besök under ett och samma ärendenummer.
+
+    Utan sammanslagning skickas två rader med samma primärnyckel till
+    databasen, och Postgres vägrar:
+
+        21000: ON CONFLICT DO UPDATE command cannot affect row a second time
+
+    Felet är intermittent. Hamnar raderna i olika portioner går det igenom,
+    vilket det gjorde i veckor innan den nattliga körningen föll 2026-08-03.
+
+    Sammanslagningen:
+      * sämsta bedömningen vinner, så en avvikelse aldrig kan försvinna
+      * FOLLOWUP vinner över ROUTINE, eftersom det är uppföljningen
+        `grading.py` läser kvarstående brister ur
+      * kontrollområdena förenas, eftersom de två posterna beskriver olika
+        delar av samma besök och båda är sanna
+    """
+    merged: dict = {}
+    for inspection in inspections:
+        existing = merged.get(inspection.id_national)
+        if existing is None:
+            merged[inspection.id_national] = inspection
+            continue
+
+        seen = {(a.code, a.description, a.status) for a in existing.areas}
+        areas = existing.areas + [
+            a for a in inspection.areas
+            if (a.code, a.description, a.status) not in seen
+        ]
+
+        merged[inspection.id_national] = replace(
+            existing,
+            assessment=max(existing.assessment, inspection.assessment),
+            type=FOLLOWUP if FOLLOWUP in (existing.type, inspection.type) else existing.type,
+            areas=areas,
+            uncertain=existing.uncertain or inspection.uncertain,
+        )
+
+    return list(merged.values())

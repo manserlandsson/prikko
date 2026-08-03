@@ -53,11 +53,19 @@ from .geo import looks_like_sweden
 # kommunen. Då vet vi inte vilken som avses, och då pekar vi inte ut någon.
 AMBIGUOUS_SPREAD_M = 250.0
 
-# Saknas husnumret i OSM får närmaste kända nummer på samma gata duga, men
-# bara några portar bort. Sex nummer på samma sida av gatan är i svensk
-# kvartersstad ungefär hundra meter. Träffen märks som ungefärlig.
-MAX_NUMBER_GAP_SAME_SIDE = 6
-MAX_NUMBER_GAP_OPPOSITE = 4
+# Saknas husnumret i OSM får närmaste granne på samma sida av gatan duga —
+# men bara grannporten. Gränsen är mätt, inte gissad: 200 ungefärliga träffar
+# i Uppsala jämfördes med kommunens egen adresspunktstjänst.
+#
+#   avstånd i husnummer   medianfel   90:e percentilen   värsta
+#   2 (grannen)              43 m           150 m         260 m
+#   4                       111 m           340 m         646 m
+#   6                        97 m           432 m         574 m
+#   udda (andra sidan)      116 m           420 m         465 m
+#
+# Fyra nummer bort hamnar var åttonde nål i fel kvarter. Det är en nål som
+# ljuger. Grannporten stannar inom kvarteret och får därför vara kvar.
+MAX_NUMBER_GAP_SAME_SIDE = 2
 
 PRECISION_ADDRESS = "address"
 PRECISION_APPROXIMATE = "approximate"
@@ -264,18 +272,14 @@ class AddressIndex:
         if same_number:
             return self._resolve(same_number, PRECISION_ADDRESS)
 
-        # Numret saknas i OSM. Närmaste granne på samma sida av gatan (samma
-        # paritet) ligger normalt inom ett kvarter. Träffen märks som ungefärlig
-        # så att sidan kan säga det.
+        # Numret saknas i OSM. Grannporten på samma sida av gatan får duga och
+        # märks som ungefärlig, så att sidan kan säga det. Längre bort än så
+        # avstår vi: se mätningen vid MAX_NUMBER_GAP_SAME_SIDE.
         same_side = [n for n in numbers if n % 2 == address.number % 2]
         if same_side:
             best = min(same_side, key=lambda n: abs(n - address.number))
             if abs(best - address.number) <= MAX_NUMBER_GAP_SAME_SIDE:
                 return self._resolve(numbers[best], PRECISION_APPROXIMATE)
-
-        best_any = min(numbers, key=lambda n: abs(n - address.number))
-        if abs(best_any - address.number) <= MAX_NUMBER_GAP_OPPOSITE:
-            return self._resolve(numbers[best_any], PRECISION_APPROXIMATE)
 
         return Lookup(None, MISS_NO_NUMBER)
 

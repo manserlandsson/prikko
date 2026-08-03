@@ -213,7 +213,8 @@ def normalize_establishment(raw: dict) -> NormalizedEstablishment:
         street_address=(raw.get("Adress") or "").strip() or None,
         types=types,
         # Kommunen publicerar inga koordinater. None är sanningen här, inte
-        # en lucka vi glömt fylla.
+        # en lucka vi glömt fylla. Kartnålen härleds ur adressen i ett eget
+        # steg, pipeline/geocode.py, och märks då som härledd.
         lat=None,
         lng=None,
     )
