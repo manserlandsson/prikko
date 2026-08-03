@@ -42,7 +42,7 @@
  * sorteras alfabetiskt inom gruppen. Gruppen är rangordningen; inom den finns
  * ingen skillnad att redovisa.
  */
-import { formatNumber, municipalities, sourceLimits } from './data';
+import { formatNumber, municipalities } from './data';
 import { hasMark } from './marke';
 
 export interface EditionEntry {
@@ -78,6 +78,17 @@ export interface Edition {
   asOf: string;
   windowDays: number;
   historyDepth: number;
+  /**
+   * Kontroller i följd som krävdes för att stå i JUST den här utgåvan.
+   *
+   * Läses ur filen och inte ur en konstant här, eftersom en gammal utgåva ska
+   * gå att läsa korrekt även efter att ribban ändrats. Den som slår upp 2026
+   * ska få veta vad som krävdes 2026.
+   *
+   * Utgåvor frysta före ribban infördes saknar fältet. De byggdes på
+   * historyDepth, så det är rätt reservvärde.
+   */
+  awardRun?: number;
   totals: {
     municipalities: number;
     establishments: number;
@@ -179,13 +190,28 @@ export interface EditionStanding extends EditionMunicipality {
 export const MIN_OWN_PAGE = 25;
 
 export function standings(year: number | string): EditionStanding[] {
-  return edition(year).municipalities.map((m) => {
-    const limits = sourceLimits(m.slug);
-    const impossible = !limits.distinctionPossible;
+  const ed = edition(year);
+  const bar = ed.awardRun ?? ed.historyDepth;
+  return ed.municipalities.map((m) => {
+    /*
+     * Omöjligt härleds ur UTGÅVANS ribba, inte ur sourceLimits.
+     *
+     * sourceLimits svarar på om kommunen publicerar nog för pipelinens
+     * `distinction`, alltså tre kontroller. Utgåvan kräver mer. Frågade vi
+     * sourceLimits skulle Jönköping räknas som "möjligt men ingen ännu",
+     * fast deras källa aldrig lämnar ut mer än tre kontroller per verksamhet
+     * och fem därmed är utom räckhåll för var och en av dem.
+     *
+     * `deepestWindow` är flest kontroller någon verksamhet i kommunen har
+     * INOM fönstret, alltså exakt det tak serien kan nå. Är taket lägre än
+     * ribban kan ingen nå den, och det är ett faktum om utlämnandet och inte
+     * ett omdöme om verksamheterna.
+     */
+    const impossible = m.deepestWindow < bar;
     return {
       ...m,
       status: m.qualified.length > 0 ? 'listed' : impossible ? 'impossible' : 'none_yet',
-      blocked: impossible ? blockedText(m) : null,
+      blocked: impossible ? blockedText(m, bar) : null,
       ownPage: m.qualified.length >= MIN_OWN_PAGE,
       // Listan är redan sorterad på serielängd, längst först.
       topRun: m.qualified[0]?.run ?? 0,
@@ -206,15 +232,15 @@ export function standing(year: number | string, slug: string): EditionStanding {
  * samma sätt som notisen i sourceLimits(). Ingen del av den är skriven om för
  * en enskild kommun.
  */
-function blockedText(m: EditionMunicipality): string {
+function blockedText(m: EditionMunicipality, bar: number): string {
   const depth =
     m.maxHistory <= 1
       ? 'bara den senaste kontrollen'
       : `högst ${numeral(m.maxHistory)} kontroller per verksamhet`;
   return (
-    `${m.name} publicerar ${depth}. Utmärkelsen kräver tre, så ingen av kommunens ` +
-    `${formatNumber(m.establishments)} verksamheter kan nå den. Frånvaron säger något ` +
-    'om vad kommunen lämnar ut, inte om hur verksamheterna sköter sig.'
+    `${m.name} publicerar ${depth}. Utmärkelsen kräver ${numeral(bar)} i följd, så ingen ` +
+    `av kommunens ${formatNumber(m.establishments)} verksamheter kan nå den. Frånvaron ` +
+    'säger något om vad kommunen lämnar ut, inte om hur verksamheterna sköter sig.'
   );
 }
 
