@@ -1,0 +1,360 @@
+/**
+ * Hederslistan: årsutgåvorna av utmärkelsen för genomgående skötsamhet.
+ *
+ * ## Vad listan är
+ *
+ * Utmärkelsen finns redan och är inte uppfunnen här. Den sätts i
+ * pipeline/prikko/grading.py och lyder: minst tre kontroller inom
+ * treårsfönstret, samtliga utan anmärkning. Den syns som ett märke på
+ * verksamhetssidan. Det den saknade var ett ställe där alla som har den står
+ * samlade, och ett årtal som gör den till något att visa upp.
+ *
+ * ## Varför det inte finns någon nationell rangordning
+ *
+ * Det som SKA jämföras mellan kommuner är fakta som betyder samma sak överallt.
+ * "Kontrollerad tre gånger, ingen anmärkning vid någon av dem" är en sådan:
+ * den betyder exakt detsamma i Jönköping som i Stockholm. Därför är
+ * utmärkelsen i sig nationell och gäller alla 1 541 lika mycket.
+ *
+ * Det som INTE går att jämföra är hur lång serien är, och skälet står i datan.
+ * Jönköping lämnar aldrig ut fler än tre kontroller per verksamhet, så ingen
+ * verksamhet där kan visa en längre serie än tre, hur skötsam den än är. I
+ * Stockholm når den längsta serien tio. En rikslista sorterad på serielängd
+ * hade alltså lagt varje verksamhet i Jönköping under nästan varje verksamhet i
+ * Stockholm, och läsaren hade dragit slutsatsen att Stockholm sköter sig bättre.
+ * Talet hade mätt kommunens utlämning, inte köket. `deepestWindow` per kommun
+ * är precis det taket, räknat ur datan, och sidorna skriver ut det.
+ *
+ * Percentil i stället för råtal löser det inte. Utmärkelsen är olika sällsynt i
+ * olika kommuner av samma skäl som serien är olika lång: i Jönköping krävs att
+ * ALLA tre publicerade kontroller är rena, i Stockholm räcker de tre senaste av
+ * upp till tjugoåtta. En placering i procent hade rangordnat kommunernas
+ * publiceringsdjup en gång till, bara med snyggare tal.
+ *
+ * Kvar blir en ordning INOM kommunen, där metodiken säger att jämförelsen är
+ * rättvis (/metodik/#jamfor). Den ordningen är serielängden, och inget annat.
+ *
+ * ## Varför raderna inte numreras
+ *
+ * 1 078 av de 1 541 har serien tre. En numrerad lista hade gett plats 4 och
+ * plats 812 till två verksamheter med exakt samma underlag, och skillnaden
+ * hade varit bokstavsordningen. Därför grupperas raderna på serielängd och
+ * sorteras alfabetiskt inom gruppen. Gruppen är rangordningen; inom den finns
+ * ingen skillnad att redovisa.
+ */
+import { formatNumber, municipalities, sourceLimits } from './data';
+
+export interface EditionEntry {
+  slug: string;
+  name: string;
+  address: string | null;
+  type: string | null;
+  /** Kontroller i följd utan anmärkning inom fönstret. Alltid minst tre. */
+  run: number;
+  /** Äldsta kontrollen i serien. */
+  from: string;
+  /** Senaste kontrollen i serien. */
+  to: string;
+}
+
+export interface EditionMunicipality {
+  slug: string;
+  city: string;
+  name: string;
+  asOf: string;
+  establishments: number;
+  assessed: number;
+  maxHistory: number;
+  /** Flest kontroller någon verksamhet har inom fönstret. Taket för serien. */
+  deepestWindow: number;
+  /** Verksamheter som alls kontrollerats tre gånger inom fönstret. */
+  pool: number;
+  qualified: EditionEntry[];
+}
+
+export interface Edition {
+  year: number;
+  asOf: string;
+  windowDays: number;
+  historyDepth: number;
+  totals: {
+    municipalities: number;
+    establishments: number;
+    assessed: number;
+    qualified: number;
+  };
+  municipalities: EditionMunicipality[];
+}
+
+/**
+ * Utgåvorna upptäcks ur filsystemet, precis som kommunerna i db.ts. En ny
+ * årsutgåva är en fil, inte en kodändring: kör `node scripts/utmarkelser.mjs`.
+ */
+const files = import.meta.glob<{ default: Edition }>('../editions/*.json', {
+  eager: true,
+});
+
+const EDITIONS: Edition[] = Object.values(files)
+  .map((m) => m.default as unknown as Edition)
+  .filter((e) => e && typeof e.year === 'number' && Array.isArray(e.municipalities))
+  .sort((a, b) => b.year - a.year);
+
+/** Utgåvorna, nyast först. */
+export function editions(): Edition[] {
+  return EDITIONS;
+}
+
+export function edition(year: number | string): Edition {
+  const found = EDITIONS.find((e) => e.year === Number(year));
+  if (!found) throw new Error(`Ingen utgåva för ${year}`);
+  return found;
+}
+
+export function latestEdition(): Edition | null {
+  return EDITIONS[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Kommunernas tre lägen
+// ---------------------------------------------------------------------------
+
+/**
+ * Varför en kommun saknas ur listan.
+ *
+ * Skillnaden mellan de två sista är hela poängen med att redovisa dem. I
+ * Karlstad kan ingen verksamhet nå utmärkelsen, hur välskött den än är, för
+ * kommunen publicerar bara den senaste kontrollen. I Höganäs kan den nås, men
+ * en enda verksamhet i hela kommunen har alls hunnit kontrolleras tre gånger
+ * inom fönstret. Skrevs de ihop till "inga verksamheter i Karlstad och Höganäs"
+ * skulle läsaren tro att det inte finns skötsamma restauranger där. Det står
+ * ingenting om saken i datan.
+ */
+export type EditionStatus = 'listed' | 'none_yet' | 'impossible';
+
+export interface EditionStanding extends EditionMunicipality {
+  status: EditionStatus;
+  /** Varför kommunen inte kan vara med, i klarspråk. Bara vid 'impossible'. */
+  blocked: string | null;
+  /** Får kommunen en egen sida i utgåvan? */
+  ownPage: boolean;
+  /**
+   * Längsta serie någon i kommunen FAKTISKT har.
+   *
+   * Får aldrig förväxlas med `deepestWindow`, som är taket. I Stockholm
+   * publiceras upp till 28 kontroller inom fönstret, men den längsta obrutna
+   * rena serien är tio. Taket säger vad som är möjligt, det här talet vad som
+   * hänt, och en text som blandar ihop dem påstår något om kök som i själva
+   * verket handlar om ett register.
+   */
+  topRun: number;
+}
+
+/**
+ * Minsta antal utmärkta för att kommunen ska få en egen sida i utgåvan.
+ *
+ * Samma tal och samma skäl som MIN_CATEGORY_PAGE i data.ts: en sida med en rad
+ * bär ingen information som inte redan står på utgåvans egen sida, och tunna
+ * sidor i tiotal drar ner hela domänen. Kommunerna under gränsen listas i sin
+ * helhet direkt på utgåvan i stället.
+ */
+export const MIN_OWN_PAGE = 25;
+
+export function standings(year: number | string): EditionStanding[] {
+  return edition(year).municipalities.map((m) => {
+    const limits = sourceLimits(m.slug);
+    const impossible = !limits.distinctionPossible;
+    return {
+      ...m,
+      status: m.qualified.length > 0 ? 'listed' : impossible ? 'impossible' : 'none_yet',
+      blocked: impossible ? blockedText(m) : null,
+      ownPage: m.qualified.length >= MIN_OWN_PAGE,
+      // Listan är redan sorterad på serielängd, längst först.
+      topRun: m.qualified[0]?.run ?? 0,
+    };
+  });
+}
+
+export function standing(year: number | string, slug: string): EditionStanding {
+  const found = standings(year).find((m) => m.slug === slug);
+  if (!found) throw new Error(`${slug} saknas i ${year} års utgåva`);
+  return found;
+}
+
+/**
+ * Varför utmärkelsen är utom räckhåll i kommunen, byggd av kommunens egna tal.
+ *
+ * Meningen är en mall som fylls med `maxHistory` och antalet verksamheter, på
+ * samma sätt som notisen i sourceLimits(). Ingen del av den är skriven om för
+ * en enskild kommun.
+ */
+function blockedText(m: EditionMunicipality): string {
+  const depth =
+    m.maxHistory <= 1
+      ? 'bara den senaste kontrollen'
+      : `högst ${numeral(m.maxHistory)} kontroller per verksamhet`;
+  return (
+    `${m.name} publicerar ${depth}. Utmärkelsen kräver tre, så ingen av kommunens ` +
+    `${formatNumber(m.establishments)} verksamheter kan nå den. Frånvaron säger något ` +
+    'om vad kommunen lämnar ut, inte om hur verksamheterna sköter sig.'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Grupperingen som bär ordningen
+// ---------------------------------------------------------------------------
+
+export interface RunGroup {
+  run: number;
+  /** "Fyra kontroller i rad utan anmärkning". */
+  heading: string;
+  entries: EditionEntry[];
+}
+
+/** Verksamheterna grupperade på serielängd, längst först. */
+export function runGroups(entries: EditionEntry[]): RunGroup[] {
+  const buckets = new Map<number, EditionEntry[]>();
+  for (const e of entries) {
+    const bucket = buckets.get(e.run) ?? [];
+    bucket.push(e);
+    buckets.set(e.run, bucket);
+  }
+  return [...buckets.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([run, list]) => ({
+      run,
+      heading: `${capitalise(numeral(run))} kontroller i rad utan anmärkning`,
+      entries: list,
+    }));
+}
+
+/**
+ * Hur många rader utgåvans egen sida visar per kommun innan den länkar vidare.
+ *
+ * Utgåvan ska gå att överblicka. Tolv rader räcker för att toppen ska synas
+ * utan att Stockholms 1 086 tar över sidan.
+ */
+const TOP_ROWS = 12;
+
+/**
+ * Grupper som är för stora för att visas som en topp.
+ *
+ * En grupp är per definition oordnad inom sig. Att klippa den vid tolv och
+ * kalla resultatet toppen vore att presentera bokstavsordningen som en
+ * rangordning. Jönköping är fallet: taket där är tre kontroller, så samtliga
+ * 121 utmärkta ligger i EN grupp. Den gruppen visas inte i utdrag alls, utan
+ * sammanfattas med sitt antal och en länk till hela listan.
+ */
+const MAX_GROUP_IN_EXCERPT = 30;
+
+/** Toppen av en kommuns lista: hela grupper, aldrig ett klipp inuti en. */
+export function topGroups(groups: RunGroup[]): RunGroup[] {
+  const picked: RunGroup[] = [];
+  let shown = 0;
+  for (const group of groups) {
+    if (shown >= TOP_ROWS) break;
+    if (group.entries.length > MAX_GROUP_IN_EXCERPT) break;
+    picked.push(group);
+    shown += group.entries.length;
+  }
+  return picked;
+}
+
+// ---------------------------------------------------------------------------
+// Uppslag från en verksamhetssida
+// ---------------------------------------------------------------------------
+
+const indexes = new Map<number, Map<string, EditionEntry>>();
+
+function indexFor(e: Edition): Map<string, EditionEntry> {
+  const cached = indexes.get(e.year);
+  if (cached) return cached;
+  const built = new Map<string, EditionEntry>();
+  for (const m of e.municipalities) {
+    for (const q of m.qualified) built.set(`${m.slug}/${q.slug}`, q);
+  }
+  indexes.set(e.year, built);
+  return built;
+}
+
+export interface Awarded {
+  year: number;
+  asOf: string;
+  entry: EditionEntry;
+}
+
+/**
+ * Utgåvorna en verksamhet står i, nyast först.
+ *
+ * Uppslaget går på kommun plus slug, alltså på sidans egen adress. Byter en
+ * verksamhet namn i kommunens register byter den också slug, och då hittas den
+ * inte här. Det är rätt beteende: utgåvan gäller den post som fanns när den
+ * frystes, och en ny post är en ny verksamhet så långt vi kan se.
+ */
+export function awardsFor(municipalitySlug: string, establishmentSlug: string): Awarded[] {
+  const key = `${municipalitySlug}/${establishmentSlug}`;
+  const found: Awarded[] = [];
+  for (const e of EDITIONS) {
+    const entry = indexFor(e).get(key);
+    if (entry) found.push({ year: e.year, asOf: e.asOf, entry });
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// Tal som ord
+// ---------------------------------------------------------------------------
+
+const NUMERALS = [
+  'noll', 'en', 'två', 'tre', 'fyra', 'fem', 'sex', 'sju', 'åtta', 'nio', 'tio',
+  'elva', 'tolv',
+];
+
+/** Små tal skrivs ut. Över tolv står siffran, som i svensk skrivregel. */
+export function numeral(n: number): string {
+  return NUMERALS[n] ?? formatNumber(n);
+}
+
+/** Versal begynnelsebokstav. Räkneorden skrivs ut och inleder ibland en mening. */
+export function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ---------------------------------------------------------------------------
+// Tal som sidorna behöver
+// ---------------------------------------------------------------------------
+
+export interface EditionFacts {
+  listed: EditionStanding[];
+  noneYet: EditionStanding[];
+  impossible: EditionStanding[];
+  /** Kortaste respektive längsta serie som ÖVERHUVUDTAGET kan visas, per kommun. */
+  lowestCeiling: EditionStanding | null;
+  highestCeiling: EditionStanding | null;
+  /** Verksamheter som alls kontrollerats tre gånger inom fönstret. */
+  pool: number;
+  /** Kommuner i beståndet som saknas helt ur utgåvan. */
+  missingFromEdition: string[];
+}
+
+export function editionFacts(year: number | string): EditionFacts {
+  const all = standings(year);
+  const listed = all.filter((m) => m.status === 'listed');
+  const known = new Set(all.map((m) => m.slug));
+
+  const ceilings = [...listed].sort((a, b) => a.deepestWindow - b.deepestWindow);
+
+  return {
+    listed,
+    noneYet: all.filter((m) => m.status === 'none_yet'),
+    impossible: all.filter((m) => m.status === 'impossible'),
+    lowestCeiling: ceilings[0] ?? null,
+    highestCeiling: ceilings[ceilings.length - 1] ?? null,
+    pool: all.reduce((n, m) => n + m.pool, 0),
+    // En kommun som tillkommit efter frysningen finns i beståndet men inte i
+    // utgåvan. Utgåvan får inte räknas om för att ta in den; däremot ska det
+    // stå på sidan att hon inte var med.
+    missingFromEdition: municipalities()
+      .filter((m) => !known.has(m.slug))
+      .map((m) => m.city),
+  };
+}

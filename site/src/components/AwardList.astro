@@ -1,0 +1,104 @@
+---
+/**
+ * Utmärkta verksamheter, grupperade på serielängd.
+ *
+ * Gruppen är rangordningen. Inom gruppen står raderna i bokstavsordning och
+ * har ingen inbördes ordning alls, eftersom underlaget är identiskt: 1 078 av
+ * de 1 541 utmärkta har exakt tre kontroller i rad, och en numrerad lista hade
+ * påstått att den fjärde är bättre än den åttahundrade.
+ *
+ * Varje rad visar datumet för seriens senaste kontroll. Det är den enda siffra
+ * som säger något om hur färskt beskedet är, och utan den läser en lista från
+ * en fryst utgåva som ett påstående om i dag.
+ */
+import { formatDate } from '../lib/data';
+import { path } from '../lib/urls';
+import type { RunGroup } from '../lib/utmarkelser';
+
+interface Props {
+  groups: RunGroup[];
+  /** Kommunen raderna länkar in i. */
+  kommun: string;
+  /** Rubriknivå. Utgåvan har kommunen som h2, kommunsidan har gruppen som h2. */
+  level?: 2 | 3;
+}
+
+const { groups, kommun, level = 3 } = Astro.props;
+const Heading = `h${level}` as 'h2' | 'h3';
+---
+
+{groups.map((group) => (
+  <div class="group">
+    <Heading class="group-title">
+      {group.heading}
+      <span class="count text-secondary">{group.entries.length} st</span>
+    </Heading>
+    <ul>
+      {group.entries.map((e) => (
+        <li>
+          <a href={path(kommun, e.slug)}>{e.name}</a>
+          {/* Adressen skiljer två verksamheter med samma namn åt. Saknar
+              kommunen adress får verksamhetstypen göra det i stället, hellre
+              än att raden blir ett namn och ett datum. */}
+          <span class="meta text-secondary">
+            {(e.address ?? e.type) && <>{e.address ?? e.type} · </>}
+            senast kontrollerad {formatDate(e.to)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+))}
+
+<style>
+  .group + .group {
+    margin-top: var(--s-8);
+  }
+
+  .group-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2) var(--s-3);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .count {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* En rad per verksamhet, namnet överst och underlaget under. Två kolumner
+     hade brutit på mobil precis där listan är som längst. */
+  li {
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  li a {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  li a:hover {
+    color: var(--brand-ink);
+  }
+
+  .meta {
+    display: block;
+    margin-top: var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+</style>

@@ -29,6 +29,7 @@ import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import LocationMap from '../../components/LocationMap.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
+import AwardNote from '../../components/AwardNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
@@ -304,6 +305,10 @@ const breadcrumbs = {
             <p class="answer">{answer}</p>
           </div>
         </section>
+
+        {/* Direkt efter beskedet, före statistiken: har verksamheten fått
+            utmärkelsen är det det näst viktigaste sidan har att säga. */}
+        <AwardNote establishment={e} />
 
         <FactGrid
           title="Statistik"

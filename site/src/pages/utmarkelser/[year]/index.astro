@@ -1,0 +1,373 @@
+---
+/**
+ * En årsutgåva av hederslistan.
+ *
+ * Sidan läser INTE beståndet. Den läser den frysta filen i src/editions/, och
+ * det är hela poängen: en verksamhet som fick märket den 3 augusti 2026 ska
+ * kunna slås upp här om fem år, oavsett hur många kontroller som skett sedan
+ * dess. Se lib/utmarkelser.ts och scripts/utmarkelser.mjs.
+ *
+ * Nuläget finns kvar och står på verksamhetens egen sida. De två svarar på
+ * olika frågor och får inte slås ihop.
+ */
+import Base from '../../../layouts/Base.astro';
+import AwardList from '../../../components/AwardList.astro';
+import AwardSeal from '../../../components/AwardSeal.astro';
+import { formatDate, formatNumber } from '../../../lib/data';
+import { SITE } from '../../../lib/site';
+import { absolute, path } from '../../../lib/urls';
+import {
+  edition,
+  editionFacts,
+  editions,
+  numeral,
+  runGroups,
+  topGroups,
+} from '../../../lib/utmarkelser';
+
+export function getStaticPaths() {
+  return editions().map((e) => ({ params: { year: String(e.year) } }));
+}
+
+const { year } = Astro.params;
+const e = edition(year!);
+const facts = editionFacts(e.year);
+
+const sections = facts.listed.map((m) => {
+  const groups = runGroups(m.qualified);
+  const excerpt = m.ownPage ? topGroups(groups) : groups;
+  const shown = excerpt.reduce((n, g) => n + g.entries.length, 0);
+  return { m, groups, excerpt, shown };
+});
+
+const description =
+  `${formatNumber(e.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
+  `klarade tre kontroller i rad utan anmärkning. Prikkos utmärkelse ${e.year}, fryst ` +
+  `${formatDate(e.asOf)} och oförändrad sedan dess.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: `Utmärkelsen ${e.year}`,
+  description,
+  inLanguage: 'sv-SE',
+  url: absolute('utmarkelser', e.year),
+  datePublished: e.asOf,
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  isBasedOn: {
+    '@type': 'Dataset',
+    name: 'Livsmedelskontroller i Sverige, normaliserade av Prikko',
+    url: absolute('kallor'),
+  },
+};
+---
+
+<Base title={`Utmärkelsen ${e.year}`} description={description} jsonLd={jsonLd} dataUpdated={e.asOf}>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">
+        <a href={path('utmarkelser')}>Utmärkelser</a> · fryst {formatDate(e.asOf)}
+      </p>
+      <h1>Utmärkelsen {e.year}</h1>
+      <p class="lede text-secondary">
+        {formatNumber(e.totals.qualified)} verksamheter i {facts.listed.length} kommuner
+        hade vid frysningen tre kontroller i rad utan en enda anmärkning. Listan
+        står still. Så här såg det ut {formatDate(e.asOf)}.
+      </p>
+    </header>
+
+    <nav class="jump" aria-label="Kommuner i utgåvan">
+      {sections.map(({ m }) => (
+        <a href={`#${m.slug}`}>{m.city} <span class="text-secondary">{formatNumber(m.qualified.length)}</span></a>
+      ))}
+    </nav>
+
+    {sections.map(({ m, groups, excerpt, shown }) => (
+      <section id={m.slug} class="kommun">
+        <h2>
+          {m.city}
+          <span class="tally text-secondary">
+            {formatNumber(m.qualified.length)}
+            {' '}{m.qualified.length === 1 ? 'utmärkt' : 'utmärkta'}
+          </span>
+        </h2>
+        <p class="intro text-secondary">
+          Av {formatNumber(m.pool)} verksamheter som kontrollerats minst tre
+          gånger inom fönstret klarade {formatNumber(m.qualified.length)}
+          {' '}samtliga utan anmärkning. Kommunen publicerar upp till
+          {' '}{formatNumber(m.deepestWindow)} kontroller per verksamhet inom
+          fönstret, vilket är taket för hur lång en serie kan bli här.
+          {' '}<a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
+        </p>
+
+        {excerpt.length > 0 ? (
+          <AwardList groups={excerpt} kommun={m.slug} level={3} />
+        ) : (
+          <p class="intro text-secondary">
+            Samtliga {formatNumber(m.qualified.length)} har
+            {' '}{numeral(groups[0].run)} kontroller i rad, alltså allt kommunen
+            publicerar. Ingen av dem står före någon annan.
+          </p>
+        )}
+
+        {m.ownPage && (
+          <p class="more">
+            <a href={path('utmarkelser', e.year, m.slug)}>
+              Hela listan för {m.city}, {formatNumber(m.qualified.length)} verksamheter
+            </a>
+            {shown > 0 && <span class="text-secondary"> · {shown} visas här</span>}
+          </p>
+        )}
+      </section>
+    ))}
+
+    <section class="seal-block">
+      <AwardSeal year={e.year} size={132} decorative />
+      <div>
+        <h2>Märket för {e.year}</h2>
+        <p>
+          Står verksamheten i listan ovan får den använda märket. Årtalet är det
+          som syns mest, eftersom märket säger att verksamheten fanns med i
+          {' '}{e.year} års utgåva och ingenting om nuläget. Ett märke som sitter
+          kvar i ett fönster kan därför inte bli osant.
+        </p>
+        <p>
+          <a href={path('utmarkelser', e.year) + 'marke.svg'} download={`prikko-${e.year}.svg`}>
+            Ladda ner märket som SVG
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Kommunerna som inte är med</h2>
+      {facts.impossible.length > 0 && (
+        <>
+          <p>
+            I {numeral(facts.impossible.length)}
+            {' '}{facts.impossible.length === 1 ? 'kommun' : 'kommuner'} kan
+            utmärkelsen inte nås alls. Det beror på vad kommunen publicerar,
+            inte på verksamheterna där.
+          </p>
+          <ul class="plain">
+            {facts.impossible.map((m) => (
+              <li>{m.blocked} <a href={path(m.slug)}>Se {m.city}</a>.</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {facts.noneYet.length > 0 && (
+        <>
+          <p>
+            I {numeral(facts.noneYet.length)}
+            {' '}{facts.noneYet.length === 1 ? 'kommun' : 'kommuner'} är
+            utmärkelsen möjlig, men ingen hade nått den vid frysningen.
+          </p>
+          <ul class="plain">
+            {facts.noneYet.map((m) => (
+              <li>
+                I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)} av
+                {' '}{formatNumber(m.establishments)} verksamheter alls
+                kontrollerats tre gånger inom treårsfönstret.
+                {' '}<a href={path(m.slug)}>Se {m.city}</a>.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {facts.missingFromEdition.length > 0 && (
+        <p>
+          Sedan utgåvan frystes har Prikko tagit in
+          {' '}{facts.missingFromEdition.join(', ')}. De kunde inte vara med i
+          {' '}{e.year} års lista och står först i nästa.
+        </p>
+      )}
+    </section>
+
+    <section class="method">
+      <h2>Hur utgåvan är gjord</h2>
+      <p>
+        Utmärkelsen kräver tre kontroller inom de senaste tre åren, samtliga
+        utan anmärkning. Den sätts av samma modell som varje hygienbedömning på
+        Prikko och är räknad ur kommunernas egna kontrolluppgifter. Underlaget
+        vid frysningen var {formatNumber(e.totals.establishments)} verksamheter i
+        {' '}{e.totals.municipalities} kommuner, varav
+        {' '}{formatNumber(e.totals.assessed)} gick att bedöma.
+      </p>
+      <p>
+        Till skillnad från resten av sajten räknas den här sidan inte om. Den
+        läser en fil som skrevs {formatDate(e.asOf)} och ändras inte när
+        kommunernas register gör det. Vad som gäller i dag står på varje
+        verksamhets egen sida.
+        {' '}<a href={path('utmarkelser')}>Varför listan ser ut så här</a>.
+      </p>
+      <p>
+        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .eyebrow a {
+    color: inherit;
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  /* Hoppnavigering. Utgåvan är lång, och utan den måste läsaren rulla förbi
+     Stockholm för att hitta sin egen kommun. */
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-8);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .jump a {
+    display: inline-flex;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+  }
+
+  .jump a:hover {
+    border-color: var(--brand);
+    color: var(--brand-ink);
+    text-decoration: none;
+  }
+
+  .jump span {
+    font-variant-numeric: tabular-nums;
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  section h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  section p {
+    line-height: 26px;
+  }
+
+  section p + p {
+    margin-top: var(--s-4);
+  }
+
+  .kommun h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2) var(--s-3);
+    margin-bottom: var(--s-2);
+  }
+
+  .tally {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .intro {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    margin-bottom: var(--s-6);
+  }
+
+  .more {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .seal-block {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    padding: var(--s-6);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+  }
+
+  .seal-block h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-2);
+  }
+
+  .seal-block p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .seal-block p + p {
+    margin-top: var(--s-3);
+  }
+
+  .plain {
+    margin: var(--s-4) 0 0;
+    padding-left: var(--s-4);
+  }
+
+  .plain li {
+    margin-top: var(--s-3);
+    line-height: 26px;
+  }
+
+  .method {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .method h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .method p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p {
+    margin-top: var(--s-3);
+  }
+
+  @media (max-width: 560px) {
+    .seal-block {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

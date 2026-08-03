@@ -1,0 +1,174 @@
+---
+/**
+ * Hela utmärkelselistan för en kommun i en given utgåva.
+ *
+ * Finns bara för kommuner med minst MIN_OWN_PAGE utmärkta. Under gränsen står
+ * hela listan redan på utgåvans egen sida, och en sida med en rad hade varit
+ * ett utsnitt av en annan sida och ingenting mer. Samma gräns och samma skäl
+ * som MIN_CATEGORY_PAGE i lib/data.ts.
+ */
+import Base from '../../../layouts/Base.astro';
+import AwardList from '../../../components/AwardList.astro';
+import { formatDate, formatNumber } from '../../../lib/data';
+import { SITE } from '../../../lib/site';
+import { absolute, path } from '../../../lib/urls';
+import { edition, editions, numeral, runGroups, standings } from '../../../lib/utmarkelser';
+
+export function getStaticPaths() {
+  const paths: Array<{ params: { year: string; kommun: string } }> = [];
+  for (const e of editions()) {
+    for (const m of standings(e.year)) {
+      if (!m.ownPage) continue;
+      paths.push({ params: { year: String(e.year), kommun: m.slug } });
+    }
+  }
+  return paths;
+}
+
+const { year, kommun } = Astro.params;
+const e = edition(year!);
+const m = standings(e.year).find((s) => s.slug === kommun)!;
+const groups = runGroups(m.qualified);
+
+const description =
+  `${formatNumber(m.qualified.length)} verksamheter i ${m.city} klarade tre kontroller i ` +
+  `rad utan anmärkning. Hela listan ur Prikkos utmärkelse ${e.year}, fryst ` +
+  `${formatDate(e.asOf)}.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: `Utmärkelsen ${e.year} i ${m.city}`,
+  description,
+  inLanguage: 'sv-SE',
+  url: absolute('utmarkelser', e.year, m.slug),
+  datePublished: e.asOf,
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  isPartOf: {
+    '@type': 'CollectionPage',
+    name: `Utmärkelsen ${e.year}`,
+    url: absolute('utmarkelser', e.year),
+  },
+};
+---
+
+<Base
+  title={`Utmärkelsen ${e.year} i ${m.city}`}
+  description={description}
+  jsonLd={jsonLd}
+  dataUpdated={e.asOf}
+>
+  <article class="container page">
+    <nav class="crumbs text-secondary" aria-label="Brödsmulor">
+      <a href={path('utmarkelser')}>Utmärkelser</a>
+      <span aria-hidden="true">›</span>
+      <a href={path('utmarkelser', e.year)}>{e.year}</a>
+      <span aria-hidden="true">›</span>
+      <span>{m.city}</span>
+    </nav>
+
+    <header>
+      <h1>Utmärkelsen {e.year} i {m.city}</h1>
+      <p class="lede text-secondary">
+        {formatNumber(m.qualified.length)} verksamheter i {m.name} hade tre
+        kontroller i rad utan en enda anmärkning när utgåvan frystes
+        {' '}{formatDate(e.asOf)}. Av de {formatNumber(m.pool)} som alls
+        kontrollerats tre gånger inom fönstret är det
+        {' '}{((m.qualified.length / m.pool) * 100).toFixed(0)} procent.
+      </p>
+    </header>
+
+    <section>
+      <p class="note text-secondary">
+        Grupperna nedan är listans enda ordning. Inom en grupp står raderna i
+        bokstavsordning och har ingen inbördes rangordning: underlaget är
+        detsamma. Den längsta serien i {m.city} är {numeral(m.topRun)} kontroller,
+        och taket ligger på {formatNumber(m.deepestWindow)}, för fler kontroller
+        per verksamhet lämnar kommunen inte ut inom fönstret.
+        {' '}<a href={path('utmarkelser')}>Varför serielängder inte jämförs mellan
+        kommuner</a>.
+      </p>
+
+      <AwardList groups={groups} kommun={m.slug} level={2} />
+    </section>
+
+    <section class="method">
+      <h2>Om listan</h2>
+      <p>
+        Utmärkelsen kräver tre kontroller inom de senaste tre åren, samtliga
+        utan anmärkning. Den här sidan räknas inte om: den läser den frysta
+        utgåvan från {formatDate(e.asOf)}. Hur det ser ut i dag står på varje
+        verksamhets egen sida, och
+        {' '}<a href={path(m.slug)}>alla {formatNumber(m.establishments)} verksamheter i
+        {' '}{m.city}</a> finns i kommunens register hos oss.
+      </p>
+      <p>
+        <a href={path('utmarkelser', e.year)}>Tillbaka till {e.year} års utgåva</a> ·
+        {' '}<a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-8) var(--s-16);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    margin-bottom: var(--s-6);
+  }
+
+  .crumbs a {
+    color: inherit;
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  .note {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    margin-bottom: var(--s-8);
+  }
+
+  .method {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .method h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .method p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p {
+    margin-top: var(--s-3);
+  }
+</style>

@@ -1,0 +1,42 @@
+---
+/**
+ * Märket, som det ser ut på sajten.
+ *
+ * Ritningen ligger i lib/marke.ts och delas med den nedladdningsbara filen.
+ * Den här komponenten gör bara två saker: sätter storleken och avgör om
+ * märket är en bild för skärmläsaren eller ren dekoration.
+ *
+ * `decorative` sätts när märket står bredvid en rubrik som redan säger samma
+ * sak. Två uppläsningar av "Prikkos utmärkelse 2026" i rad är brus, inte
+ * tillgänglighet.
+ */
+import { SEAL_VIEWBOX, sealContent, sealTitle } from '../lib/marke';
+
+interface Props {
+  year: number;
+  /** Sidlängd i pixlar. Märket är kvadratiskt. */
+  size?: number;
+  decorative?: boolean;
+}
+
+const { year, size = 96, decorative = false } = Astro.props;
+const label = sealTitle(year);
+---
+
+<svg
+  class="seal"
+  viewBox={SEAL_VIEWBOX}
+  width={size}
+  height={size}
+  role={decorative ? 'presentation' : 'img'}
+  aria-hidden={decorative ? 'true' : undefined}
+  aria-label={decorative ? undefined : label}
+  set:html={sealContent(year)}
+/>
+
+<style>
+  .seal {
+    display: block;
+    flex: none;
+  }
+</style>

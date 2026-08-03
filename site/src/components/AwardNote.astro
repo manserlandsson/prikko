@@ -1,0 +1,108 @@
+---
+/**
+ * Utmärkelsen på verksamhetens egen sida.
+ *
+ * Två saker som ser lika ut men inte är det, och som sidan därför måste hålla
+ * isär:
+ *
+ * - MÄRKET, som står här, är historiskt. Det säger att verksamheten fanns med i
+ *   en namngiven årsutgåva. Det blir aldrig osant, och det tas aldrig bort.
+ * - CHIPET uppe vid bedömningen är nuläget, satt av `e.distinction` vid varje
+ *   bygge. Det försvinner samma dag kommunen hittar en avvikelse.
+ *
+ * Slutar de säga samma sak är det inte ett fel, utan hela skälet till att
+ * märket bär ett årtal. Den sista meningen här skrivs därför om efter vilket av
+ * de två fallen som gäller, så att en läsare som ser ett guldmärke bredvid
+ * "Brister som kvarstår" får veta varför båda står där.
+ */
+import AwardSeal from './AwardSeal.astro';
+import { formatDate } from '../lib/data';
+import { path } from '../lib/urls';
+import { awardsFor, capitalise, numeral } from '../lib/utmarkelser';
+import type { Establishment } from '../lib/data';
+
+interface Props {
+  establishment: Establishment;
+}
+
+const { establishment: e } = Astro.props;
+const awards = awardsFor(e.municipality.slug, e.slug);
+const newest = awards[0];
+/* Märket visar den senaste utgåvan. Äldre utgåvor räknas upp i text i stället
+   för i rubriken, så att rubriken alltid svarar mot det märke som står bredvid. */
+const earlier = awards.slice(1);
+---
+
+{newest && (
+  <section class="award">
+    <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
+      <AwardSeal year={newest.year} size={104} decorative />
+    </a>
+    <div>
+      <h2>Utmärkelsen {newest.year}</h2>
+      <p>
+        {capitalise(numeral(newest.entry.run))} kontroller i rad utan en enda anmärkning,
+        mellan {formatDate(newest.entry.from)} och {formatDate(newest.entry.to)}.
+        Det räckte för att {e.name} skulle stå i
+        {' '}<a href={path('utmarkelser', newest.year)}>{newest.year} års lista</a>,
+        som frystes {formatDate(newest.asOf)}.
+      </p>
+      <p>
+        {e.distinction
+          ? 'Utmärkelsen gäller fortfarande: de tre senaste kontrollerna är alltjämt utan anmärkning.'
+          : 'Utmärkelsen avser den utgåvan och räknas inte om. Vad som gäller nu står i bedömningen ovan.'}
+      </p>
+      {earlier.length > 0 && (
+        <p>
+          Verksamheten står också i {earlier.map((a, i) => (
+            <>
+              {i > 0 && (i === earlier.length - 1 ? ' och ' : ', ')}
+              <a href={path('utmarkelser', a.year)}>{a.year}</a>
+            </>
+          ))} års {earlier.length === 1 ? 'lista' : 'listor'}.
+        </p>
+      )}
+    </div>
+  </section>
+)}
+
+<style>
+  .award {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    margin-top: var(--s-8);
+    padding: var(--s-6);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+  }
+
+  .seal-link {
+    display: block;
+    flex: none;
+  }
+
+  .award h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-2);
+  }
+
+  .award p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+    color: var(--text-secondary);
+  }
+
+  .award p + p {
+    margin-top: var(--s-2);
+  }
+
+  @media (max-width: 560px) {
+    .award {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

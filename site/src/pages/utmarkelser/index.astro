@@ -1,0 +1,360 @@
+---
+/**
+ * Utmärkelsens hemvist: vad den är, vem som kan få den, och vilka utgåvor som
+ * finns.
+ *
+ * Sidan är avsiktligt skild från utgåvan. Utgåvan är ett påstående om ett
+ * datum och står still; den här sidan beskriver regeln och räknas om vid varje
+ * bygge, precis som resten av sajten. Blandades de två skulle antingen regeln
+ * frysa eller listan börja röra sig.
+ */
+import Base from '../../layouts/Base.astro';
+import AwardSeal from '../../components/AwardSeal.astro';
+import { coverage, formatDate, formatNumber } from '../../lib/data';
+import { DISTINCTION, SITE } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
+import { dataUpdated } from '../../lib/rapporter';
+import { editionFacts, editions, latestEdition, numeral } from '../../lib/utmarkelser';
+
+const all = editions();
+const latest = latestEdition();
+if (!latest) throw new Error('Ingen utgåva finns. Kör scripts/utmarkelser.mjs.');
+
+const facts = editionFacts(latest.year);
+const total = coverage();
+const updated = dataUpdated();
+
+/** Andelen bedömda som nådde utmärkelsen. Räknas på hela beståndet, aldrig
+ *  per kommun: en kommunvis andel är precis den jämförelse som inte håller. */
+const share = ((latest.totals.qualified / latest.totals.assessed) * 100)
+  .toFixed(1)
+  .replace('.', ',');
+
+const description =
+  `${formatNumber(latest.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
+  `klarade tre kontroller i rad utan en enda anmärkning. Prikkos utmärkelse är räknad ur ` +
+  'kommunernas egna kontrolluppgifter och fryses en gång om året.';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Utmärkelsen för genomgående skötsamhet',
+  description,
+  inLanguage: 'sv-SE',
+  url: absolute('utmarkelser'),
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  hasPart: all.map((e) => ({
+    '@type': 'CollectionPage',
+    name: `Utmärkelsen ${e.year}`,
+    url: absolute('utmarkelser', e.year),
+    datePublished: e.asOf,
+  })),
+};
+---
+
+<Base
+  title="Utmärkelsen för genomgående skötsamhet"
+  description={description}
+  jsonLd={jsonLd}
+  dataUpdated={updated}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Utmärkelser</p>
+      <h1>Utmärkelsen för genomgående skötsamhet</h1>
+      <p class="lede text-secondary">
+        Tre kontroller i rad utan en enda anmärkning.
+        {' '}{formatNumber(latest.totals.qualified)} verksamheter klarade det, alltså
+        {' '}{share} procent av de {formatNumber(latest.totals.assessed)} som gick
+        att bedöma när {latest.year} års utgåva frystes.
+      </p>
+    </header>
+
+    <section class="seal-block">
+      <AwardSeal year={latest.year} size={132} decorative />
+      <div>
+        <h2>{latest.year} års utgåva</h2>
+        <p>
+          Fryst {formatDate(latest.asOf)}. {formatNumber(latest.totals.qualified)}
+          {' '}verksamheter i {facts.listed.length} av {latest.totals.municipalities}
+          {' '}kommuner.
+        </p>
+        <p>
+          <a href={path('utmarkelser', latest.year)}>Se hela {latest.year} års lista</a>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vad som krävs</h2>
+      <p>
+        Tre kontroller inom de senaste tre åren, och ingen anmärkning vid någon
+        av dem. Inget annat vägs in. Kravet är detsamma i varje kommun och
+        räknas ur kommunens egna kontrolluppgifter, inte ur någon bedömning vi
+        gjort för hand.
+      </p>
+      <p>
+        Utmärkelsen påverkar aldrig hygienbedömningen. Nuläget avgör
+        bedömningen, historiken avgör bara om verksamheten förtjänar ett
+        erkännande utöver den. En verksamhet utan utmärkelse har alltså inte
+        fått något omdöme av oss.
+        {' '}<a href={path('metodik')}>Hela modellen står på metodiksidan</a>.
+      </p>
+      <p class="callout">
+        Det finns ingen motsvarande lista över de verksamheter som klarat sig
+        sämst, och kommer inte att finnas. En anmärkning står på verksamhetens
+        egen sida tillsammans med kommunens ord och verksamhetens svar, där den
+        går att förstå. Lyft ur sitt sammanhang och rangordnad blir den något
+        annat.
+      </p>
+    </section>
+
+    <section>
+      <h2>Varför listan inte rangordnar hela landet</h2>
+      <p>
+        Utmärkelsen betyder samma sak överallt: tre kontroller, noll
+        anmärkningar. Det gör den jämförbar mellan kommuner, och alla
+        {' '}{formatNumber(latest.totals.qualified)} har den lika mycket.
+      </p>
+      {facts.lowestCeiling && facts.highestCeiling && (
+        <p>
+          Hur lång serien är går däremot inte att jämföra, och skälet ligger i
+          källorna. {facts.lowestCeiling.name} lämnar aldrig ut fler än
+          {' '}{numeral(facts.lowestCeiling.deepestWindow)} kontroller per
+          verksamhet inom fönstret, så ingen serie där kan bli längre än
+          {' '}{numeral(facts.lowestCeiling.deepestWindow)}. I
+          {' '}{facts.highestCeiling.city} publiceras upp till
+          {' '}{formatNumber(facts.highestCeiling.deepestWindow)}, och den längsta
+          obrutna rena serien når {numeral(facts.highestCeiling.topRun)}. En
+          rikslista sorterad på serielängd hade lagt varje verksamhet i
+          {' '}{facts.lowestCeiling.city} under varje verksamhet i
+          {' '}{facts.highestCeiling.city} med en serie på
+          {' '}{numeral(facts.lowestCeiling.deepestWindow + 1)} eller fler, och
+          talet hade mätt hur mycket kommunen publicerar i stället för hur köket
+          sköts.
+        </p>
+      )}
+      <p>
+        Att räkna om serielängden till en placering i procent hjälper inte.
+        Utmärkelsen är olika svår att nå i olika kommuner av exakt samma skäl:
+        där bara tre kontroller publiceras måste alla tre vara rena, medan en
+        kommun som publicerar fler bara behöver de tre senaste. En procentsats
+        hade rangordnat publiceringsdjupet en gång till, med snyggare tal.
+      </p>
+      <p>
+        Listorna är därför ordnade inom varje kommun, där
+        {' '}<a href={`${path('metodik')}#jamfor`}>metodiken säger att jämförelsen
+        är rättvis</a>. Raderna är grupperade på antal kontroller i rad och står
+        i bokstavsordning inom gruppen. Numrerade platser skulle antyda en
+        skillnad mellan verksamheter som har exakt samma underlag.
+      </p>
+    </section>
+
+    <section>
+      <h2>Kommunerna som inte kan vara med</h2>
+      <p>
+        Utmärkelsen kräver tre kontroller. Alla kommuner publicerar inte tre.
+        Det är inget fel hos verksamheterna där, och listan får inte läsas som
+        att det saknas skötsamma kök i de kommunerna.
+      </p>
+      {facts.impossible.length > 0 && (
+        <ul class="plain">
+          {facts.impossible.map((m) => (
+            <li>{m.blocked} <a href={path(m.slug)}>Se {m.city}</a>.</li>
+          ))}
+        </ul>
+      )}
+      {facts.noneYet.length > 0 && (
+        <>
+          <h3>Kommuner där ingen nått den ännu</h3>
+          <p>
+            Här är utmärkelsen möjlig, men ingen verksamhet har den i
+            {' '}{latest.year} års utgåva. Skillnaden mot listan ovan är att den
+            kan nås så snart kontrollerna hunnit bli tre.
+          </p>
+          <ul class="plain">
+            {facts.noneYet.map((m) => (
+              <li>
+                I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)}
+                {' '}av {formatNumber(m.establishments)} verksamheter alls
+                kontrollerats tre gånger inom treårsfönstret.
+                {' '}<a href={path(m.slug)}>Se {m.city}</a>.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p>
+        Uppgifterna räknas fram ur datan vid varje bygge. Börjar en kommun
+        publicera djupare historik faller den ur listan här av sig själv.
+      </p>
+    </section>
+
+    <section>
+      <h2>Märket</h2>
+      <p>
+        En verksamhet som står i en utgåva får använda märket. Det bär årtalet
+        större än allt annat, och det är avsiktligt: märket säger att
+        verksamheten fanns med i en namngiven årsutgåva, vilket är sant för
+        alltid. Det säger ingenting om nuläget.
+      </p>
+      <p>
+        Ett märke som sitter kvar i ett fönster kan därför inte bli osant. Vill
+        man veta hur det ser ut i dag står det på verksamhetens egen sida, och
+        den räknas om varje gång kommunen lämnar nya uppgifter.
+      </p>
+      <p>
+        <a href={path('utmarkelser', latest.year)}>Ladda ner märket från
+        {' '}{latest.year} års utgåva</a>.
+      </p>
+    </section>
+
+    {all.length > 1 && (
+      <section>
+        <h2>Utgåvor</h2>
+        <ul class="plain">
+          {all.map((e) => (
+            <li>
+              <a href={path('utmarkelser', e.year)}>Utmärkelsen {e.year}</a>
+              {' '}· {formatNumber(e.totals.qualified)} verksamheter, fryst
+              {' '}{formatDate(e.asOf)}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <section class="method">
+      <h2>Hur listan är gjord</h2>
+      <p>
+        Utmärkelsen heter ”{DISTINCTION.label}” och sätts av samma
+        modell som varje hygienbedömning på Prikko. Talen på den här sidan är
+        räknade ur beståndet när sidan byggdes: {formatNumber(total.inspections)}
+        {' '}kontroller vid {formatNumber(total.establishments)} verksamheter i
+        {' '}{total.municipalities} kommuner, senast hämtat {formatDate(updated)}.
+        Formuleringarna är mallar som fylls med de talen. Ingen text på Prikko
+        skrivs med AI.
+      </p>
+      <p>
+        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  section h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  section h3 {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+  }
+
+  section p {
+    line-height: 26px;
+  }
+
+  section p + p {
+    margin-top: var(--s-4);
+  }
+
+  /* Märket och utgåvan står tillsammans: märket är inte en illustration av
+     texten, det ÄR det utgåvan delar ut. */
+  .seal-block {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    padding: var(--s-6);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+  }
+
+  .seal-block h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-2);
+  }
+
+  .seal-block p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .seal-block p + p {
+    margin-top: var(--s-3);
+  }
+
+  .plain {
+    margin: var(--s-4) 0 0;
+    padding-left: var(--s-4);
+  }
+
+  .plain li {
+    margin-top: var(--s-3);
+    line-height: 26px;
+  }
+
+  .callout {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--verdict-none);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .method {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .method h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .method p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p {
+    margin-top: var(--s-3);
+  }
+
+  @media (max-width: 560px) {
+    .seal-block {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
