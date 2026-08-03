@@ -12,9 +12,11 @@
  *   Följ verksamheten   privat bevakning, ingen publicering, ingen granskning.
  *                       Kräver inloggning, och knappen säger det innan man
  *                       klickar i stället för att gå sönder efteråt.
- *   Skriv ett omdöme    hoppar till omdömesavsnittet längre ner, som bär hela
- *                       förklaringen om granskning och åtskillnad. En knapp som
- *                       öppnar ett formulär utan sitt sammanhang är sämre.
+ *   Skriv ett omdöme    öppnar skrivrutan. Den bodde tidigare som ett utfällbart
+ *                       formulär i omdömesavsnittet, och knappen här var en
+ *                       hopplänk dit. Rutan bor i Reviews.astro; härifrån
+ *                       öppnas den genom review-dialog.ts, som är samma
+ *                       lösning som inloggningsrutan använder.
  *   Rätta en uppgift    till /ratta, som redan är den publicerade vägen för
  *                       rättelse och genmäle.
  *
@@ -43,7 +45,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   data-kommun={municipalitySlug}
 >
   <button type="button" class="btn-primary" id="follow">Följ verksamheten</button>
-  <a class="btn-ghost" href="#omdomen">Skriv ett omdöme</a>
+  <button type="button" class="btn-ghost" id="review-write">Skriv ett omdöme</button>
   <a class="btn-ghost" href="/ratta/">Rätta en uppgift</a>
 </div>
 
@@ -115,6 +117,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     onAuthChange,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
+  import { openReviewDialog, reviewDialogAvailable } from '../lib/review-dialog';
 
   const panel = document.getElementById('actions');
   const button = document.getElementById('follow') as HTMLButtonElement | null;
@@ -227,5 +230,34 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     });
 
     void start();
+  }
+
+  /* Skriv ett omdöme -------------------------------------------------- */
+  /*
+   * Egen hanterare, utanför bevakningens. Knappen beror inte på panelens
+   * tillstånd och ska fungera även om bevakningen inte kunde startas.
+   */
+  const write = document.getElementById('review-write') as HTMLButtonElement | null;
+
+  if (write) {
+    write.addEventListener('click', async () => {
+      /* Rutan bor i Reviews och registrerar sig bara när omdömen är
+         påslagna. Är de det inte tar knappen oss till avsnittet, som skriver
+         ut varför, i stället för att göra ingenting. */
+      if (!reviewDialogAvailable()) {
+        location.hash = '#omdomen';
+        return;
+      }
+
+      /* Frågan om inloggning ställs INUTI klicket, aldrig vid sidladdning,
+         och rutan öppnas i samma klick när den är avklarad. Inloggningen är
+         ett steg på vägen till det man ville göra, inte en annan sak att
+         göra i stället. */
+      if (!(await signedIn())) {
+        if (!(await openSignIn(write))) return;
+      }
+
+      openReviewDialog(write);
+    });
   }
 </script>

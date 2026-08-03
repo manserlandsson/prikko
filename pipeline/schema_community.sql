@@ -400,10 +400,18 @@ create index if not exists owner_responses_pending_idx
 -- ner och inte som en regel i sidmallen, för en regel i en sidmall är ett
 -- löfte medan en policy är en spärr.
 --
--- INGET BETYG I SIFFROR, med avsikt. Ett stjärnbetyg är den enda ingrediens
--- som saknas för att någon en dag ska märka upp sidan med AggregateRating
--- bredvid en hygienbedömning som bygger på myndighetsdata. Finns talet inte
--- kan misstaget inte begås. Omdömen är text.
+-- BETYGET FINNS, MEN ALDRIG SOM STRUKTURERAD DATA. Här stod tidigare att
+-- omdömen inte har något betyg alls. Ägaren har sedan beslutat att de ska ha
+-- ett, och `rating` lades till i migrationen community_reviews_rating.
+--
+-- Skälet till den gamla raden står kvar och gäller fortfarande: ett tal är den
+-- enda ingrediens som saknas för att någon en dag ska märka upp sidan med
+-- AggregateRating bredvid en hygienbedömning som bygger på myndighetsdata.
+-- Spärren ligger nu i .github/workflows/kontroll.yml, som fäller bygget om
+-- orden dyker upp i utfallet, i stället för i att talet inte finns.
+--
+-- Besökarens betyg och kommunens hygienbedömning får aldrig se likadana ut.
+-- Stjärnor här, smiley där, och aldrig ett gemensamt tal.
 --
 -- Omdömen renderas ALDRIG i det statiska bygget. De hämtas i webbläsaren och
 -- ligger i en egen, utmärkt del av sidan. Ingen JSON-LD, aldrig `Review`.
@@ -416,6 +424,30 @@ create table if not exists community.reviews (
     municipality_slug text not null,
 
     body              text not null check (length(btrim(body)) between 20 and 2000),
+
+    -- Betyget, ett till fem. Skalan är fem för att fem är vad besökaren redan
+    -- kan läsa utan förklaring; en egen skala hade krävt en teckenförklaring
+    -- på en sida som redan förklarar för mycket.
+    --
+    -- NULLABLE. Den som vill berätta något ska inte tvingas sätta en siffra på
+    -- det, och ett tvingande betyg gör att folk klickar en fyra för att komma
+    -- vidare i stället för att mena den.
+    rating            smallint check (rating is null or rating between 1 and 5),
+
+    -- Månaden besöket gjordes, alltid den FÖRSTA i månaden.
+    --
+    -- En månad och inte ett datum: ingen minns vilken tisdag det var, och
+    -- frågar man om ett exakt datum får man antingen en gissning eller ett
+    -- tomt fält. Månaden räcker för det läsaren behöver, alltså om omdömet
+    -- gäller i somras eller för två år sedan.
+    --
+    -- Att dagen alltid är 1 är en kontroll och inte en konvention. Övre
+    -- gränsen, att månaden inte får ligga i framtiden, kan inte stå här:
+    -- `check` får bara innehålla immutabla uttryck och både now() och
+    -- current_date är stabila. Den regeln bärs av triggern längre ner.
+    visited_month     date check (visited_month is null
+                                  or (extract(day from visited_month) = 1
+                                      and visited_month >= date '2015-01-01')),
 
     -- Namnet som ska stå bredvid omdömet, kopierat från profilen när omdömet
     -- skickades in.
@@ -450,6 +482,33 @@ create trigger reviews_frozen
     before update on community.reviews
     for each row execute function community.freeze_body();
 
+-- Besöksmånaden får inte ligga i framtiden.
+--
+-- Regeln står som trigger och inte som `check` eftersom ett check-villkor bara
+-- får innehålla immutabla uttryck. now() och current_date är stabila, inte
+-- immutabla, och Postgres avvisar villkoret.
+--
+-- `set search_path to ''` av samma skäl som de andra funktionerna i schemat:
+-- en funktion utan pinnad sökväg kan luras att kalla något annat än den tror.
+create or replace function community.check_visited_month()
+returns trigger
+language plpgsql
+set search_path to ''
+as $$
+begin
+    if new.visited_month is not null
+       and new.visited_month > date_trunc('month', current_date)::date then
+        raise exception 'Besöksmånaden ligger i framtiden. (%)', new.visited_month;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists reviews_visited_month on community.reviews;
+create trigger reviews_visited_month
+    before insert or update on community.reviews
+    for each row execute function community.check_visited_month();
+
 create index if not exists reviews_published_idx
     on community.reviews (establishment_id, created_at desc) where status = 'published';
 
@@ -465,6 +524,9 @@ create index if not exists reviews_pending_idx
 --
 -- Vyn rör INGEN annan tabell. En join mot profiles hade krävt att anon fick
 -- läsa profiltabellen, och det ska anon inte få.
+-- Vyn DROPPAS och skapas om, aldrig `create or replace`. Den formen kan bara
+-- lägga till kolumner sist, och betyget och månaden hör hemma bredvid texten
+-- de gäller, inte efter författaren.
 drop view if exists community.published_reviews;
 
 create view community.published_reviews as
@@ -473,6 +535,8 @@ select
     r.establishment_id,
     r.municipality_slug,
     r.body,
+    r.rating,
+    r.visited_month,
     r.created_at,
     coalesce(r.author_name, 'Besökare') as author
 from community.reviews r

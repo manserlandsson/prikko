@@ -36,6 +36,21 @@
  * Det är också skälet att omdömen INTE har något stjärnbetyg. Ett tal är den
  * enda ingrediens som saknas för att någon en dag ska räkna ihop ett snitt och
  * märka upp det. Finns talet inte kan misstaget inte begås.
+ *
+ * ---------------------------------------------------------------------------
+ * AVSNITTET LÄSER, RUTAN SKRIVER
+ * ---------------------------------------------------------------------------
+ * Formuläret låg inbäddat här nere och fälldes ut på plats. Det gjorde att
+ * "Skriv ett omdöme" i sidopanelen bara kunde vara en hopplänk till `#omdomen`:
+ * knappen flyttade dig till formuläret i stället för att öppna det, och den som
+ * tryckte hamnade långt från det hen läste.
+ *
+ * Nu är skrivandet en ruta, och avsnittet är listan, kvittensen och knappen som
+ * öppnar rutan. `#omdomen` betyder fortfarande listan och ingenting annat.
+ *
+ * Rutan öppnas från två håll, den här knappen och sidopanelens, via
+ * review-dialog.ts. Båda ställer frågan om inloggning INUTI klicket, aldrig vid
+ * sidladdning.
  */
 import InfoTip from './InfoTip.astro';
 // Fält, notisrutor och den tysta knappen delas med kontosidorna.
@@ -84,63 +99,150 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       Skriv ett omdöme
     </button>
 
-    <form id="review-form" novalidate hidden>
-      {/* Betyget står FÖRE texten. Det är den lätta frågan, och att svara på
-          den först gör det lättare att börja skriva.
-
-          Radioknappar och inte en stjärnkomponent i JavaScript: fem
-          radioknappar i en fieldset ger tangentbord, skärmläsare och
-          formulärsemantik gratis. Stjärnorna är etiketterna, ritade i CSS.
-
-          Frivilligt. Ingen `required`, och ingen förvald knapp. Den som vill
-          berätta något ska inte tvingas sätta en siffra på det, och ett
-          tvingande betyg gör att folk klickar en fyra för att komma vidare. */}
-      <fieldset class="rating">
-        <legend>Betyg <span class="hint">Frivilligt</span></legend>
-        <div class="stars">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <>
-              <input type="radio" name="rating" id={`star-${n}`} value={n} />
-              <label for={`star-${n}`} title={`${n} av 5`}>
-                <span class="visually-hidden">{n} av 5</span>
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9z" />
-                </svg>
-              </label>
-            </>
-          ))}
-        </div>
-      </fieldset>
-
-      <label class="field">
-        <span>
-          Ditt omdöme
-          <span class="hint">
-            Minst 20 tecken. Skriv om ditt eget besök. Namnge inte personal,
-            och skriv inget du inte själv upplevt.
-          </span>
-        </span>
-        <textarea name="body" maxlength="2000" required></textarea>
-      </label>
-
-      <p class="notice notice-error" id="review-error" hidden role="alert"></p>
-
-      <div class="konto-actions">
-        <button type="submit" class="btn-primary" id="review-submit">Skicka in</button>
-        <button type="button" class="btn-quiet" id="review-cancel">Avbryt</button>
-      </div>
-
-      <p class="konto-legal">
-        Omdömet publiceras först sedan redaktionen läst det, och publiceras då
-        ordagrant. Vi ändrar aldrig i din text. Du kan ta bort ditt omdöme när
-        du vill från <a href="/konto/">ditt konto</a>. Läs
-        <a href="/villkor/">villkoren</a> innan du skriver.
-      </p>
-    </form>
-
-    <p class="notice notice-wait" id="review-mine" hidden role="status"></p>
+    {/* Kvittensen står kvar på sidan och inte i rutan. Den är ett läge man
+        ska kunna komma tillbaka till, inte ett svar som försvinner när man
+        stänger något. `tabindex="-1"` för att fokus ska kunna landa här när
+        rutan stängs efter en insändning. */}
+    <p class="notice notice-wait" id="review-mine" hidden role="status" tabindex="-1"></p>
   </div>
 </section>
+
+{/*
+  Rutan ligger UTANFÖR avsnittet, som ett eget syskon.
+
+  showModal() lyfter elementet till det översta lagret, så DOM-platsen syns
+  inte i utfallet, men avsnittet är den grundlagsskyddade sidans innehåll och
+  rutan är ett formulär. Att hålla dem isär i markupen gör att `#omdomen`
+  fortsätter betyda listan och ingenting annat.
+*/}
+<dialog class="write-dialog" id="review-dialog" aria-labelledby="review-dialog-title">
+  <div class="sheet">
+    <header class="bar">
+      <h2 class="bar-title" id="review-dialog-title">Skriv ett omdöme</h2>
+      <button type="button" class="icon" data-close aria-label="Stäng">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="body">
+      {/* Namnet står i rutan. Öppnad från sidopanelen täcker rutan sidan, och
+          då ska det inte gå att undra vilket ställe man skriver om. */}
+      <p class="about">Ditt omdöme om <b>{establishmentName}</b></p>
+
+      <form id="review-form" novalidate>
+        {/* Betyget står FÖRE texten. Det är den lätta frågan, och att svara på
+            den först gör det lättare att börja skriva.
+
+            Radioknappar och inte en stjärnkomponent i JavaScript: fem
+            radioknappar i en fieldset ger tangentbord, skärmläsare och
+            formulärsemantik gratis. Stjärnorna är etiketterna, ritade i CSS.
+
+            Frivilligt. Ingen `required`, och ingen förvald knapp. Den som vill
+            berätta något ska inte tvingas sätta en siffra på det, och ett
+            tvingande betyg gör att folk klickar en fyra för att komma vidare. */}
+        <fieldset class="rating">
+          <legend>Betyg <span class="hint">Frivilligt</span></legend>
+          <div class="stars">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <>
+                <input type="radio" name="rating" id={`star-${n}`} value={n} />
+                <label for={`star-${n}`} title={`${n} av 5`}>
+                  <span class="visually-hidden">{n} av 5</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9z" />
+                  </svg>
+                </label>
+              </>
+            ))}
+          </div>
+        </fieldset>
+
+        <label class="field">
+          <span>
+            Ditt omdöme
+            <span class="hint">
+              Minst 20 tecken. Skriv om ditt eget besök. Namnge inte personal,
+              och skriv inget du inte själv upplevt.
+            </span>
+          </span>
+          <textarea name="body" maxlength="2000" required></textarea>
+        </label>
+
+        {/* En MÅNAD och inte ett datum. Ingen minns vilken tisdag det var, och
+            frågar man om ett exakt datum får man antingen en gissning eller ett
+            tomt fält. Månaden räcker för det läsaren behöver: gäller omdömet i
+            somras eller för två år sedan.
+
+            Listan fylls i webbläsaren och inte vid bygget. En sida som byggdes
+            i mars och lästes i september hade annars erbjudit "mars" som
+            senaste månad. */}
+        <label class="field">
+          <span>
+            När var du där
+            <span class="hint">Frivilligt.</span>
+          </span>
+          <select name="visited" id="review-visited">
+            <option value="">Välj månad</option>
+          </select>
+        </label>
+
+        {/*
+          Bilder.
+
+          Ytan tar emot både klick och släppta filer. Filfältet ligger dolt
+          bakom knappen: en <input type="file"> går inte att styla, och en knapp
+          som öppnar den ger ett fokusmärke och en yta att släppa på.
+
+          `accept` och storleksgränsen speglar bucketen i schema_community.sql,
+          som tar emot JPEG, PNG och WebP upp till 8 MB. Kontrollen här är en
+          artighet så att man slipper vänta på ett svar som ändå blir nej.
+        */}
+        <div class="field photos">
+          <span id="review-photos-label">
+            Lägg till några bilder
+            <span class="hint">
+              Frivilligt. JPEG, PNG eller WebP, högst 8 MB per bild och sex
+              bilder per omdöme.
+            </span>
+          </span>
+
+          <button type="button" class="dropzone" id="review-dropzone"
+                  aria-describedby="review-photos-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 16.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.5zm0 0 4.5-4.5 3.5 3.5 3-3 5 5"
+                    fill="none" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="9.5" cy="8.5" r="1.5" fill="currentColor" />
+            </svg>
+            <span>Dra hit bilder eller <b>välj filer</b></span>
+          </button>
+
+          <input type="file" id="review-files" class="visually-hidden"
+                 accept="image/jpeg,image/png,image/webp" multiple />
+
+          <ul class="picked" id="review-picked"></ul>
+        </div>
+
+        <p class="notice notice-error" id="review-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="review-submit">Skicka in</button>
+          <button type="button" class="btn-quiet" id="review-cancel">Avbryt</button>
+        </div>
+
+        <p class="konto-legal">
+          Omdömet publiceras först sedan redaktionen läst det, och publiceras då
+          ordagrant. Vi ändrar aldrig i din text. Du kan ta bort ditt omdöme när
+          du vill från <a href="/konto/">ditt konto</a>. Läs
+          <a href="/villkor/">villkoren</a> innan du skriver.
+        </p>
+      </form>
+    </div>
+  </div>
+</dialog>
 
 <style>
   .head {
@@ -179,6 +281,217 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   .write { margin-top: var(--s-4); }
 
   .write[hidden] { display: none; }
+
+  /* `hidden` överlever inte en egen display-regel.
+   *
+   * Knappen bär .btn-quiet, som är `display: inline-flex` i konto.css. En
+   * författarregel slår webbläsarens egen `[hidden] { display: none }` oavsett
+   * specificitet, så knappen stod kvar bredvid kvittensen efter en insändning
+   * fastän skriptet satt `hidden`. Raden nedan är rättelsen, och den står här
+   * och inte i konto.css eftersom det här är den enda ytan som döljer en
+   * .btn-quiet. */
+  .write .btn-quiet[hidden] { display: none; }
+
+  /* ------------------------------------------------------------------ */
+  /* Rutan                                                                */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Samma uppbyggnad som SignInDialog, och avsiktligt så: två rutor på samma
+   * sajt som beter sig olika är två saker att lära sig i stället för en.
+   *
+   * <dialog> och showModal() ger fokusfälla, Esc och aria-modal från
+   * webbläsaren i stället för från kod som kan glömma ett fall.
+   */
+  /*
+   * `dialog.write-dialog` och inte bara klassen.
+   *
+   * Rutan står som syskon till avsnittet inuti <main>, och sidmallen har en
+   * regel `.main > * + *` som ger varje syskon 24 px överst. Den träffade
+   * dialogen, som är ett element i sidans flöde ända tills showModal() lyfter
+   * den, och 24 px på en ruta med `inset: 0` blir 24 px mindre plats nedtill.
+   * Klassen ensam väger lika tungt som den regeln och förlorade på ordningen.
+   * Elementnamnet lägger till den vikt som behövs.
+   */
+  dialog.write-dialog {
+    padding: 0;
+    border: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .write-dialog::backdrop {
+    background: rgba(0, 0, 0, .45);
+  }
+
+  /* Bredare än inloggningens 420. Där skriver man en rad, här skriver man ett
+     stycke, och en textruta som är smalare än en spalt gör texten svårare att
+     överblicka medan man skriver den. */
+  .sheet {
+    width: min(520px, calc(100vw - var(--s-8)));
+    max-height: 92dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+
+  .bar {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .bar-title {
+    grid-column: 2;
+    text-align: center;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .icon {
+    grid-column: 3;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .icon:hover { background: var(--canvas); }
+  .icon svg { width: 20px; height: 20px; }
+
+  /* Rullningen ligger på kroppen och inte på arket, så raden med rubrik och
+     kryss står kvar medan man rullar i ett långt formulär. */
+  .body {
+    overflow-y: auto;
+    padding: var(--s-6) var(--s-6) var(--s-8);
+  }
+
+  .about {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .about b { font-weight: 600; color: var(--text); }
+
+  /* ------------------------------------------------------------------ */
+  /* Bilder                                                               */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Streckad kant och inte heldragen. En heldragen ram läses som ett fält som
+   * redan innehåller något; den streckade säger att här saknas det något man
+   * kan fylla på med. Det är samma konvention som Tripadvisor, Google och
+   * Dropbox använder, och en konvention är värd mer än en egen idé på en yta
+   * man ser i tio sekunder.
+   */
+  .photos { margin-top: var(--s-4); }
+
+  .dropzone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-6) var(--s-4);
+    background: var(--card);
+    border: 1px dashed rgba(0, 0, 0, .18);
+    border-radius: var(--r-control);
+    color: var(--text-secondary);
+    font: 400 var(--fs-body-s)/var(--lh-body-s) var(--font-sans);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .dropzone svg { width: 26px; height: 26px; }
+  .dropzone b { font-weight: 600; color: var(--brand-ink); }
+
+  /* `.over` sätts medan filer dras över ytan. Utan en synlig ändring vet man
+     inte om släppet kommer att träffa. */
+  .dropzone:hover,
+  .dropzone.over {
+    background: var(--canvas);
+    border-color: var(--brand);
+    color: var(--text);
+  }
+
+  .dropzone:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .picked {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+  }
+
+  .picked:empty { display: none; }
+
+  /* Raderna i listan byggs i skript och saknar därför Astros scope-attribut.
+     Deras regler står i den globala stilblocket längst ner i filen, under
+     .write-dialog, tillsammans med omdömeslistans. */
+
+  /* ------------------------------------------------------------------ */
+  /* Mobil: ark mot underkanten, inte ruta i mitten                       */
+  /* ------------------------------------------------------------------ */
+  /*
+   * En centrerad ruta med ett fokuserat fält är fel på telefon. Tangentbordet
+   * tar halva skärmen och rutan hoppar när det fälls upp och ner. Arket är
+   * förankrat nedtill i stället, så det krymper uppåt och textrutan man
+   * skriver i står kvar.
+   *
+   * `dvh` och inte `vh`: vh räknar med adressfältet utfällt även när det är
+   * ihopdraget, så arket hade blivit högre än skärmen.
+   */
+  @media (max-width: 560px) {
+    /*
+     * `bottom: 0` och `margin: 0`, inte `margin: auto auto 0`.
+     *
+     * Den senare är den vanliga formeln och den som inloggningsrutan använder,
+     * men den håller bara så länge innehållet får plats. Slår `max-height` till
+     * blir höjden bestämd medan marginalen fortfarande är `auto`, och då
+     * fördelar webbläsaren det som blir över själv i stället för att lägga allt
+     * ovanför. Arket hamnade fyrtio pixlar från underkanten med sidan synlig
+     * under, mätt vid 375 px.
+     *
+     * Med `top: auto; bottom: 0` finns inget överskott att fördela. Kanten är
+     * kanten oavsett hur högt formuläret är.
+     */
+    dialog.write-dialog {
+      width: 100%;
+      max-width: 100%;
+      top: auto;
+      bottom: 0;
+      margin: 0;
+      max-height: 92dvh;
+    }
+
+    .sheet {
+      width: 100%;
+      border-radius: var(--r-card) var(--r-card) 0 0;
+      /* Under systemets svepfält på iPhone. Utan detta hamnar sista knappen
+         under strecket och går inte att träffa. */
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .body { padding: var(--s-4) var(--s-4) var(--s-6); }
+  }
 </style>
 
 <script>
@@ -188,13 +501,17 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     publishedReviews,
     myReview,
     submitReview,
+    uploadImage,
     CommunityError,
     onAuthChange,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
+  import { registerReviewDialog } from '../lib/review-dialog';
 
   const section = document.getElementById('omdomen');
-  if (section) {
+  const dialog = document.getElementById('review-dialog') as HTMLDialogElement | null;
+
+  if (section && dialog) {
     const place = {
       id: section.dataset.establishment ?? '',
       name: section.dataset.name ?? '',
@@ -209,12 +526,20 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     const submit = document.getElementById('review-submit') as HTMLButtonElement;
     const error = document.getElementById('review-error') as HTMLParagraphElement;
     const mine = document.getElementById('review-mine') as HTMLParagraphElement;
+    const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
+    const text = form.elements.namedItem('body') as HTMLTextAreaElement;
+    const visited = document.getElementById('review-visited') as HTMLSelectElement;
+    const dropzone = document.getElementById('review-dropzone') as HTMLButtonElement;
+    const files = document.getElementById('review-files') as HTMLInputElement;
+    const picked = document.getElementById('review-picked') as HTMLUListElement;
 
     const dates = new Intl.DateTimeFormat('sv-SE', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
+
+    const months = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: 'long' });
 
     /**
      * Byggs med textContent, aldrig med innerHTML.
@@ -228,6 +553,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         id: string;
         body: string;
         rating: number | null;
+        visited_month: string | null;
         author: string;
         created_at: string;
       }>,
@@ -237,9 +563,21 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         const item = document.createElement('article');
         item.className = 'review';
 
+        /* Besöksmånaden står FÖRE skrivdatumet och bara när den finns. Det är
+           den som avgör om omdömet säger något om stället som det är i dag;
+           när texten skrevs är en fotnot i jämförelse.
+
+           Datumet delas alltid isär för hand. `new Date('2026-03-01')` tolkas
+           som midnatt i UTC, och väster om Greenwich blir den februari. */
         const meta = document.createElement('p');
         meta.className = 'caption text-muted';
-        meta.textContent = `${row.author}, ${dates.format(new Date(row.created_at))}`;
+        const parts = [row.author];
+        if (row.visited_month) {
+          const [y, m] = row.visited_month.split('-').map(Number);
+          parts.push(`besökte i ${months.format(new Date(y, m - 1, 1))}`);
+        }
+        parts.push(`skrev ${dates.format(new Date(row.created_at))}`);
+        meta.textContent = parts.join(' · ');
 
         const body = document.createElement('p');
         body.className = 'review-body';
@@ -268,23 +606,472 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       empty.hidden = rows.length > 0;
     }
 
+    /* -------------------------------------------------------------- */
+    /* När var du där                                                   */
+    /* -------------------------------------------------------------- */
+    /*
+     * Listan byggs här och inte i mallen. Sidorna är statiska filer som kan ha
+     * byggts i mars och läsas i september, och en månadslista från bygget hade
+     * då slutat med mars.
+     *
+     * Tjugofyra månader bakåt. Djupare än så minns ingen vilken månad det var,
+     * och den som skriver om ett besök för tre år sedan skriver det i texten.
+     * Databasen tar emot allt från 2015 och framåt, så gränsen här är en
+     * bekvämlighet och inte en regel.
+     */
+    const MONTHS_BACK = 24;
+
+    function fillMonths() {
+      const now = new Date();
+      for (let i = 0; i < MONTHS_BACK; i += 1) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const option = document.createElement('option');
+        // Alltid den första i månaden. Databasen fäller varje annan dag.
+        option.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+        option.textContent = months.format(d);
+        visited.append(option);
+      }
+    }
+
+    fillMonths();
+
+    /* -------------------------------------------------------------- */
+    /* Bilderna                                                         */
+    /* -------------------------------------------------------------- */
+    /*
+     * Ytan är byggd, kopplad och begränsad på samma sätt som bucketen.
+     *
+     * Den kommer ändå att nekas för en vanlig besökare i dag: policyn
+     * `inkomna_upload_own` på storage.objects och `image_uploads_insert` på
+     * community.image_uploads kräver båda ett GODKÄNT anspråk på verksamheten.
+     * Vi frågar INTE efter anspråket i förväg för att gömma ytan. Skälet är att
+     * spärren håller på att ses över, och en gömma som bygger på ett antagande
+     * om policyn hade fortsatt gömma ytan dagen policyn öppnas. Vi försöker,
+     * och säger vad svaret blev.
+     */
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_BYTES = 8 * 1024 * 1024;
+    const MAX_FILES = 6;
+
+    /** De valda filerna, med den förhandsvisning som ritats för var och en. */
+    const chosen: Array<{ file: File; url: string }> = [];
+
+    function formatSize(bytes: number) {
+      const mb = bytes / (1024 * 1024);
+      return mb >= 1
+        ? `${mb.toFixed(1).replace('.', ',')} MB`
+        : `${Math.max(1, Math.round(bytes / 1024))} kB`;
+    }
+
+    function paintPicked() {
+      picked.textContent = '';
+      chosen.forEach((item, index) => {
+        const row = document.createElement('li');
+
+        const thumb = document.createElement('img');
+        thumb.src = item.url;
+        thumb.alt = '';
+
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = item.file.name;
+
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(item.file.size);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'remove';
+        remove.setAttribute('aria-label', `Ta bort ${item.file.name}`);
+        // Fast sträng utan en enda inflätad variabel. Krysset är samma som i
+        // rutans huvud, och filnamnet står i aria-label ovan, aldrig i markup.
+        remove.innerHTML =
+          '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">' +
+          '<path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" ' +
+          'stroke-width="2" stroke-linecap="round" /></svg>';
+        remove.addEventListener('click', () => {
+          URL.revokeObjectURL(chosen[index].url);
+          chosen.splice(index, 1);
+          paintPicked();
+          dropzone.focus();
+        });
+
+        row.append(thumb, name, size, remove);
+        picked.append(row);
+      });
+    }
+
+    /** Släpper alla förhandsvisningar. Utan detta läcker minnet vid varje omdöme. */
+    function clearPicked() {
+      for (const item of chosen) URL.revokeObjectURL(item.url);
+      chosen.length = 0;
+      paintPicked();
+    }
+
+    /*
+     * Kontrollen här är en artighet och inte en spärr. Bucketen har samma
+     * gränser, så en fil som slipper förbi den här funktionen nekas ändå. Att
+     * säga nej direkt är bara vänligare än att säga det efter en uppladdning.
+     */
+    /* Heter `incoming` och inte `list`. `list` är omdömeslistan i avsnittet,
+       och en parameter med samma namn hade skuggat den. */
+    function addFiles(incoming: FileList | null) {
+      if (!incoming || incoming.length === 0) return;
+
+      const rejected: string[] = [];
+      for (const file of Array.from(incoming)) {
+        if (chosen.length >= MAX_FILES) {
+          rejected.push(`Högst ${MAX_FILES} bilder per omdöme.`);
+          break;
+        }
+        if (!ALLOWED.includes(file.type)) {
+          rejected.push(`${file.name} är inte JPEG, PNG eller WebP.`);
+          continue;
+        }
+        if (file.size > MAX_BYTES) {
+          rejected.push(`${file.name} är större än 8 MB.`);
+          continue;
+        }
+        chosen.push({ file, url: URL.createObjectURL(file) });
+      }
+
+      paintPicked();
+      if (rejected.length > 0) showError(rejected.join(' '));
+      else error.hidden = true;
+    }
+
+    dropzone.addEventListener('click', () => files.click());
+    files.addEventListener('change', () => {
+      addFiles(files.files);
+      // Nollställs så att samma fil kan väljas igen efter en borttagning.
+      files.value = '';
+    });
+
+    /* Släpp. `preventDefault` på dragover är det som gör ytan till ett mål;
+       utan den öppnar webbläsaren bilden i stället för att lämna den till oss. */
+    dropzone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropzone.classList.add('over');
+    });
+
+    for (const name of ['dragleave', 'dragend']) {
+      dropzone.addEventListener(name, () => dropzone.classList.remove('over'));
+    }
+
+    dropzone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('over');
+      addFiles(event.dataTransfer?.files ?? null);
+    });
+
+    /* Utanför ytan ska ett släpp inte göra något alls. Utan de här två raderna
+       lämnar webbläsaren sidan och visar bilden, mitt i ett halvskrivet
+       omdöme. */
+    for (const name of ['dragover', 'drop']) {
+      dialog.addEventListener(name, (event) => {
+        if (!dropzone.contains(event.target as Node)) event.preventDefault();
+      });
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Meddelanden                                                      */
+    /* -------------------------------------------------------------- */
+    /*
+     * Byggda av noder och inte av innerHTML.
+     *
+     * Ordet först ("Fel.", "Väntar.", "Avslaget.") eftersom färg aldrig ensam
+     * får bära ett budskap, se konto.css. Texten efter kan komma från
+     * PostgREST eller från en moderators avslagsskäl, och den ska aldrig
+     * kunna bära markup in i sidan.
+     */
+    function notice(box: HTMLElement, label: string, message: string) {
+      box.textContent = '';
+      const tag = document.createElement('b');
+      tag.textContent = label;
+      box.append(tag, ` ${message}`);
+      box.hidden = false;
+    }
+
+    function showError(message: string) {
+      notice(error, 'Fel.', message);
+    }
+
+    /** Kvittensen i avsnittet, med länken till kontot efter meddelandet. */
+    function showMine(label: string, message: string, ok: boolean) {
+      notice(mine, label, message);
+      const link = document.createElement('a');
+      link.href = '/konto/';
+      link.textContent = 'Hantera det på ditt konto';
+      mine.append(' ', link, '.');
+      mine.className = ok ? 'notice notice-ok' : 'notice notice-wait';
+      open.hidden = true;
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Rutan                                                            */
+    /* -------------------------------------------------------------- */
+
+    let opener: HTMLElement | null = null;
+
+    /*
+     * Låser sidan bakom rutan.
+     *
+     * showModal() gör bakgrunden oåtkomlig för fokus och klick, men INTE för
+     * rullning. På telefon glider sidan omkring bakom arket medan man
+     * skriver, och på skrivbord försvinner rullningslisten när overflow sätts,
+     * vilket flyttar hela layouten några pixlar i sidled. Båda upplevs som att
+     * sidan hoppar.
+     *
+     * padding-right kompenserar exakt den bredd rullningslisten hade. På
+     * telefon är den noll och raden gör ingenting.
+     */
+    let lockedScrollbar = '';
+
+    function lockPage() {
+      const gap = window.innerWidth - document.documentElement.clientWidth;
+      lockedScrollbar = document.body.style.paddingRight;
+      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function unlockPage() {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = lockedScrollbar;
+    }
+
+    function openDialog(trigger: HTMLElement | null) {
+      opener = trigger;
+      error.hidden = true;
+      lockPage();
+      dialog!.showModal();
+      /* Fokus i fältet man ska skriva i. Betyget står först men är frivilligt,
+         och att fokusera en radioknapp i en grupp där ingen är vald låter
+         skärmläsaren läsa upp ett betyg man inte satt. */
+      text.focus();
+    }
+
+    /**
+     * Stängning på ett ställe.
+     *
+     * Esc, krysset, Avbryt, klick utanför och en lyckad insändning tar alla
+     * samma väg, så fokus hamnar tillbaka där det kom ifrån i alla fem fallen.
+     * Att webbläsaren ofta gör det själv räcker inte: gjorde vi det bara
+     * ibland hade det blivit ibland.
+     *
+     * Texten i rutan rensas ALDRIG här. Den som stänger av misstag, eller för
+     * att läsa något på sidan under, hittar sitt utkast kvar när rutan öppnas
+     * igen.
+     */
+    function closeDialog(focusInstead: HTMLElement | null = null) {
+      if (dialog!.open) dialog!.close();
+      unlockPage();
+      const trigger = opener;
+      opener = null;
+      const back = focusInstead ?? (trigger?.isConnected && !trigger.hidden ? trigger : null);
+      back?.focus();
+    }
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      closeDialog();
+    });
+
+    close.addEventListener('click', () => closeDialog());
+    cancel.addEventListener('click', () => closeDialog());
+
+    // Klick utanför arket stänger. Backdrop-klick landar på <dialog> självt.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDialog();
+    });
+
+    /* -------------------------------------------------------------- */
+    /* Läget: eget omdöme, eller ett formulär                           */
+    /* -------------------------------------------------------------- */
+
+    /**
+     * Läser om det egna omdömet och målar avsnittet efter det.
+     *
+     * Svaret säger om det redan finns ett. Ett omdöme per person och
+     * verksamhet, så finns det ett ska ingen få ett formulär som databasen
+     * ändå avvisar.
+     *
+     * Kallas bara inloggad. Anropet kräver en token.
+     */
+    async function refreshMine(): Promise<boolean> {
+      let existing = null;
+      try {
+        existing = await myReview(place.id);
+      } catch {
+        /* Går inte att läsa. Formuläret visas, databasen avgör. */
+      }
+
+      if (!existing) {
+        mine.hidden = true;
+        open.hidden = false;
+        return false;
+      }
+
+      if (existing.status === 'pending') {
+        showMine('Väntar.', 'Ditt omdöme är inskickat och väntar på granskning.', false);
+      } else if (existing.status === 'published') {
+        showMine('Klart.', 'Ditt omdöme är publicerat.', true);
+      } else {
+        showMine('Avslaget.', existing.rejection_reason ?? 'Omdömet publicerades inte.', false);
+      }
+      return true;
+    }
+
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function reveal(box: HTMLElement) {
+      box.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+    }
+
+    /**
+     * Det någon bad om när de tryckte på "Skriv ett omdöme".
+     *
+     * Anropas både av knappen i avsnittet och av knappen i sidopanelen, via
+     * review-dialog.ts. Båda har redan sett till att man är inloggad.
+     *
+     * Har man redan skrivit ett omdöme öppnas ingen ruta. Kvittensen står i
+     * avsnittet, och då är svaret att visa den i stället för ett formulär som
+     * inte går att skicka.
+     */
+    async function request(trigger: HTMLElement | null) {
+      if (await refreshMine()) {
+        reveal(mine);
+        mine.focus();
+        return;
+      }
+      openDialog(trigger);
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Insändning                                                       */
+    /* -------------------------------------------------------------- */
+    /*
+     * Hanteraren registreras EN gång, här ute. Den satt tidigare inuti
+     * funktionen som körde efter varje inloggning, vilket lade på en hanterare
+     * till varje gång och skickade omdömet i två kopior för den som loggat ut
+     * och in igen utan att ladda om.
+     */
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      error.hidden = true;
+
+      const body = text.value.trim();
+      if (body.length < 20) {
+        showError('Skriv minst 20 tecken.');
+        text.focus();
+        return;
+      }
+
+      submit.disabled = true;
+      submit.textContent = 'Skickar';
+
+      try {
+        const stars = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
+        await submitReview(
+          place,
+          body,
+          stars ? Number(stars.value) : null,
+          visited.value || null,
+        );
+
+        /* Bilderna EFTER omdömet, aldrig före.
+         *
+         * Texten är det man kom för att lämna. Går uppladdningen fel ska
+         * omdömet ändå vara inskickat, och besökaren ska få veta att det är
+         * bilderna och inte omdömet som fastnade. Omvänd ordning hade betytt
+         * att ett nej på en bild tog med sig texten i fallet. */
+        const failed = await uploadPicked();
+
+        form.reset();
+        clearPicked();
+
+        if (failed) {
+          notice(
+            mine,
+            'Väntar.',
+            'Omdömet är inskickat och publiceras ordagrant om redaktionen ' +
+              `släpper fram det. Bilderna följde inte med: ${failed}`,
+          );
+        } else {
+          notice(
+            mine,
+            'Väntar.',
+            'Tack. Omdömet är inskickat och publiceras ordagrant om redaktionen ' +
+              'släpper fram det.',
+          );
+        }
+        mine.className = 'notice notice-wait';
+        open.hidden = true;
+        /* Rutan stängs och kvittensen tar över. Fokus går till kvittensen och
+           inte till knappen som öppnade rutan: knappen i avsnittet är nyss
+           dold, och den i sidopanelen står kvar men svarar inte längre på det
+           man frågade. */
+        closeDialog(mine);
+        reveal(mine);
+      } catch (err) {
+        showError(err instanceof CommunityError ? err.message : 'Kunde inte skicka omdömet.');
+      } finally {
+        submit.disabled = false;
+        submit.textContent = 'Skicka in';
+      }
+    });
+
+    /**
+     * Laddar upp de valda bilderna, en i taget.
+     *
+     * Svaret är null när allt gick fram, annars en mening som säger varför
+     * inte. Den meningen hamnar i kvittensen bredvid beskedet om omdömet, så
+     * ingen ska behöva undra vart bilderna tog vägen.
+     *
+     * En i taget och inte parallellt: sex samtidiga uppladdningar på en
+     * mobiluppkoppling gör alla sex långsammare, och räknaren i knappen kan då
+     * säga vad som händer.
+     */
+    async function uploadPicked(): Promise<string | null> {
+      if (chosen.length === 0) return null;
+
+      let done = 0;
+      for (const item of chosen) {
+        submit.textContent = `Laddar upp bild ${done + 1} av ${chosen.length}`;
+        try {
+          await uploadImage(place, item.file, '');
+          done += 1;
+        } catch (err) {
+          const why =
+            err instanceof CommunityError ? err.message : 'Uppladdningen gick inte igenom.';
+          /* Det vanliga svaret i dag. Policyn kräver ett godkänt anspråk, och
+             "Du saknar behörighet" säger inte en besökare någonting. */
+          const known = /behörighet|row-level security/i.test(why)
+            ? 'bilder kan ännu bara laddas upp av den som fått ett anspråk på ' +
+              'verksamheten godkänt.'
+            : why;
+          return done > 0 ? `${done} av ${chosen.length} kom fram, sedan ${known}` : known;
+        }
+      }
+      return null;
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Start                                                            */
+    /* -------------------------------------------------------------- */
+
     async function start() {
       if (!configured) {
         empty.textContent = 'Omdömen är inte påslagna på den här installationen.';
         return;
       }
 
-      try {
-        render(await publishedReviews(place.id));
-      } catch {
-        empty.textContent = 'Omdömena kunde inte hämtas just nu.';
-      }
-
-      // Knappen visas ALLTID, även utloggad. Trycker någon utloggad öppnas
-      // inloggningsrutan och formuläret fälls ut när den stängs. Det är
-      // samma princip som i sidopanelen: inloggning är ett steg på vägen,
-      // aldrig ett hinder som visas i stället för handlingen.
-      open.hidden = false;
+      /* Registreringen står FÖRE hämtningen av listan. Sidopanelen frågar
+         review-dialog.ts om rutan finns, och den som trycker medan omdömena
+         laddas ska få rutan och inte reservvägen. */
+      registerReviewDialog((trigger) => {
+        void request(trigger);
+      });
 
       /*
        * EN hanterare, och frågan om inloggning ställs INUTI den.
@@ -301,100 +1088,41 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
        */
       open.addEventListener('click', async () => {
         if (!(await signedIn())) {
+          // Klicket var redan gjort. Rutan ska öppnas direkt efter
+          // inloggningen, inte vänta på ännu ett klick på samma knapp.
           if (!(await openSignIn(open))) return;
-          // Klicket var redan gjort. Formuläret ska fällas ut direkt, inte
-          // vänta på ännu ett klick på samma knapp.
-          await afterSignIn(true);
-          return;
         }
-        await afterSignIn(true);
+        await request(open);
       });
+
+      // Knappen visas ALLTID, även utloggad. Trycker någon utloggad öppnas
+      // inloggningsrutan och omdömesrutan när den stängs. Det är samma princip
+      // som i sidopanelen: inloggning är ett steg på vägen, aldrig ett hinder
+      // som visas i stället för handlingen.
+      open.hidden = false;
 
       /* Loggar någon in eller ut på en annan yta, exempelvis kontoraden i
          menyn eller bevakningsknappen, ska den här också veta om det. */
       onAuthChange(() => {
-        void signedIn().then((yes) => {
-          if (yes) void afterSignIn(false);
-        });
+        void (async () => {
+          if (await signedIn()) {
+            await refreshMine();
+          } else {
+            /* Utloggad. Det egna omdömet är inte längre känt, alltså tillbaka
+               till en knapp utan kvittens. */
+            mine.hidden = true;
+            open.hidden = false;
+          }
+        })();
       });
 
-      if (await signedIn()) await afterSignIn(false);
-    }
-
-    /** Läget för den som är inloggad: eget omdöme, eller ett formulär. */
-    async function afterSignIn(openNow: boolean) {
-      // Ett omdöme per person och verksamhet. Har man redan skrivit ett visas
-      // dess läge i stället för ett formulär som ändå skulle avvisas.
-      let existing = null;
       try {
-        existing = await myReview(place.id);
+        render(await publishedReviews(place.id));
       } catch {
-        /* Går inte att läsa. Formuläret visas, databasen avgör. */
+        empty.textContent = 'Omdömena kunde inte hämtas just nu.';
       }
 
-      if (existing) {
-        const label =
-          existing.status === 'pending'
-            ? '<b>Väntar.</b> Ditt omdöme är inskickat och väntar på granskning.'
-            : existing.status === 'published'
-              ? '<b>Klart.</b> Ditt omdöme är publicerat.'
-              : `<b>Avslaget.</b> ${existing.rejection_reason ?? 'Omdömet publicerades inte.'}`;
-        mine.innerHTML = `${label} <a href="/konto/">Hantera det på ditt konto</a>.`;
-        mine.className =
-          existing.status === 'published' ? 'notice notice-ok' : 'notice notice-wait';
-        mine.hidden = false;
-        open.hidden = true;
-        return;
-      }
-
-      function reveal() {
-        open.hidden = true;
-        form.hidden = false;
-        (form.elements.namedItem('body') as HTMLTextAreaElement).focus();
-      }
-
-      open.hidden = false;
-      open.addEventListener('click', reveal);
-
-      cancel.addEventListener('click', () => {
-        form.hidden = true;
-        open.hidden = false;
-        open.focus();
-      });
-
-      if (openNow) reveal();
-
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        error.hidden = true;
-
-        const body = String(new FormData(form).get('body') ?? '').trim();
-        if (body.length < 20) {
-          error.innerHTML = '<b>Fel.</b> Skriv minst 20 tecken.';
-          error.hidden = false;
-          return;
-        }
-
-        submit.disabled = true;
-        submit.textContent = 'Skickar';
-
-        try {
-          const picked = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
-          await submitReview(place, body, picked ? Number(picked.value) : null);
-          form.hidden = true;
-          mine.innerHTML =
-            '<b>Väntar.</b> Tack. Omdömet är inskickat och publiceras ordagrant ' +
-            'om redaktionen släpper fram det.';
-          mine.hidden = false;
-        } catch (err) {
-          error.innerHTML = `<b>Fel.</b> ${
-            err instanceof CommunityError ? err.message : 'Kunde inte skicka omdömet.'
-          }`;
-          error.hidden = false;
-          submit.disabled = false;
-          submit.textContent = 'Skicka in';
-        }
-      });
+      if (await signedIn()) await refreshMine();
     }
 
     void start();
@@ -424,10 +1152,13 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
    * Bärnsten och inte prikko-blått av samma skäl. Blått är sajtens röst;
    * stjärnorna är besökarnas.
    */
+  /* Marginalen uppåt och inte nedåt: betyget är det första i formuläret och
+     behöver luft från raden ovanför, medan fältet under bär sin egen
+     toppmarginal från konto.css. */
   .rating {
     border: 0;
     padding: 0;
-    margin: 0 0 var(--s-4);
+    margin: var(--s-4) 0 0;
   }
 
   .rating legend {
@@ -516,4 +1247,60 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+
+  /* ------------------------------------------------------------------ */
+  /* De valda bilderna i rutan                                            */
+  /* ------------------------------------------------------------------ */
+  /* Samma skäl som ovan: raderna byggs i skript och når inte de scopeade
+     reglerna. Håll selektorerna under .write-dialog. */
+  .write-dialog .picked li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Miniatyren ritas ur filen i webbläsaren. Ingenting har lämnat datorn när
+     den syns, och det är själva poängen: man ska kunna se att man valde rätt
+     bild innan den skickas någonstans. */
+  .write-dialog .picked img {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--canvas);
+  }
+
+  .write-dialog .picked .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .write-dialog .picked .size {
+    flex: none;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .write-dialog .picked .remove {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .write-dialog .picked .remove:hover { background: var(--canvas); color: var(--text); }
+  .write-dialog .picked .remove svg { width: 14px; height: 14px; }
 </style>

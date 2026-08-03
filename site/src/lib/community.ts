@@ -558,6 +558,13 @@ export interface PublishedReview {
   body: string;
   /** Besökarens betyg 1 till 5, eller null. ALDRIG hygienbedömningen. */
   rating: number | null;
+  /**
+   * Månaden besöket gjordes, som 'ÅÅÅÅ-MM-01', eller null.
+   *
+   * Alltid den första i månaden. Databasen fäller allt annat, se
+   * schema_community.sql. Dagen ska aldrig visas för en läsare.
+   */
+  visited_month: string | null;
   author: string;
   created_at: string;
 }
@@ -572,7 +579,7 @@ export async function publishedReviews(establishmentId: string): Promise<Publish
   return (
     (await rest(
       'GET',
-      `published_reviews?select=id,body,rating,author,created_at&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc&limit=50`,
+      `published_reviews?select=id,body,rating,visited_month,author,created_at&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc&limit=50`,
       { auth: false },
     )) ?? []
   );
@@ -609,10 +616,9 @@ export async function myReview(
 /**
  * Skickar in ett omdöme för granskning.
  *
- * Visningsnamnet KOPIERAS hit i stället för att slås upp vid läsning. Den
- * publika vyn får då stå för sig själv utan att röra profiltabellen, som anon
- * inte ska komma åt. Namnet blir också det som gällde när omdömet skrevs,
- * vilket är rätt för ett yttrande som fryses vid insändning.
+ * Allt utom texten är frivilligt. Raden skrivs som `pending` och blir läsbar
+ * för någon annan först när en människa släppt fram den, se
+ * schema_community.sql.
  */
 export async function submitReview(
   place: Place,
@@ -625,6 +631,14 @@ export async function submitReview(
    * fyra för att komma vidare i stället för att mena den.
    */
   rating: number | null = null,
+  /**
+   * Besöksmånaden som 'ÅÅÅÅ-MM-01', eller null.
+   *
+   * Alltid den första i månaden. Databasen fäller varje annan dag och varje
+   * månad som ligger i framtiden, så den här funktionen behöver inte kontrollera
+   * det en gång till. Klienten är ett formulär, inte en grind.
+   */
+  visitedMonth: string | null = null,
 ): Promise<void> {
   const user = currentUser();
 
@@ -648,6 +662,7 @@ export async function submitReview(
       municipality_slug: place.municipalitySlug,
       body,
       rating,
+      visited_month: visitedMonth,
     },
   });
 }
