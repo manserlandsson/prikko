@@ -568,7 +568,8 @@ export async function stopFollowing(
 
 export interface PublishedReview {
   id: string;
-  body: string;
+  /** Texten, eller null när skribenten bara satte betyg. */
+  body: string | null;
   /** Besökarens betyg 1 till 5, eller null. ALDRIG hygienbedömningen. */
   rating: number | null;
   /**
@@ -600,7 +601,8 @@ export async function publishedReviews(establishmentId: string): Promise<Publish
 
 export interface MyReview {
   id: string;
-  body: string;
+  /** Texten, eller null när omdömet bara är ett betyg. */
+  body: string | null;
   rating: number | null;
   status: 'pending' | 'published' | 'rejected';
   rejection_reason: string | null;
@@ -618,7 +620,12 @@ export async function myReviews(): Promise<MyReview[]> {
 
 export async function myReview(
   establishmentId: string,
-): Promise<{ id: string; body: string; status: string; rejection_reason: string | null } | null> {
+): Promise<{
+  id: string;
+  body: string | null;
+  status: string;
+  rejection_reason: string | null;
+} | null> {
   const rows = await rest(
     'GET',
     `reviews?select=id,body,rating,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
@@ -629,13 +636,23 @@ export async function myReview(
 /**
  * Skickar in ett omdöme för granskning.
  *
- * Allt utom texten är frivilligt. Raden skrivs som `pending` och blir läsbar
- * för någon annan först när en människa släppt fram den, se
- * schema_community.sql.
+ * Varje fält är frivilligt för sig, men raden måste bära minst ETT av betyg
+ * och text. Villkoret `review_says_something` i schema_community.sql fäller
+ * resten, och den här funktionen kontrollerar det inte en gång till.
+ *
+ * Raden skrivs som `pending` och blir läsbar för någon annan först när en
+ * människa släppt fram den.
  */
 export async function submitReview(
   place: Place,
-  body: string,
+  /**
+   * Texten, minst 20 tecken, eller null när skribenten bara satte betyg.
+   *
+   * Tom sträng är INTE samma sak som null här. Databasen avvisar den, och det
+   * är avsiktligt: den som inte skrev något ska stå som att ingen text finns,
+   * inte som att texten är tom.
+   */
+  body: string | null,
   /**
    * Betyg 1 till 5, eller null.
    *

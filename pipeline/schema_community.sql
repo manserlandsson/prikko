@@ -431,7 +431,18 @@ create table if not exists community.reviews (
     establishment_id  text not null check (community.is_establishment_id(establishment_id)),
     municipality_slug text not null,
 
-    body              text not null check (length(btrim(body)) between 20 and 2000),
+    -- Texten. NULL när skribenten bara satte betyg.
+    --
+    -- "Ingen text" och "en text som är tom" är inte samma sak, och alla andra
+    -- frivilliga fält i tabellen står som null när de inte fyllts i. En tom
+    -- sträng hade dessutom kunnat smyga sig förbi som ett svar: btrim(' ') är
+    -- '' och hade sett besvarad ut i varje fråga som inte råkade skriva
+    -- length() runt den.
+    --
+    -- Tjugo tecken gäller fortfarande DEN RAD SOM BÄR EN TEXT. Fem tecken är
+    -- inte ett omdöme, med eller utan betyg bredvid.
+    body              text check (body is null
+                                  or length(btrim(body)) between 20 and 2000),
 
     -- Betyget, ett till fem. Skalan är fem för att fem är vad besökaren redan
     -- kan läsa utan förklaring; en egen skala hade krävt en teckenförklaring
@@ -482,8 +493,54 @@ create table if not exists community.reviews (
     -- genom en felskriven update utan att en människa varit inblandad.
     constraint review_published_requires_moderator
         check (status <> 'published'
-               or (moderated_by is not null and moderated_at is not null))
+               or (moderated_by is not null and moderated_at is not null)),
+
+    -- Raden måste bära NÅGOT: ett betyg, en text, eller båda.
+    --
+    -- Utan det här går det att skriva en rad som varken säger eller visar
+    -- något men ändå tar plats i modereringskön. Villkoret står i databasen och
+    -- inte bara i formuläret av samma skäl som allt annat här: klienten är ett
+    -- formulär, inte en grind.
+    constraint review_says_something
+        check (rating is not null
+               or (body is not null and length(btrim(body)) >= 20))
 );
+
+-- Kolumnerna och villkoren nedan kom till efter tabellen, och
+-- `create table if not exists` rör inte en databas som redan har den. Raderna
+-- här är alltså de som faktiskt kör i produktion. Samma sak gäller `rating` och
+-- `visited_month` ovan, som lades till med migrationerna
+-- community_reviews_rating och community_reviews_visited_month.
+alter table community.reviews
+    add column if not exists rating smallint
+        check (rating is null or rating between 1 and 5);
+
+alter table community.reviews
+    add column if not exists visited_month date
+        check (visited_month is null
+               or (extract(day from visited_month) = 1
+                   and visited_month >= date '2015-01-01'));
+
+alter table community.reviews
+    alter column body drop not null;
+
+alter table community.reviews
+    drop constraint if exists reviews_body_check;
+
+alter table community.reviews
+    add constraint reviews_body_check
+    check (body is null or length(btrim(body)) between 20 and 2000);
+
+alter table community.reviews
+    drop constraint if exists review_says_something;
+
+alter table community.reviews
+    add constraint review_says_something
+    check (rating is not null
+           or (body is not null and length(btrim(body)) >= 20));
+
+comment on column community.reviews.body is
+    'Omdömestexten, minst 20 tecken. NULL när skribenten bara satte betyg.';
 
 drop trigger if exists reviews_frozen on community.reviews;
 create trigger reviews_frozen

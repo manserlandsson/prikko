@@ -129,8 +129,17 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
     <div class="body">
       {/* Namnet står i rutan. Öppnad från sidopanelen täcker rutan sidan, och
-          då ska det inte gå att undra vilket ställe man skriver om. */}
-      <p class="about">Ditt omdöme om <b>{establishmentName}</b></p>
+          då ska det inte gå att undra vilket ställe man skriver om.
+
+          Andra meningen finns för att båda fälten är märkta "Frivilligt", och
+          två frivilliga fält utan ett ord om vad som gäller läser som att man
+          kan skicka in ingenting. Regeln är att minst ett av dem ska bära
+          något, och den står här i stället för som ett felmeddelande man
+          upptäcker efteråt. */}
+      <p class="about">
+        Ditt omdöme om <b>{establishmentName}</b>.
+        Sätt betyg, skriv några rader, eller gör båda.
+      </p>
 
       <form id="review-form" novalidate>
         {/* Betyget står FÖRE texten. Det är den lätta frågan, och att svara på
@@ -160,15 +169,22 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           </div>
         </fieldset>
 
+        {/* Ingen `required` längre. Ett betyg är ett fullgott omdöme, och
+            regeln att minst ett av fälten ska bära något går inte att uttrycka
+            per fält. Den kontrolleras vid insändning, och i databasen av
+            villkoret review_says_something.
+
+            Hjälptexten säger frivilligt först och gränsen sedan. Stod gränsen
+            först läste den som ett krav på alla, vilket den inte längre är. */}
         <label class="field">
           <span>
             Ditt omdöme
             <span class="hint">
-              Minst 20 tecken. Skriv om ditt eget besök. Namnge inte personal,
-              och skriv inget du inte själv upplevt.
+              Frivilligt, men minst 20 tecken om du skriver något. Namnge inte
+              personal.
             </span>
           </span>
-          <textarea name="body" maxlength="2000" required></textarea>
+          <textarea name="body" maxlength="2000"></textarea>
         </label>
 
         {/* En MÅNAD och inte ett datum. Ingen minns vilken tisdag det var, och
@@ -551,7 +567,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     function render(
       rows: Array<{
         id: string;
-        body: string;
+        body: string | null;
         rating: number | null;
         visited_month: string | null;
         author: string;
@@ -579,9 +595,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         parts.push(`skrev ${dates.format(new Date(row.created_at))}`);
         meta.textContent = parts.join(' · ');
 
-        const body = document.createElement('p');
-        body.className = 'review-body';
-        body.textContent = row.body;
+        /* Ett omdöme kan vara enbart ett betyg. Då byggs ingen textrad alls:
+           en tom <p> hade lämnat ett hål i listan som ser ut som en text som
+           kommit bort, och en platshållare av typen "Inget att tillägga" hade
+           lagt ord i munnen på någon som medvetet inte skrev några. */
+        const body = row.body ? document.createElement('p') : null;
+        if (body) {
+          body.className = 'review-body';
+          body.textContent = row.body;
+        }
 
         /* Betyget står bara ut om det finns. Ett omdöme utan siffra är ett
            fullgott omdöme och ska inte få en tom rad med fem gråa stjärnor
@@ -600,7 +622,8 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           item.append(stars);
         }
 
-        item.append(meta, body);
+        item.append(meta);
+        if (body) item.append(body);
         list.append(item);
       }
       empty.hidden = rows.length > 0;
@@ -960,9 +983,22 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       event.preventDefault();
       error.hidden = true;
 
+      /*
+       * Minst ETT av betyg och text. Ordningen på de två kontrollerna är inte
+       * godtycklig: den som varken satt betyg eller skrivit något ska få veta
+       * att det räcker med endera, inte en tillsägelse om en textlängd hen
+       * inte försökt uppnå.
+       */
       const body = text.value.trim();
-      if (body.length < 20) {
-        showError('Skriv minst 20 tecken.');
+      const stars = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
+
+      if (!stars && !body) {
+        showError('Sätt ett betyg eller skriv några rader. Ett av dem räcker.');
+        return;
+      }
+
+      if (body && body.length < 20) {
+        showError('Skriv minst 20 tecken, eller lämna rutan tom och sätt bara ett betyg.');
         text.focus();
         return;
       }
@@ -971,10 +1007,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       submit.textContent = 'Skickar';
 
       try {
-        const stars = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
+        /* Tom ruta skickas som null och inte som tom sträng. Databasen avvisar
+           den senare, och skillnaden är sann: den som inte skrev något har
+           ingen text, hen har inte en tom text. */
         await submitReview(
           place,
-          body,
+          body || null,
           stars ? Number(stars.value) : null,
           visited.value || null,
         );
@@ -1227,13 +1265,23 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     margin-top: var(--s-2);
   }
 
+  .stars {
+    /* Bärnsten. Vald för att skiljas från prikko-blått och från
+       hygienbedömningens färgfält. Står som variabel eftersom den nu behövs på
+       fyra ställen: valt, förhandsvisat vid pekare, förhandsvisat vid
+       tangentbord, och släckt igen efter den stjärna man är på. */
+    --star-on: #E8A33D;
+    --star-off: var(--hairline-strong, rgba(0, 0, 0, .18));
+  }
+
   .stars label {
     display: grid;
     place-items: center;
     width: 40px;
     height: 40px;
     cursor: pointer;
-    color: var(--hairline-strong, rgba(0, 0, 0, .18));
+    color: var(--star-off);
+    transition: color .12s ease;
   }
 
   .stars svg {
@@ -1244,18 +1292,64 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
   /* Alla stjärnor till och med den valda fylls. Syskonväljaren går bara
      framåt i DOM:en, så ordningen i markupen är ett till fem och regeln
-     färgar den valda plus allt FÖRE den via :has. */
-  .stars:has(#star-1:checked) label[for="star-1"],
-  .stars:has(#star-2:checked) label[for="star-1"],
-  .stars:has(#star-2:checked) label[for="star-2"],
-  .stars:has(#star-3:checked) label[for="star-1"],
-  .stars:has(#star-3:checked) label[for="star-2"],
-  .stars:has(#star-3:checked) label[for="star-3"],
-  .stars:has(#star-4:checked) label[for="star-1"],
-  .stars:has(#star-4:checked) label[for="star-2"],
-  .stars:has(#star-4:checked) label[for="star-3"],
-  .stars:has(#star-4:checked) label[for="star-4"],
-  .stars:has(#star-5:checked) label { color: #E8A33D; }
+     färgar den valda plus allt FÖRE den via :has.
+
+     `:where()` runt id-villkoret är inte kosmetika. Ett id väger tyngre än
+     allt annat i en väljare, och utan det kunde ingen regel längre ner ta över
+     medan pekaren vilar på fältet. :where() räknas som noll, så det valda
+     betyget kan förhandsvisningen nedan skriva över utan !important. */
+  .stars:has(:where(#star-1:checked)) label[for="star-1"],
+  .stars:has(:where(#star-2:checked)) label[for="star-1"],
+  .stars:has(:where(#star-2:checked)) label[for="star-2"],
+  .stars:has(:where(#star-3:checked)) label[for="star-1"],
+  .stars:has(:where(#star-3:checked)) label[for="star-2"],
+  .stars:has(:where(#star-3:checked)) label[for="star-3"],
+  .stars:has(:where(#star-4:checked)) label[for="star-1"],
+  .stars:has(:where(#star-4:checked)) label[for="star-2"],
+  .stars:has(:where(#star-4:checked)) label[for="star-3"],
+  .stars:has(:where(#star-4:checked)) label[for="star-4"],
+  .stars:has(:where(#star-5:checked)) label { color: var(--star-on); }
+
+  /* ------------------------------------------------------------------ */
+  /* Förhandsvisning                                                      */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Utan det här är fältet dött tills man redan klickat, och man ser aldrig
+   * vad man är på väg att välja. Google, Yelp och TheFork gör alla likadant.
+   *
+   * TVÅ regler i stället för femton. Att färga stjärna ett till tre kräver att
+   * man når BAKÅT i DOM:en, vilket en syskonväljare inte kan. Vänd på det i
+   * stället: fyll ALLA och släck sedan dem som kommer EFTER den man är på.
+   * Andra steget går framåt, och då räcker `~`.
+   *
+   * Förhandsvisningen vinner över det valda, vilket är hela poängen: har man
+   * valt fem och för pekaren till två ska två visas, annars går det inte att
+   * se vad man är på väg att sänka till. Lämnar pekaren fältet står det valda
+   * kvar igen, utan att något behöver nollställas.
+   *
+   * Tangentbordet först, pekaren efter, så att pekaren vinner i det sällsynta
+   * fall där båda gäller samtidigt.
+   */
+
+  /* Tangentbord. Piltangenterna i en radiogrupp MARKERAR den man stegar till,
+     så regeln ovan sköter redan färgningen. Den här finns för det ögonblick
+     som annars är tomt: den som tabbar in i en grupp där inget är valt landar
+     på första stjärnan utan att något markerats. */
+  .stars:has(input:focus-visible) label { color: var(--star-on); }
+  .stars input:focus-visible + label ~ label { color: var(--star-off); }
+
+  /*
+   * Pekare, och bara där det finns en riktig sådan.
+   *
+   * `@media (hover: hover) and (pointer: fine)` är vad som håller pekskärmen
+   * utanför. Utan det kan :hover fastna på den stjärna man senast tryckte på,
+   * och fältet blir stående på fyra medan man valt fem. En touchskärm har
+   * ingen pekare som kan vila någonstans, alltså finns inget att förhandsvisa.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .stars:has(label:hover) label[for] { color: var(--star-on); }
+    .stars label[for]:hover ~ label[for] { color: var(--star-off); }
+  }
 
   .stars input:focus-visible + label {
     outline: 2px solid var(--brand);
