@@ -3,7 +3,13 @@ import { globSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
-import { establishments, isIndexable } from './src/lib/data.ts';
+import {
+  establishments,
+  isIndexable,
+  latestInspectionDate,
+  municipalities,
+  sourceFor,
+} from './src/lib/data.ts';
 import { path } from './src/lib/urls.ts';
 
 /**
@@ -61,6 +67,71 @@ function noindexPaths() {
 const excluded = noindexPaths();
 
 /**
+ * `lastmod` per URL, hämtad ur datans egna datum.
+ *
+ * Tidigare stod `lastmod: new Date()`, vilket gav samtliga 14 041 poster
+ * exakt samma tidsstämpel: byggtidpunkten. Google använder `lastmod` för att
+ * prioritera omcrawlning, men bara när värdet är trovärdigt, och en sitemap
+ * där varenda URL ändras i samma millisekund är per definition inte det. Den
+ * ignoreras då i sin helhet.
+ *
+ * Det är dyrare här än på en vanlig sajt. Färskhet är en uttalad AEO-signal
+ * (bibeln §6b: sidor uppdaterade inom två månader får 28 procent fler
+ * citat), och förmågan att säga "den här verksamheten kontrollerades i
+ * förrgår" är sajtens skarpaste kant. Den signalen kastades bort på det enda
+ * ställe där Google faktiskt läser den. Datumet fanns redan i datan och
+ * renderades till och med i huvudet som `<meta name="last-modified">`, ett
+ * fält ingen sökmotor känner till.
+ *
+ * Att `InfoTip` genererar id med `Math.random()` gör dessutom bygget
+ * oreproducerbart: varje körning ändrar varenda restaurangsidas HTML. Ett
+ * `lastmod` som följde byggtiden hade alltså påstått att hela beståndet
+ * ändrats varje natt.
+ *
+ * Tre nivåer, i den ordning de prövas:
+ *
+ *   Verksamhetssida   Senaste kontrollens datum. Det är sidans innehåll.
+ *   Kommunens sidor   `source.fetchedAt`, alltså när vi senast hämtade
+ *                     kommunen. Hubb, sidindelning, kategori och
+ *                     anmärkningssida ändras alla när hämtningen ändras.
+ *   Statisk sida      Inget `lastmod` alls. Vi vet inte när texten på /om
+ *                     senast skrevs om, och att gissa är att göra om samma
+ *                     fel i mindre skala. Fältet är valfritt i standarden.
+ */
+function lastmodIndex() {
+  const byPath = new Map();
+
+  for (const m of municipalities()) {
+    const fetchedAt = sourceFor(m.slug)?.fetchedAt;
+    if (fetchedAt) byPath.set(path(m.slug), fetchedAt.slice(0, 10));
+  }
+
+  for (const e of establishments()) {
+    const date = latestInspectionDate(e);
+    if (date) byPath.set(path(e.municipality.slug, e.slug), date.slice(0, 10));
+  }
+
+  return byPath;
+}
+
+const lastmods = lastmodIndex();
+
+/**
+ * Kommunprefixet för en sökväg, så att `/stockholm/sida/2/`,
+ * `/stockholm/kategori/butiker/` och `/stockholm/anmarkningar/` ärver
+ * kommunens hämtningsdatum utan att var och en behöver räknas upp.
+ */
+function lastmodFor(pathname) {
+  const own = lastmods.get(pathname);
+  if (own) return own;
+
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length > 1) return lastmods.get(path(segments[0]));
+
+  return undefined;
+}
+
+/**
  * Bygggrind: sitemapen och `noindex` får aldrig säga emot varandra.
  *
  * Filtret ovan läser KÄLLDATAN. Den här läser UTFALLET: varje HTML-fil som
@@ -116,8 +187,12 @@ export default defineConfig({
     sitemap({
       // Kvalitetsgrind: no-indexade sidor får aldrig hamna i sitemap.
       filter: (page) => !excluded.has(new URL(page).pathname),
-      changefreq: 'weekly',
-      lastmod: new Date(),
+      // `changefreq` är borttaget med flit. Google har sagt rakt ut att fältet
+      // ignoreras helt, och ett fält som ingen läser är brus i en fil på 2 MB.
+      serialize: (item) => {
+        const lastmod = lastmodFor(new URL(item.url).pathname);
+        return lastmod ? { url: item.url, lastmod } : { url: item.url };
+      },
     }),
     sitemapGuard(),
   ],

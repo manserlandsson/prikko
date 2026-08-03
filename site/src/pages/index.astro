@@ -86,14 +86,20 @@ const jsonLd = [
     url: absolute(),
     inLanguage: 'sv-SE',
     description: SITE.description,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE.url}/sok/?q={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
+    /*
+     * Ingen `potentialAction`/`SearchAction` här, och det är ett beslut.
+     *
+     * Markeringen fanns för sitelinks-sökrutan, som Google tog bort ur
+     * sökresultaten i november 2024. Den kunde dessutom aldrig ha fungerat:
+     * `urlTemplate` pekade på `/sok/?q={search_term_string}`, och robots.txt
+     * blockerar just den formen med `Disallow: /sok/?` för att tunna
+     * resultatsidor inte ska hamna i indexet. Sajten deklarerade alltså en
+     * ingång den samtidigt bad sökmotorerna att inte gå in genom.
+     *
+     * Blockeringen är rätt och sökrutan är borta, så det som ska falla är
+     * påståendet. Kommer funktionen tillbaka behöver den en crawlbar
+     * målsökväg först, inte bara en återinsatt rad.
+     */
   },
   {
     '@context': 'https://schema.org',

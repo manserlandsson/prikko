@@ -84,6 +84,36 @@ jobs:
 
           echo "SEO-kontraktet håller."
 
+      - name: Kontrollera att 404-sidan och delningsfilerna finns
+        run: |
+          cd site/dist
+          fail=0
+
+          # Utan dist/404.html faller Cloudflare Pages tillbaka på sitt
+          # beteende för ensidesappar och levererar index.html med statuskod
+          # 200 för varje sökväg som inte matchar en byggd sida. Det var
+          # utfallet i drift 2026-08-03: /finns-inte-alls/ gav HTTP 200 med
+          # startsidans HTML, byte för byte. Varje felstavad inlänk blev
+          # alltså en mjuk 404 som Google crawlar om och om igen, och
+          # kvalitetsgrinden gick att kringgå utifrån.
+          if [ ! -f 404.html ]; then
+            echo "::error::dist/404.html saknas. Utan den svarar okända URL:er 200 med startsidan."
+            fail=1
+          fi
+
+          # Base.astro refererar båda på varenda sida. Saknas de renderas
+          # varje delning i Slack, LinkedIn och nyhetsbrev som en tom ruta,
+          # och den befintliga dödlänkskontrollen nedan tittar bara på
+          # kataloger, aldrig på filer.
+          for f in og-default.png apple-touch-icon.png favicon.svg; do
+            if [ ! -f "$f" ]; then
+              echo "::error::/$f saknas men refereras från varje sida"
+              fail=1
+            fi
+          done
+
+          exit $fail
+
       - name: Kontrollera att inga interna länkar är döda
         run: |
           cd site/dist

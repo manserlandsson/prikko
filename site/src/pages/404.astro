@@ -1,0 +1,99 @@
+---
+/**
+ * 404-sidan.
+ *
+ * ## Varför den här filen är en SEO-rättelse och inte en artighet
+ *
+ * Astro genererar `dist/404.html` bara om den här filen finns. Utan den
+ * faller Cloudflare Pages tillbaka på sitt beteende för ensidesappar och
+ * levererar `index.html` med statuskod **200** för varje sökväg som inte
+ * matchar en byggd sida. Mätt mot den live sajten 2026-08-03:
+ * `/finns-inte-alls/`, `/llms.txt` och en felstavad kategorisökväg gav alla
+ * HTTP 200 med startsidans HTML, byte för byte identisk.
+ *
+ * Det är den värsta sortens fel på en sajt med fjortontusen URL:er:
+ *
+ * 1. **Oändligt med mjuka 404:or.** Varje felstavad inlänk, varje slug som
+ *    ändras när kommunen byter namnform, varje gammal adress i någons
+ *    bokmärken blir en sida som svarar 200. Google kallar det soft 404,
+ *    rapporterar det i Search Console och crawlar dem om och om igen på en
+ *    crawlbudget som redan är den knappa resursen på en ny domän.
+ * 2. **Kvalitetsgrinden går att kringgå utifrån.** Bibeln §6 säger att tunna
+ *    sidor drar ner hela domänen vid bedömning av skalat innehåll. Sajten
+ *    grindar sina egna sidor noga med `isIndexable()`, och släpper samtidigt
+ *    in ett obegränsat antal sidor som ingen har grindat.
+ * 3. **Besökaren får fel svar.** Den som klickar på en död länk till en
+ *    restaurang landar på startsidan utan att få veta att sidan är borta.
+ *
+ * Sidan är `noindex` av samma skäl som `/ratta`: den har inget innehåll att
+ * indexera. Statuskoden är det som gör jobbet, inte metataggen, men de ska
+ * inte kunna säga emot varandra.
+ *
+ * ## Varför den listar kommunerna
+ *
+ * En 404 som bara säger "sidan finns inte" är en återvändsgränd, och en
+ * återvändsgränd med `noindex` läcker den länkkraft som pekade dit. Slugar
+ * bär kommunen först (`/uppsala/asian-livs/`), så den som landar här har
+ * nästan alltid rätt kommun och fel verksamhet. Kommunlistan plus sökrutan i
+ * sidhuvudet tar dem vidare i ett klick.
+ */
+import Base from '../layouts/Base.astro';
+import { coverage, formatNumber, municipalities } from '../lib/data';
+import { path } from '../lib/urls';
+
+const kommuner = municipalities();
+const total = coverage();
+---
+
+<Base
+  title="Sidan finns inte"
+  description="Adressen leder ingenstans. Sök på verksamhetens namn eller välj kommun."
+  noindex
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">404</p>
+      <h1>Sidan finns inte</h1>
+      <p class="lede text-secondary">
+        Adressen leder ingenstans. Verksamheten kan ha bytt namn, eller så har
+        kommunen slutat lämna ut den. Sök på namnet i fältet högst upp, eller
+        välj kommun nedan.
+      </p>
+    </header>
+
+    <h2>Kommuner</h2>
+    <p class="text-secondary">
+      {formatNumber(total.establishments)} verksamheter i
+      {' '}{total.municipalities} {total.municipalities === 1 ? 'kommun' : 'kommuner'}.
+    </p>
+
+    <ul class="kommuner">
+      {kommuner.map((m) => (
+        <li><a href={path(m.slug)}>{m.city}</a></li>
+      ))}
+    </ul>
+
+    <p class="text-secondary">
+      Är det vi som har fel? <a href={path('ratta')}>Rätta uppgiften</a>.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: 46rem;
+  }
+
+  h2 {
+    margin-top: 2.5rem;
+  }
+
+  .kommuner {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+</style>
