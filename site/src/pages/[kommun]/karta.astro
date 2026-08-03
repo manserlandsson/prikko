@@ -1,0 +1,118 @@
+---
+/**
+ * Kommunens kartsida.
+ *
+ * Egen adress, inte en flik på hubben. Skälet står i Karta.astro: hubben är
+ * sidtypen som bär trafiken och väger 30 kB, kartan väger tolv gånger så
+ * mycket, och de flesta som läser hubben ska inte betala för den.
+ *
+ * Sidan finns bara för kommuner som faktiskt har koordinater. Fyra av tolv
+ * lämnar inga alls (Borgholm, Höganäs, Lomma, Svenljunga), och en kartsida
+ * utan nålar hade varit precis en sådan tunn sida som kvalitetsgrinden i
+ * bibeln §6 finns för att hålla borta. De får ingen sida och ingen länk.
+ */
+import Base from '../../layouts/Base.astro';
+import Karta from '../../components/Karta.astro';
+import { formatNumber, municipalities, sourceFor } from '../../lib/data';
+import { mapDataset } from '../../lib/map-data';
+import { absolute, path } from '../../lib/urls';
+
+export async function getStaticPaths() {
+  return municipalities()
+    .map((m) => ({ kommun: m, data: mapDataset(m.slug) }))
+    .filter((x) => x.data !== undefined)
+    .map(({ kommun, data }) => ({
+      params: { kommun: kommun.slug },
+      props: { kommun, data: data! },
+    }));
+}
+
+const { kommun, data } = Astro.props;
+const city = kommun.city;
+const base = `/${kommun.slug}`;
+
+const source = sourceFor(kommun.slug);
+const remarks = data.counts[1] + data.counts[2];
+
+const title = `Karta över hygienkontroller i ${city}`;
+const description =
+  `Karta med ${formatNumber(data.count)} restauranger och livsmedelsverksamheter i ${city}. ` +
+  `Varje nål visar hur verksamheten klarade sin senaste hygienkontroll.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+    { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(base) },
+    { '@type': 'ListItem', position: 3, name: 'Karta' },
+  ],
+};
+---
+
+<Base
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
+  dataUpdated={source?.fetchedAt.slice(0, 10)}
+>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(base)}>{city}</a>
+    </nav>
+
+    <h1>Karta över hygienkontroller i {city}</h1>
+
+    <p class="lede text-secondary">
+      {formatNumber(data.count)} av verksamheterna i {kommun.name}s livsmedelskontroll
+      har en känd plats. Nålen visar bedömningen från den senaste kontrollen.
+      {remarks > 0 && (
+        <>
+          {' '}{formatNumber(remarks)} av dem har anmärkningar.
+        </>
+      )}
+    </p>
+
+    <Karta kommun={kommun} data={data} />
+  </div>
+</Base>
+
+<style>
+  /* Bredare än sajtens vanliga 1080. Den delade vyn är två spalter som båda
+     vill ha plats, och en karta som klipps till en textspalts bredd är inte
+     den halva av sidan den ska vara. */
+  .page {
+    padding-block: var(--s-6) var(--s-8);
+    max-width: 1400px;
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-3);
+  }
+
+  h1 {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+  }
+
+  .lede {
+    margin-block: var(--s-3) var(--s-6);
+    max-width: 640px;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .back {
+    margin-top: var(--s-6);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+</style>

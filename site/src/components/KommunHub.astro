@@ -30,6 +30,7 @@ import {
   type Municipality,
 } from '../lib/data';
 import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
+import { mapDataset } from '../lib/map-data';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -102,6 +103,19 @@ const profil = currentPage === 1 ? kommunProfil(kommun.slug) : null;
  */
 const recent = currentPage === 1 ? recentlyInspected(kommun.slug, 5) : [];
 const source = sourceFor(kommun.slug);
+
+/*
+ * Kartan, om kommunen har koordinater.
+ *
+ * Bara en länk. Det är hela poängen: kartprogrammet väger 227 kB brotlat och
+ * den här sidan väger 30 kB gzippat med allt inräknat, så kartan får aldrig
+ * ligga här. Den som vill ha den klickar sig dit och betalar då för den.
+ * Se Karta.astro.
+ *
+ * Länken står på hela sidserien och inte bara på sida 1. Den som bläddrat till
+ * sida 47 av Stockholm har snarare mer nytta av en karta än mindre.
+ */
+const karta = mapDataset(kommun.slug);
 
 /** Kommunens senaste kontroll över huvud taget. Färskhetsbeskedet. */
 const newest = recentlyInspected(kommun.slug, 1)[0];
@@ -248,6 +262,27 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       </div>
 
       <aside class="side">
+        {karta && (
+          <a class="panel karta" href={path(base, 'karta')}>
+            <span class="karta-text">
+              <b>Se {city} på karta</b>
+              <span class="text-secondary">
+                {formatNumber(karta.count)} verksamheter med känd plats
+              </span>
+            </span>
+            <svg class="karta-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+            </svg>
+          </a>
+        )}
+
         {recent.length > 0 && (
           <section class="panel">
             <h2 class="panel-title">Senast kontrollerade</h2>
@@ -434,6 +469,45 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     line-height: var(--lh-body-s);
     font-weight: 600;
     margin-bottom: var(--s-2);
+  }
+
+  /* Ingången till kartan. Ett kort och inte en textlänk: den ska gå att hitta
+     utan att man letar, eftersom kartan är det sidan helst vill visa vidare
+     till. Den kostar ändå ingenting utöver sin egen markup. */
+  .karta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    color: var(--text);
+  }
+
+  .karta:hover {
+    text-decoration: none;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .karta:hover b { color: var(--brand-ink); }
+
+  .karta-text { min-width: 0; }
+
+  .karta-text b {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .karta-text span {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .karta-glyph {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    color: var(--brand);
   }
 
   .recent {

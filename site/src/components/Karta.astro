@@ -1,0 +1,1132 @@
+---
+/**
+ * Delad vy: listan till vänster, kartan till höger.
+ *
+ * Förebilden är Airbnbs sökresultat. Kartan är inte en illustration bredvid
+ * listan utan sidans andra halva, den syns direkt utan att man ber om den, och
+ * den sitter kvar när man rullar. Nålarna bär bedömningen, som är vår
+ * motsvarighet till deras pris.
+ *
+ * ## Varför vyn ligger här och inte på kommunhubben
+ *
+ * Det här är den enda avvägning som verkligen kostade något, och den avgjordes
+ * med mätning.
+ *
+ * Kommunhubben väger 30,4 kB gzippat med allt inräknat: HTML, fyra skript och
+ * två stilmallar. En delad vy med levande karta kostar 231 kB brotlat för
+ * MapLibre plus 84 kB för Stockholms punkter. Att lägga den på hubben gör
+ * alltså sajtens mest besökta sidtyp ungefär tio gånger tyngre, och den sidan
+ * är den vi minst har råd att sakta ner: Core Web Vitals är en rankningssignal
+ * och sajten har ingen länkprofil att kompensera med.
+ *
+ * Kartan får därför en egen adress, /<kommun>/karta/, som bär HELA den delade
+ * vyn. Hubben behåller sin vikt och länkar hit tydligt. Skillnaden mot Airbnb
+ * är ett klick, och det klicket är priset för att hubben ska fortsätta ranka.
+ *
+ * På DEN HÄR sidan laddas kartan omedelbart. Den som gått hit har bett om
+ * kartan, och en knapp till hade varit ett andra klick för samma sak.
+ *
+ * ## Varför listan inte laddas om när man drar
+ *
+ * Airbnb frågar servern vid varje panorering, och skelettet man ser är väntan
+ * på det anropet. De måste: miljontals objekt, priser som beror på datum,
+ * tillgänglighet som ändras.
+ *
+ * Vi har inget av det. Ett kommunbestånd är litet och orörligt mellan bygg, så
+ * hela kommunen skickas en gång och filtreras lokalt. Ingen omladdning, inget
+ * skelett, ingen väntan — listan följer med medan man drar. Det är inte en
+ * förenkling av deras lösning utan en bättre, som deras datamängd inte tillåter.
+ *
+ * Det gäller per kommun. En riksvy blir omkring 90 000 punkter vid full
+ * täckning och kräver rutor eller en serverfråga. Därför läser klienten
+ * punkter genom EN funktion, `punktKalla` nedan. Byts den byts datakällan, och
+ * ingenting annat i kartan behöver veta om det.
+ */
+import FaceMark from './FaceMark.astro';
+import FaceRef from './FaceRef.astro';
+import FaceSprite from './FaceSprite.astro';
+import {
+  formatDate,
+  formatNumber,
+  latestInspectionDate,
+  municipalityListing,
+  type Municipality,
+} from '../lib/data';
+import { MAP_EPOCH, type MapDataset } from '../lib/map-data';
+import { VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
+
+interface Props {
+  kommun: Municipality;
+  data: MapDataset;
+}
+
+const { kommun, data } = Astro.props;
+const base = `/${kommun.slug}`;
+
+/*
+ * Listan som ligger i HTML.
+ *
+ * Sextio rader, inte hela kommunen. Sidan ska vara läsbar och länkad utan en
+ * rad JavaScript, men Stockholms 8 511 rader i dokumentet hade gett samma
+ * 11 MB HTML som en gång tvingade fram sidindelningen av hubben. Sextio rader
+ * räcker för att sidan ska ha innehåll, och hela beståndet finns länkat från
+ * hubben, som är den kanoniska listan.
+ *
+ * Klienten ersätter raderna med dem som syns i kartans utsnitt så fort
+ * punkterna är hämtade.
+ */
+const SERVER_ROWS = 60;
+const initial = municipalityListing(kommun.slug)
+  .filter((e) => e.lat !== null && e.lng !== null)
+  .slice(0, SERVER_ROWS);
+
+const LEGEND = [
+  { v: 0, verdict: 'clean' as const, label: VERDICT.clean.label, count: data.counts[0] },
+  { v: 1, verdict: 'minor' as const, label: VERDICT.minor.label, count: data.counts[1] },
+  { v: 2, verdict: 'major' as const, label: VERDICT.major.label, count: data.counts[2] },
+  { v: 3, verdict: null, label: 'Ingen bedömning', count: data.counts[3] },
+];
+---
+
+<div
+  class="split"
+  data-karta
+  data-url={data.url}
+  data-bounds={data.bounds.join(',')}
+  data-base={path(base)}
+  data-city={kommun.city}
+  data-epoch={MAP_EPOCH}
+  data-count={data.count}
+>
+  <FaceSprite />
+
+  {/* ── Listan ─────────────────────────────────────────────────────────── */}
+  <section class="lista" aria-labelledby="listrubrik">
+    <header class="listhuvud">
+      <h2 id="listrubrik" data-rubrik>
+        {formatNumber(data.count)} verksamheter i {kommun.city}
+      </h2>
+      <p class="text-secondary" data-underrubrik>
+        Med känd plats. Dra i kartan för att se dem som ligger där.
+      </p>
+    </header>
+
+    <ol class="rader" data-rader>
+      {initial.map((e) => (
+        <li>
+          <a href={path(base, e.slug)}>
+            <FaceRef verdict={e.verdict} size={34} />
+            <span class="rad-text">
+              <b>{e.name}</b>
+              <span class="text-secondary">
+                {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
+                {latestInspectionDate(e) && (
+                  <> · {formatDate(latestInspectionDate(e)!)}</>
+                )}
+              </span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+
+    <p class="listfot text-secondary" data-listfot>
+      Visar de {formatNumber(Math.min(SERVER_ROWS, data.count))} första i
+      bokstavsordning. <a href={path(base)}>Hela listan för {kommun.city}</a>.
+    </p>
+  </section>
+
+  {/* ── Kartan ─────────────────────────────────────────────────────────── */}
+  <section class="kartkolumn" aria-label={`Karta över ${kommun.city}`}>
+    <div class="kartram">
+      <div class="duk" data-duk></div>
+
+      {/* Nålens kort. Ett element, två skepnader: ett kort vid nålen på stora
+          skärmar, ett ark mot underkanten på små. Se stilarna längst ned. */}
+      <div class="kort" data-kort hidden role="dialog" aria-label="Vald verksamhet">
+        <button type="button" class="kort-stang" data-kort-stang aria-label="Stäng">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
+        <div class="kort-inne" data-kort-inne></div>
+      </div>
+
+      <p class="fel" data-fel hidden role="alert">
+        Kartan gick inte att ladda. Listan bredvid fungerar ändå.
+      </p>
+    </div>
+
+    <div class="under">
+      <ul class="teckenforklaring">
+        {LEGEND.filter((l) => l.count > 0).map((l) => (
+          <li>
+            <FaceMark verdict={l.verdict} size={18} />
+            <span>{l.label}</span>
+            <span class="n text-muted">{formatNumber(l.count)}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Attributionen står här OCH i kartans hörn. Kravet är att den syns,
+          och ett kontrollelement som kan fällas ihop är ingen garanti. */}
+      <p class="attribution text-muted">
+        Kartdata <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
+        kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
+        {data.derived && (
+          <> Platserna i {kommun.city} är beräknade ur adressen och kan ligga några tiotal meter fel.</>
+        )}
+      </p>
+    </div>
+  </section>
+
+  {/* Växeln på mobil. Ligger i markup men visas bara under 900 px, där en
+      delad vy inte får plats. Samma mönster som Airbnb. */}
+  <button type="button" class="vaxel" data-vaxel hidden aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+      <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+    </svg>
+    <span data-vaxel-text>Karta</span>
+  </button>
+</div>
+
+<script>
+  /**
+   * Kartans klientdel.
+   *
+   * ## Hur MapLibre laddas
+   *
+   * Från /maplibre/, alltså som statiska filer, INTE genom paketeraren.
+   *
+   * MapLibre startar sin vektorarbetare med
+   * `new URL('./maplibre-gl-worker.mjs', import.meta.url)`. Paketerar Vite
+   * biblioteket pekar den adressen in i /_astro/ där ingen sådan fil finns,
+   * arbetaren blir 404, och kartan går sönder UTAN att säga något: stilen
+   * laddas, kontrollerna ritas, attributionen står där, och kartytan förblir
+   * vit. Rasterkällor fungerar samtidigt, eftersom bilder avkodas på
+   * huvudtråden — det var den skillnaden som avslöjade orsaken.
+   *
+   * Som statiska filer stämmer `import.meta.url` med var filerna ligger,
+   * arbetaren hittar sig själv, och huvudtråd och arbetare DELAR
+   * maplibre-gl-shared.mjs i stället för att ladda var sin kopia. Se
+   * scripts/kopiera-maplibre.mjs.
+   *
+   * `@vite-ignore` krävs för att Vite inte ska försöka lösa upp adressen vid
+   * bygget. Formen blir därmed exakt densamma i dev som i bygget, vilket är
+   * vad som sänkte det förra försöket.
+   *
+   * maplibre-gl 6 har ingen default-export. Destrukturera namn ur modulen,
+   * skriv aldrig `mod.default`.
+   */
+  import {
+    FACE_EYE_LEFT,
+    FACE_EYE_RIGHT,
+    FACE_FILL,
+    FACE_KEYS,
+    FACE_MOUTH,
+    FACE_MOUTH_WIDTH,
+    type FaceKey,
+  } from '../lib/face';
+  import { slugify } from '../lib/slug';
+  import { VERDICT } from '../lib/site';
+
+  const MAPLIBRE_URL = '/maplibre/maplibre-gl.mjs';
+  const MAPLIBRE_CSS = '/maplibre/maplibre-gl.css';
+
+  /** Etiketter per bedömningssiffra i datafilen. */
+  const LABEL = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label, 'Ingen bedömning'];
+  const COLOR = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
+  const FACE_BY_V: FaceKey[] = ['clean', 'minor', 'major', 'none'];
+
+  interface Punkt {
+    /** Radnummer i datafilen, och nålens id på kartan. Det är den kopplingen
+     *  som gör att en rad och en nål kan peka ut varandra. */
+    i: number;
+    lng: number;
+    lat: number;
+    v: number;
+    namn: string;
+    slug: string;
+    /** Dagar sedan epok. 0 = ingen kontroll. */
+    d: number;
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-karta]');
+
+  if (root) {
+    const duk = root.querySelector<HTMLElement>('[data-duk]')!;
+    const rader = root.querySelector<HTMLOListElement>('[data-rader]')!;
+    const rubrik = root.querySelector<HTMLElement>('[data-rubrik]')!;
+    const underrubrik = root.querySelector<HTMLElement>('[data-underrubrik]')!;
+    const listfot = root.querySelector<HTMLElement>('[data-listfot]')!;
+    const kort = root.querySelector<HTMLElement>('[data-kort]')!;
+    const kortInne = root.querySelector<HTMLElement>('[data-kort-inne]')!;
+    const kortStang = root.querySelector<HTMLButtonElement>('[data-kort-stang]')!;
+    const fel = root.querySelector<HTMLElement>('[data-fel]')!;
+    const vaxel = root.querySelector<HTMLButtonElement>('[data-vaxel]')!;
+    const vaxelText = root.querySelector<HTMLElement>('[data-vaxel-text]')!;
+
+    const BAS = root.dataset.base!;
+    const EPOK = Date.parse(root.dataset.epoch!);
+    const DAG = 86_400_000;
+
+    /**
+     * Avkodar kolumnformatet till punkter.
+     *
+     * Speglar `build` i lib/map-data.ts exakt: koordinaterna är kumulativa
+     * deltan i hundratusendels grad, namnen ligger i en sträng med radbrytning
+     * mellan, och slugen härleds ur namnet utom där bygget skickat ett
+     * undantag. Se lib/slug.ts för varför härledningen är trygg.
+     */
+    function avkoda(raw: { x: number[]; y: number[]; v: string; n: string; o: Record<string, string>; d: number[] }): Punkt[] {
+      const namn = raw.n.split('\n');
+      const ut: Punkt[] = [];
+      let x = 0;
+      let y = 0;
+      for (let i = 0; i < raw.x.length; i++) {
+        x += raw.x[i];
+        y += raw.y[i];
+        ut.push({
+          i,
+          lng: x / 1e5,
+          lat: y / 1e5,
+          v: Number(raw.v[i]),
+          namn: namn[i],
+          slug: raw.o[i] ?? slugify(namn[i]),
+          d: raw.d[i],
+        });
+      }
+      return ut;
+    }
+
+    /**
+     * Datakällans enda gränssnitt mot kartan.
+     *
+     * I dag: hela kommunen i en fil, hämtad en gång, filtrerad lokalt. Det
+     * håller upp till några tiotusen punkter.
+     *
+     * En riksvy blir omkring 90 000 punkter och kräver något annat —
+     * förgenererade rutor i objektlagring eller en ruteformad fråga mot
+     * Supabase. Byt DEN HÄR funktionen då. Allt nedanför tar emot en lista
+     * punkter och bryr sig inte om varifrån de kom.
+     */
+    let alla: Punkt[] = [];
+
+    function punktKalla(): Punkt[] {
+      return alla;
+    }
+
+    function datumText(d: number): string | null {
+      if (!d) return null;
+      return new Date(EPOK + d * DAG).toLocaleDateString('sv-SE', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
+
+    // ── Listan ───────────────────────────────────────────────────────────
+
+    /** Hur många rader som ritas. Fler än så läser ingen, och DOM-kostnaden
+     *  vid varje panorering är det som avgör om dragningen känns mjuk. */
+    const MAX_RADER = 120;
+
+    function ritaLista(synliga: Punkt[], totalt: number) {
+      const visa = synliga.slice(0, MAX_RADER);
+      const frag = document.createDocumentFragment();
+
+      for (const p of visa) {
+        const li = document.createElement('li');
+        // Radnumret är nålens id. Utan det kan raden inte peka ut sin nål.
+        li.dataset.i = String(p.i);
+        const a = document.createElement('a');
+        a.href = BAS + p.slug + '/';
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'face');
+        svg.setAttribute('width', '34');
+        svg.setAttribute('height', '34');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
+        svg.appendChild(use);
+
+        const text = document.createElement('span');
+        text.className = 'rad-text';
+        const b = document.createElement('b');
+        // textContent, aldrig innerHTML: namnen kommer ur kommunernas register
+        // och har inte passerat någon sanering.
+        b.textContent = p.namn;
+        const meta = document.createElement('span');
+        meta.className = 'text-secondary';
+        const datum = datumText(p.d);
+        meta.textContent = LABEL[p.v] + (datum ? ` · ${datum}` : '');
+        text.append(b, meta);
+
+        a.append(svg, text);
+        li.appendChild(a);
+        frag.appendChild(li);
+      }
+
+      rader.replaceChildren(frag);
+
+      const stad = root!.dataset.city;
+      if (totalt === 0) {
+        rubrik.textContent = `Inga verksamheter i utsnittet`;
+        underrubrik.textContent = `Dra eller zooma ut för att se fler i ${stad}.`;
+      } else {
+        rubrik.textContent = `${totalt.toLocaleString('sv-SE')} verksamheter i utsnittet`;
+        underrubrik.textContent = 'Listan följer kartan. Dra för att se andra delar av staden.';
+      }
+
+      listfot.hidden = totalt <= MAX_RADER;
+      if (!listfot.hidden) {
+        listfot.textContent = `Visar ${visa.length} av ${totalt.toLocaleString('sv-SE')}. Zooma in för att se färre åt gången.`;
+      }
+    }
+
+    // ── Samspel lista ↔ karta ────────────────────────────────────────────
+
+    /**
+     * Den nål och den rad som pekar ut varandra.
+     *
+     * Nålen lyfts med MapLibres feature-state i stället för genom att lagret
+     * ritas om: tillståndet läses av ett uttryck i `icon-size`, så GPU:n gör
+     * jobbet och kartan tappar inte en bild för att man för musen över en rad.
+     */
+    let hovrad: number | null = null;
+
+    function satHovrad(i: number | null) {
+      if (hovrad === i) return;
+      hovrad = i;
+
+      const gammal = rader.querySelector('li.aktiv');
+      if (gammal) gammal.classList.remove('aktiv');
+
+      if (i !== null) {
+        const ny = rader.querySelector(`li[data-i="${i}"]`);
+        if (ny) ny.classList.add('aktiv');
+      }
+
+      // Lyftlagret innehåller den nål vars radnummer filtret pekar ut, alltså
+      // noll eller en. -1 finns inte i datan och betyder "ingen".
+      if (karta && karta.getLayer('nal-lyft')) {
+        karta.setFilter('nal-lyft', ['==', ['get', 'i'], i ?? -1]);
+      }
+    }
+
+    // Rad → nål. Delegerat på listan, eftersom raderna byts ut vid varje
+    // panorering och en lyssnare per rad hade fått sättas om hela tiden.
+    rader.addEventListener('mouseover', (e) => {
+      const li = (e.target as HTMLElement).closest('li');
+      if (li && li.dataset.i) satHovrad(Number(li.dataset.i));
+    });
+    rader.addEventListener('mouseleave', () => satHovrad(null));
+
+    // ── Nålens kort ──────────────────────────────────────────────────────
+
+    let valdSlug: string | null = null;
+
+    function visaKort(p: Punkt) {
+      valdSlug = p.slug;
+      const datum = datumText(p.d);
+
+      const inne = document.createDocumentFragment();
+
+      const huvud = document.createElement('div');
+      huvud.className = 'kort-huvud';
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'face');
+      svg.setAttribute('width', '40');
+      svg.setAttribute('height', '40');
+      svg.setAttribute('viewBox', '0 0 100 100');
+      svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
+      svg.appendChild(use);
+
+      const titel = document.createElement('div');
+      const namn = document.createElement('b');
+      namn.textContent = p.namn;
+      const bedomning = document.createElement('span');
+      bedomning.className = 'kort-bedomning';
+      bedomning.textContent = LABEL[p.v];
+      bedomning.style.color = COLOR[p.v];
+      titel.append(namn, bedomning);
+      huvud.append(svg, titel);
+      inne.appendChild(huvud);
+
+      if (datum) {
+        const rad = document.createElement('p');
+        rad.className = 'kort-fakta text-secondary';
+        rad.textContent = `Senast kontrollerad ${datum}`;
+        inne.appendChild(rad);
+      }
+
+      const lank = document.createElement('a');
+      lank.className = 'kort-lank';
+      lank.href = BAS + p.slug + '/';
+      lank.textContent = 'Se kontrollerna';
+      inne.appendChild(lank);
+
+      kortInne.replaceChildren(inne);
+      kort.hidden = false;
+    }
+
+    function stangKort() {
+      kort.hidden = true;
+      valdSlug = null;
+    }
+
+    kortStang.addEventListener('click', stangKort);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !kort.hidden) stangKort();
+    });
+
+    // ── Mobilväxeln ──────────────────────────────────────────────────────
+
+    const smal = window.matchMedia('(max-width: 900px)');
+    let visarKarta = false;
+
+    function stallInVaxel() {
+      vaxel.hidden = !smal.matches;
+      if (!smal.matches) {
+        root!.classList.remove('visar-karta');
+        visarKarta = false;
+        vaxel.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    vaxel.addEventListener('click', () => {
+      visarKarta = !visarKarta;
+      root!.classList.toggle('visar-karta', visarKarta);
+      vaxel.setAttribute('aria-pressed', String(visarKarta));
+      vaxelText.textContent = visarKarta ? 'Lista' : 'Karta';
+      if (!visarKarta) stangKort();
+      // Kartan har haft bredd noll medan den var dold och måste räkna om.
+      if (visarKarta && karta) requestAnimationFrame(() => karta.resize());
+    });
+
+    smal.addEventListener('change', stallInVaxel);
+    stallInVaxel();
+
+    // ── Kartan ───────────────────────────────────────────────────────────
+
+    let karta: any = null;
+
+    /**
+     * Nålen: droppe, färgad fyllning, VIT KONTUR, mjuk skugga, vit min inuti.
+     *
+     * Formen är den som Google, Apple och Ednia använder, och den valdes av ett
+     * skäl som inte är smak: en droppe PEKAR. En kvadrat måste man gissa
+     * mittpunkten på, medan spetsen säger exakt vilken adress det gäller.
+     * Därför sitter också `icon-anchor: bottom` på lagret — spetsen ska ligga
+     * på koordinaten, inte märkets mitt.
+     *
+     * Den vita konturen är inte dekoration. Kartbotten är färgad, och utan
+     * kontur drunknar en gul nål i en gul gata och en grön i en park. Konturen
+     * ger varje nål en egen kant mot vad som helst under sig, vilket är exakt
+     * varför de tre nämnda kartorna alla har den.
+     *
+     * Minen är vit. Det är inte ett val här utan en regel som redan står i
+     * tokens.css: symbolen på märket är alltid vit. Banorna kommer ur
+     * lib/face.ts, samma modul som FaceSprite och FaceRef läser, så nålen på
+     * kartan är samma tecken som märket i listan.
+     */
+    function faceSvg(key: FaceKey): string {
+      const [from, to] = FACE_FILL[key];
+      // Ansiktets innehåll spänner x 33,7–68,7 och y 33–69 i sin egen 100-ruta.
+      // Mitten ligger alltså på (51,2, 51), och den punkten flyttas till
+      // droppens cirkelmitt (50, 46) och skalas till 72 procent.
+      const face =
+        `<g transform="translate(50 46) scale(.72) translate(-51.2 -51)">` +
+        `<path d="${FACE_EYE_LEFT}" fill="#fff"/><path d="${FACE_EYE_RIGHT}" fill="#fff"/>` +
+        `<path d="${FACE_MOUTH[key]}" stroke="#fff" stroke-width="${FACE_MOUTH_WIDTH}" ` +
+        `stroke-linecap="round" fill="none"/></g>`;
+
+      return (
+        `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="132" viewBox="0 0 100 132">` +
+        `<defs>` +
+        `<linearGradient id="g" x1="50" y1="4" x2="50" y2="120" gradientUnits="userSpaceOnUse">` +
+        `<stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient>` +
+        `<filter id="s" x="-50%" y="-20%" width="200%" height="160%">` +
+        `<feGaussianBlur in="SourceAlpha" stdDeviation="3"/>` +
+        `<feOffset dy="3"/><feComponentTransfer><feFuncA type="linear" slope="0.35"/>` +
+        `</feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/>` +
+        `</feMerge></filter>` +
+        `</defs>` +
+        `<path filter="url(#s)" d="M50 124C50 124 87 74 87 46A37 37 0 1 0 13 46C13 74 50 124 50 124Z" ` +
+        `fill="url(#g)" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>` +
+        face +
+        `</svg>`
+      );
+    }
+
+    /** Droppens proportion är 100×132. Vid pixelRatio 2 blir nålen 36×47
+     *  CSS-pixlar, alltså i nivå med märket i listan. */
+    const PIN_W = 72;
+    const PIN_H = 95;
+
+    function faceBitmap(key: FaceKey): Promise<ImageData> {
+      return new Promise((resolve, reject) => {
+        const img = new Image(PIN_W, PIN_H);
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = PIN_W;
+          c.height = PIN_H;
+          const ctx = c.getContext('2d');
+          if (!ctx) return reject(new Error('ingen 2d-kontext'));
+          ctx.drawImage(img, 0, 0, PIN_W, PIN_H);
+          resolve(ctx.getImageData(0, 0, PIN_W, PIN_H));
+        };
+        img.onerror = () => reject(new Error('kunde inte rita ' + key));
+        img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(faceSvg(key))}`;
+      });
+    }
+
+    /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
+     *  koden: adressen ska vara densamma i dev och i bygget. */
+    function laddaCss() {
+      if (document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = MAPLIBRE_CSS;
+      document.head.appendChild(link);
+    }
+
+    async function start() {
+      laddaCss();
+
+      const [maplibre, raw] = await Promise.all([
+        import(/* @vite-ignore */ MAPLIBRE_URL),
+        fetch(root!.dataset.url!).then((r) => {
+          if (!r.ok) throw new Error('kartdata svarade ' + r.status);
+          return r.json();
+        }),
+      ]);
+
+      alla = avkoda(raw);
+
+      const { Map, NavigationControl, AttributionControl } = maplibre;
+      const [w, s, e, n] = root!.dataset.bounds!.split(',').map(Number);
+      const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      karta = new Map({
+        container: duk,
+        // Positron: ljus och lågmättad, få etiketter. Den enda av
+        // OpenFreeMaps stilar som inte konkurrerar med nålarna.
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        bounds: [w, s, e, n],
+        fitBoundsOptions: { padding: 32 },
+        attributionControl: false,
+      });
+
+      karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+      karta.addControl(new AttributionControl({ compact: false }), 'bottom-right');
+
+      karta.on('load', async () => {
+        let ansikten = true;
+        try {
+          const bitmaps = await Promise.all(FACE_KEYS.map(faceBitmap));
+          FACE_KEYS.forEach((key, i) => {
+            if (!karta.hasImage('face-' + key)) {
+              karta.addImage('face-' + key, bitmaps[i], { pixelRatio: 2 });
+            }
+          });
+        } catch {
+          ansikten = false;
+        }
+
+        karta.addSource('verksamheter', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: alla.map((p, i) => ({
+              type: 'Feature' as const,
+              id: i,
+              geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+              properties: { i, v: p.v },
+            })),
+          },
+          /*
+           * MapLibres inbyggda klustring, alltså Supercluster i en arbetare.
+           * Vald efter mätning: 8 511 punkter indexeras på tiotals
+           * millisekunder, och vid full utzoomning ritar kartan ett trettiotal
+           * cirklar i stället för åttatusen nålar. Ett eget rutnät hade varit
+           * mer maskineri för ett problem biblioteket redan löser i rätt tråd.
+           */
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 55,
+        });
+
+        karta.addLayer({
+          id: 'kluster',
+          type: 'circle',
+          source: 'verksamheter',
+          filter: ['has', 'point_count'],
+          paint: {
+            // --brand som ytfärg. Klustret bär ANTAL, aldrig bedömning: ett
+            // kluster färgat efter andelen anmärkningar är en värmekarta över
+            // vilka kvarter som sköter sig sämst, alltså den rangordning
+            // sajten aldrig publicerar. Bedömningen syns när man zoomar in.
+            'circle-color': '#007BE0',
+            'circle-opacity': 0.92,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff',
+            'circle-radius': ['step', ['get', 'point_count'], 15, 25, 20, 100, 26, 500, 33],
+            /*
+             * Övergångarna är skillnaden mellan en karta som känns billig och
+             * en som känns dyr. Utan dem byter ett kluster storlek i ETT hopp
+             * när man zoomar och antalet i det ändras.
+             *
+             * Det som INTE går att göra på det här sättet är att låta ett
+             * kluster som delar sig glida isär till sina delar: klustren är
+             * nya features efter varje omindexering, och en övergång kan bara
+             * tona mellan två värden på samma feature. Verklig uppdelning
+             * kräver egna markörer som interpoleras för hand. Det är ett eget
+             * arbete, och det står i rapporten.
+             */
+            'circle-radius-transition': { duration: reducerad ? 0 : 250 },
+            'circle-opacity-transition': { duration: reducerad ? 0 : 250 },
+          },
+        });
+
+        karta.addLayer({
+          id: 'kluster-antal',
+          type: 'symbol',
+          source: 'verksamheter',
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['get', 'point_count_abbreviated'],
+            // Stilens egen font. Instrument Sans finns inte som kakelfont, och
+            // en font som saknas gör att etiketten uteblir helt.
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 13,
+            'text-allow-overlap': true,
+          },
+          paint: { 'text-color': '#fff' },
+        });
+
+        karta.addLayer(
+          ansikten
+            ? {
+                id: 'nalar',
+                type: 'symbol',
+                source: 'verksamheter',
+                filter: ['!', ['has', 'point_count']],
+                layout: {
+                  'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
+                  'icon-size': 0.5,
+                  'icon-allow-overlap': true,
+                  // Droppens spets ligger på adressen, inte märkets mitt.
+                  'icon-anchor': 'bottom',
+                },
+              }
+            : {
+                id: 'nalar',
+                type: 'circle',
+                source: 'verksamheter',
+                filter: ['!', ['has', 'point_count']],
+                paint: {
+                  'circle-radius': 7,
+                  'circle-stroke-width': 2,
+                  'circle-stroke-color': '#fff',
+                  'circle-color': ['match', ['get', 'v'], 0, COLOR[0], 1, COLOR[1], 2, COLOR[2], COLOR[3]],
+                },
+              },
+        );
+
+        /*
+         * Den lyfta nålen ligger i ETT EGET LAGER, inte i en feature-state på
+         * det vanliga.
+         *
+         * Feature-state hade varit den självklara lösningen och är fel:
+         * MapLibre tillåter `['feature-state', …]` i PAINT-egenskaper, och
+         * `icon-size` är en LAYOUT-egenskap. En symbol kan alltså inte växa på
+         * feature-state, hur rimligt det än ser ut i koden.
+         *
+         * Ett eget lager med ett filter på radnumret gör samma sak med medel
+         * som finns. `setFilter` rör bara det lagret, som innehåller noll
+         * eller en nål, så det kostar ingenting per bild.
+         */
+        karta.addLayer({
+          id: 'nal-lyft',
+          type: 'symbol',
+          source: 'verksamheter',
+          filter: ['==', ['get', 'i'], -1],
+          layout: {
+            'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
+            'icon-size': 0.74,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-anchor': 'bottom',
+          },
+        });
+
+        // Listan speglar utsnittet. `move` och inte bara `moveend`: hela
+        // poängen med att ha punkterna lokalt är att listan följer med medan
+        // man drar i stället för att komma efter.
+        const uppdatera = () => {
+          const b = karta.getBounds();
+          const synliga = punktKalla().filter(
+            (p) => p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth(),
+          );
+          synliga.sort((a, z) => a.namn.localeCompare(z.namn, 'sv'));
+          ritaLista(synliga, synliga.length);
+        };
+
+        karta.on('move', uppdatera);
+        uppdatera();
+
+        karta.on('click', 'kluster', (ev: any) => {
+          const f = karta.queryRenderedFeatures(ev.point, { layers: ['kluster'] })[0];
+          if (!f) return;
+          karta.getSource('verksamheter').getClusterExpansionZoom(f.properties.cluster_id).then((z: number) => {
+            karta.easeTo({ center: f.geometry.coordinates, zoom: z, duration: reducerad ? 0 : 400 });
+          });
+        });
+
+        karta.on('click', 'nalar', (ev: any) => {
+          const f = ev.features?.[0];
+          if (!f) return;
+          visaKort(alla[f.properties.i]);
+        });
+
+        // Klick vid sidan av en nål stänger kortet, som hos Airbnb.
+        karta.on('click', (ev: any) => {
+          const träff = karta.queryRenderedFeatures(ev.point, { layers: ['nalar', 'kluster'] });
+          if (träff.length === 0) stangKort();
+        });
+
+        for (const lager of ['kluster', 'nalar']) {
+          karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
+          karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
+        }
+
+        // Nål → rad. Andra halvan av samspelet: raden markeras och rullas fram
+        // så att den syns, precis som hos Airbnb.
+        karta.on('mousemove', 'nalar', (ev: any) => {
+          const f = ev.features?.[0];
+          if (!f) return;
+          satHovrad(f.properties.i);
+          const li = rader.querySelector(`li[data-i="${f.properties.i}"]`);
+          // `nearest` och inte `center`: raden ska bara fram i vyn, inte rycka
+          // listan till mitten varje gång musen råkar passera en nål.
+          if (li) li.scrollIntoView({ block: 'nearest', behavior: reducerad ? 'auto' : 'smooth' });
+        });
+
+        karta.on('mouseleave', 'nalar', () => satHovrad(null));
+
+        karta.getCanvas().setAttribute('aria-label', `Karta över hygienkontroller i ${root!.dataset.city}`);
+        root!.classList.add('live');
+      });
+    }
+
+    start().catch((error) => {
+      console.error(error);
+      fel.hidden = false;
+    });
+  }
+</script>
+
+<style>
+  /* ── Delad vy ─────────────────────────────────────────────────────────── */
+
+  .split {
+    display: grid;
+    /* Kartan får något mer än halva bredden. Listan är text och blir svårläst
+       bred; kartan blir bara bättre. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+
+  /* ── Listan ───────────────────────────────────────────────────────────── */
+
+  .listhuvud { margin-bottom: var(--s-4); }
+
+  .listhuvud h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .listhuvud p {
+    margin-top: var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .rader {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* :global genom hela listan.
+     Astro scopar sina selektorer med ett [data-astro-cid-…]-attribut som sätts
+     när MALLEN renderas. Raderna byts ut av skriptet vid varje panorering, och
+     element som skapas med createElement bär inget sådant attribut — den
+     scopade regeln matchar dem alltså aldrig. Resultatet var att namnet inte
+     blev ett eget block och rann ihop med bedömningen på samma rad.
+     Server- och klientrader måste se likadana ut, så reglerna ligger globalt
+     under .rader, som är server-renderad och därför har sitt scope. */
+  .rader :global(li + li) { border-top: 1px solid var(--hairline); }
+
+  .rader :global(a) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  .rader :global(a:hover) {
+    text-decoration: none;
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .rader :global(a:hover b) { color: var(--brand-ink); }
+
+  .rader :global(.rad-text) { min-width: 0; }
+
+  .rader :global(.rad-text b) {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rader :global(.rad-text span) {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Nålen som hör till raden man hovrar lyfts på kartan, och tvärtom. Det är
+     det som binder ihop de två halvorna, samma grepp som hos Airbnb. */
+  .rader :global(li.aktiv a) {
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .listfot {
+    margin-top: var(--s-4);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* ── Kartan ───────────────────────────────────────────────────────────── */
+
+  /* Kartan sitter kvar när listan rullar. Det är hela poängen med den delade
+     vyn: man läser listan och behåller kartan i blickfånget. */
+  .kartkolumn {
+    position: sticky;
+    top: var(--s-4);
+  }
+
+  .kartram {
+    position: relative;
+    height: calc(100vh - var(--s-16));
+    min-height: 440px;
+    border-radius: var(--r-card);
+    overflow: hidden;
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .duk { position: absolute; inset: 0; }
+
+  .fel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    padding: var(--s-3) var(--s-4);
+    border-radius: var(--r-control);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    text-align: center;
+  }
+
+  /* ── Nålens kort ──────────────────────────────────────────────────────── */
+
+  .kort {
+    position: absolute;
+    left: var(--s-3);
+    bottom: var(--s-3);
+    z-index: 3;
+    width: min(300px, calc(100% - var(--s-6)));
+    padding: var(--s-4);
+    border-radius: var(--r-card);
+    background: var(--card);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .kort[hidden] { display: none; }
+
+  .kort-stang {
+    position: absolute;
+    top: var(--s-2);
+    right: var(--s-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .kort-stang:hover { background: var(--canvas); color: var(--text); }
+  .kort-stang svg { width: 16px; height: 16px; }
+
+  .kort-huvud {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-right: var(--s-6);
+  }
+
+  .kort-huvud b {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .kort-bedomning {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+  }
+
+  .kort-fakta {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .kort-lank {
+    display: inline-block;
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  /* ── Under kartan ─────────────────────────────────────────────────────── */
+
+  .under {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-4);
+    margin-top: var(--s-3);
+  }
+
+  .teckenforklaring {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .teckenforklaring li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .teckenforklaring .n { font-variant-numeric: tabular-nums; }
+
+  .attribution {
+    flex: 1 1 240px;
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  /* MapLibres egna element bär inte Astros scope-attribut. */
+  .kartram :global(.maplibregl-map) {
+    font: 400 var(--fs-caption) / var(--lh-caption) var(--font-sans);
+  }
+
+  .kartram :global(.maplibregl-ctrl-attrib) { font-size: 10px; line-height: 14px; }
+
+  /* ── Mobil ────────────────────────────────────────────────────────────── */
+
+  .vaxel {
+    position: fixed;
+    left: 50%;
+    bottom: var(--s-6);
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 12px 20px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--text);
+    color: #fff;
+    font: 600 var(--fs-body-s) / 1 var(--font-sans);
+    box-shadow: var(--shadow-pop);
+    cursor: pointer;
+  }
+
+  .vaxel[hidden] { display: none; }
+  .vaxel svg { width: 18px; height: 18px; }
+
+  /* Under 900 px får en delad vy inte plats. Då är listan grundläget och
+     kartan läggs över den när man ber om den, precis som hos Airbnb. */
+  @media (max-width: 900px) {
+    .split { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+
+    .kartkolumn {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: none;
+      padding: var(--s-3);
+      background: var(--canvas);
+    }
+
+    .split.visar-karta .kartkolumn { display: block; }
+    .split.visar-karta .lista { display: none; }
+
+    .kartram { height: calc(100vh - 132px); min-height: 0; }
+
+    /* Kortet blir ett ark mot underkanten, samma mönster som
+       inloggningsrutan använder på små skärmar. */
+    .kort {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      border-radius: var(--r-card) var(--r-card) 0 0;
+      padding-bottom: var(--s-6);
+    }
+  }
+</style>
