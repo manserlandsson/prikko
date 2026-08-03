@@ -640,8 +640,11 @@ export async function myReview(
  * och text. Villkoret `review_says_something` i schema_community.sql fäller
  * resten, och den här funktionen kontrollerar det inte en gång till.
  *
- * Raden skrivs som `pending` och blir läsbar för någon annan först när en
- * människa släppt fram den.
+ * STATUSEN SKICKAS INTE HÄRIFRÅN, och ska aldrig göra det. En trigger i
+ * databasen sätter den: ett betyg utan text publiceras direkt, allt som bär
+ * text väntar på att en människa läst det. Skulle den här funktionen skicka
+ * med en status ignoreras den, vilket är hela poängen med att regeln bor där
+ * och inte här.
  */
 export async function submitReview(
   place: Place,

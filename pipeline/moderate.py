@@ -3,6 +3,7 @@
 
     set -a && . ~/.prikko-env && set +a
     python3 pipeline/moderate.py kö
+    python3 pipeline/moderate.py signaler
     python3 pipeline/moderate.py visa svar <id>
     python3 pipeline/moderate.py publicera svar <id>
     python3 pipeline/moderate.py avsla omdome <id> "Innehåller personuppgifter"
@@ -31,6 +32,11 @@ Vad som händer vid publicering:
            Nästa export_supabase.py tar med den, nästa bygge visar den.
   omdome   raden blir läsbar för anon genom vyn community.published_reviews.
            Omdömen går ALDRIG in i ett bygge; de hämtas i webbläsaren.
+
+           Ett omdöme som bara är ett BETYG, utan en rad text, syns aldrig i
+           kön: det publiceras direkt av en trigger i databasen. Se UNDANTAGET
+           i schema_community.sql för varför, och kör `signaler` för att se de
+           mönster som är värda en blick i efterhand.
   anspråk  personen får rätt att svara på kontroller och ladda upp bilder för
            just den verksamheten. Ange alltid hur du kontrollerade det.
   bild     filen kopieras till den publika bucketen och en rad skrivs i
@@ -181,6 +187,39 @@ def cmd_queue(db: Supabase) -> int:
     print(f"\nSammanlagt {total} poster väntar på granskning.")
     if total:
         print("Läs en post med:  python3 pipeline/moderate.py visa <sort> <id>")
+    return 0
+
+
+def cmd_signals(db: Supabase) -> int:
+    """Efterhandsgranskning av betyg som publicerats direkt.
+
+    Ett betyg utan text går ut utan att någon läst det, se UNDANTAGET i
+    schema_community.sql. Det är försvarbart bara så länge någon tittar efter
+    mönster i efterhand, och det här kommandot är den blicken.
+
+    Vyn pekar ut, den dömer inte. Läs raderna med `visa omdome <id>` och avslå
+    eller radera det som inte håller.
+    """
+    rows = db.community("GET", "rating_signals?order=senaste.desc")
+
+    if not rows:
+        print("Inga signaler. Inga kluster av låga betyg, inga ensidiga konton.")
+        return 0
+
+    print(f"{len(rows)} signal(er) värda en blick:\n")
+    for row in rows:
+        if row["sort"] == "kluster":
+            print(f"  KLUSTER  {row['nyckel']}")
+            print(f"    {row['antal']} låga betyg det senaste dygnet, det lägsta {row['lagsta']}")
+        else:
+            print(f"  ENSIDIGT KONTO  {row['nyckel']}")
+            print(f"    {row['antal']} betyg, alla på {row['lagsta']}")
+        print(f"    {row['forsta'][:16]} till {row['senaste'][:16]}")
+        for rid in row["rader"]:
+            print(f"      python3 pipeline/moderate.py visa omdome {rid}")
+        print()
+
+    print("Ett kluster är inte ett bevis. Läs raderna innan du gör något.")
     return 0
 
 
@@ -346,6 +385,8 @@ def main() -> int:
     # `ko` som alias, för terminaler utan svensk tangentbordslayout.
     sub.add_parser("kö", aliases=["ko"], help="Visa allt som väntar")
 
+    sub.add_parser("signaler", help="Betyg som publicerats direkt och är värda en blick")
+
     show = sub.add_parser("visa", help="Läs en post i sin helhet")
     show.add_argument("kind")
     show.add_argument("id")
@@ -378,6 +419,8 @@ def main() -> int:
     try:
         if args.command in ("kö", "ko"):
             return cmd_queue(db)
+        if args.command == "signaler":
+            return cmd_signals(db)
         if args.kind not in KINDS:
             print(f"Okänd sort: {args.kind}. Välj svar, omdome, anspråk eller bild.",
                   file=sys.stderr)

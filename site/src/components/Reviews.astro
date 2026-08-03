@@ -16,9 +16,15 @@
  *
  *   1. Egen databas i egen mening. Omdömen ligger i schemat `community`, utan
  *      en enda främmande nyckel till kontrolldatan. Se schema_community.sql.
- *   2. Förhandsgranskning utan undantag. Ett omdöme är osynligt för alla utom
- *      sin författare tills en människa släppt fram det, och det är en
- *      radsäkerhetspolicy, inte en regel i den här filen.
+ *   2. Förhandsgranskning av allt som bär text. Ett omdöme med en enda rad
+ *      text är osynligt för alla utom sin författare tills en människa släppt
+ *      fram det, och det är en radsäkerhetspolicy, inte en regel i den här
+ *      filen. Ett omdöme som BARA är ett betyg publiceras direkt: en siffra
+ *      mellan ett och fem kan inte bära förtal, namngiven personal eller ett
+ *      påstående som går att bemöta. Beslutet är ägarens och står motiverat
+ *      under UNDANTAGET i pipeline/schema_community.sql, tillsammans med de
+ *      tre spärrar som är villkoret för det. Statusen sätts av en trigger i
+ *      databasen, aldrig av något den här filen skickar.
  *   3. Aldrig i ett bygge. Listan nedan är tom i HTML-filen och fylls i
  *      webbläsaren. Den grundlagsskyddade databasen är det statiska bygget, och
  *      ingenting en besökare skrivit kommer in i det.
@@ -76,7 +82,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     Besökarnas omdömen
     <InfoTip
       label="omdömen"
-      text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme läses av redaktionen innan det publiceras."
+      text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme med text läses av redaktionen innan det publiceras. Ett omdöme som bara är ett betyg publiceras direkt."
     />
   </h2>
 
@@ -249,10 +255,14 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           <button type="button" class="btn-quiet" id="review-cancel">Avbryt</button>
         </div>
 
+        {/* Raden måste säga vad som faktiskt händer, och de två fallen är
+            olika sedan betyg utan text publiceras direkt. Att lova granskning
+            av allt vore enklare att skriva och osant. */}
         <p class="konto-legal">
-          Omdömet publiceras först sedan redaktionen läst det, och publiceras då
-          ordagrant. Vi ändrar aldrig i din text. Du kan ta bort ditt omdöme när
-          du vill från <a href="/konto/">ditt konto</a>. Läs
+          Skriver du en text publiceras omdömet först sedan redaktionen läst
+          den, och publiceras då ordagrant. Vi ändrar aldrig i din text. Sätter
+          du bara ett betyg syns det direkt. Du kan ta bort ditt omdöme när du
+          vill från <a href="/konto/">ditt konto</a>. Läs
           <a href="/villkor/">villkoren</a> innan du skriver.
         </p>
       </form>
@@ -1028,23 +1038,37 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         form.reset();
         clearPicked();
 
-        if (failed) {
-          notice(
-            mine,
-            'Väntar.',
-            'Omdömet är inskickat och publiceras ordagrant om redaktionen ' +
-              `släpper fram det. Bilderna följde inte med: ${failed}`,
-          );
-        } else {
-          notice(
-            mine,
-            'Väntar.',
-            'Tack. Omdömet är inskickat och publiceras ordagrant om redaktionen ' +
-              'släpper fram det.',
-          );
+        /*
+         * Kvittensen LÄSES, den antas inte.
+         *
+         * Här stod tidigare "Väntar. Tack. Omdömet är inskickat" oavsett vad
+         * som hänt. Det är inte längre sant: ett betyg utan text publiceras
+         * direkt av databasen, och att då säga att det väntar på granskning
+         * vore fel om något man kan gå och kontrollera själv.
+         *
+         * refreshMine() hämtar raden som den faktiskt blev och målar
+         * "Väntar" eller "Klart" efter det. Vem som avgör står kvar där det
+         * hör hemma, i databasen.
+         */
+        if (!(await refreshMine())) {
+          /* Raden gick inte att läsa tillbaka. Insändningen lyckades, så säg
+             det minsta som är sant i stället för ingenting. */
+          notice(mine, 'Väntar.', 'Omdömet är inskickat.');
+          mine.className = 'notice notice-wait';
+          open.hidden = true;
         }
-        mine.className = 'notice notice-wait';
-        open.hidden = true;
+
+        if (failed) {
+          mine.append(` Bilderna följde inte med: ${failed}`);
+        }
+
+        /* Listan hämtas om. Ett publicerat betyg ska synas direkt, i samma
+           avsnitt man nyss skrev det, och inte först vid nästa sidladdning. */
+        try {
+          render(await publishedReviews(place.id));
+        } catch {
+          /* Listan står kvar som den var. Kvittensen säger ändå vad som hänt. */
+        }
         /* Rutan stängs och kvittensen tar över. Fokus går till kvittensen och
            inte till knappen som öppnade rutan: knappen i avsnittet är nyss
            dold, och den i sidopanelen står kvar men svarar inte längre på det

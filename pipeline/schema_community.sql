@@ -38,10 +38,40 @@
 -- användare skriver kommer in i ett bygge utan att en människa i redaktionen
 -- har släppt fram det.
 --
--- Allt användarskrivet är `pending` när det skapas. Ingen inloggad roll får
--- ändra `status`, för det finns ingen update-policy. Bara service_role, som
--- går förbi RLS och bara används av pipelinen och modereringsverktyget, kan
--- flytta en rad till `published`.
+-- Allt användarskrivet är `pending` när det skapas, MED ETT UNDANTAG som står
+-- utskrivet nedan: ett betyg utan text. Ingen inloggad roll får ändra
+-- `status`, för det finns ingen update-policy. Bara service_role, som går
+-- förbi RLS och bara används av pipelinen och modereringsverktyget, kan flytta
+-- en rad till `published` i efterhand.
+--
+-- ---------------------------------------------------------------------------
+-- UNDANTAGET: BETYG UTAN TEXT
+-- ---------------------------------------------------------------------------
+-- Här stod tidigare "förhandsgranskning utan undantag". Det stämmer inte
+-- längre, och den här filen är det dokument som ska kunna visas för en
+-- myndighet, så den ska säga vad som faktiskt gäller.
+--
+-- Ett omdöme som BARA är ett betyg, alltså en siffra mellan ett och fem utan
+-- en enda rad text, publiceras direkt. Allt som bär text granskas av en
+-- människa först, precis som förut.
+--
+-- Skälet är att förhandsgranskningen har ett bestämt syfte: att fånga förtal,
+-- namngiven personal och påståenden som en verksamhet har rätt att bemöta. En
+-- siffra kan inte bära något av det. Det finns ingenting i en fyra att läsa,
+-- och en kö av siffror ger ingen redaktionell bedömning. Den kostar däremot
+-- lika många klick som en kö av texter, och det farliga är inte tiden utan
+-- vanan: den som klickar igenom hundra siffror slutar läsa texterna ordentligt.
+--
+-- Undantaget gäller INTE åtskillnaden mot kontrolldatan. Ett publicerat betyg
+-- ligger fortfarande i schemat `community`, det når fortfarande aldrig ett
+-- bygge, och det räknas fortfarande aldrig ihop till ett tal bredvid
+-- hygienbedömningen.
+--
+-- Beslutet är ägarens och taget medvetet. Villkoret för det var tre spärrar,
+-- alla i databasen: ett betyg per konto och verksamhet, fem omdömen per konto
+-- och dygn, och ett dygns ålder på kontot innan något publiceras direkt. Se
+-- community.set_review_status() längre ner, och community.rating_signals som
+-- är efterhandsgranskningen.
 --
 -- OREDIGERAT betyder inte omodererat. Sidfoten och metodiksidan lovar att
 -- verksamhetens svar publiceras oredigerat. Det löftet hålls genom att
@@ -574,6 +604,97 @@ create trigger reviews_visited_month
     before insert or update on community.reviews
     for each row execute function community.check_visited_month();
 
+-- ---------------------------------------------------------------------------
+-- Statusen sätts av databasen, aldrig av det som skickas in
+-- ---------------------------------------------------------------------------
+-- Se UNDANTAGET längst upp i filen för varför betyg utan text publiceras
+-- direkt. Det här är mekanismen.
+--
+-- Statusen får aldrig komma utifrån. Kunde den skickas in vore
+-- förhandsgranskningen borta i samma ögonblick som någon skickade
+-- `status: published` tillsammans med en text. Funktionen skriver därför
+-- status, moderated_by och moderated_at SJÄLV vid varje insättning, oavsett
+-- vad raden bar med sig. En trigger är inte en rättighet, så den gäller alla
+-- roller, även service_role.
+--
+-- SPÄRRARNA
+--
+-- Den bärande spärren är `unique (user_id, establishment_id)` ovan: ett konto
+-- kan sätta ETT betyg per verksamhet. Den som vill sänka en konkurrent måste
+-- alltså skaffa många konton, och varje konto kräver en fungerande
+-- e-postadress. De två spärrarna här skyddar bara mot just det, den som
+-- skaffar många konton:
+--
+--   Tak per konto och dygn. Fem omdömen. Det sjätte avvisas, oavsett om det
+--     bär text eller inte. Att taket gäller båda sorterna är med avsikt: det
+--     skyddar också modereringskön från att svämma över, och en översvämmad kö
+--     är exakt det som gör en granskare slarvig.
+--
+--   Åldersgräns på kontot. Ett dygn. Det är den minsta gräns som överlever att
+--     någon skaffar konton och sprutar betyg i samma sittning. Yngre konton
+--     AVVISAS INTE, deras betyg landar som `pending`. Ett nytt konto ska inte
+--     mötas av ett fel det inte kan göra något åt, och att bli läst av en
+--     människa är samma sak som händer alla som skriver en text.
+--
+-- `security definer` behövs för att läsa auth.users. Rollen `authenticated` har
+-- ingen läsrätt där, och ska inte få det. Sökvägen är pinnad och varje namn
+-- utskrivet, vilket är vad som gör en definer-funktion ofarlig.
+create or replace function community.set_review_status()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $$
+declare
+    kontots_alder interval;
+    senaste_dygnet integer;
+begin
+    new.rejection_reason := null;
+
+    select count(*) into senaste_dygnet
+    from community.reviews r
+    where r.user_id = new.user_id
+      and r.created_at > now() - interval '24 hours';
+
+    if senaste_dygnet >= 5 then
+        -- Meddelandet går rakt ut till besökaren. translate() i
+        -- site/src/lib/community.ts skickar okända fel vidare ordagrant, så
+        -- texten är skriven för den som läser den.
+        raise exception 'Fem omdömen per dygn räcker. Försök igen i morgon.'
+            using errcode = 'check_violation';
+    end if;
+
+    select now() - u.created_at into kontots_alder
+    from auth.users u
+    where u.id = new.user_id;
+
+    if new.body is null
+       and kontots_alder is not null
+       and kontots_alder >= interval '24 hours' then
+        new.status := 'published';
+        -- Vem som släppte fram raden. Villkoret
+        -- review_published_requires_moderator kräver ett svar, och svaret ska
+        -- vara sant: det var regeln och inte en människa.
+        new.moderated_by := 'automatik: betyg utan text';
+        new.moderated_at := now();
+    else
+        new.status := 'pending';
+        new.moderated_by := null;
+        new.moderated_at := null;
+    end if;
+
+    return new;
+end;
+$$;
+
+comment on function community.set_review_status() is
+    'Sätter status vid insättning. Betyg utan text publiceras direkt, allt annat granskas.';
+
+drop trigger if exists reviews_set_status on community.reviews;
+create trigger reviews_set_status
+    before insert on community.reviews
+    for each row execute function community.set_review_status();
+
 create index if not exists reviews_published_idx
     on community.reviews (establishment_id, created_at desc) where status = 'published';
 
@@ -608,6 +729,67 @@ from community.reviews r
 where r.status = 'published';
 
 alter view community.published_reviews set (security_invoker = true);
+
+-- ---------------------------------------------------------------------------
+-- Efterhandsgranskning av betyg
+-- ---------------------------------------------------------------------------
+-- "Publicera nu och moderera på signal" fungerar bara om någon faktiskt ser
+-- signalen. Vyn är den signalen, och den läses av pipeline/moderate.py med
+-- kommandot `signaler`.
+--
+-- Två mönster, båda sådana som en enskild rad aldrig avslöjar:
+--
+--   kluster          en verksamhet som får flera låga betyg inom kort tid.
+--                    Enstaka missnöje kommer utspritt; en samordnad sänkning
+--                    kommer i klump.
+--   ensidigt konto   ett konto vars betyg alltid är en etta. Den som verkligen
+--                    äter ute sätter inte samma lägsta siffra varje gång.
+--
+-- Vyn PEKAR UT, den dömer inte. Redaktionen läser och avgör, och kan avslå
+-- eller radera med samma verktyg som förut. Ingen automatik tar bort något.
+--
+-- `security_invoker` är AVSIKTLIGT bortvalt här, till skillnad från
+-- published_reviews. Vyn ska bara läsas av service_role, som ändå går förbi
+-- radsäkerheten, och den behöver se rader som ingen annan får se. Rättigheten
+-- längst ner är det som håller den stängd: utan grant finns den inte för anon
+-- eller authenticated, och schemat exponerar bara det som uttryckligen
+-- släppts fram.
+create or replace view community.rating_signals as
+    select 'kluster'::text                       as sort,
+           r.establishment_id                    as nyckel,
+           count(*)::integer                     as antal,
+           min(r.rating)::integer                as lagsta,
+           min(r.created_at)                     as forsta,
+           max(r.created_at)                     as senaste,
+           array_agg(r.id order by r.created_at) as rader
+    from community.reviews r
+    where r.body is null
+      and r.rating <= 2
+      and r.status = 'published'
+      and r.created_at > now() - interval '24 hours'
+    group by r.establishment_id
+    having count(*) >= 3
+
+    union all
+
+    select 'ensidigt konto',
+           r.user_id::text,
+           count(*)::integer,
+           min(r.rating)::integer,
+           min(r.created_at),
+           max(r.created_at),
+           array_agg(r.id order by r.created_at)
+    from community.reviews r
+    where r.rating is not null
+      and r.created_at > now() - interval '30 days'
+    group by r.user_id
+    having count(*) >= 3 and max(r.rating) = 1;
+
+comment on view community.rating_signals is
+    'Mönster värda en blick sedan betyg utan text publiceras direkt. Läses av moderate.py.';
+
+revoke all on community.rating_signals from anon, authenticated;
+grant select on community.rating_signals to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Bilduppladdningar
@@ -744,15 +926,19 @@ create policy owner_responses_read_own on community.owner_responses
 
 -- Omdömen: skapas som pending, läses av sin författare i alla lägen och av
 -- alla andra bara när de är publicerade.
+-- Policyn kan INTE kräva `status = 'pending'`.
+--
+-- RLS-villkoret prövas mot raden som den ska lagras, alltså efter att
+-- before-triggern kört. Med det gamla villkoret hade varje automatiskt
+-- publicerat betyg fällts av sin egen policy.
+--
+-- Att status, moderated_by och moderated_at inte längre nämns här är ingen
+-- lucka: community.set_review_status() skriver över alla tre vid varje
+-- insättning, och en trigger går inte att kringgå med en rättighet.
 drop policy if exists reviews_insert on community.reviews;
 create policy reviews_insert on community.reviews
     for insert to authenticated
-    with check (
-        user_id = auth.uid()
-        and status = 'pending'
-        and moderated_at is null
-        and moderated_by is null
-    );
+    with check (user_id = auth.uid());
 
 drop policy if exists reviews_read_own on community.reviews;
 create policy reviews_read_own on community.reviews
