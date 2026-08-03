@@ -30,10 +30,16 @@ import InfoTip from '../../components/InfoTip.astro';
 import LocationMap from '../../components/LocationMap.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
+import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
+import Reviews from '../../components/Reviews.astro';
+import ActionPanel from '../../components/ActionPanel.astro';
+import SignInDialog from '../../components/SignInDialog.astro';
 import {
+  categoriesOf,
   establishments,
+  followUp,
   municipalities,
   sourceFor,
   formatDate,
@@ -42,11 +48,13 @@ import {
   isIndexable,
   latestInspectionDate,
   missingReason,
+  municipalityCategories,
   municipalitySummary,
   nearby,
   ownershipPolicy,
   recurringIssues,
   statistics,
+  type CategorySlice,
   type Establishment,
 } from '../../lib/data';
 import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
@@ -91,6 +99,35 @@ const neighbours = nearby(e);
 const kommunSummary = municipalitySummary(kommun);
 const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
+
+/**
+ * Ledde uppföljningen till åtgärd?
+ *
+ * Sidans starkaste besked, och det enda som säger något om vad som HÄNDE efter
+ * en anmärkning. Null för de flesta verksamheter, och då står ingenting. Se
+ * followUp() i data.ts.
+ */
+const uppfoljning = followUp(e);
+
+/**
+ * Vägen tillbaka till kategorisidan.
+ *
+ * Verksamhetssidorna har hittills bara länkat uppåt till kommunhubben, aldrig
+ * i sidled. "Restauranger i Örebro" är en sökning folk gör, och sidan som
+ * svarar på den fick inga interna länkar alls utom från hubbens filterrad.
+ * categoriesOf() har funnits i data.ts sedan kategorierna byggdes och har
+ * aldrig anropats från någon sidmall.
+ *
+ * Bara kategorier som har en egen sida i den här kommunen, och bara där
+ * filtret alls är användbart — samma villkor som styr chipsen på hubben, så
+ * att en länk aldrig pekar på en URL som inte finns.
+ */
+const kommunCats = municipalityCategories(kommun.slug);
+const ownCategories: CategorySlice[] = kommunCats.usable
+  ? categoriesOf(e)
+      .categories.map((id) => kommunCats.slices.find((s) => s.category.id === id))
+      .filter((s): s is CategorySlice => s !== undefined && s.linked)
+  : [];
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -281,9 +318,27 @@ const breadcrumbs = {
           />
         )}
 
+        {/* Efter vad kontrollen visade, före vad som återkommer: sidan läses
+            som en berättelse i tid. Vad hittades, blev det åtgärdat, och
+            händer det om och om igen. */}
+        <FollowUp followUp={uppfoljning} kommun={kommun.name} />
+
         <RecurringIssues issues={recurring} />
 
         <InspectionHistory inspections={e.inspections} />
+
+        {/*
+          Omdömen ligger SIST i huvudkolumnen, efter allt som bygger på
+          kommunens data och före källhänvisningen. Ordningen är ett
+          påstående: kontrollen först, åsikterna sedan, och aldrig blandade.
+          Avsnittet är tomt i HTML-filen och fylls i webbläsaren, så inget en
+          besökare skrivit kommer in i ett bygge. Se Reviews.astro.
+        */}
+        <Reviews
+          establishmentId={e.id}
+          establishmentName={e.name}
+          municipalitySlug={kommun.slug}
+        />
 
         <footer class="source">
           {sharedHistory && (
@@ -317,14 +372,11 @@ const breadcrumbs = {
             />
           )}
 
-          <div class="actions">
-            <button type="button" class="btn-primary" disabled>Följ verksamheten</button>
-            <button type="button" class="btn-ghost" disabled>Anmäl en brist</button>
-            <button type="button" class="btn-ghost" disabled>Skriv ett omdöme</button>
-          </div>
-          <p class="soon caption text-muted">
-            Bevakning, anmälan och omdömen öppnar när fler kommuner är på plats.
-          </p>
+          <ActionPanel
+            establishmentId={e.id}
+            establishmentName={e.name}
+            municipalitySlug={kommun.slug}
+          />
         </div>
 
         {neighbours.length > 0 && (
@@ -359,13 +411,27 @@ const breadcrumbs = {
             {' '}{formatNumber(kommunSummary.assessed)} bedömda verksamheterna i
             {' '}{kommun.city} fick inga anmärkningar vid sin senaste kontroll.
           </p>
-          <p class="kommun-link">
-            <a href={path(kommun.slug)}>Alla hygienkontroller i {kommun.city}</a>
-          </p>
+          <ul class="kommun-links">
+            <li><a href={path(kommun.slug)}>Alla hygienkontroller i {kommun.city}</a></li>
+            {ownCategories.map((s) => (
+              <li>
+                <a href={path(kommun.slug, 'kategori', s.category.slug)}>
+                  Alla {s.category.plural} i {kommun.city}
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       </aside>
     </div>
   </div>
+
+  {/*
+    Inloggningsrutan ligger i DOM:en men är stängd. Den öppnas bara av
+    openSignIn(), som bara kallas ur en klickhanterare, aldrig av sidladdning.
+    Se SignInDialog.astro.
+  */}
+  <SignInDialog />
 </Base>
 
 <style>
@@ -483,37 +549,9 @@ const breadcrumbs = {
     margin-bottom: var(--s-3);
   }
 
-  .actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-    margin-top: var(--s-4);
-  }
-
-  .actions button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--text);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
-    padding: 11px 22px;
-    font: 600 var(--fs-body-s)/1 var(--font-sans);
-    cursor: pointer;
-  }
-
-  .actions button:disabled {
-    opacity: .45;
-    cursor: not-allowed;
-  }
-
-  .soon {
-    margin-top: var(--s-3);
-    text-align: center;
-  }
+  /* Knapparna i panelen bor numera i ActionPanel.astro tillsammans med sin
+     logik. Att stilen låg här medan beteendet skulle ligga någon annanstans
+     var precis det som gjorde dem lätta att lämna avstängda. */
 
   .near {
     list-style: none;
@@ -560,13 +598,16 @@ const breadcrumbs = {
     font-variant-numeric: tabular-nums;
   }
 
-  .kommun-link {
-    margin-top: var(--s-3);
-    padding-top: var(--s-3);
+  .kommun-links {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: var(--s-3) 0 0;
     border-top: 1px solid var(--hairline);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
   }
+
+  .kommun-links li + li { margin-top: var(--s-2); }
 
   @media (max-width: 900px) {
     .layout {

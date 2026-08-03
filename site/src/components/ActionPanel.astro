@@ -1,0 +1,202 @@
+---
+/**
+ * Åtgärderna i sidopanelen på verksamhetssidan.
+ *
+ * Den här rutan har stått med tre avstängda knappar i blickfånget. Det är
+ * värre än att inte ha dem: en avstängd kontroll är ett löfte man ser men inte
+ * kan använda, och sidopanelen är den yta besökaren tittar mest på.
+ *
+ * Nu gör alla tre något. Ingen av dem är avstängd, och ingen av dem lovar mer
+ * än den håller:
+ *
+ *   Följ verksamheten   privat bevakning, ingen publicering, ingen granskning.
+ *                       Kräver inloggning, och knappen säger det innan man
+ *                       klickar i stället för att gå sönder efteråt.
+ *   Skriv ett omdöme    hoppar till omdömesavsnittet längre ner, som bär hela
+ *                       förklaringen om granskning och åtskillnad. En knapp som
+ *                       öppnar ett formulär utan sitt sammanhang är sämre.
+ *   Rätta en uppgift    till /ratta, som redan är den publicerade vägen för
+ *                       rättelse och genmäle.
+ *
+ * "Anmäl en brist" är borttagen med avsikt. Prikko är ingen tillsynsmyndighet
+ * och kan inte ta emot en anmälan om dålig hygien; den ska till kommunens
+ * livsmedelsinspektion. Vi har inga anmälningsvägar per kommun i datan, så
+ * knappen kunde inte peka någonstans sant. En knapp som ser ut som en
+ * anmälningsväg men inte är det är sämre än ingen knapp.
+ */
+import '../styles/konto.css';
+
+interface Props {
+  establishmentId: string;
+  establishmentName: string;
+  municipalitySlug: string;
+}
+
+const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
+---
+
+<div
+  class="actions"
+  id="actions"
+  data-establishment={establishmentId}
+  data-name={establishmentName}
+  data-kommun={municipalitySlug}
+>
+  <button type="button" class="btn-primary" id="follow">Följ verksamheten</button>
+  <a class="btn-ghost" href="#omdomen">Skriv ett omdöme</a>
+  <a class="btn-ghost" href="/ratta/">Rätta en uppgift</a>
+</div>
+
+<p class="follow-note caption text-muted" id="follow-note">
+  Bevakade verksamheter samlas på ditt konto. Listan är privat.
+</p>
+
+<p class="owner caption">
+  <a href={`/konto/verksamhet/?id=${encodeURIComponent(establishmentId)}&kommun=${encodeURIComponent(municipalitySlug)}&namn=${encodeURIComponent(establishmentName)}`}>
+    Driver du verksamheten? Svara på en kontroll
+  </a>
+</p>
+
+<style>
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+  }
+
+  .actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 11px 22px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .btn-ghost:hover {
+    background: var(--canvas);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .follow-note {
+    margin-top: var(--s-3);
+    text-align: center;
+  }
+
+  .owner {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+    text-align: center;
+  }
+</style>
+
+<script>
+  import {
+    configured,
+    signedIn,
+    isFollowing,
+    follow,
+    unfollow,
+    CommunityError,
+  } from '../lib/community';
+  import { openSignIn } from '../lib/signin-dialog';
+
+  const panel = document.getElementById('actions');
+  const button = document.getElementById('follow') as HTMLButtonElement | null;
+  const note = document.getElementById('follow-note') as HTMLParagraphElement | null;
+
+  if (panel && button && note) {
+    const place = {
+      id: panel.dataset.establishment ?? '',
+      name: panel.dataset.name ?? '',
+      municipalitySlug: panel.dataset.kommun ?? '',
+    };
+
+    let following = false;
+
+    function paint() {
+      button!.textContent = following ? 'Slutar följa' : 'Följ verksamheten';
+      button!.classList.toggle('btn-primary', !following);
+      button!.classList.toggle('btn-ghost', following);
+    }
+
+    async function start() {
+      if (!configured) {
+        button!.disabled = true;
+        note!.textContent = 'Bevakning är inte påslagen på den här installationen.';
+        return;
+      }
+
+      const authed = await signedIn();
+
+      if (authed) {
+        try {
+          following = await isFollowing(place.id);
+        } catch {
+          /* Kunde inte läsa. Knappen står kvar på "följ", och skrivningen är
+             idempotent, så ett extra klick gör ingen skada. */
+        }
+      } else {
+        note!.textContent = 'Kräver inloggning. Listan är privat.';
+      }
+      paint();
+
+      /**
+       * En enda klickhanterare, oavsett om man är inloggad eller inte.
+       *
+       * Inloggningen är ett steg PÅ VÄGEN till det man ville göra, inte en
+       * annan sak att göra i stället. Den som trycker på "Följ" utloggad får
+       * rutan, och när den stängs fortsätter samma klick till bevakningen.
+       * Ingen behöver trycka två gånger, och knappen är aldrig avstängd.
+       */
+      button!.addEventListener('click', async () => {
+        if (!(await signedIn())) {
+          if (!(await openSignIn(button))) return;
+          // Nyss inloggad. Läget kan skilja sig från vad sidan trodde.
+          try {
+            following = await isFollowing(place.id);
+          } catch {
+            /* Behåll antagandet att inget följs. */
+          }
+          paint();
+        }
+
+        button!.disabled = true;
+        try {
+          if (following) {
+            await unfollow(place.id);
+            following = false;
+            note!.textContent = 'Du följer inte längre den här verksamheten.';
+          } else {
+            await follow(place);
+            following = true;
+            // Ingen utskickad notis är byggd. Texten säger därför bara det som
+            // faktiskt hänt: verksamheten ligger i listan. Att lova ett mejl
+            // som inte skickas vore samma fel som en avstängd knapp.
+            note!.textContent = 'Sparad. Du hittar den under Bevakade på ditt konto.';
+          }
+        } catch (err) {
+          note!.textContent =
+            err instanceof CommunityError ? err.message : 'Kunde inte spara. Försök igen.';
+        } finally {
+          button!.disabled = false;
+          paint();
+        }
+      });
+    }
+
+    void start();
+  }
+</script>
