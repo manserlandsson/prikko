@@ -325,9 +325,20 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       position: static;
     }
 
-    /* 17px, inte 14: iOS zoomar in hela sidan när ett fokuserat fält har
-       mindre än 16 px text, och zoomen går inte tillbaka av sig själv. */
-    .search-field input { font-size: var(--fs-body); }
+    /* Fältet ska väga mindre på en telefon, där det delar en 58 px rad med
+       wordmarken och menyn. Höjden och knappen krymper, inte texten.
+       36 px är fortfarande en bekväm träffyta, och knappen på 30 px sitter
+       kvar mitt i pillret med samma 3 px luft runt om. */
+    .search-field { height: 36px; }
+    .search-field .go { width: 30px; height: 30px; }
+
+    /* 16px är ett GOLV, inte ett val. Safari på iOS zoomar in hela sidan när
+       ett fält med mindre än 16 px text får fokus, och zoomar aldrig ut igen.
+       Ska fältet läsa som mindre får det ske genom höjd, padding och en
+       kortare platshållare. Aldrig genom att gå under det här talet.
+       Ingen typografitoken ligger på 16: body är 17 och body-s är 14, och 14
+       skulle utlösa just den zoomen. Därför står talet skrivet. */
+    .search-field input { font-size: 16px; }
 
     .panel {
       left: var(--s-4);
@@ -367,6 +378,31 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 
     /** Server-renderade populära sökningar, sparade för att kunna återställas. */
     const popularHtml = list.innerHTML;
+
+    /**
+     * Kort platshållare på smala skärmar.
+     *
+     * Den långa ryms inte på en telefon. Vid 375 px har fältet 152 px inre
+     * bredd och texten mäter 253 px vid 16 px teckenstorlek, så en tredjedel
+     * kapas och snittet hamnar mitt i "café". En avhuggen mening ser ut som
+     * ett fel, inte som en ledtext.
+     *
+     * Texten kan inte bytas i CSS, och den får inte krympas med font-size:
+     * under 16 px zoomar iOS in sidan vid fokus. Alltså byts strängen, och
+     * bara i det läge där den inte får plats.
+     *
+     * Den långa står kvar i HTML som grundvärde. Utan skript blir mobilen
+     * exakt som förut, alltså aldrig sämre än i dag, och desktop får rätt
+     * text redan vid första målningen utan att vänta på den här bunten.
+     */
+    const PLACEHOLDER_WIDE = input.placeholder;
+    const PLACEHOLDER_NARROW = 'Sök ställe eller ort';
+    const narrow = matchMedia('(max-width: 640px)');
+    const syncPlaceholder = () => {
+      input.placeholder = narrow.matches ? PLACEHOLDER_NARROW : PLACEHOLDER_WIDE;
+    };
+    syncPlaceholder();
+    narrow.addEventListener('change', syncPlaceholder);
 
     /** Så många förslag panelen visar. Fler blir en katalog, inte ett förslag. */
     const MAX_SUGGESTIONS = 7;
