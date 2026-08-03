@@ -241,18 +241,19 @@ const jsonLd: Record<string, unknown> = {
  * punkt som pipelinen geokodat fram ur adressen mot OpenStreetMap
  * (`geoSource: 'osm'`), varav 228 bara matchat närmaste grannport.
  *
- * På skärmen är det hanterat: LocationMap ritar nålen streckad och skriver ut
- * att platsen är beräknad från adressen och inte lämnad av kommunen. I JSON-LD
- * stod ingenting. Schemat såg identiskt ut för en kommunlämnad och en härledd
- * punkt, alltså satt förbehållet exakt där människan läser och saknades exakt
- * där maskinen läser. Och det är JSON-LD en sökmotor, en språkmodell eller en
- * framtida datalicenstagare faktiskt hämtar.
+ * På skärmen ritar LocationMap nålen streckad. I JSON-LD stod ingenting.
+ * Schemat såg identiskt ut för en kommunlämnad och en härledd punkt, alltså
+ * saknades förbehållet exakt där maskinen läser. Och det är JSON-LD en
+ * sökmotor, en språkmodell eller en framtida datalicenstagare faktiskt hämtar.
  *
  * Schema.org har ingen flagga för "härledd" på GeoCoordinates, så det finns
  * ingen form som både publicerar punkten och bär förbehållet. Då är det rätta
- * att inte påstå den. Kartan står kvar på sidan med sitt förbehåll; vi säger
- * bara inte maskinellt att koordinaten kommer från kommunen när den inte gör
- * det. "Verifiera, aldrig gissa" gäller den maskinläsbara sidan också.
+ * att inte påstå den. Vi säger inte maskinellt att koordinaten kommer från
+ * kommunen när den inte gör det. "Verifiera, aldrig gissa" gäller den
+ * maskinläsbara sidan också.
+ *
+ * Notera att bildtexten som tidigare bar förbehållet i klartext är borttagen.
+ * Den streckade kanten och den här utelämnade `geo` är vad som återstår.
  */
 if (e.lat && e.lng && e.geoSource !== 'osm') {
   jsonLd.geo = { '@type': 'GeoCoordinates', latitude: e.lat, longitude: e.lng };
@@ -377,7 +378,6 @@ const breadcrumbs = {
               name={e.name}
               verdict={e.verdict}
               geoSource={e.geoSource}
-              geoPrecision={e.geoPrecision}
             />
           )}
 

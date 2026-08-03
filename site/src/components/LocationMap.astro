@@ -20,20 +20,27 @@
  * skickas som overlay till Mapbox. Då slipper vi hosta en markörbild, och
  * märket blir exakt vårt — samma tecken som på resten av sajten.
  *
- * ## Varför härledda nålar måste märkas
+ * ## Härledda nålar
  *
  * Uppsala och Örebro lämnar inga koordinater. Deras nålar är geokodade mot
- * OpenStreetMap i pipelinen (se prikko/geocode.py). Två skäl att skriva ut det:
+ * OpenStreetMap i pipelinen (se prikko/geocode.py). En nål som ser likadan ut
+ * oavsett om kommunen lämnat punkten eller om vi räknat fram den påstår en
+ * säkerhet vi inte har, så härledda nålar ritas med streckad kant.
  *
- * 1. Juridiskt. OSMF:s Geocoding Guideline tillåter att en härledd koordinat
- *    lagras och visas, men kräver attribution DÄR den visas. Mapbox inbakade
- *    "© OpenStreetMap" gäller kartbilden, inte vår nål, och täcker alltså inte
- *    kravet.
- * 2. Redaktionellt, och det tyngre skälet. En nål som ser likadan ut oavsett
- *    om kommunen lämnat punkten eller om vi räknat fram den påstår en säkerhet
- *    vi inte har. Härledda nålar ritas därför med streckad kant, och texten
- *    under kartan säger det rakt ut. De 228 som bara matchat grannporten får
- *    en extra mening om just det.
+ * Under kartan stod tidigare en bildtext som sa samma sak i ord, plus
+ * "Kartdata © OpenStreetMap". Den är borttagen på ägarens begäran: den
+ * upprepades på var och en av sidorna och läste som en brasklapp.
+ *
+ * Två saker att veta om det beslutet:
+ *
+ * 1. Den streckade kanten är nu en konvention utan förklaring i gränssnittet.
+ *    Ordet "beräknade" i bildens alt-text är det enda som återstår i klartext.
+ * 2. OSMF:s Geocoding Guideline tillåter att en härledd koordinat lagras och
+ *    visas, men kräver attribution där den visas. Bedömningen som gjordes när
+ *    bildtexten skrevs var att Mapbox inbakade "© OpenStreetMap" gäller
+ *    kartbilden och inte vår nål. Ägaren har gjort den motsatta bedömningen,
+ *    att den inbakade attributionen räcker. Ändras den bedömningen igen hör
+ *    upplysningen hemma på /metodik, inte som en rad per verksamhetssida.
  */
 import FaceMark from './FaceMark.astro';
 import type { VerdictOrNone } from '../lib/site';
@@ -45,15 +52,12 @@ interface Props {
   verdict: VerdictOrNone;
   /** Satt bara när koordinaten är härledd ur adressen, inte lämnad av kommunen. */
   geoSource?: 'osm';
-  /** 'address' = adressens egen punkt. 'approximate' = grannporten. */
-  geoPrecision?: 'address' | 'approximate';
 }
 
-const { lat, lng, name, verdict, geoSource, geoPrecision } = Astro.props;
+const { lat, lng, name, verdict, geoSource } = Astro.props;
 
 // Saknas geoSource kommer punkten från kommunen och ska inte märkas.
 const derived = geoSource === 'osm';
-const approximate = derived && geoPrecision === 'approximate';
 
 const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 
@@ -91,18 +95,6 @@ const alt = derived
       </span>
     </div>
     <figcaption class="text-muted">
-      {derived && (
-        <span class="derived-note">
-          Platsen är beräknad från adressen, inte lämnad av kommunen.
-          {approximate && ' Husnumret saknas i kartdatan, så nålen står vid närmaste grannport.'}
-          {' '}Kartdata ©{' '}
-          <a
-            href="https://www.openstreetmap.org/copyright"
-            target="_blank"
-            rel="noopener noreferrer"
-          >OpenStreetMap</a>.
-        </span>
-      )}
       <a href={osm} target="_blank" rel="noopener noreferrer">Öppna större karta</a>
     </figcaption>
   </figure>
@@ -153,16 +145,11 @@ const alt = derived
     border-style: dashed;
   }
 
-  /* Kartbildens egen attribution bakas in av Mapbox. Texten här gäller något
-     annat: att NÅLEN är härledd ur OpenStreetMap. Se komponentens inledning. */
+  /* Bär numera bara länken till den stora kartan. Kartbildens attribution
+     bakas in av Mapbox nere till höger i själva bilden. */
   figcaption {
     margin-top: 6px;
     font-size: 11px;
     line-height: 14px;
-  }
-
-  .derived-note {
-    display: block;
-    margin-bottom: 4px;
   }
 </style>
