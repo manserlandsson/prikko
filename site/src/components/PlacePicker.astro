@@ -107,17 +107,32 @@ const points = municipalityPoints();
           Ser något fel ut, eller vill du svara på en kontroll? Hör av dig.
         </span>
       </span>
-      {/* Linjeteckning, inte ikon: raden ska väga tyngre än länkarna under
-          den. Bladet i sekundärgrå, pennan i brandblått. En enda accent,
-          ingen toning. */}
-      <svg class="art" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="6" width="19" height="28" rx="3" />
-          <path d="M8 14h11M8 20h11M8 26h7" />
+      {/* Måns egen teckning. Originalet ligger i brand/rätta-uppgift.svg, och
+          ändras den ena ska den andra följa.
+
+          Bladet bär currentColor i stället för filens #222222, så att det
+          hämtar färg ur .art och följer med om texten runtomkring byter ton.
+          Pennan ligger kvar i sin egen klass och tar --brand: en enda accent,
+          ingen toning.
+
+          Linjetjockleken står kvar som ritningen har den, alltså 1 för bladet
+          och 0.74 för pennans kontur. Att räta ut dem till samma tal hade
+          gjort pennan grövre än Måns ritat den. */}
+      <svg class="art" viewBox="0 0 27 18" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-linecap="round">
+          <rect x="0.5" y="0.5" width="14" height="17" rx="2" />
+          <path d="M4.5 5.5H10.5" />
+          <path d="M4.5 9.5H10.5" />
+          <path d="M4.5 13.5H8.5" />
         </g>
-        <g class="pen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M24.5 33 26 29.6l7.5-7.4 1.8 1.8-7.4 7.5Z" />
-          <path d="M26 29.6l1.9 1.9" />
+        <g class="pen">
+          <path
+            fill="none"
+            stroke="currentColor"
+            stroke-width="0.740741"
+            d="M23.9072 6.80762C24.1742 6.80762 24.3912 6.91977 24.5859 7.06836C24.7721 7.21043 24.9773 7.41772 25.2168 7.65723L25.3438 7.78418C25.5832 8.02359 25.7896 8.22889 25.9316 8.41504C26.0802 8.60979 26.1934 8.8268 26.1934 9.09375C26.1932 9.3605 26.0802 9.57683 25.9316 9.77148C25.7896 9.95763 25.5832 10.1629 25.3438 10.4023L20.0146 15.7314C19.8845 15.8616 19.7732 15.9775 19.6318 16.0576C19.4924 16.1366 19.3377 16.172 19.1621 16.2158L19.1631 16.2168L19.1543 16.2188L17.1885 16.71C17.067 16.7403 16.9351 16.7743 16.8252 16.7852C16.7106 16.7964 16.5164 16.7938 16.3613 16.6387C16.2066 16.4836 16.2036 16.2903 16.2148 16.1758C16.2256 16.0659 16.2597 15.9339 16.29 15.8125L16.7822 13.8457C16.8268 13.6672 16.8624 13.5105 16.9424 13.3691C17.0225 13.2277 17.1383 13.1156 17.2686 12.9854L22.5977 7.65723C22.8372 7.41772 23.0433 7.21043 23.2295 7.06836C23.4241 6.91995 23.6405 6.80767 23.9072 6.80762Z"
+          />
+          <path fill="currentColor" d="M22.0557 7.98148L24.2779 6.5L26.5001 8.72222L25.0186 10.9444L22.0557 7.98148Z" />
         </g>
       </svg>
     </a>
@@ -372,10 +387,13 @@ const points = municipalityPoints();
     color: var(--text-secondary);
   }
 
+  /* Ritningen är 27 mot 18, alltså bred och låg, till skillnad från den
+     kvadratiska den ersatte. Höjden får styra och bredden falla ur
+     proportionen, annars trycks bladet ihop. */
   .art {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 28px;
     color: var(--text-secondary);
   }
 
