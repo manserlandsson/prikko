@@ -11,17 +11,25 @@
  * innehåll på två URL:er.
  */
 import Base from '../layouts/Base.astro';
+import CommonIssues from './CommonIssues.astro';
 import EstablishmentList from './EstablishmentList.astro';
+import FaceMark from './FaceMark.astro';
+import KommunBanner from './KommunBanner.astro';
 import Pagination from './Pagination.astro';
+import VerdictBar from './VerdictBar.astro';
 import {
+  formatDate,
   formatNumber,
+  latestInspectionDate,
   municipalityCategories,
+  sourceFor,
   sourceLimits,
   type Establishment,
   type Municipality,
 } from '../lib/data';
+import { kommunProfil, recentlyInspected } from '../lib/kommunprofil';
 import { pageUrl } from '../lib/pagination';
-import { SITE } from '../lib/site';
+import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
 interface Props {
@@ -58,6 +66,30 @@ const limits = sourceLimits(kommun.slug);
 // ljuger inte, men ett filter som ger noll träffar gör det.
 const categories = currentPage === 1 ? municipalityCategories(kommun.slug) : null;
 const categoryNotes = categories?.slices.map((s) => s.note).filter((n): n is string => n !== null) ?? [];
+
+/**
+ * Sida 1 bär kommunens profil. Sidorna 2 och framåt är fortsättningen på ett
+ * register och ska inte upprepa den — dels vore det samma innehåll på 86
+ * URL:er i Stockholms fall, dels är den som bläddrat sig till sida 12 redan
+ * förbi frågan "hur ser kommunen ut".
+ */
+const profil = currentPage === 1 ? kommunProfil(kommun.slug) : null;
+
+/**
+ * "Senast kontrollerade" bara på sida 1. Panelen "Om uppgifterna" står på
+ * alla sidor: källa och hämtdatum hör hemma där uppgifterna visas, och sida
+ * 47 visar lika många uppgifter som sida 1.
+ *
+ * Sidopanelen finns alltså på hela serien, vilket också är skälet till att
+ * listans spaltbredd är densamma på sida 1 och sida 47. Utan den hoppade
+ * raderna i bredd så fort man bläddrade.
+ */
+const recent = currentPage === 1 ? recentlyInspected(kommun.slug, 5) : [];
+const source = sourceFor(kommun.slug);
+
+/** Kommunens senaste kontroll över huvud taget. Färskhetsbeskedet. */
+const newest = recentlyInspected(kommun.slug, 1)[0];
+const latestInKommun = newest ? latestInspectionDate(newest) : null;
 
 // Titel och beskrivning måste skilja sig mellan sidorna i serien, annars
 // rapporterar Search Console dubbletter genom hela katalogen.
@@ -101,105 +133,176 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       )}
     </nav>
 
-    <header class="head">
-      <p class="eyebrow">{kommun.name}</p>
-      <h1>
-        Hygienkontroller i {city}
-        {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
-      </h1>
-      <p class="lede text-secondary">
-        {currentPage === 1 ? (
+    <KommunBanner
+      kommun={kommun}
+      photo={currentPage === 1}
+      heading={
+        currentPage === 1
+          ? `Hygienkontroller i ${city}`
+          : `Hygienkontroller i ${city}, sida ${currentPage}`
+      }
+    />
+
+    <p class="lede text-secondary">
+      {currentPage === 1 ? (
+        <>
+          {formatNumber(total)} verksamheter från {kommun.name}s livsmedelskontroll,
+          i bokstavsordning. Bedömningen speglar den senaste kontrollen.
+        </>
+      ) : (
+        <>
+          Verksamhet {formatNumber(start)}–{formatNumber(start + items.length - 1)} av
+          {' '}{formatNumber(total)} i {kommun.name}s livsmedelskontroll.
+        </>
+      )}
+    </p>
+
+    {/* Två spalter från och med här. Huvudspalten bär det man läser uppifrån
+        och ner, sidopanelen det man vill ha kvar i blickfånget — samma
+        uppdelning som restaurangsidan, så sidtyperna känns igen. */}
+    <div class="layout">
+      <div class="main">
+        {currentPage === 1 && (
           <>
-            {formatNumber(total)} verksamheter från {kommun.name}s livsmedelskontroll,
-            i bokstavsordning. Bedömningen speglar den senaste kontrollen.
-          </>
-        ) : (
-          <>
-            Verksamhet {formatNumber(start)}–{formatNumber(start + items.length - 1)} av
-            {' '}{formatNumber(total)} i {kommun.name}s livsmedelskontroll.
-          </>
-        )}
-      </p>
-    </header>
+            <VerdictBar
+              counts={counts}
+              remarksHref={remarks > 0 ? path(base, 'anmarkningar') : undefined}
+            />
 
-    {currentPage === 1 && (
-      <>
-        <ul class="stats">
-          <li>
-            <b style="color: var(--verdict-clean-ink)">{formatNumber(counts.clean)}</b>
-            <span class="text-secondary">utan anmärkningar</span>
-          </li>
-          <li>
-            <b style="color: var(--verdict-minor-ink)">{formatNumber(counts.minor)}</b>
-            <span class="text-secondary">med brister</span>
-          </li>
-          <li>
-            <b style="color: var(--verdict-major-ink)">{formatNumber(counts.major)}</b>
-            <span class="text-secondary">med kvarstående brister</span>
-          </li>
-        </ul>
+            {limits.note && (
+              <p class="limits">
+                {limits.note} <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
+              </p>
+            )}
 
-        {limits.note && (
-          <p class="limits">
-            {limits.note} <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
-          </p>
-        )}
+            {profil && (
+              <CommonIssues
+                issues={profil.issues}
+                withRemarks={profil.withRemarks}
+                city={city}
+              />
+            )}
 
-        {remarks > 0 && (
-          <p class="jump">
-            {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
-                vill se det som avviker ska inte behöva bläddra sig fram. */}
-            <a href={path(base, 'anmarkningar')}>
-              Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
-            </a>
-          </p>
-        )}
-      </>
-    )}
-
-    {categories && (
-      <section class="filter" aria-labelledby="kategorier">
-        <h2 id="kategorier">Verksamheter efter typ</h2>
-        <ul class="chips">
-          {categories.slices.map(({ category, count, linked }) =>
-            linked ? (
-              <li>
-                <a href={path(base, 'kategori', category.slug)} class="chip">
-                  {category.name} <span class="n">{formatNumber(count)}</span>
+            {remarks > 0 && (
+              <p class="jump">
+                {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
+                    vill se det som avviker ska inte behöva bläddra sig fram. */}
+                <a href={path(base, 'anmarkningar')}>
+                  Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
                 </a>
-              </li>
-            ) : (
-              <li>
-                {/* Ingen länk. En kategori med en handfull verksamheter, eller
-                    ingen alls, förtjänar ingen egen URL — men siffran ska stå
-                    där ändå, annars ser summan ut som hela kommunen. */}
-                <span class="chip off">
-                  {category.name} <span class="n">{formatNumber(count)}</span>
-                </span>
-              </li>
-            ),
-          )}
-        </ul>
-
-        {(categoryNotes.length > 0 || categories.gapNote) && (
-          <div class="notes">
-            {categoryNotes.map((note) => <p>{note}</p>)}
-            {categories.gapNote && <p>{categories.gapNote}</p>}
-          </div>
+              </p>
+            )}
+          </>
         )}
-      </section>
-    )}
 
-    <EstablishmentList items={items} kommunSlug={kommun.slug} />
+        {categories && (
+          <section class="filter" aria-labelledby="kategorier">
+            <h2 id="kategorier">Verksamheter efter typ</h2>
+            <ul class="chips">
+              {categories.slices.map(({ category, count, linked }) =>
+                linked ? (
+                  <li>
+                    <a href={path(base, 'kategori', category.slug)} class="chip">
+                      {category.name} <span class="n">{formatNumber(count)}</span>
+                    </a>
+                  </li>
+                ) : (
+                  <li>
+                    {/* Ingen länk. En kategori med en handfull verksamheter, eller
+                        ingen alls, förtjänar ingen egen URL — men siffran ska stå
+                        där ändå, annars ser summan ut som hela kommunen. */}
+                    <span class="chip off">
+                      {category.name} <span class="n">{formatNumber(count)}</span>
+                    </span>
+                  </li>
+                ),
+              )}
+            </ul>
 
-    <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+            {(categoryNotes.length > 0 || categories.gapNote) && (
+              <div class="notes">
+                {categoryNotes.map((note) => <p>{note}</p>)}
+                {categories.gapNote && <p>{categories.gapNote}</p>}
+              </div>
+            )}
+          </section>
+        )}
+
+        <EstablishmentList items={items} kommunSlug={kommun.slug} />
+
+        <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+      </div>
+
+      <aside class="side">
+        {recent.length > 0 && (
+          <section class="panel">
+            <h2 class="panel-title">Senast kontrollerade</h2>
+            <ul class="recent">
+              {recent.map((e) => (
+                <li>
+                  <a href={path(base, e.slug)}>
+                    <FaceMark verdict={e.verdict} size={30} variant="round" />
+                    <span class="recent-info">
+                      <b>{e.name}</b>
+                      <span class="text-secondary">
+                        {formatDate(latestInspectionDate(e)!)}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Var uppgifterna kommer ifrån, på den sida där de visas. Låg
+            tidigare bara på restaurangsidan och på /kallor, alltså aldrig
+            på den sidtyp som tar emot mest trafik. */}
+        <section class="panel">
+          <h2 class="panel-title">Om uppgifterna</h2>
+          <dl class="facts">
+            <div>
+              <dt>Källa</dt>
+              <dd>{kommun.name}</dd>
+            </div>
+            {source && (
+              <div>
+                <dt>Hämtat</dt>
+                <dd>{formatDate(source.fetchedAt.slice(0, 10))}</dd>
+              </div>
+            )}
+            {latestInKommun && (
+              <div>
+                <dt>Senaste kontroll</dt>
+                <dd>{formatDate(latestInKommun)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Bedömda</dt>
+              <dd>
+                {formatNumber(counts.clean + counts.minor + counts.major)} av
+                {' '}{formatNumber(total)}
+              </dd>
+            </div>
+          </dl>
+          <p class="panel-foot">
+            Bedömningen är Prikkos, inte kommunens.
+            {' '}<a href="/metodik/">Så räknas den fram</a>.
+          </p>
+        </section>
+      </aside>
+    </div>
   </div>
 </Base>
 
 <style>
+  /* Bredden var 780 px i en behållare på 1080. Det gav en smal pelare med
+     tomma marginaler på båda sidor — samma intryck som en textsida, fast
+     innehållet är ett register. Nu används hela bredden, och läslängden
+     hålls nere av att listan ligger i en spalt bredvid panelen. */
   .page {
-    padding-block: var(--s-8) var(--s-12);
-    max-width: 780px;
+    padding-block: var(--s-6) var(--s-12);
+    max-width: var(--container);
   }
 
   .crumbs {
@@ -208,50 +311,30 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     align-items: center;
     font-size: var(--fs-body-s);
     color: var(--text-muted);
-    margin-bottom: var(--s-4);
-  }
-
-  .head h1 {
-    font-size: 32px;
-    line-height: 36px;
-    margin-top: var(--s-1);
-  }
-
-  .head h1 span {
-    font-weight: 400;
+    margin-bottom: var(--s-3);
   }
 
   .lede {
-    margin-top: var(--s-2);
+    margin-top: var(--s-4);
+    max-width: 640px;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
   }
 
-  .stats {
-    display: flex;
-    flex-wrap: wrap;
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: var(--s-8);
-    list-style: none;
-    margin: var(--s-6) 0 0;
-    padding: 0;
-  }
-
-  .stats b {
-    display: block;
-    font-size: 28px;
-    font-weight: 600;
-    line-height: 1.1;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .stats span {
-    font-size: var(--fs-caption);
-  }
-
-  .jump {
+    align-items: start;
     margin-top: var(--s-6);
-    font-size: var(--fs-body-s);
   }
+
+  /* Mellanrummet mellan blocken i huvudspalten sätts en gång här i stället
+     för av varje block. :global krävs — Astros scopeade selektorer korsar
+     inte komponentgränser, och halva innehållet är egna komponenter. */
+  .main > :global(* + *) { margin-top: var(--s-6); }
+
+  .jump { font-size: var(--fs-body-s); }
 
   .filter {
     margin-top: var(--s-8);
@@ -322,11 +405,112 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {
-    margin-top: var(--s-6);
     padding-left: var(--s-4);
     border-left: 3px solid var(--verdict-none);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
+  }
+
+  /* ── Sidopanel ────────────────────────────────────────────────────────── */
+
+  .side {
+    position: sticky;
+    top: var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+
+  .panel {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .panel-title {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    margin-bottom: var(--s-2);
+  }
+
+  .recent {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .recent a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    color: var(--text);
+  }
+
+  .recent a:hover { text-decoration: none; }
+  .recent a:hover b { color: var(--brand-ink); }
+
+  .recent li + li { border-top: 1px solid var(--hairline); }
+
+  .recent-info { min-width: 0; }
+
+  .recent-info b {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .recent-info span { font-size: 11px; line-height: 15px; }
+
+  .facts { margin: 0; }
+
+  .facts div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+  }
+
+  .facts div + div { border-top: 1px solid var(--hairline); }
+
+  .facts dt {
+    flex-shrink: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .facts dd {
+    margin: 0;
+    text-align: right;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+  }
+
+  .panel-foot {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Under 900 px lägger sig panelen efter listan i stället för bredvid.
+     Listan är hundra rader lång, så panelen hamnar i praktiken utom synhåll
+     — men den bär källa och färskhet, som hör hemma efter innehållet snarare
+     än före det på en smal skärm. */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; }
   }
 </style>

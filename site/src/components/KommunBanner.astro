@@ -1,0 +1,197 @@
+---
+/**
+ * Kommunhubbens huvud: stadsfoto, ort och kommun.
+ *
+ * Hubben inledde tidigare med en grå etikett och en svart rubrik på vit sida.
+ * Den såg likadan ut för alla kommuner och gav ingen känsla av att man kommit
+ * någonstans. Zillow, Airbnb och TheFork gör alla samma sak på sina
+ * ortssidor: ett foto som säger var man är, med namnet på.
+ *
+ * Fotona ligger redan i repot och används på startsidans kommunkort. Här får
+ * de bära den sidtyp som faktiskt tar emot trafiken.
+ *
+ * ── Kontrast ──────────────────────────────────────────────────────────────
+ * Vit text ligger på ett foto, och ett foto kan innehålla vilken pixel som
+ * helst. Scrimen är därför satt så att den GARANTERAR kontrasten oavsett
+ * bild: i textzonen (nedre 45 %) är den minst 60 % svart. Värsta tänkbara
+ * underlag är en helvit pixel, och 60 % svart över vitt ger #666666, vilket
+ * är 5,74:1 mot vit text. Kravet är 4,5:1.
+ *
+ * Ingen text-shadow. Behöver vit text på foto en skugga är scrimen för svag,
+ * och då ska scrimen ändras, inte texten.
+ */
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+import type { Municipality } from '../lib/data';
+
+interface Props {
+  kommun: Municipality;
+  /** Rubriktext. Sätts av sidan så att sida 2 och framåt kan säga något annat. */
+  heading: string;
+  /** Sant bara på sida 1. Sida 2+ får ett smalt huvud utan foto. */
+  photo?: boolean;
+}
+
+const { kommun, heading, photo: wantPhoto = true } = Astro.props;
+
+// Upptäcks från filsystemet, precis som i KommunKort: lägg
+// src/assets/stad/<slug>.jpg och kommunen får bild. Ingen lista i kod.
+const files = import.meta.glob<{ default: ImageMetadata }>(
+  '../assets/stad/*.jpg',
+  { eager: true },
+);
+const photos: Record<string, ImageMetadata> = Object.fromEntries(
+  Object.entries(files).map(([p, mod]) => [
+    p.split('/').pop()!.replace('.jpg', ''),
+    mod.default,
+  ]),
+);
+
+/**
+ * Beskärningspunkt. Samma resonemang som i KommunKort, men banderollen är
+ * bredare och lägre än kortets bildzon, så värdena är inte desamma: här skärs
+ * höjd bort, inte bredd. Det som saknas faller tillbaka på mitten.
+ */
+const CROP: Record<string, string> = {
+  stockholm: '50% 55%',
+  linkoping: '50% 55%',
+  uppsala: '50% 62%',
+  jonkoping: '50% 52%',
+  karlstad: '50% 58%',
+  orebro: '50% 30%',
+};
+
+const photo = wantPhoto ? (photos[kommun.slug] ?? null) : null;
+const crop = CROP[kommun.slug] ?? '50% 50%';
+
+// Banderollen är 1080 px bred i layouten. 2160 täcker retina; större bygger vi
+// inte ut, källbilderna är 1400 px och skulle bara skalas upp.
+const WIDTHS = [720, 1080, 1400];
+const SIZES = '(max-width: 1112px) 100vw, 1080px';
+---
+
+{photo ? (
+  <header class="banner">
+    <div class="frame">
+      <Image
+        src={photo}
+        alt=""
+        width={WIDTHS.at(-1)}
+        widths={WIDTHS}
+        sizes={SIZES}
+        loading="eager"
+        style={`object-position:${crop}`}
+      />
+      <span class="scrim"></span>
+    </div>
+    {/* Rubriken ligger PÅ fotot på breda skärmar och UNDER det på smala.
+        Se kontrastresonemanget i frontmattern: garantin gäller nedre 50 %,
+        och där rubriken bryts till två rader växer textblocket ur den
+        zonen. */}
+    <div class="title">
+      <p class="kommun">{kommun.name}</p>
+      <h1>{heading}</h1>
+    </div>
+  </header>
+) : (
+  <header class="plain">
+    <p class="kommun">{kommun.name}</p>
+    <h1>{heading}</h1>
+  </header>
+)}
+
+<style>
+  .banner { position: relative; }
+
+  .frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-card);
+    /* Ingen fast höjd: bildförhållandet sätter den, och 1080/4,5 ≈ 240 px vid
+       full bredd. Det skalar ner av sig självt på smala skärmar där en fast
+       höjd i stället hade beskurit motivet till en remsa.
+
+       `width: 100%` är inte överflödig. Med enbart `aspect-ratio` och
+       `min-height` räknar webbläsaren bredden UR höjden när min-höjden slår
+       till: 180 px × 3 gav ett 540 px brett block i en 358 px bred spalt, och
+       hela sidan fick vågrät rullning på mobil. Bredden måste vara den kända
+       storleken och höjden den härledda. */
+    width: 100%;
+    aspect-ratio: 4.5 / 1;
+    min-height: 150px;
+  }
+
+  .frame :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Se kontrastresonemanget i frontmattern. Stoppen anges med samma svarta
+     och varierande alpha — går man mot `transparent` interpolerar vissa
+     renderare via rgba(0,0,0,0) och lägger ett grått spöke i övergången. */
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, .75)   0%,
+      rgba(0, 0, 0, .60)  50%,
+      rgba(0, 0, 0, .20)  80%,
+      rgba(0, 0, 0, 0)   100%
+    );
+  }
+
+  .title {
+    position: absolute;
+    left: var(--s-6);
+    right: var(--s-6);
+    bottom: var(--s-4);
+    color: #fff;
+  }
+
+  .title .kommun { color: #fff; opacity: .85; }
+  .title h1 { color: #fff; }
+
+  /* Utan foto. De flesta av 290 kommuner kommer sakna bild länge, så det här
+     är ett normaltillstånd. Ingen platshållarbild och ingen tonad ruta — ett
+     rent typografiskt huvud läser som avsiktligt, en tom grå yta som trasig. */
+  .plain { padding-bottom: var(--s-2); }
+
+  .kommun {
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  h1 {
+    margin-top: var(--s-1);
+    font-size: 34px;
+    line-height: 40px;
+    letter-spacing: -.024em;
+  }
+
+  /* På smala skärmar bryts rubriken till två eller tre rader och textblocket
+     växer då ur den zon där scrimen är stark nog. I stället för att gissa på
+     en starkare scrim — som samtidigt hade sänkt ner fotot i en gröt —
+     flyttas rubriken ner UNDER bilden. Kontrastfrågan försvinner helt: svart
+     text på sidans egen botten ligger på 15,9:1. Samma grepp som Zillow och
+     Airbnb använder på sina ortssidor i mobilbredd. */
+  @media (max-width: 700px) {
+    .frame { aspect-ratio: 3 / 1; }
+    .scrim { display: none; }
+
+    .title {
+      position: static;
+      margin-top: var(--s-3);
+      color: var(--text);
+    }
+
+    .title .kommun { color: var(--text-secondary); opacity: 1; }
+    .title h1 { color: var(--text); font-size: 27px; line-height: 32px; }
+  }
+</style>

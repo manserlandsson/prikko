@@ -62,9 +62,24 @@
   --r-pill: 999px;
   --r-chip: 20px;              /* betygschip/ansiktsmärke */
 
-  /* Skuggor (sparsamt — annars hairline + luft) */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .06);
-  --shadow-pop: 0 8px 30px rgba(0, 0, 0, .12);
+  /* Skuggor (sparsamt — annars hairline + luft).
+
+     Första stoppet är ingen skugga utan en RING: en 1 px hårlinje ritad som
+     skugga, så att varje yta som redan sätter --shadow-sm får sin kant utan
+     att filen den bor i behöver ändras.
+
+     Den behövs sedan --canvas gick till #FFFFFF. Kort och sida är nu samma
+     färg, alltså 1,00:1, och en yta vars enda avgränsning var en 6-procentig
+     skugga syns inte längre. Tydligast på kommunkortet utan foto: vit
+     bildzon, vit kropp, vit sida — kortet försvann helt.
+
+     Ringen ligger på 1,19:1 mot vitt (rgba(0,0,0,.08) över vitt = #EBEBEB).
+     Det är under WCAG 1.4.11:s 3:1, men den regeln gäller grafik som BÄR
+     information. Kortets kant bär ingen: allt som betyder något står som
+     text inuti. En kant är dessutom det ögat är byggt för att hitta — en
+     linje läses där ett lika stort fältskillnad inte gör det. */
+  --shadow-sm: 0 0 0 1px var(--hairline), 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow-pop: 0 0 0 1px var(--hairline), 0 8px 30px rgba(0, 0, 0, .12);
 
   /* Spacing (4px-grid) */
   --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
@@ -111,7 +126,18 @@ h2 { font-size: var(--fs-h);       line-height: var(--lh-h);       font-weight: 
 h3 { font-size: var(--fs-h-s);     line-height: var(--lh-h-s);     font-weight: 600; margin: 0; }
 p  { margin: 0; }
 
-a { color: var(--brand); text-decoration: none; }
+/* Länkfärgen är --brand-ink, inte --brand.
+   Uträknat, inte tyckt: --brand (#007BE0) ligger på 4,28:1 mot vitt och
+   klarar alltså inte WCAG 1.4.3, som kräver 4,5:1 för text under 18,66 px.
+   --brand-ink (#0063B4) ligger på 6,10:1. Skillnaden syns knappt, men den
+   är skillnaden mellan att klara kravet och att inte göra det.
+   --brand behålls som YTFÄRG: knappar, sökikonen, kartnålar. Kvar att
+   avgöra av ägaren: vit text på --brand ligger också på 4,28:1, och
+   knapptexten är 14 px/600 — alltså inte "stor text" i WCAG:s mening, som
+   kräver 18,66 px halvfet. Antingen darkar knappfyllningen till
+   --brand-ink (6,10:1) eller så accepteras 4,28 medvetet. Figma-blån är
+   ägarens val, så bytet görs inte utan honom. */
+a { color: var(--brand-ink); text-decoration: none; }
 a:hover { color: var(--brand-ink); text-decoration: underline; }
 
 img, svg { max-width: 100%; height: auto; }

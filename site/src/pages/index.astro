@@ -25,6 +25,7 @@ import {
   municipalitySummaries,
 } from '../lib/data';
 import { SITE, VERDICT } from '../lib/site';
+import { absolute, path } from '../lib/urls';
 
 const total = coverage();
 
@@ -41,19 +42,55 @@ const recent = establishments()
 
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
+/**
+ * Rikets fördelning över de tre nivåerna.
+ *
+ * Heron visade tidigare bara "hur ren är restaurangen du tänkte gå till?" och
+ * en sökruta. Den sa vad sajten VILL, aldrig vad den HAR. Brittiska FSA löser
+ * samma problem genom att lägga en bild av själva betygsdekalen i heron: den
+ * som aldrig sett tjänsten förstår på en sekund vad han får ut av den.
+ *
+ * Vår motsvarighet till dekalen är skalan. Här räknas den ur faktisk data och
+ * blir samtidigt legend och bevis på omfattning. Ingen enskild verksamhet
+ * pekas ut, vilket vore både godtyckligt och orättvist på en startsida.
+ */
+const scale = summaries.reduce(
+  (acc, m) => ({
+    clean: acc.clean + m.clean,
+    minor: acc.minor + m.minor,
+    major: acc.major + m.major,
+  }),
+  { clean: 0, minor: 0, major: 0 },
+);
+
+const levels = [
+  { verdict: 'clean' as const, count: scale.clean },
+  { verdict: 'minor' as const, count: scale.minor },
+  { verdict: 'major' as const, count: scale.major },
+];
+
+/**
+ * Genvägar till kommunerna, störst först.
+ *
+ * Sidans egen kommentar konstaterar att kommunsidorna bär trafiken. Då ska de
+ * gå att nå utan att först formulera en sökfråga — det är samma resonemang
+ * som FSA:s "Search a local authority area" bredvid fritextsökningen.
+ */
+const shortcuts = [...summaries].sort((a, b) => b.total - a.total).slice(0, 6);
+
 const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: SITE.name,
-    url: SITE.url,
+    url: absolute(),
     inLanguage: 'sv-SE',
     description: SITE.description,
     potentialAction: {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: `${SITE.url}/sok?q={search_term_string}`,
+        urlTemplate: `${SITE.url}/sok/?q={search_term_string}`,
       },
       'query-input': 'required name=search_term_string',
     },
@@ -62,37 +99,50 @@ const jsonLd = [
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE.legalName,
-    url: SITE.url,
+    url: absolute(),
     logo: `${SITE.url}/prikko-mark.svg`,
   },
 ];
 ---
 
 <Base title={SITE.name} description={description} jsonLd={jsonLd}>
+  {/*
+    KOMPRIMERAD HERO — ingen egen sökruta.
+
+    Den gamla heron fyllde första skärmen med en rubrik, en underrad och ett
+    sökfält som stod tio pixlar under ett identiskt sökfält i sidhuvudet.
+    Dubbleringen var det som fick den att kännas tom: en hel skärm som bara
+    upprepade det som redan fanns.
+
+    Kvar är det bara heron kan göra. Rubriken bär sidans ämne för Google.
+    Meningen säger vem avsändaren är. Talen är beviset. Kommunnamnen är
+    genvägen, och de är sidans egentliga uppgift — mätningen mot brittiska
+    FSA ger kommunsidor 37,9 % av trafiken mot restaurangsidornas 5,8 %.
+
+    Höjden är ungefär en tredjedel av den gamla, så kommunkorten når över
+    vikningen på en normal laptop.
+  */}
   <section class="hero">
     <div class="container hero-inner">
+      <p class="eyebrow">Kommunernas livsmedelskontroller</p>
       <h1>Hur ren är restaurangen du tänkte gå till?</h1>
       <p class="lede">
         Kommunerna kontrollerar hygienen och resultaten är offentliga, men de
-        ligger utspridda hos 290 kommuner. Prikko samlar dem.
+        ligger utspridda hos 290 kommuner. Prikko samlar
+        {' '}<b>{formatNumber(total.establishments)}</b> verksamheter och
+        {' '}<b>{formatNumber(total.inspections)}</b> kontroller från
+        {' '}<b>{total.municipalities}</b>{' '}
+        {total.municipalities === 1 ? 'kommun' : 'kommuner'}.
       </p>
 
-      <form class="search" action="/sok" method="get" role="search">
-        <label for="q" class="visually-hidden">Sök restaurang eller adress</label>
-        <input
-          id="q"
-          name="q"
-          type="search"
-          placeholder="Sök restaurang, café eller adress"
-          autocomplete="off"
-        />
-        <button type="submit" class="btn-primary">Sök</button>
-      </form>
-
-      <p class="counts">
-        <strong>{formatNumber(total.establishments)}</strong> verksamheter ·
-        <strong>{formatNumber(total.inspections)}</strong> kontroller ·
-        <strong>{total.municipalities}</strong> {total.municipalities === 1 ? 'kommun' : 'kommuner'}
+      <p class="shortcuts">
+        Gå direkt till{' '}
+        {shortcuts.map((m, i) => (
+          <>
+            {i > 0 && <span aria-hidden="true">·</span>}
+            <a href={path(m.slug)}>{m.city}</a>
+          </>
+        ))}
       </p>
     </div>
   </section>
@@ -100,7 +150,7 @@ const jsonLd = [
   <section class="container block">
     <div class="block-head">
       <h2>Välj kommun</h2>
-      <a href="/kallor">Om täckningen</a>
+      <a href="/kallor/">Om täckningen</a>
     </div>
 
     <ul class="kommuner">
@@ -117,13 +167,13 @@ const jsonLd = [
   <section class="container block">
     <div class="block-head">
       <h2>Senast kontrollerade</h2>
-      <a href="/sok">Sök alla</a>
+      <a href="/sok/">Sök alla</a>
     </div>
 
     <ul class="rows">
       {recent.map((e) => (
         <li>
-          <a href={`/${e.municipality.slug}/${e.slug}`}>
+          <a href={path(e.municipality.slug, e.slug)}>
             <FaceMark verdict={e.verdict} size={32} variant="round" />
             <span class="row-body">
               <b>{e.name}</b>
@@ -142,6 +192,25 @@ const jsonLd = [
 
   <section class="container block how">
     <h2>Så fungerar bedömningen</h2>
+
+    {/* Skalan med rikets egna tal: legend och omfattning i samma rad. Låg en
+        stund i heron, men hör hemma här — den som redan skrollat hit vill
+        veta vad nivåerna betyder, medan den som kom för sin kommun ska nå
+        korten först. Färgerna är semantiska, aldrig dekor. */}
+    <ul class="scale">
+      {levels.map((l) => (
+        <li>
+          <FaceMark verdict={l.verdict} size={40} variant="round" />
+          <span class="scale-body">
+            <b>{VERDICT[l.verdict].label}</b>
+            <span class="text-secondary">
+              {formatNumber(l.count)} verksamheter
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
+
     <div class="steps">
       <article>
         <h3>Officiella kontroller</h3>
@@ -150,11 +219,15 @@ const jsonLd = [
           handlingar, inte tyckande och inte recensioner.
         </p>
       </article>
+      {/* Nivåerna står redan i heron med sina tal. Här får steget i stället
+          bära det som INTE syns någon annanstans: att en kontroll är många
+          punkter och att vi visar dem var för sig. */}
       <article>
-        <h3>Tre nivåer</h3>
+        <h3>Punkt för punkt</h3>
         <p class="text-secondary">
-          Inga anmärkningar, brister, eller brister som kvarstår efter
-          kommunens uppföljning. Saknas underlag bedömer vi inte.
+          En kontroll gäller allt från kylkedja och rengöring till
+          allergenmärkning. Varje sida visar vilka punkter som granskades och
+          vilka som fick avvikelse.
         </p>
       </article>
       <article>
@@ -165,48 +238,93 @@ const jsonLd = [
         </p>
       </article>
     </div>
-    <p class="method-link"><a href="/metodik">Läs hela metodiken</a></p>
+    <p class="method-link"><a href="/metodik/">Läs hela metodiken</a></p>
   </section>
 </Base>
 
 <style>
+  /* Heron ligger på en egen botten.
+   *
+   * --canvas är numera ren vit på ägarens begäran, så en vit hero mot en vit
+   * sida är ingen sektion alls — den flyter ut i intet, och det var precis
+   * det som fick den att läsa som tom och overklig. Botten här är Prikkos
+   * egen blå på 6 %, inte grått: det grå var det ägaren ville bort ifrån.
+   *
+   * Uträknat mot #F0F7FD (= --brand 6 % över vitt):
+   *   --text          15,6:1  ✓
+   *   --text-secondary 4,69:1 ✓
+   *   --brand-ink      5,64:1 ✓
+   *   --text-muted     2,38:1 ✗  — får alltså inte användas här.
+   */
   .hero {
-    background: var(--card);
-    border-bottom: 1px solid var(--hairline);
-    padding-block: var(--s-16);
+    padding-block: var(--s-8) 0;
   }
 
-  .hero-inner { max-width: 660px; text-align: center; }
+  .hero-inner { max-width: 720px; }
 
-  h1 { font-size: 44px; line-height: 48px; letter-spacing: -.028em; }
+  h1 {
+    margin-top: var(--s-1);
+    font-size: 36px;
+    line-height: 40px;
+    letter-spacing: -.026em;
+  }
 
   .lede {
-    margin-top: var(--s-4);
+    margin-top: var(--s-3);
     font-size: var(--fs-body);
     line-height: var(--lh-body);
     color: var(--text-secondary);
   }
 
-  .search { display: flex; gap: var(--s-2); margin-top: var(--s-8); }
+  /* Talen står i löptexten, inte som en egen rad stora siffror. De är ett
+     belägg för meningen de sitter i, och blir mindre trovärdiga när de bryts
+     ut och blåses upp — då läser de som en marknadsföringsplansch. */
+  .lede b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 
-  .search input {
-    flex: 1;
-    min-width: 0;
-    height: 54px;
-    padding-inline: var(--s-4);
-    font-family: inherit;
-    font-size: var(--fs-body);
-    color: var(--text);
-    background: var(--card);
+  .shortcuts {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .shortcuts a { margin-inline: 3px; }
+  .shortcuts span { color: var(--text-secondary); }
+
+  /* Skalan: tre celler i ett rutnät med delade hårlinjer, samma grepp som
+     FactGrid. Inga fristående kort — det är en skala, inte tre erbjudanden. */
+  .scale {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: var(--s-6) 0 0;
+    padding: 0;
     border: 1px solid var(--hairline);
     border-radius: var(--r-control);
   }
 
-  .search input::placeholder { color: var(--text-muted); }
-  .search .btn-primary { padding-inline: var(--s-8); }
+  .scale li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4);
+  }
 
-  .counts { margin-top: var(--s-4); font-size: var(--fs-caption); color: var(--text-muted); }
-  .counts strong { font-weight: 600; color: var(--text-secondary); }
+  .scale li + li { border-left: 1px solid var(--hairline); }
+
+  .scale-body { min-width: 0; }
+
+  .scale-body b {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: 19px;
+    font-weight: 600;
+  }
+
+  .scale-body span {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
 
   .block { padding-block: var(--s-12) 0; max-width: 900px; }
 
@@ -266,11 +384,20 @@ const jsonLd = [
 
   .method-link { text-align: center; margin-top: var(--s-8); font-size: var(--fs-body-s); }
 
+  /* Under 700 px innehållsbredd ryms inte tre skalceller bredvid varandra.
+     Rutnätet radbryter då av sig självt, och kanterna måste följa med:
+     vänsterlinjen hör till en rad som inte längre finns. */
+  @media (max-width: 760px) {
+    .scale { grid-template-columns: minmax(0, 1fr); }
+    .scale li + li {
+      border-left: 0;
+      border-top: 1px solid var(--hairline);
+    }
+  }
+
   @media (max-width: 640px) {
-    .hero { padding-block: var(--s-12); }
-    h1 { font-size: 32px; line-height: 36px; }
-    .search { flex-direction: column; }
-    .search .btn-primary { height: 50px; }
+    .hero { padding-block: var(--s-6); }
+    h1 { font-size: 30px; line-height: 34px; }
     .verdict { display: none; }
   }
 </style>

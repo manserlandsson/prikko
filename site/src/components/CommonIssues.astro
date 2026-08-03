@@ -1,0 +1,129 @@
+---
+/**
+ * Vad brister oftast i den här kommunen.
+ *
+ * Det här är hubbens enda egentliga insikt, och den fanns i datan hela tiden.
+ * En besökare som kommer till /linkoping vill inte bara ha ett register — hon
+ * vill veta något om orten. "Av de 117 verksamheter i Linköping som fick en
+ * anmärkning gällde 36 kylkedjan" är ett svar som ingen enskild
+ * restaurangsida kan ge, och som ingen annan svensk sajt publicerar.
+ *
+ * Talen kommer ur kommunens egna kontrollrapporter, se lib/kommunprofil.ts.
+ * Formuleringarna är kommunens, inte våra: Stockholm skriver "Hygien",
+ * Linköping skriver "Upprätthållande av kylkedjan och uppfyllande av
+ * temperaturkriterier", Lomma skriver "rengöring". Vi skriver inte om dem —
+ * det vore att lägga vår tolkning ovanpå ett myndighetsbeslut.
+ *
+ * Kommuner vars källa inte redovisar kontrollpunkter alls (Karlstad,
+ * Jönköping) får ingen tom ruta. De får ingen ruta.
+ */
+import { formatNumber } from '../lib/data';
+import type { CommonIssue } from '../lib/kommunprofil';
+
+interface Props {
+  issues: CommonIssue[];
+  withRemarks: number;
+  city: string;
+  limit?: number;
+}
+
+const { issues, withRemarks, city, limit = 6 } = Astro.props;
+const shown = issues.slice(0, limit);
+
+// Stapelns längd sätts mot den vanligaste bristen, inte mot 100 %. Annars är
+// varje stapel kort i en välskött kommun och sidan säger ingenting om det
+// inbördes förhållandet, som är det man faktiskt läser här.
+const top = shown[0]?.count ?? 0;
+---
+
+{shown.length > 0 && (
+  <section class="issues" aria-labelledby="brister">
+    <h2 id="brister">Vanligast bland anmärkningarna i {city}</h2>
+    <p class="intro text-secondary">
+      {formatNumber(withRemarks)} verksamheter fick minst en anmärkning vid sin
+      senaste kontroll. Så här fördelar de sig, med kommunens egna
+      formuleringar.
+    </p>
+
+    <ul>
+      {shown.map((i) => (
+        <li>
+          <span class="row">
+            <span class="what">{i.description}</span>
+            <span class="n">{formatNumber(i.count)}</span>
+          </span>
+          {/* Stapeln är dekor för siffran som redan står i klartext bredvid.
+              Den bär ingen egen information och är därför neutral i färg —
+              bedömningens grön, gul och röd betyder något och får inte
+              användas för att pigga upp ett stapeldiagram. */}
+          <span class="track" aria-hidden="true">
+            <span style={`width:${top ? (i.count / top) * 100 : 0}%`}></span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  .issues {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .issues h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .intro {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  ul {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  li + li { margin-top: var(--s-3); }
+
+  .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+  }
+
+  .what {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .n {
+    flex-shrink: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .track {
+    display: block;
+    height: 4px;
+    margin-top: 5px;
+    border-radius: 2px;
+    background: var(--hairline);
+  }
+
+  .track > span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--text-muted);
+  }
+</style>

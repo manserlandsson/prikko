@@ -38,9 +38,11 @@ import {
   sourceFor,
   formatDate,
   formatDistance,
+  formatNumber,
   isIndexable,
   latestInspectionDate,
   missingReason,
+  municipalitySummary,
   nearby,
   ownershipPolicy,
   recurringIssues,
@@ -73,6 +75,20 @@ const latest = latestInspectionDate(e);
 const latestInspection = e.inspections[0];
 const stats = statistics(e);
 const neighbours = nearby(e);
+
+/**
+ * Kommunen som jämförelsepunkt.
+ *
+ * "Inga anmärkningar" säger ingenting om huruvida det är vanligt eller
+ * sällsynt. I Jönköping har 98 % av de bedömda inga anmärkningar och beskedet
+ * är alltså normaltillståndet; i Lomma har 45 % det och samma besked betyder
+ * något helt annat. Utan nämnaren läser besökaren in en ranking som inte
+ * finns.
+ *
+ * Panelen är också den enda länken härifrån till kommunhubben utöver
+ * brödsmulan, och hubben är den sidtyp som bär trafiken.
+ */
+const kommunSummary = municipalitySummary(kommun);
 const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
 
@@ -335,6 +351,18 @@ const breadcrumbs = {
             </ul>
           </div>
         )}
+
+        <div class="panel">
+          <h2 class="panel-title">Så ser det ut i {kommun.city}</h2>
+          <p class="kommun-line">
+            <b>{kommunSummary.cleanShare} %</b> av de
+            {' '}{formatNumber(kommunSummary.assessed)} bedömda verksamheterna i
+            {' '}{kommun.city} fick inga anmärkningar vid sin senaste kontroll.
+          </p>
+          <p class="kommun-link">
+            <a href={path(kommun.slug)}>Alla hygienkontroller i {kommun.city}</a>
+          </p>
+        </div>
       </aside>
     </div>
   </div>
@@ -519,6 +547,26 @@ const breadcrumbs = {
   }
 
   .near-info span { font-size: 11px; }
+
+  .kommun-line {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .kommun-line b {
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kommun-link {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
 
   @media (max-width: 900px) {
     .layout {
