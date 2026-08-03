@@ -552,9 +552,55 @@ revoke update on community.owner_responses      from anon, authenticated;
 revoke update on community.reviews              from anon, authenticated;
 revoke update on community.image_uploads        from anon, authenticated;
 
+-- Modereringsrollen. Utan de här raderna svarar varje anrop från moderate.py
+-- med 42501, eftersom service_role varken hade USAGE på schemat eller en enda
+-- tabell. Att rollen kringgår radsäkerheten hjälper inte: GRANT prövas först.
+--
+-- UPDATE är hela poängen. Det är den enda vägen pending kan bli published, och
+-- den vägen går bara genom verktyget.
+grant usage on schema community to service_role;
+
+grant select, insert, update, delete on community.reviews              to service_role;
+grant select, insert, update, delete on community.establishment_claims to service_role;
+grant select, insert, update, delete on community.owner_responses      to service_role;
+grant select, insert, update, delete on community.image_uploads        to service_role;
+
+-- Profiler och bevakningar modereras inte, men måste gå att radera när någon
+-- begär det enligt artikel 17.
+grant select, insert, update, delete on community.profiles to service_role;
+grant select, insert, update, delete on community.follows  to service_role;
+
+grant select on community.published_reviews to service_role;
+
 -- Sekvenser finns inte här (allt är uuid), men förvalet ska ändå vara stängt
 -- för framtida tabeller i schemat.
 alter default privileges in schema community revoke all on tables from anon, authenticated;
+
+-- Låst search_path på schemats två funktioner. Ingen av dem är security
+-- definer, så det här är härdning och inte en akut lucka. Men freeze_body är
+-- triggern som håller löftet vi publicerar ordagrant på metodiksidan, och en
+-- funktion vars search_path anroparen kan sätta är fel plats att lämna en lös
+-- tråd på.
+alter function community.freeze_body() set search_path = '';
+alter function community.is_establishment_id(text) set search_path = '';
+
+-- ---------------------------------------------------------------------------
+-- Exponering mot API:t
+--
+-- PostgREST serverar bara de scheman som står i authenticator-rollens
+-- pgrst.db_schemas. Raden nedan gör samma sak som rutan "Exposed schemas" i
+-- Supabase-panelen, fast i kod så att den här filen ensam räcker för att
+-- återskapa uppsättningen.
+--
+-- OBS: när inställningen satts för hand slutar panelens ruta att styra
+-- listan. Ändringar där får då ingen verkan. Tillbaka till panelstyrning med
+--     alter role authenticator reset pgrst.db_schemas;
+--
+-- public och graphql_public är Supabase eget förval och måste stå kvar, annars
+-- slutar den redaktionella databasen att svara.
+alter role authenticator set pgrst.db_schemas = 'public, graphql_public, community';
+notify pgrst, 'reload config';
+notify pgrst, 'reload schema';
 
 -- ---------------------------------------------------------------------------
 -- Kontroll: den redaktionella databasen får inte ha blivit skrivbar
