@@ -505,6 +505,8 @@ export async function unfollow(establishmentId: string): Promise<void> {
 export interface PublishedReview {
   id: string;
   body: string;
+  /** Besökarens betyg 1 till 5, eller null. ALDRIG hygienbedömningen. */
+  rating: number | null;
   author: string;
   created_at: string;
 }
@@ -519,7 +521,7 @@ export async function publishedReviews(establishmentId: string): Promise<Publish
   return (
     (await rest(
       'GET',
-      `published_reviews?select=id,body,author,created_at&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc&limit=50`,
+      `published_reviews?select=id,body,rating,author,created_at&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc&limit=50`,
       { auth: false },
     )) ?? []
   );
@@ -528,6 +530,7 @@ export async function publishedReviews(establishmentId: string): Promise<Publish
 export interface MyReview {
   id: string;
   body: string;
+  rating: number | null;
   status: 'pending' | 'published' | 'rejected';
   rejection_reason: string | null;
 }
@@ -537,7 +540,7 @@ export async function myReviews(): Promise<MyReview[]> {
   return (
     (await rest(
       'GET',
-      'reviews?select=id,body,status,rejection_reason&order=created_at.desc',
+      'reviews?select=id,body,rating,status,rejection_reason&order=created_at.desc',
     )) ?? []
   );
 }
@@ -547,7 +550,7 @@ export async function myReview(
 ): Promise<{ id: string; body: string; status: string; rejection_reason: string | null } | null> {
   const rows = await rest(
     'GET',
-    `reviews?select=id,body,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    `reviews?select=id,body,rating,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
   );
   return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
@@ -560,7 +563,18 @@ export async function myReview(
  * inte ska komma åt. Namnet blir också det som gällde när omdömet skrevs,
  * vilket är rätt för ett yttrande som fryses vid insändning.
  */
-export async function submitReview(place: Place, body: string): Promise<void> {
+export async function submitReview(
+  place: Place,
+  body: string,
+  /**
+   * Betyg 1 till 5, eller null.
+   *
+   * Frivilligt med avsikt. Den som vill berätta något behöver inte sätta en
+   * siffra på det, och ett tvingande betyg hade gjort att folk klickar en
+   * fyra för att komma vidare i stället för att mena den.
+   */
+  rating: number | null = null,
+): Promise<void> {
   const user = currentUser();
 
   let author: string | null = null;
@@ -577,6 +591,7 @@ export async function submitReview(place: Place, body: string): Promise<void> {
       municipality_slug: place.municipalitySlug,
       author_name: author || null,
       body,
+      rating,
     },
   });
 }

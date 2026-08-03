@@ -85,6 +85,33 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     </button>
 
     <form id="review-form" novalidate hidden>
+      {/* Betyget står FÖRE texten. Det är den lätta frågan, och att svara på
+          den först gör det lättare att börja skriva.
+
+          Radioknappar och inte en stjärnkomponent i JavaScript: fem
+          radioknappar i en fieldset ger tangentbord, skärmläsare och
+          formulärsemantik gratis. Stjärnorna är etiketterna, ritade i CSS.
+
+          Frivilligt. Ingen `required`, och ingen förvald knapp. Den som vill
+          berätta något ska inte tvingas sätta en siffra på det, och ett
+          tvingande betyg gör att folk klickar en fyra för att komma vidare. */}
+      <fieldset class="rating">
+        <legend>Betyg <span class="hint">Frivilligt</span></legend>
+        <div class="stars">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <>
+              <input type="radio" name="rating" id={`star-${n}`} value={n} />
+              <label for={`star-${n}`} title={`${n} av 5`}>
+                <span class="visually-hidden">{n} av 5</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9z" />
+                </svg>
+              </label>
+            </>
+          ))}
+        </div>
+      </fieldset>
+
       <label class="field">
         <span>
           Ditt omdöme
@@ -196,7 +223,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      * gör den inte till markup, och en moderator som klistrar in något hen
      * inte läst noga ska inte kunna köra skript på sidan.
      */
-    function render(rows: Array<{ id: string; body: string; author: string; created_at: string }>) {
+    function render(
+      rows: Array<{
+        id: string;
+        body: string;
+        rating: number | null;
+        author: string;
+        created_at: string;
+      }>,
+    ) {
       list.textContent = '';
       for (const row of rows) {
         const item = document.createElement('article');
@@ -209,6 +244,23 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         const body = document.createElement('p');
         body.className = 'review-body';
         body.textContent = row.body;
+
+        /* Betyget står bara ut om det finns. Ett omdöme utan siffra är ett
+           fullgott omdöme och ska inte få en tom rad med fem gråa stjärnor
+           som ser ut som noll av fem. */
+        if (row.rating) {
+          const stars = document.createElement('p');
+          stars.className = 'given';
+          stars.setAttribute('aria-label', `${row.rating} av 5`);
+          for (let i = 1; i <= 5; i += 1) {
+            const s = document.createElement('span');
+            s.className = i <= row.rating ? 'on' : 'off';
+            s.setAttribute('aria-hidden', 'true');
+            s.textContent = '\u2605';
+            stars.append(s);
+          }
+          item.append(stars);
+        }
 
         item.append(meta, body);
         list.append(item);
@@ -327,7 +379,8 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         submit.textContent = 'Skickar';
 
         try {
-          await submitReview(place, body);
+          const picked = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
+          await submitReview(place, body, picked ? Number(picked.value) : null);
           form.hidden = true;
           mine.innerHTML =
             '<b>Väntar.</b> Tack. Omdömet är inskickat och publiceras ordagrant ' +
@@ -356,6 +409,105 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     padding-top: var(--s-4);
     border-top: 1px solid var(--hairline);
   }
+
+  /* ------------------------------------------------------------------ */
+  /* Betyget                                                              */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Stjärnor, aldrig smiley. Sidan bär två omdömen om samma verksamhet:
+   * kommunens hygienbedömning, som är ett faktum vi återger, och besökarens
+   * betyg, som är tyckande om mat och bemötande. Ser de likadana ut läses de
+   * som samma sak, och ett ställe med fyra stjärnor och kvarstående brister
+   * blir obegripligt. Formen är därför medvetet olik: smiley i färgfälten
+   * ovanför, stjärnor här, och aldrig ett gemensamt tal.
+   *
+   * Bärnsten och inte prikko-blått av samma skäl. Blått är sajtens röst;
+   * stjärnorna är besökarnas.
+   */
+  .rating {
+    border: 0;
+    padding: 0;
+    margin: 0 0 var(--s-4);
+  }
+
+  .rating legend {
+    padding: 0;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .rating .hint {
+    margin-left: var(--s-2);
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  /* Radioknapparna är gömda men fokuserbara. `visually-hidden` och inte
+     display: none, annars går de inte att nå med tangentbord. */
+  .stars input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .stars {
+    display: flex;
+    gap: 2px;
+    margin-top: var(--s-2);
+  }
+
+  .stars label {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    color: var(--hairline-strong, rgba(0, 0, 0, .18));
+  }
+
+  .stars svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+  }
+
+  /* Alla stjärnor till och med den valda fylls. Syskonväljaren går bara
+     framåt i DOM:en, så ordningen i markupen är ett till fem och regeln
+     färgar den valda plus allt FÖRE den via :has. */
+  .stars:has(#star-1:checked) label[for="star-1"],
+  .stars:has(#star-2:checked) label[for="star-1"],
+  .stars:has(#star-2:checked) label[for="star-2"],
+  .stars:has(#star-3:checked) label[for="star-1"],
+  .stars:has(#star-3:checked) label[for="star-2"],
+  .stars:has(#star-3:checked) label[for="star-3"],
+  .stars:has(#star-4:checked) label[for="star-1"],
+  .stars:has(#star-4:checked) label[for="star-2"],
+  .stars:has(#star-4:checked) label[for="star-3"],
+  .stars:has(#star-4:checked) label[for="star-4"],
+  .stars:has(#star-5:checked) label { color: #E8A33D; }
+
+  .stars input:focus-visible + label {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Betyget som visas på ett publicerat omdöme. */
+  .reviews .given {
+    margin-bottom: 2px;
+    font-size: 15px;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  .reviews .given .on { color: #E8A33D; }
+  .reviews .given .off { color: rgba(0, 0, 0, .16); }
 
   .reviews .review-body {
     margin-top: var(--s-1);
