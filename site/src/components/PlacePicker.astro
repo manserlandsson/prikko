@@ -466,6 +466,10 @@ const points = municipalityPoints();
     flex-direction: column;
   }
 
+  /* Måste stå utskrivet. `hidden` är display: none i webbläsarens egen
+     stilmall, och varje egen display-regel vinner över den. Utan de här två
+     raderna syns både kontoraden och den inloggade delen alltid. */
+  .account[hidden],
   .account-out[hidden] { display: none; }
 
   /* Adressen man loggat in med. Inte en länk och inte klickbar: den är en
@@ -496,7 +500,7 @@ const points = municipalityPoints();
 
 <script>
   import { configured, currentUser, signedIn, signOut } from '../lib/community';
-  import { openSignIn, signInAvailable } from '../lib/signin-dialog';
+  import { openSignIn } from '../lib/signin-dialog';
 
   /**
    * Kontoraden längst ned i menyn.
@@ -517,7 +521,16 @@ const points = municipalityPoints();
     const signout = document.querySelector<HTMLButtonElement>('[data-signout]');
 
     if (box && signin && out && who && signout) {
-      if (!configured || !signInAvailable()) {
+      /* Bara `configured`, ALDRIG signInAvailable() här.
+         signInAvailable() svarar på om rutan hunnit registrera sig, och det
+         beror på skriptordningen: menyn ligger i sidhuvudet och rutan sist i
+         body, så menyns skript kör först och får alltid nej. Raden doldes
+         därför alltid, och eftersom `hidden` inte överlever en egen
+         `display: flex` syntes den ändå, fast utan klickhanterare.
+
+         openSignIn() svarar redan false när rutan saknas, så hanteraren får
+         sitta ovillkorligt. */
+      if (!configured) {
         box.hidden = true;
       } else {
         const paint = async () => {
