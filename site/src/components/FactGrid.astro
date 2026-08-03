@@ -71,17 +71,30 @@ const { title, titleTip, facts } = Astro.props;
    * sajten är noll-JS. Då väger informationen tyngre än hörnen: kvar blir en
    * hårfin linje som korsar kurvan i nedre högra hörnet. Den kostnaden är
    * mindre än en förklaring ingen kan läsa. */
+  /* Linjerna mellan cellerna är MELLANRUM, inte ramar.
+   *
+   * Cellerna hade tidigare border-right och border-bottom var. De ritades
+   * ovanpå rutnätets egen ram, så höger- och underkanten fick dubbla linjer,
+   * och eftersom overflow: hidden är borttagen korsade de raka cellramarna de
+   * rundade hörnen. Resultatet såg ut som en grå fyrkant runt en redan rundad
+   * ruta.
+   *
+   * Nu är rutnätets bakgrund hårlinjefärgen och cellerna ligger med en pixels
+   * mellanrum ovanpå den. Linjerna blir exakt en pixel, aldrig dubbla, och de
+   * slutar av sig själva vid kanten. Det fungerar dessutom när rutnätet bryter
+   * till flera rader på smal skärm, vilket en border-lösning gör klumpigt. */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--hairline);
     border: 1px solid var(--hairline);
     border-radius: var(--r-control);
   }
 
   .cell {
     padding: var(--s-3) var(--s-4);
-    border-right: 1px solid var(--hairline);
-    border-bottom: 1px solid var(--hairline);
+    background: var(--card);
   }
 
   .label {
