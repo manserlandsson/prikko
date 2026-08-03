@@ -12,8 +12,8 @@
  *
  * Slutar de säga samma sak är det inte ett fel, utan hela skälet till att
  * märket bär ett årtal. Den sista meningen här skrivs därför om efter vilket av
- * de två fallen som gäller, så att en läsare som ser ett guldmärke bredvid
- * "Brister som kvarstår" får veta varför båda står där.
+ * de två fallen som gäller, så att en läsare som ser ett märke från 2026
+ * bredvid "Brister som kvarstår" får veta varför båda står där.
  */
 import AwardSeal from './AwardSeal.astro';
 import { formatDate } from '../lib/data';
@@ -36,7 +36,7 @@ const earlier = awards.slice(1);
 {newest && (
   <section class="award">
     <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
-      <AwardSeal year={newest.year} size={104} decorative />
+      <AwardSeal year={newest.year} width={168} decorative />
     </a>
     <div>
       <h2>Utmärkelsen {newest.year}</h2>

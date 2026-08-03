@@ -2,41 +2,49 @@
 /**
  * Märket, som det ser ut på sajten.
  *
- * Ritningen ligger i lib/marke.ts och delas med den nedladdningsbara filen.
- * Den här komponenten gör bara två saker: sätter storleken och avgör om
- * märket är en bild för skärmläsaren eller ren dekoration.
+ * En `<img>` och inte inbakad SVG. Skälet står i lib/marke.ts: filen är 10 kB
+ * och skulle annars ligga i varje enskild verksamhetssida utan att någon av dem
+ * kan dela den med nästa. Som bild hämtas den en gång, och den bild sidan visar
+ * är samma URL som verksamheten laddar ner.
+ *
+ * Höjden räknas ur ritningens egen viewBox och sätts som attribut. Utan den
+ * hoppar layouten när bilden landar, och märket står ofta högt upp på sidan där
+ * hoppet syns mest.
  *
  * `decorative` sätts när märket står bredvid en rubrik som redan säger samma
  * sak. Två uppläsningar av "Prikkos utmärkelse 2026" i rad är brus, inte
  * tillgänglighet.
  */
-import { SEAL_VIEWBOX, sealContent, sealTitle } from '../lib/marke';
+import { markRatio, markTitle } from '../lib/marke';
+import { path } from '../lib/urls';
 
 interface Props {
   year: number;
-  /** Sidlängd i pixlar. Märket är kvadratiskt. */
-  size?: number;
+  /** Bredd i pixlar. Höjden faller ur ritningens proportion. */
+  width?: number;
   decorative?: boolean;
 }
 
-const { year, size = 96, decorative = false } = Astro.props;
-const label = sealTitle(year);
+const { year, width = 168, decorative = false } = Astro.props;
+const height = Math.round(width / markRatio(year));
+const src = `${path('utmarkelser', year)}marke.svg`;
 ---
 
-<svg
+<img
   class="seal"
-  viewBox={SEAL_VIEWBOX}
-  width={size}
-  height={size}
-  role={decorative ? 'presentation' : 'img'}
+  src={src}
+  width={width}
+  height={height}
+  alt={decorative ? '' : markTitle(year)}
   aria-hidden={decorative ? 'true' : undefined}
-  aria-label={decorative ? undefined : label}
-  set:html={sealContent(year)}
 />
 
 <style>
   .seal {
     display: block;
     flex: none;
+    /* Bredden får krympa på smala skärmar, proportionen aldrig. */
+    max-width: 100%;
+    height: auto;
   }
 </style>

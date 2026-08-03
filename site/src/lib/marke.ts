@@ -1,220 +1,144 @@
 /**
- * Märket. En egen ritning, inte en lånad.
+ * Märket: en lagerkrans om wordmarken, och under den utgåvans årtal.
  *
- * ## Varför en lagerkrans
+ * Ritningen är Måns egen. Originalet ligger i brand/, och
+ * `scripts/importera-marke.mjs` gör om den till modulen
+ * `src/marks/utmarkelse-<år>.ts`. Det skriptets huvud förklarar både varför det
+ * är en ritning per årtal och varför kompilatet är en modul och inte en .svg.
  *
- * Lagerkransen är en generisk utmärkelseform, äldre än varumärkesrätten och
- * fri att använda. Den är också det enda som gör att en klisterlapp i ett
- * restaurangfönster omedelbart läses som "de har fått något" utan att någon
- * behöver veta vad Prikko är. Kransen här är ritad från grunden ur en
- * parametrisering, inte kalkerad från någon annans märke: bladen sitter på en
- * båge, lutningen ökar mot toppen, och formen faller ur talen nedan.
+ * ## Varför årtalet bär hela konstruktionen
  *
- * ## Varför årtalet är det största i märket
+ * Ett märke i ett fönster tas inte ned den dag kommunen hittar en avvikelse,
+ * och verksamheten har ingen skyldighet att göra det. Därför får märket aldrig
+ * påstå något om NULÄGET. Det påstår att verksamheten fanns med i en namngiven
+ * årsutgåva, vilket är sant för alltid och går att slå upp. Samma konstruktion
+ * som Michelin och Danmarks Elite-Smiley, och det enda sättet vi kan låta ett
+ * märke lämna sajten utan att riskera att det ljuger.
  *
- * Ett märke i ett fönster åldras. Det tas inte ned den dagen kommunen hittar
- * en avvikelse, och verksamheten har heller ingen skyldighet att göra det.
- * Därför får märket aldrig påstå något om NULÄGET. Det påstår att verksamheten
- * fanns med i en namngiven årsutgåva, vilket är sant för alltid, och årtalet
- * är det som syns mest just för att den läsning ska vara den enda möjliga.
+ * ## Varför sidorna länkar till filen i stället för att baka in den
  *
- * Det är samma konstruktion som Michelin och Danmarks Elite-Smiley använder,
- * och den är det enda sättet vi kan låta ett märke lämna sajten utan att
- * riskera att det ljuger.
+ * Ritningen är 10 kB. Den ska stå på 1 541 verksamhetssidor plus utgåvornas
+ * egna, och inbakad hade den kostat de kilobyten på varje enskild sida utan
+ * att någon av dem kan dela dem med nästa. Som `<img src>` hämtas filen en
+ * gång och ligger sedan i webbläsarens cache.
  *
- * ## Varför texten är mörk och bara kransen guld
+ * Det ger också något bättre än en optimering: den bild sidan visar och den
+ * fil verksamheten laddar ner är samma URL. De kan inte glida isär.
  *
- * `--distinction` (#C8A24B) mot vitt ligger på 2,6:1 och underkänns av WCAG för
- * text. Guldet bär formen, `--text` bär orden. Bedömningsfärgerna används
- * aldrig: märket är ingen bedömningsnivå, och grönt här hade läst som "inga
- * anmärkningar vid den senaste kontrollen", vilket är något annat.
+ * ## Varför källfilen ändå bär currentColor
+ *
+ * Källan är färglös och färgen sätts när filen serveras. Det var också det som
+ * gjorde två ritningar till en: Måns blå och grå visade sig vara samma ritning
+ * med tjugo enheters skillnad i sidmarginal, jämförda koordinat för koordinat.
+ * Vill någon ha en dämpad variant är det en substitution till ur samma källa,
+ * inte en andra ritning att hålla synkroniserad.
  */
 
-export interface SealColors {
-  /** Kransen och ringen. */
-  wreath: string;
-  /** All text. */
-  ink: string;
+/**
+ * Märkets färg i den serverade filen.
+ *
+ * Måns ritning bär #007BE0, vilket är `--brand` ur tokens.css exakt. Värdet
+ * står som literal här och inte som `var(--brand)` därför att filen är
+ * fristående: den hamnar i ett trycksaksprogram eller på någon annans sajt och
+ * har ingen tokens.css att ärva ur. Ändras `--brand` måste den här raden
+ * ändras med den.
+ *
+ * Kontrast mot vitt och mot `--canvas` (#FCFCFD): 4,28:1. Det räcker för
+ * grafik, där WCAG 1.4.11 kräver 3:1, och för årtalet, som renderas långt över
+ * gränsen för stor text. Måns gråa variant ligger på 3,60:1 och duger till form
+ * men inte till brödtext, vilket är ett av skälen till att den blå är den som
+ * serveras.
+ */
+export const MARK_INK = '#007BE0';
+
+interface Mark {
+  year: number;
+  /** SVG-koden som den ligger i src/marks, alltså med currentColor. */
+  source: string;
+  /** Bredd genom höjd ur viewBox. Märket är brett, inte kvadratiskt. */
+  ratio: number;
 }
 
-/** På sajten: sajtens tokens. Se filhuvudet för varför de är olika. */
-export const SEAL_ON_SITE: SealColors = {
-  wreath: 'var(--distinction)',
-  ink: 'var(--text)',
-};
-
-/**
- * I den nedladdningsbara filen: samma två färger som literaler.
- *
- * En fristående SVG hamnar i ett trycksaksprogram eller på en vägg och har
- * ingen sajt att ärva variabler ur. Värdena MÅSTE vara desamma som tokens.css,
- * annars är märket i fönstret en annan produkt än märket på sidan.
- */
-export const SEAL_STANDALONE: SealColors = {
-  wreath: '#C8A24B',
-  ink: '#1D1D1F',
-};
-
-const SIZE = 200;
-const C = SIZE / 2;
-
-/** Bladbågens radie. */
-const R = 74;
-/** Blad per gren. Udda tal ger en spets överst på grenen. */
-const LEAVES = 9;
-
-/**
- * Grenens sträckning, i radianer, med 0 åt höger och π/2 nedåt (SVG-y).
- *
- * Kransen öppnar sig uppåt: grenen börjar nära botten och slutar innan toppen.
- * Öppningen är där årtalet får luft.
- */
-const BRANCH_START = 0.5 * Math.PI;
-const BRANCH_END = -0.32 * Math.PI;
-
-/**
- * Var på grenen det första bladet sitter, som andel av dess längd.
- *
- * Stjälkarna möts i botten, men bladen får inte göra det. Med bladen ända ned
- * lade sig de två understa nästan vågrätt över varandra och bildade en fläck
- * som såg ut som en rosett i stället för som en knut.
- */
-const LEAF_START = 0.12;
-
-interface Leaf {
-  x: number;
-  y: number;
-  rotation: number;
-  rx: number;
-  ry: number;
+interface MarkModule {
+  year: number;
+  viewBox: string;
+  source: string;
 }
 
 /**
- * Ett blad per steg längs bågen, speglat i lodlinjen.
+ * Ritningarna upptäcks ur filsystemet, precis som kommunerna i db.ts och
+ * utgåvorna i utmarkelser.ts. En ny årsritning är en fil, inte en kodändring.
  *
- * Bladen krymper mot toppen och lutar allt mer utåt, vilket är det som gör att
- * formen läses som en växt och inte som en punktlista på en cirkel.
+ * Modulerna är GENERERADE av scripts/importera-marke.mjs och inte .svg-filer.
+ * Skälet står i det skriptets huvud: Astro gör om varje .svg under src/ till en
+ * komponent, och att i stället läsa filens text via `?raw` fick bygget att
+ * snurra utan att ta slut. En modul går förbi hela den apparaten.
  */
-function branch(mirrored: boolean): Leaf[] {
-  const leaves: Leaf[] = [];
-  for (let i = 0; i < LEAVES; i += 1) {
-    const t = i / (LEAVES - 1);
-    const along = LEAF_START + t * (1 - LEAF_START);
-    const angle = BRANCH_START + along * (BRANCH_END - BRANCH_START);
+const files = import.meta.glob<MarkModule>('../marks/utmarkelse-*.ts', {
+  eager: true,
+});
 
-    // Bladet sitter en aning utanför stjälken.
-    const radius = R + 5;
-    const x = C + radius * Math.cos(angle) * (mirrored ? -1 : 1);
-    const y = C + radius * Math.sin(angle);
+const MARKS = new Map<number, Mark>();
 
-    // Tangenten i grader, plus en lutning som växer mot toppen.
-    const tangent = (angle * 180) / Math.PI + (mirrored ? 180 : 0);
-    const tilt = (mirrored ? 1 : -1) * (26 + t * 16);
-
-    leaves.push({
-      x,
-      y,
-      rotation: tangent + tilt,
-      rx: 10.5 - t * 2.6,
-      ry: 4.4 - t * 1.1,
-    });
+for (const [file, module] of Object.entries(files)) {
+  const { year, viewBox, source } = module;
+  if (!Number.isInteger(year) || !viewBox || !source) {
+    throw new Error(`${file} ser inte ut som en genererad märkesmodul.`);
   }
-  return leaves;
+
+  const box = viewBox.trim().split(/\s+/).map(Number);
+  if (box.length !== 4 || !box[2] || !box[3]) {
+    throw new Error(`${file} har en viewBox som inte går att skala: ${viewBox}`);
+  }
+
+  MARKS.set(year, { year, source, ratio: box[2] / box[3] });
 }
 
-function round(n: number): string {
-  return n.toFixed(2).replace(/\.?0+$/, '');
+export function hasMark(year: number): boolean {
+  return MARKS.has(year);
 }
 
-/** Stjälken: en båge längs samma sträckning som bladen. */
-function stem(mirrored: boolean): string {
-  const sign = mirrored ? -1 : 1;
-  const x1 = C + R * Math.cos(BRANCH_START) * sign;
-  const y1 = C + R * Math.sin(BRANCH_START);
-  const x2 = C + R * Math.cos(BRANCH_END) * sign;
-  const y2 = C + R * Math.sin(BRANCH_END);
-  const sweep = mirrored ? 1 : 0;
-  return `M ${round(x1)} ${round(y1)} A ${R} ${R} 0 0 ${sweep} ${round(x2)} ${round(y2)}`;
-}
-
-export interface SealOptions {
-  colors?: SealColors;
-  /** Sätts när märket ligger i löptext och redan har en läsbar rubrik intill. */
-  decorative?: boolean;
-}
-
-/**
- * Märkets innehåll, utan `<svg>`-elementet.
- *
- * Åtskilt från höljet därför att sajten och nedladdningsfilen behöver olika
- * höljen. Det ena ärver storlek ur sitt sammanhang, det andra måste ha en fast.
- * Innehållet får däremot aldrig skilja sig: ritas märket på två ställen kommer
- * de två att glida isär, och då bär två restauranger olika märken för samma sak.
- */
-export function sealContent(year: number, options: SealOptions = {}): string {
-  const { wreath, ink } = options.colors ?? SEAL_ON_SITE;
-
-  const leaves = [...branch(false), ...branch(true)]
-    .map(
-      (l) =>
-        `<ellipse cx="${round(l.x)}" cy="${round(l.y)}" rx="${round(l.rx)}" ry="${round(
-          l.ry,
-        )}" transform="rotate(${round(l.rotation)} ${round(l.x)} ${round(l.y)})"/>`,
-    )
-    .join('');
-
-  return (
-    `<g fill="${wreath}">${leaves}</g>` +
-    `<g fill="none" stroke="${wreath}" stroke-width="1.6" stroke-linecap="round">` +
-    `<path d="${stem(false)}"/><path d="${stem(true)}"/></g>` +
-    // Fästpunkten där grenarna möts nedtill. Utan den ser kransen ut som två
-    // lösa kvistar.
-    `<circle cx="${C}" cy="${C + R}" r="2.8" fill="${wreath}"/>` +
-    /*
-     * Textblockets rader ligger där kransen är bred nog.
-     *
-     * "UTAN ANMÄRKNINGAR" är den längsta raden och den som sitter lägst, alltså
-     * den som först skär i stjälken. Vid y=150 är stjälkens innermått ±54 och
-     * raden ±50 bred. Sänks raden eller ökas teckenstorleken skär den kransen,
-     * och det syns inte förrän någon tryckt märket i A5.
-     */
-    `<g fill="${ink}" text-anchor="middle" font-family="'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">` +
-    `<text x="${C}" y="76" font-size="13" font-weight="600" letter-spacing="3.2">PRIKKO</text>` +
-    `<text x="${C}" y="122" font-size="40" font-weight="600" letter-spacing="-.5" style="font-variant-numeric:tabular-nums">${year}</text>` +
-    // Olika teckenmellanrum på de två raderna, så att de blir nästan lika
-    // breda. Samma mellanrum hade gjort den understa halvannan gång längre än
-    // den övre, och blocket hade läst som en kil.
-    `<text x="${C}" y="139" font-size="8.5" font-weight="600" letter-spacing="2.6">GENOMGÅENDE</text>` +
-    `<text x="${C}" y="150" font-size="8.5" font-weight="600" letter-spacing=".5">UTAN ANMÄRKNINGAR</text>` +
-    '</g>' +
-    // Hårlinjen skiljer avsändaren från årtalet och ger märket en mittlinje.
-    `<path d="M ${C - 24} 83 H ${C + 24}" stroke="${wreath}" stroke-width="1"/>`
+function mark(year: number): Mark {
+  const found = MARKS.get(year);
+  if (found) return found;
+  throw new Error(
+    `Ingen ritning för ${year}. Lägg Måns fil i brand/ och kör ` +
+      `node scripts/importera-marke.mjs <fil> ${year} från site/.`,
   );
 }
 
-/** Vad märket betyder, som text. Används som `<title>` och som bildtext. */
-export function sealTitle(year: number): string {
+/**
+ * Förhållandet mellan bredd och höjd.
+ *
+ * Måns märke är brett, inte runt: kransen står som två grenar kring
+ * wordmarken. Sidorna sätter bredden och räknar höjden ur det här talet, så
+ * att layouten inte hoppar om en framtida ritning har andra proportioner.
+ */
+export function markRatio(year: number): number {
+  return mark(year).ratio;
+}
+
+/** Vad märket betyder, som text. Används som alt-text och som bildtext. */
+export function markTitle(year: number): string {
   return `Prikkos utmärkelse ${year}: genomgående utan anmärkningar`;
 }
 
 /**
- * Fristående SVG-fil för nedladdning.
+ * Filen som serveras och laddas ner.
  *
- * Verksamheten laddar ner den här och sätter den i fönstret eller på sin egen
- * sajt. Den bär därför en kommentar med årtalet och en länk tillbaka till
- * utgåvan, så att den som hittar filen lös kan slå upp vad den betyder.
+ * Kommentaren överst finns för den som hittar filen lös, utan sidan omkring.
+ * Den säger vad märket avser och var det går att slå upp, vilket är skillnaden
+ * mellan ett märke och en bild av en lagerkrans.
  */
-export function sealDocument(year: number, editionUrl: string): string {
+export function markDocument(year: number, editionUrl: string): string {
+  const { source } = mark(year);
   return (
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    `<!-- ${sealTitle(year)}. Utmärkelsen avser ${year} års utgåva och säger ` +
+    `<!-- ${markTitle(year)}. Utmärkelsen avser ${year} års utgåva och säger ` +
     `ingenting om nuläget. Vad som gällde då: ${editionUrl} -->\n` +
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" ` +
-    `height="${SIZE}" role="img" aria-label="${sealTitle(year)}">` +
-    `<title>${sealTitle(year)}</title>` +
-    sealContent(year, { colors: SEAL_STANDALONE }) +
-    '</svg>\n'
+    source
+      .replace(/currentColor/g, MARK_INK)
+      .replace('<svg ', `<svg role="img" aria-label="${markTitle(year)}" `) +
+    '\n'
   );
 }
-
-export const SEAL_VIEWBOX = `0 0 ${SIZE} ${SIZE}`;

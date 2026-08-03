@@ -43,6 +43,7 @@
  * ingen skillnad att redovisa.
  */
 import { formatNumber, municipalities, sourceLimits } from './data';
+import { hasMark } from './marke';
 
 export interface EditionEntry {
   slug: string;
@@ -98,6 +99,24 @@ const EDITIONS: Edition[] = Object.values(files)
   .map((m) => m.default as unknown as Edition)
   .filter((e) => e && typeof e.year === 'number' && Array.isArray(e.municipalities))
   .sort((a, b) => b.year - a.year);
+
+/*
+ * Byggrind: en utgåva utan sitt märke får inte publiceras.
+ *
+ * Årtalet i märket är kurvor och kan inte bytas med en variabel, så varje
+ * utgåva kräver en egen ritning (se scripts/importera-marke.mjs för varför det
+ * är rätt trots priset). Utan den här kontrollen hade en 2027-lista tyst kunnat
+ * gå ut med 2026 års märke bredvid sig, och märket är det enda vi låter lämna
+ * sajten. Hellre ett bygge som stannar än ett märke som säger fel år.
+ */
+for (const e of EDITIONS) {
+  if (!hasMark(e.year)) {
+    throw new Error(
+      `${e.year} års utgåva finns i src/editions men saknar märke i src/marks. ` +
+        `Kör node scripts/importera-marke.mjs <ritning> ${e.year} innan utgåvan publiceras.`,
+    );
+  }
+}
 
 /** Utgåvorna, nyast först. */
 export function editions(): Edition[] {
