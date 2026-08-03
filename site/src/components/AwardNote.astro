@@ -40,14 +40,17 @@ const earlier = awards.slice(1);
 {newest && (
   <section class="award">
     <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
-      <AwardSeal year={newest.year} width={56} decorative />
+      <AwardSeal year={newest.year} width={68} decorative />
     </a>
     <div>
       <h2>Utmärkelsen {newest.year}</h2>
+      {/* Andra meningen är en uppmaning och inte ett påstående. "Verksamheten
+          står i 2026 års lista" upprepar det märket bredvid redan säger, medan
+          "Se hela listan" pekar vidare. Länken bär hela uppmaningen så att den
+          som hoppar mellan länkar med tangentbord hör vad den leder till. */}
       <p>
         {capitalise(numeral(newest.entry.run))} kontroller i rad utan anmärkning.
-        Verksamheten står i
-        {' '}<a href={path('utmarkelser', newest.year)}>{newest.year} års lista</a>.
+        {' '}<a href={path('utmarkelser', newest.year)}>Se hela {newest.year} års lista</a>.
       </p>
       {!e.distinction && (
         <p>Utmärkelsen avser den utgåvan. Vad som gäller nu står ovan.</p>
