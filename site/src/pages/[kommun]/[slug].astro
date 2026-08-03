@@ -52,7 +52,6 @@ import {
   municipalityCategories,
   municipalitySummary,
   nearby,
-  ownershipPolicy,
   recurringIssues,
   statistics,
   type CategorySlice,
@@ -211,7 +210,6 @@ const facts = [
  * Kommunens egen utsaga om ägarbyte, när den finns. Återges attribuerad, aldrig
  * som vår slutsats. Se OWNERSHIP_POLICY i data.ts.
  */
-const policy = ownershipPolicy(kommun.slug);
 
 /**
  * Upplysningen om lokalen visas på ALLA verksamheter med mer än en kontroll,
@@ -224,7 +222,6 @@ const policy = ownershipPolicy(kommun.slug);
  * syns inte. Den falska tryggheten hade legat just på de sidor där risken är
  * störst. Se HISTORY_GAP_DAYS i data.ts för mätningen.
  */
-const sharedHistory = stats.total > 1;
 
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
@@ -349,20 +346,24 @@ const breadcrumbs = {
           municipalitySlug={kommun.slug}
         />
 
+        {/* Sidfoten bar tidigare två stycken: att kontrollerna är registrerade
+            på adressen och inte på företaget, plus källa, hämtdatum, att
+            bedömningen är vår och två länkar. Sex meningar på varje
+            verksamhetssida.
+
+            Båda hör hemma på /metodik och /kallor, som är fullständiga och
+            länkade från sidfoten på varje sida. Ratsit skriver inte "uppgifter
+            från Bolagsverket" under varje rad, och att upprepa ursprunget
+            överallt får sammanställningen att läsa som en vidarebefordran av
+            någon annans data i stället för som ett eget arbete.
+
+            En rad står kvar: när uppgifterna senast hämtades. Den är inte en
+            källhänvisning utan en färskhetsuppgift, och den som läser om en
+            kontroll från i januari har rätt att veta om vi tittade i går eller
+            i mars. */}
         <footer class="source">
-          {sharedHistory && (
-            <p class="caption text-muted">
-              Kontrollerna är registrerade på adressen, inte på företaget.
-              Kommunen anger inte när en verksamhet startat eller bytt ägare, så
-              historiken kan omfatta en tidigare verksamhet i samma lokal.
-              {policy && <> {policy}</>}
-              {' '}<a href="/metodik/#lokalen">Varför vi säger det här</a>.
-            </p>
-          )}
           <p class="caption text-muted">
-            Källa: {kommun.name}, hämtat {formatDate(source.fetchedAt.slice(0, 10))}.
-            Bedömningen är Prikkos. <a href="/metodik/">Så räknas den fram</a>.
-            <a href="/ratta/">Rätta en uppgift</a>.
+            Uppdaterat {formatDate(source.fetchedAt.slice(0, 10))}.
           </p>
         </footer>
       </main>
