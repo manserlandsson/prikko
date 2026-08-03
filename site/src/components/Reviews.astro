@@ -1,0 +1,348 @@
+---
+/**
+ * Besökarnas omdömen.
+ *
+ * ---------------------------------------------------------------------------
+ * ÅTSKILLNADEN, OCH VARFÖR DEN SER UT SÅ HÄR
+ * ---------------------------------------------------------------------------
+ * Se research/R4_juridik_utgivningsbevis.md, avsnitt 1.
+ *
+ * Mediemyndigheten kräver att en databas med utgivningsbevis inte kan ändras
+ * av någon annan än redaktionen, och R4 pekar ut användarbidrag som den
+ * fallgrop som träffar oss rakt av. Blandas omdömen in i kontrolldatan är det
+ * inte omdömena som förlorar skyddet, det är hela databasen.
+ *
+ * Åtskillnaden byggs i fyra lager, och inget av dem räcker ensamt:
+ *
+ *   1. Egen databas i egen mening. Omdömen ligger i schemat `community`, utan
+ *      en enda främmande nyckel till kontrolldatan. Se schema_community.sql.
+ *   2. Förhandsgranskning utan undantag. Ett omdöme är osynligt för alla utom
+ *      sin författare tills en människa släppt fram det, och det är en
+ *      radsäkerhetspolicy, inte en regel i den här filen.
+ *   3. Aldrig i ett bygge. Listan nedan är tom i HTML-filen och fylls i
+ *      webbläsaren. Den grundlagsskyddade databasen är det statiska bygget, och
+ *      ingenting en besökare skrivit kommer in i det.
+ *   4. Utskriven åtskillnad för läsaren. Rubrik, förklaring och en linje som
+ *      säger att omdömen inte ingår i bedömningen.
+ *
+ * ---------------------------------------------------------------------------
+ * INGEN STRUKTURERAD DATA. NÅGONSIN.
+ * ---------------------------------------------------------------------------
+ * Ingen `Review`, ingen `AggregateRating`, inget `ratingValue`. Bedömningen på
+ * sidan bygger på myndighetsdata; att märka upp den som recensioner bryter mot
+ * Googles policy och riskerar manuell åtgärd. Grinden i
+ * .github/workflows/kontroll.yml fäller bygget om orden dyker upp i utfallet.
+ *
+ * Det är också skälet att omdömen INTE har något stjärnbetyg. Ett tal är den
+ * enda ingrediens som saknas för att någon en dag ska räkna ihop ett snitt och
+ * märka upp det. Finns talet inte kan misstaget inte begås.
+ */
+import InfoTip from './InfoTip.astro';
+// Fält, notisrutor och den tysta knappen delas med kontosidorna.
+import '../styles/konto.css';
+
+interface Props {
+  establishmentId: string;
+  establishmentName: string;
+  municipalitySlug: string;
+}
+
+const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
+---
+
+<section
+  class="reviews"
+  id="omdomen"
+  data-establishment={establishmentId}
+  data-name={establishmentName}
+  data-kommun={municipalitySlug}
+>
+  <h2 class="head">
+    Besökarnas omdömen
+    <InfoTip
+      label="omdömen"
+      text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme läses av redaktionen innan det publiceras."
+    />
+  </h2>
+
+  <p class="apart">
+    Omdömen är besökarnas egna ord och ingår <b>inte</b> i hygienbedömningen
+    ovan. Den bygger på kommunens kontroller och räknas fram enligt vår
+    publicerade <a href="/metodik/">metodik</a>. Alla omdömen granskas av
+    redaktionen innan de publiceras.
+  </p>
+
+  {/* Tom i HTML-filen med avsikt. Fylls i webbläsaren, aldrig vid bygget. */}
+  <div id="review-list" class="list"></div>
+
+  <p class="empty text-secondary" id="review-empty">
+    Inga publicerade omdömen om {establishmentName} än.
+  </p>
+
+  <div class="write">
+    <button type="button" class="btn-quiet" id="review-open" hidden>
+      Skriv ett omdöme
+    </button>
+
+    <form id="review-form" novalidate hidden>
+      <label class="field">
+        <span>
+          Ditt omdöme
+          <span class="hint">
+            Minst 20 tecken. Skriv om ditt eget besök. Namnge inte personal,
+            och skriv inget du inte själv upplevt.
+          </span>
+        </span>
+        <textarea name="body" maxlength="2000" required></textarea>
+      </label>
+
+      <p class="notice notice-error" id="review-error" hidden role="alert"></p>
+
+      <div class="konto-actions">
+        <button type="submit" class="btn-primary" id="review-submit">Skicka in</button>
+        <button type="button" class="btn-quiet" id="review-cancel">Avbryt</button>
+      </div>
+
+      <p class="konto-legal">
+        Omdömet publiceras först sedan redaktionen läst det, och publiceras då
+        ordagrant. Vi ändrar aldrig i din text. Du kan ta bort ditt omdöme när
+        du vill från <a href="/konto/">ditt konto</a>. Läs
+        <a href="/villkor/">villkoren</a> innan du skriver.
+      </p>
+    </form>
+
+    <p class="notice notice-wait" id="review-mine" hidden role="status"></p>
+  </div>
+</section>
+
+<style>
+  .head {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    display: flex;
+    align-items: center;
+  }
+
+  /* Den visuella åtskillnaden. Omdömena ligger indragna bakom en egen
+     vänsterlinje så att ögat ser att blocket hör till en annan sorts
+     innehåll än kontrolldatan ovanför. */
+  .apart {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .apart b { font-weight: 600; color: var(--text); }
+
+  .list {
+    margin-top: var(--s-4);
+    border-left: 2px solid var(--hairline);
+    padding-left: var(--s-4);
+  }
+
+  .list:empty { display: none; }
+
+  .empty {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .write { margin-top: var(--s-4); }
+
+  .write[hidden] { display: none; }
+</style>
+
+<script>
+  import {
+    configured,
+    signedIn,
+    publishedReviews,
+    myReview,
+    submitReview,
+    CommunityError,
+  } from '../lib/community';
+  import { openSignIn } from '../lib/signin-dialog';
+
+  const section = document.getElementById('omdomen');
+  if (section) {
+    const place = {
+      id: section.dataset.establishment ?? '',
+      name: section.dataset.name ?? '',
+      municipalitySlug: section.dataset.kommun ?? '',
+    };
+
+    const list = document.getElementById('review-list') as HTMLDivElement;
+    const empty = document.getElementById('review-empty') as HTMLParagraphElement;
+    const open = document.getElementById('review-open') as HTMLButtonElement;
+    const form = document.getElementById('review-form') as HTMLFormElement;
+    const cancel = document.getElementById('review-cancel') as HTMLButtonElement;
+    const submit = document.getElementById('review-submit') as HTMLButtonElement;
+    const error = document.getElementById('review-error') as HTMLParagraphElement;
+    const mine = document.getElementById('review-mine') as HTMLParagraphElement;
+
+    const dates = new Intl.DateTimeFormat('sv-SE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    /**
+     * Byggs med textContent, aldrig med innerHTML.
+     *
+     * Texten kommer från en främmande människa. Att den passerat moderering
+     * gör den inte till markup, och en moderator som klistrar in något hen
+     * inte läst noga ska inte kunna köra skript på sidan.
+     */
+    function render(rows: Array<{ id: string; body: string; author: string; created_at: string }>) {
+      list.textContent = '';
+      for (const row of rows) {
+        const item = document.createElement('article');
+        item.className = 'review';
+
+        const meta = document.createElement('p');
+        meta.className = 'caption text-muted';
+        meta.textContent = `${row.author}, ${dates.format(new Date(row.created_at))}`;
+
+        const body = document.createElement('p');
+        body.className = 'review-body';
+        body.textContent = row.body;
+
+        item.append(meta, body);
+        list.append(item);
+      }
+      empty.hidden = rows.length > 0;
+    }
+
+    async function start() {
+      if (!configured) {
+        empty.textContent = 'Omdömen är inte påslagna på den här installationen.';
+        return;
+      }
+
+      try {
+        render(await publishedReviews(place.id));
+      } catch {
+        empty.textContent = 'Omdömena kunde inte hämtas just nu.';
+      }
+
+      // Knappen visas ALLTID, även utloggad. Trycker någon utloggad öppnas
+      // inloggningsrutan och formuläret fälls ut när den stängs. Det är
+      // samma princip som i sidopanelen: inloggning är ett steg på vägen,
+      // aldrig ett hinder som visas i stället för handlingen.
+      open.hidden = false;
+
+      if (!(await signedIn())) {
+        open.addEventListener(
+          'click',
+          async () => {
+            if (!(await openSignIn(open))) return;
+            // Klicket var redan gjort. Formuläret ska fällas ut direkt, inte
+            // vänta på ännu ett klick på samma knapp.
+            await afterSignIn(true);
+          },
+          { once: true },
+        );
+        return;
+      }
+
+      await afterSignIn(false);
+    }
+
+    /** Läget för den som är inloggad: eget omdöme, eller ett formulär. */
+    async function afterSignIn(openNow: boolean) {
+      // Ett omdöme per person och verksamhet. Har man redan skrivit ett visas
+      // dess läge i stället för ett formulär som ändå skulle avvisas.
+      let existing = null;
+      try {
+        existing = await myReview(place.id);
+      } catch {
+        /* Går inte att läsa. Formuläret visas, databasen avgör. */
+      }
+
+      if (existing) {
+        const label =
+          existing.status === 'pending'
+            ? '<b>Väntar.</b> Ditt omdöme är inskickat och väntar på granskning.'
+            : existing.status === 'published'
+              ? '<b>Klart.</b> Ditt omdöme är publicerat.'
+              : `<b>Avslaget.</b> ${existing.rejection_reason ?? 'Omdömet publicerades inte.'}`;
+        mine.innerHTML = `${label} <a href="/konto/">Hantera det på ditt konto</a>.`;
+        mine.className =
+          existing.status === 'published' ? 'notice notice-ok' : 'notice notice-wait';
+        mine.hidden = false;
+        open.hidden = true;
+        return;
+      }
+
+      function reveal() {
+        open.hidden = true;
+        form.hidden = false;
+        (form.elements.namedItem('body') as HTMLTextAreaElement).focus();
+      }
+
+      open.hidden = false;
+      open.addEventListener('click', reveal);
+
+      cancel.addEventListener('click', () => {
+        form.hidden = true;
+        open.hidden = false;
+        open.focus();
+      });
+
+      if (openNow) reveal();
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        error.hidden = true;
+
+        const body = String(new FormData(form).get('body') ?? '').trim();
+        if (body.length < 20) {
+          error.innerHTML = '<b>Fel.</b> Skriv minst 20 tecken.';
+          error.hidden = false;
+          return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = 'Skickar';
+
+        try {
+          await submitReview(place, body);
+          form.hidden = true;
+          mine.innerHTML =
+            '<b>Väntar.</b> Tack. Omdömet är inskickat och publiceras ordagrant ' +
+            'om redaktionen släpper fram det.';
+          mine.hidden = false;
+        } catch (err) {
+          error.innerHTML = `<b>Fel.</b> ${
+            err instanceof CommunityError ? err.message : 'Kunde inte skicka omdömet.'
+          }`;
+          error.hidden = false;
+          submit.disabled = false;
+          submit.textContent = 'Skicka in';
+        }
+      });
+    }
+
+    void start();
+  }
+</script>
+
+<style is:global>
+  /* Global eftersom noderna byggs i skript och därför saknar Astros
+     scope-attribut. Håll selektorerna under .reviews. */
+  .reviews .review + .review {
+    margin-top: var(--s-4);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .reviews .review-body {
+    margin-top: var(--s-1);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+</style>
