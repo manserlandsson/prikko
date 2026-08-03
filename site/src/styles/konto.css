@@ -1,7 +1,25 @@
 /* Formulär och kontoytor.
    Egen fil i stället för scopeade stilar per sida: samma fält återkommer på
    fem kontosidor och i panelen på verksamhetssidan, och Astros scoping korsar
-   inte komponentgränser. Alla värden kommer ur tokens.css. */
+   inte komponentgränser. Alla värden kommer ur tokens.css.
+
+   Filen laddas via SignInDialog, som ligger i baslayouten, och är alltså
+   global på hela sajten. Nya klassnamn måste vara unika nog att inte krocka
+   med en komponents egna. */
+
+/* `hidden` betyder dold. Här, och överallt.
+
+   Webbläsarens egen regel är `[hidden] { display: none }`, och den har samma
+   specificitet som en klass. Varje `display` på en klass i den här filen slog
+   alltså ut den, och en knapp koden trodde var borta stod kvar på sidan. Det
+   är den värsta sortens fel, och det har rättats fyra gånger, en klass i
+   taget: .notice, .konto-actions, .btn-primary, .btn-quiet.
+
+   Den femte gången tas här i stället, en gång för alla. `!important` behövs
+   eftersom en scopad Astro-selektor bär ett attribut extra och därmed alltid
+   väger tyngre än en ren klass. Ingen yta på sajten visar något med `hidden`
+   kvar på det, så regeln kan bara rätta. */
+[hidden] { display: none !important; }
 
 .konto-page {
   max-width: 460px;
@@ -11,6 +29,19 @@
 
 .konto-wide {
   max-width: var(--readcol);
+}
+
+/* Sidhuvudet står utanför korten.
+   En rubrik inuti den första rutan gör rutan till sidans titelblock, och då
+   ser resten ut som fotnoter till den. Måtten är sajtens sidrubrik, samma som
+   på /sok/. */
+.konto-head {
+  margin-bottom: var(--s-6);
+}
+
+.konto-head h1 {
+  font-size: 34px;
+  line-height: 38px;
 }
 
 .konto-card {
@@ -38,6 +69,29 @@
   font-size: var(--fs-body-s);
   line-height: var(--lh-body-s);
   color: var(--text-secondary);
+}
+
+/* Den tysta raden under en rubrik. Mindre än .konto-lead, för det den bär är
+   ett villkor och inte en inledning. */
+.konto-sub {
+  margin-top: var(--s-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* Rubrikraden i ett kontokort: rubrik till vänster, vägen vidare till höger. */
+.konto-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.konto-bar a {
+  flex: none;
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
 }
 
 /* Fält */
@@ -107,19 +161,17 @@
 
 .btn-quiet:hover { background: var(--canvas); text-decoration: none; }
 
+/* Radens knapp. Samma knapp, mindre yta: den hör till en rad i en lista och
+   ska inte väga lika mycket som sidans egen åtgärd. */
+.btn-tight {
+  padding: 7px 14px;
+  font-size: var(--fs-caption);
+}
+
 button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
   opacity: .45;
   cursor: not-allowed;
 }
-
-/* `hidden` måste vinna över display-reglerna ovanför.
-   Webbläsarens egen regel för attributet är `[hidden] { display: none }`, och
-   den har lägre specificitet än en klass. En knapp med `hidden` syntes därför
-   ändå, vilket är den värsta sortens fel: sidan visar en kontroll som koden
-   tror är borta. Samma sak stod redan på .notice; här är resten. */
-.konto-actions[hidden],
-.btn-primary[hidden],
-.btn-quiet[hidden] { display: none; }
 
 /* Meddelanden.
    Färg räcker aldrig som budskap (8 % av män är färgblinda, se tokens.css),
@@ -132,8 +184,6 @@ button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
   line-height: var(--lh-body-s);
   border: 1px solid var(--hairline);
 }
-
-.notice[hidden] { display: none; }
 
 .notice b { font-weight: 600; }
 
@@ -152,40 +202,102 @@ button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
   color: var(--verdict-minor-ink);
 }
 
-.konto-links {
-  margin-top: var(--s-6);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--hairline);
-  font-size: var(--fs-body-s);
-  line-height: var(--lh-body-s);
-  color: var(--text-secondary);
-}
-
-.konto-links a + a { margin-left: var(--s-3); }
-
+/* Listor.
+   Kontosidans grundform: en rubrik och rader. Linjen ligger på listan och
+   mellan raderna, aldrig runt varje rad; en rad är inte ett kort. */
 .konto-list {
   list-style: none;
   margin: var(--s-4) 0 0;
   padding: 0;
+  border-top: 1px solid var(--hairline);
 }
 
 .konto-list li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-4);
   padding: var(--s-3) 0;
-  font-size: var(--fs-body-s);
-  line-height: var(--lh-body-s);
 }
 
 .konto-list li + li { border-top: 1px solid var(--hairline); }
+
+/* Vänsterdelen: titel och en tyst rad under. min-width: 0 måste stå ut, annars
+   vägrar ett flexbarn krympa under sitt innehåll och ett långt namn trycker ut
+   knappen ur raden. */
+.konto-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text);
+}
+
+.konto-main b {
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+a.konto-main:hover { text-decoration: none; }
+a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
+
+.konto-meta {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Omdömestexten. Två rader räcker för att känna igen vilket omdöme det är;
+   hela texten hör hemma där den publiceras. Klippet görs i CSS och inte med
+   en teckengräns i skriptet, så det följer radbredden i stället för att gissa
+   den. */
+.konto-quote {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* Redaktionens skäl vid ett avslag. Mörkare än texten den gäller: det är det
+   enda på raden man kan göra något åt. */
+.konto-why {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* Högerdelen: status och åtgärd. Krymper aldrig. */
+.konto-side {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+}
 
 .konto-empty {
   margin-top: var(--s-3);
   font-size: var(--fs-body-s);
   color: var(--text-secondary);
 }
+
+/* Betyget. Samma form som besökarnas stjärnor på verksamhetssidan, och aldrig
+   samma form som kommunens bedömning: stjärnor här, ansikte där. */
+.konto-stars {
+  font-size: 14px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.konto-stars .on { color: #E8A33D; }
+.konto-stars .off { color: rgba(0, 0, 0, .16); }
 
 .status-tag {
   font-size: var(--fs-eyebrow);
@@ -214,4 +326,13 @@ button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
 
 @media (max-width: 600px) {
   .konto-card { padding: var(--s-6) var(--s-4); }
+  .konto-head h1 { font-size: 28px; line-height: 32px; }
+}
+
+/* På smal skärm får raden brytas. Titeln tar hela bredden och status och
+   knapp lägger sig under den, i stället för att två pillerknappar och ett
+   namn ska samsas om 300 px. */
+@media (max-width: 520px) {
+  .konto-list li { flex-wrap: wrap; gap: var(--s-2); }
+  .konto-main { flex-basis: 100%; }
 }

@@ -9,76 +9,113 @@
  * Utloggad möts man av en knapp, inte av en ruta som poppar upp. Det är samma
  * regel som gäller överallt: inloggning utlöses av ett tryck, aldrig av en
  * sidladdning.
+ *
+ * ---------------------------------------------------------------------------
+ * ORDNINGEN PÅ SIDAN
+ * ---------------------------------------------------------------------------
+ * Bevakningar, omdömen, verksamheter, bilder, kontot. Det man kommer hit för
+ * står först och det administrativa sist, och varje avsnitt har samma
+ * uppbyggnad: en rubrik och rader. Sidan hade tidigare fyra rutor som var och
+ * en förklarade sig själv i ett stycke innan den visade något.
+ *
+ * De två första avsnitten står kvar även när de är tomma, för de säger vad
+ * kontot är till för. Anspråk och bilder ritas bara när de finns: en
+ * uppladdning kräver ett godkänt anspråk, så för nästan alla är de två
+ * avsnitten en beskrivning av något de inte kan göra.
  */
 import Base from '../../layouts/Base.astro';
+import { municipalities } from '../../lib/data';
 import '../../styles/konto.css';
+
+/*
+ * Kommunens namn, slagen på slug.
+ *
+ * Bevakningsraden lagrar bara `municipality_slug`, och en slug är inte ett
+ * namn: "malmo" ska stå som "Malmö". Kartan är en rad per kommun i beståndet
+ * och bakas in i sidan; alternativet hade varit att skicka en fråga till
+ * databasen för något som är känt vid bygget.
+ */
+const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]));
 ---
 
 <Base title="Ditt konto" description="Ditt konto på Prikko." noindex>
   <div class="container konto-page konto-wide">
-    {/* Utloggad */}
-    <div class="konto-card" id="guest" hidden>
-      <h1>Ditt konto</h1>
-      <p class="konto-lead">
-        Logga in för att se dina bevakade verksamheter, dina omdömen och dina
-        ansökningar. Att läsa Prikko kräver aldrig konto.
-      </p>
+    {/* Utloggad. Ingen ruta: en rubrik och en knapp. */}
+    <div id="guest" hidden>
+      <header class="konto-head">
+        <h1>Ditt konto</h1>
+        <p class="konto-sub">Här ligger dina bevakningar och dina omdömen.</p>
+      </header>
       <div class="konto-actions">
         <button type="button" class="btn-primary" id="signin">Logga in eller bli medlem</button>
       </div>
     </div>
 
     {/* Inloggad */}
-    <div class="konto-card" id="account" hidden>
-      <h1>Ditt konto</h1>
-      <p class="konto-lead" id="who"></p>
+    <div id="account" hidden>
+      <header class="konto-head">
+        <h1>Ditt konto</h1>
+      </header>
 
-      <p class="notice notice-error" id="error" hidden role="alert"></p>
+      <section class="konto-card">
+        <div class="konto-bar">
+          <h2>Bevakningar</h2>
+          <a href="/sok/">Sök verksamhet</a>
+        </div>
+        {/* Vad bevakningen gör, i en rad. Raden sade tidigare att vi inte
+            skickar några utskick, vilket slutade vara sant den natt
+            notify.py började mejla. */}
+        <p class="konto-sub">
+          Vi mejlar när kommunen hittar nya anmärkningar hos någon av dem.
+        </p>
+        <ul class="konto-list" id="follows"></ul>
+        <p class="konto-empty" id="follows-empty">Du bevakar ingen verksamhet än.</p>
+      </section>
 
-      {/* Inget visningsnamn. Omdömen är anonyma och publiceras som
-          "Besökare", så ett namnfält hade varit en kontroll utan verkan. */}
+      <section class="konto-card">
+        <div class="konto-bar">
+          <h2>Dina omdömen</h2>
+        </div>
+        {/* Omdömen är anonyma. Inget visningsnamn, ingen författarrad, och
+            därför inget namnfält någonstans på den här sidan. */}
+        <p class="konto-sub">Publiceras anonymt och ordagrant efter granskning.</p>
+        <ul class="konto-list" id="reviews"></ul>
+        <p class="konto-empty" id="reviews-empty">Du har inte skrivit något omdöme än.</p>
+      </section>
 
-      <div class="konto-actions">
-        <button type="button" class="btn-quiet" id="signout">Logga ut</button>
-      </div>
-    </div>
+      <section class="konto-card" id="claims-card" hidden>
+        <div class="konto-bar">
+          <h2>Verksamheter du företräder</h2>
+        </div>
+        <ul class="konto-list" id="claims"></ul>
+      </section>
 
-    <div class="konto-card" id="follows-card" hidden>
-      <h2>Bevakade verksamheter</h2>
-      {/* Vad bevakningen gör, inte bara vad den inte gör. Raden sade tidigare
-          att vi inte skickar några utskick, och det stämmer inte längre: vi
-          mejlar när kommunen hittar anmärkningar. Att den formuleringen stod
-          kvar hade varit ett löfte vi bryter varje natt. */}
-      <p class="konto-lead">
-        Din egen lista, som ingen annan ser. Vi mejlar dig när kommunen hittar
-        anmärkningar hos någon av dem, och aldrig annars.
-        <a href="/sok/">Sök upp fler</a>.
-      </p>
-      <ul class="konto-list" id="follows"></ul>
-      <p class="konto-empty" id="follows-empty">Du bevakar ingen verksamhet än.</p>
-    </div>
+      <section class="konto-card" id="uploads-card" hidden>
+        <div class="konto-bar">
+          <h2>Dina bilder</h2>
+        </div>
+        <ul class="konto-list" id="uploads"></ul>
+      </section>
 
-    <div class="konto-card" id="reviews-card" hidden>
-      <h2>Dina omdömen</h2>
-      <p class="konto-lead">
-        Omdömen granskas av redaktionen innan de publiceras, och publiceras då
-        ordagrant. Du kan ta bort ditt omdöme när du vill, även efter att det
-        publicerats.
-      </p>
-      <ul class="konto-list" id="reviews"></ul>
-      <p class="konto-empty" id="reviews-empty">Du har inte skrivit något omdöme än.</p>
-    </div>
-
-    <div class="konto-card" id="claims-card" hidden>
-      <h2>Verksamheter du företräder</h2>
-      <ul class="konto-list" id="claims"></ul>
-      <p class="konto-empty" id="claims-empty">
-        Du har inte ansökt om att företräda någon verksamhet. Ansökan görs från
-        verksamhetens egen sida.
-      </p>
+      <section class="konto-card">
+        <div class="konto-bar">
+          <h2>Kontot</h2>
+        </div>
+        <ul class="konto-list">
+          <li>
+            <div class="konto-main">
+              <b id="who"></b>
+            </div>
+            <div class="konto-side">
+              <button type="button" class="btn-quiet btn-tight" id="signout">Logga ut</button>
+            </div>
+          </li>
+        </ul>
+      </section>
     </div>
   </div>
 
+  <script type="application/json" id="cities" set:html={JSON.stringify(cities)} />
 </Base>
 
 <script>
@@ -93,45 +130,117 @@ import '../../styles/konto.css';
     myReviews,
     deleteReview,
     claims,
-    CommunityError,
+    uploads,
   } from '../../lib/community';
   import { openSignIn } from '../../lib/signin-dialog';
 
   const guest = document.getElementById('guest') as HTMLDivElement;
   const account = document.getElementById('account') as HTMLDivElement;
-  const who = document.getElementById('who') as HTMLParagraphElement;
-  const error = document.getElementById('error') as HTMLParagraphElement;
+  const who = document.getElementById('who') as HTMLElement;
   const signinButton = document.getElementById('signin') as HTMLButtonElement;
   const signoutButton = document.getElementById('signout') as HTMLButtonElement;
 
-  const followsCard = document.getElementById('follows-card') as HTMLDivElement;
   const followList = document.getElementById('follows') as HTMLUListElement;
   const followEmpty = document.getElementById('follows-empty') as HTMLParagraphElement;
 
-  const reviewsCard = document.getElementById('reviews-card') as HTMLDivElement;
   const reviewList = document.getElementById('reviews') as HTMLUListElement;
   const reviewEmpty = document.getElementById('reviews-empty') as HTMLParagraphElement;
 
-  const claimsCard = document.getElementById('claims-card') as HTMLDivElement;
+  const claimsCard = document.getElementById('claims-card') as HTMLElement;
   const claimList = document.getElementById('claims') as HTMLUListElement;
-  const claimEmpty = document.getElementById('claims-empty') as HTMLParagraphElement;
 
-  const STATUS_LABEL: Record<string, string> = {
-    pending: 'Väntar på granskning',
+  const uploadsCard = document.getElementById('uploads-card') as HTMLElement;
+  const uploadList = document.getElementById('uploads') as HTMLUListElement;
+
+  const CITIES: Record<string, string> = JSON.parse(
+    document.getElementById('cities')?.textContent || '{}',
+  );
+
+  /**
+   * Etiketterna för moderering skiljer sig åt mellan avsnitten, och det är
+   * inte kosmetika. `published` på ett anspråk betyder att redaktionen
+   * godkänt att du företräder verksamheten, inte att något publicerats.
+   * Kontosidan sade "Publicerat" i båda fallen.
+   */
+  const REVIEW_STATUS: Record<string, string> = {
+    pending: 'Granskas',
     published: 'Publicerat',
     rejected: 'Avslaget',
   };
 
-  function show(message: string) {
-    error.innerHTML = `<b>Fel.</b> ${message}`;
-    error.hidden = false;
-  }
+  const CLAIM_STATUS: Record<string, string> = {
+    pending: 'Granskas',
+    published: 'Godkänt',
+    rejected: 'Avslaget',
+  };
 
-  function tag(status: string): HTMLSpanElement {
+  const IMAGE_STATUS: Record<string, string> = {
+    pending: 'Granskas',
+    published: 'Publicerad',
+    rejected: 'Avslagen',
+  };
+
+  function tag(status: string, labels: Record<string, string>): HTMLSpanElement {
     const span = document.createElement('span');
     span.className = `status-tag status-${status}`;
-    span.textContent = STATUS_LABEL[status] ?? status;
+    span.textContent = labels[status] ?? status;
     return span;
+  }
+
+  /** Vänsterdelen av en rad: fet titel och en tyst rad under. */
+  function main(title: string, meta: string, href?: string): HTMLElement {
+    const box = document.createElement(href ? 'a' : 'div');
+    box.className = 'konto-main';
+    if (href) (box as HTMLAnchorElement).href = href;
+
+    const strong = document.createElement('b');
+    strong.textContent = title;
+    box.append(strong);
+
+    if (meta) {
+      const small = document.createElement('span');
+      small.className = 'konto-meta';
+      small.textContent = meta;
+      box.append(small);
+    }
+    return box;
+  }
+
+  function side(...nodes: Node[]): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'konto-side';
+    box.append(...nodes);
+    return box;
+  }
+
+  function quietButton(label: string, run: () => Promise<void>): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn-quiet btn-tight';
+    button.textContent = label;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      try {
+        await run();
+      } catch {
+        button.disabled = false;
+      }
+    });
+    return button;
+  }
+
+  /* Bevakningar ------------------------------------------------------- */
+
+  /*
+   * Verksamheten når man via sökningen och inte direkt.
+   *
+   * `follows` lagrar namn och kommun, aldrig verksamhetens slug, och slugen
+   * går inte att räkna fram ur namnet i webbläsaren. Sökningen med namnet
+   * ifyllt är den ärliga vägen; en länk rakt till kommunsidan hade sett ut
+   * som en länk till stället.
+   */
+  function searchUrl(name: string): string {
+    return `/sok/?q=${encodeURIComponent(name)}`;
   }
 
   async function paintFollows() {
@@ -139,35 +248,47 @@ import '../../styles/konto.css';
     try {
       rows = await follows();
     } catch {
+      followEmpty.textContent = 'Bevakningarna kunde inte hämtas. Ladda om sidan.';
       return;
     }
+
     followList.textContent = '';
     for (const row of rows) {
       const li = document.createElement('li');
-
-      const link = document.createElement('a');
-      link.href = `/${row.municipality_slug}/`;
-      link.textContent = row.establishment_name;
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'btn-quiet';
-      remove.textContent = 'Sluta följa';
-      remove.addEventListener('click', async () => {
-        remove.disabled = true;
-        try {
-          await unfollow(row.establishment_id);
-          li.remove();
-          followEmpty.hidden = followList.children.length > 0;
-        } catch {
-          remove.disabled = false;
-        }
-      });
-
-      li.append(link, remove);
+      li.append(
+        main(
+          row.establishment_name,
+          CITIES[row.municipality_slug] ?? row.municipality_slug,
+          searchUrl(row.establishment_name),
+        ),
+        side(
+          quietButton('Sluta bevaka', async () => {
+            await unfollow(row.establishment_id);
+            li.remove();
+            followEmpty.hidden = followList.children.length > 0;
+          }),
+        ),
+      );
       followList.append(li);
     }
     followEmpty.hidden = rows.length > 0;
+  }
+
+  /* Omdömen ----------------------------------------------------------- */
+
+  /** Betyget som stjärnor, samma form som på verksamhetssidan. */
+  function stars(rating: number): HTMLElement {
+    const box = document.createElement('span');
+    box.className = 'konto-stars';
+    box.setAttribute('aria-label', `${rating} av 5`);
+    for (let i = 1; i <= 5; i += 1) {
+      const star = document.createElement('span');
+      star.className = i <= rating ? 'on' : 'off';
+      star.setAttribute('aria-hidden', 'true');
+      star.textContent = '★';
+      box.append(star);
+    }
+    return box;
   }
 
   async function paintReviews() {
@@ -175,36 +296,75 @@ import '../../styles/konto.css';
     try {
       rows = await myReviews();
     } catch {
+      reviewEmpty.textContent = 'Omdömena kunde inte hämtas. Ladda om sidan.';
       return;
     }
+
     reviewList.textContent = '';
     for (const row of rows) {
       const li = document.createElement('li');
 
-      const text = document.createElement('span');
-      text.textContent = row.body.slice(0, 90) + (row.body.length > 90 ? '…' : '');
+      const box = document.createElement('div');
+      box.className = 'konto-main';
 
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'btn-quiet';
-      remove.textContent = 'Ta bort';
-      remove.addEventListener('click', async () => {
-        remove.disabled = true;
-        try {
-          await deleteReview(row.id);
-          li.remove();
-          reviewEmpty.hidden = reviewList.children.length > 0;
-        } catch {
-          remove.disabled = false;
-        }
-      });
+      /* Betyget bara när det finns. Ett omdöme utan siffra är ett fullgott
+         omdöme och ska inte få fem gråa stjärnor som läser som noll av fem. */
+      if (row.rating) box.append(stars(row.rating));
 
-      li.append(text, tag(row.status), remove);
+      /* Texten bara när den finns. Ett omdöme kan vara enbart ett betyg sedan
+         ägaren beslutat att stjärnorna räcker, och en tom citatrad hade sett
+         ut som ett omdöme vars text kommit bort. */
+      if (row.body) {
+        const text = document.createElement('p');
+        text.className = 'konto-quote';
+        text.textContent = row.body;
+        box.append(text);
+      }
+
+      /* Skälet till ett avslag hörde hemma här från början. Utan det står det
+         "Avslaget" bredvid en text man inte får veta något om. */
+      if (row.status === 'rejected' && row.rejection_reason) {
+        const why = document.createElement('span');
+        why.className = 'konto-why';
+        /* "Skäl:" står ut. Utan etiketten läses redaktionens mening som en
+           fortsättning på ens egen text, båda är tyst grå caption. */
+        why.textContent = `Skäl: ${row.rejection_reason}`;
+        box.append(why);
+      }
+
+      li.append(
+        box,
+        side(
+          tag(row.status, REVIEW_STATUS),
+          quietButton('Ta bort', async () => {
+            await deleteReview(row.id);
+            li.remove();
+            reviewEmpty.hidden = reviewList.children.length > 0;
+          }),
+        ),
+      );
       reviewList.append(li);
     }
     reviewEmpty.hidden = rows.length > 0;
   }
 
+  /* Anspråk och bilder ------------------------------------------------ */
+
+  function placeUrl(row: { establishment_id: string; municipality_slug: string; establishment_name: string }) {
+    return (
+      `/konto/verksamhet/?id=${encodeURIComponent(row.establishment_id)}` +
+      `&kommun=${encodeURIComponent(row.municipality_slug)}` +
+      `&namn=${encodeURIComponent(row.establishment_name)}`
+    );
+  }
+
+  /**
+   * Anspråken, och bilderna för dem som är godkända.
+   *
+   * Bilderna hämtas per verksamhet eftersom en uppladdning kräver ett godkänt
+   * anspråk; listan över godkända anspråk är alltså hela den mängd som kan ha
+   * bilder. Ingen av rutorna ritas om den är tom.
+   */
   async function paintClaims() {
     let rows: Awaited<ReturnType<typeof claims>> = [];
     try {
@@ -212,32 +372,56 @@ import '../../styles/konto.css';
     } catch {
       return;
     }
+    if (rows.length === 0) return;
+
     claimList.textContent = '';
     for (const row of rows) {
       const li = document.createElement('li');
-
-      const link = document.createElement('a');
-      link.href =
-        `/konto/verksamhet/?id=${encodeURIComponent(row.establishment_id)}` +
-        `&kommun=${encodeURIComponent(row.municipality_slug)}` +
-        `&namn=${encodeURIComponent(row.establishment_name)}`;
-      link.textContent = row.establishment_name;
-
-      li.append(link, tag(row.status));
+      li.append(
+        main(row.establishment_name, CITIES[row.municipality_slug] ?? row.municipality_slug, placeUrl(row)),
+        side(tag(row.status, CLAIM_STATUS)),
+      );
       claimList.append(li);
     }
-    claimEmpty.hidden = rows.length > 0;
+    claimsCard.hidden = false;
+
+    const approved = rows.filter((row) => row.status === 'published');
+    if (approved.length === 0) return;
+
+    const lists = await Promise.all(
+      approved.map(async (row) => {
+        try {
+          return { row, images: await uploads(row.establishment_id) };
+        } catch {
+          return { row, images: [] };
+        }
+      }),
+    );
+
+    uploadList.textContent = '';
+    let any = false;
+    for (const { row, images } of lists) {
+      for (const image of images) {
+        any = true;
+        const li = document.createElement('li');
+        li.append(
+          main(image.caption || 'Utan bildtext', row.establishment_name),
+          side(tag(image.status, IMAGE_STATUS)),
+        );
+        uploadList.append(li);
+      }
+    }
+    uploadsCard.hidden = !any;
   }
+
+  /* Start ------------------------------------------------------------- */
 
   async function loadAccount() {
     guest.hidden = true;
     account.hidden = false;
-    followsCard.hidden = false;
-    reviewsCard.hidden = false;
-    claimsCard.hidden = false;
 
     const user = currentUser();
-    who.textContent = user?.email ? `Inloggad som ${user.email}.` : 'Inloggad.';
+    who.textContent = user?.email ?? 'Du är inloggad';
 
     await Promise.all([paintFollows(), paintReviews(), paintClaims()]);
   }
