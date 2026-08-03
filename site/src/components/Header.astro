@@ -55,7 +55,27 @@ import SiteSearch from './SiteSearch.astro';
 </header>
 
 <style>
+  /* Sidhuvudet ligger ÖVER sidan, inte i den.
+   *
+   * Utan det här målades sökförslagen under innehållet. Kedjan: .site-search
+   * har transform (centreringen nedan), och en transform som inte är none
+   * skapar en egen staplingskontext. Panelens z-index: 50 ordnar därför bara
+   * syskon inne i sökfältet och kan inte ta sig ut. Utåt räknas hela
+   * sidhuvudet som z-index auto, alltså nivå noll, och där avgör
+   * dokumentordning: allt positionerat som kommer senare målas ovanpå.
+   * Kommunsidans hero-scrim gjorde precis det, mitt genom förslagslistan.
+   *
+   * Att lyfta sidhuvudet är rätt lösning och inte en lapp: sidhuvudet ska
+   * ligga överst oavsett vad sidan under innehåller. Det gäller lika mycket
+   * platsväljarens panel, som har samma z-index 50 och samma inneslutning.
+   *
+   * 60 är valt mot skalan som finns: InfoTip 20 är det högsta i innehållet,
+   * panelerna 50 gäller bara inuti sidhuvudet, och skip-länken i Base 100
+   * måste ligga kvar överst av allt. 60 är över allt sidinnehåll med
+   * marginal och under skip-länken med marginal. */
   header {
+    position: relative;
+    z-index: 60;
     background: var(--card);
     border-bottom: 1px solid var(--hairline);
   }
