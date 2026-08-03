@@ -1,0 +1,249 @@
+---
+/**
+ * Rapport: vad anmärkningarna faktiskt gäller.
+ *
+ * Sidans enda påstående är en uppräkning: avvikelserna sorterade på
+ * Livsmedelsverkets lagstiftningsområden. Varje tal, varje andel och varje
+ * rangordning kommer ur deviationAreaReport(). Den fasta texten beskriver
+ * metoden och förbehållen, aldrig utfallet, så att en datakörning som ändrar
+ * mönstret ändrar sidan i stället för att göra den osann.
+ *
+ * Två meningar är därför villkorade på räkningen i stället för skrivna som
+ * fakta: att samma två områden ligger överst i varje kommun, och att inget
+ * annat område kommer i närheten. Slutar det stämma skrivs de inte ut.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import { formatNumber } from '../../lib/data';
+import { deviationAreaReport, formatShare, percent } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = deviationAreaReport();
+
+const [first, second, third] = r.areas;
+
+/** Håller ordningen i varje enskild kommun, eller bara i totalen? */
+const sameOrderEverywhere =
+  first?.letter === 'J' &&
+  second?.letter === 'B' &&
+  r.sources.length > 1 &&
+  r.sources.every((s) => s.hygieneShare > s.informationShare);
+
+/** Är de två största områdena tillsammans större än allt annat? */
+const twoDominate = Boolean(first && second && first.share + second.share > 50);
+
+// Stapelns längd mäts mot det största området, inte mot hundra. Med hundra som
+// skala blir varje stapel utom den första en nästan osynlig stump, och listan
+// slutar bära den jämförelse den finns för.
+const scale = first ? first.count : 1;
+
+/**
+ * Meningar som blandar text och räknade tal byggs som STRÄNGAR, inte som JSX.
+ *
+ * Ett splitsat uttryck i löptext lägger radbrytningen i utfallet, och en
+ * radbrytning före ett skiljetecken blir ett blanksteg: "gör det ; de övriga".
+ * Samma fälla står dokumenterad i metodik.astro.
+ */
+const coverage =
+  `${r.sources.length} av ${r.municipalities} i Prikkos bestånd gör det.` +
+  (r.withoutCodes > 0
+    ? ` De övriga ${r.withoutCodes} lämnar bara ut om kontrollen hade en anmärkning,` +
+      ' inte vad den gällde.'
+    : '') +
+  ` Räkningen nedan omfattar ${formatNumber(r.coded)} avvikelser` +
+  ` vid ${formatNumber(r.inspections)} kontroller.`;
+
+const topTwo =
+  twoDominate && first && second
+    ? `De två största områdena står tillsammans för ` +
+      `${percent(first.count + second.count, r.coded)} procent av alla kodade avvikelser.` +
+      (third
+        ? ` Det tredje största, ${third.name}, ligger på ${percent(third.count, r.coded)} procent.`
+        : '')
+    : null;
+
+const sameOrderSentence = sameOrderEverywhere
+  ? `Hygien är största området och livsmedelsinformation det näst största i samtliga ` +
+    `${r.sources.length} kommuner. Fördelningen är alltså inte en effekt av att en kommun ` +
+    'väger tyngre än de andra.'
+  : null;
+---
+
+<Rapport slug="vad-anmarkningarna-galler">
+  <section>
+    <h2>Kommunen kodar varje avvikelse</h2>
+    <p>
+      När en inspektör noterar en avvikelse kopplas den till en
+      rapporteringspunkt i Livsmedelsverkets indelning av lagstiftningen.
+      Punkten börjar med en bokstav som anger området: J är hygien, B är
+      information om livsmedel, K är verksamhetens egen faroanalys. Det är
+      samma indelning i hela landet, och den är kommunens egen notering, inte
+      vår tolkning.
+    </p>
+    <p>Alla kommuner publicerar den inte. {coverage}</p>
+    <p class="callout">
+      Talen räknar <strong>avvikelser</strong>, inte verksamheter och inte
+      kontroller. En kontroll som fick tre anmärkningar bidrar med tre rader.
+      Det är den enda räkning som svarar på frågan vad anmärkningarna handlar
+      om, men den betyder alltså inte att så många verksamheter berörs.
+    </p>
+  </section>
+
+  <section>
+    <h2>Områdena, störst först</h2>
+    <ul class="areas">
+      {r.areas.map((a) => (
+        <li>
+          <div class="row">
+            <span class="name">{a.name}</span>
+            <span class="num">{percent(a.count, r.coded)} %</span>
+          </div>
+          <div class="track">
+            <div class="bar" style={`width: ${(a.count / scale) * 100}%`}></div>
+          </div>
+          <p class="text-secondary note">
+            {a.explanation} {formatNumber(a.count)} avvikelser.
+          </p>
+        </li>
+      ))}
+    </ul>
+    {topTwo && <p>{topTwo}</p>}
+    <p>
+      Det andra området är värt att stanna vid.{' '}
+      <strong>{second?.name}</strong> handlar inte om hur rent det är i köket
+      utan om vad som står på skylten och i menyn: ingredienser, allergener,
+      ursprung, vikt och pris. En verksamhet kan alltså ha fått en anmärkning
+      vid sin hygienkontroll utan att något varit smutsigt.
+    </p>
+    <p>
+      Det är också skälet till att Prikko aldrig graderar allvar. Bedömningen
+      säger vad kommunen konstaterade och om det åtgärdades, inte hur illa det
+      var. <a href={path('metodik')}>Metodiken är publicerad i sin helhet</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Håller mönstret i varje kommun?</h2>
+    <p>
+      En totalsumma kan bäras av en enda stor kommun. Därför står varje källa
+      för sig här, med de två största områdenas andel av just den kommunens
+      avvikelser.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Kommun</th>
+          <th class="num">Avvikelser</th>
+          <th class="num">Hygien</th>
+          <th class="num">Livsmedelsinformation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {r.sources.map((s) => (
+          <tr>
+            <td><a href={path(s.slug)}>{s.city}</a></td>
+            <td class="num">{formatNumber(s.count)}</td>
+            <td class="num">{formatShare(s.hygieneShare)} %</td>
+            <td class="num">{formatShare(s.informationShare)} %</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {sameOrderSentence && <p>{sameOrderSentence}</p>}
+    <p class="callout">
+      Tabellen är i bokstavsordning och är ingen rangordning. Andelarna säger
+      vad kommunen noterar och kodar, inte hur ren en stad är. Kommunerna
+      arbetar olika, och
+      {' '}<a href={`${path('metodik')}#jamfor`}>varför de inte går att jämföra
+      med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Den säger inget om allvar. Ett område är inte värre än ett annat för
+        att det är större, och en enskild avvikelse i hygienområdet kan gälla
+        allt från en trasig list till en bruten kylkedja.
+      </li>
+      <li>
+        Den täcker bara de kommuner som publicerar koden. Vad avvikelserna i
+        de övriga kommunerna gällde vet vi inte, och vi antar ingenting om dem.
+      </li>
+      {r.uncoded > 0 && (
+        <li>
+          {formatNumber(r.uncoded)} avvikelser saknar en kod vi kan tolka. De
+          är utelämnade helt i stället för att läggas i en restpost.
+        </li>
+      )}
+      <li>
+        Vi räknar på bokstaven, inte på hela rapporteringspunkten. Ett par
+        kommuner publicerar hela punkten, men Stockholm publicerar bara
+        bokstaven, och bokstaven är den enda upplösning alla källor delar.
+      </li>
+      <li>
+        Kontrollerna sträcker sig över flera år, och kommunerna har inte
+        kontrollerat lika mycket varje år. Räkningen är en summa över hela
+        perioden, inte en bild av ett enskilt år.
+      </li>
+    </ul>
+  </section>
+</Rapport>
+
+<style>
+  .areas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .areas li {
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .areas li:last-child {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .row {
+    display: flex;
+    gap: var(--s-4);
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Spåret bär ingen information, bara stapelns skala. Därför en yta utan
+     kant: kanten skulle läsa som en nivå att jämföra mot. */
+  .track {
+    margin-top: var(--s-2);
+    height: 8px;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .bar {
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    /* Ett område med en handfull avvikelser ska synas som en strimma, inte
+       försvinna. Utan minsta bredd blir de sex minsta raderna tomma spår. */
+    min-width: 2px;
+  }
+
+  .note {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+</style>

@@ -1,0 +1,225 @@
+---
+/**
+ * Layout för en rapport.
+ *
+ * Finns för att de tre sakerna som gör en rapport publicerbar inte får vara
+ * upp till varje sidmall: egen title, egen description och kanonisk URL. Base
+ * sätter canonical ur sökvägen, men titeln och beskrivningen skrivs för hand i
+ * varje mall. En rapport som får en generisk beskrivning, eller ärver en
+ * annans, är precis den tunna sidan kvalitetsgrinden finns för att stoppa.
+ *
+ * Därför läser den här layouten allt ur REPORTS i lib/rapporter.ts. En rapport
+ * kan alltså inte publiceras utan att först ha en egen post i registret, och
+ * registret är samma källa som indexsidan listar ur. De kan inte glida isär.
+ *
+ * Foten längst ned står på varje rapport och är inte dekoration. Den säger vad
+ * läsaren behöver veta för att kunna lita på talen: att de är räknade vid
+ * bygget och inte skrivna för hand, vilket datum underlaget hämtades, och var
+ * hela metoden ligger.
+ */
+import Base from './Base.astro';
+import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
+import { dataUpdated, report } from '../lib/rapporter';
+import { coverage, formatDate, formatNumber } from '../lib/data';
+
+interface Props {
+  /** Nyckel i REPORTS. Allt annat härleds ur den. */
+  slug: string;
+}
+
+const { slug } = Astro.props;
+const r = report(slug);
+const updated = dataUpdated();
+const total = coverage();
+
+/**
+ * `@type: Report` och inte `Article`.
+ *
+ * Rapporten är en sammanställning av en datamängd, inte en artikel med en
+ * mänsklig avsändare, och schema.org har en egen typ för just det. `author`
+ * är organisationen av samma skäl: en byline med ett personnamn hade påstått
+ * att någon skrivit slutsatserna, och de är räknade.
+ *
+ * `isBasedOn` pekar på källsidan, som redan bär datamängdens egen JSON-LD.
+ * Det är den länk som gör kedjan sluten för en läsare som bara ser
+ * strukturerad data.
+ */
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Report',
+  headline: r.title,
+  description: r.description,
+  inLanguage: 'sv-SE',
+  datePublished: r.published,
+  dateModified: updated,
+  url: absolute('rapporter', r.slug),
+  author: { '@type': 'Organization', name: SITE.legalName },
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  isBasedOn: {
+    '@type': 'Dataset',
+    name: 'Livsmedelskontroller i Sverige, normaliserade av Prikko',
+    url: absolute('kallor'),
+  },
+};
+---
+
+<Base
+  title={r.title}
+  description={r.description}
+  jsonLd={jsonLd}
+  dataUpdated={updated}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">
+        <a href={path('rapporter')}>Rapport</a> · {formatDate(r.published)}
+      </p>
+      <h1>{r.title}</h1>
+      <p class="lede text-secondary">{r.lede}</p>
+    </header>
+
+    <slot />
+
+    <section class="method">
+      <h2>Hur rapporten är gjord</h2>
+      <p>
+        Varje tal ovan är räknat ur Prikkos bestånd när sidan byggdes, på samma
+        sätt som siffrorna på en verksamhets sida. Ingen slutsats är skriven för
+        hand och ingen är hämtad någon annanstans ifrån. Underlaget är
+        {' '}{formatNumber(total.inspections)} kontroller vid
+        {' '}{formatNumber(total.establishments)} verksamheter i
+        {' '}{total.municipalities} kommuner.
+      </p>
+      <p>
+        Rapporten räknas om varje gång datan hämtas. Ändras siffrorna i
+        kommunernas register ändras de här, utan att någon behöver rätta texten
+        i efterhand. Underlaget hämtades senast {formatDate(updated)}.
+      </p>
+      <p>
+        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .eyebrow a {
+    color: inherit;
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  /* Rapportens egna avsnitt formas här, så att varje rapport ser likadan ut
+     utan att kopiera stilblock. Global, eftersom innehållet kommer via slot. */
+  .page :global(section) {
+    margin-top: var(--s-12);
+  }
+
+  .page :global(section h2) {
+    margin-bottom: var(--s-4);
+  }
+
+  .page :global(section h3) {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+  }
+
+  .page :global(section p) {
+    line-height: 26px;
+  }
+
+  .page :global(section p + p) {
+    margin-top: var(--s-4);
+  }
+
+  .page :global(.plain) {
+    margin: 0;
+    padding-left: var(--s-4);
+  }
+
+  .page :global(.plain li) {
+    margin-top: var(--s-3);
+    line-height: 26px;
+  }
+
+  .page :global(.callout) {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--verdict-none);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  /* Tabell och stapelmått delas av rapporterna. Talen är alltid
+     tabellsiffror: en kolumn med andelar där siffrorna hoppar i sidled är
+     oläsbar, och det är kolumnen hela rapporten vilar på. */
+  .page :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+    margin-top: var(--s-4);
+  }
+
+  .page :global(th),
+  .page :global(td) {
+    text-align: left;
+    padding: var(--s-3) var(--s-2) var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .page :global(th) {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  /* Vänsterluften måste finnas: högerställda talkolumner har ingen egen kant,
+     och utan den satt "60" och "80,0 %" ihop till "6080,0 %" på mobil. */
+  .page :global(td.num),
+  .page :global(th.num) {
+    text-align: right;
+    padding-left: var(--s-4);
+    padding-right: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .method {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .method h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .method p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p {
+    margin-top: var(--s-3);
+  }
+</style>

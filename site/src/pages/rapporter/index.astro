@@ -1,0 +1,177 @@
+---
+/**
+ * Rapporternas indexsida.
+ *
+ * Ägaren frågade efter "en index page, jag antar att det är blogg". Det här är
+ * inte en blogg, och skälet står i lib/rapporter.ts: den svenska
+ * hygiensökvolymen är 400 till 1 200 sökningar i månaden totalt (R2, R3), så
+ * en blogg om hygien skriver för en efterfrågan som inte finns. Det vi har som
+ * ingen annan har är beståndet. Rapporterna räknar på det.
+ *
+ * Sidan listar ur REPORTS, samma register som varje rapportsida läser sin
+ * titel och beskrivning ur. En rapport kan därför inte finnas utan att synas
+ * här, och listan kan inte visa en rapport som inte finns.
+ */
+import Base from '../../layouts/Base.astro';
+import { REPORTS, dataUpdated } from '../../lib/rapporter';
+import { coverage, formatDate, formatNumber } from '../../lib/data';
+import { SITE } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
+
+const total = coverage();
+const updated = dataUpdated();
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Rapporter',
+  description:
+    'Sammanställningar räknade ur Prikkos bestånd av svenska livsmedelskontroller.',
+  inLanguage: 'sv-SE',
+  url: absolute('rapporter'),
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  hasPart: REPORTS.map((r) => ({
+    '@type': 'Report',
+    headline: r.title,
+    description: r.description,
+    datePublished: r.published,
+    url: absolute('rapporter', r.slug),
+  })),
+};
+---
+
+<Base
+  title="Rapporter"
+  description={`Prikko räknar på ${formatNumber(total.inspections)} livsmedelskontroller från ${total.municipalities} kommuner och publicerar vad summorna visar. Varje siffra är räknad ur beståndet vid bygget, inte skriven för hand.`}
+  jsonLd={jsonLd}
+  dataUpdated={updated}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Rapporter</p>
+      <h1>Vad {formatNumber(total.inspections)} kontroller visar</h1>
+      <p class="lede text-secondary">
+        En enskild kontroll säger lite. Lagda på varandra säger de något annat.
+        Här publicerar vi det som går att räkna fram ur hela beståndet, och
+        bara det.
+      </p>
+    </header>
+
+    <section>
+      <ul class="list">
+        {REPORTS.map((r) => (
+          <li>
+            <p class="caption text-secondary">{formatDate(r.published)}</p>
+            <h2><a href={path('rapporter', r.slug)}>{r.title}</a></h2>
+            <p class="text-secondary summary">{r.summary}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="about">
+      <h2>Räknade, inte skrivna</h2>
+      <p>
+        En rapport här fungerar som en verksamhets sida: talen hämtas ur datan
+        när sidan byggs, och texten runt dem beskriver metoden och förbehållen.
+        Ingen slutsats är formulerad för hand, och ingen text på Prikko skrivs
+        med AI. Ändras kommunernas register ändras rapporterna med dem, i
+        stället för att bli inaktuella i tysthet.
+      </p>
+      <p>
+        Det sätter också en gräns för vad som kan stå här. En rapport kan bara
+        handla om något vi faktiskt har data för. Frågor som kräver en källa vi
+        inte har, eller en bedömning som inte går att räkna fram, hör inte
+        hemma i den här listan.
+      </p>
+      <p>
+        Underlaget är {formatNumber(total.inspections)} kontroller vid
+        {' '}{formatNumber(total.establishments)} verksamheter i
+        {' '}{total.municipalities} kommuner, senast hämtat
+        {' '}{formatDate(updated)}.
+        {' '}<a href={path('kallor')}>Varje källa redovisas öppet</a>, och
+        {' '}<a href={path('metodik')}>metodiken är publicerad i sin helhet</a>.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    line-height: var(--lh-body);
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .list li {
+    padding: var(--s-6) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list li:last-child {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* Rubriken är länken, inte en rad ovanför den. Ett kort där titeln och
+     länken är olika träffytor tvingar ögat att välja, och titeln är det enda
+     läsaren siktar på. */
+  .list h2 {
+    margin-top: var(--s-1);
+  }
+
+  .list h2 a {
+    color: var(--text);
+  }
+
+  .list h2 a:hover {
+    color: var(--brand-ink);
+    text-decoration: none;
+  }
+
+  .summary {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .about {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .about h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .about p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .about p + p {
+    margin-top: var(--s-3);
+  }
+</style>

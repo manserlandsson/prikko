@@ -1,0 +1,287 @@
+---
+/**
+ * Rapport: tre sorters kontroll, tre olika utfall.
+ *
+ * Samma princip som den andra rapporten. Talen kommer ur
+ * inspectionTypeReport(), den fasta texten beskriver metoden och förbehållen.
+ *
+ * Den känsligaste meningen på sidan är den om att återbesöken oftare är rena.
+ * Den är därför INTE skriven som en slutsats utan räknas fram: sidan skriver ut
+ * i hur många av kommunerna det stämmer och i hur många det inte gör det.
+ * Mönstret håller i totalen men inte överallt, och en rapport som döljer det
+ * vore en rapport som inte går att lita på.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import { formatNumber } from '../../lib/data';
+import { MIN_FOLLOW_UPS, formatShare, inspectionTypeReport } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = inspectionTypeReport();
+
+const planned = r.types.find((t) => t.type === 0);
+const followUp = r.types.find((t) => t.type === 1);
+const event = r.types.find((t) => t.type === 2);
+
+/** Kommuner där mönstret i totalen inte återkommer. */
+const exceptions = r.comparable.filter((m) => !m.followUpLower);
+
+const followUpLower = Boolean(planned && followUp && followUp.share < planned.share);
+const eventHighest = Boolean(
+  event && r.types.every((t) => t.type === 2 || t.share < event.share),
+);
+
+// Skala mot den högsta andelen, inte mot hundra. Se samma resonemang i den
+// andra rapporten.
+const scale = Math.max(...r.types.map((t) => t.share), 1);
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel gäller i metodik.astro och i den andra rapporten.
+ */
+const scope =
+  `Prikkos bestånd innehåller ${formatNumber(r.total)} kontroller.` +
+  ' Andelen som fick minst en anmärkning skiljer sig åt mellan de tre.';
+
+const excluded: string[] = [];
+if (r.withoutFollowUps > 0) {
+  excluded.push(`${r.withoutFollowUps} har ingen kontroll alls märkt som återbesök`);
+}
+if (r.belowThreshold > 0) {
+  excluded.push(`${r.belowThreshold} har för få för att andelen ska betyda något`);
+}
+const dropped = r.withoutFollowUps + r.belowThreshold;
+
+const scopeNote =
+  `Nedan står varje kommun med minst ${MIN_FOLLOW_UPS} återbesök i beståndet, med` +
+  ' andelen som fick anmärkning vid planerad kontroll och vid återbesök.' +
+  (dropped > 0
+    ? ` Av de ${r.municipalities} kommunerna i beståndet faller ${dropped} bort:` +
+      ` ${excluded.join(', och ')}.`
+    : '');
+
+const patternNote =
+  `I ${r.followUpLower} av ${r.comparable.length} kommuner är återbesöken oftare rena` +
+  ' än de planerade kontrollerna.' +
+  (exceptions.length > 0
+    ? ` I ${exceptions.map((m) => m.city).join(' och ')} är det tvärtom.`
+    : '');
+
+const gapNote =
+  followUpLower && planned && followUp
+    ? 'Återbesöket är alltså den kontroll som oftast går rent, trots att den per' +
+      ' definition görs hos verksamheter som redan fått en anmärkning. Skillnaden mot' +
+      ` den planerade kontrollen är ${formatShare(planned.share - followUp.share)}` +
+      ' procentenheter. Den rimligaste läsningen är den enklaste: de flesta åtgärdar' +
+      ' det som påpekats.'
+    : null;
+
+const eventNote =
+  eventHighest && event
+    ? 'Den händelsestyrda kontrollen är den som oftast hittar något. Den görs när' +
+      ` någon hört av sig, och i ${formatShare(event.share)} procent av fallen fanns` +
+      ' det något att notera. Det säger dock lika mycket om vem som anmäler som om' +
+      ' verksamheten: ingen ringer kommunen om ett kök som ser välskött ut.'
+    : null;
+
+const typeGapNote =
+  r.withoutTypes > 0
+    ? `${r.withoutTypes} kommuner i beståndet anger ingen kontrolltyp över huvud taget,` +
+      ' och där kan nivån inte sättas hur kontrollerna än ser ut.'
+    : 'Samtliga kommuner i beståndet anger kontrolltypen i dag.';
+---
+
+<Rapport slug="tre-sorters-kontroll">
+  <section>
+    <h2>Varför kommunen kommer</h2>
+    <p>
+      En livsmedelskontroll är inte en sorts händelse utan tre, och kommunen
+      anger själv vilken det var. Skillnaden är inte formell: den avgör vad
+      inspektören letar efter och vad utfallet betyder.
+    </p>
+    <ul class="types">
+      {r.types.map((t) => (
+        <li>
+          <b>{t.label}</b>
+          <p class="text-secondary">{t.meaning}</p>
+        </li>
+      ))}
+    </ul>
+    <p>{scope}</p>
+  </section>
+
+  <section>
+    <h2>Andel kontroller med anmärkning</h2>
+    <ul class="bars">
+      {r.types.map((t) => (
+        <li>
+          <div class="row">
+            <span class="name">{t.label}</span>
+            <span class="num">{formatShare(t.share)} %</span>
+          </div>
+          <div class="track">
+            <div class="bar" style={`width: ${(t.share / scale) * 100}%`}></div>
+          </div>
+          <p class="text-secondary note">
+            {formatNumber(t.withRemark)} av {formatNumber(t.total)} kontroller.
+          </p>
+        </li>
+      ))}
+    </ul>
+
+    {gapNote && <p>{gapNote}</p>}
+    {eventNote && <p>{eventNote}</p>}
+  </section>
+
+  <section>
+    <h2>Håller mönstret i varje kommun?</h2>
+    <p>Nej, inte överallt. {scopeNote}</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Kommun</th>
+          <th class="num">Planerad</th>
+          <th class="num">Återbesök</th>
+          <th class="num">Antal återbesök</th>
+        </tr>
+      </thead>
+      <tbody>
+        {r.comparable.map((m) => (
+          <tr>
+            <td><a href={path(m.slug)}>{m.city}</a></td>
+            <td class="num">{formatShare(m.plannedShare)} %</td>
+            <td class="num">{formatShare(m.followUpShare)} %</td>
+            <td class="num">{formatNumber(m.followUps)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <p>{patternNote}</p>
+    <p class="callout">
+      Ett undantag betyder inte att hygienen är sämre där. Det betyder att
+      kommunen använder återbesöket annorlunda: en kommun som bara går tillbaka
+      till de svåraste fallen får en hög andel, en som följer upp allt får en
+      låg. Tabellen är i bokstavsordning och är ingen rangordning.
+      {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
+      jämföra med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Varför det här är metodiskt viktigt</h2>
+    <p>
+      Prikko läser kvarstående brister ur mönstret i historiken i stället för
+      ur kommunens ordval, och kontrolltypen är ett av de två tecken modellen
+      använder: ett återbesök som ändå hittar avvikelser betyder att bristen
+      inte åtgärdats.
+    </p>
+    <p>
+      Siffrorna ovan säger hur ofta det inträffar. De säger också varför nivån
+      inte kan sättas alls i en kommun som inte anger kontrolltypen, och det är
+      inget teoretiskt problem. {typeGapNote}{' '}
+      <a href={path('metodik')}>Läs hur bedömningen räknas fram</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Anmärkning betyder minst en avvikelse, inte hur allvarlig den var. En
+        oåtgärdad allergenmärkning och en bruten kylkedja räknas likadant här.
+      </li>
+      <li>
+        Kontrolltypen är kommunens egen uppgift. Vi härleder den aldrig och vi
+        rättar den aldrig.
+      </li>
+      <li>
+        Kommuner som inte anger typ får allt räknat som planerad kontroll,
+        eftersom det är fältets grundvärde. De är därför utelämnade ur
+        jämförelsen mellan kommuner, men ligger kvar i totalsummorna.
+      </li>
+      <li>
+        Kontrollerna sträcker sig över flera år. Andelarna är summor över hela
+        perioden, inte en bild av läget just nu.
+      </li>
+    </ul>
+  </section>
+</Rapport>
+
+<style>
+  .types {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .types li {
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .types li:last-child {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .types b {
+    font-weight: 600;
+  }
+
+  .types p {
+    margin-top: 2px;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .bars {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .bars li {
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .bars li:last-child {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .row {
+    display: flex;
+    gap: var(--s-4);
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .track {
+    margin-top: var(--s-2);
+    height: 8px;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .bar {
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    min-width: 2px;
+  }
+
+  .note {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+</style>
