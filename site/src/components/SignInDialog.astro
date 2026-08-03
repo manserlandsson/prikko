@@ -70,22 +70,33 @@ import '../styles/konto.css';
     </header>
 
     <div class="body">
-      <p class="mark"><Wordmark height={26} label={null} /></p>
+      {/* 32 px. Var 26, vilket är mindre än sidhuvudets 36 trots att märket
+          här står ensamt mitt i en ruta och inte konkurrerar med något. */}
+      <p class="mark"><Wordmark height={32} label={null} /></p>
 
       {/* Steg 1 */}
       <form data-step="email" novalidate>
         <label class="field">
           <span>E-postadress</span>
           <input type="email" name="email" autocomplete="email" required
-                 placeholder="du@exempel.se" />
+                 placeholder="du@exempel.se" aria-describedby="signin-help" />
         </label>
 
         {/* Hjälptexten sitter under fältet och FÖRE knappen: man ska veta vad
-            som händer innan man trycker, inte efteråt. */}
-        <p class="help">
-          Vi skickar en sexsiffrig kod till din e-post. Inget lösenord att
-          komma ihåg. Så behandlar vi adressen:
-          <a href="/integritetspolicy/">integritetspolicyn</a>.
+            som händer innan man trycker, inte efteråt.
+
+            Den fälls ut först när fältet får fokus, som hos Airbnb. Den som
+            bara vill logga in ser en rad och en knapp, och den som stannar
+            upp får förklaringen i samma ögonblick som frågan uppstår.
+
+            `aria-describedby` gör att det är en VISUELL nedtoning och inte en
+            gömma: en skärmläsare läser meningen när fältet får fokus oavsett
+            vad CSS gör, så ingen går miste om vad som händer med adressen. */}
+        <p class="help" id="signin-help">
+          <span>
+            Vi skickar en sexsiffrig kod till din e-post.
+            {' '}<a href="/integritetspolicy/">Integritetspolicyn</a>.
+          </span>
         </p>
 
         <p class="notice notice-error" data-error hidden role="alert"></p>
@@ -209,18 +220,117 @@ import '../styles/konto.css';
 
   .body { padding: var(--s-6) var(--s-6) var(--s-8); }
 
+  /* Märket bär --brand och inte --text. Wordmark ritar med currentColor, så
+     utan den här raden ärvde det arkets textfärg och blev svart. Det här är
+     den enda ytan i rutan som ska ha varumärkets färg. */
   .mark {
     display: flex;
     justify-content: center;
-    color: var(--text);
+    color: var(--brand);
     margin-bottom: var(--s-6);
   }
 
+  /* Blinkningen.
+   *
+   * Sidhuvudet blinkar var nionde sekund. Här är cykeln fem, alltså oftare.
+   * Skälet är att man ser sidhuvudet i minuter medan man ser den här rutan i
+   * tjugo sekunder, och en detalj som aldrig hinner visa sig är ingen detalj.
+   *
+   * Namnet måste vara unikt. @keyframes är GLOBALA i CSS, Astro scopar
+   * selektorer men inte keyframe-namn, så en `wink` här hade skrivit över
+   * sidhuvudets beroende på laddningsordning.
+   *
+   * Ögat skalas kring sin EGEN mittpunkt. Utan fill-box räknar webbläsaren
+   * origo från hela svg:n och ögat glider iväg över texten. */
+  .mark :global(.eye-right) {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: signin-wink 5s cubic-bezier(.4, 0, .2, 1) 1.2s infinite;
+  }
+
+  @keyframes signin-wink {
+    0%, 3%    { transform: scaleY(1); }
+    8%, 10%   { transform: scaleY(.06); }
+    15%, 100% { transform: scaleY(1); }
+  }
+
+  /* Rörelse kan utlösa yrsel hos den som har en vestibulär sjukdom. Den som
+     bett om mindre rörelse har oftast ett medicinskt skäl. */
+  @media (prefers-reduced-motion: reduce) {
+    .mark :global(.eye-right) { animation: none; }
+  }
+
+  /* Utfälld först vid fokus. Höjden animeras via grid-template-rows och inte
+     via max-height: med ett gissat maxvärde blir uppfällningen ojämn så fort
+     texten byter radantal, medan 0fr till 1fr alltid animerar mot innehållets
+     verkliga höjd.
+
+     Innehållet ligger i ett eget block eftersom en grid-cell inte kan
+     överflow-döljas på egen hand. */
   .help {
-    margin-top: var(--s-3);
+    display: grid;
+    grid-template-rows: 0fr;
+    margin-top: 0;
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
+    opacity: 0;
+    transition: grid-template-rows .22s ease, opacity .22s ease, margin-top .22s ease;
+  }
+
+  .help > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .field:focus-within + .help {
+    grid-template-rows: 1fr;
+    margin-top: var(--s-3);
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .help { transition: none; }
+  }
+
+  /* Felmeddelandet i rutan är en RAD, inte en ruta.
+   *
+   * .notice och .notice-error bor i konto.css och delas med kontosidorna.
+   * Där är de sidnivåmeddelanden och en inramad ruta är rätt. Inne i det här
+   * arket, som redan är en ruta i en ruta, blir ännu en ram tung: felet är
+   * inte ett eget avsnitt utan en anmärkning om fältet ovanför.
+   *
+   * Kontosidornas rutor rörs alltså inte.
+   *
+   * Ikonen ligger som mask och inte som background-image, så att den ärver
+   * currentColor. En inbakad färg hade behövt hållas i takt med texten på två
+   * ställen och hade dessutom inte följt med i ett mörkt läge. */
+  .sheet .notice-error {
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+    margin-top: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: 13.5px;
+    line-height: 19px;
+    color: #C40000;
+  }
+
+  .sheet .notice-error::before {
+    content: '';
+    flex: none;
+    width: 15px;
+    height: 15px;
+    margin-top: 2px;
+    background: currentColor;
+    -webkit-mask: var(--signin-alert) center / contain no-repeat;
+    mask: var(--signin-alert) center / contain no-repeat;
+  }
+
+  .sheet {
+    --signin-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='7' stroke='black' stroke-width='1.4'/%3E%3Cpath d='M8 4.6v4.2' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='11.4' r='.9' fill='black'/%3E%3C/svg%3E");
   }
 
   .wide {
@@ -365,9 +475,18 @@ import '../styles/konto.css';
       return form.querySelector('[data-error]') as HTMLParagraphElement;
     }
 
+    /*
+     * Ingen "Fel."-etikett längre. Den fanns för att färg aldrig ensam får
+     * bära ett budskap, men den rollen tas nu av ikonen i ::before, som är
+     * lika oberoende av färgseende och inte stjäl en rad text.
+     *
+     * textContent och inte innerHTML: meddelandet kommer ur `translate()` i
+     * community.ts och kan innehålla text från GoTrue eller PostgREST. Med
+     * innerHTML hade ett serversvar kunnat bära in markup i vår ruta.
+     */
     function showError(form: HTMLFormElement, message: string) {
       const box = errorBox(form);
-      box.innerHTML = `<b>Fel.</b> ${message}`;
+      box.textContent = message;
       box.hidden = false;
     }
 

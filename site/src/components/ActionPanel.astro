@@ -47,9 +47,11 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   <a class="btn-ghost" href="/ratta/">Rätta en uppgift</a>
 </div>
 
-<p class="follow-note caption text-muted" id="follow-note">
-  Bevakade verksamheter samlas på ditt konto. Listan är privat.
-</p>
+{/* Tom från början. Raden är en kvittens på något man gjort, inte en
+    beskrivning av vad knappen ovanför gör. "Bevakade verksamheter samlas på
+    ditt konto, listan är privat" stod här och sa två saker som ingen
+    undrade över innan de tryckt. */}
+<p class="follow-note caption text-muted" id="follow-note"></p>
 
 <p class="owner caption">
   <a href={`/konto/verksamhet/?id=${encodeURIComponent(establishmentId)}&kommun=${encodeURIComponent(municipalitySlug)}&namn=${encodeURIComponent(establishmentName)}`}>
@@ -149,7 +151,9 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
              idempotent, så ett extra klick gör ingen skada. */
         }
       } else {
-        note!.textContent = 'Kräver inloggning. Listan är privat.';
+        /* Ingen text. Knappen säger "Följ verksamheten" och inloggningen
+           kommer när man trycker. Att skriva ut kravet i förväg är att
+           förklara en dörr innan någon gått fram till den. */
       }
       paint();
 
@@ -178,14 +182,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           if (following) {
             await unfollow(place.id);
             following = false;
-            note!.textContent = 'Du följer inte längre den här verksamheten.';
+            note!.textContent = 'Borttagen.';
           } else {
             await follow(place);
             following = true;
-            // Ingen utskickad notis är byggd. Texten säger därför bara det som
-            // faktiskt hänt: verksamheten ligger i listan. Att lova ett mejl
-            // som inte skickas vore samma fel som en avstängd knapp.
-            note!.textContent = 'Sparad. Du hittar den under Bevakade på ditt konto.';
+            // Bara det som hänt. Ingen notis skickas, så inget får antyda det.
+            note!.textContent = 'Sparad på ditt konto.';
           }
         } catch (err) {
           note!.textContent =
