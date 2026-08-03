@@ -35,22 +35,8 @@ import '../../styles/konto.css';
 
       <p class="notice notice-error" id="error" hidden role="alert"></p>
 
-      <form id="name-form" novalidate>
-        <label class="field">
-          <span>
-            Visningsnamn
-            <span class="hint">
-              Namnet som står bredvid dina omdömen. Lämnas det tomt står det
-              bara Besökare.
-            </span>
-          </span>
-          <input type="text" name="display_name" maxlength="40" autocomplete="nickname" />
-        </label>
-        <div class="konto-actions">
-          <button type="submit" class="btn-quiet" id="save-name">Spara namn</button>
-          <span class="caption text-muted" id="name-saved" hidden>Sparat.</span>
-        </div>
-      </form>
+      {/* Inget visningsnamn. Omdömen är anonyma och publiceras som
+          "Besökare", så ett namnfält hade varit en kontroll utan verkan. */}
 
       <div class="konto-actions">
         <button type="button" class="btn-quiet" id="signout">Logga ut</button>
@@ -97,8 +83,6 @@ import '../../styles/konto.css';
     signedIn,
     signOut,
     captureLinkSession,
-    displayName,
-    setDisplayName,
     follows,
     unfollow,
     myReviews,
@@ -114,8 +98,6 @@ import '../../styles/konto.css';
   const error = document.getElementById('error') as HTMLParagraphElement;
   const signinButton = document.getElementById('signin') as HTMLButtonElement;
   const signoutButton = document.getElementById('signout') as HTMLButtonElement;
-  const nameForm = document.getElementById('name-form') as HTMLFormElement;
-  const nameSaved = document.getElementById('name-saved') as HTMLSpanElement;
 
   const followsCard = document.getElementById('follows-card') as HTMLDivElement;
   const followList = document.getElementById('follows') as HTMLUListElement;
@@ -252,13 +234,6 @@ import '../../styles/konto.css';
     const user = currentUser();
     who.textContent = user?.email ? `Inloggad som ${user.email}.` : 'Inloggad.';
 
-    const input = nameForm.elements.namedItem('display_name') as HTMLInputElement;
-    try {
-      input.value = (await displayName()) ?? '';
-    } catch {
-      /* Ingen profilrad ännu. Fältet står tomt, vilket är rätt. */
-    }
-
     await Promise.all([paintFollows(), paintReviews(), paintClaims()]);
   }
 
@@ -283,19 +258,6 @@ import '../../styles/konto.css';
         if (await openSignIn(signinButton)) await loadAccount();
       });
     }
-
-    nameForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      error.hidden = true;
-      nameSaved.hidden = true;
-      const input = nameForm.elements.namedItem('display_name') as HTMLInputElement;
-      try {
-        await setDisplayName(input.value.trim());
-        nameSaved.hidden = false;
-      } catch (err) {
-        show(err instanceof CommunityError ? err.message : 'Kunde inte spara namnet.');
-      }
-    });
 
     signoutButton.addEventListener('click', async () => {
       await signOut();

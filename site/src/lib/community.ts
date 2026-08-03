@@ -577,19 +577,24 @@ export async function submitReview(
 ): Promise<void> {
   const user = currentUser();
 
-  let author: string | null = null;
-  try {
-    author = await displayName();
-  } catch {
-    /* Utan profil står det "Besökare". Inget att stoppa insändningen för. */
-  }
-
+  /*
+   * INGET NAMN. Omdömen är anonyma, beslutat av ägaren.
+   *
+   * Vyn published_reviews skriver "Besökare" när author_name är null, så
+   * anonymiteten ligger i att vi aldrig skickar något. Kolumnen finns kvar i
+   * tabellen men fylls inte av oss.
+   *
+   * Det är ett rimligt val på just den här sajten: den som skriver om en
+   * restaurang i sin egen kvarter kan ha skäl att slippa stå med namn. Priset
+   * är att ett anonymt omdöme väger lättare för läsaren, och att hela
+   * trovärdigheten därmed vilar på att varje omdöme läses innan det
+   * publiceras. Det gör den redan, se moderate.py.
+   */
   await rest('POST', 'reviews', {
     body: {
       user_id: user?.id,
       establishment_id: place.id,
       municipality_slug: place.municipalitySlug,
-      author_name: author || null,
       body,
       rating,
     },
@@ -600,20 +605,6 @@ export async function deleteReview(id: string): Promise<void> {
   await rest('DELETE', `reviews?id=eq.${encodeURIComponent(id)}`);
 }
 
-/* Profil ------------------------------------------------------------------- */
-
-export async function displayName(): Promise<string | null> {
-  const rows = await rest('GET', 'profiles?select=display_name&limit=1');
-  return Array.isArray(rows) && rows.length > 0 ? rows[0].display_name : null;
-}
-
-export async function setDisplayName(name: string): Promise<void> {
-  const user = currentUser();
-  await rest('POST', 'profiles', {
-    prefer: 'resolution=merge-duplicates',
-    body: { user_id: user?.id, display_name: name },
-  });
-}
 
 /* Anspråk och svar --------------------------------------------------------- */
 
