@@ -467,7 +467,14 @@ import '../styles/konto.css';
          annars av webbläsaren. */
       width: 100%;
       max-width: 100%;
-      margin: auto auto 0;
+      /* top/bottom och inte `margin: auto auto 0`.
+         Marginalvarianten håller bara så länge innehållet får plats. Slår
+         max-height till fördelar webbläsaren överskottet själv, och arket
+         glider upp från underkanten. Omdömesrutan gick på exakt den minan och
+         hamnade fyrtio pixlar upp på telefon. */
+      top: auto;
+      bottom: 0;
+      margin: 0;
       max-height: 92dvh;
     }
 

@@ -81,6 +81,11 @@ create or replace function community.is_establishment_id(value text)
 returns boolean
 language sql
 immutable
+-- Låst här och inte bara med en alter längre ned. Filen är idempotent och
+-- körs om för hand, och en create or replace skriver över funktionen med
+-- exakt det som står här. Låg låsningen bara i en alter i slutet skulle en
+-- omflyttning eller borttagning av den raden tyst ta bort skyddet.
+set search_path = ''
 as $$
     select value ~ '^F-[0-9]{4}-.+$';
 $$;
@@ -93,6 +98,9 @@ $$;
 create or replace function community.freeze_body()
 returns trigger
 language plpgsql
+-- Samma skäl som ovan, och här väger det tyngre: det är den här triggern som
+-- håller löftet vi publicerar ordagrant om att en insänd text aldrig ändras.
+set search_path = ''
 as $$
 begin
     if new.body is distinct from old.body then
