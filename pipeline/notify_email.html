@@ -1,0 +1,148 @@
+<!--
+  Mejlmallen för notiser om bevakade verksamheter.
+
+  BYGGS AV PIPELINEN, inte av sajten och inte av Supabase. Se pipeline/notify.py.
+  Fälten {{VERSALER}} ersätts där. Filen är hela markupen: raden per verksamhet
+  ligger mellan RAD-markörerna längre ner och klipps ut av skriptet, så att en
+  ändring i mejlets utseende aldrig kräver en ändring i Python.
+
+  Formen är densamma som auth_magic_link_email.html av samma skäl som står där:
+  Outlook på Windows renderar med Word och struntar i en <style>-tagg, Gmail
+  rensar bort den helt. Tabeller och inline-stil är det enda som håller
+  överallt. Mörkt läge hanteras inte; vit botten och mörk text överlever
+  klienternas egna inverteringar läsbart.
+
+  Skillnaden mot inloggningsmejlet är vad som är störst på ytan. Där är det sex
+  siffror man ska hämta. Här är det NAMNET på verksamheten och vad kommunen
+  hittade, för mottagaren har redan glömt att hen tryckte Följ på just den.
+
+  VAD MEJLET INTE ÄR: en lista över dåliga restauranger. Det står ingenting
+  här om någon annan än de verksamheter just den här mottagaren själv valt att
+  bevaka, ingen rangordning, ingen jämförelse. En värstinglista i miniatyr är
+  fortfarande en värstinglista.
+-->
+
+<!-- Förhandsraden. Syns i inkorgen bredvid ämnet och ingen annanstans.
+     Nbsp-serien hindrar Gmail från att fylla ut raden med början av
+     brödtexten, som annars blir wordmarkens alt-text. -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#FFFFFF;opacity:0;">
+  {{PREHEADER}}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FCFCFD;margin:0;padding:40px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;background:#FFFFFF;border:1px solid rgba(0,0,0,.08);border-radius:16px;overflow:hidden;">
+
+        <!-- Två pixlar prikko-blått. Samma rad som i inloggningsmejlet, och
+             avsiktligt identisk: de två breven ska läsas som samma avsändare
+             redan innan bilderna laddat. -->
+        <tr>
+          <td style="height:2px;line-height:2px;font-size:0;background:#007BE0;">&nbsp;</td>
+        </tr>
+
+        <tr>
+          <td style="padding:32px 32px 0;">
+            <!-- PNG och inte SVG: Gmail rensar bort SVG, Outlook renderar den
+                 inte alls. Måtten står som attribut eftersom Word-motorn i
+                 Outlook struntar i CSS-mått och annars ritar bilden i full
+                 pixelbredd. Typografin på img-taggen ärvs av alt-texten, så
+                 ett blockerat läge visar ordet Prikko i blått och fetstil. -->
+            <img src="https://prikko.se/prikko-wordmark-email.png"
+                 alt="Prikko"
+                 width="96" height="36"
+                 style="display:block;border:0;outline:none;text-decoration:none;width:96px;height:36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:-.02em;color:#007BE0;">
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:19px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:#1D1D1F;">
+            {{HEADING}}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:8px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#56565B;">
+            {{LEAD}}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 32px 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              {{ROWS}}
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 32px 0;">
+            <div style="height:1px;background:rgba(0,0,0,.08);font-size:0;line-height:0;">&nbsp;</div>
+          </td>
+        </tr>
+
+        <!-- Varför mejlet kom. Står före avregistreringen med avsikt: den som
+             inte minns att hen tryckt Följ ska få veta det innan hen blir
+             erbjuden att sluta. -->
+        <tr>
+          <td style="padding:14px 32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#77777C;">
+            Du får det här för att du tryckt <b style="font-weight:600;color:#56565B;">Följ verksamheten</b> på Prikko. Listan är din egen och ingen annan ser den.
+          </td>
+        </tr>
+
+        <!-- Avregistreringen. Ett krav, inte en artighet, och därför en synlig
+             länk i brödtextstorlek och inte grå finstil längst ner. Den kräver
+             ingen inloggning: sidan tar en token ur adressen och anropar
+             community.stop_following(). -->
+        <tr>
+          <td style="padding:10px 32px 30px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#77777C;">
+            <a href="{{UNSUBSCRIBE_URL}}" style="color:#007BE0;text-decoration:underline;">{{UNSUBSCRIBE_LABEL}}</a>
+          </td>
+        </tr>
+
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;">
+        <tr>
+          <td style="padding:18px 4px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#8A8A8F;">
+            Prikko samlar kommunernas livsmedelskontroller.
+            <a href="https://prikko.se/" style="color:#8A8A8F;text-decoration:underline;">prikko.se</a>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+<!--
+  Raden per verksamhet. Klipps ut av notify.py och upprepas en gång per
+  bevakad verksamhet som fått en ny kontroll. Allt mellan markörerna, inget
+  annat.
+
+  Färgpunkten före utfallet är samma prick som på sajten. Den bär ingen
+  information ensam — etiketten står utskriven bredvid — för en färg är
+  osynlig för den som inte skiljer rött från gult och blir ofta bortrensad av
+  bildblockering.
+-->
+<!--RAD-->
+              <tr>
+                <td style="padding:0 0 10px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAFAFB;border:1px solid rgba(0,0,0,.07);border-radius:12px;">
+                    <tr>
+                      <td style="padding:16px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                        <div style="font-size:16px;line-height:1.35;font-weight:600;letter-spacing:-.01em;color:#1D1D1F;">{{NAME}}</div>
+                        <div style="padding-top:3px;font-size:13px;line-height:1.5;color:#8A8A8F;">{{CITY}}</div>
+                        <div style="padding-top:10px;font-size:14px;line-height:1.5;color:#1D1D1F;">
+                          <span style="color:{{COLOR}};font-weight:700;">&#9679;</span>
+                          {{VERDICT}} vid kontrollen den {{DATE}}
+                        </div>
+                        <div style="padding-top:10px;font-size:14px;line-height:1.5;">
+                          <a href="{{URL}}" style="color:#007BE0;text-decoration:underline;">Läs vad kommunen skrev</a>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+<!--/RAD-->

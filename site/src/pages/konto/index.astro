@@ -45,9 +45,14 @@ import '../../styles/konto.css';
 
     <div class="konto-card" id="follows-card" hidden>
       <h2>Bevakade verksamheter</h2>
+      {/* Vad bevakningen gör, inte bara vad den inte gör. Raden sade tidigare
+          att vi inte skickar några utskick, och det stämmer inte längre: vi
+          mejlar när kommunen hittar anmärkningar. Att den formuleringen stod
+          kvar hade varit ett löfte vi bryter varje natt. */}
       <p class="konto-lead">
-        Din egen lista. Ingen annan ser den, och vi skickar inga utskick om
-        den. <a href="/sok/">Sök upp fler</a>.
+        Din egen lista, som ingen annan ser. Vi mejlar dig när kommunen hittar
+        anmärkningar hos någon av dem, och aldrig annars.
+        <a href="/sok/">Sök upp fler</a>.
       </p>
       <ul class="konto-list" id="follows"></ul>
       <p class="konto-empty" id="follows-empty">Du bevakar ingen verksamhet än.</p>

@@ -112,6 +112,15 @@ button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {
   cursor: not-allowed;
 }
 
+/* `hidden` måste vinna över display-reglerna ovanför.
+   Webbläsarens egen regel för attributet är `[hidden] { display: none }`, och
+   den har lägre specificitet än en klass. En knapp med `hidden` syntes därför
+   ändå, vilket är den värsta sortens fel: sidan visar en kontroll som koden
+   tror är borta. Samma sak stod redan på .notice; här är resten. */
+.konto-actions[hidden],
+.btn-primary[hidden],
+.btn-quiet[hidden] { display: none; }
+
 /* Meddelanden.
    Färg räcker aldrig som budskap (8 % av män är färgblinda, se tokens.css),
    så varje ruta bär också ett ord: "Fel", "Klart" eller "Väntar". */

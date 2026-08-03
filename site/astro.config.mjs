@@ -40,8 +40,13 @@ import { path } from './src/lib/urls.ts';
  * är ett tomt formulär som fylls i webbläsaren av den som är inloggad. En
  * inloggningssida i sökresultatet är tunt innehåll i bibelns mening, och
  * kvalitetsgrinden gäller våra egna sidor lika mycket som datans.
+ *
+ * /sluta-bevaka hör till samma sort trots att den ligger utanför /konto. Den
+ * nås bara från en länk i ett notismejl, den bär en engångsnyckel i adressen,
+ * och en avregistreringssida i ett sökresultat är meningslös för alla utom
+ * den som just fått mejlet.
  */
-const ACCOUNT_PAGES = ['konto', 'konto/inloggad', 'konto/verksamhet'];
+const ACCOUNT_PAGES = ['konto', 'konto/inloggad', 'konto/verksamhet', 'sluta-bevaka'];
 
 function noindexPaths() {
   const paths = new Set();

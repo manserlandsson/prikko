@@ -187,8 +187,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           } else {
             await follow(place);
             following = true;
-            // Bara det som hänt. Ingen notis skickas, så inget får antyda det.
-            note!.textContent = 'Sparad på ditt konto.';
+            /* Vad bevakningen FAKTISKT gör, i en mening. Här stod "Sparad på
+               ditt konto", vilket var sant men lämnade frågan varför man
+               skulle vilja spara något. Nu finns ett svar: nattjobbet mejlar
+               när kommunen hittar anmärkningar. Se pipeline/notify.py.
+
+               Att den inte lovar mejl vid GODKÄNDA kontroller är avsiktligt
+               och ordagrant vad utskicket gör. */
+            note!.textContent =
+              'Sparad. Du får ett mejl om kommunen hittar anmärkningar här.';
           }
         } catch (err) {
           note!.textContent =

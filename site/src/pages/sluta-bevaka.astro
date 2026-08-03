@@ -1,0 +1,144 @@
+---
+/**
+ * Avregistrering från notismejl.
+ *
+ * Varje notismejl måste bära en länk som stoppar utskicken. Den här sidan är
+ * den länken, och den kräver ingen inloggning: den som läser mejlet i telefonen
+ * ska inte behöva växla in en kod på datorn för att slippa bli störd igen.
+ *
+ * VARFÖR DET KRÄVS ETT TRYCK OCH INTE BARA ETT BESÖK
+ * Företagens säkerhetsfilter öppnar länkar i inkommande post för att skanna
+ * dem. En sida som avregistrerar redan vid laddning hade därför tagit bort
+ * bevakningar åt folk som aldrig klickat. Knappen är inte ett extra steg, den
+ * är skillnaden mellan besökarens avsikt och en robots.
+ *
+ * Sidan är statisk som alla andra. Ingenting om personen finns i HTML-filen;
+ * namnet på verksamheten hämtas i webbläsaren med token ur adressen.
+ */
+import Base from '../layouts/Base.astro';
+import '../styles/konto.css';
+---
+
+<Base
+  title="Sluta bevaka"
+  description="Avregistrera dig från notiser om en bevakad verksamhet."
+  noindex
+>
+  <div class="container konto-page">
+    <div class="konto-card">
+      <h1>Sluta bevaka</h1>
+
+      <p class="konto-lead" id="lead">Ett ögonblick.</p>
+
+      <div class="konto-actions" id="actions" hidden>
+        <button type="button" class="btn-primary" id="one">Sluta bevaka</button>
+        <button type="button" class="btn-quiet" id="all" hidden>
+          Sluta bevaka allt jag följer
+        </button>
+      </div>
+
+      <p class="konto-lead" id="after" hidden>
+        Vill du börja bevaka igen finns knappen kvar på verksamhetens sida.
+        <a href="/konto/">Dina bevakningar</a> ligger på ditt konto.
+      </p>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { configured, followByToken, stopFollowing } from '../lib/community';
+
+  const lead = document.getElementById('lead') as HTMLParagraphElement;
+  const actions = document.getElementById('actions') as HTMLDivElement;
+  const one = document.getElementById('one') as HTMLButtonElement;
+  const all = document.getElementById('all') as HTMLButtonElement;
+  const after = document.getElementById('after') as HTMLParagraphElement;
+
+  const params = new URLSearchParams(location.search);
+  const token = params.get('t') ?? '';
+  // `allt=1` sätts av mejl som handlar om flera verksamheter. Det avgör bara
+  // vilken knapp som ligger först — båda finns alltid, så ingen målas in i
+  // ett hörn av vilken länk hen råkade klicka på.
+  const preferAll = params.get('allt') === '1';
+
+  function done(message: string) {
+    lead.textContent = message;
+    actions.hidden = true;
+    after.hidden = false;
+  }
+
+  async function stop(everything: boolean) {
+    one.disabled = true;
+    all.disabled = true;
+    try {
+      const result = await stopFollowing(token, everything);
+      if (result.removed === 0) {
+        done('Den här länken är redan använd. Du får inga mejl om den bevakningen.');
+        return;
+      }
+      done(
+        everything
+          ? `Klart. ${result.removed} bevakningar borttagna, och inga fler mejl om dem.`
+          : `Klart. Du bevakar inte ${result.place_name} längre och får inga fler mejl om den.`,
+      );
+    } catch {
+      lead.textContent = 'Det gick inte just nu. Prova igen om en stund.';
+      one.disabled = false;
+      all.disabled = false;
+    }
+  }
+
+  async function start() {
+    if (!configured) {
+      lead.textContent = 'Bevakning är inte påslagen på den här installationen.';
+      return;
+    }
+    if (!token) {
+      lead.innerHTML =
+        'Länken saknar sin nyckel. Öppna den från mejlet igen, eller hantera ' +
+        'dina bevakningar på <a href="/konto/">ditt konto</a>.';
+      return;
+    }
+
+    let follow: Awaited<ReturnType<typeof followByToken>> = null;
+    try {
+      follow = await followByToken(token);
+    } catch {
+      /* Behandlas som en förbrukad länk nedan. Ett tekniskt fel och en redan
+         använd token ser likadana ut för besökaren, och båda har samma svar. */
+    }
+
+    if (!follow) {
+      lead.textContent =
+        'Den här länken är redan använd, eller så har bevakningen tagits bort. ' +
+        'Du får inga mejl om den.';
+      return;
+    }
+
+    lead.textContent = `Du bevakar ${follow.place_name}. Vill du sluta få mejl när kommunen hittar anmärkningar där?`;
+    one.textContent = `Sluta bevaka ${follow.place_name}`;
+
+    if (follow.other_follows > 0) {
+      all.hidden = false;
+      all.textContent = `Sluta bevaka allt (${follow.other_follows + 1} verksamheter)`;
+      if (preferAll) {
+        // Mejlet handlade om flera ställen. Då är det troligare att man vill
+        // bort från alltihop, så den knappen får ledarrollen.
+        one.classList.replace('btn-primary', 'btn-quiet');
+        all.classList.replace('btn-quiet', 'btn-primary');
+        actions.prepend(all);
+      }
+    }
+
+    actions.hidden = false;
+    one.addEventListener('click', () => void stop(false));
+    all.addEventListener('click', () => void stop(true));
+
+    // Token ur adressfältet så snart sidan använt den. Annars ligger en giltig
+    // nyckel kvar i webbläsarhistoriken och i allt som råkar logga URL:er.
+    // Samma regel som för sessionen i captureLinkSession().
+    history.replaceState(null, '', location.pathname);
+  }
+
+  void start();
+</script>

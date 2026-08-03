@@ -500,6 +500,57 @@ export async function unfollow(establishmentId: string): Promise<void> {
   await rest('DELETE', `follows?establishment_id=eq.${encodeURIComponent(establishmentId)}`);
 }
 
+/* Avregistrering från notismejl -------------------------------------------- */
+
+/**
+ * Länken i ett notismejl bär en token, inte en session.
+ *
+ * Den som just blivit störd av ett mejl ska kunna stoppa det på ett klick,
+ * inte på ett klick plus en inloggningskod plus ett byte av enhet. Och sajten
+ * är statisk, så det finns ingen server hos oss som kan ta emot klicket.
+ *
+ * Lösningen ligger i databasen: två `security definer`-funktioner som anon får
+ * anropa, och ingenting annat. Anon har varken select eller delete på follows
+ * och ska inte få det. Se pipeline/schema_community.sql.
+ *
+ * Ingen personuppgift finns i länken. Token är en slumpad uuid som bara pekar
+ * ut en rad, och den försvinner med raden.
+ */
+export interface FollowByToken {
+  /** Verksamheten länken gäller. */
+  place_name: string;
+  /** Hur många ANDRA verksamheter personen bevakar. */
+  other_follows: number;
+}
+
+export async function followByToken(token: string): Promise<FollowByToken | null> {
+  const rows = await rest('POST', 'rpc/follow_by_token', {
+    auth: false,
+    body: { token },
+  });
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * Tar bort bevakningen, eller alla bevakningar för samma person.
+ *
+ * Att sluta få mejl och att sluta bevaka är samma sak: en bevakning har ingen
+ * annan funktion än att ge notiser. Ett halvläge där raden ligger kvar men är
+ * tyst hade sett ut som en bevakning på kontosidan utan att vara det.
+ *
+ * `removed: 0` betyder att token inte finns, alltså att länken redan använts.
+ */
+export async function stopFollowing(
+  token: string,
+  everything = false,
+): Promise<{ place_name: string | null; removed: number }> {
+  const rows = await rest('POST', 'rpc/stop_following', {
+    auth: false,
+    body: { token, everything },
+  });
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : { place_name: null, removed: 0 };
+}
+
 /* Omdömen ------------------------------------------------------------------ */
 
 export interface PublishedReview {

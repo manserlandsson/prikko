@@ -96,6 +96,31 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python3 pipeline/export_supabase.py --out site/src/data
 
+      # MÅSTE ligga mellan exporten och commiten. Steget jämför arbetskopian
+      # (dagens export) med HEAD (gårdagens incheckade ögonblicksbild). Efter
+      # commiten är de två samma sak och jämförelsen ger noll varje natt.
+      #
+      # continue-on-error med avsikt: att ett utskick fallerar får inte hindra
+      # att datan checkas in. Datan är produkten, notisen är en tjänst ovanpå.
+      # Felet syns ändå som ett rött kryss på steget.
+      - name: Notiser om bevakade verksamheter
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          PRIKKO_MAIL_FROM: ${{ vars.PRIKKO_MAIL_FROM }}
+        run: |
+          # Utan nyckel görs en torrkörning i stället för att steget faller.
+          # Loggen visar då exakt vad som skulle gått iväg, vilket är rätt
+          # läge både innan nyckeln finns och när den råkat tas bort.
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "::warning title=Notiser torrkörda::RESEND_API_KEY saknas i GitHub-hemligheterna. Inga mejl skickas."
+            python3 pipeline/notify.py
+          else
+            python3 pipeline/notify.py --skicka
+          fi
+
       - name: Sammanfatta förändringen
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"

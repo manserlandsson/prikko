@@ -140,13 +140,146 @@ create table if not exists community.follows (
     -- är acceptabelt på en privat lista och bättre än en korsning mellan scheman.
     establishment_name text not null,
 
+    -- Nyckeln i avregistreringslänken. Se stop_following() längre ner.
+    unsubscribe_token uuid not null default gen_random_uuid(),
+
     created_at        timestamptz not null default now(),
 
     primary key (user_id, establishment_id)
 );
 
+-- Kolumnen kom till efter tabellen. `create table if not exists` lägger inte
+-- till något i en databas som redan har tabellen, så raden nedan är den som
+-- faktiskt kör i produktion. Defaulten är volatil, alltså får varje befintlig
+-- rad ett eget värde vid omskrivningen.
+alter table community.follows
+    add column if not exists unsubscribe_token uuid not null default gen_random_uuid();
+
 create index if not exists follows_establishment_idx
     on community.follows (establishment_id);
+
+-- Unik: token ÄR identiteten i avregistreringslänken. Två rader med samma
+-- värde hade gjort att en avregistrering träffade fel bevakning.
+create unique index if not exists follows_unsubscribe_token_idx
+    on community.follows (unsubscribe_token);
+
+-- ---------------------------------------------------------------------------
+-- Skickade notiser
+--
+-- En logg, inte en kö. Raden skrivs EFTER att mejlet gått iväg och finns av
+-- tre skäl:
+--
+--   1. Dubblettspärr. Nattjobbet jämför gårdagens ögonblicksbild med dagens
+--      och hittar nya kontroller. Går commiten av snapshoten inte igenom, ser
+--      nästa körning samma kontroller som nya igen. Unikheten på
+--      (user_id, inspection_id) gör att ingen kan få samma kontroll två gånger.
+--   2. Kvot. Resends gratisnivå ger 100 mejl per dygn och 3 000 per månad.
+--      Utan en logg går det inte att veta hur mycket som redan förbrukats,
+--      och en pipeline som råkar sprängs taket faller tyst.
+--   3. Öppenhet. Den som fått ett mejl ska kunna se att vi skickat det.
+--      Därför läsrätt på egna rader, inte bara för service_role.
+--
+-- Notera vad som INTE står här: ingen mejladress, ingen text, inget
+-- innehåll. Adressen bor i auth.users och hämtas vid utskicket.
+-- ---------------------------------------------------------------------------
+create table if not exists community.notifications (
+    id               uuid primary key default gen_random_uuid(),
+    user_id          uuid not null references auth.users (id) on delete cascade,
+
+    establishment_id text not null check (community.is_establishment_id(establishment_id)),
+    -- Kontrollen som utlöste notisen. Text, ingen FK, samma skäl som överallt
+    -- annars i det här schemat.
+    inspection_id    text not null check (inspection_id ~ '^I-[0-9]{4}-.+$'),
+
+    sent_at          timestamptz not null default now(),
+
+    -- Dubblettspärren. En kontroll är ny exakt en gång per mottagare.
+    unique (user_id, inspection_id)
+);
+
+create index if not exists notifications_sent_idx
+    on community.notifications (sent_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Avregistrering utan inloggning
+--
+-- Varje notismejl måste bära en länk som stoppar utskicken. Sajten är statisk
+-- och har ingen server som kan ta emot ett klick, så länken pekar på en sida
+-- som anropar den här funktionen med anon-nyckeln.
+--
+-- Varför en `security definer`-funktion och inte en policy: anon har varken
+-- select eller delete på follows, och ska inte få det. Funktionen är en enda
+-- smal lucka — den tar en token, tar bort rader, och kan inte användas till
+-- att läsa någon annans lista. Slår token fel händer ingenting alls.
+--
+-- Varför en slumpad uuid och ingen signatur: en HMAC hade krävt att samma
+-- hemlighet fanns både i pipelinen och i databasen, alltså två ställen den kan
+-- läcka från. Token är 122 slumpade bitar, den finns bara i mottagarens eget
+-- mejl, och den försvinner med raden den pekar på. Att den ligger i en URL är
+-- inte ett problem: den är ingen personuppgift och ger ingen läsning av något.
+-- ---------------------------------------------------------------------------
+
+-- Vad avregistreringssidan får visa innan besökaren tryckt. Namnet på
+-- verksamheten och hur många andra bevakningar personen har. Ingenting om vem
+-- personen är.
+create or replace function community.follow_by_token(token uuid)
+returns table (place_name text, other_follows integer)
+language sql
+security definer
+set search_path = ''
+as $$
+    select f.establishment_name,
+           (select count(*)::integer - 1
+              from community.follows g
+             where g.user_id = f.user_id)
+      from community.follows f
+     where f.unsubscribe_token = token;
+$$;
+
+-- Själva avregistreringen. `everything` tar bort alla bevakningar för samma
+-- person, vilket är den enda globala avanmälan som finns — en bevakning har
+-- ingen annan funktion än att ge notiser, så att sluta få mejl och att sluta
+-- bevaka är samma sak.
+--
+-- Returnerar antal borttagna rader. Noll betyder okänd token, och sidan säger
+-- då att länken redan använts i stället för att låtsas att något hänt.
+create or replace function community.stop_following(
+    token uuid,
+    everything boolean default false
+)
+returns table (place_name text, removed integer)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    -- Inga variabelnamn som krockar med en kolumn i follows. Gör de det tolkar
+    -- plpgsql kolumnen som variabeln och where-satsen blir alltid sann, vilket
+    -- i en delete-sats är den dyraste sortens skrivfel.
+    owner_id uuid;
+    place    text;
+    n        integer;
+begin
+    select f.user_id, f.establishment_name
+      into owner_id, place
+      from community.follows f
+     where f.unsubscribe_token = token;
+
+    if owner_id is null then
+        return query select null::text, 0;
+        return;
+    end if;
+
+    if everything then
+        delete from community.follows f where f.user_id = owner_id;
+    else
+        delete from community.follows f where f.unsubscribe_token = token;
+    end if;
+    get diagnostics n = row_count;
+
+    return query select place, n;
+end;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Anspråk på en verksamhet
@@ -409,6 +542,7 @@ create index if not exists image_uploads_pending_idx
 -- ---------------------------------------------------------------------------
 alter table community.profiles            enable row level security;
 alter table community.follows             enable row level security;
+alter table community.notifications       enable row level security;
 alter table community.establishment_claims enable row level security;
 alter table community.owner_responses     enable row level security;
 alter table community.reviews             enable row level security;
@@ -428,6 +562,14 @@ create policy follows_own on community.follows
     for all to authenticated
     using (user_id = auth.uid())
     with check (user_id = auth.uid());
+
+-- Notiser: bara läsning, bara egna rader. Ingen inloggad roll får skriva här —
+-- loggen är pipelinens kvitto på vad som skickats, och ett kvitto man kan
+-- skriva själv är inget kvitto.
+drop policy if exists notifications_read_own on community.notifications;
+create policy notifications_read_own on community.notifications
+    for select to authenticated
+    using (user_id = auth.uid());
 
 -- Anspråk: får skapas och läsas av sökanden, aldrig ändras av hen.
 drop policy if exists claims_insert on community.establishment_claims;
@@ -539,10 +681,20 @@ grant select, insert                  on community.establishment_claims to authe
 grant select, insert                  on community.owner_responses      to authenticated;
 grant select, insert, delete          on community.reviews              to authenticated;
 grant select, insert                  on community.image_uploads        to authenticated;
+grant select                          on community.notifications        to authenticated;
 
 -- Anon får läsa publicerade omdömen och ingenting annat.
 grant select on community.reviews           to anon;
 grant select on community.published_reviews to anon, authenticated;
+
+-- Avregistreringsfunktionerna. Postgres ger som förval EXECUTE till PUBLIC på
+-- varje ny funktion, och det förvalet ska inte gälla för två `security
+-- definer`-funktioner. Raderna nedan stänger först och öppnar sedan för de två
+-- roller som ska ha dem.
+revoke execute on function community.follow_by_token(uuid)         from public;
+revoke execute on function community.stop_following(uuid, boolean) from public;
+grant  execute on function community.follow_by_token(uuid)         to anon, authenticated;
+grant  execute on function community.stop_following(uuid, boolean) to anon, authenticated;
 
 -- Ingen får UPPDATERA. Moderering sker uteslutande med service_role genom
 -- pipeline/moderate.py. Det här är raden som gör att `pending` inte kan bli
@@ -570,6 +722,9 @@ grant select, insert, update, delete on community.image_uploads        to servic
 grant select, insert, update, delete on community.profiles to service_role;
 grant select, insert, update, delete on community.follows  to service_role;
 
+-- Notisloggen skrivs av pipeline/notify.py och av ingen annan.
+grant select, insert, update, delete on community.notifications to service_role;
+
 grant select on community.published_reviews to service_role;
 
 -- Sekvenser finns inte här (allt är uuid), men förvalet ska ändå vara stängt
@@ -583,6 +738,9 @@ alter default privileges in schema community revoke all on tables from anon, aut
 -- tråd på.
 alter function community.freeze_body() set search_path = '';
 alter function community.is_establishment_id(text) set search_path = '';
+
+-- De två avregistreringsfunktionerna sätter redan sin search_path i sin egen
+-- definition, vilket de MÅSTE göra: de är security definer och anropas av anon.
 
 -- ---------------------------------------------------------------------------
 -- Exponering mot API:t
