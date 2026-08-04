@@ -1,0 +1,31 @@
+---
+/**
+ * En enskild artikel. All form bor i layouts/Artikel.astro, all metadata i
+ * artikelns frontmatter. Den här filen är bara kopplingen mellan dem.
+ */
+import { getCollection, render } from 'astro:content';
+import Artikel from '../../layouts/Artikel.astro';
+import { readingMinutes } from '../../lib/artiklar';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('artiklar', ({ data }) => !data.draft);
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const minutes = readingMinutes(entry.body ?? '');
+---
+
+<Artikel
+  slug={entry.id}
+  title={entry.data.title}
+  description={entry.data.description}
+  lede={entry.data.lede}
+  category={entry.data.category}
+  published={entry.data.published}
+  updated={entry.data.updated}
+  minutes={minutes}
+>
+  <Content />
+</Artikel>

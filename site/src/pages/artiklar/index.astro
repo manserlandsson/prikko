@@ -1,0 +1,210 @@
+---
+/**
+ * Artiklarnas indexsida.
+ *
+ * Sajtens redaktionella yta har två rum, och skillnaden ska synas: rapporterna
+ * räknas fram ur beståndet, artiklarna är skrivna. Den här sidan listar de
+ * skrivna. Kortmönstret är JobbSafaris (kategorietikett, rubrik, ingress,
+ * lästid) i vårt eget formspråk: hårlinjer, Instrument Sans, inga skuggfält.
+ *
+ * Kvalitetsgrinden: under MIN_ARTICLES publicerade artiklar bär sidan noindex
+ * och hålls ur sitemapen (astro.config.mjs läser samma grind). En indexsida
+ * med en ensam artikel är en tunn sida i bibelns §6-mening, och den svagaste
+ * länken sänker domänen.
+ */
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { MIN_ARTICLES, readingMinutes, sectionReady } from '../../lib/artiklar';
+import { formatDate } from '../../lib/data';
+import { SITE } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
+
+const entries = await getCollection('artiklar', ({ data }) => !data.draft);
+const articles = entries
+  .map((e) => ({ slug: e.id, minutes: readingMinutes(e.body ?? ''), ...e.data }))
+  .sort((a, b) => b.published.localeCompare(a.published));
+
+const ready = sectionReady();
+if (articles.length !== entries.length || (articles.length >= MIN_ARTICLES) !== ready) {
+  // Grinden i lib/artiklar.ts läser disk, sidan läser collection. Säger de
+  // emot varandra är det ett byggfel, inte något att publicera runt.
+  throw new Error('Artikelgrinden och innehållssamlingen är osams. Se lib/artiklar.ts.');
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Artiklar',
+  description:
+    'Guider och förklaringar om den svenska livsmedelskontrollen, skrivna av Prikko.',
+  inLanguage: 'sv-SE',
+  url: absolute('artiklar'),
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+  hasPart: articles.map((a) => ({
+    '@type': 'Article',
+    headline: a.title,
+    description: a.description,
+    datePublished: a.published,
+    url: absolute('artiklar', a.slug),
+  })),
+};
+---
+
+<Base
+  title="Artiklar om livsmedelskontrollen"
+  description="Hur en hygienkontroll går till, vad en anmärkning betyder och varför kommunernas siffror inte går att jämföra rakt av. Guider och förklaringar från Prikko, med källa på varje siffra."
+  jsonLd={jsonLd}
+  noindex={!ready}
+>
+  <div class="container page">
+    <header>
+      <p class="eyebrow">Artiklar</p>
+      <h1>Så fungerar livsmedelskontrollen</h1>
+      <p class="lede text-secondary">
+        Kontrollrapporterna är offentliga, men språket i dem är myndighetens.
+        Här förklarar vi hur kontrollen går till, vad orden betyder och hur
+        siffrorna ska läsas. Varje påstående bär sin källa.
+      </p>
+    </header>
+
+    <section aria-label="Alla artiklar">
+      <ul class="grid">
+        {articles.map((a) => (
+          <li class="card">
+            <p class="eyebrow tag">{a.category}</p>
+            <h2><a href={path('artiklar', a.slug)}>{a.title}</a></h2>
+            <p class="text-secondary summary">{a.lede}</p>
+            <p class="caption text-secondary meta">
+              {formatDate(a.published)} · {a.minutes} min lästid
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="about">
+      <h2>Skrivna, med källa på varje siffra</h2>
+      <p>
+        Artiklarna är det ena av sajtens två redaktionella rum. Det andra är
+        {' '}<a href={path('rapporter')}>rapporterna</a>, där varje tal räknas
+        fram ur beståndet vid bygget. En artikel är i stället skriven text:
+        den förklarar, sätter siffror i sammanhang och pekar på källorna. När
+        en artikel nämner ett tal ur vårt eget bestånd står det när det
+        mättes, och de aktuella talen finns alltid på kommun- och
+        verksamhetssidorna.
+      </p>
+      <p>
+        <a href={path('metodik')}>Metodiken är publicerad i sin helhet</a>, och
+        {' '}<a href={path('kallor')}>varje källa redovisas öppet</a>. Menar du
+        att något är fel, <a href={path('ratta')}>rätta oss</a>.
+      </p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  header {
+    max-width: var(--readcol);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    line-height: var(--lh-body);
+  }
+
+  section {
+    margin-top: var(--s-12);
+  }
+
+  /* JobbSafari-mönstret utan bildfältet: vi har inga ärliga artikelbilder än,
+     och bibeln §6 förbjuder AI-genererade. Ett kort utan bild är bättre än
+     ett kort med en fejkad. */
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--s-6);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--s-6);
+  }
+
+  .tag {
+    color: var(--brand-ink);
+  }
+
+  .grid h2 {
+    margin-top: var(--s-2);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /* Rubriken är länken. Träffytan görs kortstor med en pseudo-yta i stället
+     för att slå in hela kortet i ett ankare, så att texten förblir markerbar
+     och en framtida andralänk i kortet är möjlig. */
+  .grid h2 a {
+    color: var(--text);
+  }
+
+  .grid h2 a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .grid li {
+    position: relative;
+  }
+
+  .grid li:hover h2 a {
+    color: var(--brand-ink);
+  }
+
+  .summary {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .meta {
+    margin-top: auto;
+    padding-top: var(--s-4);
+  }
+
+  .about {
+    max-width: var(--readcol);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .about h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .about p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .about p + p {
+    margin-top: var(--s-3);
+  }
+</style>

@@ -1,0 +1,216 @@
+---
+/**
+ * Layout för en författad artikel.
+ *
+ * Systerlayout till Rapport.astro, och skillnaden mellan dem är hela poängen:
+ * en rapport är räknad ur beståndet och bär Report-schema med organisationen
+ * som avsändare, en artikel är skriven text och bär Article-schema. De två
+ * får aldrig låna varandras form, för läsaren ska kunna se på sidtypen vad
+ * som är räknat och vad som är formulerat.
+ *
+ * Metadatan kommer ur content collection-posten, aldrig ur mallen. En artikel
+ * kan därför inte publiceras utan egen titel, beskrivning och datum, eftersom
+ * schemat i content.config.ts stoppar bygget innan sidan finns.
+ *
+ * Kvalitetsgrinden: så länge sektionen har färre än MIN_ARTICLES publicerade
+ * artiklar bär varje artikelsida noindex och hålls ur sitemapen (samma
+ * funktion läses av astro.config.mjs). Sidorna byggs ändå och går att läsa
+ * på plats, de bjuds bara inte ut till index förrän sektionen bär sin vikt.
+ */
+import Base from './Base.astro';
+import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
+import { sectionReady } from '../lib/artiklar';
+import { formatDate } from '../lib/data';
+
+interface Props {
+  slug: string;
+  title: string;
+  description: string;
+  lede: string;
+  category: string;
+  published: string;
+  updated?: string;
+  minutes: number;
+}
+
+const { slug, title, description, lede, category, published, updated, minutes } =
+  Astro.props;
+
+const noindex = !sectionReady();
+
+/**
+ * `Article`, inte `Report` och inte `BlogPosting`. Texten är redaktionell
+ * sakprosa med Prikko som avsändare, och author är organisationen tills en
+ * namngiven skribent finns. Byter en artikel till en personlig byline ska
+ * author bli en Person, se docs/16_seo_strategi_innehall.md.
+ */
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  inLanguage: 'sv-SE',
+  datePublished: published,
+  ...(updated ? { dateModified: updated } : {}),
+  url: absolute('artiklar', slug),
+  mainEntityOfPage: absolute('artiklar', slug),
+  author: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
+  publisher: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
+};
+---
+
+<Base
+  title={title}
+  description={description}
+  jsonLd={jsonLd}
+  noindex={noindex}
+  dataUpdated={updated ?? published}
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">
+        <a href={path('artiklar')}>Artiklar</a> · {category} · {minutes} min lästid
+      </p>
+      <h1>{title}</h1>
+      <p class="lede text-secondary">{lede}</p>
+      <p class="caption text-secondary dates">
+        Publicerad {formatDate(published)}{updated && ` · Uppdaterad ${formatDate(updated)}`}
+      </p>
+    </header>
+
+    <slot />
+
+    <section class="method">
+      <h2>Om artikeln</h2>
+      <p>
+        Artiklarna är skrivna och redigerade av Prikko, till skillnad från
+        {' '}<a href={path('rapporter')}>rapporterna</a>, som räknas fram ur
+        beståndet vid varje bygge. Varje siffra i texten har en angiven källa,
+        och siffror ur vårt eget bestånd avser läget det datum som står
+        ovanför. Aktuella tal finns alltid på kommun- och verksamhetssidorna.
+      </p>
+      <p>
+        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--readcol);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: 36px;
+    line-height: 40px;
+    margin-top: var(--s-2);
+  }
+
+  .eyebrow a {
+    color: inherit;
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  .dates {
+    margin-top: var(--s-3);
+  }
+
+  /* Markdown-innehållet kommer via slot och formas här, så att varje artikel
+     ser likadan ut utan egna stilblock. Samma mått som Rapport.astro: de två
+     sidtyperna ska kännas som syskon, inte som olika sajter. */
+  .page :global(h2) {
+    margin-top: var(--s-12);
+    margin-bottom: var(--s-4);
+  }
+
+  .page :global(h3) {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+  }
+
+  .page :global(p) {
+    line-height: 26px;
+  }
+
+  .page :global(p + p) {
+    margin-top: var(--s-4);
+  }
+
+  .page :global(ul),
+  .page :global(ol) {
+    margin: var(--s-4) 0 0;
+    padding-left: var(--s-4);
+  }
+
+  .page :global(li) {
+    margin-top: var(--s-3);
+    line-height: 26px;
+  }
+
+  .page :global(blockquote) {
+    margin: var(--s-4) 0 0;
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--verdict-none);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .page :global(blockquote p) {
+    line-height: 21px;
+  }
+
+  .page :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+    margin-top: var(--s-4);
+  }
+
+  .page :global(th),
+  .page :global(td) {
+    text-align: left;
+    padding: var(--s-3) var(--s-2) var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .page :global(th) {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .method {
+    margin-top: var(--s-12);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    font-size: var(--fs-body-s);
+  }
+
+  .method h2 {
+    margin-top: 0;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .method p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p {
+    margin-top: var(--s-3);
+  }
+</style>

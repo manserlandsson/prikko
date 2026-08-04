@@ -11,6 +11,7 @@ import {
   sourceFor,
 } from './src/lib/data.ts';
 import { path } from './src/lib/urls.ts';
+import { articleFiles, sectionReady } from './src/lib/artiklar.ts';
 
 /**
  * Renderingsstrategi (se docs/adr/0001-rendering-strategi.md):
@@ -61,6 +62,16 @@ function noindexPaths() {
   }
   paths.add(path('ratta'));
   for (const page of ACCOUNT_PAGES) paths.add(path(page));
+
+  // Artikelsektionens kvalitetsgrind: under MIN_ARTICLES publicerade
+  // artiklar bär hela sektionen noindex (satt i sidmallarna via samma
+  // funktion) och ska då inte heller ligga i sitemapen. sitemapGuard nedan
+  // fångar det om de två någonsin glider isär.
+  if (!sectionReady()) {
+    paths.add(path('artiklar'));
+    for (const a of articleFiles()) paths.add(path('artiklar', a.slug));
+  }
+
   return paths;
 }
 
@@ -110,6 +121,18 @@ function lastmodIndex() {
     const date = latestInspectionDate(e);
     if (date) byPath.set(path(e.municipality.slug, e.slug), date.slice(0, 10));
   }
+
+  // Artiklarna bär sina egna datum i frontmatter: `updated` när texten
+  // ändrats, annars `published`. Indexsidan ändras när dess färskaste
+  // artikel gör det.
+  let latestArticle = '';
+  for (const a of articleFiles()) {
+    const date = a.updated ?? a.published;
+    if (!date) continue;
+    byPath.set(path('artiklar', a.slug), date);
+    if (date > latestArticle) latestArticle = date;
+  }
+  if (latestArticle) byPath.set(path('artiklar'), latestArticle);
 
   return byPath;
 }
