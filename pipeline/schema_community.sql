@@ -948,6 +948,14 @@ create policy reviews_read_own on community.reviews
 -- Den enda vägen till någon annans omdöme. `status = 'published'` sätts bara
 -- av service_role, och kontrollen `review_published_requires_moderator` gör
 -- att en människa måste ha stått bakom beslutet.
+--
+-- VARNING TILL KLIENTSKRIVAREN: policyer läggs ihop med ELLER. En inloggad
+-- som frågar reviews utan eget filter får alltså SINA rader PLUS ALLAS
+-- publicerade, och det är rätt ur databasens synvinkel. "Mina omdömen" måste
+-- därför alltid fråga med user_id=eq.<eget id>. Det gjorde klienten inte en
+-- gång, och den som loggade in med ett nytt konto stod som avsändare av
+-- andras omdömen. Se ownRows() i site/src/lib/community.ts och testet
+-- pipeline/tests/test_egna_rader.py.
 drop policy if exists reviews_read_published on community.reviews;
 create policy reviews_read_published on community.reviews
     for select to anon, authenticated

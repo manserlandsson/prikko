@@ -427,6 +427,37 @@ async function rest(
   return text ? JSON.parse(text) : null;
 }
 
+/**
+ * Sökväg för rader som är ANVÄNDARENS EGNA, med ägarfiltret utskrivet.
+ *
+ * Radsäkerheten räcker inte som filter här, och det såg ut som att den
+ * gjorde det. Tabellen reviews har TVÅ läspolicyer som läggs ihop med eller:
+ * egna rader, och allas publicerade rader. Den senare finns för att den
+ * publika listan under en verksamhet ska kunna läsas alls. En fråga utan
+ * eget filter fick därför tillbaka andras publicerade omdömen, och både
+ * kontosidan och kvittensen på verksamhetssidan målade dem som ens egna:
+ * den som loggade in med ett nytt konto stod som avsändare av omdömen
+ * skrivna från ett annat.
+ *
+ * Därför går varje läsning av egna rader genom den här funktionen, även mot
+ * tabeller där radsäkerheten i dag bara släpper ut egna rader. Får en sådan
+ * tabell en bredare policy i morgon läcker den inte hit. Testet
+ * pipeline/tests/test_egna_rader.py fäller bygget om någon fråga går förbi.
+ *
+ * Saknar sessionen användar-id, vilket händer när den just plockats ur en
+ * mejllänk, hämtas det först. Utan id ingen fråga: hellre ett fel än någon
+ * annans rader.
+ */
+async function ownRows(path: string): Promise<string> {
+  let user = currentUser();
+  if (!user?.id) {
+    await hydrateUser();
+    user = currentUser();
+  }
+  if (!user?.id) throw new CommunityError('Du är utloggad. Logga in igen.');
+  return `${path}${path.includes('?') ? '&' : '?'}user_id=eq.${encodeURIComponent(user.id)}`;
+}
+
 export interface Place {
   id: string;
   name: string;
@@ -471,14 +502,19 @@ export async function follows(): Promise<
   Array<{ establishment_id: string; establishment_name: string; municipality_slug: string }>
 > {
   return (
-    (await rest('GET', 'follows?select=establishment_id,establishment_name,municipality_slug&order=created_at.desc')) ?? []
+    (await rest(
+      'GET',
+      await ownRows('follows?select=establishment_id,establishment_name,municipality_slug&order=created_at.desc'),
+    )) ?? []
   );
 }
 
 export async function isFollowing(establishmentId: string): Promise<boolean> {
   const rows = await rest(
     'GET',
-    `follows?select=establishment_id&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    await ownRows(
+      `follows?select=establishment_id&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    ),
   );
   return Array.isArray(rows) && rows.length > 0;
 }
@@ -613,7 +649,7 @@ export async function myReviews(): Promise<MyReview[]> {
   return (
     (await rest(
       'GET',
-      'reviews?select=id,body,rating,status,rejection_reason&order=created_at.desc',
+      await ownRows('reviews?select=id,body,rating,status,rejection_reason&order=created_at.desc'),
     )) ?? []
   );
 }
@@ -628,7 +664,9 @@ export async function myReview(
 } | null> {
   const rows = await rest(
     'GET',
-    `reviews?select=id,body,rating,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    await ownRows(
+      `reviews?select=id,body,rating,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    ),
   );
   return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
@@ -720,7 +758,9 @@ export async function claims(): Promise<Claim[]> {
   return (
     (await rest(
       'GET',
-      'establishment_claims?select=id,establishment_id,establishment_name,municipality_slug,status,rejection_reason&order=created_at.desc',
+      await ownRows(
+        'establishment_claims?select=id,establishment_id,establishment_name,municipality_slug,status,rejection_reason&order=created_at.desc',
+      ),
     )) ?? []
   );
 }
@@ -728,7 +768,9 @@ export async function claims(): Promise<Claim[]> {
 export async function claimFor(establishmentId: string): Promise<Claim | null> {
   const rows = await rest(
     'GET',
-    `establishment_claims?select=id,establishment_id,establishment_name,municipality_slug,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    await ownRows(
+      `establishment_claims?select=id,establishment_id,establishment_name,municipality_slug,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}&limit=1`,
+    ),
   );
   return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
@@ -771,7 +813,9 @@ export async function ownerResponses(establishmentId: string): Promise<OwnerResp
   return (
     (await rest(
       'GET',
-      `owner_responses?select=id,inspection_id,body,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}`,
+      await ownRows(
+        `owner_responses?select=id,inspection_id,body,status,rejection_reason&establishment_id=eq.${encodeURIComponent(establishmentId)}`,
+      ),
     )) ?? []
   );
 }
@@ -809,7 +853,9 @@ export async function uploads(establishmentId: string): Promise<Upload[]> {
   return (
     (await rest(
       'GET',
-      `image_uploads?select=id,caption,status,rejection_reason,published_url&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc`,
+      await ownRows(
+        `image_uploads?select=id,caption,status,rejection_reason,published_url&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc`,
+      ),
     )) ?? []
   );
 }
