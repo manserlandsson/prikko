@@ -7,7 +7,7 @@
  * förklarar sig ovanför vikningen; första skärmen är ett instrument.
  *
  * Strukturen, uppifrån: hero med fyra saker (wordmark i sidhuvudet, rubrik,
- * underrad, sökfält), betygsskalan som egen remsa, kommunerna störst först,
+ * underrad, sökfält), kommunerna störst först,
  * en rad om källan. Inget mer. Sökfältet ligger HÄR och inte i sidhuvudet:
  * Base får headerSearch={false}, och fältet är samma komponent i sitt
  * hero-läge. En sida får aldrig två sökfält: dubbleringen var det som fick
@@ -22,7 +22,6 @@
  */
 import type { ImageMetadata } from 'astro';
 import Base from '../layouts/Base.astro';
-import FaceMark from '../components/FaceMark.astro';
 import KommunKort from '../components/KommunKort.astro';
 import SiteSearch from '../components/SiteSearch.astro';
 import {
@@ -30,7 +29,7 @@ import {
   formatNumber,
   municipalitySummaries,
 } from '../lib/data';
-import { SITE, VERDICT } from '../lib/site';
+import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
 const total = coverage();
@@ -65,30 +64,6 @@ const cards = byTotal.filter((m) => withPhoto.has(m.slug));
 const rows = byTotal.filter((m) => !withPhoto.has(m.slug));
 
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
-
-/**
- * Rikets fördelning över de tre nivåerna.
- *
- * Skalan låg tidigare längst ned på sidan under "Så fungerar bedömningen",
- * men den är det enda som visar VAD tjänsten levererar utan att besökaren
- * läser en mening, samma grepp som brittiska FSA:s betygsdekal i heron.
- * Nu ligger den som en egen remsa direkt under sökfältet: legend och bevis
- * på omfattning i samma rad, utan att någon enskild verksamhet pekas ut.
- */
-const scale = summaries.reduce(
-  (acc, m) => ({
-    clean: acc.clean + m.clean,
-    minor: acc.minor + m.minor,
-    major: acc.major + m.major,
-  }),
-  { clean: 0, minor: 0, major: 0 },
-);
-
-const levels = [
-  { verdict: 'clean' as const, count: scale.clean },
-  { verdict: 'minor' as const, count: scale.minor },
-  { verdict: 'major' as const, count: scale.major },
-];
 
 const jsonLd = [
   {
@@ -149,23 +124,6 @@ const jsonLd = [
     </div>
   </section>
 
-  {/* Betygsskalan, med rikets egna tal. Lätt med flit: två hårlinjer och
-      små ansikten, inga kortkanter. Den ska stödja fältet ovanför, inte
-      tävla med det. Färgerna är semantiska, aldrig dekor. */}
-  <section class="container" aria-label="Betygsskalan">
-    <ul class="skala">
-      {levels.map((l) => (
-        <li>
-          <FaceMark verdict={l.verdict} size={32} variant="round" />
-          <span class="skala-txt">
-            <b>{VERDICT[l.verdict].label}</b>
-            <span>{formatNumber(l.count)} verksamheter</span>
-          </span>
-        </li>
-      ))}
-    </ul>
-  </section>
-
   <section class="container block">
     <div class="block-head">
       <h2>Välj kommun</h2>
@@ -214,7 +172,8 @@ const jsonLd = [
 
 <style>
   /* Heron. Luften under fältet bärs av sektionen själv och inte av nästa
-     blocks marginal, så att den inte kollapsar om remsan under flyttas. */
+     blocks marginal, så att den står för sig själv oavsett vad som ligger
+     närmast ovanför. */
   .topp {
     padding-block: var(--s-12);
     text-align: center;
@@ -244,45 +203,6 @@ const jsonLd = [
   }
   .hero-sok :global(.site-search) { margin-inline: auto; }
 
-  /* Skalan: tre celler mellan två hårlinjer, inga egna kort. */
-  .skala {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    margin: 0;
-    padding: 0;
-    border-top: 1px solid var(--hairline);
-    border-bottom: 1px solid var(--hairline);
-  }
-
-  .skala li {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--s-3);
-    padding: var(--s-4) var(--s-3);
-  }
-
-  .skala li + li { border-left: 1px solid var(--hairline); }
-
-  .skala-txt { min-width: 0; text-align: left; }
-
-  .skala-txt b {
-    display: block;
-    font-size: var(--fs-body-s);
-    line-height: 19px;
-    font-weight: 600;
-  }
-
-  .skala-txt span {
-    display: block;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .block { padding-block: var(--s-12) var(--s-16); }
 
   .block-head {
     display: flex;
@@ -385,9 +305,6 @@ const jsonLd = [
        och kravet är högst två. */
     .topp h1 { font-size: 27px; line-height: 31px; }
 
-    .skala { grid-template-columns: 1fr; }
-    .skala li { justify-content: flex-start; }
-    .skala li + li { border-left: 0; border-top: 1px solid var(--hairline); }
 
     .fler-lista { grid-template-columns: 1fr; }
     .fler-lista li:nth-child(-n+2) { border-top: 1px solid var(--hairline); }
