@@ -12,6 +12,11 @@
     set -a && . ~/.prikko-env && set +a
     python3 pipeline/hamta_gatubilder.py --kommun 0580 --antal 500
 
+    # saknas R2-variablerna i miljön mellanlagras bilderna i ~/prikko-bilder
+    # och URL:erna skrivs mot https://bilder.prikko.se — sätt upp bucketen
+    # enligt bannern som skrivs ut och ladda sedan upp i efterhand:
+    python3 pipeline/hamta_gatubilder.py --ladda-upp
+
 FORMEN ÄR HELA POÄNGEN: ett anrop per verksamhet, aldrig ett per bygge och
 aldrig ett per sidvisning. Skriptet hoppar över alla som redan har en bild, så
 första körningen kostar några tusen anrop utspridda över en natt och varje
@@ -57,6 +62,45 @@ PUBLIC_FACING = (
 #: Paus mellan anrop. Båda bildkällorna är gratis och delade, och vi lever på
 #: att de fortsätter tycka om oss.
 POLITE_DELAY_S = 0.3
+
+#: Mellanlagret när R2 ännu inte är uppsatt: bilderna landar här och URL:erna
+#: skrivs mot den publika adress bucketen SKA få. Nycklarna är deterministiska
+#: (se imagery.object_key), så katalogen kan laddas upp rakt av när bucketen
+#: finns och varje redan skriven URL blir sann i samma stund.
+STAGING_DIR = Path.home() / "prikko-bilder"
+STAGING_BASE_URL = "https://bilder.prikko.se"
+
+STAGING_BANNER = f"""\
+--------------------------------------------------------------------------------
+R2 är inte konfigurerat i ~/.prikko-env, så bilderna mellanlagras lokalt:
+
+    filer:            {STAGING_DIR}
+    URL som lagras:   {STAGING_BASE_URL}/gatubilder/...
+
+URL:erna blir sanna först när bucketen finns och katalogen är uppladdad.
+Så här, en gång:
+
+  1. dash.cloudflare.com -> R2 Object Storage -> Create bucket.
+     Namn: prikko-bilder. Location: Automatic.
+  2. Bucketen -> Settings -> Public access -> Custom domains -> Connect domain:
+     bilder.prikko.se. (Inte r2.dev-adressen: den är hastighetsbegränsad och
+     går inte att byta lagring bakom senare.)
+  3. R2 Object Storage -> API -> Manage API tokens -> Create Account API token.
+     Permissions: Object Read & Write. Specify bucket: prikko-bilder.
+     Access Key ID och Secret Access Key visas EN gång.
+  4. Klistra in i ~/.prikko-env (Account ID står i R2-översiktens högerspalt):
+
+         export R2_ACCOUNT_ID=...
+         export R2_BUCKET=prikko-bilder
+         export R2_ACCESS_KEY_ID=...
+         export R2_SECRET_ACCESS_KEY=...
+         export R2_PUBLIC_BASE_URL={STAGING_BASE_URL}
+
+  5. Ladda upp det mellanlagrade:  set -a && . ~/.prikko-env && set +a
+     python3 pipeline/hamta_gatubilder.py --ladda-upp
+
+Nästa körning med variablerna satta skriver direkt till R2.
+--------------------------------------------------------------------------------"""
 
 
 def public_facing(types: Iterable[str]) -> bool:
@@ -177,13 +221,42 @@ def build_store(args) -> Optional[object]:
 
     store = imagestore.from_env()
     if store is None:
-        missing = ", ".join(imagestore.missing_settings())
-        raise SystemExit(
-            f"Lagringen är inte konfigurerad. Saknas: {missing}.\n"
-            "Se site/.env.example för klickvägen i Cloudflare, eller kör med "
-            "--torr för att bara se vad som skulle hämtas."
+        # Inte ett fel utan ett läge: ägaren har inte satt upp R2-hinken än.
+        # Hämtningen ska inte behöva vänta på det, så vi mellanlagrar lokalt
+        # mot den adress bucketen ska få. Se STAGING_BANNER.
+        print(STAGING_BANNER, file=sys.stderr)
+        return imagestore.LocalStore(
+            directory=STAGING_DIR, public_base_url=STAGING_BASE_URL
         )
     return store
+
+
+_CONTENT_TYPES = {".webp": "image/webp", ".jpg": "image/jpeg", ".png": "image/png"}
+
+
+def upload_staged() -> int:
+    """Ladda upp allt mellanlagrat till R2, med samma nycklar som lokalt.
+
+    Körs en gång när bucketen väl finns. Nycklarna är deterministiska, så en
+    omkörning skriver över samma objekt och katalogen kan ligga kvar som
+    reservkopia.
+    """
+    store = imagestore.from_env()
+    if store is None:
+        missing = ", ".join(imagestore.missing_settings())
+        raise SystemExit(f"--ladda-upp kräver R2 i miljön. Saknas: {missing}.")
+    files = sorted(p for p in STAGING_DIR.rglob("*") if p.is_file())
+    if not files:
+        print(f"Ingenting att ladda upp i {STAGING_DIR}.", file=sys.stderr)
+        return 0
+    for i, path in enumerate(files, 1):
+        key = path.relative_to(STAGING_DIR).as_posix()
+        content_type = _CONTENT_TYPES.get(path.suffix.lower(), "image/jpeg")
+        store.put(key, path.read_bytes(), content_type)
+        if i % 100 == 0:
+            print(f"  ... {i}/{len(files)}", file=sys.stderr)
+    print(f"Laddade upp {len(files)} filer till R2.", file=sys.stderr)
+    return 0
 
 
 def main() -> int:
@@ -195,16 +268,25 @@ def main() -> int:
     parser.add_argument("--lokal", help="skriv till en katalog i stället för till R2")
     parser.add_argument("--bas-url", dest="bas_url", help="publik bas-URL för --lokal")
     parser.add_argument("--paus", type=float, default=POLITE_DELAY_S)
+    parser.add_argument(
+        "--ladda-upp",
+        dest="ladda_upp",
+        action="store_true",
+        help="ladda upp det lokalt mellanlagrade till R2 och avsluta",
+    )
     args = parser.parse_args()
+
+    if args.ladda_upp:
+        return upload_staged()
 
     store = build_store(args)
     token = os.environ.get("MAPILLARY_TOKEN", "").strip()
     if not token:
         print(
             "MAPILLARY_TOKEN saknas — bara Panoramax används, och den är mätt till\n"
-            "11,5 procent inom 60 m i fyra kommuner. Skaffa en token på\n"
-            "mapillary.com → Settings → Developers och kör pipeline/matt_bildtackning.py\n"
-            "innan mer byggs på det här spåret.",
+            "9,8 procent inom 60 m, koncentrerad till Uppsala. Mapillary bär\n"
+            "funktionen; token finns i site/.env och skapas annars gratis på\n"
+            "mapillary.com → Settings → Developers.",
             file=sys.stderr,
         )
 

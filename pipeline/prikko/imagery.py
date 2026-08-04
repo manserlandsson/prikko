@@ -1,6 +1,8 @@
-"""Gatubilder från Mapillary.
+"""Gatubilder från Mapillary, med Panoramax som andrahandskälla.
 
-Panoramax finns i filen men är AVSTÄNGD, se best_photo() för varför.
+Beslutat av ägaren 2026-08-04 efter täckningsmätningen med egen token:
+Mapillary bär funktionen, Panoramax kompletterar där den vinner (främst
+Uppsala). Se pipeline/matt_bildtackning.py och rapportens del A2 och A3.
 
 Varför inte Google Street View eller Google Places Photos:
 
@@ -43,19 +45,51 @@ import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+
+try:
+    from zoneinfo import ZoneInfo
+
+    _TZ_STOCKHOLM = ZoneInfo("Europe/Stockholm")
+except Exception:  # pragma: no cover - reserv när tidszonsdata saknas
+    _TZ_STOCKHOLM = timezone(timedelta(hours=1))
 
 MAPILLARY_API = "https://graph.mapillary.com/images"
 PANORAMAX_API = "https://api.panoramax.xyz/api/search"
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se)"
 
-#: Hur nära verksamheten en bild måste vara för att duga. 60 m är ungefär
-#: "samma kvarter". Gränsen är generös med avsikt så länge täckningen är omätt;
-#: mätskriptet pipeline/matt_bildtackning.py redovisar kurvan per avstånd, och
-#: 30 m är den siffra rapporten låter beslutet hänga på. Sänk den här när
-#: mätningen finns, inte innan.
-MAX_DISTANCE_M = 60
+#: Hur nära verksamheten en bild måste vara för att duga. Vald efter mätning
+#: 2026-08-04 (400 verksamheter, egen token): riktningskravet nedan gör mer
+#: för träffsäkerheten än ett kortare avstånd gör, och med det på plats ger
+#: 40 m rätt hus medan 60 m allt oftare ger grannens. Syftet är "aha, det är
+#: DEN restaurangen" — hellre färre rätta bilder än många ungefärliga.
+MAX_DISTANCE_M = 40
+
+#: Hur mycket kamerariktningen får avvika från bäringen kamera → verksamhet.
+#: En gatubild tas ur en bil som fotograferar längs gatan åt båda hållen; utan
+#: det här kravet blir bilden lika ofta vägen bort från huset som huset.
+#: ±60° håller verksamheten innanför bildens kant för de kameror Mapillary
+#: vanligen har (90-100° horisontell bildvinkel) med marginal för GPS-brus.
+#: Bilder utan kompassvärde väljs bort: hellre ingen bild än en gissning.
+MAX_BEARING_OFF_DEG = 60
+
+#: Dagsljusfönster per månad, lokal svensk tid [från, till). Provkörningen mot
+#: Linköping valde annars en beckmörk vindrutebild från en marsnatt — skarp
+#: kompass, rätt avstånd, noll igenkänning. Mapillary har inget kvalitetsfält,
+#: men klockslaget är en billig och ärlig proxy: utanför dagsljus är bilden
+#: aldrig den bästa tillgängliga. Fönstren är satta efter svenska soltider med
+#: marginal, inte astronomiskt beräknade.
+_DAYLIGHT_HOURS = {
+    1: (9, 15), 2: (9, 16), 3: (8, 17), 4: (7, 19), 5: (6, 20), 6: (6, 20),
+    7: (6, 20), 8: (6, 19), 9: (7, 18), 10: (8, 17), 11: (9, 15), 12: (9, 14),
+}
+
+#: Avståndsband för färskhetsvalet, i meter. Två bilder i samma band räknas
+#: som lika nära, och då vinner den nyast tagna: en skylt byts, en fasad målas
+#: om, och en elva år gammal bild av rätt hus känns ändå inte igen. Mellan
+#: banden vinner fortfarande närheten.
+_DISTANCE_BAND_M = 15
 
 #: Ungefärlig gradstorlek för sökrutan. 0.0007° ≈ 78 m i nord-sydlig led.
 _BBOX_PAD = 0.0007
@@ -82,12 +116,23 @@ SPHERICAL = {"spherical", "equirectangular"}
 #: Förhållandet bredd genom höjd för en ekvirektangulär utvikning, med marginal.
 _PANORAMA_RATIO = 1.9
 
-#: Vad som hamnar i public.images.attribution. Läses av sajten som text intill
-#: bilden. Logotypkravet uppfylls av komponenten, som känner igen `source`.
+#: Reservtext för public.images.attribution när fotografens namn saknas.
+#: När namnet finns skrivs "namn / Källa, CC BY-SA 4.0" i stället, se
+#: attribution_text(). CC BY-SA kräver att upphovspersonen namnges, inte bara
+#: plattformen; Mapillarys logotyp- och länkkrav uppfylls av komponenten.
 ATTRIBUTION = {
     "mapillary": "Mapillary, CC BY-SA 4.0",
     "panoramax": "Panoramax, CC BY-SA 4.0",
 }
+
+#: Källnamn som de skrivs i attributionen.
+_SOURCE_LABEL = {"mapillary": "Mapillary", "panoramax": "Panoramax"}
+
+#: Panoramax-federationen tillåter två licenser per bild: CC-BY-SA 4.0 och
+#: franska LO 2.0 (etalab). Vi tar bara CC-BY-SA, samma licens som Mapillary,
+#: så att sajtens licensrad alltid är sann och en enda. `license` läses per
+#: bild ur API-svaret, aldrig antaget.
+_ACCEPTED_LICENCES = {"CC-BY-SA-4.0"}
 
 
 @dataclass(frozen=True)
@@ -111,6 +156,9 @@ class Candidate:
     lat: float
     lng: float
     distance_m: float
+    #: Fotografens användarnamn hos källan, för attributionen. CC BY-SA kräver
+    #: att upphovspersonen namnges; plattformens namn räcker inte.
+    creator: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -142,6 +190,41 @@ def distance_m(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
     return 2 * R * math.asin(math.sqrt(h))
 
 
+def bearing_deg(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+    """Bäring från punkt a till punkt b i grader, norr = 0, medurs."""
+    p1, p2 = math.radians(a_lat), math.radians(b_lat)
+    d_lng = math.radians(b_lng - a_lng)
+    y = math.sin(d_lng) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(d_lng)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def _angle_diff(a: float, b: float) -> float:
+    """Minsta vinkelskillnad mellan två bäringar, 0-180."""
+    return abs((a - b + 180) % 360 - 180)
+
+
+def points_at(
+    cam_lat: float, cam_lng: float, compass, target_lat: float, target_lng: float
+) -> bool:
+    """Pekar kameran mot verksamheten?
+
+    Utan det här kravet är en gatubild lika ofta vägen bort från huset som
+    huset: bilen fotograferar längs gatan åt båda hållen, och närmaste bild
+    kan lika gärna vara den som just passerat porten med ryggen mot den.
+    Saknas kompassvärde svarar vi False — hellre ingen bild än en gissning,
+    hela modulen finns för att inte visa fel hus.
+    """
+    if compass is None:
+        return False
+    try:
+        heading = float(compass)
+    except (TypeError, ValueError):
+        return False
+    wanted = bearing_deg(cam_lat, cam_lng, target_lat, target_lng)
+    return _angle_diff(heading, wanted) <= MAX_BEARING_OFF_DEG
+
+
 def _bbox(lat: float, lng: float, pad: float = _BBOX_PAD) -> tuple[float, ...]:
     return (lng - pad, lat - pad, lng + pad, lat + pad)
 
@@ -152,13 +235,32 @@ def _get(url: str, timeout: int = 30) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _iso_date_from_epoch_ms(value) -> Optional[str]:
-    """Mapillary svarar med millisekunder sedan epok. Kolumnen är ett datum."""
+def _moment_from_epoch_ms(value) -> Optional[datetime]:
+    """Mapillary svarar med millisekunder sedan epok, i UTC."""
     try:
         ms = int(value)
     except (TypeError, ValueError):
         return None
-    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date().isoformat()
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+
+
+def _moment_from_iso(value) -> Optional[datetime]:
+    """Panoramax svarar med ISO-tid, med tidszon."""
+    if not isinstance(value, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment
+
+
+def _iso_date_from_epoch_ms(value) -> Optional[str]:
+    """Mapillary svarar med millisekunder sedan epok. Kolumnen är ett datum."""
+    moment = _moment_from_epoch_ms(value)
+    return moment.date().isoformat() if moment else None
 
 
 def _iso_date_from_timestamp(value) -> Optional[str]:
@@ -169,17 +271,63 @@ def _iso_date_from_timestamp(value) -> Optional[str]:
     return head if re.fullmatch(r"\d{4}-\d{2}-\d{2}", head) else None
 
 
+def taken_in_daylight(moment: Optional[datetime]) -> bool:
+    """Är bilden tagen i dagsljus, svensk lokal tid?
+
+    Provkörningen mot Linköping valde annars en beckmörk vindrutebild från en
+    marsnatt: rätt avstånd, rätt riktning, noll igenkänning. Saknas tidsstämpel
+    svarar vi False, av samma skäl som kompassgrinden: hellre ingen bild än en
+    gissning.
+    """
+    if moment is None:
+        return False
+    local = moment.astimezone(_TZ_STOCKHOLM)
+    start, end = _DAYLIGHT_HOURS[local.month]
+    return start <= local.hour < end
+
+
+def _recency_key(captured_at: Optional[str]) -> int:
+    """Dagnummer för fångstdatumet, 0 när det saknas eller är oläsbart."""
+    if not captured_at:
+        return 0
+    try:
+        return date.fromisoformat(captured_at).toordinal()
+    except ValueError:
+        return 0
+
+
+def _pick(candidates: list[Candidate]) -> Optional[Candidate]:
+    """Bästa kandidaten: närhet i band om 15 m, färskhet inom bandet.
+
+    Rent närmast-val gav en bild från 2015 av en butik som mycket väl kan ha
+    bytt både skylt och namn sedan dess. Två bilder i samma band är i praktiken
+    lika nära, och då är den nyare alltid den bättre igenkänningsbilden.
+    """
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda c: (
+            int(c.distance_m // _DISTANCE_BAND_M),
+            -_recency_key(c.captured_at),
+            c.distance_m,
+        ),
+    )
+
+
 def find_mapillary(
     lat: float,
     lng: float,
     token: Optional[str] = None,
     max_distance: float = MAX_DISTANCE_M,
 ) -> Optional[Candidate]:
-    """Närmaste Mapillary-bild, eller None.
+    """Bästa Mapillary-bild för punkten, eller None.
 
-    Returnerar hellre None än en bild från fel kvarter. En bild som visar
-    grannhuset är sämre än ingen bild alls — hela poängen är att besökaren ska
-    känna igen stället.
+    Fyra grindar och ett val: inom avståndet, kameran mot verksamheten, ingen
+    360-utvikning, tagen i dagsljus — och bland dem som passerar vinner den
+    närmaste, där nyare slår äldre inom samma avståndsband. Returnerar hellre
+    None än en bild från fel kvarter eller åt fel håll: hela poängen är att
+    besökaren ska känna igen stället.
     """
     token = token or os.environ.get("MAPILLARY_TOKEN")
     if not token:
@@ -188,7 +336,8 @@ def find_mapillary(
     params = urllib.parse.urlencode(
         {
             "access_token": token,
-            "fields": "id,thumb_1024_url,captured_at,compass_angle,camera_type,geometry",
+            "fields": "id,thumb_1024_url,captured_at,compass_angle,camera_type,"
+                      "geometry,creator",
             "bbox": ",".join(str(round(v, 6)) for v in _bbox(lat, lng)),
             "limit": 25,
         }
@@ -200,7 +349,7 @@ def find_mapillary(
         # en bildtjänst är nere.
         return None
 
-    best: Optional[Candidate] = None
+    candidates: list[Candidate] = []
     for item in payload.get("data", []):
         coords = (item.get("geometry") or {}).get("coordinates")
         url = item.get("thumb_1024_url")
@@ -209,19 +358,26 @@ def find_mapillary(
         if str(item.get("camera_type") or "").lower() in SPHERICAL:
             continue
         d = distance_m(lat, lng, coords[1], coords[0])
-        if d >= max_distance or (best is not None and d >= best.distance_m):
+        if d >= max_distance:
             continue
-        best = Candidate(
-            source="mapillary",
-            source_id=str(item["id"]),
-            fetch_url=url,
-            captured_at=_iso_date_from_epoch_ms(item.get("captured_at")),
-            compass=item.get("compass_angle"),
-            lat=coords[1],
-            lng=coords[0],
-            distance_m=d,
+        if not points_at(coords[1], coords[0], item.get("compass_angle"), lat, lng):
+            continue
+        if not taken_in_daylight(_moment_from_epoch_ms(item.get("captured_at"))):
+            continue
+        candidates.append(
+            Candidate(
+                source="mapillary",
+                source_id=str(item["id"]),
+                fetch_url=url,
+                captured_at=_iso_date_from_epoch_ms(item.get("captured_at")),
+                compass=item.get("compass_angle"),
+                lat=coords[1],
+                lng=coords[0],
+                distance_m=d,
+                creator=((item.get("creator") or {}).get("username") or None),
+            )
         )
-    return best
+    return _pick(candidates)
 
 
 def find_panoramax(
@@ -244,17 +400,26 @@ def find_panoramax(
     except Exception:
         return None
 
-    best: Optional[Candidate] = None
+    candidates: list[Candidate] = []
     for feature in payload.get("features", []):
         coords = (feature.get("geometry") or {}).get("coordinates")
         if not coords:
             continue
         d = distance_m(lat, lng, coords[1], coords[0])
-        if d >= max_distance or (best is not None and d >= best.distance_m):
+        if d >= max_distance:
             continue
 
         properties = feature.get("properties") or {}
         if _sensor_is_spherical(properties):
+            continue
+        # Licensen står per bild, inte per tjänst: federationen tillåter både
+        # CC-BY-SA 4.0 och franska LO 2.0. Vi tar bara den förra, samma licens
+        # som Mapillary, så att sajtens licensrad alltid är sann.
+        if str(properties.get("license") or "") not in _ACCEPTED_LICENCES:
+            continue
+        if not points_at(coords[1], coords[0], properties.get("view:azimuth"), lat, lng):
+            continue
+        if not taken_in_daylight(_moment_from_iso(properties.get("datetime"))):
             continue
 
         assets = feature.get("assets") or {}
@@ -269,17 +434,20 @@ def find_panoramax(
         if not href:
             continue
 
-        best = Candidate(
-            source="panoramax",
-            source_id=str(feature.get("id") or ""),
-            fetch_url=href,
-            captured_at=_iso_date_from_timestamp(properties.get("datetime")),
-            compass=properties.get("view:azimuth"),
-            lat=coords[1],
-            lng=coords[0],
-            distance_m=d,
+        candidates.append(
+            Candidate(
+                source="panoramax",
+                source_id=str(feature.get("id") or ""),
+                fetch_url=href,
+                captured_at=_iso_date_from_timestamp(properties.get("datetime")),
+                compass=properties.get("view:azimuth"),
+                lat=coords[1],
+                lng=coords[0],
+                distance_m=d,
+                creator=(properties.get("geovisio:producer") or None),
+            )
         )
-    return best
+    return _pick(candidates)
 
 
 def find_candidate(
@@ -288,22 +456,22 @@ def find_candidate(
     token: Optional[str] = None,
     max_distance: float = MAX_DISTANCE_M,
 ) -> Optional[Candidate]:
-    """Bästa gatubild för en punkt. Bara Mapillary.
+    """Bästa gatubild för en punkt: Mapillary först, Panoramax som reserv.
 
-    PANORAMAX ÄR AVSTÄNGD, beslutat av ägaren efter mätningen.
+    Ordningen är beslutad av ägaren efter mätningen med egen token 2026-08-04.
+    Mapillary bär funktionen (42 procent inom 60 m mot urvalet, jämnt över
+    kommunerna). Panoramax är marginell totalt men vinner lokalt — Uppsala låg
+    på 26,9 procent inom 60 m — och den kostar ingenting och kräver ingen
+    token. Den tillfrågas därför bara när Mapillary inte gav något.
 
-    Skälen står i docs och är tre. Täckningen var 11,5 procent inom 60 meter
-    och noll utanför Stockholm, Uppsala, Jönköping och Linköping, alltså ingen
-    grund att bygga på. Tre av tolv träffar var ekvirektangulära
-    360-utvikningar som beskurna visade bilens tak. Och en gatubild som är
-    flera år gammal av en lokal som bytt skylt sedan dess gör mer skada än
-    nytta, eftersom hela poängen är igenkänning.
-
-    Koden för Panoramax står kvar i filen. Den är mätt, fungerande och
-    kostnadsfri, och skulle deras svenska täckning växa är den en rad att
-    koppla in igen. Att radera den hade betytt att någon får skriva om den.
+    Båda källorna går genom samma grindar: avstånd, kamerariktning mot
+    verksamheten, ingen 360-utvikning, och för Panoramax dessutom licensen
+    per bild.
     """
-    return find_mapillary(lat, lng, token, max_distance)
+    found = find_mapillary(lat, lng, token, max_distance)
+    if found is not None:
+        return found
+    return find_panoramax(lat, lng, max_distance)
 
 
 # ---------------------------------------------------------------------------
@@ -433,6 +601,20 @@ def object_key(municipality_slug: str, establishment_id: str, extension: str) ->
     return f"gatubilder/{safe_kommun}/{safe_id}.{extension}"
 
 
+def attribution_text(candidate: Candidate) -> str:
+    """Attributionsraden som lagras och visas intill bilden.
+
+    CC BY-SA kräver att upphovspersonen namnges. Formen är
+    "fotograf / Källa, CC BY-SA 4.0", där komponenten läser allt före första
+    kommatecknet som länktext och resten som licens. Saknar källan ett namn
+    faller vi tillbaka på enbart källans namn.
+    """
+    label = _SOURCE_LABEL.get(candidate.source, candidate.source)
+    if candidate.creator:
+        return f"{candidate.creator} / {label}, CC BY-SA 4.0"
+    return ATTRIBUTION.get(candidate.source, f"{label}, CC BY-SA 4.0")
+
+
 def capture(
     store,
     municipality_slug: str,
@@ -468,5 +650,5 @@ def capture(
         source_id=candidate.source_id,
         captured_at=candidate.captured_at,
         licence=LICENCE,
-        attribution=ATTRIBUTION[candidate.source],
+        attribution=attribution_text(candidate),
     )

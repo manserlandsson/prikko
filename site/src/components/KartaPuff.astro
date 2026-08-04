@@ -1,0 +1,175 @@
+---
+/**
+ * Kartpuffen: en riktig förhandsbild av kommunens karta, som länkar dit.
+ *
+ * Ägaren ville se kartan på kommunsidan, inte bara en textlänk till den.
+ * Samtidigt gäller viktargumentet i Karta.astro fullt ut: hubben väger 30 kB
+ * och är sajtens mest besökta sidtyp, MapLibre väger 231 kB brotlat, och
+ * Core Web Vitals är en rankningssignal. Kartprogrammet får alltså aldrig
+ * ligga här.
+ *
+ * Lösningen är Bookings: en liten kartbild med en "visa kartan"-knapp som
+ * öppnar den riktiga vyn. Men i stället för en statisk bildtjänst ritas
+ * bilden vid bygget, ur samma datamängd som kartsidan använder: varje punkt
+ * är en verksamhet på sin riktiga plats, färgad efter sin bedömning.
+ * Punktmolnet tecknar stadens form utan ett enda kartblad, kostar noll
+ * JavaScript och några kilobyte SVG, och ljuger aldrig mot kartan man
+ * kommer till, eftersom det ÄR kartans data.
+ *
+ * Stora kommuner glesas ut till högst MAX_DOTS punkter. Raderna i
+ * datamängden är geografiskt sorterade (se map-data.ts), så ett jämnt urval
+ * behåller stadens form. Urvalet är en bild och inte en statistik: inga tal
+ * läses ur den, talen står i klartext bredvid.
+ */
+import { formatNumber, type Municipality } from '../lib/data';
+import type { MapDataset } from '../lib/map-data';
+import { path } from '../lib/urls';
+
+interface Props {
+  kommun: Municipality;
+  data: MapDataset;
+}
+
+const { kommun, data } = Astro.props;
+const city = kommun.city;
+
+/*
+ * Punkterna packas upp ur samma kropp som klienten på kartsidan läser:
+ * deltakodade heltal i hundratusendels grad. Se formatavsnittet i
+ * map-data.ts. Ordningen i `v` följer punktordningen.
+ */
+const raw = JSON.parse(data.body) as { x: number[]; y: number[]; v: string };
+const [west, south, east, north] = data.bounds;
+
+/*
+ * Plattprojektion med breddgradskorrigering: en longitudgrad är smalare än
+ * en latitudgrad utanför ekvatorn, och utan cos-faktorn blir varje svensk
+ * stad dubbelt så bred som i verkligheten.
+ */
+const kx = Math.cos(((south + north) / 2) * (Math.PI / 180));
+
+/* Bilden får plats i en låda på 320 x 230 enheter och behåller kommunens
+   egna proportioner inom den. */
+const BOX_W = 320;
+const BOX_H = 230;
+const PAD = 8;
+const scale = Math.min(BOX_W / ((east - west) * kx), BOX_H / (north - south));
+const W = Math.round((east - west) * kx * scale) + PAD * 2;
+const H = Math.round((north - south) * scale) + PAD * 2;
+
+const MAX_DOTS = 650;
+const stride = Math.max(1, Math.ceil(raw.x.length / MAX_DOTS));
+
+/*
+ * En path per bedömning i stället för en cirkel per punkt: "M123 45h0" med
+ * rund linjeände är en punkt för en tiondel av markupen. Ritordningen är
+ * grått, grönt, gult, rött så att anmärkningarna inte försvinner under
+ * mängden, samma prioritet som kartsidans nålar har.
+ */
+const paths: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
+let lng = 0;
+let lat = 0;
+for (let i = 0; i < raw.x.length; i++) {
+  lng += raw.x[i];
+  lat += raw.y[i];
+  if (i % stride !== 0) continue;
+  const gx = lng / 1e5;
+  const gy = lat / 1e5;
+  // Utsnittet är beskuret mot de yttersta halvprocenten (se extent() i
+  // map-data.ts). Punkter utanför skulle pressa ihop staden till en prick.
+  if (gx < west || gx > east || gy < south || gy > north) continue;
+  const px = Math.round(PAD + (gx - west) * kx * scale);
+  const py = Math.round(PAD + (north - gy) * scale);
+  paths[raw.v[i]]?.push(`M${px} ${py}h0`);
+}
+
+const LAYERS = [
+  { d: paths['3'].join(''), color: 'var(--verdict-none)' },
+  { d: paths['0'].join(''), color: 'var(--verdict-clean)' },
+  { d: paths['1'].join(''), color: 'var(--verdict-minor)' },
+  { d: paths['2'].join(''), color: 'var(--verdict-major)' },
+];
+
+/* Glesare kommuner får större punkter, annars ser Borgholmsklassen ut som
+   damm och Stockholm som en enda klump. */
+const dot = data.count > 3000 ? 3 : data.count > 800 ? 4 : 5;
+
+const href = path(`/${kommun.slug}`, 'karta');
+const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med känd plats`;
+---
+
+<a class="puff" href={href} aria-label={label}>
+  <span class="bild">
+    <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+      {LAYERS.map((l) => l.d && (
+        <path
+          d={l.d}
+          stroke={l.color}
+          stroke-width={dot}
+          stroke-linecap="round"
+          fill="none"
+        />
+      ))}
+    </svg>
+    <span class="knapp">Visa kartan</span>
+  </span>
+  <span class="antal text-secondary">
+    {formatNumber(data.count)} verksamheter med känd plats
+  </span>
+</a>
+
+<style>
+  .puff {
+    display: block;
+    overflow: hidden;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+  }
+
+  .puff:hover {
+    text-decoration: none;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .puff:hover .knapp { color: var(--brand-ink); }
+
+  .bild {
+    display: block;
+    position: relative;
+    /* En svag blå ton skiljer bilden från kortets vita och läser som vatten
+       och mark läser på en riktig karta: som en yta, inte som tomrum. */
+    background: color-mix(in srgb, var(--brand) 7%, var(--card));
+  }
+
+  .bild svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 210px;
+  }
+
+  .knapp {
+    position: absolute;
+    left: 50%;
+    bottom: var(--s-3);
+    transform: translateX(-50%);
+    padding: var(--s-2) var(--s-4);
+    background: var(--card);
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .antal {
+    display: block;
+    padding: var(--s-3) var(--s-4);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    border-top: 1px solid var(--hairline);
+  }
+</style>

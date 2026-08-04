@@ -9,17 +9,31 @@
  * Sidan är indelad i riktiga sidor (se lib/pagination.ts). Sida 1 ligger på
  * /[kommun] och har ingen egen /sida/1 — annars hade vi publicerat samma
  * innehåll på två URL:er.
+ *
+ * ## Ordningen i huvudspalten
+ *
+ * Verksamheterna först, statistiken efter. Sidan öppnade tidigare med fyra
+ * statistikrutor som tryckte ner listan en hel skärm, och ägarens dom var
+ * rättvis: man kom för restaurangerna och möttes av metod. Ednia, hitta.se
+ * och Booking gör alla samma sak på sina ortssidor: en tunn rad sammanhang
+ * under sidhuvudet, sedan innehållet, och fördjupningen efter resultaten.
+ *
+ * Statistiken är samtidigt sidans egen kunskap och en stor del av dess
+ * sökvärde, så den flyttar inte till en egen sida och göms inte i en
+ * hopfällbar panel. Den står i sin helhet efter listan, under en egen
+ * rubrik, och översiktsraden längst upp länkar dit med ett ankare.
  */
 import Base from '../layouts/Base.astro';
 import CommonIssues from './CommonIssues.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import FaceMark from './FaceMark.astro';
 import FollowUpRate from './FollowUpRate.astro';
+import KartaPuff from './KartaPuff.astro';
 import KommunBanner from './KommunBanner.astro';
+import KommunOversikt from './KommunOversikt.astro';
 import Kontrollen from './Kontrollen.astro';
 import Pagination from './Pagination.astro';
 import Uncovered from './Uncovered.astro';
-import VerdictBar from './VerdictBar.astro';
 import {
   formatDate,
   formatNumber,
@@ -34,7 +48,7 @@ import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/
 import { kontrollen } from '../lib/kontrollen';
 import { mapDataset } from '../lib/map-data';
 import { pageUrl } from '../lib/pagination';
-import { SITE, VERDICT } from '../lib/site';
+import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
 interface Props {
@@ -57,9 +71,9 @@ const base = `/${kommun.slug}`;
 const remarks = counts.minor + counts.major;
 
 // Vissa kommuner lämnar ut så lite att modellen aldrig kan nå alla utfall.
-// Då är en nolla i stapeln nedan ett besked om källan, inte om verksamheterna,
+// Då är en nolla i bandet en upplysning om källan, inte om verksamheterna,
 // och det måste stå på den sida där siffran visas. `distributionNote` och inte
-// `note`: bara utfall stapeln faktiskt visar hör hemma här. Utmärkelsen syns
+// `note`: bara utfall bandet faktiskt visar hör hemma här. Utmärkelsen syns
 // inte på den här sidan, och en mening om att den är onåbar hade infört ett
 // begrepp bara för att meddela att det saknas. Se sourceLimits i data.ts.
 const limits = sourceLimits(kommun.slug);
@@ -107,6 +121,9 @@ const control = currentPage === 1 ? kontrollen(kommun.code) : null;
  */
 const profil = currentPage === 1 ? kommunProfil(kommun.slug) : null;
 
+/** Fördjupningen efter listan finns bara när minst en insikt har underlag. */
+const hasDjup = Boolean(profil || record || control || unassessed);
+
 /**
  * "Senast kontrollerade" bara på sida 1. Panelen "Om uppgifterna" står på
  * alla sidor: källa och hämtdatum hör hemma där uppgifterna visas, och sida
@@ -122,13 +139,17 @@ const source = sourceFor(kommun.slug);
 /*
  * Kartan, om kommunen har koordinater.
  *
- * Bara en länk. Det är hela poängen: kartprogrammet väger 227 kB brotlat och
- * den här sidan väger 30 kB gzippat med allt inräknat, så kartan får aldrig
- * ligga här. Den som vill ha den klickar sig dit och betalar då för den.
- * Se Karta.astro.
+ * Viktargumentet i Karta.astro gäller: kartprogrammet väger 231 kB brotlat
+ * och den här sidan väger 30 kB gzippat med allt inräknat, så MapLibre får
+ * aldrig ligga här. Men "bara en textlänk" var ägarens klagomål, och svaret
+ * är KartaPuff: en riktig förhandsbild ritad vid bygget ur kartans egen
+ * datamängd, som länkar till /karta/. Kartan SYNS på sidan utan att sidan
+ * betalar för kartprogrammet.
  *
- * Länken står på hela sidserien och inte bara på sida 1. Den som bläddrat till
- * sida 47 av Stockholm har snarare mer nytta av en karta än mindre.
+ * Puffen står på hela sidserien och inte bara på sida 1. Den som bläddrat
+ * till sida 47 av Stockholm har snarare mer nytta av en karta än mindre.
+ * På smala skärmar ligger panelen efter listan, så där finns dessutom en
+ * fast kartknapp i underkant, samma grepp som hitta.se och Airbnb använder.
  */
 const karta = mapDataset(kommun.slug);
 
@@ -209,41 +230,19 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       <div class="main">
         {currentPage === 1 && (
           <>
-            <VerdictBar
+            {/* En tunn rad, inte ett kort. Hela svaret på "hur ser kommunen
+                ut" i tre centimeter, med ankare till fördjupningen. */}
+            <KommunOversikt
               counts={counts}
               remarksHref={remarks > 0 ? path(base, 'anmarkningar') : undefined}
+              statsHref={hasDjup ? '#om-kontrollen' : undefined}
+              city={city}
             />
 
             {limits.distributionNote && (
               <p class="limits">
                 {limits.distributionNote}{' '}
                 <a href="/metodik/#jamfor">Så påverkar källan bedömningen</a>.
-              </p>
-            )}
-
-            {profil && (
-              <CommonIssues
-                issues={profil.issues}
-                withRemarks={profil.withRemarks}
-                city={city}
-              />
-            )}
-
-            <FollowUpRate record={record} city={city} />
-
-            {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
-                rutan förklarar båda, och den läser bäst mellan dem. */}
-            <Kontrollen kontrollen={control} city={city} />
-
-            {unassessed && <Uncovered unseen={unassessed} city={city} />}
-
-            {remarks > 0 && (
-              <p class="jump">
-                {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
-                    vill se det som avviker ska inte behöva bläddra sig fram. */}
-                <a href={path(base, 'anmarkningar')}>
-                  Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
-                </a>
               </p>
             )}
           </>
@@ -278,29 +277,51 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
         <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+
+        {/* Fördjupningen. Allt som tidigare stod ovanför listan står här,
+            oavkortat: sidan har kvar hela sitt kunskaps- och sökvärde, men
+            registret får komma först. Den som vill hit direkt tar ankaret i
+            översiktsraden. */}
+        {currentPage === 1 && hasDjup && (
+          <section class="djup" id="om-kontrollen" aria-labelledby="djup-rubrik">
+            <h2 id="djup-rubrik">Så ser kontrollen ut i {city}</h2>
+            <p class="djup-intro text-secondary">
+              Räknat ur kommunens egna kontrolluppgifter: vad som brister
+              oftast, vad återbesöken gav och hur mycket av registret
+              kontrollen når.
+            </p>
+
+            {profil && (
+              <CommonIssues
+                issues={profil.issues}
+                withRemarks={profil.withRemarks}
+                city={city}
+              />
+            )}
+
+            <FollowUpRate record={record} city={city} />
+
+            {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
+                rutan förklarar båda, och den läser bäst mellan dem. */}
+            <Kontrollen kontrollen={control} city={city} />
+
+            {unassessed && <Uncovered unseen={unassessed} city={city} />}
+
+            {remarks > 0 && (
+              <p class="jump">
+                {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
+                    vill se det som avviker ska inte behöva bläddra sig fram. */}
+                <a href={path(base, 'anmarkningar')}>
+                  Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
+                </a>
+              </p>
+            )}
+          </section>
+        )}
       </div>
 
       <aside class="side">
-        {karta && (
-          <a class="panel karta" href={path(base, 'karta')}>
-            <span class="karta-text">
-              <b>Se {city} på karta</b>
-              <span class="text-secondary">
-                {formatNumber(karta.count)} verksamheter med känd plats
-              </span>
-            </span>
-            <svg class="karta-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linejoin="round"
-              />
-              <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
-            </svg>
-          </a>
-        )}
+        {karta && <KartaPuff kommun={kommun} data={karta} />}
 
         {recent.length > 0 && (
           <section class="panel">
@@ -360,6 +381,25 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         </section>
       </aside>
     </div>
+
+    {/* Kartknappen för smala skärmar, där sidopanelen och därmed puffen
+        ligger hundra listrader ner. Fast i underkant, som hos hitta.se,
+        Airbnb och Yelp i mobilbredd. Ren länk, inget skript. */}
+    {karta && (
+      <a class="kartknapp" href={path(base, 'karta')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linejoin="round"
+          />
+          <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+        </svg>
+        Karta
+      </a>
+    )}
   </div>
 </Base>
 
@@ -403,10 +443,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   .main > :global(* + *) { margin-top: var(--s-6); }
 
   .jump { font-size: var(--fs-body-s); }
-
-  .filter {
-    margin-top: var(--s-8);
-  }
 
   .filter h2 {
     font-size: var(--fs-body-s);
@@ -466,6 +502,25 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
+  /* ── Fördjupningen ───────────────────────────────────────────────────── */
+
+  /* Mer luft ovanför än blocken emellan: rubriken inleder sidans andra
+     kapitel och ska kännas som det, inte som nästa kort i listan. */
+  .djup { margin-top: var(--s-12); }
+
+  /* Ankaret från översiktsraden ska inte landa med rubriken klistrad mot
+     fönstrets överkant. */
+  .djup { scroll-margin-top: var(--s-6); }
+
+  .djup-intro {
+    margin-top: var(--s-2);
+    max-width: 640px;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .djup > :global(* + *) { margin-top: var(--s-4); }
+
   /* ── Sidopanel ────────────────────────────────────────────────────────── */
 
   .side {
@@ -488,45 +543,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     line-height: var(--lh-body-s);
     font-weight: 600;
     margin-bottom: var(--s-2);
-  }
-
-  /* Ingången till kartan. Ett kort och inte en textlänk: den ska gå att hitta
-     utan att man letar, eftersom kartan är det sidan helst vill visa vidare
-     till. Den kostar ändå ingenting utöver sin egen markup. */
-  .karta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-    color: var(--text);
-  }
-
-  .karta:hover {
-    text-decoration: none;
-    box-shadow: var(--shadow-pop);
-  }
-
-  .karta:hover b { color: var(--brand-ink); }
-
-  .karta-text { min-width: 0; }
-
-  .karta-text b {
-    display: block;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    font-weight: 600;
-  }
-
-  .karta-text span {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-
-  .karta-glyph {
-    flex-shrink: 0;
-    width: 26px;
-    height: 26px;
-    color: var(--brand);
   }
 
   .recent {
@@ -598,12 +614,40 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
+  /* Kartknappen finns bara i smal bredd. På desktop är puffen i panelen
+     alltid i blickfånget, och en svävande knapp ovanpå vore dubbelt. */
+  .kartknapp { display: none; }
+
   /* Under 900 px lägger sig panelen efter listan i stället för bredvid.
      Listan är hundra rader lång, så panelen hamnar i praktiken utom synhåll
      — men den bär källa och färskhet, som hör hemma efter innehållet snarare
-     än före det på en smal skärm. */
+     än före det på en smal skärm. Kartan tappar däremot inte bort sig:
+     kartknappen ligger fast i underkant. */
   @media (max-width: 900px) {
     .layout { grid-template-columns: minmax(0, 1fr); }
     .side { position: static; }
+
+    .kartknapp {
+      position: fixed;
+      left: 50%;
+      bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 5;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s-2);
+      padding: 10px var(--s-4);
+      background: var(--text);
+      color: #fff;
+      border-radius: var(--r-pill);
+      box-shadow: var(--shadow-pop);
+      font-size: var(--fs-body-s);
+      line-height: var(--lh-body-s);
+      font-weight: 600;
+    }
+
+    .kartknapp:hover { text-decoration: none; }
+
+    .kartknapp svg { width: 18px; height: 18px; }
   }
 </style>

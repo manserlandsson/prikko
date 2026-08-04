@@ -54,13 +54,24 @@ const href = credit?.href(image.id) ?? null;
 
 /**
  * Attributionstexten kommer från databasen när den finns, så att licensraden
- * följer bilden i stället för att gissas här. Reserven är källans namn.
+ * följer bilden i stället för att gissas här. Pipelinen skriver
+ * "fotograf / Källa, CC BY-SA 4.0" — CC BY-SA kräver att upphovspersonen
+ * namnges, inte bara plattformen. Allt före första kommatecknet blir länktext,
+ * resten licensrad. Reserven är källans namn.
  */
 const attribution =
   image.attribution ??
   (credit ? `${credit.label}, CC BY-SA 4.0` : 'Verksamhetens egen bild');
 const [creditLabel, ...licenceParts] = attribution.split(',');
 const licence = licenceParts.join(',').trim();
+
+/**
+ * CC BY-SA 4.0 §3(a)(1)(C): den som delar verket vidare ska ange licensens
+ * URI. Därför är licensraden en länk och inte bara text.
+ */
+const licenceHref = /CC BY-SA/i.test(licence)
+  ? 'https://creativecommons.org/licenses/by-sa/4.0/deed.sv'
+  : null;
 ---
 
 <figure class="photo">
@@ -86,7 +97,11 @@ const licence = licenceParts.join(',').trim();
       <a href={href} target="_blank" rel="noopener noreferrer">{creditLabel}</a>
     ) : (
       <span>{creditLabel}</span>
-    )}{licence && `, ${licence}`}
+    )}{licence && ', '}{licence && (licenceHref ? (
+      <a href={licenceHref} target="_blank" rel="noopener noreferrer">{licence}</a>
+    ) : (
+      <span>{licence}</span>
+    ))}
   </figcaption>
 </figure>
 

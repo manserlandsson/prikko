@@ -1,0 +1,19 @@
+/*
+ * Kartrutans ram — delad mellan kartsöksidans karta (Karta.astro) och
+ * verksamhetssidans platskarta (Platskarta.astro).
+ *
+ * Rundade hörn, hårfin kant, ingen skugga. Som Airbnbs karta.
+ *
+ * Ägarens ord: "rutan sitter liksom helt fast, är en perfekt fyrkant, fast
+ * med rundade hörn, och inget fluff". Radien är kortradien, kanten bara en
+ * hårlinje så att den ljusa kartan inte flyter ihop med sidan, och ingen
+ * skugga. Måtten (höjd, min-höjd) är däremot varje kartas egna och sätts i
+ * respektive komponent.
+ */
+.kartram {
+  position: relative;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--card);
+}

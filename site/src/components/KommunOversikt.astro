@@ -1,0 +1,187 @@
+---
+/**
+ * Kommunens fördelning som en smal rad ovanför listan.
+ *
+ * Ersätter det stora fördelningskortet (VerdictBar). Kortet stod först i
+ * huvudspalten och tryckte, tillsammans med tre insiktsrutor till, ner
+ * verksamheterna en hel skärm. Ägarens ord: man ser inte restaurangerna.
+ *
+ * Samma information, mindre yta: bandet, antalen, andelarna och länken till
+ * anmärkningarna finns kvar. Det som försvann är kortchromet och de stora
+ * talen, inte innehållet. Fördjupningen ligger kvar på sidan, efter listan,
+ * och raden länkar dit så att den som kom för statistiken hittar den utan
+ * att rulla på måfå.
+ *
+ * Förebilden är Ednia och hitta.se: en tunn rad med sammanhang direkt under
+ * sidhuvudet, sedan innehållet. Ingen statistikvägg emellan.
+ *
+ * Färgerna är bedömningens egna och betyder här precis vad de betyder
+ * överallt annars. Varje segment bär sin etikett i text: färg ensam är
+ * aldrig ett budskap.
+ */
+import { formatNumber } from '../lib/data';
+import { VERDICT } from '../lib/site';
+
+interface Props {
+  counts: { clean: number; minor: number; major: number; none: number };
+  /** Länkmål för raden "Brister", när kommunen har några. */
+  remarksHref?: string;
+  /** Ankare till fördjupningen längre ner på sidan, när den finns. */
+  statsHref?: string;
+  city: string;
+}
+
+const { counts, remarksHref, statsHref, city } = Astro.props;
+
+const total = counts.clean + counts.minor + counts.major + counts.none;
+
+const segments = [
+  {
+    key: 'clean',
+    n: counts.clean,
+    label: VERDICT.clean.label,
+    surface: 'var(--verdict-clean)',
+  },
+  {
+    key: 'minor',
+    n: counts.minor,
+    label: VERDICT.minor.label,
+    surface: 'var(--verdict-minor)',
+  },
+  {
+    key: 'major',
+    n: counts.major,
+    label: VERDICT.major.label,
+    surface: 'var(--verdict-major)',
+  },
+  {
+    key: 'none',
+    n: counts.none,
+    // "Ingen bedömning" är inte en nivå och får aldrig läsas som en mild
+    // variant av de andra. Därför grått, och därför sist.
+    label: 'Ingen bedömning',
+    surface: 'var(--verdict-none)',
+  },
+];
+
+const barLabel = segments
+  .filter((s) => s.n > 0)
+  .map((s) => `${s.label}: ${formatNumber(s.n)}`)
+  .join('. ');
+
+/** Andel i hela procent. Visas inte under 1 %, för "0 %" bredvid ett tal som
+ *  inte är noll läser som ett fel. */
+function share(n: number): string | null {
+  if (!total) return null;
+  const pct = Math.round((n / total) * 100);
+  return pct >= 1 ? `${pct} %` : null;
+}
+---
+
+<section class="oversikt" aria-labelledby="fordelning">
+  <div class="rubrikrad">
+    <h2 id="fordelning" class="eyebrow">Fördelning i kommunen</h2>
+    {statsHref && <a class="mer" href={statsHref}>Så ser kontrollen ut i {city}</a>}
+  </div>
+
+  <div class="bar" role="img" aria-label={barLabel}>
+    {segments.map((s) => s.n > 0 && (
+      <span style={`width:${(s.n / total) * 100}%;background:${s.surface}`}></span>
+    ))}
+  </div>
+
+  <ul class="legend">
+    {segments.map((s) => {
+      const pct = share(s.n);
+      const body = (
+        <>
+          <span class="swatch" style={`background:${s.surface}`} aria-hidden="true"></span>
+          <b>{formatNumber(s.n)}</b>
+          <span class="lbl">{s.label}</span>
+          {pct && <span class="pct">{pct}</span>}
+        </>
+      );
+      return (
+        <li>
+          {s.key === 'minor' && remarksHref && s.n > 0 ? (
+            <a href={remarksHref}>{body}</a>
+          ) : (
+            <span class="rad">{body}</span>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+</section>
+
+<style>
+  /* Inget kort. Raden är sammanhang, inte innehåll, och ska väga därefter. */
+  .rubrikrad {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+  }
+
+  .mer {
+    flex-shrink: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+  }
+
+  .bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: var(--s-2);
+    background: var(--verdict-none);
+  }
+
+  .bar > span { display: block; height: 100%; }
+
+  .legend {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-4);
+  }
+
+  .legend a, .rad {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-1);
+    color: var(--text);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .legend a:hover { text-decoration: none; }
+  .legend a:hover .lbl { color: var(--brand-ink); text-decoration: underline; }
+
+  /* Färgprickens enda uppgift är att koppla posten till sitt segment i
+     bandet. Betydelsen står i texten bredvid, så prickens kontrast bär ingen
+     information och behöver inte klara 3:1. */
+  .swatch {
+    flex-shrink: 0;
+    align-self: center;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  .legend b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lbl { color: var(--text-secondary); }
+
+  .pct {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -34,8 +34,10 @@ MAPILLARY_PAYLOAD = {
             "id": "498763468214164",
             "thumb_1024_url": SIGNED,
             "captured_at": 1723438554000,
+            # ~19 m norr om punkten nedan; bäring kamera → punkt är 180° och
+            # kompassen 204,5° avviker 24,5°, alltså innanför riktningskravet.
             "compass_angle": 204.5,
-            # ~19 m från punkten nedan
+            "creator": {"username": "andreas_p", "id": "107249234840764"},
             "geometry": {"type": "Point", "coordinates": [17.638889, 59.858782]},
         },
         {
@@ -62,7 +64,10 @@ PANORAMAX_PAYLOAD = {
             "properties": {
                 "datetime": "2024-08-12T04:55:54+00:00",
                 "license": "CC-BY-SA-4.0",
+                # Kameran står nordost om punkten; bäringen dit är ~199° och
+                # 204° avviker bara ~5°, alltså innanför riktningskravet.
                 "view:azimuth": 204,
+                "geovisio:producer": "serenedeluge",
             },
         }
     ]
@@ -130,25 +135,70 @@ class TestSokning(unittest.TestCase):
         found = imagery.find_panoramax(LAT, LNG, prefer_large=False)
         self.assertTrue(found.fetch_url.endswith("/thumb.jpg"))
 
-    def test_panoramax_anvands_inte_som_reserv(self):
-        """Panoramax är avstängd. Utan Mapillary blir det ingen bild alls.
+    def test_panoramax_tar_over_nar_mapillary_saknas(self):
+        """Panoramax är andrahandskällan, beslutat efter mätningen 2026-08-04.
 
-        Testet hette tidigare att Panoramax tar över, och vaktade motsatsen.
-        Ägaren stängde av källan efter mätningen: 11,5 procents täckning inom
-        60 meter, noll utanför fyra kommuner, och tre av tolv träffar var
-        360-utvikningar som beskurna visade bilens tak.
-
-        Funktionen find_panoramax står kvar och testas fortfarande för sig.
-        Det som vaktas här är att den inte kopplas in i urvalet igen av
-        misstag.
+        Mapillary bär funktionen, men Panoramax vinner lokalt (Uppsala 26,9
+        procent inom 60 m), kostar ingenting och kräver ingen token. Utan
+        Mapillary-token ska urvalet alltså falla vidare till Panoramax i
+        stället för att ge upp.
         """
 
         def fake(url, timeout=30):
             return MAPILLARY_PAYLOAD if "mapillary" in url else PANORAMAX_PAYLOAD
 
         imagery._get = fake
-        # Utan token hoppas Mapillary över helt, och då finns ingen reserv.
-        self.assertIsNone(imagery.find_candidate(LAT, LNG, token=""))
+        found = imagery.find_candidate(LAT, LNG, token="")
+        self.assertIsNotNone(found)
+        self.assertEqual(found.source, "panoramax")
+
+    def test_kamera_som_pekar_bort_valjs_bort(self):
+        """Närmaste bild kan vara tagen med ryggen mot huset. En bild av
+        vägen bort från restaurangen är inte en bild av restaurangen."""
+        item = {**MAPILLARY_PAYLOAD["data"][0], "compass_angle": 24.5}
+        imagery._get = lambda url, timeout=30: {"data": [item]}
+        self.assertIsNone(imagery.find_mapillary(LAT, LNG, token="prov"))
+
+    def test_kompass_saknas_ger_ingen_bild(self):
+        """Utan kompassvärde går det inte att veta vad bilden visar, och då
+        är rätt svar ingen bild — inte en gissning."""
+        item = {**MAPILLARY_PAYLOAD["data"][0]}
+        del item["compass_angle"]
+        imagery._get = lambda url, timeout=30: {"data": [item]}
+        self.assertIsNone(imagery.find_mapillary(LAT, LNG, token="prov"))
+
+    def test_nattbild_valjs_bort(self):
+        """Rätt avstånd och rätt riktning hjälper inte en beckmörk
+        vindrutebild. Provkörningen mot Linköping valde en sådan, från en
+        marsnatt, innan dagsljusgrinden fanns."""
+        # 2021-03-10 21:30 UTC = 22:30 svensk tid, långt efter mörkrets inbrott
+        item = {**MAPILLARY_PAYLOAD["data"][0], "captured_at": 1615411800000}
+        imagery._get = lambda url, timeout=30: {"data": [item]}
+        self.assertIsNone(imagery.find_mapillary(LAT, LNG, token="prov"))
+
+    def test_nyare_bild_vinner_inom_samma_avstandsband(self):
+        """Två bilder på 19 och 27 m är i praktiken lika nära, och då ska den
+        nya vinna: en elva år gammal bild av rätt hus känns ändå inte igen om
+        skylten bytts. Mellan banden vinner fortfarande närheten."""
+        old_near = MAPILLARY_PAYLOAD["data"][0]  # ~19 m, 2024-08-12
+        newer_far = {
+            **old_near,
+            "id": "222222222222222",
+            "captured_at": 1751367600000,  # 2025-07-01 11:00 UTC
+            # ~27 m norr om punkten, samma band om 15 m som 19 m-bilden
+            "geometry": {"type": "Point", "coordinates": [17.638889, 59.858855]},
+        }
+        imagery._get = lambda url, timeout=30: {"data": [old_near, newer_far]}
+        found = imagery.find_mapillary(LAT, LNG, token="prov")
+        self.assertEqual(found.source_id, "222222222222222")
+
+    def test_panoramax_fel_licens_valjs_bort(self):
+        """Federationen tillåter CC-BY-SA 4.0 och franska LO 2.0 per bild.
+        Vi tar bara CC-BY-SA, så att sajtens licensrad alltid är sann."""
+        feature = dict(PANORAMAX_PAYLOAD["features"][0])
+        feature["properties"] = {**feature["properties"], "license": "etalab-2.0"}
+        imagery._get = lambda url, timeout=30: {"features": [feature]}
+        self.assertIsNone(imagery.find_panoramax(LAT, LNG))
 
 
 class TestLagring(unittest.TestCase):
@@ -287,7 +337,8 @@ class TestHelaKedjan(unittest.TestCase):
         self.assertEqual(stored.source, "mapillary")
         self.assertEqual(stored.source_id, "498763468214164")
         self.assertEqual(stored.licence, "CC-BY-SA-4.0")
-        self.assertEqual(stored.attribution, "Mapillary, CC BY-SA 4.0")
+        # CC BY-SA kräver att upphovspersonen namnges, inte bara plattformen.
+        self.assertEqual(stored.attribution, "andreas_p / Mapillary, CC BY-SA 4.0")
 
     def test_ingen_signerad_url_lacker_ut_i_det_vi_sparar(self):
         """Regressionen. Det här var buggen: en signerad URL med utgångstid
