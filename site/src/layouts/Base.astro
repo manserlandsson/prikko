@@ -40,6 +40,14 @@ interface Props {
    * sidhuvudet. Vidarebefordras rakt till Header; se resonemanget där.
    */
   headerSearch?: boolean;
+  /**
+   * Falskt bara på kartsidan. Den är en app-yta som fyller hela höjden under
+   * sidhuvudet och aldrig skrollar på sidnivå, och då finns inget "under
+   * sidan" att lägga en sidfot på. Airbnb gör likadant på sin kartvy.
+   * Sidfotens länkar finns på varje annan sida, inklusive kommunhubben som
+   * kartan alltid länkar tillbaka till.
+   */
+  footer?: boolean;
 }
 
 const {
@@ -52,6 +60,7 @@ const {
   prev,
   next,
   headerSearch = true,
+  footer = true,
 } = Astro.props;
 
 // Kanonisk URL: alltid utan query/hash, alltid mot produktionsdomänen.
@@ -110,7 +119,7 @@ const structuredData = jsonLd
     <main id="main">
       <slot />
     </main>
-    <Footer />
+    {footer && <Footer />}
 
     {/* Inloggningsrutan hör till layouten och inte till enskilda sidor.
         Den låg tidigare på tre sidtyper: kontosidorna och verksamhetssidan.

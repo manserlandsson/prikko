@@ -33,35 +33,43 @@ const UT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'kartst
 /*
  * Paletten.
  *
- * Utgångspunkten är Apple Maps ljusa läge, som Måns pekade ut: varm off-white
- * mark, vita vägar, dämpad blå vatten, mjuk grön park. Skillnaden mot Apple är
- * att allt grönt och blått här är ett par steg mindre mättat, av skälet ovan.
+ * ANDRA VERSIONEN. Den första var Apple Maps med mättnaden nedskruvad två
+ * steg, och ägaren dömde ut den: för urblekt, "denna ser ej bra ut". Facit
+ * hämtades ur det han pekar på som snyggt: Airbnbs och The Forks kartor, som
+ * båda är Googles ljusa standardstil. Där är parkerna PÅTAGLIGT gröna,
+ * vattnet PÅTAGLIGT blått och motorvägarna gula, och kartan läser som en
+ * karta i stället for som en gråtonad bakgrundsbild.
+ *
+ * Nålarna klarar det: deras grönt och gult är mättade märkesfärger med vit
+ * kontur och skugga, och de ligger ovanpå ytorna, inte i dem. Det som INTE
+ * får hända är att en parkyta och en grön nål har samma valör, och det har
+ * de inte: parkgrönt ligger runt L 88 mot nålgröns L 67.
  */
 const F = {
-  mark: '#F6F4F1',
-  markUpptagen: '#F1EEE9', // bostadsområde, syns bara som en aning mörkare mark
-  vatten: '#BBD8E8',
-  vattendrag: '#BBD8E8',
-  park: '#DCE7D2',
-  skog: '#D5E1C8',
-  gras: '#DEE8D5',
-  sand: '#EFE8D6',
-  is: '#ECF1F1',
-  begravning: '#DFE4D6',
-  sjukhus: '#F1E9E9', // Liberty har #fde, en rosa som skriker på en tyst karta
-  skola: '#EEEBE1', // Liberty har rgb(236,238,204), en gulgrön som gör detsamma
-  hus: '#EAE6E0',
-  husKant: '#DFDAD3',
+  mark: '#F2F1EC',
+  markUpptagen: '#EDEBE4', // bostadsområde, en aning mörkare mark
+  vatten: '#A8D3F0',
+  vattendrag: '#A8D3F0',
+  park: '#C9E5AD',
+  skog: '#B9DB9C',
+  gras: '#D4EABF',
+  sand: '#F1E7C0',
+  is: '#E8F1F5',
+  begravning: '#CFE0BE',
+  sjukhus: '#F3EAEA', // Liberty har #fde, en rosa som skriker
+  skola: '#F0EBDF', // Liberty har rgb(236,238,204), en gulgrön som gör detsamma
+  hus: '#E8E4DC',
+  husKant: '#DCD6CC',
 
-  // Vägnätet. Vitt fyll och en ljus varm kant, som Apple.
+  // Vägnätet: vita vägar, gul motorväg. Googles hierarki, allas förväntan.
   vag: '#FFFFFF',
-  vagKant: '#E7E1D8',
-  motorvag: '#FCEFD9', // enda vägtypen med egen ton, så att stommen syns direkt
-  motorvagKant: '#E9D8B6',
+  vagKant: '#E4DED2',
+  motorvag: '#FCD98A',
+  motorvagKant: '#E8BE5F',
   mindre: '#FAF8F5',
-  mindreKant: '#EAE4DB',
-  gangvag: '#E6E0D5',
-  rals: '#DAD5CD',
+  mindreKant: '#E9E3D9',
+  gangvag: '#E3DDD0',
+  rals: '#D8D3CB',
 
   // Flygfält. Bromma ligger mitt i Stockholms kommun, så ytan syns i det
   // första utsnittet. Libertys platta är en kall grå som sticker ut mot den
@@ -71,11 +79,11 @@ const F = {
 
   // Text. En enda grå för allt utom vatten, halo alltid vit.
   text: '#5C5A56',
-  textVatten: '#7C9FB8',
+  textVatten: '#6E9CC0',
   textPlats: '#44423E',
   halo: '#FFFFFF',
 
-  grans: '#D6D1C9',
+  grans: '#C9C4BB',
 };
 
 /** Lager-id till färg. Första träffen vinner, så ordningen är betydelsefull. */

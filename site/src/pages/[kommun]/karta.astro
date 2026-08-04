@@ -53,6 +53,7 @@ const jsonLd = {
   description={description}
   jsonLd={jsonLd}
   dataUpdated={source?.fetchedAt.slice(0, 10)}
+  footer={false}
 >
   <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">
@@ -74,6 +75,9 @@ const jsonLd = {
       Beskrivningen finns kvar i sidans meta description, alltså där den
       faktiskt läses av sökmotorer.
     */}
+    {/* Brödsmulorna och rubriken delar rad för att spara höjd åt kartan:
+        på en app-yta är varje lodrät pixel ovanför kartan en pixel karta
+        som försvinner. */}
     <h1>Karta över hygienkontroller i {city}</h1>
 
     <Karta kommun={kommun} data={data} />
@@ -83,9 +87,21 @@ const jsonLd = {
 <style>
   /* Bredare än sajtens vanliga 1080. Den delade vyn är två spalter som båda
      vill ha plats, och en karta som klipps till en textspalts bredd är inte
-     den halva av sidan den ska vara. */
+     den halva av sidan den ska vara.
+
+     APP-YTA, INTE DOKUMENT. Sidan fyller exakt höjden under sidhuvudet och
+     skrollar aldrig på sidnivå: listan skrollar i sin egen spalt och kartan
+     står still, precis som hos Airbnb. Det var ägarens andra klagomål på
+     raken om skroll på den här sidan, och sticky-kartan löste det aldrig
+     eftersom teckenförklaring och sidfot alltid låg kvar under och gav sidan
+     en svans. Sidfoten är därför avstängd här via Base-propen footer.
+
+     58px är sidhuvudets höjd plus dess hårlinje, satt i Header.astro. */
   .page {
-    padding-block: var(--s-6) var(--s-8);
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 59px);
+    padding-block: var(--s-4) var(--s-4);
     max-width: 1400px;
   }
 
@@ -95,13 +111,21 @@ const jsonLd = {
     align-items: center;
     font-size: var(--fs-body-s);
     color: var(--text-muted);
-    margin-bottom: var(--s-3);
   }
 
   h1 {
-    margin-bottom: var(--s-5);
-    font-size: var(--fs-h);
-    line-height: var(--lh-h);
+    margin-block: var(--s-1) var(--s-4);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /* Under 900 px växlar Karta.astro till lista ELLER karta i fullskärm, och
+     då ska sidan skrolla som ett vanligt dokument igen. */
+  @media (max-width: 900px) {
+    .page {
+      height: auto;
+      display: block;
+    }
   }
 
   .back {

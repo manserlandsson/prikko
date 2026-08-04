@@ -563,6 +563,8 @@ const LEGEND = [
         const märke = e('div', 'kort-utmarkelse');
         const stjarna = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         stjarna.setAttribute('viewBox', '0 0 24 24');
+        stjarna.setAttribute('width', '15');
+        stjarna.setAttribute('height', '15');
         stjarna.setAttribute('aria-hidden', 'true');
         const bana = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         bana.setAttribute('d', 'M12 3.2l2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.2 6.8 19.1 8 13.3l-4.4-4 5.9-.7z');
@@ -581,6 +583,8 @@ const LEGEND = [
       lankText.textContent = 'Se kontrollerna';
       const pil = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       pil.setAttribute('viewBox', '0 0 24 24');
+      pil.setAttribute('width', '16');
+      pil.setAttribute('height', '16');
       pil.setAttribute('aria-hidden', 'true');
       const pilBana = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pilBana.setAttribute('d', 'M5 12h13m-5-5l5 5-5 5');
@@ -1113,6 +1117,42 @@ const LEGEND = [
     align-items: start;
   }
 
+  /* App-läget på stora skärmar: sidan (.page i karta.astro) är en fast yta
+     utan sidskroll, splitten fyller den, listan skrollar i sin egen spalt och
+     kartkolumnen står still av sig själv. position: sticky behövs inte längre
+     och tas därför tillbaka nedan. Samma modell som Airbnbs kartvy. */
+  @media (min-width: 901px) {
+    .split {
+      flex: 1;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    .lista {
+      min-height: 0;
+      overflow-y: auto;
+      /* Luft mellan korten och rullisten, annars ligger den dikt an. */
+      padding-right: var(--s-2);
+      /* Skuggan på hovrade kort klipps annars av skrollytans kant. */
+      padding-block: var(--s-1);
+    }
+
+    .kartkolumn {
+      position: static;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kartram {
+      flex: 1;
+      height: auto;
+      min-height: 0;
+    }
+
+    .under { flex: none; }
+  }
+
   /* ── Listan ───────────────────────────────────────────────────────────── */
 
   .listhuvud { margin-bottom: var(--s-4); }
@@ -1137,10 +1177,15 @@ const LEGEND = [
     padding: 0;
   }
 
-  /* En kolumn när listspalten blir för smal för två läsbara kort. Brytpunkten
-     ligger på split-vyns egen: under 900 px är listan fullbredd igen och två
-     kolumner ryms gott, så gränsen gäller spannet strax ovanför. */
+  /* En kolumn när ytan blir för smal för två läsbara textkort. Två spann:
+     mellanläget där listspalten delar bredd med kartan, och små mobiler där
+     listan visserligen är fullbredd men 170 px per kort klipper vartannat
+     namn. */
   @media (min-width: 901px) and (max-width: 1120px) {
+    .rader { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 560px) {
     .rader { grid-template-columns: minmax(0, 1fr); }
   }
 
@@ -1288,6 +1333,11 @@ const LEGEND = [
    *
    * `left` och `top` sätts som inline-stil därifrån. CSS här beskriver bara
    * utseendet och pilen.
+   *
+   * ALLT under .kort ligger i :global, av samma skäl som listkorten: innehållet
+   * byggs av skriptet med createElement och bär inget Astro-scope. Scopade
+   * regler här matchade aldrig, och kortet renderades rått: jättepil,
+   * länkblått och ingen padding. Roten .kort är server-renderad och scopas.
    */
   .kort {
     position: absolute;
@@ -1335,7 +1385,7 @@ const LEGEND = [
     border-bottom: 8px solid var(--card);
   }
 
-  .kort-stang {
+  .kort :global(.kort-stang) {
     position: absolute;
     top: var(--s-2);
     right: var(--s-2);
@@ -1352,10 +1402,10 @@ const LEGEND = [
     cursor: pointer;
   }
 
-  .kort-stang:hover { background: var(--canvas); color: var(--text); }
-  .kort-stang svg { width: 15px; height: 15px; }
+  .kort :global(.kort-stang:hover) { background: var(--canvas); color: var(--text); }
+  .kort :global(.kort-stang svg) { width: 15px; height: 15px; }
 
-  .kort-topp {
+  .kort :global(.kort-topp) {
     display: flex;
     align-items: flex-start;
     gap: var(--s-3);
@@ -1363,11 +1413,11 @@ const LEGEND = [
     padding-right: var(--s-6);
   }
 
-  .kort-topp .face { flex: none; }
+  .kort :global(.kort-topp .face) { flex: none; }
 
-  .kort-titel { min-width: 0; }
+  .kort :global(.kort-titel) { min-width: 0; }
 
-  .kort-titel b {
+  .kort :global(.kort-titel b) {
     display: block;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
@@ -1376,7 +1426,7 @@ const LEGEND = [
 
   /* Kommunens egen benämning. Sekundär i vikt men inte gömd: den skiljer en
      restaurang från ett skolkök, och det är ofta första frågan. */
-  .kort-typ {
+  .kort :global(.kort-typ) {
     display: block;
     margin-top: 2px;
     font-size: var(--fs-caption);
@@ -1384,26 +1434,26 @@ const LEGEND = [
     color: var(--text-secondary);
   }
 
-  .kort-mitt {
+  .kort :global(.kort-mitt) {
     padding: var(--s-3) var(--s-4);
     border-top: 1px solid var(--hairline);
   }
 
-  .kort-bedomning {
+  .kort :global(.kort-bedomning) {
     display: block;
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     font-weight: 600;
   }
 
-  .kort-fakta {
+  .kort :global(.kort-fakta) {
     margin: 2px 0 0;
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
 
-  .kort-utmarkelse {
+  .kort :global(.kort-utmarkelse) {
     display: flex;
     align-items: center;
     gap: var(--s-2);
@@ -1415,11 +1465,11 @@ const LEGEND = [
     color: var(--brand-ink);
   }
 
-  .kort-utmarkelse svg { width: 15px; height: 15px; flex: none; }
+  .kort :global(.kort-utmarkelse svg) { width: 15px; height: 15px; flex: none; }
 
   /* Handlingen som hel rad, inte som en textlänk. Kortet har ett enda syfte
      efter att man läst det, och det ska gå att träffa med tummen. */
-  .kort-lank {
+  .kort :global(.kort-lank) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1433,8 +1483,8 @@ const LEGEND = [
     color: var(--brand-ink);
   }
 
-  .kort-lank:hover { background: var(--canvas); }
-  .kort-lank svg { width: 16px; height: 16px; flex: none; }
+  .kort :global(.kort-lank:hover) { background: var(--canvas); }
+  .kort :global(.kort-lank svg) { width: 16px; height: 16px; flex: none; }
 
   /* ── Under kartan ─────────────────────────────────────────────────────── */
 
