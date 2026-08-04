@@ -99,39 +99,31 @@ const jsonLd = [
 ---
 
 <Base title={SITE.name} description={description} jsonLd={jsonLd} headerSearch={false}>
-  {/*
-    Heron är fyra saker: wordmarken i sidhuvudet ovanför, rubriken,
-    underraden och fältet. Centrerad stapel: en vänsterställd rubrik
-    ovanför ett centrerat fält drar åt två håll.
+  {/* Heron efter JobbSafaris mönster, som ägaren pekade ut: en mönstrad
+      färgyta kant i kant, och innehållet på en ljus panel ovanpå. Mönstret är
+      prickar i en mörkare ton av märkesblått, eftersom prickar är det enda
+      mönster sajten kan bära utan att det blir dekor: de ÄR namnet.
 
-    Rubriken har besökaren som subjekt, inte kommunerna: sidan ska säga vad
-    man GÖR här. Varifrån datan kommer sägs EN gång, i underraden. Det är
-    sidans enda proveniensrad; den upprepas inte längre ned.
+      Rubriken har Prikko som avsändare. Två tidigare versioner föll på samma
+      grund: "Kommunernas hygienkontroller" gjorde kommunerna till subjekt och
+      "Se vad inspektören såg" gjorde inspektören till det. Ägarens ord: "vår
+      handlar om att PRIKKO visar dom data". Verbet är visar, inte kollar,
+      eftersom kontrollen är kommunens och sammanställningen är vår. */}
+  <div class="hero-yta">
+    <section class="container">
+      <div class="topp">
+        <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
+        <h1>Vi visar hur rent det&nbsp;är</h1>
+        <p class="under">
+          Byggt på kommunernas officiella hygienkontroller.
+        </p>
 
-    Graden är 32 px och inte tokens 40: fältet är sidans främsta handling,
-    och en display-rubrik över flera rader tog den rollen.
-  */}
-  <section class="container topp">
-    {/* Formen är JobbSafaris hero, som ägaren pekade ut: en liten rad med
-        omfånget överst, en stor rubrik med besökaren som subjekt, fältet.
-        Omfångsraden gör två jobb samtidigt: den bevisar att tjänsten täcker
-        något, och den säger vilka slags ställen man kan söka på, så att
-        rubriken slipper räkna upp dem.
-
-        Rubriken säger vad man FÅR här, inte vad sajten är. "Se vad
-        inspektören såg" är löftet i sex stavelser: myndighetens egna ögon,
-        tillgängliga för dig. Hårt mellanslag så att "såg" aldrig hamnar
-        ensamt på en egen rad. */}
-    <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
-    <h1>Se vad inspektören&nbsp;såg</h1>
-    <p class="under">
-      Kommunernas officiella hygienkontroller, samlade på ett ställe.
-    </p>
-
-    <div class="hero-sok">
-      <SiteSearch size="hero" />
-    </div>
-  </section>
+        <div class="hero-sok">
+          <SiteSearch size="hero" />
+        </div>
+      </div>
+    </section>
+  </div>
 
   <section class="container block">
     <div class="block-head">
@@ -180,11 +172,26 @@ const jsonLd = [
 </Base>
 
 <style>
-  /* Heron. Luften under fältet bärs av sektionen själv och inte av nästa
-     blocks marginal, så att den står för sig själv oavsett vad som ligger
-     närmast ovanför. */
+  /*
+   * Den mönstrade ytan. Prickarna är EN inlinad SVG-platta som upprepas:
+   * åtta cirklar i olika storlek i en mörkare ton av märkesblått, gles nog
+   * att läsa som textur och inte som prickig pyjamas. Ingen bild hämtas,
+   * ingen byte utanför HTML-dokumentet.
+   *
+   * Panelen ovanpå är ljus och rundad som JobbSafaris, så att innehållet
+   * ligger PÅ ytan i stället för I den. Utan panelen hade vit text på blått
+   * krävts, och fältet hade tappat sin vita inramning.
+   */
+  .hero-yta {
+    background-color: var(--brand);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg fill='%230063B4'%3E%3Ccircle cx='34' cy='42' r='17'/%3E%3Ccircle cx='131' cy='25' r='9'/%3E%3Ccircle cx='215' cy='58' r='23'/%3E%3Ccircle cx='75' cy='128' r='11'/%3E%3Ccircle cx='176' cy='142' r='15'/%3E%3Ccircle cx='28' cy='208' r='13'/%3E%3Ccircle cx='118' cy='222' r='20'/%3E%3Ccircle cx='232' cy='218' r='9'/%3E%3C/g%3E%3C/svg%3E");
+    padding-block: var(--s-8);
+  }
+
   .topp {
-    padding-block: var(--s-12);
+    padding: var(--s-12) var(--s-6);
+    background: var(--card);
+    border-radius: 24px;
     text-align: center;
   }
 
@@ -318,7 +325,8 @@ const jsonLd = [
   }
 
   @media (max-width: 680px) {
-    .topp { padding-block: var(--s-8); }
+    .hero-yta { padding-block: var(--s-4); }
+    .topp { padding: var(--s-8) var(--s-4); border-radius: 16px; }
 
     /* Fyra ord ryms på två rader även vid 32 i den smala spalten. */
     .topp h1 { font-size: 32px; line-height: 36px; }
