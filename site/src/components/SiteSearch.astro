@@ -37,6 +37,23 @@ import { establishments, municipalities } from '../lib/data';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { path } from '../lib/urls';
 
+interface Props {
+  /**
+   * bar:  sidhuvudets fält, grundläget.
+   * hero: startsidans stora centrerade fält.
+   *
+   * Ett läge i samma komponent, aldrig en kopia: fältet har nyss fått
+   * uppmätta mobilmått och två exemplar glider isär. Skillnaden är bara
+   * mått, allt beteende är gemensamt. En sida får bära EN instans:
+   * skriptet ankras i document.querySelector och id:t site-search-q är
+   * skrivet en gång. Startsidan stänger därför av sidhuvudets fält via
+   * Header-propen search innan den renderar hero-läget.
+   */
+  size?: 'bar' | 'hero';
+}
+
+const { size = 'bar' } = Astro.props;
+
 //: Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
 //: på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
 //: ställe man väljer att äta på, så listan tar de tre största kedjorna som
@@ -70,7 +87,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 ---
 
 <div
-  class="site-search"
+  class:list={['site-search', size === 'hero' && 'is-hero']}
   data-sitesearch
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
@@ -223,6 +240,26 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   .go:hover { background: var(--brand-ink); }
   .go svg { width: 18px; height: 18px; }
 
+  /* ── Hero-läget: startsidans stora fält ─────────────────────────────────
+     Bara mått. 600 px brett, 56 px högt, brödtextens 17 px och en 44 px
+     knapp. Skuggan är ett snäpp djupare än sidhuvudets: fältet är sidans
+     främsta handling och ska lyfta en aning från botten, inte flyta ihop
+     med korten under. Fortfarande inga nya färger. */
+  .site-search.is-hero {
+    max-width: 600px;
+  }
+
+  .site-search.is-hero .search-field {
+    height: 56px;
+    padding: 6px 6px 6px var(--s-6);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 6px 20px rgba(0, 0, 0, .06);
+  }
+
+  .site-search.is-hero .search-field input { font-size: var(--fs-body); }
+
+  .site-search.is-hero .go { width: 44px; height: 44px; }
+  .site-search.is-hero .go svg { width: 19px; height: 19px; }
+
   /* Samma svävande lager som platsväljaren bredvid. De två panelerna ligger
      tio centimeter från varandra i sidhuvudet och måste läsa som syskon,
      numera garanterat, eftersom ytan står en gång i .glass i tokens.css i
@@ -312,9 +349,10 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
   }
 
   /* Under 900 px konkurrerar fältet med menyn om bredden; menyn får vika
-     först, den finns i sin helhet i sidfoten. */
+     först, den finns i sin helhet i sidfoten. Gäller bara sidhuvudsläget:
+     hero-fältet delar inte rad med någonting och behåller sin bredd. */
   @media (max-width: 900px) {
-    .site-search { max-width: 300px; }
+    .site-search:not(.is-hero) { max-width: 300px; }
   }
 
   @media (max-width: 640px) {
@@ -346,6 +384,22 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       width: auto;
       min-width: 0;
     }
+
+    /* Hero-läget behåller sin egen förankring på mobilen. static-regeln
+       ovanför finns för sidhuvudet, där ett fält som börjar 110 px in på
+       skärmen inte kan bära panelen. Hero-fältet spänner nästan hela
+       spalten, så panelen ska sitta på fältet, inte på någon förälder. */
+    .site-search.is-hero { position: relative; }
+    .site-search.is-hero .panel { left: 0; right: 0; }
+
+    /* Något lägre än sidhuvudets 40 vore för lätt här: fältet är ensamt på
+       raden och sidans huvudhandling. 52 ger samma proportioner som 56 på
+       desktop, och knappen 40 sitter kvar med 6 px luft. */
+    .site-search.is-hero .search-field {
+      height: 52px;
+      padding-left: var(--s-4);
+    }
+    .site-search.is-hero .go { width: 40px; height: 40px; }
   }
 
   @media (max-width: 380px) {

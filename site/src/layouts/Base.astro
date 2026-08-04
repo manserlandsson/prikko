@@ -35,6 +35,11 @@ interface Props {
    */
   prev?: string;
   next?: string;
+  /**
+   * Falskt bara på startsidan, som bär sökfältet i heron i stället för i
+   * sidhuvudet. Vidarebefordras rakt till Header; se resonemanget där.
+   */
+  headerSearch?: boolean;
 }
 
 const {
@@ -46,6 +51,7 @@ const {
   dataUpdated,
   prev,
   next,
+  headerSearch = true,
 } = Astro.props;
 
 // Kanonisk URL: alltid utan query/hash, alltid mot produktionsdomänen.
@@ -100,7 +106,7 @@ const structuredData = jsonLd
 
   <body>
     <a href="#main" class="skip-link glass">Hoppa till innehåll</a>
-    <Header />
+    <Header search={headerSearch} />
     <main id="main">
       <slot />
     </main>

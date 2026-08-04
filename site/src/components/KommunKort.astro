@@ -3,9 +3,18 @@
  * Kommunkort — ingången till en kommun från startsidan.
  *
  * Foto med kommunens namn liggande på bilden över en bottenscrim, därunder en
- * vit kropp med ett hårfint fördelningsband och två metarader. Kortet räknar
- * inte själv: det tar en färdig `MunicipalitySummary` från `lib/data`, så att
- * startsidan och kortet omöjligt kan visa olika tal.
+ * vit kropp med EN metarad: antal verksamheter och senaste kontrolldatum.
+ * Kortet räknar inte själv: det tar en färdig `MunicipalitySummary` från
+ * `lib/data`, så att startsidan och kortet omöjligt kan visa olika tal.
+ *
+ * ── Varför fördelningsbandet och procenten är borta ───────────────────────
+ * Kortet bar tidigare ett färgband och "NN % av bedömda utan anmärkningar".
+ * Sex procenttal bredvid varandra i ett rutnät läses som en rankningslista,
+ * och vi rangordnar aldrig kommuner. Skillnaden mätte dessutom mest hur
+ * mycket kommunen lämnar ut, inte hygien: en kommun som publicerar lite ser
+ * bättre ut än en som publicerar allt. Kvar står antal och datum, som inte
+ * går att sortera mot varandra. Fördelningen finns kvar på kommunsidan, där
+ * den står i sitt sammanhang med metodiken bredvid.
  *
  * ── Varför inget kommunvapen ──────────────────────────────────────────────
  * Svenska kommunvapen skyddas av lag (1970:498) om skydd för vapen och vissa
@@ -15,8 +24,7 @@
  */
 import type { ImageMetadata } from 'astro';
 import { Image } from 'astro:assets';
-import { formatNumber, type MunicipalitySummary } from '../lib/data';
-import { VERDICT } from '../lib/site';
+import { formatDate, formatNumber, type MunicipalitySummary } from '../lib/data';
 import { path } from '../lib/urls';
 
 interface Props {
@@ -185,19 +193,6 @@ const palette = raw
   : null;
 const crop = CROP[kommun.slug] ?? '50% 50%';
 
-/** Segmenten i fördelningsbandet, i allvarlighetsordning. */
-const segments = [
-  { n: kommun.clean, color: 'var(--verdict-clean)', label: VERDICT.clean.label },
-  { n: kommun.minor, color: 'var(--verdict-minor)', label: VERDICT.minor.label },
-  { n: kommun.major, color: 'var(--verdict-major)', label: VERDICT.major.label },
-  { n: kommun.unassessed, color: 'var(--verdict-none)', label: 'Ingen bedömning' },
-];
-
-const barLabel = segments
-  .filter((s) => s.n > 0)
-  .map((s) => `${s.label}: ${formatNumber(s.n)}`)
-  .join('. ');
-
 /**
  * Astro genererar srcset ur de här bredderna. Korten är ~280–340 px breda, så
  * 680 täcker 2× på retina. Den största sätts också som `width` — utan den
@@ -237,19 +232,10 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
   </span>
 
   <span class="body">
-    <span class="bar" role="img" aria-label={barLabel}>
-      {segments.map((s) => s.n > 0 && (
-        <span
-          style={`width:${(s.n / kommun.total) * 100}%;background:${s.color}`}
-          title={`${s.label}: ${formatNumber(s.n)}`}
-        ></span>
-      ))}
-    </span>
     <span class="meta">
-      {formatNumber(kommun.total)} verksamheter · {formatNumber(kommun.assessed)} bedömda
-    </span>
-    <span class="meta">
-      <b>{kommun.cleanShare} %</b> av bedömda utan anmärkningar
+      {/* Antal och enhet hålls ihop så space-between aldrig drar isär dem. */}
+      <span class="count"><b>{formatNumber(kommun.total)}</b> verksamheter</span>
+      {kommun.latest && <span>{formatDate(kommun.latest)}</span>}
     </span>
   </span>
 </a>
@@ -339,13 +325,13 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
     letter-spacing: -.02em;
   }
 
-  /* Utan foto. De allra flesta av 290 kommuner kommer sakna bild länge, så
-     fallbacken är ett normaltillstånd och inte ett undantag: bildzonen behåller
-     sin höjd så rutnätet inte hackar, och fylls med kortets egen vita yta.
-     Ingen platshållarbild och ingen ikon — ett tomt fält läser som "bild
-     kommer", en generisk stockbild läser som fusk. Fältet är VITT, inte i
-     sidans grå: en grå zon får kortets överkant att försvinna mot bakgrunden
-     och kortet ser trasigt ut i stället för tomt. */
+  /* Utan foto. Startsidan renderar numera bara kort för kommuner som har
+     bild, kommuner utan foto står som rader i en lista, så den här grenen är
+     en reserv och inte ett normaltillstånd. Den finns kvar för att ett
+     raderat foto ska ge ett fungerande kort i stället för ett trasigt bygge.
+     Bildzonen behåller sin höjd så rutnätet inte hackar, och fylls med
+     kortets egen vita yta. Ingen platshållarbild och ingen ikon: ett tomt
+     fält läser som "bild kommer", en generisk stockbild läser som fusk. */
   .no-photo .photo {
     background: var(--card);
     border-bottom: 1px solid var(--hairline);
@@ -363,27 +349,21 @@ const SIZES = '(max-width: 560px) 100vw, 320px';
     letter-spacing: -.02em;
   }
 
-  .body { display: block; padding: var(--s-4); }
+  .body { display: block; padding: var(--s-3) var(--s-4) var(--s-4); }
 
-  /* Fördelningsband. Hårfint — det ska läsas som en form på en halv sekund,
-     inte som ett diagram. Grått är verksamheter vi saknar underlag för, och
-     de ligger sist eftersom "okänt" inte är en bedömningsnivå. */
-  .bar {
-    display: flex;
-    height: 4px;
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: var(--s-3);
-    background: var(--verdict-none);
-  }
-  .bar > span { display: block; height: 100%; }
-
+  /* En rad: antalet till vänster, färskheten till höger. Tabellsiffror så
+     att korten i rutnätet radar sina tal lika. */
   .meta {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
   }
+  .meta .count { white-space: nowrap; }
   .meta b { font-weight: 600; color: var(--text); }
 
   /* Kortet med foto svarar med skugga och den knappt märkbara zoomen. Kortet

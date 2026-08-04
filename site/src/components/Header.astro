@@ -18,9 +18,25 @@
 import { SITE } from '../lib/site';
 import PlacePicker from './PlacePicker.astro';
 import SiteSearch from './SiteSearch.astro';
+
+interface Props {
+  /**
+   * Startsidan stänger av fältet här och bär i stället hero-läget av samma
+   * komponent mitt på sidan. En sida får aldrig två sökfält: dubbleringen
+   * var det som fick den gamla heron att kännas tom, och SiteSearchs skript
+   * och fält-id förutsätter dessutom en instans.
+   *
+   * Utan fältet försvinner också underkanten. Sidhuvud och hero ska då läsa
+   * som ETT vitt band med wordmarken som avsändarrad, inte som en tom rad
+   * med två saker i var sin ände ovanför en linje.
+   */
+  search?: boolean;
+}
+
+const { search = true } = Astro.props;
 ---
 
-<header>
+<header class:list={[!search && 'plain']}>
   <div class="container bar">
     <a href="/" class="brand" aria-label={`${SITE.name}, till startsidan`}>
       <svg
@@ -39,7 +55,7 @@ import SiteSearch from './SiteSearch.astro';
       </svg>
     </a>
 
-    <SiteSearch />
+    {search && <SiteSearch />}
 
     {/*
       Metodik och Om låg tidigare här bredvid menyknappen. De finns nu i
@@ -79,6 +95,9 @@ import SiteSearch from './SiteSearch.astro';
     background: var(--card);
     border-bottom: 1px solid var(--hairline);
   }
+
+  /* Startsideläget, se Props. Ingen linje mellan sidhuvud och hero. */
+  header.plain { border-bottom: 0; }
 
   /* position: relative — på små skärmar ankras sökpanelen till hela raden i
      stället för till fältet, som då börjar för långt in på skärmen. */
