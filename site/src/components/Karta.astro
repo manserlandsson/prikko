@@ -893,16 +893,13 @@ const LEGEND = [
         });
 
         /*
-         * Klustret är en VIT cirkel med blå siffra, som Airbnbs prispiller.
-         *
-         * Två versioner har provats och dömts ut av ägaren: en mättad blå
-         * cirkel med vit siffra gjorde att en utzoomad karta mest bestod av
-         * varumärkesblått, och en genomskinlig blå gloria runt kärnan lästes
-         * som en ful pulsring. Vit yta med blå text vänder på figuren: kartan
-         * behåller sitt lugn, siffran bär färgen, och skuggan gör att pillret
-         * ligger PÅ kartan i stället för att vara målat i den. Skugga kan en
-         * circle-layer inte rita, så en andra, något större cirkel i svag
-         * svärta ligger en pixel under och gör det jobbet.
+         * Klustret är en blå cirkel med vit siffra. Blått är ägarens beslut,
+         * uttalat efter att en vit variant provats: pricken ska vara blå.
+         * Det som INTE ska finnas är den genomskinliga glorian runt kärnan,
+         * som lästes som en ful pulsring. I stället ligger en mjuk skugga
+         * under cirkeln, så att den ligger PÅ kartan i stället för att vara
+         * målad i den. En circle-layer kan inte rita skugga, så en något
+         * större cirkel i svag svärta en pixel under gör det jobbet.
          *
          * Klustret bär ANTAL, aldrig bedömning: ett kluster färgat efter
          * andelen anmärkningar är en värmekarta över vilka kvarter som sköter
@@ -930,10 +927,10 @@ const LEGEND = [
           source: 'verksamheter',
           filter: ['has', 'point_count'],
           paint: {
-            'circle-color': '#FFFFFF',
+            'circle-color': '#007BE0',
             'circle-opacity': 1,
-            'circle-stroke-width': 1,
-            'circle-stroke-color': 'rgba(0, 0, 0, 0.08)',
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#fff',
             'circle-radius': KLUSTER_R,
             /*
              * Övergångarna är skillnaden mellan en karta som känns billig och
@@ -974,9 +971,7 @@ const LEGEND = [
             'text-allow-overlap': true,
             'text-ignore-placement': true,
           },
-          // Brand-ink, inte brand: siffran är liten text på vit botten och
-          // behöver den mörkare blå för kontrast.
-          paint: { 'text-color': '#0063B4' },
+          paint: { 'text-color': '#fff' },
         });
 
         karta.addLayer(
