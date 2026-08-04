@@ -133,12 +133,16 @@ const { search = true } = Astro.props;
       width: min(380px, 34vw);
     }
 
-    /* Menyn måste knuffas ut själv nu. Sökfältets margin-inline: auto var
-       inte bara det som centrerade fältet, det var också det som sköt menyn
-       till högerkanten. Tas fältet ur flödet blir raden wordmark följt av
-       meny, och menyn hamnar dikt an mot logotypen. */
-    .bar :global(.picker) { margin-left: auto; }
   }
+
+  /* Menyn står ALLTID vid högerkanten, utanför alla brytpunkter.
+
+     Regeln låg tidigare inne i 640-blocket ovanför, eftersom sökfältets
+     margin-inline: auto råkade knuffa menyn åt höger på smalare skärmar. Det
+     höll bara så länge varje sida hade ett fält i sidhuvudet: startsidan bär
+     fältet i heron i stället, och där stod hamburgaren plötsligt dikt an mot
+     wordmarken. En knapp som byter kant beroende på sida är trasig. */
+  .bar :global(.picker) { margin-left: auto; }
 
   .brand {
     display: inline-flex;

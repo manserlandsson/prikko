@@ -112,11 +112,20 @@ const jsonLd = [
     och en display-rubrik över flera rader tog den rollen.
   */}
   <section class="container topp">
-    {/* Hårt mellanslag: utan det bryter mobilen efter "går" och lämnar
-        "dit" ensamt på rad två. */}
-    <h1>Kolla hygienen innan du går&nbsp;dit</h1>
+    {/* Formen är JobbSafaris hero, som ägaren pekade ut: en liten rad med
+        omfånget överst, en stor rubrik med besökaren som subjekt, fältet.
+        Omfångsraden gör två jobb samtidigt: den bevisar att tjänsten täcker
+        något, och den säger vilka slags ställen man kan söka på, så att
+        rubriken slipper räkna upp dem.
+
+        Rubriken säger vad man FÅR här, inte vad sajten är. "Se vad
+        inspektören såg" är löftet i sex stavelser: myndighetens egna ögon,
+        tillgängliga för dig. Hårt mellanslag så att "såg" aldrig hamnar
+        ensamt på en egen rad. */}
+    <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
+    <h1>Se vad inspektören&nbsp;såg</h1>
     <p class="under">
-      Kommunernas officiella kontroller av restauranger, caféer och butiker.
+      Kommunernas officiella hygienkontroller, samlade på ett ställe.
     </p>
 
     <div class="hero-sok">
@@ -179,13 +188,23 @@ const jsonLd = [
     text-align: center;
   }
 
-  /* 32 px, inte tokens 40. Se sidkommentaren: rubriken ska läsas först men
-     fältet ska väga tyngst. */
+  /* Omfångsraden, JobbSafaris "Sök bland över 67 945 lediga jobb". Liten och
+     sekundär: den är en försats till rubriken, inte en rubrik själv. */
+  .omfang {
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Rubriken kortades till fyra ord och får då bära mer grad än de 32 px den
+     låg på när den var en hel mening. Fältet väger fortfarande tyngst. */
   .topp h1 {
     margin-inline: auto;
     max-width: 24ch;
-    font-size: 32px;
-    line-height: 36px;
+    font-size: 38px;
+    line-height: 42px;
+    letter-spacing: -.02em;
   }
 
   .under {
@@ -301,9 +320,8 @@ const jsonLd = [
   @media (max-width: 680px) {
     .topp { padding-block: var(--s-8); }
 
-    /* 27 px, inte 30: vid 30 tog rubriken tre rader i en 343-pixlarsspalt,
-       och kravet är högst två. */
-    .topp h1 { font-size: 27px; line-height: 31px; }
+    /* Fyra ord ryms på två rader även vid 32 i den smala spalten. */
+    .topp h1 { font-size: 32px; line-height: 36px; }
 
 
     .fler-lista { grid-template-columns: 1fr; }

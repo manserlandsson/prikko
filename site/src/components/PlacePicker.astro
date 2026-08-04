@@ -105,6 +105,15 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
   </summary>
 
   <div class="panel glass" data-panel>
+    {/* Syns bara i arkläget på mobil. På desktop stänger man som förut:
+        klick utanför, Escape eller knappen igen. Ett fullskärmsark har ingen
+        "utanför", så det MÅSTE ha en egen stängning. */}
+    <button type="button" class="ark-stang" data-ark-stang aria-label="Stäng menyn">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+        <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+    </button>
+
     <p class="eyebrow head">Välj kommun</p>
 
     <div class="tools" hidden data-tools>
@@ -308,6 +317,24 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
      yta, och två kopior glider isär.
 
      Här bor bara panelens mått och layout. */
+  .ark-stang {
+    display: none;
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + var(--s-3));
+    right: var(--s-3);
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--canvas);
+    color: var(--text);
+    cursor: pointer;
+  }
+
   .panel {
     position: absolute;
     top: calc(100% + var(--s-2));
@@ -635,10 +662,26 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
   @media (max-width: 480px) {
     .trigger span { display: none; }
     .trigger { padding-inline: var(--s-2); }
-    /* right: 0, inte ett negativt utfall. Containern har redan 16 px luft åt
-       höger, och drog panelen ut lika mycket låg den dikt an mot skärmkanten
-       med 32 px kvar på andra sidan. Nu står den lika långt in på båda. */
-    .panel { width: calc(100vw - var(--s-4) * 2); right: 0; }
+    /* Panelen blir ett helt ark, inte en förankrad ruta.
+
+       En popup som hänger i ett hörn är ett skrivbordsmönster. På en telefon
+       lästes den som att menyn "satt fast till vänster", och den lämnade
+       resten av skärmen synlig men död. Airbnb, The Fork och Yelp öppnar
+       alla menyn som en hel yta på mobil. dvh så att adressraden inte äter
+       ur arket, och safe-area så att stängningen inte hamnar under klockan. */
+    .panel {
+      position: fixed;
+      inset: 0;
+      width: auto;
+      max-width: none;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      padding-top: calc(env(safe-area-inset-top, 0px) + var(--s-2));
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .ark-stang { display: flex; }
   }
 </style>
 
@@ -744,6 +787,12 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
     // Skriptet kör — nu får de skriptberoende kontrollerna synas.
     tools.hidden = false;
     summary.setAttribute('aria-expanded', 'false');
+
+    // Arkets stängkryss på mobil. Knappen ligger i markup för alla, men syns
+    // bara i arkläget via CSS, och gör bara det details själv hade gjort.
+    picker
+      .querySelector<HTMLButtonElement>('[data-ark-stang]')
+      ?.addEventListener('click', () => picker.removeAttribute('open'));
 
     /**
      * Statusraden, med noll eller flera vägar vidare.
