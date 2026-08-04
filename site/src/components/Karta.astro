@@ -53,8 +53,10 @@ import {
   type Municipality,
 } from '../lib/data';
 import { MAP_EPOCH, type MapDataset } from '../lib/map-data';
+import { hasMark, markRatio } from '../lib/marke';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
+import { latestEdition } from '../lib/utmarkelser';
 
 interface Props {
   kommun: Municipality;
@@ -81,6 +83,19 @@ const initial = municipalityListing(kommun.slug)
   .filter((e) => e.lat !== null && e.lng !== null)
   .slice(0, SERVER_ROWS);
 
+/*
+ * Utmärkelseikonen i nålens kort är den riktiga ritningen, samma fil som
+ * verksamhetssidorna länkar: /utmarkelser/<år>/marke.svg. Kortet byggs av
+ * klienten, så adressen och bredden vid 20 px höjd skickas med som data-
+ * attribut. Bredden räknas ur ritningens egen proportion så att raden inte
+ * hoppar när bilden landar.
+ */
+const MARKE_H = 20;
+const utgava = latestEdition();
+const marke = utgava && hasMark(utgava.year) ? utgava : null;
+const markeUrl = marke ? `${path('utmarkelser', marke.year)}marke.svg` : '';
+const markeW = marke ? Math.round(MARKE_H * markRatio(marke.year)) : 0;
+
 const LEGEND = [
   { v: 0, verdict: 'clean' as const, label: VERDICT.clean.label, count: data.counts[0] },
   { v: 1, verdict: 'minor' as const, label: VERDICT.minor.label, count: data.counts[1] },
@@ -98,6 +113,9 @@ const LEGEND = [
   data-city={kommun.city}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
+  data-marke={markeUrl}
+  data-marke-w={markeW || undefined}
+  data-marke-h={MARKE_H}
 >
   <FaceSprite />
 
@@ -110,6 +128,33 @@ const LEGEND = [
       <p class="text-secondary" data-underrubrik>
         Med känd plats. Dra i kartan för att se dem som ligger där.
       </p>
+
+      {/* Syns bara vid tomt resultat MED filter. Vid tomt utsnitt utan filter
+          är rådet att dra i kartan, och då finns inget att rensa. */}
+      <button type="button" class="rensa" data-rensa hidden>Rensa filtret</button>
+
+      {/* Filtret. Sidhuvudets sök leder till andra sidor; det här fältet
+          filtrerar vyn man står i, kort och nålar samtidigt, medan man
+          skriver. Ingen knapp: fältet ÄR handlingen. Skriptet nedan äger
+          beteendet, inklusive att Escape rensar och att värdet inte får
+          överleva ett sidbyte. */}
+      <div class="filterfalt">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+          <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+        </svg>
+        <label class="visually-hidden" for="kartfilter-q">Filtrera på namn eller typ</label>
+        <input
+          id="kartfilter-q"
+          type="search"
+          placeholder="Filtrera på namn eller typ"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          data-filter
+        />
+      </div>
     </header>
 
     {/* Kortgrid i två kolumner, som Airbnbs resultat. Strukturen här MÅSTE
@@ -272,6 +317,8 @@ const LEGEND = [
     const rubrik = root.querySelector<HTMLElement>('[data-rubrik]')!;
     const underrubrik = root.querySelector<HTMLElement>('[data-underrubrik]')!;
     const listfot = root.querySelector<HTMLElement>('[data-listfot]')!;
+    const filterFalt = root.querySelector<HTMLInputElement>('[data-filter]')!;
+    const rensa = root.querySelector<HTMLButtonElement>('[data-rensa]')!;
     const kartram = root.querySelector<HTMLElement>('[data-kartram]')!;
     const kort = root.querySelector<HTMLElement>('[data-kort]')!;
     const kortInne = root.querySelector<HTMLElement>('[data-kort-inne]')!;
@@ -354,6 +401,98 @@ const LEGEND = [
       });
     }
 
+    // ── Filtret ──────────────────────────────────────────────────────────
+
+    /**
+     * Textfiltret ovanför listan.
+     *
+     * Ett extra villkor OVANPÅ kartutsnittet: det som visas är snittet av det
+     * man ser i kartan och det man skrivit. Matchningen är ordstart utan
+     * skiftlägeskänslighet, med svenska tecken intakta: "sus" träffar
+     * "Sushi Yama" och "Café Susanne", inte "Rakhusets". Varje ord i frågan
+     * måste träffa var sin ordstart i namnet eller typen.
+     *
+     * `traffar` är radnumren som matchar, null när fältet är tomt. Null och
+     * inte en full mängd: tomt filter ska vara gratis att testa mot, och
+     * återställningen av kartkällan ska kunna se skillnad på "inget filter"
+     * och "filter som råkar träffa allt".
+     */
+    let traffar: Set<number> | null = null;
+    /** Fältets värde som det står, för rubriken och tomtexten. */
+    let filterVarde = '';
+
+    /** Sökbar text per punkt: gemener, skiljetecken ersatta med mellanslag,
+     *  och ett inledande mellanslag så att varje ordstart kan hittas med ett
+     *  enda includes. Byggs en gång vid första sökningen, inte per tangent
+     *  och inte vid sidladdning. */
+    let sokbar: string[] | null = null;
+
+    function normalisera(s: string): string {
+      return s
+        .toLocaleLowerCase('sv')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim();
+    }
+
+    function raknaTraffar(tokens: string[]): Set<number> {
+      if (!sokbar) {
+        // p.i är radens position i alla, så indexet här är radnumret.
+        sokbar = punktKalla().map((p) => ' ' + normalisera(p.namn + ' ' + p.typ));
+      }
+      const ut = new Set<number>();
+      for (const p of punktKalla()) {
+        const text = sokbar[p.i];
+        let allaMed = true;
+        for (const tok of tokens) {
+          if (!text.includes(' ' + tok)) {
+            allaMed = false;
+            break;
+          }
+        }
+        if (allaMed) ut.add(p.i);
+      }
+      return ut;
+    }
+
+    /**
+     * Fältets lyssnare sätts vid sidladdning, men filtret kan verka först när
+     * punkterna och kartan finns. Kartans load-hanterare pekar om `tillampa`
+     * till den riktiga tillämpningen; innan dess gör tangenterna ingenting,
+     * och värdet plockas upp när kartan vaknar.
+     */
+    let tillampa: (() => void) | null = null;
+
+    filterFalt.addEventListener('input', () => tillampa?.());
+
+    rensa.addEventListener('click', () => {
+      filterFalt.value = '';
+      tillampa?.();
+      filterFalt.focus();
+    });
+
+    filterFalt.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && filterFalt.value) {
+        filterFalt.value = '';
+        tillampa?.();
+        // Stanna här: dokumentlyssnaren längre ned stänger annars nålens
+        // kort i samma tryckning. Ett Escape, en sak.
+        ev.stopPropagation();
+      }
+    });
+
+    /*
+     * Filtret ska INTE överleva ett sidbyte. bfcache återställer fältet vid
+     * tillbaka-navigering utan att köra om skriptet, och Firefox gör det även
+     * vid vanlig omladdning trots autocomplete="off". pageshow är den händelse
+     * som täcker båda.
+     */
+    window.addEventListener('pageshow', () => {
+      if (filterFalt.value) {
+        filterFalt.value = '';
+        tillampa?.();
+      }
+    });
+
     // ── Listan ───────────────────────────────────────────────────────────
 
     /** Hur många kort som ritas. Sänkt från 120 när raderna blev kort: varje
@@ -424,14 +563,22 @@ const LEGEND = [
        * som hjälper.
        */
       const stad = root!.dataset.city;
+      const filtrerat = traffar !== null;
       if (totalt === 0) {
+        // Samma tomrubrik med och utan filter, men förklaringen är en annan:
+        // med filter är det filtret som tömde vyn, och rensknappen visas.
         rubrik.textContent = 'Inga verksamheter här';
-        underrubrik.textContent = `Dra eller zooma ut för att se fler i ${stad}.`;
+        underrubrik.textContent = filtrerat
+          ? `Ingenting i utsnittet matchar ”${filterVarde}”. Dra i kartan eller rensa filtret.`
+          : `Dra eller zooma ut för att se fler i ${stad}.`;
         underrubrik.hidden = false;
       } else {
-        rubrik.textContent = `${totalt.toLocaleString('sv-SE')} verksamheter`;
+        rubrik.textContent = filtrerat
+          ? `${totalt.toLocaleString('sv-SE')} ${totalt === 1 ? 'träff' : 'träffar'}`
+          : `${totalt.toLocaleString('sv-SE')} verksamheter`;
         underrubrik.hidden = true;
       }
+      rensa.hidden = !(filtrerat && totalt === 0);
 
       listfot.hidden = totalt <= MAX_RADER;
       if (!listfot.hidden) {
@@ -539,10 +686,11 @@ const LEGEND = [
       inne.appendChild(topp);
 
       const mitt = e('div', 'kort-mitt');
+      const mittText = e('div', 'kort-mitt-text');
       const bedomning = e('span', 'kort-bedomning');
       bedomning.textContent = LABEL[p.v];
       bedomning.style.color = INK[p.v];
-      mitt.appendChild(bedomning);
+      mittText.appendChild(bedomning);
 
       /*
        * Två fakta, inte fler. Kortet ska gå att läsa på en blick medan man
@@ -555,26 +703,29 @@ const LEGEND = [
       if (fakta.length > 0) {
         const rad = e('p', 'kort-fakta');
         rad.textContent = fakta.join(' · ');
-        mitt.appendChild(rad);
+        mittText.appendChild(rad);
+      }
+      mitt.appendChild(mittText);
+
+      /*
+       * Utmärkelsen är den riktiga ritningen, inte en generisk stjärna, och
+       * ingen text: märket ÄR beskedet, precis som i ett skyltfönster. Den
+       * ligger inline i mittsektionen i stället för i en egen hårlinjesektion,
+       * så kortet blir en rad kortare. Bilden är samma URL som verksamhets-
+       * sidorna visar och ligger därför redan i cachen för många besökare.
+       * alt-texten är det tillgängliga namnet; syns gör bara kransen.
+       */
+      const MARKE = root!.dataset.marke;
+      if (p.u && MARKE) {
+        const bild = document.createElement('img');
+        bild.className = 'kort-marke';
+        bild.src = MARKE;
+        bild.alt = 'Utmärkelse';
+        bild.width = Number(root!.dataset.markeW);
+        bild.height = Number(root!.dataset.markeH);
+        mitt.appendChild(bild);
       }
       inne.appendChild(mitt);
-
-      if (p.u) {
-        const märke = e('div', 'kort-utmarkelse');
-        const stjarna = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        stjarna.setAttribute('viewBox', '0 0 24 24');
-        stjarna.setAttribute('width', '15');
-        stjarna.setAttribute('height', '15');
-        stjarna.setAttribute('aria-hidden', 'true');
-        const bana = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        bana.setAttribute('d', 'M12 3.2l2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.2 6.8 19.1 8 13.3l-4.4-4 5.9-.7z');
-        bana.setAttribute('fill', 'currentColor');
-        stjarna.appendChild(bana);
-        const text = document.createElement('span');
-        text.textContent = 'Har utmärkelse';
-        märke.append(stjarna, text);
-        inne.appendChild(märke);
-      }
 
       const lank = document.createElement('a');
       lank.className = 'kort-lank';
@@ -856,17 +1007,28 @@ const LEGEND = [
           ansikten = false;
         }
 
+        /*
+         * Originalet behålls som objekt vid sidan av källan. Filtret byter
+         * källdata med setData, och tillbakavägen ska vara att lämna tillbaka
+         * exakt det här objektet, inte att bygga om det. Properties bär BARA
+         * radnumret och bedömningen, aldrig namnen: namnen väger, och
+         * radnumret räcker för att slå upp allt annat i `alla`. Att `i` är
+         * originalindexet även i en filtrerad källa är det som håller
+         * kopplingen rad ↔ nål ↔ kort intakt när filtret är på.
+         */
+        const original = {
+          type: 'FeatureCollection' as const,
+          features: alla.map((p, i) => ({
+            type: 'Feature' as const,
+            id: i,
+            geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+            properties: { i, v: p.v },
+          })),
+        };
+
         karta.addSource('verksamheter', {
           type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: alla.map((p, i) => ({
-              type: 'Feature' as const,
-              id: i,
-              geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-              properties: { i, v: p.v },
-            })),
-          },
+          data: original,
           /*
            * MapLibres inbyggda klustring, alltså Supercluster i en arbetare.
            * Vald efter mätning: 8 511 punkter indexeras på tiotals
@@ -1040,7 +1202,9 @@ const LEGEND = [
         const uppdatera = () => {
           const b = karta.getBounds();
           const synliga = punktKalla().filter(
-            (p) => p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth(),
+            (p) =>
+              (traffar === null || traffar.has(p.i)) &&
+              p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth(),
           );
           synliga.sort((a, z) => a.namn.localeCompare(z.namn, 'sv'));
           ritaLista(synliga, synliga.length);
@@ -1048,6 +1212,83 @@ const LEGEND = [
 
         karta.on('move', uppdatera);
         uppdatera();
+
+        // ── Filtret mot kartan ───────────────────────────────────────────
+
+        /*
+         * Filtret slår i två steg, för att varje tangent ska kännas direkt
+         * utan att betala för det dyra arbetet varje gång.
+         *
+         * Steg 1, per tangent: listan ritas om och lagret `nalar` filtreras
+         * med ett uttryck på radnumret. `match` med en literal lista, inte
+         * `in`: match kompileras till ett uppslag och kostar konstant per nål,
+         * medan in söker listan linjärt och hade gjort varje tangent dyrare ju
+         * fler träffar filtret har.
+         *
+         * Steg 2, debouncat 150 ms: källdatan byts med setData till enbart
+         * träffarna. Det steget går inte att hoppa över för klustren: MapLibre
+         * räknar kluster ur KÄLLAN i en arbetare, inte ur lagrens filter, så
+         * en klustercirkel ändrar varken antal eller siffra av att lagret
+         * filtreras. Priset är en omindexering per anrop, och det är därför
+         * den debouncas i stället för att köras per tangent.
+         *
+         * `nal-lyft` behöver inget eget uttryck: lyftet pekar alltid på en rad
+         * eller nål man just rör vid, och de är filtrerade redan. Det som
+         * däremot måste städas är en hovring eller ett öppet kort vars punkt
+         * filtreras bort, annars står kortet kvar och pekar på ingenting.
+         */
+        let setDataTimer: ReturnType<typeof setTimeout> | undefined;
+        let kallanFiltrerad = false;
+
+        function filtreraNalar() {
+          const bas = ['!', ['has', 'point_count']];
+          karta.setFilter(
+            'nalar',
+            traffar === null
+              ? bas
+              : traffar.size === 0
+                ? ['boolean', false]
+                : ['all', bas, ['match', ['get', 'i'], [...traffar], true, false]],
+          );
+        }
+
+        function bytKalldata() {
+          const kalla = karta.getSource('verksamheter');
+          if (traffar === null) {
+            // Bara om källan hann filtreras. Den som tömmer fältet innan
+            // debouncen slagit till slipper hela omindexeringen.
+            if (kallanFiltrerad) {
+              kalla.setData(original);
+              kallanFiltrerad = false;
+            }
+          } else {
+            kalla.setData({
+              type: 'FeatureCollection',
+              features: original.features.filter((f) => traffar!.has(f.properties.i)),
+            });
+            kallanFiltrerad = true;
+          }
+        }
+
+        function tillampaFilter() {
+          const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
+          filterVarde = filterFalt.value.trim();
+          traffar = tokens.length === 0 ? null : raknaTraffar(tokens);
+
+          if (traffar !== null) {
+            if (hovrad !== null && !traffar.has(hovrad)) satHovrad(null);
+            if (valdPunkt && !traffar.has(valdPunkt.i)) stangKort();
+          }
+
+          filtreraNalar();
+          uppdatera();
+          clearTimeout(setDataTimer);
+          setDataTimer = setTimeout(bytKalldata, 150);
+        }
+
+        tillampa = tillampaFilter;
+        // Hann någon skriva innan kartan vaknade plockas värdet upp här.
+        if (filterFalt.value) tillampaFilter();
 
         // Kortet är limmat vid sin nål och följer med när kartan rör sig, i
         // stället för att stå still medan nålen glider iväg under det.
@@ -1167,6 +1408,72 @@ const LEGEND = [
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
   }
+
+  /*
+   * Filtret: samma piller som sidhuvudets sök, men utan knapp. Fältet gör
+   * något medan man skriver, så det behöver ingen avtryckare, bara luppen som
+   * talar om vad det är. Klassen får inte heta .field, se SiteSearch: ett
+   * globalt kontoark äger det namnet.
+   */
+  .filterfalt {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 40px;
+    margin-top: var(--s-3);
+    padding: 0 var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+  }
+
+  .filterfalt:hover { border-color: var(--text-muted); }
+  .filterfalt:focus-within { border-color: var(--brand); }
+
+  /* Ringen på pillret, inte på fältet, av samma skäl som i SiteSearch: en
+     ring runt den osynliga inre rutan skär tvärs över rundningen. */
+  .filterfalt:has(input:focus-visible) {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .filterfalt svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    color: var(--text-muted);
+  }
+
+  .filterfalt input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: var(--fs-body-s);
+    color: var(--text);
+  }
+
+  .filterfalt input:focus { outline: none; }
+  .filterfalt input::placeholder { color: var(--text-muted); }
+
+  /* Rensknappen i tomläget. En riktig knapp med kant, inte en textlänk: den
+     är det enda handlingsbara som syns när filtret tömt vyn. */
+  .rensa {
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    font: 600 var(--fs-caption) / 1 var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .rensa:hover { border-color: var(--brand); color: var(--brand-ink); }
+  .rensa[hidden] { display: none; }
 
   .rader {
     display: grid;
@@ -1434,10 +1741,21 @@ const LEGEND = [
     color: var(--text-secondary);
   }
 
+  /* Texten till vänster, utmärkelsen till höger på samma rad. Ikonen är bred
+     och låg (kransen kring wordmarken), så den väger som en textrad och
+     behöver ingen egen sektion. */
   .kort :global(.kort-mitt) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
     padding: var(--s-3) var(--s-4);
     border-top: 1px solid var(--hairline);
   }
+
+  .kort :global(.kort-mitt-text) { min-width: 0; }
+
+  .kort :global(.kort-marke) { flex: none; }
 
   .kort :global(.kort-bedomning) {
     display: block;
@@ -1452,20 +1770,6 @@ const LEGEND = [
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
-
-  .kort :global(.kort-utmarkelse) {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    padding: var(--s-3) var(--s-4);
-    border-top: 1px solid var(--hairline);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    font-weight: 600;
-    color: var(--brand-ink);
-  }
-
-  .kort :global(.kort-utmarkelse svg) { width: 15px; height: 15px; flex: none; }
 
   /* Handlingen som hel rad, inte som en textlänk. Kortet har ett enda syfte
      efter att man läst det, och det ska gå att träffa med tummen. */
