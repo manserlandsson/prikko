@@ -1,0 +1,148 @@
+---
+/**
+ * Så bedrivs kontrollen i kommunen.
+ *
+ * Hubbens tredje insikt, och den enda som inte är räknad ur vår egen data.
+ * Kommunsidan har hittills sagt vad kontrollen GAV: andelar per nivå,
+ * vanligaste bristerna, hur uppföljningen gick. Den har inte sagt något om vad
+ * kontrollen VAR. Det är den skillnaden som förklarar varför två kommuner med
+ * samma verklighet får olika tal hos oss.
+ *
+ * Uppgifterna är kommunens egen rapportering till Livsmedelsverket, plus
+ * invånarantal och SKR:s Insiktsmätning ur Kolada. Se lib/kontrollen.ts för
+ * varför de finns och var gränsen går.
+ *
+ * ---------------------------------------------------------------------------
+ * TRE SAKER SOM MÅSTE SITTA
+ * ---------------------------------------------------------------------------
+ * 1. Ingen rangordning. Referenstalet är medianen för landets
+ *    kontrollmyndigheter, aldrig en placering och aldrig en annan kommun.
+ *
+ * 2. Ingen riktning. Fler kontroller är inte en bättre kommun, och rutan får
+ *    aldrig antyda det. Den visar talet och avstår från omdömet.
+ *
+ * 3. Ingen bedömningsfärg. Grönt, gult och rött betyder något på den här
+ *    sajten och är hygienbedömningens språk. En uppgift från tredje part får
+ *    inte låna det, för då läser besökaren ihop dem.
+ */
+import InfoTip from './InfoTip.astro';
+import { formatNumber } from '../lib/data';
+import type { Kontrollen } from '../lib/kontrollen';
+
+interface Props {
+  kontrollen: Kontrollen | null;
+  city: string;
+}
+
+const { kontrollen: k, city } = Astro.props;
+
+/*
+ * Vad vi hämtat ur Kolada, uppräknat. Byggs som en sträng och inte som markup
+ * med villkor i: uttryck på egna rader i Astro tar med sina radbrytningar som
+ * blanksteg, och resultatet blir ett mellanslag före kommatecknet.
+ */
+const fromKolada = k
+  ? ['Invånarantal', k.hasRating && `företagens betyg i SKR:s Insiktsmätning ${k.ratingYear}`]
+      .filter(Boolean)
+      .join(' och ')
+  : '';
+---
+
+{k && (
+  <section class="kontrollen" aria-labelledby="kontrollen">
+    <h2 id="kontrollen">
+      Så bedrivs kontrollen i {city}
+      <InfoTip
+        label="så bedrivs kontrollen"
+        text={`Kommunens egen rapportering till Livsmedelsverket för ${k.year}. Ett högre tal är inte ett bättre tal: fler kontroller kan lika gärna spegla ett register med anläggningar som upphört utan att avregistreras, eller en riskklassning som styr om resurserna. Jämförelsetalet är medianen för landets ${formatNumber(k.report.authorities)} kontrollmyndigheter.`}
+      />
+    </h2>
+
+    <ul class="figures">
+      {k.figures.map((f) => (
+        <li>
+          <b>{formatNumber(f.value)}{f.unit}</b>
+          <span>{f.label}</span>
+          {f.median !== null && (
+            <span class="ref">riksmedian {formatNumber(f.median)}{f.unit}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+
+    {/* Meningen är hela poängen med rutan. Den förvandlar en jämförelse vi
+        inte får göra till en förklaring vi får ge, och den står här i stället
+        för på metodiksidan därför att det är här läsaren står när frågan
+        uppstår. */}
+    <p class="caveat caption text-secondary">
+      Kommunerna kontrollerar olika ofta och följer upp olika ofta. Andelen
+      verksamheter med kvarstående brister speglar därför både hygienen och
+      arbetssättet, och de två går inte att skilja åt utifrån.
+      {' '}<a href="/metodik/#jamfor">Därför rangordnar vi inte kommuner</a>.
+    </p>
+
+    <p class="source caption text-secondary">
+      Kontrolluppgifter ur <a href={k.report.url} rel="nofollow">{k.report.title}</a>,
+      {' '}{k.report.publisher}. {fromKolada}, {k.kolada.attribution}.
+    </p>
+  </section>
+)}
+
+<style>
+  .kontrollen {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+  }
+
+  .kontrollen h2 {
+    display: flex;
+    align-items: center;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /* Samma rutnät som Uncovered och FollowUpRate använder för sina tal, så de
+     tre blocken i huvudspalten läser som samma sorts ruta. */
+  .figures {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--s-4);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .figures b {
+    display: block;
+    font-size: 21px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .figures span {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Referenslinjen, nedtonad. Den är en nämnare och inte ett mål, och ska
+     läsas efter kommunens eget tal, aldrig i stället för det. */
+  .ref {
+    margin-top: var(--s-1);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .caveat { margin-top: var(--s-4); }
+
+  .source {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+  }
+</style>

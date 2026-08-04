@@ -16,6 +16,7 @@ import EstablishmentList from './EstablishmentList.astro';
 import FaceMark from './FaceMark.astro';
 import FollowUpRate from './FollowUpRate.astro';
 import KommunBanner from './KommunBanner.astro';
+import Kontrollen from './Kontrollen.astro';
 import Pagination from './Pagination.astro';
 import Uncovered from './Uncovered.astro';
 import VerdictBar from './VerdictBar.astro';
@@ -30,6 +31,7 @@ import {
   type Municipality,
 } from '../lib/data';
 import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
+import { kontrollen } from '../lib/kontrollen';
 import { mapDataset } from '../lib/map-data';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
@@ -83,6 +85,19 @@ const categories = cats?.usable ? cats : null;
  */
 const record = currentPage === 1 ? followUpRecord(kommun.slug) : null;
 const unassessed = currentPage === 1 ? unseen(kommun.slug) : null;
+
+/**
+ * Kommunens tredje insikt, och den enda som inte är räknad ur vår egen data.
+ *
+ * De två ovan säger vad kontrollen gav. Den här säger vad kontrollen var: hur
+ * stort registret är, hur mycket av det kommunen hinner med och hur många
+ * anläggningar varje inspektör har att gå på. Det är förklaringen till att
+ * samma modell ger så olika tal i olika kommuner, och den fanns inte att ge
+ * förrän Livsmedelsverkets myndighetsrapportering låg i datan.
+ *
+ * Se lib/kontrollen.ts för varför talen aldrig sorteras mellan kommuner.
+ */
+const control = currentPage === 1 ? kontrollen(kommun.code) : null;
 
 /**
  * Sida 1 bär kommunens profil. Sidorna 2 och framåt är fortsättningen på ett
@@ -215,6 +230,10 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
             )}
 
             <FollowUpRate record={record} city={city} />
+
+            {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
+                rutan förklarar båda, och den läser bäst mellan dem. */}
+            <Kontrollen kontrollen={control} city={city} />
 
             {unassessed && <Uncovered unseen={unassessed} city={city} />}
 

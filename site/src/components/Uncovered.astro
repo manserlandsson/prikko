@@ -42,13 +42,23 @@ const worthShowing = u.total >= 10;
       Utan aktuell kontroll i {city}
       <InfoTip
         label="utan aktuell kontroll"
-        text="Verksamheter i kommunens register som saknar bedömning hos oss. Antingen finns ingen publicerad kontroll alls, eller så är den senaste äldre än tre år och säger inget om nuläget."
+        text="Verksamheter kommunen publicerar som saknar bedömning hos oss. Antingen finns ingen publicerad kontroll alls, eller så är den senaste äldre än tre år och säger inget om nuläget."
       />
     </h2>
 
+    {/*
+      "verksamheter kommunen publicerar" och inte "i kommunens register".
+      Nämnaren är antalet rader kommunen lämnar ut till oss, vilket är något
+      annat än registret. Rutan ovanför visar registret som det rapporterats
+      till Livsmedelsverket, och de två talen är inte samma sak: de gäller
+      olika år och räknar olika saker. I Borgholm har vi fler rader än
+      registret hade anläggningar det året. Att skriva "av registret" här hade
+      alltså varit ett påstående vi inte kan belägga, och två tal som ser ut
+      att motsäga varandra på samma sida.
+    */}
     <p class="answer">
-      <b>{formatNumber(u.total)}</b> av {formatNumber(u.register)} verksamheter i
-      kommunens register har ingen kontroll som säger något om läget i dag.
+      <b>{formatNumber(u.total)}</b> av {formatNumber(u.register)} verksamheter
+      kommunen publicerar har ingen kontroll som säger något om läget i dag.
     </p>
 
     <ul class="split">

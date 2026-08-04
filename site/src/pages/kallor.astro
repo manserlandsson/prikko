@@ -16,8 +16,10 @@ import {
   municipalities,
   sourceFor,
 } from '../lib/data';
+import { nationalSources } from '../lib/kontrollen';
 import { SITE } from '../lib/site';
 
+const national = nationalSources();
 const total = coverage();
 const all = establishments();
 const dates = all.flatMap((e) => e.inspections.map((i) => i.date)).sort();
@@ -91,6 +93,36 @@ const jsonLd = {
       </table>
     </section>
 
+    <section>
+      <h2>Två källor om kontrollen själv</h2>
+      <p>
+        Kontrollerna kommer från kommunerna. Hur kontrollen bedrivs kommer från
+        två nationella källor, och de står på varje kommunsida under rubriken
+        "Så bedrivs kontrollen".
+      </p>
+      <ul class="plain">
+        <li>
+          <b>{national.report.publisher}s myndighetsrapportering.</b> Varje
+          kontrollmyndighet rapporterar sin kontroll till {national.report.publisher}
+          {' '}senast 31 januari. Uppgifterna publiceras per myndighet i
+          {' '}<a href={national.report.url} rel="nofollow">{national.report.title}</a>,
+          {' '}{national.report.series}. Vi läser raderna för
+          {' '}{national.report.authorities} kontrollmyndigheter ur den.
+        </li>
+        <li>
+          <b>Kolada.</b> Invånarantal ({national.kolada.population.kpi}) och
+          företagens betyg på kommunens livsmedelskontroll i SKR:s
+          Insiktsmätning ({national.kolada.rating.kpi}).
+          {' '}{national.kolada.attribution}.
+        </li>
+      </ul>
+      <p>
+        Talen visas alltid mot medianen för landets kontrollmyndigheter, aldrig
+        mot en annan kommun. <a href="/metodik/#jamfor">Vi rangordnar inte
+        kommuner</a>.
+      </p>
+    </section>
+
     {/* id:t är en måladress och inte dekoration: platsväljaren skickar hit den
         vars plats ligger utanför täckningen, och då ska sidan öppna på den här
         förklaringen och inte på tabellen ovanför. Byt det inte utan att ändra
@@ -146,6 +178,9 @@ const jsonLd = {
   section h2 { margin-bottom: var(--s-4); }
   section p { line-height: 26px; }
   section p + p { margin-top: var(--s-4); }
+
+  .plain { margin: var(--s-4) 0 var(--s-4); padding-left: var(--s-4); }
+  .plain li { margin-top: var(--s-3); line-height: 26px; }
 
   .stats {
     display: grid;
