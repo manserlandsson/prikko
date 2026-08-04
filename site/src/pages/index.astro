@@ -6,28 +6,44 @@
  * startsidan ÄR produkten, inte en beskrivning av den. Ingen av referenserna
  * förklarar sig ovanför vikningen; första skärmen är ett instrument.
  *
- * Strukturen, uppifrån: hero med fyra saker (wordmark i sidhuvudet, rubrik,
- * underrad, sökfält), kommunerna störst först,
- * en rad om källan. Inget mer. Sökfältet ligger HÄR och inte i sidhuvudet:
- * Base får headerSearch={false}, och fältet är samma komponent i sitt
- * hero-läge. En sida får aldrig två sökfält: dubbleringen var det som fick
- * den gamla heron att kännas tom.
+ * Strukturen, uppifrån: hero (rubrik, sökfält, snabbval), kommunerna störst
+ * först, länkkolumnerna per verksamhetstyp, artiklarna, en rad om källan.
+ * Sökfältet ligger HÄR och inte i sidhuvudet: Base får headerSearch={false},
+ * och fältet är samma komponent i sitt hero-läge. En sida får aldrig två
+ * sökfält: dubbleringen var det som fick den gamla heron att kännas tom.
  *
- * Kommunlistan är inte bara navigation. SEO-mätningen mot den brittiska
- * motsvarigheten visade att områdes- och kommunsidor stod för ~90 % av
- * trafiken medan enskilda restaurangsidor stod för 5,8 %. Kommunnivån är
- * alltså den bärande sidtypen, och startsidan behöver inte själv bära SEO.
+ * Varje sektion är lånad där den löser vår uppgift, inte för att kopiera:
+ *  - snabbvalsraden under fältet (hitta.se, JobbSafari) för att den som inte
+ *    vet vad den ska skriva får de vanligaste frågorna som knappar,
+ *  - länkkolumnerna (JobbSafari) för att kommun- och kategorisidorna är de
+ *    sidtyper som bär trafiken (~90 % i SEO-mätningen mot brittiska FSA) och
+ *    behöver intern länkkraft,
+ *  - artikelkorten (JobbSafari) för att det redaktionella rummet nu finns
+ *    under /artiklar/ men saknade ingång från startsidan.
  *
  * Inga påhittade siffror: allt räknas ur faktisk data.
  */
+import { getCollection } from 'astro:content';
 import type { ImageMetadata } from 'astro';
+/* Hero-rubrikens typsnitt: Instrument Serif, systerfonten till sajtens
+   Instrument Sans (samma formgivare). Självhostad via fontsource, precis som
+   sansen — aldrig Google Fonts CDN. Bara latin-subsetet och bara 400 normal:
+   en displayfont som används på en enda rad ska inte kosta mer än så.
+   Uppmätt: 21 kB woff2, med font-display: swap i fontsource-css:en. */
+import '@fontsource/instrument-serif/latin-400.css';
 import Base from '../layouts/Base.astro';
 import KommunKort from '../components/KommunKort.astro';
 import SiteSearch from '../components/SiteSearch.astro';
+import { readingMinutes, sectionReady } from '../lib/artiklar';
 import {
   coverage,
+  formatDate,
   formatNumber,
+  municipalityCategories,
   municipalitySummaries,
+  topCategory,
+  TOP_CATEGORIES,
+  type TopCategoryId,
 } from '../lib/data';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -62,6 +78,218 @@ const withPhoto = new Set(
 
 const cards = byTotal.filter((m) => withPhoto.has(m.slug));
 const rows = byTotal.filter((m) => !withPhoto.has(m.slug));
+
+// ---------------------------------------------------------------------------
+// Snabbvalen under sökfältet
+// ---------------------------------------------------------------------------
+
+/**
+ * Snabbvalsraden, mönstret från hitta.se och JobbSafari: den som inte vet vad
+ * den ska skriva i fältet får de vanligaste frågorna som knappar. Varje chip
+ * är en verklig sida med ett verkligt svar, aldrig en död sökning.
+ *
+ * Urvalet är räknat, inte tyckt: kategorisidorna i landets största kommun
+ * (restauranger och caféer är de kategorier man väljer ett ställe ur, skolkök
+ * är föräldrafrågan) plus den vanligaste kedjan i beståndet, samma lista som
+ * sökpanelens "Populära sökningar" bygger på. Kedjesökningen pekar på /sok
+ * och inte på ett enskilt ställe — att lyfta fram ett namngivet ställe vore
+ * ett redaktionellt val vi inte har underlag för.
+ */
+const biggest = byTotal[0];
+const biggestCategories = municipalityCategories(biggest.slug);
+
+function categoryChip(id: TopCategoryId, label: string) {
+  const slice = biggestCategories.slices.find((s) => s.category.id === id);
+  // Finns inte sidan finns inte chipet. Grinden är MIN_CATEGORY_PAGE i
+  // lib/data och den ska inte dubbleras här.
+  if (!slice?.linked) return null;
+  return { label, href: path(biggest.slug, 'kategori', slice.category.slug) };
+}
+
+const quickPicks = [
+  categoryChip('restaurang', `Restauranger i ${biggest.city}`),
+  categoryChip('cafe', `Caféer i ${biggest.city}`),
+  categoryChip('skola', `Skolor och omsorg i ${biggest.city}`),
+  { label: 'Espresso House', href: '/sok/?q=Espresso%20House' },
+].filter((c) => c !== null);
+
+// ---------------------------------------------------------------------------
+// Länkkolumnerna
+// ---------------------------------------------------------------------------
+
+/**
+ * Fyra kolumner med kommunernas kategorisidor, JobbSafaris "Lediga jobb per
+ * ort/yrke"-sektion översatt till vår uppgift. Skälet är inte utseendet utan
+ * länkkraften: kommun- och kategorisidorna är de sidtyper som bär trafiken,
+ * och startsidan är den starkaste interna avsändaren. Övrigt är restposten
+ * (tillverkare, grossister, lager) och förtjänar ingen kolumn på startsidan.
+ *
+ * Bara sidor som finns: linked-flaggan kommer ur samma grind som bygger
+ * sidorna (MIN_CATEGORY_PAGE), så en rad här kan aldrig peka på en 404.
+ */
+const COLUMN_IDS: TopCategoryId[] = ['restaurang', 'cafe', 'butik', 'skola'];
+const COLUMN_ROWS = 5;
+
+const columns = COLUMN_IDS.map((id) => {
+  const category = topCategory(id);
+  const links = byTotal
+    .map((m) => {
+      const slice = municipalityCategories(m.slug).slices.find(
+        (s) => s.category.id === id,
+      );
+      if (!slice?.linked) return null;
+      return {
+        city: m.city,
+        count: slice.count,
+        href: path(m.slug, 'kategori', slice.category.slug),
+      };
+    })
+    .filter((l) => l !== null)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, COLUMN_ROWS);
+  return { category, links };
+}).filter((c) => c.links.length > 0);
+
+/** Kolumnernas ikoner: handritade i sajtens formspråk, 20×20 med 1,5-streck,
+ *  samma manér som sökpanelens och platsväljarens ikoner. Aldrig emoji,
+ *  aldrig genererade bilder. */
+const COLUMN_ICONS: Record<TopCategoryId, string> = {
+  restaurang:
+    '<path d="M6.2 2.8v5.4M3.8 2.8v3.6a2.4 2.4 0 0 0 4.8 0V2.8M6.2 8.2v9M13.6 11.4V2.8c2 1.4 3 3.4 3 6v2.6h-3Zm0 0v5.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  cafe:
+    '<path d="M3.6 8h10v5.2a3.6 3.6 0 0 1-3.6 3.6H7.2a3.6 3.6 0 0 1-3.6-3.6V8ZM13.6 9h1.2a2.2 2.2 0 0 1 0 4.4h-1.2M5.9 5.4c0-.9.9-.9.9-1.8M8.6 5.4c0-.9.9-.9.9-1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  butik:
+    '<path d="M4.4 7.6h11.2l-.9 8a1.8 1.8 0 0 1-1.8 1.6H7.1a1.8 1.8 0 0 1-1.8-1.6l-.9-8ZM7.2 7.6V6a2.8 2.8 0 0 1 5.6 0v1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  skola:
+    '<path d="M3.4 16.6V8.2L10 4l6.6 4.2v8.4M3.4 16.6h13.2M8.2 16.6v-3.4a1.8 1.8 0 0 1 3.6 0v3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  ovrigt: '',
+};
+
+// ---------------------------------------------------------------------------
+// Artiklarna
+// ---------------------------------------------------------------------------
+
+/**
+ * Ingången till det redaktionella rummet, JobbSafaris "Läs det senaste" i
+ * vårt formspråk. Sektionen lyder under samma kvalitetsgrind som /artiklar/:
+ * under MIN_ARTICLES publicerade artiklar bär den sektionen noindex och då
+ * ska startsidan inte heller länka dit. Grinden bor i lib/artiklar och
+ * dubbleras inte här.
+ */
+const articlesReady = sectionReady();
+const articleEntries = articlesReady
+  ? await getCollection('artiklar', ({ data }) => !data.draft)
+  : [];
+const articles = articleEntries
+  .map((e) => ({ slug: e.id, minutes: readingMinutes(e.body ?? ''), ...e.data }))
+  .sort((a, b) => b.published.localeCompare(a.published))
+  .slice(0, 3);
+
+// ---------------------------------------------------------------------------
+// Heroytans mönster
+// ---------------------------------------------------------------------------
+
+/**
+ * Motivet i heroytans mönster: Prikkos eget ansikte, konturritat.
+ *
+ * Bakgrunden ska bära varumärket, inte vara dekor — därför ansiktet och inte
+ * ett prickraster. Geometrin är exakt lib/face.ts (ögon, glad mun), men som
+ * KONTUR i en enda mörkare blå. Det är medvetet och får inte ändras lättvindigt:
+ * bedömningsansiktena är semantiska och bär grönt, gult och rött, och ett
+ * fyllt eller flerfärgat ansikte i bakgrunden hade sett ut som ett betyg.
+ * En blå kontur läser som textur.
+ *
+ * HELA motivet ligger i den här funktionen. Smileyn är under omritning
+ * (Benny är på väg); när den landar byts banorna HÄR och ingen annanstans.
+ */
+function motif(ink: string): string {
+  // Banorna ur lib/face.ts, avrundade till en decimal: en tiondels pixel
+  // syns inte i en bakgrund men kortar data-URI:n med en tredjedel.
+  return (
+    `<circle cx="50" cy="50" r="45.5" fill="none" stroke="${ink}" stroke-width="7"/>` +
+    `<circle cx="39.9" cy="39.1" r="6.1" fill="${ink}"/>` +
+    `<circle cx="62.6" cy="39.1" r="6.1" fill="${ink}"/>` +
+    `<path d="M32 57.5C44.2 69.2 56.5 69.2 68.7 57.5" fill="none" stroke="${ink}" stroke-width="7.9" stroke-linecap="round"/>`
+  );
+}
+
+/**
+ * Plattan. Ett handlagt utkast, inte ett raster: åtta ansikten i olika
+ * storlek och lutning, placerade så att ingen rad eller kolumn uppstår.
+ * Rastret var förra versionens fel — åtta identiska prickar i en ruta läste
+ * som tapet, medan JobbSafaris yta läser som ETT organiskt mönster för att
+ * repetitionen inte går att peka ut.
+ *
+ * Ansikten som skjuter utanför plattkanten ritas igen förskjutna en hel
+ * platta, så att mönstret möter sig självt sömlöst och kanterna får de
+ * avskurna ansikten som gör att helheten läser som textur och inte som
+ * utplacerade klistermärken.
+ */
+function heroPattern(): string {
+  const W = 560;
+  const H = 560;
+  // Två närliggande mörka blå. Skillnaden är precis nog att ytan får djup
+  // utan att någon av dem läser som en egen färg.
+  const INK_A = '#0063B4';
+  const INK_B = '#005A9E';
+
+  interface Placed {
+    x: number;
+    y: number;
+    /** Diameter i pixlar. */
+    s: number;
+    /** Lutning i grader. Aldrig 0 — ett rakt ansikte ser utplacerat ut. */
+    r: number;
+    ink: string;
+  }
+
+  // Placeringen är ritad för hand mot en 560-ruta och sedan justerad mot
+  // skärmbild: stora och små om vartannat, diagonala siktlinjer brutna.
+  const faces: Placed[] = [
+    { x: 62, y: 88, s: 96, r: -14, ink: INK_A },
+    { x: 306, y: 34, s: 54, r: 11, ink: INK_B },
+    { x: 494, y: 130, s: 120, r: 17, ink: INK_A },
+    { x: 176, y: 232, s: 66, r: -21, ink: INK_B },
+    { x: 372, y: 318, s: 88, r: -8, ink: INK_A },
+    { x: 44, y: 400, s: 58, r: 24, ink: INK_B },
+    { x: 232, y: 470, s: 104, r: 9, ink: INK_A },
+    { x: 512, y: 500, s: 64, r: -17, ink: INK_B },
+  ];
+
+  const groups: string[] = [];
+  for (const f of faces) {
+    const k = f.s / 100;
+    // Halva diagonalen med marginal: räcker för att avgöra om ansiktet
+    // korsar en plattkant även roterat.
+    const reach = f.s * 0.58;
+    const shifts: Array<[number, number]> = [[0, 0]];
+    if (f.x - reach < 0) shifts.push([W, 0]);
+    if (f.x + reach > W) shifts.push([-W, 0]);
+    if (f.y - reach < 0) shifts.push([0, H]);
+    if (f.y + reach > H) shifts.push([0, -H]);
+    for (const [dx, dy] of shifts) {
+      const tx = (f.x + dx - 50 * k).toFixed(1);
+      const ty = (f.y + dy - 50 * k).toFixed(1);
+      groups.push(
+        `<g transform="translate(${tx} ${ty}) scale(${k.toFixed(2)}) rotate(${f.r} 50 50)">${motif(f.ink)}</g>`,
+      );
+    }
+  }
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">` +
+    groups.join('') +
+    '</svg>';
+  // Minimal URI-kodning för en inlinad SVG: bara tecknen CSS:en inte tål.
+  return svg
+    .replaceAll('%', '%25')
+    .replaceAll('#', '%23')
+    .replaceAll('"', "'")
+    .replaceAll('<', '%3C')
+    .replaceAll('>', '%3E');
+}
+
+const heroPatternUri = `url("data:image/svg+xml,${heroPattern()}")`;
 
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
@@ -100,29 +328,44 @@ const jsonLd = [
 
 <Base title={SITE.name} description={description} jsonLd={jsonLd} headerSearch={false}>
   {/* Heron efter JobbSafaris mönster, som ägaren pekade ut: en mönstrad
-      färgyta kant i kant, och innehållet på en ljus panel ovanpå. Mönstret är
-      prickar i en mörkare ton av märkesblått, eftersom prickar är det enda
-      mönster sajten kan bära utan att det blir dekor: de ÄR namnet.
+      färgyta kant i kant, och innehållet på en ljus panel ovanpå. Panelen
+      dominerar och den blå ytan är en tunn ram — hos förebilden är det
+      panelens proportion, inte färgytan, som gör att sidan ser färdig ut.
 
       Rubriken har Prikko som avsändare. Två tidigare versioner föll på samma
       grund: "Kommunernas hygienkontroller" gjorde kommunerna till subjekt och
       "Se vad inspektören såg" gjorde inspektören till det. Ägarens ord: "vår
       handlar om att PRIKKO visar dom data". Verbet är visar, inte kollar,
       eftersom kontrollen är kommunens och sammanställningen är vår. */}
-  <div class="hero-yta">
-    <section class="container">
-      <div class="topp">
-        <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
-        <h1>Vi visar hur rent det&nbsp;är</h1>
-        <p class="under">
-          Byggt på kommunernas officiella hygienkontroller.
-        </p>
+  {/* Mönstret sätts som inline-stil och inte via define:vars: sidans
+      mallrot är Base-komponenten, och define:vars på en sida med
+      komponentrot sprutar stilattribut på ställen den inte äger. */}
+  <div class="hero-yta" style={`background-image:${heroPatternUri}`}>
+    <div class="topp">
+      <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
+      <h1>Vi visar hur rent det&nbsp;är</h1>
+      <p class="under">
+        Byggt på kommunernas officiella hygienkontroller.
+      </p>
 
-        <div class="hero-sok">
-          <SiteSearch size="hero" />
-        </div>
+      <div class="hero-sok">
+        <SiteSearch size="hero" />
       </div>
-    </section>
+
+      {/* Snabbvalen. Se frontmattern för urvalet. Nav, inte ul-som-pynt:
+          raden är navigation och ska läsas så av hjälpmedel. */}
+      <nav class="snabbval" aria-label="Vanliga sökningar">
+        {quickPicks.map((c) => (
+          <a class="chip" href={c.href}>
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+              <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+            {c.label}
+          </a>
+        ))}
+      </nav>
+    </div>
   </div>
 
   <section class="container block">
@@ -156,7 +399,71 @@ const jsonLd = [
         </ul>
       </div>
     )}
+  </section>
 
+  {/* Länkkolumnerna. Se frontmattern för varför de finns. */}
+  {columns.length > 0 && (
+    <section class="container block">
+      <div class="block-head">
+        <h2>Utforska efter typ av verksamhet</h2>
+      </div>
+
+      <div class="kolumner card">
+        {columns.map((col) => (
+          <div class="kolumn">
+            <h3>
+              <span class="kolumn-ikon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false" set:html={COLUMN_ICONS[col.category.id]} />
+              </span>
+              {col.category.name}
+            </h3>
+            <ul>
+              {col.links.map((l) => (
+                <li>
+                  <a href={l.href}>
+                    <span class="stad">
+                      {l.city}
+                      <span class="antal">({formatNumber(l.count)})</span>
+                    </span>
+                    <svg class="pil" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                      <path d="m7.5 4.5 5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {/* Artiklarna. Visas bara när sektionen klarat kvalitetsgrinden — en
+      startsida som länkar in i ett noindexat rum pekar fel för både
+      besökare och sökmotorer. */}
+  {articlesReady && articles.length > 0 && (
+    <section class="container block">
+      <div class="block-head">
+        <h2>Så fungerar kontrollen</h2>
+        <a href="/artiklar/">Alla artiklar</a>
+      </div>
+
+      <ul class="artiklar">
+        {articles.map((a) => (
+          <li class="card">
+            <a href={path('artiklar', a.slug)}>
+              <p class="eyebrow tagg">{a.category}</p>
+              <h3>{a.title}</h3>
+              <p class="summering">{a.lede}</p>
+              <p class="meta">{formatDate(a.published)} · {a.minutes} min lästid</p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="container">
     {/* Avsändaren, en rad. Sidan förklarade sig tidigare två gånger, i
         heron och i tre spalter längst ned. Kvar är det som inte står någon
         annanstans på sidan: källan och replikrätten. */}
@@ -173,23 +480,26 @@ const jsonLd = [
 
 <style>
   /*
-   * Den mönstrade ytan. Prickarna är EN inlinad SVG-platta som upprepas:
-   * åtta cirklar i olika storlek i en mörkare ton av märkesblått, gles nog
-   * att läsa som textur och inte som prickig pyjamas. Ingen bild hämtas,
-   * ingen byte utanför HTML-dokumentet.
+   * Den mönstrade ytan. Motivet är Prikkos eget ansikte som kontur i mörkare
+   * märkesblått — se heroPattern() i frontmattern för både varför och hur.
+   * Ingen bild hämtas, ingen byte utanför HTML-dokumentet.
    *
-   * Panelen ovanpå är ljus och rundad som JobbSafaris, så att innehållet
-   * ligger PÅ ytan i stället för I den. Utan panelen hade vit text på blått
-   * krävts, och fältet hade tappat sin vita inramning.
+   * Panelen ovanpå är ljus och rundad. Ramen av blått är TUNN: hos JobbSafari
+   * är det panelen som dominerar och färgytan som kikar fram, och det var
+   * proportionen — inte färgen — som skilde deras färdiga hero från vår
+   * halvfärdiga. Panelen får därför en egen maxbredd (bredare än sajtens
+   * 1080-container) och ytan bara en smal kant runt om.
    */
   .hero-yta {
     background-color: var(--brand);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg fill='%230063B4'%3E%3Ccircle cx='34' cy='42' r='17'/%3E%3Ccircle cx='131' cy='25' r='9'/%3E%3Ccircle cx='215' cy='58' r='23'/%3E%3Ccircle cx='75' cy='128' r='11'/%3E%3Ccircle cx='176' cy='142' r='15'/%3E%3Ccircle cx='28' cy='208' r='13'/%3E%3Ccircle cx='118' cy='222' r='20'/%3E%3Ccircle cx='232' cy='218' r='9'/%3E%3C/g%3E%3C/svg%3E");
-    padding-block: var(--s-8);
+    background-size: 560px 560px;
+    padding: var(--s-6) var(--s-4) var(--s-8);
   }
 
   .topp {
-    padding: var(--s-12) var(--s-6);
+    max-width: 1240px;
+    margin-inline: auto;
+    padding: var(--s-12) var(--s-6) 56px;
     background: var(--card);
     border-radius: 24px;
     text-align: center;
@@ -204,14 +514,19 @@ const jsonLd = [
     color: var(--text-secondary);
   }
 
-  /* Rubriken kortades till fyra ord och får då bära mer grad än de 32 px den
-     låg på när den var en hel mening. Fältet väger fortfarande tyngst. */
+  /* Rubriken i Instrument Serif — sajtens enda serif, och den används BARA
+     här. En displayfont på en rad gör raden till ett avsändarmärke; på två
+     ställen vore den ett typsnittsbyte. Vikten är 400 (serifen har ingen
+     annan) och graden därför högre än sansens display-token: en lätt serif
+     i 40 px väger mindre än en halvfet sans i 38. */
   .topp h1 {
     margin-inline: auto;
     max-width: 24ch;
-    font-size: 38px;
-    line-height: 42px;
-    letter-spacing: -.02em;
+    font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: 56px;
+    line-height: 60px;
+    letter-spacing: -.01em;
   }
 
   .under {
@@ -229,6 +544,42 @@ const jsonLd = [
   }
   .hero-sok :global(.site-search) { margin-inline: auto; }
 
+  /* Snabbvalen: pillerchips i fältets formspråk, ett steg lättare. Vit yta
+     och hårlinje som fältet, aldrig en egen färg — raden ska läsa som
+     förslag, inte som knappar med egen vilja. */
+  .snabbval {
+    margin-top: var(--s-4);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .chip svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-secondary);
+  }
+
+  .chip:hover {
+    text-decoration: none;
+    border-color: var(--text-muted);
+    color: var(--text);
+  }
 
   .block-head {
     display: flex;
@@ -238,6 +589,10 @@ const jsonLd = [
   }
 
   .block-head a { font-size: var(--fs-body-s); }
+
+  /* Sektionsrytmen: kommunerna, kolumnerna och artiklarna är syskon och får
+     samma avstånd av samma regel. */
+  .block { margin-top: var(--s-12); }
 
   /* Kommunkorten. Rutnätet äger bara placeringen, kortets egen form bor i
      KommunKort.astro. Minsta spalt 250 px: under det blir bildzonen bredare i
@@ -297,6 +652,125 @@ const jsonLd = [
     font-variant-numeric: tabular-nums;
   }
 
+  /* ── Länkkolumnerna ─────────────────────────────────────────────────────
+     Ett kort med fyra spalter. Raderna är hårlinjeavgränsade med stad,
+     antal i parentes och en vinkel — JobbSafaris radform, för att den gör
+     tre saker samtidigt: läsbar lista, klickyta över hela raden och ett
+     antal som visar att länken leder till något med innehåll. */
+  .kolumner {
+    margin-top: var(--s-6);
+    padding: var(--s-8) var(--s-8) var(--s-6);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--s-6) var(--s-16);
+  }
+
+  .kolumn h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  .kolumn-ikon {
+    display: inline-flex;
+    color: var(--text-secondary);
+  }
+
+  .kolumn-ikon svg { width: 20px; height: 20px; }
+
+  .kolumn ul {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+  }
+
+  .kolumn li { border-top: 1px solid var(--hairline); }
+  .kolumn li:first-child { border-top: 0; }
+
+  .kolumn ul a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: 10px 0;
+    color: var(--text);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .kolumn ul a:hover { text-decoration: none; }
+  .kolumn ul a:hover .stad { color: var(--brand-ink); }
+
+  .stad { font-weight: 600; }
+
+  .antal {
+    margin-left: 6px;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: var(--fs-caption);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pil {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+  }
+
+  /* ── Artiklarna ─────────────────────────────────────────────────────────
+     Samma kortform som /artiklar/: etikett, rubrik, ingress, lästid. Inga
+     bilder — förebilden har foton, men vi har inga redaktionella foton och
+     en genererad bild är förbjuden. Hellre ett rent textkort än ett fejkat
+     fotografi. */
+  .artiklar {
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-4);
+  }
+
+  .artiklar a {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--s-6);
+    color: var(--text);
+  }
+
+  .artiklar a:hover { text-decoration: none; }
+  .artiklar a:hover h3 { color: var(--brand-ink); }
+
+  .tagg { margin-bottom: var(--s-2); }
+
+  .artiklar h3 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .summering {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .meta {
+    margin-top: auto;
+    padding-top: var(--s-4);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
   .grund {
     margin-top: var(--s-12);
     padding-block: var(--s-6);
@@ -322,15 +796,28 @@ const jsonLd = [
     .fler-lista { grid-template-columns: repeat(2, 1fr); }
     .fler-lista li:nth-child(-n+3) { border-top: 1px solid var(--hairline); }
     .fler-lista li:nth-child(-n+2) { border-top: 0; }
+
+    .artiklar { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 680px) {
-    .hero-yta { padding-block: var(--s-4); }
-    .topp { padding: var(--s-8) var(--s-4); border-radius: 16px; }
+    .hero-yta { padding: var(--s-3) var(--s-3) var(--s-6); }
+    .topp { padding: var(--s-8) var(--s-4) var(--s-8); border-radius: 16px; }
 
-    /* Fyra ord ryms på två rader även vid 32 i den smala spalten. */
-    .topp h1 { font-size: 32px; line-height: 36px; }
+    /* Serifen tål mer grad än sansen gjorde, men fyra ord ska fortfarande
+       rymmas på två rader i den smala spalten. */
+    .topp h1 { font-size: 40px; line-height: 44px; }
 
+    /* Chipsen radbryts; de två kategorichipsen först och kedjan sist, så
+       den som klipps av vikningen är den minst lokala. Ingen horisontell
+       rullning: en rad som rullar ser klickbar ut först när man råkar dra
+       i den, och fyra chips ryms på två rader. */
+
+    .kolumner {
+      grid-template-columns: 1fr;
+      padding: var(--s-4) var(--s-4) var(--s-3);
+      gap: var(--s-6);
+    }
 
     .fler-lista { grid-template-columns: 1fr; }
     .fler-lista li:nth-child(-n+2) { border-top: 1px solid var(--hairline); }

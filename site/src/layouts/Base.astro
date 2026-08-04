@@ -9,6 +9,7 @@
  */
 import '@fontsource-variable/instrument-sans';
 import '../styles/tokens.css';
+import CommandPalette from '../components/CommandPalette.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SignInDialog from '../components/SignInDialog.astro';
@@ -132,6 +133,12 @@ const structuredData = jsonLd
         så att lägga den överallt kostar bara markup. Den väger runt tre
         kilobyte och skriptet laddas ändå bara en gång per sida. */}
     <SignInDialog />
+
+    {/* Kommandopaletten (cmd+K) hör till layouten av samma skäl som
+        inloggningsrutan: genvägen ska fungera varhelst man står, alltså
+        måste rutan finnas överallt. Även den renderas som ett stängt
+        <dialog> och öppnas aldrig av sidladdning. */}
+    <CommandPalette />
   </body>
 </html>
 
