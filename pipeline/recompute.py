@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from prikko.grading import Inspection, assess  # noqa: E402
+from prikko.grading import Area, Inspection, assess  # noqa: E402
 
 LABELS = {
     "clean": "utan anmärkningar",
@@ -46,6 +46,17 @@ def recompute(path: Path, today: date) -> None:
                 inspected_at=date.fromisoformat(i["date"]),
                 assessment=i["assessment"],
                 type=i["type"],
+                # Kontrollpunkterna följer med sedan modellversion 4: rent
+                # administrativa avvikelser ska inte skärpa bedömningen.
+                areas=tuple(
+                    Area(
+                        code=a.get("code") or "",
+                        group=a.get("group") or "",
+                        description=a.get("description") or "",
+                        status=a.get("status") or "",
+                    )
+                    for a in i.get("areas") or []
+                ),
             )
             for i in e.get("inspections") or []
         ]

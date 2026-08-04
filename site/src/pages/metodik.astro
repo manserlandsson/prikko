@@ -22,7 +22,7 @@ import { path } from '../lib/urls';
 
 // MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
 // CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
-const MODEL_VERSION = 3;
+const MODEL_VERSION = 4;
 
 const levels = [
   {
@@ -38,7 +38,7 @@ const levels = [
   {
     verdict: 'major' as const,
     label: 'Brister som kvarstår',
-    when: 'Antingen bedömde kommunen bristerna som allvarliga, eller så visade sig bristerna leva vidare: kontrollen var ett återbesök som ändå hittade avvikelser, eller så fanns avvikelser redan vid kontrollen innan.',
+    when: 'Antingen bedömde kommunen bristerna som allvarliga, eller så visade sig bristerna leva vidare: kontrollen var ett återbesök som ändå hittade avvikelser, eller så fanns avvikelser redan vid kontrollen innan. Rent administrativa avvikelser, till exempel journalföring, skärps aldrig hit av oss.',
   },
   {
     verdict: null,
@@ -100,7 +100,7 @@ const jsonLd = {
 
 <Base
   title="Så räknas bedömningen fram"
-  description="Hela Prikkos metodik, öppet publicerad: vilka nivåer som finns, hur den senaste kontrollen avgör, hur kvarstående brister läses ur mönstret i kontrollhistoriken, varför historiken ger en utmärkelse i stället för ett betygssteg, och när vi vägrar bedöma."
+  description="Hela Prikkos metodik, öppet publicerad: vilka nivåer som finns, hur den senaste kontrollen avgör, hur kvarstående brister läses ur mönstret i kontrollhistoriken, varför rent administrativa avvikelser aldrig skärper bedömningen, varför historiken ger en utmärkelse i stället för ett betygssteg, och när vi vägrar bedöma."
   jsonLd={jsonLd}
 >
   <article class="container page">
@@ -186,7 +186,58 @@ const jsonLd = {
         Det här är enda stället där något skärps utöver kommunens egen
         notering, och det bygger på kommunens egna uppgifter om vilken sorts
         kontroll det var och vad den förra visade. Vi tolkar aldrig innehållet i
-        en avvikelse, bara mönstret.
+        en avvikelse, bara mönstret — med ett undantag som bara kan mildra,
+        och som beskrivs härnäst.
+      </p>
+    </section>
+
+    <section id="administrativa">
+      <h2>Rent administrativa avvikelser skärps aldrig</h2>
+      <p>
+        En saknad journalanteckning är inte samma sak som smuts i beredningen.
+        Sedan modellversion 4 skärper vi därför aldrig en bedömning till
+        ”Brister som kvarstår” när <strong>samtliga</strong> avvikelser vid den
+        senaste kontrollen är rent administrativa. Nivån stannar då på
+        ”Brister”, hur mönstret än ser ut.
+      </p>
+      <p>
+        Vad som är administrativt avgör inte vi från fall till fall. Varje
+        kontrollpunkt hör till ett av Livsmedelsverkets lagstiftningsområden,
+        och sex av dem räknar vi som rent administrativa: administrativa krav
+        (registrering och godkännande av verksamheten), spårbarhet
+        (journalföring av varifrån råvaror kommer), skyddade beteckningar,
+        handelsnormer, varustandarder samt handel inom EU, import och export.
+      </p>
+      <p>
+        Tre områden kan låta administrativa men räknas med avsikt inte dit.
+        Allmän livsmedelsinformation omfattar allergeninformation, och fel där
+        kan skada människor. Särskild märkning omfattar bland annat
+        glutenfritt, av samma skäl. HACCP rymmer egenkontrollens pappersdel,
+        men också mikrobiologiska kriterier, och vi kan inte skilja en oskriven
+        faroanalys från ett provsvar med fynd. I tveksamma fall väger vi inte
+        ner.
+      </p>
+      <ul class="plain">
+        <li>
+          Viktningen kan bara mildra vår egen härledda skärpning. Har kommunen
+          själv bedömt bristerna som allvarliga står kommunens bedömning,
+          alltid.
+        </li>
+        <li>
+          Ingenting döljs. Varje avvikelse visas på verksamhetens sida med
+          kommunens egna ord, även de administrativa.
+        </li>
+        <li>
+          Okänt underlag mildrar aldrig. Redovisar kommunen inga
+          kontrollpunkter, eller går en avvikelse inte att föra till ett
+          område, bedöms mönstret som tidigare.
+        </li>
+      </ul>
+      <p>
+        Menar du som verksamhet att en avvikelse hamnat i fel område, eller att
+        viktningen slår fel på din sida, gäller samma väg som för alla andra
+        uppgifter: <a href="/ratta/">rätta oss</a>, så prövar vi det mot
+        kommunens kontrollrapport.
       </p>
     </section>
 

@@ -64,15 +64,59 @@ att ändå skilja de genomgående skötsamma används historiken till en separat
 utmärkelse — samma idé som Danmarks Elite-Smiley. Historiken påverkar alltså
 aldrig hur allvarligt något bedöms, bara om verksamheten förtjänar ett
 erkännande. Nuläget avgör bedömningen; historiken avgör utmärkelsen.
+
+## Version 4: rent administrativa avvikelser skärps aldrig
+
+En saknad registrering är inte smuts i beredningen, men till och med version 3
+behandlade dem lika: en administrativ anmärkning som noterades vid ett
+återbesök, eller som upprepades, skärptes till "Brister som kvarstår" precis
+som en hygienbrist. Det är inte vad en besökare menar med kvarstående brister.
+
+Grunden är Livsmedelsverkets egen indelning. Varje kontrollpunkt hör till ett
+LAGSTIFTNINGSOMRÅDE, betecknat med bokstaven i rapporteringspunkten (J03 hör
+till J), enligt Kontrollwiki:
+https://kontrollwiki.livsmedelsverket.se/artikel/236/lagstiftningsomraden
+
+Sex områden räknas som rent administrativa: A Administrativa krav
+(registrering och godkännande), D Skyddade beteckningar, E Handelsnormer,
+F Varustandarder, H Spårbarhet (journalföring av leverantörer) och M Handel
+inom EU, import och export. Regeln: när SAMTLIGA avvikelser vid den senaste
+kontrollen ligger i de områdena utlöser mönstret ingen skärpning — nivån
+stannar på "Brister". Ingenting döljs: avvikelserna visas som förut, och
+kommunens egen bedömning står alltid. Skärps gör bara det vi själva härleder.
+
+Tre områden är MED AVSIKT inte administrativa, fast de kan låta så:
+
+- B Allmän livsmedelsinformation. Märkning låter som pappersarbete, men
+  B omfattar allergeninformation, och fel där skadar människor.
+- C Särskild märkning. Omfattar bland annat glutenfritt — samma skäl.
+- K HACCP-baserade förfaranden. Egenkontrollens pappersdel bor här, men det
+  gör också mikrobiologiska kriterier, och vi kan inte skilja en oskriven
+  faroanalys från ett provsvar med fynd.
+
+I tveksamma fall väger vi alltså INTE ner. En rad utan känt område räknas som
+konsumentnära, och en kontroll helt utan redovisade kontrollpunkter (sex av
+tolv kommuner lämnar inga) bedöms som i version 3. Viktningen kan därför bara
+mildra en bedömning, aldrig försämra en — det är avsiktligt och ska förbli så.
+
+Viktningen läser bara den SENASTE kontrollens rader. Att kräva att även den
+föregående kontrollens avvikelser var konsumentnära vore ett starkare
+påstående om vad som "upprepats" än datan bär: samma område betyder inte samma
+brist, och olika områden betyder inte olika.
+
+Uppmätt effekt (2026-08-04, hela beståndet): 8 verksamheter mildras från
+"Brister som kvarstår" till "Brister" — 6 i Stockholm, 2 i Örebro. Ingen
+verksamhet får en sämre bedömning. Metodiksidan beskriver samma regel utåt
+och måste ändras i samma commit som det här talet.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
-MODEL_VERSION = 3
+MODEL_VERSION = 4
 
 # Livsmedelsverkets kontroller sprids normalt över en treårscykel. Är senaste
 # kontrollen äldre än så säger den inget om nuläget.
@@ -109,6 +153,77 @@ REASON_NO_INSPECTIONS = "no_inspections"
 REASON_STALE = "stale_inspections"
 REASON_ASSESSED = "assessed"
 
+# Kontrollpunktens status, normaliserad i källmodulerna. Bara de två första
+# är en brist; "fixed" och "ok" är motsatsen.
+AREA_REMARK_STATUSES = frozenset({"deviation", "persisting"})
+
+#: Lagstiftningsområden som är rent administrativa, per bokstaven i
+#: Livsmedelsverkets rapporteringspunkt. Se modulens inledning för varför
+#: just de här sex, och varför B, C och K uttryckligen INTE ingår.
+ADMINISTRATIVE_AREAS = frozenset("ADEFHM")
+
+#: Områdesnamn -> bokstav, för källor som inte lämnar någon kod. Uppsala
+#: skriver Livsmedelsverkets egna områdesnamn, Lomma och Stockholm sina egna
+#: ord. Nyckeln är gemener. Ett namn som inte står här klassas som
+#: konsumentnära — okänt får aldrig mildra en bedömning.
+AREA_LETTER_BY_NAME = {
+    "administrativa krav": "A",
+    "administration": "A",
+    "allmän livsmedelsinformation": "B",
+    "information om livsmedel": "B",
+    "livsmedelsinformation": "B",
+    "märkning": "B",
+    "särskild märkning och information": "C",
+    "specialinformation": "C",
+    "skyddade beteckningar": "D",
+    "handelsnormer": "E",
+    "varustandarder": "F",
+    "livsmedel för särskilda grupper": "G",
+    "spårbarhet": "H",
+    "särskilda ingredienser och processhjälpmedel": "I",
+    "grundförutsättningar, hygien": "J",
+    "hygien": "J",
+    "haccp-baserade förfaranden": "K",
+    "riskhantering": "K",
+    "faroanalys": "K",
+    "handel inom eu, import och export": "M",
+    "internationell handel": "M",
+    "dricksvattenanläggningar": "N",
+    "övrigt": "O",
+    "operativa mål": "P",
+    "kontaktmaterial": "Q",
+    "kontaktmaterial - tillverkning, förädling och distribution": "Q",
+}
+
+
+@dataclass(frozen=True)
+class Area:
+    """En kontrollpunkt inom en kontroll, normaliserad från källans format."""
+
+    #: Livsmedelsverkets rapporteringspunkt, t.ex. "J03". Tom när källan
+    #: inte lämnar någon (Uppsala, Lomma).
+    code: str
+    group: str
+    description: str
+    #: "ok", "fixed", "deviation" eller "persisting".
+    status: str
+
+
+def area_letter(area: Area) -> Optional[str]:
+    """Lagstiftningsområdets bokstav, eller None när den inte går att avgöra.
+
+    Koden är sanningen när den finns. Utan kod slås gruppnamnet och därefter
+    beskrivningen upp — Uppsala och Lomma lämnar bara namn.
+    """
+    code = area.code.strip()
+    if code and code[0].isalpha():
+        return code[0].upper()
+    for name in (area.group, area.description):
+        letter = AREA_LETTER_BY_NAME.get(name.strip().lower())
+        if letter:
+            return letter
+    return None
+
 
 @dataclass(frozen=True)
 class Inspection:
@@ -118,6 +233,9 @@ class Inspection:
     inspected_at: date
     assessment: int
     type: int = ROUTINE
+    #: Kontrollpunkterna, när källan redovisar dem. Tom betyder okänt, inte
+    #: felfritt — sex av tolv kommuner lämnar inga alls.
+    areas: Tuple[Area, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -152,6 +270,19 @@ def _is_persisting(recent: Sequence[Inspection]) -> bool:
     return len(recent) > 1 and recent[1].assessment > NO_REMARKS
 
 
+def _purely_administrative(latest: Inspection) -> bool:
+    """Är varenda avvikelse vid kontrollen rent administrativ?
+
+    Falskt så fort något är okänt: en kontroll utan redovisade kontrollpunkter,
+    eller en rad vars lagstiftningsområde inte går att avgöra, ska bedömas som
+    i version 3. Viktningen får bara mildra när hela underlaget är synligt.
+    """
+    remarks = [a for a in latest.areas if a.status in AREA_REMARK_STATUSES]
+    if not remarks:
+        return False
+    return all(area_letter(a) in ADMINISTRATIVE_AREAS for a in remarks)
+
+
 def assess(
     inspections: Sequence[Inspection],
     today: date,
@@ -166,7 +297,9 @@ def assess(
 
     En mindre anmärkning skärps till allvarlig när den visat sig kvarstå:
     antingen hittades den vid ett återbesök, eller så fanns den redan vid
-    föregående kontroll.
+    föregående kontroll. Skärpningen uteblir när samtliga avvikelser vid den
+    senaste kontrollen ligger i rent administrativa lagstiftningsområden —
+    se modulens inledning om version 4.
 
     Utmärkelsen ges när samtliga kontroller i fönstret — minst tre stycken —
     är utan anmärkning. Den kan aldrig höja eller sänka nivån.
@@ -196,8 +329,10 @@ def assess(
 
     # Härledd allvarsgrad. En avvikelse som överlevt ett återbesök, eller som
     # upprepas från föregående kontroll, räknas som kvarstående — även när
-    # kommunen saknar ord för det. Se modulens inledning.
-    if verdict == MINOR and _is_persisting(recent):
+    # kommunen saknar ord för det. Men bara när något av det som avviker är
+    # konsumentnära: rent administrativa avvikelser skärps aldrig, och
+    # kommunens egen tvåa rörs inte alls av det här blocket. Se inledningen.
+    if verdict == MINOR and _is_persisting(recent) and not _purely_administrative(latest):
         verdict = MAJOR
 
     distinction = (

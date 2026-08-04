@@ -27,6 +27,7 @@ from prikko.grading import (  # noqa: E402
     REASON_NO_INSPECTIONS,
     REASON_STALE,
     ROUTINE,
+    Area,
     Inspection,
     assess,
 )
@@ -34,14 +35,26 @@ from prikko.grading import (  # noqa: E402
 TODAY = date(2026, 8, 2)
 
 
-def insp(days_ago: int, assessment: int, type_: int = ROUTINE, ident: str = None):
+def insp(
+    days_ago: int,
+    assessment: int,
+    type_: int = ROUTINE,
+    ident: str = None,
+    areas: tuple = (),
+):
     """Kontroll för N dagar sedan, räknat från TODAY."""
     return Inspection(
         id_national=ident or f"I-0580-{days_ago}",
         inspected_at=date.fromordinal(TODAY.toordinal() - days_ago),
         assessment=assessment,
         type=type_,
+        areas=areas,
     )
+
+
+def dev(code: str = "", group: str = "", status: str = "deviation") -> Area:
+    """Kontrollpunkt, som brist om inget annat sägs."""
+    return Area(code=code, group=group, description="", status=status)
 
 
 class Levels(unittest.TestCase):
@@ -133,6 +146,106 @@ class PersistingDeviations(unittest.TestCase):
     def test_explicit_major_is_unaffected(self):
         """Källor som själva säger 'allvarlig' ska inte påverkas av härledningen."""
         self.assertEqual(assess([insp(30, MAJOR_REMARKS)], TODAY).verdict, MAJOR)
+
+
+class AdministrativeWeighting(unittest.TestCase):
+    """Version 4: rent administrativa avvikelser skärps aldrig.
+
+    Viktningen kan bara mildra vår egen härledda skärpning. Den rör aldrig
+    kommunens egen bedömning, och den mildrar aldrig när underlaget är okänt.
+    """
+
+    def test_admin_only_followup_stays_minor(self):
+        """Journalföringen brast även vid återbesöket — fortfarande 'Brister'."""
+        result = assess(
+            [insp(20, MINOR_REMARKS, type_=FOLLOWUP, areas=(dev(code="A01"),))],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MINOR)
+
+    def test_admin_only_repetition_stays_minor(self):
+        """Upprepad spårbarhetsbrist skärps inte."""
+        result = assess(
+            [
+                insp(30, MINOR_REMARKS, areas=(dev(code="H03"),)),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MINOR)
+
+    def test_mixed_areas_still_escalate(self):
+        """En enda hygienbrist bland de administrativa räcker för skärpning."""
+        result = assess(
+            [
+                insp(30, MINOR_REMARKS, areas=(dev(code="A01"), dev(code="J03"))),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_no_area_rows_still_escalates(self):
+        """Utan redovisade kontrollpunkter bedöms mönstret som i version 3."""
+        result = assess(
+            [insp(30, MINOR_REMARKS), insp(300, MINOR_REMARKS)], TODAY
+        )
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_unknown_area_still_escalates(self):
+        """En rad vars område inte går att avgöra får aldrig mildra."""
+        result = assess(
+            [
+                insp(30, MINOR_REMARKS, areas=(dev(group="Något nytt påhitt"),)),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_group_name_without_code_classifies(self):
+        """Uppsala och Lomma lämnar ingen kod — namnet avgör i stället."""
+        result = assess(
+            [
+                insp(30, MINOR_REMARKS, areas=(dev(group="Spårbarhet"),)),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MINOR)
+
+    def test_labelling_is_not_administrative(self):
+        """B omfattar allergeninformation och väger därför aldrig lättare."""
+        result = assess(
+            [
+                insp(30, MINOR_REMARKS, areas=(dev(code="B05"),)),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MAJOR)
+
+    def test_fixed_rows_do_not_count_as_remarks(self):
+        """Åtgärdade punkter är inte avvikelser: kvar finns bara admin-raden."""
+        result = assess(
+            [
+                insp(
+                    30,
+                    MINOR_REMARKS,
+                    areas=(dev(code="A01"), dev(code="J03", status="fixed")),
+                ),
+                insp(300, MINOR_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, MINOR)
+
+    def test_municipal_major_is_never_softened(self):
+        """Kommunens egen tvåa står, även när allt som avviker är administrativt."""
+        result = assess(
+            [insp(30, MAJOR_REMARKS, areas=(dev(code="A01"),))], TODAY
+        )
+        self.assertEqual(result.verdict, MAJOR)
 
 
 class Distinction(unittest.TestCase):

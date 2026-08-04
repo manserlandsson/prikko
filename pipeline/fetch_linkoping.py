@@ -28,7 +28,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from prikko.grading import Inspection, assess  # noqa: E402
+from prikko.grading import Area, Inspection, assess  # noqa: E402
 from prikko.sources.linkoping import (  # noqa: E402
     MUNICIPALITY_CITY,
     MUNICIPALITY_CODE,
@@ -141,6 +141,12 @@ def build(limit: Optional[int], today: date) -> dict:
                     inspected_at=i.inspected_at,
                     assessment=i.assessment,
                     type=i.type,
+                    # Sedan modellversion 4: rent administrativa avvikelser
+                    # ska inte skärpa bedömningen, så punkterna följer med.
+                    areas=tuple(
+                        Area(a.code, a.group, a.description, a.status)
+                        for a in i.areas
+                    ),
                 )
                 for i in inspections
             ],
