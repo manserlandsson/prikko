@@ -32,8 +32,6 @@ const city = kommun.city;
 const base = `/${kommun.slug}`;
 
 const source = sourceFor(kommun.slug);
-const remarks = data.counts[1] + data.counts[2];
-
 const title = `Karta över hygienkontroller i ${city}`;
 const description =
   `Karta med ${formatNumber(data.count)} restauranger och livsmedelsverksamheter i ${city}. ` +
@@ -63,17 +61,20 @@ const jsonLd = {
       <a href={path(base)}>{city}</a>
     </nav>
 
-    <h1>Karta över hygienkontroller i {city}</h1>
+    {/*
+      Rubriken och sedan kartan. Ingenting emellan.
 
-    <p class="lede text-secondary">
-      {formatNumber(data.count)} av verksamheterna i {kommun.name}s livsmedelskontroll
-      har en känd plats. Nålen visar bedömningen från den senaste kontrollen.
-      {remarks > 0 && (
-        <>
-          {' '}{formatNumber(remarks)} av dem har anmärkningar.
-        </>
-      )}
-    </p>
+      Här stod tidigare en ingress som förklarade täckningen, vad en nål
+      betyder och hur många som har anmärkningar. Allt var sant och inget av
+      det behövdes: en karta med färgade ansikten och en teckenförklaring
+      under sig förklarar sig själv, och täckningssiffran står redan i
+      listrubriken. Sidan sköt i stället ned kartan en halv skärm, vilket är
+      dyrt på den sida vars enda uppgift är att visa kartan.
+
+      Beskrivningen finns kvar i sidans meta description, alltså där den
+      faktiskt läses av sökmotorer.
+    */}
+    <h1>Karta över hygienkontroller i {city}</h1>
 
     <Karta kommun={kommun} data={data} />
   </div>
@@ -98,15 +99,9 @@ const jsonLd = {
   }
 
   h1 {
+    margin-bottom: var(--s-5);
     font-size: var(--fs-h);
     line-height: var(--lh-h);
-  }
-
-  .lede {
-    margin-block: var(--s-3) var(--s-6);
-    max-width: 640px;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
   }
 
   .back {

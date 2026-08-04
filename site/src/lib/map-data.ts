@@ -123,6 +123,31 @@ function build(m: Municipality): MapDataset | null {
   let prevX = 0;
   let prevY = 0;
 
+  /*
+   * Verksamhetstypen som ordbok plus index i stället för en sträng per rad.
+   *
+   * Stockholm har 8 511 rader men bara ett åttiotal skilda typer, så
+   * ordboken kostar en gång och raden kostar en siffra. Rå sträng per rad
+   * hade lagt på runt 30 kB gzippat, ordboken lägger på under 2.
+   *
+   * Bara FÖRSTA typen skickas. Kortet har plats för en rad, och den första är
+   * den kommunen själv satte främst. Hela listan står på verksamhetssidan.
+   *
+   * Typerna är kommunens egna ord och är INTE normaliserade mellan kommuner,
+   * vilket är ofarligt här eftersom filen är per kommun. Den dagen kartan blir
+   * nationell måste de mappas mot en gemensam uppsättning först.
+   */
+  const typeDict: string[] = [];
+  const typeIndex = new Map<string, number>();
+  const t: number[] = [];
+
+  /** Antal kontroller i historiken. Små tal, komprimerar nästan gratis. */
+  const k: number[] = [];
+
+  /** Radnummer med utmärkelse. Gles lista: de är få, och en nolla per rad
+   *  hade kostat mer än att räkna upp dem som har den. */
+  const u: number[] = [];
+
   sorted.forEach((e, i) => {
     const ix = Math.round(e.lng! * 1e5);
     const iy = Math.round(e.lat! * 1e5);
@@ -138,19 +163,71 @@ function build(m: Municipality): MapDataset | null {
 
     if (e.geoSource !== 'osm') derived = false;
 
-    names.push(e.name);
+    /*
+     * All blankrymd pressas till ett mellanslag INNAN namnet läggs i listan.
+     *
+     * Namnen skiljs åt med radbrytning i filen. Två av Stockholms 8 511 namn
+     * innehöll själva CRLF ("Pyttirian\r\n\r\nPyttirian" och
+     * "Meno Male\r\nMeno Male", båda dubblerade av källan). Ett sådant namn
+     * blir tre rader i stället för en vid uppdelningen i klienten, och därmed
+     * hamnar VARJE namn efter det på fel nål: fel titel i listan, fel titel i
+     * kortet, och en länk till fel verksamhet. Bedömningen och datumet låg
+     * kvar rätt, eftersom de ligger i egna kolumner med ett tecken per rad,
+     * vilket är precis det som gjorde felet svårt att se.
+     */
+    const name = e.name.replace(/\s+/g, ' ').trim();
+    names.push(name);
     // Här är grinden: härledningen jämförs alltid mot verkligheten, och
     // avviker den skickas den riktiga slugen med. Se lib/slug.ts.
-    if (slugify(e.name) !== e.slug) overrides[i] = e.slug;
+    if (slugify(name) !== e.slug) overrides[i] = e.slug;
 
     const date = latestInspectionDate(e);
     d.push(date ? Math.round((Date.parse(date) - epochMs) / DAY) : 0);
+
+    const type = e.types[0] ?? '';
+    let ti = typeIndex.get(type);
+    if (ti === undefined) {
+      ti = typeDict.length;
+      typeDict.push(type);
+      typeIndex.set(type, ti);
+    }
+    t.push(ti);
+
+    k.push(e.inspections.length);
+    if (e.distinction) u.push(i);
   });
+
+  /*
+   * Grinden mot att namnraderna glider ur led igen.
+   *
+   * Normaliseringen ovan gör felet omöjligt i dag. Den här kontrollen gör det
+   * omöjligt att RÅKA ta bort normaliseringen: går uppdelningen inte att vända
+   * tillbaka till lika många rader stannar bygget här i stället för att
+   * publicera en karta där namn och nål inte hör ihop.
+   */
+  const joined = names.join('\n');
+  if (joined.split('\n').length !== names.length) {
+    throw new Error(
+      `${m.slug}: ett namn innehåller radbrytning, så kartans namnkolumn går ur fas. ` +
+        'Se normaliseringen i build().',
+    );
+  }
 
   const [west, east] = extent(sorted.map((e) => e.lng!));
   const [south, north] = extent(sorted.map((e) => e.lat!));
 
-  const body = JSON.stringify({ x, y, v: verdicts, n: names.join('\n'), o: overrides, d });
+  const body = JSON.stringify({
+    x,
+    y,
+    v: verdicts,
+    n: joined,
+    o: overrides,
+    d,
+    t,
+    td: typeDict,
+    k,
+    u,
+  });
   const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
 
   return {
