@@ -91,7 +91,11 @@ const jsonLd = {
       </table>
     </section>
 
-    <section>
+    {/* id:t är en måladress och inte dekoration: platsväljaren skickar hit den
+        vars plats ligger utanför täckningen, och då ska sidan öppna på den här
+        förklaringen och inte på tabellen ovanför. Byt det inte utan att ändra
+        länken i PlacePicker.astro. */}
+    <section id="fler-kommuner">
       <h2>Varför så få kommuner</h2>
       <p>
         Sverige saknar ett nationellt system för publicering av

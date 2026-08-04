@@ -18,6 +18,13 @@
  * innan hen sett något litar mindre på sajten efteråt. Den kommer bara när
  * någon aktivt trycker på knappen.
  *
+ * Ett platsval leder alltid någonstans. Knappen räknade tidigare fram rätt
+ * kommun och lämnade en mening om att den låg närmast, vilket är precis det
+ * som gör att den känns trasig: uträkningen stämde, den ledde bara ingenstans.
+ * Nu byter valet sida, behåller sidtypen där en motsvarighet finns, och när
+ * platsen ligger utanför täckningen säger beskedet det rakt ut och bär ändå en
+ * väg vidare. Se KEEP_SUBPAGES och avstånden längre ned för de tre lägena.
+ *
  * Panelen är mer än en lista. Överst det som folk kommer hit för: välja
  * kommun. Under en hårfin avdelare den framhävda raden till /ratta, som är
  * sajtens replikrätt och det enda vi ber besökaren om. Längst ned de
@@ -38,6 +45,26 @@ import { path } from '../lib/urls';
 
 const kommuner = municipalities();
 const points = municipalityPoints();
+
+/**
+ * Kommunen som sidan man står på tillhör, härledd ur adressen.
+ *
+ * ADRESSEN ÄR HELA LAGRINGEN. Ett valt kommun sparas inte i localStorage och
+ * inte i en kaka. Skälen står i docs/14_samtycke_och_lagring_i_webblasaren.md:
+ * de enda nycklar som får finnas hos besökaren är `prikko.session` och
+ * `prikko.next`, båda strikt nödvändiga för en inloggning besökaren själv
+ * begärt, och /cookies påstår i klartext att listan är uttömmande. Ett sparat
+ * kommunval är en bekvämlighet och inte en nödvändighet, alltså skulle det
+ * kräva samtycke, alltså skulle det kräva den ruta som samma dokument
+ * argumenterar emot. En URL bär dessutom valet bättre än lagringen gör: den
+ * går att dela, bokmärka och backa ur, och den ljuger aldrig om vad man ser.
+ *
+ * Bara första segmentet räknas. `/utmarkelser/2025/stockholm/` handlar om en
+ * kommun men är inte en kommunsida, och att markera Stockholm i listan där
+ * hade lovat en växling som sidtypen inte klarar.
+ */
+const firstSegment = Astro.url.pathname.split('/').filter(Boolean)[0];
+const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : null;
 ---
 
 <details class="picker" data-picker>
@@ -89,15 +116,32 @@ const points = municipalityPoints();
       </button>
     </div>
 
-    <p class="message" role="status" aria-live="polite" hidden data-message></p>
+    {/* Statusraden. Meningen och de eventuella vägarna vidare är två element,
+        för att svaret aldrig ska bli en återvändsgränd: när platsen hamnar
+        utanför täckningen ska besökaren kunna göra något med beskedet och inte
+        bara läsa det. Länkarna är riktiga <a>, alltså tangentbordsnåbara och
+        med i panelens fokusfälla utan att den behöver veta om dem. */}
+    <div class="message" hidden data-message>
+      <p role="status" aria-live="polite" data-say></p>
+      <p class="offer" hidden data-offer></p>
+    </div>
 
     <div class="scroll">
       <ul class="kommuner" aria-label="Kommuner med kontroller" data-list>
         {kommuner.map((m) => (
           <li data-name={m.city.toLowerCase()} data-slug={m.slug}>
-            <a href={path(m.slug)}>
-              <span class="city">{m.city}</span>
-              <span class="admin text-muted">{m.name}</span>
+            {/*
+              aria-current="true" och inte "page". Raden länkar till kommunens
+              hubb, men man kan stå på kommunens karta eller anmärkningssida,
+              och då är det inte SIDAN som är den aktuella utan posten i
+              listan. "true" är just den betydelsen.
+            */}
+            <a href={path(m.slug)} aria-current={m.slug === current ? 'true' : undefined}>
+              <span class="rad">
+                <span class="city">{m.city}</span>
+                <span class="admin text-muted">{m.name}</span>
+              </span>
+              {m.slug === current && <span class="here">Du är här</span>}
             </a>
           </li>
         ))}
@@ -348,6 +392,30 @@ const points = municipalityPoints();
     color: var(--text);
   }
 
+  /* Samma skäl som för .tools ovan: `hidden` är display: none i webbläsarens
+     egen stilmall, och vilken egen display-regel som helst vinner över den.
+     Rutan får ingen display här, men den ska inte kunna tappas bort av en
+     framtida rad heller. */
+  .message[hidden],
+  .offer[hidden] { display: none; }
+
+  .offer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-2);
+  }
+
+  /* Första vägen vidare är den som svarar på frågan besökaren ställde, och
+     den ska väga tyngre än den som förklarar täckningen. --brand-ink och inte
+     --brand: rutan ligger på glaset, se resonemanget vid .locate. */
+  .offer a:first-child {
+    font-weight: 600;
+    color: var(--brand-ink);
+  }
+
+  .offer a { color: var(--text-secondary); }
+
   /* Enda ytan som rullar. min-height: 0 måste stå ut: utan den vägrar ett
      flexbarn krympa under sitt innehåll, och 290 kommuner hade tryckt ut
      raderna under panelens nederkant. */
@@ -370,8 +438,9 @@ const points = municipalityPoints();
 
   .kommuner a {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
     padding: var(--s-2) var(--s-3);
     border-radius: var(--r-control);
     color: var(--text);
@@ -382,8 +451,33 @@ const points = municipalityPoints();
     background: color-mix(in srgb, var(--brand) 6%, transparent);
   }
 
+  .rad {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
   .city { font-size: var(--fs-body-s); font-weight: 600; }
   .admin { font-size: var(--fs-eyebrow); }
+
+  /* Kommunen sidan tillhör. Texten står utskriven i stället för som en prick
+     eller en bock: markören ska betyda samma sak för den som ser den och den
+     som får den uppläst, och aria-current bär redan betydelsen för
+     skärmläsaren. */
+  .here {
+    flex-shrink: 0;
+    font-size: var(--fs-eyebrow);
+    color: var(--text-secondary);
+  }
+
+  /* Kommunen platsknappen just pekade ut, när den INTE ledde till ett byte.
+     Träffen ska gå att se i listan och inte bara läsa i statusraden. Ram och
+     inte fyllning: fyllningen betyder hover, och två betydelser på samma yta
+     gör ingen av dem läsbar. */
+  .kommuner li[data-nearest] a {
+    box-shadow: inset 0 0 0 1px var(--brand);
+  }
 
   .empty,
   .coverage {
@@ -630,6 +724,8 @@ const points = municipalityPoints();
     const search = picker.querySelector<HTMLInputElement>('[data-search]')!;
     const locate = picker.querySelector<HTMLButtonElement>('[data-locate]')!;
     const message = picker.querySelector<HTMLElement>('[data-message]')!;
+    const sayText = picker.querySelector<HTMLElement>('[data-say]')!;
+    const offer = picker.querySelector<HTMLElement>('[data-offer]')!;
     const list = picker.querySelector<HTMLElement>('[data-list]')!;
     const empty = picker.querySelector<HTMLElement>('[data-empty]')!;
     const items = Array.from(list.querySelectorAll<HTMLLIElement>('li'));
@@ -638,9 +734,32 @@ const points = municipalityPoints();
     tools.hidden = false;
     summary.setAttribute('aria-expanded', 'false');
 
-    function say(text: string) {
-      message.textContent = text;
+    /**
+     * Statusraden, med noll eller flera vägar vidare.
+     *
+     * Ordningen är avsiktlig: rutan synas först, texten sätts sedan. En
+     * aria-live-region som är display: none när innehållet ändras läses inte
+     * upp av alla skärmläsare, och det är just de här beskeden som är hela
+     * poängen med knappen.
+     */
+    function say(text: string, ...vidare: Array<{ href: string; text: string }>) {
       message.hidden = false;
+      sayText.textContent = text;
+      offer.textContent = '';
+      for (const v of vidare) {
+        const a = document.createElement('a');
+        a.href = v.href;
+        a.textContent = v.text;
+        offer.append(a);
+      }
+      offer.hidden = vidare.length === 0;
+    }
+
+    function hush() {
+      message.hidden = true;
+      offer.textContent = '';
+      offer.hidden = true;
+      for (const li of items) delete li.dataset.nearest;
     }
 
     // --- Öppna och stäng -----------------------------------------------
@@ -652,7 +771,7 @@ const points = municipalityPoints();
       } else {
         search.value = '';
         filter('');
-        message.hidden = true;
+        hush();
       }
     });
 
@@ -716,6 +835,79 @@ const points = municipalityPoints();
       if (first) first.click();
     });
 
+    // --- Vart ett kommunval leder ---------------------------------------
+
+    /**
+     * Ett kommunval ska få konsekvenser på den sida man står på, inte bara
+     * lämna ett besked om var man är. Airbnb, Yelp och The Fork gör alla
+     * samma sak: byter du ort kör de om DIN vy på den nya orten. De talar
+     * aldrig om för dig var du befinner dig.
+     *
+     * Här betyder det: behåll sidtypen, byt kommun.
+     *
+     * Undersidor som får följa med står i listan nedan och listan är
+     * medvetet kort. En sidtyp får bara stå här om den finns i SAMTLIGA
+     * kommuner, annars skickar väljaren folk till en 404 för att de råkade
+     * stå på fel sida när de bytte.
+     *
+     *   anmarkningar  Finns för alla. `getStaticPaths` i
+     *                 pages/[kommun]/anmarkningar/index.astro räknar upp
+     *                 municipalities() utan filter.
+     *   karta         Finns INTE för alla. Fyra av tolv kommuner lämnar inga
+     *                 koordinater alls och får därför ingen kartsida. Den kan
+     *                 läggas till här den dag väljaren vet vilka kommuner som
+     *                 har en karta, vilket kräver ett fält i punktlistan ur
+     *                 mapDataset(). Kartan byggs om av någon annan just nu, så
+     *                 kopplingen görs inte här.
+     *
+     * Sidnummer, kategori och en enskild verksamhet följer aldrig med. Sida 47
+     * i Stockholm har ingen motsvarighet i Lomma, en kategori finns bara om
+     * kommunen har verksamheter i den, och en restaurang finns på exakt ett
+     * ställe. I alla de fallen är kommunens hubb rätt landning.
+     */
+    const KEEP_SUBPAGES = new Set(['anmarkningar']);
+
+    const slugs = new Set(items.map((li) => li.dataset.slug!));
+
+    /** Kommun och undersida för sidan man står på, ur adressen. */
+    function here(): { kommun: string | null; sub: string } {
+      const seg = location.pathname.split('/').filter(Boolean);
+      const kommun = seg.length > 0 && slugs.has(seg[0]) ? seg[0] : null;
+      return { kommun, sub: kommun ? seg[1] ?? '' : '' };
+    }
+
+    /** Adressen ett val av `slug` ska leda till härifrån. */
+    function destination(slug: string): string {
+      const { sub } = here();
+      return KEEP_SUBPAGES.has(sub) ? `/${slug}/${sub}/` : `/${slug}/`;
+    }
+
+    /**
+     * Listans länkar pekar server-renderat på kommunens hubb, och den formen
+     * är den som Google och den som saknar JavaScript ser. Här skrivs de om,
+     * men bara när man står på en undersida som faktiskt kan följa med.
+     *
+     * Att skriva om href och inte fånga klicket är ett val: då stämmer
+     * mittenklick, "kopiera länkadress" och statusraden med vad länken gör.
+     * En länk som säger ett och gör ett annat är värre än en omväg.
+     */
+    if (KEEP_SUBPAGES.has(here().sub)) {
+      for (const li of items) {
+        const a = li.querySelector('a');
+        if (a) a.href = destination(li.dataset.slug!);
+      }
+    }
+
+    /** Pekar ut en kommun i listan, för de svar som inte byter sida. */
+    function reveal(slug: string) {
+      for (const li of items) delete li.dataset.nearest;
+      const li = items.find((x) => x.dataset.slug === slug);
+      if (!li) return;
+      li.hidden = false;
+      li.dataset.nearest = '';
+      li.scrollIntoView({ block: 'nearest' });
+    }
+
     // --- Använd min plats -----------------------------------------------
 
     interface Point { slug: string; city: string; lat: number; lng: number }
@@ -735,10 +927,27 @@ const points = municipalityPoints();
       return 2 * R * Math.asin(Math.sqrt(h));
     }
 
-    /** Så långt bort en kommun får ligga för att räknas som "din". Grovt
-     *  tilltaget: en kommun är stor, och punkten är verksamheternas median,
-     *  inte en gräns. */
+    /**
+     * Två avstånd, för att svaret ska vara ärligt i alla tre lägen.
+     *
+     * Vi täcker tolv kommuner av 290. Att då alltid svara "närmast dig är X"
+     * är missvisande på gränsen till fel: den som står i Kiruna får Uppsala,
+     * 898 km bort, och en mening som låter som ett svar är sämre än ett
+     * besked om att vi inte når dit än.
+     *
+     * NEAR   Det här ÄR din kommun, alltså byter vi sida utan att fråga.
+     *        Punkten är verksamheternas median och inte en gräns, och en
+     *        kommun är stor, så talet är grovt tilltaget med flit.
+     * REACH  Inte din kommun, men nära nog att vara värd något. Göteborg
+     *        ligger 131 km från Jönköping och den som söker en restaurang
+     *        inför en resa dit är hjälpt av erbjudandet. Vi påstår aldrig att
+     *        den är "din", vi skriver ut avståndet och låter besökaren välja.
+     * Bortom Då erbjuds ingen kommun alls. Malmö till Jönköping är 252 km och
+     *        ingen i Malmö vill dit för lunch. Kvar står täckningen, alltså
+     *        beskedet om att kommunen kan komma senare.
+     */
     const NEAR_METRES = 40000;
+    const REACH_METRES = 200000;
 
     if (!('geolocation' in navigator)) {
       locate.disabled = true;
@@ -771,18 +980,52 @@ const points = municipalityPoints();
             }
           }
 
+          const km = Math.round(best / 1000);
+
+          /* Står man redan på den kommunens sidor ska ingenting laddas om. En
+             omladdning till exakt samma adress är precis det som ser ut som en
+             trasig knapp. Kontrollen får däremot ALDRIG ligga före
+             avståndsprövningen: den som läser om Jönköping från Göteborg är
+             inte i Jönköping, och "Du är redan i Jönköping" hade varit ett
+             påstående om besökarens plats som vi just mätt är falskt. */
+          const påPlats = nearest.slug === here().kommun;
+
           if (best <= NEAR_METRES) {
+            reveal(nearest.slug);
+            if (påPlats) {
+              say(`Du är redan i ${nearest.city}.`);
+              return;
+            }
             say(`Närmast dig: ${nearest.city}. Öppnar…`);
-            location.href = `/${nearest.slug}`;
+            location.href = destination(nearest.slug);
             return;
           }
 
-          // Utanför täckningen. Att säga vad som ÄR närmast är mer användbart
-          // än att bara konstatera att vi inte hittade något.
-          const km = Math.round(best / 1000);
-          say(
-            `Vi har ingen kommun där du är än. Närmast dig är ${nearest.city}, ungefär ${km} km bort.`,
-          );
+          /* Utanför täckningen. Här slutade knappen förut: den räknade fram
+             rätt kommun och lämnade en mening. Nu pekas kommunen ut i listan
+             och beskedet bär en väg vidare, så att uträkningen blir något man
+             kan göra något med. */
+          reveal(nearest.slug);
+
+          const tackning = { href: '/kallor/#fler-kommuner', text: 'Om täckningen' };
+
+          if (best > REACH_METRES) {
+            say(
+              `Vi täcker ingen kommun i din del av landet än. Närmast är ${nearest.city}, ungefär ${km} km bort.`,
+              tackning,
+            );
+          } else if (påPlats) {
+            say(
+              `Vi täcker inte din kommun än. ${nearest.city}, som du tittar på nu, är den närmaste vi har, ungefär ${km} km från dig.`,
+              tackning,
+            );
+          } else {
+            say(
+              `Vi täcker inte din kommun än. Närmast dig är ${nearest.city}, ungefär ${km} km bort.`,
+              { href: destination(nearest.slug), text: `Öppna ${nearest.city} ändå` },
+              tackning,
+            );
+          }
         },
         (error) => {
           locate.disabled = false;
