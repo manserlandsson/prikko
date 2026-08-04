@@ -1262,6 +1262,32 @@ function median(values: number[]): number {
  */
 let pointsCache: MunicipalityPoint[] | null = null;
 
+/**
+ * Tätortspunkter för kommuner vars källa inte lämnar några koordinater alls.
+ *
+ * Utan dem är de här fyra kommunerna osynliga för platsknappen: den som står
+ * mitt i Lomma fick "vi täcker inte ditt område än" och Jönköping tjugo mil
+ * bort som närmaste förslag, trots att Lomma finns på sajten. Det är värre än
+ * en ungefärlig punkt.
+ *
+ * Detta är inte gissningar utan slagningar mot OSM/Nominatim (2026-08-04),
+ * avrundade till fyra decimaler. Punkten används enbart för att räkna avstånd
+ * mot en besökares position, där ett fel på någon kilometer inte kan ändra
+ * utfallet: närmaste granne ligger tiotals kilometer bort. Ingen nål ritas ur
+ * den här tabellen.
+ *
+ * Tabellen läses före medianberäkningen, så en rad som ligger kvar när
+ * kommunen börjat leverera riktiga koordinater skulle skugga dem för alltid.
+ * Därför finns bygg-vakten inne i municipalityPoints: den fäller bygget och
+ * pekar ut raden som ska bort.
+ */
+const DECLARED_POINTS: Record<string, { lat: number; lng: number }> = {
+  borgholm: { lat: 56.8795, lng: 16.656 },
+  hoganas: { lat: 56.2, lng: 12.5667 },
+  lomma: { lat: 55.6667, lng: 13.0833 },
+  svenljunga: { lat: 57.4964, lng: 13.1116 },
+};
+
 export function municipalityPoints(): MunicipalityPoint[] {
   if (pointsCache) return pointsCache;
 
@@ -1271,6 +1297,25 @@ export function municipalityPoints(): MunicipalityPoint[] {
     const declared = m as Municipality & { lat?: number; lng?: number };
     if (typeof declared.lat === 'number' && typeof declared.lng === 'number') {
       points.push({ slug: m.slug, city: m.city, lat: declared.lat, lng: declared.lng });
+      continue;
+    }
+
+    const table = DECLARED_POINTS[m.slug];
+    if (table) {
+      /*
+       * Vakten: har kommunen börjat leverera egna koordinater ska raden i
+       * DECLARED_POINTS bort, annars ligger en handskriven punkt kvar och
+       * skuggar den riktiga medianen för alltid. Bygget säger till i stället
+       * för att låta det ruttna tyst.
+       */
+      const har = establishments(m.slug).some((e) => e.lat !== null && e.lng !== null);
+      if (har) {
+        throw new Error(
+          `${m.slug} har nu egna koordinater. Ta bort raden ur DECLARED_POINTS i lib/data.ts ` +
+            'så att medianen av verksamheterna används i stället.',
+        );
+      }
+      points.push({ slug: m.slug, city: m.city, lat: table.lat, lng: table.lng });
       continue;
     }
 

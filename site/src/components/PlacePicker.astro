@@ -23,7 +23,7 @@
  * som gör att den känns trasig: uträkningen stämde, den ledde bara ingenstans.
  * Nu byter valet sida, behåller sidtypen där en motsvarighet finns, och när
  * platsen ligger utanför täckningen säger beskedet det rakt ut och bär ändå en
- * väg vidare. Se KEEP_SUBPAGES och avstånden längre ned för de tre lägena.
+ * väg vidare. Se keeps() och avstånden längre ned för de tre lägena.
  *
  * Panelen är mer än en lista. Överst det som folk kommer hit för: välja
  * kommun. Under en hårfin avdelare den framhävda raden till /ratta, som är
@@ -41,10 +41,20 @@
  * utom räckhåll så fort täckningen växer.
  */
 import { municipalities, municipalityPoints } from '../lib/data';
+import { mapDatasets } from '../lib/map-data';
 import { path } from '../lib/urls';
 
 const kommuner = municipalities();
 const points = municipalityPoints();
+
+/*
+ * Kommunerna som har en kartsida. Behövs för att ett kommunbyte från
+ * /x/karta/ ska kunna landa på /y/karta/ utan att någonsin skicka någon till
+ * en 404: fyra av tolv kommuner saknar koordinater och därmed kartsida, och
+ * för dem faller bytet tillbaka till hubben. Listan är byggd ur samma källa
+ * som kartrutterna själva, så de två kan inte glida isär.
+ */
+const kartaSlugs = mapDatasets().map((d) => d.municipality.slug);
 
 /**
  * Kommunen som sidan man står på tillhör, härledd ur adressen.
@@ -213,6 +223,7 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
 </details>
 
 <script type="application/json" data-points set:html={JSON.stringify(points)} />
+<script type="application/json" data-karta-slugs set:html={JSON.stringify(kartaSlugs)} />
 
 <style>
   .picker {
@@ -853,19 +864,26 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
      *   anmarkningar  Finns för alla. `getStaticPaths` i
      *                 pages/[kommun]/anmarkningar/index.astro räknar upp
      *                 municipalities() utan filter.
-     *   karta         Finns INTE för alla. Fyra av tolv kommuner lämnar inga
-     *                 koordinater alls och får därför ingen kartsida. Den kan
-     *                 läggas till här den dag väljaren vet vilka kommuner som
-     *                 har en karta, vilket kräver ett fält i punktlistan ur
-     *                 mapDataset(). Kartan byggs om av någon annan just nu, så
-     *                 kopplingen görs inte här.
+     *   karta         Finns för de kommuner som har koordinater, i dag åtta av
+     *                 tolv. Vilka avgörs av [data-karta-slugs], som byggs ur
+     *                 mapDatasets() vid rendering, alltså exakt samma källa
+     *                 som kartrutterna själva. För en kommun utan karta faller
+     *                 bytet tillbaka till hubben i stället för till en 404.
      *
      * Sidnummer, kategori och en enskild verksamhet följer aldrig med. Sida 47
      * i Stockholm har ingen motsvarighet i Lomma, en kategori finns bara om
      * kommunen har verksamheter i den, och en restaurang finns på exakt ett
      * ställe. I alla de fallen är kommunens hubb rätt landning.
      */
-    const KEEP_SUBPAGES = new Set(['anmarkningar']);
+    const kartaEl = document.querySelector('[data-karta-slugs]');
+    const kartaSlugs = new Set<string>(kartaEl ? JSON.parse(kartaEl.textContent || '[]') : []);
+
+    /** Får undersidan följa med till just den här kommunen? */
+    function keeps(sub: string, slug: string): boolean {
+      if (sub === 'anmarkningar') return true;
+      if (sub === 'karta') return kartaSlugs.has(slug);
+      return false;
+    }
 
     const slugs = new Set(items.map((li) => li.dataset.slug!));
 
@@ -879,19 +897,21 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
     /** Adressen ett val av `slug` ska leda till härifrån. */
     function destination(slug: string): string {
       const { sub } = here();
-      return KEEP_SUBPAGES.has(sub) ? `/${slug}/${sub}/` : `/${slug}/`;
+      return keeps(sub, slug) ? `/${slug}/${sub}/` : `/${slug}/`;
     }
 
     /**
      * Listans länkar pekar server-renderat på kommunens hubb, och den formen
      * är den som Google och den som saknar JavaScript ser. Här skrivs de om,
      * men bara när man står på en undersida som faktiskt kan följa med.
+     * destination() räknar per kommun, så på kartsidan får kommuner utan
+     * karta hubben som mål medan resten får sin karta.
      *
      * Att skriva om href och inte fånga klicket är ett val: då stämmer
      * mittenklick, "kopiera länkadress" och statusraden med vad länken gör.
      * En länk som säger ett och gör ett annat är värre än en omväg.
      */
-    if (KEEP_SUBPAGES.has(here().sub)) {
+    if (['anmarkningar', 'karta'].includes(here().sub)) {
       for (const li of items) {
         const a = li.querySelector('a');
         if (a) a.href = destination(li.dataset.slug!);
