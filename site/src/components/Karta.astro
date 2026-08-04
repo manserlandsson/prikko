@@ -112,19 +112,24 @@ const LEGEND = [
       </p>
     </header>
 
+    {/* Kortgrid i två kolumner, som Airbnbs resultat. Strukturen här MÅSTE
+        spegla ritaLista i skriptet exakt: klienten byter ut korten vid varje
+        panorering, och två olika kortformer hade synts som ett hopp i samma
+        sekund som kartan vaknar. */}
     <ol class="rader" data-rader>
       {initial.map((e) => (
         <li>
           <a href={path(base, e.slug)}>
-            <FaceRef verdict={e.verdict} size={28} />
-            <span class="rad-text">
+            <span class="k-topp">
+              <FaceRef verdict={e.verdict} size={28} />
               <b>{e.name}</b>
-              <span class="text-secondary">
-                {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
-                {latestInspectionDate(e) && (
-                  <> · {formatDate(latestInspectionDate(e)!)}</>
-                )}
-              </span>
+            </span>
+            {e.types[0] && <span class="k-typ text-secondary">{e.types[0]}</span>}
+            <span class="k-meta">
+              {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
+              {latestInspectionDate(e) && (
+                <> · {formatDate(latestInspectionDate(e)!)}</>
+              )}
             </span>
           </a>
         </li>
@@ -351,9 +356,11 @@ const LEGEND = [
 
     // ── Listan ───────────────────────────────────────────────────────────
 
-    /** Hur många rader som ritas. Fler än så läser ingen, och DOM-kostnaden
-     *  vid varje panorering är det som avgör om dragningen känns mjuk. */
-    const MAX_RADER = 120;
+    /** Hur många kort som ritas. Sänkt från 120 när raderna blev kort: varje
+     *  post kostar fler element nu, och DOM-kostnaden vid varje panorering är
+     *  det som avgör om dragningen känns mjuk. Sextio kort är trettio rader i
+     *  tvåkolumnsgriden, mer än någon rullar igenom medan kartan rör sig. */
+    const MAX_RADER = 60;
 
     function ritaLista(synliga: Punkt[], totalt: number) {
       const visa = synliga.slice(0, MAX_RADER);
@@ -361,11 +368,16 @@ const LEGEND = [
 
       for (const p of visa) {
         const li = document.createElement('li');
-        // Radnumret är nålens id. Utan det kan raden inte peka ut sin nål.
+        // Radnumret är nålens id. Utan det kan kortet inte peka ut sin nål.
         li.dataset.i = String(p.i);
         const a = document.createElement('a');
         a.href = BAS + p.slug + '/';
 
+        // Samma struktur som de server-renderade korten i mallen ovan, av
+        // samma skäl som stilarna ligger under :global: klienten byter ut
+        // korten, och två kortformer hade synts som ett hopp.
+        const topp = document.createElement('span');
+        topp.className = 'k-topp';
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('class', 'face');
         svg.setAttribute('width', '28');
@@ -375,20 +387,26 @@ const LEGEND = [
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
         svg.appendChild(use);
-
-        const text = document.createElement('span');
-        text.className = 'rad-text';
         const b = document.createElement('b');
         // textContent, aldrig innerHTML: namnen kommer ur kommunernas register
         // och har inte passerat någon sanering.
         b.textContent = p.namn;
+        topp.append(svg, b);
+        a.appendChild(topp);
+
+        if (p.typ) {
+          const typ = document.createElement('span');
+          typ.className = 'k-typ text-secondary';
+          typ.textContent = p.typ;
+          a.appendChild(typ);
+        }
+
         const meta = document.createElement('span');
-        meta.className = 'text-secondary';
+        meta.className = 'k-meta';
         const datum = datumText(p.d);
         meta.textContent = LABEL[p.v] + (datum ? ` · ${datum}` : '');
-        text.append(b, meta);
+        a.appendChild(meta);
 
-        a.append(svg, text);
         li.appendChild(a);
         frag.appendChild(li);
       }
@@ -875,26 +893,34 @@ const LEGEND = [
         });
 
         /*
-         * Klustret ritas i TVÅ lager: en genomskinlig gloria och en tät kärna.
+         * Klustret är en VIT cirkel med blå siffra, som Airbnbs prispiller.
          *
-         * Ett ensamt fyllt cirkelfält ser billigt ut, och det är exakt det
-         * ägaren reagerade på. Glorian ger märket ett djup och en mjuk kant
-         * mot kartan i stället för en hård cirkel klistrad ovanpå, och det är
-         * samma grepp Google och Airbnb använder. Den kostar ett lager och
-         * inga anrop.
+         * Två versioner har provats och dömts ut av ägaren: en mättad blå
+         * cirkel med vit siffra gjorde att en utzoomad karta mest bestod av
+         * varumärkesblått, och en genomskinlig blå gloria runt kärnan lästes
+         * som en ful pulsring. Vit yta med blå text vänder på figuren: kartan
+         * behåller sitt lugn, siffran bär färgen, och skuggan gör att pillret
+         * ligger PÅ kartan i stället för att vara målat i den. Skugga kan en
+         * circle-layer inte rita, så en andra, något större cirkel i svag
+         * svärta ligger en pixel under och gör det jobbet.
+         *
+         * Klustret bär ANTAL, aldrig bedömning: ett kluster färgat efter
+         * andelen anmärkningar är en värmekarta över vilka kvarter som sköter
+         * sig sämst, alltså den rangordning sajten aldrig publicerar.
          */
-        const KLUSTER_R = ['step', ['get', 'point_count'], 12, 25, 15, 100, 18, 500, 22] as any;
+        const KLUSTER_R = ['step', ['get', 'point_count'], 13, 25, 15, 100, 18, 500, 22] as any;
 
         karta.addLayer({
-          id: 'kluster-gloria',
+          id: 'kluster-skugga',
           type: 'circle',
           source: 'verksamheter',
           filter: ['has', 'point_count'],
           paint: {
-            'circle-color': '#007BE0',
-            'circle-opacity': 0.16,
-            'circle-radius': ['step', ['get', 'point_count'], 19, 25, 22, 100, 26, 500, 31],
-            'circle-radius-transition': { duration: reducerad ? 0 : 250 },
+            'circle-color': '#000',
+            'circle-opacity': 0.14,
+            'circle-blur': 0.9,
+            'circle-translate': [0, 2],
+            'circle-radius': ['step', ['get', 'point_count'], 15, 25, 17, 100, 20, 500, 24],
           },
         });
 
@@ -904,14 +930,10 @@ const LEGEND = [
           source: 'verksamheter',
           filter: ['has', 'point_count'],
           paint: {
-            // --brand som ytfärg. Klustret bär ANTAL, aldrig bedömning: ett
-            // kluster färgat efter andelen anmärkningar är en värmekarta över
-            // vilka kvarter som sköter sig sämst, alltså den rangordning
-            // sajten aldrig publicerar. Bedömningen syns när man zoomar in.
-            'circle-color': '#007BE0',
+            'circle-color': '#FFFFFF',
             'circle-opacity': 1,
-            'circle-stroke-width': 1.5,
-            'circle-stroke-color': '#fff',
+            'circle-stroke-width': 1,
+            'circle-stroke-color': 'rgba(0, 0, 0, 0.08)',
             'circle-radius': KLUSTER_R,
             /*
              * Övergångarna är skillnaden mellan en karta som känns billig och
@@ -952,7 +974,9 @@ const LEGEND = [
             'text-allow-overlap': true,
             'text-ignore-placement': true,
           },
-          paint: { 'text-color': '#fff' },
+          // Brand-ink, inte brand: siffran är liten text på vit botten och
+          // behöver den mörkare blå för kontrast.
+          paint: { 'text-color': '#0063B4' },
         });
 
         karta.addLayer(
@@ -1031,12 +1055,8 @@ const LEGEND = [
         karta.on('move', placeraKort);
         window.addEventListener('resize', placeraKort);
 
-        // Glorian räknas som en del av märket. Den sticker ut sex pixlar utanför
-        // kärnan, och ett klick där ska zooma in precis som ett klick i mitten.
-        const KLUSTERLAGER = ['kluster', 'kluster-gloria'];
-
-        karta.on('click', 'kluster-gloria', (ev: any) => {
-          const f = karta.queryRenderedFeatures(ev.point, { layers: KLUSTERLAGER })[0];
+        karta.on('click', 'kluster', (ev: any) => {
+          const f = karta.queryRenderedFeatures(ev.point, { layers: ['kluster'] })[0];
           if (!f) return;
           karta.getSource('verksamheter').getClusterExpansionZoom(f.properties.cluster_id).then((z: number) => {
             karta.easeTo({ center: f.geometry.coordinates, zoom: z, duration: reducerad ? 0 : 400 });
@@ -1051,11 +1071,11 @@ const LEGEND = [
 
         // Klick vid sidan av en nål stänger kortet, som hos Airbnb.
         karta.on('click', (ev: any) => {
-          const träff = karta.queryRenderedFeatures(ev.point, { layers: ['nalar', ...KLUSTERLAGER] });
+          const träff = karta.queryRenderedFeatures(ev.point, { layers: ['nalar', 'kluster'] });
           if (träff.length === 0) stangKort();
         });
 
-        for (const lager of [...KLUSTERLAGER, 'nalar']) {
+        for (const lager of ['kluster', 'nalar']) {
           karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
           karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
         }
@@ -1114,50 +1134,69 @@ const LEGEND = [
   }
 
   .rader {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
     list-style: none;
     margin: 0;
     padding: 0;
   }
 
-  /* :global genom hela listan.
-     Astro scopar sina selektorer med ett [data-astro-cid-…]-attribut som sätts
-     när MALLEN renderas. Raderna byts ut av skriptet vid varje panorering, och
-     element som skapas med createElement bär inget sådant attribut — den
-     scopade regeln matchar dem alltså aldrig. Resultatet var att namnet inte
-     blev ett eget block och rann ihop med bedömningen på samma rad.
-     Server- och klientrader måste se likadana ut, så reglerna ligger globalt
-     under .rader, som är server-renderad och därför har sitt scope. */
+  /* En kolumn när listspalten blir för smal för två läsbara kort. Brytpunkten
+     ligger på split-vyns egen: under 900 px är listan fullbredd igen och två
+     kolumner ryms gott, så gränsen gäller spannet strax ovanför. */
+  @media (min-width: 901px) and (max-width: 1120px) {
+    .rader { grid-template-columns: minmax(0, 1fr); }
+  }
+
   /*
-   * Raderna är täta och avgränsas av en hårlinje, inte av luft.
+   * Kortgrid i två kolumner, som Airbnbs resultatlista.
    *
-   * Listan var luftigt satt med höga rader och en hovring som lyfte raden till
-   * ett eget kort med skugga. Två fel i samma grepp: den glesa listan gjorde
-   * att bara sju verksamheter syntes åt gången bredvid en karta med tusentals
-   * nålar, och den lyfta hovringen fick raden att hoppa ur listan i stället
-   * för att markeras i den. En markering ska ligga kvar i sitt sammanhang.
+   * Listan har varit en enkolumnsrad med hårlinjer, och ägaren pekade på
+   * Airbnb: två kolumner, mer data per post, riktiga kort. Utan foton blir
+   * korten text, och då gör hårlinjekanten kortets jobb: den avgränsar utan
+   * att varje kort får en egen skugga, vilket i en grid på trettio kort hade
+   * blivit ett skuggfält.
+   *
+   * :global genom hela griden av samma skäl som förut: skriptet byter ut
+   * korten vid varje panorering och element ur createElement bär inget
+   * Astro-scope.
    */
-  .rader :global(li + li) { border-top: 1px solid var(--hairline); }
+  .rader :global(li) {
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    background: var(--card);
+    min-width: 0;
+  }
 
   .rader :global(a) {
     display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    padding: var(--s-2) var(--s-3);
-    border-radius: var(--r-control);
+    flex-direction: column;
+    gap: 2px;
+    height: 100%;
+    padding: var(--s-3) var(--s-4);
+    border-radius: inherit;
     color: var(--text);
   }
 
   .rader :global(a:hover) {
     text-decoration: none;
-    background: var(--canvas);
+    border-color: transparent;
+    box-shadow: var(--shadow-sm);
   }
 
   .rader :global(a:hover b) { color: var(--brand-ink); }
 
-  .rader :global(.rad-text) { min-width: 0; }
+  .rader :global(.k-topp) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+  }
 
-  .rader :global(.rad-text b) {
-    display: block;
+  .rader :global(.k-topp .face) { flex: none; }
+
+  .rader :global(.k-topp b) {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
@@ -1166,18 +1205,25 @@ const LEGEND = [
     white-space: nowrap;
   }
 
-  .rader :global(.rad-text span) {
-    display: block;
+  .rader :global(.k-typ) {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rader :global(.k-meta) {
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
 
-  /* Nålen som hör till raden man hovrar lyfts på kartan, och tvärtom. Det är
+  /* Nålen som hör till kortet man hovrar lyfts på kartan, och tvärtom. Det är
      det som binder ihop de två halvorna, samma grepp som hos Airbnb. */
-  .rader :global(li.aktiv a) {
-    background: var(--canvas);
-    box-shadow: inset 2px 0 0 var(--brand);
+  .rader :global(li.aktiv) {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand);
   }
 
   .listfot {
@@ -1196,21 +1242,24 @@ const LEGEND = [
   }
 
   /*
-   * Räta hörn, hårfin kant, ingen skugga.
+   * Rundade hörn, hårfin kant, ingen skugga. Som Airbnbs karta.
    *
-   * Kartan hade kortets radie och skugga, alltså såg den ut som ännu ett kort
-   * bland korten. Airbnb, Booking och Zillow ritar alla kartan som en rät yta:
-   * den är inte ett innehållskort utan en av sidans två halvor, och en rundad
-   * ruta med skugga får den att sväva i stället för att bära.
+   * Ägarens ord: "rutan sitter liksom helt fast, är en perfekt fyrkant, fast
+   * med rundade hörn, och inget fluff". Radien är kortradien, kanten bara en
+   * hårlinje så att den ljusa kartan inte flyter ihop med sidan, och ingen
+   * skugga: kartan är en av sidans två halvor, inte ett kort som svävar.
    *
-   * Ett annat skäl är kortet vid nålen. En nål nära ramens hörn får sitt kort
-   * intryckt av radien, och med räta hörn finns hela ytan att lägga det på.
+   * Höjden är dvh, inte vh, så att mobilens adressrad inte äter ur kartan.
+   * Avdraget är sticky-avståndet upptill plus raden med teckenförklaringen
+   * under; tidigare låg en död remsa under kartan för att avdraget var för
+   * stort i förhållande till det som faktiskt ligger ovanför och under.
    */
   .kartram {
     position: relative;
-    height: calc(100vh - var(--s-16));
+    height: calc(100dvh - var(--s-8) - 56px);
     min-height: 440px;
     border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
     overflow: hidden;
     background: var(--card);
   }
