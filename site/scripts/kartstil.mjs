@@ -63,6 +63,12 @@ const F = {
   gangvag: '#E6E0D5',
   rals: '#DAD5CD',
 
+  // Flygfält. Bromma ligger mitt i Stockholms kommun, så ytan syns i det
+  // första utsnittet. Libertys platta är en kall grå som sticker ut mot den
+  // varma marken; samma varma familj som husen i stället, och banorna vita
+  // som vägarna så att de läser som just banor.
+  flygfalt: '#EAE6DF',
+
   // Text. En enda grå för allt utom vatten, halo alltid vit.
   text: '#5C5A56',
   textVatten: '#7C9FB8',
@@ -94,6 +100,10 @@ const REGLER = [
 
   [/building/, { 'fill-color': F.hus, 'fill-outline-color': F.husKant, 'fill-extrusion-color': F.hus }],
 
+  // Flygfältet: plattan i varm grå, banorna vita som vägnätet.
+  [/^aeroway_(runway|taxiway)/, { 'line-color': F.vag }],
+  [/^aeroway/, { 'fill-color': F.flygfalt }],
+
   // Vägar. Casing först i regellistan hade fångat även fyllet, så de skiljs åt
   // på att id:t slutar på _casing.
   [/(motorway|trunk)_casing$/, { 'line-color': F.motorvagKant }],
@@ -109,8 +119,16 @@ const REGLER = [
 
   [/water.*(label|name)|(label|name).*water/, { 'text-color': F.textVatten, 'text-halo-color': F.halo }],
   [/place|country|state|continent/, { 'text-color': F.textPlats, 'text-halo-color': F.halo }],
-  [/label|name|^poi|housenumber/, { 'text-color': F.text, 'text-halo-color': F.halo }],
+  // ^airport$ är flygplatsens NAMN (symbol-lagret), inte ytan. Utan regeln
+  // stod det kvar i Libertys #666, en hårsmån från vår text men ändå en annan.
+  [/label|name|^poi|housenumber|^airport$/, { 'text-color': F.text, 'text-halo-color': F.halo }],
 ];
+
+/*
+ * Medvetet oträffat: highway-shield-non-us. Lagret saknar paint helt, färgerna
+ * sitter i spritens vägskyltar och texten faller tillbaka till svart inuti
+ * skylten. Det finns alltså ingenting för omfärgningen att skriva till.
+ */
 
 function fargom(lager) {
   const regel = REGLER.find(([m]) => m.test(lager.id));
@@ -149,5 +167,9 @@ await mkdir(UT, { recursive: true });
 const fil = join(UT, 'prikko.json');
 await writeFile(fil, JSON.stringify(stil));
 
-const trafffar = stil.layers.filter((l) => REGLER.some(([m]) => m.test(l.id))).length;
+const otraffade = stil.layers.filter((l) => !REGLER.some(([m]) => m.test(l.id)));
+const trafffar = stil.layers.length - otraffade.length;
 console.log(`${fil}: ${stil.layers.length} lager, ${trafffar} omfärgade`);
+// Utan den här listan går det inte att veta om en oträffad är avsiktlig eller
+// ett nytt lager som OpenFreeMap lagt till sedan sist.
+for (const l of otraffade) console.log(`  oträffad: ${l.id} (${l.type})`);
