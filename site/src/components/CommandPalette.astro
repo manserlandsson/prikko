@@ -1,0 +1,770 @@
+---
+/**
+ * Kommandopaletten. Cmd+K på Mac, Ctrl+K på allt annat.
+ *
+ * Det är INTE en fokusflytt till sidhuvudets fält. Poängen med mönstret, som
+ * Linear, Notion och Raycast etablerat, är en överlagring mitt på skärmen som
+ * finns på varje sida och nås utan att lyfta händerna från tangentbordet.
+ * Sökfältet i sidhuvudet står orört kvar för alla andra.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD PALETTEN NÅR, OCH VARFÖR DET ÄR MER ÄN SÖKFÄLTET
+ * ---------------------------------------------------------------------------
+ * Sökfältet hittar verksamheter och kommuner. Paletten når dessutom sajtens
+ * egna sidor: metodiken, källorna, rapporterna, kartan per kommun och
+ * artiklarna. Det är den skillnaden som gör mönstret värt något; vore
+ * paletten bara sökfältet i en ruta hade genvägen kunnat fokusera fältet.
+ *
+ * Sidlistan renderas server-side i rutan. Den är tom frågas grundläge och ska
+ * stå färdig i samma ögonblick rutan öppnas, precis som "Populära sökningar"
+ * i sökfältet. Verksamheter och kommuner kommer ur samma register som
+ * sökfältet använder (lib/search-index), och registret hämtas FÖRST när
+ * paletten öppnas första gången. Sidhuvudet finns på 14 711 sidor; de som
+ * aldrig trycker cmd+K ska inte betala en megabyte för att genvägen finns.
+ *
+ * ---------------------------------------------------------------------------
+ * TILLGÄNGLIGHET
+ * ---------------------------------------------------------------------------
+ * Byggd på <dialog> och showModal(), samma väg som SignInDialog: fokusfälla,
+ * Esc och aria-modal kommer från webbläsaren i stället för från kod som kan
+ * glömma ett fall. Fokus flyttas in i fältet vid öppning och tillbaka till
+ * elementet som hade fokus vid stängning. Listan är en listbox styrd via
+ * aria-activedescendant, samma mönster som SiteSearch, så pilarna flyttar
+ * markeringen utan att fokus lämnar fältet.
+ *
+ * Tangentbordstipsen i sidfoten visas bara på enheter med pekare och hover,
+ * alltså i praktiken enheter med tangentbord. På en telefon finns inget
+ * cmd+K att tipsa om, och ett tips om en genväg som inte går att trycka
+ * läser som ett fel.
+ *
+ * Rutan öppnas ALDRIG av sidladdning, bara av tangenttryck eller av
+ * genvägsikonen i sökfältet ([data-palette-hint], när den finns).
+ */
+import { getCollection } from 'astro:content';
+import { sectionReady } from '../lib/artiklar';
+import { formatNumber, municipalities } from '../lib/data';
+import { mapDataset } from '../lib/map-data';
+import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
+import { path } from '../lib/urls';
+
+interface Command {
+  label: string;
+  meta: string;
+  href: string;
+  kind: 'page' | 'map' | 'article';
+  /** Extra sökord utöver etiketten. Klienten normaliserar båda. */
+  kw?: string;
+}
+
+/**
+ * Sajtens egna sidor. Handskriven lista, inte en genomsökning av pages/:
+ * kontosidorna, cookiesidan och villkoren är nåbara via sidfoten och hör
+ * inte hemma i en palett som ska föreslå nästa steg, inte rabbla sajtkartan.
+ */
+const pages: Command[] = [
+  { label: 'Sök', meta: 'Alla verksamheter och kommuner', href: path('sok'), kind: 'page', kw: 'hitta' },
+  { label: 'Metodik', meta: 'Så räknas bedömningen fram', href: path('metodik'), kind: 'page', kw: 'metod bedömning betyg modell' },
+  { label: 'Källor', meta: 'Varifrån uppgifterna kommer', href: path('kallor'), kind: 'page', kw: 'data öppna data' },
+  { label: 'Rapporter', meta: 'Räknat ur hela beståndet', href: path('rapporter'), kind: 'page', kw: 'statistik siffror' },
+  { label: 'Utmärkelser', meta: 'Ställen som klarat kontrollerna över tid', href: path('utmarkelser'), kind: 'page', kw: 'utmärkelse' },
+  { label: 'Om Prikko', meta: 'Vad sajten är och vem som gör den', href: path('om'), kind: 'page', kw: 'om oss kontakt' },
+  { label: 'Rätta en uppgift', meta: 'Anmäl något som står fel', href: path('ratta'), kind: 'page', kw: 'fel rättelse felanmälan' },
+];
+
+/** Bara kommuner som faktiskt har en kartsida. Fyra av tolv saknar
+ *  koordinater och har ingen; en rad som leder till 404 är värre än ingen. */
+const maps: Command[] = municipalities()
+  .map((m) => ({ m, data: mapDataset(m.slug) }))
+  .filter((x) => x.data !== undefined)
+  .map(({ m, data }) => ({
+    label: `Karta över ${m.city}`,
+    meta: `${formatNumber(data!.count)} ställen med nål`,
+    href: path(m.slug, 'karta'),
+    kind: 'map' as const,
+    kw: 'kartor',
+  }));
+
+/**
+ * Artiklarna, bakom samma kvalitetsgrind som sektionen själv. Under
+ * MIN_ARTICLES är sektionen noindexad och under granskning, och då ska
+ * paletten inte skylta med den heller.
+ */
+const articles: Command[] = sectionReady()
+  ? [
+      { label: 'Artiklar', meta: 'Guider och förklaringar', href: path('artiklar'), kind: 'page' as const, kw: 'guide' },
+      ...(await getCollection('artiklar'))
+        .filter((a) => !a.data.draft)
+        .sort((a, b) => b.data.published.localeCompare(a.data.published))
+        .map((a) => ({
+          label: a.data.title,
+          meta: a.data.category,
+          href: path('artiklar', a.id),
+          kind: 'article' as const,
+        })),
+    ]
+  : [];
+
+const groups = [
+  { name: 'Sidor', items: pages },
+  { name: 'Kartor', items: maps },
+  { name: 'Artiklar', items: articles },
+].filter((g) => g.items.length > 0);
+
+/** Samma streckvikt och 20-rutnät som sökfältets ikoner, för syskonskapet. */
+const ICONS: Record<Command['kind'], string> = {
+  page:
+    '<path d="M5.4 2.9h6.4l2.8 2.8v11.4H5.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 2.9v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 9.6h4.8M7.6 12.4h4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  map:
+    '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  article:
+    '<path d="M4.2 4.6h11.6M4.2 8.2h11.6M4.2 11.8h11.6M4.2 15.4h6.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+};
+---
+
+<dialog
+  class="palette"
+  aria-label="Sök och gå till sida"
+  data-palette
+  data-index={SEARCH_INDEX_URL}
+  data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+>
+  <div class="sheet">
+    <div class="field">
+      <svg class="lens" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+        <path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+      </svg>
+      <label class="visually-hidden" for="cp-q">Sök verksamhet, kommun eller sida</label>
+      <input
+        id="cp-q"
+        type="text"
+        placeholder="Sök ställe, kommun eller sida"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        data-input
+      />
+      <button type="button" class="key esc" data-close aria-label="Stäng">esc</button>
+    </div>
+
+    <ul class="list" id="cp-list" role="listbox" aria-label="Träffar" data-list>
+      {groups.map((g) => (
+        <>
+          <li class="group eyebrow" role="presentation" aria-hidden="true">{g.name}</li>
+          {g.items.map((c) => (
+            <li role="presentation">
+              <a
+                href={c.href}
+                role="option"
+                aria-selected="false"
+                data-cmd
+                data-kw={[c.label, c.kw].filter(Boolean).join(' ')}
+              >
+                <span class="icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[c.kind]} />
+                </span>
+                <span class="body">
+                  <span class="name">{c.label}</span>
+                  <span class="meta">{c.meta}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </>
+      ))}
+    </ul>
+
+    <p class="note" hidden data-note></p>
+
+    {/* aria-hidden med avsikt: tipsen beskriver tangenter en skärmläsare
+        redan känner till från listbox-mönstret, och raden är ren dekor. */}
+    <footer class="hints" aria-hidden="true">
+      <span><kbd class="key">↑</kbd><kbd class="key">↓</kbd> bläddra</span>
+      <span><kbd class="key">⏎</kbd> öppna</span>
+      <span><kbd class="key">esc</kbd> stäng</span>
+    </footer>
+  </div>
+</dialog>
+
+<style>
+  /* Högt upp, inte mitt på: rutan får inte hoppa i höjdled när listan växer
+     och krymper mellan tangenttryck. Med ett fast avstånd till ovankanten
+     står fältet stilla och bara listans nederkant rör sig. Samma skäl som
+     hos Linear och Raycast. */
+  .palette {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    margin: 12vh auto auto;
+    max-width: calc(100vw - var(--s-8));
+  }
+
+  .palette::backdrop {
+    background: rgba(0, 0, 0, .35);
+  }
+
+  .sheet {
+    width: min(560px, calc(100vw - var(--s-8)));
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .lens {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+  }
+
+  .field input {
+    flex: 1;
+    min-width: 0;
+    padding: var(--s-1) 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    /* 16 px är iOS-golvet, se SiteSearch. Paletten öppnas i praktiken bara
+       från tangentbord, men golvet kostar ingenting att hålla. */
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .field input:focus { outline: none; }
+  .field input::placeholder { color: var(--text-muted); }
+
+  /* Tangentutseendet delas av esc-knappen och tipsraden. */
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: var(--canvas);
+    font: 500 var(--fs-caption)/1 var(--font-sans);
+    color: var(--text-secondary);
+  }
+
+  .esc { cursor: pointer; }
+  .esc:hover { color: var(--text); }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: var(--s-2);
+    max-height: min(56vh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .group {
+    margin: var(--s-2) var(--s-2) var(--s-1);
+  }
+
+  .group:first-child { margin-top: var(--s-1); }
+
+  /* :global på raderna: träffvyn byggs om av skriptet och de raderna bär
+     inte Astros scopingattribut. Samma lösning som SiteSearchs panel. */
+  .list :global(a) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  .list :global(a:hover),
+  .list :global(a[data-active]) {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+
+  .list :global(.icon) {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+    color: var(--text-secondary);
+  }
+
+  .list :global(.icon svg) { width: 20px; height: 20px; }
+
+  .list :global(.body) {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list :global(.name),
+  .list :global(.meta) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list :global(.name) {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .list :global(.meta) {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .note {
+    margin: 0;
+    padding: var(--s-3) var(--s-4);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Tipsen finns bara där tangenterna finns. hover+fine pointer är den
+     träffsäkraste signalen webben har för "här sitter ett tangentbord":
+     en pekskärm matchar ingendera, en dator med mus båda. */
+  .hints {
+    display: none;
+    gap: var(--s-4);
+    align-items: center;
+    padding: var(--s-2) var(--s-4);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  .hints span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .hints { display: flex; }
+  }
+
+  @media (max-width: 640px) {
+    .palette { margin-top: 8vh; }
+  }
+</style>
+
+<script>
+  /**
+   * Paletten. Genvägslyssnaren är det enda som kör vid sidladdning; registret
+   * hämtas först när rutan öppnas, av samma skäl som i SiteSearch: sidhuvudet
+   * finns på 14 711 sidor och de flesta besök trycker aldrig cmd+K.
+   *
+   * Sök- och rankningslogiken speglar SiteSearch medvetet: samma register,
+   * samma normalisering, samma klasstänk (kommunprefix slår namnprefix slår
+   * lösa träffar). Skriptet kan inte importera den, eftersom SiteSearchs
+   * logik bor i komponentens eget skript, men beteendet ska kännas som
+   * samma sökmotor från båda hållen.
+   */
+  interface Suggestion {
+    label: string;
+    meta: string;
+    href: string;
+    kind: 'kommun' | 'place' | 'query';
+  }
+
+  const dialog = document.querySelector<HTMLDialogElement>('[data-palette]');
+
+  if (dialog) {
+    const input = dialog.querySelector<HTMLInputElement>('[data-input]')!;
+    const list = dialog.querySelector<HTMLElement>('[data-list]')!;
+    const note = dialog.querySelector<HTMLElement>('[data-note]')!;
+    const closeButton = dialog.querySelector<HTMLButtonElement>('[data-close]')!;
+
+    /** Mac har cmd+K; ctrl+K på en Mac är dessutom emacs-bindningen "radera
+     *  till radslut" i textfält och får inte kapas där. */
+    const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+
+    const MAX_SUGGESTIONS = 8;
+    /** Kandidater per klass innan skanningen slutar. Se SiteSearch. */
+    const SCAN_CAP = 60;
+
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'true');
+    input.setAttribute('aria-controls', 'cp-list');
+    input.setAttribute('aria-haspopup', 'listbox');
+
+    function normalise(s: string) {
+      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    // ---- Kommandona -----------------------------------------------------
+
+    /** Grundvyn som den renderades av servern, för återställning vid tom fråga. */
+    const defaultHtml = list.innerHTML;
+
+    /**
+     * Orörda kopior av kommandoraderna, tagna INNAN någon rendering satt id
+     * eller aria-tillstånd på dem. Träffvyn klonar härifrån, så en rad kan
+     * aldrig bära med sig en gammal markering in i en ny lista.
+     */
+    const commands = Array.from(
+      list.querySelectorAll<HTMLAnchorElement>('a[data-cmd]'),
+    ).map((a) => ({
+      li: a.closest('li')!.cloneNode(true) as HTMLElement,
+      labelNorm: normalise(a.querySelector('.name')!.textContent ?? ''),
+      kwNorm: normalise(a.dataset.kw ?? ''),
+    }));
+
+    // ---- Registret (delat med SiteSearch via samma adress) --------------
+
+    /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
+    type Row = [string, string, string, number, number];
+
+    let rows: Row[] = [];
+    let hay: string[] = [];
+    let kommuner: Array<[string, string]> = [];
+    let loading: Promise<void> | null = null;
+    let failed = false;
+
+    function fetchIndex(url: string, fallback: string | null): Promise<any> {
+      return fetch(url).then((r) => {
+        if (r.ok) return r.json();
+        if (fallback) return fetchIndex(fallback, null);
+        throw new Error(String(r.status));
+      });
+    }
+
+    function loadIndex() {
+      if (loading) return loading;
+      loading = fetchIndex(dialog!.dataset.index!, dialog!.dataset.indexFallback ?? null)
+        .then((data) => {
+          kommuner = data.k;
+          rows = data.e;
+          hay = rows.map(([name, address, , k]) =>
+            normalise(`${name} ${address} ${kommuner[k][1]}`),
+          );
+        })
+        .catch(() => {
+          failed = true;
+        });
+      return loading;
+    }
+
+    // ---- Sökning --------------------------------------------------------
+
+    const ICONS = {
+      kommun:
+        '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+      place:
+        '<path d="M3.6 8.4V16.4h12.8V8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2.6 8.4 4.4 3.6h11.2l1.8 4.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.4v-4.2h3.6v4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+      query:
+        '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    };
+
+    function escapeHtml(s: string) {
+      return s.replace(
+        /[&<>"]/g,
+        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+      );
+    }
+
+    function suggestionLi(s: Suggestion): HTMLElement {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'presentation');
+      li.innerHTML = `<a href="${escapeHtml(s.href)}" role="option" aria-selected="false">
+        <span class="icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false">${ICONS[s.kind]}</svg></span>
+        <span class="body"><span class="name">${escapeHtml(s.label)}</span><span class="meta">${escapeHtml(s.meta)}</span></span>
+      </a>`;
+      return li;
+    }
+
+    /**
+     * Kandidater i rankningsordning. Kommunprefix först av samma skäl som i
+     * SiteSearch ("sto" är Stockholm), sedan sidkommandona: den som skrivit
+     * "met" är på väg till metodiken, inte till en pizzeria vars namn råkar
+     * innehålla strängen. Sist de lösa träffarna.
+     */
+    function collect(q: string): (HTMLElement | Suggestion)[] {
+      const kommunPrefix: Suggestion[] = [];
+      const kommunLoose: Suggestion[] = [];
+
+      for (let i = 0; i < kommuner.length; i++) {
+        const [slug, city] = kommuner[i];
+        const c = normalise(city);
+        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
+        if (c.startsWith(q)) kommunPrefix.push(item);
+        else if (c.includes(q)) kommunLoose.push(item);
+      }
+
+      const cmdPrefix: HTMLElement[] = [];
+      const cmdLoose: HTMLElement[] = [];
+      for (const c of commands) {
+        if (c.labelNorm.startsWith(q)) cmdPrefix.push(c.li);
+        else if (c.kwNorm.includes(q)) cmdLoose.push(c.li);
+      }
+
+      const namePrefix: Suggestion[] = [];
+      const loose: Suggestion[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        if (namePrefix.length >= SCAN_CAP && loose.length >= SCAN_CAP) break;
+        const h = hay[i];
+        const at = h.indexOf(q);
+        if (at < 0) continue;
+
+        const [name, address, slug, k] = rows[i];
+        const city = kommuner[k][1];
+        const item: Suggestion = {
+          label: name,
+          meta: address ? `${address} · ${city}` : city,
+          href: `/${kommuner[k][0]}/${slug}/`,
+          kind: 'place',
+        };
+
+        if (at === 0) {
+          if (namePrefix.length < SCAN_CAP) namePrefix.push(item);
+        } else if (loose.length < SCAN_CAP) {
+          loose.push(item);
+        }
+      }
+
+      // Kortast namn först, som i SiteSearch: längden är den enda
+      // närhetssignal vi har utan popularitetsdata.
+      const byLength = (a: Suggestion, b: Suggestion) =>
+        a.label.length - b.label.length || a.label.localeCompare(b.label, 'sv');
+      namePrefix.sort(byLength);
+      loose.sort(byLength);
+
+      return [
+        ...kommunPrefix,
+        ...cmdPrefix,
+        ...namePrefix,
+        ...kommunLoose,
+        ...cmdLoose,
+        ...loose,
+      ];
+    }
+
+    // ---- Markering ------------------------------------------------------
+
+    let options: HTMLAnchorElement[] = [];
+    let active = -1;
+
+    function refreshOptions() {
+      options = Array.from(list.querySelectorAll<HTMLAnchorElement>('a[role="option"]'));
+      options.forEach((a, i) => {
+        a.id = `cp-o${i}`;
+        a.removeAttribute('data-active');
+        a.setAttribute('aria-selected', 'false');
+      });
+      active = -1;
+      input.removeAttribute('aria-activedescendant');
+    }
+
+    function setActive(i: number) {
+      const previous = options[active];
+      if (previous) {
+        previous.removeAttribute('data-active');
+        previous.setAttribute('aria-selected', 'false');
+      }
+      active = i;
+      const next = options[active];
+      if (!next) {
+        input.removeAttribute('aria-activedescendant');
+        return;
+      }
+      next.setAttribute('data-active', '');
+      next.setAttribute('aria-selected', 'true');
+      input.setAttribute('aria-activedescendant', next.id);
+      next.scrollIntoView({ block: 'nearest' });
+    }
+
+    function say(text: string) {
+      note.textContent = text;
+      note.hidden = !text;
+    }
+
+    // ---- Rendering ------------------------------------------------------
+
+    function render() {
+      const raw = input.value;
+      const q = normalise(raw.trim());
+
+      if (!q) {
+        list.innerHTML = defaultHtml;
+        say('');
+        refreshOptions();
+        return;
+      }
+
+      const found = collect(q).slice(0, MAX_SUGGESTIONS);
+
+      // Sista raden går alltid till /sok, precis som i sökfältet: paletten
+      // visar åtta förslag och får inte vara en återvändsgränd.
+      found.push({
+        label: raw.trim(),
+        meta: 'Visa alla träffar',
+        href: `/sok/?q=${encodeURIComponent(raw.trim())}`,
+        kind: 'query',
+      });
+
+      list.replaceChildren(
+        ...found.map((f) => (f instanceof HTMLElement ? (f.cloneNode(true) as HTMLElement) : suggestionLi(f))),
+      );
+      refreshOptions();
+
+      if (!rows.length) {
+        say(failed ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
+      } else {
+        say(found.length === 1 ? 'Ingen verksamhet, kommun eller sida matchar.' : '');
+      }
+
+      // Första raden står förvald. Det är palettens kontrakt, till skillnad
+      // från sökfältets: den som tryckt cmd+K och skrivit tre bokstäver ska
+      // kunna trycka enter utan att först bläddra.
+      setActive(0);
+    }
+
+    // ---- Öppning och stängning ------------------------------------------
+
+    /*
+     * Sidlåset är samma som SignInDialogs, av samma skäl: showModal() stänger
+     * fokus och klick ute men inte rullningen, och rullningslisten som
+     * försvinner flyttar annars hela sidan i sidled.
+     */
+    let lockedScrollbar = '';
+
+    function lockPage() {
+      const gap = window.innerWidth - document.documentElement.clientWidth;
+      lockedScrollbar = document.body.style.paddingRight;
+      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function unlockPage() {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = lockedScrollbar;
+    }
+
+    let opener: HTMLElement | null = null;
+
+    function openPalette() {
+      if (dialog!.open) return;
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      lockPage();
+      dialog!.showModal();
+      input.value = '';
+      render();
+      input.focus();
+      loadIndex().then(() => {
+        // Registret kan landa efter att frågan börjat skrivas. Rita om, men
+        // bara medan rutan fortfarande är öppen och frågan står kvar.
+        if (dialog!.open && input.value.trim()) render();
+      });
+    }
+
+    // Esc, krysset och backdrop-klicket tar alla vägen genom close-händelsen,
+    // så fokus återlämnas i alla tre fallen och inte bara i något av dem.
+    dialog.addEventListener('close', () => {
+      unlockPage();
+      opener?.focus();
+      opener = null;
+    });
+
+    closeButton.addEventListener('click', () => dialog.close());
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    // ---- Genvägen -------------------------------------------------------
+
+    document.addEventListener('keydown', (event) => {
+      const chord = mac
+        ? event.metaKey && !event.ctrlKey
+        : event.ctrlKey && !event.metaKey;
+      if (!chord || event.shiftKey || event.altKey) return;
+      if (event.key !== 'k' && event.key !== 'K') return;
+      if (event.repeat) return;
+      // preventDefault även när vi stänger: webbläsarens egen ctrl+K
+      // (sökfältet i Firefox) får aldrig slå igenom halva gångerna.
+      event.preventDefault();
+      if (dialog.open) dialog.close();
+      else openPalette();
+    });
+
+    // ---- Tangentbord i fältet -------------------------------------------
+
+    input.addEventListener('input', () => render());
+
+    input.addEventListener('keydown', (event) => {
+      const key = event.key;
+
+      if (key === 'ArrowDown' || key === 'ArrowUp') {
+        event.preventDefault();
+        if (!options.length) return;
+        const n = options.length;
+        const next =
+          active < 0
+            ? key === 'ArrowDown' ? 0 : n - 1
+            : (active + (key === 'ArrowDown' ? 1 : -1) + n) % n;
+        setActive(next);
+        return;
+      }
+
+      if (key === 'Enter') {
+        const chosen = options[active];
+        if (chosen) {
+          event.preventDefault();
+          window.location.assign(chosen.href);
+        } else if (input.value.trim()) {
+          event.preventDefault();
+          window.location.assign(`/sok/?q=${encodeURIComponent(input.value.trim())}`);
+        }
+      }
+      // Escape hanteras av <dialog> självt: cancel → close → upplåsning.
+    });
+
+    // Musen markerar samma rad som pilarna skulle ha gjort.
+    list.addEventListener('mousemove', (event) => {
+      const link = (event.target as HTMLElement).closest('a[role="option"]');
+      if (!link) return;
+      const i = options.indexOf(link as HTMLAnchorElement);
+      if (i >= 0 && i !== active) setActive(i);
+    });
+
+    // ---- Genvägsikonen i sökfältet --------------------------------------
+
+    /*
+     * SiteSearch ägs av ett annat spår just nu. Ikonen är därför byggd som
+     * ett handslag: när fältet bär ett element med [data-palette-hint] fyller
+     * paletten det med rätt tangettext och väcker det på enheter med
+     * tangentbord. Finns elementet inte gör raderna nedan ingenting, så
+     * ordningen mellan de två ändringarna spelar ingen roll.
+     */
+    const hint = document.querySelector<HTMLElement>('[data-palette-hint]');
+    if (hint) {
+      hint.textContent = mac ? '⌘K' : 'Ctrl K';
+      const fine = matchMedia('(hover: hover) and (pointer: fine)');
+      const sync = () => { hint.hidden = !fine.matches; };
+      sync();
+      fine.addEventListener('change', sync);
+      hint.addEventListener('click', openPalette);
+    }
+  }
+</script>
