@@ -23,7 +23,7 @@ const { items, kommunSlug } = Astro.props;
   {items.map((e) => {
     const date = latestInspectionDate(e);
     return (
-      <li class="item card">
+      <li class="item">
         <a href={path(kommunSlug, e.slug)} rel={isIndexable(e) ? undefined : 'nofollow'}>
           <FaceRef verdict={e.verdict} size={38} />
           <span class="info">
@@ -47,27 +47,43 @@ const { items, kommunSlug } = Astro.props;
 </ul>
 
 <style>
+  /* Raderna är inga kort.
+   *
+   * Booli mätt i webbläsaren på sökresultatsidan: träffraden har genomskinlig
+   * bakgrund, ingen ram, ingen skugga, radie 0 och 24 px luft, och listan
+   * hålls ihop av en hårlinje per rad. Vi låg tvärtom på ett vitt kort per
+   * verksamhet, alltså hundra svävande rutor efter varandra, sidans
+   * tydligaste avvikelse från förlagan. Se docs/19_formsystem.md.
+   *
+   * Luften är --s-3 och inte Boolis 24: deras rad bär en 308 px bild, vår bär
+   * ett ansikte på 38 px. Samma luft hade gett en rad som är mest tomrum.
+   */
   .list {
     list-style: none;
-    margin: var(--s-8) 0 0;
+    margin: var(--s-6) 0 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
+    /* Hårlinje över och under listan stänger den mot lyftet ovanför och
+       sidnumreringen under. */
+    border-block: 1px solid var(--hairline);
   }
+
+  .item + .item { border-top: 1px solid var(--hairline); }
 
   .item a {
     display: flex;
     align-items: center;
     gap: var(--s-4);
-    padding: var(--s-3) var(--s-4);
+    /* Vågrät luft med negativ marginal: texten står kant i kant med spalten,
+       men markeringen vid pekning får andas utanför den. */
+    padding: var(--s-3) var(--s-3);
+    margin-inline: calc(var(--s-3) * -1);
     color: var(--text);
   }
 
   .item a:hover {
     text-decoration: none;
     background: color-mix(in srgb, var(--brand) 4%, transparent);
-    border-radius: var(--r-card);
+    border-radius: var(--r-control);
   }
 
   .info {
