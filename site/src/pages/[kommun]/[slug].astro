@@ -42,6 +42,7 @@ import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
+import MatsnuskNote from '../../components/MatsnuskNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
@@ -360,6 +361,12 @@ const breadcrumbs = {
             sidan har att säga. */}
         <AwardNote establishment={e} />
 
+        {/* Spegelbilden. Bägge komponenterna renderar ingenting när
+            verksamheten inte uppfyller sina kriterier, och de kan aldrig
+            gälla samtidigt: utmärkelsen kräver rena kontroller i rad,
+            matsnusk kräver brister som kvarstod vid uppföljningen. */}
+        <MatsnuskNote establishment={e} />
+
         {latestInspection && latestInspection.areas.length > 0 && (
           <ControlBreakdown
             areas={latestInspection.areas}
@@ -492,7 +499,7 @@ const breadcrumbs = {
 
 <style>
   .page {
-    max-width: 1080px;
+    max-width: var(--w-wide);
     padding-block: var(--s-6) var(--s-16);
   }
 
@@ -508,8 +515,8 @@ const breadcrumbs = {
   .crumbs a { color: var(--text-secondary); }
 
   .masthead h1 {
-    font-size: 34px;
-    line-height: 38px;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
     letter-spacing: -.024em;
   }
 
@@ -652,7 +659,7 @@ const breadcrumbs = {
     white-space: nowrap;
   }
 
-  .near-info span { font-size: 11px; }
+  .near-info span { font-size: var(--fs-micro); line-height: var(--lh-micro); }
 
   /* Fördelningsstapeln: tre andelar av samma helhet på en tunn rad.
      Springorna mellan segmenten är avsiktliga — tre mängder, inte en
@@ -704,10 +711,4 @@ const breadcrumbs = {
     }
   }
 
-  @media (max-width: 600px) {
-    .masthead h1 {
-      font-size: 27px;
-      line-height: 31px;
-    }
-  }
 </style>
