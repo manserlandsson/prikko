@@ -22,6 +22,17 @@
   --canvas: #FCFCFD;
   --card: #FFFFFF;
 
+  /* Tonad yta för band som ska läsas som en egen sektion utan att bli ett
+     kort. Boolis motsvarighet är en varm beige ur deras palett; vår hämtas
+     ur märkesblåan i stället för att bli en ny färg, alltså --brand blandad
+     8 procent i vitt.
+
+     Räknat, inte valt: den ligger på 1,11:1 mot --card, alltså precis nog
+     för att ett vitt kort ovanpå ska läsa som ett kort. Sajtens brödtext
+     ligger på 15,1:1 mot den och den sekundära grå på 4,6:1, båda över
+     WCAG. Går tonen mörkare faller den sekundära under kravet. */
+  --brand-wash: #EBF4FD;
+
   /* Text */
   --text: #1D1D1F;
   /* --text-secondary och --text-muted skrivs om inne i ett glaslager, se
