@@ -49,7 +49,20 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
       </p>
     </header>
 
-    <form class="search" role="search" onsubmit="return false">
+    {/* Konfigurationen når skriptet via data-attribut och inte via
+        define:vars. Skälet är att define:vars tvingar skriptet att bli
+        inline, och ett inline-skript kan inte importera lib/sokforslag —
+        modulen som bär rankningen. Samma mönster som SiteSearch. */}
+    <form
+      class="search"
+      role="search"
+      onsubmit="return false"
+      data-sok
+      data-index={SEARCH_INDEX_URL}
+      data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+      data-sprite={FACE_SPRITE_ID}
+      data-labels={JSON.stringify(labels)}
+    >
       <label for="q" class="visually-hidden">Sök på namn eller adress</label>
       <input
         id="q"
@@ -172,109 +185,133 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
   .fallback li { font-size: var(--fs-body-s); }
 </style>
 
-<script
-  define:vars={{
-    labels,
-    spriteId: FACE_SPRITE_ID,
-    indexUrl: SEARCH_INDEX_URL,
-    indexFallbackUrl: SEARCH_INDEX_FALLBACK_URL,
-  }}
->
-  const input = document.getElementById('q');
+<script>
+  /**
+   * Träfflistan.
+   *
+   * RANKNINGEN ÄR DELAD MED PANELERNA. Sidan gjorde tidigare ett eget urval:
+   * den gick igenom registret i filordning och tog de fyrtio första raderna
+   * vars sträng innehöll frågan, sedan slutade den leta. Filordningen är
+   * kommunordning, alltså bokstavsordning, och Stockholm ligger nionde av
+   * tolv med särklassigt flest verksamheter. Följden var att den största
+   * kommunen inte gick att söka i på den här sidan alls:
+   *
+   *     "restaurang"   699 träffar, 389 i Stockholm, noll visade
+   *     "cafe"         602 träffar, 316 i Stockholm, noll visade
+   *     "sushi"        322 träffar, 237 i Stockholm, noll visade
+   *     "skola"      2 076 träffar, kommuner i utfallet: 2 av 12
+   *
+   * Borgholm och Höganäs fyllde helt enkelt de fyrtio platserna först. Värre
+   * än att listan var godtycklig är att panelerna i sidhuvudet redan rankar
+   * rätt, via lib/sokforslag: besökaren såg en vettig lista, tryckte "Visa
+   * alla träffar" och kom till en sämre. Modulen fanns, den här sidan hade
+   * bara aldrig kopplats på.
+   *
+   * Nu samma klasser och samma inbördes ordning som panelerna, med två
+   * skillnader som följer av att det här är en RESULTATSIDA och inte ett
+   * förslag:
+   *
+   *  - Ingen scanCap. Panelerna slutar leta vid 60 kandidater per klass
+   *    eftersom de visar sju rader; en resultatsida som lovar ett antal
+   *    träffar måste räkna alla. 15 916 delsträngstester är en bråkdel av en
+   *    millisekund.
+   *  - Bara verksamheter. collect() ger även kommunträffar, men de har varken
+   *    bedömning eller adress och skulle inte kunna ritas som en rad här.
+   *    Kommunerna når man i stället ur listan längst ner på sidan.
+   *
+   * Raden ritas fortfarande här och inte med suggestionInner: den bär en
+   * bedömningsetikett i högerkant och läser sitt ansikte ur FaceSprite, som
+   * sidan redan lägger ut. Det är sidans egen form, inte panelens.
+   */
+  import {
+    collect,
+    escapeHtml,
+    indexFailed,
+    loadIndex,
+    normalise,
+    ranked,
+    searchIndex,
+  } from '../lib/sokforslag';
+
+  const form = document.querySelector<HTMLElement>('[data-sok]');
+  const input = document.getElementById('q') as HTMLInputElement | null;
   const results = document.getElementById('results');
   const status = document.getElementById('status');
 
-  const INK = ['var(--verdict-clean-ink)', 'var(--verdict-minor-ink)', 'var(--verdict-major-ink)'];
+  if (form && input && results && status) {
+    const spriteId = form.dataset.sprite!;
+    const labels: string[] = JSON.parse(form.dataset.labels!);
 
-  /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
-  let rows = null;
-  /** Normaliserad söksträng per rad, byggd en gång när registret laddats. */
-  let haystack = null;
-  let kommuner = [];
+    const INK = [
+      'var(--verdict-clean-ink)',
+      'var(--verdict-minor-ink)',
+      'var(--verdict-major-ink)',
+    ];
 
-  function normalise(s) {
-    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  }
+    /** Så många rader listan visar. Träffräknaren berättar hur många som finns. */
+    const MAX_RESULTS = 40;
 
-  function escapeHtml(s) {
-    return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  }
+    function render(term: string) {
+      const q = normalise(term.trim());
+      if (q.length < 2) {
+        results!.innerHTML = '';
+        status!.textContent = '';
+        return;
+      }
 
-  function render(term) {
-    const q = normalise(term.trim());
-    if (q.length < 2) {
-      results.innerHTML = '';
-      status.textContent = '';
-      return;
+      if (indexFailed()) {
+        status!.textContent =
+          'Sökregistret gick inte att hämta. Bläddra per kommun längre ner på sidan.';
+        return;
+      }
+
+      if (searchIndex().rows.length === 0) {
+        status!.textContent = 'Hämtar registret…';
+        return;
+      }
+
+      // Infinity: hela registret gås igenom, se modulhuvudet.
+      const hits = ranked(collect(q, Infinity)).filter((s) => s.kind === 'place');
+      const shown = hits.slice(0, MAX_RESULTS);
+
+      // Det sanna antalet, inte "40+". Räknaren vet nu vad den räknat.
+      status!.textContent = hits.length
+        ? hits.length > shown.length
+          ? `${hits.length} träffar, de ${shown.length} närmast visas`
+          : `${hits.length} ${hits.length === 1 ? 'träff' : 'träffar'}`
+        : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
+
+      results!.innerHTML = shown
+        .map((s) => {
+          const v = s.verdict ?? -1;
+          const key = v < 0 ? 'none' : ['clean', 'minor', 'major'][v];
+          const label = v < 0 ? 'Ingen kontroll' : labels[v];
+          const ink = v < 0 ? 'var(--verdict-none-ink)' : INK[v];
+          return `<li><a href="${escapeHtml(s.href)}">
+            <svg class="face" viewBox="0 0 100 100" aria-hidden="true"><use href="#${spriteId}-${key}"/></svg>
+            <span class="info"><b>${escapeHtml(s.label)}</b><span>${escapeHtml(s.meta)}</span></span>
+            <span class="verdict" style="color:${ink}">${label}</span>
+          </a></li>`;
+        })
+        .join('');
     }
 
-    if (!rows) {
-      status.textContent = 'Hämtar registret…';
-      return;
+    input.addEventListener('input', () => render(input!.value));
+
+    /* Hämtningen ligger i lib/sokforslag och delas med panelerna: samma
+       register, samma reservadress, samma instans i dokumentet. Sidan hade
+       en egen kopia av fetch-slingan och byggde sin egen söksträng per rad,
+       vilket innebar att registret kunde hämtas två gånger på en sida som
+       både har sidhuvudets fält och den här listan. */
+    loadIndex(form.dataset.index!, form.dataset.indexFallback ?? null).then(() =>
+      render(input!.value),
+    );
+
+    // Stöd för /sok?q=... så att länkar utifrån fungerar direkt.
+    const initial = new URLSearchParams(location.search).get('q');
+    if (initial) {
+      input.value = initial;
+      render(initial);
     }
-
-    const hits = [];
-    for (let i = 0; i < haystack.length && hits.length < 40; i++) {
-      if (haystack[i].includes(q)) hits.push(rows[i]);
-    }
-
-    status.textContent = hits.length
-      ? `${hits.length}${hits.length === 40 ? '+' : ''} träffar`
-      : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
-
-    results.innerHTML = hits
-      .map(([name, address, slug, k, v]) => {
-        const key = v < 0 ? 'none' : ['clean', 'minor', 'major'][v];
-        const label = v < 0 ? 'Ingen kontroll' : labels[v];
-        const ink = v < 0 ? 'var(--verdict-none-ink)' : INK[v];
-        const meta = [address, kommuner[k][1]].filter(Boolean).join(' · ');
-        return `<li><a href="/${kommuner[k][0]}/${slug}/">
-          <svg class="face" viewBox="0 0 100 100" aria-hidden="true"><use href="#${spriteId}-${key}"/></svg>
-          <span class="info"><b>${escapeHtml(name)}</b><span>${escapeHtml(meta)}</span></span>
-          <span class="verdict" style="color:${ink}">${label}</span>
-        </a></li>`;
-      })
-      .join('');
-  }
-
-  input.addEventListener('input', () => render(input.value));
-
-  /**
-   * Hämtar registret från den hashade adressen, med den gamla som reserv.
-   *
-   * Reserven är inte paranoia. Det här dokumentet kan ha legat i cachen sedan
-   * förra bygget och peka på en hash som inte längre finns på servern. Att
-   * sökningen då blir helt död vore ett värre fel än det inaktuella register
-   * vi gick ifrån.
-   */
-  function fetchIndex(url, fallback) {
-    return fetch(url).then((r) => {
-      if (r.ok) return r.json();
-      if (fallback) return fetchIndex(fallback, null);
-      throw new Error(String(r.status));
-    });
-  }
-
-  fetchIndex(indexUrl, indexFallbackUrl)
-    .then((data) => {
-      kommuner = data.k;
-      rows = data.e;
-      // Byggs här i stället för att skickas med — samma sträng i filen hade
-      // varit en ren kopia av namn, adress och ort, och nästan halva vikten.
-      haystack = rows.map(
-        ([name, address, , k]) => normalise(`${name} ${address} ${kommuner[k][1]}`),
-      );
-      render(input.value);
-    })
-    .catch(() => {
-      status.textContent =
-        'Sökregistret gick inte att hämta. Bläddra per kommun längre ner på sidan.';
-    });
-
-  // Stöd för /sok?q=... så att länkar utifrån fungerar direkt.
-  const initial = new URLSearchParams(location.search).get('q');
-  if (initial) {
-    input.value = initial;
-    render(initial);
   }
 </script>
