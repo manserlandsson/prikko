@@ -36,16 +36,6 @@ interface Props {
 
 const { kontrollen: k, city } = Astro.props;
 
-/*
- * Vad vi hämtat ur Kolada, uppräknat. Byggs som en sträng och inte som markup
- * med villkor i: uttryck på egna rader i Astro tar med sina radbrytningar som
- * blanksteg, och resultatet blir ett mellanslag före kommatecknet.
- */
-const fromKolada = k
-  ? ['Invånarantal', k.hasRating && `företagens betyg i SKR:s Insiktsmätning ${k.ratingYear}`]
-      .filter(Boolean)
-      .join(' och ')
-  : '';
 ---
 
 {k && (
@@ -80,9 +70,15 @@ const fromKolada = k
       {' '}<a href="/metodik/#jamfor">Därför rangordnar vi inte kommuner</a>.
     </p>
 
+    {/* Kort citat av två publikationer vi återger tal UR, inte en redogörelse
+        för varifrån Prikkos egen data kommer. Raden räknade tidigare upp
+        vilka av talen som kom från Kolada; etiketterna ovanför säger redan
+        det. Kvar är titeln, utgivaren och Koladas egen attributionssträng.
+        Se docs/18_sprakregler.md om varför just den här raden är kvar när
+        proveniensen är struken överallt annars. */}
     <p class="source caption text-secondary">
-      Kontrolluppgifter ur <a href={k.report.url} rel="nofollow">{k.report.title}</a>,
-      {' '}{k.report.publisher}. {fromKolada}, {k.kolada.attribution}.
+      <a href={k.report.url} rel="nofollow">{k.report.title}</a>,
+      {' '}{k.report.publisher}. {k.kolada.attribution}.
     </p>
   </section>
 )}

@@ -12,18 +12,16 @@
  * kan alltså inte publiceras utan att först ha en egen post i registret, och
  * registret är samma källa som indexsidan listar ur. De kan inte glida isär.
  *
- * Foten längst ned står på varje rapport och är inte dekoration. Den säger vad
- * läsaren behöver veta för att kunna lita på talen: att de är räknade vid
- * bygget, hur stort underlaget är, vilket datum det hämtades, och var hela
- * metoden ligger. Den är en källrad och ska förbli en källrad: växer den
- * tillbaka till stycken med egen rubrik är den fel igen. Se
- * docs/18_sprakregler.md.
+ * Foten längst ned är en datumstämpel och tre länkar, ingenting mer. Den ska
+ * INTE växa tillbaka till en källrad om varifrån talen kommer, och allra minst
+ * till stycken med egen rubrik. Båda formerna har funnits och båda är strukna.
+ * Se docs/18_sprakregler.md.
  */
 import Base from './Base.astro';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 import { dataUpdated, report } from '../lib/rapporter';
-import { coverage, formatDate, formatNumber } from '../lib/data';
+import { formatDate } from '../lib/data';
 
 interface Props {
   /** Nyckel i REPORTS. Allt annat härleds ur den. */
@@ -33,7 +31,6 @@ interface Props {
 const { slug } = Astro.props;
 const r = report(slug);
 const updated = dataUpdated();
-const total = coverage();
 
 /**
  * `@type: Report` och inte `Article`.
@@ -83,22 +80,17 @@ const jsonLd = {
 
     <slot />
 
-    {/* En källrad, samma form som rapportindexets. Foten var tre stycken med
-        egen rubrik som förklarade att talen räknas och inte skrivs, att ingen
-        slutsats hämtats någon annanstans, och att texten inte behöver rättas
-        i efterhand. Det säger "räknat ur beståndet när sidan byggdes" redan.
-        Kvar är det som bara kan stå här: underlagets storlek, hämtdatumet och
-        de tre länkarna. */}
+    {/* En datumstämpel och tre länkar. Foten var först tre stycken med egen
+        rubrik, sedan en källrad om underlagets storlek och varifrån talen
+        räknats. Båda är strukna: en rapport ska inte redogöra för sina
+        källor mitt på sidan, den ska länka till metodiken och källsidan som
+        gör det. Datumet är ingen proveniens utan en färskhetsstämpel på
+        talen ovanför, samma sak som Ratsit och allabolag sätter på sina
+        uppgifter. Se docs/18_sprakregler.md. */}
     <section class="method">
       <p>
-        Räknat ur Prikkos bestånd när sidan byggdes:
-        {' '}{formatNumber(total.inspections)} kontroller vid
-        {' '}{formatNumber(total.establishments)} verksamheter i
-        {' '}{total.municipalities} kommuner, senast hämtat
-        {' '}{formatDate(updated)}. Talen räknas om vid varje uppdatering.
-      </p>
-      <p>
-        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        Uppdaterad {formatDate(updated)}.
+        {' '}<a href={path('metodik')}>Så räknas bedömningen fram</a> ·
         {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
         {' '}<a href={path('ratta')}>Rätta en uppgift</a>
       </p>

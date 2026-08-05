@@ -67,7 +67,7 @@ const jsonLd = {
 
 <Base
   title="Artiklar om livsmedelskontrollen"
-  description="Hur en hygienkontroll går till, vad en anmärkning betyder och varför kommunernas siffror inte går att jämföra rakt av. Guider och förklaringar från Prikko, med källa på varje siffra."
+  description="Hur en hygienkontroll går till, vad en anmärkning betyder och varför kommunernas siffror inte går att jämföra rakt av. Guider och förklaringar från Prikko."
   jsonLd={jsonLd}
   noindex={!ready}
 >
@@ -75,10 +75,9 @@ const jsonLd = {
     <header>
       <p class="eyebrow">Artiklar</p>
       <h1>Så fungerar livsmedelskontrollen</h1>
-      <p class="lede text-secondary">
-        Kontrollrapporterna är offentliga, men språket i dem är myndighetens.
-        Vi översätter.
-      </p>
+      {/* Ingen ingress. Den sade att kontrollrapporterna är offentliga och
+          att vi översätter dem, alltså varifrån innehållet kommer och varför
+          sidan finns. Rubriken och korten under gör hela arbetet. */}
     </header>
 
     <section aria-label="Alla artiklar">
@@ -109,18 +108,14 @@ const jsonLd = {
       </ul>
     </section>
 
-    {/* En källrad, inte två stycken om vad en artikel är. Den gamla texten
-        förklarade skillnaden mellan artiklar och rapporter, att en artikel är
-        skriven och en rapport räknad, och att metodiken är publicerad. Allt
-        det står på de sidor raden länkar till. Kvar är det enda förbehåll som
-        inte står någon annanstans: ett tal i en artikel är fruset vid
-        skrivtillfället. Alla fyra länkarna finns kvar, ordagrant för
-        länkgrafens skull. */}
+    {/* Bara länkarna. Raden var först två stycken om skillnaden mellan
+        artiklar och rapporter, sedan en källrad om att tal i artiklar är
+        frusna vid skrivtillfället. Ingen av dem behövs på en sida som är en
+        lista med kort: den som vill veta hur talen räknas följer länken.
+        Länkarna står kvar ordagrant, de bär länkgrafen. */}
     <section class="about">
       <p>
-        Nämner en artikel ett tal ur beståndet står det när det mättes. De
-        aktuella talen finns på kommun- och verksamhetssidorna.
-        {' '}<a href={path('rapporter')}>Rapporterna</a> ·
+        <a href={path('rapporter')}>Rapporterna</a> ·
         {' '}<a href={path('metodik')}>Metodiken</a> ·
         {' '}<a href={path('kallor')}>Källorna</a> ·
         {' '}<a href={path('ratta')}>Rätta en uppgift</a>
@@ -142,11 +137,6 @@ const jsonLd = {
     font-size: var(--fs-display);
     line-height: var(--lh-display);
     margin-top: var(--s-2);
-  }
-
-  .lede {
-    margin-top: var(--s-4);
-    line-height: var(--lh-body);
   }
 
   section {

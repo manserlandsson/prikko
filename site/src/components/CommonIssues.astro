@@ -39,10 +39,13 @@ const top = shown[0]?.count ?? 0;
 {shown.length > 0 && (
   <section class="issues" aria-labelledby="brister">
     <h2 id="brister">Vanligast bland anmärkningarna i {city}</h2>
+    {/* "Så här fördelar de sig" berättade vad listan under gör. Listan gör
+        det. Kvar är att formuleringarna är kommunens, och den meningen står
+        inte för proveniensens skull utan för att myndighetsspråket i raderna
+        annars läses som vårt. Se docs/18_sprakregler.md. */}
     <p class="intro text-secondary">
       {formatNumber(withRemarks)} verksamheter fick minst en anmärkning vid sin
-      senaste kontroll. Så här fördelar de sig, med kommunens egna
-      formuleringar.
+      senaste kontroll. Formuleringarna är kommunens.
     </p>
 
     <ul>

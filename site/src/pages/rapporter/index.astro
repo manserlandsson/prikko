@@ -42,7 +42,7 @@ const jsonLd = {
 
 <Base
   title="Rapporter"
-  description={`Prikko räknar på ${formatNumber(total.inspections)} livsmedelskontroller från ${total.municipalities} kommuner och publicerar vad summorna visar. Varje siffra är räknad ur beståndet vid bygget, inte skriven för hand.`}
+  description={`Prikko räknar på ${formatNumber(total.inspections)} livsmedelskontroller från ${total.municipalities} kommuner och publicerar vad summorna visar.`}
   jsonLd={jsonLd}
   dataUpdated={updated}
 >
@@ -67,12 +67,12 @@ const jsonLd = {
       </ul>
     </section>
 
+    {/* Datumstämpel och länkar, samma form som varje rapports fot. Raden
+        räknade tidigare upp underlagets storlek och varifrån talen kommer.
+        Det står på metodiken och källsidan, som länken går till. */}
     <section class="about">
       <p>
-        Talen i varje rapport räknas ur beståndet när sidan byggs:
-        {' '}{formatNumber(total.inspections)} kontroller vid
-        {' '}{formatNumber(total.establishments)} verksamheter i
-        {' '}{total.municipalities} kommuner, senast hämtat {formatDate(updated)}.
+        Uppdaterad {formatDate(updated)}.
         {' '}<a href={path('kallor')}>Källorna</a> ·
         {' '}<a href={path('metodik')}>Metodiken</a> ·
         {' '}<a href={path('artiklar')}>Artiklarna</a>

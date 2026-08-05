@@ -189,12 +189,14 @@ function groundText(r: (typeof rows)[number]): string {
         snart en ny kontroll visar att bristerna åtgärdats. Raderna står i
         datumordning, nyast först, utan rangordning.
       </p>
-      {/* Replikrätten och proveniensen, en gång på sidan. Hämtdatumet stod
-          tidigare även i sidhuvudet. */}
+      {/* Replikrätten. Den står kvar för att sidan namnger verksamheter, och
+          den handlar om vad VI gör, inte om varifrån datan kommer. Underlag
+          och hämtdatum stod här fram till 2026-08-05 och är strukna: sidan
+          ska inte redogöra för sina källor, det gör metodiken, källsidan och
+          villkoren. Se docs/18_sprakregler.md. */}
       <p>
         Varje verksamhet kan svara, och svaren publiceras ordagrant. Är en
-        uppgift fel, <a href={path('ratta')}>begär rättelse</a>. Underlaget är
-        {kommun.name}s kontrolldata, hämtad {formatDate(fetched)}.
+        uppgift fel, <a href={path('ratta')}>begär rättelse</a>.
       </p>
       <p>
         <a href={path(kommun.slug, 'anmarkningar')}>Alla verksamheter med
