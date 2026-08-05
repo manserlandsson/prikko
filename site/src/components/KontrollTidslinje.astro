@@ -13,17 +13,54 @@
  * mellan två besök vet ingen någonting. Prisgrafer får dra linjer; en
  * kontrollhistorik är en serie ögonblick.
  *
- * Diagrammet ritas bara när det tillför något utöver listan under: minst
- * fyra kontroller över minst två år. En verksamhet med två kontroller
- * behöver ingen kurva — listan säger allt.
+ * ## BYGG ALDRIG EN TONAD YTA UNDER PRICKARNA
  *
- * SVG:en är aria-dold. Den visar exakt samma kontroller som listan i samma
- * avsnitt, och en skärmläsare ska höra materialet en gång, inte två.
+ * Boolis prisdiagram har en fin gradient under kurvan, och frågan har ställts
+ * en gång och besvarats: den får inte byggas här. Skälet är detsamma som för
+ * linjen, bara starkare. Boolis värde finns kontinuerligt; bostaden hade ett
+ * värde även de dagar ingen mätte det, och ytan under kurvan är därför sann.
+ * Våra prickar är enskilda besök av en inspektör. En yta under en osynlig
+ * linje hade fyllt i precis den kontinuitet vi vägrar påstå, och den hade
+ * dessutom gjort det med en färg som här betyder bedömningsnivå.
+ *
+ * Tyngd fick diagrammet i stället av årsfälten: varannan årsspalt får en
+ * mycket svag fyllning. Den säger något om TIDEN, som är kontinuerlig och
+ * som vi vet allt om, i stället för om tillståndet, som vi inte vet något om
+ * mellan besöken. Det är den enda sortens yta diagrammet får ha.
+ *
+ * ## Detaljrutan
+ *
+ * Varje prick öppnar en ruta med datum, kontrollens slag och utfall, och när
+ * kommunen publicerar det även VAD avvikelsen gällde, med kommunens egna ord.
+ * Tillgången är ojämn och det är hela skälet till att rutan degraderar: i
+ * Linköping och Örebro finns avvikelsetext för 97 % av verksamheterna, i
+ * Stockholm 58, i Lomma 50, i Uppsala 35, i Borgholm 11 och i de sex övriga
+ * kommunerna 0. Saknas texten visas datum och utfall, aldrig en tom ruta.
+ *
+ * Rutan är en popover och ritas i webbläsarens toppskikt. Samma skäl som i
+ * InfoTip.astro, som är förlagan: en absolut positionerad ruta inuti en SVG
+ * med `overflow: hidden` hade klippts av diagrammets egen ram, och på telefon
+ * hade den gett vågrät rullning. Placeringen sker med script eftersom
+ * CSS-ankarpositionering inte går att belägga för Safari och Firefox.
+ *
+ * ## Varför SVG:en inte längre är aria-dold
+ *
+ * Den var det, med motiveringen att listan under visar samma kontroller och
+ * att en skärmläsare ska höra materialet en gång. Det höll så länge
+ * prickarna inte gick att göra något med. Nu gör de det, och en fokuserbar
+ * kontroll inne i ett aria-dolt träd är ett tillgänglighetsfel: den går att
+ * tabba till men har inget namn. Prickarna bär därför var sitt fullständigt
+ * `aria-label` och figuren en egen etikett som säger att den sammanfattar
+ * listan nedanför, så att den som vill kan hoppa förbi. Upprepningen är
+ * medveten och billigare än en kontroll utan namn.
+ *
+ * Tröskeln, och varför den ser ut som den gör, står vid MIN_COUNT nedan.
  */
 import {
   ASSESSMENT_COLOR,
   ASSESSMENT_LABEL,
   INSPECTION_TYPE_LABEL,
+  deviations,
   formatDate,
   type Inspection,
 } from '../lib/data';
@@ -35,8 +72,43 @@ interface Props {
 const { inspections } = Astro.props;
 
 const DAY = 86_400_000;
-const MIN_COUNT = 4;
-const MIN_SPAN_DAYS = 730;
+
+/**
+ * Tröskeln: minst tre kontroller över minst ett år.
+ *
+ * Diagrammet ska bara ritas när det tillför något utöver listan under, men
+ * kravet var länge fyra kontroller över två år, och det sållade mer än det
+ * skyddade. Mätt över hela beståndet, andel verksamheter som får tidslinje:
+ *
+ *   4 kontroller, 730 dagar   36,8 %   (det gamla kravet)
+ *   4 kontroller, 365 dagar   39,5 %
+ *   3 kontroller, 365 dagar   48,1 %   (det här)
+ *   3 kontroller, 180 dagar   50,4 %
+ *   3 kontroller, inget spann 51,7 %
+ *
+ * Det var spannkravet som gjorde skadan, och det slog ojämnt mellan
+ * kommuner i stället för mellan verksamheter. Uppsalas kontroller spänner
+ * 331 dagar i median och 765 som mest, alltså kunde i praktiken ingen
+ * Uppsalaverksamhet få tidslinje trots att 186 av dem har fem kontroller
+ * eller fler. Linköping ligger på 2 115 dagar i median och fick 63 procent.
+ * Skillnaden speglar hur långt bak kommunen publicerar, inte hur intressant
+ * historiken är, och en tröskel som mäter kommunens arkiv och kallar det
+ * verksamhetens historik mäter fel sak.
+ *
+ * Tre punkter är det minsta som visar en RIKTNING i stället för en enskild
+ * förändring. Två punkter är en jämförelse, och den gör listan bättre.
+ *
+ * Spannkravet finns kvar men bara på ett år, och det är kvar för SKALANS
+ * skull och inte för att sålla bort verksamheter: x-axeln är årsindelad med
+ * en stödlinje per årsskifte, och tre kontroller på sex veckor hade ritats
+ * som en tidslinje utan en enda stödlinje att förhålla sig till. Ett år är
+ * det minsta spann där axeln betyder något.
+ */
+const MIN_COUNT = 3;
+const MIN_SPAN_DAYS = 365;
+
+/** Så många avvikelser ryms i rutan innan resten räknas ihop. */
+const MAX_BRISTER = 3;
 
 const sorted = [...inspections].sort((a, b) => a.date.localeCompare(b.date));
 const first = sorted[0];
@@ -45,6 +117,11 @@ const spanDays =
   first && last ? (Date.parse(last.date) - Date.parse(first.date)) / DAY : 0;
 
 const show = sorted.length >= MIN_COUNT && spanDays >= MIN_SPAN_DAYS;
+
+/* Ett id per diagram, inte per prick. Rutan är en och samma och fylls om vid
+   varje öppning: femton prickar hade annars gett femton dolda rutor i DOM:en
+   på sajtens vanligaste sidtyp. */
+const bubbleId = `tl-${Math.random().toString(36).slice(2, 9)}`;
 
 /* ── Skalor ──────────────────────────────────────────────────────────────
  * X är tiden från 1 januari första året till 1 januari året efter det
@@ -79,13 +156,66 @@ const labelStep = years.length > 8 ? 2 : 1;
  * som väntar på att besannas. */
 const levels = ([0, 1, 2] as const).filter((a) => sorted.some((i) => i.assessment === a));
 
-const dot = (i: Inspection) =>
-  `${formatDate(i.date)} · ${INSPECTION_TYPE_LABEL[i.type]} · ${ASSESSMENT_LABEL[i.assessment]}`;
+/** Kontrollens slag och utfall, rutans andra rad. */
+const slag = (i: Inspection) =>
+  `${INSPECTION_TYPE_LABEL[i.type]} · ${ASSESSMENT_LABEL[i.assessment]}`;
+
+/**
+ * Vad avvikelserna gällde, med kommunens egna ord.
+ *
+ * Tom sträng när kommunen inte publicerar avvikelsetext, och då utelämnar
+ * rutan raden helt. `description` och inte `group`: gruppen är
+ * Livsmedelsverkets överrubrik och säger "Grundförutsättningar, hygien" där
+ * beskrivningen säger vad som faktiskt saknades.
+ *
+ * Raden inleds med ANTALET och inte med "Gällde:". Skälet är att källdatan
+ * kan säga två saker samtidigt: en kontroll vars `assessment` är 0 kan ändå
+ * ha noterade avvikelser, och det är kommunens egen bokföring och inte vår
+ * tolkning. "Inga anmärkningar. Gällde: …" läser då som en självmotsägelse,
+ * medan "Inga anmärkningar. 2 avvikelser: …" läser som två uppgifter ur
+ * samma rapport. Historiklistan under diagrammet skriver samma sak på samma
+ * sätt, se InspectionHistory.astro.
+ */
+const brister = (i: Inspection): string => {
+  const found = deviations(i)
+    .map((a) => a.description)
+    .filter(Boolean);
+  if (found.length === 0) return '';
+  const visade = found.slice(0, MAX_BRISTER);
+  const kvar = found.length - visade.length;
+  const lista = kvar > 0 ? `${visade.join(', ')} och ${kvar} till` : visade.join(', ');
+  return `${found.length} ${found.length === 1 ? 'avvikelse' : 'avvikelser'}: ${lista}`;
+};
+
+/** Hela rutans innehåll som en mening, för den som lyssnar på sidan. */
+const label = (i: Inspection): string => {
+  const b = brister(i);
+  return `${formatDate(i.date)}. ${slag(i)}.${b ? ` ${b}.` : ''}`;
+};
 ---
 
 {show && (
-  <figure class="tidslinje">
-    <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+  <figure class="tidslinje" data-tidslinje>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      role="group"
+      aria-label="Kontrollerna över tid. Samma kontroller som listan nedanför."
+    >
+      {/* Varannan årsspalt tonad. Se huvudkommentaren: ytan säger något om
+          tiden, aldrig om tillståndet mellan två besök. */}
+      {years.map(
+        (year, i) =>
+          i % 2 === 1 && (
+            <rect
+              x={xYear(year)}
+              y={GRID_TOP}
+              width={xYear(year + 1) - xYear(year)}
+              height={GRID_BOTTOM - GRID_TOP}
+              fill="var(--arsfalt)"
+            />
+          ),
+      )}
+
       {/* Årens stödlinjer, ljusa och bakom allt. */}
       {years.slice(1).map((year) => (
         <line
@@ -136,18 +266,51 @@ const dot = (i: Inspection) =>
 
       {/* Kontrollerna. Vit kant så att två närliggande prickar förblir två. */}
       {sorted.map((i) => (
-        <circle
-          cx={x(i.date)}
-          cy={BAND_Y[i.assessment]}
-          r="6"
-          fill={ASSESSMENT_COLOR[i.assessment]}
-          stroke="var(--card)"
-          stroke-width="2"
+        <g
+          class="prick"
+          tabindex="0"
+          role="button"
+          aria-label={label(i)}
+          data-datum={formatDate(i.date)}
+          data-slag={slag(i)}
+          data-brister={brister(i)}
         >
-          <title>{dot(i)}</title>
-        </circle>
+          {/* Osynlig träffyta. Sex pixlars radie i en SVG som skalas ned till
+              telefonbredd blir ungefär tio riktiga pixlar, alltså långt under
+              de 44 en fingertopp behöver. Ringen är ritad i diagrammets egna
+              koordinater och växer alltså med bilden. */}
+          <circle cx={x(i.date)} cy={BAND_Y[i.assessment]} r="14" fill="transparent" />
+          <circle
+            class="ring"
+            cx={x(i.date)}
+            cy={BAND_Y[i.assessment]}
+            r="10"
+            fill="none"
+            stroke="var(--brand)"
+            stroke-width="2"
+          />
+          <circle
+            cx={x(i.date)}
+            cy={BAND_Y[i.assessment]}
+            r="6"
+            fill={ASSESSMENT_COLOR[i.assessment]}
+            stroke="var(--card)"
+            stroke-width="2"
+          />
+        </g>
       ))}
     </svg>
+
+    {/* `popover="manual"`: auto stänger vid varje klick var som helst, vilket
+        krockar med att vi öppnar på hovring. Vi styr öppning och stängning
+        själva. Rutan är aria-dold eftersom prickens aria-label redan bär
+        exakt samma text. */}
+    <div class="bubbla glass glass-dark" id={bubbleId} popover="manual" aria-hidden="true">
+      <b class="b-datum"></b>
+      <span class="b-slag"></span>
+      <span class="b-brister"></span>
+    </div>
+
     <figcaption class="caption text-muted">
       Varje prick är en kontroll. Raden visar vad kommunen antecknade.
     </figcaption>
@@ -157,6 +320,10 @@ const dot = (i: Inspection) =>
 <style>
   .tidslinje {
     margin: var(--s-4) 0 0;
+    /* Årsfältens fyllning härleds ur hårlinjen i stället för att bli en ny
+       färg. --hairline är rgba(0,0,0,.08), och 45 % av den ligger på
+       ungefär rgba(0,0,0,.036): synlig som en yta, osynlig som en kant. */
+    --arsfalt: color-mix(in srgb, var(--hairline) 45%, transparent);
   }
 
   svg {
@@ -169,7 +336,190 @@ const dot = (i: Inspection) =>
     font-family: var(--font-sans);
   }
 
+  .prick {
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* Fokusringen ritas i diagrammets koordinater och inte som en
+     CSS-`outline`. En outline på ett SVG-element ritas mot elementets
+     rektangulära omslutning, alltså en fyrkant runt en prick. Ringen får
+     aldrig tas bort: den är den enda synliga markeringen för den som
+     navigerar med tangentbord. */
+  .ring {
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+
+  .prick:hover .ring,
+  .prick:focus-visible .ring {
+    opacity: 1;
+  }
+
+  /* Rutan. Måtten bor här, utseendet i .glass och .glass-dark i tokens.css.
+     Mörkt glas av samma skäl som verktygstipsen: det är ett påpekande ovanpå
+     en bild, inte en yta att arbeta i. */
+  .bubbla {
+    position: fixed;
+    margin: 0;
+    inset: auto;
+    width: max-content;
+    max-width: 260px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 9px;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+
+  .bubbla:popover-open { opacity: 1; }
+
+  .bubbla b,
+  .bubbla span {
+    display: block;
+  }
+
+  .b-datum {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .b-slag,
+  .b-brister {
+    color: var(--text-secondary);
+  }
+
+  .b-brister { margin-top: 4px; }
+
+  /* Tomma rader tar ingen plats. Degraderingen till bara datum och utfall
+     sker alltså i CSS och inte med ett extra villkor i scriptet. */
+  .bubbla span:empty { display: none; }
+
+  .bubbla::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: var(--arrow, 50%);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--glass-fill);
+  }
+
+  .bubbla.is-below::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: var(--glass-fill);
+  }
+
   figcaption {
     margin-top: var(--s-1);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring,
+    .bubbla { transition: none; }
+  }
 </style>
+
+<script>
+  /**
+   * Öppnar och placerar detaljrutan.
+   *
+   * Scriptet är litet med flit: verksamhetssidan är sajtens vanligaste sidtyp
+   * och laddas hundratusentals gånger. Det gör tre saker och inget mer, och
+   * avbryter direkt på sidor utan diagram.
+   *
+   * Tre vägar in, och alla tre måste fungera:
+   *   mus         pointerenter öppnar, pointerleave stänger
+   *   tangentbord focus öppnar, blur och Escape stänger
+   *   pekskärm    tryck växlar, tryck utanför stänger
+   *
+   * Pekskärmen är skälet till att `click` växlar i stället för att bara
+   * öppna. Där finns ingen pointerleave, och utan en väg ut hade rutan blivit
+   * kvar över diagrammet.
+   */
+  const GAP = 8;
+
+  for (const figur of document.querySelectorAll<HTMLElement>('[data-tidslinje]')) {
+    const bubble = figur.querySelector<HTMLElement>('.bubbla');
+    const prickar = figur.querySelectorAll<SVGGElement>('.prick');
+    if (!bubble || !('showPopover' in bubble) || prickar.length === 0) continue;
+
+    const fält = {
+      datum: bubble.querySelector<HTMLElement>('.b-datum')!,
+      slag: bubble.querySelector<HTMLElement>('.b-slag')!,
+      brister: bubble.querySelector<HTMLElement>('.b-brister')!,
+    };
+
+    let öppen: SVGGElement | null = null;
+
+    function place(prick: SVGGElement) {
+      const b = prick.getBoundingClientRect();
+      const w = bubble!.offsetWidth;
+      const h = bubble!.offsetHeight;
+
+      const centre = b.left + b.width / 2;
+      const left = Math.min(Math.max(centre - w / 2, GAP), window.innerWidth - w - GAP);
+
+      // Får rutan inte plats ovanför pricken hamnar den under, och pilen vänds.
+      const below = b.top - h - GAP < GAP;
+      bubble!.classList.toggle('is-below', below);
+      bubble!.style.left = `${left}px`;
+      bubble!.style.top = below ? `${b.bottom + GAP}px` : `${b.top - h - GAP}px`;
+
+      // Pilen pekar på pricken och inte på rutans mitt, som kan ha flyttats
+      // av skärmkanten ovan.
+      bubble!.style.setProperty('--arrow', `${centre - left}px`);
+    }
+
+    function show(prick: SVGGElement) {
+      fält.datum.textContent = prick.dataset.datum ?? '';
+      fält.slag.textContent = prick.dataset.slag ?? '';
+      // Tom sträng betyder att kommunen inte publicerar avvikelsetext. Raden
+      // faller bort av sig själv, se `span:empty` i stilen.
+      fält.brister.textContent = prick.dataset.brister ?? '';
+
+      if (!öppen) bubble!.showPopover();
+      öppen = prick;
+      place(prick);
+    }
+
+    function hide() {
+      if (!öppen) return;
+      bubble!.hidePopover();
+      öppen = null;
+    }
+
+    for (const prick of prickar) {
+      prick.addEventListener('pointerenter', (e) => {
+        // Ett tryck på pekskärm ger också pointerenter, och då skulle rutan
+        // öppnas här och stängas av växlingen i click. Pekningen hanteras
+        // uteslutande av click.
+        if (e.pointerType !== 'mouse') return;
+        show(prick);
+      });
+      prick.addEventListener('pointerleave', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        hide();
+      });
+      prick.addEventListener('focus', () => show(prick));
+      prick.addEventListener('blur', hide);
+      prick.addEventListener('click', () => (öppen === prick ? hide() : show(prick)));
+      prick.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hide();
+      });
+    }
+
+    // Tryck utanför diagrammet stänger. Enda vägen ut på en pekskärm när man
+    // tryckt sig in på en prick och sedan ändrat sig.
+    document.addEventListener('pointerdown', (e) => {
+      if (öppen && !(e.target as Element)?.closest?.('.prick')) hide();
+    });
+
+    document.addEventListener('scroll', () => öppen && place(öppen), { passive: true });
+    window.addEventListener('resize', hide);
+  }
+</script>

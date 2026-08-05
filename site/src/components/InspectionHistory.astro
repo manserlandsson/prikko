@@ -40,7 +40,10 @@ function detail(i: Inspection): string {
 }
 ---
 
-<section class="history">
+{/* `id` är hopplänkens mål från Kontrolldatum.astro, som ligger högt på
+    sidan och pekar hit. Fragmentet är en publicerad adress i samma mening
+    som `#omdomen`: byt det inte utan att byta länken. */}
+<section class="history" id="kontrollhistorik">
   <div class="head">
     <h2>Kontrollhistorik</h2>
     {inspections.length > 0 && (
