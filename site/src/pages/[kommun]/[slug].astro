@@ -2,17 +2,29 @@
 /**
  * Restaurangsidan — sajtens viktigaste sidtyp.
  *
- * Layout: tvåkolumn med sticky sidopanel, mönstret som hitta.se, ednia,
- * TheFork och Zillow alla använder. Huvudinnehållet läses uppifrån och ner;
- * panelen bär det man vill ha kvar i blickfånget — bedömningen, kartan och
- * åtgärderna. En centrerad enkolumn ser generisk ut och slösar bredden.
+ * Formen är Boolis objektsida, på ägarens uttryckliga riktning: "den gillar
+ * jag ALLT med... den är SÅ Clean." Det som gör deras sida lugn trots mängden
+ * information är tre saker, och alla tre används här:
+ *
+ *  1. Ingen kortlåda runt huvudinnehållet. Sektionerna ligger öppet på sidan,
+ *     skilda av hårlinjer och luft, inte av ramar.
+ *  2. Ett stort värde bär sidan. Hos dem priset under etiketten "Utropspris",
+ *     hos oss bedömningen under etiketten "Bedömning", med nyckelfakta i en
+ *     öppen rad direkt under: liten etikett över stort tal, luft emellan.
+ *  3. Kartan är en egen sektion i huvudkolumnen med adressen under, inte en
+ *     miniatyr i marginalen. Sidopanelen bär det man agerar med — hos dem
+ *     mäklarkortet, hos oss bevakningen, omdömet och rättelsen.
+ *
+ * Layouten är tvåkolumn med sticky sidopanel, som booli. Huvudkolumnen läses
+ * uppifrån och ner som en berättelse i tid: vad kontrollen visade, blev det
+ * åtgärdat, återkommer det, hela historiken — och sedan var stället ligger.
  *
  * Titeln leder med NAKET NAMN + ORT, inte med "hygienkontroll". Skälet är
  * mätt: i Storbritannien, världens mognaste marknad för hygienbetyg, ger
  * "food hygiene rating" 54,7 i söktrend medan "nandos food hygiene rating"
  * ger 0,04 — under 0,1 % för en av landets största kedjor. Ingen söker på
- * "[restaurang] hygien". Sidan måste vinna på namnet, som hitta.se gör, och
- * hygienen är differentieraren i beskrivningen.
+ * "[restaurang] hygien". Sidan måste vinna på namnet, och hygienen är
+ * differentieraren i beskrivningen.
  *
  * Två SEO/AEO-krav styr innehållet:
  *
@@ -27,7 +39,7 @@ import Base from '../../layouts/Base.astro';
 import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
-import LocationMap from '../../components/LocationMap.astro';
+import Platskarta from '../../components/Platskarta.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
@@ -82,6 +94,7 @@ const latest = latestInspectionDate(e);
 const latestInspection = e.inspections[0];
 const stats = statistics(e);
 const neighbours = nearby(e);
+const hasCoords = e.lat !== null && e.lng !== null;
 
 /**
  * Kommunen som jämförelsepunkt.
@@ -98,6 +111,24 @@ const neighbours = nearby(e);
 const kommunSummary = municipalitySummary(kommun);
 const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
+
+/**
+ * Fördelningen bakom kommunsiffran, som en stapel.
+ *
+ * Samma tal som meningen under redan bär, tecknade som yta så att de går att
+ * ta in på en blick. Andelarna räknas på BEDÖMDA, aldrig på totalen — samma
+ * nämnare som cleanShare, av samma skäl. Stapeln bär fördelningen inom EN
+ * kommun; kommuner emellan jämförs aldrig.
+ */
+const dist = kommunSummary.assessed
+  ? (['clean', 'minor', 'major'] as const)
+      .map((k) => ({
+        k,
+        n: kommunSummary[k],
+        share: (kommunSummary[k] / kommunSummary.assessed) * 100,
+      }))
+      .filter((d) => d.n > 0)
+  : [];
 
 /**
  * Ledde uppföljningen till åtgärd?
@@ -190,12 +221,11 @@ const description = `${answer} ${detail}`;
  * Talen är oförändrade. Det är etiketterna som slutar tillskriva dem fel part.
  */
 const facts = [
-  /* "Kontroller" och inte "Kontroller på adressen". Den längre etiketten bröt
-     till två rader medan de tre andra fick plats på en, och rutan tappade sin
-     linje. Att räkningen gäller adressen och inte företaget står redan i
-     tipset, som är hela skälet till att tipset finns. */
+  /* "Kontroller" och inte "Kontroller på adressen". Att räkningen gäller
+     adressen och inte företaget står i tipset, som är hela skälet till att
+     tipset finns. */
   { label: 'Kontroller', value: String(stats.total),
-    tip: `Samtliga kontroller kommunen publicerar på den här adressen, från ${stats.oldestYear} och framåt. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller.` },
+    tip: `Samtliga kontroller kommunen publicerar på den här adressen, från ${stats.oldestYear} och framåt. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller. Kommunen registrerar kontrollerna på lokalen och inte på företaget.` },
   { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
     color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
     tip: 'Andel av kontrollerna på adressen där inga avvikelser noterades.' },
@@ -241,19 +271,17 @@ const jsonLd: Record<string, unknown> = {
  * punkt som pipelinen geokodat fram ur adressen mot OpenStreetMap
  * (`geoSource: 'osm'`), varav 228 bara matchat närmaste grannport.
  *
- * På skärmen ritar LocationMap nålen streckad. I JSON-LD stod ingenting.
- * Schemat såg identiskt ut för en kommunlämnad och en härledd punkt, alltså
- * saknades förbehållet exakt där maskinen läser. Och det är JSON-LD en
- * sökmotor, en språkmodell eller en framtida datalicenstagare faktiskt hämtar.
+ * På skärmen ritar Platskarta nålen streckad och skriver förbehållet under
+ * kartan. I JSON-LD stod ingenting: schemat såg identiskt ut för en
+ * kommunlämnad och en härledd punkt, alltså saknades förbehållet exakt där
+ * maskinen läser. Och det är JSON-LD en sökmotor, en språkmodell eller en
+ * framtida datalicenstagare faktiskt hämtar.
  *
  * Schema.org har ingen flagga för "härledd" på GeoCoordinates, så det finns
  * ingen form som både publicerar punkten och bär förbehållet. Då är det rätta
  * att inte påstå den. Vi säger inte maskinellt att koordinaten kommer från
  * kommunen när den inte gör det. "Verifiera, aldrig gissa" gäller den
  * maskinläsbara sidan också.
- *
- * Notera att bildtexten som tidigare bar förbehållet i klartext är borttagen.
- * Den streckade kanten och den här utelämnade `geo` är vad som återstår.
  */
 if (e.lat && e.lng && e.geoSource !== 'osm') {
   jsonLd.geo = { '@type': 'GeoCoordinates', latitude: e.lat, longitude: e.lng };
@@ -284,38 +312,53 @@ const breadcrumbs = {
       <a href={path(kommun.slug)}>{kommun.city}</a>
     </nav>
 
+    {/* Sidhuvudet efter Boolis: namnet, och under det en tyst rad med typ,
+        adress och stad skilda av punkter. Kartlänken sist på raden hoppar
+        till kartsektionen, som Boolis "Karta"-våde ovanför bilderna. */}
     <header class="masthead">
       <h1>{e.name}</h1>
       <p class="place text-secondary">
-        {[e.address, kommun.city].filter(Boolean).join(', ')}
-        {e.types.length > 0 && <> · {e.types[0]}</>}
+        {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
+        {hasCoords && (
+          <>
+            {' · '}
+            <a class="kartlank" href="#karta">Visa på karta</a>
+          </>
+        )}
       </p>
     </header>
 
     <div class="layout">
       <main class="main">
+        {/* Bedömningen där booli har priset: en tyst etikett, ett stort
+            besked, och svarsmeningen under. Metodiklänken är deras
+            "Se Boolis värdering" — vägen till hur talet blev till. */}
         <section class="statement">
-          <FaceMark verdict={e.verdict} size={52} animate wink />
-          <div>
-            <p class="level">
-              {presentation.label}
-              {e.distinction && (
-                <span class="badge" title={DISTINCTION.label}>★ {DISTINCTION.short}</span>
-              )}
-            </p>
-            <p class="answer">{answer}</p>
+          <p class="eyebrow">Bedömning</p>
+          <div class="verdict">
+            <FaceMark verdict={e.verdict} size={52} animate wink />
+            <div>
+              <p class="level">
+                {presentation.label}
+                {e.distinction && (
+                  <span class="badge" title={DISTINCTION.label}>★ {DISTINCTION.short}</span>
+                )}
+              </p>
+              <p class="answer">{answer}</p>
+            </div>
           </div>
+          <p class="method caption">
+            <a href="/metodik/">Så sätts bedömningen</a>
+          </p>
         </section>
 
-        {/* Direkt efter beskedet, före statistiken: har verksamheten fått
-            utmärkelsen är det det näst viktigaste sidan har att säga. */}
-        <AwardNote establishment={e} />
+        {/* Nyckelfakta i öppen rad direkt under beskedet, som Boolis
+            Boarea · Rum · Byggår under priset. Förbehållen bor i tipsen. */}
+        <FactGrid facts={facts} />
 
-        <FactGrid
-          title="Statistik"
-          titleTip="Sammanräknat från kontrollhistoriken på adressen. Kommunen registrerar kontrollerna på lokalen och inte på företaget, så historik från en tidigare verksamhet på samma adress följer med."
-          facts={facts}
-        />
+        {/* Har verksamheten fått utmärkelsen är det det näst viktigaste
+            sidan har att säga. */}
+        <AwardNote establishment={e} />
 
         {latestInspection && latestInspection.areas.length > 0 && (
           <ControlBreakdown
@@ -333,6 +376,22 @@ const breadcrumbs = {
 
         <InspectionHistory inspections={e.inspections} />
 
+        {/* Kartan som egen sektion i huvudkolumnen med adressen under, som
+            hos booli. Efter historiken: den hör till fakta om stället men
+            ska inte klyva kontrollberättelsen. Verksamheter utan koordinat
+            får ingen kartsektion alls. */}
+        {hasCoords && (
+          <Platskarta
+            lat={e.lat!}
+            lng={e.lng!}
+            name={e.name}
+            verdict={e.verdict}
+            geoSource={e.geoSource}
+            address={e.address}
+            city={kommun.city}
+          />
+        )}
+
         {/*
           Omdömen ligger SIST i huvudkolumnen, efter allt som bygger på
           kommunens data och före källhänvisningen. Ordningen är ett
@@ -346,21 +405,9 @@ const breadcrumbs = {
           municipalitySlug={kommun.slug}
         />
 
-        {/* Sidfoten bar tidigare två stycken: att kontrollerna är registrerade
-            på adressen och inte på företaget, plus källa, hämtdatum, att
-            bedömningen är vår och två länkar. Sex meningar på varje
-            verksamhetssida.
-
-            Båda hör hemma på /metodik och /kallor, som är fullständiga och
-            länkade från sidfoten på varje sida. Ratsit skriver inte "uppgifter
-            från Bolagsverket" under varje rad, och att upprepa ursprunget
-            överallt får sammanställningen att läsa som en vidarebefordran av
-            någon annans data i stället för som ett eget arbete.
-
-            En rad står kvar: när uppgifterna senast hämtades. Den är inte en
-            källhänvisning utan en färskhetsuppgift, och den som läser om en
-            kontroll från i januari har rätt att veta om vi tittade i går eller
-            i mars. */}
+        {/* En rad, inte sex: när uppgifterna senast hämtades. Källa och
+            metodik är fullständiga på /kallor och /metodik, länkade i
+            sidfoten på varje sida. Resonemanget står i git-historiken. */}
         <footer class="source">
           <p class="caption text-muted">
             Uppdaterat {formatDate(source.fetchedAt.slice(0, 10))}.
@@ -371,16 +418,6 @@ const breadcrumbs = {
       <aside class="side">
         <div class="panel">
           {e.image && <StreetPhoto image={e.image} name={e.name} />}
-          {e.lat && e.lng && (
-            <LocationMap
-              lat={e.lat}
-              lng={e.lng}
-              name={e.name}
-              verdict={e.verdict}
-              geoSource={e.geoSource}
-            />
-          )}
-
           <ActionPanel
             establishmentId={e.id}
             establishmentName={e.name}
@@ -415,6 +452,19 @@ const breadcrumbs = {
 
         <div class="panel">
           <h2 class="panel-title">Så ser det ut i {kommun.city}</h2>
+          {dist.length > 0 && (
+            <div
+              class="fordelning"
+              role="img"
+              aria-label={`Av ${formatNumber(kommunSummary.assessed)} bedömda verksamheter i ${kommun.city}: ${formatNumber(kommunSummary.clean)} utan anmärkningar, ${formatNumber(kommunSummary.minor)} med brister och ${formatNumber(kommunSummary.major)} med brister som kvarstår.`}
+            >
+              {dist.map((d) => (
+                <span
+                  style={`flex-basis:${d.share}%;background:var(--verdict-${d.k})`}
+                ></span>
+              ))}
+            </div>
+          )}
           <p class="kommun-line">
             <b>{kommunSummary.cleanShare} %</b> av de
             {' '}{formatNumber(kommunSummary.assessed)} bedömda verksamheterna i
@@ -464,33 +514,43 @@ const breadcrumbs = {
   }
 
   .place {
-    margin-top: 2px;
+    margin-top: var(--s-1);
     font-size: var(--fs-body-s);
   }
+
+  .kartlank { white-space: nowrap; }
 
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
-    gap: var(--s-8);
+    gap: var(--s-12);
     align-items: start;
     margin-top: var(--s-6);
   }
 
-  .main {
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-    padding: var(--s-6) var(--s-8);
-  }
-
+  /* Huvudkolumnen ligger öppet på sidan — ingen kortlåda. Det är Boolis
+     grepp: sektionerna skiljs av hårlinjer och luft, och lugnet kommer av
+     att ingenting är inramat. Sidopanelens paneler ÄR kort, och kontrasten
+     däremellan är det som gör att panelen läser som verktyg. */
   /* :global krävs — Astros scopeade selektorer korsar inte komponentgränser. */
   .main > :global(* + *) {
-    margin-top: var(--s-6);
-    padding-top: var(--s-6);
+    margin-top: var(--s-8);
+    padding-top: var(--s-8);
     border-top: 1px solid var(--hairline);
   }
 
-  .statement {
+  /* Utmärkelsen är en notis med egen ram och behöver ingen hårlinje över
+     sig — dubbla avgränsare läser som ett fel. */
+  .main > :global(.award) {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .statement .eyebrow {
+    margin-bottom: var(--s-3);
+  }
+
+  .verdict {
     display: flex;
     align-items: flex-start;
     gap: var(--s-4);
@@ -498,8 +558,9 @@ const breadcrumbs = {
 
   .level {
     color: var(--text);
-    font-size: var(--fs-h-s);
-    line-height: 26px;
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    letter-spacing: -.02em;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -510,6 +571,7 @@ const breadcrumbs = {
   .badge {
     font-size: var(--fs-caption);
     font-weight: 600;
+    letter-spacing: 0;
     color: var(--distinction);
     border: 1px solid color-mix(in srgb, var(--distinction) 45%, transparent);
     border-radius: var(--r-pill);
@@ -517,19 +579,21 @@ const breadcrumbs = {
   }
 
   .answer {
-    margin-top: var(--s-1);
+    margin-top: var(--s-2);
     font-size: var(--fs-body-s);
-    line-height: 21px;
+    line-height: var(--lh-body-s);
     color: var(--text-secondary);
+    max-width: 56ch;
+  }
+
+  .method {
+    margin-top: var(--s-3);
   }
 
   .source p {
-    font-size: var(--fs-body-s);
-    line-height: 21px;
-    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
   }
-
-  .source p + p { margin-top: var(--s-2); }
 
   /* Sidopanel */
   .side {
@@ -555,9 +619,7 @@ const breadcrumbs = {
     margin-bottom: var(--s-3);
   }
 
-  /* Knapparna i panelen bor numera i ActionPanel.astro tillsammans med sin
-     logik. Att stilen låg här medan beteendet skulle ligga någon annanstans
-     var precis det som gjorde dem lätta att lämna avstängda. */
+  /* Knapparna i panelen bor i ActionPanel.astro tillsammans med sin logik. */
 
   .near {
     list-style: none;
@@ -592,6 +654,22 @@ const breadcrumbs = {
 
   .near-info span { font-size: 11px; }
 
+  /* Fördelningsstapeln: tre andelar av samma helhet på en tunn rad.
+     Springorna mellan segmenten är avsiktliga — tre mängder, inte en
+     tonad yta. */
+  .fordelning {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    margin-bottom: var(--s-3);
+  }
+
+  .fordelning span {
+    min-width: 3px;
+  }
+
   .kommun-line {
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
@@ -618,6 +696,7 @@ const breadcrumbs = {
   @media (max-width: 900px) {
     .layout {
       grid-template-columns: 1fr;
+      gap: var(--s-8);
     }
 
     .side {
@@ -626,8 +705,6 @@ const breadcrumbs = {
   }
 
   @media (max-width: 600px) {
-    .main { padding: var(--s-6) var(--s-4); }
-
     .masthead h1 {
       font-size: 27px;
       line-height: 31px;

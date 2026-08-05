@@ -1,10 +1,12 @@
 ---
 /**
- * Faktarutor i rutnät — mönstret från ednia.
+ * Nyckelfakta i rad — Boolis form.
  *
- * Stort värde, liten etikett, tunn ram mellan cellerna. Skälet det fungerar:
- * siffran blir skumbar på en halv sekund, och rutnätet ger sidan struktur
- * utan att lägga till ännu ett flytande kort.
+ * Liten etikett över stort värde, kolumner skilda av luft i stället för
+ * ramar. Rutnätet med hårlinjer mellan cellerna (ednias mönster) satt här
+ * tidigare, men ägarens riktmärke är numera booli, och deras faktarad är
+ * öppen: inga lådor, ingen ram, bara typografin som bär hierarkin. Det är
+ * det som gör att mycket information läser lugnt.
  */
 import InfoTip from './InfoTip.astro';
 
@@ -59,49 +61,15 @@ const { title, titleTip, facts } = Astro.props;
     margin-bottom: var(--s-3);
   }
 
-  /* Delade ramar: ett rutnät, inte fyra fristående kort.
-   *
-   * INGEN overflow: hidden här. Den satt tidigare för att kapa cellernas
-   * ramar vid de rundade hörnen — men den kapade också InfoTip-bubblorna,
-   * som ligger ovanför sin cell. Följden var att förklaringarna till
-   * "Kontroller totalt", "Utan anmärkning" och "Återbesök" inte gick att
-   * läsa alls.
-   *
-   * Rundade hörn och utstickande bubblor går inte att förena i ren CSS, och
-   * sajten är noll-JS. Då väger informationen tyngre än hörnen: kvar blir en
-   * hårfin linje som korsar kurvan i nedre högra hörnet. Den kostnaden är
-   * mindre än en förklaring ingen kan läsa. */
-  /* Ett rutnät, inte fyra fristående kort.
-   *
-   * Linjerna är MELLANRUM och inte ramar: rutnätets botten är hårlinjefärgen
-   * och cellerna ligger med en pixels glapp ovanpå. Linjerna blir därmed exakt
-   * en pixel, aldrig dubbla, och de slutar av sig själva vid kanten. Det
-   * fungerar också när rutnätet bryter till flera rader på smal skärm, vilket
-   * en border-lösning gör klumpigt.
-   *
-   * overflow: hidden är TILLBAKA, och med den full hörnradie.
-   *
-   * Den togs bort en gång för att den kapade InfoTip-bubblorna, som ligger
-   * utanför sin cell, och förklaringarna blev då oläsbara. Radien sänktes
-   * senare till 4 px för att dölja att cellernas raka hörn målades ovanpå den
-   * rundade ramen. Båda var lappningar på samma grundfel.
-   *
-   * Grundfelet är borta: InfoTip ritar numera sin bubbla som en popover i
-   * webbläsarens toppskikt, utanför varje förälders overflow. Det finns alltså
-   * inget kvar att kapa, och rutan kan vara rund på riktigt. */
+  /* Öppna kolumner utan lådor, som Boolis rad under priset. Kolumnbredden
+   * är innehållets egen och luften däremellan gör avgränsningen. En tidigare
+   * version ritade ett rutnät med hårlinjer mellan cellerna; historien om
+   * dess overflow-problem med InfoTip-bubblorna ligger i git-historiken.
+   * Den öppna formen har inget att kapa, så problemet finns inte längre. */
   .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1px;
-    background: var(--hairline);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
-    overflow: hidden;
-  }
-
-  .cell {
-    padding: var(--s-3) var(--s-4);
-    background: var(--card);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3) var(--s-8);
   }
 
   .label {
