@@ -1,0 +1,379 @@
+---
+/**
+ * Granskningslistan: verksamheter där brister i livsmedelshanteringen
+ * kvarstod efter kommunens uppföljning.
+ *
+ * ## Egen sidtyp, inte en skärpning av /[kommun]/anmarkningar
+ *
+ * Anmärkningssidan är ett REGISTER: varje verksamhet med någon anmärkning
+ * vid senaste kontrollen, komplett och sidindelat, med en rad per namn. Den
+ * här sidan är ett URVAL med hårdare beviskrav (bara kvarstående, bara
+ * bevisat konsumentnära, bara färskt), och varje rad är ett referat av vad
+ * kommunen fann, inte en registerpost. Hade urvalet lagts ovanpå registret
+ * hade ettdera blivit lidande: registret hade tappat sin fullständighet
+ * eller urvalet sina beviskrav. Registret finns kvar orört och länkas nedan.
+ *
+ * Sidan är utmärkelsens spegelbild (se lib/utmarkelser.ts) men fryses ALDRIG
+ * i utgåvor: en verksamhet som åtgärdat allt ska försvinna härifrån vid nästa
+ * datauppdatering, inte stå kvar i en årslista. Se lib/granskning.ts, där
+ * urvalsreglerna bor och är motiverade.
+ *
+ * Kommuner med färre än MIN_REVIEW_PAGE rader får ingen sida alls (bibeln
+ * §6). Någon riksvy finns inte och får inte byggas: radantalet styrs av hur
+ * mycket kommunen publicerar, och en riksvy hade rangordnat kommunernas
+ * publicering, inte köken.
+ */
+import Base from '../../layouts/Base.astro';
+import FaceRef from '../../components/FaceRef.astro';
+import FaceSprite from '../../components/FaceSprite.astro';
+import OwnerReply from '../../components/OwnerReply.astro';
+import {
+  AREA_STATUS_INK,
+  AREA_STATUS_LABEL,
+  INSPECTION_TYPE_LABEL,
+  formatDate,
+  formatNumber,
+  sourceFor,
+} from '../../lib/data';
+import { reviewRows, reviewedMunicipalities } from '../../lib/granskning';
+import { SITE } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
+
+export function getStaticPaths() {
+  return reviewedMunicipalities().map((m) => ({
+    params: { kommun: m.slug },
+    props: { kommun: m },
+  }));
+}
+
+const { kommun } = Astro.props;
+const city = kommun.city;
+const rows = reviewRows(kommun.slug);
+const source = sourceFor(kommun.slug)!;
+const fetched = source.fetchedAt.slice(0, 10);
+
+/*
+ * Självbärande första mening, formulerad som referat: "hade brister som inte
+ * var åtgärdade vid uppföljningen" är kommunens konstaterande återgivet, inte
+ * vårt omdöme. Samma påstående som VERDICT.major.sentence i site.ts gör på
+ * varje verksamhetssida; formuleringarna får inte glida isär.
+ */
+const answer =
+  `${formatNumber(rows.length)} verksamheter i ${city} hade brister i hanteringen av ` +
+  `livsmedel som inte var åtgärdade vid kommunens uppföljning. Samtliga konstaterade ` +
+  `vid kontroller de senaste tolv månaderna.`;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+      { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommun.slug) },
+      { '@type': 'ListItem', position: 3, name: 'Granskning' },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Kvarstående brister i ${city}`,
+    description: answer,
+    numberOfItems: rows.length,
+    itemListElement: rows.slice(0, 25).map((r, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: absolute(kommun.slug, r.establishment.slug),
+      name: r.establishment.name,
+    })),
+  },
+];
+
+/** Referatet av varför raden står här, byggt av kommunens egen data. */
+function groundText(r: (typeof rows)[number]): string {
+  if (r.ground === 'stated') {
+    return 'Kommunens bedömning av kontrollen är kvarstående avvikelse.';
+  }
+  if (r.ground === 'followup') {
+    return 'Kontrollen var ett återbesök för att följa upp tidigare brister.';
+  }
+  return `Avvikelser fanns även vid kontrollen ${formatDate(r.previous!.date)}.`;
+}
+---
+
+<Base
+  title={`Kvarstående brister i ${city}`}
+  description={answer}
+  jsonLd={jsonLd}
+  dataUpdated={fetched}
+>
+  <FaceSprite />
+
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(kommun.slug)}>{city}</a>
+      <span aria-hidden="true">›</span>
+      <span>Granskning</span>
+    </nav>
+
+    <header>
+      <p class="eyebrow">{kommun.name}</p>
+      <h1>Kvarstående brister i {city}</h1>
+      <p class="answer">{answer}</p>
+      <p class="caption text-muted">
+        Referat av kommunens kontrolldata, hämtad {formatDate(fetched)}.
+        {' '}<a href="#urval">Så väljs raderna ut</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </header>
+
+    {/*
+      Grunderna står FÖRE listan. Den som läser namnen ska redan veta vad som
+      krävs för att stå här, och lika viktigt vad som inte räcker.
+    */}
+    <section class="terms card" aria-label="Vad som krävs för en rad">
+      <ul>
+        <li>
+          Bristerna var <b>inte åtgärdade</b> när kommunen följde upp, eller
+          är kommunens egen allvarligaste bedömning.
+        </li>
+        <li>
+          Minst en avvikelse rör <b>livsmedlen eller hanteringen av dem</b>,
+          enligt Livsmedelsverkets indelning i lagstiftningsområden. Rent
+          administrativa avvikelser, som en saknad registrering, räcker aldrig.
+        </li>
+        <li>
+          Kontrollen är högst <b>tolv månader</b> gammal. Raden försvinner så
+          snart en ny kontroll visar att bristerna åtgärdats.
+        </li>
+        <li>
+          Varje verksamhet kan <b>svara</b>. Svar publiceras ordagrant här och
+          på verksamhetens sida.
+        </li>
+      </ul>
+    </section>
+
+    <ul class="list" aria-label={`Verksamheter med kvarstående brister i ${city}`}>
+      {rows.map((r) => {
+        const e = r.establishment;
+        const i = r.inspection;
+        return (
+          <li>
+            <div class="row-head">
+              <FaceRef verdict="major" size={36} />
+              <div class="row-title">
+                <a class="name" href={path(kommun.slug, e.slug)}>{e.name}</a>
+                <span class="meta text-secondary">
+                  {[e.address, `${INSPECTION_TYPE_LABEL[i.type]} ${formatDate(i.date)}`]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </div>
+            </div>
+            <p class="ground text-secondary">{groundText(r)}</p>
+            <ul class="remarks">
+              {r.remarks.map((a) => (
+                <li>
+                  <span class="status" style={`color: ${AREA_STATUS_INK[a.status]}`}>
+                    {AREA_STATUS_LABEL[a.status]}
+                  </span>
+                  <span class="what">{a.description || a.group}</span>
+                </li>
+              ))}
+            </ul>
+            {i.ownerComment && <OwnerReply text={i.ownerComment} />}
+            <p class="row-foot caption">
+              <a href={path(kommun.slug, e.slug)}>Hela historiken och verksamhetens svar</a>
+            </p>
+          </li>
+        );
+      })}
+    </ul>
+
+    <section id="urval" class="method">
+      <h2>Så väljs raderna ut</h2>
+      <p>
+        Listan är ett referat av {kommun.name}s egna kontrolldata, inte ett
+        omdöme från Prikko. En verksamhet står här när tre saker är uppfyllda
+        samtidigt: den senaste kontrollen ledde till bedömningen brister som
+        kvarstår, minst en av avvikelserna ligger i ett lagstiftningsområde som
+        rör livsmedlen eller hanteringen av dem, och kontrollen är högst tolv
+        månader gammal, ungefär ett ordinarie kontrollintervall. Rent
+        administrativa avvikelser, till exempel en saknad registrering eller en
+        lucka i journalföringen, sätter aldrig någon på listan, och det gör
+        inte heller en kontroll där kommunen inte redovisat vad avvikelserna
+        gällde.
+      </p>
+      <p>
+        Listan räknas om vid varje datauppdatering. En verksamhet som åtgärdar
+        bristerna försvinner härifrån så snart kommunens nästa kontroll visar
+        det. Raderna rangordnas inte: de står i datumordning, nyast först,
+        eftersom antalet avvikelser inte går att jämföra mellan kontroller.
+      </p>
+      <p>
+        Varje verksamhet har rätt att svara, och svaren publiceras ordagrant
+        på den här sidan och på verksamhetens egen sida. Anser du att en
+        uppgift är fel, <a href={path('ratta')}>begär rättelse</a>, så uppdateras
+        sidan när kommunen rättat sin data.
+      </p>
+      <p>
+        <a href={path(kommun.slug, 'anmarkningar')}>Alla verksamheter med
+        anmärkningar i {city}</a> ·
+        {' '}<a href={path(kommun.slug)}>Alla verksamheter i {city}</a> ·
+        {' '}<a href={path('metodik')}>Så räknas bedömningen fram</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page { max-width: 820px; padding-block: var(--s-6) var(--s-16); }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-caption);
+    color: var(--text-muted);
+    margin-bottom: var(--s-3);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  h1 { font-size: 34px; line-height: 38px; margin-top: var(--s-1); }
+
+  .answer {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+  }
+
+  header .caption { margin-top: var(--s-3); }
+
+  .terms {
+    margin-top: var(--s-6);
+    padding: var(--s-4) var(--s-6);
+  }
+
+  .terms ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .terms li {
+    position: relative;
+    padding-left: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .terms li + li { margin-top: var(--s-2); }
+
+  .terms li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .terms b { color: var(--text); font-weight: 600; }
+
+  .list {
+    list-style: none;
+    margin: var(--s-8) 0 0;
+    padding: 0;
+  }
+
+  /* Flata rader med hårlinjer emellan, inte kort i staplar: raderna är långa
+     och en ram runt var och en hade gjort sidan till en vägg av lådor. */
+  .list > li {
+    padding: var(--s-6) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list > li:last-child { border-bottom: 1px solid var(--hairline); }
+
+  .row-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
+  .row-title { min-width: 0; }
+
+  .name {
+    display: block;
+    color: var(--text);
+    font-size: var(--fs-body);
+    font-weight: 600;
+  }
+
+  .name:hover { color: var(--brand-ink); }
+
+  .meta {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .ground {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .remarks {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+  }
+
+  .remarks li {
+    display: flex;
+    gap: var(--s-3);
+    align-items: baseline;
+    padding: var(--s-1) 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .status {
+    flex-shrink: 0;
+    width: 88px;
+    font-size: var(--fs-caption);
+    font-weight: 600;
+  }
+
+  .what { color: var(--text-secondary); }
+
+  .row-foot { margin-top: var(--s-3); }
+
+  .method {
+    margin-top: var(--s-12);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .method h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .method p {
+    font-size: var(--fs-body-s);
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+
+  .method p + p { margin-top: var(--s-3); }
+</style>

@@ -23,6 +23,7 @@ import {
   type Municipality,
   type RemarkedEstablishment,
 } from '../lib/data';
+import { hasReviewPage } from '../lib/granskning';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -174,6 +175,16 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         kontrollen. Många åtgärdas snabbt och följs upp vid ett återbesök.
         Varje verksamhets sida visar hela historiken.
       </p>
+      {/* Granskningslistan finns bara i kommuner med nog många rader för en
+          egen sida (lib/granskning.ts). Länken får aldrig peka ut i tomma
+          intet, därför grinden även här. */}
+      {hasReviewPage(kommun.slug) && (
+        <p>
+          <a href={path(kommun.slug, 'granskning')}>
+            Granskningslistan för {city}: verksamheter där bristerna kvarstod efter uppföljning
+          </a>
+        </p>
+      )}
       <p>
         <a href={path(kommun.slug)}>Se alla verksamheter i {city}</a>
       </p>
