@@ -9,9 +9,8 @@
  * Visas bara när det finns något att visa. En verksamhet utan mönster ska
  * inte få en tom rubrik som antyder att vi letat och hittat något.
  */
-import AreaIcon from './AreaIcon.astro';
 import InfoTip from './InfoTip.astro';
-import { formatDate, legislationArea, type RecurringIssue } from '../lib/data';
+import { formatDate, type RecurringIssue } from '../lib/data';
 
 interface Props {
   issues: RecurringIssue[];
@@ -38,6 +37,52 @@ const { issues } = Astro.props;
  * är en ren observation och säger ingenting om ägarbyte.
  */
 const years = (days: number) => Math.floor(days / 365);
+
+/**
+ * INGEN OMRÅDESIKON I DEN HÄR LISTAN. Mätt beslut, återinför den inte.
+ *
+ * Raderna bar tidigare en AreaIcon per lagstiftningsområde, alltså bokstaven i
+ * rapporteringspunkten. Ikonen fanns för att listan skulle gå att skumma. Den
+ * gjorde inte det, och beståndet visar varför. Räknat över alla tolv kommuner:
+ * 3 402 verksamheter har en lista här, 5 463 rader totalt.
+ *
+ * Datan kommer i två former och ikonen misslyckas i BÅDA, av motsatta skäl.
+ *
+ * Stockholm, 2 387 av listorna: koden ÄR bara områdesbokstaven, och radens
+ * egen text är områdets namn. Det finns exakt femton distinkta beskrivningar i
+ * hela Stockholms bestånd: "Hygien", "Spårbarhet", "Riskhantering" och så
+ * vidare. Ikonen upprepas alltså aldrig (0 av 747 flerradslistor har en enda
+ * ikon), men den säger inte heller något som inte redan står i fetstil bredvid
+ * den. En droppe intill ordet Hygien är dekor.
+ *
+ * Linköping, Örebro och Borgholm, 884 av listorna: koden är hela
+ * rapporteringspunkten och texten är specifik och läsvärd. Här upprepas
+ * ikonen i stället hela tiden, eftersom område J heter "Grundförutsättningar,
+ * hygien" och rymmer nästan allt en restaurang får anmärkningar på. 72 % av
+ * raderna i flerradslistorna delar ikon med minst en annan rad, och 39,6 % av
+ * listorna visar samma ikon på varenda rad. Pizzeria Valla i Linköping: nio
+ * rader, sex identiska droppar.
+ *
+ * Uppsala, 131 listor: ingen kod alls, alltid reservcirkeln.
+ *
+ * De två andra utvägarna mättes och håller inte:
+ *
+ * - Ikon per rapporteringspunkt, så att J02 och J08 skiljer sig, går inte att
+ *   bygga. 63,7 % av raderna HAR ingen rapporteringspunkt, bara en bokstav
+ *   eller tomt. Den skulle dessutom bara gälla de kommuner vars text redan är
+ *   specifik nog att skiljas åt utan ikon.
+ *
+ * - Ikon bara när raderna spänner över flera områden räddar ingenting. Det
+ *   villkoret är sant för 84,7 % av flerradslistorna, Pizzeria Valla inräknad,
+ *   där sex droppar av nio kvarstår.
+ *
+ * Kvar står att texten redan bär det ikonen skulle bära, i den ena formen som
+ * områdesnamn och i den andra som konkret brist. Rader utan ikon läser
+ * snabbare än rader med en ikon som inte skiljer dem åt.
+ *
+ * AreaIcon finns kvar och används av ControlBreakdown, där raderna är en
+ * enskild kontrolls områden och sammanhanget är ett annat.
+ */
 ---
 
 {issues.length > 0 && (
@@ -63,27 +108,19 @@ const years = (days: number) => Math.floor(days / 365);
     </p>
 
     <ul class="rows">
-      {issues.map((issue) => {
-        const area = legislationArea(issue.code);
-        return (
-          <li class="row">
-            <span class="icon">
-              <AreaIcon letter={issue.code || issue.group.charAt(0)} />
-            </span>
-            <span class="what">
-              <b>{issue.description}</b>
-              <span class="when text-secondary">
-                {issue.dates.slice(0, 4).map(formatDate).join(' · ')}
-                {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
-              </span>
-              {/* Ren observation. Inget påstående om ägarbyte. */}
-              {issue.straddlesGap && (
-                <span class="maybe">{years(issue.gapDays)} år mellan noteringarna</span>
-              )}
-            </span>
-          </li>
-        );
-      })}
+      {issues.map((issue) => (
+        <li class="row">
+          <b>{issue.description}</b>
+          <span class="when text-secondary">
+            {issue.dates.slice(0, 4).map(formatDate).join(' · ')}
+            {issue.dates.length > 4 && ` · +${issue.dates.length - 4} till`}
+          </span>
+          {/* Ren observation. Inget påstående om ägarbyte. */}
+          {issue.straddlesGap && (
+            <span class="maybe">{years(issue.gapDays)} år mellan noteringarna</span>
+          )}
+        </li>
+      ))}
     </ul>
   </section>
 )}
@@ -120,8 +157,8 @@ const years = (days: number) => Math.floor(days / 365);
   .maybe {
     display: block;
     margin-top: 2px;
-    font-size: 11px;
-    line-height: 15px;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
     color: var(--text-muted);
   }
 
@@ -132,29 +169,11 @@ const years = (days: number) => Math.floor(days / 365);
   }
 
   .row {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    align-items: center;
-    gap: var(--s-3);
     padding: var(--s-3) 0;
     border-top: 1px solid var(--hairline);
   }
 
-  /* Bara ikonen — ingen färgad platta bakom.
-   *
-   * Plattan gjorde varje rad till ett litet kort och lade färg på något som
-   * redan är allvarligt av sin text. Ikonen i bläckfärg låter innehållet
-   * bära tyngden i stället för dekoren. */
-  .icon {
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text);
-  }
-
-  .what b {
+  .row b {
     display: block;
     font-size: var(--fs-body-s);
     font-weight: 600;
