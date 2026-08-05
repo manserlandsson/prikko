@@ -14,8 +14,10 @@
  * endpointsen, inte mot källkoden:
  *  - prikko.se sätter ingen kaka. Kontrollerat på HTML, på en asset, på POST
  *    och med bot-lik user agent. Cloudflare skickar däremot NEL och Report-To.
- *  - api.mapbox.com sätter INGEN kaka. Frågan C1 som stod här tidigare är
- *    därmed besvarad med en mätning i stället för en brasklapp.
+ *  - api.mapbox.com anropas inte längre alls. Kartans platshållare hämtade
+ *    tidigare en statisk bild därifrån vid varje sidvisning; den ritas nu ur
+ *    vår egen kartstil. Mätningen från 2026-08-03 visade att den inte satte
+ *    någon kaka, men frågan är sedan 2026-08-05 inte längre aktuell.
  *  - <projekt>.supabase.co sätter __cf_bm, Cloudflares botkaka, på både
  *    förhandsanropet och det riktiga anropet. Den sätts vid SIDLADDNING på
  *    varje verksamhetssida, eftersom Reviews.astro hämtar omdömeslistan i
