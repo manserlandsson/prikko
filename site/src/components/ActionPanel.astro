@@ -48,7 +48,12 @@ const ownerHref = `/konto/verksamhet/?${params}`;
 const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pathname)}`;
 ---
 
-<h2 class="rubrik">Stämmer inte uppgifterna?</h2>
+{/* Rubriken sade "Stämmer inte uppgifterna?" och knappen under den "Rätta en
+    uppgift", alltså samma ord två gånger med tre rader emellan. Rubriken
+    frågar nu utan att låna knappens ord. Knappen får däremot behålla sina
+    tre: den står ensam i en panel och inte i handlingsraden, där kortheten
+    kommer av att tre etiketter ska läsas som en uppsättning. */}
+<h2 class="rubrik">Något som inte stämmer?</h2>
 
 <p class="ingress caption text-secondary">
   Allt på sidan kommer från kommunens egen kontroll. Ser du något som är fel,
