@@ -3,6 +3,7 @@ import { globSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
+import { inloggningsgrind } from './scripts/inloggningsgrind.mjs';
 import {
   establishments,
   latestInspectionDate,
@@ -268,6 +269,9 @@ export default defineConfig({
       },
     }),
     sitemapGuard(),
+    /* Vaktar de fyra regler som gör att arken inte hoppar på telefon.
+       Grinden bor i scripts/inloggningsgrind.mjs och förklarar sig själv. */
+    inloggningsgrind(),
   ],
 
   build: {

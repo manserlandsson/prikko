@@ -356,7 +356,11 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      överblicka medan man skriver den. */
   .sheet {
     width: min(520px, calc(100vw - var(--s-8)));
-    max-height: 92dvh;
+    /* Tangentbordets höjd dras av, se `--keyboard-inset` i page-lock.ts.
+       Utan avdraget blir arket högre än det som syns när tangentbordet är
+       uppe, och sista raden hamnar bakom det. Reservvärdet 0 gäller på
+       skrivbord. */
+    max-height: calc(92dvh - var(--keyboard-inset, 0px));
     display: flex;
     flex-direction: column;
     background: var(--card);
@@ -404,6 +408,21 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   .body {
     overflow-y: auto;
     padding: var(--s-6) var(--s-6) var(--s-8);
+  }
+
+  /* 16 px är ett GOLV, inte ett val.
+   *
+   * Safari på iOS zoomar in hela sidan när ett fält med mindre än 16 px text
+   * får fokus, och zoomar aldrig ut igen. Fälten ärver `--fs-body-s` (14 px)
+   * från `.field input` i konto.css. Samma golv, samma skäl och samma
+   * skrivning som i SignInDialog.astro och SiteSearch.astro: ingen
+   * typografitoken ligger på 16, brödtexten är 17 och body-s är 14.
+   *
+   * Rutan öppnas ofta direkt efter inloggningsrutan, i samma klick. Vore
+   * golvet bara satt där hade sidan zoomat en ruta senare i stället. */
+  .body .field input,
+  .body .field textarea {
+    font-size: 16px;
   }
 
   .about {
@@ -499,13 +518,21 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      * Med `top: auto; bottom: 0` finns inget överskott att fördela. Kanten är
      * kanten oavsett hur högt formuläret är.
      */
+    /*
+     * `--keyboard-inset` sätts av page-lock.ts medan rutan är öppen och är
+     * tangentbordets höjd, mätt via `visualViewport`. iOS krymper inte
+     * layoutviewporten när tangentbordet fälls upp, och dvh räknar det inte
+     * heller, så ett ark mot `bottom: 0` hamnar under tangentbordet och
+     * webbläsaren panorerar sidan för att få fram fältet. Reservvärdet 0
+     * gäller på skrivbord: regeln beter sig då precis som förut.
+     */
     dialog.write-dialog {
       width: 100%;
       max-width: 100%;
       top: auto;
-      bottom: 0;
+      bottom: var(--keyboard-inset, 0px);
       margin: 0;
-      max-height: 92dvh;
+      max-height: calc(92dvh - var(--keyboard-inset, 0px));
     }
 
     .sheet {
@@ -533,6 +560,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
   import { registerReviewDialog } from '../lib/review-dialog';
+  import { lockPage, unlockPage } from '../lib/page-lock';
 
   const section = document.getElementById('omdomen');
   const dialog = document.getElementById('review-dialog') as HTMLDialogElement | null;
@@ -727,7 +755,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           URL.revokeObjectURL(chosen[index].url);
           chosen.splice(index, 1);
           paintPicked();
-          dropzone.focus();
+          dropzone.focus({ preventScroll: true });
         });
 
         row.append(thumb, name, size, remove);
@@ -848,30 +876,17 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     let opener: HTMLElement | null = null;
 
     /*
-     * Låser sidan bakom rutan.
+     * Låset ligger i ../lib/page-lock.ts och delas med inloggningsrutan.
      *
-     * showModal() gör bakgrunden oåtkomlig för fokus och klick, men INTE för
-     * rullning. På telefon glider sidan omkring bakom arket medan man
-     * skriver, och på skrivbord försvinner rullningslisten när overflow sätts,
-     * vilket flyttar hela layouten några pixlar i sidled. Båda upplevs som att
-     * sidan hoppar.
+     * Här stod en egen kopia som bara satte `overflow: hidden` på body. Den
+     * stoppar besökarens svep men inte webbläsarens egen rullning, alltså
+     * inte det som faktiskt flyttar sidan när tangentbordet fälls upp.
      *
-     * padding-right kompenserar exakt den bredd rullningslisten hade. På
-     * telefon är den noll och raden gör ingenting.
+     * Att de två rutorna nu delar lås är en rättelse och inte städning.
+     * "Skriv ett omdöme" utloggad kör inloggningsrutan först och den här
+     * sedan, i samma klick. Med varsitt lås blev det upplåst mitt emellan,
+     * alltså en återställd rullning och en ny fixering inom ett ögonblick.
      */
-    let lockedScrollbar = '';
-
-    function lockPage() {
-      const gap = window.innerWidth - document.documentElement.clientWidth;
-      lockedScrollbar = document.body.style.paddingRight;
-      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-      document.body.style.overflow = 'hidden';
-    }
-
-    function unlockPage() {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = lockedScrollbar;
-    }
 
     function openDialog(trigger: HTMLElement | null) {
       opener = trigger;
@@ -881,7 +896,9 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       /* Fokus i fältet man ska skriva i. Betyget står först men är frivilligt,
          och att fokusera en radioknapp i en grupp där ingen är vald låter
          skärmläsaren läsa upp ett betyg man inte satt. */
-      text.focus();
+      /* preventScroll: rullningen läggs tillbaka av låset, exakt. En extra
+         framrullning av fältet flyttar bara sidan under. */
+      text.focus({ preventScroll: true });
     }
 
     /**
@@ -902,7 +919,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       const trigger = opener;
       opener = null;
       const back = focusInstead ?? (trigger?.isConnected && !trigger.hidden ? trigger : null);
-      back?.focus();
+      back?.focus({ preventScroll: true });
     }
 
     dialog.addEventListener('cancel', (event) => {
@@ -974,7 +991,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     async function request(trigger: HTMLElement | null) {
       if (await refreshMine()) {
         reveal(mine);
-        mine.focus();
+        mine.focus({ preventScroll: true });
         return;
       }
       openDialog(trigger);
@@ -1009,7 +1026,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
       if (body && body.length < 20) {
         showError('Skriv minst 20 tecken, eller lämna rutan tom och sätt bara ett betyg.');
-        text.focus();
+        text.focus({ preventScroll: true });
         return;
       }
 

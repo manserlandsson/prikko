@@ -220,6 +220,26 @@ import '../styles/konto.css';
 
   .body { padding: var(--s-6) var(--s-6) var(--s-8); }
 
+  /* 16 px är ett GOLV, inte ett val.
+   *
+   * Safari på iOS zoomar in hela sidan när ett fält med mindre än 16 px text
+   * får fokus, och zoomar aldrig ut igen. Fältet ärvde `--fs-body-s` (14 px)
+   * från `.field input` i konto.css, alltså zoomade sidan varje gång någon
+   * tryckte i e-postfältet. Det är den andra halvan av "sidan ploppar till".
+   * Kodrutorna ligger redan på 22 och är därför oberörda.
+   *
+   * Ingen typografitoken ligger på 16: brödtexten är 17 och body-s är 14, och
+   * 14 utlöser just den zoomen. Därför står talet skrivet, precis som i
+   * sökfältet i SiteSearch.astro, som bär samma golv av samma skäl.
+   *
+   * Här gäller golvet vid ALLA bredder, inte bara under mobilbrytpunkten.
+   * Sökfältets regel ligger i en mediefråga, men iPad Safari zoomar likadant
+   * vid 820 px, och den här rutan är den enda yta där en zoom slår till mitt
+   * i ett flöde man inte kan backa ur. */
+  .body .field input {
+    font-size: 16px;
+  }
+
   /* Märket bär --brand och inte --text. Wordmark ritar med currentColor, så
      utan den här raden ärvde det arkets textfärg och blev svart. Det här är
      den enda ytan i rutan som ska ha varumärkets färg. */
@@ -276,6 +296,21 @@ import '../styles/konto.css';
     color: var(--text-secondary);
     opacity: 0;
     transition: grid-template-rows .22s ease, opacity .22s ease, margin-top .22s ease;
+  }
+
+  /* Utfällningen animeras ALDRIG i öppningsögonblicket.
+   *
+   * Rutan fokuserar e-postfältet när den öppnas, alltså slår `:focus-within`
+   * till direkt, alltså fälldes hjälptexten ut var enda gång rutan visade
+   * sig. Mätt på verksamhetssidan vid 375 px: arket kom upp 294 px högt och
+   * växte till 339 inom 300 ms, och överkanten klättrade från 521 till 473.
+   * Det var det ägaren såg som att rutan "ploppar till". Animationen var
+   * byggd för den som stannar upp vid fältet, inte för öppningen.
+   *
+   * Attributet sitter kvar två bildrutor och tas sedan bort, så den som
+   * lämnar fältet och kommer tillbaka får utfällningen som förut. */
+  .signin[data-opening] .help {
+    transition: none;
   }
 
   .help > * {
@@ -459,6 +494,18 @@ import '../styles/konto.css';
    * `dvh` och inte `vh`: vh räknar med adressfältet utfällt även när det är
    * ihopdraget, så arket hade blivit högre än skärmen och sista raden hamnat
    * utanför.
+   *
+   * Men dvh räknar INTE tangentbordet, och iOS krymper inte layoutviewporten
+   * när det fälls upp. Ett ark mot `bottom: 0` hamnade alltså under
+   * tangentbordet, mätt: arkets underkant låg på 812 av 812 tillgängliga
+   * pixlar, och ett tangentbord på runt 336 px täckte knappen och halva
+   * fältet. Webbläsaren löste det själv genom att panorera sidan, vilket är
+   * exakt det hopp som rapporterades.
+   *
+   * `--keyboard-inset` kommer ur `visualViewport` och sätts av page-lock.ts
+   * medan rutan är öppen. Reservvärdet 0 gäller på skrivbord och innan
+   * första mätningen, alltså beter sig regeln som förut när inget tangentbord
+   * finns.
    */
   @media (max-width: 560px) {
     .signin {
@@ -473,18 +520,20 @@ import '../styles/konto.css';
          glider upp från underkanten. Omdömesrutan gick på exakt den minan och
          hamnade fyrtio pixlar upp på telefon. */
       top: auto;
-      bottom: 0;
+      bottom: var(--keyboard-inset, 0px);
       margin: 0;
-      max-height: 92dvh;
+      max-height: calc(92dvh - var(--keyboard-inset, 0px));
     }
 
     .sheet {
       width: 100%;
-      max-height: 92dvh;
+      max-height: calc(92dvh - var(--keyboard-inset, 0px));
       overflow-y: auto;
       border-radius: var(--r-card) var(--r-card) 0 0;
       /* Under systemets svepfält på iPhone. Utan detta hamnar sista knappen
-         under strecket och går inte att träffa. */
+         under strecket och går inte att träffa. Med tangentbordet uppe
+         rapporterar Safari själv noll här, eftersom svepfältet då är dolt,
+         så raden lägger ingen död luft mellan arket och tangentbordet. */
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
   }
@@ -500,6 +549,7 @@ import '../styles/konto.css';
     CommunityError,
   } from '../lib/community';
   import { registerSignInDialog } from '../lib/signin-dialog';
+  import { lockPage, unlockPage } from '../lib/page-lock';
 
   const dialog = document.getElementById('signin-dialog') as HTMLDialogElement | null;
 
@@ -556,11 +606,14 @@ import '../styles/konto.css';
       back.hidden = step !== 'code';
       title.textContent = TITLES[step];
 
+      /* preventScroll överallt där fokus flyttas inne i rutan. Rutan ligger
+         i top layer och syns alltid; det enda webbläsaren kan åstadkomma med
+         att rulla fram fältet är att flytta sidan under. */
       if (step === 'email') {
-        (emailStep.elements.namedItem('email') as HTMLInputElement).focus();
+        (emailStep.elements.namedItem('email') as HTMLInputElement).focus({ preventScroll: true });
       } else {
         for (const box of boxes) box.value = '';
-        boxes[0].focus();
+        boxes[0].focus({ preventScroll: true });
       }
     }
 
@@ -573,30 +626,18 @@ import '../styles/konto.css';
      * hade det blivit ibland.
      */
     /*
-     * Låser sidan bakom rutan.
+     * Låset ligger i ../lib/page-lock.ts och delas med omdömesrutan.
      *
-     * showModal() gör bakgrunden oåtkomlig för fokus och klick, men INTE för
-     * rullning. På telefon betyder det att sidan glider omkring bakom arket
-     * medan man skriver, och på skrivbord försvinner rullningslisten när
-     * overflow sätts, vilket flyttar hela layouten några pixlar i sidled.
-     * Båda upplevs som att sidan "hoppar".
+     * Här stod tidigare en egen kopia som bara satte `overflow: hidden` på
+     * body. Den stoppade besökarens svep men inte webbläsarens egen rullning,
+     * och det är den senare som flyttar sidan när tangentbordet fälls upp.
+     * Modulen förklarar mätningen; kort: sidan kunde flytta sig åtta hundra
+     * pixlar medan rutan var öppen och låg kvar där efteråt.
      *
-     * padding-right kompenserar exakt den bredd rullningslisten hade. På
-     * telefon är den noll och raden gör ingenting.
+     * Att det är samma lås som omdömesrutans är inte städning utan en
+     * rättelse. Kedjan "Skriv ett omdöme" utloggad går inloggning först och
+     * omdöme sedan, och med två lås blev det ett upplåst mellanläge mitt i.
      */
-    let lockedScrollbar = '';
-
-    function lockPage() {
-      const gap = window.innerWidth - document.documentElement.clientWidth;
-      lockedScrollbar = document.body.style.paddingRight;
-      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-      document.body.style.overflow = 'hidden';
-    }
-
-    function unlockPage() {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = lockedScrollbar;
-    }
 
     function finish(ok: boolean) {
       if (dialog!.open) dialog!.close();
@@ -605,7 +646,10 @@ import '../styles/konto.css';
       const trigger = opener;
       done = null;
       opener = null;
-      trigger?.focus();
+      /* preventScroll: rullningen läggs tillbaka av låset, exakt. Låter vi
+         webbläsaren dessutom rulla fram knappen hamnar sidan någon
+         annanstans än där besökaren lämnade den. */
+      trigger?.focus({ preventScroll: true });
       callback?.(ok);
     }
 
@@ -661,7 +705,7 @@ import '../styles/konto.css';
       const digits = value.replace(/\D/g, '').slice(0, boxes.length - from);
       for (let i = 0; i < digits.length; i += 1) boxes[from + i].value = digits[i];
       const next = Math.min(from + digits.length, boxes.length - 1);
-      boxes[next].focus();
+      boxes[next].focus({ preventScroll: true });
       if (digits.length > 0 && from + digits.length >= boxes.length) codeStep.requestSubmit();
     }
 
@@ -674,18 +718,18 @@ import '../styles/konto.css';
           spread(all, index);
           return;
         }
-        if (box.value && index < boxes.length - 1) boxes[index + 1].focus();
+        if (box.value && index < boxes.length - 1) boxes[index + 1].focus({ preventScroll: true });
         if (box.value && index === boxes.length - 1) codeStep.requestSubmit();
       });
 
       box.addEventListener('keydown', (event) => {
         if (event.key === 'Backspace' && !box.value && index > 0) {
-          boxes[index - 1].focus();
+          boxes[index - 1].focus({ preventScroll: true });
           boxes[index - 1].value = '';
           event.preventDefault();
         }
-        if (event.key === 'ArrowLeft' && index > 0) boxes[index - 1].focus();
-        if (event.key === 'ArrowRight' && index < boxes.length - 1) boxes[index + 1].focus();
+        if (event.key === 'ArrowLeft' && index > 0) boxes[index - 1].focus({ preventScroll: true });
+        if (event.key === 'ArrowRight' && index < boxes.length - 1) boxes[index + 1].focus({ preventScroll: true });
       });
 
       box.addEventListener('paste', (event) => {
@@ -714,7 +758,7 @@ import '../styles/konto.css';
       } catch (err) {
         showError(codeStep, err instanceof CommunityError ? err.message : 'Koden godtogs inte.');
         for (const box of boxes) box.value = '';
-        boxes[0].focus();
+        boxes[0].focus({ preventScroll: true });
       } finally {
         button.disabled = false;
         button.textContent = 'Bekräfta';
@@ -759,10 +803,24 @@ import '../styles/konto.css';
       }
       opener = trigger;
       done = callback;
+
+      /*
+       * `data-opening` stänger av hjälptextens utfällning, se CSS:en.
+       *
+       * Attributet måste sitta FÖRE showModal(), annars hinner den första
+       * bildrutan målas med den hopfällda höjden och animationen startar.
+       * Två bildrutor: den första målar rutan i sitt slutliga skick, den
+       * andra släpper animationen fri igen för den som lämnar fältet och
+       * kommer tillbaka.
+       */
+      dialog.setAttribute('data-opening', '');
       goto('email');
       lockPage();
       dialog.showModal();
-      (emailStep.elements.namedItem('email') as HTMLInputElement).focus();
+      (emailStep.elements.namedItem('email') as HTMLInputElement).focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => dialog.removeAttribute('data-opening'));
+      });
     });
   }
 </script>
