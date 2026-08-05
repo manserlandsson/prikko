@@ -113,9 +113,16 @@ const SIZES = '(max-width: 1112px) 100vw, 1080px';
     position: relative;
     overflow: hidden;
     border-radius: var(--r-card);
-    /* Ingen fast höjd: bildförhållandet sätter den, och 1080/4,5 ≈ 240 px vid
+    /* Ingen fast höjd: bildförhållandet sätter den, och 1080/6,5 ≈ 166 px vid
        full bredd. Det skalar ner av sig självt på smala skärmar där en fast
        höjd i stället hade beskurit motivet till en remsa.
+
+       Förhållandet var 4,5/1 och gav 233 px. Med scrimen ovanpå blev remsan
+       en nästan svart platta som första intryck, och en platta som dessutom
+       sköt ner registret. Boolis områdessida har inget foto alls överst, så
+       6,5/1 är kompromissen: bilden säger fortfarande var man är, men den
+       kostar 166 px i stället för 233. Kontrastgarantin är orörd, rubriken
+       ligger kvar i nedre tredjedelen.
 
        `width: 100%` är inte överflödig. Med enbart `aspect-ratio` och
        `min-height` räknar webbläsaren bredden UR höjden när min-höjden slår
@@ -123,8 +130,8 @@ const SIZES = '(max-width: 1112px) 100vw, 1080px';
        hela sidan fick vågrät rullning på mobil. Bredden måste vara den kända
        storleken och höjden den härledda. */
     width: 100%;
-    aspect-ratio: 4.5 / 1;
-    min-height: 150px;
+    aspect-ratio: 6.5 / 1;
+    min-height: 130px;
   }
 
   .frame :global(img) {
