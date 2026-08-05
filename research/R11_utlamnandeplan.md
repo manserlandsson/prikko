@@ -710,8 +710,9 @@ Påminnelserna ska ligga i samma mejltråd. Ett nytt mejl blir ett nytt ärende.
 
 ### D. Spårningsunderlag
 
-Skapad som `research/R11_utlamnanden.csv`, en rad per kontrollmyndighet. CSV och
-inte kalkylark, så att den kan versionshanteras och diffas.
+Ligger som `pipeline/data/utlamnanden.csv`, en rad per kontrollmyndighet. CSV
+och inte kalkylark, så att den kan versionshanteras och diffas. Filen skrivs
+av `pipeline/begaran.py`, se `docs/20_kommunexpansion.md`.
 
 | Kolumn | Innehåll |
 |---|---|
