@@ -1,30 +1,49 @@
 ---
 /**
- * Utmärkelsen på verksamhetens egen sida.
+ * Utmärkelsen på verksamhetens egen sida, som ett märke vid bedömningen.
  *
- * Två saker som ser lika ut men inte är det, och som sidan därför måste hålla
- * isär:
+ * ## Varför den inte längre är ett fält
  *
- * - MÄRKET, som står här, är historiskt. Det säger att verksamheten fanns med i
- *   en namngiven årsutgåva. Det blir aldrig osant, och det tas aldrig bort.
- *   Utgåvan kräver fem kontroller i rad utan anmärkning.
- * - MÄRKNINGEN "ren historik" uppe vid bedömningen är nuläget, satt av
- *   `e.distinction` vid varje bygge. Den kräver tre kontroller inom
- *   treårsfönstret och försvinner samma dag kommunen hittar en avvikelse.
+ * Den var ett brett grått fält mellan nyckeltalen och kontrollhistoriken, med
+ * sigill, rubrik, en mening om serien, en länk till utgåvan och ibland två
+ * meningar till. Ägaren underkände den två gånger, sist så här: "utmärkelsen
+ * sitter superfult här ... ser sjukt fult ... överförklarat också."
  *
- * Slutar de säga samma sak är det inte ett fel, utan hela skälet till att
- * märket bär ett årtal. DÅ, och bara då, skrivs en andra mening ut, så att en
- * läsare som ser ett märke från 2026 bredvid "Brister som kvarstår" får veta
- * varför båda står där. Säger de samma sak tillför meningen ingenting, och det
- * som inte tillför något står inte här.
+ * Två fel, och de hängde ihop. Fältet var en LÅDA i en huvudkolumn vars hela
+ * form bygger på att ingenting är inramat, se sidmallen. Och det låg inklämt
+ * mellan två avsnitt det inte hörde ihop med, medan sidan redan hade rätt
+ * plats: bredvid bedömningen står "Ren historik", och de två säger samma
+ * sorts sak om samma verksamhet. Två erkännanden på två ställen med ett
+ * statistikblock emellan var det som gjorde sidan rörig.
  *
- * Serien och listan räcker alltså som text. Datumintervallet och frysdatumet
- * stod här förut och bar inget på just den här sidan: den som vill ha dem
- * hittar dem på utgåvesidan, ett klick bort.
+ * ## Vad som försvann med lådan
+ *
+ * All brödtext. "Nio kontroller i rad utan anmärkning" är utgåvans KRITERIUM
+ * och står på utgåvesidan, ett klick bort, tillsammans med datumintervall och
+ * frysdatum. Raden om äldre utgåvor och meningen om att märket avser just den
+ * utgåvan gick samma väg. Årtalet i pillret säger redan att märket är
+ * historiskt, och den som vill veta mer följer länken.
+ *
+ * Sigillet står inte heller kvar. Kransen är 507 mot 236, alltså bred och
+ * låg, och i den storlek som får plats bredvid en rubrik hade den blivit en
+ * fläck. Ett piller i mässing säger samma sak läsbart. Sigillet lever kvar
+ * där det har plats att vara ett sigill, på utgåvesidorna.
+ *
+ * ## Skillnaden mot "Ren historik"
+ *
+ * Kvar att hålla isär, och det är därför bägge märkena får stå:
+ *
+ * - MÄRKET här är historiskt. Det säger att verksamheten fanns med i en
+ *   namngiven årsutgåva. Det blir aldrig osant och tas aldrig bort.
+ * - "Ren historik" bredvid är NULÄGET, satt av `e.distinction` vid varje
+ *   bygge, och försvinner samma dag kommunen hittar en avvikelse.
+ *
+ * Årtalet är hela skälet till att de kan stå intill varandra utan att säga
+ * emot sig själva: ett märke från 2026 bredvid "Brister som kvarstår" läser
+ * som två sanningar om olika tidpunkter, inte som en motsägelse.
  */
-import AwardSeal from './AwardSeal.astro';
 import { path } from '../lib/urls';
-import { awardsFor, capitalise, numeral } from '../lib/utmarkelser';
+import { awardsFor } from '../lib/utmarkelser';
 import type { Establishment } from '../lib/data';
 
 interface Props {
@@ -32,93 +51,37 @@ interface Props {
 }
 
 const { establishment: e } = Astro.props;
-const awards = awardsFor(e.municipality.slug, e.slug);
-const newest = awards[0];
-/* Märket visar den senaste utgåvan. Äldre utgåvor räknas upp i text i stället
-   för i rubriken, så att rubriken alltid svarar mot det märke som står bredvid. */
-const earlier = awards.slice(1);
+
+/* Bara den senaste utgåvan. Äldre räknades upp i en egen mening förut; de
+   finns på utgåvesidorna och behöver inte varsin länk från en restaurangsida. */
+const newest = awardsFor(e.municipality.slug, e.slug)[0];
 ---
 
 {newest && (
-  <section class="award">
-    <a href={path('utmarkelser', newest.year)} class="seal-link" aria-label={`Utmärkelsen ${newest.year}`}>
-      {/* 88 px. Kransen är bred och låg, 507 mot 236, till skillnad från en
-          rund lagerkrans. Vid samma höjd som en rund läser den därför som
-          tunnare, och behöver mer bredd för att väga lika tungt bredvid
-          texten. 88 ger 41 px höjd, ungefär höjden på rubriken plus raden
-          under. */}
-      <AwardSeal year={newest.year} width={88} decorative />
-    </a>
-    <div>
-      <h2>Utmärkelsen {newest.year}</h2>
-      {/* Andra meningen är en uppmaning och inte ett påstående. "Verksamheten
-          står i 2026 års lista" upprepar det märket bredvid redan säger, medan
-          "Se hela listan" pekar vidare. Länken bär hela uppmaningen så att den
-          som hoppar mellan länkar med tangentbord hör vad den leder till. */}
-      <p>
-        {capitalise(numeral(newest.entry.run))} kontroller i rad utan anmärkning.
-        {' '}<a href={path('utmarkelser', newest.year)}>Se hela {newest.year} års lista</a>.
-      </p>
-      {!e.distinction && (
-        <p>Utmärkelsen avser den utgåvan. Vad som gäller nu står ovan.</p>
-      )}
-      {earlier.length > 0 && (
-        <p>
-          Verksamheten står också i {earlier.map((a, i) => (
-            <>
-              {i > 0 && (i === earlier.length - 1 ? ' och ' : ', ')}
-              <a href={path('utmarkelser', a.year)}>{a.year}</a>
-            </>
-          ))} års {earlier.length === 1 ? 'lista' : 'listor'}.
-        </p>
-      )}
-    </div>
-  </section>
+  <a class="utmarkelse" href={path('utmarkelser', newest.year)}>
+    Utmärkelsen {newest.year}
+  </a>
 )}
 
 <style>
-  /* Luften följer märket. Med ett 56 px brett sigill i stället för en
-     banderoll skulle 24 px runtom göra kortet till mest tomrum. */
-  .award {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    margin-top: var(--s-8);
-    padding: var(--s-4);
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-  }
-
-  .seal-link {
-    display: block;
-    flex: none;
-  }
-
-  /* `h2` som element, brödtextstorlek som form. Rutan är en notis bredvid
-     innehållet och inte ett eget avsnitt, så den ska inte bära ett avsnitts
-     rubrikstorlek. Dokumentstrukturen är en annan fråga än typografin. */
-  .award h2 {
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
+  /* Samma form som "Ren historik" intill, och det är avsikten: två märken av
+     samma sort ska se ut som två märken av samma sort. Skillnaden är att det
+     här är en länk, alltså har det ett mål och en hovring. */
+  .utmarkelse {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     font-weight: 600;
-    margin-bottom: var(--s-1);
+    letter-spacing: 0;
+    color: var(--distinction);
+    border: 1px solid color-mix(in srgb, var(--distinction) 45%, transparent);
+    border-radius: var(--r-pill);
+    padding: 2px 9px;
+    white-space: nowrap;
   }
 
-  .award p {
-    font-size: var(--fs-body-s);
-    line-height: 21px;
-    color: var(--text-secondary);
-  }
-
-  .award p + p {
-    margin-top: var(--s-2);
-  }
-
-  @media (max-width: 560px) {
-    .award {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+  .utmarkelse:hover {
+    background: color-mix(in srgb, var(--distinction) 10%, transparent);
+    color: var(--distinction);
+    text-decoration: none;
   }
 </style>

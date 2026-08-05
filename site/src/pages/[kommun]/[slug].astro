@@ -333,31 +333,34 @@ const breadcrumbs = {
     </nav>
 
     {/* Sidhuvudet efter Boolis: namnet, och under det en tyst rad med typ,
-        adress och stad skilda av punkter. Kartlänken sist på raden hoppar
-        till kartsektionen, som Boolis "Karta"-våde ovanför bilderna. */}
+        adress och stad skilda av punkter.
+
+        "Visa på karta" satt sist på den raden och är flyttad till
+        handlingsraden nedanför, som en knapp som heter "Karta". Den var en
+        handling förklädd till text mitt i en punktlista av fakta, och den är
+        Boolis vänsterknapp i samma rad. Metaraden bär nu bara fakta. */}
     <header class="masthead">
       <h1>{e.name}</h1>
       <p class="place text-secondary">
         {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
-        {hasCoords && (
-          <>
-            {' · '}
-            <a class="kartlank" href="#karta">Visa på karta</a>
-          </>
-        )}
       </p>
     </header>
 
     {/* Handlingarna i ögonhöjd, som Boolis rad direkt under bilden. De låg
         tidigare i sidopanelen, alltså efter hela huvudkolumnen på telefon.
-        Raden bär det besökaren gör; rättelsen och verksamhetens replikrätt
-        står kvar i panelen, se ActionPanel.astro. Delningens text är
-        svarsmeningen, som redan är skriven för att vara självbärande. */}
+        Raden bär det som gäller stället i sin helhet; omdömesknappen bor i
+        omdömesavsnittet där rutan den öppnar hör hemma, och rättelsen och
+        replikrätten står kvar i panelen, se ActionPanel.astro.
+
+        Delningens text är svarsmeningen, som redan är skriven för att vara
+        självbärande. Kartknappen uteblir när verksamheten saknar koordinat,
+        av samma skäl som kartsektionen längre ned gör det. */}
     <Handlingsrad
       establishmentId={e.id}
       establishmentName={e.name}
       municipalitySlug={kommun.slug}
       shareText={answer}
+      mapHref={hasCoords ? '#karta' : undefined}
     />
 
     <div class="layout">
@@ -370,11 +373,21 @@ const breadcrumbs = {
           <div class="verdict">
             <FaceMark verdict={e.verdict} size={52} animate wink />
             <div>
+              {/* Bedömningen och de märken som gäller verksamhetens status,
+                  på samma rad. "Ren historik" är nuläget och utmärkelsen är
+                  historisk; årtalet i den senare skiljer dem åt.
+
+                  Stjärnan framför "Ren historik" är borta. Sajten har tagit
+                  beslutet att stjärnor inte används, eftersom de läser som
+                  betyg, och det är samma skäl som gör att omdömen inte har
+                  stjärnbetyg (se Reviews.astro). En stjärna intill en
+                  hygienbedömning var precis den sammanblandningen. */}
               <p class="level">
                 {presentation.label}
                 {e.distinction && (
-                  <span class="badge" title={DISTINCTION.label}>★ {DISTINCTION.short}</span>
+                  <span class="badge" title={DISTINCTION.label}>{DISTINCTION.short}</span>
                 )}
+                <AwardNote establishment={e} />
               </p>
               <p class="answer">{answer}</p>
             </div>
@@ -396,14 +409,11 @@ const breadcrumbs = {
             Boarea · Rum · Byggår under priset. Förbehållen bor i tipsen. */}
         <FactGrid facts={facts} />
 
-        {/* Har verksamheten fått utmärkelsen är det det näst viktigaste
-            sidan har att säga. */}
-        <AwardNote establishment={e} />
-
-        {/* Spegelbilden. Bägge komponenterna renderar ingenting när
-            verksamheten inte uppfyller sina kriterier, och de kan aldrig
-            gälla samtidigt: utmärkelsen kräver rena kontroller i rad,
-            matsnusk kräver brister som kvarstod vid uppföljningen. */}
+        {/* Utmärkelsen stod här som ett eget fält och är flyttad upp till
+            bedömningsraden, se AwardNote.astro. Matsnusk står kvar: den är
+            inget erkännande utan ett påstående om kvarstående brister, och
+            den behöver sin plats i berättelsen. De två kan aldrig gälla
+            samtidigt. */}
         <MatsnuskNote establishment={e} />
 
         {latestInspection && latestInspection.areas.length > 0 && (
@@ -569,8 +579,6 @@ const breadcrumbs = {
     font-size: var(--fs-body-s);
   }
 
-  .kartlank { white-space: nowrap; }
-
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
@@ -588,13 +596,6 @@ const breadcrumbs = {
     margin-top: var(--s-8);
     padding-top: var(--s-8);
     border-top: 1px solid var(--hairline);
-  }
-
-  /* Utmärkelsen är en notis med egen ram och behöver ingen hårlinje över
-     sig — dubbla avgränsare läser som ett fel. */
-  .main > :global(.award) {
-    border-top: 0;
-    padding-top: 0;
   }
 
   /* Ingen versalisering här, till skillnad från .eyebrow i tokens.
