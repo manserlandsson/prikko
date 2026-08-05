@@ -10,6 +10,7 @@
  * gräva öppnar den. Rader utan avvikelser är inte klickbara — en tom utfällning
  * är sämre än ingen.
  */
+import KontrollTidslinje from './KontrollTidslinje.astro';
 import OwnerReply from './OwnerReply.astro';
 import {
   ASSESSMENT_COLOR,
@@ -57,6 +58,12 @@ function detail(i: Inspection): string {
     </p>
   ) : (
     <>
+      {/* Översikten före detaljerna: tidslinjen visar mönstret på en blick,
+          listan under bär varje kontrolls innehåll. Komponenten avgör själv
+          om den har något att tillföra — under fyra kontroller eller två år
+          ritas ingenting. */}
+      <KontrollTidslinje inspections={inspections} />
+
       <ol class="rows">
         {decisive.map((i) => {
           const found = deviations(i);

@@ -1,0 +1,175 @@
+---
+/**
+ * Kontrollerna som tidslinje — sidans enda diagram, ritat som server-SVG.
+ *
+ * Formen är lånad från Our World in Data: ljusa stödlinjer, etiketter direkt
+ * i bilden i stället för en teckenförklaring, ingenting som rör sig. Varje
+ * kontroll är en prick; raden den ligger på ÄR utfallet, färgen förstärker
+ * bara. Position och färg säger alltså samma sak, vilket är avsikten — 8 %
+ * av män ser inte skillnad på raderna utan positionen.
+ *
+ * Prickarna binds inte ihop med en linje. En linje mellan två kontroller
+ * påstår ett tillstånd mellan dem, och det är exakt vad datan inte innehåller:
+ * mellan två besök vet ingen någonting. Prisgrafer får dra linjer; en
+ * kontrollhistorik är en serie ögonblick.
+ *
+ * Diagrammet ritas bara när det tillför något utöver listan under: minst
+ * fyra kontroller över minst två år. En verksamhet med två kontroller
+ * behöver ingen kurva — listan säger allt.
+ *
+ * SVG:en är aria-dold. Den visar exakt samma kontroller som listan i samma
+ * avsnitt, och en skärmläsare ska höra materialet en gång, inte två.
+ */
+import {
+  ASSESSMENT_COLOR,
+  ASSESSMENT_LABEL,
+  INSPECTION_TYPE_LABEL,
+  formatDate,
+  type Inspection,
+} from '../lib/data';
+
+interface Props {
+  inspections: Inspection[];
+}
+
+const { inspections } = Astro.props;
+
+const DAY = 86_400_000;
+const MIN_COUNT = 4;
+const MIN_SPAN_DAYS = 730;
+
+const sorted = [...inspections].sort((a, b) => a.date.localeCompare(b.date));
+const first = sorted[0];
+const last = sorted[sorted.length - 1];
+const spanDays =
+  first && last ? (Date.parse(last.date) - Date.parse(first.date)) / DAY : 0;
+
+const show = sorted.length >= MIN_COUNT && spanDays >= MIN_SPAN_DAYS;
+
+/* ── Skalor ──────────────────────────────────────────────────────────────
+ * X är tiden från 1 januari första året till 1 januari året efter det
+ * sista, så att varje år blir ett helt fack och årsetiketten kan stå i
+ * fackets mitt i stället för ovanpå ett årsskifte. */
+const W = 640;
+const H = 176;
+const XL = 12;
+const XR = W - 12;
+const BAND_Y: Record<Inspection['assessment'], number> = { 0: 48, 1: 92, 2: 136 };
+const GRID_TOP = 24;
+const GRID_BOTTOM = 148;
+
+const y0 = show ? Number(first.date.slice(0, 4)) : 0;
+const y1 = show ? Number(last.date.slice(0, 4)) + 1 : 1;
+const t0 = Date.UTC(y0, 0, 1);
+const t1 = Date.UTC(y1, 0, 1);
+
+const x = (iso: string) => XL + ((Date.parse(iso) - t0) / (t1 - t0)) * (XR - XL);
+const xYear = (year: number) => XL + ((Date.UTC(year, 0, 1) - t0) / (t1 - t0)) * (XR - XL);
+
+const years = show
+  ? Array.from({ length: y1 - y0 }, (_, i) => y0 + i)
+  : [];
+
+/* Trängre än ett visst antal fack får varannan årsetikett stå tillbaka.
+ * Stödlinjerna står kvar för alla år — det är etiketterna som trängs. */
+const labelStep = years.length > 8 ? 2 : 1;
+
+/* Bara de utfall som förekommer får en radetikett. En tom rad för
+ * "Kvarstående avvikelse" på en prickfri verksamhet läser som en anklagelse
+ * som väntar på att besannas. */
+const levels = ([0, 1, 2] as const).filter((a) => sorted.some((i) => i.assessment === a));
+
+const dot = (i: Inspection) =>
+  `${formatDate(i.date)} · ${INSPECTION_TYPE_LABEL[i.type]} · ${ASSESSMENT_LABEL[i.assessment]}`;
+---
+
+{show && (
+  <figure class="tidslinje">
+    <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+      {/* Årens stödlinjer, ljusa och bakom allt. */}
+      {years.slice(1).map((year) => (
+        <line
+          x1={xYear(year)}
+          y1={GRID_TOP}
+          x2={xYear(year)}
+          y2={GRID_BOTTOM}
+          stroke="var(--hairline)"
+        />
+      ))}
+
+      {/* Utfallsraderna: en hårlinje och en etikett direkt vid linjen. */}
+      {levels.map((a) => (
+        <>
+          <line
+            x1={XL}
+            y1={BAND_Y[a]}
+            x2={XR}
+            y2={BAND_Y[a]}
+            stroke="var(--hairline)"
+          />
+          <text
+            x={XL}
+            y={BAND_Y[a] - 8}
+            font-size="11"
+            fill="var(--text-secondary)"
+          >
+            {ASSESSMENT_LABEL[a]}
+          </text>
+        </>
+      ))}
+
+      {/* Årsetiketterna i fackens mitt. */}
+      {years.map(
+        (year, i) =>
+          i % labelStep === 0 && (
+            <text
+              x={(xYear(year) + xYear(year + 1)) / 2}
+              y={H - 8}
+              font-size="11"
+              fill="var(--text-muted)"
+              text-anchor="middle"
+            >
+              {year}
+            </text>
+          ),
+      )}
+
+      {/* Kontrollerna. Vit kant så att två närliggande prickar förblir två. */}
+      {sorted.map((i) => (
+        <circle
+          cx={x(i.date)}
+          cy={BAND_Y[i.assessment]}
+          r="6"
+          fill={ASSESSMENT_COLOR[i.assessment]}
+          stroke="var(--card)"
+          stroke-width="2"
+        >
+          <title>{dot(i)}</title>
+        </circle>
+      ))}
+    </svg>
+    <figcaption class="caption text-muted">
+      Varje prick är en kontroll. Raden visar vad kommunen antecknade.
+    </figcaption>
+  </figure>
+)}
+
+<style>
+  .tidslinje {
+    margin: var(--s-4) 0 0;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  svg text {
+    font-family: var(--font-sans);
+  }
+
+  figcaption {
+    margin-top: var(--s-1);
+  }
+</style>
