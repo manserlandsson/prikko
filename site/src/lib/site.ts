@@ -138,12 +138,20 @@ export const MISSING: Record<MissingReason, VerdictPresentation> = {
 };
 
 /**
- * Utmärkelsen för genomgående skötsamhet — vår motsvarighet till Danmarks
- * Elite-Smiley. Ges när samtliga tre senaste kontroller är utan anmärkning.
+ * Märkningen på verksamhetssidan: de tre senaste kontrollerna utan anmärkning.
  * Den påverkar aldrig nivån, bara erkännandet.
+ *
+ * Det här är INTE utmärkelsen. Utmärkelsen är årsutgåvan i src/editions och
+ * kräver fem kontroller i rad; se lib/utmarkelser.ts. De två hette båda
+ * "utmärkelsen" fram till augusti 2026, med olika krav, och en besökare som
+ * läste metodiksidan och utgåvesidan fick två svar på samma fråga.
+ *
+ * Konstanten heter fortfarande DISTINCTION eftersom fältet i datan gör det,
+ * hela vägen från grading.py till databasen. Namnet i koden är ett annat
+ * problem än namnet i texten, och det var bara det senare läsaren mötte.
  */
 export const DISTINCTION = {
-  label: 'Genomgående utan anmärkningar',
-  short: 'Genomgående ren',
+  label: 'Utan anmärkning vid de tre senaste kontrollerna',
+  short: 'Ren historik',
   colorVar: 'var(--distinction)',
 } as const;

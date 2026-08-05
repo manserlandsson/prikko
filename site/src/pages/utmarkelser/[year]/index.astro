@@ -18,6 +18,7 @@ import { SITE } from '../../../lib/site';
 import { absolute, path } from '../../../lib/urls';
 import {
   awardBar,
+  awardRevision,
   capitalise,
   edition,
   editionFacts,
@@ -39,6 +40,9 @@ const facts = editionFacts(e.year);
    kräver fem, och en gammal utgåva ska dessutom kunna läsas med den ribba som
    gällde då. Se awardBar i lib/utmarkelser.ts. */
 const barWord = numeral(awardBar(e.year));
+/* Omräkningen står i utgåvan. En lista som blivit många gånger längre utan ett
+   ord om saken är en lista man slutar tro på. */
+const revision = awardRevision(e.year);
 
 const sections = facts.listed.map((m) => {
   const groups = runGroups(m.qualified);
@@ -81,6 +85,18 @@ const jsonLd = {
         hade vid frysningen {barWord} kontroller i rad utan en enda anmärkning. Listan
         står still. Så här såg det ut {formatDate(e.asOf)}.
       </p>
+      {revision && (
+        <p class="revision">
+          Listan räknades om {formatDate(revision.revised)}. Ribban är densamma,
+          {' '}{barWord} kontroller utan anmärkning, men de behöver inte längre
+          rymmas inom tre år: den gamla regeln mätte hur ofta kommunen
+          kontrollerade i stället för hur verksamheten sköttes.
+          {' '}{formatNumber(revision.added)} verksamheter tillkom och
+          {' '}{revision.removed === 0 ? 'ingen togs bort' : `${formatNumber(revision.removed)} togs bort`}.
+          Alla {formatNumber(revision.previousQualified)} som stod här när
+          utgåvan frystes {formatDate(revision.frozen)} står kvar.
+        </p>
+      )}
     </header>
 
     <nav class="jump" aria-label="Kommuner i utgåvan">
@@ -103,7 +119,7 @@ const jsonLd = {
               utgåvans egen ribba, och inte mot historyDepth. Talet i meningen
               måste följa med den. */}
           {formatNumber(m.qualified.length)} av de {formatNumber(m.pool)} som
-          kontrollerats minst {barWord} gånger inom fönstret klarade samtliga
+          alls hunnit kontrolleras {barWord} gånger klarade de {barWord} senaste
           utan anmärkning. <a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
         </p>
 
@@ -111,9 +127,9 @@ const jsonLd = {
           <AwardList groups={excerpt} kommun={m.slug} level={3} />
         ) : (
           <p class="intro text-secondary">
-            Samtliga {formatNumber(m.qualified.length)} har
-            {' '}{numeral(groups[0].run)} kontroller i rad, alltså allt kommunen
-            publicerar. Ingen av dem står före någon annan.
+            {groups.length === 1
+              ? `Samtliga ${formatNumber(m.qualified.length)} har ${numeral(groups[0].run)} kontroller i rad, alltså allt kommunen publicerar. Ingen av dem står före någon annan.`
+              : `Den längsta serien i ${m.city} är ${numeral(m.topRun)} kontroller i rad. Hela listan står på kommunens egen sida.`}
           </p>
         )}
 
@@ -174,8 +190,8 @@ const jsonLd = {
               <li>
                 I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)} av
                 {' '}{formatNumber(m.establishments)} verksamheter alls
-                kontrollerats {barWord} gånger inom treårsfönstret.
-                {' '}<a href={path(m.slug)}>Se {m.city}</a>.
+                kontrollerats {barWord} gånger med en kontroll färsk nog att
+                bedöma. <a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}
           </ul>
@@ -193,11 +209,11 @@ const jsonLd = {
     <section class="method">
       <h2>Hur utgåvan är gjord</h2>
       <p>
-        {capitalise(barWord)} kontroller inom de senaste tre åren, samtliga utan
-        anmärkning, räknat ur {formatNumber(e.totals.establishments)} verksamheter i
-        {' '}{e.totals.municipalities} kommuner. Utgåvan frystes
-        {' '}{formatDate(e.asOf)} och räknas inte om; nuläget står på varje
-        verksamhets egen sida.
+        {capitalise(barWord)} kontroller i rad utan anmärkning, och en kontroll
+        gjord de senaste tre åren, räknat ur
+        {' '}{formatNumber(e.totals.establishments)} verksamheter i
+        {' '}{e.totals.municipalities} kommuner. Utgåvan står still; nuläget står
+        på varje verksamhets egen sida.
         {' '}<a href={path('utmarkelser')}>Varför listan ser ut så här</a>.
       </p>
       <p>
@@ -229,6 +245,19 @@ const jsonLd = {
     margin-top: var(--s-4);
     font-size: var(--fs-body);
     line-height: var(--lh-body);
+  }
+
+  /* Rättelsen står i sidhuvudet, inte längst ner. Den som såg listan i går ska
+     möta förklaringen innan listan, inte efter den. */
+  .revision {
+    margin-top: var(--s-4);
+    padding: var(--s-4);
+    background: var(--card);
+    border-left: 3px solid var(--verdict-none);
+    border-radius: 0 var(--r-control) var(--r-control) 0;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+    color: var(--text-secondary);
   }
 
   /* Hoppnavigering. Utgåvan är lång, och utan den måste läsaren rulla förbi

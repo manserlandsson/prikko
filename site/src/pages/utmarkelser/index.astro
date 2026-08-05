@@ -11,10 +11,18 @@
 import Base from '../../layouts/Base.astro';
 import AwardSeal from '../../components/AwardSeal.astro';
 import { coverage, formatDate, formatNumber } from '../../lib/data';
-import { DISTINCTION, SITE } from '../../lib/site';
+import { SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 import { dataUpdated } from '../../lib/rapporter';
-import { awardBar, capitalise, editionFacts, editions, latestEdition, numeral } from '../../lib/utmarkelser';
+import {
+  awardBar,
+  awardRevision,
+  capitalise,
+  editionFacts,
+  editions,
+  latestEdition,
+  numeral,
+} from '../../lib/utmarkelser';
 
 const all = editions();
 const latest = latestEdition();
@@ -27,6 +35,28 @@ const facts = editionFacts(latest.year);
    datadrivna stycken. Se awardBar i lib/utmarkelser.ts. */
 const bar = awardBar(latest.year);
 const barWord = numeral(bar);
+/* Omräkningen av 2026 står i utgåvan, inte i en mening någon skrivit här. Se
+   revision i scripts/utmarkelser.mjs. */
+const revision = awardRevision(latest.year);
+/**
+ * Längsta rena serien i hela utgåvan, med de år den tog.
+ *
+ * Talen står tillsammans med avsikt. Enbart serielängden hade inte visat något:
+ * ett fönster på tre år rymmer sexton kontroller i Stockholm, där de tätast
+ * kontrollerade verksamheterna har 28 inom fönstret. Det är tiden serien
+ * spänner över som den gamla regeln stängde ute.
+ */
+const longestEntry = facts.listed
+  .flatMap((m) => m.qualified)
+  .reduce<(typeof facts.listed)[number]['qualified'][number] | null>(
+    (best, q) => (best === null || q.run > best.run ? q : best),
+    null,
+  );
+const longestYears = longestEntry
+  ? Math.round(
+      (Date.parse(longestEntry.to) - Date.parse(longestEntry.from)) / (365.25 * 864e5),
+    )
+  : 0;
 const total = coverage();
 const updated = dataUpdated();
 
@@ -94,10 +124,34 @@ const jsonLd = {
     <section>
       <h2>Vad som krävs</h2>
       <p>
-        {capitalise(barWord)} kontroller inom de senaste tre åren, och ingen
-        anmärkning vid någon av dem. Inget annat vägs in, och kravet är
+        {capitalise(barWord)} kontroller i rad utan anmärkning, och en kontroll
+        som är färsk nog att bedöma, alltså gjord de senaste tre åren. Hur lång
+        tid serien tog spelar ingen roll. Inget annat vägs in, och kravet är
         detsamma i varje kommun.
       </p>
+      <p>
+        Att tiden inte räknas är en rättelse. Tidigare krävdes {barWord}
+        {' '}kontroller inom en treårsperiod, och den regeln mätte hur ofta
+        kommunen kom på besök i stället för hur verksamheten sköts. En
+        verksamhet som inspekteras ungefär en gång om året nådde aldrig upp,
+        hur ren varje kontroll än var.
+        {longestEntry && (
+          <>
+            {' '}Den längsta serien i utgåvan är {formatNumber(longestEntry.run)}
+            {' '}kontroller i rad över {numeral(longestYears)} år.
+          </>
+        )}
+      </p>
+      {revision && (
+        <p>
+          {latest.year} års utgåva räknades därför om {formatDate(revision.revised)}.
+          {' '}{formatNumber(revision.added)} verksamheter tillkom och
+          {' '}{revision.removed === 0 ? 'ingen togs bort' : `${formatNumber(revision.removed)} togs bort`}.
+          Den som fick märket när utgåvan först frystes
+          {' '}{formatDate(revision.frozen)} står kvar i listan, och kommer att
+          göra det. Ett märke i ett fönster måste gå att slå upp.
+        </p>
+      )}
       <p>
         Utmärkelsen påverkar aldrig hygienbedömningen: nuläget avgör
         bedömningen, historiken avgör erkännandet. En verksamhet utan
@@ -123,9 +177,9 @@ const jsonLd = {
           Hur lång serien är går däremot inte att jämföra mellan kommuner.
           Taket sätts av hur många kontroller kommunen publicerar, inte av hur
           köket sköts: {facts.lowestCeiling.name} lämnar aldrig ut fler än
-          {' '}{numeral(facts.lowestCeiling.deepestWindow)} per verksamhet inom
-          fönstret, i {facts.highestCeiling.city} publiceras upp till
-          {' '}{formatNumber(facts.highestCeiling.deepestWindow)}.
+          {' '}{numeral(facts.lowestCeiling.maxHistory)} kontroller per
+          verksamhet, i {facts.highestCeiling.city} publiceras upp till
+          {' '}{formatNumber(facts.highestCeiling.maxHistory)}.
         </p>
       )}
       <p>
@@ -161,8 +215,8 @@ const jsonLd = {
               <li>
                 I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)}
                 {' '}av {formatNumber(m.establishments)} verksamheter alls
-                kontrollerats {barWord} gånger inom treårsfönstret.
-                {' '}<a href={path(m.slug)}>Se {m.city}</a>.
+                kontrollerats {barWord} gånger med en kontroll färsk nog att
+                bedöma. <a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}
           </ul>
@@ -202,11 +256,18 @@ const jsonLd = {
     <section class="method">
       <h2>Hur listan är gjord</h2>
       <p>
-        Utmärkelsen heter ”{DISTINCTION.label}” och sätts av samma
-        modell som varje hygienbedömning på Prikko. Underlaget vid bygget:
-        {' '}{formatNumber(total.inspections)} kontroller vid
-        {' '}{formatNumber(total.establishments)} verksamheter i
+        Utmärkelsen räknas ur samma kontrolluppgifter som varje hygienbedömning
+        på Prikko. Underlaget vid bygget: {formatNumber(total.inspections)}
+        {' '}kontroller vid {formatNumber(total.establishments)} verksamheter i
         {' '}{total.municipalities} kommuner, senast hämtat {formatDate(updated)}.
+      </p>
+      <p>
+        Utmärkelsen är inte samma sak som märkningen ”ren historik” på en
+        verksamhetssida. Den säger att de tre senaste kontrollerna är utan
+        anmärkning och räknas om varje gång vi hämtar data; utmärkelsen kräver
+        {' '}{barWord} i rad och står still.
+        {' '}<a href={`${path('metodik')}#utmarkelsen`}>Skillnaden i sin
+        helhet</a>.
       </p>
       <p>
         <a href={path('metodik')}>Så räknas bedömningen fram</a> ·

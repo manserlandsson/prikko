@@ -57,13 +57,38 @@ gör fler återbesök. Skillnaden ska följas när fler kommuner tillkommer — 
 får inte råka återinföra just det likvärdighetsproblem vi finns till för att
 lösa.
 
-## Varför historiken ger en utmärkelse, inte ett betygssteg
+## Varför historiken ger ett erkännande, inte ett betygssteg
 
 Med tre nivåer hamnar ungefär två tredjedelar av beståndet på den bästa. För
-att ändå skilja de genomgående skötsamma används historiken till en separat
-utmärkelse — samma idé som Danmarks Elite-Smiley. Historiken påverkar alltså
+att ändå skilja de genomgående skötsamma används historiken till ett separat
+erkännande, samma idé som Danmarks Elite-Smiley. Historiken påverkar alltså
 aldrig hur allvarligt något bedöms, bara om verksamheten förtjänar ett
-erkännande. Nuläget avgör bedömningen; historiken avgör utmärkelsen.
+erkännande. Nuläget avgör bedömningen; historiken avgör erkännandet.
+
+## `distinction` är MÄRKNINGEN, inte utmärkelsen
+
+Fältet heter `distinction` men bär den lägre av två ribbor, och de två blandades
+ihop i text fram till augusti 2026:
+
+    REN HISTORIK   Det här fältet. HISTORY_DEPTH kontroller inom
+                   FRESHNESS_WINDOW_DAYS, samtliga utan anmärkning. Visas som en
+                   märkning på verksamhetens sida och räknas om vid varje
+                   hämtning. Den försvinner samma dag kommunen noterar en
+                   avvikelse.
+
+    UTMÄRKELSEN    Årsutgåvan och märket med årtal. Fem kontroller I RAD utan
+                   anmärkning, utan tidsfönster, hos en verksamhet som har en
+                   bedömning. Räknas INTE här utan i site/scripts/utmarkelser.mjs
+                   och fryses en gång om året.
+
+Fältnamnet står kvar för att det går genom tolv hämtmoduler, databasschemat och
+sajtens datafiler. Namnet i koden är ett annat problem än namnet i texten, och
+det var bara det senare läsaren mötte.
+
+Utmärkelsens ribba får aldrig flyttas hit. Den skulle då bli omöjlig att nå i
+åtta av tolv kommuner, eftersom deras register inte är fem kontroller djupa, och
+verksamhetssidan skulle tappa sin enda positiva signal i större delen av landet.
+Att de två ribborna skiljer sig är avsikten, inte en glidning.
 
 ## Version 4: rent administrativa avvikelser skärps aldrig
 
@@ -243,7 +268,9 @@ class Assessment:
     """Utfallet. `verdict is None` betyder otillräckligt underlag."""
 
     verdict: Optional[str]
-    #: Genomgående utan anmärkningar vid alla kontroller i fönstret.
+    #: Märkningen "ren historik": utan anmärkning vid alla kontroller i
+    #: fönstret, minst HISTORY_DEPTH stycken. Inte årsutgåvans utmärkelse,
+    #: se modulens inledning.
     distinction: bool
     reason: str
     model_version: int
@@ -301,8 +328,10 @@ def assess(
     senaste kontrollen ligger i rent administrativa lagstiftningsområden —
     se modulens inledning om version 4.
 
-    Utmärkelsen ges när samtliga kontroller i fönstret — minst tre stycken —
-    är utan anmärkning. Den kan aldrig höja eller sänka nivån.
+    Märkningen "ren historik" ges när samtliga kontroller i fönstret, minst
+    HISTORY_DEPTH stycken, är utan anmärkning. Den kan aldrig höja eller sänka
+    nivån. Årsutgåvans utmärkelse har en högre ribba och räknas inte här; se
+    modulens inledning.
     """
     window_start = date.fromordinal(today.toordinal() - FRESHNESS_WINDOW_DAYS)
 

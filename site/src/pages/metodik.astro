@@ -13,12 +13,14 @@
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
 import {
+  HISTORY_DEPTH,
   limitedMunicipalities,
   municipalitySummaries,
   sourceLimits,
 } from '../lib/data';
 import { SITE } from '../lib/site';
 import { path } from '../lib/urls';
+import { awardBar, capitalise, latestEdition, numeral } from '../lib/utmarkelser';
 
 // MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
 // CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
@@ -87,6 +89,18 @@ const spread =
 
 /** Kommuner där källan stänger ute ett utfall helt. */
 const limited = limitedMunicipalities();
+
+/*
+ * De två ribborna hämtas, aldrig skrivs för hand.
+ *
+ * Sidan sade "tre kontroller" om utmärkelsen medan utgåvan krävde fem, och
+ * "version 2" medan modellen var 3. Båda felen kom av tal som skrivits in i
+ * löptext och sedan blivit kvar. Chipets ribba bor i data.ts, som speglar
+ * grading.py; utmärkelsens bor i den frysta utgåvan.
+ */
+const latest = latestEdition();
+const chipWord = numeral(HISTORY_DEPTH);
+const awardWord = latest ? numeral(awardBar(latest.year)) : null;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -240,24 +254,72 @@ const jsonLd = {
       </p>
     </section>
 
-    <section>
-      <h2>Historiken ger en utmärkelse, inte ett betygssteg</h2>
+    <section id="utmarkelsen">
+      <h2>Historiken ger ett erkännande, inte ett betygssteg</h2>
       <p>
         De allra flesta verksamheter sköter sig. Med tre nivåer skulle ungefär
         två tredjedelar hamna på den bästa, vilket gör det svårt att skilja de
-        genomgående skötsamma från de nyss godkända.
+        genomgående skötsamma från de nyss godkända. Därför vägs historiken in
+        separat. Den påverkar aldrig hur allvarligt något bedöms: nuläget avgör
+        bedömningen, historiken avgör erkännandet.
       </p>
       <p>
-        Därför får verksamheter med rent resultat vid <strong>samtliga tre
-        senaste kontrollerna</strong> en utmärkelse. Den påverkar aldrig hur
-        allvarligt något bedöms, bara om verksamheten förtjänar ett
-        erkännande. Nuläget avgör bedömningen, historiken avgör utmärkelsen.
+        Erkännandet finns i två former, med olika krav. De hette båda
+        ”utmärkelsen” fram till augusti 2026, vilket gjorde att den här sidan och
+        utmärkelsesidan gav två svar på samma fråga. Nu heter de olika saker.
+      </p>
+
+      <h3>Ren historik: märkningen på verksamhetens sida</h3>
+      <p>
+        En verksamhet med rent resultat vid <strong>samtliga {chipWord} senaste
+        kontrollerna</strong> märks som ren historik. Kontrollerna ska ligga inom
+        treårsfönstret, samma fönster som avgör om vi alls bedömer.
       </p>
       <p>
-        Tre kontroller är också ett krav. Finns bara en eller två i kommunens
-        register ges ingen utmärkelse, oavsett hur rena de är. Det är ett medvetet
-        val: utmärkelsen ska betyda att vi sett ett mönster, inte att vi gissat
-        på ett.
+        {capitalise(chipWord)} kontroller är också ett krav. Finns bara en
+        eller två i kommunens register ges ingen märkning, oavsett hur rena de
+        är: märkningen ska betyda att vi sett ett mönster, inte att vi gissat på
+        ett. Den räknas om varje gång vi hämtar data och försvinner samma dag
+        kommunen noterar en avvikelse.
+      </p>
+
+      <h3>Utmärkelsen: årslistan och märket</h3>
+      {awardWord && latest && (
+        <>
+          <p>
+            Utmärkelsen ligger högre och delas ut en gång om året. Den kräver
+            {' '}<strong>{awardWord} kontroller i rad utan anmärkning</strong>,
+            hos en verksamhet vars senaste kontroll är färsk nog att bedöma.
+            Serien får ta hur lång tid som helst. Listan fryses per ett datum och
+            räknas aldrig om, så ett märke i ett fönster går att slå upp i
+            efterhand. <a href={path('utmarkelser')}>Utmärkelsen och årets
+            lista</a>.
+          </p>
+          <p>
+            Att tiden inte räknas är en rättelse av modellen. Fram till augusti
+            2026 skulle de {awardWord} kontrollerna rymmas inom tre år, och den
+            regeln mätte fel sak: hur ofta kommunen kom på besök, inte hur
+            verksamheten sköttes. Kontrollfrekvensen bestäms av riskklass och
+            myndighetens planering. En restaurang som inspekteras ungefär en gång
+            om året kunde ha ett decennium utan en enda anmärkning och ändå stå
+            utanför listan, medan en verksamhet med {awardWord} kontroller på
+            arton månader stod med.
+          </p>
+          <p>
+            När regeln rättades räknades {latest.year} års lista om. Ingen
+            verksamhet togs bort: var och en som klarade {awardWord} kontroller
+            inom tre år har per definition {awardWord} i rad. Det är också en
+            regel i bygget och inte bara en avsikt. Skulle en framtida ribba
+            plocka bort någon ur en publicerad lista stannar bygget, och svaret
+            blir en ny årsutgåva i stället för en omskriven gammal.
+          </p>
+        </>
+      )}
+      <p class="callout">
+        Ingen av de två kan nås i varje kommun. En kommun som bara publicerar
+        den senaste kontrollen gör båda omöjliga, hur välskötta verksamheterna
+        än är. Det står utskrivet på de sidor där nollan annars kunde
+        missförstås, och räknas fram ur datan.
       </p>
     </section>
 

@@ -249,7 +249,14 @@ class AdministrativeWeighting(unittest.TestCase):
 
 
 class Distinction(unittest.TestCase):
-    """Utmärkelsen ersätter de betygssteg vi inte kan belägga."""
+    """Märkningen "ren historik" ersätter de betygssteg vi inte kan belägga.
+
+    `distinction` är den LÄGRE av Prikkos två ribbor. Årsutgåvans utmärkelse
+    kräver fem kontroller i rad utan tidsfönster och räknas i
+    site/scripts/utmarkelser.mjs. Testerna nedan pinnar fast att det här fältet
+    styrs av fönstret och ingenting annat, så att en framtida ändring av
+    utmärkelsen inte råkar flytta märkningen med sig.
+    """
 
     def test_three_clean_inspections_earn_distinction(self):
         result = assess(
@@ -279,6 +286,40 @@ class Distinction(unittest.TestCase):
             TODAY,
         )
         self.assertFalse(result.distinction)
+
+    def test_a_long_clean_run_outside_the_window_earns_nothing_here(self):
+        """Fönstret styr märkningen, hur lång den obrutna serien än är.
+
+        Fem rena kontroller i rad, varav bara två ligger inom treårsfönstret.
+        Årsutgåvan skulle ge utmärkelsen; märkningen ges inte, eftersom den
+        beskriver nuläget och nuläget är två kontroller djupt.
+        """
+        result = assess(
+            [
+                insp(10, NO_REMARKS),
+                insp(700, NO_REMARKS),
+                insp(1300, NO_REMARKS),
+                insp(1900, NO_REMARKS),
+                insp(2500, NO_REMARKS),
+            ],
+            TODAY,
+        )
+        self.assertEqual(result.verdict, CLEAN)
+        self.assertFalse(result.distinction)
+
+    def test_distinction_is_the_lower_of_the_two_bars(self):
+        """Tre rena inom fönstret räcker här, men inte till årsutgåvan.
+
+        Testet finns för att fånga en sammanslagning av de två ribborna. Skulle
+        någon flytta utmärkelsens fem hit skulle märkningen bli omöjlig i åtta
+        av tolv kommuner, vars register inte är fem kontroller djupa.
+        """
+        result = assess(
+            [insp(10, NO_REMARKS), insp(300, NO_REMARKS), insp(600, NO_REMARKS)],
+            TODAY,
+        )
+        self.assertTrue(result.distinction)
+        self.assertEqual(len(result.based_on), 3)
 
 
 class InsufficientEvidence(unittest.TestCase):

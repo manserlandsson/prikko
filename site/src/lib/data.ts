@@ -745,7 +745,7 @@ export interface SourceLimits {
    * inte se att en avvikelse överlevt en uppföljning.
    */
   noInspectionType: boolean;
-  /** Kan någon verksamhet i kommunen alls nå utmärkelsen? */
+  /** Kan någon verksamhet i kommunen alls nå märkningen ”ren historik”? */
   distinctionPossible: boolean;
   /** Kan modellen alls härleda kvarstående brister i kommunen? */
   persistingPossible: boolean;
@@ -851,8 +851,9 @@ export function sourceLimits(slug: string): SourceLimits {
 
   const noInspectionType = typedInspections === 0;
 
-  // Utmärkelsen kräver HISTORY_DEPTH kontroller utan anmärkning. Räcker inte
-  // historiken till så många kontroller kan ingen få den.
+  // Märkningen "ren historik" kräver HISTORY_DEPTH kontroller utan anmärkning.
+  // Räcker inte historiken till så många kan ingen få den. Utmärkelsen, alltså
+  // årsutgåvan, har en högre ribba och redovisas i lib/utmarkelser.ts.
   const distinctionPossible = maxHistory >= HISTORY_DEPTH;
 
   /*
@@ -901,7 +902,7 @@ export function sourceLimits(slug: string): SourceLimits {
       : null;
 
   const missing: string[] = [];
-  if (!distinctionPossible) missing.push('utmärkelsen för genomgående skötsamhet');
+  if (!distinctionPossible) missing.push('märkningen ”ren historik”');
   if (!persistingPossible) missing.push('nivån ”Brister som kvarstår”');
 
   const limits: SourceLimits = {
