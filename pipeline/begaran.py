@@ -660,4 +660,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Missing as stop:
+        # Det här är alltid något ägaren ska rätta, aldrig en bugg. En
+        # stackspårning skulle dölja meningen som säger vad som fattas.
+        print(stop, file=sys.stderr)
+        raise SystemExit(1)
