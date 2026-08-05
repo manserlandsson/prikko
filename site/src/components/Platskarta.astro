@@ -17,11 +17,30 @@
  * karta från första byte, och biblioteket betalas bara av den som faktiskt
  * rullar ner till den.
  *
- * Platshållaren är Mapbox statiska bild-API (50 000 bilder/mån gratis,
- * attribution inbakad i bilden av API:et), som var hela kartlösningen här
- * innan den levande kartan fanns. Saknas token vid bygget står nålen på en
- * neutral yta i stället — rutan lovar fortfarande en karta, den visar bara
- * ingen förhandsbild.
+ * ## Varför platshållaren inte är en kartbild
+ *
+ * Den var det: Mapbox statiska bild-API, i deras stil light-v11. Tre fel med
+ * det, och alla tre var skäl nog var för sig.
+ *
+ * 1. Den kostade pengar vid trafik. Bilden hämtades av VARJE BESÖKARE och
+ *    inte vid bygget, alltså ett Mapbox-anrop per sidvisning. Med 8 000
+ *    verksamhetssidor med koordinat äts gratistaket på 50 000 bilder i
+ *    månaden upp vid minsta trafik.
+ * 2. Nyckeln låg öppet i HTML på varje sådan sida, där vem som helst kunde
+ *    plocka den och bränna kvoten.
+ * 3. Den syntes. Light-v11 ser inte ut som vår egen stil, så uppvaknandet
+ *    läste som ett hopp mellan två olika kartor. Ägaren rapporterade det
+ *    ordagrant: "först är det en annan karta, sen buggar det lite ... sen en
+ *    annan karta".
+ *
+ * Platshållaren behöver inte vara en karta. Den ska säga att en karta är på
+ * väg. Ytan är därför kartstilens EGEN bakgrundsfärg, läst ur
+ * public/kartstil/prikko.json vid bygget så att de två aldrig kan glida
+ * isär. Följden är att bytet inte längre syns som ett byte: marken har redan
+ * rätt färg när MapLibre tar över, och det enda som händer är att gator och
+ * kvarter tonar in ovanpå den.
+ *
+ * Inga externa anrop görs härifrån. Inga nycklar heller.
  *
  * ## Härledda koordinater
  *
@@ -34,6 +53,7 @@
 import type { VerdictOrNone } from '../lib/site';
 import { faceKey } from '../lib/face';
 import { faceSvg } from '../lib/kartbas';
+import kartstil from '../../public/kartstil/prikko.json';
 import '../styles/kartram.css';
 
 interface Props {
@@ -59,17 +79,19 @@ const key = faceKey(verdict);
  * porten zoomar själv — det är därför kartan är levande.
  */
 const ZOOM = 14;
-const WIDTH = 680;
-const HEIGHT = 320;
 
-const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
-const still = token
-  ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${lng},${lat},${ZOOM},0/${WIDTH}x${HEIGHT}@2x?access_token=${token}`
-  : null;
-
-const alt = derived
-  ? `Karta som visar den beräknade platsen för ${name}`
-  : `Karta som visar var ${name} ligger`;
+/**
+ * Kartans egen markfärg, hämtad ur stilen och inte skriven av.
+ *
+ * Läses vid bygget ur `background`-lagret i public/kartstil/prikko.json.
+ * Skrivs den av som ett värde här glider platshållaren isär från kartan dagen
+ * någon justerar stilen, och då är vi tillbaka i ett synligt hopp. Reserven
+ * finns bara för att en trasig stilfil inte ska ge en svart ruta.
+ */
+const botten =
+  (kartstil.layers.find((l) => l.id === 'background')?.paint as
+    | { 'background-color'?: string }
+    | undefined)?.['background-color'] ?? '#F2F1EC';
 
 /* Nålen i platshållaren är exakt samma ritning som den levande kartans nål
    rasteriserar — kartbytet byter mark under nålen, aldrig nålen själv. */
@@ -89,21 +111,11 @@ const nal = faceSvg(key, derived);
     data-zoom={ZOOM}
     data-name={name}
   >
-    {/* Platshållaren. Ligger kvar under den levande kartan tills den ritat
-        klart, så att bytet är en mjuk övergång och inte en vit blixt. */}
-    <div class="still" data-still>
-      {still ? (
-        <img
-          src={still}
-          alt={alt}
-          width={WIDTH}
-          height={HEIGHT}
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <span class="tomyta" aria-hidden="true"></span>
-      )}
+    {/* Platshållaren. Ligger ÖVER den levande kartan tills den ritat klart,
+        så att inga kartkontroller hinner blinka förbi och bytet blir en mjuk
+        övergång och inte en vit blixt. Ytan bär kartans egen markfärg, se
+        `botten` ovan. */}
+    <div class="still" data-still style={`background: ${botten}`}>
       <span class="nal" set:html={nal} />
       <button type="button" class="knapp" data-aktivera>Utforska kartan</button>
     </div>
@@ -251,22 +263,6 @@ const nal = faceSvg(key, derived);
     inset: 0;
     z-index: 2;
     transition: opacity 0.35s ease;
-  }
-
-  .still img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  /* Reservytan när bygget saknar token för förhandsbilden: samma svaga blå
-     ton som kartpuffen använder, en yta och inte ett tomrum. */
-  .tomyta {
-    display: block;
-    width: 100%;
-    height: 100%;
-    background: color-mix(in srgb, var(--brand) 7%, var(--card));
   }
 
   /* Nålens spets på koordinaten, som är bildens mittpunkt. Droppen är
