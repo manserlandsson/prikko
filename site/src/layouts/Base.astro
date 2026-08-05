@@ -9,7 +9,6 @@
  */
 import '@fontsource-variable/instrument-sans';
 import '../styles/tokens.css';
-import CommandPalette from '../components/CommandPalette.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SignInDialog from '../components/SignInDialog.astro';
@@ -134,11 +133,12 @@ const structuredData = jsonLd
         kilobyte och skriptet laddas ändå bara en gång per sida. */}
     <SignInDialog />
 
-    {/* Kommandopaletten (cmd+K) hör till layouten av samma skäl som
-        inloggningsrutan: genvägen ska fungera varhelst man står, alltså
-        måste rutan finnas överallt. Även den renderas som ett stängt
-        <dialog> och öppnas aldrig av sidladdning. */}
-    <CommandPalette />
+    {/* Kommandopaletten låg här, som en egen panel som cmd+K fällde ut ur
+        sökfältet. Den finns inte längre: genvägen och fältet delar numera
+        EN panel, författad inuti SiteSearch. Två paneler under samma fält
+        gav två olika svar på samma sökord, och sidhuvudet följer med varje
+        sida ändå, så genvägen fungerar överallt utan att layouten behöver
+        rendera något extra. */}
   </body>
 </html>
 
