@@ -168,9 +168,9 @@ const GROUPS: Array<{
         {/* Kommunens uppgift. Ingen väg framåt hos oss, och det ska stå
             innan någon skriver en text vi inte kan göra något med. */}
         <p class="notice notice-wait" id="to-municipality" hidden role="status">
-          <b>Det här kan vi inte rätta.</b> Vi återger kommunens kontrollrapport
-          och ändrar den aldrig. Rättelse begärs hos kommunens miljöförvaltning.
-          Hör ändå av dig, så markerar vi uppgiften som bestridd medan den utreds.
+          <b>Det här kan vi inte rätta.</b> Rättelsen begärs hos kommunens
+          miljöförvaltning, som äger uppgiften. Hör ändå av dig, så markerar vi
+          den som bestridd medan den utreds.
         </p>
 
         {/* Verksamheten. Ifylld i förväg när man kommer från verksamhetssidan. */}
@@ -297,10 +297,11 @@ const GROUPS: Array<{
         <p class="notice notice-error" role="alert" id="handoff-why">
           <b>Kunde inte skicka.</b>
         </p>
+        {/* "Rättelsen är inte inskickad" stod här också. Notisen ovanför
+            säger det redan, en rad upp. */}
         <p class="fallback">
-          Rättelsen är alltså inte inskickad. Mejla
-          <a href={`mailto:${CONTACT}`}>{CONTACT}</a> och klistra in texten
-          nedan, så tappas ingenting bort.
+          Mejla <a href={`mailto:${CONTACT}`}>{CONTACT}</a> och klistra in
+          texten nedan, så tappas ingenting bort.
         </p>
         <textarea id="draft" readonly rows="12" aria-label="Texten till mejlet"></textarea>
         <div class="konto-actions">
@@ -310,8 +311,8 @@ const GROUPS: Array<{
       </div>
 
       <p class="konto-legal">
-        Vi svarar normalt inom några dagar. Uppgifterna du lämnar används för
-        att utreda och besvara din rättelse, inget annat. Se
+        Vi svarar normalt inom några dagar. Uppgifterna används bara för att
+        utreda och besvara din rättelse. Se
         <a href="/integritetspolicy/">integritetspolicyn</a>.
       </p>
     </div>

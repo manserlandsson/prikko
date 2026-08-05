@@ -24,8 +24,10 @@
  * publicering, inte köken.
  *
  * Urvalskriterierna står i sidfoten, inte före listan. Ägarens beslut
- * (2026-08-05): sidan ska visa saken, inte förklara sig först. Replikrätten
- * och Rätta-länken ligger kvar i sidhuvudets bildtext.
+ * (2026-08-05): sidan ska visa saken, inte förklara sig först. Sidhuvudets
+ * bildtext bär numera bara två länkar; hämtdatumet och replikrätten flyttades
+ * ned till #urval, så att proveniensen står EN gång och längst ned. Se
+ * docs/18_sprakregler.md.
  */
 import Base from '../../layouts/Base.astro';
 import FaceRef from '../../components/FaceRef.astro';
@@ -124,10 +126,13 @@ function groundText(r: (typeof rows)[number]): string {
       <p class="eyebrow">{kommun.name}</p>
       <h1>Matsnusk i {city}</h1>
       <p class="answer">{answer}</p>
+      {/* Bara vägvisning här, ingen proveniens och ingen replikrätt. Raden
+          bar tidigare båda, alltså ett stycke om varifrån datan kom ovanför
+          det den handlade om, samtidigt som avsnittet längst ned sade samma
+          sak en gång till. Hämtdatumet och replikrätten står nu bara i
+          #urval. Länkarna är kvar: de är navigation, inte förklaring. */}
       <p class="caption text-muted">
-        Referat av kommunens kontrolldata, hämtad {formatDate(fetched)}.
-        Verksamheter kan svara; svar publiceras ordagrant.
-        {' '}<a href="#urval">Så väljs listan ut</a> ·
+        <a href="#urval">Så väljs listan ut</a> ·
         {' '}<a href={path('ratta')}>Rätta en uppgift</a>
       </p>
     </header>
@@ -172,23 +177,24 @@ function groundText(r: (typeof rows)[number]): string {
     <section id="urval" class="method">
       <h2>Så väljs listan ut</h2>
       <p>
-        Tre krav, alla ur {kommun.name}s egna kontrolldata: bedömningen
-        brister som kvarstår, minst en avvikelse som rör livsmedlen eller
-        hanteringen av dem enligt Livsmedelsverkets lagstiftningsområden, och
-        en kontroll som är högst tolv månader gammal. Rent administrativa
-        avvikelser, som en saknad registrering, räcker aldrig. Det gör inte
-        heller en kontroll där kommunen inte redovisat vad avvikelserna
-        gällde.
+        Tre krav: bedömningen brister som kvarstår, minst en avvikelse som rör
+        livsmedlen eller hanteringen av dem enligt Livsmedelsverkets
+        lagstiftningsområden, och en kontroll som är högst tolv månader
+        gammal. Rent administrativa avvikelser, som en saknad registrering,
+        räcker aldrig, och inte heller en kontroll där kommunen inte redovisat
+        vad avvikelserna gällde.
       </p>
       <p>
         Listan räknas om vid varje datauppdatering, och en rad försvinner så
         snart en ny kontroll visar att bristerna åtgärdats. Raderna står i
         datumordning, nyast först, utan rangordning.
       </p>
+      {/* Replikrätten och proveniensen, en gång på sidan. Hämtdatumet stod
+          tidigare även i sidhuvudet. */}
       <p>
-        Varje verksamhet kan svara. Svaren publiceras ordagrant här och på
-        verksamhetens sida. Är en uppgift fel,
-        {' '}<a href={path('ratta')}>begär rättelse</a>.
+        Varje verksamhet kan svara, och svaren publiceras ordagrant. Är en
+        uppgift fel, <a href={path('ratta')}>begär rättelse</a>. Underlaget är
+        {kommun.name}s kontrolldata, hämtad {formatDate(fetched)}.
       </p>
       <p>
         <a href={path(kommun.slug, 'anmarkningar')}>Alla verksamheter med

@@ -14,8 +14,10 @@
  *
  * Foten längst ned står på varje rapport och är inte dekoration. Den säger vad
  * läsaren behöver veta för att kunna lita på talen: att de är räknade vid
- * bygget och inte skrivna för hand, vilket datum underlaget hämtades, och var
- * hela metoden ligger.
+ * bygget, hur stort underlaget är, vilket datum det hämtades, och var hela
+ * metoden ligger. Den är en källrad och ska förbli en källrad: växer den
+ * tillbaka till stycken med egen rubrik är den fel igen. Se
+ * docs/18_sprakregler.md.
  */
 import Base from './Base.astro';
 import { SITE } from '../lib/site';
@@ -81,20 +83,19 @@ const jsonLd = {
 
     <slot />
 
+    {/* En källrad, samma form som rapportindexets. Foten var tre stycken med
+        egen rubrik som förklarade att talen räknas och inte skrivs, att ingen
+        slutsats hämtats någon annanstans, och att texten inte behöver rättas
+        i efterhand. Det säger "räknat ur beståndet när sidan byggdes" redan.
+        Kvar är det som bara kan stå här: underlagets storlek, hämtdatumet och
+        de tre länkarna. */}
     <section class="method">
-      <h2>Hur rapporten är gjord</h2>
       <p>
-        Varje tal ovan är räknat ur Prikkos bestånd när sidan byggdes, på samma
-        sätt som siffrorna på en verksamhets sida. Ingen slutsats är skriven för
-        hand och ingen är hämtad någon annanstans ifrån. Underlaget är
+        Räknat ur Prikkos bestånd när sidan byggdes:
         {' '}{formatNumber(total.inspections)} kontroller vid
         {' '}{formatNumber(total.establishments)} verksamheter i
-        {' '}{total.municipalities} kommuner.
-      </p>
-      <p>
-        Rapporten räknas om varje gång datan hämtas. Ändras siffrorna i
-        kommunernas register ändras de här, utan att någon behöver rätta texten
-        i efterhand. Underlaget hämtades senast {formatDate(updated)}.
+        {' '}{total.municipalities} kommuner, senast hämtat
+        {' '}{formatDate(updated)}. Talen räknas om vid varje uppdatering.
       </p>
       <p>
         <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
@@ -207,11 +208,6 @@ const jsonLd = {
     border-top: 1px solid var(--hairline);
     padding-top: var(--s-6);
     font-size: var(--fs-body-s);
-  }
-
-  .method h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
   }
 
   .method p {

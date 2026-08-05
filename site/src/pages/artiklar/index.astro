@@ -77,8 +77,7 @@ const jsonLd = {
       <h1>Så fungerar livsmedelskontrollen</h1>
       <p class="lede text-secondary">
         Kontrollrapporterna är offentliga, men språket i dem är myndighetens.
-        Här förklarar vi hur kontrollen går till, vad orden betyder och hur
-        siffrorna ska läsas. Varje påstående bär sin källa.
+        Vi översätter.
       </p>
     </header>
 
@@ -110,21 +109,21 @@ const jsonLd = {
       </ul>
     </section>
 
+    {/* En källrad, inte två stycken om vad en artikel är. Den gamla texten
+        förklarade skillnaden mellan artiklar och rapporter, att en artikel är
+        skriven och en rapport räknad, och att metodiken är publicerad. Allt
+        det står på de sidor raden länkar till. Kvar är det enda förbehåll som
+        inte står någon annanstans: ett tal i en artikel är fruset vid
+        skrivtillfället. Alla fyra länkarna finns kvar, ordagrant för
+        länkgrafens skull. */}
     <section class="about">
-      <h2>Skrivna, med källa på varje siffra</h2>
       <p>
-        Artiklarna är det ena av sajtens två redaktionella rum. Det andra är
-        {' '}<a href={path('rapporter')}>rapporterna</a>, där varje tal räknas
-        fram ur beståndet vid bygget. En artikel är i stället skriven text:
-        den förklarar, sätter siffror i sammanhang och pekar på källorna. När
-        en artikel nämner ett tal ur vårt eget bestånd står det när det
-        mättes, och de aktuella talen finns alltid på kommun- och
-        verksamhetssidorna.
-      </p>
-      <p>
-        <a href={path('metodik')}>Metodiken är publicerad i sin helhet</a>, och
-        {' '}<a href={path('kallor')}>varje källa redovisas öppet</a>. Menar du
-        att något är fel, <a href={path('ratta')}>rätta oss</a>.
+        Nämner en artikel ett tal ur beståndet står det när det mättes. De
+        aktuella talen finns på kommun- och verksamhetssidorna.
+        {' '}<a href={path('rapporter')}>Rapporterna</a> ·
+        {' '}<a href={path('metodik')}>Metodiken</a> ·
+        {' '}<a href={path('kallor')}>Källorna</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
       </p>
     </section>
   </div>
@@ -255,18 +254,8 @@ const jsonLd = {
     font-size: var(--fs-body-s);
   }
 
-  .about h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    margin-bottom: var(--s-3);
-  }
-
   .about p {
     line-height: 22px;
     color: var(--text-secondary);
-  }
-
-  .about p + p {
-    margin-top: var(--s-3);
   }
 </style>

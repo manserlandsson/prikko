@@ -90,11 +90,13 @@ const UPDATED = '3 augusti 2026';
     <header>
       <p class="eyebrow">Integritetspolicy</p>
       <h1>Hur vi hanterar personuppgifter</h1>
+      {/* Ingressen inledde med varifrån datan kommer och slutade med en
+          uppräkning av vad sidan innehåller. Källan står under "Varifrån
+          uppgifterna kommer", där den hör hemma; innehållet står i
+          rubrikerna. */}
       <p class="lede text-secondary">
-        Prikko publicerar kommunernas offentliga livsmedelskontroller. Det
-        mesta vi visar handlar om företag, inte om personer. Men en del av det
-        är ändå personuppgifter, och då gäller dataskyddsförordningen. Här står
-        vad vi gör, varför, och vad du kan kräva av oss.
+        Det mesta vi visar handlar om företag, inte om personer. En del är
+        ändå personuppgifter, och då gäller dataskyddsförordningen.
       </p>
       <p class="text-muted meta">Senast uppdaterad {UPDATED}.</p>
     </header>
@@ -148,16 +150,12 @@ const UPDATED = '3 augusti 2026';
 
     <section>
       <h2>Uppgifter om verksamheter</h2>
-      <p>
-        Det här är kärnan i tjänsten, och det är här dataskyddsfrågan faktiskt
-        uppstår.
-      </p>
 
       <h3>Varifrån uppgifterna kommer</h3>
       <p>
         Vi samlar inte in uppgifterna från verksamheterna själva. De kommer
-        från kommunernas livsmedelskontroll och är allmänna handlingar. Varje
-        källa redovisas öppet. <a href="/kallor/">Se källor och hämtdatum</a>.
+        från kommunernas livsmedelskontroll och är allmänna handlingar.
+        <a href="/kallor/">Se källor och hämtdatum</a>.
       </p>
 
       <h3>Vad vi publicerar</h3>
@@ -192,13 +190,11 @@ const UPDATED = '3 augusti 2026';
         därför normalt inte personuppgifter. En enskild firma är däremot inte
         skild från sin innehavare. Heter verksamheten samma sak som personen
         som driver den, är uppgiften om verksamheten också en uppgift om
-        personen. Den gruppen är vanlig bland små restauranger, och det är
-        främst för den här policyn finns.
+        personen. Den gruppen är vanlig bland små restauranger.
       </p>
       <p class="callout">
-        Vi bygger varje sida runt anläggningen, inte runt näringsidkaren.
-        Rubriken är serveringsstället. Det är ett medvetet val, just för att
-        hålla nere hur mycket sidan handlar om en person.
+        Vi bygger varje sida runt anläggningen, inte runt näringsidkaren, just
+        för att hålla nere hur mycket sidan handlar om en person.
       </p>
 
       <h3>Rättslig grund</h3>
@@ -214,7 +210,7 @@ const UPDATED = '3 augusti 2026';
         skydd enligt yttrandefrihetsgrundlagen, och 1 kap. 7 § lagen (2018:218)
         med kompletterande bestämmelser till EU:s dataskyddsförordning
         undantar behandling för journalistiska ändamål från stora delar av
-        förordningen. Vi vill vara raka med hur vi ser på det: EU-domstolen
+        förordningen. EU-domstolen
         slog i mål C-199/24 den 9 juli 2026 fast att ett utgivningsbevis inte
         i sig räcker för att GDPR ska sättas åt sidan. Vi utgår därför från
         att dataskyddsförordningen gäller parallellt, och vi hanterar
@@ -296,17 +292,18 @@ const UPDATED = '3 augusti 2026';
 
     <section>
       <h2>Om du skapar ett konto</h2>
+      {/* Att läsa inte kräver konto står redan i kortversionen överst. */}
       <p>
-        Att läsa Prikko kräver inget konto. Vill du skriva ett omdöme, bevaka
-        en verksamhet, ladda upp en bild eller svara som ägare behöver vi veta
-        att du är samma person nästa gång, och då krävs ett.
+        Vill du skriva ett omdöme, bevaka en verksamhet, ladda upp en bild
+        eller svara som ägare behöver vi veta att du är samma person nästa
+        gång, och då krävs ett konto.
       </p>
 
       <h3>Så går inloggningen till</h3>
       <p>
         Du skriver din e-postadress och får en sexsiffrig kod. Det finns inget
-        lösenord, alltså ingenting att glömma och ingen lösenordsdatabas som
-        kan läcka. Kontot skapas första gången du loggar in.
+        lösenord och ingen lösenordsdatabas som kan läcka. Kontot skapas
+        första gången du loggar in.
       </p>
 
       <h3>Vad vi sparar om dig</h3>
@@ -413,8 +410,7 @@ const UPDATED = '3 augusti 2026';
         </div>
       </dl>
       <p>
-        Det som publiceras på sajten är däremot offentligt. Det är hela
-        poängen med tjänsten.
+        Det som publiceras på sajten är däremot offentligt.
       </p>
     </section>
 
@@ -480,21 +476,21 @@ const UPDATED = '3 augusti 2026';
         uppgiften som bestridd medan den utreds.
       </p>
       <p>
-        Vill du att en bedömning tas bort helt prövar vi begäran. Vi vill vara
-        ärliga om vad den prövningen innebär: uppgiften kommer från en allmän
-        handling som kommunen själv publicerat, och allmänintresset av att den
-        är tillgänglig väger tungt. Vi kan alltså inte lova radering på
-        förhand. Vi lovar att pröva varje begäran individuellt, att svara med
-        skäl, och att tala om att du kan vända dig till IMY om du är oenig.
+        Vill du att en bedömning tas bort helt prövar vi begäran. Uppgiften
+        kommer från en allmän handling som kommunen själv publicerat, och
+        allmänintresset av att den är tillgänglig väger tungt. Vi kan alltså
+        inte lova radering på förhand. Vi lovar att pröva varje begäran
+        individuellt, att svara med skäl, och att tala om att du kan vända dig
+        till IMY om du är oenig.
       </p>
     </section>
 
     <section>
       <h2>Ändringar</h2>
       <p>
-        Ändrar vi den här policyn uppdaterar vi datumet överst. Rättsläget
-        kring publicering av offentlig data om namngivna verksamheter rör sig
-        just nu, och sidan kommer att ändras när det gör det.
+        Ändrar vi policyn uppdaterar vi datumet överst. Rättsläget kring
+        publicering av offentlig data om namngivna verksamheter rör sig, och
+        sidan ändras när det gör det.
       </p>
     </section>
   </article>

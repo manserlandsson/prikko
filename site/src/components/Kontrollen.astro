@@ -54,7 +54,7 @@ const fromKolada = k
       Så bedrivs kontrollen i {city}
       <InfoTip
         label="så bedrivs kontrollen"
-        text={`Kommunens egen rapportering till Livsmedelsverket för ${k.year}. Ett högre tal är inte ett bättre tal: fler kontroller kan lika gärna spegla ett register med anläggningar som upphört utan att avregistreras, eller en riskklassning som styr om resurserna. Jämförelsetalet är medianen för landets ${formatNumber(k.report.authorities)} kontrollmyndigheter.`}
+        text={`Kommunens rapportering till Livsmedelsverket för ${k.year}. Ett högre tal är inte ett bättre tal: det kan lika gärna spegla ett register med anläggningar som upphört, eller en riskklassning som styr om resurserna. Jämförelsetalet är medianen för landets ${formatNumber(k.report.authorities)} kontrollmyndigheter.`}
       />
     </h2>
 
@@ -75,9 +75,8 @@ const fromKolada = k
         för på metodiksidan därför att det är här läsaren står när frågan
         uppstår. */}
     <p class="caveat caption text-secondary">
-      Kommunerna kontrollerar olika ofta och följer upp olika ofta. Andelen
-      verksamheter med kvarstående brister speglar därför både hygienen och
-      arbetssättet, och de två går inte att skilja åt utifrån.
+      Kommunerna kontrollerar och följer upp olika ofta, så andelen med
+      kvarstående brister speglar både hygienen och arbetssättet.
       {' '}<a href="/metodik/#jamfor">Därför rangordnar vi inte kommuner</a>.
     </p>
 
