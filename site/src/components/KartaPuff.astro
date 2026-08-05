@@ -1,29 +1,60 @@
 ---
 /**
- * Kartpuffen: en riktig förhandsbild av kommunens karta, som länkar dit.
+ * Kommunhubbens karta: en riktig karta, lat laddad.
  *
- * Ägaren ville se kartan på kommunsidan, inte bara en textlänk till den.
- * Samtidigt gäller viktargumentet i Karta.astro fullt ut: hubben väger 30 kB
- * och är sajtens mest besökta sidtyp, MapLibre väger 231 kB brotlat, och
- * Core Web Vitals är en rankningssignal. Kartprogrammet får alltså aldrig
- * ligga här.
+ * Ägarens dom om det förra försöket: "se linköping på karta är skumt gjort,
+ * vi vill ju visa kartan också." Rutan var då en liten bild som länkade
+ * vidare, alltså fortfarande en länk och inte en karta.
  *
- * Lösningen är Bookings: en liten kartbild med en "visa kartan"-knapp som
- * öppnar den riktiga vyn. Men i stället för en statisk bildtjänst ritas
- * bilden vid bygget, ur samma datamängd som kartsidan använder: varje punkt
- * är en verksamhet på sin riktiga plats, färgad efter sin bedömning.
- * Punktmolnet tecknar stadens form utan ett enda kartblad, kostar noll
- * JavaScript och några kilobyte SVG, och ljuger aldrig mot kartan man
- * kommer till, eftersom det ÄR kartans data.
+ * Booli mätt i webbläsaren, sökresultatet i 1440 px: kartan ligger som ett
+ * FAST lager på hela högra halvan, 752 × 836 px, medan listan rullar bredvid
+ * i sin 688-spalt. Kartan är alltså inte en puff hos dem utan halva sidan.
+ * I 390 px byter den plats med listan genom en knapp i kontrollraden överst,
+ * "Visa karta", 40 px hög med 4 px radie — inte en svävande knapp ovanpå
+ * innehållet.
  *
- * Stora kommuner glesas ut till högst MAX_DOTS punkter. Raderna i
- * datamängden är geografiskt sorterade (se map-data.ts), så ett jämnt urval
- * behåller stadens form. Urvalet är en bild och inte en statistik: inga tal
- * läses ur den, talen står i klartext bredvid.
+ * Vi kan inte ge kartan halva sidan, och skälet är vikt, inte smak. Se
+ * viktresonemanget i Karta.astro: hubben är sidtypen som bär trafiken, den
+ * väger 16 kB brotlat, och MapLibre väger 231 kB. Booli är en app som råkar
+ * ha adresser; hubben är en sida Google läser. Kartan får därför den plats
+ * en karta behöver för att LÄSAS som en karta, och biblioteket betalas bara
+ * av den som ber om det.
+ *
+ * ## Två lager, i den ordningen
+ *
+ * 1. **Punktbilden**, ritad vid bygget ur kartsidans egen datamängd. Varje
+ *    punkt är en verksamhet på sin riktiga plats, färgad efter sin
+ *    bedömning. Punktmolnet tecknar stadens form utan ett enda kartblad,
+ *    kostar noll JavaScript och några kilobyte SVG, och ljuger aldrig mot
+ *    kartan man kommer till, eftersom det ÄR kartans data. Den som har
+ *    JavaScript avslaget, och Googlebot vid första passet, ser den här.
+ *
+ * 2. **Den levande kartan**, MapLibre med vår egen stil och samma punkter
+ *    ovanpå riktiga kartblad. Vaknar på KLICK, aldrig av sig själv.
+ *
+ * ## Varför klick och inte vyn
+ *
+ * Platskartan på verksamhetssidan vaknar när rutan når vyn. Det går där
+ * eftersom den ligger långt ner på sidan. Här ligger rutan ovanför vecket i
+ * båda bredderna, så "när rutan når vyn" hade betytt "alltid", och då är
+ * lasten inte lat utan bara fördröjd. Knappen är därför den enda utlösaren,
+ * och den säger i klartext vad ett klick ger.
+ *
+ * ## Varför punkter och inte nålar
+ *
+ * Kartsidan ritar droppnålar med ansikte, klustrar dem och kan sökas. Den
+ * här kartan visar var verksamheterna FINNS. Stockholm är 8 511 punkter, och
+ * 8 511 nålar i en 328 px bred ruta är en enda klump. Cirklarna är dessutom
+ * samma tecken som punktbilden under, så uppvaknandet byter mark under
+ * punkterna i stället för att byta bild.
+ *
+ * Den som vill söka, filtrera och läsa korten går vidare till /karta/, och
+ * länken dit står kvar under rutan.
  */
 import { formatNumber, type Municipality } from '../lib/data';
 import type { MapDataset } from '../lib/map-data';
 import { path } from '../lib/urls';
+import '../styles/kartram.css';
 
 interface Props {
   kommun: Municipality;
@@ -98,58 +129,218 @@ const href = path(`/${kommun.slug}`, 'karta');
 const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med känd plats`;
 ---
 
-<a class="puff" href={href} aria-label={label}>
-  <span class="bild">
-    <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
-      {LAYERS.map((l) => l.d && (
-        <path
-          d={l.d}
-          stroke={l.color}
-          stroke-width={dot}
-          stroke-linecap="round"
-          fill="none"
-        />
-      ))}
-    </svg>
-    <span class="knapp">Visa kartan</span>
-  </span>
-  <span class="antal text-secondary">
-    {formatNumber(data.count)} verksamheter med känd plats
-  </span>
-</a>
+<section class="kartruta" aria-labelledby="kartrubrik">
+  <h2 id="kartrubrik" class="visually-hidden">Karta över {city}</h2>
+
+  <div
+    class="kartram"
+    data-kommunkarta
+    data-src={data.url}
+    data-bounds={data.bounds.join(',')}
+    data-city={city}
+  >
+    {/* Punktbilden. Ligger kvar under den levande kartan tills den ritat
+        klart, så att bytet är en mjuk övergång och inte en vit blixt. */}
+    <div class="still" data-still>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+        {LAYERS.map((l) => l.d && (
+          <path
+            d={l.d}
+            stroke={l.color}
+            stroke-width={dot}
+            stroke-linecap="round"
+            fill="none"
+          />
+        ))}
+      </svg>
+      <button type="button" class="knapp" data-aktivera>Visa kartan</button>
+    </div>
+
+    <div class="duk" data-duk aria-hidden="true"></div>
+
+    <p class="fel" data-fel hidden role="alert">
+      Kartan gick inte att ladda.
+    </p>
+  </div>
+
+  {/* Antalet i klartext under rutan, aldrig läst ur bilden. Länken går till
+      kartsidan, som kan sökas och visar varje ställe med namn och datum. */}
+  <p class="fot">
+    <span class="antal text-secondary">
+      {formatNumber(data.count)} verksamheter med känd plats
+    </span>
+    <a href={href}>Öppna hela kartan</a>
+  </p>
+</section>
+
+<script>
+  /**
+   * Kartans uppvaknande. Se modulkommentaren för varför den bara vaknar på
+   * klick, och lib/kartbas.ts för varför MapLibre laddas som statisk fil
+   * utanför paketeraren.
+   */
+  import { KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+
+  const root = document.querySelector<HTMLElement>('[data-kommunkarta]');
+
+  if (root) {
+    const duk = root.querySelector<HTMLElement>('[data-duk]')!;
+    const still = root.querySelector<HTMLElement>('[data-still]')!;
+    const knapp = root.querySelector<HTMLButtonElement>('[data-aktivera]')!;
+    const fel = root.querySelector<HTMLElement>('[data-fel]')!;
+
+    /*
+     * Bedömningens ytfärger. Samma värden som tokens.css och som kartsidans
+     * nålar, skrivna som tal av samma skäl som där: MapLibre målar i WebGL
+     * och kan inte läsa en CSS-variabel. Ändras en färg i tokens ändras den
+     * här, i Karta.astro och i lib/face.ts.
+     */
+    const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
+
+    let startad = false;
+
+    async function start() {
+      if (startad) return;
+      startad = true;
+      knapp.disabled = true;
+
+      try {
+        laddaMaplibreCss();
+        const [maplibre, raw] = await Promise.all([
+          laddaMaplibre(),
+          fetch(root!.dataset.src!).then((r) => r.json()) as Promise<{
+            x: number[];
+            y: number[];
+            v: string;
+          }>,
+        ]);
+        const { Map, NavigationControl, AttributionControl, FullscreenControl } = maplibre;
+
+        /*
+         * Deltakodade heltal i hundratusendels grad, se map-data.ts.
+         * Ritordningen är källans ordning för cirkellager, så punkterna
+         * sorteras grått, grönt, gult, rött: en anmärkning ska inte hamna
+         * under mängden. Samma prioritet som punktbilden och kartsidan har.
+         */
+        const hinkar: GeoJSON.Feature[][] = [[], [], [], []];
+        let lng = 0;
+        let lat = 0;
+        for (let i = 0; i < raw.x.length; i++) {
+          lng += raw.x[i];
+          lat += raw.y[i];
+          const v = Number(raw.v[i]);
+          hinkar[v]?.push({
+            type: 'Feature',
+            properties: { v },
+            geometry: { type: 'Point', coordinates: [lng / 1e5, lat / 1e5] },
+          });
+        }
+        const features = [...hinkar[3], ...hinkar[0], ...hinkar[1], ...hinkar[2]];
+
+        const bounds = root!.dataset.bounds!.split(',').map(Number) as
+          [number, number, number, number];
+        const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const karta = new Map({
+          container: duk,
+          style: KARTSTIL,
+          bounds: [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+          fitBoundsOptions: { padding: 16, animate: false },
+          attributionControl: false,
+        });
+
+        // Helskärm på ramen och inte på duken, så att felraden följer med in.
+        // Samma resonemang som på kartsöksidan och platskartan.
+        karta.addControl(new FullscreenControl({ container: root! }), 'top-right');
+        karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+        // Kompakt attribution: rutan är 328 px bred, och den fulla raden
+        // hade lagt sig i två våningar över kartans underkant. Kravet är att
+        // upphovet SKA stå, inte att det ska ta en fjärdedel av kartan.
+        karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
+
+        karta.on('load', () => {
+          karta.addSource('punkter', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features },
+          });
+          karta.addLayer({
+            id: 'punkter',
+            type: 'circle',
+            source: 'punkter',
+            paint: {
+              // Växer med zoomen: i utzoomat läge ska staden läsas som en
+              // form, inzoomat ska den enskilda punkten gå att peka på.
+              'circle-radius': [
+                'interpolate', ['linear'], ['zoom'],
+                8, 2.5,
+                12, 4,
+                16, 7,
+              ],
+              'circle-color': [
+                'match', ['get', 'v'],
+                0, FARG[0],
+                1, FARG[1],
+                2, FARG[2],
+                FARG[3],
+              ],
+              // Vit kontur av samma skäl som nålen har den: kartbotten är
+              // färgad, och utan kant drunknar en gul punkt i en gul gata.
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff',
+            },
+          });
+
+          karta.getCanvas().setAttribute('aria-label', `Karta över ${root!.dataset.city}`);
+          duk.removeAttribute('aria-hidden');
+
+          root!.classList.add('live');
+          still.setAttribute('aria-hidden', 'true');
+        });
+
+        if (reducerad) karta.jumpTo(karta.getCenter() && karta.getCenter());
+      } catch (error) {
+        console.error(error);
+        // Punktbilden står kvar. Den ÄR en karta; felraden säger bara att
+        // den levande varianten uteblev.
+        fel.hidden = false;
+        knapp.hidden = true;
+      }
+    }
+
+    knapp.addEventListener('click', start);
+  }
+</script>
 
 <style>
-  .puff {
-    display: block;
-    overflow: hidden;
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-    color: var(--text);
-  }
-
-  .puff:hover {
-    text-decoration: none;
-    box-shadow: var(--shadow-pop);
-  }
-
-  .puff:hover .knapp { color: var(--brand-ink); }
-
-  .bild {
-    display: block;
-    position: relative;
-    /* En svag blå ton skiljer bilden från kortets vita och läser som vatten
-       och mark läser på en riktig karta: som en yta, inte som tomrum. */
+  /* Måtten är kartans egna; ramen (kant, radie, yta) bor i kartram.css. */
+  .kartram {
+    height: 320px;
+    /* Punktbilden ligger på en svag blå ton som skiljer den från kortets
+       vita och läser som vatten och mark läser på en riktig karta: som en
+       yta, inte som tomrum. */
     background: color-mix(in srgb, var(--brand) 7%, var(--card));
   }
 
-  .bild svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 210px;
+  .still {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.35s ease;
   }
 
+  .still svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Bilden är kommunens form och ska inte sträckas ur den. */
+    object-fit: contain;
+  }
+
+  /* Knappen är platskartans: en pill mot underkanten som säger vad ett klick
+     ger. Den är den ENDA utlösaren här, se modulkommentaren. */
   .knapp {
     position: absolute;
     left: 50%;
@@ -157,19 +348,71 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     transform: translateX(-50%);
     padding: var(--s-2) var(--s-4);
     background: var(--card);
+    border: 0;
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
+    font: 600 var(--fs-caption) / var(--lh-caption) var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .knapp:hover {
+    color: var(--brand-ink);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .duk {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* Kartan vaken: punktbilden tonar bort och släpper igenom pekaren. */
+  .live .still {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .fel {
+    position: absolute;
+    left: 50%;
+    bottom: var(--s-3);
+    transform: translateX(-50%);
+    z-index: 3;
+    margin: 0;
+    padding: var(--s-2) var(--s-4);
+    background: var(--card);
     border-radius: var(--r-pill);
     box-shadow: var(--shadow-sm);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    font-weight: 600;
+    color: var(--text-secondary);
     white-space: nowrap;
   }
 
-  .antal {
-    display: block;
-    padding: var(--s-3) var(--s-4);
+  /* Foten är en rad och inte ett kortunderrede: rutan står i en spalt med
+     hårlinjer och luft, inte i en ram. */
+  .fot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    margin-top: var(--s-2);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    border-top: 1px solid var(--hairline);
+  }
+
+  .fot a {
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  /* Smal skärm: kartan ligger överst i sidan, ovanför listan, och behöver
+     inte vara lika hög som i spalten bredvid listan. 200 px räcker för att
+     staden ska läsas som en stad utan att kartan blir en vägg framför det
+     man kom för. */
+  @media (max-width: 900px) {
+    .kartram { height: 200px; }
   }
 </style>

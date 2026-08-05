@@ -313,6 +313,39 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
 .status-published { color: var(--verdict-clean-ink); }
 .status-rejected { color: var(--verdict-major-ink); }
 
+/* Notiser.
+   Raden är kontosidans vanliga listrad plus en prick. Ingen egen ram, ingen
+   fyllning på olästa rader: en tonad bakgrund hade gjort listan randig, och
+   randigheten läses som gruppering och inte som status.
+
+   Innehållet toppjusteras. Ett avslagsskäl kan gå över tre rader, och en
+   centrerad status bredvid det hamnar mitt i en mening. */
+.notis-list li { align-items: flex-start; }
+
+/* Pricken. Brandblå och 8 px, alltså samma vikt som en olästmarkering har i
+   en inkorg. Den står FÖRE titeln: den säger något om hela raden, och det man
+   ser först ska vara det som avgör om raden är värd att läsa. */
+.notis-prick {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  /* Ner på första radens mitt. Raden toppjusteras, så utan det här sitter
+     pricken i linje med versalhöjden i stället för med texten. */
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+/* Läst. Ytan står kvar och blir genomskinlig i stället för att tas bort:
+   annars hoppar hela listan i sidled i samma stund som man tittat på den. */
+.notis-prick.last { background: transparent; }
+
+/* Bedömningen i notisen. Samma två etiketter och samma två bläck som
+   verksamhetssidan och notismejlet använder. `clean` finns inte: en godkänd
+   kontroll ger ingen notis. */
+.notis-minor { color: var(--verdict-minor-ink); }
+.notis-major { color: var(--verdict-major-ink); }
+
 /* Rättslig upplysningsruta. Står på varje yta där någon skriver text som
    kan bli publik. Aldrig hopblandad med formuläret den beskriver. */
 .konto-legal {
@@ -334,4 +367,9 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
 @media (max-width: 520px) {
   .konto-list li { flex-wrap: wrap; gap: var(--s-2); }
   .konto-main { flex-basis: 100%; }
+
+  /* Notisraden bär ett element till före titeln. Full bredd på .konto-main
+     hade tryckt ner titeln på egen rad UNDER pricken, och en prick utan text
+     bredvid sig betyder ingenting. Pricken är 8 px och radens gap är --s-2. */
+  .notis-list .konto-main { flex-basis: calc(100% - 8px - var(--s-2)); }
 }

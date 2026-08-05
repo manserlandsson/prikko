@@ -79,6 +79,39 @@ function measureKeyboard(): void {
   document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
 }
 
+/**
+ * Mätningen utan låset, räknad för sig.
+ *
+ * Skrollåset behöver tangentbordets höjd, men det är inte det enda som gör
+ * det. Sökpanelen räknar sin egen höjd mot utrymmet under fältet, och det
+ * utrymmet krymper när tangentbordet fälls upp — men panelen är en popup och
+ * får absolut INTE låsa sidan bakom sig. Utan den här uppdelningen hade
+ * panelen fått en andra kopia av `visualViewport`-mätningen, alltså två
+ * ställen som skriver samma variabel.
+ *
+ * Räknas för sig från låsets räknare: en öppen panel och ett öppet ark kan
+ * hålla mätningen samtidigt, och variabeln får inte försvinna för att det
+ * ena stängde.
+ */
+let keyboardWatchers = 0;
+
+export function trackKeyboard(): void {
+  keyboardWatchers += 1;
+  if (keyboardWatchers > 1) return;
+  measureKeyboard();
+  window.visualViewport?.addEventListener('resize', measureKeyboard);
+  window.visualViewport?.addEventListener('scroll', measureKeyboard);
+}
+
+export function untrackKeyboard(): void {
+  if (keyboardWatchers === 0) return;
+  keyboardWatchers -= 1;
+  if (keyboardWatchers > 0) return;
+  window.visualViewport?.removeEventListener('resize', measureKeyboard);
+  window.visualViewport?.removeEventListener('scroll', measureKeyboard);
+  document.documentElement.style.removeProperty('--keyboard-inset');
+}
+
 function apply(): void {
   const body = document.body;
 
@@ -98,17 +131,13 @@ function apply(): void {
   body.style.overflow = 'hidden';
   if (gap > 0) body.style.paddingRight = `${gap}px`;
 
-  measureKeyboard();
-  window.visualViewport?.addEventListener('resize', measureKeyboard);
-  window.visualViewport?.addEventListener('scroll', measureKeyboard);
+  trackKeyboard();
 }
 
 function release(): void {
   const body = document.body;
 
-  window.visualViewport?.removeEventListener('resize', measureKeyboard);
-  window.visualViewport?.removeEventListener('scroll', measureKeyboard);
-  document.documentElement.style.removeProperty('--keyboard-inset');
+  untrackKeyboard();
 
   for (const key of TOUCHED) body.style[key] = saved[key] ?? '';
 
