@@ -1,32 +1,25 @@
 ---
 /**
- * Åtgärderna i sidopanelen på verksamhetssidan.
+ * Rättelsen och replikrätten, i sidopanelen.
  *
- * Den här rutan har stått med tre avstängda knappar i blickfånget. Det är
- * värre än att inte ha dem: en avstängd kontroll är ett löfte man ser men inte
- * kan använda, och sidopanelen är den yta besökaren tittar mest på.
+ * Rutan bar tidigare fem saker: bevakning, omdöme, rättelse, en kvittensrad
+ * och verksamhetens egen väg in. Bevakningen och omdömet har flyttat till
+ * handlingsraden direkt under rubriken, där Booli har sina, se
+ * Handlingsrad.astro. Kvar står de två som vänder sig till en annan publik.
  *
- * Nu gör alla tre något. Ingen av dem är avstängd, och ingen av dem lovar mer
- * än den håller:
- *
- *   Följ verksamheten   privat bevakning, ingen publicering, ingen granskning.
- *                       Kräver inloggning, och knappen säger det innan man
- *                       klickar i stället för att gå sönder efteråt.
- *   Skriv ett omdöme    öppnar skrivrutan. Den bodde tidigare som ett utfällbart
- *                       formulär i omdömesavsnittet, och knappen här var en
- *                       hopplänk dit. Rutan bor i Reviews.astro; härifrån
- *                       öppnas den genom review-dialog.ts, som är samma
- *                       lösning som inloggningsrutan använder.
  *   Rätta en uppgift    till /ratta, som redan är den publicerade vägen för
  *                       rättelse och genmäle. Verksamheten följer med i
  *                       adressen, så att formuläret där står ifyllt i stället
  *                       för att be någon skriva av sin egen restaurangs namn.
+ *   Svara på en kontroll  verksamhetens replikrätt. Löftet i sidfoten och på
+ *                       metodiksidan är att svaren publiceras oredigerade,
+ *                       och den vägen måste alltid gå att hitta från sidan
+ *                       svaret gäller. Se ownerComment i lib/db.ts.
  *
- * "Anmäl en brist" är borttagen med avsikt. Prikko är ingen tillsynsmyndighet
- * och kan inte ta emot en anmälan om dålig hygien; den ska till kommunens
- * livsmedelsinspektion. Vi har inga anmälningsvägar per kommun i datan, så
- * knappen kunde inte peka någonstans sant. En knapp som ser ut som en
- * anmälningsväg men inte är det är sämre än ingen knapp.
+ * Att de INTE ligger i ögonhöjd är ett val och inte en nedprioritering. Den
+ * som driver ett ställe letar aktivt efter vägen in och hittar en panel i
+ * marginalen; besökaren som bara vill veta om stället är rent ska inte
+ * behöva sortera bort två knappar som inte angår hen.
  */
 import '../styles/konto.css';
 
@@ -55,45 +48,45 @@ const ownerHref = `/konto/verksamhet/?${params}`;
 const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pathname)}`;
 ---
 
-<div
-  class="actions"
-  id="actions"
-  data-establishment={establishmentId}
-  data-name={establishmentName}
-  data-kommun={municipalitySlug}
->
-  <button type="button" class="btn-primary" id="follow">Följ verksamheten</button>
-  <button type="button" class="btn-ghost" id="review-write">Skriv ett omdöme</button>
-  <a class="btn-ghost" href={correctionHref}>Rätta en uppgift</a>
-</div>
+<h2 class="rubrik">Stämmer inte uppgifterna?</h2>
 
-{/* Tom från början. Raden är en kvittens på något man gjort, inte en
-    beskrivning av vad knappen ovanför gör. "Bevakade verksamheter samlas på
-    ditt konto, listan är privat" stod här och sa två saker som ingen
-    undrade över innan de tryckt. */}
-<p class="follow-note caption text-muted" id="follow-note"></p>
+<p class="ingress caption text-secondary">
+  Allt på sidan kommer från kommunens egen kontroll. Ser du något som är fel,
+  säg till.
+</p>
+
+<a class="btn-ghost" href={correctionHref}>Rätta en uppgift</a>
 
 <p class="owner caption">
   <a href={ownerHref}>Driver du verksamheten? Svara på en kontroll</a>
 </p>
 
 <style>
-  .actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
+  /* Samma panelrubriknivå som resten av sidopanelen och som kommunhubben.
+     Regeln står här och inte i sidmallen eftersom Astros scopeade selektorer
+     inte korsar komponentgränser. */
+  .rubrik {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
     margin-top: var(--s-4);
   }
 
-  .actions > * {
-    width: 100%;
-    justify-content: center;
+  /* Marginalen skiljer rubriken från gatufotot ovanför. Saknar verksamheten
+     foto är rubriken panelens första barn, och då är luften panelens egen
+     padding. */
+  .rubrik:first-child { margin-top: 0; }
+
+  .ingress {
+    margin-top: var(--s-2);
   }
 
   .btn-ghost {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    margin-top: var(--s-3);
     background: transparent;
     color: var(--text);
     border: 1px solid var(--hairline);
@@ -109,11 +102,6 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
     text-decoration: none;
   }
 
-  .follow-note {
-    margin-top: var(--s-3);
-    text-align: center;
-  }
-
   .owner {
     margin-top: var(--s-3);
     padding-top: var(--s-3);
@@ -121,163 +109,3 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
     text-align: center;
   }
 </style>
-
-<script>
-  import {
-    configured,
-    signedIn,
-    isFollowing,
-    follow,
-    unfollow,
-    CommunityError,
-    onAuthChange,
-  } from '../lib/community';
-  import { openSignIn } from '../lib/signin-dialog';
-  import { openReviewDialog, reviewDialogAvailable } from '../lib/review-dialog';
-
-  const panel = document.getElementById('actions');
-  const button = document.getElementById('follow') as HTMLButtonElement | null;
-  const note = document.getElementById('follow-note') as HTMLParagraphElement | null;
-
-  if (panel && button && note) {
-    const place = {
-      id: panel.dataset.establishment ?? '',
-      name: panel.dataset.name ?? '',
-      municipalitySlug: panel.dataset.kommun ?? '',
-    };
-
-    let following = false;
-
-    function paint() {
-      /* "Sluta följa" och inte "Slutar följa". Etiketten på en knapp är det
-         man ber den göra, i infinitiv, inte en beskrivning av vad som pågår.
-         "Slutar följa" läser som en pågående händelse och får det att se ut
-         som att något redan sker. */
-      button!.textContent = following ? 'Sluta följa' : 'Följ verksamheten';
-      button!.classList.toggle('btn-primary', !following);
-      button!.classList.toggle('btn-ghost', following);
-    }
-
-    async function start() {
-      if (!configured) {
-        button!.disabled = true;
-        note!.textContent = 'Bevakning är inte påslagen på den här installationen.';
-        return;
-      }
-
-      const authed = await signedIn();
-
-      if (authed) {
-        try {
-          following = await isFollowing(place.id);
-        } catch {
-          /* Kunde inte läsa. Knappen står kvar på "följ", och skrivningen är
-             idempotent, så ett extra klick gör ingen skada. */
-        }
-      } else {
-        /* Ingen text. Knappen säger "Följ verksamheten" och inloggningen
-           kommer när man trycker. Att skriva ut kravet i förväg är att
-           förklara en dörr innan någon gått fram till den. */
-      }
-      paint();
-
-      /**
-       * En enda klickhanterare, oavsett om man är inloggad eller inte.
-       *
-       * Inloggningen är ett steg PÅ VÄGEN till det man ville göra, inte en
-       * annan sak att göra i stället. Den som trycker på "Följ" utloggad får
-       * rutan, och när den stängs fortsätter samma klick till bevakningen.
-       * Ingen behöver trycka två gånger, och knappen är aldrig avstängd.
-       */
-      button!.addEventListener('click', async () => {
-        if (!(await signedIn())) {
-          if (!(await openSignIn(button))) return;
-          // Nyss inloggad. Läget kan skilja sig från vad sidan trodde.
-          try {
-            following = await isFollowing(place.id);
-          } catch {
-            /* Behåll antagandet att inget följs. */
-          }
-          paint();
-        }
-
-        button!.disabled = true;
-        try {
-          if (following) {
-            await unfollow(place.id);
-            following = false;
-            note!.textContent = 'Borttagen.';
-          } else {
-            await follow(place);
-            following = true;
-            /* Vad bevakningen FAKTISKT gör, i en mening. Här stod "Sparad på
-               ditt konto", vilket var sant men lämnade frågan varför man
-               skulle vilja spara något. Nu finns ett svar: nattjobbet mejlar
-               när kommunen hittar anmärkningar. Se pipeline/notify.py.
-
-               Att den inte lovar mejl vid GODKÄNDA kontroller är avsiktligt
-               och ordagrant vad utskicket gör. */
-            note!.textContent =
-              'Sparad. Du får ett mejl om kommunen hittar anmärkningar här.';
-          }
-        } catch (err) {
-          note!.textContent =
-            err instanceof CommunityError ? err.message : 'Kunde inte spara. Försök igen.';
-        } finally {
-          button!.disabled = false;
-          paint();
-        }
-      });
-    }
-
-    /* Loggar någon in eller ut på en annan yta ska knappen följa med.
-       Utloggad betyder att bevakningen inte längre är känd, alltså tillbaka
-       till "Följ verksamheten" och en tom notisrad. */
-    onAuthChange(() => {
-      void (async () => {
-        if (await signedIn()) {
-          try {
-            following = await isFollowing(place.id);
-          } catch {
-            /* Behåll antagandet. */
-          }
-        } else {
-          following = false;
-          note!.textContent = '';
-        }
-        paint();
-      })();
-    });
-
-    void start();
-  }
-
-  /* Skriv ett omdöme -------------------------------------------------- */
-  /*
-   * Egen hanterare, utanför bevakningens. Knappen beror inte på panelens
-   * tillstånd och ska fungera även om bevakningen inte kunde startas.
-   */
-  const write = document.getElementById('review-write') as HTMLButtonElement | null;
-
-  if (write) {
-    write.addEventListener('click', async () => {
-      /* Rutan bor i Reviews och registrerar sig bara när omdömen är
-         påslagna. Är de det inte tar knappen oss till avsnittet, som skriver
-         ut varför, i stället för att göra ingenting. */
-      if (!reviewDialogAvailable()) {
-        location.hash = '#omdomen';
-        return;
-      }
-
-      /* Frågan om inloggning ställs INUTI klicket, aldrig vid sidladdning,
-         och rutan öppnas i samma klick när den är avklarad. Inloggningen är
-         ett steg på vägen till det man ville göra, inte en annan sak att
-         göra i stället. */
-      if (!(await signedIn())) {
-        if (!(await openSignIn(write))) return;
-      }
-
-      openReviewDialog(write);
-    });
-  }
-</script>

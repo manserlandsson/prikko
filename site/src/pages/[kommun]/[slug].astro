@@ -49,6 +49,9 @@ import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import Reviews from '../../components/Reviews.astro';
 import ActionPanel from '../../components/ActionPanel.astro';
+import ArtikelBanner from '../../components/ArtikelBanner.astro';
+import Handlingsrad from '../../components/Handlingsrad.astro';
+import Kontrolldatum from '../../components/Kontrolldatum.astro';
 import {
   categoriesOf,
   establishments,
@@ -288,6 +291,22 @@ if (e.lat && e.lng && e.geoSource !== 'osm') {
   jsonLd.geo = { '@type': 'GeoCoordinates', latitude: e.lat, longitude: e.lng };
 }
 
+/**
+ * Vilken artikel bandet längst ned visar.
+ *
+ * Kopplingen är stark på den här sidtypen, alltså väljs artikel och inte den
+ * senaste: den som just läst att stället har anmärkningar undrar rimligen vad
+ * som händer sedan, och den som läst en ren kontroll har mer nytta av att
+ * veta vad kontrollen faktiskt omfattar. Listan är en prioritetsordning;
+ * ArtikelBanner faller tillbaka på den senast publicerade artikeln av sig
+ * själv om slugen skulle försvinna, och visar ingenting alls så länge
+ * artikelsektionen ligger under sin kvalitetströskel.
+ */
+const artikelval =
+  e.verdict === 'minor' || e.verdict === 'major'
+    ? ['vad-hander-efter-en-anmarkning', 'sa-laser-du-en-hygienkontroll']
+    : ['sa-laser-du-en-hygienkontroll', 'vad-hander-efter-en-anmarkning'];
+
 const breadcrumbs = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
@@ -329,6 +348,18 @@ const breadcrumbs = {
       </p>
     </header>
 
+    {/* Handlingarna i ögonhöjd, som Boolis rad direkt under bilden. De låg
+        tidigare i sidopanelen, alltså efter hela huvudkolumnen på telefon.
+        Raden bär det besökaren gör; rättelsen och verksamhetens replikrätt
+        står kvar i panelen, se ActionPanel.astro. Delningens text är
+        svarsmeningen, som redan är skriven för att vara självbärande. */}
+    <Handlingsrad
+      establishmentId={e.id}
+      establishmentName={e.name}
+      municipalitySlug={kommun.slug}
+      shareText={answer}
+    />
+
     <div class="layout">
       <main class="main">
         {/* Bedömningen där booli har priset: en tyst etikett, ett stort
@@ -352,6 +383,14 @@ const breadcrumbs = {
             <a href="/metodik/">Så sätts bedömningen</a>
           </p>
         </section>
+
+        {/* Datumet bedömningen vilar på, som ett kalenderblad. PAUSAD av
+            ägaren: komponenten renderar ingenting, och flaggan som styr det
+            bor i Kontrolldatum.astro tillsammans med skälet. Anropet står
+            kvar så att beslutet ligger på ett ställe. */}
+        {latestInspection && (
+          <Kontrolldatum inspection={latestInspection} href="#kontrollhistorik" />
+        )}
 
         {/* Nyckelfakta i öppen rad direkt under beskedet, som Boolis
             Boarea · Rum · Byggår under priset. Förbehållen bor i tipsen. */}
@@ -493,6 +532,11 @@ const breadcrumbs = {
         </div>
       </aside>
     </div>
+
+    {/* Längst ned, efter allt man kom för. Bandet ligger utanför .layout och
+        kan därför aldrig skjuta ned bedömningen eller kontrollhistoriken; det
+        börjar där de två spalterna tar slut. */}
+    <ArtikelBanner prefer={artikelval} />
   </div>
 
 </Base>
