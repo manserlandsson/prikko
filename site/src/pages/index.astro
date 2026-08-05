@@ -415,7 +415,16 @@ const jsonLd = [
     justify-content: center;
     min-height: 520px;
     padding: var(--s-16) var(--s-4);
-    overflow: hidden;
+    /*
+     * INGEN overflow: hidden här.
+     *
+     * Den fanns för att hålla fotot innanför heron, men fotot ligger redan
+     * absolut med inset: 0 och object-fit: cover, alltså exakt i ramen, så
+     * den klippte ingenting utom det som skulle sticka ut: sökpanelen som
+     * fälls ut ur fältet. Panelen hamnade under kommunkorten i stället för
+     * över dem. En förälder med overflow: hidden klipper varje ättling,
+     * oavsett z-index.
+     */
   }
 
   .hero :global(.hero-foto) {

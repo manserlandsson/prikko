@@ -22,6 +22,8 @@ kräver en egen adapter.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
@@ -147,6 +149,21 @@ def search_body(
     }
 
 
+
+_TYPE_PREFIX = re.compile(r"^\d+\.\s*")
+
+
+def _clean_type(value: str) -> str:
+    """Stockholms verksamhetstyper bär ett sorteringsnummer: "1. Restaurang".
+
+    Numret är kommunens interna ordning i deras egen lista, inte en del av
+    namnet, och det syns rakt igenom till besökaren på verksamhetssidan
+    ("1. Restaurang - Kammakargatan 22"). Ingen annan av de tolv kommunerna
+    har prefixet, så det bryter dessutom kategoriseringen mellan kommuner.
+    """
+    return _TYPE_PREFIX.sub("", value.strip()).strip()
+
+
 def normalize_establishment(raw: dict) -> NormalizedEstablishment:
     id_local = raw["Id"]
 
@@ -159,10 +176,11 @@ def normalize_establishment(raw: dict) -> NormalizedEstablishment:
             # Hellre ingen position än en position som ljuger.
             lat = lng = None
 
-    types = [t.strip() for t in (raw.get("Business") or "").split(",") if t.strip()]
+    types = [_clean_type(t) for t in (raw.get("Business") or "").split(",")]
     other = (raw.get("AllOtherBusinessTypes") or "").strip()
     if other:
-        types += [t.strip() for t in other.split(",") if t.strip()]
+        types += [_clean_type(t) for t in other.split(",")]
+    types = [t for t in types if t]
 
     return NormalizedEstablishment(
         id_national=f"F-{MUNICIPALITY_CODE}-{id_local}",

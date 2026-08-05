@@ -596,8 +596,45 @@ export function rawValues(municipality: string, types: readonly string[] | null 
   return out;
 }
 
+/**
+ * Stockholms sorteringsnummer framför typen: "1. Restaurang".
+ *
+ * Numret är stadens interna listordning, inte en del av typnamnet, och det
+ * syntes rakt igenom till besökaren ("1. Restaurang · Kammakargatan 22").
+ * Pipelinen skalar av det vid inläsning, men tabellen nedan är skriven mot
+ * de prefixade strängarna och skulle annars sluta känna igen dem. Att skala
+ * av även HÄR gör uppslagningen okänslig för vilken form datan har, så att
+ * tabellen fortsätter fungera både före och efter en omkörning av pipelinen.
+ */
+const SORT_PREFIX = /^\d+\.\s*/;
+
+/**
+ * Tabellen ovan är skriven mot Stockholms RÅA strängar, alltså med prefixet
+ * kvar. Pipelinen skalar numera av det vid inläsning, så uppslagningen måste
+ * hitta "Restaurang" i en tabell som säger "1. Restaurang".
+ *
+ * Ett avskalat index byggs därför en gång per kommun, lat. Krockar mellan två
+ * prefix som ger samma namn kan inte uppstå i Stockholms lista, och skulle de
+ * uppstå vinner den första, vilket är samma ordning som tabellen har.
+ */
+const STRIPPED: Record<string, Record<string, Rule>> = {};
+
+function strippedFor(municipality: string): Record<string, Rule> {
+  const cached = STRIPPED[municipality];
+  if (cached) return cached;
+  const built: Record<string, Rule> = {};
+  for (const [key, rule] of Object.entries(PER_MUNICIPALITY[municipality] ?? {})) {
+    const utan = key.replace(SORT_PREFIX, '');
+    if (utan !== key && !(utan in built)) built[utan] = rule;
+  }
+  STRIPPED[municipality] = built;
+  return built;
+}
+
 export function ruleFor(municipality: string, value: string): Rule | undefined {
-  return PER_MUNICIPALITY[municipality]?.[value] ?? GLOBAL[value];
+  const direkt = PER_MUNICIPALITY[municipality]?.[value] ?? GLOBAL[value];
+  if (direkt) return direkt;
+  return strippedFor(municipality)[value];
 }
 
 // ---------------------------------------------------------------------------
