@@ -27,6 +27,7 @@
  */
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { popularSearches } from '../lib/snabbval';
+import { GLYPHS } from '../lib/sokforslag';
 
 interface Props {
   /**
@@ -101,6 +102,15 @@ const popular = popularSearches();
   <div class="panel glass" hidden data-panel>
     <p class="eyebrow head" id="site-search-head" data-head>Populära sökningar</p>
 
+    {/* Beskedet står FÖRE listan, inte efter den. Det bär tre lägen: hämtar
+        registret, registret gick inte att hämta, och inga träffar. I alla
+        tre är det svaret på frågan besökaren just ställde, och då kan det
+        inte ligga under raden som föreslår vad man gör i stället. Det ligger
+        dessutom utanför listboxen med flit: en listbox får bara innehålla
+        alternativ, och beskedet är inget man kan välja. aria-live gör att en
+        skärmläsare hör det utan att flytta fokus. */}
+    <p class="note" hidden aria-live="polite" data-note></p>
+
     <ul
       class="list"
       id="site-search-list"
@@ -108,32 +118,15 @@ const popular = popularSearches();
       aria-labelledby="site-search-head"
       data-list
     >
-      {popular.map((p, i) => (
+      {popular.map((p) => (
         <li role="presentation">
-          <a
-            href={p.href}
-            role="option"
-            id={`site-search-o${i}`}
-            aria-selected="false"
-          >
-            <span class="icon" aria-hidden="true">
-              {p.kind === 'kommun' ? (
-                <svg viewBox="0 0 20 20" focusable="false">
-                  <path
-                    d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                  />
-                  <circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 20 20" focusable="false">
-                  <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5" />
-                  <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-                </svg>
-              )}
+          <a href={p.href} role="option" aria-selected="false">
+            <span class="mark" aria-hidden="true">
+              <svg
+                viewBox="0 0 20 20"
+                focusable="false"
+                set:html={p.kind === 'kommun' ? GLYPHS.kommun : GLYPHS.query}
+              />
             </span>
             <span class="body">
               <span class="name">{p.name}</span>
@@ -143,8 +136,6 @@ const popular = popularSearches();
         </li>
       ))}
     </ul>
-
-    <p class="note" hidden data-note></p>
   </div>
 </div>
 
@@ -297,6 +288,18 @@ const popular = popularSearches();
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: var(--s-3);
+
+    /* Panelen ärver ALDRIG sidans textjustering.
+       Det här är felet ägaren fotograferade. Startsidans .hero-kort sätter
+       text-align: center för rubriken och underraden, och panelen hänger
+       inuti kortet. Varje namn centrerades därför över sin adress, medan
+       adressen — som är längre och fyller radens hela bredd — såg
+       vänsterställd ut. Resultatet var en sicksackande vänsterkant.
+       Regeln står på panelen och inte på .is-hero med flit: fältet ska
+       kunna monteras var som helst, i vilken centrerad förälder som helst,
+       utan att listan går sönder igen. Booli och hitta.se har båda en
+       centrerad hero och en strikt vänsterställd förslagslista under den. */
+    text-align: left;
   }
 
   .head {
@@ -324,19 +327,26 @@ const popular = popularSearches();
     background: color-mix(in srgb, var(--brand) 6%, transparent);
   }
 
-  .list :global(.icon) {
+  /* Märkeskolumnen. Fast bredd så att namnen står på EN linje oavsett vad
+     raden bär: ett bedömningsmärke, en kommunnål eller en förstoringsglas.
+
+     Den ljusgrå rutan bakom ikonen är borta. Den var 36 px, identisk på var
+     enda verksamhetsrad, och sa därmed ingenting alls — den enda skillnad
+     den gjorde var att skjuta namnet 48 px in på raden. Booli har ingen
+     ikonkolumn över huvud taget; hitta.se har en, men lätt och vit. Kvar är
+     märket självt, och för verksamheter är det ansiktet. */
+  .list :global(.mark) {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--r-control);
-    background: color-mix(in srgb, var(--text) 6%, transparent);
+    width: 28px;
+    height: 28px;
     color: var(--text-secondary);
   }
 
-  .list :global(.icon svg) { width: 20px; height: 20px; }
+  .list :global(.mark svg) { width: 20px; height: 20px; }
+  .list :global(.mark .face) { width: 28px; height: 28px; }
 
   .list :global(.body) {
     min-width: 0;
@@ -351,11 +361,17 @@ const popular = popularSearches();
     white-space: nowrap;
   }
 
+  /* Namnet i halvfet, den skrivna delen i fet. Boolis mönster: de sätter
+     "Stor" fett i "Stora Ursvik" och låter resten stå kvar. Skillnaden
+     mellan 500 och 700 är liten med flit — raden ska kunna läsas som ett
+     namn, inte som två. */
   .list :global(.name) {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    font-weight: 600;
+    font-weight: 500;
   }
+
+  .list :global(.name b) { font-weight: 700; }
 
   .list :global(.meta) {
     font-size: var(--fs-caption);
@@ -363,12 +379,40 @@ const popular = popularSearches();
     color: var(--text-secondary);
   }
 
+  .list :global(.meta b) { font-weight: 700; color: var(--text); }
+
+  /* Sista raden går till /sok. En handling, inte en träff, och avskild som
+     en sådan: hårlinje ovanför, en rad i stället för två, och namnet i
+     dämpad färg så att den inte konkurrerar med verkliga träffar. */
+  .list :global(.handling) {
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list :global(.action .name) {
+    font-weight: 500;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list :global(a:hover .action .name),
+  .list :global(.action:hover .name),
+  .list :global(.action[data-active] .name) { color: var(--text); }
+
+  /* Beskedet. Brödtextens mindre grad och inte bildtextens: det är svaret på
+     en fråga besökaren just ställde, inte en fotnot till något annat. */
   .note {
-    margin: var(--s-2) var(--s-2) var(--s-1);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
+    margin: 0;
+    padding: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
     color: var(--text-secondary);
   }
+
+  .note[hidden] { display: none; }
 
   /* Under 900 px konkurrerar fältet med menyn om bredden; menyn får vika
      först, den finns i sin helhet i sidfoten. Gäller bara sidhuvudsläget:
@@ -440,15 +484,23 @@ const popular = popularSearches();
   /**
    * Förslagslistan. Allt här är förstärkning — formuläret ovanför fungerar
    * utan skript och postar till /sok.
+   *
+   * Radens utseende och rankningen bor i lib/sokforslag, delat med
+   * kommandopaletten. De två panelerna hänger under SAMMA fält och måste
+   * visa samma sorts rad; hölls logiken i två kopior gled de isär, och det
+   * hade de redan börjat göra.
    */
-  interface Suggestion {
-    /** Raden som fyller fältet vid val och autoifyllnad. */
-    label: string;
-    /** Den dämpade underraden. */
-    meta: string;
-    href: string;
-    kind: 'kommun' | 'place' | 'query';
-  }
+  import {
+    actionLi,
+    collect,
+    completionFor,
+    indexFailed,
+    loadIndex,
+    normalise,
+    ranked,
+    searchIndex,
+    suggestionLi,
+  } from '../lib/sokforslag';
 
   const root = document.querySelector<HTMLElement>('[data-sitesearch]');
 
@@ -513,147 +565,26 @@ const popular = popularSearches();
 
     // ---- Registret ------------------------------------------------------
 
-    /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
-    type Row = [string, string, string, number, number];
-
-    let rows: Row[] = [];
-    /** Normaliserad "namn adress ort" per rad. Byggs en gång.
-     *  Att namnet ligger FÖRST är avsiktligt: en prefixträff på hela strängen
-     *  är därmed samma sak som en prefixträff på namnet. */
-    let hay: string[] = [];
-    let kommuner: Array<[string, string]> = [];
-    let loading: Promise<void> | null = null;
-    let failed = false;
-
-    function normalise(s: string) {
-      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    }
-
-    /**
-     * Hämtar registret från den hashade adressen, med den gamla som reserv.
-     *
-     * Reserven är inte paranoia. Det här dokumentet kan ha legat i cachen
-     * sedan förra bygget och peka på en hash som inte längre finns på
-     * servern. Att sökningen då blir helt död vore ett värre fel än det
-     * inaktuella register vi gick ifrån.
-     */
-    function fetchIndex(url: string, fallback: string | null): Promise<any> {
-      return fetch(url).then((r) => {
-        if (r.ok) return r.json();
-        if (fallback) return fetchIndex(fallback, null);
-        throw new Error(String(r.status));
-      });
-    }
-
-    function loadIndex() {
-      if (loading) return loading;
-      loading = fetchIndex(root!.dataset.index!, root!.dataset.indexFallback ?? null)
-        .then((data) => {
-          kommuner = data.k;
-          rows = data.e;
-          hay = rows.map(([name, address, , k]) =>
-            normalise(`${name} ${address} ${kommuner[k][1]}`),
-          );
-        })
-        .catch(() => {
-          failed = true;
-        });
-      return loading;
-    }
-
-    // ---- Sökning --------------------------------------------------------
-
-    /**
-     * Kandidaterna i den ordning de rankas, indelade i klasser.
-     *
-     * Klasserna är inte kosmetik — de bär autoifyllnaden. En prefixträff på
-     * en kommun är entydig på ett sätt som en prefixträff på ett verksamhets-
-     * namn sällan är: "sto" träffar kommunen Stockholm och 112 verksamheter,
-     * och det är kommunen som är svaret.
-     */
-    function collect(q: string) {
-      const kommunPrefix: Suggestion[] = [];
-      const kommunLoose: Suggestion[] = [];
-      const namePrefix: Suggestion[] = [];
-      const loose: Suggestion[] = [];
-
-      for (let i = 0; i < kommuner.length; i++) {
-        const [slug, city] = kommuner[i];
-        const c = normalise(city);
-        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
-        if (c.startsWith(q)) kommunPrefix.push(item);
-        else if (c.includes(q)) kommunLoose.push(item);
-      }
-
-      for (let i = 0; i < rows.length; i++) {
-        if (namePrefix.length >= SCAN_CAP && loose.length >= SCAN_CAP) break;
-        const h = hay[i];
-        const at = h.indexOf(q);
-        if (at < 0) continue;
-
-        const [name, address, slug, k] = rows[i];
-        const city = kommuner[k][1];
-        const item: Suggestion = {
-          label: name,
-          meta: address ? `${address} · ${city}` : city,
-          href: `/${kommuner[k][0]}/${slug}/`,
-          kind: 'place',
-        };
-
-        if (at === 0) {
-          if (namePrefix.length < SCAN_CAP) namePrefix.push(item);
-        } else if (loose.length < SCAN_CAP) {
-          loose.push(item);
-        }
-      }
-
-      // Kortast namn först. Vi har ingen popularitetssignal att ranka med,
-      // och datafilens ordning är inte en. Längden är däremot ett rimligt
-      // mått på hur nära namnet ligger det skrivna: söker man "espresso
-      // house" ska "Espresso House" ligga före "Espresso House Gränden 4".
-      const byLength = (a: Suggestion, b: Suggestion) =>
-        a.label.length - b.label.length || a.label.localeCompare(b.label, 'sv');
-      namePrefix.sort(byLength);
-      loose.sort(byLength);
-
-      return { kommunPrefix, namePrefix, kommunLoose, loose };
-    }
-
-    const ICONS = {
-      kommun:
-        '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
-      place:
-        '<path d="M3.6 8.4V16.4h12.8V8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2.6 8.4 4.4 3.6h11.2l1.8 4.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.4v-4.2h3.6v4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-      query:
-        '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-    };
-
-    function escapeHtml(s: string) {
-      return s.replace(
-        /[&<>"]/g,
-        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-      );
-    }
-
-    function draw(items: Suggestion[]) {
-      list.innerHTML = items
-        .map(
-          (s, i) => `<li role="presentation"><a href="${escapeHtml(s.href)}" role="option"
-            id="site-search-o${i}" aria-selected="false">
-            <span class="icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false">${ICONS[s.kind]}</svg></span>
-            <span class="body"><span class="name">${escapeHtml(s.label)}</span><span class="meta">${escapeHtml(s.meta)}</span></span>
-          </a></li>`,
-        )
-        .join('');
-    }
+    /** Registret bor i den delade modulen, hämtat en gång för hela sidan
+     *  oavsett vilken av de två panelerna som råkade be om det först. */
+    const fetchRegister = () =>
+      loadIndex(root!.dataset.index!, root!.dataset.indexFallback ?? null);
 
     // ---- Panelens tillstånd ---------------------------------------------
 
     let options: HTMLAnchorElement[] = [];
     let active = -1;
 
+    /**
+     * id:na sätts här och inte i markupen. Raderna byggs numera av den delade
+     * modulen, som inte känner till vilken av de två panelerna den ritar åt,
+     * och aria-activedescendant kräver ett id per rad. Att sätta dem på plats
+     * gör dessutom att de server-renderade raderna och de skriptbyggda inte
+     * kan hamna i olika nummerserier.
+     */
     function refreshOptions() {
       options = Array.from(list.querySelectorAll<HTMLAnchorElement>('a[role="option"]'));
+      options.forEach((a, i) => { a.id = `site-search-o${i}`; });
       active = -1;
       input.removeAttribute('aria-activedescendant');
     }
@@ -700,27 +631,13 @@ const popular = popularSearches();
 
     // ---- Rendering ------------------------------------------------------
 
-    /**
-     * Kan det skrivna fyllas ut entydigt?
-     *
-     * Regeln: den högst rankade klass som har prefixträffar måste innehålla
-     * exakt EN etikett. Träffar "stora c" två olika Stora Coop fylls inget i,
-     * precis som det ska. Att kommunklassen prövas först är det som gör att
-     * "sto" blir Stockholm trots att hundra verksamheter också börjar så.
-     */
-    function completionFor(groups: ReturnType<typeof collect>) {
-      const tier = groups.kommunPrefix.length ? groups.kommunPrefix : groups.namePrefix;
-      if (!tier.length) return null;
-      const distinct = new Set(tier.map((s) => s.label));
-      return distinct.size === 1 ? tier[0].label : null;
-    }
-
     /** Sant när senaste ändringen var framåtskrivning, inte radering. */
     let forward = false;
 
     function render(allowComplete: boolean) {
       const raw = input.value;
-      const q = normalise(raw.trim());
+      const text = raw.trim();
+      const q = normalise(text);
 
       if (!q) {
         list.innerHTML = popularHtml;
@@ -732,33 +649,25 @@ const popular = popularSearches();
 
       head.hidden = true;
 
-      if (!rows.length) {
+      if (!searchIndex().rows.length) {
         list.innerHTML = '';
         refreshOptions();
-        say(failed ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
+        say(indexFailed() ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
         return;
       }
 
-      const groups = collect(q);
-      const items = [
-        ...groups.kommunPrefix,
-        ...groups.namePrefix,
-        ...groups.kommunLoose,
-        ...groups.loose,
-      ].slice(0, MAX_SUGGESTIONS);
+      const groups = collect(q, SCAN_CAP);
+      const items = ranked(groups).slice(0, MAX_SUGGESTIONS);
 
       // Sista raden går alltid till /sok. Panelen visar sju förslag; den som
-      // söker något bredare ska inte hamna i en återvändsgränd.
-      items.push({
-        label: raw.trim(),
-        meta: 'Visa alla träffar',
-        href: `/sok/?q=${encodeURIComponent(raw.trim())}`,
-        kind: 'query',
-      });
+      // söker något bredare ska inte hamna i en återvändsgränd. Raden är en
+      // handling och ritas som en sådan, avskild med en hårlinje.
+      list.innerHTML =
+        items.map((s) => suggestionLi(s, q)).join('') +
+        actionLi(text, `/sok/?q=${encodeURIComponent(text)}`);
 
-      draw(items);
       refreshOptions();
-      say(items.length === 1 ? 'Ingen verksamhet och ingen kommun matchar.' : '');
+      say(items.length ? '' : `Inga träffar för ”${text}”`);
 
       if (!allowComplete || !forward) return;
       // Utfyllnad bara vid framåtskrivning. Vid backsteg måste fältet lyda —
@@ -780,7 +689,7 @@ const popular = popularSearches();
 
     input.addEventListener('focus', () => {
       if (paletteOwnsField()) return;
-      loadIndex().then(() => {
+      fetchRegister().then(() => {
         // Registret kan komma efter att fältet fått text. Rita om, men fyll
         // inte i något — användaren kan ha markerat eller flyttat markören
         // sedan dess.

@@ -61,6 +61,7 @@ import { formatNumber, municipalities } from '../lib/data';
 import { mapDataset } from '../lib/map-data';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { popularSearches, quickPicks } from '../lib/snabbval';
+import { GLYPHS } from '../lib/sokforslag';
 import { path } from '../lib/urls';
 
 interface Command {
@@ -129,18 +130,20 @@ const groups = [
 const popular = popularSearches();
 const picks = quickPicks();
 
-/** Samma streckvikt och 20-rutnät som sökfältets ikoner, för syskonskapet. */
+/**
+ * Samma streckvikt och 20-rutnät som sökfältets ikoner, för syskonskapet.
+ * Kommunnålen och förstoringsglaset kommer ur lib/sokforslag, den modul som
+ * också ritar de skriptbyggda raderna — annars hade paletten haft en egen
+ * kopia av två banor som måste ändras på två ställen.
+ */
 const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
   page:
     '<path d="M5.4 2.9h6.4l2.8 2.8v11.4H5.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 2.9v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 9.6h4.8M7.6 12.4h4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-  map:
-    '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  map: GLYPHS.kommun,
   article:
     '<path d="M4.2 4.6h11.6M4.2 8.2h11.6M4.2 11.8h11.6M4.2 15.4h6.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-  kommun:
-    '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
-  kedja:
-    '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  kommun: GLYPHS.kommun,
+  kedja: GLYPHS.query,
 };
 ---
 
@@ -160,12 +163,18 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
     ))}
   </nav>
 
+  {/* Beskedet står FÖRE listan av samma skäl som i sökfältet: det är svaret
+      på frågan, inte en fotnot till raden som föreslår vad man gör i
+      stället. Utanför listboxen, eftersom en listbox bara får innehålla
+      alternativ, och med aria-live så att det hörs utan att fokus flyttas. */}
+  <p class="note" hidden aria-live="polite" data-note></p>
+
   <ul class="list" id="cp-list" role="listbox" aria-label="Förslag" data-list>
     <li class="group eyebrow" role="presentation" aria-hidden="true">Populära sökningar</li>
     {popular.map((p) => (
       <li role="presentation">
         <a href={p.href} role="option" aria-selected="false">
-          <span class="icon" aria-hidden="true">
+          <span class="mark" aria-hidden="true">
             <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[p.kind]} />
           </span>
           <span class="body">
@@ -187,7 +196,7 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
               data-cmd
               data-kw={[c.label, c.kw].filter(Boolean).join(' ')}
             >
-              <span class="icon" aria-hidden="true">
+              <span class="mark" aria-hidden="true">
                 <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[c.kind]} />
               </span>
               <span class="body">
@@ -200,8 +209,6 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
       </>
     ))}
   </ul>
-
-  <p class="note" hidden data-note></p>
 
   {/* aria-hidden med avsikt: tipsen beskriver tangenter en skärmläsare
       redan känner till från listbox-mönstret, och raden är ren dekor. */}
@@ -229,6 +236,12 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
     display: flex;
     flex-direction: column;
     padding: var(--s-3);
+
+    /* Paletten ärver ALDRIG sidans textjustering. Den fälls ut ur startsidans
+       herofält, och heron centrerar sin text — utan den här raden centreras
+       varje namn över sin adress och listan får en sicksackande vänsterkant.
+       Samma regel, samma skäl, som på SiteSearchs panel. */
+    text-align: left;
   }
 
   .palette[hidden] { display: none; }
@@ -290,19 +303,22 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
     background: color-mix(in srgb, var(--brand) 6%, transparent);
   }
 
-  .list :global(.icon) {
+  /* Märkeskolumnen, identisk med sökfältets. Den ljusgrå 36-rutan är borta:
+     den var likadan på var enda rad och sa därför ingenting, samtidigt som
+     den sköt namnet 48 px in på raden. Verksamheter bär sitt bedömningsmärke
+     här i stället, resten en glyf. */
+  .list :global(.mark) {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--r-control);
-    background: color-mix(in srgb, var(--text) 6%, transparent);
+    width: 28px;
+    height: 28px;
     color: var(--text-secondary);
   }
 
-  .list :global(.icon svg) { width: 20px; height: 20px; }
+  .list :global(.mark svg) { width: 20px; height: 20px; }
+  .list :global(.mark .face) { width: 28px; height: 28px; }
 
   .list :global(.body) {
     min-width: 0;
@@ -320,8 +336,10 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
   .list :global(.name) {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    font-weight: 600;
+    font-weight: 500;
   }
+
+  .list :global(.name b) { font-weight: 700; }
 
   .list :global(.meta) {
     font-size: var(--fs-caption);
@@ -329,15 +347,36 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
     color: var(--text-secondary);
   }
 
+  .list :global(.meta b) { font-weight: 700; color: var(--text); }
+
+  /* Sista raden går till /sok. En handling, inte en träff. */
+  .list :global(.handling) {
+    margin-top: var(--s-2);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list :global(.action .name) {
+    font-weight: 500;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list :global(.action:hover .name),
+  .list :global(.action[data-active] .name) { color: var(--text); }
+
   .note {
     flex-shrink: 0;
     margin: 0;
-    padding: var(--s-3) var(--s-2) var(--s-1);
-    border-top: 1px solid var(--hairline);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
+    padding: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
     color: var(--text-secondary);
   }
+
+  .note[hidden] { display: none; }
 
   /* Tipsen finns bara där tangenterna finns. hover+fine pointer är den
      träffsäkraste signalen webben har för "här sitter ett tangentbord". */
@@ -402,18 +441,23 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
    * sidhuvudet finns på 14 711 sidor och de flesta besök trycker aldrig
    * cmd+K.
    *
-   * Sök- och rankningslogiken speglar SiteSearch medvetet: samma register,
-   * samma normalisering, samma klasstänk (kommunprefix slår namnprefix slår
-   * lösa träffar). Skriptet kan inte importera den, eftersom SiteSearchs
-   * logik bor i komponentens eget skript, men beteendet ska kännas som
-   * samma sökmotor från båda hållen.
+   * Sök- och rankningslogiken ÄR SiteSearchs, inte en spegling av den. Båda
+   * importerar lib/sokforslag: samma register, samma normalisering, samma
+   * klasser, samma rad. Tidigare låg logiken i två kopior med kommentaren
+   * "beteendet ska kännas som samma sökmotor från båda hållen", och kopiorna
+   * hade redan börjat glida isär. Nu kan de inte.
    */
-  interface Suggestion {
-    label: string;
-    meta: string;
-    href: string;
-    kind: 'kommun' | 'place' | 'query';
-  }
+  import {
+    actionLi,
+    collect,
+    escapeHtml,
+    indexFailed,
+    loadIndex,
+    normalise,
+    searchIndex,
+    suggestionInner,
+    type Suggestion,
+  } from '../lib/sokforslag';
 
   const palette = document.querySelector<HTMLElement>('[data-palette]');
   const root = document.querySelector<HTMLElement>('[data-sitesearch]');
@@ -430,10 +474,6 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
     const MAX_SUGGESTIONS = 8;
     /** Kandidater per klass innan skanningen slutar. Se SiteSearch. */
     const SCAN_CAP = 60;
-
-    function normalise(s: string) {
-      return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    }
 
     // ---- Kommandona -----------------------------------------------------
 
@@ -453,86 +493,38 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
       kwNorm: normalise(a.dataset.kw ?? ''),
     }));
 
-    // ---- Registret (delat med SiteSearch via samma adress) --------------
+    // ---- Registret ------------------------------------------------------
 
-    /** Rader: [namn, adress, slug, kommunindex, bedömningsindex]. */
-    type Row = [string, string, string, number, number];
-
-    let rows: Row[] = [];
-    let hay: string[] = [];
-    let kommuner: Array<[string, string]> = [];
-    let loading: Promise<void> | null = null;
-    let failed = false;
-
-    function fetchIndex(url: string, fallback: string | null): Promise<any> {
-      return fetch(url).then((r) => {
-        if (r.ok) return r.json();
-        if (fallback) return fetchIndex(fallback, null);
-        throw new Error(String(r.status));
-      });
-    }
-
-    function loadIndex() {
-      if (loading) return loading;
-      loading = fetchIndex(palette!.dataset.index!, palette!.dataset.indexFallback ?? null)
-        .then((data) => {
-          kommuner = data.k;
-          rows = data.e;
-          hay = rows.map(([name, address, , k]) =>
-            normalise(`${name} ${address} ${kommuner[k][1]}`),
-          );
-        })
-        .catch(() => {
-          failed = true;
-        });
-      return loading;
-    }
+    /**
+     * Delat med SiteSearch, och numera på riktigt: registret ligger i
+     * lib/sokforslag och hämtas en gång per dokument. Förut hade de två
+     * skripten var sin kopia av både hämtningen och datan, och den som
+     * öppnade paletten efter att ha rört sökfältet fick 970 kB JSON tolkade
+     * en andra gång utan att någonting nytt kom fram.
+     */
+    const fetchRegister = () =>
+      loadIndex(palette!.dataset.index!, palette!.dataset.indexFallback ?? null);
 
     // ---- Sökning --------------------------------------------------------
 
-    const ICONS = {
-      kommun:
-        '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
-      place:
-        '<path d="M3.6 8.4V16.4h12.8V8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2.6 8.4 4.4 3.6h11.2l1.8 4.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16.4v-4.2h3.6v4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-      query:
-        '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-    };
-
-    function escapeHtml(s: string) {
-      return s.replace(
-        /[&<>"]/g,
-        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-      );
-    }
-
-    function suggestionLi(s: Suggestion): HTMLElement {
+    function suggestionLi(s: Suggestion, q: string): HTMLElement {
       const li = document.createElement('li');
       li.setAttribute('role', 'presentation');
-      li.innerHTML = `<a href="${escapeHtml(s.href)}" role="option" aria-selected="false">
-        <span class="icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false">${ICONS[s.kind]}</svg></span>
-        <span class="body"><span class="name">${escapeHtml(s.label)}</span><span class="meta">${escapeHtml(s.meta)}</span></span>
-      </a>`;
+      li.innerHTML = `<a href="${escapeHtml(s.href)}" role="option" aria-selected="false">${suggestionInner(s, q)}</a>`;
       return li;
     }
 
     /**
-     * Kandidater i rankningsordning. Kommunprefix först av samma skäl som i
-     * SiteSearch ("sto" är Stockholm), sedan sidkommandona: den som skrivit
-     * "met" är på väg till metodiken, inte till en pizzeria vars namn råkar
-     * innehålla strängen. Sist de lösa träffarna.
+     * Kandidater i rankningsordning. Verksamheterna och kommunerna kommer ur
+     * den delade modulen, precis som i sökfältet; det paletten lägger till är
+     * sajtens egna sidor.
+     *
+     * Kommunprefix först ("sto" är Stockholm), sedan sidkommandona: den som
+     * skrivit "met" är på väg till metodiken, inte till en pizzeria vars namn
+     * råkar innehålla strängen. Därefter namnträffarna, och sist det lösa.
      */
-    function collect(q: string): (HTMLElement | Suggestion)[] {
-      const kommunPrefix: Suggestion[] = [];
-      const kommunLoose: Suggestion[] = [];
-
-      for (let i = 0; i < kommuner.length; i++) {
-        const [slug, city] = kommuner[i];
-        const c = normalise(city);
-        const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
-        if (c.startsWith(q)) kommunPrefix.push(item);
-        else if (c.includes(q)) kommunLoose.push(item);
-      }
+    function collectAll(q: string): (HTMLElement | Suggestion)[] {
+      const g = collect(q, SCAN_CAP);
 
       const cmdPrefix: HTMLElement[] = [];
       const cmdLoose: HTMLElement[] = [];
@@ -541,44 +533,14 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
         else if (c.kwNorm.includes(q)) cmdLoose.push(c.li);
       }
 
-      const namePrefix: Suggestion[] = [];
-      const loose: Suggestion[] = [];
-      for (let i = 0; i < rows.length; i++) {
-        if (namePrefix.length >= SCAN_CAP && loose.length >= SCAN_CAP) break;
-        const h = hay[i];
-        const at = h.indexOf(q);
-        if (at < 0) continue;
-
-        const [name, address, slug, k] = rows[i];
-        const city = kommuner[k][1];
-        const item: Suggestion = {
-          label: name,
-          meta: address ? `${address} · ${city}` : city,
-          href: `/${kommuner[k][0]}/${slug}/`,
-          kind: 'place',
-        };
-
-        if (at === 0) {
-          if (namePrefix.length < SCAN_CAP) namePrefix.push(item);
-        } else if (loose.length < SCAN_CAP) {
-          loose.push(item);
-        }
-      }
-
-      // Kortast namn först, som i SiteSearch: längden är den enda
-      // närhetssignal vi har utan popularitetsdata.
-      const byLength = (a: Suggestion, b: Suggestion) =>
-        a.label.length - b.label.length || a.label.localeCompare(b.label, 'sv');
-      namePrefix.sort(byLength);
-      loose.sort(byLength);
-
       return [
-        ...kommunPrefix,
+        ...g.kommunPrefix,
         ...cmdPrefix,
-        ...namePrefix,
-        ...kommunLoose,
+        ...g.namePrefix,
+        ...g.nameWord,
+        ...g.kommunLoose,
         ...cmdLoose,
-        ...loose,
+        ...g.loose,
       ];
     }
 
@@ -625,7 +587,8 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
 
     function render() {
       const raw = input!.value;
-      const q = normalise(raw.trim());
+      const text = raw.trim();
+      const q = normalise(text);
 
       if (!q) {
         list.innerHTML = defaultHtml;
@@ -634,26 +597,26 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
         return;
       }
 
-      const found = collect(q).slice(0, MAX_SUGGESTIONS);
+      const found = collectAll(q).slice(0, MAX_SUGGESTIONS);
 
       // Sista raden går alltid till /sok, precis som i sökfältet: paletten
-      // visar åtta förslag och får inte vara en återvändsgränd.
-      found.push({
-        label: raw.trim(),
-        meta: 'Visa alla träffar',
-        href: `/sok/?q=${encodeURIComponent(raw.trim())}`,
-        kind: 'query',
-      });
+      // visar åtta förslag och får inte vara en återvändsgränd. Den är en
+      // handling och ritas som en sådan, avskild med en hårlinje.
+      const action = document.createElement('template');
+      action.innerHTML = actionLi(text, `/sok/?q=${encodeURIComponent(text)}`);
 
       list.replaceChildren(
-        ...found.map((f) => (f instanceof HTMLElement ? (f.cloneNode(true) as HTMLElement) : suggestionLi(f))),
+        ...found.map((f) =>
+          f instanceof HTMLElement ? (f.cloneNode(true) as HTMLElement) : suggestionLi(f, q),
+        ),
+        action.content,
       );
       refreshOptions();
 
-      if (!rows.length) {
-        say(failed ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
+      if (!searchIndex().rows.length) {
+        say(indexFailed() ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
       } else {
-        say(found.length === 1 ? 'Ingen verksamhet, kommun eller sida matchar.' : '');
+        say(found.length ? '' : `Inga träffar för ”${text}”`);
       }
 
       // Första raden står förvald. Det är palettens kontrakt, till skillnad
@@ -694,7 +657,7 @@ const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
       // focus() rullar dessutom fältet i synhåll när sidan är skrollad.
       input!.focus();
       render();
-      loadIndex().then(() => {
+      fetchRegister().then(() => {
         // Registret kan landa efter att frågan börjat skrivas. Rita om, men
         // bara medan panelen fortfarande är öppen och frågan står kvar.
         if (isOpen && input!.value.trim()) render();
