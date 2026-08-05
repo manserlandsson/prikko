@@ -1,0 +1,213 @@
+---
+/**
+ * Den senaste kontrollen, med datumet ritat som ett kalenderblad.
+ *
+ * ## PAUSAD, se flaggan nedan
+ *
+ * Ägaren såg den byggd och underkände den: "din datumgrej blev otroligt
+ * ful ... sätt den på paus." Komponenten renderar därför ingenting, och
+ * anropet står kvar i [kommun]/[slug].astro så att beslutet ligger på ETT
+ * ställe och inte i två filer som kan glida isär.
+ *
+ * Koden är kvar och inte raderad eftersom det är formen som underkändes och
+ * inte tanken: idén var ägarens egen ("testa med datum grejen, det är bra"),
+ * och resonemanget om året i huvudet nedan gäller fortfarande om någon tar
+ * upp den igen. Den som gör det ska rita om bladet från grunden, inte putsa
+ * på det som står här.
+ *
+ * ## Varför bara här
+ *
+ * Formen är Boolis visningskort: ett litet kalenderblad till vänster och
+ * datumet i klartext bredvid. Hos dem bär kortet ETT kommande datum, det man
+ * ska passa. Våra datum är många och historiska, en rad per kontroll och en
+ * rad per avvikelse, ofta år tillbaka. Ett kalenderblad per rad hade blivit
+ * en tapet, och avvikelselistorna hade fått en grafisk tyngd som deras
+ * innehåll inte motiverar.
+ *
+ * Bladet ritas därför på EN plats: den senaste kontrollen. Det är sidans
+ * viktigaste datum, det bedömningen vilar på, och det enda datum en besökare
+ * behöver kunna hitta utan att läsa en mening. Inte i tidslinjen, inte i
+ * historikens rader, inte i avvikelselistorna.
+ *
+ * ## Varför året står i huvudet och inte dagen
+ *
+ * Boolis blad visar månad över dag, eftersom deras datum alltid ligger inom
+ * de närmaste veckorna och året är underförstått. Vårt kan lika gärna vara
+ * 2019 som i år, och en kontroll från 2021 säger något helt annat om nuläget
+ * än en från i år. Året är alltså det som kvalificerar hela beskedet, och det
+ * får därför bandet högst upp i stället för att stå minst.
+ *
+ * Bandet är märkesblått och inte bedömningsfärgat. Färgerna för ren, brister
+ * och kvarstående brister bär betydelse på den här sidan, och ett datum som
+ * råkar bli gult hade läst som ett omdöme om datumet.
+ *
+ * ## Vad raden tillför utöver svarsmeningen
+ *
+ * Meningen överst säger redan när kontrollen gjordes. Raden lägger till tre
+ * saker den inte har: datumet som något man kan hitta på en blick i stället
+ * för att läsa fram, KONTROLLENS EGEN utfall och slag (en planerad kontroll
+ * och ett återbesök är inte samma besked, och en enskild kontrolls utfall är
+ * inte samma sak som helhetsbedömningen), och vägen vidare till historiken.
+ */
+import {
+  ASSESSMENT_INK,
+  ASSESSMENT_LABEL,
+  INSPECTION_TYPE_LABEL,
+  formatDate,
+  type Inspection,
+} from '../lib/data';
+
+interface Props {
+  inspection: Inspection;
+  /** Fragment till kontrollhistoriken på samma sida. */
+  href: string;
+}
+
+const { inspection, href } = Astro.props;
+
+/**
+ * Av med raden.
+ *
+ * Sätt till false för att ta upp den igen, och läs huvudkommentaren först.
+ */
+const PAUSAD = true;
+
+/* Förkortningarna skrivs ut och räknas inte fram ur formatDate(). Bladet är
+   grafik med tre rader på 56 px bredd, och "sept" spränger raden medan
+   "september".slice(0, 3) ger "sep" i svenska men fel i andra språk om
+   modulen någon gång skulle återanvändas. En lista är ärligare. */
+const KORT_MANAD = [
+  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
+];
+
+const [ar, manad, dag] = inspection.date.split('-');
+---
+
+{!PAUSAD && (
+<div class="kontrolldatum">
+  {/* Bladet är en ritning av datumet intill, alltså ren dekor för den som
+      lyssnar på sidan. Texten står i klartext i nästa spalt. */}
+  <div class="blad" aria-hidden="true">
+    <span class="ar">{ar}</span>
+    <span class="dag">{Number(dag)}</span>
+    <span class="manad">{KORT_MANAD[Number(manad) - 1]}</span>
+  </div>
+
+  <div class="text">
+    <p class="eyebrow">Senaste kontrollen</p>
+    <p class="datum">{formatDate(inspection.date)}</p>
+    <p class="slag">
+      {INSPECTION_TYPE_LABEL[inspection.type]}
+      {' · '}
+      <span style={`color: ${ASSESSMENT_INK[inspection.assessment]}`}>
+        {ASSESSMENT_LABEL[inspection.assessment]}
+      </span>
+    </p>
+  </div>
+
+  <a class="lank" href={href}>Se historiken</a>
+</div>
+)}
+
+<style>
+  .kontrolldatum {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+  }
+
+  /* Bladet. Måtten är komponentens egna och inte sidbredder, så de får stå
+     som tal här. Radien är --r-control och inte --r-card: ett 56 px brett
+     märke med 12 px hörn blir en tablett. */
+  .blad {
+    flex: none;
+    width: 56px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    background: var(--card);
+    text-align: center;
+    padding-bottom: 6px;
+  }
+
+  /* --brand-ink och inte --brand: vit text på --brand ligger på 4,28:1, och
+     11 px halvfet är inte "stor text" i WCAG:s mening. --brand-ink ger
+     6,10:1. Se tokens.css. */
+  .ar {
+    display: block;
+    background: var(--brand-ink);
+    color: #fff;
+    font-size: var(--fs-micro);
+    line-height: 18px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dag {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--fs-h-s);
+    line-height: 24px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .manad {
+    display: block;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-secondary);
+  }
+
+  .text {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .datum {
+    margin-top: var(--s-1);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .slag {
+    margin-top: 2px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .slag span { font-weight: 600; }
+
+  .lank {
+    flex: none;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  /* På telefon ryms inte länken på samma rad som texten utan att klämma
+     datumet. Den lägger sig då under, i bladets flykt, och behåller sin
+     träffyta i stället för att krympa till en radslut. */
+  @media (max-width: 480px) {
+    .kontrolldatum {
+      flex-wrap: wrap;
+      gap: var(--s-3);
+    }
+
+    .text { flex-basis: 0; }
+
+    .lank {
+      flex-basis: 100%;
+      padding-left: calc(56px + var(--s-3));
+    }
+  }
+</style>

@@ -1,0 +1,273 @@
+---
+/**
+ * Artikelbandet: en tonad yta med ett utvalt artikelkort.
+ *
+ * ## Förlagan
+ *
+ * Boolis startsida har ett band i deras varma beige (#F8F0E8) med rubrik,
+ * text och en pilförsedd länk i en smal vänsterspalt, och ett vitt
+ * artikelkort till höger. Uppmätt: bandet går ut i hela fönstret, innehållet
+ * ligger i deras vanliga 980, vänsterspalten är omkring 300 px och kortet
+ * fyller resten med bilden till vänster i kortet och texten till höger.
+ *
+ * Vår yta är `--brand-wash`, alltså märkesblåan blandad 8 procent i vitt.
+ * Ingen ny färg uppfanns för det här bandet, och ingen ska uppfinnas: tonen
+ * är räknad mot både kortet ovanpå och texten inuti, se tokens.css.
+ *
+ * Bandet är rundat i stället för att gå ut i fönstret. Det ligger mitt inne i
+ * en sida med sidobehållare, och en yta som spränger behållaren mitt i ett
+ * dokument läser som ett fel snarare än som en sektion.
+ *
+ * ## Grinden
+ *
+ * Sektionen har en kvalitetströskel, se lib/artiklar.ts: under MIN_ARTICLES
+ * publicerade artiklar bär hela artikelsektionen noindex. Att skicka trafik
+ * från sajtens mest besökta sidtyp till en sektion vi själva håller för
+ * osläppt vore att motarbeta grinden. Komponenten renderar därför ingenting
+ * alls när sektionen inte är redo, och ingenting när ingen artikel finns.
+ *
+ * ## Valet av artikel
+ *
+ * `prefer` är slugar i prioritetsordning, och första som faktiskt finns
+ * vinner. Finns ingen av dem, eller anges inga alls, visas den senast
+ * publicerade. Anroparen äger alltså kopplingen, vilket är hela skälet till
+ * att komponenten kan återanvändas: en kommunsida, en kategorisida och en
+ * rapport har olika starka kopplingar till olika artiklar, och den här filen
+ * ska inte känna till någon av dem.
+ *
+ * En slug som pekar på en artikel som inte finns är avsiktligt tyst. Det är
+ * en försämring av relevansen, inte ett trasigt innehåll, och att stoppa
+ * bygget för att en artikel bytt namn vore att låta bannern hålla
+ * artikelsektionen gisslan.
+ */
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import { readingMinutes, sectionReady } from '../lib/artiklar';
+import { articleImage } from '../lib/artikelbilder';
+import { path } from '../lib/urls';
+
+interface Props {
+  /** Rubriken i vänsterspalten. */
+  title?: string;
+  /** Brödtexten under rubriken. */
+  text?: string;
+  /** Artikelslugar i prioritetsordning. Första som finns väljs. */
+  prefer?: string[];
+}
+
+const {
+  title = 'Läs mer om livsmedelskontrollen',
+  text =
+    'Vad en avvikelse betyder, hur en kontroll går till och varför kommunernas siffror inte går att jämföra rakt av. Skrivet av oss, med källa på varje siffra.',
+  prefer = [],
+} = Astro.props;
+
+const entries = await getCollection('artiklar', ({ data }) => !data.draft);
+const nyast = entries.sort((a, b) => b.data.published.localeCompare(a.data.published));
+
+const vald = prefer.map((slug) => nyast.find((e) => e.id === slug)).find(Boolean) ?? nyast[0];
+
+const visa = sectionReady() && vald !== undefined;
+
+const bild = vald ? articleImage(vald.id, vald.data.image) : null;
+const minuter = vald ? readingMinutes(vald.body ?? '') : 0;
+
+/* Kortet är omkring 300 px brett på skrivbord och fyller bredden på telefon.
+   Källfilerna är 1400 px, så 800 räcker för 2× på retina. Måtten är
+   komponentens egna och hör inte hemma i tokens. */
+const BREDDER = [400, 560, 800];
+const STORLEKAR = '(max-width: 760px) 100vw, 300px';
+---
+
+{visa && vald && (
+  <aside class="artikelband" aria-label="Från Prikkos artiklar">
+    <div class="pitch">
+      <h2>{title}</h2>
+      <p class="text-secondary">{text}</p>
+      <a class="alla" href={path('artiklar')}>
+        Till artiklarna
+        <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true" focusable="false">
+          <path
+            d="M1 5h14.4M11.6 1 15.8 5l-4.2 4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
+        </svg>
+      </a>
+    </div>
+
+    <div class="kort">
+      {bild && (
+        <div class="bildyta">
+          <Image
+            class="foto"
+            src={bild.src}
+            alt={bild.alt}
+            width={BREDDER.at(-1)}
+            widths={BREDDER}
+            sizes={STORLEKAR}
+            loading="lazy"
+          />
+          {/* Etiketten över bilden, som hos Booli. Ordet är "Artikel" och
+              inte artikelns egen kategori: kortet dyker upp mitt i en sida
+              om en restaurang, och det första som måste framgå är vilken
+              SORTS sak kortet är, inte vilken sorts artikel. */}
+          <span class="etikett">Artikel</span>
+        </div>
+      )}
+      <div class="kropp">
+        <h3>
+          <a href={path('artiklar', vald.id)}>{vald.data.title}</a>
+        </h3>
+        <p class="ingress text-secondary">{vald.data.lede}</p>
+        <p class="meta caption text-secondary">
+          {vald.data.category} · {minuter} min lästid
+        </p>
+      </div>
+    </div>
+  </aside>
+)}
+
+<style>
+  .artikelband {
+    display: grid;
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    gap: var(--s-8);
+    align-items: center;
+    margin-top: var(--s-16);
+    padding: var(--s-8);
+    border-radius: var(--r-card);
+    background: var(--brand-wash);
+  }
+
+  .pitch h2 {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+  }
+
+  .pitch p {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .alla {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .alla:hover svg { transform: translateX(3px); }
+  .alla svg { transition: transform .15s ease; }
+
+  /* Kortet är vitt mot den tonade ytan. Kontrasten är 1,11:1, alltså precis
+     nog för att kortet ska läsa som ett kort utan att bandet blir en ruta i
+     rutan. Skuggringen gör resten. */
+  .kort {
+    display: grid;
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    align-items: stretch;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bildyta {
+    position: relative;
+    min-height: 100%;
+  }
+
+  .kort :global(.foto) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 168px;
+    object-fit: cover;
+  }
+
+  .etikett {
+    position: absolute;
+    top: var(--s-3);
+    left: var(--s-3);
+    background: var(--text);
+    color: var(--card);
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+  }
+
+  .kropp {
+    display: flex;
+    flex-direction: column;
+    padding: var(--s-4) var(--s-6);
+  }
+
+  .kropp h3 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+  }
+
+  .kropp h3 a { color: var(--text); }
+
+  /* Hela kortet är träffyta, men rubriken är länken. Samma grepp som
+     artikelkorten i listan: texten förblir markerbar och en andralänk i
+     kortet är fortfarande möjlig. */
+  .kropp h3 a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .kort:hover { box-shadow: var(--shadow-pop); }
+  .kort:hover h3 a { color: var(--brand-ink); }
+
+  .ingress {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .meta {
+    margin-top: auto;
+    padding-top: var(--s-3);
+  }
+
+  /* Under 900 px lägger sig kortet under texten, och under 560 px lägger sig
+     bilden över texten i kortet. Två steg och inte ett: mellanläget har gott
+     om plats för ett liggande kort men inte för två spalter bredvid
+     varandra. */
+  @media (max-width: 900px) {
+    .artikelband {
+      grid-template-columns: 1fr;
+      gap: var(--s-6);
+      padding: var(--s-6);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .kort {
+      grid-template-columns: 1fr;
+    }
+
+    .kort :global(.foto) {
+      aspect-ratio: 16 / 9;
+      min-height: 0;
+    }
+
+    .kropp {
+      padding: var(--s-4);
+    }
+  }
+</style>

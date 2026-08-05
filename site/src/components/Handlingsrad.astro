@@ -1,0 +1,411 @@
+---
+/**
+ * Handlingsraden: sidans åtgärder, i ögonhöjd direkt under rubriken.
+ *
+ * ## Varför de flyttade hit från sidopanelen
+ *
+ * Hos Booli ligger handlingarna direkt under bilden: Planritning och Karta
+ * till vänster, Dela och Spara till höger, allt ovanför både titeln och
+ * priset. Ingen av dem ligger under vikningen, och ingen av dem ligger i
+ * marginalen. Hos oss låg bevakningen och omdömesknappen i sidopanelen, som
+ * på telefon hamnar efter hela huvudkolumnen, alltså efter kontrollhistoriken
+ * och kartan. Den som ville följa en verksamhet fick rulla förbi allt först.
+ *
+ * Raden ligger därför före bedömningen, precis som Boolis rad ligger före
+ * priset. Det ser ut som att den skjuter ned det man kom för, men den är en
+ * rad hög och bedömningen står kvar i första skärmen på både 1440 och 390 px.
+ *
+ * ## Vad som INTE flyttade
+ *
+ * Rättelsen och verksamhetens egen replikrätt är kvar i sidopanelen, se
+ * ActionPanel.astro. De två vänder sig till en annan och mycket mindre
+ * publik: den som driver stället. Att lyfta dem till ögonhöjd hade gjort
+ * raden till fyra knappar där två av dem inte angår besökaren.
+ *
+ * ## Knapparna
+ *
+ *   Följ verksamheten   privat bevakning, ingen publicering, ingen granskning.
+ *                       Kräver inloggning, och knappen säger det innan man
+ *                       klickar i stället för att gå sönder efteråt.
+ *   Skriv ett omdöme    öppnar skrivrutan, som bor i Reviews.astro och nås
+ *                       härifrån genom review-dialog.ts.
+ *   Dela                operativsystemets egen delningsruta, se nedan.
+ *
+ * "Anmäl en brist" är borttagen sedan tidigare och kommer inte tillbaka.
+ * Prikko är ingen tillsynsmyndighet och kan inte ta emot en anmälan om dålig
+ * hygien; den ska till kommunens livsmedelsinspektion.
+ */
+import '../styles/konto.css';
+
+interface Props {
+  establishmentId: string;
+  establishmentName: string;
+  municipalitySlug: string;
+  /** Meningen som följer med i delningen. Skrivs av sidmallen, som vet utfallet. */
+  shareText: string;
+}
+
+const { establishmentId, establishmentName, municipalitySlug, shareText } =
+  Astro.props;
+---
+
+<div
+  class="handlingsrad"
+  id="actions"
+  data-establishment={establishmentId}
+  data-name={establishmentName}
+  data-kommun={municipalitySlug}
+>
+  <button type="button" class="btn-primary" id="follow">Följ verksamheten</button>
+  <button type="button" class="btn-ghost" id="review-write">Skriv ett omdöme</button>
+
+  {/*
+    Dölj från början, visa med script.
+
+    Knappen ska inte finnas alls i en webbläsare som varken kan dela eller
+    kopiera, och det går bara att avgöra där sidan körs. Ett `hidden` som
+    scriptet tar bort är rätt håll att fela åt: utan JavaScript står ingen
+    trasig knapp kvar, den bara uteblir.
+
+    Texten och adressen ligger som data-attribut och inte i scriptet, så att
+    delningen bär verksamhetens namn och bedömning utan att mallens strängar
+    behöver dupliceras i JavaScript.
+  */}
+  <button
+    type="button"
+    class="btn-ghost dela"
+    id="share"
+    hidden
+    data-title={establishmentName}
+    data-text={shareText}
+  >
+    <svg width="15" height="18" viewBox="0 0 15 18" aria-hidden="true" focusable="false">
+      <path
+        d="M7.5 1.2v10.3M3.9 4.5 7.5 1l3.6 3.5M2 8.2H1v8.6h13V8.2h-1"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"></path>
+    </svg>
+    <span class="etikett">Dela</span>
+  </button>
+</div>
+
+{/* Tom från början. Raden är en kvittens på något man gjort, inte en
+    beskrivning av vad knappen ovanför gör. Den bär både bevakningens och
+    delningens svar, eftersom två kvittensrader intill varandra läser som
+    två pågående tillstånd i stället för ett senaste besked. */}
+<p class="kvittens caption text-muted" id="follow-note" role="status"></p>
+
+<style>
+  .handlingsrad {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+  }
+
+  /* Delaknappen längst till höger, som hos Booli. `margin-left: auto` och
+     inte `justify-content: space-between`: knappen ska ligga ute vid kanten
+     även när den är den enda som visas. */
+  .dela { margin-left: auto; }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 11px 22px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-ghost:hover {
+    background: var(--canvas);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .dela svg {
+    /* Glyfmått och inte textgrad, alltså inget som hör hemma i skalan.
+       Höjden följer knappens radhöjd så att ikonen står på textens linje. */
+    flex: none;
+  }
+
+  .kvittens {
+    margin-top: var(--s-2);
+    min-height: var(--lh-caption);
+  }
+
+  /* Under 560 px ryms inte tre knappar på en rad. En rad som bara får wrappa
+     lägger delaikonen ensam längst till vänster på nästa rad, vilket läser
+     som att den blivit över. Rutnätet ger i stället en avsiktlig form:
+     huvudåtgärden och delningen tillsammans överst, omdömet på hela bredden
+     under. Placeringen är explicit eftersom DOM-ordningen är en annan än
+     rutnätets, och DOM-ordningen är den tangentbordet följer.
+
+     Etiketten "Dela" faller samtidigt bort, precis som hos Booli, vars
+     delaikon tappar sin marginal och sin text på små skärmar. Ikonen är den
+     vedertagna delningssymbolen och knappen behåller sitt tillgängliga namn
+     genom aria-label, som scriptet sätter. */
+  @media (max-width: 560px) {
+    .handlingsrad {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    #follow { grid-area: 1 / 1; }
+    .dela { grid-area: 1 / 2; margin-left: 0; }
+    #review-write { grid-area: 2 / 1 / 3 / 3; }
+
+    .dela .etikett {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    .dela {
+      padding-inline: 14px;
+    }
+  }
+</style>
+
+<script>
+  import {
+    configured,
+    signedIn,
+    isFollowing,
+    follow,
+    unfollow,
+    CommunityError,
+    onAuthChange,
+  } from '../lib/community';
+  import { openSignIn } from '../lib/signin-dialog';
+  import { openReviewDialog, reviewDialogAvailable } from '../lib/review-dialog';
+
+  const panel = document.getElementById('actions');
+  const button = document.getElementById('follow') as HTMLButtonElement | null;
+  const note = document.getElementById('follow-note') as HTMLParagraphElement | null;
+
+  if (panel && button && note) {
+    const place = {
+      id: panel.dataset.establishment ?? '',
+      name: panel.dataset.name ?? '',
+      municipalitySlug: panel.dataset.kommun ?? '',
+    };
+
+    let following = false;
+
+    function paint() {
+      /* "Sluta följa" och inte "Slutar följa". Etiketten på en knapp är det
+         man ber den göra, i infinitiv, inte en beskrivning av vad som pågår.
+         "Slutar följa" läser som en pågående händelse och får det att se ut
+         som att något redan sker. */
+      button!.textContent = following ? 'Sluta följa' : 'Följ verksamheten';
+      button!.classList.toggle('btn-primary', !following);
+      button!.classList.toggle('btn-ghost', following);
+    }
+
+    async function start() {
+      if (!configured) {
+        button!.disabled = true;
+        note!.textContent = 'Bevakning är inte påslagen på den här installationen.';
+        return;
+      }
+
+      const authed = await signedIn();
+
+      if (authed) {
+        try {
+          following = await isFollowing(place.id);
+        } catch {
+          /* Kunde inte läsa. Knappen står kvar på "följ", och skrivningen är
+             idempotent, så ett extra klick gör ingen skada. */
+        }
+      } else {
+        /* Ingen text. Knappen säger "Följ verksamheten" och inloggningen
+           kommer när man trycker. Att skriva ut kravet i förväg är att
+           förklara en dörr innan någon gått fram till den. */
+      }
+      paint();
+
+      /**
+       * En enda klickhanterare, oavsett om man är inloggad eller inte.
+       *
+       * Inloggningen är ett steg PÅ VÄGEN till det man ville göra, inte en
+       * annan sak att göra i stället. Den som trycker på "Följ" utloggad får
+       * rutan, och när den stängs fortsätter samma klick till bevakningen.
+       * Ingen behöver trycka två gånger, och knappen är aldrig avstängd.
+       */
+      button!.addEventListener('click', async () => {
+        if (!(await signedIn())) {
+          if (!(await openSignIn(button))) return;
+          // Nyss inloggad. Läget kan skilja sig från vad sidan trodde.
+          try {
+            following = await isFollowing(place.id);
+          } catch {
+            /* Behåll antagandet att inget följs. */
+          }
+          paint();
+        }
+
+        button!.disabled = true;
+        try {
+          if (following) {
+            await unfollow(place.id);
+            following = false;
+            note!.textContent = 'Borttagen.';
+          } else {
+            await follow(place);
+            following = true;
+            /* Vad bevakningen FAKTISKT gör, i en mening. Här stod "Sparad på
+               ditt konto", vilket var sant men lämnade frågan varför man
+               skulle vilja spara något. Nu finns ett svar: nattjobbet mejlar
+               när kommunen hittar anmärkningar. Se pipeline/notify.py.
+
+               Att den inte lovar mejl vid GODKÄNDA kontroller är avsiktligt
+               och ordagrant vad utskicket gör. */
+            note!.textContent =
+              'Sparad. Du får ett mejl om kommunen hittar anmärkningar här.';
+          }
+        } catch (err) {
+          note!.textContent =
+            err instanceof CommunityError ? err.message : 'Kunde inte spara. Försök igen.';
+        } finally {
+          button!.disabled = false;
+          paint();
+        }
+      });
+    }
+
+    /* Loggar någon in eller ut på en annan yta ska knappen följa med.
+       Utloggad betyder att bevakningen inte längre är känd, alltså tillbaka
+       till "Följ verksamheten" och en tom notisrad. */
+    onAuthChange(() => {
+      void (async () => {
+        if (await signedIn()) {
+          try {
+            following = await isFollowing(place.id);
+          } catch {
+            /* Behåll antagandet. */
+          }
+        } else {
+          following = false;
+          note!.textContent = '';
+        }
+        paint();
+      })();
+    });
+
+    void start();
+  }
+
+  /* Skriv ett omdöme -------------------------------------------------- */
+  /*
+   * Egen hanterare, utanför bevakningens. Knappen beror inte på panelens
+   * tillstånd och ska fungera även om bevakningen inte kunde startas.
+   */
+  const write = document.getElementById('review-write') as HTMLButtonElement | null;
+
+  if (write) {
+    write.addEventListener('click', async () => {
+      /* Rutan bor i Reviews och registrerar sig bara när omdömen är
+         påslagna. Är de det inte tar knappen oss till avsnittet, som skriver
+         ut varför, i stället för att göra ingenting. */
+      if (!reviewDialogAvailable()) {
+        location.hash = '#omdomen';
+        return;
+      }
+
+      /* Frågan om inloggning ställs INUTI klicket, aldrig vid sidladdning,
+         och rutan öppnas i samma klick när den är avklarad. Inloggningen är
+         ett steg på vägen till det man ville göra, inte en annan sak att
+         göra i stället. */
+      if (!(await signedIn())) {
+        if (!(await openSignIn(write))) return;
+      }
+
+      openReviewDialog(write);
+    });
+  }
+
+  /* Dela ---------------------------------------------------------------- */
+  /**
+   * Boolis delaknapp öppnar operativsystemets egen delningsruta, alltså
+   * Web Share API. Samma sak här, med två förbehåll som inte går att
+   * programmera bort:
+   *
+   *  1. `navigator.share` finns bara i säkert sammanhang (HTTPS eller
+   *     localhost) OCH måste anropas i en användargest. Bägge villkoren är
+   *     uppfyllda här: sajten körs över HTTPS och anropet sker i en
+   *     klickhanterare. Det går alltså inte att prova utan certifikat på en
+   *     lokal byggserver, och det är känt.
+   *  2. Stödet är i praktiken telefoner och Safari. Skrivbords-Chrome och
+   *     Firefox saknar det, och där kopieras adressen till urklipp i
+   *     stället, med en kvittens så att man vet att något hände. Urklippet
+   *     kräver också säkert sammanhang.
+   *
+   * Har webbläsaren varken share eller clipboard finns knappen inte alls.
+   * Den är dold i HTML och avslöjas här, vilket också gör att en besökare
+   * utan JavaScript slipper en knapp som inte kan göra något.
+   *
+   * Adressen läses ur `location.href` och inte ur ett attribut. Den som
+   * delar delar sidan hen står på; skulle sidan någon gång nås via en
+   * kampanjadress är det den adressen som är sann för mottagaren.
+   */
+  const share = document.getElementById('share') as HTMLButtonElement | null;
+  const shareNote = document.getElementById('follow-note') as HTMLParagraphElement | null;
+
+  if (share) {
+    const canShare = typeof navigator.share === 'function';
+    const canCopy = typeof navigator.clipboard?.writeText === 'function';
+
+    if (canShare || canCopy) {
+      share.hidden = false;
+      share.setAttribute(
+        'aria-label',
+        canShare ? 'Dela den här sidan' : 'Kopiera adressen till den här sidan',
+      );
+
+      share.addEventListener('click', async () => {
+        const data = {
+          title: share.dataset.title ?? document.title,
+          text: share.dataset.text ?? '',
+          url: location.href,
+        };
+
+        if (canShare) {
+          try {
+            await navigator.share(data);
+            return;
+          } catch (err) {
+            /* AbortError betyder att besökaren stängde rutan. Det är ett
+               fullbordat val och inte ett fel, så ingen kvittens och inget
+               fall tillbaka till urklipp: att kopiera adressen åt någon som
+               nyss avbrutit är att göra tvärtemot det hen bad om. */
+            if (err instanceof DOMException && err.name === 'AbortError') return;
+            /* Allt annat, till exempel NotAllowedError, faller igenom till
+               urklipp nedan om det finns. */
+            if (!canCopy) return;
+          }
+        }
+
+        try {
+          await navigator.clipboard.writeText(data.url);
+          if (shareNote) shareNote.textContent = 'Adressen är kopierad.';
+        } catch {
+          if (shareNote) shareNote.textContent = 'Kunde inte kopiera adressen.';
+        }
+      });
+    }
+  }
+</script>
