@@ -1,0 +1,361 @@
+---
+/**
+ * Verksamhetssidans platskarta — samma karta som kartsöksidan, lat laddad.
+ *
+ * Ägarens ord: "på restaurangsidorna så vill jag använda samma karta som på
+ * kartsöksidan, är det möjligt? så det är likt liksom." Därför delar den här
+ * kartan allt med Karta.astro genom lib/kartbas.ts: samma MapLibre från
+ * /maplibre/, samma egenbyggda stil, samma droppnål med ansiktet i
+ * bedömningens färg. Ramen är den delade kartramen i styles/kartram.css.
+ *
+ * ## Varför kartan inte laddas direkt
+ *
+ * Verksamhetssidan är sajtens vanligaste sidtyp och MapLibre väger 231 kB
+ * brotlat — viktresonemanget i Karta.astro gäller här med full kraft. Därför
+ * laddas MapLibre först när kartrutan når vyn eller när någon klickar på den.
+ * Innan dess står en statisk kartbild med nålen ritad ovanpå: sidan har en
+ * karta från första byte, och biblioteket betalas bara av den som faktiskt
+ * rullar ner till den.
+ *
+ * Platshållaren är Mapbox statiska bild-API (50 000 bilder/mån gratis,
+ * attribution inbakad i bilden av API:et), som var hela kartlösningen här
+ * innan den levande kartan fanns. Saknas token vid bygget står nålen på en
+ * neutral yta i stället — rutan lovar fortfarande en karta, den visar bara
+ * ingen förhandsbild.
+ *
+ * ## Härledda koordinater
+ *
+ * Uppsala och Örebro lämnar inga koordinater; deras punkter är geokodade ur
+ * adressen mot OpenStreetMap i pipelinen. En sådan nål ritas med streckad
+ * kontur — samma konvention som kartors preliminära gränser — och förbehållet
+ * står i klartext under kartan. Se även JSON-LD-resonemanget i [slug].astro:
+ * en härledd punkt publiceras aldrig som `geo`.
+ */
+import type { VerdictOrNone } from '../lib/site';
+import { faceKey } from '../lib/face';
+import { faceSvg } from '../lib/kartbas';
+import '../styles/kartram.css';
+
+interface Props {
+  lat: number;
+  lng: number;
+  name: string;
+  verdict: VerdictOrNone;
+  /** Satt bara när koordinaten är härledd ur adressen, inte lämnad av kommunen. */
+  geoSource?: 'osm';
+  address: string | null;
+  city: string;
+}
+
+const { lat, lng, name, verdict, geoSource, address, city } = Astro.props;
+
+const derived = geoSource === 'osm';
+const key = faceKey(verdict);
+
+/*
+ * Zoomen är samma i platshållaren som i den levande kartans startläge, så
+ * att uppvaknandet inte syns som ett hopp. 14 visar kvarteren runt omkring:
+ * tillräckligt med hållpunkter för att placera stället, och den som vill se
+ * porten zoomar själv — det är därför kartan är levande.
+ */
+const ZOOM = 14;
+const WIDTH = 680;
+const HEIGHT = 320;
+
+const token = import.meta.env.PUBLIC_MAPBOX_TOKEN;
+const still = token
+  ? `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${lng},${lat},${ZOOM},0/${WIDTH}x${HEIGHT}@2x?access_token=${token}`
+  : null;
+
+const alt = derived
+  ? `Karta som visar den beräknade platsen för ${name}`
+  : `Karta som visar var ${name} ligger`;
+
+/* Nålen i platshållaren är exakt samma ritning som den levande kartans nål
+   rasteriserar — kartbytet byter mark under nålen, aldrig nålen själv. */
+const nal = faceSvg(key, derived);
+---
+
+<section class="platskarta" id="karta" aria-label={`Karta över ${name}`}>
+  <h2>Karta</h2>
+
+  <div
+    class="kartram"
+    data-platskarta
+    data-lat={lat}
+    data-lng={lng}
+    data-face={key}
+    data-derived={derived ? '1' : undefined}
+    data-zoom={ZOOM}
+    data-name={name}
+  >
+    {/* Platshållaren. Ligger kvar under den levande kartan tills den ritat
+        klart, så att bytet är en mjuk övergång och inte en vit blixt. */}
+    <div class="still" data-still>
+      {still ? (
+        <img
+          src={still}
+          alt={alt}
+          width={WIDTH}
+          height={HEIGHT}
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <span class="tomyta" aria-hidden="true"></span>
+      )}
+      <span class="nal" set:html={nal} />
+      <button type="button" class="knapp" data-aktivera>Utforska kartan</button>
+    </div>
+
+    <div class="duk" data-duk aria-hidden="true"></div>
+
+    <p class="fel" data-fel hidden role="alert">
+      Kartan gick inte att ladda.
+    </p>
+  </div>
+
+  <p class="adress text-secondary">
+    {[address, city].filter(Boolean).join(', ')}
+    {derived && (
+      <span class="harledd">
+        Platsen är beräknad ur adressen och kan ligga några tiotal meter fel.
+      </span>
+    )}
+  </p>
+</section>
+
+<script>
+  /**
+   * Kartans uppvaknande. MapLibre och stilen hämtas första gången rutan når
+   * vyn ELLER när någon klickar på knappen, vad som än sker först. Se
+   * modulkommentaren för varför den inte laddas direkt, och lib/kartbas.ts
+   * för varför biblioteket laddas som statisk fil utanför paketeraren.
+   */
+  import { KARTSTIL, faceBitmap, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import type { FaceKey } from '../lib/face';
+
+  const root = document.querySelector<HTMLElement>('[data-platskarta]');
+
+  if (root) {
+    const duk = root.querySelector<HTMLElement>('[data-duk]')!;
+    const still = root.querySelector<HTMLElement>('[data-still]')!;
+    const knapp = root.querySelector<HTMLButtonElement>('[data-aktivera]')!;
+    const fel = root.querySelector<HTMLElement>('[data-fel]')!;
+
+    const lat = Number(root.dataset.lat);
+    const lng = Number(root.dataset.lng);
+    const zoom = Number(root.dataset.zoom);
+    const key = root.dataset.face as FaceKey;
+    const derived = root.dataset.derived === '1';
+
+    let startad = false;
+
+    async function start() {
+      if (startad) return;
+      startad = true;
+      knapp.disabled = true;
+
+      try {
+        laddaMaplibreCss();
+        const [maplibre, bitmap] = await Promise.all([
+          laddaMaplibre(),
+          faceBitmap(key, derived),
+        ]);
+        const { Map, NavigationControl, AttributionControl, FullscreenControl } = maplibre;
+
+        const karta = new Map({
+          container: duk,
+          style: KARTSTIL,
+          center: [lng, lat],
+          zoom,
+          attributionControl: false,
+        });
+
+        // Helskärm på ramen, inte på duken: felraden och nålen ska följa med
+        // in i helskärmsläget. Samma resonemang som på kartsöksidan.
+        karta.addControl(new FullscreenControl({ container: root }), 'top-right');
+        karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+        karta.addControl(new AttributionControl({ compact: false }), 'bottom-right');
+
+        karta.on('load', () => {
+          karta.addImage('nal', bitmap, { pixelRatio: 2 });
+          karta.addSource('plats', {
+            type: 'geojson',
+            data: { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] } },
+          });
+          karta.addLayer({
+            id: 'nal',
+            type: 'symbol',
+            source: 'plats',
+            layout: {
+              'icon-image': 'nal',
+              // Samma storlek som kartsöksidans nålar, och spetsen på
+              // koordinaten — inte märkets mitt.
+              'icon-size': 0.5,
+              'icon-allow-overlap': true,
+              'icon-anchor': 'bottom',
+            },
+          });
+
+          karta.getCanvas().setAttribute('aria-label', `Karta över ${root.dataset.name}`);
+          duk.removeAttribute('aria-hidden');
+
+          // Platshållaren tonas bort först när kartan ritat klart.
+          root.classList.add('live');
+          still.setAttribute('aria-hidden', 'true');
+        });
+      } catch (error) {
+        console.error(error);
+        // Platshållaren står kvar — den ÄR en karta. Felraden säger bara att
+        // den levande varianten uteblev.
+        fel.hidden = false;
+        knapp.hidden = true;
+      }
+    }
+
+    knapp.addEventListener('click', start);
+
+    /*
+     * Vyn som utlösare. Tröskeln 0,2 i stället för första pixeln: rutan ska
+     * vara på väg in i blickfånget, inte bara nudda vyportens kant under en
+     * snabb rullning förbi.
+     */
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(
+        (poster) => {
+          if (poster.some((p) => p.isIntersecting)) {
+            io.disconnect();
+            void start();
+          }
+        },
+        { threshold: 0.2 },
+      );
+      io.observe(root);
+    }
+  }
+</script>
+
+<style>
+  .platskarta h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  /* Måtten är kartans egna; ramen (kant, radie, yta) bor i kartram.css. */
+  .kartram {
+    height: 320px;
+  }
+
+  .still {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    transition: opacity 0.35s ease;
+  }
+
+  .still img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Reservytan när bygget saknar token för förhandsbilden: samma svaga blå
+     ton som kartpuffen använder, en yta och inte ett tomrum. */
+  .tomyta {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: color-mix(in srgb, var(--brand) 7%, var(--card));
+  }
+
+  /* Nålens spets på koordinaten, som är bildens mittpunkt. Droppen är
+     100 × 132, alltså 36 × 47.5 vid nålbredden 36. */
+  .nal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -100%);
+    width: 36px;
+    pointer-events: none;
+  }
+
+  .nal :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Knappen är kartpuffens: en pill mot underkanten som säger vad ett klick
+     ger. Rutan laddar också av sig själv när den når vyn, men knappen gör
+     löftet synligt och ger tangentbordet en väg in. */
+  .knapp {
+    position: absolute;
+    left: 50%;
+    bottom: var(--s-3);
+    transform: translateX(-50%);
+    padding: var(--s-2) var(--s-4);
+    background: var(--card);
+    border: 0;
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
+    font: 600 var(--fs-caption) / var(--lh-caption) var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .knapp:hover {
+    color: var(--brand-ink);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .duk {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* Kartan vaken: platshållaren tonar bort och släpper igenom pekaren. */
+  .live .still {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .fel {
+    position: absolute;
+    left: 50%;
+    bottom: var(--s-3);
+    transform: translateX(-50%);
+    z-index: 3;
+    margin: 0;
+    padding: var(--s-2) var(--s-4);
+    background: var(--card);
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .adress {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .harledd {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 600px) {
+    .kartram {
+      height: 240px;
+    }
+  }
+</style>

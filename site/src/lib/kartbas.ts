@@ -130,8 +130,10 @@ export const PIN_W = 72;
 export const PIN_H = 95;
 
 /** Nålen som bitmapp, för MapLibres addImage. Symbol-lager kan inte rita
- *  SVG direkt, så droppen rasteriseras via en canvas. */
-export function faceBitmap(key: FaceKey): Promise<ImageData> {
+ *  SVG direkt, så droppen rasteriseras via en canvas. `streckad` följer med
+ *  till faceSvg, så att en härledd koordinat behåller sin konvention även
+ *  som nål i ett symbol-lager. */
+export function faceBitmap(key: FaceKey, streckad = false): Promise<ImageData> {
   return new Promise((resolve, reject) => {
     const img = new Image(PIN_W, PIN_H);
     img.onload = () => {
@@ -144,6 +146,6 @@ export function faceBitmap(key: FaceKey): Promise<ImageData> {
       resolve(ctx.getImageData(0, 0, PIN_W, PIN_H));
     };
     img.onerror = () => reject(new Error('kunde inte rita ' + key));
-    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(faceSvg(key))}`;
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(faceSvg(key, streckad))}`;
   });
 }
