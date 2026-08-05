@@ -201,6 +201,87 @@ class TestSokning(unittest.TestCase):
         self.assertIsNone(imagery.find_panoramax(LAT, LNG))
 
 
+class TestValetMellanKandidater(unittest.TestCase):
+    """Vilken av de godkända bilderna som faktiskt visas.
+
+    Grindarna avgör vad som FÅR visas. De här testerna handlar om vad som
+    BÖR visas bland dem, och ordningen är avstånd, komposition, färskhet.
+    """
+
+    def _kandidat(self, **kwargs):
+        grund = dict(
+            source="mapillary",
+            source_id="x",
+            fetch_url="u",
+            captured_at="2020-06-01",
+            compass=0.0,
+            lat=59.0,
+            lng=17.0,
+            distance_m=20.0,
+            bearing_off_deg=10.0,
+        )
+        return imagery.Candidate(**{**grund, **kwargs})
+
+    def test_narmare_band_slar_battre_komposition(self):
+        nara = self._kandidat(source_id="nara", distance_m=10.0, bearing_off_deg=40.0)
+        mittiruta = self._kandidat(source_id="mitt", distance_m=38.0, bearing_off_deg=1.0)
+        self.assertEqual(imagery._pick([mittiruta, nara]).source_id, "nara")
+
+    def test_inom_samma_avstandsband_vinner_bilden_med_motivet_mitt_i(self):
+        """Buggen det här testet finns för: bäringen var bara en grind, så en
+        bild med verksamheten ute i hörnet kunde vinna över en med fasaden mitt
+        i rutan bara för att den var någon meter närmare."""
+        kanten = self._kandidat(source_id="kanten", distance_m=21.0, bearing_off_deg=44.0)
+        mitten = self._kandidat(source_id="mitten", distance_m=29.0, bearing_off_deg=3.0)
+        self.assertEqual(imagery._pick([kanten, mitten]).source_id, "mitten")
+
+    def test_inom_samma_riktningsband_vinner_den_nyaste(self):
+        gammal = self._kandidat(
+            source_id="gammal", bearing_off_deg=2.0, captured_at="2015-05-01"
+        )
+        ny = self._kandidat(source_id="ny", bearing_off_deg=12.0, captured_at="2024-05-01")
+        self.assertEqual(imagery._pick([gammal, ny]).source_id, "ny")
+
+
+class TestSokruta(unittest.TestCase):
+    """Rutan vi frågar inom ska täcka avståndskravet lika långt åt alla håll.
+
+    Buggen den här klassen finns för: rutan hade en fast sida i GRADER, och en
+    longitudgrad är kortare än en latitudgrad, mer ju längre norrut man kommer.
+    I Uppsala blev rutan 78 meter hög och 39 meter bred, medan avståndskravet
+    var 40 meter. En bild rakt öster om porten föll alltså utanför frågan innan
+    något avståndsvillkor hunnit se den, och verksamheter vid en öst-västlig
+    gata fick systematiskt färre kandidater.
+    """
+
+    def _sidor_i_meter(self, lat: float, meter: float) -> tuple[float, float]:
+        import math
+
+        min_lng, min_lat, max_lng, max_lat = imagery._bbox(lat, 17.6, meter)
+        halv_lat = (max_lat - min_lat) / 2 * 111320
+        halv_lng = (max_lng - min_lng) / 2 * 111320 * math.cos(math.radians(lat))
+        return halv_lat, halv_lng
+
+    def test_rutan_ar_lika_bred_som_hog_i_meter(self):
+        for lat in (55.4, 59.33, 59.86, 67.85):
+            with self.subTest(lat=lat):
+                halv_lat, halv_lng = self._sidor_i_meter(lat, 40)
+                self.assertAlmostEqual(halv_lat, halv_lng, delta=0.5)
+
+    def test_rutan_racker_till_avstandskravet(self):
+        for meter in (20, 40, 60, 100):
+            with self.subTest(meter=meter):
+                halv_lat, halv_lng = self._sidor_i_meter(59.86, meter)
+                self.assertGreater(halv_lat, meter)
+                self.assertGreater(halv_lng, meter)
+
+    def test_rutan_haller_sig_under_mapillarys_tak(self):
+        """Mapillary avvisar sökrutor som är 0,01 grader eller större."""
+        min_lng, min_lat, max_lng, max_lat = imagery._bbox(67.85, 20.2, 100)
+        self.assertLess(max_lat - min_lat, 0.01)
+        self.assertLess(max_lng - min_lng, 0.01)
+
+
 class TestLagring(unittest.TestCase):
     def test_nyckeln_ar_deterministisk_och_saker(self):
         key = imagery.object_key("linkoping", "SE/0580/Café Ö & Co", "webp")
@@ -336,9 +417,14 @@ class TestHelaKedjan(unittest.TestCase):
         self.assertEqual(stored.url, "https://bilder.prikko.se/gatubilder/linkoping/SE-1.jpg")
         self.assertEqual(stored.source, "mapillary")
         self.assertEqual(stored.source_id, "498763468214164")
-        self.assertEqual(stored.licence, "CC-BY-SA-4.0")
+        # Utan versionsnummer, med avsikt. Mapillarys villkor säger "Creative
+        # Commons Share Alike (CC BY-SA)" och nämner ingen version; 4.0 står
+        # bara i en hjälpartikel som svarar 403 på maskinella anrop och alltså
+        # inte gick att belägga. En licensrad vi inte kan belägga skriver vi
+        # inte. Se MAPILLARY_LICENCE i imagery.py.
+        self.assertEqual(stored.licence, "CC-BY-SA")
         # CC BY-SA kräver att upphovspersonen namnges, inte bara plattformen.
-        self.assertEqual(stored.attribution, "andreas_p / Mapillary, CC BY-SA 4.0")
+        self.assertEqual(stored.attribution, "andreas_p / Mapillary, CC BY-SA")
 
     def test_ingen_signerad_url_lacker_ut_i_det_vi_sparar(self):
         """Regressionen. Det här var buggen: en signerad URL med utgångstid
@@ -388,6 +474,44 @@ class TestHelaKedjan(unittest.TestCase):
         }
         imagery._get = lambda url, timeout=30: {"features": [feature]}
         self.assertIsNone(imagery.find_panoramax(LAT, LNG))
+
+    def test_panoramax_licens_lases_per_bild_och_gissas_aldrig(self):
+        """Federationen tillåter två licenser och anger dem per bild.
+
+        Att skriva Mapillarys licenskonstant på en Panoramax-bild vore fel även
+        de gånger den råkar stämma, så licensen ska komma ur svaret.
+        """
+        imagery._get = lambda url, timeout=30: PANORAMAX_PAYLOAD
+        candidate = imagery.find_panoramax(LAT, LNG)
+
+        self.assertIsNotNone(candidate)
+        self.assertEqual(candidate.licence, "CC-BY-SA-4.0")
+        self.assertEqual(
+            imagery.attribution_text(candidate),
+            "serenedeluge / Panoramax, CC BY-SA 4.0",
+        )
+
+    def test_panoramax_med_annan_licens_valjs_bort(self):
+        """etalab-2.0 förekommer i federationen. Vi tar bara CC BY-SA, så att
+        sajtens licensrad är en enda och alltid sann."""
+        feature = dict(PANORAMAX_PAYLOAD["features"][0])
+        feature["properties"] = {**feature["properties"], "license": "etalab-2.0"}
+        imagery._get = lambda url, timeout=30: {"features": [feature]}
+
+        self.assertIsNone(imagery.find_panoramax(LAT, LNG))
+
+    def test_fotografen_lases_ur_providers_nar_den_finns(self):
+        """`providers` är STAC-standardens form, `geovisio:producer` en
+        dubblett. Standardformen ska vinna."""
+        feature = dict(PANORAMAX_PAYLOAD["features"][0])
+        feature["providers"] = [
+            {"name": "instansen", "roles": ["host"]},
+            {"name": "ratt-fotograf", "roles": ["producer"]},
+        ]
+        imagery._get = lambda url, timeout=30: {"features": [feature]}
+
+        candidate = imagery.find_panoramax(LAT, LNG)
+        self.assertEqual(candidate.creator, "ratt-fotograf")
 
     def test_ingen_bild_nara_nog_ger_none_och_ingen_skrivning(self):
         store = FakeStore()

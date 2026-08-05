@@ -59,46 +59,154 @@ MAPILLARY_API = "https://graph.mapillary.com/images"
 PANORAMAX_API = "https://api.panoramax.xyz/api/search"
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se)"
 
-#: Hur nära verksamheten en bild måste vara för att duga. Vald efter mätning
-#: 2026-08-04 (400 verksamheter, egen token): riktningskravet nedan gör mer
-#: för träffsäkerheten än ett kortare avstånd gör, och med det på plats ger
-#: 40 m rätt hus medan 60 m allt oftare ger grannens. Syftet är "aha, det är
-#: DEN restaurangen" — hellre färre rätta bilder än många ungefärliga.
+#: Hur nära verksamheten en bild måste vara för att duga.
+#:
+#: Vald mot mätningen i pipeline/matt_troskel.py, 400 verksamheter, körd
+#: 2026-08-05 med samma grindar som står här nedan. Täckningen vid ±45°:
+#:
+#:     20 m  8,0 %      50 m  24,0 %
+#:     25 m 11,8 %      60 m  30,0 %
+#:     30 m 13,2 %      80 m  45,0 %
+#:     40 m 18,8 %     100 m  55,5 %
+#:
+#: Det avgörande talet står inte i tabellen utan bredvid den: den bild som
+#: FAKTISKT väljs vid 40 m ligger på 20,4 meters median. Taket är alltså sällan
+#: det som bestämmer, och varje meter man höjer det med lägger bara till bilder
+#: i det yttersta bandet. Höjer man 40 till 50 vinner man 5,2 procentenheter,
+#: och varenda en av dem är en bild tagen mellan 40 och 50 meter bort, alltså
+#: precis de bilder som visar grannens fasad. Tillskottet består helt av
+#: sämsta möjliga bilder.
+#:
+#: Syftet är "aha, det är DEN restaurangen". Mot det syftet är en ungefärlig
+#: bild inte en halv bild utan ett fel, för besökaren tror att hen sett stället.
+#: Därför 40 och inte 60.
 MAX_DISTANCE_M = 40
 
 #: Hur mycket kamerariktningen får avvika från bäringen kamera → verksamhet.
-#: En gatubild tas ur en bil som fotograferar längs gatan åt båda hållen; utan
-#: det här kravet blir bilden lika ofta vägen bort från huset som huset.
-#: ±60° håller verksamheten innanför bildens kant för de kameror Mapillary
-#: vanligen har (90-100° horisontell bildvinkel) med marginal för GPS-brus.
-#: Bilder utan kompassvärde väljs bort: hellre ingen bild än en gissning.
-MAX_BEARING_OFF_DEG = 60
+#:
+#: En gatubild tas ur ett fordon som fotograferar längs gatan åt båda hållen.
+#: Utan det här kravet blir bilden lika ofta vägbanan bort från huset som
+#: huset: vid 40 m lyfter ett fritt riktningsval täckningen från 18,8 till
+#: 25,0 procent, och de 6,2 procentenheterna är till stor del bilder där
+#: verksamheten ligger bakom kameran.
+#:
+#: Gränsen är satt av optiken och inte av en avvägning. De kameror Mapillary
+#: vanligen har täcker 90 till 100 grader horisontellt, alltså 45 till 50
+#: grader åt vardera hållet från mitten. Ett motiv som ligger mer än 45 grader
+#: från kamerans riktning är därmed utanför bildkanten på den smalaste av dem.
+#: Här stod tidigare 60 grader med motiveringen att det höll motivet innanför
+#: kanten, och den räkningen gick inte ihop: 60 är större än halva 90.
+#:
+#: Snävare än 45 lönar sig inte. Steget 45 till 30 kostar 21 procent av
+#: bilderna, och det skyddar mot ingenting: kompassvärdet bär flera graders
+#: fel i sig, så en hårdare gräns kastar sanna träffar utan att fånga fler
+#: falska. Bilder utan kompassvärde väljs bort helt, hellre ingen bild än en
+#: gissning.
+MAX_BEARING_OFF_DEG = 45
 
 #: Dagsljusfönster per månad, lokal svensk tid [från, till). Provkörningen mot
-#: Linköping valde annars en beckmörk vindrutebild från en marsnatt — skarp
-#: kompass, rätt avstånd, noll igenkänning. Mapillary har inget kvalitetsfält,
-#: men klockslaget är en billig och ärlig proxy: utanför dagsljus är bilden
-#: aldrig den bästa tillgängliga. Fönstren är satta efter svenska soltider med
-#: marginal, inte astronomiskt beräknade.
+#: Linköping valde annars en beckmörk vindrutebild från en marsnatt, med skarp
+#: kompass, rätt avstånd och noll igenkänning. Mapillary har inget
+#: kvalitetsfält, men klockslaget är en billig och ärlig proxy: utanför
+#: dagsljus är bilden aldrig den bästa tillgängliga. Fönstren är satta efter
+#: svenska soltider med marginal, inte astronomiskt beräknade.
+#:
+#: Kravet är mätt till att kosta 2,2 procentenheter vid 40 meter, alltså runt
+#: en tiondel av bilderna. Billigt för att slippa publicera ett svart foto
+#: under rubriken "så här ser stället ut".
 _DAYLIGHT_HOURS = {
     1: (9, 15), 2: (9, 16), 3: (8, 17), 4: (7, 19), 5: (6, 20), 6: (6, 20),
     7: (6, 20), 8: (6, 19), 9: (7, 18), 10: (8, 17), 11: (9, 15), 12: (9, 14),
 }
 
-#: Avståndsband för färskhetsvalet, i meter. Två bilder i samma band räknas
-#: som lika nära, och då vinner den nyast tagna: en skylt byts, en fasad målas
-#: om, och en elva år gammal bild av rätt hus känns ändå inte igen. Mellan
-#: banden vinner fortfarande närheten.
+#: Avståndsband för valet, i meter. Två bilder i samma band räknas som lika
+#: nära. Mellan banden vinner fortfarande närheten.
 _DISTANCE_BAND_M = 15
 
-#: Ungefärlig gradstorlek för sökrutan. 0.0007° ≈ 78 m i nord-sydlig led.
-_BBOX_PAD = 0.0007
+#: Riktningsband inom ett avståndsband, i grader. Bäringen är inte bara en
+#: grind utan också ett mått på hur bilden är komponerad: ett motiv 5 grader
+#: från kamerans mitt står mitt i bilden, ett motiv 44 grader bort ligger
+#: klistrat mot kanten med vägbanan i mitten. Provkörningen mot Oskarshamn
+#: visade just det. Bilderna med störst avvikelse var vidvinklade
+#: instrumentbrädesbilder där verksamheten låg ute i hörnet, medan de med liten
+#: avvikelse hade fasaden mitt i rutan.
+#:
+#: Bandet är 15 grader och inte en rak sortering på bäring, för då hade en bild
+#: från 2015 med 2 graders avvikelse slagit en från 2024 med 4. Inom bandet
+#: bestämmer alltså färskheten fortfarande.
+_BEARING_BAND_DEG = 15
+
+#: Marginal på sökrutan utöver avståndskravet. Kandidaternas koordinater bär
+#: GPS-brus, och en bild som ligger precis på gränsen ska hinna komma med och
+#: sedan väljas bort av avståndskravet, inte försvinna redan i frågan. Snålt
+#: satt: rutans area växer med kvadraten, och varje bild i rutan tar en plats
+#: i svaret som är hårt begränsat. Se SEARCH_LIMIT.
+_BBOX_MARGIN = 1.1
+
+#: Hur många bilder vi ber källan om per punkt.
+#:
+#: Det här talet var 25, och det var en tyst och allvarlig bugg. Mapillary
+#: sorterar inte svaret efter avstånd, utan returnerar en godtycklig delmängd
+#: av det som ligger i rutan. På en innerstadsgata finns hundratals bilder inom
+#: hundra meter, från flera års körningar, och med 25 platser i svaret var det
+#: rena slumpen om den närmaste kom med.
+#:
+#: Mätt på sex verkliga adresser i Stockholm 2026-08-05, samma ruta, bara
+#: gränsen ändrad:
+#:
+#:     limit=25   gav 0 bilder    limit=500 gav 66 bilder, närmaste  1,2 m
+#:     limit=25   gav 0 bilder    limit=500 gav 90 bilder, närmaste  6,6 m
+#:     limit=25   gav 1 bild      limit=500 gav 64 bilder, närmaste 10,3 m
+#:
+#: Alltså: verksamheter mitt i stan, med en gatubild tagen ett par meter från
+#: porten, fick ingen bild alls. Precis de sidor där bilden är som mest värd
+#: att ha. En kontroll av var svaret slutar växa gav 65 bilder vid 100, 143 vid
+#: 500 och 423 vid 1000, och 460 vid 2000, alltså mättnad först en bit över
+#: tusen.
+#:
+#: Kostnaden är bara svarets storlek, inte fler anrop: vi frågar en gång per
+#: verksamhet oavsett. Fälten är få och varje post är liten.
+SEARCH_LIMIT = 2000
+
+#: Meter per grad latitud. Longitudgraden är kortare, och krymper mot polerna.
+_M_PER_DEG_LAT = 111320.0
 
 #: Bredd vi lagrar. Bilden visas i en sidopanel som aldrig är bredare än ett par
 #: hundra punkter, så 1024 räcker även för en skärm med dubbel pixeltäthet.
 TARGET_WIDTH = 1024
 
-LICENCE = "CC-BY-SA-4.0"
+#: Licensen vi skriver för en Mapillary-bild, och varför den saknar versionsnummer.
+#:
+#: Villkoren på mapillary.com/terms, avsnitt 3, säger ordagrant "subject to the
+#: Creative Commons Share Alike (CC BY-SA) license". Någon version står inte
+#: där, varken 4.0 eller 3.0. Mapillarys hjälpartikel uppges säga 4.0, men
+#: help.mapillary.com svarar 403 på maskinella anrop och kunde alltså inte
+#: läsas som primärkälla vid kontrollen 2026-08-05.
+#:
+#: Att skriva "CC BY-SA 4.0" vore därför ett påstående vi inte kan belägga, och
+#: en licensrad som är fel är värre än en som är kortfattad. Vi skriver det
+#: villkoren faktiskt säger. Är versionen bekräftad i en riktig webbläsare kan
+#: den läggas till här, på ett ställe.
+MAPILLARY_LICENCE = "CC-BY-SA"
+
+#: Panoramax anger licensen per bild i API-svaret och behöver ingen konstant.
+#: Federationen tillåter två: CC-BY-SA-4.0 och franska etalab-2.0.
+PANORAMAX_LICENCE = "CC-BY-SA-4.0"
+
+#: DEN RISK SOM INTE ÄR UTREDD, och som ägaren måste känna till:
+#:
+#: Samma mening i avsnitt 3 fortsätter "unless we indicate otherwise", och ger
+#: som exempel att somliga datamängder ligger under CC BY-NC-SA, alltså med
+#: förbud mot kommersiell användning. Prikko är en kommersiell sajt. Någon
+#: licensuppgift per bild finns inte i Mapillarys API, så det går inte att
+#: skilja de bilderna från de andra maskinellt, och något dokumenterat sätt att
+#: göra det hittades inte.
+#:
+#: Bedömningen som ligger bakom att vi ändå hämtar: undantaget är formulerat om
+#: särskilt tillhandahållna datamängder, inte om enskilda bilder ur det vanliga
+#: bild-API:t, som villkorens avsnitt 11 uttryckligen förutser att man laddar
+#: ned och serverar själv. Det är en bedömning och inte ett belägg.
+LICENCE = MAPILLARY_LICENCE
 
 #: Kameratyper vi väljer bort. Ett 360-foto är en ekvirektangulär utvikning, och
 #: beskuret av `object-fit: cover` visar det bilens tak och en remsa himmel i
@@ -116,17 +224,16 @@ SPHERICAL = {"spherical", "equirectangular"}
 #: Förhållandet bredd genom höjd för en ekvirektangulär utvikning, med marginal.
 _PANORAMA_RATIO = 1.9
 
-#: Reservtext för public.images.attribution när fotografens namn saknas.
-#: När namnet finns skrivs "namn / Källa, CC BY-SA 4.0" i stället, se
-#: attribution_text(). CC BY-SA kräver att upphovspersonen namnges, inte bara
-#: plattformen; Mapillarys logotyp- och länkkrav uppfylls av komponenten.
-ATTRIBUTION = {
-    "mapillary": "Mapillary, CC BY-SA 4.0",
-    "panoramax": "Panoramax, CC BY-SA 4.0",
-}
-
 #: Källnamn som de skrivs i attributionen.
 _SOURCE_LABEL = {"mapillary": "Mapillary", "panoramax": "Panoramax"}
+
+#: Licenskoden som den skrivs för en människa. Koden är maskinens form och
+#: hamnar i public.images.licence; det här är formen som står under bilden.
+_LICENCE_LABEL = {
+    "CC-BY-SA": "CC BY-SA",
+    "CC-BY-SA-4.0": "CC BY-SA 4.0",
+    "etalab-2.0": "Licence Ouverte 2.0",
+}
 
 #: Panoramax-federationen tillåter två licenser per bild: CC-BY-SA 4.0 och
 #: franska LO 2.0 (etalab). Vi tar bara CC-BY-SA, samma licens som Mapillary,
@@ -151,14 +258,24 @@ class Candidate:
     fetch_url: str
     #: ISO-datum, YYYY-MM-DD, eller None. Aldrig epoktid: kolumnen är `date`.
     captured_at: Optional[str]
-    #: Riktning kameran pekade, för att senare kunna välja bild mot fasaden.
+    #: Riktning kameran pekade, som källan angav den.
     compass: Optional[float]
     lat: float
     lng: float
     distance_m: float
+    #: Hur långt från bildens mitt verksamheten ligger, i grader. Sätts av
+    #: sökfunktionerna och används av _pick för att välja den bäst komponerade
+    #: bilden bland dem som klarat grindarna. Förvalet är gränsvärdet, alltså
+    #: det sämsta en bild kan ha och ändå släppas igenom.
+    bearing_off_deg: float = float(MAX_BEARING_OFF_DEG)
     #: Fotografens användarnamn hos källan, för attributionen. CC BY-SA kräver
     #: att upphovspersonen namnges; plattformens namn räcker inte.
     creator: Optional[str] = None
+    #: Licensen för just den här bilden, SPDX-liknande. Panoramax anger den per
+    #: bild i svaret och den läses därifrån; Mapillary anger den bara i sina
+    #: villkor och får konstanten. Fältet finns för att licensraden ska följa
+    #: bilden i stället för att gissas av den som visar den.
+    licence: str = MAPILLARY_LICENCE
 
 
 @dataclass(frozen=True)
@@ -204,6 +321,25 @@ def _angle_diff(a: float, b: float) -> float:
     return abs((a - b + 180) % 360 - 180)
 
 
+def bearing_off(
+    cam_lat: float, cam_lng: float, compass, target_lat: float, target_lng: float
+) -> Optional[float]:
+    """Hur många grader från bildens mitt verksamheten ligger, eller None.
+
+    None betyder att frågan inte går att besvara, alltså att kompassvärde
+    saknas eller är oläsbart. Talet används både som grind och som mått på
+    kompositionen: noll betyder mitt i rutan, MAX_BEARING_OFF_DEG betyder ute
+    vid kanten.
+    """
+    if compass is None:
+        return None
+    try:
+        heading = float(compass)
+    except (TypeError, ValueError):
+        return None
+    return _angle_diff(heading, bearing_deg(cam_lat, cam_lng, target_lat, target_lng))
+
+
 def points_at(
     cam_lat: float, cam_lng: float, compass, target_lat: float, target_lng: float
 ) -> bool:
@@ -212,21 +348,33 @@ def points_at(
     Utan det här kravet är en gatubild lika ofta vägen bort från huset som
     huset: bilen fotograferar längs gatan åt båda hållen, och närmaste bild
     kan lika gärna vara den som just passerat porten med ryggen mot den.
-    Saknas kompassvärde svarar vi False — hellre ingen bild än en gissning,
-    hela modulen finns för att inte visa fel hus.
+    Saknas kompassvärde svarar vi False, hellre ingen bild än en gissning.
+    Hela modulen finns för att inte visa fel hus.
     """
-    if compass is None:
-        return False
-    try:
-        heading = float(compass)
-    except (TypeError, ValueError):
-        return False
-    wanted = bearing_deg(cam_lat, cam_lng, target_lat, target_lng)
-    return _angle_diff(heading, wanted) <= MAX_BEARING_OFF_DEG
+    off = bearing_off(cam_lat, cam_lng, compass, target_lat, target_lng)
+    return off is not None and off <= MAX_BEARING_OFF_DEG
 
 
-def _bbox(lat: float, lng: float, pad: float = _BBOX_PAD) -> tuple[float, ...]:
-    return (lng - pad, lat - pad, lng + pad, lat + pad)
+def _bbox(lat: float, lng: float, max_distance: float = MAX_DISTANCE_M) -> tuple[float, ...]:
+    """Sökrutan runt en punkt, härledd ur avståndskravet.
+
+    Longitudgraden krymper mot polerna, och det var en tyst bugg här. Rutan
+    hade en fast sida i grader åt båda hållen, vilket i Uppsala blev 78 meter
+    i nord-sydlig led men bara 39 i öst-västlig. Avståndskravet var 40 meter,
+    så en bild rakt öster om porten föll utanför frågan innan något
+    avståndsvillkor hunnit titta på den. Rutan var alltså inte en cirkel utan
+    en liggande ellips, och verksamheter vid en öst-västlig gata, alltså de
+    flesta, fick färre kandidater än de skulle.
+
+    Nu skalas longitudsidan med 1/cos(latitud), så att rutan täcker
+    avståndskravet lika långt åt alla håll oavsett var i landet punkten
+    ligger.
+    """
+    pad_lat = max_distance * _BBOX_MARGIN / _M_PER_DEG_LAT
+    # cos(lat) går mot noll vid polerna. Golvet gör funktionen definierad där
+    # också; Sverige ligger långt därifrån och når det aldrig.
+    pad_lng = pad_lat / max(math.cos(math.radians(lat)), 0.01)
+    return (lng - pad_lng, lat - pad_lat, lng + pad_lng, lat + pad_lat)
 
 
 def _get(url: str, timeout: int = 30) -> dict:
@@ -297,11 +445,20 @@ def _recency_key(captured_at: Optional[str]) -> int:
 
 
 def _pick(candidates: list[Candidate]) -> Optional[Candidate]:
-    """Bästa kandidaten: närhet i band om 15 m, färskhet inom bandet.
+    """Bästa kandidaten: närhet, sedan komposition, sedan färskhet.
 
-    Rent närmast-val gav en bild från 2015 av en butik som mycket väl kan ha
-    bytt både skylt och namn sedan dess. Två bilder i samma band är i praktiken
-    lika nära, och då är den nyare alltid den bättre igenkänningsbilden.
+    Tre mått i fallande ordning, vart och ett bandat så att små skillnader inte
+    slår ut ett viktigare mått:
+
+    1. Avstånd i band om 15 m. Närmare är bättre, men 21 och 29 meter är i
+       praktiken samma sak.
+    2. Riktningsavvikelse i band om 15°. Det här ledet tillkom efter
+       provkörningen mot Oskarshamn, där bäringen bara var en grind och valet
+       därför lika gärna kunde falla på en bild med verksamheten ute i hörnet
+       som på en med fasaden mitt i rutan. Grinden avgör om bilden får visas,
+       det här avgör vilken av de tillåtna som faktiskt visas.
+    3. Färskhet. Ett rent närmast-val gav en bild från 2015 av en butik som
+       mycket väl kan ha bytt både skylt och namn sedan dess.
     """
     if not candidates:
         return None
@@ -309,6 +466,7 @@ def _pick(candidates: list[Candidate]) -> Optional[Candidate]:
         candidates,
         key=lambda c: (
             int(c.distance_m // _DISTANCE_BAND_M),
+            int(c.bearing_off_deg // _BEARING_BAND_DEG),
             -_recency_key(c.captured_at),
             c.distance_m,
         ),
@@ -338,8 +496,8 @@ def find_mapillary(
             "access_token": token,
             "fields": "id,thumb_1024_url,captured_at,compass_angle,camera_type,"
                       "geometry,creator",
-            "bbox": ",".join(str(round(v, 6)) for v in _bbox(lat, lng)),
-            "limit": 25,
+            "bbox": ",".join(str(round(v, 6)) for v in _bbox(lat, lng, max_distance)),
+            "limit": SEARCH_LIMIT,
         }
     )
     try:
@@ -360,7 +518,8 @@ def find_mapillary(
         d = distance_m(lat, lng, coords[1], coords[0])
         if d >= max_distance:
             continue
-        if not points_at(coords[1], coords[0], item.get("compass_angle"), lat, lng):
+        off = bearing_off(coords[1], coords[0], item.get("compass_angle"), lat, lng)
+        if off is None or off > MAX_BEARING_OFF_DEG:
             continue
         if not taken_in_daylight(_moment_from_epoch_ms(item.get("captured_at"))):
             continue
@@ -374,7 +533,9 @@ def find_mapillary(
                 lat=coords[1],
                 lng=coords[0],
                 distance_m=d,
+                bearing_off_deg=off,
                 creator=((item.get("creator") or {}).get("username") or None),
+                licence=MAPILLARY_LICENCE,
             )
         )
     return _pick(candidates)
@@ -394,9 +555,9 @@ def find_panoramax(
     fyra kommuner, så den bär inte funktionen ensam. Den kostar däremot
     ingenting att ha som andrahandskälla.
     """
-    bbox = ",".join(f"{v:.6f}" for v in _bbox(lat, lng))
+    bbox = ",".join(f"{v:.6f}" for v in _bbox(lat, lng, max_distance))
     try:
-        payload = _get(f"{PANORAMAX_API}?bbox={bbox}&limit=50")
+        payload = _get(f"{PANORAMAX_API}?bbox={bbox}&limit={SEARCH_LIMIT}")
     except Exception:
         return None
 
@@ -417,7 +578,8 @@ def find_panoramax(
         # som Mapillary, så att sajtens licensrad alltid är sann.
         if str(properties.get("license") or "") not in _ACCEPTED_LICENCES:
             continue
-        if not points_at(coords[1], coords[0], properties.get("view:azimuth"), lat, lng):
+        off = bearing_off(coords[1], coords[0], properties.get("view:azimuth"), lat, lng)
+        if off is None or off > MAX_BEARING_OFF_DEG:
             continue
         if not taken_in_daylight(_moment_from_iso(properties.get("datetime"))):
             continue
@@ -444,10 +606,27 @@ def find_panoramax(
                 lat=coords[1],
                 lng=coords[0],
                 distance_m=d,
-                creator=(properties.get("geovisio:producer") or None),
+                bearing_off_deg=off,
+                creator=_panoramax_producer(feature, properties),
+                licence=str(properties["license"]),
             )
         )
     return _pick(candidates)
+
+
+def _panoramax_producer(feature: dict, properties: dict) -> Optional[str]:
+    """Fotografen bakom en Panoramax-bild, för attributionen.
+
+    Namnet står på två ställen i svaret. `providers` är STAC-standardens form,
+    en lista där den vi vill ha har rollen "producer"; `geovisio:producer` är
+    en bekvämlighetsdubblett. Vi läser standardformen först och faller tillbaka
+    på dubbletten, så att attributionen inte tappas om den ena utgår.
+    """
+    for provider in feature.get("providers") or []:
+        roles = provider.get("roles") or []
+        if "producer" in roles and provider.get("name"):
+            return str(provider["name"])
+    return properties.get("geovisio:producer") or None
 
 
 def find_candidate(
@@ -605,14 +784,19 @@ def attribution_text(candidate: Candidate) -> str:
     """Attributionsraden som lagras och visas intill bilden.
 
     CC BY-SA kräver att upphovspersonen namnges. Formen är
-    "fotograf / Källa, CC BY-SA 4.0", där komponenten läser allt före första
+    "fotograf / Källa, CC BY-SA", där komponenten läser allt före första
     kommatecknet som länktext och resten som licens. Saknar källan ett namn
     faller vi tillbaka på enbart källans namn.
+
+    Licensen kommer från kandidaten och aldrig från en konstant här: Panoramax
+    anger den per bild, och en licensrad som inte är bildens egen är fel även
+    när den råkar stämma.
     """
     label = _SOURCE_LABEL.get(candidate.source, candidate.source)
+    licence = _LICENCE_LABEL.get(candidate.licence, candidate.licence)
     if candidate.creator:
-        return f"{candidate.creator} / {label}, CC BY-SA 4.0"
-    return ATTRIBUTION.get(candidate.source, f"{label}, CC BY-SA 4.0")
+        return f"{candidate.creator} / {label}, {licence}"
+    return f"{label}, {licence}"
 
 
 def capture(
@@ -649,6 +833,6 @@ def capture(
         source=candidate.source,
         source_id=candidate.source_id,
         captured_at=candidate.captured_at,
-        licence=LICENCE,
+        licence=candidate.licence,
         attribution=attribution_text(candidate),
     )
