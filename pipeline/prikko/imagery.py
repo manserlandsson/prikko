@@ -61,34 +61,41 @@ USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se)"
 
 #: Hur nära verksamheten en bild måste vara för att duga.
 #:
-#: Vald mot mätningen i pipeline/matt_troskel.py, 400 verksamheter, körd
-#: 2026-08-05 med samma grindar som står här nedan. Täckningen vid ±45°:
+#: Mätt med pipeline/matt_troskel.py 2026-08-05, 200 verksamheter, samma
+#: grindar som körs skarpt. Täckning vid ±45°, dagsljus och utan 360:
 #:
-#:     20 m  8,0 %      50 m  24,0 %
-#:     25 m 11,8 %      60 m  30,0 %
-#:     30 m 13,2 %      80 m  45,0 %
-#:     40 m 18,8 %     100 m  55,5 %
+#:     20 m  50,5 %      50 m  75,0 %
+#:     25 m  56,0 %      60 m  79,0 %
+#:     30 m  63,0 %      80 m  84,0 %
+#:     40 m  71,5 %     100 m  87,5 %
 #:
-#: Det avgörande talet står inte i tabellen utan bredvid den: den bild som
-#: FAKTISKT väljs vid 40 m ligger på 20,4 meters median. Taket är alltså sällan
-#: det som bestämmer, och varje meter man höjer det med lägger bara till bilder
-#: i det yttersta bandet. Höjer man 40 till 50 vinner man 5,2 procentenheter,
-#: och varenda en av dem är en bild tagen mellan 40 och 50 meter bort, alltså
-#: precis de bilder som visar grannens fasad. Tillskottet består helt av
-#: sämsta möjliga bilder.
+#: Talen är mångdubbelt högre än de som stod här tidigare, och det beror inte
+#: på att något blivit bättre utan på att frågan var trasig. Se SEARCH_LIMIT:
+#: vi bad om 25 bilder ur en osorterad mängd på flera hundra, så det mesta föll
+#: bort innan något villkor hunnit titta på det.
+#:
+#: Med den rättade frågan är utbudet gott, och då ska gränsen sättas av vad som
+#: visar rätt hus och inte av vad vi råkar hitta. Steget från 40 till 30 meter
+#: kostar 8,5 procentenheter, alltså ungefär var åttonde bild, och köper att
+#: INGEN publicerad bild är tagen längre bort än trettio meter. På trettio
+#: meter är man på andra sidan gatan och ser fasaden; på fyrtio är man snett
+#: nedför kvarteret och ser lika mycket av grannen.
+#:
+#: Taket binder sällan: den bild som faktiskt väljs ligger på 15,9 meters
+#: median. Det är just därför skärpningen är billig. Den tar bort de fall där
+#: ingenting närmare fanns, alltså precis de bilder som var svagast.
 #:
 #: Syftet är "aha, det är DEN restaurangen". Mot det syftet är en ungefärlig
 #: bild inte en halv bild utan ett fel, för besökaren tror att hen sett stället.
-#: Därför 40 och inte 60.
-MAX_DISTANCE_M = 40
+MAX_DISTANCE_M = 30
 
 #: Hur mycket kamerariktningen får avvika från bäringen kamera → verksamhet.
 #:
 #: En gatubild tas ur ett fordon som fotograferar längs gatan åt båda hållen.
 #: Utan det här kravet blir bilden lika ofta vägbanan bort från huset som
-#: huset: vid 40 m lyfter ett fritt riktningsval täckningen från 18,8 till
-#: 25,0 procent, och de 6,2 procentenheterna är till stor del bilder där
-#: verksamheten ligger bakom kameran.
+#: huset: vid 30 m lyfter ett fritt riktningsval täckningen från 63,0 till
+#: 72,5 procent, och de nio och en halv procentenheterna är till stor del
+#: bilder där verksamheten ligger bakom kameran.
 #:
 #: Gränsen är satt av optiken och inte av en avvägning. De kameror Mapillary
 #: vanligen har täcker 90 till 100 grader horisontellt, alltså 45 till 50
@@ -97,11 +104,12 @@ MAX_DISTANCE_M = 40
 #: Här stod tidigare 60 grader med motiveringen att det höll motivet innanför
 #: kanten, och den räkningen gick inte ihop: 60 är större än halva 90.
 #:
-#: Snävare än 45 lönar sig inte. Steget 45 till 30 kostar 21 procent av
-#: bilderna, och det skyddar mot ingenting: kompassvärdet bär flera graders
-#: fel i sig, så en hårdare gräns kastar sanna träffar utan att fånga fler
-#: falska. Bilder utan kompassvärde väljs bort helt, hellre ingen bild än en
-#: gissning.
+#: Snävare än 45 lönar sig inte. Steget 45 till 30 kostar 7 procentenheter,
+#: och det skyddar mot ingenting: kompassvärdet bär flera graders fel i sig, så
+#: en hårdare gräns kastar sanna träffar utan att fånga fler falska. Bilder
+#: utan kompassvärde väljs bort helt, hellre ingen bild än en gissning.
+#: Kompositionen sköts i stället av _pick, som väljer den bäst centrerade av
+#: dem som klarat grinden.
 MAX_BEARING_OFF_DEG = 45
 
 #: Dagsljusfönster per månad, lokal svensk tid [från, till). Provkörningen mot
@@ -111,9 +119,9 @@ MAX_BEARING_OFF_DEG = 45
 #: dagsljus är bilden aldrig den bästa tillgängliga. Fönstren är satta efter
 #: svenska soltider med marginal, inte astronomiskt beräknade.
 #:
-#: Kravet är mätt till att kosta 2,2 procentenheter vid 40 meter, alltså runt
-#: en tiondel av bilderna. Billigt för att slippa publicera ett svart foto
-#: under rubriken "så här ser stället ut".
+#: Kravet är mätt till att kosta 3,0 procentenheter vid 30 meter, alltså en
+#: bild av tjugo. Billigt för att slippa publicera ett svart foto under
+#: rubriken "så här ser stället ut".
 _DAYLIGHT_HOURS = {
     1: (9, 15), 2: (9, 16), 3: (8, 17), 4: (7, 19), 5: (6, 20), 6: (6, 20),
     7: (6, 20), 8: (6, 19), 9: (7, 18), 10: (8, 17), 11: (9, 15), 12: (9, 14),
