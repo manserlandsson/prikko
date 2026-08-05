@@ -205,9 +205,15 @@ def from_supabase(db: Supabase, municipality_code: Optional[str]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def build_store(args) -> Optional[object]:
+def build_store(args) -> tuple[Optional[object], bool]:
+    """Lagringen, och om den bara är mellanlagrad.
+
+    Andra värdet är sant när bilderna ligger på disk mot en adress som ännu
+    inte svarar. Anroparen måste veta det: en URL som pekar på ingenting är
+    värre i databasen än ingen URL alls.
+    """
     if args.torr:
-        return None
+        return None, False
     if args.lokal:
         if not args.bas_url:
             raise SystemExit("--lokal kräver --bas-url, annars vet vi inte vad som ska sparas i databasen.")
@@ -217,7 +223,7 @@ def build_store(args) -> Optional[object]:
                 "--lokal får inte peka in i site/. Bygget har 3 534 filers marginal "
                 "mot Cloudflare Pages tak och bilderna ska ligga utanför det."
             )
-        return imagestore.LocalStore(directory=directory, public_base_url=args.bas_url)
+        return imagestore.LocalStore(directory=directory, public_base_url=args.bas_url), False
 
     store = imagestore.from_env()
     if store is None:
@@ -227,8 +233,8 @@ def build_store(args) -> Optional[object]:
         print(STAGING_BANNER, file=sys.stderr)
         return imagestore.LocalStore(
             directory=STAGING_DIR, public_base_url=STAGING_BASE_URL
-        )
-    return store
+        ), True
+    return store, False
 
 
 _CONTENT_TYPES = {".webp": "image/webp", ".jpg": "image/jpeg", ".png": "image/png"}
@@ -269,6 +275,11 @@ def main() -> int:
     parser.add_argument("--bas-url", dest="bas_url", help="publik bas-URL för --lokal")
     parser.add_argument("--paus", type=float, default=POLITE_DELAY_S)
     parser.add_argument(
+        "--mellanlagra",
+        action="store_true",
+        help="skriv URL:er som ännu inte svarar, för uppladdning direkt efteråt",
+    )
+    parser.add_argument(
         "--ladda-upp",
         dest="ladda_upp",
         action="store_true",
@@ -279,7 +290,25 @@ def main() -> int:
     if args.ladda_upp:
         return upload_staged()
 
-    store = build_store(args)
+    store, staged = build_store(args)
+
+    # En URL som pekar på ingenting är värre än ingen bild alls: sidan får en
+    # trasig bildruta med en söndrig ikon i, och det är precis det intryck vi
+    # inte vill ge. Så länge bilderna bara ligger mellanlagrade på disk får de
+    # alltså inte skrivas till något som bygger sajten, varken databasen eller
+    # en datafil. Vill man ändå det, för att ladda upp direkt efteråt och
+    # aldrig bygga däremellan, får man säga det rakt ut. Kontrollen står först
+    # av allt: den ska kosta noll anrop att gå på.
+    if staged and not args.mellanlagra:
+        raise SystemExit(
+            "Bilderna skulle mellanlagras lokalt mot " + STAGING_BASE_URL + ",\n"
+            "som inte svarar förrän R2-hinken finns. Att skriva de URL:erna nu ger\n"
+            "trasiga bildrutor på varje sida som får en bild.\n\n"
+            "Sätt upp R2 enligt bannern ovan, eller kör --lokal med --bas-url för\n"
+            "att prova hela kedjan utan att röra det som publiceras. Vet du vad du\n"
+            "gör och tänker ladda upp direkt efteråt: lägg till --mellanlagra."
+        )
+
     token = os.environ.get("MAPILLARY_TOKEN", "").strip()
     if not token:
         print(
