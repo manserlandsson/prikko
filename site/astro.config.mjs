@@ -5,13 +5,15 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import {
   establishments,
-  isIndexable,
   latestInspectionDate,
   municipalities,
   sourceFor,
 } from './src/lib/data.ts';
 import { path } from './src/lib/urls.ts';
-import { articleFiles, sectionReady } from './src/lib/artiklar.ts';
+import { articleFiles } from './src/lib/artiklar.ts';
+import { REPORTS } from './src/lib/rapporter.ts';
+import { editions, standings } from './src/lib/utmarkelser.ts';
+import { noindexPaths } from './src/lib/webbkarta.ts';
 
 /**
  * Renderingsstrategi (se docs/adr/0001-rendering-strategi.md):
@@ -25,56 +27,15 @@ import { articleFiles, sectionReady } from './src/lib/artiklar.ts';
 /**
  * Sökvägar som bär `noindex` och därför aldrig får ligga i sitemapen.
  *
- * En sitemap är ett påstående om vilka sidor som ska indexeras. Att be Google
- * indexera sidor som samtidigt säger noindex är en direkt motsägelse: Search
- * Console rapporterar "Skickad URL markerad som noindex", de riktiga felen
- * dränks, och Google lär sig att sitemapen inte är tillförlitlig. På en ny
- * domän är den signalen dyr. Före den här listan låg samtliga 2 137
- * no-indexade sidor i sitemapen, alltså 13,9 procent av den.
+ * Predikatet bor i `src/lib/webbkarta.ts` och inte här. Det flyttade dit när
+ * den läsbara webbkartan tillkom, eftersom den sidan måste utesluta exakt
+ * samma sökvägar som XML-sitemapen gör. Två beskrivningar av vad som får
+ * indexeras kommer att glida isär, och när de gör det märks det först i
+ * Search Console.
  *
- * Listan räknas INTE upp för hand. Den härleds ur exakt samma predikat som
- * sidmallen använder, `isIndexable()` i lib/data.ts, så kvalitetsgrinden och
- * sitemapen inte kan glida isär när kravet ändras. Det gamla filtret uteslöt
- * `/preview/`, en sökväg som aldrig funnits i utfallet, med en kommentar om
- * att det skulle utökas när sidmallarna fanns.
- *
- * Undantaget är /ratta, som sätter `noindex` i sin egen mall av juridiska skäl
- * och inte ur någon datamängd. Den och varje framtida syskonsida fångas av
- * `sitemapGuard` nedan, som mäter utfallet i stället för att lita på den här
- * funktionen.
- *
- * Kontosidorna står också här. De har inget innehåll att indexera: HTML-filen
- * är ett tomt formulär som fylls i webbläsaren av den som är inloggad. En
- * inloggningssida i sökresultatet är tunt innehåll i bibelns mening, och
- * kvalitetsgrinden gäller våra egna sidor lika mycket som datans.
- *
- * /sluta-bevaka hör till samma sort trots att den ligger utanför /konto. Den
- * nås bara från en länk i ett notismejl, den bär en engångsnyckel i adressen,
- * och en avregistreringssida i ett sökresultat är meningslös för alla utom
- * den som just fått mejlet.
+ * Motiveringen till varje utesluten sidtyp står i den filen. `sitemapGuard`
+ * nedan mäter utfallet i stället för att lita på funktionen.
  */
-const ACCOUNT_PAGES = ['konto', 'konto/inloggad', 'konto/verksamhet', 'sluta-bevaka'];
-
-function noindexPaths() {
-  const paths = new Set();
-  for (const e of establishments()) {
-    if (!isIndexable(e)) paths.add(path(e.municipality.slug, e.slug));
-  }
-  paths.add(path('ratta'));
-  for (const page of ACCOUNT_PAGES) paths.add(path(page));
-
-  // Artikelsektionens kvalitetsgrind: under MIN_ARTICLES publicerade
-  // artiklar bär hela sektionen noindex (satt i sidmallarna via samma
-  // funktion) och ska då inte heller ligga i sitemapen. sitemapGuard nedan
-  // fångar det om de två någonsin glider isär.
-  if (!sectionReady()) {
-    paths.add(path('artiklar'));
-    for (const a of articleFiles()) paths.add(path('artiklar', a.slug));
-  }
-
-  return paths;
-}
-
 const excluded = noindexPaths();
 
 /**
@@ -99,15 +60,24 @@ const excluded = noindexPaths();
  * `lastmod` som följde byggtiden hade alltså påstått att hela beståndet
  * ändrats varje natt.
  *
- * Tre nivåer, i den ordning de prövas:
+ * Fem nivåer, i den ordning de prövas:
  *
  *   Verksamhetssida   Senaste kontrollens datum. Det är sidans innehåll.
  *   Kommunens sidor   `source.fetchedAt`, alltså när vi senast hämtade
  *                     kommunen. Hubb, sidindelning, kategori och
  *                     anmärkningssida ändras alla när hämtningen ändras.
- *   Statisk sida      Inget `lastmod` alls. Vi vet inte när texten på /om
+ *   Artikel           `updated` ur frontmattern, annars `published`.
+ *   Räknad sida       Färskaste hämtningen. Rapporterna, källsidan, sökningen,
+ *                     webbkartan och startsidan innehåller inga skrivna
+ *                     meningar utom rubrikerna; varje tal räknas fram vid
+ *                     bygget och ändras när datan gör det.
+ *   Fryst sida        Utgåvans `asOf`. Utmärkelserna läser sin egen fil och
+ *                     ändras aldrig mer.
+ *   Skriven sida      Inget `lastmod` alls. Vi vet inte när texten på /om
  *                     senast skrevs om, och att gissa är att göra om samma
  *                     fel i mindre skala. Fältet är valfritt i standarden.
+ *                     Kvar utan datum: /om, /metodik, /villkor, /cookies och
+ *                     /integritetspolicy.
  */
 function lastmodIndex() {
   const byPath = new Map();
@@ -134,6 +104,53 @@ function lastmodIndex() {
   }
   if (latestArticle) byPath.set(path('artiklar'), latestArticle);
 
+  /*
+   * De räknade sidorna: rapporter, källsidan, sökningen, webbkartan och
+   * startsidan.
+   *
+   * Fjorton URL:er saknade `lastmod` helt, och för fem av dem var det rätt
+   * (se nedan). För de här nio var det fel av ett skäl som är lätt att missa:
+   * de innehåller inga skrivna meningar utom rubrikerna. Varenda siffra på
+   * /rapporter/vad-anmarkningarna-galler/ räknas fram ur beståndet vid bygget,
+   * så sidan ändras exakt när datan gör det. Att utelämna datumet var att
+   * påstå att vi inte vet, när vi vet på dagen.
+   *
+   * `dataUpdated()` är den färskaste hämtningen över alla källor, alltså samma
+   * tal som rapportsidorna redan skriver ut som `dateModified` i sin JSON-LD.
+   * Sitemapen och sidan säger nu samma sak.
+   */
+  const dataDate = municipalities()
+    .map((m) => sourceFor(m.slug)?.fetchedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1)
+    ?.slice(0, 10);
+
+  if (dataDate) {
+    for (const p of ['/', path('rapporter'), path('kallor'), path('sok'), path('webbkarta')]) {
+      byPath.set(p, dataDate);
+    }
+    for (const r of REPORTS) byPath.set(path('rapporter', r.slug), dataDate);
+  }
+
+  /*
+   * Utmärkelserna är motsatsen: de är FRYSTA. En utgåva läser inte beståndet
+   * utan sin egen fil i src/editions/, och `asOf` är den dag den frystes.
+   * Sidan ändras därför aldrig mer, och det är precis vad `lastmod` ska säga.
+   * Att låta dem ärva hämtningsdatumet hade varit att be Google crawla om
+   * sidor som per konstruktion är oföränderliga.
+   */
+  let latestEdition = '';
+  for (const ed of editions()) {
+    const asOf = ed.asOf.slice(0, 10);
+    byPath.set(path('utmarkelser', String(ed.year)), asOf);
+    for (const m of standings(ed.year)) {
+      if (m.ownPage) byPath.set(path('utmarkelser', String(ed.year), m.slug), asOf);
+    }
+    if (asOf > latestEdition) latestEdition = asOf;
+  }
+  if (latestEdition) byPath.set(path('utmarkelser'), latestEdition);
+
   return byPath;
 }
 
@@ -155,12 +172,21 @@ function lastmodFor(pathname) {
 }
 
 /**
- * Bygggrind: sitemapen och `noindex` får aldrig säga emot varandra.
+ * Bygggrind: sitemapen, `noindex` och webbkartan får aldrig säga emot varandra.
  *
- * Filtret ovan läser KÄLLDATAN. Den här läser UTFALLET: varje HTML-fil som
- * bär `<meta name="robots" content="noindex">` jämförs med sitemapens URL:er.
- * Lägger någon till en no-indexad sidtyp som filtret inte känner till stannar
- * bygget här i stället för att publicera motsägelsen.
+ * Filtret ovan läser KÄLLDATAN. Den här läser UTFALLET, och kontrollerar två
+ * saker:
+ *
+ * 1. Varje HTML-fil som bär `<meta name="robots" content="noindex">` jämförs
+ *    med sitemapens URL:er. Lägger någon till en no-indexad sidtyp som filtret
+ *    inte känner till stannar bygget i stället för att publicera motsägelsen.
+ *
+ * 2. Varje intern länk i webbkartans `<main>` måste finnas i XML-sitemapen.
+ *    Det är hela garantin för att den läsbara och den maskinläsbara
+ *    innehållsförteckningen inte kan glida isär. De byggs ur samma modul, men
+ *    en delad modul är ett löfte medan det här är en mätning: en länk till en
+ *    sida som slutat byggas, eller till en sida som fallit under sin
+ *    kvalitetsgrind, stoppar bygget.
  *
  * Integrationen måste ligga EFTER sitemap i `integrations`: hookarna körs i
  * arrayordning, och sitemap-0.xml finns inte förrän sitemap kört sin.
@@ -197,7 +223,31 @@ function sitemapGuard() {
           );
         }
 
-        logger.info(`${listed.size} URL:er i sitemapen, ingen motsäger sin egen noindex`);
+        // Webbkartan mot sitemapen. Bara sidlänkar prövas, alltså rotrelativa
+        // sökvägar som slutar med snedstreck. Det är formen lib/urls.ts alltid
+        // producerar, så filer (/sitemap-index.xml) och ankare (#kommuner)
+        // faller bort utan att behöva räknas upp.
+        const map = readFileSync(`${out}webbkarta/index.html`, 'utf8');
+        const main = map.slice(map.indexOf('<main'), map.indexOf('</main>'));
+        const dangling = new Set();
+        for (const match of main.matchAll(/href="(\/[^"#?]*\/)"/g)) {
+          if (!listed.has(match[1])) dangling.add(match[1]);
+        }
+
+        if (dangling.size > 0) {
+          throw new Error(
+            `${dangling.size} länkar på /webbkarta/ saknas i XML-sitemapen. ` +
+              'Antingen byggs sidan inte längre, eller så har den fallit under ' +
+              'sin kvalitetsgrind och ska utelämnas i src/lib/webbkarta.ts. ' +
+              `Först: ${[...dangling].slice(0, 5).join(', ')}`,
+          );
+        }
+
+        const links = [...main.matchAll(/href="(\/[^"#?]*\/)"/g)].length;
+        logger.info(
+          `${listed.size} URL:er i sitemapen, ingen motsäger sin egen noindex. ` +
+            `Webbkartan länkar ${links} av dem.`,
+        );
       },
     },
   };

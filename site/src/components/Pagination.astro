@@ -74,9 +74,16 @@ const numbers = pageNumbers(current, last);
     border-top: 1px solid var(--hairline);
   }
 
+  /* Radbrytning, inte överflöd. Sedan pageNumbers() lägger en ankarpunkt var
+     tionde sida i långa serier kan raden bli tolv nummer bred, vilket är runt
+     500 px. Utan wrap sköt den ut ur skärmen på telefon och tog hela sidan med
+     sig i sidled. Två rader nummer är rätt utfall; en sida som skrollar i
+     sidled är det inte. */
   .numbers {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: var(--s-1);
     list-style: none;
     margin: 0;

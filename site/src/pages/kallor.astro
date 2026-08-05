@@ -46,15 +46,82 @@ const sources = municipalities().map((m) => ({
   source: sourceFor(m.slug),
 }));
 
+/**
+ * `Dataset` är sajtens starkaste AEO-märkning och stod tidigare med fyra fält.
+ *
+ * Datasetet är det AI-svar citerar när frågan är "hur många restauranger i
+ * Sverige har anmärkningar", alltså den fråga bara vi kan besvara. Ett schema
+ * som säger namn och beskrivning svarar inte på någon av följdfrågorna:
+ * vilken period, vilket område, vad som faktiskt är uppmätt, hur färskt det
+ * är. Alla fyra finns i datan och räknas fram nedan.
+ *
+ * LICENSEN ÄR ÄNDRAD OCH DET ÄR EN RÄTTELSE, INTE EN UTBYGGNAD. Fältet stod
+ * på CC0, alltså en avsägelse av alla rättigheter till hela datamängden.
+ * Sidans egen licenssektion säger något annat: underlaget är allmänna
+ * handlingar, men normaliseringen och bedömningen är Prikkos arbete och den
+ * som vill använda datan ska höra av sig. Ett strukturerat påstående som
+ * motsäger den synliga texten är en felaktig uppgift, och just på licens är
+ * den dyr: CC0 är oåterkallelig för den som hunnit förlita sig på den.
+ * Fältet pekar nu på sidans egen licenstext. Vill ägaren faktiskt CC0-märka
+ * beståndet är det ett beslut som ska stå i texten först.
+ */
+const licenceUrl = `${SITE.url}/kallor/#licens`;
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Dataset',
   name: 'Livsmedelskontroller i Sverige, normaliserade av Prikko',
-  description: 'Kommunala livsmedelskontroller sammanställda till ett jämförbart format.',
+  description:
+    `Kommunala livsmedelskontroller sammanställda till ett jämförbart format: ` +
+    `${formatNumber(total.inspections)} kontroller vid ${formatNumber(total.establishments)} ` +
+    `verksamheter i ${total.municipalities} svenska kommuner, med kontrolldatum, ` +
+    `kontrolltyp, bedömning och de kontrollområden kommunen redovisar.`,
   inLanguage: 'sv-SE',
   url: `${SITE.url}/kallor/`,
-  license: 'https://creativecommons.org/publicdomain/zero/1.0/',
-  creator: { '@type': 'Organization', name: SITE.legalName },
+  license: licenceUrl,
+  isAccessibleForFree: true,
+  creator: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
+  publisher: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
+  /* Färskheten, som är den AEO-signal bibeln §6b prissätter högst. Samma
+     datum som sidan visar i tabellen, inte byggtidpunkten. */
+  dateModified: sources.reduce(
+    (latest, m) => (m.source && m.source.fetchedAt > latest ? m.source.fetchedAt : latest),
+    '',
+  ).slice(0, 10),
+  /* ISO 8601-intervall ur beståndets äldsta och färskaste kontroll. */
+  temporalCoverage: `${dates[0]}/${dates[dates.length - 1]}`,
+  spatialCoverage: sources.map((m) => ({
+    '@type': 'AdministrativeArea',
+    name: m.name,
+    /* Kommunkoden är SCB:s officiella identifierare. Den är det som gör
+       "Stockholm" i vår data till samma entitet som "Stockholm" i någon
+       annans, vilket är hela poängen med entitetskonsistens. */
+    identifier: m.code,
+    containedInPlace: { '@type': 'Country', name: 'Sverige' },
+  })),
+  /* Vad som faktiskt är uppmätt. Fälten motsvarar kolumnerna i beståndet, en
+     mot en, och inget av dem är påhittat för schemats skull. */
+  variableMeasured: [
+    { '@type': 'PropertyValue', name: 'Kontrolldatum', description: 'Datum för kontrollbesöket.' },
+    {
+      '@type': 'PropertyValue',
+      name: 'Kontrolltyp',
+      description: 'Rutinkontroll, uppföljande kontroll eller händelsestyrd kontroll.',
+    },
+    {
+      '@type': 'PropertyValue',
+      name: 'Bedömning',
+      description:
+        'Kommunens utfall per kontroll: inga avvikelser, avvikelser, eller avvikelser som kvarstår.',
+    },
+    {
+      '@type': 'PropertyValue',
+      name: 'Kontrollområde',
+      description:
+        'Livsmedelsverkets rapporteringspunkt per konstaterad avvikelse, där kommunen publicerar den.',
+    },
+  ],
+  measurementTechnique: `${SITE.url}/metodik/`,
 };
 ---
 
@@ -233,7 +300,10 @@ const jsonLd = {
       </p>
     </section>
 
-    <section>
+    {/* id:t är en måladress: `license` i sidans Dataset-schema pekar hit, så
+        att det strukturerade påståendet och den synliga texten är samma sak.
+        Byt det inte utan att ändra licenceUrl ovan. */}
+    <section id="licens">
       <h2>Licens</h2>
       <p>
         Underlaget är allmänna handlingar. Normaliseringen och bedömningen är
@@ -246,21 +316,21 @@ const jsonLd = {
 
 <style>
   .page {
-    max-width: var(--readcol);
+    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 
-  h1 { font-size: 36px; line-height: 40px; margin-top: var(--s-2); }
+  h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
 
   .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
 
   section { margin-top: var(--s-12); }
   section h2 { margin-bottom: var(--s-4); }
-  section p { line-height: 26px; }
+  section p { line-height: var(--lh-body); }
   section p + p { margin-top: var(--s-4); }
 
   .plain { margin: var(--s-4) 0 var(--s-4); padding-left: var(--s-4); }
-  .plain li { margin-top: var(--s-3); line-height: 26px; }
+  .plain li { margin-top: var(--s-3); line-height: var(--lh-body); }
 
   .stats {
     display: grid;
@@ -279,7 +349,7 @@ const jsonLd = {
   .stats dt { font-size: var(--fs-caption); color: var(--text-secondary); }
   .stats dd {
     margin: 2px 0 0;
-    font-size: 21px;
+    font-size: var(--fs-h-s);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }

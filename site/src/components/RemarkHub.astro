@@ -25,6 +25,7 @@ import {
 } from '../lib/data';
 import { hasMatsnuskPage } from '../lib/matsnusk';
 import { pageUrl } from '../lib/pagination';
+import { report } from '../lib/rapporter';
 import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
@@ -89,6 +90,21 @@ const jsonLd = [
     })),
   },
 ];
+
+/**
+ * Den enda rapport som svarar på frågan sidan väcker.
+ *
+ * Sidan listar anmärkningar utan att säga vad en anmärkning gäller, och det
+ * är precis vad rapporten räknat fram. Länken är redaktionell och inte
+ * dekoration: fram tills nu länkades ingen enskild rapport från någon annan
+ * sida än rapportindex, alltså var sajtens två citerbaraste sidor de sämst
+ * länkade av alla.
+ *
+ * Slugen slås upp genom `report()`, som kastar på okänd slug. Byter rapporten
+ * adress stannar bygget här i stället för att lämna en död länk på tjugotre
+ * sidor.
+ */
+const areaReport = report('vad-anmarkningarna-galler');
 
 const prev = currentPage > 1 ? pageUrl(base, currentPage - 1, SITE.url) : undefined;
 const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) : undefined;
@@ -183,6 +199,11 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         </p>
       )}
       <p>
+        <a href={path('rapporter', areaReport.slug)}>{areaReport.title}</a>: vilka
+        områden i livsmedelslagstiftningen anmärkningarna faktiskt gäller,
+        räknat över hela beståndet
+      </p>
+      <p>
         <a href={path(kommun.slug)}>Se alla verksamheter i {city}</a>
       </p>
     </footer>
@@ -190,7 +211,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 </Base>
 
 <style>
-  .page { max-width: 820px; padding-block: var(--s-6) var(--s-16); }
+  .page { max-width: var(--w-page); padding-block: var(--s-6) var(--s-16); }
 
   .crumbs {
     display: flex;
@@ -203,7 +224,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   .crumbs a { color: var(--text-secondary); }
 
-  h1 { font-size: 34px; line-height: 38px; margin-top: var(--s-1); }
+  h1 { font-size: var(--fs-title); line-height: var(--lh-title); margin-top: var(--s-1); }
   h1 span { font-weight: 400; }
 
   .answer {

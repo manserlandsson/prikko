@@ -25,6 +25,37 @@ import { path } from './urls';
  */
 export const PER_PAGE = 100;
 
+/**
+ * Minsta antal rader en sista sida får ha innan den slås ihop med den näst
+ * sista.
+ *
+ * Utan den här regeln bestäms sista sidans innehåll av en rest. Uppsalas
+ * skolor och omsorg landade på 501 verksamheter, alltså fem fulla sidor och en
+ * sjätte med EN rad. Den sidan hade 382 tecken innehåll, egen titel, egen
+ * canonical och en plats i sitemapen, och den är precis den tunna sida bibeln
+ * §6 säger drar ner hela domänen: kvalitetsgrinden mäter verksamheter och
+ * kategorier, men ingen mätte vad sidindelningen lämnade efter sig.
+ *
+ * Tio är valt för att det är den punkt där en sida slutar vara ett utsnitt och
+ * blir en lista. Priset är att den näst sista sidan kan bära upp till 109
+ * rader i stället för 100, vilket är omärkligt.
+ */
+export const MIN_LAST_PAGE = 10;
+
+/**
+ * Antal sidor i en serie, med den sista sidans svans inräknad i den näst
+ * sista när svansen är för kort.
+ *
+ * `slicePage` och `tailPages` MÅSTE räkna likadant. Gör de inte det bygger
+ * routen sidor som mallen inte tror finns, eller tvärtom.
+ */
+export function pageCount(total: number, perPage = PER_PAGE): number {
+  const naive = Math.max(1, Math.ceil(total / perPage));
+  if (naive < 2) return naive;
+  const tail = total - (naive - 1) * perPage;
+  return tail < MIN_LAST_PAGE ? naive - 1 : naive;
+}
+
 export interface PageSlice<T> {
   items: T[];
   currentPage: number;
@@ -45,11 +76,14 @@ export interface PageSlice<T> {
  * uträkningen vara densamma på båda ställena. Därför den här.
  */
 export function slicePage<T>(all: T[], n: number, perPage = PER_PAGE): PageSlice<T> {
-  const lastPage = Math.max(1, Math.ceil(all.length / perPage));
+  const lastPage = pageCount(all.length, perPage);
   const currentPage = Math.min(Math.max(1, n), lastPage);
   const from = (currentPage - 1) * perPage;
+  // Sista sidan tar allt som är kvar. Är svansen kortare än MIN_LAST_PAGE
+  // finns ingen sida efter den här, och raderna måste hamna någonstans.
+  const to = currentPage === lastPage ? all.length : from + perPage;
   return {
-    items: all.slice(from, from + perPage),
+    items: all.slice(from, to),
     currentPage,
     lastPage,
     start: from + 1,
@@ -59,7 +93,7 @@ export function slicePage<T>(all: T[], n: number, perPage = PER_PAGE): PageSlice
 
 /** Sidnummer 2..sista. Sida 1 hör till seriens rot och genereras inte här. */
 export function tailPages(total: number, perPage = PER_PAGE): number[] {
-  const last = Math.max(1, Math.ceil(total / perPage));
+  const last = pageCount(total, perPage);
   return Array.from({ length: Math.max(0, last - 1) }, (_, i) => i + 2);
 }
 
@@ -83,11 +117,26 @@ export function pageUrl(base: string, n: number, origin: string): string {
 }
 
 /**
+ * Var tionde sida får en egen ankarpunkt i långa serier.
+ *
+ * Stockholm har 86 sidor. Med bara ett fönster på plus minus två plus sista
+ * sidan låg mitten av serien ungefär tjugo klick från hubben, och crawldjup
+ * är den knappa resursen på en ny domän: sidor på djup 15 och neråt crawlas
+ * sällan och indexeras ofta inte alls. Med ankarpunkter var tionde sida når
+ * varje sida i serien på högst tre klick från hubben.
+ *
+ * Gränsen finns för att en serie på tolv sidor inte behöver hjälp. Under
+ * tröskeln beter sig funktionen exakt som förut.
+ */
+const ANCHOR_EVERY = 10;
+const ANCHOR_FROM = 20;
+
+/**
  * Sidnummer att visa i navigeringen, med utelämnanden.
  *
  * `null` betyder "hopp" och renderas som ett ellipstecken. Alltid första och
- * sista sidan, plus ett fönster runt den aktuella — samma mönster som
- * Googles egen resultatnavigering.
+ * sista sidan, plus ett fönster runt den aktuella, plus ankarpunkterna ovan i
+ * långa serier.
  */
 export function pageNumbers(current: number, last: number, window = 2): Array<number | null> {
   if (last <= 1) return [1];
@@ -95,6 +144,10 @@ export function pageNumbers(current: number, last: number, window = 2): Array<nu
   const wanted = new Set<number>([1, last]);
   for (let n = current - window; n <= current + window; n++) {
     if (n >= 1 && n <= last) wanted.add(n);
+  }
+
+  if (last >= ANCHOR_FROM) {
+    for (let n = ANCHOR_EVERY; n < last; n += ANCHOR_EVERY) wanted.add(n);
   }
 
   const out: Array<number | null> = [];

@@ -38,6 +38,16 @@ const DIR = join(process.cwd(), 'src/content/artiklar');
 export interface ArticleFile {
   /** Filnamnet utan .md, vilket är exakt vad glob-loadern gör till id/slug. */
   slug: string;
+  /**
+   * Rubriken ur frontmattern.
+   *
+   * Läses här och inte via astro:content, eftersom den här modulen också
+   * importeras av astro.config.mjs och av webbkarta.ts, och ingen av dem kör
+   * i en sammanhang där astro:content finns. Fältet är obligatoriskt i
+   * content.config.ts, så det finns alltid; saknas det ändå faller vi
+   * tillbaka på slugen i stället för att bygga en länk utan text.
+   */
+  title: string;
   published: string | null;
   updated: string | null;
 }
@@ -60,8 +70,10 @@ export function articleFiles(): ArticleFile[] {
     if (file === 'README.md') continue;
     const raw = readFileSync(join(DIR, file), 'utf8');
     if (/^draft:\s*true\s*$/m.test(raw)) continue;
+    const slug = file.replace(/\.md$/, '');
     files.push({
-      slug: file.replace(/\.md$/, ''),
+      slug,
+      title: raw.match(/^title:\s*["']?(.+?)["']?\s*$/m)?.[1] ?? slug,
       published: raw.match(/^published:\s*["']?(\d{4}-\d{2}-\d{2})/m)?.[1] ?? null,
       updated: raw.match(/^updated:\s*["']?(\d{4}-\d{2}-\d{2})/m)?.[1] ?? null,
     });

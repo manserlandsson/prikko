@@ -1,0 +1,278 @@
+---
+/**
+ * Webbkartan: sajtens innehållsförteckning för människor.
+ *
+ * XML-sitemapen är skriven för sökmotorer och räknar upp varenda URL. Den här
+ * sidan är skriven för en läsare och räknar upp INGÅNGARNA. Skillnaden är
+ * medveten och motiverad i lib/webbkarta.ts, som båda läser.
+ *
+ * Sidan skriver aldrig en lista för hand. Den fyller på sig när en kommun
+ * tillkommer, när en kategori passerar sin gräns, när en rapport publiceras
+ * eller när en ny utgåva av utmärkelsen fryses, eftersom allt räknas fram ur
+ * samma funktioner som bygger sidorna. Och den kan inte peka på något som
+ * inte finns: `sitemapGuard` i astro.config.mjs läser den färdiga sidan efter
+ * bygget och kräver att varje länk i den står i XML-sitemapen.
+ *
+ * Varför sidan finns alls, utöver att ägaren bad om den:
+ *
+ * 1. Den är en riktig navigeringsyta. Sidfoten rymmer tolv kommuner, sedan tar
+ *    den slut. Här står alla, med sina kategorier och kartor.
+ * 2. Den ger sökmotorn en grund väg in till sidtyper som annars bara nås ur en
+ *    lång sidnavigering. Kategorisidorna i en kommun med 86 sidindelningar är
+ *    det tydligaste exemplet.
+ * 3. Den är ett självbärande svar på "vad täcker Prikko", vilket är precis den
+ *    fråga ett AI-svar behöver kunna besvara ur EN sida (bibeln §6b).
+ */
+import Base from '../layouts/Base.astro';
+import { coverage, formatDate, formatNumber } from '../lib/data';
+import { dataUpdated } from '../lib/rapporter';
+import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
+import { indexableCount, siteMap } from '../lib/webbkarta';
+
+const sections = siteMap();
+const total = coverage();
+const pages = indexableCount();
+const updated = dataUpdated();
+
+/**
+ * Det självbärande svaret, högst upp och i beskrivningen.
+ *
+ * Meningen står på egna ben: den som bara får se den här raden citerad vet
+ * vad Prikko täcker, hur stort det är och hur färskt det är. Varje tal är
+ * räknat ur beståndet vid bygget.
+ */
+const answer =
+  `Prikko täcker ${formatNumber(total.establishments)} verksamheter i ` +
+  `${total.municipalities} svenska kommuner, med ${formatNumber(total.inspections)} ` +
+  `livsmedelskontroller. ${formatNumber(pages)} av verksamheterna har en egen sida ` +
+  `med kontrollhistorik. Senast hämtat ${formatDate(updated)}.`;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'Webbkarta',
+    description: answer,
+    inLanguage: 'sv-SE',
+    url: absolute('webbkarta'),
+    dateModified: updated,
+    isPartOf: { '@type': 'WebSite', name: SITE.name, url: SITE.url },
+    publisher: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
+    /* Sektionerna, inte de enskilda länkarna. En ItemList med varje länk hade
+       varit en andra kopia av sidans egen markup utan att tillföra något; en
+       lista över sajtens delar säger något markupen inte säger. */
+    hasPart: sections.map((s) => ({
+      '@type': 'WebPageElement',
+      name: s.title,
+      description: s.summary,
+      url: `${absolute('webbkarta')}#${s.id}`,
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+      { '@type': 'ListItem', position: 2, name: 'Webbkarta' },
+    ],
+  },
+];
+---
+
+<Base
+  title="Webbkarta"
+  description={`Hela Prikko i en innehållsförteckning: ${total.municipalities} kommuner, deras kartor, kategorier och anmärkningslistor, samt rapporterna, artiklarna och utmärkelserna.`}
+  jsonLd={jsonLd}
+  dataUpdated={updated}
+>
+  <div class="container page">
+    <header>
+      <p class="eyebrow">Webbkarta</p>
+      <h1>Allt som finns på Prikko</h1>
+      <p class="lede text-secondary">{answer}</p>
+
+      {/* Sidan är lång. En hoppruta högst upp är standardformen på en
+          webbkarta och gör de nedre sektionerna nåbara utan att skrolla. */}
+      <nav class="jump" aria-label="Hoppa till avsnitt">
+        {sections.map((s) => <a href={`#${s.id}`}>{s.title}</a>)}
+      </nav>
+    </header>
+
+    {sections.map((section) => (
+      <section id={section.id}>
+        <h2>{section.title}</h2>
+        <p class="text-secondary summary">{section.summary}</p>
+
+        <div class="groups">
+          {section.groups.map((group) => (
+            <div class="group">
+              <h3>
+                <a href={group.heading.href}>{group.heading.label}</a>
+                {group.heading.count !== undefined && (
+                  <span class="count">{formatNumber(group.heading.count)}</span>
+                )}
+              </h3>
+              <ul>
+                {group.links.map((link) => (
+                  <li>
+                    <a href={link.href}>{link.label}</a>
+                    {link.count !== undefined && (
+                      <span class="count">{formatNumber(link.count)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <section class="about">
+      <p>
+        Listan skrivs inte för hand. Den byggs ur samma register som sidorna
+        själva, så en ny kommun eller en ny rapport står här utan att någon
+        lagt till en rad. Sidor som inte klarar
+        {' '}<a href={path('metodik')}>kvalitetsgrinden</a> utelämnas, precis
+        som i <a href="/sitemap-index.xml">XML-sitemapen</a> för sökmotorer.
+        {' '}<a href={path('kallor')}>Källor och uppdatering</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  header {
+    max-width: var(--w-read);
+  }
+
+  h1 {
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+    margin-top: var(--s-2);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    line-height: var(--lh-body);
+  }
+
+  /* Hopprutan är knappar, inte en mening med länkar i. Formen är hämtad från
+     kommunhubbens kategorichip så att sajten ser ut att komma från ett ställe. */
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-6);
+  }
+
+  .jump a {
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+    background: var(--card);
+  }
+
+  .jump a:hover {
+    border-color: var(--brand);
+    color: var(--brand-ink);
+    text-decoration: none;
+  }
+
+  section {
+    margin-top: var(--s-12);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-6);
+    /* Ankarhoppet ska inte lägga rubriken under det klistrade sidhuvudet. */
+    scroll-margin-top: var(--s-16);
+  }
+
+  .summary {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    max-width: var(--w-read);
+  }
+
+  /* Kolumner i stället för en enda lång spalt. Med tretton kommuner och sju
+     länkar var blir en spalt hundra rader; i kolumner ryms hela sektionen på
+     ungefär en skärm och ögat kan söka på kommunnamnet. */
+  /* Spalter, inte rutnät. Ett grid radjusterar varje rad efter sin högsta
+     cell, så Höganäs med två länkar fick lika mycket höjd som Stockholm med
+     sju och sektionen blev full av hål. Spalter packar i stället tätt och
+     läses uppifrån och ner, kolumn för kolumn, vilket också är den ordning
+     bokstavsordningen redan har. `break-inside` håller ihop en kommun. */
+  .groups {
+    margin-top: var(--s-8);
+    columns: 220px;
+    column-gap: var(--s-6);
+  }
+
+  .group {
+    break-inside: avoid;
+    margin-bottom: var(--s-8);
+  }
+
+  .group h3 {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    letter-spacing: -.01em;
+  }
+
+  .group h3 a {
+    color: var(--text);
+  }
+
+  .group h3 a:hover {
+    color: var(--brand-ink);
+  }
+
+  .group ul {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+  }
+
+  .group li {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .group li a {
+    color: var(--text-secondary);
+  }
+
+  .group li a:hover {
+    color: var(--brand-ink);
+  }
+
+  /* Antalet står efter länken och är inte klickbart. Det säger hur stor sidan
+     är innan man går dit, vilket är hela nyttan med en innehållsförteckning. */
+  .count {
+    margin-left: var(--s-2);
+    font-size: var(--fs-caption);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+  }
+
+  .about {
+    font-size: var(--fs-body-s);
+    max-width: var(--w-read);
+  }
+
+  .about p {
+    line-height: 22px;
+    color: var(--text-secondary);
+  }
+</style>
