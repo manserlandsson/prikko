@@ -849,11 +849,45 @@ anrop per sidvisning, och inga 16 000 anrop per bygge.
 
 ## Osäkerheter jag inte kunnat verifiera
 
-- **Mapillarys täckning mot vårt bestånd.** `MAPILLARY_TOKEN` i `site/.env` är tom
-  och API:t avvisar anonyma anrop, både `graph.mapillary.com` och
-  `tiles.mapillary.com`. Detta är den viktigaste öppna frågan i hela rapporten och
-  den enda som kräver något av ägaren. Mätskriptet är skrivet och incheckat som
-  `pipeline/matt_bildtackning.py`.
+- ~~**Mapillarys täckning mot vårt bestånd.**~~ **BESVARAD**, och svaret blev
+  betydligt bättre än den första mätningen visade. Mätningen 2026-08-04 gav 42,0
+  procent inom 60 meter, men både den och `matt_bildtackning.py` bad Mapillary om
+  bara 50 bilder per punkt. API:t sorterar inte svaret efter avstånd, så på en
+  innerstadsgata med flera hundra bilder inom hundra meter var det slumpen som
+  avgjorde om den närmaste kom med. Med den rättade frågan
+  (`pipeline/matt_troskel.py`, 200 verksamheter, 2026-08-05) och med ALLA grindar
+  på, alltså avstånd, kamerariktning, dagsljus och bort med 360:
+
+  | inom | täckning |
+  |---|---|
+  | 20 m | 50,5 % |
+  | 30 m | 63,0 % |
+  | 40 m | 71,5 % |
+  | 60 m | 79,0 % |
+
+  Vald tröskel är 30 meter. Den bild som faktiskt väljs ligger på 15,9 meters
+  median, så taket binder sällan; det tar bort de fall där ingenting närmare
+  fanns. Per kommun vid 30 meter är Stockholm högst och Karlstad lägst.
+  `matt_bildtackning.py` har kvar den gamla gränsen och underskattar därför
+  täckningen; den är inte längre den mätning man ska gå på.
+- **Vilken VERSION av CC BY-SA Mapillary-bilder ligger under.** Villkoren
+  (mapillary.com/terms, avsnitt 3, kontrollerat 2026-08-05) säger ordagrant
+  "subject to the Creative Commons Share Alike (CC BY-SA) license" och nämner ingen
+  version. 4.0 uppges stå i en hjälpartikel, men `help.mapillary.com` svarar 403 på
+  maskinella anrop och gick inte att läsa som primärkälla. Pipelinen skriver därför
+  `CC-BY-SA` utan version för Mapillary, och sajten länkar licensraden till
+  villkoren i stället för till en versionsdeklaration vi inte kan belägga. Öppna
+  hjälpartikeln i en riktig webbläsare, och står 4.0 där kan `MAPILLARY_LICENCE` i
+  `pipeline/prikko/imagery.py` uppdateras på ett ställe.
+- **Om någon av de bilder vi hämtar ligger under CC BY-NC-SA.** Samma mening i
+  avsnitt 3 fortsätter "unless we indicate otherwise" och ger som exempel
+  datamängder under CC BY-NC-SA, alltså med förbud mot kommersiell användning.
+  Prikko är kommersiell. Mapillarys bild-API har ingen licensuppgift per bild, så
+  det går inte att skilja dem maskinellt, och något dokumenterat sätt att göra det
+  finns inte. Bedömningen bakom att vi ändå hämtar: undantaget är formulerat om
+  särskilt tillhandahållna datamängder, inte om enskilda bilder ur det vanliga
+  API:t, som avsnitt 11 uttryckligen förutser att man laddar ned och serverar
+  själv. Det är en bedömning och inte ett belägg, och den är ägarens att ta.
 - **OSM-hopparningen är mätt men bara på två kommuner, och matchningen är inte
   granskad manuellt.** 46,1 procent i Karlstad och 26,7 procent i Jönköping är
   automatiska matchningar på namnord plus avstånd. Hur många av dem som är rätt har
