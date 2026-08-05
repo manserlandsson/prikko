@@ -12,7 +12,15 @@ import AwardList from '../../../components/AwardList.astro';
 import { formatDate, formatNumber } from '../../../lib/data';
 import { SITE } from '../../../lib/site';
 import { absolute, path } from '../../../lib/urls';
-import { awardBar, edition, editions, numeral, runGroups, standings } from '../../../lib/utmarkelser';
+import {
+  awardTarget,
+  barFor,
+  edition,
+  editions,
+  numeral,
+  runGroups,
+  standings,
+} from '../../../lib/utmarkelser';
 
 export function getStaticPaths() {
   const paths: Array<{ params: { year: string; kommun: string } }> = [];
@@ -30,13 +38,16 @@ const e = edition(year!);
 const m = standings(e.year).find((s) => s.slug === kommun)!;
 const groups = runGroups(m.qualified);
 
-/* Utgåvans ribba, inte en siffra i löptext. Se awardBar i lib/utmarkelser.ts. */
-const barWord = numeral(awardBar(e.year));
+/* KOMMUNENS ribba, inte en siffra i löptext och inte utgåvans. Sedan modell 3
+   finns inget gemensamt tal: se barFor i lib/utmarkelser.ts. */
+const bar = barFor(e.year, m.slug);
+const barWord = numeral(bar);
+const targetPct = numeral(Math.round(awardTarget(e.year) * 100));
 
 const description =
   `${formatNumber(m.qualified.length)} verksamheter i ${m.city} klarade ${barWord} kontroller i ` +
-  `rad utan anmärkning. Hela listan ur Prikkos utmärkelse ${e.year}, fryst ` +
-  `${formatDate(e.asOf)}.`;
+  `rad utan anmärkning, vilket är ribban i ${m.city}. Hela listan ur Prikkos utmärkelse ` +
+  `${e.year}, fryst ${formatDate(e.asOf)}.`;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -82,12 +93,22 @@ const jsonLd = {
     </header>
 
     <section>
+      <p class="bar">
+        Ribban i {m.city}: {barWord} kontroller i rad utan anmärkning.
+      </p>
+      <p class="note text-secondary">
+        Talet är inte samma i hela landet. Det räknas fram ur {m.name}s egen
+        data, så att utmärkelsen går till högst {targetPct} procent av kommunens
+        bedömda verksamheter. Kommunen publicerar upp till
+        {' '}{numeral(m.maxHistory)} kontroller per verksamhet, och en
+        kommun som publicerar grundare får därför en lägre ribba. Det är ingen
+        rangordning av kommuner: talet mäter registret, inte köken.
+        {' '}<a href={`${path('utmarkelser')}#ribban`}>Varför ribban är olika</a>.
+      </p>
       <p class="note text-secondary">
         Raderna är grupperade på antal kontroller i rad och står i
         bokstavsordning inom gruppen, utan inbördes rangordning. Den längsta
-        serien i {m.city} är {numeral(m.topRun)} kontroller.
-        {' '}<a href={path('utmarkelser')}>Varför serielängder inte jämförs mellan
-        kommuner</a>.
+        raden i {m.city} är {numeral(m.topRun)} kontroller.
       </p>
 
       <AwardList groups={groups} kommun={m.slug} level={2} />
@@ -144,9 +165,22 @@ const jsonLd = {
     margin-top: var(--s-12);
   }
 
+  /* Ribban står först och tydligt. En läsare ska aldrig behöva gissa varför
+     kravet är ett annat här än i grannkommunen. */
+  .bar {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    margin-bottom: var(--s-3);
+  }
+
   .note {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
+    margin-bottom: var(--s-4);
+  }
+
+  .note:last-of-type {
     margin-bottom: var(--s-8);
   }
 

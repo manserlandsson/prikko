@@ -15,8 +15,9 @@ import { SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 import { dataUpdated } from '../../lib/rapporter';
 import {
-  awardBar,
   awardRevision,
+  awardTarget,
+  barRange,
   capitalise,
   editionFacts,
   editions,
@@ -30,11 +31,18 @@ if (!latest) throw new Error('Ingen utgåva finns. Kör scripts/utmarkelser.mjs.
 
 const facts = editionFacts(latest.year);
 
-/* Ribban läses ur utgåvan, aldrig ur löptexten. Den stod skriven som "tre" på
-   sex ställen här medan 2026 års utgåva kräver fem, så sidan motsade sina egna
-   datadrivna stycken. Se awardBar i lib/utmarkelser.ts. */
-const bar = awardBar(latest.year);
-const barWord = numeral(bar);
+/* Ribborna läses ur utgåvan, aldrig ur löptexten. Talet stod skrivet som "tre"
+   på sex ställen här medan utgåvan krävde fem, så sidan motsade sina egna
+   datadrivna stycken. Sedan modell 3 är ribban dessutom olika i olika kommuner,
+   och den här sidan får därför bara tala om spannet. Varje kommuns eget tal står
+   på kommunens egen sida. Se barFor och barRange i lib/utmarkelser.ts. */
+const range = barRange(latest.year);
+const rangeWords =
+  range.min === range.max
+    ? numeral(range.min)
+    : `${numeral(range.min)} till ${numeral(range.max)}`;
+/** Måltalet ribborna härleds ur. Skrivs som ord, enligt svensk skrivregel. */
+const targetPct = numeral(Math.round(awardTarget(latest.year) * 100));
 /* Omräkningen av 2026 står i utgåvan, inte i en mening någon skrivit här. Se
    revision i scripts/utmarkelser.mjs. */
 const revision = awardRevision(latest.year);
@@ -67,9 +75,9 @@ const share = ((latest.totals.qualified / latest.totals.assessed) * 100)
   .replace('.', ',');
 
 const description =
-  `${formatNumber(latest.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
-  `klarade ${barWord} kontroller i rad utan en enda anmärkning. Prikkos utmärkelse är räknad ur ` +
-  'kommunernas egna kontrolluppgifter och fryses en gång om året.';
+  `${formatNumber(latest.totals.qualified)} verksamheter i ${facts.listed.length} kommuner har ` +
+  'den längsta obrutna raden av kontroller utan anmärkning i sin kommun. Prikkos utmärkelse är ' +
+  'räknad ur kommunernas egna kontrolluppgifter och fryses en gång om året.';
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -99,10 +107,10 @@ const jsonLd = {
       <p class="eyebrow">Utmärkelser</p>
       <h1>Utmärkelsen för genomgående skötsamhet</h1>
       <p class="lede text-secondary">
-        {capitalise(barWord)} kontroller i rad utan en enda anmärkning.
-        {' '}{formatNumber(latest.totals.qualified)} verksamheter klarade det, alltså
-        {' '}{share} procent av de {formatNumber(latest.totals.assessed)} som gick
-        att bedöma när {latest.year} års utgåva frystes.
+        De verksamheter som har längst obruten rad av kontroller utan en enda
+        anmärkning i sin kommun. {formatNumber(latest.totals.qualified)} stycken,
+        alltså {share} procent av de {formatNumber(latest.totals.assessed)} som
+        gick att bedöma när {latest.year} års utgåva frystes.
       </p>
     </header>
 
@@ -124,34 +132,30 @@ const jsonLd = {
     <section>
       <h2>Vad som krävs</h2>
       <p>
-        {capitalise(barWord)} kontroller i rad utan anmärkning, och en kontroll
-        som är färsk nog att bedöma, alltså gjord de senaste tre åren. Hur lång
-        tid serien tog spelar ingen roll. Inget annat vägs in, och kravet är
-        detsamma i varje kommun.
+        Kontroller i rad utan en enda anmärkning, och en kontroll som är färsk
+        nog att bedöma, alltså gjord de senaste tre åren. Hur lång tid raden tog
+        spelar ingen roll: en verksamhet som kontrollerats en gång om året i
+        åtta år räknas lika som en som hunnit lika många på halva tiden.
       </p>
       <p>
-        Att tiden inte räknas är en rättelse. Tidigare krävdes {barWord}
-        {' '}kontroller inom en treårsperiod, och den regeln mätte hur ofta
-        kommunen kom på besök i stället för hur verksamheten sköts. En
-        verksamhet som inspekteras ungefär en gång om året nådde aldrig upp,
-        hur ren varje kontroll än var.
+        Hur många kontroller som krävs är däremot inte samma tal i hela landet.
+        Det avgörs av kommunens egen data, och landar i {latest.year} års utgåva
+        på {rangeWords} kontroller.
+        {' '}<a href="#ribban">Varför ribban är olika</a>.
+      </p>
+      <p>
+        Att tiden inte räknas är en rättelse. Tidigare krävdes fem kontroller
+        inom en treårsperiod, och den regeln mätte hur ofta kommunen kom på
+        besök i stället för hur verksamheten sköts. En verksamhet som
+        inspekteras ungefär en gång om året nådde aldrig upp, hur ren varje
+        kontroll än var.
         {longestEntry && (
           <>
-            {' '}Den längsta serien i utgåvan är {formatNumber(longestEntry.run)}
-            {' '}kontroller i rad över {numeral(longestYears)} år.
+            {' '}Den längsta raden i utgåvan är {formatNumber(longestEntry.run)}
+            {' '}kontroller över {numeral(longestYears)} år.
           </>
         )}
       </p>
-      {revision && (
-        <p>
-          {latest.year} års utgåva räknades därför om {formatDate(revision.revised)}.
-          {' '}{formatNumber(revision.added)} verksamheter tillkom och
-          {' '}{revision.removed === 0 ? 'ingen togs bort' : `${formatNumber(revision.removed)} togs bort`}.
-          Den som fick märket när utgåvan först frystes
-          {' '}{formatDate(revision.frozen)} står kvar i listan, och kommer att
-          göra det. Ett märke i ett fönster måste gå att slå upp.
-        </p>
-      )}
       <p>
         Utmärkelsen påverkar aldrig hygienbedömningen: nuläget avgör
         bedömningen, historiken avgör erkännandet. En verksamhet utan
@@ -165,25 +169,44 @@ const jsonLd = {
       </p>
     </section>
 
-    <section>
-      <h2>Varför listan inte rangordnar hela landet</h2>
+    <section id="ribban">
+      <h2>Varför ribban är olika i olika kommuner</h2>
       <p>
-        Utmärkelsen betyder samma sak överallt: {barWord} kontroller, noll
-        anmärkningar. Alla {formatNumber(latest.totals.qualified)} har den lika
-        mycket.
+        Utgåvan är en lista per kommun, och ribban räknas fram ur den kommunens
+        egen data. Skälet är att ett gemensamt tal inte mäter det man tror att
+        det mäter. Kommunerna kontrollerar olika ofta och publicerar olika
+        djupt, så samma tal blir en låg tröskel på ett ställe och en omöjlighet
+        på ett annat.
       </p>
       {facts.lowestCeiling && facts.highestCeiling && (
         <p>
-          Hur lång serien är går däremot inte att jämföra mellan kommuner.
-          Taket sätts av hur många kontroller kommunen publicerar, inte av hur
-          köket sköts: {facts.lowestCeiling.name} lämnar aldrig ut fler än
-          {' '}{numeral(facts.lowestCeiling.maxHistory)} kontroller per
+          Skillnaden står i registren. {facts.lowestCeiling.name} lämnar aldrig
+          ut fler än {numeral(facts.lowestCeiling.maxHistory)} kontroller per
           verksamhet, i {facts.highestCeiling.city} publiceras upp till
-          {' '}{formatNumber(facts.highestCeiling.maxHistory)}.
+          {' '}{formatNumber(facts.highestCeiling.maxHistory)}. Ett krav på fem
+          kontroller i rad, som utgåvan hade tidigare, gav Stockholm en lista på
+          var sjunde bedömd verksamhet och samtidigt sex kommuner där ingen
+          kunde nå den, hur välskött den än var.
         </p>
       )}
       <p>
-        Listorna är därför ordnade inom varje kommun, grupperade på antal
+        Därför sätts ribban där utmärkelsen blir ungefär lika sällsynt överallt:
+        den lägsta rad som ges till högst {targetPct} procent av kommunens
+        bedömda verksamheter. Det ger {rangeWords} kontroller beroende på
+        kommun, och varje kommuns eget tal står överst på dess lista.
+      </p>
+      <p class="callout">
+        En högre ribba är inget betyg på kommunen. Den betyder att kommunen
+        publicerar djupare historik och kontrollerar oftare, inte att dess kök
+        är renare eller dess inspektörer strängare. Av samma skäl är ett märke
+        från en kommun med lägre ribba inte värt mindre: det säger samma sak,
+        nämligen att verksamheten hör till de {targetPct} procent i sin kommun
+        som har längst obruten ren historik. Det är den enda jämförelse som
+        datan bär.
+      </p>
+      <p>
+        Hur lång raden är går däremot aldrig att jämföra mellan kommuner, och
+        listorna är därför ordnade inom varje kommun, grupperade på antal
         kontroller i rad och i bokstavsordning inom gruppen.
         {' '}<a href={`${path('metodik')}#jamfor`}>Därför jämför vi inte
         kommuner med varandra</a>.
@@ -193,8 +216,8 @@ const jsonLd = {
     <section>
       <h2>Kommunerna som inte kan vara med</h2>
       <p>
-        Utmärkelsen kräver {barWord} kontroller, och alla kommuner publicerar
-        inte {barWord}. Det säger inget om verksamheterna där.
+        I några kommuner räcker registret inte till ribban, hur den än sätts.
+        Det säger inget om verksamheterna där.
       </p>
       {facts.impossible.length > 0 && (
         <ul class="plain">
@@ -213,9 +236,10 @@ const jsonLd = {
           <ul class="plain">
             {facts.noneYet.map((m) => (
               <li>
-                I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)}
-                {' '}av {formatNumber(m.establishments)} verksamheter alls
-                kontrollerats {barWord} gånger med en kontroll färsk nog att
+                Ribban i {m.name} är {numeral(m.awardRun ?? 0)} kontroller i rad.
+                {' '}{m.pool === 0 ? 'Ingen' : capitalise(numeral(m.pool))} av
+                {' '}{formatNumber(m.establishments)} verksamheter har alls
+                kontrollerats så många gånger med en kontroll färsk nog att
                 bedöma. <a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}
@@ -265,10 +289,24 @@ const jsonLd = {
         Utmärkelsen är inte samma sak som märkningen ”ren historik” på en
         verksamhetssida. Den säger att de tre senaste kontrollerna är utan
         anmärkning och räknas om varje gång vi hämtar data; utmärkelsen kräver
-        {' '}{barWord} i rad och står still.
+        en längre rad och står still.
         {' '}<a href={`${path('metodik')}#utmarkelsen`}>Skillnaden i sin
         helhet</a>.
       </p>
+      {revision?.lossesAccepted && (
+        <p>
+          {latest.year} års lista frystes {formatDate(revision.frozen)} med
+          {' '}{formatNumber(revision.originalQualified ?? 0)} verksamheter.
+          Modellen har rättats sedan dess, senast {formatDate(revision.revised)},
+          då listan gick från {formatNumber(revision.previousQualified)} till
+          {' '}{formatNumber(latest.totals.qualified)} verksamheter:
+          {' '}{formatNumber(revision.removed)} togs bort och
+          {' '}{formatNumber(revision.added)} tillkom.
+          {' '}{revision.lossesAccepted.reason} En fryst lista skrivs annars
+          aldrig om så att någon förlorar sin plats, och den här öppnades en
+          gång.
+        </p>
+      )}
       <p>
         <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
         {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·

@@ -40,7 +40,7 @@ import { articleFiles, sectionReady } from './artiklar';
 import { mapDataset } from './map-data';
 import { hasMatsnuskPage } from './matsnusk';
 import { REPORTS } from './rapporter';
-import { awardBar, editions, numeral, standings } from './utmarkelser';
+import { barRange, editions, numeral, standings } from './utmarkelser';
 import { path } from './urls';
 
 // ---------------------------------------------------------------------------
@@ -263,13 +263,19 @@ function artikelSection(): MapSection {
  */
 function utmarkelseSection(): MapSection {
   const all = editions();
-  /* Nyaste utgåvans ribba. Stod som "tre" medan 2026 kräver fem. */
-  const barWord = all[0] ? numeral(awardBar(all[0].year)) : 'flera';
+  /* Nyaste utgåvans ribba. Stod som "tre" medan utgåvan krävde fem. Sedan
+     modell 3 är ribban olika i olika kommuner, så här står spannet. */
+  const range = all[0] ? barRange(all[0].year) : null;
+  const bars = !range
+    ? 'flera'
+    : range.min === range.max
+      ? numeral(range.min)
+      : `${numeral(range.min)} till ${numeral(range.max)}`;
 
   return {
     id: 'utmarkelser',
     title: 'Utmärkelser',
-    summary: `Verksamheter med ${barWord} kontroller i rad utan anmärkning, fryst per utgåva.`,
+    summary: `Verksamheter med ${bars} kontroller i rad utan anmärkning, fryst per utgåva.`,
     groups: [
       // Först översikten och varje utgåva, sedan en grupp per utgåva med de
       // kommuner som är stora nog att ha en egen lista.

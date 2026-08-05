@@ -17,8 +17,9 @@ import { formatDate, formatNumber } from '../../../lib/data';
 import { SITE } from '../../../lib/site';
 import { absolute, path } from '../../../lib/urls';
 import {
-  awardBar,
   awardRevision,
+  awardTarget,
+  barRange,
   capitalise,
   edition,
   editionFacts,
@@ -36,12 +37,17 @@ const { year } = Astro.params;
 const e = edition(year!);
 const facts = editionFacts(e.year);
 
-/* UTGÅVANS egen ribba, inte en siffra i löptext. Sidan sade "tre" medan 2026
-   kräver fem, och en gammal utgåva ska dessutom kunna läsas med den ribba som
-   gällde då. Se awardBar i lib/utmarkelser.ts. */
-const barWord = numeral(awardBar(e.year));
-/* Omräkningen står i utgåvan. En lista som blivit många gånger längre utan ett
-   ord om saken är en lista man slutar tro på. */
+/* Ribborna, aldrig siffror i löptext. Sidan sade "tre" medan utgåvan krävde
+   fem, och sedan modell 3 finns inget gemensamt tal alls: varje kommuns ribba
+   står i sin egen sektion. Här bara spannet. Se barFor och barRange. */
+const range = barRange(e.year);
+const rangeWords =
+  range.min === range.max
+    ? numeral(range.min)
+    : `${numeral(range.min)} till ${numeral(range.max)}`;
+const targetPct = numeral(Math.round(awardTarget(e.year) * 100));
+/* Omräkningen står i utgåvan. En lista som ändrat storlek utan ett ord om saken
+   är en lista man slutar tro på. */
 const revision = awardRevision(e.year);
 
 const sections = facts.listed.map((m) => {
@@ -52,9 +58,9 @@ const sections = facts.listed.map((m) => {
 });
 
 const description =
-  `${formatNumber(e.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
-  `klarade ${barWord} kontroller i rad utan anmärkning. Prikkos utmärkelse ${e.year}, fryst ` +
-  `${formatDate(e.asOf)} och oförändrad sedan dess.`;
+  `${formatNumber(e.totals.qualified)} verksamheter i ${facts.listed.length} kommuner har den ` +
+  `längsta obrutna raden av kontroller utan anmärkning i sin kommun. Prikkos utmärkelse ` +
+  `${e.year}, fryst ${formatDate(e.asOf)}.`;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -82,19 +88,33 @@ const jsonLd = {
       <h1>Utmärkelsen {e.year}</h1>
       <p class="lede text-secondary">
         {formatNumber(e.totals.qualified)} verksamheter i {facts.listed.length} kommuner
-        hade vid frysningen {barWord} kontroller i rad utan en enda anmärkning. Listan
-        står still. Så här såg det ut {formatDate(e.asOf)}.
+        hade vid frysningen den längsta obrutna raden av kontroller utan en enda
+        anmärkning i sin kommun. Listan står still. Så här såg det ut
+        {' '}{formatDate(e.asOf)}.
+      </p>
+      <p class="lede-note text-secondary">
+        Ribban är {rangeWords} kontroller i rad beroende på kommun, satt så att
+        utmärkelsen går till högst {targetPct} procent av de bedömda
+        verksamheterna i varje kommun. Talet står överst i varje kommuns
+        avsnitt. <a href={`${path('utmarkelser')}#ribban`}>Varför ribban är
+        olika</a>.
       </p>
       {revision && (
         <p class="revision">
-          Listan räknades om {formatDate(revision.revised)}. Ribban är densamma,
-          {' '}{barWord} kontroller utan anmärkning, men de behöver inte längre
-          rymmas inom tre år: den gamla regeln mätte hur ofta kommunen
-          kontrollerade i stället för hur verksamheten sköttes.
-          {' '}{formatNumber(revision.added)} verksamheter tillkom och
-          {' '}{revision.removed === 0 ? 'ingen togs bort' : `${formatNumber(revision.removed)} togs bort`}.
-          Alla {formatNumber(revision.previousQualified)} som stod här när
-          utgåvan frystes {formatDate(revision.frozen)} står kvar.
+          Listan frystes {formatDate(revision.frozen)} med
+          {' '}{formatNumber(revision.originalQualified ?? revision.previousQualified)}
+          {' '}verksamheter. Modellen har rättats sedan dess, senast
+          {' '}{formatDate(revision.revised)}, sedan den visat sig mäta hur ofta
+          kommunen kontrollerade i stället för hur verksamheterna sköttes. Vid
+          den omräkningen gick listan från
+          {' '}{formatNumber(revision.previousQualified)} till
+          {' '}{formatNumber(e.totals.qualified)} verksamheter:
+          {' '}{formatNumber(revision.removed)} togs bort och
+          {' '}{formatNumber(revision.added)} tillkom.
+          {revision.lossesAccepted && (
+            <> {revision.lossesAccepted.reason} Det är enda gången listan öppnas;
+            härefter kan en verksamhet inte förlora sin plats i den.</>
+          )}
         </p>
       )}
     </header>
@@ -114,12 +134,16 @@ const jsonLd = {
             {' '}{m.qualified.length === 1 ? 'utmärkt' : 'utmärkta'}
           </span>
         </h2>
+        <p class="bar">
+          Ribban i {m.city}: {numeral(m.awardRun ?? 0)} kontroller i rad utan
+          anmärkning. Kommunen publicerar upp till
+          {' '}{numeral(m.maxHistory)} kontroller per verksamhet.
+        </p>
         <p class="intro text-secondary">
-          {/* `pool` räknas i scripts/utmarkelser.mjs mot AWARD_RUN, alltså
-              utgåvans egen ribba, och inte mot historyDepth. Talet i meningen
-              måste följa med den. */}
+          {/* `pool` räknas i scripts/utmarkelser.mjs mot kommunens egen ribba.
+              Talet i meningen måste följa med den. */}
           {formatNumber(m.qualified.length)} av de {formatNumber(m.pool)} som
-          alls hunnit kontrolleras {barWord} gånger klarade de {barWord} senaste
+          alls hunnit kontrolleras så många gånger klarade samtliga de senaste
           utan anmärkning. <a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
         </p>
 
@@ -188,9 +212,10 @@ const jsonLd = {
           <ul class="plain">
             {facts.noneYet.map((m) => (
               <li>
-                I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)} av
-                {' '}{formatNumber(m.establishments)} verksamheter alls
-                kontrollerats {barWord} gånger med en kontroll färsk nog att
+                Ribban i {m.name} är {numeral(m.awardRun ?? 0)} kontroller i rad.
+                {' '}{m.pool === 0 ? 'Ingen' : capitalise(numeral(m.pool))} av
+                {' '}{formatNumber(m.establishments)} verksamheter har alls
+                kontrollerats så många gånger med en kontroll färsk nog att
                 bedöma. <a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}
@@ -209,8 +234,8 @@ const jsonLd = {
     <section class="method">
       <h2>Hur utgåvan är gjord</h2>
       <p>
-        {capitalise(barWord)} kontroller i rad utan anmärkning, och en kontroll
-        gjord de senaste tre åren, räknat ur
+        {capitalise(rangeWords)} kontroller i rad utan anmärkning beroende på
+        kommun, och en kontroll gjord de senaste tre åren, räknat ur
         {' '}{formatNumber(e.totals.establishments)} verksamheter i
         {' '}{e.totals.municipalities} kommuner. Utgåvan står still; nuläget står
         på varje verksamhets egen sida.
@@ -245,6 +270,21 @@ const jsonLd = {
     margin-top: var(--s-4);
     font-size: var(--fs-body);
     line-height: var(--lh-body);
+  }
+
+  .lede-note {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Kommunens ribba står först i avsnittet, inte i en fotnot. En läsare ska
+     aldrig behöva gissa varför Stockholm kräver åtta och Uppsala fyra. */
+  .bar {
+    margin-bottom: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
   }
 
   /* Rättelsen står i sidhuvudet, inte längst ner. Den som såg listan i går ska

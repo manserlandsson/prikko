@@ -20,7 +20,7 @@ import {
 } from '../lib/data';
 import { SITE } from '../lib/site';
 import { path } from '../lib/urls';
-import { awardBar, capitalise, latestEdition, numeral } from '../lib/utmarkelser';
+import { awardTarget, barRange, capitalise, latestEdition, numeral } from '../lib/utmarkelser';
 
 // MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
 // CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
@@ -100,7 +100,15 @@ const limited = limitedMunicipalities();
  */
 const latest = latestEdition();
 const chipWord = numeral(HISTORY_DEPTH);
-const awardWord = latest ? numeral(awardBar(latest.year)) : null;
+/* Utmärkelsens ribba är olika i olika kommuner, så sidan kan bara ange spannet
+   och måltalet den härleds ur. Kommunens eget tal står på kommunens lista. */
+const awardRange = latest ? barRange(latest.year) : null;
+const awardWords = !awardRange
+  ? null
+  : awardRange.min === awardRange.max
+    ? numeral(awardRange.min)
+    : `${numeral(awardRange.min)} till ${numeral(awardRange.max)}`;
+const awardPct = latest ? numeral(Math.round(awardTarget(latest.year) * 100)) : null;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -284,34 +292,55 @@ const jsonLd = {
       </p>
 
       <h3>Utmärkelsen: årslistan och märket</h3>
-      {awardWord && latest && (
+      {awardWords && latest && (
         <>
           <p>
-            Utmärkelsen ligger högre och delas ut en gång om året. Den kräver
-            {' '}<strong>{awardWord} kontroller i rad utan anmärkning</strong>,
-            hos en verksamhet vars senaste kontroll är färsk nog att bedöma.
-            Serien får ta hur lång tid som helst. Listan fryses per ett datum och
-            räknas aldrig om, så ett märke i ett fönster går att slå upp i
-            efterhand. <a href={path('utmarkelser')}>Utmärkelsen och årets
-            lista</a>.
+            Utmärkelsen ligger högre och delas ut en gång om året. Den kräver en
+            obruten rad av <strong>kontroller utan anmärkning</strong> hos en
+            verksamhet vars senaste kontroll är färsk nog att bedöma. Raden får
+            ta hur lång tid som helst. Listan fryses per ett datum och räknas
+            aldrig om, så ett märke i ett fönster går att slå upp i efterhand.
+            {' '}<a href={path('utmarkelser')}>Utmärkelsen och årets lista</a>.
           </p>
           <p>
-            Att tiden inte räknas är en rättelse av modellen. Fram till augusti
-            2026 skulle de {awardWord} kontrollerna rymmas inom tre år, och den
-            regeln mätte fel sak: hur ofta kommunen kom på besök, inte hur
-            verksamheten sköttes. Kontrollfrekvensen bestäms av riskklass och
+            Hur många kontroller raden måste vara är <strong>inte samma tal i
+            hela landet</strong>. Det räknas fram ur varje kommuns egen data, så
+            att utmärkelsen går till högst {awardPct} procent av kommunens
+            bedömda verksamheter. I {latest.year} års utgåva ligger ribborna på
+            {' '}{awardWords} kontroller, och varje kommuns tal står på kommunens
+            egen lista.
+          </p>
+          <p>
+            Skälet är att ett gemensamt tal mäter kommunen och inte köket.
+            Kommunerna kontrollerar olika ofta och publicerar olika många
+            kontroller per verksamhet. Ett krav på fem i rad, som utgåvan hade
+            först, gav Stockholm en lista på var sjunde bedömd verksamhet
+            samtidigt som sex kommuner inte kunde nå den alls, eftersom deras
+            register är grundare än fem. Med ribban räknad per kommun betyder
+            märket samma sak överallt: verksamheten hör till de {awardPct}
+            {' '}procent i sin kommun som har längst obruten ren historik.
+          </p>
+          <p class="callout">
+            En högre ribba är inget betyg på kommunen, och ett märke från en
+            kommun med lägre ribba är inte värt mindre. Ribban speglar hur djupt
+            kommunen publicerar och hur ofta den kontrollerar, inte hur rena
+            köken är. Vi rangordnar inte kommuner, och det gäller även här.
+          </p>
+          <p>
+            Att tiden inte räknas är också en rättelse. Fram till augusti 2026
+            skulle kontrollerna rymmas inom tre år, och den regeln mätte hur ofta
+            kommunen kom på besök. Kontrollfrekvensen bestäms av riskklass och
             myndighetens planering. En restaurang som inspekteras ungefär en gång
             om året kunde ha ett decennium utan en enda anmärkning och ändå stå
-            utanför listan, medan en verksamhet med {awardWord} kontroller på
-            arton månader stod med.
+            utanför listan.
           </p>
           <p>
-            När regeln rättades räknades {latest.year} års lista om. Ingen
-            verksamhet togs bort: var och en som klarade {awardWord} kontroller
-            inom tre år har per definition {awardWord} i rad. Det är också en
-            regel i bygget och inte bara en avsikt. Skulle en framtida ribba
-            plocka bort någon ur en publicerad lista stannar bygget, och svaret
-            blir en ny årsutgåva i stället för en omskriven gammal.
+            {latest.year} års lista räknades om när modellen rättades, och
+            verksamheter föll då ur den. Det fick ske därför att listan var dagar
+            gammal och ännu inte nått någon läsare. Det är enda gången: bygget
+            stannar numera om en omräkning skulle ta bort någon ur en publicerad
+            lista, och svaret blir en ny årsutgåva i stället för en omskriven
+            gammal. Vad som ändrades står på utgåvans egen sida.
           </p>
         </>
       )}

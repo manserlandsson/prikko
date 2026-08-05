@@ -55,18 +55,19 @@ const HISTORY_DEPTH = 3;
 /**
  * Vilken modell som räknade fram utgåvan.
  *
- *   1  AWARD_RUN kontroller inom ett fönster på WINDOW_DAYS.
- *   2  AWARD_RUN kontroller i rad, utan fönster, med krav på att den senaste
- *      är färsk nog att alls bedöma.
+ *   1  Fem kontroller inom ett fönster på WINDOW_DAYS.
+ *   2  Fem kontroller i rad, utan fönster, hos en verksamhet med bedömning.
+ *   3  Kontroller i rad, utan fönster, med en ribba som HÄRLEDS PER KOMMUN ur
+ *      kommunens egen data. Se AWARD_TARGET.
  *
  * Talet skrivs in i utgåvan och sidorna läser det därifrån. Metodiksidan sade
  * en gång version 2 när modellen var 3, och utgåvesidan sade tre kontroller när
  * ribban var fem. Ett tal i filen kan inte glida ifrån filen.
  */
-const AWARD_MODEL = 2;
+const AWARD_MODEL = 3;
 
 /**
- * Ribban för att stå i årsutgåvan: kontroller i RAD utan anmärkning.
+ * Ribban: kontroller i RAD utan anmärkning, olika många i olika kommuner.
  *
  * ## Varför fönstret är borta
  *
@@ -96,28 +97,60 @@ const AWARD_MODEL = 2;
  * kant hamnar de på olika sidor om den. Utgåvan ska inte ha en egen mening om
  * den saken.
  *
- * ## Varför fem och inte åtta
+ * ## Varför ribban inte kan vara ett tal för hela landet
  *
- * Mätt på hela beståndet, andel av de bedömda i Stockholm: fem i rad ger 14,6
- * procent, sex 8,7, sju 4,8, åtta 2,3. Åtta hade alltså gett en snävare lista.
- * Två skäl väger tyngre.
+ * Ett gemensamt tal måste väljas för den kommun som publicerar minst eller för
+ * den som publicerar mest, och båda valen förstör listan. Mätt på hela beståndet
+ * med en gemensam ribba:
  *
- * Det första är taket. Ingen kommun kan visa en längre serie än den publicerar.
- * Vid fem kan sex av tolv kommuner nå utmärkelsen, vid sex fyra, vid åtta tre.
- * Ribban skulle då avgöras av Stockholms, Linköpings och Örebros register
- * ensamma, och resten av landet vore uteslutet på förhand.
+ *   Ribba 3   Jönköping 121 utmärkta, Stockholm 2 707. 37 procent av Stockholms
+ *             bedömda verksamheter. Ett deltagandebevis.
+ *   Ribba 5   Stockholm 1 061, alltså 14,6 procent, och sex kommuner kan inte
+ *             nå utmärkelsen alls eftersom deras register är grundare än fem.
+ *   Ribba 8   Stockholm 169, alltså 2,3 procent, men bara tre kommuner i landet
+ *             har ett register som ens är åtta kontroller djupt.
  *
- * Det andra är löftet om det redan utdelade. 2026 års utgåva är publicerad. Vid
- * sex i rad förlorar 66 av dess 148 verksamheter sin utmärkelse, vid åtta 115.
- * Vid fem förlorar ingen: varje verksamhet som klarade fem inom fönstret har per
- * definition fem i rad. Se assertNoLosses längre ner, som gör det till en
- * byggregel i stället för en avsikt.
+ * Talet mäter alltså inte hur skötsamma verksamheterna är utan hur djupt
+ * kommunen publicerar och hur ofta den kontrollerar. Örebro kontrollerar
+ * ungefär hälften så ofta som Linköping; en gemensam ribba låter det avgöra vem
+ * som får en utmärkelse.
  *
- * Fem i rad är dessutom strängare än förebilden. Danmarks Elite-Smiley kräver
- * fyra i rad och innehas av ungefär en tredjedel av deras verksamheter; vår
- * ribba ger 9,7 procent av de bedömda.
+ * ## Vad ribban i stället är
+ *
+ * Utgåvan är per kommun, och ribban härleds ur kommunens egen data: den lägsta
+ * serielängd som gör utmärkelsen minst lika sällsynt som AWARD_TARGET bland
+ * kommunens bedömda verksamheter. Utfallet i den här utgåvan:
+ *
+ *   Stockholm 8 (2,3 %)   Linköping 11 (2,4 %)   Örebro 7 (3,0 %)
+ *   Uppsala 4 (1,9 %)     Borgholm 4 (0,3 %)
+ *
+ * Märket betyder därmed samma sak överallt: bland de tre procent i kommunen som
+ * har längst obruten ren kontrollhistorik. Det är inte samma serielängd, och
+ * ribban står utskriven på varje kommuns sida så att ingen behöver gissa.
+ *
+ * En kommun rangordnas inte av det här. En hög ribba betyder att kommunen
+ * publicerar djup historik, inte att dess kök är renare eller dess inspektörer
+ * strängare.
  */
-const AWARD_RUN = 5;
+const AWARD_TARGET = 0.03;
+
+/**
+ * Ribban går aldrig under det här, hur grund kommunens historik än är.
+ *
+ * Skälet är att utmärkelsen måste säga MER än märkningen "ren historik", som
+ * kräver tre kontroller utan anmärkning inom treårsfönstret. En ribba på tre
+ * hade gjort de två nästan utbytbara i just de kommuner där skillnaden är
+ * svårast att förklara, och de två har redan blandats ihop en gång.
+ *
+ * Priset är Höganäs och Jönköping, vars register är exakt tre kontroller djupa.
+ * De kan alltså inte nå utmärkelsen. Det är ett faktum om vad kommunen lämnar
+ * ut och sidorna skriver ut det i klartext.
+ *
+ * Golvet kostar också en bredare lista i Borgholm: med golv tre hade sex
+ * verksamheter där stått med i stället för en. Sex rader köpta genom att sudda
+ * gränsen mellan utmärkelsen och märkningen är inte värt priset.
+ */
+const AWARD_FLOOR = 4;
 
 function minusDays(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -195,11 +228,11 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
   const windowFrom = minusDays(asOf, WINDOW_DAYS);
   const windowFromLate = minusDays(asOf, WINDOW_DAYS - CLOCK_DRIFT_DAYS);
 
-  const qualified = [];
+  /** Serien per verksamhet, uträknad en gång. Ribban behöver hela fördelningen. */
+  const runs = [];
   let assessed = 0;
   let maxHistory = 0;
   let deepestWindow = 0;
-  let pool = 0;
 
   for (const e of dataset.establishments) {
     establishmentCount += 1;
@@ -233,15 +266,33 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
 
     /* Färskhetskravet, läst ur pipelinens eget svar. `verdict` sätts bara när
        den senaste kontrollen ligger inom treårsfönstret; utan bedömning finns
-       inget att utmärka. Se AWARD_RUN för varför utgåvan inte räknar om det. */
+       inget att utmärka. Se AWARD_TARGET för varför utgåvan inte räknar om det. */
     if (e.verdict === null) continue;
 
-    /* Poolen mäts mot utgåvans egen ribba: de som alls hunnit kontrolleras
-       AWARD_RUN gånger är de som kunde tävla om utmärkelsen. */
-    if (recent.length >= AWARD_RUN) pool += 1;
+    runs.push({ e, recent, run: cleanRun(recent) });
+  }
 
-    const run = cleanRun(recent);
-    if (run < AWARD_RUN) continue;
+  /*
+   * Ribban, härledd ur kommunens egen fördelning.
+   *
+   * Den lägsta serielängd från AWARD_FLOOR och uppåt som gör utmärkelsen minst
+   * lika sällsynt som AWARD_TARGET bland kommunens bedömda verksamheter.
+   * Andelen faller när ribban höjs och når till slut noll, så det finns alltid
+   * ett svar. Blir svaret djupare än kommunens register kan ingen nå det, och
+   * sidorna redovisar kommunen som utestängd i stället för tom.
+   */
+  const share = (k) => (assessed === 0 ? 0 : runs.filter((r) => r.run >= k).length / assessed);
+  let awardRun = AWARD_FLOOR;
+  while (share(awardRun) > AWARD_TARGET) awardRun += 1;
+
+  const qualified = [];
+  let pool = 0;
+
+  for (const { e, recent, run } of runs) {
+    /* Poolen mäts mot kommunens egen ribba: de som alls hunnit kontrolleras så
+       många gånger är de som kunde tävla om utmärkelsen. */
+    if (recent.length >= awardRun) pool += 1;
+    if (run < awardRun) continue;
 
     /* En serie som börjar i den senaste kontrollen och är ren betyder att den
        senaste kontrollen är ren, alltså att bedömningen är "Inga anmärkningar".
@@ -287,6 +338,11 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
     establishments: dataset.establishments.length,
     assessed,
     /**
+     * Kommunens egen ribba: kontroller i rad som krävdes här. Skrivs ut på
+     * sidan; ingen ska behöva gissa varför Stockholm kräver åtta.
+     */
+    awardRun,
+    /**
      * Djupaste kontrollhistorik kommunen lämnar ut för någon verksamhet. Det är
      * taket för hur lång serie som alls kan visas här, och skälet till att
      * serielängder inte jämförs mellan kommuner.
@@ -294,7 +350,7 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
     maxHistory,
     /** Samma tak räknat inom treårsfönstret. Chipets tak, inte utmärkelsens. */
     deepestWindow,
-    /** Verksamheter som alls kontrollerats AWARD_RUN gånger, med aktuell bedömning. */
+    /** Verksamheter som alls kontrollerats awardRun gånger, med aktuell bedömning. */
     pool,
     qualified,
   });
@@ -303,63 +359,120 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
 municipalities.sort((a, b) => a.city.localeCompare(b.city, 'sv'));
 
 /**
- * En publicerad utgåva får bara växa.
+ * Vem som fanns i den publicerade utgåvan men inte i den nya.
  *
- * Att räkna om en fryst utgåva är i sig ett brott mot löftet om att den står
- * still, och det görs en enda gång: när modellen bakom den visat sig mäta fel
- * sak. Det som ALDRIG får hända är att någon försvinner. Ett märke i ett fönster
- * pekar på den här listan, och en verksamhet som inte längre står där har fått
- * ett märke som ljuger om oss.
- *
- * Därför en byggregel och inte en avsikt: skulle en framtida ribba plocka bort
- * någon stannar skriptet, och då är svaret en NY årsutgåva med den nya ribban,
- * inte en omskrivning av den gamla.
+ * Ett märke i ett fönster pekar på den här listan. En verksamhet som inte längre
+ * står där har fått ett märke som ljuger om oss, och det är värre än att inte ge
+ * något märke alls.
  */
-function assertNoLosses(before, after) {
-  if (!before) return null;
+function losses(before, after) {
+  if (!before) return [];
   const now = new Set();
   for (const m of after) for (const q of m.qualified) now.add(`${m.slug}/${q.slug}`);
-
   const lost = [];
   for (const m of before.municipalities) {
     for (const q of m.qualified) {
       if (!now.has(`${m.slug}/${q.slug}`)) lost.push(`${m.slug}/${q.slug}`);
     }
   }
-  if (lost.length > 0) {
+  return lost;
+}
+
+/**
+ * En publicerad utgåva får bara växa, och undantaget gäller en enda gång.
+ *
+ * Vakten är kvar av samma skäl som förut. Den enda anledningen att den gick att
+ * öppna i augusti 2026 var att sajten var dagar gammal: ingen hade sett listan,
+ * ingen verksamhet hade hunnit åberopa sitt märke, ingen extern länk pekade hit.
+ * Om ett halvår gäller inte något av det, och då ska bygget fällas utan att
+ * någon behöver komma ihåg att sätta tillbaka vakten.
+ *
+ * Därför två spärrar:
+ *
+ *   1. Förluster kräver flaggan --godkann-forluster="<skäl>" på kommandoraden.
+ *      Utan den stannar skriptet, som förut.
+ *   2. Flaggan biter bara på en utgåva som inte redan har öppnats. Har filen ett
+ *      `lossesAccepted` i sitt revisionsblock är svaret en NY årsutgåva, och
+ *      ingen flagga i världen skriver om den gamla igen.
+ *
+ * Skälet skrivs in i utgåvan och ut på sidan. Ett undantag som inte syns är
+ * inget undantag, det är en tyst ändring.
+ */
+function acceptLosses(before, lost) {
+  const flag = process.argv.find((a) => a.startsWith('--godkann-forluster'));
+  const reason = flag?.includes('=') ? flag.slice(flag.indexOf('=') + 1).trim() : '';
+
+  if (lost.length === 0) return null;
+
+  if (!flag) {
     throw new Error(
       `${lost.length} verksamheter skulle förlora en redan publicerad utmärkelse: ` +
         `${lost.slice(0, 5).join(', ')}${lost.length > 5 ? ' …' : ''}. En fryst utgåva ` +
-        'får bara växa. Frys en ny årsutgåva i stället.',
+        'får bara växa. Frys en ny årsutgåva i stället, eller kör om med ' +
+        '--godkann-forluster="skäl" om utgåvan bevisligen inte nått någon ännu.',
     );
   }
-  return before;
+  if (!reason) {
+    throw new Error(
+      '--godkann-forluster kräver ett skäl: --godkann-forluster="därför att ...". ' +
+        'Skälet publiceras på utgåvans sida.',
+    );
+  }
+  if (before?.revision?.lossesAccepted) {
+    throw new Error(
+      `${year} års utgåva har redan skrivits om med förluster ` +
+        `(${before.revision.lossesAccepted.date}: ${before.revision.lossesAccepted.reason}). ` +
+        'En utgåva öppnas en gång. Frys en ny årsutgåva i stället.',
+    );
+  }
+  return { count: lost.length, reason, date: new Date().toISOString().slice(0, 10) };
 }
 
-const previous = assertNoLosses(published, municipalities);
+const previous = published;
+const lost = losses(previous, municipalities);
+const lossesAccepted = acceptLosses(previous, lost);
 
 /**
  * Vad som ändrades när utgåvan räknades om, i klartext och räknat ur filerna.
  *
- * Sidorna skriver ut det. En läsare som såg listan i går ska kunna se att den
- * vuxit, varför, och att ingen togs bort. En lista som blivit många gånger
- * längre över en natt utan ett ord om saken är en lista man slutar tro på.
+ * Sidorna skriver ut det. En läsare som såg listan i går ska kunna se hur den
+ * ändrats och varför. En lista som krympt till en femtedel över en natt utan ett
+ * ord om saken är en lista man slutar tro på, och en som vuxit tio gånger likaså.
  *
- * Blocket sätts en gång, den dagen modellen byttes, och bärs sedan vidare
- * oförändrat. Körs skriptet om med samma modell ska inget nytt datum uppstå.
+ * `frozen` och `originalQualified` följer med genom varje omräkning, så att
+ * jämförelsen alltid går mot den första frysningen och inte mot ett mellanläge
+ * som stod uppe i en timme.
  */
 let revision = previous?.revision ?? null;
 if (previous && (previous.awardModel ?? 1) !== AWARD_MODEL) {
+  const added = municipalities
+    .flatMap((m) => m.qualified.map((q) => `${m.slug}/${q.slug}`))
+    .filter((key) => {
+      const [slug, entry] = [key.slice(0, key.indexOf('/')), key.slice(key.indexOf('/') + 1)];
+      const was = previous.municipalities.find((p) => p.slug === slug);
+      return !was?.qualified.some((q) => q.slug === entry);
+    }).length;
+
   revision = {
-    /** Dagen utgåvan först frystes. */
-    frozen: previous.asOf,
-    /** Dagen modellen rättades och listan räknades om. */
+    /*
+     * Den FÖRSTA frysningen, buren vidare genom varje omräkning.
+     *
+     * Reservvärdena går bakåt ett steg i taget: saknas `originalModel` är filen
+     * skriven av en äldre version av det här skriptet, och då beskriver dess
+     * `previousModel` just det första läget. Att i stället falla tillbaka på
+     * filens eget nuläge hade gjort ett mellanläge till "originalet".
+     */
+    frozen: revision?.frozen ?? previous.asOf,
+    originalModel: revision?.originalModel ?? revision?.previousModel ?? previous.awardModel ?? 1,
+    originalQualified:
+      revision?.originalQualified ?? revision?.previousQualified ?? previous.totals.qualified,
+    /** Dagen modellen rättades och listan räknades om senast. */
     revised: new Date().toISOString().slice(0, 10),
     previousModel: previous.awardModel ?? 1,
-    previousRun: previous.awardRun ?? previous.historyDepth,
     previousQualified: previous.totals.qualified,
-    added: qualifiedCount - previous.totals.qualified,
-    removed: 0,
+    added,
+    removed: lost.length,
+    lossesAccepted,
   };
 }
 
@@ -369,10 +482,12 @@ const edition = {
   asOf: editionAsOf,
   /** Modellen som räknade fram listan. Se AWARD_MODEL. */
   awardModel: AWARD_MODEL,
-  /* Ribban som gällde när utgåvan frystes. Skrivs ut i filen så att en gammal
-     utgåva går att läsa korrekt även om vi höjer eller sänker den senare: den
-     som slår upp 2026 ska få veta vad som krävdes 2026. */
-  awardRun: AWARD_RUN,
+  /* Måltalet och golvet som ribborna härleddes ur. Skrivs in i filen så att en
+     gammal utgåva går att läsa korrekt även om vi ändrar dem senare: den som
+     slår upp 2026 ska få veta vad som gällde 2026. Ribban i sig står per kommun,
+     eftersom den ÄR per kommun. */
+  awardTarget: AWARD_TARGET,
+  awardFloor: AWARD_FLOOR,
   /** Hur gammal den senaste kontrollen får vara för att serien ska räknas. */
   freshnessDays: WINDOW_DAYS,
   /** Chipets ribba vid frysningen. Speglar grading.py, styr inte listan. */
@@ -399,13 +514,19 @@ console.log(
 if (previous) {
   console.log(
     `Tidigare: ${previous.totals.qualified} verksamheter, modell ${previous.awardModel ?? 1}. ` +
-      `Ingen förlorade sin plats.`,
+      (lost.length === 0
+        ? 'Ingen förlorade sin plats.'
+        : `${lost.length} förlorade sin plats, godkänt med flagga.`),
   );
-  for (const m of municipalities) {
-    const was = previous.municipalities.find((p) => p.slug === m.slug);
-    if (!was) continue;
-    if (was.qualified.length === m.qualified.length) continue;
-    console.log(`  ${m.slug}: ${was.qualified.length} → ${m.qualified.length}`);
-  }
+}
+for (const m of municipalities) {
+  const was = previous?.municipalities.find((p) => p.slug === m.slug);
+  const before = was ? `${was.qualified.length} → ` : '';
+  const reach = m.awardRun > m.maxHistory ? '  (utom räckhåll, taket är ' + m.maxHistory + ')' : '';
+  console.log(
+    `  ${m.slug.padEnd(13)} ribba ${String(m.awardRun).padStart(2)}  ` +
+      `${before}${m.qualified.length} av ${m.assessed} bedömda` +
+      `${m.assessed ? ` (${((m.qualified.length / m.assessed) * 100).toFixed(1)} %)` : ''}${reach}`,
+  );
 }
 console.log(`Skrev ${target}`);

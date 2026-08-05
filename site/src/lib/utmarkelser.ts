@@ -8,56 +8,67 @@
  * Det är chipet på verksamhetssidan och det räknas om vid varje bygge. Den här
  * filen rör det inte.
  *
- * UTMÄRKELSEN är den här filens ämne: awardRun kontroller I RAD utan
- * anmärkning, hur långt tillbaka de än ligger, hos en verksamhet som har en
- * aktuell bedömning. Den fryses en gång om året och ger ett märke med årtal.
+ * UTMÄRKELSEN är den här filens ämne: kontroller I RAD utan anmärkning, hur
+ * långt tillbaka de än ligger, hos en verksamhet som har en aktuell bedömning.
+ * Den fryses en gång om året och ger ett märke med årtal.
  *
  * De hette båda "utmärkelsen" fram till augusti 2026, med olika krav, och en
  * besökare som läste metodiksidan och utgåvesidan fick två svar på samma fråga.
- * Skriv aldrig ut något av talen för hand i sidtext: använd awardBar.
+ * Skriv aldrig ut något av talen för hand i sidtext: använd barFor och barRange.
  *
  * ## Varför tidsfönstret är borta ur utmärkelsen
  *
- * Till och med den första frysningen av 2026 krävdes awardRun kontroller INOM
- * 1 095 dagar. Den regeln mätte kommunens kontrollfrekvens och inte
- * verksamhetens renlighet: AG i Stockholm, med tretton kontroller utan en enda
- * anmärkning sedan 2018, hann bara med tre i fönstret och stod utanför listan,
- * medan en verksamhet med fem kontroller på arton månader stod med. Serien i rad
- * har ingen sådan slagsida. Se AWARD_RUN i scripts/utmarkelser.mjs.
+ * Till och med den första frysningen av 2026 krävdes fem kontroller INOM 1 095
+ * dagar. Den regeln mätte kommunens kontrollfrekvens och inte verksamhetens
+ * renlighet: AG i Stockholm, med tretton kontroller utan en enda anmärkning
+ * sedan 2018, hann bara med tre i fönstret och stod utanför listan, medan en
+ * verksamhet med fem kontroller på arton månader stod med.
  *
- * ## Varför det inte finns någon nationell rangordning
+ * ## Varför ribban är olika i olika kommuner
  *
- * Det som SKA jämföras mellan kommuner är fakta som betyder samma sak överallt.
- * "Awardrun kontroller i rad, ingen anmärkning vid någon av dem" är en sådan:
- * den betyder exakt detsamma i Uppsala som i Stockholm. Därför är utmärkelsen i
- * sig nationell och gäller alla i utgåvan lika mycket.
+ * Utgåvan är per kommun. Det är inte en eftergift utan en beskrivning av
+ * verkligheten: kommunerna kontrollerar olika ofta och publicerar olika djupt,
+ * och en gemensam ribba låter den skillnaden avgöra vem som får ett märke.
+ * Mätt på beståndet gav en gemensam ribba på fem 14,6 procent av Stockholms
+ * bedömda verksamheter och samtidigt noll i sex kommuner, vars register är
+ * grundare än fem. Ribban mätte alltså registret, inte köket.
  *
- * Det som INTE går att jämföra är hur lång serien är, och skälet står i datan.
- * Uppsala lämnar aldrig ut fler än fem kontroller per verksamhet, så ingen
- * verksamhet där kan visa en längre serie än fem, hur skötsam den än är. I
- * Stockholm publiceras upp till 113 kontroller och den längsta rena serien är
- * femton. En rikslista sorterad på serielängd hade alltså lagt varje verksamhet
- * i Uppsala under nästan varje verksamhet i Stockholm, och läsaren hade dragit
- * slutsatsen att Stockholm sköter sig bättre. Talet hade mätt kommunens
- * utlämning, inte köket. `maxHistory` per kommun är precis det taket, räknat ur
- * datan, och sidorna skriver ut det.
+ * I stället härleds ribban ur varje kommuns egen fördelning: den lägsta
+ * serielängd som gör utmärkelsen minst lika sällsynt som `awardTarget` bland
+ * kommunens bedömda verksamheter, aldrig under `awardFloor`. I 2026 års utgåva
+ * blev det åtta i Stockholm, elva i Linköping, sju i Örebro och fyra i Uppsala
+ * och Borgholm.
  *
- * Percentil i stället för råtal löser det inte. Utmärkelsen är olika sällsynt i
- * olika kommuner av samma skäl som serien är olika lång: i Uppsala krävs att
- * ALLA fem publicerade kontroller är rena, i Stockholm räcker de fem senaste av
- * upp till 113. En placering i procent hade rangordnat kommunernas
- * publiceringsdjup en gång till, bara med snyggare tal.
+ * Märket betyder därmed samma sak överallt: bland de tre procent i kommunen som
+ * har längst obruten ren kontrollhistorik. Det är INTE samma serielängd, och
+ * ribban står utskriven på varje kommuns sida, så att ingen behöver gissa varför
+ * Stockholm kräver åtta och Uppsala fyra.
+ *
+ * ## Varför det ändå inte är en rangordning av kommuner
+ *
+ * En hög ribba säger att kommunen publicerar djup historik och kontrollerar
+ * ofta. Den säger ingenting om hur rena köken är, och den som läser den som ett
+ * betyg på kommunen läser fel. Sidorna skriver ut det, eftersom det är den
+ * uppenbara felläsningen.
+ *
+ * Serielängden går av samma skäl inte att jämföra mellan kommuner. Uppsala
+ * lämnar aldrig ut fler än fem kontroller per verksamhet, så ingen verksamhet
+ * där kan visa en längre serie än fem, hur skötsam den än är. I Stockholm
+ * publiceras upp till 113. En rikslista sorterad på serielängd hade lagt varje
+ * verksamhet i Uppsala under nästan varje verksamhet i Stockholm, och läsaren
+ * hade dragit slutsatsen att Stockholm sköter sig bättre. `maxHistory` per
+ * kommun är precis det taket, räknat ur datan, och sidorna skriver ut det.
  *
  * Kvar blir en ordning INOM kommunen, där metodiken säger att jämförelsen är
  * rättvis (/metodik/#jamfor). Den ordningen är serielängden, och inget annat.
  *
  * ## Varför raderna inte numreras
  *
- * Drygt en tredjedel av 2026 års utgåva ligger på exakt ribban, alltså serien
- * fem. En numrerad lista hade gett plats 4 och plats 400 till två verksamheter
- * med exakt samma underlag, och skillnaden hade varit bokstavsordningen. Därför
- * grupperas raderna på serielängd och sorteras alfabetiskt inom gruppen.
- * Gruppen är rangordningen; inom den finns ingen skillnad att redovisa.
+ * Ungefär hälften av 2026 års utgåva ligger på exakt sin kommuns ribba. En
+ * numrerad lista hade gett plats 4 och plats 90 till två verksamheter med exakt
+ * samma underlag, och skillnaden hade varit bokstavsordningen. Därför grupperas
+ * raderna på serielängd och sorteras alfabetiskt inom gruppen. Gruppen är
+ * rangordningen; inom den finns ingen skillnad att redovisa.
  */
 import { formatNumber, municipalities } from './data';
 import { hasMark } from './marke';
@@ -82,6 +93,13 @@ export interface EditionMunicipality {
   asOf: string;
   establishments: number;
   assessed: number;
+  /**
+   * Kommunens egen ribba: kontroller i rad som krävdes just här.
+   *
+   * Saknas i utgåvor frysta före modell 3, som hade ett gemensamt tal på
+   * utgåvenivå. Läs alltid genom barFor().
+   */
+  awardRun?: number;
   /** Djupaste historik kommunen lämnar ut. Taket för hur lång en serie kan bli. */
   maxHistory: number;
   /** Samma tak räknat inom treårsfönstret. Chipets tak, inte utmärkelsens. */
@@ -97,12 +115,22 @@ export interface EditionRevision {
   frozen: string;
   /** Dagen modellen rättades och listan räknades om. */
   revised: string;
+  /** Modellen och antalet vid den FÖRSTA frysningen. */
+  originalModel?: number;
+  originalQualified?: number;
+  /** Modellen och antalet omedelbart före den senaste omräkningen. */
   previousModel: number;
-  previousRun: number;
   previousQualified: number;
+  /** Tillkomna respektive borttagna vid den senaste omräkningen. */
   added: number;
-  /** Alltid noll. Skriptet vägrar skriva en utgåva där någon förlorat sin plats. */
   removed: number;
+  /**
+   * Sätts bara när en omräkning tagit bort någon, vilket kräver ett uttryckligt
+   * beslut på kommandoraden. Skälet publiceras. Se acceptLosses i
+   * scripts/utmarkelser.mjs: en utgåva öppnas en gång, sedan är svaret en ny
+   * årsutgåva.
+   */
+  lossesAccepted?: { count: number; reason: string; date: string } | null;
 }
 
 export interface Edition {
@@ -114,12 +142,21 @@ export interface Edition {
    *   1  awardRun kontroller inom ett fönster på windowDays.
    *   2  awardRun kontroller i rad, utan fönster, hos en verksamhet med
    *      aktuell bedömning.
+   *   3  Samma som 2, men med en ribba härledd PER KOMMUN ur kommunens egen
+   *      fördelning. Se awardTarget och municipalities[].awardRun.
    *
    * Läses ur filen och skrivs ut på sidan. Metodiksidan sade en gång version 2
    * när modellen var 3; ett tal som bor i filen kan inte glida ifrån filen.
    * Utgåvor frysta före fältet fanns byggdes på modell 1.
    */
   awardModel?: number;
+  /**
+   * Måltalet ribborna härleddes ur: högst så stor andel av kommunens bedömda
+   * verksamheter får utmärkelsen. 0,03 i 2026 års utgåva.
+   */
+  awardTarget?: number;
+  /** Ribban går aldrig under det här, hur grund kommunens historik än är. */
+  awardFloor?: number;
   /** Hur färsk den senaste kontrollen måste vara för att serien ska räknas. */
   freshnessDays?: number;
   /** Chipets fönster respektive ribba vid frysningen. Styr inte listan. */
@@ -242,49 +279,63 @@ export interface EditionStanding extends EditionMunicipality {
 export const MIN_OWN_PAGE = 25;
 
 /**
- * Utgåvans ribba: hur många kontroller i rad som krävdes just det året.
+ * Ribban i EN kommun: hur många kontroller i rad som krävdes där det året.
  *
- * ANVÄND DEN HÄR I SIDTEXTEN. Skriv aldrig ut talet för hand. Ribban höjdes
- * från tre till fem i 2026 års utgåva, och de sidor som bar siffran i löptext
- * blev då fel medan de datadrivna styckena intill sade rätt. Samma sida sade
- * alltså tre på ett ställe och fem på ett annat. Nästa gång ribban flyttas ska
- * ingenting behöva letas upp.
+ * ANVÄND DEN HÄR I SIDTEXTEN. Skriv aldrig ut talet för hand. Sidorna bar en
+ * gång siffran "tre" i löptext medan utgåvan krävde fem, och sade då emot sina
+ * egna datadrivna stycken. Nu är talet dessutom olika i olika kommuner, så ett
+ * tal i löptext hade varit fel på de flesta sidor samtidigt.
  *
- * Reservvärdet historyDepth gäller utgåvor frysta innan fältet fanns; se
- * awardRun i Edition.
+ * Reservvärdena gäller utgåvor frysta före modell 3, som hade ett gemensamt tal
+ * på utgåvenivå.
  */
-export function awardBar(year: number | string): number {
+export function barFor(year: number | string, slug: string): number {
   const ed = edition(year);
-  return ed.awardRun ?? ed.historyDepth;
+  const m = ed.municipalities.find((x) => x.slug === slug);
+  return m?.awardRun ?? ed.awardRun ?? ed.historyDepth;
 }
 
 /**
- * Utgåvans modell. Se awardModel i Edition för vad talen betyder.
+ * Spannet av ribbor i utgåvan, räknat på kommuner där utmärkelsen alls kan nås.
  *
- * Sidorna skriver ut den i stället för att beskriva regeln i löptext och hoppas
- * att texten följer med nästa gång regeln ändras.
+ * Sidor som talar om utmärkelsen i allmänhet behöver ett sätt att säga "mellan
+ * fyra och elva kontroller" utan att räkna upp kommunerna, vilket hade blivit
+ * en rangordning i tabellform.
  */
+export function barRange(year: number | string): { min: number; max: number } {
+  const bars = standings(year)
+    .filter((m) => m.status !== 'impossible')
+    .map((m) => m.awardRun ?? 0);
+  return { min: Math.min(...bars), max: Math.max(...bars) };
+}
+
+/** Andelen av kommunens bedömda som ribban siktar på. Se awardTarget. */
+export function awardTarget(year: number | string): number {
+  return edition(year).awardTarget ?? 0;
+}
+
+/** Utgåvans modell. Se awardModel i Edition för vad talen betyder. */
 export function awardModel(year: number | string): number {
   return edition(year).awardModel ?? 1;
 }
 
-/** Vad som ändrades den gång utgåvan räknades om, eller null. */
+/** Vad som ändrades de gånger utgåvan räknats om, eller null. */
 export function awardRevision(year: number | string): EditionRevision | null {
   return edition(year).revision ?? null;
 }
 
 export function standings(year: number | string): EditionStanding[] {
   const ed = edition(year);
-  const bar = awardBar(ed.year);
   return ed.municipalities.map((m) => {
+    const bar = m.awardRun ?? ed.awardRun ?? ed.historyDepth;
     /*
-     * Omöjligt härleds ur UTGÅVANS ribba, inte ur sourceLimits.
+     * Omöjligt härleds ur KOMMUNENS ribba, inte ur sourceLimits.
      *
      * sourceLimits svarar på om kommunen publicerar nog för chipet "ren
-     * historik", alltså tre kontroller. Utgåvan kräver mer. Frågade vi
+     * historik", alltså tre kontroller. Utmärkelsen kräver mer. Frågade vi
      * sourceLimits skulle Jönköping räknas som "möjligt men ingen ännu",
      * fast deras källa aldrig lämnar ut mer än tre kontroller per verksamhet
-     * och fem därmed är utom räckhåll för var och en av dem.
+     * och ribban där är fyra.
      *
      * Taket är `maxHistory`, alltså djupaste historik kommunen alls lämnar ut.
      * Här stod tidigare `deepestWindow`, som var rätt så länge serien måste
@@ -292,10 +343,17 @@ export function standings(year: number | string): EditionStanding[] {
      * taket, och de två skiljer sig: i Stockholm 113 mot 28. Är taket lägre än
      * ribban kan ingen nå den, och det är ett faktum om utlämnandet och inte ett
      * omdöme om verksamheterna.
+     *
+     * Att en härledd ribba kan hamna över taket är inte ett fel i härledningen.
+     * I Jönköping har 121 av 1 118 bedömda alla sina tre publicerade kontroller
+     * rena, alltså 10,8 procent. Ingen ribba som registret rymmer kan skilja ut
+     * tre procent, och då är svaret att utmärkelsen inte går att dela ut där,
+     * inte att dela ut den till var tionde.
      */
     const impossible = m.maxHistory < bar;
     return {
       ...m,
+      awardRun: bar,
       status: m.qualified.length > 0 ? 'listed' : impossible ? 'impossible' : 'none_yet',
       blocked: impossible ? blockedText(m, bar) : null,
       ownPage: m.qualified.length >= MIN_OWN_PAGE,
@@ -324,9 +382,11 @@ function blockedText(m: EditionMunicipality, bar: number): string {
       ? 'bara den senaste kontrollen'
       : `högst ${numeral(m.maxHistory)} kontroller per verksamhet`;
   return (
-    `${m.name} publicerar ${depth}. Utmärkelsen kräver ${numeral(bar)} i följd, så ingen ` +
-    `av kommunens ${formatNumber(m.establishments)} verksamheter kan nå den. Frånvaron ` +
-    'säger något om vad kommunen lämnar ut, inte om hur verksamheterna sköter sig.'
+    `${m.name} publicerar ${depth}. Ribban här skulle behöva vara ${numeral(bar)} ` +
+    'kontroller i rad för att skilja ut de skötsammaste, och så många finns inte i ' +
+    `registret. Ingen av kommunens ${formatNumber(m.establishments)} verksamheter kan ` +
+    'därför nå utmärkelsen. Frånvaron säger något om vad kommunen lämnar ut, inte om ' +
+    'hur verksamheterna sköter sig.'
   );
 }
 
