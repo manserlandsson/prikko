@@ -135,19 +135,67 @@
   --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
   --s-6: 24px; --s-8: 32px;  --s-12: 48px; --s-16: 64px;
 
-  /* Typografi */
+  /* Typografi — EN skala för hela sajten. Regler i docs/19_formsystem.md.
+     Skriv aldrig font-size i px i en sidmall. Finns inte nivån du behöver
+     så saknas den här, och då läggs den här.
+
+     Mätt mot booli.se, som kör 48/32/24/18/16/14/12 och inget däremellan.
+     Vi har färre nivåer och behåller vår 17-pixlars brödtext, men tar deras
+     två regler rakt av: rubriker har radhöjd omkring 1,2 och brödtext 1,5.
+
+     Två titelnivåer, inte fem. Skillnaden mellan dem är sidans ärende:
+     --fs-display bär en sida man LÄSER (artikel, metod, villkor),
+     --fs-title bär en sida man SLÅR UPP (kommun, verksamhet, sök, lista).
+     Booli gör exakt samma delning, 48 på artikeln och 32 på objektsidan.
+     Åtta pixlar isär är avsiktligt: 34 och 36 sida vid sida, som sajten
+     hade förut, läser inte som två nivåer utan som slarv. */
   --font-sans: 'Instrument Sans Variable', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --fs-micro: 11px;    --lh-micro: 15px;
   --fs-eyebrow: 12px;  --lh-eyebrow: 16px;
   --fs-caption: 13px;  --lh-caption: 18px;
   --fs-body-s: 14px;   --lh-body-s: 20px;
-  --fs-body: 17px;     --lh-body: 25px;
+  --fs-body: 17px;     --lh-body: 26px;
+  --fs-h-xs: 17px;     --lh-h-xs: 22px;
   --fs-h-s: 21px;      --lh-h-s: 25px;
   --fs-h: 24px;        --lh-h: 28px;
-  --fs-display: 40px;  --lh-display: 44px;
+  --fs-title: 32px;    --lh-title: 38px;
+  --fs-display: 40px;  --lh-display: 46px;
 
-  /* Layout */
-  --container: 1080px;
-  --readcol: 680px;
+  /* Startsidans hero. Sajtens enda serif och sajtens enda plats för den,
+     därför en egen nivå och inte ett steg i skalan. Värdet bor här så att
+     det går att hitta; själva regeln står kvar i index.astro tills den
+     filen är fri (SEO-arbete pågår där). */
+  --fs-hero: 48px;     --lh-hero: 54px;
+
+  /* Layout — FYRA bredder, inga andra.
+     Sajten hade sju: 680, 700, 720, 780, 820, 1080 och 1400, och ägaren såg
+     det innan någon mätte det ("bredden på hemsidan är väldigt annorlunda
+     hela tiden"). Booli klarar sig på tre plus helbredd: 980 för sidan, 688
+     för listspalten, 620 för brödtexten.
+
+     Skriv aldrig en bredd i px i en sidmall. Väljer du fel av de fyra är
+     det en diskussion; hittar du på en femte är det ett fel. */
+  --w-full: 1400px;   /* kartappen, sajtens enda helskärmsyta */
+  --w-wide: 1080px;   /* rutnät och hubbar: startsida, kommun, verksamhet */
+  --w-page: 760px;    /* enkelspaltiga datasidor: sök, listor, kategorier */
+  --w-read: 680px;    /* brödtext, aldrig bredare */
+
+  /* Gamla namn. Pekar på samma värden så att ingenting flyttar sig.
+     Ny kod skriver --w-wide och --w-read. */
+  --container: var(--w-wide);
+  --readcol: var(--w-read);
+}
+
+/* Rubrikskalans mobilsteg ligger HÄR och ingen annanstans.
+   Bara de två titelnivåerna krymper. Booli gör likadant: deras 48 blir 40
+   och deras 24 blir 20, medan brödtext, kortrubriker och etiketter står
+   still hela vägen ned. Sidmallar ska inte ha egna h1-brytpunkter längre. */
+@media (max-width: 640px) {
+  :root {
+    --fs-hero: 36px;     --lh-hero: 41px;
+    --fs-display: 32px;  --lh-display: 38px;
+    --fs-title: 27px;    --lh-title: 32px;
+  }
 }
 
 /* Reset (minimal) */
@@ -170,7 +218,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* VIKTER: använd endast 400 och 600 (Apple-disciplin, aldrig 700). */
+/* VIKTER: använd endast 400 och 600 (Apple-disciplin, aldrig 700).
+   Booli kör 600 på varenda rubrik på varenda sidtyp; det är en av
+   anledningarna till att deras sidor läser som samma produkt.
+
+   h1 är display-nivån, alltså läsesidan. En uppslagssida (kommun,
+   verksamhet, sök) sätter i stället font-size: var(--fs-title) på sin h1.
+   Andra värden än de två finns inte. */
 h1 { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: -.022em; margin: 0; }
 h2 { font-size: var(--fs-h);       line-height: var(--lh-h);       font-weight: 600; letter-spacing: -.02em;  margin: 0; }
 h3 { font-size: var(--fs-h-s);     line-height: var(--lh-h-s);     font-weight: 600; margin: 0; }
