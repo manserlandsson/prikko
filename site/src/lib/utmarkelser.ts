@@ -3,18 +3,18 @@
  *
  * ## Vad listan är
  *
- * Utmärkelsen finns redan och är inte uppfunnen här. Den sätts i
- * pipeline/prikko/grading.py och lyder: minst tre kontroller inom
- * treårsfönstret, samtliga utan anmärkning. Den syns som ett märke på
- * verksamhetssidan. Det den saknade var ett ställe där alla som har den står
- * samlade, och ett årtal som gör den till något att visa upp.
+ * Utmärkelsen bygger på `distinction` i pipeline/prikko/grading.py, som lyder:
+ * minst HISTORY_DEPTH kontroller inom treårsfönstret, samtliga utan anmärkning.
+ * Det är chipet på verksamhetssidan. ÅRSUTGÅVAN kräver mer, se awardRun och
+ * awardBar nedan: i 2026 års utgåva fem kontroller i följd, inte tre. Blanda
+ * inte ihop de två talen, och skriv aldrig ut något av dem för hand i sidtext.
  *
  * ## Varför det inte finns någon nationell rangordning
  *
  * Det som SKA jämföras mellan kommuner är fakta som betyder samma sak överallt.
- * "Kontrollerad tre gånger, ingen anmärkning vid någon av dem" är en sådan:
- * den betyder exakt detsamma i Jönköping som i Stockholm. Därför är
- * utmärkelsen i sig nationell och gäller alla 1 541 lika mycket.
+ * "Kontrollerad awardRun gånger, ingen anmärkning vid någon av dem" är en
+ * sådan: den betyder exakt detsamma i Jönköping som i Stockholm. Därför är
+ * utmärkelsen i sig nationell och gäller alla i utgåvan lika mycket.
  *
  * Det som INTE går att jämföra är hur lång serien är, och skälet står i datan.
  * Jönköping lämnar aldrig ut fler än tre kontroller per verksamhet, så ingen
@@ -36,10 +36,10 @@
  *
  * ## Varför raderna inte numreras
  *
- * 1 078 av de 1 541 har serien tre. En numrerad lista hade gett plats 4 och
- * plats 812 till två verksamheter med exakt samma underlag, och skillnaden
- * hade varit bokstavsordningen. Därför grupperas raderna på serielängd och
- * sorteras alfabetiskt inom gruppen. Gruppen är rangordningen; inom den finns
+ * 106 av de 148 i 2026 års utgåva ligger på exakt ribban, alltså serien fem. En
+ * numrerad lista hade gett plats 4 och plats 90 till två verksamheter med exakt
+ * samma underlag, och skillnaden hade varit bokstavsordningen. Därför grupperas
+ * raderna på serielängd och sorteras alfabetiskt inom gruppen. Gruppen är rangordningen; inom den finns
  * ingen skillnad att redovisa.
  */
 import { formatNumber, municipalities } from './data';
@@ -50,7 +50,7 @@ export interface EditionEntry {
   name: string;
   address: string | null;
   type: string | null;
-  /** Kontroller i följd utan anmärkning inom fönstret. Alltid minst tre. */
+  /** Kontroller i följd utan anmärkning inom fönstret. Alltid minst awardRun. */
   run: number;
   /** Äldsta kontrollen i serien. */
   from: string;
@@ -68,7 +68,7 @@ export interface EditionMunicipality {
   maxHistory: number;
   /** Flest kontroller någon verksamhet har inom fönstret. Taket för serien. */
   deepestWindow: number;
-  /** Verksamheter som alls kontrollerats tre gånger inom fönstret. */
+  /** Verksamheter som alls kontrollerats awardRun gånger inom fönstret. */
   pool: number;
   qualified: EditionEntry[];
 }
@@ -189,9 +189,26 @@ export interface EditionStanding extends EditionMunicipality {
  */
 export const MIN_OWN_PAGE = 25;
 
+/**
+ * Utgåvans ribba: hur många kontroller i följd som krävdes just det året.
+ *
+ * ANVÄND DEN HÄR I SIDTEXTEN. Skriv aldrig ut talet för hand. Ribban höjdes
+ * från tre till fem i 2026 års utgåva, och de sidor som bar siffran i löptext
+ * blev då fel medan de datadrivna styckena intill sade rätt. Samma sida sade
+ * alltså tre på ett ställe och fem på ett annat. Nästa gång ribban flyttas ska
+ * ingenting behöva letas upp.
+ *
+ * Reservvärdet historyDepth gäller utgåvor frysta innan fältet fanns; se
+ * awardRun i Edition.
+ */
+export function awardBar(year: number | string): number {
+  const ed = edition(year);
+  return ed.awardRun ?? ed.historyDepth;
+}
+
 export function standings(year: number | string): EditionStanding[] {
   const ed = edition(year);
-  const bar = ed.awardRun ?? ed.historyDepth;
+  const bar = awardBar(ed.year);
   return ed.municipalities.map((m) => {
     /*
      * Omöjligt härleds ur UTGÅVANS ribba, inte ur sourceLimits.
@@ -375,7 +392,7 @@ export interface EditionFacts {
   /** Kortaste respektive längsta serie som ÖVERHUVUDTAGET kan visas, per kommun. */
   lowestCeiling: EditionStanding | null;
   highestCeiling: EditionStanding | null;
-  /** Verksamheter som alls kontrollerats tre gånger inom fönstret. */
+  /** Verksamheter som alls kontrollerats awardRun gånger inom fönstret. */
   pool: number;
   /** Kommuner i beståndet som saknas helt ur utgåvan. */
   missingFromEdition: string[];

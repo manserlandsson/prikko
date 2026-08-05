@@ -14,13 +14,19 @@ import { coverage, formatDate, formatNumber } from '../../lib/data';
 import { DISTINCTION, SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 import { dataUpdated } from '../../lib/rapporter';
-import { editionFacts, editions, latestEdition, numeral } from '../../lib/utmarkelser';
+import { awardBar, capitalise, editionFacts, editions, latestEdition, numeral } from '../../lib/utmarkelser';
 
 const all = editions();
 const latest = latestEdition();
 if (!latest) throw new Error('Ingen utgåva finns. Kör scripts/utmarkelser.mjs.');
 
 const facts = editionFacts(latest.year);
+
+/* Ribban läses ur utgåvan, aldrig ur löptexten. Den stod skriven som "tre" på
+   sex ställen här medan 2026 års utgåva kräver fem, så sidan motsade sina egna
+   datadrivna stycken. Se awardBar i lib/utmarkelser.ts. */
+const bar = awardBar(latest.year);
+const barWord = numeral(bar);
 const total = coverage();
 const updated = dataUpdated();
 
@@ -32,7 +38,7 @@ const share = ((latest.totals.qualified / latest.totals.assessed) * 100)
 
 const description =
   `${formatNumber(latest.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
-  `klarade tre kontroller i rad utan en enda anmärkning. Prikkos utmärkelse är räknad ur ` +
+  `klarade ${barWord} kontroller i rad utan en enda anmärkning. Prikkos utmärkelse är räknad ur ` +
   'kommunernas egna kontrolluppgifter och fryses en gång om året.';
 
 const jsonLd = {
@@ -63,7 +69,7 @@ const jsonLd = {
       <p class="eyebrow">Utmärkelser</p>
       <h1>Utmärkelsen för genomgående skötsamhet</h1>
       <p class="lede text-secondary">
-        Tre kontroller i rad utan en enda anmärkning.
+        {capitalise(barWord)} kontroller i rad utan en enda anmärkning.
         {' '}{formatNumber(latest.totals.qualified)} verksamheter klarade det, alltså
         {' '}{share} procent av de {formatNumber(latest.totals.assessed)} som gick
         att bedöma när {latest.year} års utgåva frystes.
@@ -88,8 +94,9 @@ const jsonLd = {
     <section>
       <h2>Vad som krävs</h2>
       <p>
-        Tre kontroller inom de senaste tre åren, och ingen anmärkning vid någon
-        av dem. Inget annat vägs in, och kravet är detsamma i varje kommun.
+        {capitalise(barWord)} kontroller inom de senaste tre åren, och ingen
+        anmärkning vid någon av dem. Inget annat vägs in, och kravet är
+        detsamma i varje kommun.
       </p>
       <p>
         Utmärkelsen påverkar aldrig hygienbedömningen: nuläget avgör
@@ -107,7 +114,7 @@ const jsonLd = {
     <section>
       <h2>Varför listan inte rangordnar hela landet</h2>
       <p>
-        Utmärkelsen betyder samma sak överallt: tre kontroller, noll
+        Utmärkelsen betyder samma sak överallt: {barWord} kontroller, noll
         anmärkningar. Alla {formatNumber(latest.totals.qualified)} har den lika
         mycket.
       </p>
@@ -132,8 +139,8 @@ const jsonLd = {
     <section>
       <h2>Kommunerna som inte kan vara med</h2>
       <p>
-        Utmärkelsen kräver tre kontroller, och alla kommuner publicerar inte
-        tre. Det säger inget om verksamheterna där.
+        Utmärkelsen kräver {barWord} kontroller, och alla kommuner publicerar
+        inte {barWord}. Det säger inget om verksamheterna där.
       </p>
       {facts.impossible.length > 0 && (
         <ul class="plain">
@@ -154,7 +161,7 @@ const jsonLd = {
               <li>
                 I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)}
                 {' '}av {formatNumber(m.establishments)} verksamheter alls
-                kontrollerats tre gånger inom treårsfönstret.
+                kontrollerats {barWord} gånger inom treårsfönstret.
                 {' '}<a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}
@@ -212,13 +219,13 @@ const jsonLd = {
 
 <style>
   .page {
-    max-width: var(--readcol);
+    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 
   h1 {
-    font-size: 36px;
-    line-height: 40px;
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
     margin-top: var(--s-2);
   }
 
@@ -242,7 +249,7 @@ const jsonLd = {
   }
 
   section p {
-    line-height: 26px;
+    line-height: var(--lh-body);
   }
 
   section p + p {
@@ -284,7 +291,7 @@ const jsonLd = {
 
   .plain li {
     margin-top: var(--s-3);
-    line-height: 26px;
+    line-height: var(--lh-body);
   }
 
   .callout {

@@ -17,6 +17,8 @@ import { formatDate, formatNumber } from '../../../lib/data';
 import { SITE } from '../../../lib/site';
 import { absolute, path } from '../../../lib/urls';
 import {
+  awardBar,
+  capitalise,
   edition,
   editionFacts,
   editions,
@@ -33,6 +35,11 @@ const { year } = Astro.params;
 const e = edition(year!);
 const facts = editionFacts(e.year);
 
+/* UTGÅVANS egen ribba, inte en siffra i löptext. Sidan sade "tre" medan 2026
+   kräver fem, och en gammal utgåva ska dessutom kunna läsas med den ribba som
+   gällde då. Se awardBar i lib/utmarkelser.ts. */
+const barWord = numeral(awardBar(e.year));
+
 const sections = facts.listed.map((m) => {
   const groups = runGroups(m.qualified);
   const excerpt = m.ownPage ? topGroups(groups) : groups;
@@ -42,7 +49,7 @@ const sections = facts.listed.map((m) => {
 
 const description =
   `${formatNumber(e.totals.qualified)} verksamheter i ${facts.listed.length} kommuner ` +
-  `klarade tre kontroller i rad utan anmärkning. Prikkos utmärkelse ${e.year}, fryst ` +
+  `klarade ${barWord} kontroller i rad utan anmärkning. Prikkos utmärkelse ${e.year}, fryst ` +
   `${formatDate(e.asOf)} och oförändrad sedan dess.`;
 
 const jsonLd = {
@@ -71,7 +78,7 @@ const jsonLd = {
       <h1>Utmärkelsen {e.year}</h1>
       <p class="lede text-secondary">
         {formatNumber(e.totals.qualified)} verksamheter i {facts.listed.length} kommuner
-        hade vid frysningen tre kontroller i rad utan en enda anmärkning. Listan
+        hade vid frysningen {barWord} kontroller i rad utan en enda anmärkning. Listan
         står still. Så här såg det ut {formatDate(e.asOf)}.
       </p>
     </header>
@@ -183,8 +190,8 @@ const jsonLd = {
     <section class="method">
       <h2>Hur utgåvan är gjord</h2>
       <p>
-        Tre kontroller inom de senaste tre åren, samtliga utan anmärkning,
-        räknat ur {formatNumber(e.totals.establishments)} verksamheter i
+        {capitalise(barWord)} kontroller inom de senaste tre åren, samtliga utan
+        anmärkning, räknat ur {formatNumber(e.totals.establishments)} verksamheter i
         {' '}{e.totals.municipalities} kommuner. Utgåvan frystes
         {' '}{formatDate(e.asOf)} och räknas inte om; nuläget står på varje
         verksamhets egen sida.
@@ -201,13 +208,13 @@ const jsonLd = {
 
 <style>
   .page {
-    max-width: var(--readcol);
+    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 
   h1 {
-    font-size: 36px;
-    line-height: 40px;
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
     margin-top: var(--s-2);
   }
 
@@ -263,7 +270,7 @@ const jsonLd = {
   }
 
   section p {
-    line-height: 26px;
+    line-height: var(--lh-body);
   }
 
   section p + p {
@@ -330,7 +337,7 @@ const jsonLd = {
 
   .plain li {
     margin-top: var(--s-3);
-    line-height: 26px;
+    line-height: var(--lh-body);
   }
 
   .method {
