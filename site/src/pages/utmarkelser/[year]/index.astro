@@ -99,9 +99,12 @@ const jsonLd = {
           </span>
         </h2>
         <p class="intro text-secondary">
+          {/* `pool` räknas i scripts/utmarkelser.mjs mot AWARD_RUN, alltså
+              utgåvans egen ribba, och inte mot historyDepth. Talet i meningen
+              måste följa med den. */}
           {formatNumber(m.qualified.length)} av de {formatNumber(m.pool)} som
-          kontrollerats minst tre gånger inom fönstret klarade samtliga utan
-          anmärkning. <a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
+          kontrollerats minst {barWord} gånger inom fönstret klarade samtliga
+          utan anmärkning. <a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
         </p>
 
         {excerpt.length > 0 ? (
@@ -171,7 +174,7 @@ const jsonLd = {
               <li>
                 I {m.name} har {m.pool === 0 ? 'ingen' : numeral(m.pool)} av
                 {' '}{formatNumber(m.establishments)} verksamheter alls
-                kontrollerats tre gånger inom treårsfönstret.
+                kontrollerats {barWord} gånger inom treårsfönstret.
                 {' '}<a href={path(m.slug)}>Se {m.city}</a>.
               </li>
             ))}

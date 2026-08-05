@@ -153,11 +153,15 @@ export function latestEdition(): Edition | null {
  *
  * Skillnaden mellan de två sista är hela poängen med att redovisa dem. I
  * Karlstad kan ingen verksamhet nå utmärkelsen, hur välskött den än är, för
- * kommunen publicerar bara den senaste kontrollen. I Höganäs kan den nås, men
- * en enda verksamhet i hela kommunen har alls hunnit kontrolleras tre gånger
- * inom fönstret. Skrevs de ihop till "inga verksamheter i Karlstad och Höganäs"
- * skulle läsaren tro att det inte finns skötsamma restauranger där. Det står
- * ingenting om saken i datan.
+ * kommunen publicerar bara den senaste kontrollen. I Kristinehamn kan den nås,
+ * men en enda verksamhet i hela kommunen har alls hunnit kontrolleras awardRun
+ * gånger inom fönstret. Skrevs de ihop till "inga verksamheter i Karlstad och
+ * Kristinehamn" skulle läsaren tro att det inte finns skötsamma restauranger
+ * där. Det står ingenting om saken i datan.
+ *
+ * Exemplet var tidigare Höganäs, som med treribban var 'none_yet'. Med 2026
+ * års femribba är Höganäs i stället 'impossible': källan lämnar bara tre
+ * kontroller per verksamhet.
  */
 export type EditionStatus = 'listed' | 'none_yet' | 'impossible';
 
