@@ -71,9 +71,17 @@ PRECISION_ADDRESS = "address"
 PRECISION_APPROXIMATE = "approximate"
 
 SOURCE_OSM = "osm"
+# Lantmäteriets belägenhetsadresser. Se prikko/lantmateriet.py för källa,
+# licens och villkor.
+SOURCE_LANTMATERIET = "lantmateriet"
 
 # Skäl att inte sätta någon koordinat. Redovisas i cachen och i körningens
 # sammanfattning: en utebliven träff ska gå att förklara, inte bara räknas.
+#
+# Namnen säger "in_osm" av historiska skäl och står kvar oförändrade: de
+# ligger i geocode_cache.json på tusentals rader, och ett byte hade gjort
+# varje gammal post oläsbar utan att förklara något nytt. Skälet betyder
+# "fanns inte i den adresskälla körningen använde".
 MATCHED = "matched"
 MISS_NO_ADDRESS = "no_address_in_source"
 MISS_UNPARSEABLE = "unparseable_address"
@@ -146,16 +154,69 @@ def normalize_street(raw: str) -> str:
     return text.strip(" ,")
 
 
+# Postnummer och postort på slutet: "Kungsgatan 19, 753 21 Uppsala". Orten är
+# valfri — en del källor skriver bara postnumret.
+_POSTAL_TAIL = re.compile(r"[\s,]+\d{3}\s?\d{2}(?:[\s,]+[^\d]+)?$")
+
+# Lägenhet, uppgång och våning pekar inne i huset, inte på husets plats.
+# Adressplatsen är densamma med eller utan dem, så de skalas bort.
+_UNIT_TAIL = re.compile(
+    r"[\s,]+(?:lgh|lägenhet|uppg|uppgång|vån|våning|bv|nb)\b[\s.:]*[\w-]*$"
+)
+
+# "Storgatan 12-14" och "Storgatan 12–14" är en fastighet med en serie
+# nummer. Det första numret är den adressplats registret för.
+_NUMBER_RANGE = re.compile(r"(\d{1,4})\s*[-–—]\s*\d{1,4}(\s*[a-zåäö]{0,2})$")
+
+# Förkortade efterled. Kommunernas register skriver "Kungsg. 19" och
+# "N. Ringv. 3" där Lantmäteriet skriver ut namnet. Bara efterledet i sista
+# ordet expanderas här; förledet hanteras av _PREFIX nedan, eftersom "V."
+# betyder västra först i namnet och vägen sist.
+_SUFFIX = {
+    "g": "gatan",
+    "ga": "gatan",
+    "gat": "gatan",
+    "gt": "gatan",
+    "v": "vägen",
+    "vg": "vägen",
+    "väg": "vägen",
+    "gata": "gatan",
+    "gr": "gränd",
+    "pl": "plan",
+    "tg": "torget",
+    "all": "allén",
+    "allé": "allén",
+}
+
+_PREFIX = {
+    "n": "norra",
+    "s": "södra",
+    "ö": "östra",
+    "v": "västra",
+    "st": "stora",
+    "l": "lilla",
+    "gla": "gamla",
+}
+
+
 def parse_address(raw: Optional[str]) -> Optional[Address]:
     """Dela upp "Kungsgatan 39A" i gata, nummer och bokstav.
 
+    Skalar först bort det som står EFTER adressplatsen och inte pekar ut
+    någon annan punkt: postnummer med postort, lägenhetsnummer, uppgång och
+    våning. Ett nummerintervall kortas till sitt första nummer.
+
     Returnerar None för det som inte är en adressplats: tomma fält, och
-    poster där numret saknas. Utan nummer finns ingen punkt att peka på.
+    poster där numret saknas. Utan nummer finns ingen punkt att peka på —
+    det gäller de fyra kommuner vars källa bara publicerar en ort.
     """
     if not raw:
         return None
     text = normalize_street(raw)
-    match = re.match(r"^(.*?)[\s,]+(\d{1,4})\s*([a-zåäö]{0,2})$", text)
+    text = _UNIT_TAIL.sub("", text)
+    text = _POSTAL_TAIL.sub("", text)
+    text = _NUMBER_RANGE.sub(r"\1\2", text)
+    match = re.match(r"^(.*?)[\s,]+(\d{1,4})\s*([a-zåäö]{0,2})$", text.strip(" ,"))
     if not match:
         return None
     street = match.group(1).strip(" ,-")
@@ -164,9 +225,75 @@ def parse_address(raw: Optional[str]) -> Optional[Address]:
     return Address(street, int(match.group(2)), match.group(3))
 
 
-def cache_key(municipality_code: str, raw: str) -> str:
-    """Nyckel i geocode_cache.json. Kommunen ingår: gatunamn återanvänds."""
-    return f"{municipality_code}|{normalize_street(raw)}"
+def street_variants(street: str) -> List[str]:
+    """Stavningar av samma gatunamn, den skrivna först.
+
+    Kommunernas register förkortar, Lantmäteriets och OSM:s skriver ut. En
+    variant är en GISSNING om hur namnet egentligen stavas, aldrig en
+    gissning om vilken gata som avses — därför får uppslaget bara följa en
+    variant när den och originalet inte pekar åt olika håll. Se lookup().
+    """
+    variants = [street]
+
+    def push(candidate: str) -> None:
+        if candidate and candidate not in variants:
+            variants.append(candidate)
+
+    push(_expand(street))
+
+    # Bestämd och obestämd form. "Skolvägen" och "Skolväg" är olika namn i
+    # registret men samma gata i talspråk, och kommunerna skriver båda.
+    for base in list(variants):
+        for definite, indefinite in (("vägen", "väg"), ("gatan", "gata")):
+            for written, other in ((definite, indefinite), (indefinite, definite)):
+                if base.endswith(written):
+                    push(base[: -len(written)] + other)
+    return variants
+
+
+def _expand(street: str) -> str:
+    """Skriv ut förkortningarna i ett gatunamn.
+
+    Efterledet förkortas antingen ihopskrivet ("Kungsg.") eller som eget ord
+    ("Stora tg"). Förledet bara ihop med punkt: "N." är norra, medan "n"
+    utan punkt lika gärna är ett riktigt ord, och vi hittar inte på.
+    """
+    words = street.split()
+    if not words:
+        return street
+    expanded = list(words)
+
+    last = words[-1]
+    bare = last.rstrip(".")
+    if bare in _SUFFIX and len(words) > 1:
+        expanded[-1] = _SUFFIX[bare]
+    elif last.endswith("."):
+        for length in (3, 2, 1):
+            head, tail = bare[:-length], bare[-length:]
+            if head and tail in _SUFFIX:
+                expanded[-1] = head + _SUFFIX[tail]
+                break
+
+    first = words[0]
+    if len(words) > 1 and first.endswith(".") and first.rstrip(".") in _PREFIX:
+        expanded[0] = _PREFIX[first.rstrip(".")]
+
+    return " ".join(expanded)
+
+
+def cache_key(municipality_code: str, raw: str, source: str = SOURCE_OSM) -> str:
+    """Nyckel i geocode_cache.json. Kommunen ingår: gatunamn återanvänds.
+
+    OSM-nyckeln har kvar sin ursprungliga form. Cachen är versionshanterad
+    och har tusentals rader; att lägga till ett fält i nyckeln hade slängt
+    dem alla och tvingat fram en ny hämtning utan att svaret blev bättre.
+    En ny källa får ett eget led, så att två källors svar på samma adress
+    kan ligga sida vid sida och jämföras.
+    """
+    normalized = normalize_street(raw)
+    if source == SOURCE_OSM:
+        return f"{municipality_code}|{normalized}"
+    return f"{municipality_code}|{source}|{normalized}"
 
 
 def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -193,9 +320,16 @@ def _spread_m(points: List[Tuple[float, float]]) -> float:
 
 
 class AddressIndex:
-    """Kommunens adresspunkter ur OSM, uppslagbara på gata och nummer."""
+    """Kommunens adresspunkter, uppslagbara på gata och nummer.
 
-    def __init__(self) -> None:
+    Källan kan vara OSM (from_overpass) eller Lantmäteriets belägenhets-
+    adresser (prikko.lantmateriet.build_index). Formen är densamma, och
+    `source` följer med in i varje träff så att datafilen kan säga varifrån
+    koordinaten kommer.
+    """
+
+    def __init__(self, source: str = SOURCE_OSM) -> None:
+        self.source = source
         # (gata, nummer, bokstav) -> punkter, samt gata -> nummer -> punkter.
         self._exact: Dict[Tuple[str, int, str], List[Tuple[float, float]]] = {}
         self._by_street: Dict[str, Dict[int, List[Tuple[float, float]]]] = {}
@@ -250,16 +384,49 @@ class AddressIndex:
         if _spread_m(points) > AMBIGUOUS_SPREAD_M:
             return Lookup(None, MISS_AMBIGUOUS)
         lat, lng = _mean(points)
-        return Lookup(Match(round(lat, 6), round(lng, 6), precision), MATCHED)
+        return Lookup(
+            Match(round(lat, 6), round(lng, 6), precision, self.source), MATCHED
+        )
 
-    def lookup(self, address: Address) -> Lookup:
-        """Slå upp en adress. Utan träff säger utfallet varför."""
+    def lookup(self, address: Address, allow_neighbour: bool = True) -> Lookup:
+        """Slå upp en adress. Utan träff säger utfallet varför.
+
+        Hittas inte gatunamnet som det står prövas de stavningar
+        street_variants() räknar upp. En variant får bara avgöra saken när
+        den är ensam om att träffa, eller när alla träffar pekar på samma
+        plats — annars vet vi inte vilken gata som avsågs, och då pekar vi
+        inte ut någon. Samma regel som spridningen inom en adress.
+
+        `allow_neighbour` styr gissningen på grannporten. Den finns för OSM,
+        vars täckning är ojämn. Lantmäteriets register är fullständigt: står
+        numret inte där finns adressen inte, och då är grannporten inte ett
+        närmevärde utan ett annat hus.
+        """
+        first = self._lookup_exact(address, allow_neighbour)
+        if first.match is not None or first.reason != MISS_NO_STREET:
+            return first
+
+        hits = []
+        for spelling in street_variants(address.street)[1:]:
+            result = self._lookup_exact(
+                Address(spelling, address.number, address.letter), allow_neighbour
+            )
+            if result.match is not None:
+                hits.append(result)
+        if not hits:
+            return first
+        points = [(h.match.lat, h.match.lng) for h in hits]
+        if _spread_m(points) > AMBIGUOUS_SPREAD_M:
+            return Lookup(None, MISS_AMBIGUOUS)
+        return hits[0]
+
+    def _lookup_exact(self, address: Address, allow_neighbour: bool) -> Lookup:
         exact = self._exact.get((address.street, address.number, address.letter))
         if exact:
             return self._resolve(exact, PRECISION_ADDRESS)
 
-        # Kommunen skriver "39A", OSM ofta bara "39" för hela huset. Numret är
-        # rätt, uppgången okänd — det är fortfarande rätt hus.
+        # Kommunen skriver "39A", källan ofta bara "39" för hela huset. Numret
+        # är rätt, uppgången okänd — det är fortfarande rätt hus.
         plain = self._exact.get((address.street, address.number, ""))
         if plain:
             return self._resolve(plain, PRECISION_ADDRESS)
@@ -272,14 +439,15 @@ class AddressIndex:
         if same_number:
             return self._resolve(same_number, PRECISION_ADDRESS)
 
-        # Numret saknas i OSM. Grannporten på samma sida av gatan får duga och
-        # märks som ungefärlig, så att sidan kan säga det. Längre bort än så
-        # avstår vi: se mätningen vid MAX_NUMBER_GAP_SAME_SIDE.
-        same_side = [n for n in numbers if n % 2 == address.number % 2]
-        if same_side:
-            best = min(same_side, key=lambda n: abs(n - address.number))
-            if abs(best - address.number) <= MAX_NUMBER_GAP_SAME_SIDE:
-                return self._resolve(numbers[best], PRECISION_APPROXIMATE)
+        # Numret saknas i källan. Grannporten på samma sida av gatan får duga
+        # och märks som ungefärlig, så att sidan kan säga det. Längre bort än
+        # så avstår vi: se mätningen vid MAX_NUMBER_GAP_SAME_SIDE.
+        if allow_neighbour:
+            same_side = [n for n in numbers if n % 2 == address.number % 2]
+            if same_side:
+                best = min(same_side, key=lambda n: abs(n - address.number))
+                if abs(best - address.number) <= MAX_NUMBER_GAP_SAME_SIDE:
+                    return self._resolve(numbers[best], PRECISION_APPROXIMATE)
 
         return Lookup(None, MISS_NO_NUMBER)
 
