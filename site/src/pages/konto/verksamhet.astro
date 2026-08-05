@@ -1,6 +1,6 @@
 ---
 /**
- * Verksamhetens sida: anspråk, svar på kontroll och bilder.
+ * Verksamhetens sida: anspråk, uppgifter och svar på kontroll.
  *
  * ---------------------------------------------------------------------------
  * DET SVÅRA: ATT NÅGON FÖRETRÄDER VERKSAMHETEN
@@ -9,37 +9,70 @@
  * teknisk konstruktion kan avgöra om personen bakom en e-postadress verkligen
  * är den som driver Pizzeria Napoli på Storgatan.
  *
- * Fyra vägar övervägdes:
+ * Vägarna, och varför den byggda är den byggda:
  *
- *   BankID mot Bolagsverkets firmatecknare  Starkast, och det enda som
- *     verkligen bevisar något. Kostar pengar, kräver avtal med en
- *     BankID-förmedlare, och är fel investering innan någon faktiskt vill
- *     svara. Rätt slutmål.
- *   Brev med engångskod till adressen  Näst starkast och billigt.
- *     Verksamhetsställets adress finns redan i datan, och den som hämtar
- *     posten där är rimligen på plats. Samma ordning som Google Business
- *     Profile. Förberedd i databasen (`postal_code`), inte byggd.
- *   E-post på verksamhetens egen domän  Går inte. Vi lagrar inga webbplatser.
  *   Manuell registerkontroll  Redaktionen slår upp firmatecknare eller
- *     verklig huvudman och jämför med det den sökande uppgett.
+ *     verklig huvudman i Bolagsverkets näringslivsregister och jämför med det
+ *     den sökande uppgett. Kostar ingenting, kräver inget avtal, och prövar
+ *     den enda fråga som betyder något: står den här personen skriven på det
+ *     här bolaget. BYGGT.
+ *   Brev med engångskod till adressen  Verksamhetsställets adress är den enda
+ *     kontaktväg vi har till företaget; vi lagrar varken telefon, e-post
+ *     eller webbplats. Därför är brev den enda kanal som går att automatisera.
+ *     BYGGT, utom själva postningen: koden skapas med
+ *     pipeline/verifieringsbrev.py och löses in i rutan nedan. Brevet postas
+ *     för hand tills någon tecknat konto hos en brevtjänst. Ekopost tar
+ *     15,60 kr ex moms per brev och har inget bindande avtal.
+ *   E-post på verksamhetens egen domän  Går inte. Vi lagrar inga webbplatser,
+ *     så det finns inget att jämföra en avsändardomän mot.
+ *   BankID mot Bolagsverkets firmatecknare  Starkast. Kräver avtal med en
+ *     förmedlare och kostar per inloggning. Rätt slutmål, fel investering nu.
  *
- * BYGGT: den sista. Ett anspråk är en ANSÖKAN, inte ett konto. Den ger noll
- * rättigheter innan en människa godkänt den, och spärren sitter i
- * radsäkerheten och inte i den här sidan: policyn på community.owner_responses
- * kräver ett godkänt anspråk för att en rad över huvud taget ska få skrivas.
+ * Att Google skickade vykod var sant förr. I dag väljer Google metod åt
+ * företaget och rekommenderar videoverifiering: filma adressen, den
+ * permanenta skylten, och något bara personalen kommer åt. Det tredje ledet
+ * är det intressanta, och det är gratis att härma. Se docs/21.
  *
  * VAD SOM INTE ÄR VERIFIERAT: allt den sökande skriver i formuläret. Namn,
  * roll och organisationsnummer är påståenden. Vad redaktionen kontrollerar är
  * att de påståendena stämmer mot ett offentligt register. Det är inte samma
  * sak som att personen har fullmakt, och det ska sägas rakt ut.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD FÖRETAGET FÅR OCH INTE FÅR
+ * ---------------------------------------------------------------------------
+ * Får: fylla på med uppgifter om sig självt, och svara på en kontroll.
+ *
+ * Får inte: röra bedömningen, kontrollhistoriken eller utmärkelsen. Det finns
+ * ingen väg härifrån till dem, och det är inte en artighet utan hela skälet
+ * att sajten går att lita på. Enda sättet att kommentera en kontroll är ett
+ * svar, det publiceras ordagrant, och det går genom moderering.
+ *
+ * Får inte heller: lägga bilder i besökarnas omdömesflöde. community.
+ * image_uploads hör till besökaren och stänger uttryckligen ute den som har
+ * ett godkänt anspråk. Bildrutan som stod här togs bort när den regeln kom.
  */
 import Base from '../../layouts/Base.astro';
 import '../../styles/konto.css';
+
+/* Veckans dagar renderas i mallen och inte av skriptet.
+   Stilarna i den här filen är scoped, och Astro märker bara upp det som fanns
+   i mallen när sidan byggdes. Rader som skriptet skapar i webbläsaren får
+   ingen märkning och därmed ingen stil. */
+const DAGAR = [
+  ['mon', 'Måndag'],
+  ['tue', 'Tisdag'],
+  ['wed', 'Onsdag'],
+  ['thu', 'Torsdag'],
+  ['fri', 'Fredag'],
+  ['sat', 'Lördag'],
+  ['sun', 'Söndag'],
+] as const;
 ---
 
 <Base
   title="Din verksamhet"
-  description="Svara på en kontroll och ladda upp bilder av din verksamhet."
+  description="Fyll på med uppgifter om verksamheten och svara på en kontroll."
   noindex
 >
   <div class="container konto-page konto-wide">
@@ -66,15 +99,20 @@ import '../../styles/konto.css';
           <input type="text" name="claimantName" maxlength="100" required autocomplete="name" />
         </label>
 
+        {/* Fritext förr. Ett fast val säger redaktionen exakt vad den ska
+            slå upp, och "ägare" och "firmatecknare" är inte samma sak i
+            registret. */}
         <label class="field">
           <span>Din roll i verksamheten</span>
-          <input
-            type="text"
-            name="claimantRole"
-            maxlength="100"
-            required
-            placeholder="Ägare, restaurangchef, firmatecknare"
-          />
+          <select name="claimantRole" required>
+            <option value="">Välj roll</option>
+            <option value="Firmatecknare">Firmatecknare</option>
+            <option value="Verkställande direktör">Verkställande direktör</option>
+            <option value="Styrelseledamot">Styrelseledamot</option>
+            <option value="Ägare">Ägare</option>
+            <option value="Restaurangchef">Restaurangchef</option>
+            <option value="Ombud med fullmakt">Ombud med fullmakt</option>
+          </select>
         </label>
 
         <label class="field">
@@ -85,7 +123,14 @@ import '../../styles/konto.css';
               kontrollen och publiceras aldrig.
             </span>
           </span>
-          <input type="text" name="organizationNumber" maxlength="20" />
+          <input
+            type="text"
+            name="organizationNumber"
+            maxlength="13"
+            required
+            inputmode="numeric"
+            placeholder="556677-8899"
+          />
         </label>
 
         <label class="field">
@@ -97,6 +142,8 @@ import '../../styles/konto.css';
           <span>Telefon <span class="hint">Frivilligt. Snabbare om något behöver redas ut.</span></span>
           <input type="tel" name="contactPhone" maxlength="30" autocomplete="tel" />
         </label>
+
+        <p class="notice notice-error" id="claim-error" hidden role="alert"></p>
 
         <div class="konto-actions">
           <button type="submit" class="btn-primary" id="claim-submit">Skicka ansökan</button>
@@ -110,12 +157,103 @@ import '../../styles/konto.css';
       </form>
     </div>
 
+    {/* Kod ur brevet till verksamhetens adress. */}
+    <div class="konto-card" id="code-card" hidden>
+      <h2>Har du fått en kod på posten?</h2>
+      <form id="code-form" novalidate>
+        <label class="field">
+          <span>Koden i brevet</span>
+          <input
+            type="text"
+            name="code"
+            id="code"
+            maxlength="8"
+            required
+            autocomplete="one-time-code"
+            spellcheck="false"
+          />
+        </label>
+
+        <p class="notice notice-error" id="code-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="code-submit">Lös in koden</button>
+        </div>
+      </form>
+    </div>
+
+    {/* Uppgifter om verksamheten. */}
+    <div class="konto-card" id="facts-card" hidden>
+      <h2>Uppgifter om verksamheten</h2>
+      <p class="konto-lead">
+        Granskas innan de visas. Skicka in på nytt när något ändras, så gäller
+        det du skickade senast.
+      </p>
+
+      <form id="facts-form" novalidate>
+        <label class="field">
+          <span>
+            Presentation
+            <span class="hint" id="presentation-hint">Minst 20 tecken.</span>
+          </span>
+          <textarea name="presentation" id="presentation" maxlength="1500"></textarea>
+        </label>
+
+        <fieldset class="hours">
+          <legend>Öppettider</legend>
+          {
+            DAGAR.map(([day, name]) => (
+              <div class="hour-row">
+                <span class="day">{name}</span>
+                <div class="hour-times">
+                  <input type="time" id={`from-${day}`} aria-label={`${name}, öppnar`} />
+                  <span>till</span>
+                  <input type="time" id={`to-${day}`} aria-label={`${name}, stänger`} />
+                </div>
+                <label class="hour-shut">
+                  <input type="checkbox" id={`shut-${day}`} />
+                  <span>Stängt</span>
+                </label>
+              </div>
+            ))
+          }
+        </fieldset>
+
+        <label class="field">
+          <span>Telefon</span>
+          <input type="tel" name="phone" maxlength="30" autocomplete="tel" />
+        </label>
+
+        <label class="field">
+          <span>Webbplats</span>
+          <input type="url" name="website" maxlength="200" placeholder="https://" />
+        </label>
+
+        <label class="field">
+          <span>Boka bord <span class="hint">Länk till er bokning.</span></span>
+          <input type="url" name="bookingUrl" maxlength="200" placeholder="https://" />
+        </label>
+
+        <p class="notice notice-error" id="facts-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="facts-submit">Skicka in</button>
+        </div>
+
+        <p class="konto-legal">
+          Uppgifterna fryses när du skickar dem. Redaktionen kan publicera dem
+          eller låta bli, aldrig ändra i dem. Du ansvarar för att de stämmer.
+        </p>
+      </form>
+
+      <h3 class="sub">Dina insändningar</h3>
+      <ul class="konto-list" id="submissions"></ul>
+      <p class="konto-empty" id="submissions-empty">Du har inte skickat in några uppgifter än.</p>
+    </div>
+
     {/* Svar på en kontroll. */}
     <div class="konto-card" id="respond-card" hidden>
       <h2>Svara på en kontroll</h2>
-      {/* Tre meningar sade samma sak som en. Att redaktionen bara kan
-          publicera eller låta bli står kvar; att vi "aldrig ändrar ett ord"
-          följer av det och stod dessutom en gång till i rutan nedanför. */}
       <p class="konto-lead">
         Ditt svar publiceras <b>ordagrant</b> bredvid kontrollen. Redaktionen
         kan publicera det eller låta bli, aldrig ändra i det.
@@ -157,46 +295,6 @@ import '../../styles/konto.css';
       <ul class="konto-list" id="responses"></ul>
       <p class="konto-empty" id="responses-empty">Du har inte skickat något svar än.</p>
     </div>
-
-    {/* Bilder. */}
-    <div class="konto-card" id="image-card" hidden>
-      <h2>Bilder på verksamheten</h2>
-      <p class="konto-lead">
-        Bilder granskas innan de publiceras. Fram till dess ser bara du och
-        redaktionen dem.
-      </p>
-
-      <form id="image-form" novalidate>
-        <label class="field">
-          <span>
-            Bild
-            <span class="hint">JPEG, PNG eller WebP. Högst 8 MB.</span>
-          </span>
-          <input type="file" name="file" accept="image/jpeg,image/png,image/webp" required />
-        </label>
-
-        <label class="field">
-          <span>Bildtext <span class="hint">Frivilligt.</span></span>
-          <input type="text" name="caption" maxlength="200" />
-        </label>
-
-        <p class="notice notice-error" id="image-error" hidden role="alert"></p>
-
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="image-submit">Ladda upp</button>
-        </div>
-
-        <p class="konto-legal">
-          Ladda bara upp bilder du själv tagit eller har rätt att använda, och
-          som föreställer verksamheten. Bilder med igenkännbara gäster
-          publiceras inte.
-        </p>
-      </form>
-
-      <h3 class="sub">Dina bilder</h3>
-      <ul class="konto-list" id="uploads"></ul>
-      <p class="konto-empty" id="uploads-empty">Du har inte laddat upp någon bild än.</p>
-    </div>
   </div>
 
 </Base>
@@ -207,6 +305,95 @@ import '../../styles/konto.css';
     padding-top: var(--s-4);
     border-top: 1px solid var(--hairline);
     font-size: var(--fs-body);
+  }
+
+  /* Öppettiderna är sju likadana rader. Ett rutnät håller klockslagen i
+     linje utan att varje rad behöver en egen etikett att läsa. */
+  .hours {
+    margin-top: var(--s-4);
+    padding: 0;
+    border: 0;
+  }
+
+  .hours legend {
+    padding: 0;
+    font-size: var(--fs-eyebrow);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .hour-row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr auto;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+  }
+
+  .hour-row + .hour-row {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .hour-row .day {
+    font-size: var(--fs-small);
+  }
+
+  .hour-times {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .hour-times input {
+    width: 100%;
+    max-width: 7rem;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: inherit;
+    font: inherit;
+    font-size: var(--fs-small);
+  }
+
+  .hour-times input:disabled {
+    opacity: 0.4;
+  }
+
+  .hour-shut {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-small);
+    white-space: nowrap;
+  }
+
+  /* Smal skärm: dagen och "Stängt" delar första raden, klockslagen får hela
+     den andra. Utan den uttryckliga placeringen hamnar "Stängt" på en tredje
+     rad, eftersom klockslagen spänner över båda spalterna och trycker ner
+     allt som kommer efter. Sju dagar gånger en rad för mycket är en halv
+     skärm. */
+  @media (max-width: 520px) {
+    .hour-row {
+      grid-template-columns: 1fr auto;
+    }
+
+    .hour-row .day {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .hour-shut {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .hour-times {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
   }
 </style>
 
@@ -219,10 +406,20 @@ import '../../styles/konto.css';
     inspectionsFor,
     ownerResponses,
     submitOwnerResponse,
-    uploads,
-    uploadImage,
     CommunityError,
   } from '../../lib/community';
+  import {
+    DAGAR,
+    angraInsandning,
+    insandningar,
+    losInKod,
+    nivaFor,
+    skickaUppgifter,
+    tierFor,
+    type Dag,
+    type Insandning,
+    type Oppettider,
+  } from '../../lib/foretag';
   import { openSignIn } from '../../lib/signin-dialog';
 
   const title = document.getElementById('title') as HTMLHeadingElement;
@@ -231,7 +428,22 @@ import '../../styles/konto.css';
 
   const claimCard = document.getElementById('claim-card') as HTMLDivElement;
   const claimForm = document.getElementById('claim-form') as HTMLFormElement;
+  const claimError = document.getElementById('claim-error') as HTMLParagraphElement;
   const claimSubmit = document.getElementById('claim-submit') as HTMLButtonElement;
+
+  const codeCard = document.getElementById('code-card') as HTMLDivElement;
+  const codeForm = document.getElementById('code-form') as HTMLFormElement;
+  const codeError = document.getElementById('code-error') as HTMLParagraphElement;
+  const codeSubmit = document.getElementById('code-submit') as HTMLButtonElement;
+
+  const factsCard = document.getElementById('facts-card') as HTMLDivElement;
+  const factsForm = document.getElementById('facts-form') as HTMLFormElement;
+  const factsError = document.getElementById('facts-error') as HTMLParagraphElement;
+  const factsSubmit = document.getElementById('facts-submit') as HTMLButtonElement;
+  const presentation = document.getElementById('presentation') as HTMLTextAreaElement;
+  const presentationHint = document.getElementById('presentation-hint') as HTMLSpanElement;
+  const submissionList = document.getElementById('submissions') as HTMLUListElement;
+  const submissionEmpty = document.getElementById('submissions-empty') as HTMLParagraphElement;
 
   const respondCard = document.getElementById('respond-card') as HTMLDivElement;
   const respondForm = document.getElementById('respond-form') as HTMLFormElement;
@@ -241,13 +453,6 @@ import '../../styles/konto.css';
   const responseList = document.getElementById('responses') as HTMLUListElement;
   const responseEmpty = document.getElementById('responses-empty') as HTMLParagraphElement;
 
-  const imageCard = document.getElementById('image-card') as HTMLDivElement;
-  const imageForm = document.getElementById('image-form') as HTMLFormElement;
-  const imageError = document.getElementById('image-error') as HTMLParagraphElement;
-  const imageSubmit = document.getElementById('image-submit') as HTMLButtonElement;
-  const uploadList = document.getElementById('uploads') as HTMLUListElement;
-  const uploadEmpty = document.getElementById('uploads-empty') as HTMLParagraphElement;
-
   /* Samma etiketter som på kontosidan, och böjda efter vad de sitter på. */
   const RESPONSE_STATUS: Record<string, string> = {
     pending: 'Granskas',
@@ -255,9 +460,9 @@ import '../../styles/konto.css';
     rejected: 'Avslaget',
   };
 
-  const IMAGE_STATUS: Record<string, string> = {
+  const FACTS_STATUS: Record<string, string> = {
     pending: 'Granskas',
-    published: 'Publicerad',
+    published: 'Visas',
     rejected: 'Avslagen',
   };
 
@@ -276,6 +481,11 @@ import '../../styles/konto.css';
   function show(message: string) {
     error.innerHTML = `<b>Fel.</b> ${message}`;
     error.hidden = false;
+  }
+
+  function say(box: HTMLParagraphElement, message: string) {
+    box.innerHTML = `<b>Fel.</b> ${message}`;
+    box.hidden = false;
   }
 
   function tag(status: string, labels: Record<string, string>): HTMLSpanElement {
@@ -304,11 +514,33 @@ import '../../styles/konto.css';
     return box;
   }
 
-  function side(node: Node): HTMLElement {
+  function side(...nodes: Node[]): HTMLElement {
     const box = document.createElement('div');
     box.className = 'konto-side';
-    box.append(node);
+    box.append(...nodes);
     return box;
+  }
+
+  /**
+   * Kontrollsiffran i ett svenskt organisationsnummer.
+   *
+   * Samma Luhn-summa som personnummer. Fångar felskrivningar och de flesta
+   * påhittade nummer innan de når granskningskön, vilket är hela vinsten: ett
+   * nummer som inte kan finnas ska inte kosta en människa en uppslagning.
+   * Att numret finns betyder inte att den sökande har med det att göra.
+   */
+  function orgNumberValid(input: string): boolean {
+    const digits = input.replace(/\D/g, '');
+    const ten = digits.length === 12 ? digits.slice(2) : digits;
+    if (ten.length !== 10) return false;
+
+    let sum = 0;
+    for (let i = 0; i < 10; i += 1) {
+      let n = Number(ten[i]) * (i % 2 === 0 ? 2 : 1);
+      if (n > 9) n -= 9;
+      sum += n;
+    }
+    return sum % 10 === 0;
   }
 
   async function start() {
@@ -333,15 +565,15 @@ import '../../styles/konto.css';
 
     // Utloggad: en knapp, aldrig en ruta som öppnar sig själv.
     if (!(await signedIn())) {
-      const row = document.getElementById('signin-row') as HTMLDivElement;
+      const signinRow = document.getElementById('signin-row') as HTMLDivElement;
       const button = document.getElementById('signin') as HTMLButtonElement;
       lead.textContent = place.name
         ? `Logga in för att svara för ${place.name}.`
         : 'Logga in för att fortsätta.';
-      row.hidden = false;
+      signinRow.hidden = false;
       button.addEventListener('click', async () => {
         if (!(await openSignIn(button))) return;
-        row.hidden = true;
+        signinRow.hidden = true;
         await load(place);
       });
       return;
@@ -376,6 +608,10 @@ import '../../styles/konto.css';
       lead.innerHTML =
         '<b>Väntar.</b> Din ansökan är inskickad och granskas för hand. Du får ' +
         'besked på den e-postadress du angav.';
+      /* Har ett brev gått till adressen är koden den snabbare vägen, och den
+         som löser in den behöver inte vänta på redaktionen alls. */
+      codeCard.hidden = false;
+      wireCode(place);
       return;
     }
 
@@ -388,25 +624,33 @@ import '../../styles/konto.css';
     }
 
     lead.textContent = 'Du är godkänd som företrädare för den här verksamheten.';
+    factsCard.hidden = false;
     respondCard.hidden = false;
-    imageCard.hidden = false;
+    await wireFacts(place);
     await wireRespond(place);
-    await wireImages(place);
   }
 
   function wireClaim(place: { id: string; name: string; municipalitySlug: string }) {
     claimForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       error.hidden = true;
+      claimError.hidden = true;
+
+      const data = new FormData(claimForm);
+      const orgNumber = String(data.get('organizationNumber') ?? '').trim();
+      if (!orgNumberValid(orgNumber)) {
+        say(claimError, 'Organisationsnumret ser inte ut att stämma. Kontrollera siffrorna.');
+        return;
+      }
+
       claimSubmit.disabled = true;
       claimSubmit.textContent = 'Skickar';
 
-      const data = new FormData(claimForm);
       try {
         await submitClaim(place, {
           claimantName: String(data.get('claimantName') ?? '').trim(),
           claimantRole: String(data.get('claimantRole') ?? '').trim(),
-          organizationNumber: String(data.get('organizationNumber') ?? '').trim(),
+          organizationNumber: orgNumber,
           contactEmail: String(data.get('contactEmail') ?? '').trim(),
           contactPhone: String(data.get('contactPhone') ?? '').trim(),
         });
@@ -414,12 +658,236 @@ import '../../styles/konto.css';
         lead.innerHTML =
           '<b>Väntar.</b> Tack. Ansökan granskas för hand och du får besked per e-post.';
       } catch (err) {
-        show(err instanceof CommunityError ? err.message : 'Kunde inte skicka ansökan.');
+        say(claimError, err instanceof CommunityError ? err.message : 'Kunde inte skicka ansökan.');
         claimSubmit.disabled = false;
         claimSubmit.textContent = 'Skicka ansökan';
       }
     });
   }
+
+  function wireCode(place: { id: string; name: string; municipalitySlug: string }) {
+    codeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      codeError.hidden = true;
+
+      const field = document.getElementById('code') as HTMLInputElement;
+      const code = field.value.trim();
+      if (code.length < 4) {
+        say(codeError, 'Skriv koden som står i brevet.');
+        return;
+      }
+
+      codeSubmit.disabled = true;
+      codeSubmit.textContent = 'Kontrollerar';
+
+      try {
+        await losInKod(place.id, code);
+        /* Anspråket är godkänt nu. Läs om sidan i stället för att gissa vad
+           den ska visa: load() vet redan vad ett godkänt anspråk ger. */
+        codeCard.hidden = true;
+        await load(place);
+      } catch (err) {
+        say(codeError, err instanceof CommunityError ? err.message : 'Koden gick inte att lösa in.');
+        codeSubmit.disabled = false;
+        codeSubmit.textContent = 'Lös in koden';
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Uppgifter                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  /** Raderna finns redan i mallen. Här kopplas bara beteendet på. */
+  function wireHours() {
+    for (const day of DAGAR) {
+      const box = document.getElementById(`shut-${day}`) as HTMLInputElement;
+      const from = document.getElementById(`from-${day}`) as HTMLInputElement;
+      const to = document.getElementById(`to-${day}`) as HTMLInputElement;
+
+      /* Stängt och klockslag är varandras motsatser. Att låta båda stå
+         ifyllda är att be om en rad som säger två saker. */
+      box.addEventListener('change', () => {
+        from.disabled = box.checked;
+        to.disabled = box.checked;
+        if (box.checked) {
+          from.value = '';
+          to.value = '';
+        }
+      });
+    }
+  }
+
+  function readHours(): Oppettider | null {
+    const hours: Oppettider = {};
+    for (const day of DAGAR) {
+      const shut = document.getElementById(`shut-${day}`) as HTMLInputElement;
+      const from = document.getElementById(`from-${day}`) as HTMLInputElement;
+      const to = document.getElementById(`to-${day}`) as HTMLInputElement;
+
+      if (shut.checked) {
+        hours[day] = { closed: true };
+      } else if (from.value && to.value) {
+        hours[day] = { from: from.value, to: to.value };
+      }
+    }
+    return Object.keys(hours).length > 0 ? hours : null;
+  }
+
+  /** Fyller formuläret med det som senast skickades in. */
+  function fillFrom(item: Insandning) {
+    presentation.value = item.presentation ?? '';
+    (factsForm.elements.namedItem('phone') as HTMLInputElement).value = item.phone ?? '';
+    (factsForm.elements.namedItem('website') as HTMLInputElement).value = item.website ?? '';
+    (factsForm.elements.namedItem('bookingUrl') as HTMLInputElement).value =
+      item.booking_url ?? '';
+
+    if (!item.opening_hours) return;
+    for (const day of DAGAR) {
+      const value = item.opening_hours[day as Dag];
+      if (!value) continue;
+      const shut = document.getElementById(`shut-${day}`) as HTMLInputElement;
+      const from = document.getElementById(`from-${day}`) as HTMLInputElement;
+      const to = document.getElementById(`to-${day}`) as HTMLInputElement;
+
+      if ('closed' in value) {
+        shut.checked = true;
+        from.disabled = true;
+        to.disabled = true;
+      } else {
+        from.value = value.from;
+        to.value = value.to;
+      }
+    }
+  }
+
+  /** En rad i listan beskriver vad insändningen faktiskt innehöll. */
+  function summarise(item: Insandning): string {
+    const parts: string[] = [];
+    if (item.presentation) parts.push('presentation');
+    if (item.opening_hours) parts.push('öppettider');
+    if (item.phone) parts.push('telefon');
+    if (item.website) parts.push('webbplats');
+    if (item.booking_url) parts.push('bokning');
+    return parts.length > 0 ? parts.join(', ') : 'inga uppgifter';
+  }
+
+  async function paintSubmissions(place: { id: string }) {
+    let rows: Insandning[] = [];
+    try {
+      rows = await insandningar(place.id);
+    } catch {
+      return;
+    }
+
+    submissionList.textContent = '';
+    for (const item of rows) {
+      const li = document.createElement('li');
+
+      const main = row(
+        summarise(item),
+        false,
+        item.status === 'rejected' ? item.rejection_reason : null,
+      );
+      const when = document.createElement('span');
+      when.className = 'konto-meta';
+      when.textContent = dates.format(new Date(item.created_at));
+      main.append(when);
+
+      const parts: Node[] = [tag(item.status, FACTS_STATUS)];
+
+      /* Bara det som ingen hunnit titta på går att ta tillbaka. */
+      if (item.status === 'pending') {
+        const undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'btn-quiet btn-tight';
+        undo.textContent = 'Ångra';
+        undo.addEventListener('click', async () => {
+          undo.disabled = true;
+          try {
+            await angraInsandning(item.id);
+            await paintSubmissions(place);
+          } catch (err) {
+            say(
+              factsError,
+              err instanceof CommunityError ? err.message : 'Kunde inte ta bort insändningen.',
+            );
+            undo.disabled = false;
+          }
+        });
+        parts.push(undo);
+      }
+
+      li.append(main, side(...parts));
+      submissionList.append(li);
+    }
+    submissionEmpty.hidden = rows.length > 0;
+  }
+
+  async function wireFacts(place: { id: string; name: string; municipalitySlug: string }) {
+    wireHours();
+
+    /* Nivån på anspråket avgör vad som får fyllas i. I dag får gratis allt,
+       men gränsen läses härifrån och inte ur den här sidmallen. */
+    let niva = nivaFor('gratis');
+    try {
+      niva = nivaFor(await tierFor(place.id));
+    } catch {
+      /* Kunde inte läsa nivån. Gratisnivån är rätt förval. */
+    }
+    presentation.maxLength = niva.presentation;
+    presentationHint.textContent = `Minst 20 tecken, högst ${niva.presentation}.`;
+
+    let rows: Insandning[] = [];
+    try {
+      rows = await insandningar(place.id);
+    } catch {
+      /* Listan målas ändå nedan, och tom lista är rätt svar om läsningen föll. */
+    }
+    /* Senaste insändningen är utgångspunkten, så att den som vill ändra en
+       öppettid slipper skriva presentationen en gång till. */
+    if (rows.length > 0) fillFrom(rows[0]);
+
+    await paintSubmissions(place);
+
+    factsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      factsError.hidden = true;
+
+      const data = new FormData(factsForm);
+      const text = String(data.get('presentation') ?? '').trim();
+      if (text.length > 0 && text.length < 20) {
+        say(factsError, 'Presentationen måste vara minst 20 tecken.');
+        return;
+      }
+
+      factsSubmit.disabled = true;
+      factsSubmit.textContent = 'Skickar';
+
+      try {
+        await skickaUppgifter(place, {
+          presentation: text,
+          openingHours: readHours(),
+          phone: String(data.get('phone') ?? '').trim(),
+          website: String(data.get('website') ?? '').trim(),
+          bookingUrl: String(data.get('bookingUrl') ?? '').trim(),
+        });
+        await paintSubmissions(place);
+      } catch (err) {
+        say(
+          factsError,
+          err instanceof CommunityError ? err.message : 'Kunde inte skicka uppgifterna.',
+        );
+      } finally {
+        factsSubmit.disabled = false;
+        factsSubmit.textContent = 'Skicka in';
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Svar på kontroll                                                       */
+  /* ---------------------------------------------------------------------- */
 
   async function paintResponses(establishmentId: string) {
     let rows: Awaited<ReturnType<typeof ownerResponses>> = [];
@@ -481,13 +949,11 @@ import '../../styles/konto.css';
       const inspectionId = String(data.get('inspection') ?? '');
 
       if (!inspectionId) {
-        respondError.innerHTML = '<b>Fel.</b> Välj vilken kontroll svaret gäller.';
-        respondError.hidden = false;
+        say(respondError, 'Välj vilken kontroll svaret gäller.');
         return;
       }
       if (body.length < 10) {
-        respondError.innerHTML = '<b>Fel.</b> Skriv minst tio tecken.';
-        respondError.hidden = false;
+        say(respondError, 'Skriv minst tio tecken.');
         return;
       }
 
@@ -499,67 +965,13 @@ import '../../styles/konto.css';
         respondForm.reset();
         await paintResponses(place.id);
       } catch (err) {
-        respondError.innerHTML = `<b>Fel.</b> ${
-          err instanceof CommunityError ? err.message : 'Kunde inte skicka svaret.'
-        }`;
-        respondError.hidden = false;
+        say(
+          respondError,
+          err instanceof CommunityError ? err.message : 'Kunde inte skicka svaret.',
+        );
       } finally {
         respondSubmit.disabled = false;
         respondSubmit.textContent = 'Skicka svar';
-      }
-    });
-  }
-
-  async function paintUploads(establishmentId: string) {
-    let rows: Awaited<ReturnType<typeof uploads>> = [];
-    try {
-      rows = await uploads(establishmentId);
-    } catch {
-      return;
-    }
-    uploadList.textContent = '';
-    for (const item of rows) {
-      const li = document.createElement('li');
-      li.append(
-        row(item.caption || 'Utan bildtext', false, item.status === 'rejected' ? item.rejection_reason : null),
-        side(tag(item.status, IMAGE_STATUS)),
-      );
-      uploadList.append(li);
-    }
-    uploadEmpty.hidden = rows.length > 0;
-  }
-
-  async function wireImages(place: { id: string; name: string; municipalitySlug: string }) {
-    await paintUploads(place.id);
-
-    imageForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      imageError.hidden = true;
-
-      const input = imageForm.elements.namedItem('file') as HTMLInputElement;
-      const file = input.files?.[0];
-      if (!file) {
-        imageError.innerHTML = '<b>Fel.</b> Välj en bild.';
-        imageError.hidden = false;
-        return;
-      }
-
-      imageSubmit.disabled = true;
-      imageSubmit.textContent = 'Laddar upp';
-
-      try {
-        const caption = String(new FormData(imageForm).get('caption') ?? '').trim();
-        await uploadImage(place, file, caption);
-        imageForm.reset();
-        await paintUploads(place.id);
-      } catch (err) {
-        imageError.innerHTML = `<b>Fel.</b> ${
-          err instanceof CommunityError ? err.message : 'Kunde inte ladda upp bilden.'
-        }`;
-        imageError.hidden = false;
-      } finally {
-        imageSubmit.disabled = false;
-        imageSubmit.textContent = 'Ladda upp';
       }
     });
   }

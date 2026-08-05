@@ -21,6 +21,7 @@ import unittest
 from pathlib import Path
 
 KLIENTEN = Path(__file__).resolve().parents[2] / "site" / "src" / "lib" / "community.ts"
+FORETAGSYTAN = Path(__file__).resolve().parents[2] / "site" / "src" / "lib" / "foretag.ts"
 SCHEMAT = Path(__file__).resolve().parents[1] / "schema_community.sql"
 
 # Tabeller i schemat community där varje rad hör till en användare. En GET dit
@@ -36,6 +37,7 @@ EGNA_TABELLER = (
     "notices",
     "notice_reads",
     "profiles",
+    "business_profiles",
 )
 
 # De tabeller klienten faktiskt läser i dag. Håller motsatta riktningen i
@@ -88,6 +90,42 @@ class EgnaRader(unittest.TestCase):
                 r"ownRows\(\s*[`'\"]" + tabell + r"\?",
                 f"Ingen filtrerad läsning av '{tabell}' hittades.",
             )
+
+
+class ForetagsytanOckso(EgnaRader):
+    """Samma regel, andra filen.
+
+    Företagsytan ligger i site/src/lib/foretag.ts och har en egen ownRows(),
+    eftersom community.ts skrevs om samtidigt. En egen kopia är precis den
+    sortens plats där regeln annars tappas bort, så testet läser den filen med
+    samma ögon som originalet.
+
+    community.business_profiles har två läspolicyer som läggs ihop med ELLER,
+    egna rader och allas publicerade. En läsning utan eget filter hade gett
+    tillbaka andra företags publicerade uppgifter och målat dem som ens egna
+    insändningar, med status och allt.
+    """
+
+    def setUp(self):
+        self.kod = FORETAGSYTAN.read_text(encoding="utf-8")
+
+    def test_lasningarna_finns_kvar_filtrerade(self):
+        for tabell in ("business_profiles", "establishment_claims"):
+            self.assertRegex(
+                self.kod,
+                r"ownRows\(\s*[`'\"]" + tabell + r"\?",
+                f"Ingen filtrerad läsning av '{tabell}' hittades.",
+            )
+
+    def test_raderingen_bar_agarfiltret(self):
+        # Ångra-knappen raderar en egen insändning. Policyn släpper bara egna
+        # väntande rader, men en bredare policy i morgon ska inte kunna göra
+        # den här raden till en radering av någon annans uppgifter.
+        self.assertRegex(
+            self.kod,
+            r"rest\(\s*\n?\s*'DELETE',\s*\n?\s*await ownRows\(",
+            "DELETE mot business_profiles utan ownRows().",
+        )
 
 
 class RaknarenIDatabasen(unittest.TestCase):
