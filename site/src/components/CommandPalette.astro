@@ -2,49 +2,65 @@
 /**
  * Kommandopaletten. Cmd+K på Mac, Ctrl+K på allt annat.
  *
- * Det är INTE en fokusflytt till sidhuvudets fält. Poängen med mönstret, som
- * Linear, Notion och Raycast etablerat, är en överlagring mitt på skärmen som
- * finns på varje sida och nås utan att lyfta händerna från tangentbordet.
- * Sökfältet i sidhuvudet står orört kvar för alla andra.
+ * FORMEN ÄR HITTA.SE:S, PÅ ÄGARENS UTTRYCKLIGA BEGÄRAN: paletten är ingen
+ * fristående ruta mitt på skärmen utan en panel som fälls ut ur det sökfält
+ * sidan redan har. På startsidan är det herofältet, på alla andra sidor
+ * sidhuvudets fält. Ägarens ord: "den kommer liksom ut från original
+ * sökrutan, vilket makear sense". Den centrerade rutan (Linear, Raycast) är
+ * ett appmönster; på en sökdriven sajt där fältet redan är synligt ska
+ * genvägen förstärka fältet, inte konkurrera med det.
+ *
+ * Man skriver alltså i SIDANS EGET fält. Panelen hänger under det i fältets
+ * bredd, med kategorichips överst och en förslagslista under. SiteSearch
+ * lämnar över fältet så länge panelen är öppen: roten bär
+ * data-palette-open, och SiteSearchs alla lyssnare tiger medan attributet
+ * finns. Det attributet är hela kontraktet mellan de två skripten.
  *
  * ---------------------------------------------------------------------------
  * VAD PALETTEN NÅR, OCH VARFÖR DET ÄR MER ÄN SÖKFÄLTET
  * ---------------------------------------------------------------------------
  * Sökfältet hittar verksamheter och kommuner. Paletten når dessutom sajtens
  * egna sidor: metodiken, källorna, rapporterna, kartan per kommun och
- * artiklarna. Det är den skillnaden som gör mönstret värt något; vore
- * paletten bara sökfältet i en ruta hade genvägen kunnat fokusera fältet.
+ * artiklarna. Det är den skillnaden som gör mönstret värt något.
  *
- * Sidlistan renderas server-side i rutan. Den är tom frågas grundläge och ska
- * stå färdig i samma ögonblick rutan öppnas, precis som "Populära sökningar"
- * i sökfältet. Verksamheter och kommuner kommer ur samma register som
- * sökfältet använder (lib/search-index), och registret hämtas FÖRST när
- * paletten öppnas första gången. Sidhuvudet finns på 14 711 sidor; de som
- * aldrig trycker cmd+K ska inte betala en megabyte för att genvägen finns.
+ * Grundvyn är chips plus "Populära sökningar" plus sidgrupperna, allt
+ * server-renderat och räknat ur beståndet (lib/snabbval). INGEN sökhistorik,
+ * fast hitta.se har det: historik kräver lagring i webbläsaren, och docs/14
+ * slår fast att bara prikko.session och prikko.next får finnas utan
+ * samtycke — /cookies påstår dessutom att den listan är uttömmande.
+ *
+ * Verksamheter och kommuner kommer ur samma register som sökfältet
+ * använder (lib/search-index), och registret hämtas FÖRST när paletten
+ * öppnas första gången. Sidhuvudet finns på 14 711 sidor; de som aldrig
+ * trycker cmd+K ska inte betala en megabyte för att genvägen finns.
  *
  * ---------------------------------------------------------------------------
- * TILLGÄNGLIGHET
+ * TILLGÄNGLIGHET OCH LAGER
  * ---------------------------------------------------------------------------
- * Byggd på <dialog> och showModal(), samma väg som SignInDialog: fokusfälla,
- * Esc och aria-modal kommer från webbläsaren i stället för från kod som kan
- * glömma ett fall. Fokus flyttas in i fältet vid öppning och tillbaka till
- * elementet som hade fokus vid stängning. Listan är en listbox styrd via
- * aria-activedescendant, samma mönster som SiteSearch, så pilarna flyttar
- * markeringen utan att fokus lämnar fältet.
+ * Panelen är en combobox-popup, inte en modal: samma mönster som
+ * SiteSearchs egen förslagslista, med listbox via aria-activedescendant.
+ * <dialog>/showModal gav fokusfälla och Esc gratis, men en fälla är fel
+ * verktyg här — fokus BOR i sidans fält och ska stanna där. Esc och
+ * utanförklick hanteras som i SiteSearch (stängning på focusout och
+ * dokumentklick). Popover-API:t (InfoTips mönster) ger top-layer men
+ * ankrar inte i fältets flöde utan skript; en absolut panel i fältets rot
+ * är det sajten redan använder tio pixlar därifrån, så det är det som är
+ * konsekvent.
  *
- * Tangentbordstipsen i sidfoten visas bara på enheter med pekare och hover,
- * alltså i praktiken enheter med tangentbord. På en telefon finns inget
- * cmd+K att tipsa om, och ett tips om en genväg som inte går att trycka
- * läser som ett fel.
+ * Panelen renderas av Base men FLYTTAS in i fältets rot vid första
+ * öppningen: den måste vara ett barn till .site-search för att ärva
+ * fältets bredd och position, och Base kan inte veta vilket fält sidan
+ * har. Astros scopade stilar följer med elementet.
  *
- * Rutan öppnas ALDRIG av sidladdning, bara av tangenttryck eller av
- * genvägsikonen i sökfältet ([data-palette-hint], när den finns).
+ * Panelen öppnas ALDRIG av sidladdning, bara av tangenttryck eller av
+ * genvägsmärket i sökfältet ([data-palette-hint]).
  */
 import { getCollection } from 'astro:content';
 import { sectionReady } from '../lib/artiklar';
 import { formatNumber, municipalities } from '../lib/data';
 import { mapDataset } from '../lib/map-data';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
+import { popularSearches, quickPicks } from '../lib/snabbval';
 import { path } from '../lib/urls';
 
 interface Command {
@@ -110,171 +126,152 @@ const groups = [
   { name: 'Artiklar', items: articles },
 ].filter((g) => g.items.length > 0);
 
+const popular = popularSearches();
+const picks = quickPicks();
+
 /** Samma streckvikt och 20-rutnät som sökfältets ikoner, för syskonskapet. */
-const ICONS: Record<Command['kind'], string> = {
+const ICONS: Record<Command['kind'] | 'kommun' | 'kedja', string> = {
   page:
     '<path d="M5.4 2.9h6.4l2.8 2.8v11.4H5.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 2.9v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 9.6h4.8M7.6 12.4h4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
   map:
     '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
   article:
     '<path d="M4.2 4.6h11.6M4.2 8.2h11.6M4.2 11.8h11.6M4.2 15.4h6.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  kommun:
+    '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  kedja:
+    '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
 };
 ---
 
-<dialog
-  class="palette"
-  aria-label="Sök och gå till sida"
+<div
+  class="palette glass"
+  hidden
   data-palette
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
 >
-  <div class="sheet">
-    <div class="field">
-      <svg class="lens" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-        <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.7" />
-        <path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-      </svg>
-      <label class="visually-hidden" for="cp-q">Sök verksamhet, kommun eller sida</label>
-      <input
-        id="cp-q"
-        type="text"
-        placeholder="Sök ställe, kommun eller sida"
-        autocomplete="off"
-        autocapitalize="off"
-        autocorrect="off"
-        spellcheck="false"
-        data-input
-      />
-      <button type="button" class="key esc" data-close aria-label="Stäng">esc</button>
-    </div>
+  {/* Chipsen: hitta.se:s kategorirad, samma urval som startsidans snabbval
+      (lib/snabbval). Nav och inte listbox-rader — de bläddras inte med
+      pilarna utan är en egen liten meny ovanför förslagen. */}
+  <nav class="chips" aria-label="Populära kategorier">
+    {picks.map((c) => (
+      <a class="chip" href={c.href}>{c.label}</a>
+    ))}
+  </nav>
 
-    <ul class="list" id="cp-list" role="listbox" aria-label="Träffar" data-list>
-      {groups.map((g) => (
-        <>
-          <li class="group eyebrow" role="presentation" aria-hidden="true">{g.name}</li>
-          {g.items.map((c) => (
-            <li role="presentation">
-              <a
-                href={c.href}
-                role="option"
-                aria-selected="false"
-                data-cmd
-                data-kw={[c.label, c.kw].filter(Boolean).join(' ')}
-              >
-                <span class="icon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[c.kind]} />
-                </span>
-                <span class="body">
-                  <span class="name">{c.label}</span>
-                  <span class="meta">{c.meta}</span>
-                </span>
-              </a>
-            </li>
-          ))}
-        </>
-      ))}
-    </ul>
+  <ul class="list" id="cp-list" role="listbox" aria-label="Förslag" data-list>
+    <li class="group eyebrow" role="presentation" aria-hidden="true">Populära sökningar</li>
+    {popular.map((p) => (
+      <li role="presentation">
+        <a href={p.href} role="option" aria-selected="false">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[p.kind]} />
+          </span>
+          <span class="body">
+            <span class="name">{p.name}</span>
+            <span class="meta">{p.meta}</span>
+          </span>
+        </a>
+      </li>
+    ))}
+    {groups.map((g) => (
+      <>
+        <li class="group eyebrow" role="presentation" aria-hidden="true">{g.name}</li>
+        {g.items.map((c) => (
+          <li role="presentation">
+            <a
+              href={c.href}
+              role="option"
+              aria-selected="false"
+              data-cmd
+              data-kw={[c.label, c.kw].filter(Boolean).join(' ')}
+            >
+              <span class="icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false" set:html={ICONS[c.kind]} />
+              </span>
+              <span class="body">
+                <span class="name">{c.label}</span>
+                <span class="meta">{c.meta}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </>
+    ))}
+  </ul>
 
-    <p class="note" hidden data-note></p>
+  <p class="note" hidden data-note></p>
 
-    {/* aria-hidden med avsikt: tipsen beskriver tangenter en skärmläsare
-        redan känner till från listbox-mönstret, och raden är ren dekor. */}
-    <footer class="hints" aria-hidden="true">
-      <span><kbd class="key">↑</kbd><kbd class="key">↓</kbd> bläddra</span>
-      <span><kbd class="key">⏎</kbd> öppna</span>
-      <span><kbd class="key">esc</kbd> stäng</span>
-    </footer>
-  </div>
-</dialog>
+  {/* aria-hidden med avsikt: tipsen beskriver tangenter en skärmläsare
+      redan känner till från listbox-mönstret, och raden är ren dekor. */}
+  <footer class="hints" aria-hidden="true">
+    <span><kbd class="key">↑</kbd><kbd class="key">↓</kbd> bläddra</span>
+    <span><kbd class="key">⏎</kbd> öppna</span>
+    <span><kbd class="key">esc</kbd> stäng</span>
+  </footer>
+</div>
 
 <style>
-  /* Högt upp, inte mitt på: rutan får inte hoppa i höjdled när listan växer
-     och krymper mellan tangenttryck. Med ett fast avstånd till ovankanten
-     står fältet stilla och bara listans nederkant rör sig. Samma skäl som
-     hos Linear och Raycast. */
+  /* Panelen ankras i fältets rot (.site-search är position: relative) och
+     tar fältets bredd, precis som SiteSearchs egen förslagslista tio pixlar
+     därifrån. Ytan är samma .glass; det som skiljer är innehållet. z-index
+     ett snäpp över förslagspanelens 50: står båda i DOM samtidigt är det
+     alltid paletten som är den öppna. */
   .palette {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    margin: 12vh auto auto;
-    max-width: calc(100vw - var(--s-8));
-  }
-
-  .palette::backdrop {
-    background: rgba(0, 0, 0, .35);
-  }
-
-  .sheet {
-    width: min(560px, calc(100vw - var(--s-8)));
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-pop);
-    overflow: hidden;
-  }
-
-  .field {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    left: 0;
+    z-index: 60;
+    width: 100%;
+    min-width: 340px;
+    max-height: min(70vh, 560px);
     display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    padding: var(--s-3) var(--s-4);
+    flex-direction: column;
+    padding: var(--s-3);
+  }
+
+  .palette[hidden] { display: none; }
+
+  /* Chipsen ligger fast överst och listan rullar under dem. */
+  .chips {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-1) var(--s-2) var(--s-3);
     border-bottom: 1px solid var(--hairline);
   }
 
-  .lens {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    color: var(--text-muted);
-  }
-
-  .field input {
-    flex: 1;
-    min-width: 0;
-    padding: var(--s-1) 0;
-    border: 0;
-    background: none;
-    font-family: inherit;
-    /* 16 px är iOS-golvet, se SiteSearch. Paletten öppnas i praktiken bara
-       från tangentbord, men golvet kostar ingenting att hålla. */
-    font-size: 16px;
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
     color: var(--text);
   }
 
-  .field input:focus { outline: none; }
-  .field input::placeholder { color: var(--text-muted); }
-
-  /* Tangentutseendet delas av esc-knappen och tipsraden. */
-  .key {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 5px;
-    border: 1px solid var(--hairline);
-    border-radius: 6px;
-    background: var(--canvas);
-    font: 500 var(--fs-caption)/1 var(--font-sans);
-    color: var(--text-secondary);
+  .chip:hover {
+    text-decoration: none;
+    border-color: var(--text-muted);
   }
-
-  .esc { cursor: pointer; }
-  .esc:hover { color: var(--text); }
 
   .list {
     list-style: none;
     margin: 0;
-    padding: var(--s-2);
-    max-height: min(56vh, 420px);
+    padding: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
   .group {
-    margin: var(--s-2) var(--s-2) var(--s-1);
+    margin: var(--s-3) var(--s-2) var(--s-1);
   }
-
-  .group:first-child { margin-top: var(--s-1); }
 
   /* :global på raderna: träffvyn byggs om av skriptet och de raderna bär
      inte Astros scopingattribut. Samma lösning som SiteSearchs panel. */
@@ -333,8 +330,9 @@ const ICONS: Record<Command['kind'], string> = {
   }
 
   .note {
+    flex-shrink: 0;
     margin: 0;
-    padding: var(--s-3) var(--s-4);
+    padding: var(--s-3) var(--s-2) var(--s-1);
     border-top: 1px solid var(--hairline);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
@@ -342,13 +340,13 @@ const ICONS: Record<Command['kind'], string> = {
   }
 
   /* Tipsen finns bara där tangenterna finns. hover+fine pointer är den
-     träffsäkraste signalen webben har för "här sitter ett tangentbord":
-     en pekskärm matchar ingendera, en dator med mus båda. */
+     träffsäkraste signalen webben har för "här sitter ett tangentbord". */
   .hints {
+    flex-shrink: 0;
     display: none;
     gap: var(--s-4);
     align-items: center;
-    padding: var(--s-2) var(--s-4);
+    padding: var(--s-3) var(--s-2) var(--s-1);
     border-top: 1px solid var(--hairline);
     font-size: var(--fs-caption);
     color: var(--text-secondary);
@@ -360,20 +358,49 @@ const ICONS: Record<Command['kind'], string> = {
     gap: var(--s-1);
   }
 
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: var(--canvas);
+    font: 500 var(--fs-caption)/1 var(--font-sans);
+    color: var(--text-secondary);
+  }
+
   @media (hover: hover) and (pointer: fine) {
     .hints { display: flex; }
   }
 
+  /* Under 640 px är sidhuvudets fältrot static (se SiteSearch) och panelen
+     ankras till raden i stället; samma mått som förslagspanelen. Herofältet
+     behåller sin egen förankring. */
   @media (max-width: 640px) {
-    .palette { margin-top: 8vh; }
+    .palette {
+      left: var(--s-4);
+      right: var(--s-4);
+      width: auto;
+      min-width: 0;
+    }
+
+    :global(.site-search.is-hero) .palette {
+      left: 0;
+      right: 0;
+      width: 100%;
+    }
   }
 </style>
 
 <script>
   /**
    * Paletten. Genvägslyssnaren är det enda som kör vid sidladdning; registret
-   * hämtas först när rutan öppnas, av samma skäl som i SiteSearch: sidhuvudet
-   * finns på 14 711 sidor och de flesta besök trycker aldrig cmd+K.
+   * hämtas först när panelen öppnas, av samma skäl som i SiteSearch:
+   * sidhuvudet finns på 14 711 sidor och de flesta besök trycker aldrig
+   * cmd+K.
    *
    * Sök- och rankningslogiken speglar SiteSearch medvetet: samma register,
    * samma normalisering, samma klasstänk (kommunprefix slår namnprefix slår
@@ -388,13 +415,13 @@ const ICONS: Record<Command['kind'], string> = {
     kind: 'kommun' | 'place' | 'query';
   }
 
-  const dialog = document.querySelector<HTMLDialogElement>('[data-palette]');
+  const palette = document.querySelector<HTMLElement>('[data-palette]');
+  const root = document.querySelector<HTMLElement>('[data-sitesearch]');
+  const input = root?.querySelector<HTMLInputElement>('[data-input]') ?? null;
 
-  if (dialog) {
-    const input = dialog.querySelector<HTMLInputElement>('[data-input]')!;
-    const list = dialog.querySelector<HTMLElement>('[data-list]')!;
-    const note = dialog.querySelector<HTMLElement>('[data-note]')!;
-    const closeButton = dialog.querySelector<HTMLButtonElement>('[data-close]')!;
+  if (palette && root && input) {
+    const list = palette.querySelector<HTMLElement>('[data-list]')!;
+    const note = palette.querySelector<HTMLElement>('[data-note]')!;
 
     /** Mac har cmd+K; ctrl+K på en Mac är dessutom emacs-bindningen "radera
      *  till radslut" i textfält och får inte kapas där. */
@@ -403,11 +430,6 @@ const ICONS: Record<Command['kind'], string> = {
     const MAX_SUGGESTIONS = 8;
     /** Kandidater per klass innan skanningen slutar. Se SiteSearch. */
     const SCAN_CAP = 60;
-
-    input.setAttribute('role', 'combobox');
-    input.setAttribute('aria-expanded', 'true');
-    input.setAttribute('aria-controls', 'cp-list');
-    input.setAttribute('aria-haspopup', 'listbox');
 
     function normalise(s: string) {
       return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -452,7 +474,7 @@ const ICONS: Record<Command['kind'], string> = {
 
     function loadIndex() {
       if (loading) return loading;
-      loading = fetchIndex(dialog!.dataset.index!, dialog!.dataset.indexFallback ?? null)
+      loading = fetchIndex(palette!.dataset.index!, palette!.dataset.indexFallback ?? null)
         .then((data) => {
           kommuner = data.k;
           rows = data.e;
@@ -573,7 +595,7 @@ const ICONS: Record<Command['kind'], string> = {
         a.setAttribute('aria-selected', 'false');
       });
       active = -1;
-      input.removeAttribute('aria-activedescendant');
+      input!.removeAttribute('aria-activedescendant');
     }
 
     function setActive(i: number) {
@@ -585,12 +607,12 @@ const ICONS: Record<Command['kind'], string> = {
       active = i;
       const next = options[active];
       if (!next) {
-        input.removeAttribute('aria-activedescendant');
+        input!.removeAttribute('aria-activedescendant');
         return;
       }
       next.setAttribute('data-active', '');
       next.setAttribute('aria-selected', 'true');
-      input.setAttribute('aria-activedescendant', next.id);
+      input!.setAttribute('aria-activedescendant', next.id);
       next.scrollIntoView({ block: 'nearest' });
     }
 
@@ -602,7 +624,7 @@ const ICONS: Record<Command['kind'], string> = {
     // ---- Rendering ------------------------------------------------------
 
     function render() {
-      const raw = input.value;
+      const raw = input!.value;
       const q = normalise(raw.trim());
 
       if (!q) {
@@ -642,55 +664,52 @@ const ICONS: Record<Command['kind'], string> = {
 
     // ---- Öppning och stängning ------------------------------------------
 
-    /*
-     * Sidlåset är samma som SignInDialogs, av samma skäl: showModal() stänger
-     * fokus och klick ute men inte rullningen, och rullningslisten som
-     * försvinner flyttar annars hela sidan i sidled.
-     */
-    let lockedScrollbar = '';
-
-    function lockPage() {
-      const gap = window.innerWidth - document.documentElement.clientWidth;
-      lockedScrollbar = document.body.style.paddingRight;
-      if (gap > 0) document.body.style.paddingRight = `${gap}px`;
-      document.body.style.overflow = 'hidden';
-    }
-
-    function unlockPage() {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = lockedScrollbar;
-    }
-
-    let opener: HTMLElement | null = null;
+    let isOpen = false;
+    /** aria-controls som fältet hade innan paletten tog över, för återställning. */
+    let previousControls: string | null = null;
 
     function openPalette() {
-      if (dialog!.open) return;
-      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      lockPage();
-      dialog!.showModal();
-      input.value = '';
+      if (isOpen) return;
+
+      // Flytta in panelen i fältets rot första gången. Se frontmattern:
+      // Base renderar den men bara fältet vet var den ska hänga.
+      if (palette!.parentElement !== root) root!.appendChild(palette!);
+
+      // Ta över fältet. Attributet får SiteSearchs lyssnare att tiga, och
+      // dess egen panel släcks så att bara en panel finns under fältet.
+      root!.setAttribute('data-palette-open', '');
+      const sitePanel = root!.querySelector<HTMLElement>('[data-panel]');
+      if (sitePanel) sitePanel.hidden = true;
+
+      // Två svävande lager i samma sidhuvud får aldrig stå öppna samtidigt.
+      const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
+      if (picker) picker.open = false;
+
+      previousControls = input!.getAttribute('aria-controls');
+      input!.setAttribute('aria-controls', 'cp-list');
+      input!.setAttribute('aria-expanded', 'true');
+
+      palette!.hidden = false;
+      isOpen = true;
+      // focus() rullar dessutom fältet i synhåll när sidan är skrollad.
+      input!.focus();
       render();
-      input.focus();
       loadIndex().then(() => {
         // Registret kan landa efter att frågan börjat skrivas. Rita om, men
-        // bara medan rutan fortfarande är öppen och frågan står kvar.
-        if (dialog!.open && input.value.trim()) render();
+        // bara medan panelen fortfarande är öppen och frågan står kvar.
+        if (isOpen && input!.value.trim()) render();
       });
     }
 
-    // Esc, krysset och backdrop-klicket tar alla vägen genom close-händelsen,
-    // så fokus återlämnas i alla tre fallen och inte bara i något av dem.
-    dialog.addEventListener('close', () => {
-      unlockPage();
-      opener?.focus();
-      opener = null;
-    });
-
-    closeButton.addEventListener('click', () => dialog.close());
-
-    dialog.addEventListener('click', (event) => {
-      if (event.target === dialog) dialog.close();
-    });
+    function closePalette() {
+      if (!isOpen) return;
+      isOpen = false;
+      palette!.hidden = true;
+      root!.removeAttribute('data-palette-open');
+      if (previousControls) input!.setAttribute('aria-controls', previousControls);
+      input!.setAttribute('aria-expanded', 'false');
+      input!.removeAttribute('aria-activedescendant');
+    }
 
     // ---- Genvägen -------------------------------------------------------
 
@@ -704,16 +723,27 @@ const ICONS: Record<Command['kind'], string> = {
       // preventDefault även när vi stänger: webbläsarens egen ctrl+K
       // (sökfältet i Firefox) får aldrig slå igenom halva gångerna.
       event.preventDefault();
-      if (dialog.open) dialog.close();
+      if (isOpen) closePalette();
       else openPalette();
     });
 
     // ---- Tangentbord i fältet -------------------------------------------
+    // SiteSearchs egna lyssnare tiger så länge data-palette-open står på
+    // roten, så det som händer här är det enda som händer.
 
-    input.addEventListener('input', () => render());
+    input.addEventListener('input', () => {
+      if (isOpen) render();
+    });
 
     input.addEventListener('keydown', (event) => {
+      if (!isOpen) return;
       const key = event.key;
+
+      if (key === 'Escape') {
+        event.preventDefault();
+        closePalette();
+        return;
+      }
 
       if (key === 'ArrowDown' || key === 'ArrowUp') {
         event.preventDefault();
@@ -732,12 +762,9 @@ const ICONS: Record<Command['kind'], string> = {
         if (chosen) {
           event.preventDefault();
           window.location.assign(chosen.href);
-        } else if (input.value.trim()) {
-          event.preventDefault();
-          window.location.assign(`/sok/?q=${encodeURIComponent(input.value.trim())}`);
         }
+        // Annars får formuläret gå till /sok, precis som i sökfältet.
       }
-      // Escape hanteras av <dialog> självt: cancel → close → upplåsning.
     });
 
     // Musen markerar samma rad som pilarna skulle ha gjort.
@@ -748,18 +775,52 @@ const ICONS: Record<Command['kind'], string> = {
       if (i >= 0 && i !== active) setActive(i);
     });
 
-    // ---- Genvägsikonen i sökfältet --------------------------------------
+    // ---- Stängning utifrån ----------------------------------------------
+    // Samma tre spärrar som SiteSearchs panel, av samma skäl: raderna ÄR
+    // länkar, men klicket får inte hinna stänga panelen innan det landar.
+
+    palette.addEventListener('mousedown', (event) => event.preventDefault());
+
+    let pointerHeld = false;
+    palette.addEventListener('pointerdown', () => { pointerHeld = true; });
+    document.addEventListener('pointerup', () => { pointerHeld = false; });
+
+    list.addEventListener('click', (event) => {
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>(
+        'a[role="option"]',
+      );
+      if (!link) return;
+      const e = event as MouseEvent;
+      // Cmd/Ctrl/shift och mittenklick öppnar i ny flik — rör dem inte.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      event.preventDefault();
+      window.location.assign(link.href);
+    });
+
+    root.addEventListener('focusout', (event) => {
+      if (!isOpen || pointerHeld) return;
+      const to = (event as FocusEvent).relatedTarget as Node | null;
+      if (!to || !root!.contains(to)) closePalette();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (isOpen && !root!.contains(event.target as Node)) closePalette();
+    });
+
+    // ---- Genvägsmärket i sökfältet --------------------------------------
 
     /*
-     * SiteSearch ägs av ett annat spår just nu. Ikonen är därför byggd som
-     * ett handslag: när fältet bär ett element med [data-palette-hint] fyller
-     * paletten det med rätt tangettext och väcker det på enheter med
-     * tangentbord. Finns elementet inte gör raderna nedan ingenting, så
-     * ordningen mellan de två ändringarna spelar ingen roll.
+     * Märket renderas av SiteSearch ([data-palette-hint]) men ägs beteende-
+     * mässigt härifrån: paletten byter modifierarrutans tecken efter
+     * plattformen, väcker märket på enheter med tangentbord och kopplar
+     * klicket. Märket är två separata tangentrutor (hitta.se:s form), och
+     * bara den första rutan ([data-palette-mod]) är plattformsberoende —
+     * K-rutan står orörd. Finns elementen inte gör raderna nedan ingenting.
      */
     const hint = document.querySelector<HTMLElement>('[data-palette-hint]');
     if (hint) {
-      hint.textContent = mac ? '⌘K' : 'Ctrl K';
+      const mod = hint.querySelector<HTMLElement>('[data-palette-mod]');
+      if (mod) mod.textContent = mac ? '⌘' : 'Ctrl';
       const fine = matchMedia('(hover: hover) and (pointer: fine)');
       const sync = () => { hint.hidden = !fine.matches; };
       sync();

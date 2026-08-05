@@ -20,22 +20,13 @@
  * eller senare på olika adresser.
  *
  * "Populära sökningar" renderas server-side. Panelen ska vara ifylld i samma
- * ögonblick som fältet fokuseras, inte efter en hämtning.
- *
- * Listan blandar kommuner med kända kedjor. Skälet till att kedjorna INTE
- * pekar på en enskild restaurang: att lyfta fram ett namngivet ställe i en
- * förvald lista är ett redaktionellt val vi inte har underlag för. Har det
- * brister ser det ut som att vi pekar ut någon, har det inga ser det ut som
- * reklam. En kedjesökning är i stället en verklig fråga med ett verkligt
- * svar: hur ser det ut på alla Espresso House i landet?
- *
- * Vi har ingen söktrafik att räkna på än. "Populära" betyder därför de
- * kommuner som har flest verksamheter och de kedjor som förekommer oftast i
- * datat, vilket är den bästa gissning som går att göra utan att hitta på.
+ * ögonblick som fältet fokuseras, inte efter en hämtning. Urvalet bor i
+ * lib/snabbval, delat med startsidans chips och kommandopaletten — där står
+ * också varför kedjorna pekar på /sok och vad "populär" betyder utan
+ * söktrafik att räkna på.
  */
-import { establishments, municipalities } from '../lib/data';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
-import { path } from '../lib/urls';
+import { popularSearches } from '../lib/snabbval';
 
 interface Props {
   /**
@@ -54,36 +45,7 @@ interface Props {
 
 const { size = 'bar' } = Astro.props;
 
-//: Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
-//: på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
-//: ställe man väljer att äta på, så listan tar de tre största kedjorna som
-//: någon faktiskt planerar ett besök till.
-//: Stavningen måste matcha datat, inte hur kedjan skriver sig själv.
-//: "McDonald's" med apostrof ger noll träffar: kommunerna registrerar dem
-//: som "Mcdonalds" och "McDonalds", aldrig med apostrof.
-const CHAINS = [
-  { query: 'Espresso House', count: 51 },
-  { query: 'Max', count: 43 },
-  { query: 'McDonalds', count: 38 },
-];
-
-const TOP_MUNICIPALITIES = 3;
-
-const cities = municipalities()
-  .map((m) => ({ ...m, count: establishments(m.slug).length }))
-  .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, 'sv'))
-  .slice(0, TOP_MUNICIPALITIES)
-  .map((m) => ({ href: path(m.slug), name: m.city, meta: 'Kommun', kind: 'kommun' as const }));
-
-const chains = CHAINS.map((c) => ({
-  href: `/sok/?q=${encodeURIComponent(c.query)}`,
-  name: c.query,
-  meta: `${c.count} ställen`,
-  kind: 'kedja' as const,
-}));
-
-// Varvade, så listan inte läser som två separata block.
-const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
+const popular = popularSearches();
 ---
 
 <div
@@ -105,6 +67,29 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       spellcheck="false"
       data-input
     />
+    {/* Genvägsmärket, hitta.se-mönstret på ägarens uttryckliga begäran: TVÅ
+        separata tangentrutor i fältets högerkant, ⌘ i den ena och K i den
+        andra, med litet mellanrum. Kontraktet ägs av CommandPalette: den
+        letar efter [data-palette-hint], byter modifierarrutans tecken efter
+        plattformen (⌘ på Mac, Ctrl annars, läst ur navigator.platform),
+        visar märket bara på enheter med hover+fin pekare och kopplar
+        klicket till att fälla ut paletten. Därför startar märket hidden
+        och med ⌘ som degraderingstecken: utan skript, eller på en sida
+        utan palett, finns det inte.
+
+        I båda lägena, även heron: paletten fälls ut ur just det här fältet
+        (hitta.se-mönstret), så märket pekar på fältets egen förmåga och
+        inte på en främmande ruta. Hitta.se har det i sitt stora fält av
+        samma skäl. */}
+    <button
+      type="button"
+      class="palette-hint"
+      data-palette-hint
+      hidden
+      aria-label="Öppna snabbsökningen"
+    >
+      <kbd data-palette-mod>⌘</kbd><kbd>K</kbd>
+    </button>
     <button type="submit" class="go" aria-label="Sök">
       <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
         <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.9" />
@@ -239,6 +224,43 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 
   .go:hover { background: var(--brand-ink); }
   .go svg { width: 18px; height: 18px; }
+
+  /* Genvägsmärket: två separata tangentrutor, hitta.se:s form. Knappen
+     själv är osynlig — det är rutorna som är märket. Varje ruta delar
+     tangentform med palettens egna key-caps (22 px, canvas-yta, hårlinje,
+     6 px radie) så de två läser som samma familj.
+     [hidden]-regeln måste stå: en display-regel på klassen slår annars ut
+     attributet, och märket ska kunna släckas av paletten på pekskärm. */
+  .palette-hint {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .palette-hint[hidden] { display: none; }
+
+  .palette-hint kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: var(--canvas);
+    font: 500 var(--fs-eyebrow)/1 var(--font-sans);
+    color: inherit;
+  }
+
+  .palette-hint:hover { color: var(--text); }
+  .palette-hint:hover kbd { border-color: var(--text-muted); }
 
   /* ── Hero-läget: startsidans stora fält ─────────────────────────────────
      Bara mått. 600 px brett, 56 px högt, brödtextens 17 px och en 44 px
@@ -400,6 +422,13 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
       padding-left: var(--s-4);
     }
     .site-search.is-hero .go { width: 40px; height: 40px; }
+
+    /* Herotexten ner till golvet på mobil. 17 px (--fs-body) är för grovt i
+       en smal spalt, men 16 är ett GOLV och inte ett val: under det zoomar
+       iOS Safari in sidan vid fokus, se regeln ovanför. Känns fältet ändå
+       stort är det höjden och platshållaren som får jobba — skriptet kortar
+       redan platshållaren till "Sök ställe eller ort" på smala skärmar. */
+    .site-search.is-hero .search-field input { font-size: 16px; }
   }
 
   @media (max-width: 380px) {
@@ -432,6 +461,15 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 
     /** Server-renderade populära sökningar, sparade för att kunna återställas. */
     const popularHtml = list.innerHTML;
+
+    /**
+     * Kommandopaletten ankras i SAMMA fält (cmd+K fäller ut det, se
+     * CommandPalette.astro) och sätter data-palette-open på roten medan den
+     * är öppen. Då ska förslagspanelen hålla tyst: två paneler under samma
+     * fält som båda svarar på tangenterna är värre än ingen. Paletten äger
+     * fältet tills den stängs, och attributet är hela kontraktet.
+     */
+    const paletteOwnsField = () => root!.hasAttribute('data-palette-open');
 
     /**
      * Kort platshållare på smala skärmar.
@@ -639,6 +677,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     }
 
     function open() {
+      if (paletteOwnsField()) return;
       if (!panel.hidden) return;
       panel.hidden = false;
       input.setAttribute('aria-expanded', 'true');
@@ -740,6 +779,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     let lastLength = input.value.length;
 
     input.addEventListener('focus', () => {
+      if (paletteOwnsField()) return;
       loadIndex().then(() => {
         // Registret kan komma efter att fältet fått text. Rita om, men fyll
         // inte i något — användaren kan ha markerat eller flyttat markören
@@ -751,6 +791,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     });
 
     input.addEventListener('input', (event) => {
+      if (paletteOwnsField()) return;
       const e = event as InputEvent;
       if (e.isComposing) return;
       forward = e.inputType
@@ -763,6 +804,7 @@ const popular = cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
     });
 
     input.addEventListener('keydown', (event) => {
+      if (paletteOwnsField()) return;
       const key = event.key;
 
       if (key === 'Escape') {
