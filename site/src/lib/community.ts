@@ -1044,18 +1044,33 @@ const MAX_EDGE = 1600;
 
 export interface Upload {
   id: string;
+  establishment_id: string;
+  municipality_slug: string;
   caption: string | null;
   status: 'pending' | 'published' | 'rejected';
   rejection_reason: string | null;
   published_url: string | null;
 }
 
-export async function uploads(establishmentId: string): Promise<Upload[]> {
+/**
+ * Alla egna bilder, till kontosidan.
+ *
+ * Hämtas utan filter på verksamhet, till skillnad från förut. Den gamla
+ * varianten tog ett establishment_id och kontosidan gick igenom sina GODKÄNDA
+ * ANSPRÅK för att hitta id:n att fråga med. Den vägen kan aldrig ge något
+ * längre: den som företräder en verksamhet får inte ladda upp bilder, så
+ * listan hade alltid varit tom och besökarens egna bilder hade aldrig synts.
+ *
+ * Att de syns är inte en bekvämlighet. Ett avslag bär ett skäl, och moderate.py
+ * säger till granskaren att skälet visas för avsändaren på hens kontosida. Det
+ * löftet hålls här.
+ */
+export async function myUploads(): Promise<Upload[]> {
   return (
     (await rest(
       'GET',
       await ownRows(
-        `image_uploads?select=id,caption,status,rejection_reason,published_url&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc`,
+        'image_uploads?select=id,establishment_id,municipality_slug,caption,status,rejection_reason,published_url&order=created_at.desc&limit=50',
       ),
     )) ?? []
   );

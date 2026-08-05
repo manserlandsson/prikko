@@ -130,7 +130,8 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     myReviews,
     deleteReview,
     claims,
-    uploads,
+    myUploads,
+    placeNames,
   } from '../../lib/community';
   import { openSignIn } from '../../lib/signin-dialog';
 
@@ -358,13 +359,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     );
   }
 
-  /**
-   * Anspråken, och bilderna för dem som är godkända.
-   *
-   * Bilderna hämtas per verksamhet eftersom en uppladdning kräver ett godkänt
-   * anspråk; listan över godkända anspråk är alltså hela den mängd som kan ha
-   * bilder. Ingen av rutorna ritas om den är tom.
-   */
+  /** Anspråken. Rutan ritas inte om den är tom. */
   async function paintClaims() {
     let rows: Awaited<ReturnType<typeof claims>> = [];
     try {
@@ -384,34 +379,69 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       claimList.append(li);
     }
     claimsCard.hidden = false;
+  }
 
-    const approved = rows.filter((row) => row.status === 'published');
-    if (approved.length === 0) return;
+  /**
+   * Egna bilder.
+   *
+   * Egen funktion och inte en svans på anspråken, vilket den var förut. Den
+   * gamla varianten gick igenom sina GODKÄNDA ANSPRÅK och frågade efter bilder
+   * per verksamhet. Den vägen kan inte ge något längre: bilder skickas in av
+   * gäster, och den som företräder en verksamhet får inte ladda upp alls. Listan
+   * hade alltid varit tom, och besökarens egna bilder hade aldrig synts någonstans.
+   *
+   * Kortet visas bara för den som har skickat in en bild. Ett tomt kort med en
+   * rubrik som lovar bilder är sämre än inget kort.
+   */
+  async function paintUploads() {
+    let rows: Awaited<ReturnType<typeof myUploads>> = [];
+    try {
+      rows = await myUploads();
+    } catch {
+      return;
+    }
+    if (rows.length === 0) return;
 
-    const lists = await Promise.all(
-      approved.map(async (row) => {
-        try {
-          return { row, images: await uploads(row.establishment_id) };
-        } catch {
-          return { row, images: [] };
-        }
-      }),
-    );
+    /* Namnen bor i den redaktionella databasen, inte i bildraden. Ett anrop
+       för hela listan, inte ett per bild. En verksamhet som avpublicerats
+       sedan bilden skickades saknas i svaret, och raden får då stå utan namn
+       i stället för att utelämnas. */
+    let names = new Map<string, { name: string }>();
+    try {
+      names = await placeNames(rows.map((row) => row.establishment_id));
+    } catch {
+      /* Utan namn duger kommunen. Bilden är fortfarande ens egen. */
+    }
 
     uploadList.textContent = '';
-    let any = false;
-    for (const { row, images } of lists) {
-      for (const image of images) {
-        any = true;
-        const li = document.createElement('li');
-        li.append(
-          main(image.caption || 'Utan bildtext', row.establishment_name),
-          side(tag(image.status, IMAGE_STATUS)),
-        );
-        uploadList.append(li);
+    for (const row of rows) {
+      const li = document.createElement('li');
+
+      const box = document.createElement('div');
+      box.className = 'konto-main';
+
+      const title = document.createElement('b');
+      title.textContent = names.get(row.establishment_id)?.name ?? 'Verksamheten';
+      box.append(title);
+
+      const where = document.createElement('span');
+      where.className = 'konto-meta';
+      where.textContent = CITIES[row.municipality_slug] ?? row.municipality_slug;
+      box.append(where);
+
+      /* Samma sak som vid omdömena: "Avslagen" utan skäl är ett besked man
+         inte kan göra något med. */
+      if (row.status === 'rejected' && row.rejection_reason) {
+        const why = document.createElement('span');
+        why.className = 'konto-why';
+        why.textContent = `Skäl: ${row.rejection_reason}`;
+        box.append(why);
       }
+
+      li.append(box, side(tag(row.status, IMAGE_STATUS)));
+      uploadList.append(li);
     }
-    uploadsCard.hidden = !any;
+    uploadsCard.hidden = false;
   }
 
   /* Start ------------------------------------------------------------- */
@@ -423,7 +453,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     const user = currentUser();
     who.textContent = user?.email ?? 'Du är inloggad';
 
-    await Promise.all([paintFollows(), paintReviews(), paintClaims()]);
+    await Promise.all([paintFollows(), paintReviews(), paintClaims(), paintUploads()]);
   }
 
   async function start() {
