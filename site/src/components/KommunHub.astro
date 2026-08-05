@@ -20,8 +20,13 @@
  *
  * Statistiken är samtidigt sidans egen kunskap och en stor del av dess
  * sökvärde, så den flyttar inte till en egen sida och göms inte i en
- * hopfällbar panel. Den står i sin helhet efter listan, under en egen
- * rubrik, och översiktsraden längst upp länkar dit med ett ankare.
+ * hopfällbar panel. Den står i sin helhet efter listan, i ett eget tonat
+ * band, och översiktsraden längst upp länkar dit med ett ankare.
+ *
+ * Booli gör exakt samma sak på sin områdessida, som är sökresultatet med
+ * karta: en rad sammanhang i 14 px överst, filtren, träffarna, och först
+ * DÄREFTER kunskapsavsnitten under egna rubriker i 24/600. Uppmätt på
+ * /sok/till-salu?areaIds=115349 i augusti 2026.
  */
 import Base from '../layouts/Base.astro';
 import CommonIssues from './CommonIssues.astro';
@@ -148,8 +153,8 @@ const source = sourceFor(kommun.slug);
  *
  * Puffen står på hela sidserien och inte bara på sida 1. Den som bläddrat
  * till sida 47 av Stockholm har snarare mer nytta av en karta än mindre.
- * På smala skärmar ligger panelen efter listan, så där finns dessutom en
- * fast kartknapp i underkant, samma grepp som hitta.se och Airbnb använder.
+ * På smala skärmar står den FÖRE listan, se ordningsresonemanget i stilarna
+ * längst ner.
  */
 const karta = mapDataset(kommun.slug);
 
@@ -277,42 +282,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
         <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
-
-        {/* Fördjupningen. Allt som tidigare stod ovanför listan står här,
-            oavkortat: sidan har kvar hela sitt kunskaps- och sökvärde, men
-            registret får komma först. Den som vill hit direkt tar ankaret i
-            översiktsraden. */}
-        {currentPage === 1 && hasDjup && (
-          <section class="djup" id="om-kontrollen" aria-labelledby="djup-rubrik">
-            <h2 id="djup-rubrik">Så ser kontrollen ut i {city}</h2>
-
-            {profil && (
-              <CommonIssues
-                issues={profil.issues}
-                withRemarks={profil.withRemarks}
-                city={city}
-              />
-            )}
-
-            <FollowUpRate record={record} city={city} />
-
-            {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
-                rutan förklarar båda, och den läser bäst mellan dem. */}
-            <Kontrollen kontrollen={control} city={city} />
-
-            {unassessed && <Uncovered unseen={unassessed} city={city} />}
-
-            {remarks > 0 && (
-              <p class="jump">
-                {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
-                    vill se det som avviker ska inte behöva bläddra sig fram. */}
-                <a href={path(base, 'anmarkningar')}>
-                  Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
-                </a>
-              </p>
-            )}
-          </section>
-        )}
       </div>
 
       <aside class="side">
@@ -376,26 +345,52 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         </section>
       </aside>
     </div>
-
-    {/* Kartknappen för smala skärmar, där sidopanelen och därmed puffen
-        ligger hundra listrader ner. Fast i underkant, som hos hitta.se,
-        Airbnb och Yelp i mobilbredd. Ren länk, inget skript. */}
-    {karta && (
-      <a class="kartknapp" href={path(base, 'karta')}>
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linejoin="round"
-          />
-          <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
-        </svg>
-        Karta
-      </a>
-    )}
   </div>
+
+  {/* Fördjupningen. Allt som tidigare stod ovanför listan står här,
+      oavkortat: sidan har kvar hela sitt kunskaps- och sökvärde, men
+      registret får komma först. Den som vill hit direkt tar ankaret i
+      översiktsraden.
+
+      Bandet ligger UTANFÖR sidbehållaren och går kant i kant, på --brand-wash.
+      Det är den ytan tokenet finns för: ett avsnitt som ska läsa som eget
+      kapitel utan att bli ett kort. Booli gör samma sak under sin träfflista,
+      där kunskapsinnehållet står under en egen rubrik i 24/600 efter
+      resultaten, och sektionerna skiljs av hårlinje och luft, aldrig av en
+      ruta. Innehållet i bandet ligger därför öppet, utan kortchrome. */}
+  {currentPage === 1 && hasDjup && (
+    <section class="djup" id="om-kontrollen" aria-labelledby="djup-rubrik">
+      <div class="djup-inner">
+        <h2 id="djup-rubrik">Så ser kontrollen ut i {city}</h2>
+
+        {profil && (
+          <CommonIssues
+            issues={profil.issues}
+            withRemarks={profil.withRemarks}
+            city={city}
+          />
+        )}
+
+        <FollowUpRate record={record} city={city} />
+
+        {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
+            avsnittet förklarar båda, och det läser bäst mellan dem. */}
+        <Kontrollen kontrollen={control} city={city} />
+
+        {unassessed && <Uncovered unseen={unassessed} city={city} />}
+
+        {remarks > 0 && (
+          <p class="jump">
+            {/* Listan är alfabetisk och därför stabil mellan bygg. Den som
+                vill se det som avviker ska inte behöva bläddra sig fram. */}
+            <a href={path(base, 'anmarkningar')}>
+              Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
+            </a>
+          </p>
+        )}
+      </div>
+    </section>
+  )}
 </Base>
 
 <style>
@@ -424,9 +419,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     line-height: var(--lh-body-s);
   }
 
+  /* Spalten är 320 och inte 300. Kartan bor där, och hos Booli är kartan
+     bredare än träfflistan. Så långt kan vi inte gå av viktskäl, men 20 px
+     till gör skillnaden mellan en ruta med prickar i och något som läser som
+     en karta. */
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     gap: var(--s-8);
     align-items: start;
     margin-top: var(--s-6);
@@ -501,17 +500,47 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
-  /* ── Fördjupningen ───────────────────────────────────────────────────── */
+  /* ── Fördjupningsbandet ──────────────────────────────────────────────── */
 
-  /* Mer luft ovanför än blocken emellan: rubriken inleder sidans andra
-     kapitel och ska kännas som det, inte som nästa kort i listan. */
-  .djup { margin-top: var(--s-12); }
+  /* Kant i kant och tonat. Se markupkommentaren för varför bandet ligger
+     utanför sidbehållaren. Ingen marginal ovanför: sidans egen nedre luft
+     (--s-12 i .page) är avståndet, och bandet ska börja där sidan slutar. */
+  .djup {
+    background: var(--brand-wash);
+    padding-block: var(--s-12);
+    /* Ankaret från översiktsraden ska inte landa med rubriken klistrad mot
+       fönstrets överkant. */
+    scroll-margin-top: var(--s-6);
+  }
 
-  /* Ankaret från översiktsraden ska inte landa med rubriken klistrad mot
-     fönstrets överkant. */
-  .djup { scroll-margin-top: var(--s-6); }
+  /* Innehållet i bandet står smalare än registret ovanför. Raderna i
+     "Vanligast bland anmärkningarna" är löptext ur kommunens egna
+     formuleringar, och 1080 px gav en radlängd ingen läser. --w-page är
+     sajtens mått för en enkelspaltig datasida och är precis det här är. */
+  .djup-inner {
+    max-width: var(--w-page);
+    margin-inline: auto;
+    padding-inline: var(--s-4);
+  }
 
-  .djup > :global(* + *) { margin-top: var(--s-4); }
+  /* Sektionerna hålls isär av hårlinje och luft, aldrig av en ruta. 32 px
+     inom bandet, mot Boolis 32 och 64. Hårlinjen ligger som padding-top på
+     nästa avsnitt och inte som marginal, så att linjen står mitt i luften. */
+  .djup-inner > :global(* + *) {
+    margin-top: var(--s-8);
+    padding-top: var(--s-8);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Ingen linje direkt under bandets rubrik. Rubriken tillhör det första
+     avsnittet och ska inte skiljas från det. Grad och vikt kommer från h2 i
+     tokens, alltså 24/600, samma nivå som Booli ger sina kunskapsavsnitt
+     under träfflistan. */
+  .djup-inner > :global(h2 + *) {
+    margin-top: var(--s-6);
+    padding-top: 0;
+    border-top: 0;
+  }
 
   /* ── Sidopanel ────────────────────────────────────────────────────────── */
 
@@ -610,40 +639,39 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
-  /* Kartknappen finns bara i smal bredd. På desktop är puffen i panelen
-     alltid i blickfånget, och en svävande knapp ovanpå vore dubbelt. */
-  .kartknapp { display: none; }
+  /* ── Smal skärm ───────────────────────────────────────────────────────── */
 
-  /* Under 900 px lägger sig panelen efter listan i stället för bredvid.
-     Listan är hundra rader lång, så panelen hamnar i praktiken utom synhåll
-     — men den bär källa och färskhet, som hör hemma efter innehållet snarare
-     än före det på en smal skärm. Kartan tappar däremot inte bort sig:
-     kartknappen ligger fast i underkant. */
+  /*
+   * Under 900 px blir sidan en spalt, och då är ordningen hela frågan.
+   *
+   * Den var: lista, karta, paneler. Kartan låg alltså hundra listrader ner,
+   * i praktiken osynlig, och en svävande kartknapp i underkant fick bära
+   * kartan i stället. Det var samma fel som ägaren pekade ut på skrivbordet:
+   * kartan fanns som länk, inte som karta. Knappen är därför borta.
+   *
+   * Den är nu: karta, lista, paneler. Kartan är 200 px hög här och står
+   * direkt under fördelningsraden, alltså syns den utan att bli en vägg
+   * framför registret. Panelerna står kvar EFTER listan: de bär källa och
+   * färskhet, som hör hemma efter uppgifterna på en smal skärm.
+   *
+   * `display: contents` på sidopanelen löser det utan att markupen dubbleras.
+   * Panelens barn blir egna flexbarn i .layout och kan ordnas var för sig,
+   * så att kartan går före huvudspalten medan panelerna stannar efter den.
+   */
   @media (max-width: 900px) {
-    .layout { grid-template-columns: minmax(0, 1fr); }
-    .side { position: static; }
-
-    .kartknapp {
-      position: fixed;
-      left: 50%;
-      bottom: calc(var(--s-4) + env(safe-area-inset-bottom));
-      transform: translateX(-50%);
-      z-index: 5;
-      display: inline-flex;
-      align-items: center;
-      gap: var(--s-2);
-      padding: 10px var(--s-4);
-      background: var(--text);
-      color: #fff;
-      border-radius: var(--r-pill);
-      box-shadow: var(--shadow-pop);
-      font-size: var(--fs-body-s);
-      line-height: var(--lh-body-s);
-      font-weight: 600;
+    .layout {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-6);
     }
 
-    .kartknapp:hover { text-decoration: none; }
+    .side {
+      display: contents;
+      position: static;
+    }
 
-    .kartknapp svg { width: 18px; height: 18px; }
+    .side > :global(.kartruta) { order: -1; }
+    .main { order: 0; }
+    .side > :global(.panel) { order: 1; }
   }
 </style>

@@ -66,13 +66,9 @@ const top = shown[0]?.count ?? 0;
 )}
 
 <style>
-  .issues {
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-    padding: var(--s-4);
-  }
-
+  /* Ingen ruta. Blocket står i fördjupningsbandet på kommunhubben, där
+     sektionerna hålls isär av hårlinje och luft. Se KommunHub.astro och
+     regeln i docs/19_formsystem.md: huvudinnehåll ligger aldrig i ett kort. */
   .issues h2 {
     font-size: var(--fs-h-s);
     line-height: var(--lh-h-s);

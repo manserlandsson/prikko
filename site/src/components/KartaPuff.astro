@@ -314,7 +314,12 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
 <style>
   /* Måtten är kartans egna; ramen (kant, radie, yta) bor i kartram.css. */
   .kartram {
-    height: 320px;
+    /* 380 och inte 320. Kartan är sidopanelens överst stående ruta och
+       panelen är klistrad, alltså följer kartan med genom hela listan. Samma
+       roll som Boolis karta, som ligger fast på halva sökresultatsidan. Den
+       höjden är det närmaste vi kommer den rollen utan att betala för
+       kartprogrammet i förskott; se viktresonemanget i modulkommentaren. */
+    height: 380px;
     /* Punktbilden ligger på en svag blå ton som skiljer den från kortets
        vita och läser som vatten och mark läser på en riktig karta: som en
        yta, inte som tomrum. */
@@ -397,7 +402,10 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--s-3);
+    /* Ryms inte båda på raden får länken en egen rad. Utan wrap bröts i
+       stället antalet mitt i frasen, med länken kvar uppe till höger. */
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
     margin-top: var(--s-2);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
@@ -408,10 +416,10 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     font-weight: 600;
   }
 
-  /* Smal skärm: kartan ligger överst i sidan, ovanför listan, och behöver
-     inte vara lika hög som i spalten bredvid listan. 200 px räcker för att
-     staden ska läsas som en stad utan att kartan blir en vägg framför det
-     man kom för. */
+  /* Smal skärm: kartan ligger ovanför listan, se ordningen i KommunHub.astro.
+     Där behöver den inte vara lika hög som i spalten bredvid listan. 200 px
+     räcker för att staden ska läsas som en stad utan att kartan blir en vägg
+     framför det man kom för. */
   @media (max-width: 900px) {
     .kartram { height: 200px; }
   }
