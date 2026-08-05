@@ -1862,6 +1862,11 @@ const LEGEND = [
   @media (max-width: 900px) {
     .split { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
 
+    /* Växelknappen ligger fast mot underkanten och täckte annars
+       attributionen, som är ett krav och inte en artighet. Knappens höjd
+       plus dess avstånd till kanten, med luft. */
+    .attribution { padding-bottom: 64px; }
+
     .kartkolumn {
       position: fixed;
       inset: 0;
