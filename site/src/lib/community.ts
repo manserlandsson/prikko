@@ -404,6 +404,19 @@ async function rest(
   };
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
+  }
+  /*
+   * Content-Profile på VARJE skrivning, inte bara när det finns en kropp.
+   *
+   * PostgREST väljer schema med Accept-Profile för läsning och Content-Profile
+   * för skrivning. En DELETE har ingen kropp, så villkoret ovan hoppade över
+   * headern och servern föll tillbaka på public. Följden var att avfölj gav
+   * "Could not find the table 'public.follows' in the schema cache" medan
+   * följ, som har en kropp, fungerade. Felet gick inte att se i koden för
+   * varje enskilt anrop pekar korrekt på community; det satt i att headern
+   * hängde på kroppen i stället för på metoden.
+   */
+  if (method !== 'GET' && method !== 'HEAD') {
     headers['Content-Profile'] = SCHEMA;
   }
   if (options.prefer) headers.Prefer = options.prefer;

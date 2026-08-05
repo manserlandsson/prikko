@@ -597,8 +597,19 @@ const breadcrumbs = {
     padding-top: 0;
   }
 
+  /* Ingen versalisering här, till skillnad från .eyebrow i tokens.
+     Etiketten står över sidans viktigaste besked och läses tillsammans med
+     nyckeltalens etiketter strax under, som säger "Kontroller" och
+     "Återbesök" i vanlig gemen. VERSALER plus halvfet gjorde att den vägde
+     tyngre än beskedet den introducerar, och de två etikettsorterna kändes
+     som två olika sajter. */
   .statement .eyebrow {
     margin-bottom: var(--s-3);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
   }
 
   .verdict {

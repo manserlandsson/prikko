@@ -322,6 +322,15 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
    centrerad status bredvid det hamnar mitt i en mening. */
 .notis-list li { align-items: flex-start; }
 
+/* Titeln ska växa och ta mellanrummet.
+   Raden är kontosidans vanliga listrad med space-between, men den har TRE
+   barn här och inte två: prick, innehåll, status. Utrymmet fördelades då
+   jämnt mellan alla tre, så prickens 8 px hamnade längst till vänster och
+   titeln sköts in mot mitten med ett tomt fält emellan. Läst rad såg värst
+   ut, eftersom pricken då är genomskinlig och gluggen inte förklaras av
+   något synligt. */
+.notis-list .konto-main { flex: 1 1 auto; }
+
 /* Pricken. Brandblå och 8 px, alltså samma vikt som en olästmarkering har i
    en inkorg. Den står FÖRE titeln: den säger något om hela raden, och det man
    ser först ska vara det som avgör om raden är värd att läsa. */
