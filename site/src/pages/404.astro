@@ -38,6 +38,7 @@
  * sidhuvudet tar dem vidare i ett klick.
  */
 import Base from '../layouts/Base.astro';
+import FaceMark from '../components/FaceMark.astro';
 import { coverage, formatNumber, municipalities } from '../lib/data';
 import { path } from '../lib/urls';
 
@@ -50,50 +51,133 @@ const total = coverage();
   description="Adressen leder ingenstans. Sök på verksamhetens namn eller välj kommun."
   noindex
 >
-  <article class="container page">
-    <header>
-      <p class="eyebrow">404</p>
-      <h1>Sidan finns inte</h1>
-      <p class="lede text-secondary">
-        Adressen leder ingenstans. Verksamheten kan ha bytt namn, eller så har
-        kommunen slutat lämna ut den. Sök på namnet i fältet högst upp, eller
-        välj kommun nedan.
+  <div class="container sida">
+    {/* Vårt eget ansikte i sitt obedömda läge, alltså exakt det märke sajten
+        använder när den inte vet något om en verksamhet. Det säger samma sak
+        som sidan: här finns ingenting att visa. Ingen lånad illustration och
+        ingen 404 i jättegrad, som blivit den generiska lösningen. */}
+    <FaceMark verdict={null} size={72} variant="round" />
+
+    <h1>Sidan finns inte</h1>
+    <p class="lede">
+      Verksamheten kan ha bytt namn, eller så har kommunen slutat lämna ut den.
+    </p>
+
+    <div class="vagar">
+      <a class="knapp" href="/">Till startsidan</a>
+      <a class="lank" href={path('ratta')}>Är det vi som har fel?</a>
+    </div>
+
+    {/* Slugar bär kommunen först, så den som landar här har nästan alltid rätt
+        kommun och fel verksamhet. Kommunraden tar dem vidare i ett klick och
+        låter samtidigt länkkraften rinna vidare i stället för att dö här. */}
+    <nav class="kommuner" aria-label="Kommuner">
+      <p class="rubrik">
+        {formatNumber(total.establishments)} verksamheter i
+        {' '}{total.municipalities} {total.municipalities === 1 ? 'kommun' : 'kommuner'}
       </p>
-    </header>
-
-    <h2>Kommuner</h2>
-    <p class="text-secondary">
-      {formatNumber(total.establishments)} verksamheter i
-      {' '}{total.municipalities} {total.municipalities === 1 ? 'kommun' : 'kommuner'}.
-    </p>
-
-    <ul class="kommuner">
-      {kommuner.map((m) => (
-        <li><a href={path(m.slug)}>{m.city}</a></li>
-      ))}
-    </ul>
-
-    <p class="text-secondary">
-      Är det vi som har fel? <a href={path('ratta')}>Rätta uppgiften</a>.
-    </p>
-  </article>
+      <ul>
+        {kommuner.map((m) => (
+          <li><a href={path(m.slug)}>{m.city}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
 </Base>
 
 <style>
-  .page {
+  /* Centrerad stapel med gott om luft. En 404 ska kännas som ett lugnt
+     besked, inte som ett felmeddelande. */
+  .sida {
     max-width: var(--w-page);
+    padding-block: var(--s-16);
+    text-align: center;
   }
 
-  h2 {
-    margin-top: 2.5rem;
+  h1 {
+    margin-top: var(--s-6);
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
   }
 
-  .kommuner {
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0 2rem;
+  .lede {
+    margin-top: var(--s-3);
+    margin-inline: auto;
+    max-width: 42ch;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+  }
+
+  .vagar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4) var(--s-6);
+    margin-top: var(--s-8);
+  }
+
+  .knapp {
+    padding: var(--s-3) var(--s-6);
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    color: #fff;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .knapp:hover { background: var(--brand-ink); text-decoration: none; }
+
+  .lank {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Kommunerna som chips, samma form som startsidans snabbval. En rad
+     understrukna länkar hade läst som en sidfot mitt på sidan. */
+  .kommuner {
+    margin-top: var(--s-16);
+    padding-top: var(--s-8);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .rubrik {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .kommuner ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--s-2);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kommuner a {
+    display: inline-block;
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    color: var(--text);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .kommuner a:hover {
+    border-color: transparent;
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+  }
+
+  @media (max-width: 680px) {
+    .sida { padding-block: var(--s-12); }
+    .kommuner { margin-top: var(--s-12); }
   }
 </style>
