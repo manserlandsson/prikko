@@ -54,9 +54,13 @@
  * Nu är skrivandet en ruta, och avsnittet är listan, kvittensen och knappen som
  * öppnar rutan. `#omdomen` betyder fortfarande listan och ingenting annat.
  *
- * Rutan öppnas från två håll, den här knappen och sidopanelens, via
- * review-dialog.ts. Båda ställer frågan om inloggning INUTI klicket, aldrig vid
- * sidladdning.
+ * Knappen sitter i avsnittets rubrikrad. Den har haft två andra hem, först i
+ * sidopanelen och en kort tid i sidans topprad, och båda hade samma fel: man
+ * tryckte på ett ställe och rutan öppnades någon annanstans, utanför skärmen.
+ * Den bor nu där dess verkan sker och är avsnittets enda väg in i rutan.
+ *
+ * Frågan om inloggning ställs INUTI klicket, aldrig vid sidladdning, och
+ * knappen visas därför lika mycket för den som är utloggad.
  */
 import InfoTip from './InfoTip.astro';
 // Fält, notisrutor och den tysta knappen delas med kontosidorna.
@@ -78,13 +82,44 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   data-name={establishmentName}
   data-kommun={municipalitySlug}
 >
-  <h2 class="head">
-    Besökarnas omdömen
-    <InfoTip
-      label="omdömen"
-      text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme med text läses av redaktionen innan det publiceras. Ett omdöme som bara är ett betyg publiceras direkt."
-    />
-  </h2>
+  {/* Knappen står i rubrikraden och inte längst ned i avsnittet.
+      Ägaren såg felet när den låg i sidans topprad: "borde inte skriv omdöme
+      vara på höger sidan vid omdöme?" En knapp hör hemma där dess verkan
+      sker, och rutan den öppnar är det här avsnittets ruta.
+
+      Rubrikraden och inte under listan: den som kommer hit ska se att man
+      KAN skriva innan hen läst igenom vad andra skrivit. Låg knappen efter
+      listan blev den osynlig så fort avsnittet hade fler än en handfull
+      omdömen. Samma form som kontrollhistorikens rubrikrad, som också bär
+      rubriken till vänster och en upplysning till höger. */}
+  <div class="head">
+    <h2>
+      Besökarnas omdömen
+      <InfoTip
+        label="omdömen"
+        text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme med text läses av redaktionen innan det publiceras. Ett omdöme som bara är ett betyg publiceras direkt."
+      />
+    </h2>
+
+    {/* Dold i HTML och avslöjad av skriptet, som också visar den för den som
+        är UTLOGGAD: inloggningen är ett steg på vägen när man trycker, aldrig
+        något som visas i stället för handlingen. Se start() längre ned. */}
+    <button type="button" class="btn-quiet skriv" id="review-open" hidden>
+      <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+        <path
+          d="M4.2 15.8v-2.9L13.1 4a1.6 1.6 0 0 1 2.3 0l.6.6a1.6 1.6 0 0 1 0 2.3l-8.9 8.9H4.2Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linejoin="round"></path>
+        <path
+          d="M12.3 4.8l2.9 2.9"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"></path>
+      </svg>
+      Skriv omdöme
+    </button>
+  </div>
 
   {/* Stycket som stod här är borttaget. Det sa i fyra rader precis det som
       redan står i (i)-tipset vid rubriken, och det upprepade dessutom
@@ -100,17 +135,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     Inga publicerade omdömen om {establishmentName} än.
   </p>
 
-  <div class="write">
-    <button type="button" class="btn-quiet" id="review-open" hidden>
-      Skriv ett omdöme
-    </button>
+  {/* Kvittensen står kvar på sidan och inte i rutan. Den är ett läge man ska
+      kunna komma tillbaka till, inte ett svar som försvinner när man stänger
+      något. `tabindex="-1"` för att fokus ska kunna landa här när rutan
+      stängs efter en insändning.
 
-    {/* Kvittensen står kvar på sidan och inte i rutan. Den är ett läge man
-        ska kunna komma tillbaka till, inte ett svar som försvinner när man
-        stänger något. `tabindex="-1"` för att fokus ska kunna landa här när
-        rutan stängs efter en insändning. */}
-    <p class="notice notice-wait" id="review-mine" hidden role="status" tabindex="-1"></p>
-  </div>
+      Den stannade kvar UNDER listan när knappen flyttade upp. Kvittensen är
+      ett besked om något man redan gjort och hör till avsnittets innehåll;
+      knappen är en väg in och hör till dess huvud. */}
+  <p class="notice notice-wait" id="review-mine" hidden role="status" tabindex="-1"></p>
 </section>
 
 {/*
@@ -271,12 +304,38 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 </dialog>
 
 <style>
+  /* Rubrik till vänster, knapp till höger. `baseline` och inte `center`:
+     knappen är högre än rubriken, och centrerad hade den dragit rubrikens
+     text ur linje med resten av spalten. */
   .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+    flex-wrap: wrap;
+  }
+
+  .head h2 {
     font-size: var(--fs-h-s);
     line-height: var(--lh-h-s);
     display: flex;
     align-items: center;
   }
+
+  /* Knappen bär .btn-quiet från konto.css, som saknar gap eftersom den nästan
+     alltid är enbart text. Ikonmåttet är ett glyfmått och hör inte hemma i
+     typskalan. Pennan är samma ritning som resten av sajtens ikoner: 20-ruta,
+     1,5 px streck, och den märker verbet "skriv". */
+  .skriv {
+    gap: var(--s-2);
+  }
+
+  .skriv .ikon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+  }
+
 
   /* Den visuella åtskillnaden. Omdömena ligger indragna bakom en egen
      vänsterlinje så att ögat ser att blocket hör till en annan sorts
@@ -304,19 +363,18 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     line-height: var(--lh-body-s);
   }
 
-  .write { margin-top: var(--s-4); }
-
-  .write[hidden] { display: none; }
-
   /* `hidden` överlever inte en egen display-regel.
    *
    * Knappen bär .btn-quiet, som är `display: inline-flex` i konto.css. En
    * författarregel slår webbläsarens egen `[hidden] { display: none }` oavsett
-   * specificitet, så knappen stod kvar bredvid kvittensen efter en insändning
-   * fastän skriptet satt `hidden`. Raden nedan är rättelsen, och den står här
-   * och inte i konto.css eftersom det här är den enda ytan som döljer en
-   * .btn-quiet. */
-  .write .btn-quiet[hidden] { display: none; }
+   * specificitet, så knappen stod kvar fastän skriptet satt `hidden`. Raden
+   * nedan är rättelsen, och den står här och inte i konto.css eftersom det
+   * här är den enda ytan som döljer en .btn-quiet.
+   *
+   * Den är fortfarande nödvändig efter flytten till rubrikraden: skriptet
+   * döljer knappen så snart besökaren redan har ett omdöme, och då ska
+   * kvittensen längre ned vara det enda som står. */
+  .skriv[hidden] { display: none; }
 
   /* ------------------------------------------------------------------ */
   /* Rutan                                                                */
@@ -1145,9 +1203,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         return;
       }
 
-      /* Registreringen står FÖRE hämtningen av listan. Sidopanelen frågar
-         review-dialog.ts om rutan finns, och den som trycker medan omdömena
-         laddas ska få rutan och inte reservvägen. */
+      /* Registreringen står FÖRE hämtningen av listan, så att rutan är
+         anmäld innan något som kan ta tid börjar.
+
+         Ingen annan yta öppnar rutan just nu: knappen som gjorde det från
+         sidopanelen och från sidans topprad bor sedan flytten hit, i
+         rubrikraden ovanför. Registreringen står kvar därför att
+         review-dialog.ts är den publicerade vägen in för en yta som inte kan
+         känna till den här komponentens interna funktioner, och den vägen är
+         värd att hålla öppen. Se lib/review-dialog.ts. */
       registerReviewDialog((trigger) => {
         void request(trigger);
       });

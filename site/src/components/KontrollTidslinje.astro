@@ -311,9 +311,10 @@ const label = (i: Inspection): string => {
       <span class="b-brister"></span>
     </div>
 
-    <figcaption class="caption text-muted">
-      Varje prick är en kontroll. Raden visar vad kommunen antecknade.
-    </figcaption>
+    {/* Andra meningen, "Raden visar vad kommunen antecknade", är borta. Varje
+        rad bär redan sin etikett inne i bilden. Kvar står det enda som inte
+        går att läsa ur diagrammet: vad en prick ÄR. */}
+    <figcaption class="caption text-muted">Varje prick är en kontroll.</figcaption>
   </figure>
 )}
 

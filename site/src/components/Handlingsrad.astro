@@ -15,21 +15,39 @@
  * priset. Det ser ut som att den skjuter ned det man kom för, men den är en
  * rad hög och bedömningen står kvar i första skärmen på både 1440 och 390 px.
  *
- * ## Vad som INTE flyttade
+ * ## Formen: två sidor, som Booli
+ *
+ * Boolis rad har två halvor med olika ärenden. Till vänster det man vill SE
+ * av objektet, Planritning och Karta. Till höger det man vill GÖRA med
+ * sidan, Dela och Spara. Ägaren ville ha våra två åt höger och bredvid
+ * varandra, och då blev frågan vad vänsterhalvan skulle bära.
+ *
+ * Svaret fanns redan på sidan. "Visa på karta" låg som ett led i den
+ * punktseparerade metaraden under rubriken, alltså en handling förklädd till
+ * text, och den är exakt Boolis vänsterknapp. Den är nu en knapp och heter
+ * "Karta", precis som deras.
+ *
+ *   Karta  hoppar till kartsektionen längre ned. Finns bara när kommunen
+ *          eller pipelinen har en koordinat; saknas den står vänsterhalvan
+ *          tom och de två andra ligger kvar till höger.
+ *   Följ   privat bevakning, ingen publicering, ingen granskning. Kräver
+ *          inloggning, och knappen säger det innan man klickar i stället för
+ *          att gå sönder efteråt.
+ *   Dela   operativsystemets egen delningsruta, se scriptet nedan.
+ *
+ * "Skriv omdöme" stod här en kort tid och är flyttad till omdömesavsnittet i
+ * Reviews.astro. Ägaren såg felet: "borde inte skriv omdöme vara på höger
+ * sidan vid omdöme?" Knappen låg överst medan rutan den öppnar hör till ett
+ * avsnitt långt ned, alltså klickade man på ett ställe och effekten skedde
+ * utanför skärmen. En knapp hör hemma där dess verkan sker.
+ *
+ * Bevakningen stannade av motsatt skäl: den har ingen sektion att höra till,
+ * och under rubriken "Besökarnas omdömen" hade den hamnat under en rubrik
+ * den inte har med att göra.
  *
  * Rättelsen och verksamhetens egen replikrätt är kvar i sidopanelen, se
- * ActionPanel.astro. De två vänder sig till en annan och mycket mindre
- * publik: den som driver stället. Att lyfta dem till ögonhöjd hade gjort
- * raden till fyra knappar där två av dem inte angår besökaren.
- *
- * ## Knapparna
- *
- *   Följ verksamheten   privat bevakning, ingen publicering, ingen granskning.
- *                       Kräver inloggning, och knappen säger det innan man
- *                       klickar i stället för att gå sönder efteråt.
- *   Skriv ett omdöme    öppnar skrivrutan, som bor i Reviews.astro och nås
- *                       härifrån genom review-dialog.ts.
- *   Dela                operativsystemets egen delningsruta, se nedan.
+ * ActionPanel.astro. De vänder sig till en annan och mycket mindre publik:
+ * den som driver stället.
  *
  * "Anmäl en brist" är borttagen sedan tidigare och kommer inte tillbaka.
  * Prikko är ingen tillsynsmyndighet och kan inte ta emot en anmälan om dålig
@@ -43,9 +61,11 @@ interface Props {
   municipalitySlug: string;
   /** Meningen som följer med i delningen. Skrivs av sidmallen, som vet utfallet. */
   shareText: string;
+  /** Fragment till kartsektionen. Utelämnas när verksamheten saknar koordinat. */
+  mapHref?: string;
 }
 
-const { establishmentId, establishmentName, municipalitySlug, shareText } =
+const { establishmentId, establishmentName, municipalitySlug, shareText, mapHref } =
   Astro.props;
 ---
 
@@ -56,17 +76,38 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
   data-name={establishmentName}
   data-kommun={municipalitySlug}
 >
+  {mapHref && (
+    <a class="btn-ghost med-ikon karta" href={mapHref} aria-label={`Karta över ${establishmentName}`}>
+      <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+        <path
+          d="M7.4 4.2 3.2 5.8v10l4.2-1.6 5.2 1.6 4.2-1.6v-10l-4.2 1.6-5.2-1.6Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linejoin="round"></path>
+        <path
+          d="M7.4 4.2v10.2M12.6 5.8v10"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linejoin="round"></path>
+      </svg>
+      <span class="etikett">Karta</span>
+    </a>
+  )}
+
   {/* Klockan är sajtens egen notisklocka, samma ritning som sitter i
       sidhuvudet. Bevakningen mejlar när kommunen hittar anmärkningar, och en
       klocka betyder just det. Ett hjärta, som Boolis "Spara", hade sagt
-      favorit, vilket är en annan sak. */}
+      favorit, vilket är en annan sak.
+
+      `data-klocka` och inte en klassökning i scriptet: ikonen ska gå att
+      hitta utan att scriptet känner till Astros scopeade klassnamn. */}
   <button
     type="button"
     class="btn-primary med-ikon"
     id="follow"
     aria-label={`Följ ${establishmentName}`}
   >
-    <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+    <svg class="ikon" data-klocka viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
       <path
         d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.2 4-1.7 4.6-.2.2 0 .6.3.6h11.8c.3 0 .5-.4.3-.6-.5-.6-1.7-1.6-1.7-4.6A4.5 4.5 0 0 0 10 3Z"
         stroke="currentColor"
@@ -79,32 +120,6 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
         stroke-linecap="round"></path>
     </svg>
     <span class="etikett">Följ</span>
-  </button>
-
-  {/* Pennan märker VERBET, inte omdömet. En pratbubbla hade varit den andra
-      kandidaten men betyder chatt och support minst lika ofta, och något
-      sådant erbjuder vi inte. Stjärnan är utesluten på hela sajten: den är
-      hygienbedömningens motsats i läsarens huvud och får aldrig stå bredvid
-      den. */}
-  <button
-    type="button"
-    class="btn-ghost med-ikon"
-    id="review-write"
-    aria-label={`Skriv omdöme om ${establishmentName}`}
-  >
-    <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-      <path
-        d="M4.2 15.8v-2.9L13.1 4a1.6 1.6 0 0 1 2.3 0l.6.6a1.6 1.6 0 0 1 0 2.3l-8.9 8.9H4.2Z"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linejoin="round"></path>
-      <path
-        d="M12.3 4.8l2.9 2.9"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"></path>
-    </svg>
-    <span class="etikett">Skriv omdöme</span>
   </button>
 
   {/*
@@ -140,24 +155,27 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
   </button>
 </div>
 
-{/* Tom från början. Raden är en kvittens på något man gjort, inte en
-    beskrivning av vad knappen ovanför gör. Den bär både bevakningens och
-    delningens svar, eftersom två kvittensrader intill varandra läser som
-    två pågående tillstånd i stället för ett senaste besked. */}
+{/* Bara FEL står här. En lyckad bevakning säger sitt genom knappen själv, se
+    scriptet. Raden är alltså tom nästan jämt och tar då ingen plats. */}
 <p class="kvittens caption text-muted" id="follow-note" role="status"></p>
 
 <style>
+  /*
+   * Följ och Dela ligger bredvid varandra ute till höger, som Boolis Dela och
+   * Spara. `flex-end` på raden och `margin-right: auto` på kartknappen: utan
+   * koordinat finns ingen kartknapp, och då ska de två ändå ligga kvar vid
+   * högerkanten i stället för att glida in till vänster. Formen ska inte
+   * bero på om kommunen råkar lämna koordinater.
+   */
   .handlingsrad {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: var(--s-2);
     margin-top: var(--s-4);
   }
 
-  /* Delaknappen längst till höger, som hos Booli. `margin-left: auto` och
-     inte `justify-content: space-between`: knappen ska ligga ute vid kanten
-     även när den är den enda som visas. */
-  .dela { margin-left: auto; }
+  .karta { margin-right: auto; }
 
   .btn-ghost {
     display: inline-flex;
@@ -195,9 +213,45 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
     gap: var(--s-2);
   }
 
-  .kvittens {
+  /**
+   * Klockan ringer EN gång, när bevakningen börjar.
+   *
+   * Rörelsen är en kvittens och inget annat: den säger "nu bevakar vi det
+   * här" i det ögonblick något faktiskt hände, och slutar sedan. En klocka
+   * som ringer i evighet, eller vid hovring, drar blicken för alltid och gör
+   * knappen till en distraktion mitt i den viktigaste raden på sidan.
+   *
+   * Formen är en dämpad svängning: elva grader åt ena hållet, sedan mindre
+   * och mindre tills den står still. Samma tempo och samma återhållsamhet
+   * som sajtens tre andra rörelser, ordmärkets blink och ansiktsmärkets
+   * mun. Vridpunkten ligger uppe vid klockans upphängning, inte i dess mitt,
+   * annars vaggar den som en båt i stället för att ringa.
+   *
+   * Vid `prefers-reduced-motion: reduce` nollas varje animation av den
+   * globala regeln längst ned i tokens.css. Kvittensen finns kvar i text på
+   * raden under, så ingenting går förlorat.
+   */
+  @keyframes ringning {
+    0%   { transform: rotate(0deg); }
+    15%  { transform: rotate(-11deg); }
+    30%  { transform: rotate(9deg); }
+    45%  { transform: rotate(-7deg); }
+    60%  { transform: rotate(5deg); }
+    78%  { transform: rotate(-3deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  .ikon.ringer {
+    transform-origin: 50% 20%;
+    animation: ringning .7s ease-out;
+  }
+
+  /* Ingen reserverad höjd. Den fanns för att raden inte skulle hoppa när en
+     kvittens dök upp, men nu står här bara felmeddelanden, och en permanent
+     tom rad under varje verksamhetssida är ett högre pris än ett hopp den
+     gången något faktiskt går sönder. */
+  .kvittens:not(:empty) {
     margin-top: var(--s-2);
-    min-height: var(--lh-caption);
   }
 
   /* På telefon faller ordet "Dela" bort och ikonen står ensam, precis som hos
@@ -235,7 +289,6 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
     onAuthChange,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
-  import { openReviewDialog, reviewDialogAvailable } from '../lib/review-dialog';
 
   const panel = document.getElementById('actions');
   const button = document.getElementById('follow') as HTMLButtonElement | null;
@@ -250,6 +303,28 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
 
     let following = false;
     const etikett = button.querySelector<HTMLElement>('.etikett');
+    const klocka = button.querySelector<SVGElement>('[data-klocka]');
+
+    /**
+     * Ringningen, en gång, i det ögonblick bevakningen börjar.
+     *
+     * Klassen tas bort först och läses av tvunget innan den sätts igen.
+     * Utan omritningen emellan ser webbläsaren ingen förändring i klasslistan
+     * när samma knapp trycks två gånger, och animationen startar inte om.
+     * Den städas på animationend så att elementet inte bär ett kvarglömt
+     * tillstånd nästa gång.
+     */
+    function ring() {
+      if (!klocka) return;
+      klocka.classList.remove('ringer');
+      void klocka.getBoundingClientRect();
+      klocka.classList.add('ringer');
+      klocka.addEventListener(
+        'animationend',
+        () => klocka.classList.remove('ringer'),
+        { once: true },
+      );
+    }
 
     function paint() {
       /**
@@ -330,20 +405,27 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
           if (following) {
             await unfollow(place.id);
             following = false;
-            note!.textContent = 'Borttagen.';
           } else {
             await follow(place);
             following = true;
-            /* Vad bevakningen FAKTISKT gör, i en mening. Här stod "Sparad på
-               ditt konto", vilket var sant men lämnade frågan varför man
-               skulle vilja spara något. Nu finns ett svar: nattjobbet mejlar
-               när kommunen hittar anmärkningar. Se pipeline/notify.py.
-
-               Att den inte lovar mejl vid GODKÄNDA kontroller är avsiktligt
-               och ordagrant vad utskicket gör. */
-            note!.textContent =
-              'Sparad. Du får ett mejl om kommunen hittar anmärkningar här.';
+            /* Först här, aldrig vid avföljning och aldrig vid ett misslyckat
+               anrop. Rörelsen är kvittensen på att något faktiskt hände. */
+            ring();
           }
+          /* Ingen text vid lyckad handling.
+           *
+           * Här stod "Sparad. Du får ett mejl om kommunen hittar anmärkningar
+           * här." och "Borttagen.". Ägaren: "ta bort den där jävla texten när
+           * man följer". Knappen byter från Följ till Följer, klockan ringer
+           * en gång, och det ÄR kvittensen. En mening som förklarar vad
+           * knappen nyss gjorde säger inget som inte redan står på knappen.
+           *
+           * Vad en bevakning gör hör hemma där någon söker svaret, alltså på
+           * villkorssidan, inte som en efterhandsförklaring vid varje klick.
+           *
+           * Raden nollas ändå, så att ett tidigare FELMEDDELANDE inte blir
+           * kvar under en knapp som nu lyckats. */
+          note!.textContent = '';
         } catch (err) {
           note!.textContent =
             err instanceof CommunityError ? err.message : 'Kunde inte spara. Försök igen.';
@@ -374,35 +456,6 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } =
     });
 
     void start();
-  }
-
-  /* Skriv ett omdöme -------------------------------------------------- */
-  /*
-   * Egen hanterare, utanför bevakningens. Knappen beror inte på panelens
-   * tillstånd och ska fungera även om bevakningen inte kunde startas.
-   */
-  const write = document.getElementById('review-write') as HTMLButtonElement | null;
-
-  if (write) {
-    write.addEventListener('click', async () => {
-      /* Rutan bor i Reviews och registrerar sig bara när omdömen är
-         påslagna. Är de det inte tar knappen oss till avsnittet, som skriver
-         ut varför, i stället för att göra ingenting. */
-      if (!reviewDialogAvailable()) {
-        location.hash = '#omdomen';
-        return;
-      }
-
-      /* Frågan om inloggning ställs INUTI klicket, aldrig vid sidladdning,
-         och rutan öppnas i samma klick när den är avklarad. Inloggningen är
-         ett steg på vägen till det man ville göra, inte en annan sak att
-         göra i stället. */
-      if (!(await signedIn())) {
-        if (!(await openSignIn(write))) return;
-      }
-
-      openReviewDialog(write);
-    });
   }
 
   /* Dela ---------------------------------------------------------------- */

@@ -55,10 +55,10 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
     kommer av att tre etiketter ska läsas som en uppsättning. */}
 <h2 class="rubrik">Något som inte stämmer?</h2>
 
-<p class="ingress caption text-secondary">
-  Allt på sidan kommer från kommunens egen kontroll. Ser du något som är fel,
-  säg till.
-</p>
+{/* Här stod "Allt på sidan kommer från kommunens egen kontroll. Ser du något
+    som är fel, säg till." Två meningar som förklarade varifrån datan kommer
+    och vad knappen under är till för, mellan en rubrik som frågar och en
+    knapp som svarar. Rubriken plus knappen räcker. */}
 
 <a class="btn-ghost" href={correctionHref}>Rätta en uppgift</a>
 
@@ -81,10 +81,6 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
      foto är rubriken panelens första barn, och då är luften panelens egen
      padding. */
   .rubrik:first-child { margin-top: 0; }
-
-  .ingress {
-    margin-top: var(--s-2);
-  }
 
   .btn-ghost {
     display: flex;
