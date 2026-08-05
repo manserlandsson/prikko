@@ -444,15 +444,27 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
     margin-top: var(--s-2);
   }
 
+  /* :global PÅ LÄNKARNA, OCH DET MÅSTE STÅ KVAR.
+
+     Länkarna i .offer skapas av say() med document.createElement och finns
+     alltså inte i mallen vid bygget. Astro sätter sin scope-attribut på varje
+     led i en selektorkedja, så `.offer a` kompileras till
+     `.offer[data-astro-cid-…] a[data-astro-cid-…]`. Den andra halvan matchar
+     aldrig en nod som skriptet byggt, och båda reglerna nedan föll därför
+     bort: vägarna vidare ritades i sajtens vanliga länkfärg med normal vikt,
+     så varken den dämpade tonen eller den feta förstalänken syntes.
+
+     Behållaren står kvar oscopad ovan eftersom .offer FINNS i mallen. */
+
   /* Första vägen vidare är den som svarar på frågan besökaren ställde, och
      den ska väga tyngre än den som förklarar täckningen. --brand-ink och inte
      --brand: rutan ligger på glaset, se resonemanget vid .locate. */
-  .offer a:first-child {
+  .offer :global(a:first-child) {
     font-weight: 600;
     color: var(--brand-ink);
   }
 
-  .offer a { color: var(--text-secondary); }
+  .offer :global(a) { color: var(--text-secondary); }
 
   /* Enda ytan som rullar. min-height: 0 måste stå ut: utan den vägrar ett
      flexbarn krympa under sitt innehåll, och 290 kommuner hade tryckt ut
