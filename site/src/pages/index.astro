@@ -2,9 +2,14 @@
 /**
  * Startsidan.
  *
- * Ledstjärna, mätt mot TheFork, Airbnb, Ednia, hitta.se och brittiska FSA:
- * startsidan ÄR produkten, inte en beskrivning av den. Ingen av referenserna
- * förklarar sig ovanför vikningen; första skärmen är ett instrument.
+ * Ledstjärna: booli.se, ägarens uttryckliga förebild ("den är SÅ clean"),
+ * studerad i webbläsaren 2026-08-05, inte ur minnet. Det som gör deras
+ * startsida ren: ett verkligt foto kant i kant, allt läsbart på vita kort
+ * ovanpå fotot, ETT accentbruk (deras orange finns i logotypen, en asterisk
+ * och en aktiv flik — ingen annanstans), grå fältytor utan ram, och nästan
+ * ingenting under vikningen som pockar. Samma slutsats som mätningen mot
+ * TheFork, Airbnb, hitta.se och brittiska FSA: startsidan ÄR produkten,
+ * ingen av referenserna förklarar sig ovanför vikningen.
  *
  * Strukturen, uppifrån: hero (rubrik, sökfält, snabbval), kommunerna störst
  * först, länkkolumnerna per verksamhetstyp, artiklarna, en rad om källan.
@@ -25,6 +30,18 @@
  */
 import { getCollection } from 'astro:content';
 import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
+/**
+ * Bakgrundsfotot bakom sökkortet, Boolis mönster: ett verkligt foto kant i
+ * kant, och innehållet på vita kort ovanpå. Booli använder en varm husfasad
+ * i gatunivå — närbild, mänsklig skala, inget vykort. Av våra nio stadsfoton
+ * är Linköpings det enda med samma bildspråk: varm puts, grönska, vatten,
+ * och framför allt inget landmärke. Stockholm, Örebro och Borgholm är
+ * slott och siluetter, och ett landmärke i heron hade läst som "sajten
+ * handlar om den staden". Aldrig en genererad bild, aldrig en stockbild:
+ * fotot är samma fil som kommunkortets, redan betald och redan i repo.
+ */
+import heroPhoto from '../assets/stad/linkoping.jpg';
 /* Hero-rubrikens typsnitt: Instrument Serif, systerfonten till sajtens
    Instrument Sans (samma formgivare). Självhostad via fontsource, precis som
    sansen — aldrig Google Fonts CDN. Bara latin-subsetet och bara 400 normal:
@@ -42,10 +59,10 @@ import {
   municipalityCategories,
   municipalitySummaries,
   topCategory,
-  TOP_CATEGORIES,
   type TopCategoryId,
 } from '../lib/data';
 import { SITE } from '../lib/site';
+import { quickPicks } from '../lib/snabbval';
 import { absolute, path } from '../lib/urls';
 
 const total = coverage();
@@ -85,33 +102,21 @@ const rows = byTotal.filter((m) => !withPhoto.has(m.slug));
 
 /**
  * Snabbvalsraden, mönstret från hitta.se och JobbSafari: den som inte vet vad
- * den ska skriva i fältet får de vanligaste frågorna som knappar. Varje chip
- * är en verklig sida med ett verkligt svar, aldrig en död sökning.
+ * den ska skriva i fältet får de vanligaste frågorna som knappar.
  *
- * Urvalet är räknat, inte tyckt: kategorisidorna i landets största kommun
- * (restauranger och caféer är de kategorier man väljer ett ställe ur, skolkök
- * är föräldrafrågan) plus den vanligaste kedjan i beståndet, samma lista som
- * sökpanelens "Populära sökningar" bygger på. Kedjesökningen pekar på /sok
- * och inte på ett enskilt ställe — att lyfta fram ett namngivet ställe vore
- * ett redaktionellt val vi inte har underlag för.
+ * Raden fyller också platsen där Booli visar "Senaste sökningar", och det är
+ * ett beslut, inte en brist: senaste sökningar kräver lagring i webbläsaren,
+ * och docs/14 slår fast att bara prikko.session och prikko.next får finnas
+ * utan samtycke — /cookies påstår dessutom att den listan är uttömmande.
+ * En localStorage-nyckel för sökhistorik hade gjort sidan osann samma dag
+ * och tvingat fram den kakruta utredningen uttryckligen avstod från. Räknade
+ * populära sökningar ger samma funktion (ett ifyllt förslag innan man vet
+ * vad man ska skriva) utan att lagra ett tecken hos besökaren.
+ *
+ * Urvalet bor i lib/snabbval, delat med sökpanelen och kommandopaletten:
+ * tre ytor som räknar var för sig glider isär.
  */
-const biggest = byTotal[0];
-const biggestCategories = municipalityCategories(biggest.slug);
-
-function categoryChip(id: TopCategoryId, label: string) {
-  const slice = biggestCategories.slices.find((s) => s.category.id === id);
-  // Finns inte sidan finns inte chipet. Grinden är MIN_CATEGORY_PAGE i
-  // lib/data och den ska inte dubbleras här.
-  if (!slice?.linked) return null;
-  return { label, href: path(biggest.slug, 'kategori', slice.category.slug) };
-}
-
-const quickPicks = [
-  categoryChip('restaurang', `Restauranger i ${biggest.city}`),
-  categoryChip('cafe', `Caféer i ${biggest.city}`),
-  categoryChip('skola', `Skolor och omsorg i ${biggest.city}`),
-  { label: 'Espresso House', href: '/sok/?q=Espresso%20House' },
-].filter((c) => c !== null);
+const picks = quickPicks();
 
 // ---------------------------------------------------------------------------
 // Länkkolumnerna
@@ -185,112 +190,6 @@ const articles = articleEntries
   .sort((a, b) => b.published.localeCompare(a.published))
   .slice(0, 3);
 
-// ---------------------------------------------------------------------------
-// Heroytans mönster
-// ---------------------------------------------------------------------------
-
-/**
- * Motivet i heroytans mönster: Prikkos eget ansikte, konturritat.
- *
- * Bakgrunden ska bära varumärket, inte vara dekor — därför ansiktet och inte
- * ett prickraster. Geometrin är exakt lib/face.ts (ögon, glad mun), men som
- * KONTUR i en enda mörkare blå. Det är medvetet och får inte ändras lättvindigt:
- * bedömningsansiktena är semantiska och bär grönt, gult och rött, och ett
- * fyllt eller flerfärgat ansikte i bakgrunden hade sett ut som ett betyg.
- * En blå kontur läser som textur.
- *
- * HELA motivet ligger i den här funktionen. Smileyn är under omritning
- * (Benny är på väg); när den landar byts banorna HÄR och ingen annanstans.
- */
-function motif(ink: string): string {
-  // Banorna ur lib/face.ts, avrundade till en decimal: en tiondels pixel
-  // syns inte i en bakgrund men kortar data-URI:n med en tredjedel.
-  return (
-    `<circle cx="50" cy="50" r="45.5" fill="none" stroke="${ink}" stroke-width="7"/>` +
-    `<circle cx="39.9" cy="39.1" r="6.1" fill="${ink}"/>` +
-    `<circle cx="62.6" cy="39.1" r="6.1" fill="${ink}"/>` +
-    `<path d="M32 57.5C44.2 69.2 56.5 69.2 68.7 57.5" fill="none" stroke="${ink}" stroke-width="7.9" stroke-linecap="round"/>`
-  );
-}
-
-/**
- * Plattan. Ett handlagt utkast, inte ett raster: åtta ansikten i olika
- * storlek och lutning, placerade så att ingen rad eller kolumn uppstår.
- * Rastret var förra versionens fel — åtta identiska prickar i en ruta läste
- * som tapet, medan JobbSafaris yta läser som ETT organiskt mönster för att
- * repetitionen inte går att peka ut.
- *
- * Ansikten som skjuter utanför plattkanten ritas igen förskjutna en hel
- * platta, så att mönstret möter sig självt sömlöst och kanterna får de
- * avskurna ansikten som gör att helheten läser som textur och inte som
- * utplacerade klistermärken.
- */
-function heroPattern(): string {
-  const W = 560;
-  const H = 560;
-  // Två närliggande mörka blå. Skillnaden är precis nog att ytan får djup
-  // utan att någon av dem läser som en egen färg.
-  const INK_A = '#0063B4';
-  const INK_B = '#005A9E';
-
-  interface Placed {
-    x: number;
-    y: number;
-    /** Diameter i pixlar. */
-    s: number;
-    /** Lutning i grader. Aldrig 0 — ett rakt ansikte ser utplacerat ut. */
-    r: number;
-    ink: string;
-  }
-
-  // Placeringen är ritad för hand mot en 560-ruta och sedan justerad mot
-  // skärmbild: stora och små om vartannat, diagonala siktlinjer brutna.
-  const faces: Placed[] = [
-    { x: 62, y: 88, s: 96, r: -14, ink: INK_A },
-    { x: 306, y: 34, s: 54, r: 11, ink: INK_B },
-    { x: 494, y: 130, s: 120, r: 17, ink: INK_A },
-    { x: 176, y: 232, s: 66, r: -21, ink: INK_B },
-    { x: 372, y: 318, s: 88, r: -8, ink: INK_A },
-    { x: 44, y: 400, s: 58, r: 24, ink: INK_B },
-    { x: 232, y: 470, s: 104, r: 9, ink: INK_A },
-    { x: 512, y: 500, s: 64, r: -17, ink: INK_B },
-  ];
-
-  const groups: string[] = [];
-  for (const f of faces) {
-    const k = f.s / 100;
-    // Halva diagonalen med marginal: räcker för att avgöra om ansiktet
-    // korsar en plattkant även roterat.
-    const reach = f.s * 0.58;
-    const shifts: Array<[number, number]> = [[0, 0]];
-    if (f.x - reach < 0) shifts.push([W, 0]);
-    if (f.x + reach > W) shifts.push([-W, 0]);
-    if (f.y - reach < 0) shifts.push([0, H]);
-    if (f.y + reach > H) shifts.push([0, -H]);
-    for (const [dx, dy] of shifts) {
-      const tx = (f.x + dx - 50 * k).toFixed(1);
-      const ty = (f.y + dy - 50 * k).toFixed(1);
-      groups.push(
-        `<g transform="translate(${tx} ${ty}) scale(${k.toFixed(2)}) rotate(${f.r} 50 50)">${motif(f.ink)}</g>`,
-      );
-    }
-  }
-
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">` +
-    groups.join('') +
-    '</svg>';
-  // Minimal URI-kodning för en inlinad SVG: bara tecknen CSS:en inte tål.
-  return svg
-    .replaceAll('%', '%25')
-    .replaceAll('#', '%23')
-    .replaceAll('"', "'")
-    .replaceAll('<', '%3C')
-    .replaceAll('>', '%3E');
-}
-
-const heroPatternUri = `url("data:image/svg+xml,${heroPattern()}")`;
-
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
 const jsonLd = [
@@ -327,43 +226,65 @@ const jsonLd = [
 ---
 
 <Base title={SITE.name} description={description} jsonLd={jsonLd} headerSearch={false}>
-  {/* Heron efter JobbSafaris mönster, som ägaren pekade ut: en mönstrad
-      färgyta kant i kant, och innehållet på en ljus panel ovanpå. Panelen
-      dominerar och den blå ytan är en tunn ram — hos förebilden är det
-      panelens proportion, inte färgytan, som gör att sidan ser färdig ut.
+  {/* Heron efter Boolis mönster, som ägaren pekade ut: ett verkligt foto
+      kant i kant och innehållet på ett vitt kort ovanpå. Hos Booli bär två
+      kort var sin uppgift (sökpanel och rubrik) eftersom deras sökning är
+      ett formulär med flikar och filter. Vår sökning är ETT fält, så hos
+      oss bär ett kort båda: rubrik, fält och snabbval. Fotot är obehandlat
+      och utan scrim — kortet bär all text, precis som hos förebilden.
 
-      Rubriken har Prikko som avsändare. Två tidigare versioner föll på samma
-      grund: "Kommunernas hygienkontroller" gjorde kommunerna till subjekt och
-      "Se vad inspektören såg" gjorde inspektören till det. Ägarens ord: "vår
-      handlar om att PRIKKO visar dom data". Verbet är visar, inte kollar,
-      eftersom kontrollen är kommunens och sammanställningen är vår. */}
-  {/* Mönstret sätts som inline-stil och inte via define:vars: sidans
-      mallrot är Base-komponenten, och define:vars på en sida med
-      komponentrot sprutar stilattribut på ställen den inte äger. */}
-  <div class="hero-yta" style={`background-image:${heroPatternUri}`}>
-    <div class="topp">
-      <p class="omfang">Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker</p>
-      <h1>Vi visar hur rent det&nbsp;är</h1>
+      Rubriken är besökarens egen fråga, inte vårt påstående om oss själva.
+      Tre föregångare föll på samma grund: "Kommunernas hygienkontroller"
+      gjorde kommunerna till subjekt, "Se vad inspektören såg" inspektören
+      och "Vi visar hur rent det är" oss. Frågeformen sätter läsaren i
+      subjektet, och "där du äter" täcker restaurang, café och skolkök utan
+      uppräkning och utan förkunskap om vad en hygienkontroll är.
+
+      Ingen proveniens i heron. "Byggt på kommunernas officiella
+      hygienkontroller" var ett försvar, inte ett löfte — Ratsit och hitta.se
+      leder med handlingen och objektet, aldrig med källan. Var datan kommer
+      ifrån står där det hör hemma: metodiken, källsidan, sidfoten och
+      grundraden längst ned på den här sidan. */}
+  <div class="hero">
+    {/* Fotot är LCP-elementet och laddas därför eager med hög prioritet.
+        Tom alt: bilden är stämning, inte information, och en skärmläsare
+        ska gå direkt på rubriken. */}
+    <Image
+      class="hero-foto"
+      src={heroPhoto}
+      alt=""
+      widths={[800, 1400]}
+      sizes="100vw"
+      loading="eager"
+      fetchpriority="high"
+    />
+    <div class="hero-kort">
+      <h1>Hur rent är det där du&nbsp;äter?</h1>
       <p class="under">
-        Byggt på kommunernas officiella hygienkontroller.
+        Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker.
       </p>
 
       <div class="hero-sok">
         <SiteSearch size="hero" />
       </div>
 
-      {/* Snabbvalen. Se frontmattern för urvalet. Nav, inte ul-som-pynt:
-          raden är navigation och ska läsas så av hjälpmedel. */}
-      <nav class="snabbval" aria-label="Vanliga sökningar">
-        {quickPicks.map((c) => (
-          <a class="chip" href={c.href}>
-            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-              <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6" />
-              <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            </svg>
-            {c.label}
-          </a>
-        ))}
+      {/* Snabbvalen fyller Boolis "Senaste sökningar"-plats, men räknade ur
+          beståndet i stället för lagrade i webbläsaren — se frontmattern
+          och docs/14. Nav, inte ul-som-pynt: raden är navigation och ska
+          läsas så av hjälpmedel. */}
+      <nav class="snabbval" aria-label="Populära sökningar">
+        <p class="snabbval-head eyebrow" aria-hidden="true">Populära sökningar</p>
+        <div class="chips">
+          {picks.map((c) => (
+            <a class="chip" href={c.href}>
+              <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+              {c.label}
+            </a>
+          ))}
+        </div>
       </nav>
     </div>
   </div>
@@ -480,57 +401,68 @@ const jsonLd = [
 
 <style>
   /*
-   * Den mönstrade ytan. Motivet är Prikkos eget ansikte som kontur i mörkare
-   * märkesblått — se heroPattern() i frontmattern för både varför och hur.
-   * Ingen bild hämtas, ingen byte utanför HTML-dokumentet.
-   *
-   * Panelen ovanpå är ljus och rundad. Ramen av blått är TUNN: hos JobbSafari
-   * är det panelen som dominerar och färgytan som kikar fram, och det var
-   * proportionen — inte färgen — som skilde deras färdiga hero från vår
-   * halvfärdiga. Panelen får därför en egen maxbredd (bredare än sajtens
-   * 1080-container) och ytan bara en smal kant runt om.
+   * Heron. Fotot ligger kant i kant och kortet flyter ovanpå — Boolis
+   * grundform. Det som gör deras hero ren är inte färre element utan att
+   * fotot får vara ostört: ingen scrim, inget filter, ingen text direkt på
+   * bilden. Allt läsbart står på det vita kortet, och kortet tar bara den
+   * yta det behöver. Höjden är satt så att kommunraden precis skymtar under
+   * vikningen på en vanlig laptop — sidan ska hinta att den fortsätter.
    */
-  .hero-yta {
-    background-color: var(--brand);
-    background-size: 560px 560px;
-    padding: var(--s-6) var(--s-4) var(--s-8);
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 520px;
+    padding: var(--s-16) var(--s-4);
+    overflow: hidden;
   }
 
-  .topp {
-    max-width: 1240px;
-    margin-inline: auto;
-    padding: var(--s-12) var(--s-6) 56px;
+  .hero :global(.hero-foto) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Strömmen och stenpartiet ligger i bildens mitt där kortet ändå står.
+       55 % lyfter fasaden och grönskan, det som ger heron sin värme. */
+    object-position: 50% 55%;
+  }
+
+  /* Kortet. Boolis kort är vita, knappt rundade och bär en mjuk, stor
+     skugga — det är skuggan, inte en kant, som lyfter dem från fotot.
+     Padding i deras klass: rejäl. Maxbredden är fältets 600 plus luft. */
+  .hero-kort {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    padding: var(--s-12) var(--s-8);
     background: var(--card);
-    border-radius: 24px;
+    border-radius: var(--r-card);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 24px 60px rgba(0, 0, 0, .22);
     text-align: center;
-  }
-
-  /* Omfångsraden, JobbSafaris "Sök bland över 67 945 lediga jobb". Liten och
-     sekundär: den är en försats till rubriken, inte en rubrik själv. */
-  .omfang {
-    margin-bottom: var(--s-3);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
   }
 
   /* Rubriken i Instrument Serif — sajtens enda serif, och den används BARA
      här. En displayfont på en rad gör raden till ett avsändarmärke; på två
      ställen vore den ett typsnittsbyte. Vikten är 400 (serifen har ingen
      annan) och graden därför högre än sansens display-token: en lätt serif
-     i 40 px väger mindre än en halvfet sans i 38. */
-  .topp h1 {
+     i 48 px väger ungefär som en halvfet sans i 40. */
+  .hero-kort h1 {
     margin-inline: auto;
     max-width: 24ch;
     font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
     font-weight: 400;
-    font-size: 56px;
-    line-height: 60px;
+    font-size: 48px;
+    line-height: 54px;
     letter-spacing: -.01em;
   }
 
+  /* En rad, Ratsit-formen: handlingen och objektet, aldrig källan. */
   .under {
     margin-top: var(--s-3);
+    margin-inline: auto;
+    max-width: 52ch;
     font-size: var(--fs-body);
     line-height: var(--lh-body);
     color: var(--text-secondary);
@@ -546,9 +478,14 @@ const jsonLd = [
 
   /* Snabbvalen: pillerchips i fältets formspråk, ett steg lättare. Vit yta
      och hårlinje som fältet, aldrig en egen färg — raden ska läsa som
-     förslag, inte som knappar med egen vilja. */
-  .snabbval {
-    margin-top: var(--s-4);
+     förslag, inte som knappar med egen vilja. Etiketten är Boolis "Senaste
+     sökningar"-rad i vår tappning; för skärmläsare bär nav-elementets
+     aria-label samma ord, därför aria-hidden på den synliga. */
+  .snabbval { margin-top: var(--s-6); }
+
+  .snabbval-head { margin-bottom: var(--s-2); }
+
+  .chips {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -801,12 +738,14 @@ const jsonLd = [
   }
 
   @media (max-width: 680px) {
-    .hero-yta { padding: var(--s-3) var(--s-3) var(--s-6); }
-    .topp { padding: var(--s-8) var(--s-4) var(--s-8); border-radius: 16px; }
+    /* Fotot krymper med kortet men försvinner aldrig: en smal remsa foto
+       runt kortet är hela skillnaden mot en vit sida. */
+    .hero { min-height: 0; padding: var(--s-8) var(--s-3); }
+    .hero-kort { padding: var(--s-8) var(--s-4); }
 
-    /* Serifen tål mer grad än sansen gjorde, men fyra ord ska fortfarande
+    /* Serifen tål mer grad än sansen gjorde, men frågan ska fortfarande
        rymmas på två rader i den smala spalten. */
-    .topp h1 { font-size: 40px; line-height: 44px; }
+    .hero-kort h1 { font-size: 36px; line-height: 41px; }
 
     /* Chipsen radbryts; de två kategorichipsen först och kedjan sist, så
        den som klipps av vikningen är den minst lokala. Ingen horisontell
