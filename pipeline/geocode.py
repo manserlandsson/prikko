@@ -8,11 +8,27 @@ uppslag i pipeline/geocode_cache.json. Nästa körning läser cachen och rör
 inte nätet — adresser ändras sällan, och att fråga om samma sak varje natt är
 varken snabbt eller artigt.
 
-    --refresh   hämta om kommunens adresspunkter från Overpass
+    --kalla     auto (förvalt), lantmateriet eller osm
+    --refresh   räkna om uppslagen även för adresser som finns i cachen
 
-Källa och villkor är beskrivna i prikko/geocode.py. Kort: OpenStreetMap under
-ODbL, hämtat med två Overpass-frågor i stället för tusentals uppslag mot en
-geokodningstjänst, och attribution krävs där koordinaten visas.
+TVÅ ADRESSKÄLLOR
+----------------
+`auto` väljer Lantmäteriets belägenhetsadresser när kommunens GeoPackage-fil
+ligger i data/interim/, annars OpenStreetMap. Registret är Sveriges
+officiella adressregister och är fullständigt där OSM är ojämn, så ordningen
+är inte förhandlingsbar: OSM är reserven, inte förstahandsvalet.
+
+    OpenStreetMap    ODbL 1.0, © OpenStreetMap contributors.
+                     Hämtas med två Overpass-frågor i stället för tusentals
+                     uppslag mot en geokodningstjänst. Se prikko/geocode.py.
+
+    Lantmäteriet     CC BY 4.0, © Lantmäteriet. Kräver behörighet i
+                     Geotorget. Se prikko/lantmateriet.py och
+                     fetch_belagenhetsadresser.py.
+
+Båda kräver attribution där koordinaten visas, och sidan ska kunna säga
+vilken av dem en enskild nål kommer ur. Därför bär varje verksamhet sitt
+`geoSource`, och datafilens `geocoding` bär källans licens och attribution.
 """
 
 from __future__ import annotations
@@ -31,11 +47,14 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from prikko import lantmateriet  # noqa: E402
 from prikko.geocode import (  # noqa: E402
     MATCHED,
     MISS_NO_ADDRESS,
     MISS_UNPARSEABLE,
     MUNICIPALITIES,
+    SOURCE_LANTMATERIET,
+    SOURCE_OSM,
     AddressIndex,
     Lookup,
     Match,
@@ -43,6 +62,24 @@ from prikko.geocode import (  # noqa: E402
     parse_address,
     verify,
 )
+
+#: Vad datafilens `geocoding` ska säga om respektive källa. Licensen och
+#: attributionen står här och ingen annanstans, så att en fil aldrig kan bära
+#: fel villkor för sina koordinater.
+PROVENANCE = {
+    SOURCE_OSM: {
+        "method": "derived",
+        "source": "OpenStreetMap via Overpass API",
+        "licence": "ODbL 1.0",
+        "attribution": "© OpenStreetMap contributors",
+    },
+    SOURCE_LANTMATERIET: {
+        "method": "derived",
+        "source": "Lantmäteriet, Belägenhetsadress Nedladdning, vektor",
+        "licence": "CC BY 4.0",
+        "attribution": "© Lantmäteriet",
+    },
+}
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 
@@ -55,14 +92,16 @@ ENDPOINTS = (
 
 ROOT = Path(__file__).resolve().parent
 CACHE_FILE = ROOT / "geocode_cache.json"
-# Mellanfil, inte källdata. Ligger utanför versionshanteringen: den är stor,
-# den är ett ODbL-utdrag, och den går att hämta igen.
+# Mellanfiler, inte källdata. Ligger utanför versionshanteringen: de är stora,
+# de är utdrag ur någon annans datamängd, och de går att hämta igen.
 EXTRACT_DIR = ROOT / "data" / "interim"
 
 CACHE_NOTE = (
-    "Härledda koordinater. Källa: OpenStreetMap (ODbL), hämtat via Overpass. "
-    "Nyckel: <kommunkod>|<normaliserad adress>. Poster utan lat/lng är "
-    "medvetet tomma — se reason. Regenereras med pipeline/geocode.py."
+    "Härledda koordinater. Källor: OpenStreetMap (ODbL) via Overpass och "
+    "Lantmäteriets belägenhetsadresser (CC BY 4.0). Nyckel: "
+    "<kommunkod>|<normaliserad adress> för OSM, <kommunkod>|<källa>|"
+    "<normaliserad adress> för övriga. Poster utan lat/lng är medvetet "
+    "tomma — se reason. Regenereras med pipeline/geocode.py."
 )
 
 
@@ -179,7 +218,12 @@ def forget(establishment: dict) -> None:
     establishment.pop("geoPrecision", None)
 
 
-def resolve(index: AddressIndex, raw: Optional[str], municipality) -> tuple[Optional[Match], str]:
+def resolve(
+    index: AddressIndex,
+    raw: Optional[str],
+    municipality,
+    allow_neighbour: bool = True,
+) -> tuple[Optional[Match], str]:
     """Slå upp en adress och verifiera träffen innan den får finnas."""
     if not raw or not raw.strip():
         return None, MISS_NO_ADDRESS
@@ -187,7 +231,7 @@ def resolve(index: AddressIndex, raw: Optional[str], municipality) -> tuple[Opti
     if address is None:
         return None, MISS_UNPARSEABLE
 
-    result: Lookup = index.lookup(address)
+    result: Lookup = index.lookup(address, allow_neighbour=allow_neighbour)
     if result.match is None:
         return None, result.reason
 
@@ -197,38 +241,83 @@ def resolve(index: AddressIndex, raw: Optional[str], municipality) -> tuple[Opti
     return result.match, MATCHED
 
 
-def process(path: Path, entries: dict, refresh: bool) -> Counter:
+def choose_source(code: str, requested: str) -> str:
+    """Vilken adresskälla körningen ska använda för kommunen.
+
+    `auto` tar Lantmäteriet när filen finns. Ber någon uttryckligen om
+    Lantmäteriet och filen saknas ska körningen STANNA, inte tyst falla
+    tillbaka på OSM: skillnaden syns i datafilen som en annan licens och en
+    annan attribution, och den ska aldrig bytas bakom ryggen på den som körde.
+    """
+    gpkg, _ = lantmateriet.extract_dir_paths(EXTRACT_DIR, code)
+    if requested == SOURCE_LANTMATERIET:
+        if not gpkg.exists():
+            raise SystemExit(
+                f"Saknar {gpkg}. Hämta den först:\n"
+                f"    python3 pipeline/fetch_belagenhetsadresser.py {code}"
+            )
+        return SOURCE_LANTMATERIET
+    if requested == SOURCE_OSM:
+        return SOURCE_OSM
+    return SOURCE_LANTMATERIET if gpkg.exists() else SOURCE_OSM
+
+
+def build_index(code: str, source: str, refresh: bool):
+    """Bygg adressindexet och den rimlighetsram träffarna prövas mot."""
+    if source == SOURCE_LANTMATERIET:
+        gpkg, metadata_path = lantmateriet.extract_dir_paths(EXTRACT_DIR, code)
+        metadata = lantmateriet.load_metadata(metadata_path)
+        index = lantmateriet.build_index(gpkg)
+        print(
+            f"  Lantmäteriet: {index.points} adresspunkter på {index.streets} "
+            f"adressområden (uttag {metadata.get('updated')})",
+            file=sys.stderr,
+        )
+        # Kommunens egen utsträckning ur uttaget slår en handskriven radie.
+        return index, lantmateriet.bounds_from_stac(code, metadata["bbox"])
+
+    municipality = MUNICIPALITIES.get(code)
+    if municipality is None:
+        raise SystemExit(
+            f"Ingen mittpunkt definierad för kommun {code}; se prikko/geocode.py"
+        )
+    if refresh:
+        stale = EXTRACT_DIR / f"osm_addresses_{code}.json"
+        if stale.exists():
+            stale.unlink()
+    index = AddressIndex.from_overpass(fetch_extract(code))
+    print(
+        f"  OSM: {index.points} adresspunkter på {index.streets} gator",
+        file=sys.stderr,
+    )
+    return index, municipality
+
+
+def process(path: Path, entries: dict, refresh: bool, requested: str) -> Counter:
     payload = json.loads(path.read_text(encoding="utf-8"))
     code = payload["municipality"]["code"]
     name = payload["municipality"]["name"]
     establishments = payload["establishments"]
 
-    municipality = MUNICIPALITIES.get(code)
-    if municipality is None:
-        raise SystemExit(f"Ingen mittpunkt definierad för kommun {code}; se prikko/geocode.py")
-
-    print(f"{name}: {len(establishments)} verksamheter", file=sys.stderr)
-
-    if refresh:
-        stale = EXTRACT_DIR / f"osm_addresses_{code}.json"
-        if stale.exists():
-            stale.unlink()
+    source = choose_source(code, requested)
+    print(f"{name}: {len(establishments)} verksamheter, källa {source}", file=sys.stderr)
 
     unknown = {
-        cache_key(code, e["address"])
+        cache_key(code, e["address"], source)
         for e in establishments
-        if e.get("address") and cache_key(code, e["address"]) not in entries
+        if e.get("address") and cache_key(code, e["address"], source) not in entries
     }
 
     index: Optional[AddressIndex] = None
+    municipality = None
     if unknown or refresh:
-        index = AddressIndex.from_overpass(fetch_extract(code))
-        print(
-            f"  OSM: {index.points} adresspunkter på {index.streets} gator",
-            file=sys.stderr,
-        )
+        index, municipality = build_index(code, source, refresh)
     else:
         print("  alla adresser fanns i cachen — inga nätanrop", file=sys.stderr)
+
+    # Lantmäteriets register är fullständigt. Saknas numret finns adressen
+    # inte, och grannporten är då inte ett närmevärde utan ett annat hus.
+    allow_neighbour = source == SOURCE_OSM
 
     stats: Counter = Counter()
     now = datetime.now(timezone.utc).date().isoformat()
@@ -240,11 +329,11 @@ def process(path: Path, entries: dict, refresh: bool) -> Counter:
             forget(establishment)
             continue
 
-        key = cache_key(code, raw)
+        key = cache_key(code, raw, source)
         cached = entries.get(key)
-        if cached is None:
+        if cached is None or refresh:
             assert index is not None
-            match, reason = resolve(index, raw, municipality)
+            match, reason = resolve(index, raw, municipality, allow_neighbour)
             cached = {
                 "lat": match.lat if match else None,
                 "lng": match.lng if match else None,
@@ -274,10 +363,7 @@ def process(path: Path, entries: dict, refresh: bool) -> Counter:
         "source",
         "geocoding",
         {
-            "method": "derived",
-            "source": "OpenStreetMap via Overpass API",
-            "licence": "ODbL 1.0",
-            "attribution": "© OpenStreetMap contributors",
+            **PROVENANCE[source],
             "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         },
     )
@@ -288,19 +374,28 @@ def process(path: Path, entries: dict, refresh: bool) -> Counter:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument(
-        "--refresh", action="store_true", help="hämta om adresspunkterna från Overpass"
+        "--kalla",
+        choices=("auto", SOURCE_LANTMATERIET, SOURCE_OSM),
+        default="auto",
+        help="adresskälla; auto tar Lantmäteriet när uttaget finns",
+    )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="räkna om uppslagen även för adresser som redan finns i cachen",
     )
     args = parser.parse_args()
 
     entries = load_cache()
     for path in args.files:
-        stats = process(path, entries, args.refresh)
+        stats = process(path, entries, args.refresh, args.kalla)
         total = sum(v for k, v in stats.items() if not k.startswith("precision:"))
         placed = stats[MATCHED]
-        print(f"  {placed} av {total} fick koordinat", file=sys.stderr)
+        share = f" ({placed / total:.0%})" if total else ""
+        print(f"  {placed} av {total} fick koordinat{share}", file=sys.stderr)
         for reason, count in sorted(stats.items()):
             print(f"    {reason}: {count}", file=sys.stderr)
         save_cache(entries)
