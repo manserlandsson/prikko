@@ -2,22 +2,23 @@
 /**
  * Gatubild på verksamheten.
  *
- * Bilden serveras direkt — ingen knapp att klicka, ingen iframe, inget
+ * Bilden serveras direkt, utan knapp att klicka, utan iframe och utan
  * samtycke. Antingen finns bilden och visas, eller så finns den inte och
- * panelen börjar med kartan i stället.
+ * panelen börjar med handlingsraden i stället. Någon platshållare finns inte:
+ * en tom ruta där en bild borde vara läser som ett fel, och 58 procent av
+ * sidorna kommer aldrig att ha en bild.
  *
  * `image.url` pekar på VÅR kopia i vår egen objektlagring, aldrig på källans
  * adress. Tidigare stod Mapillarys `thumb_1024_url` här, och den är signerad
  * med en utgångstid: bilderna slutade visas en tid efter varje bygge utan att
- * något klagade. Pipelinen laddar nu ned bytesen, vilket CC BY-SA uttryckligen
+ * något klagade. Pipelinen laddar nu ned bytesen, vilket licensen uttryckligen
  * tillåter. Se pipeline/prikko/imagery.py.
  *
- * Attributionen är ett licensvillkor och inte en artighet. Mapillarys
- * utvecklarvillkor kräver dessutom att deras logotyp visas och inte bara en
- * textlänk — se kommentaren vid `logo` nedan för vad som återstår där.
+ * Attributionen är ett licensvillkor och inte en artighet, och för Mapillary
+ * är den hårdare än en textrad. Se MAPILLARY_LOGO nedan.
  *
- * `loading="lazy"` plus explicita mått: bilden ska aldrig orsaka layoutskift,
- * och den ska aldrig konkurrera med sidans LCP. Bedömningen är hjälten.
+ * `loading="lazy"`: bilden ska aldrig konkurrera med sidans LCP. Bedömningen
+ * är hjälten, inte fasaden.
  */
 import type { StreetImage } from '../lib/data';
 
@@ -31,8 +32,8 @@ const { image, name } = Astro.props;
 /**
  * Fångstdatum är ett ISO-datum (YYYY-MM-DD), så som kolumnen `captured_at` är
  * deklarerad. Tidigare skrev pipelinen Mapillarys epoktid i millisekunder hit
- * och sidan tolkade den som ett tal — två oförenliga former för samma fält.
- * Nu normaliseras den i pipelinen och läses som ett datum här.
+ * och sidan tolkade den som ett tal, alltså två oförenliga former för samma
+ * fält. Nu normaliseras den i pipelinen och läses som ett datum här.
  */
 const year = /^\d{4}/.exec(image.capturedAt ?? '')?.[0] ?? null;
 
@@ -53,64 +54,149 @@ const credit = CREDIT[source];
 const href = credit?.href(image.id) ?? null;
 
 /**
+ * MAPILLARYS LOGOTYP ÄR ETT VILLKOR, INTE EN DEKORATION.
+ *
+ * Villkoren på mapillary.com/terms, avsnitt 11, kontrollerade 2026-08-05:
+ *
+ *   "If you are downloading individual images and serving them from your own
+ *    servers, you must attribute the image(s) by visibly displaying the
+ *    Mapillary logo and linking back to the Mapillary homepage or
+ *    corresponding Mapillary image page."
+ *
+ * Det är precis vad vi gör: vi laddar ned och serverar själva. En textlänk
+ * räcker alltså inte. Avsnitt 7 förbjuder samtidigt att logotypen kopieras
+ * eller IMITERAS, så den får inte ritas av på fri hand eller återskapas ur
+ * minnet. Den ska hämtas i original från Mapillarys varumärkessida och läggas
+ * som `site/public/mapillary-logo.svg`.
+ *
+ * Så länge filen saknas visas ingen Mapillary-bild alls. Det är med avsikt och
+ * det är det försiktiga valet: att publicera bilden utan den attribution
+ * villkoren kräver är ett avtalsbrott, medan att låta bli att visa den bara
+ * är en tom panelplats som sidan ändå är byggd för. Lägg filen på plats och
+ * bilderna dyker upp av sig själva vid nästa bygge.
+ *
+ * Panoramax ställer inget logotypkrav. Deras bilder visas oavsett.
+ *
+ * Filen letas upp med import.meta.glob och inte med fs, för att sökvägen ska
+ * gälla. Ett första försök läste `new URL(..., import.meta.url)`, och den
+ * pekar i ett Astro-bygge på den paketerade modulen och inte på källfilen, så
+ * kontrollen svarade nej även när filen låg på plats. En glob löses ut av
+ * Vite vid bygget, träffar noll eller en fil utan att bygget klagar, och ger
+ * tillbaka en innehållshashad adress.
+ */
+const logoMatches = import.meta.glob<string>('../brand/mapillary-logo.*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const MAPILLARY_LOGO = Object.values(logoMatches)[0];
+
+const needsLogo = source === 'mapillary';
+const blockedForMissingLogo = needsLogo && !MAPILLARY_LOGO;
+
+if (blockedForMissingLogo && !(globalThis as any).__prikkoMapillaryLogoWarned) {
+  (globalThis as any).__prikkoMapillaryLogoWarned = true;
+  console.warn(
+    '\n  Mapillary-bilder hoppas över i bygget: site/src/brand/mapillary-logo.svg\n' +
+      '  saknas. Mapillarys villkor avsnitt 11 kräver deras logotyp när vi serverar\n' +
+      '  bilden själva. Hämta originalfilen från Mapillarys varumärkessida och lägg\n' +
+      '  den där, så visas bilderna igen. Rita den inte av: avsnitt 7 förbjuder det.\n',
+  );
+}
+
+/**
  * Attributionstexten kommer från databasen när den finns, så att licensraden
  * följer bilden i stället för att gissas här. Pipelinen skriver
- * "fotograf / Källa, CC BY-SA 4.0" — CC BY-SA kräver att upphovspersonen
- * namnges, inte bara plattformen. Allt före första kommatecknet blir länktext,
- * resten licensrad. Reserven är källans namn.
+ * "fotograf / Källa, licens", eftersom CC BY-SA kräver att upphovspersonen
+ * namnges och inte bara plattformen. Allt före första kommatecknet blir
+ * länktext, resten licensrad.
  */
 const attribution =
   image.attribution ??
-  (credit ? `${credit.label}, CC BY-SA 4.0` : 'Verksamhetens egen bild');
+  (credit ? `${credit.label}, CC BY-SA` : 'Verksamhetens egen bild');
 const [creditLabel, ...licenceParts] = attribution.split(',');
 const licence = licenceParts.join(',').trim();
 
 /**
- * CC BY-SA 4.0 §3(a)(1)(C): den som delar verket vidare ska ange licensens
- * URI. Därför är licensraden en länk och inte bara text.
+ * Licensens URI ska anges, men bara den vi faktiskt känner till.
+ *
+ * Koden i `image.licence` kommer från pipelinen och är bildens egen. Mapillarys
+ * villkor säger "Creative Commons Share Alike (CC BY-SA)" utan versionsnummer,
+ * så för deras bilder pekar länken till villkoren där licensen står, i stället
+ * för till en versionsdeklaration vi inte kan belägga. Panoramax anger
+ * versionen per bild och får CC:s egen sida.
  */
-const licenceHref = /CC BY-SA/i.test(licence)
-  ? 'https://creativecommons.org/licenses/by-sa/4.0/deed.sv'
-  : null;
+const LICENCE_HREF: Record<string, string> = {
+  'CC-BY-SA-4.0': 'https://creativecommons.org/licenses/by-sa/4.0/deed.sv',
+  'CC-BY-SA': 'https://www.mapillary.com/terms',
+};
+const licenceHref = image.licence ? LICENCE_HREF[image.licence] ?? null : null;
 ---
 
-<figure class="photo">
-  <img
-    src={image.url}
-    alt={`Gatubild vid ${name}`}
-    width="600"
-    height="400"
-    loading="lazy"
-    decoding="async"
-  />
-  <figcaption class="text-muted">
-    Gatubild {year && `från ${year} `}·{' '}
-    {/*
-      ÅTERSTÅR, och det är en manuell uppgift: Mapillarys utvecklarvillkor
-      kräver att bilder attribueras genom att "prominently displaying the
-      Mapillary logo and including a link". Länken finns, logotypen inte.
-      Den ska hämtas från Mapillarys egna varumärkessidor och läggas i brand/,
-      inte ritas av på fri hand — en felaktig återgivning av någon annans
-      varumärke är sämre än ingen. Tills dess står källans namn som text.
-    */}
-    {href ? (
-      <a href={href} target="_blank" rel="noopener noreferrer">{creditLabel}</a>
-    ) : (
-      <span>{creditLabel}</span>
-    )}{licence && ', '}{licence && (licenceHref ? (
-      <a href={licenceHref} target="_blank" rel="noopener noreferrer">{licence}</a>
-    ) : (
-      <span>{licence}</span>
-    ))}
-  </figcaption>
-</figure>
+{!blockedForMissingLogo && (
+  <figure class="photo">
+    <img
+      src={image.url}
+      alt={`Gatubild vid ${name}`}
+      width="600"
+      height="400"
+      loading="lazy"
+      decoding="async"
+      data-street-photo
+    />
+    <figcaption class="text-muted">
+      <span class="line">
+        Gatubild {year && `från ${year} `}·{' '}
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">{creditLabel}</a>
+        ) : (
+          <span>{creditLabel}</span>
+        )}{licence && ', '}{licence && (licenceHref ? (
+          <a href={licenceHref} target="_blank" rel="noopener noreferrer">{licence}</a>
+        ) : (
+          <span>{licence}</span>
+        ))}
+      </span>
+      {needsLogo && (
+        <a
+          class="logo"
+          href="https://www.mapillary.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Mapillary"
+        >
+          <img src={MAPILLARY_LOGO} alt="Mapillary" width="72" height="16" loading="lazy" />
+        </a>
+      )}
+    </figcaption>
+  </figure>
+)}
+
+{/*
+  En bild som inte går att hämta ska ta med sig sin bildtext ut.
+
+  Utan det här blir utfallet exakt den trasiga ruta med söndrig ikon som hela
+  komponenten är skriven för att undvika, och den skulle stå kvar under en
+  rubrik som lovar en gatubild. Objekt kan försvinna ur lagringen, en
+  uppladdning kan vara halv, och en URL som var sann vid bygget behöver inte
+  vara det en månad senare. Skriptet är sidans sista försvar mot det, inte
+  dess normalfall.
+*/}
+<script is:inline>
+  document.querySelectorAll('img[data-street-photo]').forEach((img) => {
+    img.addEventListener('error', () => img.closest('figure')?.remove(), { once: true });
+    // Bilder som redan hunnit misslyckas innan skriptet kördes har complete
+    // satt men ingen naturlig bredd.
+    if (img.complete && img.naturalWidth === 0) img.closest('figure')?.remove();
+  });
+</script>
 
 <style>
   .photo {
     margin: 0 0 var(--s-3);
   }
 
-  img {
+  .photo > img {
     display: block;
     width: 100%;
     height: 160px;
@@ -120,8 +206,34 @@ const licenceHref = /CC BY-SA/i.test(licence)
   }
 
   figcaption {
-    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    margin-top: var(--s-1);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
+  }
+
+  /* Bildtexten får krympa och radbrytas, logotypen aldrig: den är ett villkor
+     och ska vara läsbar även när fotografens namn är långt. */
+  .line {
+    min-width: 0;
+  }
+
+  .logo {
+    flex: none;
+    display: block;
+    opacity: 0.65;
+  }
+
+  .logo:hover {
+    opacity: 1;
+  }
+
+  .logo img {
+    display: block;
+    height: 16px;
+    width: auto;
   }
 </style>
