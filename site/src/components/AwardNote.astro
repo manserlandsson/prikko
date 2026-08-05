@@ -1,49 +1,37 @@
 ---
 /**
- * Utmärkelsen på verksamhetens egen sida, som ett märke vid bedömningen.
+ * Utmärkelsen på verksamhetens egen sida, som ett sigill vid bedömningen.
  *
- * ## Varför den inte längre är ett fält
+ * ## Tre former, och varför det blev den här
  *
- * Den var ett brett grått fält mellan nyckeltalen och kontrollhistoriken, med
- * sigill, rubrik, en mening om serien, en länk till utgåvan och ibland två
- * meningar till. Ägaren underkände den två gånger, sist så här: "utmärkelsen
- * sitter superfult här ... ser sjukt fult ... överförklarat också."
+ * 1. Ett brett grått FÄLT mellan nyckeltalen och kontrollhistoriken, med
+ *    sigill, rubrik, en mening om serien och en länk. Ägaren underkände det:
+ *    "utmärkelsen sitter superfult här ... överförklarat också". Det var en
+ *    låda i en huvudkolumn vars hela form bygger på att ingenting är inramat.
+ * 2. Ett PILLER i rubrikraden, bredvid "Ren historik". Lådan försvann, men
+ *    det gjorde utmärkelsen med: "varför tog du bort utmärkelsen". Ett
+ *    tunt piller bland andra piller är inget erkännande.
+ * 3. SIGILLET, ute till höger på bedömningsraden. Det är den form märket
+ *    faktiskt har, det står bredvid det besked det hör ihop med, och det
+ *    skjuter ingenting nedåt eftersom raden redan är så hög som ansiktet.
  *
- * Två fel, och de hängde ihop. Fältet var en LÅDA i en huvudkolumn vars hela
- * form bygger på att ingenting är inramat, se sidmallen. Och det låg inklämt
- * mellan två avsnitt det inte hörde ihop med, medan sidan redan hade rätt
- * plats: bredvid bedömningen står "Ren historik", och de två säger samma
- * sorts sak om samma verksamhet. Två erkännanden på två ställen med ett
- * statistikblock emellan var det som gjorde sidan rörig.
+ * "Ren historik" står inte längre intill. Den räknades vid varje bygge ur
+ * samma serie kontroller som utmärkelsen vilar på, alltså sade den inget som
+ * inte redan stod bredvid. Se sidmallen.
  *
- * ## Vad som försvann med lådan
+ * All brödtext följde med ut i steg 2 och kommer inte tillbaka. "Nio
+ * kontroller i rad utan anmärkning" är utgåvans KRITERIUM och står på
+ * utgåvesidan, ett klick bort, tillsammans med datumintervall och frysdatum.
  *
- * All brödtext. "Nio kontroller i rad utan anmärkning" är utgåvans KRITERIUM
- * och står på utgåvesidan, ett klick bort, tillsammans med datumintervall och
- * frysdatum. Raden om äldre utgåvor och meningen om att märket avser just den
- * utgåvan gick samma väg. Årtalet i pillret säger redan att märket är
- * historiskt, och den som vill veta mer följer länken.
- *
- * Sigillet står inte heller kvar. Kransen är 507 mot 236, alltså bred och
- * låg, och i den storlek som får plats bredvid en rubrik hade den blivit en
- * fläck. Ett piller i mässing säger samma sak läsbart. Sigillet lever kvar
- * där det har plats att vara ett sigill, på utgåvesidorna.
- *
- * ## Skillnaden mot "Ren historik"
- *
- * Kvar att hålla isär, och det är därför bägge märkena får stå:
- *
- * - MÄRKET här är historiskt. Det säger att verksamheten fanns med i en
- *   namngiven årsutgåva. Det blir aldrig osant och tas aldrig bort.
- * - "Ren historik" bredvid är NULÄGET, satt av `e.distinction` vid varje
- *   bygge, och försvinner samma dag kommunen hittar en avvikelse.
- *
- * Årtalet är hela skälet till att de kan stå intill varandra utan att säga
- * emot sig själva: ett märke från 2026 bredvid "Brister som kvarstår" läser
- * som två sanningar om olika tidpunkter, inte som en motsägelse.
+ * Märket är historiskt: det säger att verksamheten fanns med i en namngiven
+ * årsutgåva, blir aldrig osant och tas aldrig bort. Årtalet i ritningen är
+ * hela skälet till att det kan stå bredvid vilken bedömning som helst utan
+ * att säga emot den, också "Brister som kvarstår" nästa år.
  */
+import AwardSeal from './AwardSeal.astro';
 import { path } from '../lib/urls';
 import { awardsFor } from '../lib/utmarkelser';
+import { markTitle } from '../lib/marke';
 import type { Establishment } from '../lib/data';
 
 interface Props {
@@ -58,30 +46,27 @@ const newest = awardsFor(e.municipality.slug, e.slug)[0];
 ---
 
 {newest && (
-  <a class="utmarkelse" href={path('utmarkelser', newest.year)}>
-    Utmärkelsen {newest.year}
+  <a class="utmarkelse" href={path('utmarkelser', newest.year)} title={markTitle(newest.year)}>
+    <AwardSeal year={newest.year} width={132} decorative />
+    <span class="visually-hidden">{markTitle(newest.year)}</span>
   </a>
 )}
 
 <style>
-  /* Samma form som "Ren historik" intill, och det är avsikten: två märken av
-     samma sort ska se ut som två märken av samma sort. Skillnaden är att det
-     här är en länk, alltså har det ett mål och en hovring. */
+  /* Ingen ram och ingen platta. Ritningen bär sin egen form, och en ram runt
+     ett sigill är en låda runt en låda. */
   .utmarkelse {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    font-weight: 600;
-    letter-spacing: 0;
-    color: var(--distinction);
-    border: 1px solid color-mix(in srgb, var(--distinction) 45%, transparent);
-    border-radius: var(--r-pill);
-    padding: 2px 9px;
-    white-space: nowrap;
+    flex: none;
+    display: block;
+    line-height: 0;
+    transition: opacity .15s ease;
   }
 
-  .utmarkelse:hover {
-    background: color-mix(in srgb, var(--distinction) 10%, transparent);
-    color: var(--distinction);
-    text-decoration: none;
+  .utmarkelse:hover { opacity: .78; }
+
+  /* Under 640 px står sigillet under beskedet i stället för bredvid, se
+     sidmallen, och då får det inte ta halva bredden. */
+  @media (max-width: 640px) {
+    .utmarkelse :global(.seal) { width: 104px; height: auto; }
   }
 </style>

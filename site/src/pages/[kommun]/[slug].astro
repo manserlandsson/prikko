@@ -72,7 +72,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
-import { DISTINCTION, MISSING, SITE, VERDICT } from '../../lib/site';
+import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 
 export async function getStaticPaths() {
@@ -332,36 +332,38 @@ const breadcrumbs = {
       <a href={path(kommun.slug)}>{kommun.city}</a>
     </nav>
 
-    {/* Sidhuvudet efter Boolis: namnet, och under det en tyst rad med typ,
-        adress och stad skilda av punkter.
+    {/* Rubriken och handlingarna på SAMMA rad, inte på var sin.
 
-        "Visa på karta" satt sist på den raden och är flyttad till
-        handlingsraden nedanför, som en knapp som heter "Karta". Den var en
-        handling förklädd till text mitt i en punktlista av fakta, och den är
-        Boolis vänsterknapp i samma rad. Metaraden bär nu bara fakta. */}
-    <header class="masthead">
-      <h1>{e.name}</h1>
-      <p class="place text-secondary">
-        {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
-      </p>
-    </header>
+        De låg på var sin rad med Följ och Dela ute till höger, och eftersom
+        raden var tom till vänster blev det ett hål mellan namnet och
+        bedömningen. Ägaren: "blir liksom ett stort glapp ner till
+        anmärkningen". Knapparna flyttar därför upp bredvid namnet, och
+        bedömningen stiger lika mycket som hålet var djupt.
 
-    {/* Handlingarna i ögonhöjd, som Boolis rad direkt under bilden. De låg
-        tidigare i sidopanelen, alltså efter hela huvudkolumnen på telefon.
-        Raden bär det som gäller stället i sin helhet; omdömesknappen bor i
-        omdömesavsnittet där rutan den öppnar hör hemma, och rättelsen och
-        replikrätten står kvar i panelen, se ActionPanel.astro.
+        Kartknappen som fyllde vänsterhalvan är borttagen. Den hoppade till
+        kartsektionen längre ned på samma sida, alltså en knapp vars hela
+        ärende var att rulla; sektionen står kvar där den står. */}
+    <div class="topp">
+      <header class="masthead">
+        <h1>{e.name}</h1>
+        <p class="place text-secondary">
+          {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
+        </p>
+      </header>
 
-        Delningens text är svarsmeningen, som redan är skriven för att vara
-        självbärande. Kartknappen uteblir när verksamheten saknar koordinat,
-        av samma skäl som kartsektionen längre ned gör det. */}
-    <Handlingsrad
-      establishmentId={e.id}
-      establishmentName={e.name}
-      municipalitySlug={kommun.slug}
-      shareText={answer}
-      mapHref={hasCoords ? '#karta' : undefined}
-    />
+      {/* Raden bär det som gäller stället i sin helhet; omdömesknappen bor i
+          omdömesavsnittet där rutan den öppnar hör hemma, och rättelsen och
+          replikrätten står kvar i panelen, se ActionPanel.astro.
+
+          Delningens text är svarsmeningen, som redan är skriven för att vara
+          självbärande. */}
+      <Handlingsrad
+        establishmentId={e.id}
+        establishmentName={e.name}
+        municipalitySlug={kommun.slug}
+        shareText={answer}
+      />
+    </div>
 
     <div class="layout">
       <main class="main">
@@ -372,25 +374,34 @@ const breadcrumbs = {
           <p class="eyebrow">Bedömning</p>
           <div class="verdict">
             <FaceMark verdict={e.verdict} size={52} animate wink />
-            <div>
-              {/* Bedömningen och de märken som gäller verksamhetens status,
-                  på samma rad. "Ren historik" är nuläget och utmärkelsen är
-                  historisk; årtalet i den senare skiljer dem åt.
+            <div class="besked">
+              {/* ETT märke, inte två.
 
-                  Stjärnan framför "Ren historik" är borta. Sajten har tagit
-                  beslutet att stjärnor inte används, eftersom de läser som
-                  betyg, och det är samma skäl som gör att omdömen inte har
-                  stjärnbetyg (se Reviews.astro). En stjärna intill en
-                  hygienbedömning var precis den sammanblandningen. */}
-              <p class="level">
-                {presentation.label}
-                {e.distinction && (
-                  <span class="badge" title={DISTINCTION.label}>{DISTINCTION.short}</span>
-                )}
-                <AwardNote establishment={e} />
-              </p>
+                  Här stod "Ren historik" och "Utmärkelsen 2026" som två
+                  likadana piller intill varandra. De sade nästan samma sak
+                  med olika ord, och tillsammans vägde de tyngre än beskedet
+                  de stod bredvid. Ägaren: "kanske vi ska ta bort genomgående
+                  rent eller ngt o bara kör utmärkelse".
+
+                  Utmärkelsen är den som får stå. Den är svårare att få, den
+                  har ett årtal, och den har en egen sida att peka på. "Ren
+                  historik" räknades vid varje bygge ur samma serie kontroller
+                  som utmärkelsen redan vilar på, alltså sade den inget som
+                  inte redan stod bredvid. Fältet `e.distinction` finns kvar i
+                  datan och används av kartan och listorna.
+
+                  Stjärnan framför "Ren historik" försvinner med den. Sajten
+                  har tagit beslutet att stjärnor inte används, eftersom de
+                  läser som betyg, och det är samma skäl som gör att omdömen
+                  inte har stjärnbetyg (se Reviews.astro). */}
+              <p class="level">{presentation.label}</p>
               <p class="answer">{answer}</p>
             </div>
+            {/* Märket som märke, ute till höger på bedömningsraden. Som
+                piller i rubriken syntes det knappt; som låda under
+                nyckeltalen låg det i vägen. Här har det plats att vara ett
+                sigill utan att skjuta ned något. */}
+            <AwardNote establishment={e} />
           </div>
           <p class="method caption">
             <a href="/metodik/">Så sätts bedömningen</a>
@@ -568,6 +579,16 @@ const breadcrumbs = {
 
   .crumbs a { color: var(--text-secondary); }
 
+  /* Namnet till vänster, Följ och Dela till höger, botten mot botten. Bryts
+     till två rader först när namnet inte längre får plats bredvid dem. */
+  .topp {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--s-3) var(--s-6);
+    flex-wrap: wrap;
+  }
+
   .masthead h1 {
     font-size: var(--fs-title);
     line-height: var(--lh-title);
@@ -584,7 +605,11 @@ const breadcrumbs = {
     grid-template-columns: minmax(0, 1fr) 300px;
     gap: var(--s-12);
     align-items: start;
-    margin-top: var(--s-6);
+    /* Luften under topraden bärs här och ingen annanstans. Den satt förut på
+       handlingsraden, men när knapparna flyttade upp bredvid namnet blev
+       avståndet till "Bedömning" så litet att etiketten läste som en tredje
+       rad i metaraden. */
+    margin-top: var(--s-8);
   }
 
   /* Huvudkolumnen ligger öppet på sidan — ingen kortlåda. Det är Boolis
@@ -615,8 +640,30 @@ const breadcrumbs = {
 
   .verdict {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--s-4);
+  }
+
+  .besked { flex: 1 1 auto; }
+
+  /* På telefon får sigillet inte konkurrera med beskedet om bredden, och det
+     ska ned på egen rad. Ett `flex-wrap` gör fel sak här: beskedet är brett
+     nog att kräva egen rad, så ansiktet blir ensamt kvar på den första.
+     Rutnätet håller ihop ansiktet och beskedet och lägger sigillet under
+     texten, i linje med den och inte med ansiktet.
+
+     `:global` krävs på sigillet: det är en komponentrot, och Astros scopeade
+     selektorer korsar inte komponentgränser. */
+  @media (max-width: 640px) {
+    .verdict {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: var(--s-4);
+      row-gap: var(--s-4);
+      align-items: center;
+    }
+
+    .verdict > :global(.utmarkelse) { grid-column: 2; }
   }
 
   .level {
@@ -625,20 +672,6 @@ const breadcrumbs = {
     line-height: var(--lh-h);
     letter-spacing: -.02em;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    flex-wrap: wrap;
-  }
-
-  .badge {
-    font-size: var(--fs-caption);
-    font-weight: 600;
-    letter-spacing: 0;
-    color: var(--distinction);
-    border: 1px solid color-mix(in srgb, var(--distinction) 45%, transparent);
-    border-radius: var(--r-pill);
-    padding: 2px 9px;
   }
 
   .answer {

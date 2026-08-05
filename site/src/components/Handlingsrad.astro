@@ -15,21 +15,18 @@
  * priset. Det ser ut som att den skjuter ned det man kom för, men den är en
  * rad hög och bedömningen står kvar i första skärmen på både 1440 och 390 px.
  *
- * ## Formen: två sidor, som Booli
+ * ## Formen: två knappar, och varför inte tre
  *
- * Boolis rad har två halvor med olika ärenden. Till vänster det man vill SE
- * av objektet, Planritning och Karta. Till höger det man vill GÖRA med
- * sidan, Dela och Spara. Ägaren ville ha våra två åt höger och bredvid
- * varandra, och då blev frågan vad vänsterhalvan skulle bära.
+ * Boolis rad har två halvor. Till vänster det man vill SE av objektet, till
+ * höger det man vill GÖRA med sidan. Vi hade en stund en kartknapp i
+ * vänsterhalvan, hämtad från "Visa på karta" som legat som text i metaraden.
  *
- * Svaret fanns redan på sidan. "Visa på karta" låg som ett led i den
- * punktseparerade metaraden under rubriken, alltså en handling förklädd till
- * text, och den är exakt Boolis vänsterknapp. Den är nu en knapp och heter
- * "Karta", precis som deras.
+ * Den är borttagen. Raden ligger på samma sida som kartsektionen den pekade
+ * på, alltså var hela dess ärende att rulla nedåt, och en knapp vars verkan
+ * är en rullning på samma sida är ingen handling. Med den borta blev raden
+ * dessutom smal nog att flytta upp bredvid rubriken, vilket var det hål
+ * ägaren såg: "blir liksom ett stort glapp ner till anmärkningen".
  *
- *   Karta  hoppar till kartsektionen längre ned. Finns bara när kommunen
- *          eller pipelinen har en koordinat; saknas den står vänsterhalvan
- *          tom och de två andra ligger kvar till höger.
  *   Följ   privat bevakning, ingen publicering, ingen granskning. Kräver
  *          inloggning, och knappen säger det innan man klickar i stället för
  *          att gå sönder efteråt.
@@ -61,14 +58,15 @@ interface Props {
   municipalitySlug: string;
   /** Meningen som följer med i delningen. Skrivs av sidmallen, som vet utfallet. */
   shareText: string;
-  /** Fragment till kartsektionen. Utelämnas när verksamheten saknar koordinat. */
-  mapHref?: string;
 }
 
-const { establishmentId, establishmentName, municipalitySlug, shareText, mapHref } =
-  Astro.props;
+const { establishmentId, establishmentName, municipalitySlug, shareText } = Astro.props;
 ---
 
+{/* En rot och inte två syskon: sidmallen lägger komponenten som ett led i
+    en flexrad bredvid rubriken, och en lös kvittensrad hade blivit ett eget
+    led i den raden i stället för att stå under knapparna. */}
+<div class="handlingar">
 <div
   class="handlingsrad"
   id="actions"
@@ -76,24 +74,6 @@ const { establishmentId, establishmentName, municipalitySlug, shareText, mapHref
   data-name={establishmentName}
   data-kommun={municipalitySlug}
 >
-  {mapHref && (
-    <a class="btn-ghost med-ikon karta" href={mapHref} aria-label={`Karta över ${establishmentName}`}>
-      <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-        <path
-          d="M7.4 4.2 3.2 5.8v10l4.2-1.6 5.2 1.6 4.2-1.6v-10l-4.2 1.6-5.2-1.6Z"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"></path>
-        <path
-          d="M7.4 4.2v10.2M12.6 5.8v10"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"></path>
-      </svg>
-      <span class="etikett">Karta</span>
-    </a>
-  )}
-
   {/* Klockan är sajtens egen notisklocka, samma ritning som sitter i
       sidhuvudet. Bevakningen mejlar när kommunen hittar anmärkningar, och en
       klocka betyder just det. Ett hjärta, som Boolis "Spara", hade sagt
@@ -158,24 +138,21 @@ const { establishmentId, establishmentName, municipalitySlug, shareText, mapHref
 {/* Bara FEL står här. En lyckad bevakning säger sitt genom knappen själv, se
     scriptet. Raden är alltså tom nästan jämt och tar då ingen plats. */}
 <p class="kvittens caption text-muted" id="follow-note" role="status"></p>
+</div>
 
 <style>
-  /*
-   * Följ och Dela ligger bredvid varandra ute till höger, som Boolis Dela och
-   * Spara. `flex-end` på raden och `margin-right: auto` på kartknappen: utan
-   * koordinat finns ingen kartknapp, och då ska de två ändå ligga kvar vid
-   * högerkanten i stället för att glida in till vänster. Formen ska inte
-   * bero på om kommunen råkar lämna koordinater.
-   */
+  /* Följ och Dela bredvid varandra, förankrade i högerkanten, som Boolis
+     Dela och Spara. Ingen egen toppmarginal: avståndet till rubriken ägs av
+     flexraden i sidmallen, som är det enda ställe som vet om de två står
+     bredvid namnet eller har brutit ned under det. */
+  .handlingar { flex: none; }
+
   .handlingsrad {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: var(--s-2);
-    margin-top: var(--s-4);
   }
-
-  .karta { margin-right: auto; }
 
   .btn-ghost {
     display: inline-flex;
