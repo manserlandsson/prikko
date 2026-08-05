@@ -23,6 +23,7 @@ import Base from '../layouts/Base.astro';
 import FaceSprite from '../components/FaceSprite.astro';
 import { coverage, formatNumber, municipalities } from '../lib/data';
 import { FACE_SPRITE_ID } from '../lib/face';
+import { siteCommandList } from '../lib/kommandon';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
@@ -31,6 +32,12 @@ const total = coverage();
 const kommuner = municipalities();
 
 const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
+
+/* Sajtens egna sidor, kartor och artiklar, samma lista som sökpanelen visar
+   under sina träffar. Sidan är dit panelens "Visa alla träffar" leder, och
+   den får inte kunna svara mindre än raden man klickade på. Som JSON i
+   dokumentet: ett trettiotal rader, ingen anledning till en hämtning. */
+const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c');
 ---
 
 <Base
@@ -74,7 +81,28 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
     </form>
 
     <p id="status" class="status text-secondary" aria-live="polite"></p>
+
+    {/* Kommunerna FÖRE träffarna. Söker någon "stockholm" är kommunen det
+        starkaste svaret sidan har, och den låg tidigare inte här alls:
+        listan filtrerade bort allt som inte var en verksamhet, så panelen i
+        sidhuvudet la Stockholm överst medan resultatsidan bakom samma
+        sökord låtsades att kommunen inte fanns. Raden är panelens rad, ur
+        lib/sokforslag, men som vanlig länk och inte som listbox-alternativ. */}
+    <section class="extra" id="kommun-block" hidden>
+      <h2>Kommuner</h2>
+      <ul class="rows" id="kommun-rows"></ul>
+    </section>
+
     <ul id="results" class="results"></ul>
+
+    {/* Sidorna EFTER träffarna, av samma skäl som i panelen: den som söker
+        en restaurang ska inte få metodiksidan först. */}
+    <section class="extra" id="sidor-block" hidden>
+      <h2>Sidor och kartor</h2>
+      <ul class="rows" id="sidor-rows"></ul>
+    </section>
+
+    <script type="application/json" data-pages set:html={pageRows} />
 
     {/* Utan JavaScript finns ingen sökning — men kommunerna ska ändå gå att
         nå härifrån, och Google ska hitta vidare. Listan är inte en reserv,
@@ -165,6 +193,69 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
     flex-shrink: 0;
   }
 
+  /* Kommunerna och sidorna. Samma rad som sökpanelen ritar, alltså samma
+     märke, samma namnrad och samma dämpade underrad — markupen kommer ur
+     lib/sokforslag och stilarna måste därför matcha panelens. Blocken är
+     inga kort: en rubrik och en lista, avskilda med luft, som resten av
+     sidan. */
+  .extra {
+    margin-top: var(--s-6);
+  }
+
+  .extra[hidden] { display: none; }
+
+  .extra h2 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+  }
+
+  .rows {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+  }
+
+  .rows :global(a) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    color: var(--text);
+  }
+
+  .rows :global(a:hover) { text-decoration: none; }
+  .rows :global(a:hover .name) { color: var(--brand); }
+
+  .rows :global(.mark) {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--text-secondary);
+  }
+
+  .rows :global(.mark svg) { width: 20px; height: 20px; }
+
+  .rows :global(.body) {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rows :global(.name) {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .rows :global(.meta) {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
   .fallback {
     margin-top: var(--s-16);
     padding-top: var(--s-6);
@@ -207,40 +298,59 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
    * alla träffar" och kom till en sämre. Modulen fanns, den här sidan hade
    * bara aldrig kopplats på.
    *
-   * Nu samma klasser och samma inbördes ordning som panelerna, med två
-   * skillnader som följer av att det här är en RESULTATSIDA och inte ett
-   * förslag:
+   * Nu samma klasser och samma inbördes ordning som panelen. Sedan
+   * genomsökningen slutade kapa på "de N först funna" och i stället behåller
+   * de N BÄSTA per klass är sidan och panelen dessutom eniga rad för rad:
+   * panelens sju översta verksamheter ÄR den här listans sju första, för att
+   * de valts på samma sätt ur samma register. Skillnaden är bara djupet,
+   * fyrtio mot sju.
    *
-   *  - Ingen scanCap. Panelerna slutar leta vid 60 kandidater per klass
-   *    eftersom de visar sju rader; en resultatsida som lovar ett antal
-   *    träffar måste räkna alla. 15 916 delsträngstester är en bråkdel av en
-   *    millisekund.
-   *  - Bara verksamheter. collect() ger även kommunträffar, men de har varken
-   *    bedömning eller adress och skulle inte kunna ritas som en rad här.
-   *    Kommunerna når man i stället ur listan längst ner på sidan.
+   * Sidan svarar dessutom på samma tre saker som panelen: kommunerna över
+   * listan, verksamheterna i den, sajtens egna sidor och kartor under den.
+   * Att "Visa alla träffar" ledde till en sida som tappade två av tre var
+   * samma fel som panelerna hade sinsemellan, bara ett steg längre bort.
    *
-   * Raden ritas fortfarande här och inte med suggestionInner: den bär en
+   * Verksamhetsraden ritas här och inte med suggestionInner: den bär en
    * bedömningsetikett i högerkant och läser sitt ansikte ur FaceSprite, som
-   * sidan redan lägger ut. Det är sidans egen form, inte panelens.
+   * sidan redan lägger ut. Det är sidans egen form. Kommun- och sidraderna
+   * är däremot panelens rad rakt av, ur den delade modulen.
    */
   import {
     collect,
     escapeHtml,
     indexFailed,
     loadIndex,
+    matchPages,
     normalise,
     ranked,
     searchIndex,
+    suggestionLi,
+    type Suggestion,
   } from '../lib/sokforslag';
 
   const form = document.querySelector<HTMLElement>('[data-sok]');
   const input = document.getElementById('q') as HTMLInputElement | null;
   const results = document.getElementById('results');
   const status = document.getElementById('status');
+  const kommunBlock = document.getElementById('kommun-block');
+  const kommunRows = document.getElementById('kommun-rows');
+  const sidorBlock = document.getElementById('sidor-block');
+  const sidorRows = document.getElementById('sidor-rows');
 
-  if (form && input && results && status) {
+  if (form && input && results && status && kommunBlock && kommunRows && sidorBlock && sidorRows) {
     const spriteId = form.dataset.sprite!;
     const labels: string[] = JSON.parse(form.dataset.labels!);
+
+    /** Sidorna, kartorna och artiklarna, ur JSON i dokumentet. */
+    const pages: Suggestion[] = JSON.parse(
+      document.querySelector<HTMLElement>('[data-pages]')!.textContent!,
+    );
+
+    /** Fyller ett av de två sidoblocken, eller döljer det. */
+    function fill(block: HTMLElement, rows: HTMLElement, items: Suggestion[], q: string) {
+      block.hidden = items.length === 0;
+      rows.innerHTML = items.map((s) => suggestionLi(s, q, false)).join('');
+    }
 
     const INK = [
       'var(--verdict-clean-ink)',
@@ -248,16 +358,25 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
       'var(--verdict-major-ink)',
     ];
 
-    /** Så många rader listan visar. Träffräknaren berättar hur många som finns. */
+    /** Så många rader listan visar, och så djupt rankningen sparar. */
     const MAX_RESULTS = 40;
+    /** Sidor och kartor är ett komplement till svaret, inte svaret. */
+    const MAX_PAGES = 6;
 
     function render(term: string) {
-      const q = normalise(term.trim());
+      const text = term.trim();
+      const q = normalise(text);
       if (q.length < 2) {
         results!.innerHTML = '';
         status!.textContent = '';
+        fill(kommunBlock!, kommunRows!, [], q);
+        fill(sidorBlock!, sidorRows!, [], q);
         return;
       }
+
+      // Sidorna ligger i dokumentet och kan svara även om registret inte
+      // landat, eller inte gick att hämta alls.
+      fill(sidorBlock!, sidorRows!, matchPages(pages, q, MAX_PAGES), q);
 
       if (indexFailed()) {
         status!.textContent =
@@ -270,16 +389,27 @@ const labels = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label];
         return;
       }
 
-      // Infinity: hela registret gås igenom, se modulhuvudet.
-      const hits = ranked(collect(q, Infinity)).filter((s) => s.kind === 'place');
-      const shown = hits.slice(0, MAX_RESULTS);
+      const groups = collect(q, MAX_RESULTS);
+      const shown = ranked(groups)
+        .filter((s) => s.kind === 'place')
+        .slice(0, MAX_RESULTS);
 
-      // Det sanna antalet, inte "40+". Räknaren vet nu vad den räknat.
-      status!.textContent = hits.length
-        ? hits.length > shown.length
-          ? `${hits.length} träffar, de ${shown.length} närmast visas`
-          : `${hits.length} ${hits.length === 1 ? 'träff' : 'träffar'}`
-        : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
+      fill(kommunBlock!, kommunRows!, [...groups.kommunPrefix, ...groups.kommunLoose], q);
+
+      // Det sanna antalet, inte "40+". collect räknar hela registret även
+      // när den bara sparar de fyrtio bästa raderna.
+      // Tusentalsavstånd som på resten av sajten: "8 947 träffar", aldrig
+      // "8947". lib/data:s formatNumber är serversida, och sv-SE ger samma
+      // hårda mellanslag.
+      const found = groups.count;
+      const nice = found.toLocaleString('sv-SE');
+      status!.textContent = found
+        ? found > shown.length
+          ? `${nice} träffar, de ${shown.length} närmast visas`
+          : `${nice} ${found === 1 ? 'träff' : 'träffar'}`
+        : kommunRows!.children.length || sidorRows!.children.length
+          ? `Ingen verksamhet matchar ”${text}”.`
+          : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
 
       results!.innerHTML = shown
         .map((s) => {

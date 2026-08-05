@@ -58,7 +58,13 @@ import { path } from './urls';
  * och en avregistreringssida i ett sökresultat är meningslös för alla utom
  * den som just fått mejlet.
  */
-const ACCOUNT_PAGES = ['konto', 'konto/inloggad', 'konto/verksamhet', 'sluta-bevaka'];
+const ACCOUNT_PAGES = [
+  'konto',
+  'konto/inloggad',
+  'konto/notiser',
+  'konto/verksamhet',
+  'sluta-bevaka',
+];
 
 /**
  * Sökvägar som bär `noindex` och därför varken får ligga i sitemapen eller

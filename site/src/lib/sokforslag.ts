@@ -1,17 +1,22 @@
 /**
- * Förslagsradens anatomi och rankning — en enda sanning för de två panelerna.
+ * Förslagsradens anatomi och rankning — en enda sanning för hela sökningen.
  *
- * Sökfältet (SiteSearch) och kommandopaletten (CommandPalette) visar samma
- * sorts rad under samma fält, tio pixlar från varandra. De byggde tidigare
- * raden var för sig, med två kopior av ikonerna, två kopior av escapeHtml och
- * två kopior av rankningen. Kopiorna hade redan börjat glida isär: paletten
- * visade åtta förslag och fältet sju, och bara den ena hade kvar kommentaren
- * om varför. En rad som ser olika ut beroende på vilken tangent besökaren
- * tryckte är ett fel oavsett hur liten skillnaden är.
+ * Sajten hade tidigare TVÅ paneler under samma fält: sökfältets egen och
+ * kommandopaletten som cmd+K fällde ut. De delade den här modulen, men bara
+ * halva urvalet: paletten nådde dessutom sajtens egna sidor, kartorna och
+ * artiklarna. Samma fält och samma sökord gav alltså två olika svar, och
+ * vilket man fick avgjordes av om man kunde en tangentgenväg. Ägarens ord:
+ * "nu är sök annorlunda om du trycker cmd K mot bara söker i sökrutan genom
+ * klick."
  *
- * Modulen importeras av BÅDA komponenternas klientskript. Den får därför inte
- * röra node: eller astro: — den buntas till webbläsaren. lib/face importeras
- * för geometrin och drar bara in en typ, som försvinner vid kompileringen.
+ * Panelerna är numera en enda (SiteSearch), och den här modulen bär hela
+ * dess innehåll: raden, grupprubriken, handlingsraden, registret och
+ * rankningen — både för verksamheter och för sajtens egna sidor. /sok läser
+ * samma rankning, så resultatsidan och panelen kan inte svara olika.
+ *
+ * Modulen buntas till webbläsaren och får därför inte röra node: eller
+ * astro:. lib/face importeras för geometrin och drar bara in en typ, som
+ * försvinner vid kompileringen.
  */
 import {
   FACE_EYE_LEFT,
@@ -25,18 +30,33 @@ import {
 /** Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex]. */
 export type Row = [string, string, string, number, number];
 
+/**
+ * Radens sort, som bestämmer dess märke.
+ *
+ * `place` är en verksamhet och bär sitt bedömningsansikte. Resten bär en
+ * glyf ur GLYPHS: `kommun` en nål, `query` ett förstoringsglas (populära
+ * kedjesökningar och handlingsraden), `page`/`map`/`article` sajtens eget.
+ */
+export type SuggestionKind = 'kommun' | 'place' | 'query' | 'page' | 'map' | 'article';
+
 export interface Suggestion {
   /** Raden som fyller fältet vid val och autoifyllnad. */
   label: string;
   /** Den dämpade underraden. */
   meta: string;
   href: string;
-  kind: 'kommun' | 'place' | 'query';
+  kind: SuggestionKind;
   /**
    * Bedömningen, som index i registrets v-lista. -1 = ingen kontroll.
    * Bara verksamheter har en; kommuner och handlingar lämnar den odefinierad.
    */
   verdict?: number;
+  /**
+   * Extra sökord utöver etiketten, bara på sajtens egna sidor. "betyg" ska
+   * hitta metodiken fast ordet inte står i rubriken. Skickas med i JSON till
+   * klienten och normaliseras där.
+   */
+  kw?: string;
 }
 
 /** Ordningen speglar registrets v-lista (se lib/search-index). */
@@ -97,15 +117,34 @@ function verdictWord(verdict: number | undefined): string {
  * Verksamheter har ingen glyf i listan: de bär sitt bedömningsmärke i
  * stället, och den identiska husikonen på var och en av dem var brus.
  */
-export const GLYPHS = {
-  kommun:
-    '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+const KOMMUN_PIN =
+  '<path d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5"/>';
+
+export const GLYPHS: Record<Exclude<SuggestionKind, 'place'>, string> = {
+  kommun: KOMMUN_PIN,
+  /** Kartan är en kommun sedd uppifrån, alltså samma nål. */
+  map: KOMMUN_PIN,
   query:
     '<circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17.2 17.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  page:
+    '<path d="M5.4 2.9h6.4l2.8 2.8v11.4H5.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.8 2.9v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 9.6h4.8M7.6 12.4h4.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  article:
+    '<path d="M4.2 4.6h11.6M4.2 8.2h11.6M4.2 11.8h11.6M4.2 15.4h6.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
 };
 
 function glyphSvg(paths: string): string {
   return `<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">${paths}</svg>`;
+}
+
+/**
+ * Grupprubriken i listan. Ett ögonbryn, inte ett alternativ: i panelen
+ * ligger den i <ul role="listbox"> och bär därför role="presentation" och
+ * aria-hidden, eftersom en listbox bara får innehålla valbara rader.
+ * Rubriken är en synlig gruppering för ögat, och skärmläsaren får ordningen
+ * i stället.
+ */
+export function groupLi(name: string): string {
+  return `<li class="group eyebrow" role="presentation" aria-hidden="true">${escapeHtml(name)}</li>`;
 }
 
 /**
@@ -139,9 +178,7 @@ export function mark(text: string, q: string): string {
  */
 export function suggestionInner(s: Suggestion, q: string): string {
   const badge =
-    s.kind === 'place'
-      ? faceSvg(s.verdict)
-      : glyphSvg(s.kind === 'kommun' ? GLYPHS.kommun : GLYPHS.query);
+    s.kind === 'place' ? faceSvg(s.verdict) : glyphSvg(GLYPHS[s.kind]);
 
   // Bedömningen i ord, bara för verksamheter. Ansiktet är aria-hidden, och
   // utan det här hade en skärmläsare fått namnet och adressen men aldrig
@@ -154,9 +191,31 @@ export function suggestionInner(s: Suggestion, q: string): string {
   return `<span class="mark" aria-hidden="true">${badge}</span><span class="body"><span class="name">${mark(s.label, q)}</span><span class="meta">${mark(s.meta, q)}</span></span>${spoken}`;
 }
 
-/** En hel <li> med förslagsraden i. */
-export function suggestionLi(s: Suggestion, q: string): string {
-  return `<li role="presentation"><a href="${escapeHtml(s.href)}" role="option" aria-selected="false">${suggestionInner(s, q)}</a></li>`;
+/**
+ * En hel <li> med förslagsraden i.
+ *
+ * `option` styr ARIA, inte utseendet. I panelen är raden ett alternativ i en
+ * combobox-listbox. På /sok är samma rad en vanlig länk i en vanlig lista,
+ * och role="option" utanför en listbox är trasig ARIA — men raden ska se
+ * likadan ut på båda ställena, alltså är det samma funktion.
+ */
+export function suggestionLi(s: Suggestion, q: string, option = true): string {
+  const open = option ? '<li role="presentation">' : '<li>';
+  const attrs = option ? ' role="option" aria-selected="false"' : '';
+  return `${open}<a href="${escapeHtml(s.href)}"${attrs}>${suggestionInner(s, q)}</a></li>`;
+}
+
+/**
+ * En rubrik och dess rader, eller ingenting alls när gruppen är tom.
+ *
+ * Att tomma grupper försvinner är inte en detalj. Panelen bygger sin lista
+ * av samma anrop oavsett fråga, och en rubrik utan rader under sig läser som
+ * ett fel — särskilt "Verksamheter och kommuner" över tomrum när frågan bara
+ * träffade en av sajtens egna sidor.
+ */
+export function sectionHtml(name: string, items: Suggestion[], q: string): string {
+  if (!items.length) return '';
+  return groupLi(name) + items.map((s) => suggestionLi(s, q)).join('');
 }
 
 /**
@@ -268,6 +327,11 @@ export interface Groups {
   nameWord: Suggestion[];
   kommunLoose: Suggestion[];
   loose: Suggestion[];
+  /**
+   * Antal verksamhetsträffar i HELA registret, oberoende av hur många rader
+   * som sparades. /sok skriver ut talet och får inte skriva ut "40".
+   */
+  count: number;
 }
 
 /** Sant när träffen på index `at` inleder ett ord. */
@@ -284,13 +348,57 @@ function wordStart(h: string, at: number) {
 const byLength = (a: Suggestion, b: Suggestion) =>
   a.label.length - b.label.length || a.label.localeCompare(b.label, 'sv');
 
-export function collect(q: string, scanCap: number): Groups {
+/**
+ * Lägger raden i klassen om den hör till de `keep` bästa, annars inte.
+ *
+ * Det här ersatte en scanCap, och skillnaden är hela poängen. Förut slutade
+ * genomsökningen leta efter ett visst antal FUNNA rader och rankade sedan
+ * det den råkat hitta. Registret ligger i kommunordning, alltså
+ * bokstavsordning, så Borgholm och Höganäs fyllde kvoten innan Stockholm
+ * hunnit prövas: panelen visade sju rader ur de tre första kommunerna och
+ * kallade det rankning. Det var samma fel som /sok hade, och därför visade
+ * de två inte samma träffar på samma ord.
+ *
+ * Nu prövas hela registret alltid, men objektet byggs bara för de rader som
+ * faktiskt tar sig in. När klassen är full kostar en kandidat en enda
+ * längdjämförelse, och 15 916 sådana är inget. Följden är att panelens sju
+ * bästa är exakt /sok:s sju första: samma klass, samma ordning, samma urval,
+ * bara olika djupt.
+ */
+function offer(
+  bucket: Suggestion[],
+  keep: number,
+  name: string,
+  make: () => Suggestion,
+): void {
+  const n = bucket.length;
+  if (n >= keep && name.length > bucket[n - 1].label.length) return;
+
+  const item = make();
+  let i = n;
+  bucket.push(item);
+  while (i > 0 && byLength(item, bucket[i - 1]) < 0) {
+    bucket[i] = bucket[i - 1];
+    i--;
+  }
+  bucket[i] = item;
+  if (bucket.length > keep) bucket.pop();
+}
+
+/**
+ * Kandidaterna, klassvis och rankade.
+ *
+ * `keep` är hur många rader varje klass sparar. Panelen ber om sju,
+ * resultatsidan om fyrtio. Talet påverkar bara djupet, aldrig ordningen.
+ */
+export function collect(q: string, keep: number): Groups {
   const { rows, hay, kommuner } = index;
   const kommunPrefix: Suggestion[] = [];
   const kommunLoose: Suggestion[] = [];
   const namePrefix: Suggestion[] = [];
   const nameWord: Suggestion[] = [];
   const loose: Suggestion[] = [];
+  let count = 0;
 
   for (let i = 0; i < kommuner.length; i++) {
     const [slug, city] = kommuner[i];
@@ -300,49 +408,68 @@ export function collect(q: string, scanCap: number): Groups {
     else if (c.includes(q)) kommunLoose.push(item);
   }
 
+  // Tolv kommuner: en vanlig sortering är billigare än en insättning.
+  kommunPrefix.sort(byLength);
+  kommunLoose.sort(byLength);
+
   for (let i = 0; i < rows.length; i++) {
-    if (
-      namePrefix.length >= scanCap &&
-      nameWord.length >= scanCap &&
-      loose.length >= scanCap
-    ) {
-      break;
-    }
     const h = hay[i];
     const at = h.indexOf(q);
     if (at < 0) continue;
+    count++;
 
-    const [name, address, slug, k, verdict] = rows[i];
-    const city = kommuner[k][1];
+    const row = rows[i];
+    const name = row[0];
     // Karlstad publicerar ingen adress. Utan grenen blir underraden
     // " · Karlstad" med en hängande punkt och ett inledande blanksteg.
-    const item: Suggestion = {
+    const make = (): Suggestion => ({
       label: name,
-      meta: address ? `${address} · ${city}` : city,
-      href: `/${kommuner[k][0]}/${slug}/`,
+      meta: row[1] ? `${row[1]} · ${kommuner[row[3]][1]}` : kommuner[row[3]][1],
+      href: `/${kommuner[row[3]][0]}/${row[2]}/`,
       kind: 'place',
-      verdict,
-    };
+      verdict: row[4],
+    });
 
-    if (at === 0) {
-      if (namePrefix.length < scanCap) namePrefix.push(item);
-    } else if (at < name.length && wordStart(h, at)) {
-      if (nameWord.length < scanCap) nameWord.push(item);
-    } else if (loose.length < scanCap) {
-      loose.push(item);
-    }
+    if (at === 0) offer(namePrefix, keep, name, make);
+    else if (at < name.length && wordStart(h, at)) offer(nameWord, keep, name, make);
+    else offer(loose, keep, name, make);
   }
 
-  namePrefix.sort(byLength);
-  nameWord.sort(byLength);
-  loose.sort(byLength);
-
-  return { kommunPrefix, namePrefix, nameWord, kommunLoose, loose };
+  return { kommunPrefix, namePrefix, nameWord, kommunLoose, loose, count };
 }
 
 /** Klasserna hopslagna i rankningsordning. */
 export function ranked(g: Groups): Suggestion[] {
   return [...g.kommunPrefix, ...g.namePrefix, ...g.nameWord, ...g.kommunLoose, ...g.loose];
+}
+
+/**
+ * Sajtens egna sidor, kartor och artiklar, rankade mot samma fråga.
+ *
+ * Samma tre klasser som verksamheterna, av samma skäl: rubriken börjar med
+ * frågan, ett ord i rubriken börjar med den, eller så sitter träffen bland
+ * de extra sökorden. Listan är ett trettiotal rader lång och byggs i
+ * sidans HTML, så här behövs varken register eller kvot.
+ *
+ * ATT DE RANKAS FÖR SIG är avsiktligt. Paletten la dem tidigare direkt
+ * efter kommunprefixen, alltså FÖRE verksamheterna, och då fick den som
+ * sökte ett kafé sajtens metodiksida först. De hör hemma i en egen grupp
+ * under träffarna, dit man tittar när namnet man skrev inte var ett ställe.
+ */
+export function matchPages(items: Suggestion[], q: string, keep: number): Suggestion[] {
+  const prefix: Suggestion[] = [];
+  const word: Suggestion[] = [];
+  const loose: Suggestion[] = [];
+
+  for (const item of items) {
+    const label = normalise(item.label);
+    const at = label.indexOf(q);
+    if (at === 0) prefix.push(item);
+    else if (at > 0 && wordStart(label, at)) word.push(item);
+    else if (item.kw && normalise(item.kw).includes(q)) loose.push(item);
+  }
+
+  return [...prefix, ...word, ...loose].slice(0, keep);
 }
 
 /**

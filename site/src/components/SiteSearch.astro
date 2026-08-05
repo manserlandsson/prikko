@@ -1,33 +1,59 @@
 ---
 /**
- * Sökfältet i sidhuvudet.
+ * Sökfältet, och sajtens enda sökpanel.
  *
+ * ---------------------------------------------------------------------------
+ * VARFÖR DET HÄR ÄR EN KOMPONENT OCH INTE TVÅ
+ * ---------------------------------------------------------------------------
+ * Fältet hade tidigare två paneler: sin egen förslagslista och
+ * kommandopaletten som cmd+K fällde ut ur samma fält. De såg likadana ut,
+ * hängde på samma ställe och svarade olika. Fältets panel nådde verksamheter
+ * och kommuner; paletten nådde dessutom sajtens egna sidor, kartorna och
+ * artiklarna. Skillnaden var ett medvetet val, dokumenterat som "det som gör
+ * mönstret värt något", och den höll inte: besökaren kan inte se vilken av de
+ * två hon har framför sig, och den som klickade fick ett sämre svar än den
+ * som kunde en tangentgenväg. Ägarens ord: "nu är sök annorlunda om du
+ * trycker cmd K mot bara söker i sökrutan genom klick."
+ *
+ * Nu finns EN panel. cmd+K är inte längre ett annat gränssnitt utan en
+ * genväg till det som redan finns: den fokuserar fältet och fäller ut samma
+ * panel, varhelst på sidan man står. Träffarna, ordningen, tangenterna och
+ * tomma läget är därmed samma sak oavsett väg in, för att det ÄR samma sak.
+ *
+ * Sammanslagningen tog dessutom bort tre lappar som bara fanns för att hålla
+ * de två isär: attributet data-palette-open som fick det ena skriptet att
+ * tiga medan det andra körde, flytten av palettens markup in i fältets rot
+ * vid första öppningen, och de två uppsättningarna markering och
+ * musspärrar. Panelen är författad inuti fältet och ärver dess bredd av sig
+ * själv.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD SOM LADDAS NÄR
+ * ---------------------------------------------------------------------------
  * Grundläget är ett vanligt formulär som postar till /sok. Det fungerar utan
  * en rad JavaScript, och det är därför /sok ligger kvar även sedan länken
  * försvann ur menyn: sidan är formulärets mål, inte en meningslös dubblett.
  *
- * Ovanpå det lägger skriptet förslagslistan. Registret
- * (/sok-index/<hash>.json, ~970 kB) hämtas FÖRST när någon fokuserar fältet.
- * Sidhuvudet finns på 14 711 sidor. Hämtades registret vid sidladdning skulle
- * varje besök på varje restaurangsida dra ner en megabyte som de allra flesta
- * aldrig använder. Efter första hämtningen ligger det i minnet resten av
- * sidans liv och i webbläsarens cache resten av besöket.
+ * Registret (/sok-index/<hash>.json, ~970 kB) hämtas FÖRST när panelen
+ * öppnas. Sidhuvudet finns på 14 711 sidor. Hämtades registret vid
+ * sidladdning skulle varje besök på varje restaurangsida dra ner en megabyte
+ * som de allra flesta aldrig använder. Adressen är innehållsbaserad och
+ * kommer från lib/search-index; den skickas som data-attribut eftersom
+ * klientskriptet är en egen bunt utan tillgång till frontmattern.
  *
- * Adressen är innehållsbaserad och kommer från lib/search-index. Den får
- * därför inte skrivas som en konstant i klientskriptet: skriptet är en egen
- * bunt utan tillgång till frontmattern, och adressen skickas i stället som
- * data-attribut på roten. Skrivs den för hand hamnar sidhuvudet och /sok förr
- * eller senare på olika adresser.
- *
- * "Populära sökningar" renderas server-side. Panelen ska vara ifylld i samma
- * ögonblick som fältet fokuseras, inte efter en hämtning. Urvalet bor i
- * lib/snabbval, delat med startsidans chips och kommandopaletten — där står
- * också varför kedjorna pekar på /sok och vad "populär" betyder utan
- * söktrafik att räkna på.
+ * Panelens EGET innehåll (populära sökningar, sidor, kartor, artiklar) ligger
+ * däremot i dokumentet, som JSON. Panelen ska vara ifylld i samma ögonblick
+ * som fältet fokuseras, alltså kan den inte vänta på nätverket. Som JSON och
+ * inte som färdiga rader: raderna bär inlinade ikonbanor och vägde ungefär
+ * elva kilobyte mer per sida än datan de ritades ur, på varenda sida sajten
+ * har. Raderna byggs i stället av lib/sokforslag, samma funktion som ritar
+ * träffarna, vilket är själva garantin för att tomt läge och träffläge är
+ * samma lista.
  */
+import { siteCommands } from '../lib/kommandon';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
-import { popularSearches } from '../lib/snabbval';
-import { GLYPHS } from '../lib/sokforslag';
+import { popularSearches, quickPicks } from '../lib/snabbval';
+import type { Suggestion } from '../lib/sokforslag';
 
 interface Props {
   /**
@@ -46,7 +72,23 @@ interface Props {
 
 const { size = 'bar' } = Astro.props;
 
-const popular = popularSearches();
+const picks = quickPicks();
+
+/* Populära sökningar som förslagsrader. Kedjorna får förstoringsglaset:
+   de leder till en sökning, inte till ett ställe. */
+const popular: Suggestion[] = popularSearches().map((p) => ({
+  label: p.name,
+  meta: p.meta,
+  href: p.href,
+  kind: p.kind === 'kommun' ? 'kommun' : 'query',
+}));
+
+const sections = await siteCommands();
+
+/* `<` maskeras: en artikelrubrik med "</script>" i sig skulle annars stänga
+   taggen mitt i datan. Enda tecknet som kan göra det, och JSON-parsern läser
+   < som ett vanligt <. */
+const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c');
 ---
 
 <div
@@ -55,7 +97,7 @@ const popular = popularSearches();
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
 >
-  <form class="search-field" role="search" action="/sok/" method="get">
+  <form class="search-field" role="search" action="/sok/" method="get" data-field>
     <label class="visually-hidden" for="site-search-q">Sök verksamhet eller kommun</label>
     <input
       id="site-search-q"
@@ -70,18 +112,15 @@ const popular = popularSearches();
     />
     {/* Genvägsmärket, hitta.se-mönstret på ägarens uttryckliga begäran: TVÅ
         separata tangentrutor i fältets högerkant, ⌘ i den ena och K i den
-        andra, med litet mellanrum. Kontraktet ägs av CommandPalette: den
-        letar efter [data-palette-hint], byter modifierarrutans tecken efter
-        plattformen (⌘ på Mac, Ctrl annars, läst ur navigator.platform),
-        visar märket bara på enheter med hover+fin pekare och kopplar
-        klicket till att fälla ut paletten. Därför startar märket hidden
-        och med ⌘ som degraderingstecken: utan skript, eller på en sida
-        utan palett, finns det inte.
+        andra, med litet mellanrum. Skriptet byter modifierarrutans tecken
+        efter plattformen (⌘ på Mac, Ctrl annars), visar märket bara på
+        enheter med hover+fin pekare och kopplar klicket till att fälla ut
+        panelen. Därför startar märket hidden och med ⌘ som degraderings-
+        tecken: utan skript finns det inte.
 
-        I båda lägena, även heron: paletten fälls ut ur just det här fältet
-        (hitta.se-mönstret), så märket pekar på fältets egen förmåga och
-        inte på en främmande ruta. Hitta.se har det i sitt stora fält av
-        samma skäl. */}
+        I båda lägena, även heron: panelen fälls ut ur just det här fältet,
+        så märket pekar på fältets egen förmåga och inte på en främmande
+        ruta. Hitta.se har det i sitt stora fält av samma skäl. */}
     <button
       type="button"
       class="palette-hint"
@@ -100,7 +139,19 @@ const popular = popularSearches();
   </form>
 
   <div class="panel glass" hidden data-panel>
-    <p class="eyebrow head" id="site-search-head" data-head>Populära sökningar</p>
+    {/* Kategorichipsen, hitta.se:s rad, samma urval som startsidans snabbval
+        (lib/snabbval). De hör till TOMMA läget och släcks så fort något är
+        skrivet: chipsen är till för den som inte vet vad hon ska skriva, och
+        den som redan skrivit vill se träffar, inte fyra genvägar till något
+        annat. De åt dessutom halva panelen på ett 380 px fält, där varje
+        chip la sig på en egen rad ovanför svaret.
+
+        Nav och inte listbox-rader: de bläddras inte med pilarna. */}
+    <nav class="chips" aria-label="Populära kategorier" data-chips>
+      {picks.map((c) => (
+        <a class="chip" href={c.href}>{c.label}</a>
+      ))}
+    </nav>
 
     {/* Beskedet står FÖRE listan, inte efter den. Det bär tre lägen: hämtar
         registret, registret gick inte att hämta, och inga träffar. I alla
@@ -111,32 +162,28 @@ const popular = popularSearches();
         skärmläsare hör det utan att flytta fokus. */}
     <p class="note" hidden aria-live="polite" data-note></p>
 
+    {/* Raderna byggs av skriptet, ur JSON-datan nedanför och ur registret.
+        Tomt i HTML alltså, och det är inget bortfall: panelen är hidden och
+        öppnas bara av skript. */}
     <ul
       class="list"
       id="site-search-list"
       role="listbox"
-      aria-labelledby="site-search-head"
+      aria-label="Förslag"
       data-list
-    >
-      {popular.map((p) => (
-        <li role="presentation">
-          <a href={p.href} role="option" aria-selected="false">
-            <span class="mark" aria-hidden="true">
-              <svg
-                viewBox="0 0 20 20"
-                focusable="false"
-                set:html={p.kind === 'kommun' ? GLYPHS.kommun : GLYPHS.query}
-              />
-            </span>
-            <span class="body">
-              <span class="name">{p.name}</span>
-              <span class="meta">{p.meta}</span>
-            </span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    ></ul>
+
+    {/* aria-hidden med avsikt: tipsen beskriver tangenter en skärmläsare
+        redan känner till från listbox-mönstret, och raden är ren dekor.
+        Den visas bara där tangenterna finns, se .hints i stilarna. */}
+    <footer class="hints" aria-hidden="true">
+      <span><kbd class="key">↑</kbd><kbd class="key">↓</kbd> bläddra</span>
+      <span><kbd class="key">⏎</kbd> öppna</span>
+      <span><kbd class="key">esc</kbd> stäng</span>
+    </footer>
   </div>
+
+  <script type="application/json" data-suggest set:html={suggestData} />
 </div>
 
 <style>
@@ -218,10 +265,10 @@ const popular = popularSearches();
 
   /* Genvägsmärket: två separata tangentrutor, hitta.se:s form. Knappen
      själv är osynlig — det är rutorna som är märket. Varje ruta delar
-     tangentform med palettens egna key-caps (22 px, canvas-yta, hårlinje,
+     tangentform med tipsradens key-caps (22 px, canvas-yta, hårlinje,
      6 px radie) så de två läser som samma familj.
      [hidden]-regeln måste stå: en display-regel på klassen slår annars ut
-     attributet, och märket ska kunna släckas av paletten på pekskärm. */
+     attributet, och märket ska kunna släckas på pekskärm. */
   .palette-hint {
     flex-shrink: 0;
     display: inline-flex;
@@ -273,7 +320,8 @@ const popular = popularSearches();
   .site-search.is-hero .go { width: 44px; height: 44px; }
   .site-search.is-hero .go svg { width: 19px; height: 19px; }
 
-  /* Samma svävande lager som platsväljaren bredvid. De två panelerna ligger
+  /* ── Panelen ────────────────────────────────────────────────────────────
+     Samma svävande lager som platsväljaren bredvid. De två panelerna ligger
      tio centimeter från varandra i sidhuvudet och måste läsa som syskon,
      numera garanterat, eftersom ytan står en gång i .glass i tokens.css i
      stället för i en kopia per fil. Här bor bara mått och layout. */
@@ -284,9 +332,40 @@ const popular = popularSearches();
     z-index: 50;
     width: 100%;
     min-width: 340px;
-    max-height: min(70vh, 520px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+
+    /* HÖJDEN RÄKNAS MOT UTRYMMET UNDER FÄLTET, inte mot en vh-siffra.
+       Ägaren: "på cmd k sökningen, då blir popupen för lång, den läcker
+       liksom för långt ner." Panelen bar 70vh, och 70 % av fönstret är för
+       mycket när fältet redan börjar en bit ner: på startsidan sitter
+       herofältet mitt på sidan, så panelen fortsatte förbi skärmkanten och
+       resten gick bara att nå genom att skrolla sidan — vilket flyttade
+       panelen med sig.
+
+       --panel-room sätts av skriptet till fönsterhöjden minus fältets
+       underkant minus en marginal, och räknas om vid rullning och
+       storleksändring. En fast siffra kan inte klara både sidhuvudet och
+       heron, eftersom det är fältets läge som avgör hur mycket som finns
+       kvar.
+
+       --keyboard-inset kommer ur visualViewport och sätts av lib/page-lock,
+       samma variabel som arken använder. iOS krymper inte layoutviewporten
+       när tangentbordet fälls upp, så innerHeight vet ingenting om det;
+       dvh vet det inte heller. Panelen låser INTE sidan (den är en popup,
+       inte ett ark) och prenumererar därför bara på mätningen.
+
+       max() är golvet, och det är en sista utväg: står fältet så långt ner
+       att tangentbordet lämnar mindre än tre rader under det får panelen
+       hellre gå utanför än falla ihop till en remsa. Läget varar inte:
+       webbläsaren rullar fram fältet när tangentbordet kommer, och
+       mätningen räknas om vid varje rullning. 560 är taket, annars blir
+       tomma läget en katalog på en hög skärm. */
+    max-height: max(
+      160px,
+      min(560px, calc(var(--panel-room, 60vh) - var(--keyboard-inset, 0px)))
+    );
+
+    display: flex;
+    flex-direction: column;
     padding: var(--s-3);
 
     /* Panelen ärver ALDRIG sidans textjustering.
@@ -302,16 +381,60 @@ const popular = popularSearches();
     text-align: left;
   }
 
-  .head {
-    margin: var(--s-1) var(--s-2) var(--s-2);
+  .panel[hidden] { display: none; }
+
+  /* Chipsen ligger fast överst och listan rullar under dem. */
+  .chips {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-1) var(--s-2) var(--s-3);
+    border-bottom: 1px solid var(--hairline);
   }
 
+  .chips[hidden] { display: none; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .chip:hover {
+    text-decoration: none;
+    border-color: var(--text-muted);
+  }
+
+  /* Listan är det enda som rullar. Chipsen, beskedet och tipsraden står
+     kvar, så panelen aldrig ser avhuggen ut i överkanten. */
   .list {
     list-style: none;
     margin: 0;
     padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
+  .list :global(.group) {
+    margin: var(--s-3) var(--s-2) var(--s-1);
+  }
+
+  /* Första gruppen ska inte skjuta ner listan: luften ovanför den bärs
+     redan av chipsraden eller av panelens egen padding. */
+  .list :global(.group:first-child) {
+    margin-top: var(--s-1);
+  }
+
+  /* :global på raderna: de byggs av skriptet och bär inte Astros
+     scopingattribut. */
   .list :global(a) {
     display: flex;
     align-items: center;
@@ -398,13 +521,13 @@ const popular = popularSearches();
     white-space: nowrap;
   }
 
-  .list :global(a:hover .action .name),
   .list :global(.action:hover .name),
   .list :global(.action[data-active] .name) { color: var(--text); }
 
   /* Beskedet. Brödtextens mindre grad och inte bildtextens: det är svaret på
      en fråga besökaren just ställde, inte en fotnot till något annat. */
   .note {
+    flex-shrink: 0;
     margin: 0;
     padding: var(--s-2);
     font-size: var(--fs-body-s);
@@ -413,6 +536,43 @@ const popular = popularSearches();
   }
 
   .note[hidden] { display: none; }
+
+  /* Tipsen finns bara där tangenterna finns. hover+fine pointer är den
+     träffsäkraste signalen webben har för "här sitter ett tangentbord". */
+  .hints {
+    flex-shrink: 0;
+    display: none;
+    gap: var(--s-4);
+    align-items: center;
+    padding: var(--s-3) var(--s-2) var(--s-1);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  .hints span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+  }
+
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: var(--canvas);
+    font: 500 var(--fs-caption)/1 var(--font-sans);
+    color: var(--text-secondary);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .hints { display: flex; }
+  }
 
   /* Under 900 px konkurrerar fältet med menyn om bredden; menyn får vika
      först, den finns i sin helhet i sidfoten. Gäller bara sidhuvudsläget:
@@ -482,46 +642,62 @@ const popular = popularSearches();
 
 <script>
   /**
-   * Förslagslistan. Allt här är förstärkning — formuläret ovanför fungerar
-   * utan skript och postar till /sok.
+   * Panelen. Allt här är förstärkning — formuläret ovanför fungerar utan
+   * skript och postar till /sok.
    *
-   * Radens utseende och rankningen bor i lib/sokforslag, delat med
-   * kommandopaletten. De två panelerna hänger under SAMMA fält och måste
-   * visa samma sorts rad; hölls logiken i två kopior gled de isär, och det
-   * hade de redan börjat göra.
+   * Raden, grupperingen, rankningen och registret bor i lib/sokforslag.
+   * /sok läser samma modul, så resultatsidan kan inte rangordna annorlunda
+   * än panelen som skickade dit besökaren.
    */
+  import { trackKeyboard, untrackKeyboard } from '../lib/page-lock';
   import {
     actionLi,
     collect,
     completionFor,
     indexFailed,
     loadIndex,
+    matchPages,
     normalise,
     ranked,
     searchIndex,
-    suggestionLi,
+    sectionHtml,
+    type Suggestion,
   } from '../lib/sokforslag';
 
   const root = document.querySelector<HTMLElement>('[data-sitesearch]');
 
   if (root) {
+    const field = root.querySelector<HTMLElement>('[data-field]')!;
     const input = root.querySelector<HTMLInputElement>('[data-input]')!;
     const panel = root.querySelector<HTMLElement>('[data-panel]')!;
     const list = root.querySelector<HTMLElement>('[data-list]')!;
-    const head = root.querySelector<HTMLElement>('[data-head]')!;
     const note = root.querySelector<HTMLElement>('[data-note]')!;
+    const chips = root.querySelector<HTMLElement>('[data-chips]');
 
-    /** Server-renderade populära sökningar, sparade för att kunna återställas. */
-    const popularHtml = list.innerHTML;
+    /** Panelens eget innehåll, ur JSON i dokumentet. Ingen hämtning. */
+    const data = JSON.parse(
+      root.querySelector<HTMLElement>('[data-suggest]')!.textContent!,
+    ) as {
+      popular: Suggestion[];
+      sections: { name: string; items: Suggestion[] }[];
+    };
+
+    /** Sidorna, kartorna och artiklarna i en följd, för rankningen. */
+    const pages = data.sections.flatMap((s) => s.items);
 
     /**
-     * Kommandopaletten ankras i SAMMA fält (cmd+K fäller ut det, se
-     * CommandPalette.astro) och sätter data-palette-open på roten medan den
-     * är öppen. Då ska förslagspanelen hålla tyst: två paneler under samma
-     * fält som båda svarar på tangenterna är värre än ingen. Paletten äger
-     * fältet tills den stängs, och attributet är hela kontraktet.
+     * Tomma läget, byggt en gång. Samma funktion som ritar träffarna, alltså
+     * samma rad, samma märke och samma grupprubrik. Det var precis den här
+     * likheten som gick förlorad när två komponenter renderade var sin
+     * variant av listan.
      */
-    const paletteOwnsField = () => root!.hasAttribute('data-palette-open');
+    const emptyHtml =
+      sectionHtml('Populära sökningar', data.popular, '') +
+      data.sections.map((s) => sectionHtml(s.name, s.items, '')).join('');
+
+    /** Mac har cmd+K; ctrl+K på en Mac är dessutom emacs-bindningen "radera
+     *  till radslut" i textfält och får inte kapas där. */
+    const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
     /**
      * Kort platshållare på smala skärmar.
@@ -548,12 +724,18 @@ const popular = popularSearches();
     syncPlaceholder();
     narrow.addEventListener('change', syncPlaceholder);
 
-    /** Så många förslag panelen visar. Fler blir en katalog, inte ett förslag. */
-    const MAX_SUGGESTIONS = 7;
-    /** Så många kandidater vi samlar per klass innan vi slutar leta. Långt
-     *  fler än vi visar: urvalet rankas efteråt, och de sju första i filens
-     *  ordning är inte de sju mest relevanta. */
-    const SCAN_CAP = 60;
+    /**
+     * Så många rader varje grupp visar.
+     *
+     * Sju verksamheter och kommuner: fler blir en katalog, inte ett förslag.
+     * Tre sidor och kartor: gruppen är ett komplement till svaret, inte
+     * svaret. Talen är samtidigt hur djupt rankningen sparar, se collect.
+     */
+    const PLACE_MAX = 7;
+    const PAGE_MAX = 3;
+
+    /** Luft mellan panelens underkant och skärmkanten. */
+    const PANEL_GAP = 16;
 
     // Rollerna sätts av skriptet. Utan skript finns ingen combobox, och då
     // ska en skärmläsare heller inte få höra att det finns en.
@@ -565,8 +747,7 @@ const popular = popularSearches();
 
     // ---- Registret ------------------------------------------------------
 
-    /** Registret bor i den delade modulen, hämtat en gång för hela sidan
-     *  oavsett vilken av de två panelerna som råkade be om det först. */
+    /** Registret hämtas en gång per dokument, ur den delade modulen. */
     const fetchRegister = () =>
       loadIndex(root!.dataset.index!, root!.dataset.indexFallback ?? null);
 
@@ -576,11 +757,9 @@ const popular = popularSearches();
     let active = -1;
 
     /**
-     * id:na sätts här och inte i markupen. Raderna byggs numera av den delade
-     * modulen, som inte känner till vilken av de två panelerna den ritar åt,
-     * och aria-activedescendant kräver ett id per rad. Att sätta dem på plats
-     * gör dessutom att de server-renderade raderna och de skriptbyggda inte
-     * kan hamna i olika nummerserier.
+     * id:na sätts här och inte i markupen. Raderna byggs av den delade
+     * modulen, som inte vet vilken lista den ritar åt, och
+     * aria-activedescendant kräver ett id per rad.
      */
     function refreshOptions() {
       options = Array.from(list.querySelectorAll<HTMLAnchorElement>('a[role="option"]'));
@@ -607,11 +786,31 @@ const popular = popularSearches();
       next.scrollIntoView({ block: 'nearest' });
     }
 
+    /**
+     * Utrymmet under fältet, i pixlar, till CSS.
+     *
+     * Fönsterhöjden och inte visualViewport: rektangeln är i layout-
+     * koordinater, och att blanda de två gav fel svar vid nypzoom. Det
+     * tangentbordet tar drar CSS av separat via --keyboard-inset, som är
+     * definierad mot exakt samma innerHeight (se lib/page-lock).
+     */
+    function sizePanel() {
+      const room = window.innerHeight - field.getBoundingClientRect().bottom - PANEL_GAP;
+      root!.style.setProperty('--panel-room', `${Math.round(room)}px`);
+    }
+
     function open() {
-      if (paletteOwnsField()) return;
       if (!panel.hidden) return;
       panel.hidden = false;
       input.setAttribute('aria-expanded', 'true');
+
+      sizePanel();
+      // Fältet flyttar sig när sidan rullar, och då ändras utrymmet under
+      // det. Passivt: mätningen får aldrig hålla upp rullningen.
+      window.addEventListener('scroll', sizePanel, { passive: true });
+      window.addEventListener('resize', sizePanel);
+      trackKeyboard();
+
       // Två svävande lager i samma sidhuvud får aldrig stå öppna samtidigt.
       const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
       if (picker) picker.open = false;
@@ -622,6 +821,9 @@ const popular = popularSearches();
       panel.hidden = true;
       input.setAttribute('aria-expanded', 'false');
       setActive(-1);
+      window.removeEventListener('scroll', sizePanel);
+      window.removeEventListener('resize', sizePanel);
+      untrackKeyboard();
     }
 
     function say(text: string) {
@@ -640,36 +842,43 @@ const popular = popularSearches();
       const q = normalise(text);
 
       if (!q) {
-        list.innerHTML = popularHtml;
-        head.hidden = false;
+        list.innerHTML = emptyHtml;
+        if (chips) chips.hidden = false;
         say('');
         refreshOptions();
         return;
       }
 
-      head.hidden = true;
+      if (chips) chips.hidden = true;
 
-      if (!searchIndex().rows.length) {
-        list.innerHTML = '';
-        refreshOptions();
-        say(indexFailed() ? 'Sökregistret gick inte att hämta just nu.' : 'Hämtar sökregistret…');
-        return;
-      }
+      // Sidorna ligger i dokumentet och kan svara direkt. Registret kan
+      // fortfarande vara på väg, och då är en halv lista bättre än ingen.
+      const loaded = searchIndex().rows.length > 0;
+      const groups = loaded ? collect(q, PLACE_MAX) : null;
+      const places = groups ? ranked(groups).slice(0, PLACE_MAX) : [];
+      const hits = matchPages(pages, q, PAGE_MAX);
 
-      const groups = collect(q, SCAN_CAP);
-      const items = ranked(groups).slice(0, MAX_SUGGESTIONS);
-
-      // Sista raden går alltid till /sok. Panelen visar sju förslag; den som
+      // Sista raden går alltid till /sok. Panelen visar ett urval; den som
       // söker något bredare ska inte hamna i en återvändsgränd. Raden är en
       // handling och ritas som en sådan, avskild med en hårlinje.
       list.innerHTML =
-        items.map((s) => suggestionLi(s, q)).join('') +
+        sectionHtml('Verksamheter och kommuner', places, q) +
+        sectionHtml('Sidor och kartor', hits, q) +
         actionLi(text, `/sok/?q=${encodeURIComponent(text)}`);
 
       refreshOptions();
-      say(items.length ? '' : `Inga träffar för ”${text}”`);
 
-      if (!allowComplete || !forward) return;
+      say(
+        !loaded
+          ? indexFailed()
+            ? 'Sökregistret gick inte att hämta just nu.'
+            : 'Hämtar sökregistret…'
+          : places.length || hits.length
+            ? ''
+            : `Inga träffar för ”${text}”`,
+      );
+
+      if (!allowComplete || !forward || !groups) return;
       // Utfyllnad bara vid framåtskrivning. Vid backsteg måste fältet lyda —
       // annars går det inte att radera det man skrivit.
       if (raw !== raw.trim() || q.length < 2) return;
@@ -683,24 +892,24 @@ const popular = popularSearches();
       setActive(0);
     }
 
+    /** Öppna och rita. Registret hämtas första gången någon gör det här. */
+    function reveal() {
+      fetchRegister().then(() => {
+        // Registret kan komma efter att fältet fått text. Rita om, men fyll
+        // inte i något — markören kan ha flyttats sedan dess.
+        if (!panel.hidden) render(false);
+      });
+      open();
+      render(false);
+    }
+
     // ---- Händelser ------------------------------------------------------
 
     let lastLength = input.value.length;
 
-    input.addEventListener('focus', () => {
-      if (paletteOwnsField()) return;
-      fetchRegister().then(() => {
-        // Registret kan komma efter att fältet fått text. Rita om, men fyll
-        // inte i något — användaren kan ha markerat eller flyttat markören
-        // sedan dess.
-        if (document.activeElement === input) render(false);
-      });
-      open();
-      render(false);
-    });
+    input.addEventListener('focus', reveal);
 
     input.addEventListener('input', (event) => {
-      if (paletteOwnsField()) return;
       const e = event as InputEvent;
       if (e.isComposing) return;
       forward = e.inputType
@@ -713,7 +922,6 @@ const popular = popularSearches();
     });
 
     input.addEventListener('keydown', (event) => {
-      if (paletteOwnsField()) return;
       const key = event.key;
 
       if (key === 'Escape') {
@@ -726,15 +934,15 @@ const popular = popularSearches();
 
       if (key === 'ArrowDown' || key === 'ArrowUp') {
         event.preventDefault();
-        if (panel.hidden) {
-          open();
-          render(false);
-        }
+        if (panel.hidden) reveal();
         if (!options.length) return;
         const step = key === 'ArrowDown' ? 1 : -1;
         const next = (active + step + options.length + 1) % (options.length + 1);
         // Ett varv går genom listan och tillbaka till fältet självt (-1), så
-        // att man kan bläddra sig ur listan utan att välja något.
+        // att man kan bläddra sig ur listan utan att välja något. Ingen rad
+        // står förvald: enter utan bläddring ska gå till /sok, precis som
+        // utan skript. Kommandopaletten hade motsatt kontrakt och förvalde
+        // första raden, vilket gjorde "Visa alla träffar" onåbart därifrån.
         setActive(next === options.length ? -1 : next);
         return;
       }
@@ -751,6 +959,66 @@ const popular = popularSearches();
 
       if (key === 'Tab') close();
     });
+
+    // ---- Genvägen -------------------------------------------------------
+
+    /**
+     * cmd+K, ctrl+K på allt annat.
+     *
+     * FORMEN ÄR HITTA.SE:S, PÅ ÄGARENS UTTRYCKLIGA BEGÄRAN: genvägen öppnar
+     * ingen fristående ruta mitt på skärmen utan fäller ut panelen ur det
+     * sökfält sidan redan har. Ägarens ord: "den kommer liksom ut från
+     * original sökrutan, vilket makear sense". Den centrerade rutan (Linear,
+     * Raycast) är ett appmönster; på en sökdriven sajt där fältet redan är
+     * synligt ska genvägen förstärka fältet, inte konkurrera med det.
+     *
+     * Det den gör är alltså att fokusera fältet och markera det som står
+     * där. Ingen egen vy, ingen egen lista, ingen egen rankning — det var
+     * just det som gjorde att två vägar in gav två olika svar.
+     */
+    function shortcut() {
+      input.focus();
+      input.select();
+      // reveal() alltid, inte bara när fokus redan låg i fältet. focus()
+      // fyrar ingen händelse när elementet redan är fokuserat, och den
+      // fyrar heller inte pålitligt när dokumentet självt saknar fokus.
+      // Att låta genvägen bero på att en händelse råkar gå fram var en
+      // onödig risk; open() gör ingenting om panelen redan är öppen.
+      reveal();
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const chord = mac
+        ? event.metaKey && !event.ctrlKey
+        : event.ctrlKey && !event.metaKey;
+      if (!chord || event.shiftKey || event.altKey) return;
+      if (event.key !== 'k' && event.key !== 'K') return;
+      if (event.repeat) return;
+      // preventDefault även när vi stänger: webbläsarens egen ctrl+K
+      // (sökfältet i Firefox) får aldrig slå igenom halva gångerna.
+      event.preventDefault();
+      if (!panel.hidden && document.activeElement === input) close();
+      else shortcut();
+    });
+
+    /*
+     * Genvägsmärket i fältet ([data-palette-hint]): tecknet byts efter
+     * plattformen, märket väcks bara på enheter med tangentbord, och klicket
+     * gör samma sak som genvägen. Bara den första rutan är
+     * plattformsberoende — K-rutan står orörd.
+     */
+    const hint = root.querySelector<HTMLElement>('[data-palette-hint]');
+    if (hint) {
+      const mod = hint.querySelector<HTMLElement>('[data-palette-mod]');
+      if (mod) mod.textContent = mac ? '⌘' : 'Ctrl';
+      const fine = matchMedia('(hover: hover) and (pointer: fine)');
+      const sync = () => { hint.hidden = !fine.matches; };
+      sync();
+      fine.addEventListener('change', sync);
+      hint.addEventListener('click', shortcut);
+    }
+
+    // ---- Musen ----------------------------------------------------------
 
     // Musen ska markera samma rad som tangentbordet skulle ha gjort.
     list.addEventListener('mousemove', (event) => {
