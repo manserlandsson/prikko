@@ -212,7 +212,7 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
 <style>
   .page {
     padding-block: var(--s-8) var(--s-12);
-    max-width: 780px;
+    max-width: var(--w-page);
   }
 
   .crumbs {
@@ -228,8 +228,8 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
   .crumbs a { color: var(--text-secondary); }
 
   .head h1 {
-    font-size: 32px;
-    line-height: 36px;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
     margin-top: var(--s-1);
   }
 

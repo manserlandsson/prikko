@@ -28,7 +28,7 @@
 }
 
 .konto-wide {
-  max-width: var(--readcol);
+  max-width: var(--w-read);
 }
 
 /* Sidhuvudet står utanför korten.
@@ -40,8 +40,8 @@
 }
 
 .konto-head h1 {
-  font-size: 34px;
-  line-height: 38px;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
 }
 
 .konto-card {
@@ -326,7 +326,6 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
 
 @media (max-width: 600px) {
   .konto-card { padding: var(--s-6) var(--s-4); }
-  .konto-head h1 { font-size: 28px; line-height: 32px; }
 }
 
 /* På smal skärm får raden brytas. Titeln tar hela bredden och status och

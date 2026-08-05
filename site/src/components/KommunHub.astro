@@ -405,7 +405,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
      hålls nere av att listan ligger i en spalt bredvid panelen. */
   .page {
     padding-block: var(--s-6) var(--s-12);
-    max-width: var(--container);
+    max-width: var(--w-wide);
   }
 
   .crumbs {
@@ -419,7 +419,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   .lede {
     margin-top: var(--s-4);
-    max-width: 640px;
+    max-width: var(--w-read);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
   }
@@ -439,9 +439,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   .jump { font-size: var(--fs-body-s); }
 
+  /* Rubriken över chipsraden ligger i huvudkolumnen och måste därför väga
+     minst lika mycket som sidopanelens rubriker. Den låg på --fs-body-s och
+     blev mindre än "Senast kontrollerade" bredvid, alltså läste sidan som
+     att panelen var viktigare än innehållet. Samma nivå som .panel-title. */
   .filter h2 {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
     font-weight: 600;
     color: var(--text-secondary);
   }
@@ -526,9 +530,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     padding: var(--s-4);
   }
 
+  /* Panelrubrik = kort- och sidopanelsnivån i skalan. Booli har exakt en
+     sådan nivå (16/600) och använder den på varje kort på varje sidtyp.
+     Vår motsvarighet är --fs-h-xs. Skriv den aldrig som --fs-body-s igen:
+     då blir en rubrik lika stor som texten under sig. */
   .panel-title {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
     font-weight: 600;
     margin-bottom: var(--s-2);
   }
@@ -564,7 +572,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     white-space: nowrap;
   }
 
-  .recent-info span { font-size: 11px; line-height: 15px; }
+  .recent-info span { font-size: var(--fs-micro); line-height: var(--lh-micro); }
 
   .facts { margin: 0; }
 
