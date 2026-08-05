@@ -1,6 +1,6 @@
 ---
 /**
- * Granskningslistan: verksamheter där brister i livsmedelshanteringen
+ * Matsnusklistan: verksamheter där brister i livsmedelshanteringen
  * kvarstod efter kommunens uppföljning.
  *
  * ## Egen sidtyp, inte en skärpning av /[kommun]/anmarkningar
@@ -15,13 +15,17 @@
  *
  * Sidan är utmärkelsens spegelbild (se lib/utmarkelser.ts) men fryses ALDRIG
  * i utgåvor: en verksamhet som åtgärdat allt ska försvinna härifrån vid nästa
- * datauppdatering, inte stå kvar i en årslista. Se lib/granskning.ts, där
- * urvalsreglerna bor och är motiverade.
+ * datauppdatering, inte stå kvar i en årslista. Se lib/matsnusk.ts, där
+ * urvalsreglerna och namnet bor och är motiverade.
  *
- * Kommuner med färre än MIN_REVIEW_PAGE rader får ingen sida alls (bibeln
+ * Kommuner med färre än MIN_MATSNUSK_PAGE rader får ingen sida alls (bibeln
  * §6). Någon riksvy finns inte och får inte byggas: radantalet styrs av hur
  * mycket kommunen publicerar, och en riksvy hade rangordnat kommunernas
  * publicering, inte köken.
+ *
+ * Urvalskriterierna står i sidfoten, inte före listan. Ägarens beslut
+ * (2026-08-05): sidan ska visa saken, inte förklara sig först. Replikrätten
+ * och Rätta-länken ligger kvar i sidhuvudets bildtext.
  */
 import Base from '../../layouts/Base.astro';
 import FaceRef from '../../components/FaceRef.astro';
@@ -35,12 +39,11 @@ import {
   formatNumber,
   sourceFor,
 } from '../../lib/data';
-import { reviewRows, reviewedMunicipalities } from '../../lib/granskning';
-import { SITE } from '../../lib/site';
+import { matsnuskMunicipalities, matsnuskRows } from '../../lib/matsnusk';
 import { absolute, path } from '../../lib/urls';
 
 export function getStaticPaths() {
-  return reviewedMunicipalities().map((m) => ({
+  return matsnuskMunicipalities().map((m) => ({
     params: { kommun: m.slug },
     props: { kommun: m },
   }));
@@ -48,7 +51,7 @@ export function getStaticPaths() {
 
 const { kommun } = Astro.props;
 const city = kommun.city;
-const rows = reviewRows(kommun.slug);
+const rows = matsnuskRows(kommun.slug);
 const source = sourceFor(kommun.slug)!;
 const fetched = source.fetchedAt.slice(0, 10);
 
@@ -70,13 +73,13 @@ const jsonLd = [
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
       { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommun.slug) },
-      { '@type': 'ListItem', position: 3, name: 'Granskning' },
+      { '@type': 'ListItem', position: 3, name: 'Matsnusk' },
     ],
   },
   {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `Kvarstående brister i ${city}`,
+    name: `Matsnusk i ${city}`,
     description: answer,
     numberOfItems: rows.length,
     itemListElement: rows.slice(0, 25).map((r, i) => ({
@@ -101,7 +104,7 @@ function groundText(r: (typeof rows)[number]): string {
 ---
 
 <Base
-  title={`Kvarstående brister i ${city}`}
+  title={`Matsnusk i ${city}`}
   description={answer}
   jsonLd={jsonLd}
   dataUpdated={fetched}
@@ -114,45 +117,20 @@ function groundText(r: (typeof rows)[number]): string {
       <span aria-hidden="true">›</span>
       <a href={path(kommun.slug)}>{city}</a>
       <span aria-hidden="true">›</span>
-      <span>Granskning</span>
+      <span>Matsnusk</span>
     </nav>
 
     <header>
       <p class="eyebrow">{kommun.name}</p>
-      <h1>Kvarstående brister i {city}</h1>
+      <h1>Matsnusk i {city}</h1>
       <p class="answer">{answer}</p>
       <p class="caption text-muted">
         Referat av kommunens kontrolldata, hämtad {formatDate(fetched)}.
-        {' '}<a href="#urval">Så väljs raderna ut</a> ·
+        Verksamheter kan svara; svar publiceras ordagrant.
+        {' '}<a href="#urval">Så väljs listan ut</a> ·
         {' '}<a href={path('ratta')}>Rätta en uppgift</a>
       </p>
     </header>
-
-    {/*
-      Grunderna står FÖRE listan. Den som läser namnen ska redan veta vad som
-      krävs för att stå här, och lika viktigt vad som inte räcker.
-    */}
-    <section class="terms card" aria-label="Vad som krävs för en rad">
-      <ul>
-        <li>
-          Bristerna var <b>inte åtgärdade</b> när kommunen följde upp, eller
-          är kommunens egen allvarligaste bedömning.
-        </li>
-        <li>
-          Minst en avvikelse rör <b>livsmedlen eller hanteringen av dem</b>,
-          enligt Livsmedelsverkets indelning i lagstiftningsområden. Rent
-          administrativa avvikelser, som en saknad registrering, räcker aldrig.
-        </li>
-        <li>
-          Kontrollen är högst <b>tolv månader</b> gammal. Raden försvinner så
-          snart en ny kontroll visar att bristerna åtgärdats.
-        </li>
-        <li>
-          Varje verksamhet kan <b>svara</b>. Svar publiceras ordagrant här och
-          på verksamhetens sida.
-        </li>
-      </ul>
-    </section>
 
     <ul class="list" aria-label={`Verksamheter med kvarstående brister i ${city}`}>
       {rows.map((r) => {
@@ -192,30 +170,25 @@ function groundText(r: (typeof rows)[number]): string {
     </ul>
 
     <section id="urval" class="method">
-      <h2>Så väljs raderna ut</h2>
+      <h2>Så väljs listan ut</h2>
       <p>
-        Listan är ett referat av {kommun.name}s egna kontrolldata, inte ett
-        omdöme från Prikko. En verksamhet står här när tre saker är uppfyllda
-        samtidigt: den senaste kontrollen ledde till bedömningen brister som
-        kvarstår, minst en av avvikelserna ligger i ett lagstiftningsområde som
-        rör livsmedlen eller hanteringen av dem, och kontrollen är högst tolv
-        månader gammal, ungefär ett ordinarie kontrollintervall. Rent
-        administrativa avvikelser, till exempel en saknad registrering eller en
-        lucka i journalföringen, sätter aldrig någon på listan, och det gör
-        inte heller en kontroll där kommunen inte redovisat vad avvikelserna
+        Tre krav, alla ur {kommun.name}s egna kontrolldata: bedömningen
+        brister som kvarstår, minst en avvikelse som rör livsmedlen eller
+        hanteringen av dem enligt Livsmedelsverkets lagstiftningsområden, och
+        en kontroll som är högst tolv månader gammal. Rent administrativa
+        avvikelser, som en saknad registrering, räcker aldrig. Det gör inte
+        heller en kontroll där kommunen inte redovisat vad avvikelserna
         gällde.
       </p>
       <p>
-        Listan räknas om vid varje datauppdatering. En verksamhet som åtgärdar
-        bristerna försvinner härifrån så snart kommunens nästa kontroll visar
-        det. Raderna rangordnas inte: de står i datumordning, nyast först,
-        eftersom antalet avvikelser inte går att jämföra mellan kontroller.
+        Listan räknas om vid varje datauppdatering, och en rad försvinner så
+        snart en ny kontroll visar att bristerna åtgärdats. Raderna står i
+        datumordning, nyast först, utan rangordning.
       </p>
       <p>
-        Varje verksamhet har rätt att svara, och svaren publiceras ordagrant
-        på den här sidan och på verksamhetens egen sida. Anser du att en
-        uppgift är fel, <a href={path('ratta')}>begär rättelse</a>, så uppdateras
-        sidan när kommunen rättat sin data.
+        Varje verksamhet kan svara. Svaren publiceras ordagrant här och på
+        verksamhetens sida. Är en uppgift fel,
+        {' '}<a href={path('ratta')}>begär rättelse</a>.
       </p>
       <p>
         <a href={path(kommun.slug, 'anmarkningar')}>Alla verksamheter med
@@ -251,40 +224,6 @@ function groundText(r: (typeof rows)[number]): string {
   }
 
   header .caption { margin-top: var(--s-3); }
-
-  .terms {
-    margin-top: var(--s-6);
-    padding: var(--s-4) var(--s-6);
-  }
-
-  .terms ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .terms li {
-    position: relative;
-    padding-left: var(--s-4);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-  }
-
-  .terms li + li { margin-top: var(--s-2); }
-
-  .terms li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 8px;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--text-muted);
-  }
-
-  .terms b { color: var(--text); font-weight: 600; }
 
   .list {
     list-style: none;

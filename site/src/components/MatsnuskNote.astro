@@ -1,0 +1,97 @@
+---
+/**
+ * Matsnuskmärket på verksamhetens egen sida. Ägarens beslut (2026-08-05):
+ * "den får stamp precis som dom bra, fast dålig".
+ *
+ * Spegelbilden av AwardNote, med en avgörande skillnad: utmärkelsens märke är
+ * historiskt och tas aldrig bort, det här är LEVANDE. Det följer exakt samma
+ * urval som raden på matsnusklistan (lib/matsnusk.ts) och försvinner i samma
+ * bygge som raden gör det. Ett märke som står kvar efter att bristerna
+ * åtgärdats är precis det klagomål vi aldrig får ge någon.
+ *
+ * Renderar ingenting när verksamheten inte uppfyller kriterierna, så
+ * montering är en rad utan villkor runt:
+ *
+ *     <MatsnuskNote establishment={e} />
+ *
+ * Länken till listan visas bara när kommunen har en (grinden i
+ * hasMatsnuskPage). Märket i sig följer radens kriterier, inte grinden:
+ * kraven är lokala för verksamheten och lika bevisade i en liten kommun.
+ */
+import MatsnuskSeal from './MatsnuskSeal.astro';
+import { formatDate } from '../lib/data';
+import { hasMatsnuskPage, matsnuskFor } from '../lib/matsnusk';
+import { path } from '../lib/urls';
+import type { Establishment } from '../lib/data';
+
+interface Props {
+  establishment: Establishment;
+}
+
+const { establishment: e } = Astro.props;
+const row = matsnuskFor(e);
+const listed = row !== null && hasMatsnuskPage(e.municipality.slug);
+---
+
+{row && (
+  <section class="snusk">
+    <MatsnuskSeal size={56} />
+    <div>
+      <h2>Matsnusk</h2>
+      <p>
+        Brister i livsmedelshanteringen som inte var åtgärdade vid kommunens
+        uppföljning, konstaterat {formatDate(row.inspection.date)}.
+        {listed && (
+          <>
+            {' '}<a href={path(e.municipality.slug, 'matsnusk')}>
+              Se listan för {e.municipality.city}
+            </a>.
+          </>
+        )}
+      </p>
+      <p>
+        Märket försvinner när en ny kontroll visar att bristerna åtgärdats.
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>.
+      </p>
+    </div>
+  </section>
+)}
+
+<style>
+  .snusk {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    margin-top: var(--s-8);
+    padding: var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+  }
+
+  /* Samma typografiska val som AwardNote: h2 som element, brödtext som form.
+     Rutan är en notis, inte ett avsnitt. */
+  .snusk h2 {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+    margin-bottom: var(--s-1);
+  }
+
+  .snusk p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+    color: var(--text-secondary);
+  }
+
+  .snusk p + p {
+    margin-top: var(--s-2);
+  }
+
+  @media (max-width: 560px) {
+    .snusk {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

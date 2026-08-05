@@ -1,5 +1,5 @@
 /**
- * Granskningslistan: verksamheter där brister i livsmedelshanteringen
+ * Matsnusklistan: verksamheter där brister i livsmedelshanteringen
  * kvarstod efter kommunens uppföljning.
  *
  * ## Vad listan är
@@ -9,6 +9,11 @@
  * påpekade brister, kom tillbaka, och konstaterade att de inte var åtgärdade.
  * Varje rad är ett referat av kommunens egna kontrollrader, aldrig ett omdöme
  * från oss.
+ *
+ * Namnet Matsnusk är ägarens beslut (2026-08-05), samma ord som SVT använder
+ * om sina granskningar. Ordet är LISTANS namn och står i rubrik och adress.
+ * Det står aldrig i en mening om en namngiven verksamhet; där är texten
+ * fortfarande referat av kommunens konstateranden.
  *
  * ## Varför listan är per kommun och aldrig nationell
  *
@@ -41,9 +46,9 @@
  *    avgöra, ger ingen rad. Observera att bevisbördan är OMVÄND mot
  *    grading.py: där får okänt aldrig MILDRA en bedömning, här får okänt
  *    aldrig SÄTTA någon på listan. Båda reglerna skyddar samma part.
- * 3. FÄRSKT. Kontrollen är högst GRANSKNING_WINDOW_DAYS gammal, räknat mot
+ * 3. FÄRSKT. Kontrollen är högst MATSNUSK_WINDOW_DAYS gammal, räknat mot
  *    datauttagets datum. Se motiveringen vid konstanten.
- * 4. ÖVER GRINDEN. Kommunen får sidan bara med minst MIN_REVIEW_PAGE rader
+ * 4. ÖVER GRINDEN. Kommunen får sidan bara med minst MIN_MATSNUSK_PAGE rader
  *    (bibeln §6, samma tal och skäl som MIN_CATEGORY_PAGE och MIN_OWN_PAGE).
  *
  * ## Varför raderna inte numreras
@@ -139,13 +144,13 @@ export function isConsumerRemark(area: ControlArea): boolean {
  * hos oss säger då mer om kommunens publicering än om köket, och en lista
  * som pekar ut namngivna verksamheter får inte vila på det. Bedömningens
  * eget treårsfönster (grading.py) gäller fortfarande på verksamhetssidan;
- * granskningslistan ställer ett hårdare krav för att den ställer ut raderna
+ * matsnusklistan ställer ett hårdare krav för att den ställer ut raderna
  * bredvid varandra.
  */
-export const GRANSKNING_WINDOW_DAYS = 365;
+export const MATSNUSK_WINDOW_DAYS = 365;
 
 /**
- * Minsta antal rader för att kommunen ska få en granskningssida.
+ * Minsta antal rader för att kommunen ska få en matsnusksida.
  *
  * Samma tal och samma skäl som MIN_CATEGORY_PAGE i data.ts och MIN_OWN_PAGE i
  * utmarkelser.ts: en sida med en handfull rader bär ingen information som
@@ -153,9 +158,9 @@ export const GRANSKNING_WINDOW_DAYS = 365;
  * (bibeln §6). Under gränsen finns ingen sida alls, och raderna samlas INTE på
  * någon riksvy, se modulhuvudet.
  */
-export const MIN_REVIEW_PAGE = 25;
+export const MIN_MATSNUSK_PAGE = 25;
 
-export interface ReviewRow {
+export interface MatsnuskRow {
   establishment: Establishment;
   /** Senaste kontrollen, den som bär bedömningen. */
   inspection: Inspection;
@@ -181,24 +186,24 @@ export interface ReviewRow {
   previous: Inspection | null;
 }
 
-const rowsCache = new Map<string, ReviewRow[]>();
+const rowsCache = new Map<string, MatsnuskRow[]>();
 
 /**
- * Kommunens granskningsrader, nyast först.
+ * Kommunens matsnuskrader, nyast först.
  *
  * Färskheten mäts mot kommunens `fetchedAt`, inte mot byggets klocka. Datat
  * ändras bara när pipelinen kört, så samma datafiler ska ge samma sidor
  * oavsett när bygget råkar köras. Annars kan en ombyggnad utan ny data tyst
  * ändra vilka verksamheter som pekas ut.
  */
-export function reviewRows(slug: string): ReviewRow[] {
+export function matsnuskRows(slug: string): MatsnuskRow[] {
   const cached = rowsCache.get(slug);
   if (cached) return cached;
 
   const fetchedAt = sourceFor(slug)?.fetchedAt ?? '';
-  const cutoff = isoDaysBefore(fetchedAt.slice(0, 10), GRANSKNING_WINDOW_DAYS);
+  const cutoff = isoDaysBefore(fetchedAt.slice(0, 10), MATSNUSK_WINDOW_DAYS);
 
-  const rows: ReviewRow[] = [];
+  const rows: MatsnuskRow[] = [];
   for (const e of establishments(slug)) {
     if (e.verdict !== 'major') continue;
 
@@ -220,7 +225,7 @@ export function reviewRows(slug: string): ReviewRow[] {
     if (consumer.length === 0) continue;
 
     const previous = e.inspections[1] ?? null;
-    const ground: ReviewRow['ground'] =
+    const ground: MatsnuskRow['ground'] =
       inspection.assessment === 2
         ? 'stated'
         : inspection.type === 1
@@ -254,14 +259,35 @@ export function reviewRows(slug: string): ReviewRow[] {
   return rows;
 }
 
-/** Har kommunen en granskningssida? Grinden, på ett ställe. */
-export function hasReviewPage(slug: string): boolean {
-  return reviewRows(slug).length >= MIN_REVIEW_PAGE;
+/** Har kommunen en matsnusksida? Grinden, på ett ställe. */
+export function hasMatsnuskPage(slug: string): boolean {
+  return matsnuskRows(slug).length >= MIN_MATSNUSK_PAGE;
+}
+
+const memberIndexes = new Map<string, Map<string, MatsnuskRow>>();
+
+/**
+ * Verksamhetens egen rad, eller null. Driver märket på verksamhetssidan.
+ *
+ * Märket följer RADENS kriterier, inte sidgrinden: kraven är lokala för
+ * verksamheten och lika bevisade i en liten kommun som i en stor. Grinden
+ * MIN_MATSNUSK_PAGE avgör bara om det finns en lista att länka till, och det
+ * valet gör komponenten. Precis som raden är märket levande: det försvinner
+ * vid första datauppdatering där kriterierna inte längre är uppfyllda.
+ */
+export function matsnuskFor(e: Establishment): MatsnuskRow | null {
+  const slug = e.municipality.slug;
+  let index = memberIndexes.get(slug);
+  if (!index) {
+    index = new Map(matsnuskRows(slug).map((r) => [r.establishment.slug, r]));
+    memberIndexes.set(slug, index);
+  }
+  return index.get(e.slug) ?? null;
 }
 
 /** Kommunerna som klarar grinden, i bokstavsordning. */
-export function reviewedMunicipalities(): Municipality[] {
-  return municipalities().filter((m) => hasReviewPage(m.slug));
+export function matsnuskMunicipalities(): Municipality[] {
+  return municipalities().filter((m) => hasMatsnuskPage(m.slug));
 }
 
 /** ISO-datumet `days` dagar före `iso`. */
