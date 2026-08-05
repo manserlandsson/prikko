@@ -742,6 +742,158 @@ export async function deleteReview(id: string): Promise<void> {
   await rest('DELETE', `reviews?id=eq.${encodeURIComponent(id)}`);
 }
 
+/* Notiser ------------------------------------------------------------------ */
+
+/**
+ * Klockan på kontot.
+ *
+ * TVÅ KÄLLOR, INTE EN TABELL. Varför står utskrivet över community.notices i
+ * pipeline/schema_community.sql och upprepas inte här. Kort: en bevakad
+ * verksamhets nya bedömning är en rad någon skrivit åt dig, och ett avgjort
+ * omdöme är ett tillstånd på din egen rad. Det andra behöver ingen kopia.
+ *
+ * Läsmarkeringen ligger i databasen och ALDRIG i localStorage. De enda
+ * nycklar som får finnas hos besökaren utan samtycke är `prikko.session` och
+ * `prikko.next`, och /cookies påstår att listan är uttömmande. Se
+ * docs/14_samtycke_och_lagring_i_webblasaren.md.
+ */
+
+/** En rad ur community.notices. */
+export interface NoticeRow {
+  id: string;
+  establishment_id: string;
+  municipality_slug: string;
+  establishment_name: string;
+  establishment_slug: string;
+  inspection_id: string;
+  inspected_at: string;
+  verdict: 'minor' | 'major';
+  created_at: string;
+}
+
+/** Ett avgjort omdöme, alltså ett som en människa tagit ställning till. */
+export interface ReviewNotice {
+  id: string;
+  establishment_id: string;
+  municipality_slug: string;
+  body: string | null;
+  rating: number | null;
+  status: 'published' | 'rejected';
+  rejection_reason: string | null;
+  moderated_at: string;
+}
+
+/**
+ * Antalet olästa notiser.
+ *
+ * ETT anrop, inte tre. Räkningen görs av community.unread_notices() i
+ * databasen eftersom klockan sitter i sidhuvudet och sidhuvudet ligger på
+ * 15 500 sidor. Funktionen är `security invoker` och skriver ut
+ * `user_id = auth.uid()` i varje gren, alltså samma disciplin som ownRows()
+ * kräver av varje läsning här.
+ *
+ * Svarar databasen inte alls, vilket den gör tills ägaren kört om
+ * schema_community.sql, är noll rätt svar. En klocka som ropar om ett fel
+ * ingen besökare kan åtgärda är sämre än ingen klocka.
+ */
+export async function unreadNotices(): Promise<number> {
+  try {
+    const value = await rest('POST', 'rpc/unread_notices', { body: {} });
+    return typeof value === 'number' && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Notiserna om bevakade verksamheter, nyast först. */
+export async function notices(): Promise<NoticeRow[]> {
+  return (
+    (await rest(
+      'GET',
+      await ownRows(
+        'notices?select=id,establishment_id,municipality_slug,establishment_name,establishment_slug,inspection_id,inspected_at,verdict,created_at&order=created_at.desc&limit=50',
+      ),
+    )) ?? []
+  );
+}
+
+/**
+ * Egna omdömen som fått ett besked, nyast först.
+ *
+ * `moderated_by=not.like.automatik:*` fäller de betyg som publicerats direkt
+ * av community.set_review_status(). En notis om dem hade kommit i samma
+ * sekund som man tryckte skicka, och klockan ska bära vad någon annan gjort.
+ * Filtret står som villkor och inte i utsökningen med flit: moderatorns
+ * identitet ska inte lämna databasen bara för att den behövde läsas.
+ *
+ * Samma regel finns i community.unread_notices(). Ändras den ena måste den
+ * andra följa med, annars räknar pricken något annat än listan visar.
+ */
+export async function reviewNotices(): Promise<ReviewNotice[]> {
+  return (
+    (await rest(
+      'GET',
+      await ownRows(
+        'reviews?select=id,establishment_id,municipality_slug,body,rating,status,rejection_reason,moderated_at&moderated_at=not.is.null&moderated_by=not.like.automatik:*&order=moderated_at.desc&limit=50',
+      ),
+    )) ?? []
+  );
+}
+
+/** Tidpunkten allt äldre räknas som läst. Null när kontot aldrig öppnat listan. */
+export async function noticesReadAt(): Promise<string | null> {
+  const rows = await rest('GET', await ownRows('notice_reads?select=read_at&limit=1'));
+  return Array.isArray(rows) && rows.length > 0 ? (rows[0].read_at ?? null) : null;
+}
+
+/**
+ * Flyttar vattenlinjen till nu.
+ *
+ * `merge-duplicates`, alltså en upsert, och den kräver UPDATE-rättighet.
+ * Rollen authenticated har select, insert och update på notice_reads men
+ * ingen delete: raden ÄR markeringen, och en borttagen rad betyder aldrig
+ * läst. Se follow() ovan för samma fälla åt andra hållet.
+ */
+export async function markNoticesRead(): Promise<void> {
+  const user = currentUser();
+  await rest('POST', 'notice_reads?on_conflict=user_id', {
+    prefer: 'resolution=merge-duplicates,return=minimal',
+    body: { user_id: user?.id, read_at: new Date().toISOString() },
+  });
+}
+
+/** Namn och slug för en handfull anläggningar, ur den redaktionella databasen. */
+export interface PlaceName {
+  id: string;
+  name: string;
+  slug: string;
+  municipality_slug: string;
+}
+
+/**
+ * Slår upp verksamheter på id.
+ *
+ * Omdömestabellen bär inget namn — den lagrar `establishment_id` och
+ * kommunens slug, ingenting annat, och ska inte lagra mer. Namnet hämtas
+ * därför där det hör hemma: i den redaktionella databasen, med GET och utan
+ * inloggning. Vyn publishable_establishments och inte tabellen, av samma skäl
+ * som överallt annars: vyn väljer sina kolumner uttryckligen.
+ *
+ * En verksamhet som avpublicerats sedan omdömet skrevs saknas i svaret, och
+ * anroparen får då skriva notisen utan namn i stället för att utelämna den.
+ */
+export async function placeNames(ids: string[]): Promise<Map<string, PlaceName>> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return new Map();
+
+  const list = unique.map((id) => `"${id}"`).join(',');
+  const rows: PlaceName[] =
+    (await readPublic(
+      `publishable_establishments?select=id,name,slug,municipality_slug&id=in.(${encodeURIComponent(list)})`,
+    )) ?? [];
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
 
 /* Anspråk och svar --------------------------------------------------------- */
 

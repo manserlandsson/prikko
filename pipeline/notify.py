@@ -15,6 +15,22 @@ det för att någon råkade köra det. `--skicka` är det enda som släpper ivä
 något, och nattjobbet skriver ut flaggan uttryckligen.
 
 ---------------------------------------------------------------------------
+TVÅ UTFALL, INTE ETT
+---------------------------------------------------------------------------
+Körningen lämnar två spår, och de är olika saker:
+
+  community.notices        notisen i gränssnittet, alltså klockan på kontot.
+                           Skrivs FÖRE utskicket och oberoende av det.
+  community.notifications  kvittot på att ett mejl faktiskt gått iväg. Skrivs
+                           EFTER varje lyckat utskick, och är det som håller
+                           Resend-kvoten och dubblettspärren.
+
+Ordningen och åtskillnaden är avsiktlig. En notis i webbläsaren kostar
+ingenting, så den ska inte utebli för att mejltaket är fullt eller för att
+adressen är obekräftad. Se write_notices() och kommentaren över
+community.notices i pipeline/schema_community.sql.
+
+---------------------------------------------------------------------------
 VAD MAN FÅR MEJL OM, OCH VARFÖR DET INTE GÅR ATT STÄLLA IN
 ---------------------------------------------------------------------------
 Ett mejl går ut när en bevakad verksamhet fått en NY kontroll med
@@ -572,6 +588,10 @@ def collect(db: Supabase, out_dir: Path, compare_with: str) -> dict[str, list[di
                 "verdict": change["verdict"],
                 "inspection_id": change["inspection_id"],
                 "url": f"{SITE_URL}/{slug}/{change['slug']}/",
+                # Bara till notisraden i databasen, aldrig till mejlet. Mallen
+                # får sin länk färdigbyggd i "url" ovan.
+                "municipality_slug": slug,
+                "place_slug": change["slug"],
             }
         )
 
@@ -580,10 +600,72 @@ def collect(db: Supabase, out_dir: Path, compare_with: str) -> dict[str, list[di
     return per_user
 
 
+def write_notices(db: Supabase, per_user: dict[str, list[dict]]) -> None:
+    """Notiserna till klockan på kontot.
+
+    SKRIVS FÖRE UTSKICKET OCH OBEROENDE AV DET. Det är hela skillnaden mot
+    community.notifications, som är ett kvitto på skickade mejl och därför
+    saknar rad när Resend-kvoten tagit slut eller när adressen är obekräftad.
+    En notis i gränssnittet kostar ingenting och ska inte ransoneras av ett
+    mejltak.
+
+    Ett fel här får inte fälla utskicket. Har ägaren inte kört om
+    schema_community.sql finns tabellen inte, och då är rätt utfall att
+    mejlen går som förut och att bristen syns i loggen på klarspråk. Samma
+    hållning som collect() har mot unsubscribe_token.
+    """
+    rows = [
+        {
+            "user_id": user_id,
+            "establishment_id": item["establishment_id"],
+            "municipality_slug": item["municipality_slug"],
+            "establishment_name": item["name"],
+            "establishment_slug": item["place_slug"],
+            "inspection_id": item["inspection_id"],
+            "inspected_at": item["date"][:10],
+            "verdict": item["verdict"],
+        }
+        for user_id, items in per_user.items()
+        for item in items
+    ]
+    if not rows:
+        return
+
+    try:
+        # `on_conflict` av samma skäl som i notisloggen: utan den löser
+        # PostgREST konflikten mot primärnyckeln, som är en färsk uuid varje
+        # gång, och dubblettspärren på (user_id, inspection_id) hade fällt hela
+        # skrivningen med 409 i stället för att hoppa över raden.
+        db.community(
+            "POST",
+            "notices?on_conflict=user_id,inspection_id",
+            rows,
+            prefer="return=minimal,resolution=ignore-duplicates",
+        )
+    except NotifyError as exc:
+        print(
+            f"VARNING: notiserna kunde inte skrivas ({len(rows)} rader). Mejlen "
+            "går ut ändå, men klockan på kontot står stilla.\n"
+            "  Kör om pipeline/schema_community.sql i Supabase SQL Editor.\n"
+            f"  ({exc})",
+            file=sys.stderr,
+        )
+        if os.environ.get("GITHUB_ACTIONS"):
+            print("::warning title=Notiser i gränssnittet::Tabellen community.notices svarade inte.")
+        return
+
+    print(f"{len(rows)} notis(er) skrivna till kontot.", file=sys.stderr)
+
+
 def run(db: Supabase, out_dir: Path, compare_with: str, send: bool) -> int:
     per_user = collect(db, out_dir, compare_with)
     if not per_user:
         return 0
+
+    # Torrkörningen skriver ingenting alls, inte heller notiser. `--skicka` är
+    # den enda flaggan som får röra vare sig inkorgar eller databasen.
+    if send:
+        write_notices(db, per_user)
 
     left = budget(db) if send else len(per_user)
     if send and left <= 0:

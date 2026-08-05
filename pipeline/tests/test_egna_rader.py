@@ -21,6 +21,7 @@ import unittest
 from pathlib import Path
 
 KLIENTEN = Path(__file__).resolve().parents[2] / "site" / "src" / "lib" / "community.ts"
+SCHEMAT = Path(__file__).resolve().parents[1] / "schema_community.sql"
 
 # Tabeller i schemat community där varje rad hör till en användare. En GET dit
 # är en fråga om egna rader och ska gå genom ownRows(). published_reviews står
@@ -32,6 +33,8 @@ EGNA_TABELLER = (
     "owner_responses",
     "image_uploads",
     "notifications",
+    "notices",
+    "notice_reads",
     "profiles",
 )
 
@@ -43,6 +46,8 @@ LASTA_TABELLER = (
     "establishment_claims",
     "owner_responses",
     "image_uploads",
+    "notices",
+    "notice_reads",
 )
 
 
@@ -83,6 +88,43 @@ class EgnaRader(unittest.TestCase):
                 r"ownRows\(\s*[`'\"]" + tabell + r"\?",
                 f"Ingen filtrerad läsning av '{tabell}' hittades.",
             )
+
+
+class RaknarenIDatabasen(unittest.TestCase):
+    """Samma regel, andra sidan av nätet.
+
+    Klockan i sidhuvudet räknar med community.unread_notices() i stället för
+    med tre frågor från webbläsaren. Funktionen kringgår därför testet ovan,
+    som bara läser klientkoden, och det är precis den sortens genväg som gör
+    att en rättad bugg kommer tillbaka någon annanstans.
+
+    Funktionen läser community.reviews, tabellen med två läspolicyer som läggs
+    ihop med ELLER. Utan ett eget filter räknar den in allas publicerade
+    omdömen, och en ny användare hade fått en prick för främlingars rader.
+    """
+
+    def setUp(self):
+        self.sql = SCHEMAT.read_text(encoding="utf-8")
+        start = self.sql.index("create or replace function community.unread_notices()")
+        self.kropp = self.sql[start : self.sql.index("$$;", start)]
+
+    def test_funktionen_finns(self):
+        self.assertIn("create or replace function community.unread_notices()", self.sql)
+
+    def test_ingen_gren_saknar_agarfiltret(self):
+        # En gren per källa: notices och reviews. Båda ska bära filtret.
+        self.assertEqual(
+            self.kropp.count("user_id = auth.uid()"),
+            3,
+            "unread_notices() ska filtrera på auth.uid() i läsmarkeringen och i "
+            "båda källorna. Radsäkerheten är inte ett filter: reviews släpper ut "
+            "allas publicerade rader till vem som helst som frågar.",
+        )
+
+    def test_inte_security_definer(self):
+        # En definer-funktion går förbi radsäkerheten helt, och då är det egna
+        # filtret det enda som står mellan en användare och allas rader.
+        self.assertNotIn("security definer", self.kropp)
 
 
 if __name__ == "__main__":

@@ -86,10 +86,41 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
     Namnet ligger i aria-label i stället, så att den som använder skärmläsare
     får veta vad knappen gör utan att texten begränsar innehållet.
   */}
-  <summary class="trigger" aria-label="Meny">
+  <summary class="trigger" aria-label="Meny" data-trigger>
     <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
     </svg>
+
+    {/* Klockan. Dold tills skriptet vet att det finns något oläst.
+
+        SYNS BARA NÄR DET FINNS EN OLÄST NOTIS, och det är ett val och inte en
+        förenkling. Förlagan är Booking, som har klockan framme jämt, men de
+        har ett sidhuvud att ta av. Vårt är 58 px och bär redan wordmark,
+        sökfält och avatar; en tredje ikon i samma piller som alltid står där
+        och för det mesta inte betyder något är brus. En ikon som dyker upp
+        just när den bär ett besked går däremot inte att missa.
+
+        Den är INTE klickbar, och kan inte vara det: hela knappen är en
+        <summary>, och en knapp inuti en knapp går varken att träffa med
+        tangentbord eller att förklara för en skärmläsare. Vägen till listan
+        är raden "Notiser" i panelen, som alltid finns för den som är inloggad.
+        Klockan här är en markering, ingen genväg.
+
+        aria-hidden av samma skäl som avataren: knappens namn skrivs om till
+        "Meny, N olästa notiser" av skriptet, så beskedet finns i klartext
+        utan att skärmläsaren först läser upp en ensam ikon. */}
+    <span class="bell" hidden data-bell aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none" focusable="false">
+        <path
+          d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.2 4-1.7 4.6-.2.2 0 .6.3.6h11.8c.3 0 .5-.4.3-.6-.5-.6-1.7-1.6-1.7-4.6A4.5 4.5 0 0 0 10 3Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+        />
+        <path d="M8.4 15.3a1.7 1.7 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span class="pip"></span>
+    </span>
 
     {/* Avataren. Dold tills skriptet vet att någon är inloggad.
 
@@ -224,6 +255,16 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
 
       <div class="account-out" hidden data-account>
         <p class="who" data-who></p>
+        {/* Vägen till notiserna. Står FÖRST bland kontoraderna: det är den
+            enda av dem som kan ha förändrats sedan förra besöket.
+
+            Antalet står i raden och inte bara som en prick. En prick i en
+            panel man redan öppnat har inget kvar att säga; siffran avgör om
+            det är värt att klicka. */}
+        <a class="notis-rad" href="/konto/notiser/">
+          Notiser
+          <span class="notis-antal" hidden data-notis-antal></span>
+        </a>
         <a href="/konto/">Ditt konto</a>
         <button type="button" class="linky" data-signout>Logga ut</button>
       </div>
@@ -279,6 +320,41 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
   }
 
   .avatar[hidden] { display: none; }
+
+  /* Klockan. Ligger mellan hamburgaren och avataren, alltså i knappen och
+     intill avataren på samma gång.
+
+     Ingen egen fyllning och ingen ram: den ska väga som glyfen till vänster om
+     sig och inte som en andra knapp. Det som drar blicken är pricken. */
+  .bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+  }
+
+  .bell[hidden] { display: none; }
+
+  .bell svg { width: 18px; height: 18px; }
+
+  /* Pricken sitter på klockan och inte bredvid den. --brand mot --card ger
+     3,3:1, alltså under 4,5:1 för text men klart över 3:1 för grafik, och
+     pricken är grafik: beskedet finns i klartext i knappens aria-label och i
+     panelens rad. Vit ring runt om så att den läser som en pålagd markering
+     även när den hamnar över en linje i ikonen. */
+  .pip {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--card);
+    border-radius: 50%;
+    background: var(--brand);
+  }
 
   .trigger {
     display: inline-flex;
@@ -649,6 +725,31 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
     flex-direction: column;
   }
 
+  /* Notisraden. Samma rad som "Ditt konto", plus ett tal längst ut. */
+  .notis-rad {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+  }
+
+  /* Talet. Piller i brandblått med vit text, alltså 4,5:1 och läsbart som
+     text ska vara. Träffytan är radens, inte pillrets: hela raden är länken. */
+  .notis-antal {
+    flex: none;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    color: #fff;
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .notis-antal[hidden] { display: none; }
+
   /* Måste stå utskrivet. `hidden` är display: none i webbläsarens egen
      stilmall, och varje egen display-regel vinner över den. Utan de här två
      raderna syns både kontoraden och den inloggade delen alltid. */
@@ -672,7 +773,16 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
   }
 
   @media (max-width: 480px) {
-    .trigger span { display: none; }
+    /* Här stod `.trigger span { display: none }`. Regeln är från den tid då
+       knappen bar etiketten "Kommun" i ett span bredvid ikonen, och etiketten
+       är borta sedan panelen fick mer än kommuner i sig. Kvar blev en regel
+       som på telefon dolde precis det som ska synas där: avataren, klockan och
+       pricken, alla tre spans i knappen. Just på en telefon är sidhuvudet det
+       enda man ser av kontot utan att öppna menyn.
+
+       Regeln är alltså borttagen och inte ersatt. Paddingen står kvar: den
+       gäller bara utloggad, där knappen är en cirkel med fast bredd, eftersom
+       .picker[data-signed-in] .trigger väger tyngre. */
     .trigger { padding-inline: var(--s-2); }
     /* Panelen blir ett helt ark, inte en förankrad ruta.
 
@@ -698,7 +808,14 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
 </style>
 
 <script>
-  import { configured, currentUser, onAuthChange, signedIn, signOut } from '../lib/community';
+  import {
+    configured,
+    currentUser,
+    onAuthChange,
+    signedIn,
+    signOut,
+    unreadNotices,
+  } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
 
   /**
@@ -734,6 +851,46 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
       } else {
         const picker = document.querySelector<HTMLElement>('[data-picker]');
         const avatar = document.querySelector<HTMLElement>('[data-avatar]');
+        const trigger = document.querySelector<HTMLElement>('[data-trigger]');
+        const bell = document.querySelector<HTMLElement>('[data-bell]');
+        const antal = document.querySelector<HTMLElement>('[data-notis-antal]');
+
+        /**
+         * Klockan och talet i panelen.
+         *
+         * ETT anrop, och bara för den som är inloggad. Sidhuvudet ligger på
+         * 15 500 sidor, så räkningen görs av community.unread_notices() i
+         * databasen i stället för av tre frågor härifrån. Se
+         * pipeline/schema_community.sql.
+         *
+         * Anropet läggs sist i paint() och inte först: raden ska vara rätt
+         * målad innan vi väntar på nätet. Faller anropet svarar
+         * unreadNotices() noll, och klockan uteblir i stället för att skrika
+         * om ett fel besökaren inte kan göra något åt.
+         */
+        const paintBell = async (authed: boolean) => {
+          const unread = authed ? await unreadNotices() : 0;
+
+          if (bell) bell.hidden = unread === 0;
+          if (antal) {
+            /* Nio och uppåt skrivs som "9+". Ett tresiffrigt tal i ett piller
+               spränger raden, och skillnaden mellan 14 och 40 olästa ändrar
+               ingenting för den som ska bestämma sig för att klicka. */
+            antal.textContent = unread > 9 ? '9+' : String(unread);
+            antal.hidden = unread === 0;
+          }
+
+          /* Knappens namn i klartext. Ikonen är aria-hidden, så det här är
+             enda stället beskedet finns för den som inte ser pricken. */
+          if (trigger) {
+            trigger.setAttribute(
+              'aria-label',
+              unread === 0
+                ? 'Meny'
+                : `Meny, ${unread} ${unread === 1 ? 'oläst notis' : 'olästa notiser'}`,
+            );
+          }
+        };
 
         const paint = async () => {
           const authed = await signedIn();
@@ -753,6 +910,8 @@ const current = kommuner.some((m) => m.slug === firstSegment) ? firstSegment : n
             if (authed) picker.dataset.signedIn = '';
             else delete picker.dataset.signedIn;
           }
+
+          await paintBell(authed);
         };
 
         signin.addEventListener('click', async () => {

@@ -239,6 +239,104 @@ create index if not exists notifications_sent_idx
     on community.notifications (sent_at desc);
 
 -- ---------------------------------------------------------------------------
+-- Notiser i gränssnittet
+--
+-- Klockan på kontot. Två händelser ska synas där, och de har hanterats på
+-- HELT OLIKA sätt. Skälet är värt att stå utskrivet, för valet ser ut som en
+-- inkonsekvens tills man vet varför.
+--
+--   "Ditt omdöme har publicerats eller avvisats" HÄRLEDS ur community.reviews.
+--   Händelsen ÄR redan en rad i databasen: status, moderated_at,
+--   moderated_by och rejection_reason står där och skrivs av moderate.py.
+--   En kopia i en notistabell hade varit samma sanning på två ställen, och
+--   två ställen glider isär. Härledningen ger dessutom rätt beteende gratis:
+--   raderar författaren sitt omdöme försvinner notisen med det, vilket är vad
+--   man vill och vad en kopia inte hade gjort.
+--
+--   "En verksamhet du bevakar har fått en ny bedömning" KAN INTE härledas.
+--   Det finns ingen rad någonstans som säger att just den här personen har en
+--   ny kontroll att se. Kandidaterna prövades och föll:
+--
+--     community.notifications duger inte. Den loggen skrivs EFTER att ett
+--       mejl gått iväg, alltså inte alls när Resend-kvoten tagit slut och
+--       inte alls för ett konto med obekräftad adress. En notis i
+--       gränssnittet kostar ingenting och får inte ransoneras av ett
+--       mejltak. Loggen förblir vad den heter: ett kvitto på skickade mejl.
+--     public.inspections duger inte heller. Att jämföra kontrollernas datum
+--       mot follows.created_at ser ut att fungera men fäller på samma sak som
+--       notify.py bygger hela sitt urval kring: kommunerna efterregistrerar
+--       gamla kontroller i klump, och vi lagrar ingen tidpunkt för när en
+--       kontroll först dök upp hos oss. Varje sådan städning hade fyllt
+--       allas klockor med kontroller från 2021.
+--
+--   Alltså en rad, skriven av pipeline/notify.py med service_role i samma
+--   ögonblick som den räknat ut att något hänt, oavsett om ett mejl blev av.
+--
+-- LÄSMARKERINGEN BOR HÄR OCH INTE I WEBBLÄSAREN. Se
+-- docs/14_samtycke_och_lagring_i_webblasaren.md: de enda nycklar som får
+-- finnas hos besökaren utan samtycke är `prikko.session` och `prikko.next`,
+-- och /cookies påstår i klartext att listan är uttömmande. En läsmarkering är
+-- bekvämlighet, inte nödvändighet, alltså skulle localStorage kräva just den
+-- ruta som samma dokument argumenterar emot.
+-- ---------------------------------------------------------------------------
+create table if not exists community.notices (
+    id                 uuid primary key default gen_random_uuid(),
+    user_id            uuid not null references auth.users (id) on delete cascade,
+
+    establishment_id   text not null check (community.is_establishment_id(establishment_id)),
+
+    -- Kommun, namn och slug sparas MED raden, av samma skäl som i follows:
+    -- det finns ingen främmande nyckel till `public` och ska inte finnas
+    -- någon. Utan de tre kan listan varken namnge verksamheten eller länka
+    -- till den utan att korsa åtskillnaden mot kontrolldatan.
+    --
+    -- Slugen står här men INTE i follows, och det är ett medvetet undantag.
+    -- En bevakning kan vara år gammal när kontosidan läser den, och en gammal
+    -- slug leder till en 404. En notis skrivs samma natt som bygget och läses
+    -- inom dagar. Det är dessutom exakt samma länk som notismejlet bär, och
+    -- mejlet och klockan måste peka på samma sida.
+    municipality_slug  text not null,
+    establishment_name text not null,
+    establishment_slug text not null,
+
+    -- Kontrollen som utlöste notisen. Text, ingen FK, samma skäl som överallt
+    -- annars i det här schemat.
+    inspection_id      text not null check (inspection_id ~ '^I-[0-9]{4}-.+$'),
+    inspected_at       date not null,
+
+    -- Verksamhetens bedömning när notisen skrevs, alltså den sajten visade.
+    -- Aldrig ett eget omdöme och aldrig ett tal: samma två etiketter som
+    -- mejlet och sidan använder. `clean` finns inte med, för en godkänd
+    -- kontroll är inte något man ska bli störd av. Se worsened() i notify.py.
+    verdict            text not null check (verdict in ('minor', 'major')),
+
+    created_at         timestamptz not null default now(),
+
+    -- Dubblettspärren. En kontroll är ny exakt en gång per mottagare, precis
+    -- som i notifications, och av samma skäl: jobbet kan köras om.
+    unique (user_id, inspection_id)
+);
+
+create index if not exists notices_user_idx
+    on community.notices (user_id, created_at desc);
+
+-- Läsmarkeringen. EN rad per konto, ETT klockslag, ingenting annat.
+--
+-- Varför en vattenlinje och inte ett `read_at` per notis: den ena av de två
+-- händelsetyperna är härledd och har därför ingen rad att markera. Ett
+-- klockslag räcker för båda, och det är också den olästmarkering en klocka
+-- faktiskt bär — en prick som försvinner när man tittat, inte ett arkiv över
+-- vilka rader man råkat öppna.
+--
+-- Priset är att man inte kan markera EN notis som läst. Det är rätt pris:
+-- funktionen finns inte i förlagan heller, och den hade krävt skrivrätt på
+-- varje notisrad i stället för på en tidsstämpel om en själv.
+create table if not exists community.notice_reads (
+    user_id uuid primary key references auth.users (id) on delete cascade,
+    read_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Avregistrering utan inloggning
 --
 -- Varje notismejl måste bära en länk som stoppar utskicken. Sajten är statisk
@@ -792,6 +890,55 @@ revoke all on community.rating_signals from anon, authenticated;
 grant select on community.rating_signals to service_role;
 
 -- ---------------------------------------------------------------------------
+-- Antalet olästa notiser
+--
+-- Ligger i databasen och inte i klienten av ett enda skäl: klockan sitter i
+-- sidhuvudet, och sidhuvudet ligger på 15 500 sidor. Räknat i webbläsaren
+-- hade varje sidladdning för en inloggad kostat tre anrop mot PostgREST, ett
+-- per källa. Här är det ett.
+--
+-- INGEN `security definer`. Funktionen körs som anroparen, radsäkerheten
+-- gäller alltså, och `user_id = auth.uid()` står ändå utskrivet i varje gren.
+-- Det senare är inte ett bälte utöver hängslet: community.reviews har TVÅ
+-- läspolicyer som läggs ihop med ELLER, och en fråga utan eget filter räknar
+-- in allas publicerade omdömen. Se varningen vid reviews_read_published och
+-- ownRows() i site/src/lib/community.ts.
+--
+-- Automatiskt publicerade betyg räknas INTE. Ett betyg utan text publiceras
+-- direkt av community.set_review_status(), och en notis om det hade kommit i
+-- samma sekund som man tryckte skicka. Klockan ska bära vad någon annan
+-- gjort, inte vad man just gjorde själv. Etiketten 'automatik: …' sätts av
+-- samma funktion och är kopplingen mellan de två reglerna.
+create or replace function community.unread_notices()
+returns integer
+language sql
+stable
+set search_path = ''
+as $$
+    with mark as (
+        select coalesce(
+            (select r.read_at from community.notice_reads r where r.user_id = auth.uid()),
+            '-infinity'::timestamptz
+        ) as since
+    )
+    select (
+        (select count(*)
+           from community.notices n, mark
+          where n.user_id = auth.uid()
+            and n.created_at > mark.since)
+      + (select count(*)
+           from community.reviews v, mark
+          where v.user_id = auth.uid()
+            and v.moderated_at is not null
+            and v.moderated_at > mark.since
+            and coalesce(v.moderated_by, '') not like 'automatik:%')
+    )::integer;
+$$;
+
+comment on function community.unread_notices() is
+    'Olästa notiser för den inloggade. Ett anrop i stället för tre, se klockan i PlacePicker.astro.';
+
+-- ---------------------------------------------------------------------------
 -- Bilduppladdningar
 --
 -- En användaruppladdad bild på en namngiven restaurang kan vara vad som helst,
@@ -854,6 +1001,8 @@ create index if not exists image_uploads_pending_idx
 alter table community.profiles            enable row level security;
 alter table community.follows             enable row level security;
 alter table community.notifications       enable row level security;
+alter table community.notices             enable row level security;
+alter table community.notice_reads        enable row level security;
 alter table community.establishment_claims enable row level security;
 alter table community.owner_responses     enable row level security;
 alter table community.reviews             enable row level security;
@@ -881,6 +1030,24 @@ drop policy if exists notifications_read_own on community.notifications;
 create policy notifications_read_own on community.notifications
     for select to authenticated
     using (user_id = auth.uid());
+
+-- Notiser: bara läsning, bara egna rader. Samma regel som notifications och av
+-- samma skäl. Raderna skrivs av pipeline/notify.py med service_role, och en
+-- notis man kan skriva åt sig själv säger ingenting om vad kommunen gjort.
+drop policy if exists notices_read_own on community.notices;
+create policy notices_read_own on community.notices
+    for select to authenticated
+    using (user_id = auth.uid());
+
+-- Läsmarkeringen är det ENDA en inloggad får skriva om sig själv utanför sitt
+-- eget innehåll. Raden bär ett klockslag och ingenting annat: ingen text, inget
+-- utfall, ingen status. Att den går att sätta fritt spelar därför ingen roll —
+-- det värsta någon kan göra mot sig själv är att dölja sin egen prick.
+drop policy if exists notice_reads_own on community.notice_reads;
+create policy notice_reads_own on community.notice_reads
+    for all to authenticated
+    using (user_id = auth.uid())
+    with check (user_id = auth.uid());
 
 -- Anspråk: får skapas och läsas av sökanden, aldrig ändras av hen.
 drop policy if exists claims_insert on community.establishment_claims;
@@ -1005,6 +1172,11 @@ grant select, insert                  on community.owner_responses      to authe
 grant select, insert, delete          on community.reviews              to authenticated;
 grant select, insert                  on community.image_uploads        to authenticated;
 grant select                          on community.notifications        to authenticated;
+grant select                          on community.notices              to authenticated;
+-- Ingen delete på läsmarkeringen: raden ÄR markeringen, och en borttagen rad
+-- betyder "aldrig läst". Att kunna nollställa sin egen klocka är ingen
+-- funktion någon efterfrågat, och update räcker för att flytta den framåt.
+grant select, insert, update          on community.notice_reads         to authenticated;
 
 -- Anon får läsa publicerade omdömen och ingenting annat.
 grant select on community.reviews           to anon;
@@ -1026,6 +1198,7 @@ revoke update on community.establishment_claims from anon, authenticated;
 revoke update on community.owner_responses      from anon, authenticated;
 revoke update on community.reviews              from anon, authenticated;
 revoke update on community.image_uploads        from anon, authenticated;
+revoke update on community.notices              from anon, authenticated;
 
 -- Modereringsrollen. Utan de här raderna svarar varje anrop från moderate.py
 -- med 42501, eftersom service_role varken hade USAGE på schemat eller en enda
@@ -1045,8 +1218,18 @@ grant select, insert, update, delete on community.image_uploads        to servic
 grant select, insert, update, delete on community.profiles to service_role;
 grant select, insert, update, delete on community.follows  to service_role;
 
--- Notisloggen skrivs av pipeline/notify.py och av ingen annan.
+-- Notisloggen och notiserna skrivs av pipeline/notify.py och av ingen annan.
 grant select, insert, update, delete on community.notifications to service_role;
+grant select, insert, update, delete on community.notices       to service_role;
+-- Läsmarkeringen skriver bara användaren själv. service_role har den ändå, för
+-- artikel 17: en radering av ett konto ska inte lämna en föräldralös rad.
+grant select, insert, update, delete on community.notice_reads  to service_role;
+
+-- Räknaren bakom klockan. Postgres ger som förval EXECUTE till PUBLIC, och
+-- funktionen ska inte gå att anropa av anon: den läser auth.uid(), som är null
+-- där, men en funktion utan mottagare är ändå en yta att stänga.
+revoke execute on function community.unread_notices() from public;
+grant  execute on function community.unread_notices() to authenticated;
 
 grant select on community.published_reviews to service_role;
 
