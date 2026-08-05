@@ -212,13 +212,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     <p class="lede text-secondary">
       {currentPage === 1 ? (
         <>
-          {formatNumber(total)} verksamheter från {kommun.name}s livsmedelskontroll,
-          i bokstavsordning. Bedömningen speglar den senaste kontrollen.
+          {formatNumber(total)} verksamheter i bokstavsordning, bedömda efter
+          sin senaste hygienkontroll.
         </>
       ) : (
         <>
           Verksamhet {formatNumber(start)}–{formatNumber(start + items.length - 1)} av
-          {' '}{formatNumber(total)} i {kommun.name}s livsmedelskontroll.
+          {' '}{formatNumber(total)} i {city}, i bokstavsordning.
         </>
       )}
     </p>
@@ -285,11 +285,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         {currentPage === 1 && hasDjup && (
           <section class="djup" id="om-kontrollen" aria-labelledby="djup-rubrik">
             <h2 id="djup-rubrik">Så ser kontrollen ut i {city}</h2>
-            <p class="djup-intro text-secondary">
-              Räknat ur kommunens egna kontrolluppgifter: vad som brister
-              oftast, vad återbesöken gav och hur mycket av registret
-              kontrollen når.
-            </p>
 
             {profil && (
               <CommonIssues
@@ -511,13 +506,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   /* Ankaret från översiktsraden ska inte landa med rubriken klistrad mot
      fönstrets överkant. */
   .djup { scroll-margin-top: var(--s-6); }
-
-  .djup-intro {
-    margin-top: var(--s-2);
-    max-width: 640px;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
 
   .djup > :global(* + *) { margin-top: var(--s-4); }
 

@@ -65,12 +65,10 @@ const verdicts = sub ?? slice;
 // kontrollerat mycket, vilket är precis fel signal.
 const answer =
   verdicts.assessed > 0
-    ? `Kommunens livsmedelskontroll omfattar ${formatNumber(total)} ${noun} i ${city}. ` +
-      `Av de ${formatNumber(verdicts.assessed)} som har en kontroll att bedöma fick ` +
-      `${formatNumber(verdicts.clean)} inga anmärkningar vid den senaste, och ` +
-      `${formatNumber(verdicts.minor + verdicts.major)} fick anmärkningar.`
-    : `Kommunens livsmedelskontroll omfattar ${formatNumber(total)} ${noun} i ${city}. ` +
-      'Ingen av dem har en kontroll som går att bedöma.';
+    ? `${formatNumber(total)} ${noun} i ${city}. ${formatNumber(verdicts.clean)} av de ` +
+      `${formatNumber(verdicts.assessed)} vi kan bedöma fick inga anmärkningar vid sin ` +
+      `senaste hygienkontroll, ${formatNumber(verdicts.minor + verdicts.major)} fick anmärkningar.`
+    : `${formatNumber(total)} ${noun} i ${city}. Ingen av dem har en kontroll som går att bedöma.`;
 
 const title =
   currentPage === 1

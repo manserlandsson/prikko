@@ -80,11 +80,9 @@ const jsonLd = {
 
     <section>
       <p class="note text-secondary">
-        Grupperna nedan är listans enda ordning. Inom en grupp står raderna i
-        bokstavsordning och har ingen inbördes rangordning: underlaget är
-        detsamma. Den längsta serien i {m.city} är {numeral(m.topRun)} kontroller,
-        och taket ligger på {formatNumber(m.deepestWindow)}, för fler kontroller
-        per verksamhet lämnar kommunen inte ut inom fönstret.
+        Raderna är grupperade på antal kontroller i rad och står i
+        bokstavsordning inom gruppen, utan inbördes rangordning. Den längsta
+        serien i {m.city} är {numeral(m.topRun)} kontroller.
         {' '}<a href={path('utmarkelser')}>Varför serielängder inte jämförs mellan
         kommuner</a>.
       </p>
@@ -95,12 +93,10 @@ const jsonLd = {
     <section class="method">
       <h2>Om listan</h2>
       <p>
-        Utmärkelsen kräver tre kontroller inom de senaste tre åren, samtliga
-        utan anmärkning. Den här sidan räknas inte om: den läser den frysta
-        utgåvan från {formatDate(e.asOf)}. Hur det ser ut i dag står på varje
-        verksamhets egen sida, och
+        Sidan läser den frysta utgåvan från {formatDate(e.asOf)} och räknas
+        inte om. Nuläget står på varje verksamhets egen sida, och
         {' '}<a href={path(m.slug)}>alla {formatNumber(m.establishments)} verksamheter i
-        {' '}{m.city}</a> finns i kommunens register hos oss.
+        {' '}{m.city}</a> finns på Prikko.
       </p>
       <p>
         <a href={path('utmarkelser', e.year)}>Tillbaka till {e.year} års utgåva</a> ·

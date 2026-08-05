@@ -51,9 +51,7 @@ const jsonLd = {
       <p class="eyebrow">Rapporter</p>
       <h1>Vad {formatNumber(total.inspections)} kontroller visar</h1>
       <p class="lede text-secondary">
-        En enskild kontroll säger lite. Lagda på varandra säger de något annat.
-        Här publicerar vi det som går att räkna fram ur hela beståndet, och
-        bara det.
+        Det som går att räkna fram ur hela beståndet, och bara det.
       </p>
     </header>
 
@@ -70,29 +68,14 @@ const jsonLd = {
     </section>
 
     <section class="about">
-      <h2>Räknade, inte skrivna</h2>
       <p>
-        En rapport här fungerar som en verksamhets sida: talen hämtas ur datan
-        när sidan byggs, och texten runt dem beskriver metoden och förbehållen.
-        Ingen slutsats är formulerad för hand, och ingen text på Prikko skrivs
-        med AI. Ändras kommunernas register ändras rapporterna med dem, i
-        stället för att bli inaktuella i tysthet.
-      </p>
-      <p>
-        Det sätter också en gräns för vad som kan stå här. En rapport kan bara
-        handla om något vi faktiskt har data för. Frågor som kräver en källa vi
-        inte har, eller en bedömning som inte går att räkna fram, hör inte
-        hemma i den här listan. Det som behöver förklaras i skriven text i
-        stället för att räknas fram bor bland
-        {' '}<a href={path('artiklar')}>artiklarna</a>.
-      </p>
-      <p>
-        Underlaget är {formatNumber(total.inspections)} kontroller vid
+        Talen i varje rapport räknas ur beståndet när sidan byggs:
+        {' '}{formatNumber(total.inspections)} kontroller vid
         {' '}{formatNumber(total.establishments)} verksamheter i
-        {' '}{total.municipalities} kommuner, senast hämtat
-        {' '}{formatDate(updated)}.
-        {' '}<a href={path('kallor')}>Varje källa redovisas öppet</a>, och
-        {' '}<a href={path('metodik')}>metodiken är publicerad i sin helhet</a>.
+        {' '}{total.municipalities} kommuner, senast hämtat {formatDate(updated)}.
+        {' '}<a href={path('kallor')}>Källorna</a> ·
+        {' '}<a href={path('metodik')}>Metodiken</a> ·
+        {' '}<a href={path('artiklar')}>Artiklarna</a>
       </p>
     </section>
   </article>
@@ -162,18 +145,8 @@ const jsonLd = {
     font-size: var(--fs-body-s);
   }
 
-  .about h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    margin-bottom: var(--s-3);
-  }
-
   .about p {
     line-height: 22px;
     color: var(--text-secondary);
-  }
-
-  .about p + p {
-    margin-top: var(--s-3);
   }
 </style>

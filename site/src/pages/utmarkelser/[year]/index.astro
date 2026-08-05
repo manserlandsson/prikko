@@ -92,12 +92,9 @@ const jsonLd = {
           </span>
         </h2>
         <p class="intro text-secondary">
-          Av {formatNumber(m.pool)} verksamheter som kontrollerats minst tre
-          gånger inom fönstret klarade {formatNumber(m.qualified.length)}
-          {' '}samtliga utan anmärkning. Kommunen publicerar upp till
-          {' '}{formatNumber(m.deepestWindow)} kontroller per verksamhet inom
-          fönstret, vilket är taket för hur lång en serie kan bli här.
-          {' '}<a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
+          {formatNumber(m.qualified.length)} av de {formatNumber(m.pool)} som
+          kontrollerats minst tre gånger inom fönstret klarade samtliga utan
+          anmärkning. <a href={path(m.slug)}>Alla kontroller i {m.city}</a>.
         </p>
 
         {excerpt.length > 0 ? (
@@ -186,17 +183,10 @@ const jsonLd = {
     <section class="method">
       <h2>Hur utgåvan är gjord</h2>
       <p>
-        Utmärkelsen kräver tre kontroller inom de senaste tre åren, samtliga
-        utan anmärkning. Den sätts av samma modell som varje hygienbedömning på
-        Prikko och är räknad ur kommunernas egna kontrolluppgifter. Underlaget
-        vid frysningen var {formatNumber(e.totals.establishments)} verksamheter i
-        {' '}{e.totals.municipalities} kommuner, varav
-        {' '}{formatNumber(e.totals.assessed)} gick att bedöma.
-      </p>
-      <p>
-        Till skillnad från resten av sajten räknas den här sidan inte om. Den
-        läser en fil som skrevs {formatDate(e.asOf)} och ändras inte när
-        kommunernas register gör det. Vad som gäller i dag står på varje
+        Tre kontroller inom de senaste tre åren, samtliga utan anmärkning,
+        räknat ur {formatNumber(e.totals.establishments)} verksamheter i
+        {' '}{e.totals.municipalities} kommuner. Utgåvan frystes
+        {' '}{formatDate(e.asOf)} och räknas inte om; nuläget står på varje
         verksamhets egen sida.
         {' '}<a href={path('utmarkelser')}>Varför listan ser ut så här</a>.
       </p>

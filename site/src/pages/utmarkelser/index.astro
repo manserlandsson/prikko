@@ -89,23 +89,18 @@ const jsonLd = {
       <h2>Vad som krävs</h2>
       <p>
         Tre kontroller inom de senaste tre åren, och ingen anmärkning vid någon
-        av dem. Inget annat vägs in. Kravet är detsamma i varje kommun och
-        räknas ur kommunens egna kontrolluppgifter, inte ur någon bedömning vi
-        gjort för hand.
+        av dem. Inget annat vägs in, och kravet är detsamma i varje kommun.
       </p>
       <p>
-        Utmärkelsen påverkar aldrig hygienbedömningen. Nuläget avgör
-        bedömningen, historiken avgör bara om verksamheten förtjänar ett
-        erkännande utöver den. En verksamhet utan utmärkelse har alltså inte
-        fått något omdöme av oss.
+        Utmärkelsen påverkar aldrig hygienbedömningen: nuläget avgör
+        bedömningen, historiken avgör erkännandet. En verksamhet utan
+        utmärkelse har alltså inte fått något omdöme av oss.
         {' '}<a href={path('metodik')}>Hela modellen står på metodiksidan</a>.
       </p>
       <p class="callout">
-        Det finns ingen motsvarande lista över de verksamheter som klarat sig
-        sämst, och kommer inte att finnas. En anmärkning står på verksamhetens
-        egen sida tillsammans med kommunens ord och verksamhetens svar, där den
-        går att förstå. Lyft ur sitt sammanhang och rangordnad blir den något
-        annat.
+        Någon lista över de verksamheter som klarat sig sämst finns inte, och
+        kommer inte att finnas. En anmärkning hör hemma på verksamhetens egen
+        sida, tillsammans med kommunens ord och verksamhetens svar.
       </p>
     </section>
 
@@ -113,49 +108,32 @@ const jsonLd = {
       <h2>Varför listan inte rangordnar hela landet</h2>
       <p>
         Utmärkelsen betyder samma sak överallt: tre kontroller, noll
-        anmärkningar. Det gör den jämförbar mellan kommuner, och alla
-        {' '}{formatNumber(latest.totals.qualified)} har den lika mycket.
+        anmärkningar. Alla {formatNumber(latest.totals.qualified)} har den lika
+        mycket.
       </p>
       {facts.lowestCeiling && facts.highestCeiling && (
         <p>
-          Hur lång serien är går däremot inte att jämföra, och skälet ligger i
-          källorna. {facts.lowestCeiling.name} lämnar aldrig ut fler än
-          {' '}{numeral(facts.lowestCeiling.deepestWindow)} kontroller per
-          verksamhet inom fönstret, så ingen serie där kan bli längre än
-          {' '}{numeral(facts.lowestCeiling.deepestWindow)}. I
-          {' '}{facts.highestCeiling.city} publiceras upp till
-          {' '}{formatNumber(facts.highestCeiling.deepestWindow)}, och den längsta
-          obrutna rena serien når {numeral(facts.highestCeiling.topRun)}. En
-          rikslista sorterad på serielängd hade lagt varje verksamhet i
-          {' '}{facts.lowestCeiling.city} under varje verksamhet i
-          {' '}{facts.highestCeiling.city} med en serie på
-          {' '}{numeral(facts.lowestCeiling.deepestWindow + 1)} eller fler, och
-          talet hade mätt hur mycket kommunen publicerar i stället för hur köket
-          sköts.
+          Hur lång serien är går däremot inte att jämföra mellan kommuner.
+          Taket sätts av hur många kontroller kommunen publicerar, inte av hur
+          köket sköts: {facts.lowestCeiling.name} lämnar aldrig ut fler än
+          {' '}{numeral(facts.lowestCeiling.deepestWindow)} per verksamhet inom
+          fönstret, i {facts.highestCeiling.city} publiceras upp till
+          {' '}{formatNumber(facts.highestCeiling.deepestWindow)}.
         </p>
       )}
       <p>
-        Att räkna om serielängden till en placering i procent hjälper inte.
-        Utmärkelsen är olika svår att nå i olika kommuner av exakt samma skäl:
-        där bara tre kontroller publiceras måste alla tre vara rena, medan en
-        kommun som publicerar fler bara behöver de tre senaste. En procentsats
-        hade rangordnat publiceringsdjupet en gång till, med snyggare tal.
-      </p>
-      <p>
-        Listorna är därför ordnade inom varje kommun, där
-        {' '}<a href={`${path('metodik')}#jamfor`}>metodiken säger att jämförelsen
-        är rättvis</a>. Raderna är grupperade på antal kontroller i rad och står
-        i bokstavsordning inom gruppen. Numrerade platser skulle antyda en
-        skillnad mellan verksamheter som har exakt samma underlag.
+        Listorna är därför ordnade inom varje kommun, grupperade på antal
+        kontroller i rad och i bokstavsordning inom gruppen.
+        {' '}<a href={`${path('metodik')}#jamfor`}>Därför jämför vi inte
+        kommuner med varandra</a>.
       </p>
     </section>
 
     <section>
       <h2>Kommunerna som inte kan vara med</h2>
       <p>
-        Utmärkelsen kräver tre kontroller. Alla kommuner publicerar inte tre.
-        Det är inget fel hos verksamheterna där, och listan får inte läsas som
-        att det saknas skötsamma kök i de kommunerna.
+        Utmärkelsen kräver tre kontroller, och alla kommuner publicerar inte
+        tre. Det säger inget om verksamheterna där.
       </p>
       {facts.impossible.length > 0 && (
         <ul class="plain">
@@ -169,8 +147,7 @@ const jsonLd = {
           <h3>Kommuner där ingen nått den ännu</h3>
           <p>
             Här är utmärkelsen möjlig, men ingen verksamhet har den i
-            {' '}{latest.year} års utgåva. Skillnaden mot listan ovan är att den
-            kan nås så snart kontrollerna hunnit bli tre.
+            {' '}{latest.year} års utgåva.
           </p>
           <ul class="plain">
             {facts.noneYet.map((m) => (
@@ -184,10 +161,6 @@ const jsonLd = {
           </ul>
         </>
       )}
-      <p>
-        Uppgifterna räknas fram ur datan vid varje bygge. Börjar en kommun
-        publicera djupare historik faller den ur listan här av sig själv.
-      </p>
     </section>
 
     <section>
@@ -223,12 +196,10 @@ const jsonLd = {
       <h2>Hur listan är gjord</h2>
       <p>
         Utmärkelsen heter ”{DISTINCTION.label}” och sätts av samma
-        modell som varje hygienbedömning på Prikko. Talen på den här sidan är
-        räknade ur beståndet när sidan byggdes: {formatNumber(total.inspections)}
-        {' '}kontroller vid {formatNumber(total.establishments)} verksamheter i
+        modell som varje hygienbedömning på Prikko. Underlaget vid bygget:
+        {' '}{formatNumber(total.inspections)} kontroller vid
+        {' '}{formatNumber(total.establishments)} verksamheter i
         {' '}{total.municipalities} kommuner, senast hämtat {formatDate(updated)}.
-        Formuleringarna är mallar som fylls med de talen. Ingen text på Prikko
-        skrivs med AI.
       </p>
       <p>
         <a href={path('metodik')}>Så räknas bedömningen fram</a> ·

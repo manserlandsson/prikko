@@ -68,9 +68,8 @@ const jsonLd = {
       <p class="eyebrow">Källor</p>
       <h1>Varifrån datan kommer</h1>
       <p class="lede text-secondary">
-        Allt Prikko visar är allmänna handlingar från kommunernas
-        livsmedelskontroll. Här står exakt vilka källor vi använder, när de
-        senast hämtades och vad som ännu saknas.
+        Varje källa Prikko använder, när den senast hämtades och vad som ännu
+        saknas.
       </p>
     </header>
 
@@ -185,7 +184,7 @@ const jsonLd = {
           {articleImages.map((a) => (
             <li>
               <a href={path('artiklar', a.slug)}>{a.title}</a>
-              {' — '}
+              {' · '}
               {a.image.creditUrl ? (
                 <a href={a.image.creditUrl} rel="nofollow">{creditLine(a.image)}</a>
               ) : (

@@ -23,7 +23,7 @@ import {
   type Municipality,
   type RemarkedEstablishment,
 } from '../lib/data';
-import { hasReviewPage } from '../lib/granskning';
+import { hasMatsnuskPage } from '../lib/matsnusk';
 import { pageUrl } from '../lib/pagination';
 import { SITE, VERDICT } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -124,11 +124,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
       </h1>
       <p class="answer">{answer}</p>
-      <p class="caption text-muted">
-        Bygger på kommunens senaste kontroll av varje verksamhet, hämtad
-        {' '}{formatDate(fetchedAt.slice(0, 10))}.
-        <a href="/metodik/">Så räknas bedömningen fram</a>.
-      </p>
     </header>
 
     <ol class="list" start={start}>
@@ -171,17 +166,19 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
     <footer class="foot">
       <p class="text-secondary">
-        En anmärkning betyder att kommunen konstaterat en avvikelse vid
-        kontrollen. Många åtgärdas snabbt och följs upp vid ett återbesök.
-        Varje verksamhets sida visar hela historiken.
+        Många anmärkningar åtgärdas snabbt och följs upp vid ett återbesök.
+        Hela historiken står på varje verksamhets sida. Bedömningen är Prikkos,
+        räknad ur kommunens senaste kontroll, hämtad
+        {' '}{formatDate(fetchedAt.slice(0, 10))}.
+        {' '}<a href="/metodik/">Så räknas den fram</a>.
       </p>
-      {/* Granskningslistan finns bara i kommuner med nog många rader för en
-          egen sida (lib/granskning.ts). Länken får aldrig peka ut i tomma
+      {/* Matsnusklistan finns bara i kommuner med nog många rader för en
+          egen sida (lib/matsnusk.ts). Länken får aldrig peka ut i tomma
           intet, därför grinden även här. */}
-      {hasReviewPage(kommun.slug) && (
+      {hasMatsnuskPage(kommun.slug) && (
         <p>
-          <a href={path(kommun.slug, 'granskning')}>
-            Granskningslistan för {city}: verksamheter där bristerna kvarstod efter uppföljning
+          <a href={path(kommun.slug, 'matsnusk')}>
+            Matsnusk i {city}: verksamheter där bristerna kvarstod efter uppföljning
           </a>
         </p>
       )}
@@ -215,8 +212,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     line-height: var(--lh-body);
     color: var(--text-secondary);
   }
-
-  header .caption { margin-top: var(--s-3); }
 
   .list {
     list-style: none;
