@@ -12,7 +12,8 @@
  * ingen av referenserna förklarar sig ovanför vikningen.
  *
  * Strukturen, uppifrån: hero (rubrik, sökfält, snabbval), kommunerna störst
- * först, länkkolumnerna per verksamhetstyp, artiklarna, en rad om källan.
+ * först, länkkolumnerna per verksamhetstyp, artiklarna. Sedan slut. Sidan
+ * säger ingenting om varifrån datan kommer; det gör sidfoten och källsidan.
  * Sökfältet ligger HÄR och inte i sidhuvudet: Base får headerSearch={false},
  * och fältet är samma komponent i sitt hero-läge. En sida får aldrig två
  * sökfält: dubbleringen var det som fick den gamla heron att kännas tom.
@@ -79,22 +80,36 @@ const summaries = municipalitySummaries();
 const byTotal = [...summaries].sort((a, b) => b.total - a.total);
 
 /**
- * Kommuner med foto blir kort, kommuner utan blir rader. Aldrig tomma
- * bildrutor: fyra av tolv kommuner renderades som vita fält märkta "ingen
- * bild ännu", en tredjedel av rutnätet, och vid 50 kommuner hade det varit
- * en vägg. Raden skalar till 290, kortraden växer i takt med Måns foton.
+ * TRE KORT. INTE FLER, ALDRIG EN LISTA UNDER DEM.
  *
- * Upptäcks från filsystemet precis som i KommunKort, så ett nytt foto
- * flyttar kommunen från listan till korten utan att någon rör den här filen.
+ * Startsidan visade nio fotokort plus en radlista med de tre kommuner som
+ * saknade foto. Ägaren (2026-08-05): "jag tycker det blir för mkt ... kanske
+ * bara 3 max, på dem största eller något, kom ihåg, vi kommer ha 290
+ * tillslut." Skalargumentet avgör: ett rutnät som växer med beståndet är
+ * ohållbart vid 290 kommuner, och kortblocket var redan det som gjorde
+ * startsidan lång. Tre kort är ett konstant mått, oavsett hur många kommuner
+ * som tillkommer.
+ *
+ * Radlistan under korten är struken helt, inte kortad. Den var en dubblett:
+ * sidfoten står på den här sidan och länkar redan de tolv största kommunerna
+ * från varje dokument, så den interna länkkraften till kommunhubbarna finns
+ * kvar. En andra lista över samma kommuner en skärmhöjd ovanför är precis den
+ * upprepning som hela nedskärningen handlar om. Vägen till resten går via
+ * länken bredvid rubriken, platsväljaren i sidhuvudet och webbkartan.
+ *
+ * Bara kommuner med foto kan bli kort: ett kort utan bild är en tom ruta.
+ * Fotona upptäcks från filsystemet precis som i KommunKort, så ett nytt foto
+ * kan flytta en kommun in bland korten utan att någon rör den här filen.
  */
+const CARDS = 3;
+
 const withPhoto = new Set(
   Object.keys(
     import.meta.glob<{ default: ImageMetadata }>('../assets/stad/*.jpg'),
   ).map((p) => p.split('/').pop()!.replace('.jpg', '')),
 );
 
-const cards = byTotal.filter((m) => withPhoto.has(m.slug));
-const rows = byTotal.filter((m) => !withPhoto.has(m.slug));
+const cards = byTotal.filter((m) => withPhoto.has(m.slug)).slice(0, CARDS);
 
 // ---------------------------------------------------------------------------
 // Snabbvalen under sökfältet
@@ -240,11 +255,11 @@ const jsonLd = [
       subjektet, och "där du äter" täcker restaurang, café och skolkök utan
       uppräkning och utan förkunskap om vad en hygienkontroll är.
 
-      Ingen proveniens i heron. "Byggt på kommunernas officiella
-      hygienkontroller" var ett försvar, inte ett löfte — Ratsit och hitta.se
-      leder med handlingen och objektet, aldrig med källan. Var datan kommer
-      ifrån står där det hör hemma: metodiken, källsidan, sidfoten och
-      grundraden längst ned på den här sidan. */}
+      Ingen proveniens i heron, och sedan augusti 2026 ingen någonstans på
+      startsidan. "Byggt på kommunernas officiella hygienkontroller" var ett
+      försvar, inte ett löfte. Ratsit och hitta.se leder med handlingen och
+      objektet, aldrig med källan. Var datan kommer ifrån står där det hör
+      hemma: metodiken, källsidan och sidfoten. */}
   <div class="hero">
     {/* Fotot är LCP-elementet och laddas därför eager med hög prioritet.
         Tom alt: bilden är stämning, inte information, och en skärmläsare
@@ -292,34 +307,22 @@ const jsonLd = [
   <section class="container block">
     <div class="block-head">
       <h2>Välj kommun</h2>
-      <a href="/kallor/">Om täckningen</a>
+      {/* Vägen vidare, och den enda. Webbkartan är den sida som faktiskt
+          räknar upp varje kommun och fyller på sig själv ur samma register
+          som XML-sitemapen, alltså den enda ingång som håller vid 290.
+          Platsväljaren i sidhuvudet har samma lista med sökfält. */}
+      <a href="/webbkarta/">Alla {total.municipalities} kommuner</a>
     </div>
 
     <ul class="kommuner">
-      {cards.map((m, i) => (
+      {cards.map((m) => (
         <li>
-          {/* Översta raden ligger nära vikningen på de flesta skärmar och
-              laddas därför direkt; resten lazy. */}
-          <KommunKort kommun={m} eager={i < 3} />
+          {/* Tre kort, samtliga vid eller strax under vikningen. Alla laddas
+              därför direkt: ett lat kort här hade blivit ett lat LCP. */}
+          <KommunKort kommun={m} eager={true} />
         </li>
       ))}
     </ul>
-
-    {rows.length > 0 && (
-      <div class="fler">
-        <p class="fler-head">Även med i Prikko</p>
-        <ul class="fler-lista">
-          {rows.map((m) => (
-            <li>
-              <a href={path(m.slug)}>
-                <b>{m.city}</b>
-                <span>{formatNumber(m.total)}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
   </section>
 
   {/* Länkkolumnerna. Se frontmattern för varför de finns. */}
@@ -384,19 +387,12 @@ const jsonLd = [
     </section>
   )}
 
-  <section class="container">
-    {/* Avsändaren, en rad. Sidan förklarade sig tidigare två gånger, i
-        heron och i tre spalter längst ned. Kvar är det som inte står någon
-        annanstans på sidan: källan och replikrätten. */}
-    <div class="grund">
-      <p>
-        Underlaget är kommunernas egna kontrollrapporter, allmänna
-        handlingar. Hela beräkningen är publicerad och verksamheten har rätt
-        att svara.
-      </p>
-      <a href="/metodik/">Läs metodiken</a>
-    </div>
-  </section>
+  {/* INGEN grundrad här. Sidan förklarade sig tidigare tre gånger: i heron,
+      i tre spalter längst ned, och sist i en enda rad om att underlaget var
+      kommunernas kontrollrapporter. Även den sista är struken. Sidfoten står
+      direkt under och bär redan både avsändaren och replikrätten, och den
+      länkar till metodiken och källsidan. Två block med samma innehåll ovanpå
+      varandra är en förklaring för mycket. */}
 </Base>
 
 <style>
@@ -554,61 +550,20 @@ const jsonLd = [
   .block { margin-top: var(--s-12); }
 
   /* Kommunkorten. Rutnätet äger bara placeringen, kortets egen form bor i
-     KommunKort.astro. Minsta spalt 250 px: under det blir bildzonen bredare i
-     förhållande till sin höjd än fotot tål. */
+     KommunKort.astro.
+
+     TRE LIKA SPALTER, inte auto-fit. Rutnätet var byggt för ett växande antal
+     kort (`auto-fit, minmax(250px, 1fr)`), och med bara tre kort kvar lade det
+     en fjärde tom spalt till höger på breda skärmar: raden såg avhuggen ut i
+     stället för avsiktlig. Tre kort ska fylla bredden, och antalet är
+     konstant, så spaltantalet får vara det också. */
   .kommuner {
     list-style: none;
     margin: var(--s-6) 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--s-4);
-  }
-
-  /* Kommuner utan foto: rader, aldrig tomma bildrutor. Se frontmattern. */
-  .fler {
-    margin-top: var(--s-6);
-    border-top: 1px solid var(--hairline);
-  }
-
-  .fler-head {
-    padding-top: var(--s-4);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  .fler-lista {
-    list-style: none;
-    margin: var(--s-3) 0 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0 var(--s-6);
-  }
-
-  .fler-lista li { border-top: 1px solid var(--hairline); }
-  .fler-lista li:nth-child(-n+3) { border-top: 0; }
-
-  .fler-lista a {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-3);
-    padding: 11px 0;
-    color: var(--text);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
-
-  .fler-lista a:hover { text-decoration: none; }
-  .fler-lista a:hover b { color: var(--brand); }
-  .fler-lista b { font-weight: 600; }
-
-  .fler-lista span {
-    color: var(--text-muted);
-    font-size: var(--fs-caption);
-    font-variant-numeric: tabular-nums;
   }
 
   /* ── Länkkolumnerna ─────────────────────────────────────────────────────
@@ -730,33 +685,16 @@ const jsonLd = [
     color: var(--text-secondary);
   }
 
-  .grund {
-    margin-top: var(--s-12);
-    padding-block: var(--s-6);
-    border-top: 1px solid var(--hairline);
-    border-bottom: 1px solid var(--hairline);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-6);
-    flex-wrap: wrap;
-  }
-
-  .grund p {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-    max-width: 68ch;
-  }
-
-  .grund a { font-size: var(--fs-body-s); white-space: nowrap; }
-
   @media (max-width: 900px) {
-    .fler-lista { grid-template-columns: repeat(2, 1fr); }
-    .fler-lista li:nth-child(-n+3) { border-top: 1px solid var(--hairline); }
-    .fler-lista li:nth-child(-n+2) { border-top: 0; }
-
     .artiklar { grid-template-columns: 1fr; }
+  }
+
+  /* Tre spalter går ned till en, aldrig till två: två spalter lämnar det
+     tredje kortet ensamt på en egen rad i dubbel bredd, och då läser raden
+     som att något fattas. Gränsen ligger där spalten annars skulle bli
+     smalare än 250 px, vilket är minsta mått kortets bildzon tål. */
+  @media (max-width: 820px) {
+    .kommuner { grid-template-columns: minmax(0, 1fr); }
   }
 
   @media (max-width: 680px) {
@@ -779,9 +717,5 @@ const jsonLd = [
       padding: var(--s-4) var(--s-4) var(--s-3);
       gap: var(--s-6);
     }
-
-    .fler-lista { grid-template-columns: 1fr; }
-    .fler-lista li:nth-child(-n+2) { border-top: 1px solid var(--hairline); }
-    .fler-lista li:first-child { border-top: 0; }
   }
 </style>
