@@ -786,6 +786,53 @@ manuell granskning, och ägarens möjlighet att göra anspråk och begära bort.
 stå i klartext för ägaren att detta är den kvarvarande risken med öppen
 uppladdning, för den är priset för funktionen.
 
+### C6b. BYGGT 2026-08-05, och vad som ändrades mot planen ovan
+
+Del C är genomförd. Fyra saker blev annorlunda än vad texten ovan föreslår, och
+alla fyra är medvetna.
+
+**Ägaren är utestängd från besökarflödet, inte inbjuden till det.** C4 föreslår
+att policyn ska släppa in antingen ett godkänt anspråk eller ett eget omdöme.
+Ägaren har beslutat motsatsen: `image_uploads_insert` kräver ett eget omdöme och
+kräver dessutom att uppladdaren INTE har ett godkänt anspråk på just den
+verksamheten. Skälet är att verksamhetens egna bilder och gästernas inte är
+samma sorts uppgift och inte ska kunna förväxlas. Ägarens ord: "restaurangägare
+kan ladda upp bilder men inte under omdömessidan, istället får fixa en pro
+tjänst senare där företagen kan få snygga till deras sida."
+
+**Ägarens bildyta är därmed PARKERAD, och parkerad med avsikt.** Den byggs inte
+nu, inte i någon halv form och inte som ett gömt fält. Det som en gång fanns,
+alltså uppladdning för den som fått ett anspråk godkänt, är borttaget och inte
+avstängt. Skälet att inte lämna kvar en halv version är detsamma som gäller
+OAuth-knapparna i `community.ts`: en yta som finns men säger nej är sämre än en
+yta som inte finns. När proytan byggs är den en egen funktion med egen
+uppladdning, egen granskning och en egen rad i `public.images` med
+`source='owner'`, inte ett undantag i besökarnas policy.
+
+**Bilder går ALDRIG in i `public.images`.** C7 nedan förutsätter att de gör det
+och att `'visitor'` därför måste läggas till i kolumnens check-villkor. Det
+behövs inte. En besökares bild är användarinnehåll och ligger på samma sida om
+gränsen som omdömena: i schemat `community`, läst i webbläsaren ur vyn
+`community.published_images`, aldrig i ett bygge. `public.images` är
+redaktionellt material som byggs in i sidorna, och att blanda in
+användaruppladdningar där hade varit precis den sammanblandning
+`schema_community.sql` finns för att förhindra. Kolumnen `attribution` behöver
+därför inte heller någon ny sträng: en publicerad bild bär ingen uppgift alls om
+vem som skickat in den, vilket är vad anonymiteten kräver.
+
+**EXIF rensas vid UPPLADDNING, inte vid publicering.** C5 föreslår
+`moderate.py`. Det blev webbläsaren i stället, som en följd av komprimeringen:
+bilden ritas om på en canvas innan den skickas, och en canvas bär ingen
+metadata. Det är bättre än planen, för då finns koordinaten inte ens i den
+privata bucketen. Den som en dag flyttar eller tar bort komprimeringen måste
+veta att den bär den här funktionen också, och det står utskrivet vid `shrink()`
+i `site/src/lib/community.ts`.
+
+Kvar av C som INTE är byggt: ingen städning av rader vars fil aldrig kom fram.
+Klienten tar bort sin egen rad när en uppladdning faller, vilket täcker det
+vanliga fallet, men en webbläsare som stängs mitt i lämnar en tom plats i
+granskningskön. Den syns som ett ärende utan bild och kan avslås för hand.
+
 ### C7. Två småsaker som annars stoppar bygget
 
 - `public.images.source` har en check-villkor som bara tillåter

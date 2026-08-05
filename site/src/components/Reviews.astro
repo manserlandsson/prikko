@@ -252,15 +252,23 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           som öppnar den ger ett fokusmärke och en yta att släppa på.
 
           `accept` och storleksgränsen speglar bucketen i schema_community.sql,
-          som tar emot JPEG, PNG och WebP upp till 8 MB. Kontrollen här är en
-          artighet så att man slipper vänta på ett svar som ändå blir nej.
+          som tar emot JPEG, PNG och WebP upp till 8 MB. Tre bilder är kvoten
+          per verksamhet och konto och står i databasen, inte här. Kontrollerna
+          i den här filen är en artighet så att man slipper vänta på ett svar
+          som ändå blir nej.
+
+          Hela fältet döljs för den som företräder verksamheten. Se
+          hideForOwners() längre ned: bilder i det här flödet är gästernas.
         */}
-        <div class="field photos">
+        <div class="field photos" id="review-photos">
           <span id="review-photos-label">
             Lägg till några bilder
+            {/* Kravet på text står FÖRST. Det är den enda av gränserna som
+                kan få någon att lägga om sitt omdöme, och att upptäcka den
+                efter att man valt tre bilder är att upptäcka den för sent. */}
             <span class="hint">
-              Frivilligt. JPEG, PNG eller WebP, högst 8 MB per bild och sex
-              bilder per omdöme.
+              Frivilligt, men skriv några rader om du lägger till bilder. JPEG,
+              PNG eller WebP, högst 8 MB och tre bilder per ställe.
             </span>
           </span>
 
@@ -279,6 +287,23 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
                  accept="image/jpeg,image/png,image/webp" multiple />
 
           <ul class="picked" id="review-picked"></ul>
+
+          {/* Försäkran om rätten till bilden.
+              Rutan visas först när någon valt en bild. En fråga om bilder man
+              inte lagt till är en fråga utan innehåll, och den som inte tänkt
+              skicka någon ska inte behöva läsa förbi den.
+
+              Kryssrutan är inte kosmetisk. Kolumnen rights_confirmed i
+              databasen är false som förval och policyn kräver true, så en bild
+              utan den här rutan kan inte skrivas. Vilken rätt Prikko får står i
+              villkoren, som länken går till, och inte här. */}
+          <label class="consent" id="review-consent" hidden>
+            <input type="checkbox" id="review-rights" />
+            <span>
+              Bilden är min egen och Prikko får visa den enligt
+              <a href="/villkor/" target="_blank" rel="noopener">villkoren</a>.
+            </span>
+          </label>
         </div>
 
         <p class="notice notice-error" id="review-error" hidden role="alert"></p>
@@ -546,6 +571,32 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
   .picked:empty { display: none; }
 
+  /* Försäkran. Rutan och texten på samma rad, texten läsbar bredvid en
+     kryssruta som inte krymper. `align-items: start` och inte center: texten
+     går över två rader på telefon, och en kryssruta mitt i ett stycke ser ut
+     att höra till fel rad. */
+  .consent {
+    display: flex;
+    align-items: start;
+    gap: var(--s-3);
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .consent[hidden] { display: none; }
+
+  .consent input {
+    flex: none;
+    /* 16 px ruta, lyft en aning så den står i linje med första radens text. */
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    accent-color: var(--brand);
+  }
+
   /* Raderna i listan byggs i skript och saknar därför Astros scope-attribut.
      Deras regler står i den globala stilblocket längst ner i filen, under
      .write-dialog, tillsammans med omdömeslistans. */
@@ -613,6 +664,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     myReview,
     submitReview,
     uploadImage,
+    claimFor,
     CommunityError,
     onAuthChange,
   } from '../lib/community';
@@ -641,9 +693,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
     const text = form.elements.namedItem('body') as HTMLTextAreaElement;
     const visited = document.getElementById('review-visited') as HTMLSelectElement;
+    const photos = document.getElementById('review-photos') as HTMLDivElement;
     const dropzone = document.getElementById('review-dropzone') as HTMLButtonElement;
     const files = document.getElementById('review-files') as HTMLInputElement;
     const picked = document.getElementById('review-picked') as HTMLUListElement;
+    const consent = document.getElementById('review-consent') as HTMLLabelElement;
+    const rights = document.getElementById('review-rights') as HTMLInputElement;
 
     const dates = new Intl.DateTimeFormat('sv-SE', {
       year: 'numeric',
@@ -758,19 +813,21 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     /* Bilderna                                                         */
     /* -------------------------------------------------------------- */
     /*
-     * Ytan är byggd, kopplad och begränsad på samma sätt som bucketen.
+     * Ytan är gästernas, och bara gästernas.
      *
-     * Den kommer ändå att nekas för en vanlig besökare i dag: policyn
-     * `inkomna_upload_own` på storage.objects och `image_uploads_insert` på
-     * community.image_uploads kräver båda ett GODKÄNT anspråk på verksamheten.
-     * Vi frågar INTE efter anspråket i förväg för att gömma ytan. Skälet är att
-     * spärren håller på att ses över, och en gömma som bygger på ett antagande
-     * om policyn hade fortsatt gömma ytan dagen policyn öppnas. Vi försöker,
-     * och säger vad svaret blev.
+     * Den som har ett godkänt anspråk på verksamheten får inte skicka bilder
+     * här. Fältet döljs för hen av hideForOwners() nedan, och policyn
+     * image_uploads_insert avvisar raden även om någon kringgår det. Ägarens
+     * egen bildyta blir en betaltjänst längre fram och finns inte i dag.
+     *
+     * MAX_FILES är tre och inte sex. Kvoten står i databasen, i
+     * community.set_image_status(), och är tre bilder per verksamhet och konto
+     * för alltid. Sex här hade låtit besökaren välja tre bilder som sedan
+     * avvisades en efter en.
      */
     const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
     const MAX_BYTES = 8 * 1024 * 1024;
-    const MAX_FILES = 6;
+    const MAX_FILES = 3;
 
     /** De valda filerna, med den förhandsvisning som ritats för var och en. */
     const chosen: Array<{ file: File; url: string }> = [];
@@ -819,6 +876,13 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         row.append(thumb, name, size, remove);
         picked.append(row);
       });
+
+      /* Frågan om rätten till bilderna ställs bara när det finns bilder att
+         svara om. Tas den sista bort försvinner den igen, och krysset följer
+         med: en försäkran som ligger kvar ikryssad om bilder man ångrat är en
+         försäkran om ingenting. */
+      consent.hidden = chosen.length === 0;
+      if (consent.hidden) rights.checked = false;
     }
 
     /** Släpper alla förhandsvisningar. Utan detta läcker minnet vid varje omdöme. */
@@ -1046,12 +1110,43 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      * avsnittet, och då är svaret att visa den i stället för ett formulär som
      * inte går att skicka.
      */
+    /**
+     * Döljer bildfältet för den som företräder verksamheten.
+     *
+     * Bilder i omdömesflödet är gästernas. En godkänd företrädare får skriva
+     * ett omdöme om sitt eget ställe, det har vi ingen regel emot, men hen ska
+     * inte kunna lägga verksamhetens egna bilder i besökarnas flöde. Ägarens
+     * bildyta blir en betaltjänst längre fram.
+     *
+     * Spärren ligger i policyn image_uploads_insert. Det här är bara att inte
+     * visa en yta som ändå säger nej. Går frågan inte fram står fältet kvar och
+     * databasen får avgöra, vilket är rätt ordning: en gömma som bygger på ett
+     * misslyckat anrop hade dolt fältet för alla när nätet strular.
+     */
+    async function hideForOwners() {
+      try {
+        const claim = await claimFor(place.id);
+        photos.hidden = claim?.status === 'published';
+      } catch {
+        photos.hidden = false;
+      }
+    }
+
     async function request(trigger: HTMLElement | null) {
       if (await refreshMine()) {
         reveal(mine);
         mine.focus({ preventScroll: true });
         return;
       }
+      /* Frågan ställs när rutan öppnas och inte vid sidladdning. Anropet kräver
+         inloggning, och den som aldrig trycker på knappen ska inte kosta ett
+         anrop mot Supabase.
+
+         Utan await, alltså kan fältet stå kvar ett ögonblick för en företrädare
+         innan det försvinner. Det priset är mindre än det omvända: väntar rutan
+         in ett nätanrop innan den öppnas fördröjs varje besökare av en fråga
+         som nästan alltid har samma svar. */
+      void hideForOwners();
       openDialog(trigger);
     }
 
@@ -1088,6 +1183,28 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         return;
       }
 
+      /* Bilder kräver text.
+       *
+       * Regeln står i policyn image_uploads_insert och kontrolleras här bara
+       * för att svaret ska komma innan man skickat i stället för efteråt. Skälet
+       * är granskningens: ett betyg utan text läses aldrig av någon, och en bild
+       * som följer med ett sådant hade varit ett foto på någon annans
+       * näringsverksamhet utan en rad som säger vad man tittar på. */
+      if (chosen.length > 0 && !body) {
+        showError('Skriv några rader om stället om du vill lägga till bilder.');
+        text.focus({ preventScroll: true });
+        return;
+      }
+
+      /* Försäkran krävs bara av den som valt bilder, och den frågas här och
+         inte som `required` på rutan: fältet är dolt när inga bilder valts, och
+         ett dolt required-fält stoppar insändningen utan att någon ser varför. */
+      if (chosen.length > 0 && !rights.checked) {
+        showError('Kryssa i att bilderna är dina egna, eller ta bort dem.');
+        rights.focus({ preventScroll: true });
+        return;
+      }
+
       submit.disabled = true;
       submit.textContent = 'Skickar';
 
@@ -1095,7 +1212,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         /* Tom ruta skickas som null och inte som tom sträng. Databasen avvisar
            den senare, och skillnaden är sann: den som inte skrev något har
            ingen text, hen har inte en tom text. */
-        await submitReview(
+        const reviewId = await submitReview(
           place,
           body || null,
           stars ? Number(stars.value) : null,
@@ -1107,8 +1224,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
          * Texten är det man kom för att lämna. Går uppladdningen fel ska
          * omdömet ändå vara inskickat, och besökaren ska få veta att det är
          * bilderna och inte omdömet som fastnade. Omvänd ordning hade betytt
-         * att ett nej på en bild tog med sig texten i fallet. */
-        const failed = await uploadPicked();
+         * att ett nej på en bild tog med sig texten i fallet.
+         *
+         * Ordningen är dessutom ett krav nu och inte bara en avvägning: en bild
+         * måste bära id:t på ett omdöme som redan finns, annars avvisar policyn
+         * raden. Se image_uploads_insert i schema_community.sql. */
+        const failed = await uploadPicked(reviewId);
 
         form.reset();
         clearPicked();
@@ -1169,23 +1290,27 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      * mobiluppkoppling gör alla sex långsammare, och räknaren i knappen kan då
      * säga vad som händer.
      */
-    async function uploadPicked(): Promise<string | null> {
+    async function uploadPicked(reviewId: string | null): Promise<string | null> {
       if (chosen.length === 0) return null;
+      /* Utan id finns ingen rad att hänga bilderna på. Omdömet gick ändå in,
+         och det är det beskedet besökaren ska få. */
+      if (!reviewId) return 'omdömet kom fram, men bilderna kunde inte kopplas till det.';
 
       let done = 0;
       for (const item of chosen) {
         submit.textContent = `Laddar upp bild ${done + 1} av ${chosen.length}`;
         try {
-          await uploadImage(place, item.file, '');
+          await uploadImage(place, item.file, reviewId);
           done += 1;
         } catch (err) {
           const why =
             err instanceof CommunityError ? err.message : 'Uppladdningen gick inte igenom.';
-          /* Det vanliga svaret i dag. Policyn kräver ett godkänt anspråk, och
-             "Du saknar behörighet" säger inte en besökare någonting. */
+          /* Kvarvarande fall efter att besökaruppladdningen öppnats: den som
+             företräder verksamheten. Policyn avvisar raden, och "Du saknar
+             behörighet" säger inte den personen någonting om varför. */
           const known = /behörighet|row-level security/i.test(why)
-            ? 'bilder kan ännu bara laddas upp av den som fått ett anspråk på ' +
-              'verksamheten godkänt.'
+            ? 'bilder i omdömesflödet är för gäster, inte för den som företräder ' +
+              'verksamheten.'
             : why;
           return done > 0 ? `${done} av ${chosen.length} kom fram, sedan ${known}` : known;
         }

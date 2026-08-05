@@ -939,29 +939,54 @@ comment on function community.unread_notices() is
     'Olästa notiser för den inloggade. Ett anrop i stället för tre, se klockan i PlacePicker.astro.';
 
 -- ---------------------------------------------------------------------------
--- Bilduppladdningar
+-- Bilder från besökare
 --
--- En användaruppladdad bild på en namngiven restaurang kan vara vad som helst,
--- och till skillnad från en text går innehållet inte att söka igenom. Därför
--- finns ingen öppen uppladdning.
+-- BESÖKAREN LADDAR UPP, INTE VERKSAMHETEN. Här stod tvärtom fram till
+-- 2026-08-05, och bytet är ägarens beslut: "varför kan jag inte som användare,
+-- dvs inte restaurangägare ladda upp bilder? det är ju kunder."
 --
--- Ordningen:
---   1. Bara inloggade som har ett GODKÄNT anspråk på verksamheten får ladda
---      upp. Besökare kan inte ladda upp bilder alls i den här versionen. Det
---      halverar problemet direkt: uppladdaren är en känd, registerkontrollerad
---      motpart med något att förlora.
---   2. Filen går till en PRIVAT bucket under `pending/<user_id>/`. Ingen anon
+-- Det är också den enda vägen till en bild INIFRÅN ett ställe som skalar. En
+-- godkänd företrädare per verksamhet ger några hundra bilder; gästerna är
+-- tusentals. Se docs/13_bilder_och_verksamhetsdata.md, del A6 och C.
+--
+-- FÖRETRÄDAREN ÄR UTESTÄNGD HÄR, med avsikt. Den som har ett godkänt anspråk
+-- på verksamheten får inte lägga bilder i besökarflödet. En verksamhets egna
+-- marknadsföringsbilder bredvid gästernas är inte samma sorts uppgift, och de
+-- ska inte kunna förväxlas. Ägarens egen bildyta blir en betaltjänst längre
+-- fram och finns inte i någon form i dag. Se `image_uploads_insert`.
+--
+-- Ordningen, och den är omvänd mot förut:
+--   1. Bilden hör till ett EGET OMDÖME om just den verksamheten. `review_id`
+--      pekar ut det. Ingen text, ingen bild. Skälet är granskningens: ett foto
+--      utan sammanhang är det svåraste tänkbara ärendet för den som ska avgöra
+--      om det får publiceras, och ett omdöme per konto och verksamhet ger
+--      dessutom taket per verksamhet gratis.
+--   2. RADEN SKRIVS FÖRST, FILEN SEDAN. Storage-policyn kräver att det redan
+--      finns en väntande rad som pekar på exakt den sökvägen. Utan den
+--      ordningen vaktar varje kvot en dörr ingen behöver gå igenom: policyn på
+--      storage.objects kan bara se mappen, så vem som helst med ett konto hade
+--      kunnat fylla bucketen med filer och aldrig skriva en rad.
+--   3. Filen går till en PRIVAT bucket under `pending/<user_id>/`. Ingen anon
 --      kan läsa den. Det finns ingen URL att sprida.
---   3. Storlek och filtyp kontrolleras både i bucketens policy och här.
 --   4. Redaktionen tittar på bilden i moderate.py och väljer publicera eller
---      avslå. Vid publicering flyttas filen till den publika bucketen och en
---      rad skrivs i public.images med source='owner'.
---   5. Bilden syns på sajten först i nästa bygge.
+--      avslå. En AVSLAGEN bild raderas ur lagringen, den flaggas inte bara.
+--   5. En publicerad bild läses i webbläsaren ur community.published_images.
+--      Den går ALDRIG in i ett bygge och aldrig in i public.images, av exakt
+--      samma skäl som omdömen inte gör det: den grundlagsskyddade databasen är
+--      det statiska bygget, och ingenting en besökare skickat in hör hemma där.
+--
+-- EXIF försvinner på vägen, men inte av en regel här. Webbläsaren ritar om
+-- bilden på en canvas innan den skickas, och en canvas bär ingen metadata.
+-- GPS-koordinat, tidsstämpel och kameramodell finns alltså inte ens i den
+-- privata bucketen. Det är en följd av komprimeringen och inte dess syfte, och
+-- den som en dag flyttar komprimeringen måste veta det. Se uploadImage() i
+-- site/src/lib/community.ts.
 --
 -- Det som INTE finns och som ägaren bör känna till: ingen automatisk
--- innehållsklassning, ingen EXIF-rensning, ingen dubblettkontroll mot kända
--- bilder. Steg 1 gör manuell granskning hanterbar i volym; går uppladdning en
--- dag ut till besökare håller den ordningen inte.
+-- innehållsklassning och ingen dubblettkontroll mot kända bilder. En anonym
+-- person kan ladda upp en bild som inte föreställer stället. Det finns ingen
+-- teknisk kontroll som avslöjar det. Dämpningarna är texten som sammanhang,
+-- originalet som ligger kvar som underlag, och att en människa ser varje bild.
 -- ---------------------------------------------------------------------------
 create table if not exists community.image_uploads (
     id                uuid primary key default gen_random_uuid(),
@@ -970,12 +995,30 @@ create table if not exists community.image_uploads (
     establishment_id  text not null check (community.is_establishment_id(establishment_id)),
     municipality_slug text not null,
 
-    -- Sökväg i den privata bucketen, t.ex. 'pending/<user_id>/<uuid>.jpg'.
+    -- Omdömet bilden hör till.
+    --
+    -- Den enda främmande nyckeln i hela schemat som pekar någonstans, och den
+    -- pekar INOM community. Kaskaden är hela poängen: tar författaren tillbaka
+    -- sitt omdöme följer bilderna med, och det gäller även ett publicerat
+    -- omdöme. Ett yttrande man tagit tillbaka ska inte lämna kvar sina bilder.
+    review_id         uuid references community.reviews (id) on delete cascade,
+
+    -- Sökväg i den privata bucketen, alltid 'pending/<user_id>/<uuid>.<ext>'.
+    -- Formen kontrolleras av community.set_image_status(), inte bara här.
     storage_path      text not null unique,
     content_type      text not null check (content_type in
                             ('image/jpeg', 'image/png', 'image/webp')),
     byte_size         integer not null check (byte_size between 1 and 8388608),
     caption           text check (length(btrim(caption)) <= 200),
+
+    -- Uppladdarens försäkran om att bilden är hens egen.
+    --
+    -- Står som kolumn och inte bara som en ruta i formuläret. Frågan om vem som
+    -- tagit en bild går inte att avgöra i efterhand, och det enda vi kan visa
+    -- är att den som skickade in den svarade på frågan. Policyn kräver true,
+    -- så en rad utan försäkran kan inte finnas. Villkoren beskriver vilken rätt
+    -- Prikko får, se site/src/pages/villkor.astro.
+    rights_confirmed  boolean not null default false,
 
     status            community.moderation_status not null default 'pending',
     moderated_at      timestamptz,
@@ -987,8 +1030,145 @@ create table if not exists community.image_uploads (
     created_at        timestamptz not null default now()
 );
 
+-- Kolumnerna kom till efter tabellen, och `create table if not exists` rör
+-- inte en databas som redan har den. Raderna nedan är alltså de som faktiskt
+-- kör i produktion. Samma form som rating och visited_month på reviews.
+alter table community.image_uploads
+    add column if not exists review_id uuid references community.reviews (id) on delete cascade;
+
+alter table community.image_uploads
+    add column if not exists rights_confirmed boolean not null default false;
+
 create index if not exists image_uploads_pending_idx
     on community.image_uploads (created_at) where status = 'pending';
+
+create index if not exists image_uploads_published_idx
+    on community.image_uploads (establishment_id, created_at desc) where status = 'published';
+
+create index if not exists image_uploads_review_idx
+    on community.image_uploads (review_id);
+
+-- ---------------------------------------------------------------------------
+-- Statusen och kvoterna sätts av databasen, aldrig av det som skickas in
+-- ---------------------------------------------------------------------------
+-- Samma uppdelning som för omdömen: policyn avgör OM raden får finnas,
+-- triggern avgör HUR MÅNGA och med vilken status. Skälet att kvoterna ligger
+-- här och inte i policyn är att en trigger kan säga varför på svenska.
+-- translate() i site/src/lib/community.ts skickar okända fel vidare ordagrant,
+-- så texterna nedan går rakt ut till den som laddar upp. En avvisad rad från
+-- en policy säger bara "violates row-level security", och det är inget besked
+-- till någon som just valt fyra bilder.
+--
+-- De tre gränserna, alla ur docs/13, del C3:
+--
+--   Fem bilder per dygn och konto. Skyddar lagringen och kön mot en enskild
+--     person.
+--   Tre bilder per verksamhet och konto, räknat utan de avslagna. Skyddar en
+--     enskild verksamhet mot att bli nedtryckt av en person.
+--   Tio öppna bilder samtidigt per konto. Den viktigaste av de tre.
+--     Granskningen är en ensam människa, och en kö som går att fylla snabbare
+--     än den töms är i praktiken en avstängning av funktionen.
+--
+-- INGEN security definer. Funktionen läser bara community.image_uploads, och
+-- radsäkerheten där släpper redan ut varje egen rad. Filtret user_id =
+-- new.user_id står ändå utskrivet i varje fråga, av samma skäl som ownRows()
+-- finns i klienten: radsäkerhet är inte ett filter.
+create or replace function community.set_image_status()
+returns trigger
+language plpgsql
+set search_path to ''
+as $$
+declare
+    senaste_dygnet integer;
+    pa_stallet     integer;
+    oppna          integer;
+begin
+    -- Statusen får aldrig komma utifrån. Kunde den skickas in vore
+    -- granskningen borta i samma ögonblick som någon skickade
+    -- `status: published` tillsammans med en fil.
+    new.status := 'pending';
+    new.moderated_at := null;
+    new.moderated_by := null;
+    new.rejection_reason := null;
+    new.published_url := null;
+
+    -- Sökvägen måste ligga i uppladdarens egen mapp. Utan den här raden kan en
+    -- rad peka på någon annans fil, och storage-policyn hade då släppt in en
+    -- skrivning där för att raden fanns.
+    if new.storage_path is null
+       or new.storage_path not like 'pending/' || new.user_id::text || '/%' then
+        raise exception 'Bildens sökväg hör inte till kontot.'
+            using errcode = 'check_violation';
+    end if;
+
+    select count(*) into senaste_dygnet
+    from community.image_uploads i
+    where i.user_id = new.user_id
+      and i.created_at > now() - interval '24 hours';
+
+    if senaste_dygnet >= 5 then
+        raise exception 'Fem bilder per dygn räcker. Försök igen i morgon.'
+            using errcode = 'check_violation';
+    end if;
+
+    select count(*) into pa_stallet
+    from community.image_uploads i
+    where i.user_id = new.user_id
+      and i.establishment_id = new.establishment_id
+      and i.status <> 'rejected';
+
+    if pa_stallet >= 3 then
+        raise exception 'Tre bilder per verksamhet räcker.'
+            using errcode = 'check_violation';
+    end if;
+
+    select count(*) into oppna
+    from community.image_uploads i
+    where i.user_id = new.user_id
+      and i.status = 'pending';
+
+    if oppna >= 10 then
+        raise exception 'Du har tio bilder som väntar på granskning. Vänta tills de är avgjorda.'
+            using errcode = 'check_violation';
+    end if;
+
+    return new;
+end;
+$$;
+
+comment on function community.set_image_status() is
+    'Sätter status och håller kvoterna vid insättning av en bild. Se docs/13 del C3.';
+
+drop trigger if exists image_uploads_set_status on community.image_uploads;
+create trigger image_uploads_set_status
+    before insert on community.image_uploads
+    for each row execute function community.set_image_status();
+
+-- Publik läsvy för bilder.
+--
+-- Samma konstruktion och samma skäl som community.published_reviews: tabellen
+-- bär uppladdarens user_id, moderatorns namn och avslagsskälet, och inget av
+-- det ska ut. Vyn väljer kolumner uttryckligen, så en ny känslig kolumn på
+-- tabellen blir inte publik av sig själv. `security_invoker` gör att RLS på
+-- tabellen gäller ändå.
+--
+-- INGEN uppgift om vem som laddat upp bilden, inte ens ett visningsnamn.
+-- Omdömen är anonyma, och en bild bredvid ett anonymt omdöme får inte vara
+-- vägen till att identifiera den som skrev det.
+drop view if exists community.published_images;
+
+create view community.published_images as
+select
+    i.id,
+    i.establishment_id,
+    i.municipality_slug,
+    i.published_url,
+    i.created_at
+from community.image_uploads i
+where i.status = 'published'
+  and i.published_url is not null;
+
+alter view community.published_images set (security_invoker = true);
 
 -- ---------------------------------------------------------------------------
 -- Radsäkerhet
@@ -1135,15 +1315,50 @@ create policy reviews_delete_own on community.reviews
     for delete to authenticated
     using (user_id = auth.uid());
 
--- Bilder: samma spärr som svar. Bara godkända företrädare får ladda upp.
+-- Bilder: bara till en verksamhet man själv skrivit ett omdöme om, och bara
+-- av någon som INTE företräder den.
+--
+-- Villkoren i ordning, och vart och ett bär sitt eget skäl:
+--
+--   Ett eget omdöme om samma verksamhet. `review_id` måste peka på en rad som
+--     är ens egen OCH gäller samma ställe. Utan det andra ledet räckte ett
+--     omdöme om vilken verksamhet som helst för att lägga bilder på vilken
+--     annan som helst.
+--   Ingen godkänd företrädare. Den som företräder verksamheten laddar inte upp
+--     i besökarflödet. Se kommentaren över tabellen: ägarens bildyta är en
+--     betaltjänst som inte finns, och den ska inte smygas in genom att en
+--     företrädare skriver ett omdöme om sitt eget ställe.
+--   Bekräftad rätt till bilden. Kolumnen är false som förval, så en rad utan
+--     försäkran kan inte skrivas.
+--
+-- Status och kvoter står INTE här. De sätts av community.set_image_status(),
+-- som är en trigger och därför inte går att kringgå med en rättighet, och som
+-- till skillnad från en policy kan säga på svenska varför den sa nej.
 drop policy if exists image_uploads_insert on community.image_uploads;
 create policy image_uploads_insert on community.image_uploads
     for insert to authenticated
     with check (
         user_id = auth.uid()
-        and status = 'pending'
-        and published_url is null
+        and rights_confirmed
         and exists (
+            select 1 from community.reviews r
+            where r.id = image_uploads.review_id
+              and r.user_id = auth.uid()
+              and r.establishment_id = image_uploads.establishment_id
+              -- Omdömet måste bära TEXT, inte bara ett betyg.
+              --
+              -- Ett betyg utan text publiceras direkt av en trigger och läses
+              -- aldrig av någon. En bild på den vägen hade varit ett foto på
+              -- någon annans näringsverksamhet, inskickat anonymt, utan en rad
+              -- som säger vad man tittar på. Med tjugo tecken vet granskaren om
+              -- det är disken, skylten eller en tallrik.
+              --
+              -- Det är också det enda som återstår av ansvar sedan omdömen blev
+              -- anonyma: att någon faktiskt skrivit något om stället.
+              -- Se docs/13_bilder_och_verksamhetsdata.md, del C4.
+              and r.body is not null
+        )
+        and not exists (
             select 1 from community.establishment_claims c
             where c.user_id = auth.uid()
               and c.establishment_id = image_uploads.establishment_id
@@ -1155,6 +1370,35 @@ drop policy if exists image_uploads_read_own on community.image_uploads;
 create policy image_uploads_read_own on community.image_uploads
     for select to authenticated
     using (user_id = auth.uid());
+
+-- Städning efter en uppladdning som inte gick igenom.
+--
+-- Raden skrivs före filen, alltså kan raden bli kvar när filen inte kommer
+-- fram. En sådan rad är ofarlig, den pekar på ingenting och kan inte visas
+-- någonstans, men den tar en plats i granskningskön och kostar en människa ett
+-- klick för att upptäcka att det inte finns någon bild att titta på.
+--
+-- Bara `pending`. Det här är en ångerknapp för en misslyckad uppladdning, inte
+-- en väg att ta bort en bild som redan är avgjord. Att ta tillbaka en
+-- publicerad bild görs genom att radera omdömet den hör till, och då tar
+-- kaskaden bilderna med sig.
+drop policy if exists image_uploads_delete_own on community.image_uploads;
+create policy image_uploads_delete_own on community.image_uploads
+    for delete to authenticated
+    using (user_id = auth.uid() and status = 'pending');
+
+-- Den enda vägen till någon annans bild, och den går genom vyn
+-- community.published_images som väljer sina kolumner uttryckligen.
+--
+-- SAMMA VARNING SOM VID reviews_read_published: policyer läggs ihop med ELLER.
+-- En inloggad som frågar image_uploads utan eget filter får sina rader PLUS
+-- allas publicerade. "Mina bilder" måste därför alltid fråga med
+-- user_id=eq.<eget id>. Se ownRows() i site/src/lib/community.ts och testet
+-- pipeline/tests/test_egna_rader.py, som fäller bygget om någon fråga går förbi.
+drop policy if exists image_uploads_read_published on community.image_uploads;
+create policy image_uploads_read_published on community.image_uploads
+    for select to anon, authenticated
+    using (status = 'published');
 
 -- ---------------------------------------------------------------------------
 -- Rättigheter
@@ -1170,7 +1414,9 @@ grant select, insert, delete          on community.follows  to authenticated;
 grant select, insert                  on community.establishment_claims to authenticated;
 grant select, insert                  on community.owner_responses      to authenticated;
 grant select, insert, delete          on community.reviews              to authenticated;
-grant select, insert                  on community.image_uploads        to authenticated;
+-- Delete på bilder är städning efter en misslyckad uppladdning och når bara
+-- egna rader som fortfarande är `pending`. Se image_uploads_delete_own.
+grant select, insert, delete          on community.image_uploads        to authenticated;
 grant select                          on community.notifications        to authenticated;
 grant select                          on community.notices              to authenticated;
 -- Ingen delete på läsmarkeringen: raden ÄR markeringen, och en borttagen rad
@@ -1178,9 +1424,16 @@ grant select                          on community.notices              to authe
 -- funktion någon efterfrågat, och update räcker för att flytta den framåt.
 grant select, insert, update          on community.notice_reads         to authenticated;
 
--- Anon får läsa publicerade omdömen och ingenting annat.
+-- Anon får läsa publicerade omdömen och publicerade bilder, ingenting annat.
+--
+-- Rättigheten på tabellerna behövs trots att bara vyerna ska läsas:
+-- `security_invoker` gör att frågan körs med anroparens rättigheter, och utan
+-- select på tabellen under faller hela vyn med 42501. Radsäkerheten är det som
+-- avgör VILKA rader som kommer ut, aldrig den här raden.
 grant select on community.reviews           to anon;
+grant select on community.image_uploads     to anon;
 grant select on community.published_reviews to anon, authenticated;
+grant select on community.published_images  to anon, authenticated;
 
 -- Avregistreringsfunktionerna. Postgres ger som förval EXECUTE till PUBLIC på
 -- varje ny funktion, och det förvalet ska inte gälla för två `security
@@ -1232,6 +1485,7 @@ revoke execute on function community.unread_notices() from public;
 grant  execute on function community.unread_notices() to authenticated;
 
 grant select on community.published_reviews to service_role;
+grant select on community.published_images  to service_role;
 
 -- Sekvenser finns inte här (allt är uuid), men förvalet ska ändå vara stängt
 -- för framtida tabeller i schemat.
@@ -1295,9 +1549,23 @@ values ('verksamhetsbilder', 'verksamhetsbilder', true, 8388608,
         array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
--- Uppladdning: bara till den privata bucketen, bara under den egna
--- användarens mapp, och bara av någon som har ett godkänt anspråk någonstans.
--- Vilken verksamhet bilden gäller kontrolleras av raden i image_uploads.
+-- Uppladdning: bara till en plats databasen redan delat ut.
+--
+-- BUCKETEN ÄR STÄNGD SOM FÖRVAL. En fil kan bara skrivas om det redan finns en
+-- väntande rad i community.image_uploads som pekar på exakt den sökvägen, är
+-- uppladdarens egen, och har passerat både policyn och kvoterna på den
+-- tabellen.
+--
+-- Här stod tidigare ett krav på ett godkänt anspråk NÅGONSTANS, och resten
+-- lämnades åt raden. Det höll bara så länge uppladdarna var en handfull
+-- registerkontrollerade företrädare. Med besökaruppladdning vänder det: policyn
+-- nedan kan bara se mappen, och räknas kvoten på raderna medan filen skrivs
+-- först kan vem som helst med ett konto fylla bucketen utan att skapa en enda
+-- rad. Kvoten hade då vaktat en dörr ingen behövde gå igenom.
+--
+-- Mappvillkoren står kvar som ett andra lager. Sökvägens form kontrolleras
+-- redan av community.set_image_status(), men en rad och en fil som pekar på
+-- varandra ska stämma överens sedda från båda hållen.
 drop policy if exists "inkomna_upload_own" on storage.objects;
 create policy "inkomna_upload_own" on storage.objects
     for insert to authenticated
@@ -1306,8 +1574,10 @@ create policy "inkomna_upload_own" on storage.objects
         and (storage.foldername(name))[1] = 'pending'
         and (storage.foldername(name))[2] = auth.uid()::text
         and exists (
-            select 1 from community.establishment_claims c
-            where c.user_id = auth.uid() and c.status = 'published'
+            select 1 from community.image_uploads u
+            where u.user_id = auth.uid()
+              and u.storage_path = storage.objects.name
+              and u.status = 'pending'
         )
     );
 
@@ -1319,3 +1589,10 @@ create policy "inkomna_read_own" on storage.objects
         bucket_id = 'verksamhetsbilder-inkomna'
         and (storage.foldername(name))[2] = auth.uid()::text
     );
+
+-- Ingen DELETE-policy för någon inloggad roll, på någondera bucketen.
+--
+-- Att radera en avslagen fil är redaktionens arbete och görs av moderate.py med
+-- service_role, som går förbi radsäkerheten. Läget att skydda är inte att någon
+-- raderar sin egen bild i förtid utan att en fil ligger kvar efter ett avslag:
+-- en avslagen bild ska bort ur lagringen, inte bara märkas i en kolumn.

@@ -47,6 +47,7 @@ import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
+import Bilder from '../../components/Bilder.astro';
 import Reviews from '../../components/Reviews.astro';
 import ActionPanel from '../../components/ActionPanel.astro';
 import ArtikelBanner from '../../components/ArtikelBanner.astro';
@@ -458,6 +459,19 @@ const breadcrumbs = {
             city={kommun.city}
           />
         )}
+
+        {/*
+          Bilderna står FÖRE omdömena och efter kartan.
+
+          De hör till stället och inte till ett enskilt omdöme, alltså hör de
+          hemma bland det som beskriver stället. Att de ändå ligger nedanför
+          kontrollberättelsen följer samma ordning som resten av sidan: det vi
+          själva räknat fram först, det besökarna bidragit med sedan.
+
+          Tomt i HTML-filen och fyllt i webbläsaren, precis som omdömena, och
+          avsnittet syns inte alls på de allra flesta sidor. Se Bilder.astro.
+        */}
+        <Bilder establishmentId={e.id} establishmentName={e.name} />
 
         {/*
           Omdömen ligger SIST i huvudkolumnen, efter allt som bygger på

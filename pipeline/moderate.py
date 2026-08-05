@@ -37,10 +37,21 @@ Vad som händer vid publicering:
            kön: det publiceras direkt av en trigger i databasen. Se UNDANTAGET
            i schema_community.sql för varför, och kör `signaler` för att se de
            mönster som är värda en blick i efterhand.
-  anspråk  personen får rätt att svara på kontroller och ladda upp bilder för
-           just den verksamheten. Ange alltid hur du kontrollerade det.
-  bild     filen kopieras till den publika bucketen och en rad skrivs i
-           public.images med source='owner'. Syns i nästa bygge.
+  anspråk  personen får rätt att svara på kontroller för just den
+           verksamheten. Ange alltid hur du kontrollerade det.
+  bild     filen kopieras till den publika bucketen och raden blir läsbar
+           genom vyn community.published_images. Syns i webbläsaren direkt,
+           aldrig i ett bygge.
+
+BILDER KOMMER FRÅN BESÖKARE, INTE FRÅN VERKSAMHETEN. En bild hör alltid ihop
+med ett omdöme som samma person skrivit om samma ställe, och de två granskas
+som en enhet: avslås texten avslås bilderna med den, och det sköter `avsla
+omdome` själv. Den som företräder verksamheten kan inte ladda upp här alls.
+
+ETT AVSLAG RADERAR FILEN. Det är skillnaden mot en text, som bara blir osynlig.
+En bild som inte får publiceras ska inte ligga kvar i vår lagring, och därför
+tar `avsla bild` bort objektet ur den privata inkorgen. Ett avslag går inte att
+ångra efteråt.
 """
 
 from __future__ import annotations
@@ -140,6 +151,14 @@ class Supabase:
             },
         )
 
+    def remove_object(self, bucket: str, path: str) -> None:
+        """Tar bort ett objekt ur lagringen.
+
+        Används vid avslag. En bild som inte får publiceras ska inte ligga kvar
+        hos oss, och det är den enda plats i hela verktyget som raderar något.
+        """
+        self._request("DELETE", f"storage/v1/object/{bucket}/{path}")
+
     def public_url(self, path: str) -> str:
         return f"{self.url}/storage/v1/object/public/{PUBLIC_BUCKET}/{path}"
 
@@ -223,6 +242,24 @@ def cmd_signals(db: Supabase) -> int:
     return 0
 
 
+def review_of(db: Supabase, review_id: str | None) -> dict | None:
+    """Omdömet en bild hör till, eller None om det inte finns kvar.
+
+    None är ett verkligt läge och inte ett fel: författaren kan ha raderat sitt
+    omdöme mellan uppladdningen och granskningen. Kaskaden i databasen tar då
+    bort bildraden med det, så en bild utan omdöme betyder att något gått fel
+    och att bilden inte ska publiceras.
+    """
+    if not review_id:
+        return None
+    rows = db.community(
+        "GET",
+        f"reviews?select=id,body,rating,status,establishment_id"
+        f"&id=eq.{urllib.parse.quote(review_id)}",
+    )
+    return rows[0] if rows else None
+
+
 def cmd_show(db: Supabase, kind: str, row_id: str) -> int:
     table = KINDS[kind]
     rows = db.community("GET", f"{table}?id=eq.{urllib.parse.quote(row_id)}")
@@ -243,6 +280,33 @@ def cmd_show(db: Supabase, kind: str, row_id: str) -> int:
     if table == "image_uploads":
         print("\nBilden (länken gäller en timme):")
         print("  " + db.sign(INBOX_BUCKET, row["storage_path"]))
+
+        # Omdömet bilden hör till, ordagrant. En bild utan sammanhang är det
+        # svåraste tänkbara granskningsärendet: texten säger om det är disken,
+        # skylten eller en tallrik man tittar på.
+        review = review_of(db, row.get("review_id"))
+        if review is None:
+            print("\nVARNING: bilden har inget omdöme kvar. Det är raderat, och "
+                  "bilden borde ha följt med. Avslå den.")
+        else:
+            print(f"\n--- omdömet, {review['status']} ---")
+            if review.get("rating"):
+                print(f"  betyg {review['rating']} av 5")
+            if review.get("body"):
+                print(textwrap.indent(review["body"], "  "))
+            print("--- slut ---")
+
+    if table == "reviews":
+        images = db.community(
+            "GET",
+            f"image_uploads?select=id,status,storage_path"
+            f"&review_id=eq.{urllib.parse.quote(row_id)}&order=created_at.asc",
+        )
+        if images:
+            print(f"\n{len(images)} bild(er) hör till omdömet. Granska dem som en enhet:")
+            for image in images:
+                print(f"  {image['status']:10} python3 pipeline/moderate.py visa bild {image['id']}")
+            print("Ett avslag på omdömet avslår och raderar bilderna med det.")
 
     if table == "owner_responses":
         insp = db.public(
@@ -324,22 +388,33 @@ def cmd_publish(db: Supabase, kind: str, row_id: str, method: str | None) -> int
         return 0
 
     if table == "image_uploads":
+        # Omdömet och bilden är en enhet. Avslogs texten ska bilden inte
+        # publiceras, och finns texten inte kvar alls ska den inte heller det.
+        review = review_of(db, row.get("review_id"))
+        if review is None:
+            raise ModerationError(
+                "Bilden har inget omdöme kvar. Författaren har tagit tillbaka "
+                "det, och bilden ska då inte publiceras. Avslå den i stället."
+            )
+        if review["status"] == "rejected":
+            raise ModerationError(
+                "Omdömet bilden hör till är avslaget. Text och bild granskas "
+                "som en enhet. Avslå bilden i stället."
+            )
+        if review["status"] == "pending":
+            print("Obs: omdömets text väntar fortfarande på granskning. "
+                  "Bilden publiceras nu, texten när du tar ställning till den.")
+
         destination = row["storage_path"].replace("pending/", "", 1)
         db.copy_object(row["storage_path"], destination)
         url = db.public_url(destination)
-        db.public(
-            "POST",
-            "images",
-            {
-                "establishment_id": row["establishment_id"],
-                "url": url,
-                "source": "owner",
-                "source_id": row["id"],
-                "attribution": "Verksamhetens egen bild",
-                "position": 0,
-            },
-            prefer="return=minimal",
-        )
+        # INGEN rad i public.images.
+        #
+        # Där ligger pipelinens egna gatubilder, och de är redaktionellt
+        # material som går in i bygget. En besökares bild är användarinnehåll
+        # och hör hemma på samma sida om gränsen som omdömena: i schemat
+        # community, läst i webbläsaren, aldrig i en byggd fil. Se
+        # community.published_images och Bilder.astro.
         db.community(
             "PATCH",
             f"image_uploads?id=eq.{quoted}",
@@ -351,10 +426,48 @@ def cmd_publish(db: Supabase, kind: str, row_id: str, method: str | None) -> int
             },
         )
         print(f"Bilden publicerad: {url}")
+        print("Den syns i webbläsaren direkt, aldrig i bygget.")
         print("Originalet ligger kvar i den privata inkorgen som underlag.")
         return 0
 
     raise ModerationError(f"Okänd sort: {kind}")
+
+
+def reject_image(db: Supabase, row: dict, reason: str, stamp: str, who: str) -> None:
+    """Avslår en bild och RADERAR filen.
+
+    Ordningen är medveten: raden märks först, filen tas bort sedan. Faller
+    raderingen ligger en fil kvar som ingen sida kan nå, eftersom en avslagen
+    rad aldrig får en publik URL. Omvänd ordning hade i stället kunnat lämna en
+    rad som ser publicerbar ut men pekar på ingenting.
+
+    Ett borttaget objekt som redan är borta är inte ett fel. Kommandot ska gå
+    att köra om utan att stoppa på en fil någon redan städat bort för hand.
+    """
+    db.community(
+        "PATCH",
+        f"image_uploads?id=eq.{urllib.parse.quote(row['id'])}",
+        {
+            "status": "rejected",
+            "rejection_reason": reason,
+            "moderated_at": stamp,
+            "moderated_by": who,
+        },
+    )
+    städa = [(INBOX_BUCKET, row["storage_path"])]
+    # Har bilden varit publicerad finns en kopia i den publika bucketen också.
+    # Den är den enda av de två som någon utomstående kan nå, så den måste bort
+    # med. Att avslå en publicerad bild är ovanligt men händer när ett omdöme
+    # avslås i efterhand.
+    if row.get("published_url"):
+        städa.append((PUBLIC_BUCKET, row["storage_path"].replace("pending/", "", 1)))
+
+    for bucket, path in städa:
+        try:
+            db.remove_object(bucket, path)
+        except ModerationError as exc:
+            print(f"Varning: filen kunde inte raderas ({exc}). Ta bort den för hand:")
+            print(f"  {bucket}/{path}")
 
 
 def cmd_reject(db: Supabase, kind: str, row_id: str, reason: str) -> int:
@@ -363,6 +476,15 @@ def cmd_reject(db: Supabase, kind: str, row_id: str, reason: str) -> int:
     stamp = now()
     who = moderator()
 
+    if table == "image_uploads":
+        rows = db.community("GET", f"image_uploads?id=eq.{quoted}")
+        if not rows:
+            raise ModerationError(f"Ingen bild med id {row_id}")
+        reject_image(db, rows[0], reason, stamp, who)
+        print(f"Avslaget, och filen är raderad. Skälet syns för avsändaren "
+              f"på hens kontosida: {reason}")
+        return 0
+
     patch = {"status": "rejected", "rejection_reason": reason}
     if table == "establishment_claims":
         patch |= {"verified_by": who}
@@ -370,6 +492,22 @@ def cmd_reject(db: Supabase, kind: str, row_id: str, reason: str) -> int:
         patch |= {"moderated_at": stamp, "moderated_by": who}
 
     db.community("PATCH", f"{table}?id=eq.{quoted}", patch)
+
+    if table == "reviews":
+        # Text och bild granskas som en enhet. Att avslå en text men lämna dess
+        # bilder kvar i kön är att låta samma insändning prövas två gånger, och
+        # det som fällde texten gäller nästan alltid bilderna med.
+        images = db.community(
+            "GET",
+            f"image_uploads?select=id,storage_path,status,published_url"
+            f"&review_id=eq.{quoted}",
+        )
+        kvar = [i for i in images if i["status"] != "rejected"]
+        for image in kvar:
+            reject_image(db, image, reason, stamp, who)
+        if kvar:
+            print(f"{len(kvar)} bild(er) avslogs med omdömet, och filerna är raderade.")
+
     print(f"Avslaget. Skälet syns för avsändaren på hens kontosida: {reason}")
     return 0
 

@@ -1,0 +1,352 @@
+---
+/**
+ * Bilder på verksamheten, inskickade av besökare.
+ *
+ * ---------------------------------------------------------------------------
+ * TOMT I BYGGET, FYLLS I WEBBLÄSAREN
+ * ---------------------------------------------------------------------------
+ * Samma ordning som Reviews.astro, och av samma skäl. Den grundlagsskyddade
+ * databasen är det statiska bygget, och ingenting en besökare skickat in får
+ * hamna där. En publicerad bild läses ur vyn community.published_images med
+ * anon-nyckeln, precis som ett publicerat omdöme läses ur published_reviews.
+ *
+ * Det är också skälet att bilderna INTE går genom public.images. Där ligger
+ * pipelinens egna gatubilder, som är redaktionellt material och byggs in i
+ * sidan. Se StreetPhoto.astro för den andra sortens bild.
+ *
+ * ---------------------------------------------------------------------------
+ * BILDEN HÖR TILL STÄLLET, INTE TILL ETT OMDÖME
+ * ---------------------------------------------------------------------------
+ * En bild skickas in tillsammans med ett omdöme och granskas som en enhet med
+ * det, men den visas här och aldrig inuti en omdömesrad. Det som fotograferats
+ * är stället. Låg bilden i omdömet hade samma matsal legat i sex olika rader
+ * och avsnittet blivit en rullande lista av bilder i stället för av texter.
+ *
+ * ---------------------------------------------------------------------------
+ * FORMEN
+ * ---------------------------------------------------------------------------
+ * Booli är sajtens designriktning. Rutnätet är därför rent: ingen ram, ingen
+ * kant, ingen ruta runt avsnittet, ingen bildtext och ingen rad som förklarar
+ * varifrån bilderna kommer eller vad funktionen gör. Bilderna bär sig själva.
+ * Se docs/18_sprakregler.md.
+ *
+ * Avsnittet är dolt tills det finns något att visa. De allra flesta av sajtens
+ * verksamheter har inga bilder, och en tom rubrik med en tom yta under är
+ * sämre än ingen rubrik alls.
+ */
+interface Props {
+  establishmentId: string;
+  establishmentName: string;
+}
+
+const { establishmentId, establishmentName } = Astro.props;
+---
+
+{/*
+  `tom` från början, och en klass i stället för attributet `hidden`.
+
+  Skillnaden är inte kosmetisk. `hidden` är `display: none`, och ett element
+  utan låda korsar aldrig något: IntersectionObserver hade aldrig utlöst och
+  bilderna aldrig hämtats. Klassen fäller i stället ihop avsnittet till noll
+  höjd med `visibility: hidden`, vilket döljer det för både öga och skärmläsare
+  men lämnar kvar en punkt i flödet som går att observera.
+
+  Klassen tas bort av skriptet när minst en bild kommit hem. Utan den hoppar
+  sidan till på varje verksamhet som saknar bilder, alltså på nästan alla.
+*/}
+<section
+  class="bilder tom"
+  id="bilder"
+  data-establishment={establishmentId}
+  data-name={establishmentName}
+>
+  <h2>Bilder</h2>
+  <div class="grid" id="bilder-grid"></div>
+</section>
+
+{/*
+  Förstoringen ligger UTANFÖR avsnittet, som ett eget syskon. Samma skäl som
+  omdömesrutan i Reviews.astro: showModal() lyfter elementet till det översta
+  lagret ändå, och att hålla dem isär i markupen gör att `#bilder` fortsätter
+  betyda rutnätet och ingenting annat.
+*/}
+<dialog class="photo-dialog" id="bilder-dialog" aria-label={`Bild på ${establishmentName}`}>
+  <button type="button" class="stang" data-close aria-label="Stäng">
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" />
+    </svg>
+  </button>
+  <img id="bilder-stor" alt="" />
+</dialog>
+
+<style>
+  /* Ingen ram, ingen bakgrund, ingen kant. Avsnittet är bilderna. */
+
+  /*
+   * Det tomma läget, och det är fyra egenskaper och inte en.
+   *
+   * Sidmallen ger varje syskon i huvudkolumnen marginal, indrag OCH en hårlinje
+   * överst med `.main > * + *`. Ett avsnitt som bara har `height: 0` syns
+   * därför ändå: linjen ritas, och tillsammans med luften omkring blir det en
+   * avdelare mitt på sidan som inte delar av något. Alla fyra måste nollas.
+   *
+   * `visibility: hidden` och inte `display: none`, se kommentaren vid
+   * markupen: det som inte ritas går inte heller att observera.
+   */
+  .bilder.tom {
+    visibility: hidden;
+    height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+    overflow: hidden;
+  }
+
+  .bilder h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /*
+   * `auto-fill` och inte `auto-fit`.
+   *
+   * Med auto-fit sträcker sig en ensam bild över hela spaltbredden och blir en
+   * banderoll. Med auto-fill behåller den sitt spårmått, så en bild ser ut som
+   * en bild och tre ser ut som tre. Det är också vad Booli gör med sina
+   * bildrader.
+   */
+  .grid {
+    margin-top: var(--s-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--s-2);
+  }
+
+  .grid:empty { display: none; }
+</style>
+
+<style is:global>
+  /* Global eftersom rutorna byggs i skript och därför saknar Astros
+     scope-attribut. Håll selektorerna under .bilder respektive .photo-dialog. */
+
+  /* Knappen är bilden. Ingen kant, ingen bakgrund, inget inre mellanrum: det
+     enda som skiljer den från en <img> är att den går att trycka på och att
+     tangentbordet kan nå den. */
+  .bilder .ruta {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: var(--canvas);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    cursor: zoom-in;
+  }
+
+  .bilder .ruta:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /*
+   * 4:3 och `cover`.
+   *
+   * Bilderna kommer från telefoner i alla riktningar, och ett rutnät där varje
+   * ruta har sin egen höjd är inte ett rutnät. Beskärningen är ett visningsval
+   * och inte en bearbetning: originalet ligger orört i lagringen, och
+   * förstoringen visar hela bilden.
+   */
+  .bilder .ruta img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  /* Vid pekare lyfts bilden en aning. Samma stillsamma rörelse som korten på
+     resten av sajten, och den säger att rutan går att öppna. */
+  @media (hover: hover) and (pointer: fine) {
+    .bilder .ruta img {
+      transition: transform .18s ease;
+    }
+
+    .bilder .ruta:hover img {
+      transform: scale(1.02);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bilder .ruta img { transition: none; }
+    .bilder .ruta:hover img { transform: none; }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Förstoringen                                                         */
+  /* ------------------------------------------------------------------ */
+  dialog.photo-dialog {
+    padding: 0;
+    border: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: visible;
+  }
+
+  .photo-dialog::backdrop {
+    background: rgba(0, 0, 0, .8);
+  }
+
+  .photo-dialog img {
+    display: block;
+    max-width: calc(100vw - var(--s-8));
+    max-height: 88dvh;
+    width: auto;
+    height: auto;
+    border-radius: var(--r-card);
+  }
+
+  /* Krysset ligger ovanpå bilden i ett hörn och inte i en rad ovanför den.
+     En rubrikrad över en fotoförstoring stjäl höjd från det man öppnade. */
+  .photo-dialog .stang {
+    position: absolute;
+    top: var(--s-3);
+    right: var(--s-3);
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .photo-dialog .stang:hover { background: rgba(0, 0, 0, .75); }
+  .photo-dialog .stang svg { width: 20px; height: 20px; }
+
+  .photo-dialog .stang:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  import { configured, publishedImages } from '../lib/community';
+  import { lockPage, unlockPage } from '../lib/page-lock';
+
+  const section = document.getElementById('bilder');
+  const dialog = document.getElementById('bilder-dialog') as HTMLDialogElement | null;
+
+  if (section && dialog && configured) {
+    const grid = document.getElementById('bilder-grid') as HTMLDivElement;
+    const stor = document.getElementById('bilder-stor') as HTMLImageElement;
+    const stang = dialog.querySelector('[data-close]') as HTMLButtonElement;
+    const place = section.dataset.establishment ?? '';
+    const name = section.dataset.name ?? '';
+
+    let opener: HTMLElement | null = null;
+
+    function open(url: string, trigger: HTMLElement) {
+      opener = trigger;
+      stor.src = url;
+      stor.alt = name;
+      lockPage();
+      dialog!.showModal();
+    }
+
+    /**
+     * Stängning på ett ställe, som i omdömesrutan.
+     *
+     * Esc, krysset och klick utanför bilden tar samma väg, så fokus hamnar
+     * tillbaka på rutan man öppnade i alla tre fallen. `src` nollställs så att
+     * en stor bild inte ligger kvar i minnet efter att rutan stängts.
+     */
+    function close() {
+      if (dialog!.open) dialog!.close();
+      unlockPage();
+      stor.removeAttribute('src');
+      const back = opener;
+      opener = null;
+      back?.focus({ preventScroll: true });
+    }
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      close();
+    });
+
+    stang.addEventListener('click', () => close());
+
+    /* Klick utanför bilden stänger. Backdrop-klick landar på <dialog> självt,
+       och krysset ligger ovanpå bilden men är en egen knapp. */
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) close();
+    });
+
+    function render(rows: Array<{ id: string; published_url: string }>) {
+      grid.textContent = '';
+      for (const row of rows) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ruta';
+        /* Ingen bildtext och ingen upplysning om vem som skickat in bilden.
+           Namnet på stället är vad alt-texten kan säga sant om en bild ingen
+           har beskrivit. */
+        button.setAttribute('aria-label', `Visa bilden större`);
+
+        const img = document.createElement('img');
+        img.src = row.published_url;
+        img.alt = name;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+
+        button.append(img);
+        button.addEventListener('click', () => open(row.published_url, button));
+        grid.append(button);
+      }
+      /* Rubriken visas först när det finns något under den. */
+      section!.classList.toggle('tom', rows.length === 0);
+    }
+
+    /*
+     * Hämtas när avsnittet kommer i sikte, inte vid sidladdning.
+     *
+     * Samma skäl som omdömena i Reviews.astro: anropet går till Supabase, som
+     * ligger bakom Cloudflare och sätter en kaka. Den som aldrig rullar ned hit
+     * har inte efterfrågat bilderna och ska inte kosta en tredjepartskontakt.
+     */
+    const load = async () => {
+      try {
+        render(await publishedImages(place));
+      } catch {
+        /* Avsnittet står kvar dolt. En bild som inte gick att hämta är inget
+           besked någon behöver: sidan är hel utan den. */
+      }
+    };
+
+    /*
+     * Avsnittet observeras trots att det är hopfällt.
+     *
+     * En yta på noll pixlar ger `intersectionRatio: 0`, men `isIntersecting`
+     * blir ändå sant när punkten passerar rotens kant. Det är just därför det
+     * tomma läget är `visibility: hidden` och inte `display: none`: ett element
+     * som inte ritas har ingen låda alls och korsar aldrig något.
+     */
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          io.disconnect();
+          void load();
+        },
+        { rootMargin: '400px' },
+      );
+      io.observe(section);
+    } else {
+      void load();
+    }
+  }
+</script>

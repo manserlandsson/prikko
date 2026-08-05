@@ -696,6 +696,11 @@ export async function myReview(
  * text väntar på att en människa läst det. Skulle den här funktionen skicka
  * med en status ignoreras den, vilket är hela poängen med att regeln bor där
  * och inte här.
+ *
+ * Svaret är id:t på raden som skapades, eller null om den inte gick att läsa
+ * tillbaka. Bilderna behöver det: `image_uploads.review_id` måste peka på ett
+ * eget omdöme om samma verksamhet, annars avvisar policyn raden. Att omdömet
+ * ändå är inskickat är skälet att null inte är ett fel här.
  */
 export async function submitReview(
   place: Place,
@@ -723,7 +728,7 @@ export async function submitReview(
    * det en gång till. Klienten är ett formulär, inte en grind.
    */
   visitedMonth: string | null = null,
-): Promise<void> {
+): Promise<string | null> {
   const user = currentUser();
 
   /*
@@ -739,7 +744,8 @@ export async function submitReview(
    * trovärdigheten därmed vilar på att varje omdöme läses innan det
    * publiceras. Det gör den redan, se moderate.py.
    */
-  await rest('POST', 'reviews', {
+  const rows = await rest('POST', 'reviews', {
+    prefer: 'return=representation',
     body: {
       user_id: user?.id,
       establishment_id: place.id,
@@ -749,6 +755,7 @@ export async function submitReview(
       visited_month: visitedMonth,
     },
   });
+  return (Array.isArray(rows) ? rows[0]?.id : rows?.id) ?? null;
 }
 
 export async function deleteReview(id: string): Promise<void> {
@@ -1004,7 +1011,36 @@ export async function submitOwnerResponse(
 
 /* Bilder ------------------------------------------------------------------- */
 
+/*
+ * BILDER KOMMER FRÅN BESÖKARE, INTE FRÅN VERKSAMHETEN.
+ *
+ * En bild hör alltid ihop med ett omdöme som samma person skrivit om samma
+ * ställe. Den som företräder verksamheten kan inte ladda upp här; policyn
+ * image_uploads_insert i schema_community.sql stänger den vägen, och ägarens
+ * egen bildyta är en betaltjänst som inte finns i någon form i dag.
+ *
+ * Reglerna bor i databasen, som allt annat i den här filen. Kontrollerna nedan
+ * är ett formulär, inte en grind.
+ */
+
 const INBOX_BUCKET = 'verksamhetsbilder-inkomna';
+
+/** Största fil vi tar emot INNAN komprimering. Bucketen har samma tak. */
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Längsta sidan på den bild som faktiskt skickas.
+ *
+ * En telefonbild är åtta megapixel och flera megabyte. Ytan den visas i är som
+ * mest ett par hundra pixlar bred, och en granskare tittar på den i ett fönster
+ * som inte heller är större. 1600 räcker till en skarp bild på en näthinneskärm
+ * och gör en fil på sex megabyte till en på ett par hundra kilobyte.
+ *
+ * Det som annars hade hänt är inte främst att lagringen fylls: det är att den
+ * som står i en restaurang på en mobiluppkoppling väntar en halv minut per bild
+ * och avbryter.
+ */
+const MAX_EDGE = 1600;
 
 export interface Upload {
   id: string;
@@ -1025,54 +1061,178 @@ export async function uploads(establishmentId: string): Promise<Upload[]> {
   );
 }
 
+export interface PublishedImage {
+  id: string;
+  published_url: string;
+  created_at: string;
+}
+
 /**
- * Laddar upp en bild till den PRIVATA inkorgen och registrerar den för
- * granskning.
+ * Publicerade bilder på en verksamhet.
  *
- * Två steg som båda kan misslyckas var för sig. Filen skrivs först, raden
- * sedan. Blir raden inte skriven ligger filen kvar utan att någon vet om den,
- * vilket är den ofarliga riktningen: en fil utan rad är osynlig för alla,
- * medan en rad utan fil hade sett ut som en väntande bild i granskningen.
+ * Läses utan inloggning, och bara ur vyn `published_images`. Vyn väljer sina
+ * kolumner uttryckligen och bär varken uppladdarens id eller något namn: en
+ * bild bredvid ett anonymt omdöme får inte vara vägen till att identifiera den
+ * som skrev det.
+ */
+export async function publishedImages(establishmentId: string): Promise<PublishedImage[]> {
+  return (
+    (await rest(
+      'GET',
+      `published_images?select=id,published_url,created_at&establishment_id=eq.${encodeURIComponent(establishmentId)}&order=created_at.desc&limit=24`,
+      { auth: false },
+    )) ?? []
+  );
+}
+
+/**
+ * Ritar om bilden mindre innan den lämnar datorn.
+ *
+ * Tre saker händer på en gång, och bara den första är syftet:
+ *
+ *   1. Filen blir liten. Se MAX_EDGE ovan.
+ *   2. EXIF FÖRSVINNER. En canvas bär ingen metadata, så GPS-koordinat,
+ *      tidsstämpel, kameramodell och serienummer finns inte kvar i det som
+ *      skickas. Det är inte en bonus utan ett krav sedan omdömen blev anonyma:
+ *      en bild med koordinaten till fotografens hem i sig är inte anonym. Den
+ *      som en dag flyttar eller tar bort komprimeringen måste veta det.
+ *      Se docs/13_bilder_och_verksamhetsdata.md, del C5.
+ *   3. Riktningen bakas in. `imageOrientation: 'from-image'` gör att en bild
+ *      tagen med telefonen på högkant blir stående i filen i stället för att
+ *      bero på en EXIF-tagg vi just tagit bort.
+ *
+ * Faller något tillbaka på originalfilen. En bild som inte gick att rita om är
+ * fortfarande en bild, och databasen tar emot JPEG, PNG och WebP upp till
+ * åtta megabyte. Då följer däremot EXIF med, vilket är skälet att fallet är
+ * just ett fall och inte ett alternativ.
+ */
+async function shrink(file: File): Promise<File> {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file;
+
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    return file;
+  }
+
+  try {
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) return file;
+    context.drawImage(bitmap, 0, 0, width, height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      /* JPEG och inte WebP. Kvaliteten är likvärdig vid de här måtten, och
+         JPEG kan varje webbläsare skriva. Safari kunde länge inte, och en
+         `toBlob` som tyst ger null är svårare att upptäcka än en stor fil. */
+      canvas.toBlob((result) => resolve(result), 'image/jpeg', 0.82);
+    });
+    if (!blob) return file;
+
+    /* Bara om det faktiskt blev bättre. En liten bild som redan är en JPEG kan
+       bli större av att kodas om, och då är originalet rätt fil att skicka. */
+    if (blob.size >= file.size && file.type === 'image/jpeg') return file;
+
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  } finally {
+    bitmap.close();
+  }
+}
+
+/**
+ * Skickar in en bild för granskning.
+ *
+ * RADEN SKRIVS FÖRST, FILEN SEDAN, och den ordningen är vänd mot hur det såg ut
+ * när bara registerkontrollerade företrädare kunde ladda upp. Skälet står i
+ * docs/13, del C2: policyn på storage.objects kan bara se vilken mapp en fil
+ * hamnar i. Skrevs filen först skulle vem som helst med ett konto kunna fylla
+ * bucketen utan att skapa en enda rad, och varje kvot i databasen hade vaktat
+ * en dörr ingen behövde gå igenom.
+ *
+ * Nu är bucketen stängd som förval: `inkomna_upload_own` kräver att det redan
+ * finns en väntande rad som pekar på exakt den sökvägen. Databasen delar alltså
+ * ut platsen, och kvoterna sitter där de kan räknas.
+ *
+ * Går uppladdningen fel tas raden bort igen. En rad utan fil är ofarlig, den
+ * kan inte visas någonstans, men den kostar en människa ett klick i
+ * granskningskön för att upptäcka att det inte finns någon bild att titta på.
  */
 export async function uploadImage(
   place: Place,
   file: File,
-  caption: string,
+  /** Omdömet bilden hör till. Utan det avvisar policyn raden. */
+  reviewId: string,
 ): Promise<void> {
   const user = currentUser();
   if (!user) throw new CommunityError('Du är utloggad. Logga in igen.');
+  if (!reviewId) throw new CommunityError('Bilden måste höra till ett omdöme.');
 
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowed.includes(file.type))
     throw new CommunityError('Bilden måste vara JPEG, PNG eller WebP.');
-  if (file.size > 8 * 1024 * 1024) throw new CommunityError('Bilden får vara högst 8 MB.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new CommunityError('Bilden får vara högst 8 MB.');
 
   const token = await validToken();
   if (!token) throw new CommunityError('Du är utloggad. Logga in igen.');
 
-  const suffix = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const sending = await shrink(file);
+  const suffix =
+    sending.type === 'image/png' ? 'png' : sending.type === 'image/webp' ? 'webp' : 'jpg';
+  /* Sökvägens form är inte fri. community.set_image_status() fäller varje rad
+     som inte ligger under uppladdarens egen mapp, och storage-policyn kräver
+     samma sak från andra hållet. */
   const path = `pending/${user.id}/${crypto.randomUUID()}.${suffix}`;
 
-  const res = await fetch(`${URL_BASE}/storage/v1/object/${INBOX_BUCKET}/${path}`, {
-    method: 'POST',
-    headers: {
-      apikey: ANON_KEY,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': file.type,
-    },
-    body: file,
-  });
-  if (!res.ok) await fail(res);
-
-  await rest('POST', 'image_uploads', {
+  const rows = await rest('POST', 'image_uploads', {
+    prefer: 'return=representation',
     body: {
       user_id: user.id,
       establishment_id: place.id,
       municipality_slug: place.municipalitySlug,
+      review_id: reviewId,
       storage_path: path,
-      content_type: file.type,
-      byte_size: file.size,
-      caption: caption || null,
+      content_type: sending.type,
+      byte_size: sending.size,
+      /* Uppladdarens försäkran om att bilden är hens egen. Skickas som ett
+         värde och inte som ett antagande: rutan i formuläret är det som gör
+         den sann, och policyn kräver true. */
+      rights_confirmed: true,
     },
   });
+  const rowId: string | undefined = Array.isArray(rows) ? rows[0]?.id : rows?.id;
+
+  try {
+    const res = await fetch(`${URL_BASE}/storage/v1/object/${INBOX_BUCKET}/${path}`, {
+      method: 'POST',
+      headers: {
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': sending.type,
+      },
+      body: sending,
+    });
+    if (!res.ok) await fail(res);
+  } catch (err) {
+    if (rowId) {
+      try {
+        await rest('DELETE', `image_uploads?id=eq.${encodeURIComponent(rowId)}`);
+      } catch {
+        /* Raden blir kvar som en tom plats i kön. Det felet ska inte skugga
+           det som faktiskt gick fel, alltså uppladdningen. */
+      }
+    }
+    throw err;
+  }
 }
