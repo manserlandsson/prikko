@@ -297,9 +297,13 @@ create table if not exists assessments (
     -- dålig hygien. Sidor med NULL no-indexeras av kvalitetsgrinden.
     verdict             text check (verdict in ('clean', 'minor', 'major')),
 
-    -- Genomgående utan anmärkningar vid de tre senaste kontrollerna.
-    -- Vår motsvarighet till Danmarks Elite-Smiley: historiken ger ett
-    -- erkännande, aldrig en ändrad allvarlighetsgrad.
+    -- Märkningen "ren historik": utan anmärkning vid de tre senaste
+    -- kontrollerna inom fönstret. Historiken ger ett erkännande, aldrig en
+    -- ändrad allvarlighetsgrad.
+    --
+    -- Detta är INTE årsutgåvans utmärkelse, som kräver fem kontroller i rad
+    -- utan tidsfönster och räknas i site/scripts/utmarkelser.mjs. De två hette
+    -- båda "utmärkelsen" fram till augusti 2026. Fältnamnet står kvar.
     distinction         boolean not null default false,
 
     reason              text not null,   -- 'assessed' | 'stale_inspections' | 'no_inspections'
