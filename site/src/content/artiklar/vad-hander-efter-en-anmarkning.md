@@ -4,6 +4,9 @@ description: "Från avvikelse i kontrollrapporten till återbesök, föreläggan
 lede: "En anmärkning är inte ett slutbetyg. Den startar en kedja med åtgärd, återbesök och i sällsynta fall tvång, och för de flesta verksamheter slutar den med att bristen rättas till."
 category: "Förklarat"
 published: "2026-08-04"
+image:
+  alt: "Tom restauranglokal i dagsljus med dukade bord, stoppade stolar och orange lampskärmar framför ett fönster."
+  source: "Pexels"
 ---
 
 ## Anmärkningen är början, inte domen

@@ -7,7 +7,10 @@
  * gles i början, och en besökare som upptäcker det själv utan att vi sagt det
  * tappar förtroendet för allt annat vi visar.
  */
+import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { creditLine } from '../lib/artikelbilder';
+import { path } from '../lib/urls';
 import {
   coverage,
   establishments,
@@ -23,6 +26,19 @@ const national = nationalSources();
 const total = coverage();
 const all = establishments();
 const dates = all.flatMap((e) => e.inspections.map((i) => i.date)).sort();
+
+/**
+ * Artikelbildernas krediter, hämtade ur artiklarnas frontmatter.
+ *
+ * Listan skrivs aldrig för hand. Den läses ur samma fält som bildtexten under
+ * bilden, så en artikel kan inte ha en bild som saknas här, och krediterna
+ * kan inte stå kvar när en bild byts ut. Med tjugo artiklar är det skillnaden
+ * mellan en redovisning och en gissning.
+ */
+const articleImages = (await getCollection('artiklar', ({ data }) => !data.draft))
+  .filter((e) => e.data.image)
+  .map((e) => ({ slug: e.id, title: e.data.title, image: e.data.image! }))
+  .sort((a, b) => a.title.localeCompare(b.title, 'sv'));
 
 const sources = municipalities().map((m) => ({
   ...m,
@@ -149,6 +165,44 @@ const jsonLd = {
         <a href="/ratta/">hör av dig</a>.
       </p>
     </section>
+
+    {/* id:t är en måladress: bildtexten under varje artikelbild länkar hit.
+        Byt det inte utan att ändra länken i layouts/Artikel.astro.
+
+        Sektionen renderas bara när någon artikel har bild. En rubrik över en
+        tom lista säger att vi glömt något, och artiklarna får sina bilder en
+        i taget. */}
+    {articleImages.length > 0 && (
+      <section id="artikelbilder">
+        <h2>Bilderna i artiklarna</h2>
+        <p>
+          Artiklarna illustreras med foton från fria bildbanker. Ingen av dem är
+          tagen hos en verksamhet vi bedömer, och ingen är AI-genererad. Bilden
+          visar ett sammanhang, aldrig ett exempel: köket på bilden är inte
+          köket i texten.
+        </p>
+        <ul class="plain">
+          {articleImages.map((a) => (
+            <li>
+              <a href={path('artiklar', a.slug)}>{a.title}</a>
+              {' — '}
+              {a.image.creditUrl ? (
+                <a href={a.image.creditUrl} rel="nofollow">{creditLine(a.image)}</a>
+              ) : (
+                creditLine(a.image)
+              )}
+              {!a.image.credit && (
+                <span class="text-muted"> (fotograf ej angiven)</span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p>
+          Saknas ditt namn på ett foto du tagit, eller vill du att en bild tas
+          bort, <a href="/ratta/">hör av dig</a>.
+        </p>
+      </section>
+    )}
 
     {/* id:t är en måladress och inte dekoration: platsväljaren skickar hit den
         vars plats ligger utanför täckningen, och då ska sidan öppna på den här

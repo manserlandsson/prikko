@@ -17,10 +17,17 @@
  * funktion läses av astro.config.mjs). Sidorna byggs ändå och går att läsa
  * på plats, de bjuds bara inte ut till index förrän sektionen bär sin vikt.
  */
+import { getImage, Image } from 'astro:assets';
 import Base from './Base.astro';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 import { sectionReady } from '../lib/artiklar';
+import {
+  creditLine,
+  HERO_SIZES,
+  HERO_WIDTHS,
+  type ArticleImage,
+} from '../lib/artikelbilder';
 import { formatDate } from '../lib/data';
 
 interface Props {
@@ -32,12 +39,44 @@ interface Props {
   published: string;
   updated?: string;
   minutes: number;
+  /**
+   * Färdig bild från lib/artikelbilder.ts, eller ingen alls. Mallen letar
+   * inte själv efter filer: gör den det kan artikelsidan och kortet i listan
+   * komma fram till olika svar om samma artikel.
+   */
+  image?: ArticleImage | null;
 }
 
-const { slug, title, description, lede, category, published, updated, minutes } =
-  Astro.props;
+const {
+  slug,
+  title,
+  description,
+  lede,
+  category,
+  published,
+  updated,
+  minutes,
+  image = null,
+} = Astro.props;
 
 const noindex = !sectionReady();
+
+/**
+ * En jpeg på 1 200 px, delad av delningsbilden och JSON-LD.
+ *
+ * Bredden är Googles golv för bild i rika resultat och samtidigt det mått
+ * Facebook, LinkedIn och `summary_large_image` vill ha. Formatet är utskrivet
+ * som jpeg med flit: <Image> nedan lämnar webp, vilket är rätt för läsaren,
+ * men flera delningsrobotar hämtar bilden utan att förhandla format och visar
+ * en tom ruta i stället. Källfilerna är 1400 × 788, så 1 200 blir 1200 × 675
+ * utan beskärning.
+ *
+ * Saknar artikeln bild lämnas ogImage osatt, och Base faller tillbaka på
+ * sajtens egen delningsbild precis som förut.
+ */
+const shareImage = image
+  ? new URL((await getImage({ src: image.src, width: 1200, format: 'jpeg' })).src, SITE.url).href
+  : null;
 
 /**
  * `Article`, inte `Report` och inte `BlogPosting`. Texten är redaktionell
@@ -55,6 +94,12 @@ const jsonLd = {
   ...(updated ? { dateModified: updated } : {}),
   url: absolute('artiklar', slug),
   mainEntityOfPage: absolute('artiklar', slug),
+  /**
+   * `image` bara när artikeln faktiskt har en. Ett tomt eller påhittat
+   * bildfält i strukturerad data är en felaktig uppgift om sidan, och Google
+   * behandlar bilden i Article som ett löfte om att den finns på sidan.
+   */
+  ...(shareImage ? { image: [shareImage] } : {}),
   author: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
   publisher: { '@type': 'Organization', name: SITE.legalName, url: SITE.url },
 };
@@ -65,6 +110,7 @@ const jsonLd = {
   description={description}
   jsonLd={jsonLd}
   noindex={noindex}
+  ogImage={shareImage ?? undefined}
   dataUpdated={updated ?? published}
 >
   <article class="container page">
@@ -78,6 +124,34 @@ const jsonLd = {
         Publicerad {formatDate(published)}{updated && ` · Uppdaterad ${formatDate(updated)}`}
       </p>
     </header>
+
+    {image && (
+      <figure class="hero">
+        {/* Sidans största bild och därmed dess LCP: eager och utan
+            lazy-attribut, så webbläsaren får börja hämta den direkt.
+            Måtten skrivs ut så att raden under bilden inte hoppar när den
+            laddas. */}
+        <Image
+          src={image.src}
+          alt={image.alt}
+          width={HERO_WIDTHS.at(-1)}
+          widths={HERO_WIDTHS}
+          sizes={HERO_SIZES}
+          loading="eager"
+        />
+        {/* Attributionen står vid bilden och inte bara i listan på källsidan.
+            Den som ser fotot ska se varifrån det kommer utan att leta. */}
+        <figcaption class="caption text-muted">
+          Foto: {image.creditUrl ? (
+            <a href={image.creditUrl} target="_blank" rel="noopener noreferrer nofollow">
+              {creditLine(image)}
+            </a>
+          ) : (
+            creditLine(image)
+          )} · <a href={`${path('kallor')}#artikelbilder`}>Bildkrediter</a>
+        </figcaption>
+      </figure>
+    )}
 
     <slot />
 
@@ -123,6 +197,38 @@ const jsonLd = {
 
   .dates {
     margin-top: var(--s-3);
+  }
+
+  /* Bilden ligger under ingressen och inte över rubriken. Rubrik och ingress
+     är det som talar om vad sidan är; en bild överst skjuter ner dem under
+     vikningen på en telefon och byter ut ett besked mot ett stämningsläge.
+     Samma proportion som stadsfotona, 16:9, så att artikelbilden och
+     kommunkorten ser ut att komma från samma sajt. */
+  .hero {
+    margin: var(--s-8) 0 0;
+  }
+
+  .hero :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--r-card);
+    background: var(--card);
+  }
+
+  .hero figcaption {
+    margin-top: var(--s-2);
+  }
+
+  /* Kreditraden är sidans minst viktiga text och ska läsas som det, men den
+     är ett villkor och inte dekoration: den får därför inte tonas ner så långt
+     att den underskrider kontrastkravet. --text-muted är räknad mot vitt i
+     tokens.css. */
+  .hero figcaption a {
+    color: inherit;
+    text-decoration: underline;
   }
 
   /* Markdown-innehållet kommer via slot och formas här, så att varje artikel

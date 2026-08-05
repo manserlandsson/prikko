@@ -53,6 +53,11 @@ export interface ArticleFile {
 export function articleFiles(): ArticleFile[] {
   const files: ArticleFile[] = [];
   for (const file of globSync('*.md', { cwd: DIR })) {
+    // README.md i katalogen är instruktionen för hur bilderna läggs in, inte
+    // en artikel. Samma undantag står i content.config.ts loader, och de två
+    // måste följas åt: räknas README som artikel här hamnar /artiklar/readme/
+    // i sitemapen utan att sidan finns, och sitemapGuard stoppar bygget.
+    if (file === 'README.md') continue;
     const raw = readFileSync(join(DIR, file), 'utf8');
     if (/^draft:\s*true\s*$/m.test(raw)) continue;
     files.push({

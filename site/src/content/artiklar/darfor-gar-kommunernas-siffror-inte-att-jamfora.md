@@ -4,6 +4,9 @@ description: "Andelen verksamheter med kvarstående brister kan skilja mer än f
 lede: "Det ser ut som en tabell som bara väntar på att sorteras. Men kommunernas kontrollsiffror mäter inte samma sak, och den som rangordnar dem belönar den kommun som redovisar minst."
 category: "Förklarat"
 published: "2026-08-04"
+image:
+  alt: "Person i vinröd piké och genomskinliga engångshandskar antecknar med penna på ett papper fäst i ett klämbräde."
+  source: "Pexels"
 ---
 
 ## Frestelsen att göra en lista

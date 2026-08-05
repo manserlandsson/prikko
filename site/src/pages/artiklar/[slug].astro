@@ -6,6 +6,7 @@
 import { getCollection, render } from 'astro:content';
 import Artikel from '../../layouts/Artikel.astro';
 import { readingMinutes } from '../../lib/artiklar';
+import { articleImage } from '../../lib/artikelbilder';
 
 export async function getStaticPaths() {
   const entries = await getCollection('artiklar', ({ data }) => !data.draft);
@@ -15,6 +16,7 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const minutes = readingMinutes(entry.body ?? '');
+const image = articleImage(entry.id, entry.data.image);
 ---
 
 <Artikel
@@ -26,6 +28,7 @@ const minutes = readingMinutes(entry.body ?? '');
   published={entry.data.published}
   updated={entry.data.updated}
   minutes={minutes}
+  image={image}
 >
   <Content />
 </Artikel>

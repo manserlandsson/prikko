@@ -4,6 +4,9 @@ description: "Vad kommunens kontrollrapport faktiskt säger: vem som kontrollera
 lede: "Kontrollrapporten är en offentlig handling, men den är skriven för myndigheten, inte för dig. Här är vad orden betyder och vad du kan läsa ut av dem."
 category: "Guide"
 published: "2026-08-04"
+image:
+  alt: "Kock med ryggen mot kameran arbetar vid passet i ett kommersiellt kök med vitt kakel, hängande kastruller och stålkåpa."
+  source: "Pexels"
 ---
 
 ## Vem kontrollerar maten?

@@ -12,17 +12,32 @@
  * med en ensam artikel är en tunn sida i bibelns §6-mening, och den svagaste
  * länken sänker domänen.
  */
+import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { MIN_ARTICLES, readingMinutes, sectionReady } from '../../lib/artiklar';
+import { articleImage, CARD_SIZES, CARD_WIDTHS } from '../../lib/artikelbilder';
 import { formatDate } from '../../lib/data';
 import { SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 
 const entries = await getCollection('artiklar', ({ data }) => !data.draft);
 const articles = entries
-  .map((e) => ({ slug: e.id, minutes: readingMinutes(e.body ?? ''), ...e.data }))
+  .map((e) => ({
+    slug: e.id,
+    minutes: readingMinutes(e.body ?? ''),
+    photo: articleImage(e.id, e.data.image),
+    ...e.data,
+  }))
   .sort((a, b) => b.published.localeCompare(a.published));
+
+/**
+ * Korten på första raden ligger ovanför vikningen och hämtas direkt, resten
+ * lat. Tre är rutnätets bredaste rad på en vanlig skärm; på en telefon är det
+ * ett kort och två bilder till som hämtas i onödan, vilket är billigare än ett
+ * lat LCP-element.
+ */
+const EAGER_CARDS = 3;
 
 const ready = sectionReady();
 if (articles.length !== entries.length || (articles.length >= MIN_ARTICLES) !== ready) {
@@ -69,14 +84,27 @@ const jsonLd = {
 
     <section aria-label="Alla artiklar">
       <ul class="grid">
-        {articles.map((a) => (
-          <li class="card">
-            <p class="eyebrow tag">{a.category}</p>
-            <h2><a href={path('artiklar', a.slug)}>{a.title}</a></h2>
-            <p class="text-secondary summary">{a.lede}</p>
-            <p class="caption text-secondary meta">
-              {formatDate(a.published)} · {a.minutes} min lästid
-            </p>
+        {articles.map((a, i) => (
+          <li class:list={['card', !a.photo && 'no-photo']}>
+            {a.photo && (
+              <Image
+                class="photo"
+                src={a.photo.src}
+                alt={a.photo.alt}
+                width={CARD_WIDTHS.at(-1)}
+                widths={CARD_WIDTHS}
+                sizes={CARD_SIZES}
+                loading={i < EAGER_CARDS ? 'eager' : 'lazy'}
+              />
+            )}
+            <div class="body">
+              <p class="eyebrow tag">{a.category}</p>
+              <h2><a href={path('artiklar', a.slug)}>{a.title}</a></h2>
+              <p class="text-secondary summary">{a.lede}</p>
+              <p class="caption text-secondary meta">
+                {formatDate(a.published)} · {a.minutes} min lästid
+              </p>
+            </div>
           </li>
         ))}
       </ul>
@@ -126,9 +154,6 @@ const jsonLd = {
     margin-top: var(--s-12);
   }
 
-  /* JobbSafari-mönstret utan bildfältet: vi har inga ärliga artikelbilder än,
-     och bibeln §6 förbjuder AI-genererade. Ett kort utan bild är bättre än
-     ett kort med en fejkad. */
   .grid {
     list-style: none;
     margin: 0;
@@ -138,10 +163,39 @@ const jsonLd = {
     gap: var(--s-6);
   }
 
+  /* Bild överst, sedan text i en egen kropp: Boolis och Hemnets kortform, och
+     samma uppdelning som KommunKort redan har. Renheten sitter i att kortet
+     har EN yta och EN kant — bilden går ut i kortets ytterkanter i stället för
+     att ligga inramad med luft runt om. */
   .card {
     display: flex;
     flex-direction: column;
-    padding: var(--s-6);
+    overflow: hidden;
+  }
+
+  .card :global(.photo) {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: var(--card);
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: var(--s-4) var(--s-6) var(--s-6);
+  }
+
+  /* Utan bild börjar kortet med kategorietiketten, och då behöver kroppen
+     samma luft upptill som den har nedtill. En platshållarruta i bildens
+     ställe vore värre: den läser som en trasig bild, medan ett kort som helt
+     saknar bildfält bara läser som ett textkort. Bilderna läggs in en artikel
+     i taget, så blandningen är ett normaltillstånd och inte ett fel. */
+  .no-photo .body {
+    padding-top: var(--s-6);
   }
 
   .tag {
@@ -169,6 +223,14 @@ const jsonLd = {
 
   .grid li {
     position: relative;
+    transition: box-shadow .18s ease;
+  }
+
+  /* Samma svar på pekaren som kommunkorten ger. Kortet med bild behöver det
+     mest: där ligger rubriken inte längre överst i kortet, och utan skuggan är
+     det bara textfärgen som visar att hela ytan är klickbar. */
+  .grid li:hover {
+    box-shadow: var(--shadow-pop);
   }
 
   .grid li:hover h2 a {
