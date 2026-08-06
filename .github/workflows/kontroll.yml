@@ -6,6 +6,9 @@ name: Kontroll
 on:
   push:
   pull_request:
+  # Går att starta för hand. Behövs när man behöver veta OM Actions
+  # överhuvudtaget kör, till exempel när pushar slutat utlösa körningar.
+  workflow_dispatch:
 
 jobs:
   tester:
