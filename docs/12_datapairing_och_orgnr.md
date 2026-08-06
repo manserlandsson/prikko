@@ -197,6 +197,46 @@ härleda orgnr) i en och samma gratis källa.
 - Det som DÄRIMOT finns per kommun för alla 290, årligen och gratis, är
   sysselsättningen per näringsgren, se D3.
 
+### B4. Lantmäteriet, resten av Geotorget
+
+Utrett 2026-08-06. Belägenhetsadress använder vi redan som geokodningskälla, se
+`pipeline/prikko/lantmateriet.py`. Frågan här var om något ANNAT i katalogen gör
+konkret nytta för en sajt om restauranghygien. Svaret är i huvudsak nej.
+
+- **Katalogens form.** 89 produkter i produktlistan, varav 51 avgiftsfria: 21 med
+  CC0, 17 "värdefulla datamängder" med CC BY 4.0, resten med egna villkor. Båda
+  villkorsdokumenten tillåter uttryckligen kommersiell användning. Den tunga
+  varianten, "Användningsvillkor för värdefulla datamängder som innehåller
+  personuppgifter", binder användningen till det ändamål Lantmäteriet godkänt i
+  beslutet. Byter vi affärsmodell krävs ny prövning.
+- **Byggnad Nedladdning vektor.** Avgiftsfri, CC BY 4.0, personuppgiftsvillkor och
+  juridisk prövning, STAC i GeoPackage. **Byggnadens ändamål duger inte.** BAL har
+  sju ändamålsvärden, och för `Verksamhet` är kolumnen Detaljerat ändamål tom.
+  Restaurang, kontor, butik, hotell och bensinstation får samma värde. Byggår och
+  area saknas helt, de ligger i Taxering, som kostar pengar.
+- **Det enda byggnadsdatat ändå kan ge** är geometrin. Matchas en verksamhets
+  belägenhetsadress mot byggnadspolygonen syns dels ändamålet Bostad mot
+  Verksamhet, dels polygonens storlek och hur många adresser som delar den. Det
+  skiljer en restaurang i en galleria från en i bottenplan på ett bostadshus. Det
+  är en grov signal till priset av en ansökan och ett beslut, och den ska inte
+  byggas förrän vi vet vad den skulle användas till.
+- **Fastighetsindelning** är avgiftsfri men gränserna är inte juridiskt gällande.
+  **Fastighet och samfällighet Direkt** kostar pengar. Ingen av dem svarar på
+  någon fråga vi har.
+- **Ortofoto Nedladdning** är avgiftsfri och CC BY 4.0 och får användas
+  kommersiellt, men kräver GDPR-prövning och levererar COG-filer, inte en
+  tile-tjänst. Ortofoto som tjänst kostar pengar. Höjddata och laserdata gör noll
+  nytta här.
+- **Bakgrundskarta:** den enda kontolösa endpointen är WMTS för topografisk
+  webbkarta översiktlig, CC0, och den **utgår 2026-12-31**. Den är dessutom
+  anpassad för skalor grövre än 1:30 000, alltså oanvändbar på gatunivå. Det finns
+  inget gratis gatunivåalternativ hos Lantmäteriet efter årsskiftet, så
+  OpenStreetMap står kvar som kartkälla.
+- **Utan prövning och utan avgift, och faktiskt användbara:** Ortnamn och Kommun,
+  Län och Rike. Kommunfilter och ortsnamnssökning, inget mer.
+- **Tätort finns inte hos Lantmäteriet.** Tätorter och Småorter är SCB:s produkter,
+  öppna data via dataportal.se.
+
 ---
 
 ## Del C. Ihopparningar på verksamhetsnivå, prioriterat
