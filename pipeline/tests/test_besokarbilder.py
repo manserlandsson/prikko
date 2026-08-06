@@ -48,14 +48,43 @@ class Uppladdningspolicyn(unittest.TestCase):
     def setUp(self):
         self.policy = block(SCHEMAT, "create policy image_uploads_insert")
 
-    def test_kraver_eget_omdome_om_samma_verksamhet(self):
-        # Båda leden behövs. Utan `r.user_id = auth.uid()` räcker någon annans
-        # omdöme, och utan establishment_id räcker ett omdöme om vilken
-        # verksamhet som helst för att lägga bilder på vilken annan som helst.
+    def test_bilden_kraver_inget_omdome(self):
+        """Ägarens beslut, och testet finns för att det inte ska krypa tillbaka.
+
+        "Man ska såklart kunna ladda upp bilder endast, behöver ej va text."
+        En bild utan omdöme ska gå igenom policyn, alltså måste `review_id is
+        null` vara ett godkänt fall.
+        """
+        self.assertIn("review_id is null", self.policy)
+        self.assertNotIn(
+            "r.body is not null",
+            self.policy,
+            "Kravet på text är borttaget och ska inte återinföras.",
+        )
+
+    def test_ett_angivet_omdome_maste_vara_eget_och_gälla_samma_stalle(self):
+        # Villkoret gäller bara när review_id är satt, men då gäller det helt.
+        # Utan `r.user_id = auth.uid()` räcker någon annans omdöme, och utan
+        # establishment_id räcker ett omdöme om vilken verksamhet som helst för
+        # att lägga bilder på vilken annan som helst.
         self.assertIn("from community.reviews r", self.policy)
         self.assertIn("r.user_id = auth.uid()", self.policy)
         self.assertIn("r.establishment_id = image_uploads.establishment_id", self.policy)
         self.assertIn("r.id = image_uploads.review_id", self.policy)
+
+    def test_kolumnen_ar_nullbar(self):
+        # `not null` på review_id hade gjort policyn ovan verkningslös: raden
+        # kan då inte skrivas utan ett omdöme oavsett vad policyn tillåter.
+        rad = re.search(r"review_id\s+uuid references community\.reviews \(id\)[^,\n]*", SCHEMAT)
+        self.assertIsNotNone(rad)
+        self.assertNotIn("not null", rad.group(0))
+
+    def test_ingen_tom_omdomesrad_skapas_som_bakvag(self):
+        # Rutan skickar bara ett omdöme när det finns ett betyg eller en text.
+        # Ett tomt omdöme för att bära en bild hade dessutom fällts av
+        # review_says_something.
+        self.assertIn("stars || body", RUTAN)
+        self.assertIn("review_says_something", SCHEMAT)
 
     def test_foretradare_ar_utestangd(self):
         # `not exists` och inte `exists`. Det här är hela ägarens beslut: bilder
@@ -74,23 +103,18 @@ class Uppladdningspolicyn(unittest.TestCase):
         self.assertIn("select 1 from community.establishment_claims c", efter)
         self.assertIn("c.establishment_id = image_uploads.establishment_id", efter)
         self.assertIn("c.status = 'published'", efter)
-        # Och att den enda `exists` utan negation är den som kräver ett omdöme.
+        # Och att anspråken bara nämns EN gång, i det negerade villkoret. Två
+        # omnämnanden hade betytt att någon lagt tillbaka ägarvägen bredvid.
         self.assertEqual(
-            self.policy.count("and exists ("),
+            self.policy.count("establishment_claims"),
             1,
-            "Bara ett positivt exists-villkor ska finnas, och det gäller omdömet.",
+            "Anspråk ska bara nämnas i det villkor som stänger ute företrädaren.",
         )
 
-    def test_kraver_att_omdomet_bar_text(self):
-        # Ett betyg utan text publiceras direkt och läses aldrig av någon. En
-        # bild på den vägen är ett foto på någon annans näringsverksamhet utan
-        # ett ord om vad man tittar på. Se docs/13, del C4.
-        self.assertIn("and r.body is not null", self.policy)
-        self.assertIn(
-            "if (chosen.length > 0 && !body)",
-            RUTAN,
-            "Rutan ska säga det innan man skickar, inte efteråt.",
-        )
+    def test_rutan_tar_emot_en_insandning_som_bara_ar_bilder(self):
+        # En bild ensam ska räcka för att knappen ska göra något. Villkoret som
+        # stoppar en tom insändning måste därför räkna bilderna med.
+        self.assertIn("!stars && !body && chosen.length === 0", RUTAN)
 
     def test_kraver_bekraftad_ratt_till_bilden(self):
         self.assertIn("and rights_confirmed", self.policy)
@@ -181,9 +205,47 @@ class Lagringen(unittest.TestCase):
         self.assertIn("await rest('DELETE', `image_uploads?id=eq.", KLIENTEN)
         self.assertIn("create policy image_uploads_delete_own", SCHEMAT)
 
-    def test_angerknappen_nar_bara_vantande_rader(self):
+
+class Borttagning(unittest.TestCase):
+    """Rätten att ta tillbaka en bild man skickat in.
+
+    Bar tidigare av kaskaden från omdömet: att ta bort bilden var att ta bort
+    omdömet den hängde på. En fristående bild har ingen sådan väg, så rätten
+    måste finnas för sig.
+    """
+
+    def test_alla_egna_rader_gar_att_ta_bort(self):
         policy = block(SCHEMAT, "create policy image_uploads_delete_own")
-        self.assertIn("user_id = auth.uid() and status = 'pending'", policy)
+        self.assertIn("using (user_id = auth.uid())", policy)
+        self.assertNotIn(
+            "status = 'pending'",
+            policy,
+            "Villkoret på pending höll bara när varje bild hängde på ett "
+            "omdöme. En fristående publicerad bild hade suttit fast för alltid.",
+        )
+
+    def test_filen_gar_att_ta_bort_ur_bada_bucketarna(self):
+        inkomna = block(SCHEMAT, 'create policy "inkomna_delete_own"')
+        self.assertIn("(storage.foldername(name))[2] = auth.uid()::text", inkomna)
+        publika = block(SCHEMAT, 'create policy "publika_delete_own"')
+        self.assertIn("(storage.foldername(name))[1] = auth.uid()::text", publika)
+
+    def test_klienten_tar_filen_fore_raden(self):
+        # Omvänt mot uppladdningen, och av samma skäl: den ofarliga riktningen
+        # vinner. En fil utan rad ligger kvar på en publik URL som ingen kan nå
+        # eller städa bort.
+        kropp = KLIENTEN[KLIENTEN.index("export async function deleteUpload(") :]
+        kropp = kropp[: kropp.index("\n}\n")]
+        fil = kropp.index("method: 'DELETE'")
+        rad = kropp.index("await rest('DELETE', `image_uploads?id=eq.")
+        self.assertLess(fil, rad)
+
+    def test_kontosidan_har_en_knapp(self):
+        konto = (ROT / "site" / "src" / "pages" / "konto" / "index.astro").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("deleteUpload", konto)
+        self.assertIn("quietButton('Ta bort'", konto)
 
 
 class Komprimeringen(unittest.TestCase):

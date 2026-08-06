@@ -995,12 +995,21 @@ create table if not exists community.image_uploads (
     establishment_id  text not null check (community.is_establishment_id(establishment_id)),
     municipality_slug text not null,
 
-    -- Omdömet bilden hör till.
+    -- Omdömet bilden råkar höra till, om den hör till något. FRIVILLIGT.
     --
-    -- Den enda främmande nyckeln i hela schemat som pekar någonstans, och den
-    -- pekar INOM community. Kaskaden är hela poängen: tar författaren tillbaka
-    -- sitt omdöme följer bilderna med, och det gäller även ett publicerat
-    -- omdöme. Ett yttrande man tagit tillbaka ska inte lämna kvar sina bilder.
+    -- En bild kan skickas in ensam, utan ett ord skrivet. Det är ägarens
+    -- beslut: "Man ska såklart kunna ladda upp bilder endast, behöver ej va
+    -- text." Kolumnen är därför nullbar, och policyn kräver den inte.
+    --
+    -- Är den satt gäller kaskaden: tar författaren tillbaka sitt omdöme följer
+    -- bilderna som skickades med det, även publicerade. Ett yttrande man tagit
+    -- tillbaka ska inte lämna kvar sina bilder.
+    --
+    -- Är den NULL bärs raden av `user_id` ensam, och det räcker för allt den
+    -- behöver klara: uppladdaren går att spåra, hen kan ta bort bilden själv
+    -- genom image_uploads_delete_own, och kvoterna i
+    -- community.set_image_status() räknas per konto och verksamhet oavsett om
+    -- något omdöme finns.
     review_id         uuid references community.reviews (id) on delete cascade,
 
     -- Sökväg i den privata bucketen, alltid 'pending/<user_id>/<uuid>.<ext>'.
@@ -1315,48 +1324,45 @@ create policy reviews_delete_own on community.reviews
     for delete to authenticated
     using (user_id = auth.uid());
 
--- Bilder: bara till en verksamhet man själv skrivit ett omdöme om, och bara
--- av någon som INTE företräder den.
+-- Bilder: från vem som helst som är inloggad och INTE företräder verksamheten.
 --
--- Villkoren i ordning, och vart och ett bär sitt eget skäl:
+-- EN BILD KRÄVER INGET OMDÖME. Här stod tidigare ett krav på ett eget omdöme
+-- med text, hämtat ur en rekommendation i docs/13. Ägaren har underkänt det:
+-- "Om vi har en policy, den ska aldrig begränsa oss, det är bara att ändra
+-- den. Man ska såklart kunna ladda upp bilder endast, behöver ej va text."
 --
---   Ett eget omdöme om samma verksamhet. `review_id` måste peka på en rad som
---     är ens egen OCH gäller samma ställe. Utan det andra ledet räckte ett
---     omdöme om vilken verksamhet som helst för att lägga bilder på vilken
---     annan som helst.
+-- Villkoren som står kvar, och vart och ett bär sitt eget skäl:
+--
+--   Egen rad. `user_id` måste vara den inloggade. Det är också det som gör en
+--     fristående bild spårbar och borttagbar av den som skickade in den.
+--   Hör bilden till ett omdöme måste det omdömet vara ENS EGET och gälla SAMMA
+--     verksamhet. Villkoret gäller bara när `review_id` är satt. Utan det andra
+--     ledet räckte ett omdöme om vilken verksamhet som helst för att lägga
+--     bilder på vilken annan som helst.
 --   Ingen godkänd företrädare. Den som företräder verksamheten laddar inte upp
 --     i besökarflödet. Se kommentaren över tabellen: ägarens bildyta är en
---     betaltjänst som inte finns, och den ska inte smygas in genom att en
---     företrädare skriver ett omdöme om sitt eget ställe.
+--     betaltjänst som inte finns.
 --   Bekräftad rätt till bilden. Kolumnen är false som förval, så en rad utan
 --     försäkran kan inte skrivas.
 --
 -- Status och kvoter står INTE här. De sätts av community.set_image_status(),
 -- som är en trigger och därför inte går att kringgå med en rättighet, och som
--- till skillnad från en policy kan säga på svenska varför den sa nej.
+-- till skillnad från en policy kan säga på svenska varför den sa nej. Kvoterna
+-- räknas per konto och verksamhet och bryr sig inte om något omdöme finns.
 drop policy if exists image_uploads_insert on community.image_uploads;
 create policy image_uploads_insert on community.image_uploads
     for insert to authenticated
     with check (
         user_id = auth.uid()
         and rights_confirmed
-        and exists (
-            select 1 from community.reviews r
-            where r.id = image_uploads.review_id
-              and r.user_id = auth.uid()
-              and r.establishment_id = image_uploads.establishment_id
-              -- Omdömet måste bära TEXT, inte bara ett betyg.
-              --
-              -- Ett betyg utan text publiceras direkt av en trigger och läses
-              -- aldrig av någon. En bild på den vägen hade varit ett foto på
-              -- någon annans näringsverksamhet, inskickat anonymt, utan en rad
-              -- som säger vad man tittar på. Med tjugo tecken vet granskaren om
-              -- det är disken, skylten eller en tallrik.
-              --
-              -- Det är också det enda som återstår av ansvar sedan omdömen blev
-              -- anonyma: att någon faktiskt skrivit något om stället.
-              -- Se docs/13_bilder_och_verksamhetsdata.md, del C4.
-              and r.body is not null
+        and (
+            review_id is null
+            or exists (
+                select 1 from community.reviews r
+                where r.id = image_uploads.review_id
+                  and r.user_id = auth.uid()
+                  and r.establishment_id = image_uploads.establishment_id
+            )
         )
         and not exists (
             select 1 from community.establishment_claims c
@@ -1371,21 +1377,25 @@ create policy image_uploads_read_own on community.image_uploads
     for select to authenticated
     using (user_id = auth.uid());
 
--- Städning efter en uppladdning som inte gick igenom.
+-- Rätten att ta tillbaka en bild man skickat in.
 --
--- Raden skrivs före filen, alltså kan raden bli kvar när filen inte kommer
--- fram. En sådan rad är ofarlig, den pekar på ingenting och kan inte visas
--- någonstans, men den tar en plats i granskningskön och kostar en människa ett
--- klick för att upptäcka att det inte finns någon bild att titta på.
+-- Gäller ALLA egna rader, oavsett status. Villkoret var tidigare `pending`, och
+-- det höll bara så länge varje bild hängde på ett omdöme: att ta tillbaka
+-- bilden var då att radera omdömet, och kaskaden gjorde resten. En fristående
+-- bild har inget omdöme att försvinna med, så utan den här policyn hade en
+-- publicerad bild suttit fast för alltid.
 --
--- Bara `pending`. Det här är en ångerknapp för en misslyckad uppladdning, inte
--- en väg att ta bort en bild som redan är avgjord. Att ta tillbaka en
--- publicerad bild görs genom att radera omdömet den hör till, och då tar
--- kaskaden bilderna med sig.
+-- Samma princip som reviews_delete_own: det man skickat in är ens eget, och
+-- redaktionen äger inte någons bild för att den råkat bli publicerad.
+--
+-- Filen tas bort av klienten i samma veva, se deleteUpload() i
+-- site/src/lib/community.ts och storage-policyerna längst ner. En rad utan fil
+-- är osynlig, men en fil utan rad ligger kvar på en publik URL, och det är den
+-- riktningen som måste stängas.
 drop policy if exists image_uploads_delete_own on community.image_uploads;
 create policy image_uploads_delete_own on community.image_uploads
     for delete to authenticated
-    using (user_id = auth.uid() and status = 'pending');
+    using (user_id = auth.uid());
 
 -- Den enda vägen till någon annans bild, och den går genom vyn
 -- community.published_images som väljer sina kolumner uttryckligen.
@@ -1590,9 +1600,31 @@ create policy "inkomna_read_own" on storage.objects
         and (storage.foldername(name))[2] = auth.uid()::text
     );
 
--- Ingen DELETE-policy för någon inloggad roll, på någondera bucketen.
+-- Att ta bort sin egen fil, ur båda bucketarna.
 --
--- Att radera en avslagen fil är redaktionens arbete och görs av moderate.py med
--- service_role, som går förbi radsäkerheten. Läget att skydda är inte att någon
--- raderar sin egen bild i förtid utan att en fil ligger kvar efter ett avslag:
--- en avslagen bild ska bort ur lagringen, inte bara märkas i en kolumn.
+-- Mappen ÄR behörigheten. Inkorgen lagrar under 'pending/<user_id>/' och den
+-- publika bucketen under '<user_id>/', alltså står uppladdarens id i första
+-- respektive andra ledet, och ingen kan nå någon annans fil.
+--
+-- Behövs sedan en bild kan stå utan omdöme. Förut var vägen att ta tillbaka en
+-- publicerad bild att radera omdömet den hängde på; en fristående bild har
+-- ingen sådan väg, och utan de här två policyerna hade en publik URL levt kvar
+-- efter att ägaren till bilden bett om att få bort den.
+--
+-- Redaktionens egen radering vid avslag går inte den här vägen. moderate.py
+-- kör med service_role och går förbi radsäkerheten helt.
+drop policy if exists "inkomna_delete_own" on storage.objects;
+create policy "inkomna_delete_own" on storage.objects
+    for delete to authenticated
+    using (
+        bucket_id = 'verksamhetsbilder-inkomna'
+        and (storage.foldername(name))[2] = auth.uid()::text
+    );
+
+drop policy if exists "publika_delete_own" on storage.objects;
+create policy "publika_delete_own" on storage.objects
+    for delete to authenticated
+    using (
+        bucket_id = 'verksamhetsbilder'
+        and (storage.foldername(name))[1] = auth.uid()::text
+    );

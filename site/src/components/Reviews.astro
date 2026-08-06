@@ -175,9 +175,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           kan skicka in ingenting. Regeln är att minst ett av dem ska bära
           något, och den står här i stället för som ett felmeddelande man
           upptäcker efteråt. */}
+      {/* Uppräkningen är tre saker sedan bilden blev fristående. Den som bara
+          vill lämna ett foto ska se det här, och inte upptäcka det genom att
+          bli nekad. */}
       <p class="about">
         Ditt omdöme om <b>{establishmentName}</b>.
-        Sätt betyg, skriv några rader, eller gör båda.
+        Sätt betyg, skriv några rader eller lägg till en bild.
       </p>
 
       <form id="review-form" novalidate>
@@ -191,6 +194,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
             Frivilligt. Ingen `required`, och ingen förvald knapp. Den som vill
             berätta något ska inte tvingas sätta en siffra på det, och ett
             tvingande betyg gör att folk klickar en fyra för att komma vidare. */}
+        {/* Omdömesdelen ligger i en egen behållare, och det är inte kosmetika.
+            Har man redan skrivit ett omdöme om stället kan man ändå ha en bild
+            att lägga till, och då döljs hela den här delen medan bildfältet
+            står kvar. Ett omdöme per person och verksamhet gäller fortfarande.
+            Se photoOnly() i skriptet. */}
+        <div id="review-fields">
         <fieldset class="rating">
           <legend>Betyg <span class="hint">Frivilligt</span></legend>
           <div class="stars">
@@ -243,6 +252,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
             <option value="">Välj månad</option>
           </select>
         </label>
+        </div>
 
         {/*
           Bilder.
@@ -263,12 +273,9 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         <div class="field photos" id="review-photos">
           <span id="review-photos-label">
             Lägg till några bilder
-            {/* Kravet på text står FÖRST. Det är den enda av gränserna som
-                kan få någon att lägga om sitt omdöme, och att upptäcka den
-                efter att man valt tre bilder är att upptäcka den för sent. */}
             <span class="hint">
-              Frivilligt, men skriv några rader om du lägger till bilder. JPEG,
-              PNG eller WebP, högst 8 MB och tre bilder per ställe.
+              Frivilligt. JPEG, PNG eller WebP, högst 8 MB och tre bilder per
+              ställe.
             </span>
           </span>
 
@@ -316,12 +323,22 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         {/* Raden måste säga vad som faktiskt händer, och de två fallen är
             olika sedan betyg utan text publiceras direkt. Att lova granskning
             av allt vore enklare att skriva och osant. */}
+        {/* Tre fall och tre meningar, för de tre sakerna man kan skicka beter
+            sig olika. Bilden fick sin mening när den blev fristående: utan den
+            hade ett foto sett ut att gå direkt ut, som betyget gör.
+
+            De två första meningarna ligger i en egen span som döljs i
+            bildläget. En ruta där man bara kan lägga till ett foto ska inte
+            förklara vad som händer med en text man inte kan skriva. */}
         <p class="konto-legal">
-          Skriver du en text publiceras omdömet först sedan redaktionen läst
-          den, och publiceras då ordagrant. Vi ändrar aldrig i din text. Sätter
-          du bara ett betyg syns det direkt. Du kan ta bort ditt omdöme när du
+          <span id="review-legal-review">
+            Skriver du en text publiceras omdömet först sedan redaktionen läst
+            den, och publiceras då ordagrant. Vi ändrar aldrig i din text.
+            Sätter du bara ett betyg syns det direkt.
+          </span>
+          Bilder granskas innan de visas. Du kan ta bort det du skickat när du
           vill från <a href="/konto/">ditt konto</a>. Läs
-          <a href="/villkor/">villkoren</a> innan du skriver.
+          <a href="/villkor/">villkoren</a>.
         </p>
       </form>
     </div>
@@ -693,6 +710,10 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
     const text = form.elements.namedItem('body') as HTMLTextAreaElement;
     const visited = document.getElementById('review-visited') as HTMLSelectElement;
+    const fields = document.getElementById('review-fields') as HTMLDivElement;
+    const legalReview = document.getElementById('review-legal-review') as HTMLSpanElement;
+    const about = dialog.querySelector('.about') as HTMLParagraphElement;
+    const title = document.getElementById('review-dialog-title') as HTMLHeadingElement;
     const photos = document.getElementById('review-photos') as HTMLDivElement;
     const dropzone = document.getElementById('review-dropzone') as HTMLButtonElement;
     const files = document.getElementById('review-files') as HTMLInputElement;
@@ -980,6 +1001,17 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       notice(error, 'Fel.', message);
     }
 
+    /**
+     * Knappens text, utan att röra ikonen bredvid.
+     *
+     * Knappen bär en penna och en textnod. `textContent` hade svalt svg:n, så
+     * bara den sista noden skrivs om.
+     */
+    function setOpenLabel(text: string) {
+      const last = open.childNodes[open.childNodes.length - 1];
+      if (last && last.nodeType === Node.TEXT_NODE) last.textContent = ` ${text}`;
+    }
+
     /** Kvittensen i avsnittet, med länken till kontot efter meddelandet. */
     function showMine(label: string, message: string, ok: boolean) {
       notice(mine, label, message);
@@ -988,7 +1020,18 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       link.textContent = 'Hantera det på ditt konto';
       mine.append(' ', link, '.');
       mine.className = ok ? 'notice notice-ok' : 'notice notice-wait';
-      open.hidden = true;
+      /*
+       * Knappen står KVAR, med ny text.
+       *
+       * Den doldes här förut, och det var rätt så länge en bild var en bilaga
+       * till ett omdöme: hade man skrivit sitt fanns ingenting mer att lämna.
+       * Sedan bilden blev fristående är det inte sant längre, och en dold knapp
+       * hade betytt att den som redan skrivit aldrig kunde komma tillbaka med
+       * ett foto. Ett omdöme per person och verksamhet gäller fortfarande, och
+       * det är kvittensen ovanför som säger det.
+       */
+      open.hidden = false;
+      setOpenLabel('Lägg till bild');
     }
 
     /* -------------------------------------------------------------- */
@@ -1017,10 +1060,13 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       dialog!.showModal();
       /* Fokus i fältet man ska skriva i. Betyget står först men är frivilligt,
          och att fokusera en radioknapp i en grupp där ingen är vald låter
-         skärmläsaren läsa upp ett betyg man inte satt. */
+         skärmläsaren läsa upp ett betyg man inte satt.
+
+         I bildläget är textrutan dold, och ett dolt fält går inte att fokusera.
+         Då är bildytan det enda man kan göra något med. */
       /* preventScroll: rullningen läggs tillbaka av låset, exakt. En extra
          framrullning av fältet flyttar bara sidan under. */
-      text.focus({ preventScroll: true });
+      (fields.hidden ? dropzone : text).focus({ preventScroll: true });
     }
 
     /**
@@ -1081,6 +1127,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       if (!existing) {
         mine.hidden = true;
         open.hidden = false;
+        setOpenLabel('Skriv omdöme');
         return false;
       }
 
@@ -1132,21 +1179,51 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       }
     }
 
+    /**
+     * Rutans två lägen.
+     *
+     * Ett omdöme per person och verksamhet står kvar. Men en bild är sedan
+     * ägarens beslut inte längre en bilaga till ett omdöme, och den som redan
+     * skrivit sitt ska därför inte mötas av en stängd dörr när hen kommer
+     * tillbaka med ett foto. I bildläget döljs betyg, text och månad, och
+     * rutan handlar om det enda som återstår att lämna.
+     */
+    function photoOnly(on: boolean) {
+      fields.hidden = on;
+      legalReview.hidden = on;
+      title.textContent = on ? 'Lägg till en bild' : 'Skriv ett omdöme';
+      about.textContent = '';
+      const name = document.createElement('b');
+      name.textContent = place.name;
+      if (on) {
+        about.append('Din bild på ', name, '.');
+      } else {
+        about.append(
+          'Ditt omdöme om ',
+          name,
+          '. Sätt betyg, skriv några rader eller lägg till en bild.',
+        );
+      }
+    }
+
     async function request(trigger: HTMLElement | null) {
-      if (await refreshMine()) {
+      /*
+       * Två frågor, ställda samtidigt: har man redan ett omdöme, och företräder
+       * man stället. Båda ställs när rutan öppnas och inte vid sidladdning. Den
+       * som aldrig trycker på knappen ska inte kosta ett anrop mot Supabase.
+       */
+      const [harOmdome] = await Promise.all([refreshMine(), hideForOwners()]);
+
+      if (harOmdome && photos.hidden) {
+        /* Inget kvar att lämna: omdömet är skrivet, och bildfältet är dolt
+           eftersom man företräder verksamheten. Kvittensen är hela svaret. */
         reveal(mine);
         mine.focus({ preventScroll: true });
         return;
       }
-      /* Frågan ställs när rutan öppnas och inte vid sidladdning. Anropet kräver
-         inloggning, och den som aldrig trycker på knappen ska inte kosta ett
-         anrop mot Supabase.
 
-         Utan await, alltså kan fältet stå kvar ett ögonblick för en företrädare
-         innan det försvinner. Det priset är mindre än det omvända: väntar rutan
-         in ett nätanrop innan den öppnas fördröjs varje besökare av en fråga
-         som nästan alltid har samma svar. */
-      void hideForOwners();
+      /* Har man redan skrivit sitt omdöme handlar rutan bara om bilden. */
+      photoOnly(harOmdome);
       openDialog(trigger);
     }
 
@@ -1172,26 +1249,16 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       const body = text.value.trim();
       const stars = form.querySelector<HTMLInputElement>('input[name="rating"]:checked');
 
-      if (!stars && !body) {
-        showError('Sätt ett betyg eller skriv några rader. Ett av dem räcker.');
+      /* Tre sätt att säga något, och ETT av dem räcker: ett betyg, en text,
+         eller en bild. Bilden är med i uppräkningen sedan ägaren tagit bort
+         kravet på text: "Man ska såklart kunna ladda upp bilder endast." */
+      if (!stars && !body && chosen.length === 0) {
+        showError('Sätt ett betyg, skriv några rader eller lägg till en bild.');
         return;
       }
 
       if (body && body.length < 20) {
         showError('Skriv minst 20 tecken, eller lämna rutan tom och sätt bara ett betyg.');
-        text.focus({ preventScroll: true });
-        return;
-      }
-
-      /* Bilder kräver text.
-       *
-       * Regeln står i policyn image_uploads_insert och kontrolleras här bara
-       * för att svaret ska komma innan man skickat i stället för efteråt. Skälet
-       * är granskningens: ett betyg utan text läses aldrig av någon, och en bild
-       * som följer med ett sådant hade varit ett foto på någon annans
-       * näringsverksamhet utan en rad som säger vad man tittar på. */
-      if (chosen.length > 0 && !body) {
-        showError('Skriv några rader om stället om du vill lägga till bilder.');
         text.focus({ preventScroll: true });
         return;
       }
@@ -1209,15 +1276,27 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       submit.textContent = 'Skickar';
 
       try {
-        /* Tom ruta skickas som null och inte som tom sträng. Databasen avvisar
-           den senare, och skillnaden är sann: den som inte skrev något har
-           ingen text, hen har inte en tom text. */
-        const reviewId = await submitReview(
-          place,
-          body || null,
-          stars ? Number(stars.value) : null,
-          visited.value || null,
-        );
+        /*
+         * Omdömet skickas BARA om det finns ett.
+         *
+         * Den som lagt till en bild och inget annat ska inte få ett tomt omdöme
+         * skrivet åt sig. Databasen hade dessutom avvisat det: villkoret
+         * review_says_something kräver ett betyg eller en text, och att gå runt
+         * det med en tom rad vore just den bakväg bilden inte ska behöva.
+         *
+         * Tom ruta skickas som null och inte som tom sträng. Databasen avvisar
+         * den senare, och skillnaden är sann: den som inte skrev något har
+         * ingen text, hen har inte en tom text.
+         */
+        const reviewId =
+          stars || body
+            ? await submitReview(
+                place,
+                body || null,
+                stars ? Number(stars.value) : null,
+                visited.value || null,
+              )
+            : null;
 
         /* Bilderna EFTER omdömet, aldrig före.
          *
@@ -1226,10 +1305,10 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
          * bilderna och inte omdömet som fastnade. Omvänd ordning hade betytt
          * att ett nej på en bild tog med sig texten i fallet.
          *
-         * Ordningen är dessutom ett krav nu och inte bara en avvägning: en bild
-         * måste bära id:t på ett omdöme som redan finns, annars avvisar policyn
-         * raden. Se image_uploads_insert i schema_community.sql. */
+         * `null` är ett fullgott värde här: en bild utan omdöme står för sig
+         * själv. Se image_uploads_insert i schema_community.sql. */
         const failed = await uploadPicked(reviewId);
+        const antalBilder = chosen.length;
 
         form.reset();
         clearPicked();
@@ -1246,16 +1325,35 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
          * "Väntar" eller "Klart" efter det. Vem som avgör står kvar där det
          * hör hemma, i databasen.
          */
-        if (!(await refreshMine())) {
-          /* Raden gick inte att läsa tillbaka. Insändningen lyckades, så säg
-             det minsta som är sant i stället för ingenting. */
-          notice(mine, 'Väntar.', 'Omdömet är inskickat.');
-          mine.className = 'notice notice-wait';
-          open.hidden = true;
-        }
+        if (!reviewId) {
+          /* Bara bilder. Det finns inget omdöme att läsa tillbaka, och
+             kvittensen ska då handla om det man faktiskt skickade. */
+          if (failed) {
+            notice(mine, 'Fel.', `Bilderna kom inte fram: ${failed}`);
+            mine.className = 'notice notice-error';
+          } else {
+            notice(
+              mine,
+              'Väntar.',
+              antalBilder === 1
+                ? 'Bilden är inskickad och väntar på granskning.'
+                : 'Bilderna är inskickade och väntar på granskning.',
+            );
+            mine.className = 'notice notice-wait';
+          }
+          mine.hidden = false;
+        } else {
+          if (!(await refreshMine())) {
+            /* Raden gick inte att läsa tillbaka. Insändningen lyckades, så säg
+               det minsta som är sant i stället för ingenting. */
+            notice(mine, 'Väntar.', 'Omdömet är inskickat.');
+            mine.className = 'notice notice-wait';
+            open.hidden = true;
+          }
 
-        if (failed) {
-          mine.append(` Bilderna följde inte med: ${failed}`);
+          if (failed) {
+            mine.append(` Bilderna följde inte med: ${failed}`);
+          }
         }
 
         /* Listan hämtas om. Ett publicerat betyg ska synas direkt, i samma
@@ -1292,10 +1390,9 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      */
     async function uploadPicked(reviewId: string | null): Promise<string | null> {
       if (chosen.length === 0) return null;
-      /* Utan id finns ingen rad att hänga bilderna på. Omdömet gick ändå in,
-         och det är det beskedet besökaren ska få. */
-      if (!reviewId) return 'omdömet kom fram, men bilderna kunde inte kopplas till det.';
 
+      /* `reviewId` får vara null. En bild står för sig själv om ingen skrev
+         något, och knyts till omdömet om någon gjorde det. */
       let done = 0;
       for (const item of chosen) {
         submit.textContent = `Laddar upp bild ${done + 1} av ${chosen.length}`;
@@ -1377,9 +1474,11 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
             await refreshMine();
           } else {
             /* Utloggad. Det egna omdömet är inte längre känt, alltså tillbaka
-               till en knapp utan kvittens. */
+               till en knapp utan kvittens, och till knappens ursprungstext. */
             mine.hidden = true;
             open.hidden = false;
+            setOpenLabel('Skriv omdöme');
+            photoOnly(false);
           }
         })();
       });

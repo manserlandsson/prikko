@@ -718,45 +718,36 @@ Kvoterna ska stå i policyn, inte i klienten. Det är samma skillnad som
 `schema_community.sql` redan formulerar på annat håll: "vi visar inte formuläret"
 mot "databasen vägrar ta emot raden".
 
-### C4. Bilden ska höra ihop med omdömet, och texten ska vara obligatorisk
+### C4. Bilden står för sig själv
 
-Briefen ber om ställningstagande. **Kräv text.**
+Briefen bad om ett ställningstagande, och den här delen rekommenderade tidigare
+att en bild skulle kräva ett omdöme med text. **Ägaren har avgjort frågan åt
+andra hållet, och koden följer beslutet:** en bild kan skickas in ensam, utan att
+någon skriver ett ord.
 
-Så ser de andra ut: Google tillåter foto utan text. Yelp tillåter foto skilt från
-omdöme men kräver text i själva omdömet. TheFork binder ihop dem hårdare.
-Rekommendationen är TheFork-änden, av tre skäl som är specifika för oss:
+Ägarens ord, 2026-08-05: "Om vi har en policy, den ska aldrig begränsa oss, det
+är bara att ändra den. Vi är under uppbyggnad. Man ska såklart kunna ladda upp
+bilder endast, behöver ej va text."
 
-1. **Granskningen är en person.** Foto utan text är det svåraste möjliga
-   granskningsärendet: ingen kontext, ingen förklaring, ingen ledtråd om vad man
-   tittar på. Med tjugo tecken text vet granskaren om det är disken, skylten eller
-   en tallrik.
-2. **Omdömen är numera anonyma.** Vyn skriver "Besökare" och inget namn skickas.
-   Då är det enda som återstår av ansvar att någon faktiskt skrivit något om
-   stället. Ett foto utan text från ett anonymt konto är den lägsta möjliga
-   tröskeln för att lägga en bild på någon annans näringsverksamhet.
-3. **Kvoten faller ut gratis.** `community.reviews` har redan
-   `unique (user_id, establishment_id)` och `body` mellan 20 och 2 000 tecken. Ett
-   omdöme per person och ställe ger automatiskt taket på tre bilder per person och
-   ställe.
+Så fungerar det:
 
-Konkret: lägg till `review_id uuid` på `community.image_uploads` och kräv i policyn
-antingen ett godkänt anspråk på verksamheten, alltså ägarvägen som finns i dag,
-eller ett eget omdöme på just den verksamheten:
+- `community.image_uploads.review_id` är NULLBAR. Skickas bilden tillsammans med
+  ett omdöme knyts den till det och följer med om omdömet raderas. Skickas den
+  ensam står raden på egna ben.
+- Policyn `image_uploads_insert` kräver inget omdöme. Är `review_id` satt måste
+  omdömet vara uppladdarens eget och gälla samma verksamhet, och det är hela
+  villkoret.
+- Ingen tom rad skapas i `community.reviews` för att bära en bild. Rutan skickar
+  bara ett omdöme när det finns ett betyg eller en text, och villkoret
+  `review_says_something` hade fällt allt annat.
+- Kvoterna räknas per konto och verksamhet i `community.set_image_status()` och
+  bryr sig inte om något omdöme finns: fem per dygn, tre per ställe, tio öppna.
+- Uppladdaren kan ta bort sin bild i vilket läge som helst, från kontosidan.
+  `image_uploads_delete_own` gäller alla egna rader, och filen tas bort ur
+  lagringen med raden.
 
-```sql
-and (
-    exists (select 1 from community.establishment_claims c
-            where c.user_id = auth.uid()
-              and c.establishment_id = image_uploads.establishment_id
-              and c.status = 'published')
-    or exists (select 1 from community.reviews r
-               where r.id = image_uploads.review_id
-                 and r.user_id = auth.uid()
-                 and r.establishment_id = image_uploads.establishment_id)
-)
-```
-
-Granska omdöme och bild som **en enhet**. Avslås texten avslås bilden med den.
+Granskningen är oförändrad. Ingen bild syns förrän en människa släppt fram den,
+och hör bilden till ett omdöme som avslås avslås den med det.
 
 ### C5. Vad anonymiteten gör med bilder, och som måste åtgärdas
 
@@ -791,14 +782,18 @@ uppladdning, för den är priset för funktionen.
 Del C är genomförd. Fyra saker blev annorlunda än vad texten ovan föreslår, och
 alla fyra är medvetna.
 
-**Ägaren är utestängd från besökarflödet, inte inbjuden till det.** C4 föreslår
-att policyn ska släppa in antingen ett godkänt anspråk eller ett eget omdöme.
-Ägaren har beslutat motsatsen: `image_uploads_insert` kräver ett eget omdöme och
-kräver dessutom att uppladdaren INTE har ett godkänt anspråk på just den
-verksamheten. Skälet är att verksamhetens egna bilder och gästernas inte är
-samma sorts uppgift och inte ska kunna förväxlas. Ägarens ord: "restaurangägare
-kan ladda upp bilder men inte under omdömessidan, istället får fixa en pro
-tjänst senare där företagen kan få snygga till deras sida."
+**Ägaren är utestängd från besökarflödet, inte inbjuden till det.** C4 föreslog
+att policyn skulle släppa in antingen ett godkänt anspråk eller ett eget omdöme.
+Ägaren har beslutat motsatsen: `image_uploads_insert` kräver att uppladdaren
+INTE har ett godkänt anspråk på just den verksamheten. Skälet är att
+verksamhetens egna bilder och gästernas inte är samma sorts uppgift och inte ska
+kunna förväxlas. Ägarens ord: "restaurangägare kan ladda upp bilder men inte
+under omdömessidan, istället får fixa en pro tjänst senare där företagen kan få
+snygga till deras sida."
+
+**En bild kräver inget omdöme.** Se C4 ovan, som är omskriven efter ägarens
+besked. Policyn kräver ingen text och inget betyg, `review_id` är nullbar, och
+ingen tom omdömesrad skapas för att bära ett foto.
 
 **Ägarens bildyta är därmed PARKERAD, och parkerad med avsikt.** Den byggs inte
 nu, inte i någon halv form och inte som ett gömt fält. Det som en gång fanns,
