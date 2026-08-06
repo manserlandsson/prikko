@@ -15,6 +15,14 @@ skrivåtkomst till hela databasen.
 Upsert, inte insert: körningen är idempotent och kan göras om utan att
 duplicera. Inspektioner och kontrollområden ersätts per anläggning, så att
 borttagna poster hos kommunen också försvinner hos oss.
+
+Två regler avgör vad som händer med en anläggning mellan två nätter, och båda
+finns för att sluggen är sidans publicerade adress:
+
+* En slug byter aldrig verksamhet. Ett id som redan står i databasen behåller
+  sin slug oavsett vad utlämningen föreslår. Se reconcile_slugs.
+* En anläggning som slutat lämnas ut avpubliceras med `active = 0`, aldrig
+  genom radering, och håller sin slug reserverad. Se deactivate_missing.
 """
 
 from __future__ import annotations
@@ -23,6 +31,7 @@ import argparse
 import json
 import os
 import sys
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -30,6 +39,19 @@ from pathlib import Path
 from typing import Iterable
 
 BATCH = 500
+
+#: Så stor andel av kommunens publicerade bestånd får saknas i en utlämning
+#: innan bortfallet bedöms som ett hämtningsfel i stället för verkliga
+#: nedläggningar. Fem procent av Stockholm är 425 verksamheter på en natt.
+#: Så mycket stänger inte en stad, men så mycket tappar en hämtning som
+#: missar några rutor i rutnätet, och den skillnaden får inte avpubliceras
+#: i tysthet.
+MAX_MISSING_SHARE = 0.05
+
+#: Golv i antal, så att en liten kommun inte fastnar i spärren. Fem procent
+#: av Svenljungas 99 verksamheter är fyra rader, och fyra nedlagda kaféer i
+#: en kommun är fullt möjligt, särskilt efter ett uppehåll mellan körningar.
+MAX_MISSING_ROWS = 10
 
 
 class SupabaseError(RuntimeError):
@@ -150,6 +172,187 @@ class Supabase:
             query = urllib.parse.urlencode({column: f"in.({quoted})"})
             self._request("DELETE", f"{table}?{query}", prefer="return=minimal")
 
+    def update_where_in(
+        self, table: str, column: str, values: Iterable[str], patch: dict
+    ) -> None:
+        """Sätt samma fält på en känd mängd rader.
+
+        Skilt från upsert med avsikt: här ändras enstaka kolumner på rader vi
+        INTE har någon färsk utlämning för. En upsert hade behövt hitta på
+        värden för allt det andra.
+        """
+        values = list(values)
+        for start in range(0, len(values), 100):
+            chunk = values[start : start + 100]
+            quoted = ",".join(f'"{v}"' for v in chunk)
+            query = urllib.parse.urlencode({column: f"in.({quoted})"})
+            self._request("PATCH", f"{table}?{query}", patch, prefer="return=minimal")
+
+
+def reconcile_slugs(
+    client: Supabase,
+    municipality_code: str,
+    establishments: list,
+) -> list:
+    """Lås varje anläggning vid den slug den redan är publicerad på.
+
+    Sluggen sätts av fetch_*.py med `dedupe_slugs`, som numrerar kollisioner i
+    den ordning källan råkar leverera dem. Ordningen är inte stabil. Stockholm
+    hämtas i ett rutnät och två likanämnda verksamheter kan byta plats mellan
+    två nätter, och då byter också "namnet" och "namnet-2" ägare.
+
+    Det gav den nattliga körningen två fel på en gång.
+
+    Det synliga: upserten går på `id` medan unikheten gäller
+    (municipality_code, slug). Byter två rader slug med varandra försöker den
+    ena skriva en slug som den andra fortfarande håller, och Postgres svarar
+    23505. Stockholm föll på det tre nätter i rad, och eftersom load() reste
+    felet vidare stannade även de kommuner som låg efter i filordningen.
+
+    Det allvarligare: sluggen ÄR sidans adress. Flyttas den från en verksamhet
+    till en annan pekar varje bokmärke, varje inlänk och varje notismejl
+    plötsligt på fel lokal. En gammal slug som leder till 404 är ett känt och
+    accepterat utfall, se community.notices i schema_community.sql. En gammal
+    slug som leder till någon ANNAN verksamhet är det inte.
+
+    Regeln här är därför enkel: ett id som redan finns i databasen behåller
+    sin slug, för alltid. Nya id får sin naturliga slug, ledig både mot
+    databasen och mot varandra. Ingen slug byter någonsin ägare.
+
+    Att sluggen då kan bära ett namn lokalen inte längre använder är avsiktligt
+    och följer projektets linje: kontrollhistoriken hänger på lokalen och inte
+    på företaget, alltså är sidan lokalens sida även när skylten byts. Sidan
+    visar det aktuella namnet; adressen står stilla.
+
+    Måste anropas FÖRE upserten av establishments. Ändrar listan på plats och
+    returnerar de flyttförsök som stoppades, som (id, önskad slug, behållen).
+    """
+    known = {
+        row["id"]: row["slug"]
+        for row in client.select_all(
+            "establishments",
+            f"select=id,slug&municipality_code=eq.{urllib.parse.quote(municipality_code)}",
+        )
+    }
+
+    # Varje slug kommunen någonsin fått är upptagen, även de som hör till
+    # rader som inte längre lämnas ut. Frigörs en slug kan nästa körning ge
+    # den till en annan verksamhet, vilket är precis det vi bygger bort.
+    taken = set(known.values())
+
+    blocked = []
+    for e in establishments:
+        published = known.get(e["id"])
+        if published is None:
+            continue
+        if published != e["slug"]:
+            blocked.append((e["id"], e["slug"], published))
+        e["slug"] = published
+
+    for e in establishments:
+        if e["id"] in known:
+            continue
+        base = e["slug"]
+        candidate = base
+        suffix = 1
+        # Samma uppräkning som dedupe_slugs, men mot hela kommunens bestånd
+        # och inte bara mot den här utlämningen.
+        while candidate in taken:
+            suffix += 1
+            candidate = f"{base}-{suffix}"
+        taken.add(candidate)
+        e["slug"] = candidate
+
+    if blocked:
+        print(
+            f"  {len(blocked)} slug(ar) ville byta verksamhet och behölls där de\n"
+            "  redan är publicerade:",
+            file=sys.stderr,
+        )
+        for eid, wanted, kept in blocked[:20]:
+            print(f"    {eid}: {wanted!r} avvisad, behåller {kept!r}", file=sys.stderr)
+        if len(blocked) > 20:
+            print(f"    ... och {len(blocked) - 20} till", file=sys.stderr)
+
+    return blocked
+
+
+def deactivate_missing(
+    client: Supabase,
+    municipality_code: str,
+    establishments: list,
+) -> list:
+    """Avpublicera de anläggningar kommunen slutat lämna ut.
+
+    Tidigare skrevs `active = 2` på allt som kom in och ingenting satte någonsin
+    något annat. En verksamhet som kommunen tagit bort ur sitt register låg
+    därför kvar som publicerad i all evighet, med en kontrollhistorik som
+    aldrig mer uppdaterades och inget som sade det.
+
+    Rader tas INTE bort. Radering hade kaskaderat ner i inspektioner,
+    kontrollområden och företagsytans kopplingar, och dessutom frigjort
+    sluggen så att nästa körning kunde ge den till någon annan. `active = 0`
+    lyfter raden ur `publishable_establishments`, behåller historiken och
+    håller adressen reserverad. Dyker verksamheten upp igen skriver nästa
+    upsert tillbaka `active = 2` av sig själv.
+
+    Spärren finns för att bortfall nästan alltid är vårt fel och inte
+    kommunens. Stockholms hämtning hoppar tyst över en ruta i rutnätet som
+    svarar med fel, och ett sådant hål får aldrig avpublicera hundratals
+    verksamheter i tysthet. Slår spärren till avpubliceras ingenting alls och
+    körningen säger varför.
+
+    Anropas EFTER upserten, så att allt i utlämningen redan står som aktivt.
+    Returnerar de id som avpublicerades.
+    """
+    # NULL räknas som publicerad, precis som vyn publishable_establishments
+    # gör med sin coalesce(active, 2). Filtret sitter därför här och inte i
+    # frågan: `active=neq.0` i PostgREST hade tappat NULL-raderna och lämnat
+    # dem publicerade för alltid.
+    live = {
+        row["id"]
+        for row in client.select_all(
+            "establishments",
+            f"select=id,active&municipality_code=eq.{urllib.parse.quote(municipality_code)}",
+        )
+        if row.get("active") != 0
+    }
+
+    delivered = {e["id"] for e in establishments}
+    missing = sorted(live - delivered)
+    if not missing:
+        return []
+
+    limit = max(MAX_MISSING_ROWS, int(len(live) * MAX_MISSING_SHARE))
+    if len(missing) > limit:
+        print(
+            f"  VARNING: {len(missing)} av {len(live)} publicerade anläggningar\n"
+            f"  saknas i utlämningen, mer än spärren på {limit}. Ingen avpubliceras.\n"
+            "  Ett bortfall den storleken är nästan alltid en trasig hämtning,\n"
+            "  inte lika många nedlagda verksamheter. Kontrollera källan.",
+            file=sys.stderr,
+        )
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(
+                f"::warning title=Stort bortfall::{len(missing)} av {len(live)} "
+                f"anläggningar i {municipality_code} saknas i utlämningen. "
+                "Ingen avpublicerades."
+            )
+        return []
+
+    client.update_where_in("establishments", "id", missing, {"active": 0})
+    print(
+        f"  {len(missing)} anläggning(ar) saknas i utlämningen och avpubliceras\n"
+        "  (raden och historiken ligger kvar, sluggen förblir reserverad):",
+        file=sys.stderr,
+    )
+    for eid in missing[:20]:
+        print(f"    {eid}", file=sys.stderr)
+    if len(missing) > 20:
+        print(f"    ... och {len(missing) - 20} till", file=sys.stderr)
+
+    return missing
+
 
 def record_names(
     client: Supabase,
@@ -260,6 +463,10 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
             file=sys.stderr,
         )
 
+    # FÖRE upserten: sluggen ska vara den redan publicerade, inte den källans
+    # ordning råkade ge i natt. Se reconcile_slugs för varför.
+    reconcile_slugs(client, municipality["code"], establishments)
+
     establishment_rows = []
     for e in establishments:
         row = {
@@ -296,6 +503,10 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
 
     client.upsert("establishments", establishment_rows, on_conflict="id")
     print(f"  anläggningar skrivna", file=sys.stderr)
+
+    # EFTER upserten: allt i utlämningen står nu som aktivt, och det som inte
+    # står där är det som kommunen slutat lämna ut.
+    deactivate_missing(client, municipality["code"], establishments)
 
     if geo_only:
         placed = sum(1 for e in establishments if e.get("lat") is not None)
@@ -374,8 +585,27 @@ def main() -> None:
         )
 
     client = Supabase(url, key)
+
+    # En kommun som fallerar får inte stoppa de elva andra. Filerna laddas i
+    # den ordning skalet råkar expandera dem, och när Stockholm reste ett fel
+    # laddades Svenljunga och Uppsala inte alls: de ligger efter i bokstavs-
+    # ordningen. Deras data stod stilla i fyra dygn utan att någon signal sade
+    # att det var DE som stod stilla. Felet syns fortfarande, både i loggen
+    # och i slutkoden, men först när alla fått sin chans.
+    failed = []
     for path in args.files:
-        load(path, client, geo_only=args.geo_only)
+        try:
+            load(path, client, geo_only=args.geo_only)
+        except Exception:
+            failed.append(path)
+            print(f"\nFEL vid inläsning av {path}:", file=sys.stderr)
+            traceback.print_exc()
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::error title=Inläsning misslyckades::{path}")
+
+    if failed:
+        names = ", ".join(str(p) for p in failed)
+        sys.exit(f"\n{len(failed)} av {len(args.files)} filer misslyckades: {names}")
 
     print("\nKlart.", file=sys.stderr)
 
