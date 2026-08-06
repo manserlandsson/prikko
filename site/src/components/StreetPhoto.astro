@@ -67,8 +67,21 @@ const href = credit?.href(image.id) ?? null;
  * räcker alltså inte. Avsnitt 7 förbjuder samtidigt att logotypen kopieras
  * eller IMITERAS, så den får inte ritas av på fri hand eller återskapas ur
  * minnet. Den ska hämtas i original från Mapillarys varumärkessida och läggas
- * som `site/src/brand/mapillary-logo.svg`, vilket är den sökväg globben
- * nedan letar på.
+ * som `site/src/brand/mapillary-logo.*`, vilket är den sökväg globben nedan
+ * letar på.
+ *
+ * Filen som ligger där är `mapillary_logo_white_1plate@2x.png` ur Mapillarys
+ * eget presskit, oförändrad. "white" är deras namn på versionen som är
+ * avsedd för ljus botten, och "1plate" är enfärgsvarianten, alltså den mest
+ * diskreta de tillhandahåller. Ritningen finns också som PDF i presskitet,
+ * men den kunde inte vektoriseras utan att gå genom ett konverteringssteg,
+ * och avsnitt 7 förbjuder att logotypen ritas om. En oförändrad PNG i
+ * dubbel upplösning är det trygga valet: 720 px bred källa som visas i 56,
+ * alltså skarp på varje skärm.
+ *
+ * Vit botten är inbakad i filen. Det syns inte, eftersom bildtexten ligger på
+ * panelens vita kort, och att klippa bort bakgrunden hade varit just en sådan
+ * ändring villkoren förbjuder.
  *
  * Så länge filen saknas visas ingen Mapillary-bild alls. Det är med avsikt och
  * det är det försiktiga valet: att publicera bilden utan den attribution
@@ -98,7 +111,7 @@ const blockedForMissingLogo = needsLogo && !MAPILLARY_LOGO;
 if (blockedForMissingLogo && !(globalThis as any).__prikkoMapillaryLogoWarned) {
   (globalThis as any).__prikkoMapillaryLogoWarned = true;
   console.warn(
-    '\n  Mapillary-bilder hoppas över i bygget: site/src/brand/mapillary-logo.svg\n' +
+    '\n  Mapillary-bilder hoppas över i bygget: site/src/brand/mapillary-logo.*\n' +
       '  saknas. Mapillarys villkor avsnitt 11 kräver deras logotyp när vi serverar\n' +
       '  bilden själva. Hämta originalfilen från Mapillarys varumärkessida och lägg\n' +
       '  den där, så visas bilderna igen. Rita den inte av: avsnitt 7 förbjuder det.\n',
@@ -166,7 +179,7 @@ const licenceHref = image.licence ? LICENCE_HREF[image.licence] ?? null : null;
           rel="noopener noreferrer"
           aria-label="Mapillary"
         >
-          <img src={MAPILLARY_LOGO} alt="Mapillary" width="72" height="16" loading="lazy" />
+          <img src={MAPILLARY_LOGO} alt="Mapillary" width="56" height="19" loading="lazy" />
         </a>
       )}
     </figcaption>
@@ -222,19 +235,22 @@ const licenceHref = image.licence ? LICENCE_HREF[image.licence] ?? null : null;
     min-width: 0;
   }
 
+  /* Full opacitet. Logotypen låg förut på 0,65 för att tona ned den, men
+     villkoren kräver att den visas SYNLIGT, och att dämpa ett varumärke är
+     en ändring av dess utseende som avsnitt 7 inte tillåter. Diskretionen
+     ligger i storleken i stället, se måttet nedan. */
   .logo {
     flex: none;
     display: block;
-    opacity: 0.65;
   }
 
-  .logo:hover {
-    opacity: 1;
-  }
-
+  /* Så liten som villkoret tål. Avsnitt 11 kräver att logotypen är SYNLIG,
+     inte att den syns bra, och ägaren vill ha den diskret. Fjorton pixlar är
+     ordmärkets versalhöjd omkring 8 px, alltså läsbart intill bildtextens
+     caption utan att konkurrera med den. */
   .logo img {
     display: block;
-    height: 16px;
+    height: 14px;
     width: auto;
   }
 </style>
