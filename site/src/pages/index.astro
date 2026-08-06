@@ -11,7 +11,7 @@
  * TheFork, Airbnb, hitta.se och brittiska FSA: startsidan ÄR produkten,
  * ingen av referenserna förklarar sig ovanför vikningen.
  *
- * Strukturen, uppifrån: hero (rubrik, sökfält, snabbval), kommunerna störst
+ * Strukturen, uppifrån: hero (rubrik och sökfält), kommunerna störst
  * först, länkkolumnerna per verksamhetstyp, artiklarna. Sedan slut. Sidan
  * säger ingenting om varifrån datan kommer; det gör sidfoten och källsidan.
  * Sökfältet ligger HÄR och inte i sidhuvudet: Base får headerSearch={false},
@@ -19,8 +19,6 @@
  * sökfält: dubbleringen var det som fick den gamla heron att kännas tom.
  *
  * Varje sektion är lånad där den löser vår uppgift, inte för att kopiera:
- *  - snabbvalsraden under fältet (hitta.se, JobbSafari) för att den som inte
- *    vet vad den ska skriva får de vanligaste frågorna som knappar,
  *  - länkkolumnerna (JobbSafari) för att kommun- och kategorisidorna är de
  *    sidtyper som bär trafiken (~90 % i SEO-mätningen mot brittiska FSA) och
  *    behöver intern länkkraft,
@@ -42,7 +40,7 @@ import { Image } from 'astro:assets';
  * handlar om den staden". Aldrig en genererad bild, aldrig en stockbild:
  * fotot är samma fil som kommunkortets, redan betald och redan i repo.
  */
-import heroPhoto from '../assets/stad/linkoping.jpg';
+import heroPhoto from '../assets/hero-restaurang.jpg';
 /* Hero-rubrikens typsnitt: Instrument Serif, systerfonten till sajtens
    Instrument Sans (samma formgivare). Självhostad via fontsource, precis som
    sansen — aldrig Google Fonts CDN. Bara latin-subsetet och bara 400 normal:
@@ -63,7 +61,6 @@ import {
   type TopCategoryId,
 } from '../lib/data';
 import { SITE } from '../lib/site';
-import { quickPicks } from '../lib/snabbval';
 import { absolute, path } from '../lib/urls';
 
 const total = coverage();
@@ -115,23 +112,6 @@ const cards = byTotal.filter((m) => withPhoto.has(m.slug)).slice(0, CARDS);
 // Snabbvalen under sökfältet
 // ---------------------------------------------------------------------------
 
-/**
- * Snabbvalsraden, mönstret från hitta.se och JobbSafari: den som inte vet vad
- * den ska skriva i fältet får de vanligaste frågorna som knappar.
- *
- * Raden fyller också platsen där Booli visar "Senaste sökningar", och det är
- * ett beslut, inte en brist: senaste sökningar kräver lagring i webbläsaren,
- * och docs/14 slår fast att bara prikko.session och prikko.next får finnas
- * utan samtycke — /cookies påstår dessutom att den listan är uttömmande.
- * En localStorage-nyckel för sökhistorik hade gjort sidan osann samma dag
- * och tvingat fram den kakruta utredningen uttryckligen avstod från. Räknade
- * populära sökningar ger samma funktion (ett ifyllt förslag innan man vet
- * vad man ska skriva) utan att lagra ett tecken hos besökaren.
- *
- * Urvalet bor i lib/snabbval, delat med sökpanelen och kommandopaletten:
- * tre ytor som räknar var för sig glider isär.
- */
-const picks = quickPicks();
 
 // ---------------------------------------------------------------------------
 // Länkkolumnerna
@@ -245,7 +225,7 @@ const jsonLd = [
       kant i kant och innehållet på ett vitt kort ovanpå. Hos Booli bär två
       kort var sin uppgift (sökpanel och rubrik) eftersom deras sökning är
       ett formulär med flikar och filter. Vår sökning är ETT fält, så hos
-      oss bär ett kort båda: rubrik, fält och snabbval. Fotot är obehandlat
+      oss bär ett kort båda: rubrik och fält. Fotot är obehandlat
       och utan scrim — kortet bär all text, precis som hos förebilden.
 
       Rubriken är besökarens egen fråga, inte vårt påstående om oss själva.
@@ -283,24 +263,6 @@ const jsonLd = [
         <SiteSearch size="hero" />
       </div>
 
-      {/* Snabbvalen fyller Boolis "Senaste sökningar"-plats, men räknade ur
-          beståndet i stället för lagrade i webbläsaren — se frontmattern
-          och docs/14. Nav, inte ul-som-pynt: raden är navigation och ska
-          läsas så av hjälpmedel. */}
-      <nav class="snabbval" aria-label="Populära sökningar">
-        <p class="snabbval-head eyebrow" aria-hidden="true">Populära sökningar</p>
-        <div class="chips">
-          {picks.map((c) => (
-            <a class="chip" href={c.href}>
-              <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-              </svg>
-              {c.label}
-            </a>
-          ))}
-        </div>
-      </nav>
     </div>
   </div>
 
@@ -456,8 +418,7 @@ const jsonLd = [
    * ut ur ett fält ska aldrig ärva sidans textjustering.
    */
   .hero-kort > h1,
-  .hero-kort > .under,
-  .hero-kort > .snabbval {
+  .hero-kort > .under {
     text-align: center;
   }
 
@@ -493,22 +454,6 @@ const jsonLd = [
     margin: var(--s-6) auto 0;
   }
   .hero-sok :global(.site-search) { margin-inline: auto; }
-
-  /* Snabbvalen: pillerchips i fältets formspråk, ett steg lättare. Vit yta
-     och hårlinje som fältet, aldrig en egen färg — raden ska läsa som
-     förslag, inte som knappar med egen vilja. Etiketten är Boolis "Senaste
-     sökningar"-rad i vår tappning; för skärmläsare bär nav-elementets
-     aria-label samma ord, därför aria-hidden på den synliga. */
-  .snabbval { margin-top: var(--s-6); }
-
-  .snabbval-head { margin-bottom: var(--s-2); }
-
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--s-2);
-  }
 
   .chip {
     display: inline-flex;

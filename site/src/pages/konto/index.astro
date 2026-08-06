@@ -19,9 +19,9 @@
  * en förklarade sig själv i ett stycke innan den visade något.
  *
  * De två första avsnitten står kvar även när de är tomma, för de säger vad
- * kontot är till för. Anspråk och bilder ritas bara när de finns: en
- * uppladdning kräver ett godkänt anspråk, så för nästan alla är de två
- * avsnitten en beskrivning av något de inte kan göra.
+ * kontot är till för. Anspråk och bilder ritas bara när de finns: den som
+ * varken företräder en verksamhet eller skickat in en bild har inget att
+ * hantera där, och en tom rubrik är ingen upplysning.
  */
 import Base from '../../layouts/Base.astro';
 import { municipalities } from '../../lib/data';
@@ -131,6 +131,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     deleteReview,
     claims,
     myUploads,
+    deleteUpload,
     placeNames,
   } from '../../lib/community';
   import { openSignIn } from '../../lib/signin-dialog';
@@ -301,12 +302,49 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       return;
     }
 
+    /* Namnen i EN fråga, inte en per rad.
+       Omdömesraden bär bara id och kommun. Namnet skrivs INTE på raden: en
+       verksamhet som byter namn hade då burit det gamla namnet i evighet i
+       den som skrev omdömet, medan sidan den pekar på bar det nya. */
+    const namn = await placeNames(rows.map((row) => row.establishment_id)).catch(
+      () => new Map<string, { name: string; slug: string; municipality_slug: string }>(),
+    );
+
     reviewList.textContent = '';
     for (const row of rows) {
       const li = document.createElement('li');
 
-      const box = document.createElement('div');
+      /*
+       * Vilket ställe omdömet gäller, överst och som länk.
+       *
+       * Raden sade förut bara betyg och text, alltså stod ens egna omdömen
+       * utan att säga vad de handlade om. Bevakningarna strax ovanför har
+       * burit namnet hela tiden, och det var den enda skillnaden mellan de
+       * två listorna.
+       *
+       * Länken går till verksamhetens sida och inte till en sökning, till
+       * skillnad från bevakningarna: här finns slugen, så det finns ingen
+       * anledning att skicka någon via ett sökresultat till en sida vi redan
+       * vet adressen till.
+       */
+      const plats = namn.get(row.establishment_id);
+      const box = document.createElement(plats ? 'a' : 'div');
       box.className = 'konto-main';
+      if (plats) {
+        /* Kommunen tas ur uppslagningen och inte ur omdömesraden. De två är
+           lika i dag, men slugen kommer därifrån, och en adress ska byggas av
+           delar som kommer från samma källa. */
+        (box as HTMLAnchorElement).href = `/${plats.municipality_slug}/${plats.slug}/`;
+
+        const titel = document.createElement('b');
+        titel.textContent = plats.name;
+        box.append(titel);
+
+        const ort = document.createElement('span');
+        ort.className = 'konto-meta';
+        ort.textContent = CITIES[plats.municipality_slug] ?? plats.municipality_slug;
+        box.append(ort);
+      }
 
       /* Betyget bara när det finns. Ett omdöme utan siffra är ett fullgott
          omdöme och ska inte få fem gråa stjärnor som läser som noll av fem. */
@@ -438,7 +476,21 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
         box.append(why);
       }
 
-      li.append(box, side(tag(row.status, IMAGE_STATUS)));
+      /* Borttagning på alla lägen, inte bara de som väntar.
+         Bilden är den som skickade in den, precis som ett omdöme är sin
+         författares. En publicerad bild försvinner från verksamhetens sida i
+         samma stund, och filen tas bort ur lagringen med raden. */
+      li.append(
+        box,
+        side(
+          tag(row.status, IMAGE_STATUS),
+          quietButton('Ta bort', async () => {
+            await deleteUpload(row);
+            li.remove();
+            uploadsCard.hidden = uploadList.children.length === 0;
+          }),
+        ),
+      );
       uploadList.append(li);
     }
     uploadsCard.hidden = false;

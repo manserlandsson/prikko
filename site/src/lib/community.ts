@@ -389,9 +389,10 @@ async function hydrateUser(): Promise<void> {
 /**
  * `Accept-Profile` och `Content-Profile` är hur PostgREST väljer schema.
  *
- * Varje anrop härifrån pekar uttryckligen på `community`. Det finns ingen kod
- * i den här filen som kan nå `public`, och det är avsiktligt: den redaktionella
- * databasen ska inte kunna röras från en webbläsare ens av misstag.
+ * Varje anrop härifrån pekar uttryckligen på `community`. Läsning ur `public`
+ * går genom readPublic ovan, som bara kan göra GET, och det är avsiktligt: den
+ * redaktionella databasen ska inte kunna skrivas från en webbläsare ens av
+ * misstag.
  */
 async function rest(
   method: string,
@@ -655,6 +656,8 @@ export interface MyReview {
   rating: number | null;
   status: 'pending' | 'published' | 'rejected';
   rejection_reason: string | null;
+  establishment_id: string;
+  municipality_slug: string;
 }
 
 /** Alla egna omdömen, till kontosidan. */
@@ -662,7 +665,10 @@ export async function myReviews(): Promise<MyReview[]> {
   return (
     (await rest(
       'GET',
-      await ownRows('reviews?select=id,body,rating,status,rejection_reason&order=created_at.desc'),
+      await ownRows(
+        'reviews?select=id,body,rating,status,rejection_reason,establishment_id,' +
+          'municipality_slug&order=created_at.desc',
+      ),
     )) ?? []
   );
 }
@@ -1014,16 +1020,18 @@ export async function submitOwnerResponse(
 /*
  * BILDER KOMMER FRÅN BESÖKARE, INTE FRÅN VERKSAMHETEN.
  *
- * En bild hör alltid ihop med ett omdöme som samma person skrivit om samma
- * ställe. Den som företräder verksamheten kan inte ladda upp här; policyn
- * image_uploads_insert i schema_community.sql stänger den vägen, och ägarens
- * egen bildyta är en betaltjänst som inte finns i någon form i dag.
+ * En bild kan skickas in ensam, utan ett ord skrivet. Skrivs den tillsammans
+ * med ett omdöme knyts den till det och följer med om omdömet raderas, men
+ * omdömet är frivilligt. Den som företräder verksamheten kan inte ladda upp
+ * här; policyn image_uploads_insert i schema_community.sql stänger den vägen,
+ * och ägarens egen bildyta är en betaltjänst som inte finns i någon form i dag.
  *
  * Reglerna bor i databasen, som allt annat i den här filen. Kontrollerna nedan
  * är ett formulär, inte en grind.
  */
 
 const INBOX_BUCKET = 'verksamhetsbilder-inkomna';
+const PUBLIC_BUCKET = 'verksamhetsbilder';
 
 /** Största fil vi tar emot INNAN komprimering. Bucketen har samma tak. */
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -1046,6 +1054,8 @@ export interface Upload {
   id: string;
   establishment_id: string;
   municipality_slug: string;
+  /** Sökvägen i inkorgen. Behövs för att kunna ta bort filen, inte bara raden. */
+  storage_path: string;
   caption: string | null;
   status: 'pending' | 'published' | 'rejected';
   rejection_reason: string | null;
@@ -1070,10 +1080,49 @@ export async function myUploads(): Promise<Upload[]> {
     (await rest(
       'GET',
       await ownRows(
-        'image_uploads?select=id,establishment_id,municipality_slug,caption,status,rejection_reason,published_url&order=created_at.desc&limit=50',
+        'image_uploads?select=id,establishment_id,municipality_slug,storage_path,caption,status,rejection_reason,published_url&order=created_at.desc&limit=50',
       ),
     )) ?? []
   );
+}
+
+/**
+ * Tar tillbaka en bild man skickat in.
+ *
+ * FILEN FÖRST, RADEN SEDAN, alltså tvärtom mot uppladdningen. Skälet är
+ * detsamma i båda fallen: den ofarliga riktningen vinner. Vid uppladdning är en
+ * rad utan fil ofarlig och en fil utan rad farlig; vid borttagning är det
+ * likadant, för en rad som ligger kvar visar bara en bild som fortfarande finns,
+ * medan en fil som ligger kvar efter en borttagen rad är en publik URL ingen
+ * längre kan nå eller städa bort.
+ *
+ * Två filer kan finnas: originalet i den privata inkorgen, och kopian i den
+ * publika bucketen om bilden hann publiceras. Båda tas bort. Att en av dem
+ * redan är borta är inget fel, och stoppar inte borttagningen.
+ */
+export async function deleteUpload(upload: Upload): Promise<void> {
+  const token = await validToken();
+  if (!token) throw new CommunityError('Du är utloggad. Logga in igen.');
+
+  const objects: Array<[string, string]> = [[INBOX_BUCKET, upload.storage_path]];
+  if (upload.published_url) {
+    objects.push([PUBLIC_BUCKET, upload.storage_path.replace(/^pending\//, '')]);
+  }
+
+  for (const [bucket, path] of objects) {
+    try {
+      await fetch(`${URL_BASE}/storage/v1/object/${bucket}/${path}`, {
+        method: 'DELETE',
+        headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      /* Filen får bli kvar. Raden ska bort ändå: bilden slutar visas, och en
+         föräldralös fil är något redaktionen kan städa, medan en rad man inte
+         kan ta bort är något besökaren står maktlös inför. */
+    }
+  }
+
+  await rest('DELETE', `image_uploads?id=eq.${encodeURIComponent(upload.id)}`);
 }
 
 export interface PublishedImage {
@@ -1187,12 +1236,17 @@ async function shrink(file: File): Promise<File> {
 export async function uploadImage(
   place: Place,
   file: File,
-  /** Omdömet bilden hör till. Utan det avvisar policyn raden. */
-  reviewId: string,
+  /**
+   * Omdömet bilden hör till, eller null.
+   *
+   * FRIVILLIGT. En bild kan skickas in utan att någon skrivit något. Är det
+   * satt knyts bilden till omdömet och följer med om det raderas; policyn
+   * kräver då att omdömet är ens eget och gäller samma verksamhet.
+   */
+  reviewId: string | null = null,
 ): Promise<void> {
   const user = currentUser();
   if (!user) throw new CommunityError('Du är utloggad. Logga in igen.');
-  if (!reviewId) throw new CommunityError('Bilden måste höra till ett omdöme.');
 
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowed.includes(file.type))
@@ -1216,7 +1270,7 @@ export async function uploadImage(
       user_id: user.id,
       establishment_id: place.id,
       municipality_slug: place.municipalitySlug,
-      review_id: reviewId,
+      review_id: reviewId || null,
       storage_path: path,
       content_type: sending.type,
       byte_size: sending.size,
