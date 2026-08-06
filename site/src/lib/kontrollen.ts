@@ -50,6 +50,14 @@ interface Row {
   residentsPerFacility: number | null;
   /** SKR:s Insiktsmätning. Null när kommunen fått för få svar. */
   rating: number | null;
+  /**
+   * Sysselsatta inom hotell och restaurang per 10 000 invånare, ur SCB.
+   *
+   * Branschens storlek i kommunen, mätt på arbetsställets belägenhet. Den
+   * hör inte till kontrollen och visas därför inte i kontrollrutan, utan i
+   * Tathet.astro bredvid vårt eget antal serveringsställen.
+   */
+  hotelAndRestaurantJobsPer10k: number | null;
 }
 
 interface Dataset {
@@ -68,12 +76,20 @@ interface Dataset {
     population: { kpi: string; title: string; year: number };
     rating: { kpi: string; title: string; year: number };
   };
+  scb: {
+    /** CC0 kräver ingen källhänvisning. SCB rekommenderar den här. */
+    attribution: string;
+    license: string;
+    jobs: { table: string; title: string; industry: string; year: number };
+  };
   median: {
     shareControlled: number | null;
     shareFollowUp: number | null;
     facilitiesPerFte: number | null;
     residentsPerFacility: number | null;
     rating: number | null;
+    /** Riksmedian räknad över alla 290 kommuner, inte över våra tolv. */
+    hotelAndRestaurantJobsPer10k: number | null;
   };
   municipalities: Record<string, Row>;
 }
@@ -122,14 +138,38 @@ export interface Kontrollen {
 const MIN_FIGURES = 4;
 
 /**
- * De två rikskällorna, för källsidan.
+ * De tre rikskällorna, för källsidan.
  *
  * Koladas villkor kräver attributionen "Källa: Kolada" för obearbetade
  * uppgifter. Den står i rutan på kommunsidan, där uppgiften visas, och här,
- * där sajtens källor redovisas samlat.
+ * där sajtens källor redovisas samlat. SCB:s data är CC0 och kräver ingen
+ * källhänvisning alls; vi skriver ändå ut den de rekommenderar.
  */
 export function nationalSources() {
-  return { report: data.report, kolada: data.kolada, fetchedAt: data.fetchedAt };
+  return {
+    report: data.report,
+    kolada: data.kolada,
+    scb: data.scb,
+    fetchedAt: data.fetchedAt,
+  };
+}
+
+/** Kommunens invånarantal, nämnaren i varje tal per invånare. Kolada. */
+export function population(code: string): number | null {
+  return data.municipalities[code]?.population ?? null;
+}
+
+/** Sysselsättningen i branschen, för Tathet.astro. Null när SCB saknar tal. */
+export function branschen(code: string) {
+  const row = data.municipalities[code];
+  if (!row || row.hotelAndRestaurantJobsPer10k === null) return null;
+  return {
+    jobsPer10k: row.hotelAndRestaurantJobsPer10k,
+    median: data.median.hotelAndRestaurantJobsPer10k,
+    year: data.scb.jobs.year,
+    industry: data.scb.jobs.industry,
+    attribution: data.scb.attribution,
+  };
 }
 
 const built = new Map<string, Kontrollen | null>();

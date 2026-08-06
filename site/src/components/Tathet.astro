@@ -1,0 +1,111 @@
+---
+/**
+ * Hur tätt det ligger ställen att äta på i kommunen.
+ *
+ * Sajtens första jämförelsetal som inte är ett kontrollresultat. Alla andra
+ * tal på kommunsidan säger något om hygienen eller om kontrollen, och de får
+ * därför aldrig sorteras mellan kommuner. Det här får det: hur många
+ * restauranger och caféer det går på tio tusen invånare är en uppgift om
+ * orten, inte om hur rent det är på den.
+ *
+ * Två tal, och de ska läsas mot varandra. Vårt eget är antalet ställen, SCB:s
+ * är hur många som arbetar i branschen. Borgholm har omkring åtta gånger
+ * Stockholms täthet av ställen och ungefär samma sysselsättning per invånare,
+ * alltså många små säsongsöppna ställen mot färre och större. Den skillnaden
+ * behöver ingen brödtext, den syns i de två talen bredvid varandra.
+ *
+ * Riksmedianen står bara vid SCB:s tal, för den finns bara där. SCB och
+ * Kolada täcker alla 290 kommuner, medan vårt eget bestånd är tolv, och en
+ * median över tolv kommuner är inte riket utan vårt urval speglat tillbaka.
+ * Hellre ingen referenslinje än en påhittad.
+ */
+import { formatNumber } from '../lib/data';
+import type { Tathet } from '../lib/tathet';
+
+interface Props {
+  tathet: Tathet | null;
+  city: string;
+}
+
+const { tathet: t, city } = Astro.props;
+---
+
+{t && (
+  <section class="tathet" aria-labelledby="tathet">
+    <h2 id="tathet">Restaurangtätheten i {city}</h2>
+
+    <ul class="figures">
+      <li>
+        <b>{formatNumber(t.perTenThousand)}</b>
+        <span>restauranger och caféer per 10 000 invånare</span>
+      </li>
+
+      {t.jobsPer10k !== null && (
+        <li>
+          <b>{formatNumber(t.jobsPer10k)}</b>
+          <span>sysselsatta inom hotell och restaurang per 10 000 invånare</span>
+          {t.jobsMedian !== null && (
+            <span class="ref">riksmedian {formatNumber(t.jobsMedian)}</span>
+          )}
+        </li>
+      )}
+    </ul>
+
+    {/* Kort citat av en namngiven publikation vi återger ett tal UR, samma
+        undantag som kontrollrutan lever på. SCB:s data är CC0 och kräver
+        ingen källhänvisning alls, men talet är deras och inte vårt, och då
+        står utgivaren intill det. Se docs/18_sprakregler.md. */}
+    {t.attribution && (
+      <p class="source caption text-secondary">
+        Statistikdatabasen, SCB {t.jobsYear}. {t.attribution}.
+      </p>
+    )}
+  </section>
+)}
+
+<style>
+  /* Ingen ruta, se Kontrollen.astro och docs/19_formsystem.md. */
+  .tathet h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /* Samma rutnät som Kontrollen, Uncovered och FollowUpRate, så avsnitten i
+     bandet läser som samma sorts avsnitt. */
+  .figures {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--s-4);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .figures b {
+    display: block;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .figures span {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .ref {
+    margin-top: var(--s-1);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .source {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+  }
+</style>

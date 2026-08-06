@@ -38,6 +38,7 @@ import KommunBanner from './KommunBanner.astro';
 import KommunOversikt from './KommunOversikt.astro';
 import Kontrollen from './Kontrollen.astro';
 import Pagination from './Pagination.astro';
+import Tathet from './Tathet.astro';
 import Uncovered from './Uncovered.astro';
 import {
   formatDate,
@@ -54,6 +55,7 @@ import { kontrollen } from '../lib/kontrollen';
 import { mapDataset } from '../lib/map-data';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
+import { tathet } from '../lib/tathet';
 import { absolute, path } from '../lib/urls';
 
 interface Props {
@@ -119,6 +121,15 @@ const unassessed = currentPage === 1 ? unseen(kommun.slug) : null;
 const control = currentPage === 1 ? kontrollen(kommun.code) : null;
 
 /**
+ * Kommunens fjärde insikt, och den enda som inte handlar om hygien.
+ *
+ * Restauranger och caféer per invånare är en uppgift om orten och inte om hur
+ * rent det är på den, och den är därför också det enda talet på sajten som
+ * skulle få rangordnas mellan kommuner. Se lib/tathet.ts.
+ */
+const density = currentPage === 1 ? tathet(kommun.slug, kommun.code) : null;
+
+/**
  * Sida 1 bär kommunens profil. Sidorna 2 och framåt är fortsättningen på ett
  * register och ska inte upprepa den — dels vore det samma innehåll på 86
  * URL:er i Stockholms fall, dels är den som bläddrat sig till sida 12 redan
@@ -127,7 +138,7 @@ const control = currentPage === 1 ? kontrollen(kommun.code) : null;
 const profil = currentPage === 1 ? kommunProfil(kommun.slug) : null;
 
 /** Fördjupningen efter listan finns bara när minst en insikt har underlag. */
-const hasDjup = Boolean(profil || record || control || unassessed);
+const hasDjup = Boolean(profil || record || control || unassessed || density);
 
 /**
  * "Senast kontrollerade" bara på sida 1. Panelen "Om uppgifterna" står på
@@ -361,7 +372,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   {currentPage === 1 && hasDjup && (
     <section class="djup" id="om-kontrollen" aria-labelledby="djup-rubrik">
       <div class="djup-inner">
-        <h2 id="djup-rubrik">Så ser kontrollen ut i {city}</h2>
+        {/* Rubriken hette "Så ser kontrollen ut i {city}" så länge bandet bara
+            bar kontrolltal. Restaurangtätheten är inte ett kontrolltal, och
+            en rubrik som lovar kontroll över ett avsnitt om hur många
+            restauranger orten har är fel i sak. */}
+        <h2 id="djup-rubrik">{city} i siffror</h2>
+
+        <Tathet tathet={density} city={city} />
 
         {profil && (
           <CommonIssues

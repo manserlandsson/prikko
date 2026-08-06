@@ -182,9 +182,20 @@ härleda orgnr) i en och samma gratis källa.
 
 - SCB är medutgivare av de värdefulla datamängderna (B1), och driver dessutom
   företagsdatabasen med arbetsställen och CFAR-nummer. De öppna delarna sammanfaller
-  med B1. Arbetsställeregistrets fullständiga uppgifter, som vore den bättre nyckeln
-  för fysiska restauranger, är inte bekräftat fria på samma villkor. Bör utredas
-  separat innan man bygger på det.
+  med B1.
+- **Utrett 2026-08-06, och svaret är nej.** Arbetsställen per kommun och SNI finns
+  inte i den öppna statistikdatabasen. Företagsdatabasen (NV0101) redovisar företag
+  per näringsgren ned till femsiffrig SNI men helt utan region. Företagens ekonomi
+  (NV0109) redovisar arbetsställen med region, men bara per LÄN och bara på
+  SNI-avdelning, alltså `I-55-56` med hotellen inbakade. Den enda kommunvisa
+  tabellen med arbetsställen är `TAB5854`, som räknar arbetsställen inom
+  verksamhetsområden vart femte år och senast avser 2020.
+- Konsekvens för produkten: **täckningsgrad går inte att räkna.** Vårt register mot
+  SCB:s arbetsställen i SNI 56, per kommun, kräver uppgifter som bara finns i
+  Företagsregistrets uttagstjänst, som är en betaltjänst. Ett tal räknat mot
+  läns- eller riksnivå vore inte täckning, det vore en gissning med decimaler.
+- Det som DÄRIMOT finns per kommun för alla 290, årligen och gratis, är
+  sysselsättningen per näringsgren, se D3.
 
 ---
 
@@ -294,6 +305,52 @@ tillåtna och intressanta. Det är precis vad de två kommunkällorna kan bära.
 - Insats: medel. Exakt uttagsform och maskinläsbarhet är inte fullt verifierad, se
   osäkerheter. XML-uppladdningsformatet finns dokumenterat i Kontrollwiki.
 - Ej verifierat: om Uttagswebben har ett öppet API eller bara ett webbgränssnitt.
+
+### D3. SCB:s statistikdatabas, branschens storlek på orten
+
+- Myndighet och tjänst: SCB, statistikdatabasen via PxWebApi 2.0,
+  `https://api.scb.se/OV0104/v2beta/api/v2/`. Ingen nyckel, inget avtal.
+- Licens och kostnad: avgiftsfritt, **CC0 1.0 Universal**, alltså ingen
+  attributionsplikt alls. SCB rekommenderar "Källa: SCB" och vi skriver ut den där
+  ett tal ur databasen visas. Taken står i `/config`: 150 000 datacceller per uttag
+  och 30 anrop per tio sekunder per IP.
+- Nyckel: kommunkod. Den har vi på varje rad.
+- Uppdatering: årlig. Registerstatistiken över sysselsatta publiceras i november och
+  avser föregående år.
+- Vad vi hämtar: `TAB3204`, sysselsatta 15–74 år efter arbetsställets belägenhet,
+  näringsgren `I` hotell och restauranger, per kommun. Alla 290 kommuner, full
+  täckning, hämtat ur register och inte ur en enkät.
+- Vad det möjliggör: **restaurangtätheten på kommunsidan.** Vårt eget antal
+  restauranger och caféer per 10 000 invånare, med SCB:s sysselsättningstal bredvid
+  och en riktig riksmedian över alla 290 kommuner som referenslinje. De två talen
+  läses mot varandra: Borgholm har omkring åtta gånger Stockholms täthet av ställen
+  och ungefär samma sysselsättning per invånare, alltså många små säsongsöppna
+  ställen mot färre och större.
+- Det här är sajtens första jämförelsetal som INTE är ett kontrollresultat, och
+  därför det första som skulle få rangordnas. Se `pipeline/prikko/sources/scb.py`.
+- Juridisk risk: ingen, aggregerad myndighetsstatistik utan personuppgifter.
+- Insats: låg, ett rent REST-API utan nyckel.
+
+### D4. Avrått: hygien mot inkomst eller utbildningsnivå på DeSO-nivå
+
+SCB publicerar inkomst och utbildningsnivå per DeSO, och verksamheterna har
+koordinater, så kopplingen är tekniskt trivial. Den ska ändå inte byggas, och skälet
+är inte försiktighet utan att talet skulle bli falskt.
+
+Vår hygienbedömning är inte jämförbar mellan kommuner. Andelen verksamheter med
+kvarstående brister spänner från 0,3 procent i Jönköping till 23,7 i Oskarshamn, och
+det spannet speglar hur kommunerna publicerar och följer upp, inte hur rent det är.
+Stockholm läser utfallet ur återbesökets bedömning, Linköping och Örebro ur
+kommunens egen uppmärkning. En korrelation räknad över det underlaget mäter
+publiceringspraxis, och eftersom kommunerna skiljer sig också i inkomstprofil skulle
+den korrelationen se stark och kausal ut.
+
+Inom EN kommun faller det metodfelet bort, men då är underlaget några hundra
+verksamheter fördelade på DeSO-områden med tvåsiffriga tal, och utfallet är brus.
+
+Och vore talet både sant och starkt vore rubriken "fattiga områden har smutsigare
+restauranger". Den publicerar en namngiven verksamhets omgivning som förklaring till
+dess betyg, vilket är det enda vi konsekvent vägrar göra på verksamhetsnivå.
 
 ---
 

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Hämta hur kommunerna bedriver sin livsmedelskontroll.
 
-Två källor, båda på kommunnivå och båda med full täckning:
+Tre källor, alla på kommunnivå och alla med full täckning:
 
 - **Livsmedelsverkets myndighetsrapportering.** Antal anläggningar i
   registret, hur stor andel som kontrollerats, och kontrollerna uppdelade på
   planerade, uppföljande och händelsestyrda. Plus årsarbetskrafter.
 - **Kolada.** Invånarantal, och SKR:s Insiktsmätning där företagen betygsätter
   kommunens myndighetsutövning inom livsmedel.
+- **SCB:s statistikdatabas.** Sysselsatta inom hotell och restaurang efter
+  arbetsställets belägenhet, alltså hur stor branschen är i kommunen. Se
+  prikko/sources/scb.py för varför det blev just den uppgiften och varför
+  arbetsställen per kommun och SNI inte går att få ur öppna data.
 
     python3 pipeline/fetch_kommunkallor.py --out site/src/data/riket/kontrollen.json
 
@@ -54,7 +58,7 @@ from typing import Dict, Iterable, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from prikko.sources import kolada  # noqa: E402
+from prikko.sources import kolada, scb  # noqa: E402
 from prikko.sources.livsmedelsverket import (  # noqa: E402
     LATEST,
     REPORTS,
@@ -166,6 +170,18 @@ def residents_per_facility(a: Authority, population: Optional[float]) -> Optiona
     return round(population / a.facilities)
 
 
+def per_10k(count: Optional[float], population: Optional[float]) -> Optional[int]:
+    """Ett antal per 10 000 invånare, avrundat.
+
+    Nämnaren är kommunens folkbokförda, inte dess besökare. Det är en
+    begränsning och inte ett fel: talet svarar på hur mycket bransch det finns
+    per invånare, och en turistkommun får därför ett högt tal. Det är sant.
+    """
+    if count is None or not population:
+        return None
+    return round(10000 * count / population)
+
+
 def median(values: Iterable[Optional[float]]) -> Optional[int]:
     present = [v for v in values if v is not None]
     if len(present) < 100:
@@ -181,6 +197,9 @@ def build(report: Report, data_dir: Path) -> dict:
         kolada.verify(kpi)
     population = kolada.latest(kolada.POPULATION, datetime.now().year)
     rating = kolada.latest(kolada.FOOD_CONTROL_RATING, datetime.now().year)
+
+    jobs_table = scb.HOTEL_AND_RESTAURANT_JOBS
+    jobs = scb.latest(jobs_table, scb.verify(jobs_table))
 
     # Medianen räknas över HELA riket, inte över de kommuner vi publicerar.
     # Tolv kommuners median vore inte "riket i mitten", den vore vårt eget
@@ -199,6 +218,13 @@ def build(report: Report, data_dir: Path) -> dict:
             residents_per_facility(a, pop) for a, pop in nationwide
         ),
         "rating": median(rating.values.values()),
+        # Räknad över alla 290 kommuner, inte över de tolv vi publicerar. SCB
+        # och Kolada har båda full täckning, så nämnaren är hela landet och
+        # referenslinjen är en riktig riksmedian.
+        "hotelAndRestaurantJobsPer10k": median(
+            per_10k(count, population.values.get(code))
+            for code, count in jobs.values.items()
+        ),
     }
 
     municipalities: Dict[str, dict] = {}
@@ -221,6 +247,7 @@ def build(report: Report, data_dir: Path) -> dict:
             "population": None if pop is None else round(pop),
             "residentsPerFacility": residents_per_facility(a, pop),
             "rating": None if score is None else round(score),
+            "hotelAndRestaurantJobsPer10k": per_10k(jobs.values.get(code), pop),
         }
 
     return {
@@ -244,6 +271,16 @@ def build(report: Report, data_dir: Path) -> dict:
                 "kpi": kolada.FOOD_CONTROL_RATING.id,
                 "title": kolada.FOOD_CONTROL_RATING.title,
                 "year": rating.year,
+            },
+        },
+        "scb": {
+            "attribution": scb.ATTRIBUTION,
+            "license": scb.LICENSE,
+            "jobs": {
+                "table": jobs_table.id,
+                "title": jobs_table.title,
+                "industry": jobs_table.selection["SNI2007"][1],
+                "year": jobs.year,
             },
         },
         "median": medians,
@@ -271,7 +308,8 @@ def main() -> None:
     print(
         f"Skrev {len(data['municipalities'])} kommuner till {args.out} ur "
         f"{data['report']['title']} ({data['report']['authorities']} "
-        f"kontrollmyndigheter lästa) och Kolada.",
+        f"kontrollmyndigheter lästa), Kolada och SCB "
+        f"({data['scb']['jobs']['table']}, {data['scb']['jobs']['year']}).",
         file=sys.stderr,
     )
 

@@ -176,11 +176,11 @@ const jsonLd = {
     </section>
 
     <section>
-      <h2>Två källor om kontrollen själv</h2>
+      <h2>Tre nationella källor</h2>
       <p>
-        Kontrollerna kommer från kommunerna. Hur kontrollen bedrivs kommer från
-        två nationella källor, och de står på varje kommunsida under rubriken
-        "Så bedrivs kontrollen".
+        Kontrollerna kommer från kommunerna. Hur kontrollen bedrivs, och hur
+        stor restaurangbranschen är på orten, kommer från tre nationella
+        källor. De står längst ner på varje kommunsida.
       </p>
       <ul class="plain">
         <li>
@@ -197,11 +197,19 @@ const jsonLd = {
           Insiktsmätning ({national.kolada.rating.kpi}).
           {' '}{national.kolada.attribution}.
         </li>
+        <li>
+          <b>SCB:s statistikdatabas.</b> Sysselsatta inom hotell och restaurang
+          efter arbetsställets belägenhet, per kommun och år (tabell
+          {' '}{national.scb.jobs.table}). Licens {national.scb.license}, som
+          inte kräver någon källhänvisning.
+          {' '}{national.scb.attribution}.
+        </li>
       </ul>
       <p>
-        Talen visas alltid mot medianen för landets kontrollmyndigheter, aldrig
-        mot en annan kommun. <a href="/metodik/#jamfor">Vi rangordnar inte
-        kommuner</a>.
+        Kontrolltalen visas alltid mot medianen för landets
+        kontrollmyndigheter, aldrig mot en annan kommun.
+        {' '}<a href="/metodik/#jamfor">Vi rangordnar inte kommuner</a> på
+        kontrollresultat.
       </p>
     </section>
 
