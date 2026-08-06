@@ -1,4 +1,4 @@
-# ADR 0003 — Sluggen är permanent, och bortfall avpubliceras
+# ADR 0003: Sluggen är permanent, och bortfall avpubliceras
 
 **Status:** Beslutad · **Datum:** 2026-08-07
 

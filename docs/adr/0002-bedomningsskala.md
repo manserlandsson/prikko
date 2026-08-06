@@ -1,4 +1,4 @@
-# ADR 0002 — Bedömningsskala: tre nivåer i klarspråk
+# ADR 0002. Bedömningsskala: tre nivåer i klarspråk
 
 **Status:** Beslutad · **Datum:** 2026-08-02 · **Ersätter:** bokstavsskalan A–E i bibeln §4 och §14
 
@@ -8,8 +8,8 @@ Första utkastet använde en femgradig bokstavsskala A–E. Två invändningar v
 sig hålla, och den andra är den allvarliga.
 
 **E läses som godkänt i Sverige.** Skolbetygen är A–F där E är det lägsta
-*godkända* betyget och F är underkänt. En svensk läser vårt E — avsett för
-allvarliga brister — som "godkänt, nätt och jämnt". Fel signal på produktens
+*godkända* betyget och F är underkänt. En svensk läser vårt E, avsett för
+allvarliga brister, som "godkänt, nätt och jämnt". Fel signal på produktens
 viktigaste punkt.
 
 **Datan har tre nivåer, inte fem.** Sambruk/NSÖD-specens `assessment` är
@@ -30,14 +30,14 @@ Tre nivåer i klarspråk, som speglar källan ett till ett:
 | `null` | Ingen kontroll / Ingen aktuell kontroll | saknas eller äldre än tre år |
 
 Norge landade på tre ansikten av samma skäl. Danmark har fyra för att deras
-egen kontrollskala har fyra utfall — inte för att fyra är bättre.
+egen kontrollskala har fyra utfall, inte för att fyra är bättre.
 
 ### Historiken ger en utmärkelse, inte ett betygssteg
 
 Med tre nivåer hamnar ungefär två tredjedelar av beståndet på den bästa
 (verifierat i Linköping: 66,8 %). För att ändå skilja de genomgående skötsamma
 finns en separat utmärkelse när samtliga tre senaste kontroller är utan
-anmärkning — samma idé som Danmarks Elite-Smiley och den morot bibeln §4
+anmärkning, samma idé som Danmarks Elite-Smiley och den morot bibeln §4
 efterlyste.
 
 Historiken påverkar därmed aldrig hur allvarligt något bedöms, bara om
