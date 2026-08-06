@@ -86,6 +86,11 @@ Radering var aldrig ett alternativ: den hade kaskaderat ner i inspektioner,
 kontrollområden och företagsytans kopplingar, och frigjort sluggen så att nästa
 körning kunde ge samma adress till någon annan.
 
+`export_supabase.py` filtrerar bort `active = 0` innan ögonblicksbilden skrivs.
+Filtret måste stå där och inte bara i vyn `publishable_establishments`, för
+exporten läser tabellen direkt. Utan det hade avpubliceringen bara gällt
+sajtens dynamiska delar och inte de byggda sidorna, alltså inte synts alls.
+
 **Spärr.** Saknas mer än fem procent av kommunens publicerade bestånd, dock
 lägst tio rader, avpubliceras ingenting alls och körningen säger varför.
 Bortfall av den storleken är nästan alltid vårt fel. Stockholms hämtning hoppar

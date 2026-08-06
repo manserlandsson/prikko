@@ -23,12 +23,15 @@ någon läser fel kontrollhistorik om fel lokal.
 Körs utan beroenden:  python3 pipeline/tests/test_slugstabilitet.py
 """
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from export_supabase import export  # noqa: E402
 from load_supabase import (  # noqa: E402
     MAX_MISSING_ROWS,
     deactivate_missing,
@@ -243,6 +246,82 @@ class Bortfall(unittest.TestCase):
             deactivate_missing(client, "0180", [est("F-0180-kvar", "kvar")]), []
         )
         self.assertEqual(client.updates, [])
+
+
+class ExportKlient:
+    """Läsklient för exporten som svarar ur minnet."""
+
+    def __init__(self, establishments):
+        self.tables = {
+            "municipalities": [
+                {
+                    "code": "0180",
+                    "name": "Stockholms stad",
+                    "city": "Stockholm",
+                    "slug": "stockholm",
+                }
+            ],
+            "establishments": establishments,
+            "assessments": [],
+            "inspections": [],
+            "control_areas": [],
+            "images": [],
+        }
+
+    def all_rows(self, table, select="*", order="id"):
+        return self.tables[table]
+
+
+class Avpublicerat(unittest.TestCase):
+    """Exporten läser tabellen direkt, inte vyn publishable_establishments.
+
+    Utan ett eget filter hade `active = 0` inte synts på sajten alls: raden
+    hade exporterats, byggts till en sida och legat kvar med en historik som
+    aldrig mer uppdateras.
+    """
+
+    def _export(self, establishments):
+        with tempfile.TemporaryDirectory() as tmp:
+            export(ExportKlient(establishments), Path(tmp))
+            payload = json.loads(
+                (Path(tmp) / "stockholm.json").read_text(encoding="utf-8")
+            )
+        return [e["slug"] for e in payload["establishments"]]
+
+    def test_avpublicerad_verksamhet_byggs_inte(self):
+        slugs = self._export(
+            [
+                {
+                    "id": "F-0180-kvar",
+                    "municipality_code": "0180",
+                    "slug": "kvar",
+                    "name": "Kvar",
+                    "active": 2,
+                },
+                {
+                    "id": "F-0180-borta",
+                    "municipality_code": "0180",
+                    "slug": "borta",
+                    "name": "Borta",
+                    "active": 0,
+                },
+            ]
+        )
+        self.assertEqual(slugs, ["kvar"])
+
+    def test_active_null_byggs(self):
+        slugs = self._export(
+            [
+                {
+                    "id": "F-0180-gammal",
+                    "municipality_code": "0180",
+                    "slug": "gammal",
+                    "name": "Gammal",
+                    "active": None,
+                }
+            ]
+        )
+        self.assertEqual(slugs, ["gammal"])
 
 
 if __name__ == "__main__":

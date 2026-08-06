@@ -107,6 +107,19 @@ def export(client: Supabase, out_dir: Path) -> None:
     areas = client.all_rows("control_areas", order="id")
     images = client.all_rows("images", order="id")
 
+    # `active = 0` betyder att kommunen slutat lämna ut verksamheten, se
+    # deactivate_missing i load_supabase.py. Raden ligger kvar i databasen med
+    # sin historik och sin slug reserverad, men den ska inte byggas till en
+    # sida. Filtret måste stå här och inte bara i vyn
+    # publishable_establishments: exporten läser tabellen direkt, och utan
+    # det här hade avpubliceringen inte synts på sajten alls.
+    #
+    # NULL räknas som publicerad, precis som vyns coalesce(active, 2).
+    retired = sum(1 for e in establishments if e.get("active") == 0)
+    if retired:
+        establishments = [e for e in establishments if e.get("active") != 0]
+        print(f"  {retired} avpublicerade verksamheter utelämnas", file=sys.stderr)
+
     print(
         f"  {len(municipalities)} kommuner · {len(establishments)} verksamheter · "
         f"{len(inspections)} kontroller · {len(areas)} områden",
