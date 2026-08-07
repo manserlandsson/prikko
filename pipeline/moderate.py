@@ -439,10 +439,14 @@ def cmd_show(db: Supabase, kind: str, row_id: str) -> int:
         # Omdömet bilden hör till, ordagrant. En bild utan sammanhang är det
         # svåraste tänkbara granskningsärendet: texten säger om det är disken,
         # skylten eller en tallrik man tittar på.
-        review = review_of(db, row.get("review_id"))
-        if review is None:
-            print("\nVARNING: bilden har inget omdöme kvar. Det är raderat, och "
-                  "bilden borde ha följt med. Avslå den.")
+        review_id = row.get("review_id")
+        review = review_of(db, review_id) if review_id else None
+        if review_id and review is None:
+            print("\nVARNING: bilden pekar på ett omdöme som inte finns kvar. "
+                  "Det är raderat, och bilden borde ha följt med. Avslå den.")
+        elif review is None:
+            print("\nIngen text. Bilden är inskickad för sig, vilket är "
+                  "tillåtet. Granska den på vad den visar.")
         else:
             print(f"\n--- omdömet, {review['status']} ---")
             if review.get("rating"):
@@ -543,20 +547,35 @@ def cmd_publish(db: Supabase, kind: str, row_id: str, method: str | None) -> int
         return 0
 
     if table == "image_uploads":
-        # Omdömet och bilden är en enhet. Avslogs texten ska bilden inte
-        # publiceras, och finns texten inte kvar alls ska den inte heller det.
-        review = review_of(db, row.get("review_id"))
-        if review is None:
+        # En bild kan stå på egna ben. Kravet på ett omdöme med text är borttaget
+        # av ägaren: "Man ska såklart kunna ladda upp bilder endast.... behöver
+        # ej va text." Kolumnen review_id är därför nullbar, och NULL betyder
+        # "skickades utan omdöme", inte "omdömet är borta".
+        #
+        # Spärren nedan läste NULL som det senare och vägrade publicera varje
+        # fristående bild med "Författaren har tagit tillbaka det". Den gäller
+        # nu bara det den var skriven för: en bild som PEKAR på ett omdöme som
+        # inte finns kvar. Då har författaren raderat texten, och kaskaden
+        # borde ha tagit bilden med sig.
+        review_id = row.get("review_id")
+        review = review_of(db, review_id) if review_id else None
+
+        if review_id and review is None:
             raise ModerationError(
-                "Bilden har inget omdöme kvar. Författaren har tagit tillbaka "
-                "det, och bilden ska då inte publiceras. Avslå den i stället."
+                "Bilden pekar på ett omdöme som inte finns kvar. Författaren "
+                "har tagit tillbaka det, och bilden ska då inte publiceras. "
+                "Avslå den i stället."
             )
-        if review["status"] == "rejected":
+        if review is None:
+            # Fristående bild. Ingen text att väga in, alltså inget mer att
+            # kontrollera här.
+            pass
+        elif review["status"] == "rejected":
             raise ModerationError(
                 "Omdömet bilden hör till är avslaget. Text och bild granskas "
                 "som en enhet. Avslå bilden i stället."
             )
-        if review["status"] == "pending":
+        elif review["status"] == "pending":
             print("Obs: omdömets text väntar fortfarande på granskning. "
                   "Bilden publiceras nu, texten när du tar ställning till den.")
 
