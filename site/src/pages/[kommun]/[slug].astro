@@ -76,6 +76,7 @@ import {
   type Establishment,
 } from '../../lib/data';
 import { chainFor } from '../../lib/kedjor';
+import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 
@@ -96,6 +97,9 @@ interface Props {
 const { establishment: e } = Astro.props;
 const kommun = e.municipality;
 const source = sourceFor(kommun.slug)!;
+
+/** Stadsdelen verksamheten ligger i, när den har en egen sida. */
+const omrade = linkedAreaOf(e);
 
 const presentation = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 const latest = latestInspectionDate(e);
@@ -373,6 +377,13 @@ const breadcrumbs = {
         <h1>{e.name}</h1>
         <p class="place text-secondary">
           {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
+          {/* Stadsdelen sist i raden, och bara när den har en egen sida. Den
+              binder verksamheten till sitt område i länkgrafen, vilket är det
+              som gör områdessidorna nåbara nerifrån och inte bara uppifrån
+              kommunhubben. Se lib/omraden.ts. */}
+          {omrade && (
+            <> · <a href={path(kommun.slug, 'omrade', omrade.slug)}>{omrade.name}</a></>
+          )}
         </p>
       </header>
 
