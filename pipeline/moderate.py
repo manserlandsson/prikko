@@ -7,6 +7,25 @@
     python3 pipeline/moderate.py visa svar <id>
     python3 pipeline/moderate.py publicera svar <id>
     python3 pipeline/moderate.py avsla omdome <id> "Innehåller personuppgifter"
+    python3 pipeline/moderate.py synka
+
+DET FINNS NUMERA TVÅ VÄGAR IN I GRANSKNINGEN, och den här är den ena.
+
+  /konto/granska/  i webbläsaren. Kräver ett konto i community.admins och kör
+                   med den inloggades egen token. Se pipeline/schema_admin.sql.
+  den här filen    kör med service_role och går förbi radsäkerheten helt.
+
+Terminalen är RESERVEN och ska förbli det. Den fungerar när inloggningen inte
+gör det, den kan konvertera en HEIC som webbläsaren inte kan avkoda, och den
+kräver ingen session. Båda vägarna skriver samma kolumner, och `moderated_by`
+säger vilken som användes: en e-postadress betyder webbläsaren, ett användarnamn
+på en maskin betyder den här filen.
+
+ETT STEG HÖR BARA HEMMA HÄR: `synka`. Ett godkänt svar från en verksamhet ska
+till slut stå i public.inspections.owner_comment, alltså i den REDAKTIONELLA
+databasen. Ingen väg från en webbläsare får leda dit, så granskningssidan sätter
+bara status och lämnar `published_at` tom. Kommandot nedan skriver texten dit med
+service_role och stämplar raden.
 
 Det här verktyget ÄR redaktionen i utgivningsbevisets mening.
 
@@ -212,9 +231,25 @@ def _finish_jpeg(image) -> bytes:
         INTE kunde rita bilden, alltså är det HÄR den enda platsen där en
         GPS-koordinat till fotografens hem kan tas bort. Omdömen är anonyma, och
         en bild med koordinat är inte anonym.
+
+    RIKTNINGEN BAKAS IN FÖRST, och ordningen är hela poängen.
+
+    En telefon vrider inte bildrutan när man håller den på högkant. Den sparar
+    en liggande bild plus en EXIF-tagg som säger åt visaren att vrida den. Tar
+    man bort taggen utan att först utföra vridningen ligger bilden ner för
+    alltid, och det gick inte att ångra eftersom taggen då är borta.
+
+    Det var precis vad som hände: ägaren såg sina uppladdade bilder ligga ner.
+    Webbläsarvägen har aldrig haft felet, den skickar `imageOrientation:
+    'from-image'` till createImageBitmap och får en redan vriden bild. Den här
+    vägen finns för filer webbläsaren inte kunde avkoda, alltså måste samma sak
+    göras här, och `exif_transpose` är Pillows motsvarighet.
     """
     import io
 
+    from PIL import ImageOps
+
+    image = ImageOps.exif_transpose(image)
     image = image.convert("RGB")
     longest = max(image.size)
     if longest > MAX_EDGE:
@@ -386,6 +421,50 @@ def cmd_signals(db: Supabase) -> int:
         print()
 
     print("Ett kluster är inte ett bevis. Läs raderna innan du gör något.")
+    return 0
+
+
+def cmd_sync(db: Supabase) -> int:
+    """Skriver godkända svar in i den redaktionella databasen.
+
+    Det här är bryggan mellan granskningssidan och schemat `public`. Sidan i
+    webbläsaren sätter `status = 'published'` men lämnar `published_at` tom,
+    eftersom ingen väg från en webbläsare får leda in i kontrolldatan. Ett svar i
+    det läget är beslutat men inte skrivet, och det är just de raderna som
+    hämtas här.
+
+    Texten kopieras ORDAGRANT. Den kan inte ha ändrats på vägen: triggern
+    community.freeze_body() fäller varje försök att skriva om `body` efter
+    insändning, även med service_role.
+
+    Kommandot är idempotent. En rad som redan bär `published_at` hämtas inte, så
+    det går att köra före varje bygge utan att något skrivs två gånger.
+    """
+    rows = db.community(
+        "GET",
+        "owner_responses?select=id,inspection_id,body,establishment_id,moderated_by,moderated_at"
+        "&status=eq.published&published_at=is.null&order=moderated_at.asc",
+    )
+
+    if not rows:
+        print("Inget att synka. Alla godkända svar står redan i kontrolldatan.")
+        return 0
+
+    for row in rows:
+        db.public(
+            "PATCH",
+            f"inspections?id=eq.{urllib.parse.quote(row['inspection_id'])}",
+            {"owner_comment": row["body"]},
+        )
+        db.community(
+            "PATCH",
+            f"owner_responses?id=eq.{urllib.parse.quote(row['id'])}",
+            {"published_at": now()},
+        )
+        print(f"  {row['inspection_id']}  godkänt av {row.get('moderated_by')}")
+
+    print(f"\n{len(rows)} svar skrivna ordagrant till kontrollerna.")
+    print("Kör export_supabase.py och bygg om för att de ska synas på sajten.")
     return 0
 
 
@@ -723,6 +802,11 @@ def main() -> int:
 
     sub.add_parser("signaler", help="Betyg som publicerats direkt och är värda en blick")
 
+    sub.add_parser(
+        "synka",
+        help="Skriv svar som godkänts i webbläsaren till kontrolldatan",
+    )
+
     show = sub.add_parser("visa", help="Läs en post i sin helhet")
     show.add_argument("kind")
     show.add_argument("id")
@@ -757,6 +841,8 @@ def main() -> int:
             return cmd_queue(db)
         if args.command == "signaler":
             return cmd_signals(db)
+        if args.command == "synka":
+            return cmd_sync(db)
         if args.kind not in KINDS:
             print(f"Okänd sort: {args.kind}. Välj svar, omdome, anspråk eller bild.",
                   file=sys.stderr)
