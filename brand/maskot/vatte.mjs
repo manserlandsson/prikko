@@ -19,14 +19,16 @@
  * Och därmed öppnade sig figurens egna möjlighet, som ingen annan kandidat
  * på arket har:
  *
- *   LUVKANTEN ÄR ÖGONBRYNET. PERMANENT.
+ *   MÖSSANS KANT ÄR ÖGONBRYNET. PERMANENT.
  *
- * Luvan sitter lågt ner i pannan och ritas SIST, ovanpå ögonen. Dess underkant
- * är fem styrhöjder tvärs över ansiktet. Sänker man mittpunkten dyker kanten
- * ner mot näsroten och figuren blir sträng. Höjer man den välver kanten upp
- * och figuren blir vaken. Sänker man bara den ena sidan blir figuren skeptisk.
- * Ett enda talpar bär hela känsloregistret, och det är ett grepp med lång
- * tradition i tecknad film.
+ * Mössan sitter lågt ner i pannan och ritas SIST, ovanpå ögonen. Dess
+ * underkant är fem styrhöjder tvärs över ansiktet, och två av dem ligger rakt
+ * över var sitt öga. Sänker man mittpunkten dyker kanten ner mot näsroten och
+ * figuren blir sträng. Höjer man den välver kanten upp och figuren blir vaken.
+ * Sänker man bara den ena sidan blir figuren skeptisk. Skillnaden mellan
+ * clean och major är i praktiken ETT TAL, och hela känsloregistret bor i fem.
+ * Det är ett grepp med lång tradition i tecknad film och ingen annan kandidat
+ * på arket har en form som kan bära det.
  *
  * ── De tre skälen till att version 1 föll, och svaren ─────────────────
  *
@@ -39,21 +41,23 @@
  *    ALDRIG egen färg. Den bär figurens egen mörka ton, alltså mörkblå i
  *    grundläge och mörkröd i rött. En röd luva med rosa förkläde och stora
  *    tecknade ögon är inte jultomten, den är samma väsen i rött ljus.
- * 3. "Luvan tog för mycket plats och tryckte ner ansiktet." Konen är nu kort
- *    och ligger tätt mot hjässan. Den plats luvan tar ligger BAKOM huvudet i
- *    stället för ovanpå det, och kanten arbetar i stället för att bara vila.
+ * 3. "Luvan tog för mycket plats och tryckte ner ansiktet." Den långa konen
+ *    är struken. Luvan är nu en tätsittande ARBETSMÖSSA med ett mörkt uppslag
+ *    vid pannan och en kort SNÄRT bakåt. Den tar en tredjedel av den plats
+ *    konen tog, och kanten arbetar i stället för att bara vila.
  *
  * ── Egenheten som överlevde ───────────────────────────────────────────
  *
  * En oberoende granskare skrev att luvspetsen som släpar bakåt när figuren
  * går och viner fram när den pekar var den enda idén på hela arket som gick
- * att minnas en vecka senare. Den är kvar, och den är nu fyra ritade
- * riktningar i stället för en roterad form.
+ * att minnas en vecka senare. Den är kvar som mössans SNÄRT, och den är nu
+ * fyra ritade riktningar i stället för en roterad form.
  *
  * Rent SVG. Inga filter, inga masker, inga clipPath, inga id, noll gradient,
  * noll stroke utom munnen. Tjugo figurer kan ligga i samma dokument.
  *
- * Konstruktionsritningen med alla mått: vatte-konstruktion.md
+ * Konstruktionsritningen med alla mått, ögonsystemets fyra delar namngivna
+ * och hela uttryckstabellen: vatte-konstruktion.md
  */
 
 /* ══ 0. KONTRAKT ═══════════════════════════════════════════════════════ */
@@ -63,16 +67,17 @@ export const META = {
   koncept:
     'Gårdsvätten ur svensk folktro, den som går runt och kräver ordning, ' +
     'ritad med luvkanten som permanent ögonbryn.',
-  former: 21,   // banor i grundposen, skuggan inräknad. Se RAKNING nedan.
+  former: 23,   // former i grundposen, skuggan inräknad. Mätt, se RÄKNINGEN.
   farger: 6,    // bas, mörk, ljus, djup, vit, plus tillståndsneutral markgrå
   egenhet:
-    'Luvkanten är ögonbrynet. Den dyker ner mot näsroten när han är sträng ' +
-    'och välver upp när han är nöjd, och luvspetsen släpar bakåt när han går ' +
-    'och viner fram i samma sekund han hittar något.',
+    'Mössans kant är ögonbrynet. Den dyker ner mot näsroten när han är ' +
+    'sträng och välver upp när han är nöjd, och mössans snärt släpar bakåt ' +
+    'när han går och viner fram i samma sekund han hittar något.',
   svaghet:
-    'Det är inte ett djur, och det går inte att rita bort. Konen är dessutom ' +
-    'figurens största enskilda form och tål inte att göras längre än den är ' +
-    'utan att lyfta från huvudet och läsa som en vinge.',
+    'Det är inte ett djur, och det går inte att rita bort. Snärten är ' +
+    'dessutom figurens mest utstickande form och äter siluettens marginal ' +
+    'i toppen av rutan, alltså är den det första som måste kortas om ' +
+    'figuren någon gång ska stå i en trängre ram.',
   raka: 0,      // antal raka linjekommandon L, H och V. Mätt, se RAKNING.
 };
 
@@ -92,39 +97,51 @@ export const UTTRYCK = {
 export const GANG = { rutor: 8, halltid: [90, 70, 70, 110, 90, 70, 70, 110] };
 
 /**
- * RÄKNINGEN, redovisad öppet.
+ * RÄKNINGEN, redovisad öppet och mätt i utdata och inte i huvudet.
  *
- * Raka kommandon: 0. Ingen bana i figuren innehåller L, H eller V. Alla
+ * RAKA KOMMANDON: 0. Ingen bana i figuren innehåller L, H eller V. Alla
  * konturer är kubiska bezier härledda ur Catmull-Rom, alla lemmar är rect
  * med rx, alla pupiller och lock är circle, och munnen är ett A-kommando.
  * Ett rect och en circle har över huvud taget inga bankommandon och kan
- * därför inte bidra med ett hörn.
+ * därför inte bidra med ett hörn. Räkna själv:
  *
- * Former i grundposen, 21:
- *   1 skugga            8 näsa             15 pupill fram
- *   2 fot bak           9 öra bak          16 lock bak
- *   3 fot fram         10 öra fram         17 lock fram
- *   4 arm bak          11 inneröra bak     18 luva
- *   5 hand bak         12 inneröra fram    19 mun
- *   6 bål              13 ögonvita bak     20 arm fram
- *   7 förkläde         14 ögonvita fram    21 hand fram
- *   plus huvudet, som är bana 8 i ritordningen.
+ *   node -e "import('./brand/maskot/vatte.mjs').then(m=>console.log(
+ *     (m.figur({size:120}).match(/[LHVlhv]\s*[-\d.]/g)||[]).length))"
+ *
+ * FORMER i grundposen: 23, i ritordning.
+ *    1 skugga            9 öra fram          17 pupill fram
+ *    2 fot bak          10 huvud             18 underlock bak
+ *    3 fot fram         11 inneröra bak      19 underlock fram
+ *    4 arm bak          12 inneröra fram     20 mössan
+ *    5 hand bak         13 ögonvita bak      21 mössans uppslag
+ *    6 bål              14 ögonvita fram     22 arm fram
+ *    7 förkläde         15 pupill bak        23 hand fram
+ *    8 öra bak          16 mun
+ *
+ * Ögonlocken är två former till och ritas i stället för underlocken i de
+ * uttryck som har dem, alltså är 23 också taket.
+ *
+ * FÄRGER: 6. Bas, mörk, ljus och djup är alla härledda ur tonens egen
+ * grundfärg, plus vitt och en tillståndsneutral markgrå till skuggan.
  */
 
 /* ══ 1. PROPORTIONER OCH FÖRBUD ════════════════════════════════════════ */
 
-/** Uppmätta i 120-rutan. Läs dem som lag. */
+/** Uppmätta i den färdiga 120-rutan. Läs dem som lag. */
 export const PROPORTIONER = [
-  'Marken ligger på y 116. Figuren står från y 6 till y 115.',
-  'Huvudet är 70 brett och 59 högt, x 25..95, y 15..74. Bålen är 52 bred. Huvudet är alltså bredare än kroppen, och det är avsiktligt.',
-  'Ögonvitorna är 20 och 23 enheter breda, alltså 28,6 och 32,9 procent av huvudets bredd per öga. Duos är 31,6.',
-  'Ögonen sitter ISÄR med 7,5 enheters mellanrum och är OLIKA STORA. Det är vårt avstånd till Duos två lika cirklar i gemensam mask.',
-  'Pupillen är 46 procent av ögats bredd och sitter ALDRIG vertikalt centrerad, alltid under mitten.',
-  'Munnen är 14 enheter bred, alltså 20 procent av huvudets bredd. Duos näbb är 11,9 procent av kroppen.',
-  'Luvkanten styrs av fem y-värden vid x 18, 38, 58, 78 och 102. Den är ögonbryn och ögonlock i samma form.',
-  'Luvkanten skär aldrig under y 52 och aldrig över y 20. Utanför det spannet tappar ögonen sin plats.',
-  'Konens spets når aldrig längre bak än x 6 och aldrig högre än y 3. Bortom det lyfter luvan från huvudet och läser som en vinge.',
-  'Näsan sticker ut FÖRBI silhuettens framkant och tar noll plats i ansiktet.',
+  'Marken ligger på y 116. Figuren står från y 5 till y 116, mössans snärt inräknad.',
+  'Huvudet är 61 brett och 52 högt, x 29..90, y 26..78. Bålen är 51 bred, x 35..86, y 73..109.',
+  'Huvudet är alltså bredare än kroppen och nästan lika högt. Det är avsiktligt och det är samma grepp som Duo.',
+  'Ögonvitorna är 18,4 och 21,2 enheter breda, alltså 30 och 35 procent av huvudets bredd per öga. Duos är 31,6.',
+  'Ögonen sitter ISÄR med 6,2 enheters mellanrum och är OLIKA STORA. Det är vårt avstånd till Duos två lika cirklar i gemensam mask.',
+  'Pupillen är 52 procent av ögats bredd och sitter ALDRIG vertikalt centrerad, alltid under mitten.',
+  'Munnen är 15 enheter bred i clean, alltså 25 procent av huvudets bredd. Märkets nuvarande är 38 procent, Duos näbb 11,9.',
+  'Mössans kant styrs av fem y-värden vid x 33, 47, 60, 73 och 87. Talen vid 47 och 73 ligger rakt över ögonen.',
+  'Kanten skär aldrig under y 56 och aldrig över y 26. Utanför det spannet tappar ögonen sin plats.',
+  'Mössans kalott går fem till sex enheter UTANFÖR huvudets kontur. Det är den marginalen som gör den till ett plagg och inte till hår.',
+  'Mössans fästen ligger fem enheter INNANFÖR huvudets kontur, så att en remsa av huvudets egen färg syns utanför kanten.',
+  'Snärtens spets når aldrig längre bak än x 8 och aldrig högre än y 0.',
+  'Öronen sticker ut under kanten på båda sidor. Det är figurens enskilt starkaste avstånd till jultomten.',
   'En fot i taget bär tyngden. Den andra är vinklad eller lyft.',
 ];
 
@@ -260,40 +277,66 @@ function segment(pts, spanning = 1) {
  *  höger, är fylligare än baksidan. Ingen hjässa i egentlig mening: luvan
  *  äger den övre tredjedelen och huvudet behöver bara nå upp under kanten. */
 const HUVUD = mjuk([
-  [57, 15], [78, 19], [92, 33], [95, 48], [89, 63],
-  [75, 72], [58, 74], [42, 71], [30, 61], [25, 46], [28, 30], [41, 18],
+  [58, 26], [75, 29], [87, 40], [90, 53], [84, 67],
+  [72, 76], [57, 78], [43, 75], [33, 65], [29, 52], [32, 38], [44, 28],
 ], 0.94);
 
-/** BÅLEN. Päronformad, tyngdpunkten lågt, ingen midja. Bredast vid y 96. */
+/** BÅLEN. Päronformad, tyngdpunkten lågt, ingen midja. Bredast vid y 94.
+ *  Underkanten stannar på y 107 så att fötterna syns nedanför i stället för
+ *  att gömma sig bakom bålen, vilket var varv 1:s fel. */
 const KROPP = mjuk([
-  [60, 66], [74, 70], [84, 82], [87, 96], [80, 107],
-  [62, 110], [44, 108], [35, 97], [37, 82], [46, 70],
+  [60, 73], [74, 77], [84, 88], [86, 98], [78, 106],
+  [60, 109], [43, 107], [35, 98], [37, 88], [47, 77],
 ], 0.95);
 
 /** FÖRKLÄDET. Arbetskläder, inte julrock. Urringningen dippar i mitten så att
  *  det läses som ett plagg och inte som en bräda figuren håller framför sig.
- *  Det är den enda ljusa ytan på kroppen och därmed det som säger arbete. */
+ *  Det är den enda ljusa ytan på kroppen och därmed det som säger arbete.
+ *  Smalare än varv 1: täckte den nästan hela bålen försvann kroppsfärgen och
+ *  figuren blev en ljus klump med mörka kanter. */
 const FORKLADE = mjuk([
-  [51, 79], [61, 86], [71, 78], [79, 88], [78, 101],
-  [70, 108], [55, 109], [45, 103], [43, 89],
+  [51, 86], [60, 92], [70, 85], [77, 94], [76, 103],
+  [68, 108], [53, 109], [45, 103], [44, 94],
 ], 0.92);
 
-/** ÖRONEN. Vättens viktigaste anti-jultomte. En gubbe med luva och skägg är
- *  jultomten. Ett väsen med spetsiga öron som sticker ut under luvkanten är
- *  något annat, och det avgörs inom en tiondels sekund. Bladform, inte
- *  triangel: en spetsig triangel hade kostat tre raka segment. */
-const ORA_F = mjuk([[91, 40], [100, 39], [105, 47], [98, 56], [89, 55]], 0.9);
-const ORA_B = mjuk([[31, 39], [22, 38], [17, 45], [24, 54], [32, 52]], 0.9);
-const INNER_F = mjuk([[93, 43], [99, 43], [101, 48], [96, 52], [92, 51]], 0.9);
-const INNER_B = mjuk([[29, 42], [24, 42], [22, 47], [26, 51], [30, 50]], 0.9);
+/**
+ * ÖRONEN. Vättens viktigaste anti-jultomte, och det är inte en dekoration.
+ * En gubbe med luva och utan öron är jultomten. Ett väsen med spetsiga öron
+ * som sticker ut under luvkanten är något annat, och det avgörs inom en
+ * tiondels sekund.
+ *
+ * Örat måste därför ha en riktig SPETS, och en sluten mjuk kurva kan inte ge
+ * en spets. Alltså byggs det av två segment som möts i spetspunkten, precis
+ * som luvan. Basen ligger inne i huvudet och syns aldrig.
+ */
+function spetsform(bas1, mitt1, spets, mitt2, bas2) {
+  return `M${P(bas1)}` + segment([bas1, mitt1, spets], 0.88) +
+    segment([spets, mitt2, bas2], 0.88) + segment([bas2, bas1], 1) + 'Z';
+}
+const ORA_F = spetsform([85, 50], [93, 47], [101, 43], [96, 57], [86, 63]);
+const ORA_B = spetsform([35, 49], [28, 46], [20, 43], [25, 56], [35, 62]);
+/** Innerörat i MÖRK ton och inte ljus. En ljus fläck inne i örat läser som en
+ *  reflex eller en fläck. En mörk läser som skugga, alltså som djup, och det
+ *  är det som gör att formen entydigt blir ett öra. */
+const INNER_F = spetsform([88, 52], [94, 50], [99, 47], [95, 56], [89, 59]);
+const INNER_B = spetsform([33, 51], [28, 49], [23, 47], [27, 55], [33, 58]);
 
-/** NÄSAN. Sticker ut FÖRBI silhuettens framkant i stället för att ligga mitt
- *  i ansiktet. Grundtonen, inte ljus ton: en ljus boll läser som kind. En
- *  bula på konturen läser entydigt som näsa och tar noll plats från ögonen. */
-const NASA = mjuk([[88, 57], [97, 58], [101, 65], [95, 71], [87, 70]], 0.9);
+/*
+ * NÄSAN ÄR STRUKEN, och skälet är värt att skriva ned.
+ *
+ * Fyra varv, fyra placeringar, samma utfall varje gång: en bula i huvudets
+ * EGEN färg på huvudets EGEN kontur läser som en KIND och inte som en näsa,
+ * och gjord stor nog att inte göra det läste den i stället som en lös flik.
+ *
+ * Figuren blev omedelbart bättre utan den, och orsaken går att säga rakt ut:
+ * ansiktet har redan fyra starka drag, alltså mössans kant, öronen, ögonen
+ * och munnen. En näsa i samma färg som huvudet kan inte konkurrera med något
+ * av dem, men den konkurrerar ändå om platsen. Duo har heller ingen näsa,
+ * och det är samma bortval av samma skäl.
+ */
 
 /** SKUGGAN. Pillerform, aldrig oval. Ovaler antyder perspektiv. */
-const SKUGGA = { x: 28, y: 110, w: 64, h: 7 };
+const SKUGGA = { x: 31, y: 112, w: 58, h: 7 };
 
 /* ══ 5. ÖGONSYSTEMET, FYRA DELAR ═══════════════════════════════════════
  *
@@ -327,8 +370,8 @@ const VITFORM = [
 
 /** Ögonens geometri. Bortre ögat är MINDRE, det är kvartsvridningen. */
 const OGON = {
-  bak:  { x: 46, y: 46, rx: 10.0, ry: 11.0, spegel: -1 },
-  fram: { x: 75, y: 45, rx: 11.5, ry: 12.5, spegel: 1 },
+  bak:  { x: 47, y: 55, rx: 9.2, ry: 10.2, spegel: -1 },
+  fram: { x: 73, y: 54, rx: 10.6, ry: 11.6, spegel: 1 },
 };
 
 function vitaBana(o) {
@@ -343,12 +386,12 @@ function vitaBana(o) {
  * går aldrig över noll.
  */
 const KONVERGENS = 0.13;
-const PUPILL_ANDEL = 0.46;   // av ögats bredd. Duos är 47,5 procent.
+const PUPILL_ANDEL = 0.52;   // av ögats bredd. Duos är 47,5 procent.
 
 function pupill(o, blick, skala, farg) {
   const inat = o.spegel > 0 ? -KONVERGENS : KONVERGENS;
   const x = o.x + (blick[0] + inat) * o.rx * 0.72;
-  const y = o.y + Math.max(0.06, blick[1]) * o.ry * 0.86;
+  const y = o.y + Math.max(0.14, blick[1]) * o.ry * 0.92;
   const r = o.rx * PUPILL_ANDEL * skala;
   return `<circle cx="${+x.toFixed(2)}" cy="${+y.toFixed(2)}" r="${+r.toFixed(2)}" fill="${farg}"/>`;
 }
@@ -392,20 +435,21 @@ function underlock(o, niva, farg) {
  * spets är visaren. Kanten är ögonbrynet, och den ritas sist så att den
  * också skär in över ögonvitan uppifrån.
  *
- * Kanten är fem y-värden vid fasta x. Det låter enkelt och det är hela
- * poängen: nio uttryck skiljer sig åt i fem tal.
+ * Kanten är fem y-värden vid fasta x, och de fem x-lägena är valda så att
+ * varje tal betyder något man kan säga högt:
  *
- *   x 18   utanför huvudets bakkant, kanten börjar utanför bild
- *   x 38   över det BAKRE ögat
- *   x 58   mellan ögonen, alltså näsroten
- *   x 78   över det FRÄMRE ögat
- *   x 102  utanför huvudets framkant
+ *   x 33   luvans bakre fäste, INNANFÖR huvudets bakkant
+ *   x 47   BRYNET ÖVER DET BAKRE ÖGAT      (ögat sitter på x 47)
+ *   x 60   NÄSROTEN, mellan ögonen
+ *   x 73   BRYNET ÖVER DET FRÄMRE ÖGAT     (ögat sitter på x 73)
+ *   x 87   luvans främre fäste, INNANFÖR huvudets framkant
  *
- * Låg mittsiffra relativt ögonsiffrorna ger V-form, alltså sträng. Hög
- * mittsiffra ger välvning, alltså vaken eller bekymrad. En sida ensam sänkt
- * ger skepsis. Hela kanten sänkt ger tyngd och trötthet.
+ * Nio uttryck skiljer sig alltså åt i fem tal, och talen är läsbara: sänk
+ * näsroten under brynen och kanten blir ett V, alltså sträng. Höj den och
+ * kanten välver, alltså vaken. Sänk bara det bakre brynet och figuren blir
+ * skeptisk. Sänk allt och figuren blir tung och trött.
  */
-const KX = [18, 38, 58, 78, 102];
+const KX = [33, 47, 60, 73, 87];
 
 /**
  * KONEN, fyra ritade riktningar. En roterad spets ser påklistrad ut, alltså
@@ -415,17 +459,86 @@ const KX = [18, 38, 58, 78, 102];
  * Spetsen är figurens EGENHET och inte en dekoration: den släpar bakåt när
  * vätten är på väg, viner fram och pekar i samma sekund han hittar något,
  * står pigg upp när han är nöjd och hänger slak när han väntar.
+ *
+ * ── Varför det inte längre är en toppluva ─────────────────────────────
+ *
+ * Två varv ritades konen som en riktig tomteluva, alltså med hela pannlinjen
+ * som bas. Det gick inte, och skälet är räknebart. Basen är 64 enheter bred,
+ * och för att en kon ska LÄSA som en kon måste spetsen ligga minst lika
+ * långt bort som basen är bred. Det finns inte i en 120-ruta där huvudet
+ * redan tagit 52 enheter i höjd. Resultatet blev en bred platt flik som ögat
+ * läste som en FRISYR, båda gångerna, och det var samma invändning som fällde
+ * varv 1 av hela figuren.
+ *
+ * Luvan är därför nu en tätsittande arbetsmössa som följer hjässans rundning
+ * med tolv enheters marginal, plus en SNÄRT som skjuter ut bakåt. Snärten är
+ * kort och smal, alltså en accent i stället för figurens huvudform, och den
+ * gör exakt samma jobb som den långa konen gjorde: den pekar.
+ *
+ * Bytet vinner tre saker och kostar en. Det vinner att mössan är entydigt ett
+ * plagg, att ansiktet får tillbaka den plats luvan tog, och att jultomten
+ * försvinner helt, eftersom jultomtens luva ÄR den långa slaka konen. Det
+ * kostar att figuren är mindre omedelbart folkloristisk, vilket är ett pris
+ * värt att betala när alternativet inte fungerade.
  */
 const SPETSAR = {
-  /* Grundläget. Släpar bakåt av farten, tätt mot hjässan. */
-  bak:  { vand: false, a: [[101, 22], [86, 10], [58, 6], [34, 9]], p: [9, 26], b: [[19, 30], [28, 33]] },
+  /* Grundläget. Snärten släpar bakåt av farten. */
+  bak: {
+    vand: false,
+    a: [[95, 45], [96, 33], [88, 20], [66, 12], [42, 14], [26, 21]],
+    p: [8, 12], b: [[19, 24], [26, 34], [30, 43]],
+  },
   /* Viner fram och pekar ut över näsan. Används när han hittat något. */
-  fram: { vand: true,  a: [[16, 26], [26, 10], [56, 5], [88, 10]], p: [114, 20], b: [[103, 25], [99, 31]] },
-  /* Pigg, nästan rakt upp. Kortare kon, alltså en snärt och inte en fana. */
-  upp:  { vand: false, a: [[99, 24], [88, 12], [76, 5]], p: [66, 3], b: [[50, 8], [34, 12], [24, 22]] },
+  fram: {
+    vand: true,
+    a: [[26, 45], [25, 32], [33, 19], [52, 12], [74, 13], [92, 20]],
+    p: [110, 26], b: [[96, 33], [95, 45]],
+  },
+  /* Pigg, nästan rakt upp. Snärten reser sig i stället för att släpa. */
+  upp: {
+    vand: false,
+    a: [[95, 45], [96, 32], [90, 19], [83, 9]],
+    p: [74, 0], b: [[59, 12], [41, 15], [26, 25], [30, 43]],
+  },
   /* Hänger tungt ner bakom nacken. Ingen fart, ingen riktning. */
-  slak: { vand: false, a: [[99, 22], [85, 10], [56, 6], [30, 13]], p: [6, 41], b: [[12, 45]] },
+  slak: {
+    vand: false,
+    a: [[95, 45], [96, 33], [88, 20], [64, 12], [38, 17], [24, 30]],
+    p: [9, 48], b: [[21, 47]],
+  },
 };
+
+/**
+ * LUVANS UPPSLAG. Ett band lagt ovanpå luvans underkant, i tonens DJUPASTE
+ * ton, alltså samma färg som pupillen.
+ *
+ * Det här är svaret på varv 2:s allvarligaste invändning: luvan läste som en
+ * FRISYR och inte som ett plagg. Skälet var att en enfärgad mörk massa ovanpå
+ * ett huvud är precis vad hår är. Det som gör ett plagg till ett plagg är att
+ * det har en KANT, alltså en synlig avslutning där tyget viks.
+ *
+ * Bandet har tre jobb på en gång:
+ *   1. Det gör luvan till en mössa i stället för en lugg.
+ *   2. Det gör brynet till figurens mörkaste form, vilket är precis vad ett
+ *      ögonbryn är i ett verkligt ansikte.
+ *   3. Det lägger ett tredje värde i huvudet, vilket är exakt det märkets
+ *      kontrastproblem saknar.
+ *
+ * Färgvalet är inte fritt. Ett LJUST band hade läst som jultomtens vita
+ * brätte i rött läge, och i gråskala hade det varit omöjligt att skilja från
+ * päls. Ett band mörkare än luvan kan aldrig göra det.
+ *
+ * Tjockleken smalnar till nästan noll i båda ändarna, så att bandet slutar
+ * exakt där luvans kant slutar och aldrig visar en avhuggen ände.
+ */
+const BAND_T = [1.0, 6.0, 6.8, 6.4, 1.0];
+
+function luvband(k) {
+  const inre = KX.map((x, i) => [x, k[i]]);
+  const over = inre.map(([x, y], i) => [x, y - BAND_T[i]]);
+  return `M${P(inre[0])}` + segment(inre, 0.95) + segment([inre[4], over[4]], 1) +
+    segment([...over].reverse(), 0.95) + segment([over[0], inre[0]], 1) + 'Z';
+}
 
 function luvbana(k, spets) {
   const S = SPETSAR[spets] || SPETSAR.bak;
@@ -463,28 +576,50 @@ function luvbanaBeskuren(k) {
  * eftersom den ensam bar bedömningen. Nu bär luvkanten och ögonen den, och
  * munnen får krympa till 20 procent av huvudets bredd, alltså 14 enheter.
  * Det är fortfarande nästan dubbelt mot Duos näbb.
+ *
+ * ── Felet som varv 1 gjorde, och som är värt att skriva ned ───────────
+ *
+ * Märkets radie är 31,8 procent av RUTANS bredd, och dess mun är 38,3
+ * procent av samma ruta. Kvoten radie genom bredd är alltså 0,83, och det
+ * är kvoten som bestämmer bågens FORM. Varv 1 behöll radien i rutans mått
+ * men krympte munnen till 14 enheter. Kvoten sköt då upp till 2,7 och
+ * pilhöjden föll till under en enhet: munnen blev ett rakt streck.
+ *
+ * Rätt storhet att hålla när munnen byter SKALA är alltså kvoten, inte
+ * radien. Håller man radien när bredden krymper gör man exakt samma fel
+ * baklänges som när man håller pilhöjden och ökar bredden.
+ *
+ * Kvoten här är 0,62 och inte märkets 0,83, alltså en rundare mun än
+ * märkets. Det är ett medvetet val: en liten mun behöver mer krökning för
+ * att läsa som en båge alls, och maskot-mun.mjs har redan namnet `rundare`
+ * på i stort sett detta värde.
  */
-import { pilhojd, RADIE } from '../maskot-mun.mjs';
+/* eslint-disable-next-line import/first */
+import { pilhojd } from '../maskot-mun.mjs';
 
-const MUN_MITT = [67, 64];
-const MUN_R = RADIE.dagens * 120;   // 38,16 enheter. Prikkos egen radie, skalad.
-const MUN_SW = 4.6;
+const MUN_MITT = [63, 67];
+const MUN_KVOT = 0.62;   // radie genom bredd. Ger pilhöjd 25,2 procent av bredden.
+const MUN_SW = 4.3;
 
 /**
- * En cirkelbåge med konstant radie. `r` är riktningen som andel av full
- * pilhöjd: 1 är helt glad, negativ är ledsen, nära noll är tveksam.
- * `lut` är asymmetrin. Duolingos egen regel är att munnen ska favorisera
- * ena sidan eftersom en perfekt symmetrisk mun läser som ett tecken och
- * inte som ett ansikte.
+ * En cirkelbåge. `r` är riktningen som andel av full pilhöjd: 1 är helt glad,
+ * negativ är ledsen, nära noll är tveksam. `lut` är asymmetrin. Duolingos
+ * egen regel är att munnen ska favorisera ena sidan eftersom en perfekt
+ * symmetrisk mun läser som ett tecken och inte som ett ansikte.
  */
 function munbage([cx, cy], b, r, lut) {
-  const h = pilhojd(b, MUN_R) * r;
+  const h = pilhojd(b, b * MUN_KVOT) * r;
   const dy = Math.tan((lut * Math.PI) / 180) * (b / 2);
   const x1 = cx - b / 2, x2 = cx + b / 2;
   const y1 = cy - h / 2 - dy, y2 = cy - h / 2 + dy;
   const hh = Math.abs(h);
   const R = hh < 0.02 ? b * 40 : hh / 2 + (b * b) / (8 * hh);
-  const sweep = h >= 0 ? 1 : 0;
+  /* SWEEP. Mätt i en renderad bild och inte antaget. Med start till vänster
+   * och slut till höger går sweep 1 medurs över bågens TOPP, alltså uppåt,
+   * alltså ledsen. Glad kräver sweep 0. Kommentaren i maskot-mun.mjs påstår
+   * motsatsen och den modulens egen baraMunnen() ritar därför de tre
+   * bedömningarna spegelvänt. Det är rapporterat separat. */
+  const sweep = h >= 0 ? 0 : 1;
   return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${R.toFixed(2)} ${R.toFixed(2)} 0 0 ${sweep} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 
@@ -526,53 +661,56 @@ function munform(nyckel, mitt, farg) {
  *   munny  munnens förskjutning från MUN_MITT
  */
 const ANSIKTEN = {
-  /* De tre bedömningarna. Kanten gör hela arbetet och ögonen följer med. */
+  /* De tre bedömningarna. Kanten gör hela arbetet och ögonen följer med.
+     Läs talen som [bakfäste, brynBak, näsrot, brynFram, framfäste]. */
   clean: {
-    kant: [42, 36, 31, 34, 42], lockB: [0, 0], lockF: [0, 0], under: 0.20,
-    blick: [0.22, 0.26], pupill: 1, mun: 'bred', munny: [0, 0],
+    // Näsroten HÖGST, alltså kanten välver. Öppen och vaken.
+    kant: [50, 42, 35, 40, 49], lockB: [0, 0], lockF: [0, 0], under: 0.20,
+    blick: [0.22, 0.42], pupill: 1, mun: 'bred', munny: [0, 0],
   },
   minor: {
     // Skepsis. Bakre brynet dyker, främre lyfter. Ett halvt lock på det bakre.
-    kant: [41, 45, 37, 27, 33], lockB: [0.34, -7], lockF: [0.06, 3], under: 0,
-    blick: [0.30, 0.22], pupill: 0.98, mun: 'kink', munny: [-1, 1],
+    kant: [51, 52, 44, 34, 42], lockB: [0.34, -7], lockF: [0.06, 3], under: 0,
+    blick: [0.30, 0.38], pupill: 0.98, mun: 'kink', munny: [-1, 1],
   },
   major: {
-    // Stränghet. Kanten dyker mot näsroten och skär ner över ögonens insidor.
-    kant: [34, 40, 52, 44, 36], lockB: [0.10, 8], lockF: [0.12, 10], under: 0,
-    blick: [0.20, 0.20], pupill: 1.04, mun: 'streng', munny: [-1, 3],
+    // Stränghet. Näsroten LÄNGST NER, alltså kanten blir ett V som skär in
+    // över ögonens insidor. Ett enda tal skiljer den från clean.
+    kant: [45, 46, 56, 50, 44], lockB: [0.08, 6], lockF: [0.10, 8], under: 0,
+    blick: [0.20, 0.34], pupill: 1.04, mun: 'streng', munny: [-1, 3],
   },
 
   /* Arbetslägen. */
   soker: {
     // Koncentration. Kanten stram och hög, blicken långt ut åt sidan.
-    kant: [38, 33, 30, 32, 40], lockB: [0.16, 2], lockF: [0.10, 3], under: 0.10,
-    blick: [0.52, 0.10], pupill: 0.96, mun: 'smal', munny: [1, 1],
+    kant: [46, 39, 35, 38, 47], lockB: [0.16, 2], lockF: [0.10, 3], under: 0.10,
+    blick: [0.52, 0.26], pupill: 0.96, mun: 'smal', munny: [1, 1],
   },
   hittat: {
     // Ryck. Kanten flyger upp, ögonen maximalt öppna, pupillerna KRYMPER.
     // Att pupillen blir mindre i förvåning är det billigaste och starkaste
     // knepet i hela tecknarhantverket.
-    kant: [33, 25, 21, 24, 32], lockB: [0, 0], lockF: [0, 0], under: 0,
-    blick: [0.34, 0.14], pupill: 0.72, mun: 'oh', munny: [1, 2],
+    kant: [41, 31, 27, 30, 40], lockB: [0, 0], lockF: [0, 0], under: 0,
+    blick: [0.34, 0.30], pupill: 0.72, mun: 'oh', munny: [1, 2],
   },
   vantar: {
     // Tristess. Kanten låg och platt, locken halvvägs, blicken bortåt.
-    kant: [46, 47, 46, 45, 44], lockB: [0.48, 1], lockF: [0.52, 1], under: 0,
+    kant: [54, 54, 53, 52, 52], lockB: [0.48, 1], lockF: [0.52, 1], under: 0,
     blick: [-0.26, 0.30], pupill: 1, mun: 'rak', munny: [-2, 1],
   },
   nojd: {
     // Äkta leende. Underlocket trycker upp ögonen underifrån.
-    kant: [40, 35, 32, 34, 41], lockB: [0, 0], lockF: [0, 0], under: 0.44,
-    blick: [0.16, 0.10], pupill: 1.04, mun: 'glad', munny: [0, 1],
+    kant: [49, 41, 36, 39, 48], lockB: [0, 0], lockF: [0, 0], under: 0.44,
+    blick: [0.16, 0.30], pupill: 1.04, mun: 'glad', munny: [0, 1],
   },
   tom: {
     // Ingenting att granska. Blicken går bakåt, ut ur bilden.
-    kant: [43, 41, 39, 40, 44], lockB: [0.22, 0], lockF: [0.26, 0], under: 0,
-    blick: [-0.42, 0.22], pupill: 1, mun: 'rak', munny: [-3, 0],
+    kant: [52, 48, 46, 47, 52], lockB: [0.22, 0], lockF: [0.26, 0], under: 0,
+    blick: [-0.42, 0.38], pupill: 1, mun: 'rak', munny: [-3, 0],
   },
   fyrafyra: {
     // Letar efter något som inte finns. Blicken ner, kanten hopdragen.
-    kant: [37, 40, 44, 37, 33], lockB: [0.08, 4], lockF: [0.06, 5], under: 0,
+    kant: [47, 47, 51, 45, 41], lockB: [0.08, 4], lockF: [0.06, 5], under: 0,
     blick: [0.26, 0.62], pupill: 1, mun: 'oj', munny: [1, 2],
   },
 };
@@ -590,10 +728,10 @@ const ANSIKTEN = {
  */
 const GRUND = {
   lut: 4, hskift: [1, 0], hvrid: -3, spets: 'bak',
-  armB: { cx: 35, cy: 86, w: 11, h: 25, rot: -20 }, handB: { cx: 30, cy: 98, r: 6.4 },
-  armF: { cx: 87, cy: 85, w: 11, h: 25, rot: 26 },  handF: { cx: 93, cy: 96, r: 6.4 },
-  fotB: { cx: 46, cy: 109, w: 22, h: 11, rot: -13 },
-  fotF: { cx: 76, cy: 111, w: 25, h: 11, rot: 6 },
+  armB: { cx: 36, cy: 90, w: 12, h: 27, rot: -18 }, handB: { cx: 32, cy: 101, r: 6.6 },
+  armF: { cx: 85, cy: 89, w: 12, h: 27, rot: 24 },  handF: { cx: 90, cy: 100, r: 6.6 },
+  fotB: { cx: 47, cy: 110, w: 22, h: 11, rot: -13 },
+  fotF: { cx: 75, cy: 112, w: 25, h: 11, rot: 6 },
 };
 
 const POSER = {
@@ -606,48 +744,48 @@ const POSER = {
   /* Spanar av rummet. Upprätt, främre handen upp mot pannans kant. */
   soker: {
     lut: 1, hskift: [2, -1], hvrid: -6, spets: 'bak',
-    armB: { cx: 34, cy: 90, w: 11, h: 23, rot: -10 }, handB: { cx: 31, cy: 101, r: 6.4 },
-    armF: { cx: 88, cy: 80, w: 11, h: 24, rot: 56 },  handF: { cx: 97, cy: 71, r: 6.4 },
+    armB: { cx: 34, cy: 90, w: 12, h: 26, rot: -10 }, handB: { cx: 31, cy: 101, r: 6.6 },
+    armF: { cx: 87, cy: 90, w: 12, h: 27, rot: 48 },  handF: { cx: 96, cy: 83, r: 6.6 },
     fotB: { cx: 47, cy: 110, w: 22, h: 11, rot: -7 },
     fotF: { cx: 77, cy: 111, w: 24, h: 11, rot: 9 },
   },
   /* Rycker till bakåt och pekar. Luvspetsen viner fram över hjässan. */
   hittat: {
     lut: -7, hskift: [3, -2], hvrid: -8, spets: 'fram',
-    armB: { cx: 33, cy: 84, w: 11, h: 25, rot: -44 }, handB: { cx: 25, cy: 94, r: 6.4 },
-    armF: { cx: 90, cy: 76, w: 11, h: 26, rot: 74 },  handF: { cx: 102, cy: 68, r: 6.6 },
+    armB: { cx: 34, cy: 89, w: 12, h: 28, rot: -40 }, handB: { cx: 26, cy: 99, r: 6.6 },
+    armF: { cx: 92, cy: 92, w: 12, h: 29, rot: 52 },  handF: { cx: 104, cy: 86, r: 6.6 },
     fotB: { cx: 44, cy: 110, w: 22, h: 11, rot: -16 },
     fotF: { cx: 79, cy: 110, w: 25, h: 11, rot: 13 },
   },
   /* Står och väntar. Luvspetsen hänger slakt. Ena foten utåtvriden. */
   vantar: {
     lut: 0, hskift: [0, 1], hvrid: 2, spets: 'slak',
-    armB: { cx: 35, cy: 91, w: 11, h: 23, rot: -5 },  handB: { cx: 33, cy: 102, r: 6.4 },
-    armF: { cx: 87, cy: 91, w: 11, h: 23, rot: 7 },   handF: { cx: 90, cy: 102, r: 6.4 },
+    armB: { cx: 35, cy: 91, w: 12, h: 26, rot: -5 },  handB: { cx: 33, cy: 102, r: 6.6 },
+    armF: { cx: 87, cy: 91, w: 12, h: 26, rot: 7 },   handF: { cx: 90, cy: 102, r: 6.6 },
     fotB: { cx: 48, cy: 112, w: 21, h: 11, rot: -3 },
     fotF: { cx: 76, cy: 112, w: 24, h: 11, rot: 16 },
   },
   /* Nöjd. Lutar bakåt på hälarna, luvspetsen pigg uppåt. */
   nojd: {
     lut: -6, hskift: [1, -1], hvrid: 4, spets: 'upp',
-    armB: { cx: 34, cy: 89, w: 11, h: 24, rot: -16 }, handB: { cx: 30, cy: 100, r: 6.4 },
-    armF: { cx: 88, cy: 88, w: 11, h: 24, rot: 18 },  handF: { cx: 93, cy: 99, r: 6.4 },
+    armB: { cx: 34, cy: 89, w: 12, h: 27, rot: -16 }, handB: { cx: 30, cy: 100, r: 6.6 },
+    armF: { cx: 88, cy: 88, w: 12, h: 27, rot: 18 },  handF: { cx: 93, cy: 99, r: 6.6 },
     fotB: { cx: 47, cy: 112, w: 21, h: 11, rot: -9 },
     fotF: { cx: 77, cy: 111, w: 25, h: 11, rot: 17 },
   },
   /* Tom sida. Vänd bort, tittar tillbaka över axeln på ingenting. */
   tom: {
     lut: -2, hskift: [-3, 0], hvrid: 5, spets: 'slak',
-    armB: { cx: 35, cy: 91, w: 11, h: 24, rot: -3 },  handB: { cx: 33, cy: 103, r: 6.4 },
-    armF: { cx: 87, cy: 91, w: 11, h: 24, rot: 3 },   handF: { cx: 89, cy: 103, r: 6.4 },
+    armB: { cx: 35, cy: 91, w: 12, h: 27, rot: -3 },  handB: { cx: 33, cy: 103, r: 6.6 },
+    armF: { cx: 87, cy: 91, w: 12, h: 27, rot: 3 },   handF: { cx: 89, cy: 103, r: 6.6 },
     fotB: { cx: 47, cy: 112, w: 21, h: 11, rot: -15 },
     fotF: { cx: 75, cy: 112, w: 24, h: 11, rot: 21 },
   },
   /* 404. Böjd djupt fram och letar under något som inte finns. */
   fyrafyra: {
     lut: 20, hskift: [3, 2], hvrid: 8, spets: 'fram',
-    armB: { cx: 34, cy: 82, w: 11, h: 27, rot: -58 }, handB: { cx: 24, cy: 91, r: 6.4 },
-    armF: { cx: 89, cy: 94, w: 11, h: 27, rot: 28 },  handF: { cx: 96, cy: 106, r: 6.4 },
+    armB: { cx: 34, cy: 82, w: 12, h: 30, rot: -58 }, handB: { cx: 24, cy: 91, r: 6.6 },
+    armF: { cx: 89, cy: 94, w: 12, h: 30, rot: 28 },  handF: { cx: 96, cy: 106, r: 6.6 },
     fotB: { cx: 42, cy: 110, w: 22, h: 11, rot: -26 },
     fotF: { cx: 77, cy: 112, w: 25, h: 11, rot: 6 },
   },
@@ -726,7 +864,7 @@ function gangAnsikte(i) {
     kant: a.kant.map((v, j) => v + G_KANT[s] * (j === 2 ? 1.4 : 1)),
     lockB: [G_LOCK[s], 0], lockF: [G_LOCK[s] * 0.9, 0],
     under: 0.20 - G_LOCK[s] * 0.5,
-    blick: [0.30, 0.20],
+    blick: [0.30, 0.36],
     mun: G_MUN[s],
   };
 }
@@ -800,7 +938,7 @@ export function figur({
        * med ögonvitans form men 62 procent av dess storlek, placerad där
        * pupillen skulle ha suttit. Silhuetten av blicken finns kvar, men det
        * finns ingen kant som kan slamma igen. */
-      const k = 0.62;
+      const k = 0.74;
       const cx = o.x + (a.blick[0] + (o.spegel > 0 ? -KONVERGENS : KONVERGENS)) * o.rx * 0.4;
       const cy = o.y + Math.max(0.06, a.blick[1]) * o.ry * 0.4;
       return `<path d="${mjuk(VITFORM.map(([u, v]) => [cx + u * o.rx * k * o.spegel, cy + v * o.ry * k]), 0.96)}" fill="${VIT}"/>`;
@@ -821,19 +959,23 @@ export function figur({
     `<path d="${ORA_F}" fill="${BAS}"/>` +
     `<path d="${HUVUD}" fill="${BAS}"/>` +
     (siluett ? '' : `<path d="${INNER_B}" fill="${LJUS}"/><path d="${INNER_F}" fill="${LJUS}"/>`) +
-    `<path d="${NASA}" fill="${BAS}"/>` +
     oga(OGON.bak) + oga(OGON.fram) +
     (siluett ? '' : munform(a.mun, munmitt, VIT)) +
-    `<path d="${ansikte ? luvbanaBeskuren(a.kant) : luvbana(a.kant, p.spets)}" fill="${MORK}"/>`;
+    `<path d="${ansikte ? luvbanaBeskuren(a.kant) : luvbana(a.kant, p.spets)}" fill="${MORK}"/>` +
+    `<path d="${luvband(a.kant)}" fill="${DJUP}"/>`;
 
   const huvudgrupp =
     `<g transform="translate(${+(p.hskift[0]).toFixed(2)} ${+(p.hskift[1]).toFixed(2)})` +
-    `${p.hvrid ? ` rotate(${+p.hvrid.toFixed(1)} 60 46)` : ''}">${huvud}</g>`;
+    `${p.hvrid ? ` rotate(${+p.hvrid.toFixed(1)} 60 54)` : ''}">${huvud}</g>`;
 
   /* Beskuret läge: huvudet fyller rutan och kroppen är offrad, precis som
    * Duolingos app-ikon offrar kropp och vingar. */
   if (ansikte) {
-    return svg('26 14 72 72', size, klass, titel, huvud);
+    /* Beskärningen är räknad på huvudets egen ruta, x 29..90 och y 26..78,
+     * med fyra enheters luft. Öronen får skäras av: Duolingos app-ikon
+     * skär av både vingar och öronbuskar av exakt samma skäl, alltså att
+     * ögonen ska nå kant i kant. */
+    return svg('27 25 66 66', size, klass, titel, huvud);
   }
 
   const sq = gang ? G_SQ[((steg % 8) + 8) % 8] : 1;
@@ -854,7 +996,7 @@ export function figur({
       ` rx="${SKUGGA.h / 2}" fill="${SKUGGFARG}"/>`) +
     rekt(p.fotB, MORK) + rekt(p.fotF, MORK) +
     `<g transform="translate(0 ${+dy.toFixed(2)}) translate(60 112) scale(${+(1 / sq).toFixed(3)} ${sq.toFixed(3)}) translate(-60 -112)` +
-    ` rotate(${+p.lut.toFixed(1)} 60 106)">${inne}</g>`;
+    ` rotate(${+p.lut.toFixed(1)} 60 104)">${inne}</g>`;
 
   return svg('0 0 120 120', size, klass, titel, kropp);
 }

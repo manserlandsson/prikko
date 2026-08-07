@@ -82,10 +82,15 @@ function toner(ton) {
   const p = PALETT[ton] || PALETT.blue;
   return {
     bas: p.bas,
-    mork: p.mork,
+    /* Den mörka tonen HÄRLEDS och tas inte ur paletten. Prikkos egna mörka
+     * gula, #DEB201, ligger bara 12 procent under sin grundfärg, och i gult
+     * försvann därför lemmarna in i kroppen och banden in i ansiktet. Ett fast
+     * procenttal ger samma valörsprång i alla fyra kulörer, vilket är hela
+     * poängen med att bära teckningen på valör i stället för på svart och vitt. */
+    mork: morkare(p.bas, 0.26),
     ljus: ljusare(p.bas, 0.62),
     skugga: ljusare(p.bas, 0.84),
-    djup: morkare(p.mork, 0.52),
+    djup: morkare(p.bas, 0.62),
   };
 }
 
@@ -118,26 +123,26 @@ function mjuk(pts, spanning = 1) {
 /* ══ 2. HUVUDET, EGEN 100-RUTA ═════════════════════════════════════════
  *
  * Måtten står samlade i gravling-konstruktion.md. Kort:
- *   hjässa y 9,5   haka y 95,5   bredast 79 enheter vid y 50
+ *   hjässa y 9,5   haka y 93,5   bredast 81 enheter vid y 50, alltså x 10 till 91
  *   öronen är PUNKTER i samma slutna kurva som hjässan, inte pålimmade
  *   bezierbukter. Det var öronens 174-graders spets som gjorde att förra
  *   versionen läste som kantig i själva toppen av siluetten.
  */
 
 const HUVUD_PUNKTER = [
-  [10.5, 50.0], [12.0, 37.0], [17.0, 27.0],          // vänster tinning uppåt
-  [22.5, 21.0], [26.5, 16.5], [31.5, 18.0],          // vänster öra, fyllig bula
-  [35.2, 23.5],                                      // örats fäste, mjuk dal
-  [41.0, 14.0], [50.5, 9.5], [60.0, 14.0],           // hjässan
-  [65.8, 23.5],                                      // höger örfäste
-  [69.0, 18.0], [73.5, 16.5], [77.8, 21.0],          // höger öra
-  [83.0, 27.0], [88.0, 37.0], [89.5, 50.0],          // höger tinning nedåt
-  [88.2, 62.0], [84.0, 73.0], [76.0, 83.5],          // höger kind
-  [64.5, 92.0], [50.5, 95.5], [36.5, 92.0],          // haka
-  [25.0, 83.5], [17.0, 73.0], [12.3, 62.0],          // vänster kind
+  [10.0, 50.0], [11.4, 36.0], [16.0, 26.0],          // vänster tinning uppåt
+  [19.5, 20.5], [23.0, 14.5], [28.5, 13.5],          // vänster öra, rundad bula
+  [33.5, 18.5],                                      // örats fäste, grund dal
+  [40.0, 12.5], [50.5, 9.5], [61.0, 12.5],           // hjässan
+  [67.5, 18.5],                                      // höger örfäste
+  [72.5, 13.5], [78.0, 14.5], [81.5, 20.5],          // höger öra
+  [85.0, 26.0], [89.6, 36.0], [91.0, 50.0],          // höger tinning nedåt
+  [89.6, 62.0], [85.0, 73.0], [77.0, 82.5],          // höger kind
+  [65.0, 90.5], [50.5, 93.5], [36.0, 90.5],          // haka
+  [24.0, 82.5], [16.0, 73.0], [11.4, 62.0],          // vänster kind
 ];
 const HUVUD = mjuk(HUVUD_PUNKTER, 0.92);
-const HUVUD_BREDD = 79;
+const HUVUD_BREDD = 81;
 
 /* ══ 2b. ÖGONSYSTEMET, FYRA DELAR ══════════════════════════════════════
  *
@@ -164,8 +169,8 @@ const HUVUD_BREDD = 79;
  */
 
 const OGA = {
-  v: { x: 32.5, y: 49.5, rx: 12.6, ry: 13.35, vrid: -5, rim: 3.2, s: 1 },
-  h: { x: 69.5, y: 47.5, rx: 13.4, ry: 14.20, vrid: 6, rim: 3.0, s: -1 },
+  v: { x: 31.0, y: 50.5, rx: 12.4, ry: 13.10, vrid: -5, rim: 3.2, s: 1 },
+  h: { x: 71.0, y: 48.5, rx: 13.2, ry: 14.00, vrid: 6, rim: 3.0, s: -1 },
 };
 
 /* `s` är riktningen INÅT mot ansiktets mitt. Allt spegelvänt i ögonsystemet
@@ -199,11 +204,11 @@ function ogonvita(o) {
  * hjässan där det beskärs av huvudet, och avsmalnar nedåt in i nosen.
  */
 const BAND_PROFIL = [
-  [-0.63, -58.5], [-0.85, -34.5], [-0.97, -18.0], [-1.00, -4.0],   // ut, uppifrån
-  [-1.00, 6.0], [-0.96, 12.0], [-0.84, 17.0], [-0.52, 21.5],       // ut, nedåt
-  [0.00, 23.5],                                                     // nedre änden
-  [0.55, 21.5], [0.86, 15.0], [0.98, 7.0], [1.00, -2.0],           // in, uppåt
-  [0.96, -14.0], [0.84, -30.0], [0.58, -58.5],
+  [-0.86, -60], [-0.95, -44], [-1.00, -30], [-1.02, -18],          // yttersidan, uppifrån
+  [-1.02, -6], [-1.00, 6], [-0.96, 12], [-0.84, 17], [-0.52, 21.5],
+  [0.00, 23.5],                                                     // nedre änden, in i nosen
+  [0.50, 21.5], [0.82, 17], [0.94, 12], [0.99, 6],                  // innersidan, nedifrån
+  [1.00, -4], [0.92, -16], [0.74, -28], [0.56, -42], [0.40, -60],
 ];
 
 function band(o) {
@@ -219,9 +224,20 @@ const BAND_H = band(OGA.h);
  * system och inte tre lösa fläckar. En rundad sköld, bredast upptill.
  */
 const NOS = mjuk([
-  [40.0, 62.0], [45.0, 58.0], [51.0, 57.0], [57.0, 58.0], [62.0, 62.0],
-  [61.0, 67.5], [56.5, 72.0], [51.0, 74.0], [45.5, 72.0], [41.0, 67.5],
+  [39.5, 62.0], [45.0, 57.5], [51.0, 56.5], [57.0, 57.5], [62.5, 62.0],
+  [61.5, 67.5], [57.0, 72.0], [51.0, 74.5], [45.0, 72.0], [40.5, 67.5],
 ], 0.9);
+
+/**
+ * ÖRONSPETSARNA. Grävlingens öron är svarta med en VIT KANT, och det är det
+ * enda draget i hela ansiktet som ligger utanför bandet. De gör tre saker på
+ * en gång: de är artriktiga, de bryter upp bandens övre ändar som annars läser
+ * som två horn, och de ger figuren ett par ljusa punkter högst upp som ögat
+ * hittar innan det hittar något annat.
+ */
+const ORON =
+  `<ellipse cx="24.6" cy="17.2" rx="4.9" ry="4.0" transform="rotate(-22 24.6 17.2)"/>` +
+  `<ellipse cx="76.4" cy="17.2" rx="5.2" ry="4.2" transform="rotate(22 76.4 17.2)"/>`;
 
 /** 2. PUPILLEN. */
 function pupill(o, b, T, enkel) {
@@ -252,9 +268,9 @@ function lock(o, niva, v) {
  * teckenregel som locket: positivt är arg.
  */
 function bryn(o, dy, v) {
-  const L = o.rx * 0.95;
-  const cy = o.y - o.ry - 5.4 + dy;
-  const t = (u) => 3.7 - 1.6 * ((u + L) / (2 * L));
+  const L = o.rx * 0.85;
+  const cy = o.y - o.ry - 5.6 + dy;
+  const t = (u) => 4.0 - 1.9 * ((u + L) / (2 * L));
   const us = [-L, -L * 0.5, 0, L * 0.5, L];
   const lokal = [
     ...us.map((u) => [u, -t(u)]),
@@ -282,11 +298,15 @@ function bryn(o, dy, v) {
  * pilhöjden fortfarande 21,4 procent av munnens bredd, alltså exakt märkets
  * egen bågform, bara mindre.
  */
-const MUN_B = (0.22 * HUVUD_BREDD) / 100;              // 0,1738 av rutan
-const KRYMP = MUN_B / BREDD.storre;                    // 0,3778
+const MUN_B = (0.22 * HUVUD_BREDD) / 100;              // 0,1782 av rutan
+const KRYMP = MUN_B / BREDD.storre;                    // 0,3874
 const MUN_R = RADIE.dagens * KRYMP;
-const MUN_SW = TJOCKLEK.dagens * KRYMP;
-const MUN_CY = 80.0;
+/* Tjockleken skalas inte rakt av. Märkets 21,4 procent av munbredden gällde en
+ * mun som var två och en halv gånger så bred, och ett stryk som krymper linjärt
+ * försvinner: en linje läses av ögat i absoluta pixlar och inte i andelar.
+ * 27 procent av den nya bredden ger tillbaka ungefär samma synliga vikt. */
+const MUN_SW = MUN_B * 0.27;
+const MUN_CY = 78.5;
 
 const MUNNAR = {
   glad: { n: 'clean', b: 1.06, r: 1, lut: 2, djup: 2.6 },
@@ -301,6 +321,25 @@ const MUNNAR = {
 const BAGE = /^M([-\d.]+) ([-\d.]+)A([-\d.]+) [-\d.]+ 0 0 (\d) ([-\d.]+) ([-\d.]+)$/;
 
 /**
+ * MUNNENS VARVFLAGGA. Buggen var verklig, den är rättad i källan, och den
+ * lokala vändningen som stod här är därför borttagen.
+ *
+ * Historiken är värd att spara eftersom den säger något om metod. Två
+ * figuragenter rapporterade oberoende av varandra att `clean` renderades som
+ * en ledsen båge. En numerisk kontroll av samma bana svarade att allt var
+ * rätt, och den kontrollen hade fel av rätt utseende. Det som avgjorde saken
+ * var att rendera de tre munnarna ensamma och TITTA på bilden.
+ *
+ * Sensmoral: för geometri är renderingen facit, inte resonemanget. En
+ * sweep-flagga går att räkna fel på i huvudet men aldrig att se fel på i en
+ * bild. Fixen ligger nu i maskot-mun.mjs, alltså på ett ställe för alla
+ * figurer, och den här funktionen skickar bara vidare.
+ */
+function munD(nyckel, b, lut, r) {
+  return munbana(51, MUN_CY, 100, nyckel, b, lut, r);
+}
+
+/**
  * Munhålan byggs PÅ munbanan och inte bredvid den: ändpunkterna och radien
  * läses ur maskot-mun.mjs egen utdata, så munnen förblir enda källa också när
  * figuren öppnar munnen. Returbågen är ett riktigt A-kommando, och hålans två
@@ -312,10 +351,13 @@ function kavitet(d, djup) {
   const [x1, y1, Rt, sw, x2, y2] = [+t[1], +t[2], +t[3], +t[4], +t[5], +t[6]];
   const b = Math.hypot(x2 - x1, y2 - y1);
   const ht = Rt - Math.sqrt(Math.max(0, Rt * Rt - (b / 2) ** 2));
-  const h = (sw === 1 ? ht : -ht) + djup;
+  const ned = sw === 0 ? ht : -ht;              // positiv = munnen buktar nedåt
+  const h = ned + djup;
   if (h <= 0.05) return '';
   const R = h / 2 + (b * b) / (8 * h);
-  return `${d}A${R.toFixed(2)} ${R.toFixed(2)} 0 0 0 ${x1} ${y1}Z`;
+  /* Samma båge baklänges vänder flaggan, alltså sweep 1 för en djupare
+   * nedbuktning på vägen tillbaka. */
+  return `${d}A${R.toFixed(2)} ${R.toFixed(2)} 0 0 1 ${x1} ${y1}Z`;
 }
 
 /* ══ 3. UTTRYCKEN ══════════════════════════════════════════════════════
@@ -413,12 +455,12 @@ const KROPP = mjuk(KROPP_PUNKTER, 0.95);
  * kroppen och beskärs mot kroppens egen bana, så att den yttre kanten per
  * definition är kroppens och den inre är en enda mjuk kurva. */
 const RYGG = mjuk([
-  [27.0, 83.0], [33.5, 74.0], [43.5, 68.2], [56.0, 65.6], [68.0, 65.2], [80.0, 68.4],
-  [88.0, 58.0], [80.0, 44.0], [56.0, 41.0], [32.0, 45.0], [24.0, 60.0],
+  [26.0, 77.0], [33.0, 68.5], [43.5, 63.0], [56.0, 60.4], [68.0, 60.2], [80.0, 63.4],
+  [88.0, 52.0], [80.0, 40.0], [56.0, 37.0], [32.0, 41.0], [22.0, 56.0],
 ], 0.9);
 
 const UNDER = mjuk([
-  [31.0, 91.5], [41.5, 96.8], [54.0, 98.4], [66.5, 95.6], [79.0, 87.5],
+  [32.5, 95.5], [42.5, 100.2], [54.0, 101.6], [66.0, 99.2], [79.0, 92.5],
   [86.0, 100.0], [79.0, 114.0], [54.0, 117.0], [29.0, 114.0], [24.0, 100.0],
 ], 0.9);
 
@@ -507,64 +549,64 @@ function fot([cx, cy], vinkel, w = 11, h = 7) {
  * Fötterna står isär och är olika vinklade. Den medvetna asymmetrin. */
 const POSER = {
   klorHogt: {
-    hoger: { a: [70, 66], b: [84, 56], c: [89, 42], v: -74 },
-    vanster: { a: [43, 69], b: [33, 78], c: [29, 92], v: 86 },
+    hoger: { a: [70, 66], b: [84, 56], c: [89, 42], v: -74, k: 11 },
+    vanster: { a: [43, 70], b: [35, 80], c: [33, 93], v: 99, k: 3 },
     ben: [[46, 94, 44, 104], [66, 94, 70, 104]],
     fot: [[40, 108, -7], [74, 109, 6]],
     lut: 0, kropp: '',
   },
   klorUt: {
-    hoger: { a: [70, 71], b: [86, 73], c: [97, 74], v: -6 },
-    vanster: { a: [43, 70], b: [32, 76], c: [26, 84], v: 56 },
+    hoger: { a: [70, 70], b: [83, 67], c: [90, 60], v: -38, k: 10 },
+    vanster: { a: [43, 71], b: [34, 79], c: [30, 89], v: 78, k: 3 },
     ben: [[46, 94, 42, 104], [66, 94, 71, 104]],
     fot: [[38, 108, -9], [75, 109, 9]],
     lut: 2, kropp: '',
   },
   klorNed: {
-    hoger: { a: [70, 73], b: [82, 85], c: [86, 98], v: 62 },
-    vanster: { a: [43, 72], b: [34, 85], c: [32, 98], v: 104 },
+    hoger: { a: [70, 74], b: [79, 85], c: [79, 97], v: 86, k: 2 },
+    vanster: { a: [43, 73], b: [35, 84], c: [34, 96], v: 94, k: 2 },
     ben: [[46, 96, 43, 105], [66, 96, 70, 105]],
     fot: [[40, 109, -5], [73, 110, 5]],
-    lut: -6, kropp: 'translate(60 108)scale(1.06 0.9)translate(-60 -108)',
+    lut: -6, kropp: 'translate(60 108)scale(1.04 0.94)translate(-60 -108)',
   },
   hojer: {
-    hoger: { a: [70, 65], b: [84, 53], c: [88, 37], v: -80 },
-    vanster: { a: [43, 68], b: [33, 77], c: [29, 91], v: 86 },
+    hoger: { a: [70, 65], b: [84, 53], c: [88, 37], v: -80, k: 12 },
+    vanster: { a: [43, 69], b: [35, 79], c: [33, 92], v: 99, k: 3 },
     ben: [[46, 94, 44, 104], [66, 94, 70, 104]],
     fot: [[40, 108, -7], [74, 109, 6]],
     lut: 0, kropp: 'translate(0 -3)',
   },
   nosar: {
-    hoger: { a: [70, 69], b: [80, 81], c: [84, 95], v: 62 },
-    vanster: { a: [43, 70], b: [35, 81], c: [34, 94], v: 88 },
+    hoger: { a: [70, 69], b: [80, 81], c: [84, 95], v: 62, k: 9 },
+    vanster: { a: [43, 70], b: [35, 81], c: [34, 94], v: 88, k: 3 },
     ben: [[46, 94, 42, 104], [66, 94, 71, 104]],
     fot: [[38, 108, -7], [75, 109, 6]],
     lut: -7, kropp: '',
   },
   lutar: {
-    hoger: { a: [70, 67], b: [78, 59], c: [77, 49], v: -118 },
-    vanster: { a: [43, 68], b: [33, 77], c: [29, 91], v: 86 },
+    hoger: { a: [70, 67], b: [82, 61], c: [88, 52], v: -104, k: 9 },
+    vanster: { a: [43, 69], b: [35, 79], c: [33, 92], v: 99, k: 3 },
     ben: [[46, 94, 45, 104], [66, 94, 69, 104]],
     fot: [[41, 108, -7], [73, 109, 6]],
     lut: 0, kropp: '',
   },
   sitter: {
-    hoger: { a: [70, 69], b: [78, 79], c: [76, 91], v: 74 },
-    vanster: { a: [43, 70], b: [36, 81], c: [36, 92], v: 92 },
+    hoger: { a: [70, 69], b: [80, 78], c: [83, 90], v: 68, k: 3 },
+    vanster: { a: [43, 70], b: [34, 79], c: [31, 90], v: 106, k: 3 },
     ben: [[46, 92, 40, 102], [66, 92, 74, 102]],
     fot: [[36, 106, -7], [78, 107, 6]],
     lut: 0, kropp: 'translate(60 108)scale(1.04 0.94)translate(-60 -108)',
   },
   tittar_ned: {
-    hoger: { a: [70, 69], b: [78, 81], c: [76, 93], v: 78 },
-    vanster: { a: [43, 70], b: [36, 82], c: [36, 93], v: 92 },
+    hoger: { a: [70, 69], b: [80, 80], c: [84, 92], v: 72, k: 4 },
+    vanster: { a: [43, 70], b: [34, 80], c: [31, 92], v: 106, k: 3 },
     ben: [[46, 94, 43, 104], [66, 94, 70, 104]],
     fot: [[39, 108, -7], [74, 109, 6]],
     lut: -2, kropp: '',
   },
   graver: {
-    hoger: { a: [70, 69], b: [84, 77], c: [90, 91], v: 44 },
-    vanster: { a: [43, 70], b: [35, 82], c: [34, 95], v: 90 },
+    hoger: { a: [70, 69], b: [84, 77], c: [90, 91], v: 44, k: 11 },
+    vanster: { a: [43, 70], b: [35, 82], c: [34, 95], v: 90, k: 3 },
     ben: [[46, 94, 42, 104], [66, 94, 72, 104]],
     fot: [[38, 108, -7], [76, 109, 6]],
     lut: -9, kropp: '',
@@ -609,19 +651,22 @@ function gangRuta(i) {
   };
   const [xn, ln] = ben(t, 57);
   const [xb, lb] = ben(t + Math.PI, 57);
-  const armH = [rund(87 + 11 * Math.cos(t + Math.PI)), rund(70 + 15 * Math.sin(t + Math.PI))];
-  const armV = [rund(27 + 10 * Math.cos(t)), rund(80 + 14 * Math.sin(t))];
+  /* Armarna svänger FRAM och TILLBAKA, inte ut åt sidorna. Basen ligger tätt
+   * intill kroppen och utslaget är litet: en figur vars armar går rakt ut i
+   * halva rutorna läser som att den flaxar, inte som att den går. */
+  const armH = [rund(84 + 7 * Math.cos(t + Math.PI)), rund(82 + 10 * Math.sin(t + Math.PI))];
+  const armV = [rund(30 + 6 * Math.cos(t)), rund(86 + 9 * Math.sin(t))];
   const sk = KROPP_SKALA[i];
   return {
     hoger: {
       a: [70, 68],
-      b: [rund((70 + armH[0]) / 2 + 4), rund((68 + armH[1]) / 2)],
-      c: armH, v: rund(18 - 52 * Math.cos(t + Math.PI)),
+      b: [rund((70 + armH[0]) / 2 + 3), rund((68 + armH[1]) / 2)],
+      c: armH, v: rund(50 - 34 * Math.cos(t + Math.PI)), k: 5,
     },
     vanster: {
       a: [43, 69],
-      b: [rund((43 + armV[0]) / 2 - 4), rund((69 + armV[1]) / 2)],
-      c: armV, v: rund(90 - 40 * Math.cos(t)),
+      b: [rund((43 + armV[0]) / 2 - 3), rund((69 + armV[1]) / 2)],
+      c: armV, v: rund(96 - 26 * Math.cos(t)), k: 5,
     },
     ben: [
       [46, 94, rund(xn - 12), rund(104 - ln)],
@@ -674,7 +719,7 @@ function ansikte(p, T, enkel) {
   const brynen = par.map(([k, i]) => `<path d="${bryn(OGA[k], p.bryn[i], p.brynv[i])}"/>`).join('');
 
   const m = MUNNAR[p.mun] || MUNNAR.glad;
-  const d = munbana(51, MUN_CY, 100, m.n, MUN_B * m.b, m.lut, MUN_R * m.r);
+  const d = munD(m.n, MUN_B * m.b, m.lut, MUN_R * m.r);
   const sw = MUN_SW * 100 * (enkel ? 1.18 : 1);
   const hal = enkel ? '' : kavitet(d, m.djup);
   const munnen =
@@ -688,6 +733,7 @@ function ansikte(p, T, enkel) {
   if (enkel) {
     return (
       `<g fill="${T.mork}"><path d="${BAND_V}"/><path d="${BAND_H}"/><path d="${NOS}"/></g>` +
+    `<g fill="${T.ljus}">${ORON}</g>` +
       par.map(([k]) => {
         const o = OGA[k];
         return `<ellipse cx="${o.x}" cy="${o.y}" rx="${N(o.rx * 0.94)}" ry="${N(o.ry * 0.94)}" fill="#fff"/>`;
@@ -702,6 +748,7 @@ function ansikte(p, T, enkel) {
     `<clipPath id="${idO}">` + par.map(([k]) => `<path d="${ogonvita(OGA[k])}"/>`).join('') + `</clipPath>` +
     `</defs>` +
     `<g fill="${T.mork}"><path d="${BAND_V}"/><path d="${BAND_H}"/><path d="${NOS}"/></g>` +
+    `<g fill="${T.ljus}">${ORON}</g>` +
     vitor +
     `<g clip-path="url(#${idO})">${pupiller}</g>` +
     `<g clip-path="url(#${idB})"><g fill="${T.mork}">${locken}</g><g fill="${T.ljus}">${brynen}</g></g>` +
@@ -763,15 +810,15 @@ export function figur({
    * centralt av byggskriptet och ritas alltså inte här. Huvudets fyllning går
    * kant i kant i den ljusa valören, så att huvudkonturen försvinner. */
   if (inramat) {
-    const RAMSKALA = 1.26;
+    const RAMSKALA = 1.20;
     if (siluett) {
       /* Det enfärgade enpathsläget, alltså faviconen: bara arttecknet och
        * munnen står kvar, i en färg, på genomskinlig botten. */
       const m = MUNNAR[p.mun] || MUNNAR.glad;
-      const d = munbana(51, MUN_CY, 100, m.n, MUN_B * m.b, m.lut, MUN_R * m.r);
+      const d = munD(m.n, MUN_B * m.b, m.lut, MUN_R * m.r);
       return (
         `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"${kl}${a11y}>` +
-        `<g transform="translate(50 50)scale(${RAMSKALA})translate(-51 -58)">` +
+        `<g transform="translate(50 50)scale(${RAMSKALA})translate(-51 -55)">` +
         `<g fill="#111"><path d="${BAND_V}"/><path d="${BAND_H}"/><path d="${NOS}"/></g>` +
         `<path d="${d}" fill="none" stroke="#111" stroke-width="${N(MUN_SW * 118)}" stroke-linecap="round"/>` +
         `</g></svg>`
@@ -782,7 +829,7 @@ export function figur({
       `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"${kl}${a11y}>` +
       `<rect width="100" height="100" fill="${T.ljus}"/>` +
       `<defs><clipPath id="${id}"><path d="${HUVUD}"/></clipPath></defs>` +
-      `<g transform="translate(50 50)scale(${RAMSKALA})translate(-51 -58)">` +
+      `<g transform="translate(50 50)scale(${RAMSKALA})translate(-51 -55)">` +
       `<g clip-path="url(#${id})">${ansikte(p, T, enkel)}</g></g></svg>`
     );
   }
@@ -791,22 +838,32 @@ export function figur({
   const idK = nyttId();
   const q = g || POSER[p.pose] || POSER.klorHogt;
   const hdy = g ? g.hdy : 0;
-  const arm = (o, w) => `${lem(o.a, o.b, o.c, w, w * 0.78)}${tass(o.c, o.v)}`;
+
+  /* VARVRIKTNINGEN. Arm och tass, ben och fot, ritades tidigare som delbanor i
+   * EN path-d. Tassens polära punktlista löper motsols och lemmens medsols,
+   * alltså subtraherade de varandra i överlappet och det slog ett vitt hål rakt
+   * genom handleden. Felet syns bara där två delbanor korsas, alltså inte i
+   * konturprovet, och det är precis den sorten som överlever fyra granskningar.
+   *
+   * Botemedlet är strukturellt: varje form är ett EGET element. Två element kan
+   * inte subtrahera varandra oavsett hur punktlistorna vänds. */
+  const bit = (d) => `<path d="${d}" fill="${T.mork}"/>`;
+  const arm = (o, w) => bit(lem(o.a, o.b, o.c, w, w * 0.78)) + bit(tass(o.c, o.v, 9, o.k ?? 10));
   const benTass = q.ben
-    .map(([x1, y1, x2, y2]) => lem([x1, y1], [(x1 + x2) / 2, (y1 + y2) / 2 + 1], [x2, y2], 8, 7))
+    .map(([x1, y1, x2, y2]) => bit(lem([x1, y1], [(x1 + x2) / 2, (y1 + y2) / 2 + 1], [x2, y2], 8, 7)))
     .join('');
-  const fotter = q.fot.map(([x, y, v]) => fot([x, y], v)).join('');
+  const fotter = q.fot.map(([x, y, v]) => bit(fot([x, y], v))).join('');
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 120 120"${kl}${a11y}>` +
     `<defs><clipPath id="${idK}"><path d="${KROPP}"/></clipPath></defs>` +
     `<g transform="${q.kropp || ''}rotate(${q.lut} 60 108)">` +
     (siluett ? '' : `<path d="${SKUGGA}" fill="${T.skugga}"/>`) +
-    `<path d="${benTass}${fotter}" fill="${T.mork}"/>` +
-    `<path d="${arm(q.vanster, 7.5)}" fill="${T.mork}"/>` +
+    benTass + fotter +
+    arm(q.vanster, 7.5) +
     `<path d="${KROPP}" fill="${T.bas}"/>` +
     (siluett ? '' : `<g clip-path="url(#${idK})"><path d="${RYGG}" fill="${T.ljus}"/><path d="${UNDER}" fill="${T.mork}"/></g>`) +
-    `<path d="${arm(q.hoger, 8)}" fill="${T.mork}"/>` +
+    arm(q.hoger, 8) +
     `<g transform="translate(57 ${34 + hdy})rotate(${p.hr})scale(0.62)translate(-51 -52)">` +
     huvud(p, T, enkel, siluett) +
     `</g></g></svg>`
@@ -817,7 +874,7 @@ export const META = {
   namn: 'Prikko, grävlingen',
   koncept:
     'En grävling mitt i ett skrap, där artens två lodräta band inte ligger bredvid ögonen utan ÄR ögonen: ögonvitan är urskuren ur bandet, och hela blicken lever inuti arttecknet.',
-  former: 22,
+  former: 26,
   farger: 6,
   egenhet:
     'Bandet och ögat är samma form. Ögat kan bokstavligen inte lämna arttecknet, för hela ögonsystemet är beskuret mot bandet, och de ljusa brynen ligger fritt inne i det mörka.',

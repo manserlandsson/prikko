@@ -140,8 +140,19 @@ export function munbana(cx, cy, w, nyckel, bredd = 'storre', lutning = 2, radie 
   // det R, vid mellanlägena en mycket större radie, alltså en flackare båge.
   const hh = Math.abs(h);
   const Rr = hh < 0.001 ? b * 40 : hh / 2 + (b * b) / (8 * hh);
-  // sweep 1 böjer nedåt mellan ändpunkterna, alltså glad i en y-nedåt-ruta.
-  const sweep = h >= 0 ? 1 : 0;
+  // Sweep-flaggan, och en anteckning värd att spara.
+  //
+  // Här satt en bugg i tre rundor: flaggan var omvänd, så clean ritades ledsen
+  // och major glad. Den överlevde en numerisk kontroll som gav rätt svar av fel
+  // skäl, och den fångades av två figuragenter oberoende av varandra som helt
+  // enkelt renderade munnen och TITTADE på den.
+  //
+  // Sensmoralen är värd mer än raden: för geometri är renderingen facit, inte
+  // resonemanget. Ett SVG-bågkommandos sweep-flagga går att räkna fel på i huvudet
+  // men aldrig att se fel på i en bild.
+  //
+  // sweep 0 böjer bågen NEDÅT mellan ändpunkterna, alltså glad i en y-nedåt-ruta.
+  const sweep = h >= 0 ? 0 : 1;
   return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${Rr.toFixed(2)} ${Rr.toFixed(2)} 0 0 ${sweep} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 

@@ -330,11 +330,14 @@ inarbetad på hela sajten och igenkänningen är gratis.</td>
 <td>120-ruta, marken på y 116.</td></tr>
 </table>
 
-<p>Tricket som får det inramade läget att sitta ihop är Duolingos eget: <b>ramens
-fyllning är figurens egen grundton.</b> Huvudets kontur försvinner då in i bakgrunden och
-det enda som syns är dragen. Märket blir därmed strukturellt identiskt med dagens,
-alltså en färgad rundad kvadrat med två vita prickögon och en vit munbåge, och det som
-tillkommer är artens tecken.</p>
+<p>Första försöket lät ramens fyllning vara figurens egen grundton, som hos Duolingo.
+Det var fel för oss och ägaren såg det direkt: Duos ansikte har fyra värden inuti det gröna
+fältet, ljusare ögonmask, vit ögonvita, mörk pupill och gul näbb, medan vår figur då hade
+ett värde plus vitt. Märket blev en klump. Kontrastprovet längre ned prövar fem vägar ur
+det, mätta i WCAG-kontrast.</p>
+<p>Nu när figuren har riktiga ögon har märket dessutom fått tillbaka de värden det saknade:
+ögonvitan är ljus, pupillen mörk och pälsen ligger däremellan. Klumpproblemet var alltså
+delvis en följd av samma förbud som gjorde figuren själlös.</p>
 
 <p>Det ger också ett hårt och nyttigt villkor som varje figur här har ritats mot från
 början: <b>ansiktet måste fungera både beskuret i kvadraten och som del av en hel
@@ -453,6 +456,18 @@ formulerad som svensk folktro, hundratals år innan tjänsten fanns.</td>
 <td>Två. Det är inte ett djur, och ägaren sa djur. Och julkopplingen är svår att bli
 av med året runt. Måste vara vätte i arbetskläder med grå luva, aldrig jultomte.</td></tr>
 
+<tr><td><b>Uttern</b></td>
+<td>Den som måste hålla rent för att överleva.</td>
+<td>Uttern putsar pälsen konstant, eftersom det är luften mellan hårstråna som håller den
+varm och torr. En utter som slutar sköta pälsen dör. Det är ett djur för vilket renlighet
+inte är en vana utan ett livsvillkor, och det är precis vad en hygientjänst vill säga.
+Uttern finns dessutom i hela Sverige, är en av naturvårdens största framgångshistorier
+efter att ha varit nära utrotad, och är inte upptagen av någon känd digital tjänst.</td>
+<td>Siluetten säger inte utter. I ren kontur läser den närmare björnunge eller murmeldjur,
+eftersom arten bärs av morrhår, bred mule och svans, alltså av det som försvinner först
+vid nedskalning. Grävlingen och tvättbjörnen har artmarkeringar i själva siluetten som
+uttern saknar.</td></tr>
+
 <tr><td><b>Spårhunden</b></td>
 <td>Den som luktar sig fram till vad som faktiskt hände i köket.</td>
 <td>Det enda djur allmänheten redan förknippar med att söka upp något dolt.</td>
@@ -501,19 +516,19 @@ försvara, inte en regel som råkade skrivas ned.</p>
 <tr><th>Regel</th><th>Skäl</th><th>Status</th></tr>
 
 <tr><td><b>Ögonen är solida vita prickar, ingen ögonvita och ingen pupill</b></td>
-<td>Detta är den regel som ifrågasattes, och den förtjänade det, eftersom Duos hela
-känsloregister bevisligen bärs av ögonvita, pupillplacering och ögonlockets vinkel.
-Fyra skäl att ändå välja bort det. <b>Ett:</b> fältet gör det. Reddits Snoo har solida
-ögon utan pupill, GitLabs tanuki har en negativ triangel, Androids bugdroid har en vit
-cirkel med radie 4 i ett huvud med radie 84, LEGO 1978 har två solida svarta prickar, och
-Twitter-fågeln och GitHubs Invertocat har inget öga alls. Duo är undantaget, inte normen.
-<b>Två:</b> ögonvita kostar en regel till. Duolingo tvingas skriva att pupillen aldrig får
-centreras vertikalt, annars ser figuren obehaglig ut. <b>Tre:</b> en solid prick överlever
-16 px, en glob med pupill och glansdager gör det inte, och vårt märke måste ned till 16.
-<b>Fyra:</b> det är vårt tydligaste avstånd till Duo. Där han har ljust fält med mörk
-kärna har vi mörkt fält med ljus kärna. Det är en inversion, inte en variation.</td>
-<td><span class="tagg ok">Behålls</span><br><span class="note">Ägaren: "fine utan
-pupillar osv"</span></td></tr>
+<td><b>Regeln är upphävd, och den var rundans dyraste misstag.</b> Skälen som skrevs
+här var alla sanna var för sig: fältet gör det, Reddits Snoo har solida ögon, GitLabs
+tanuki en negativ triangel, Androids bugdroid en vit cirkel med radie 4 i ett huvud med
+radie 84. Ögonvita kostar en regel till, och Duolingo tvingas skriva att pupillen aldrig
+får centreras vertikalt. En solid prick överlever 16 px, en glob med pupill gör det inte.
+<br><br>Felet var inte i något enskilt skäl utan i vad de tillsammans användes till: de
+förbjöd ögon i HELA FIGUREN för att MÄRKET måste klara 24 px. Vi lät den minsta ytan
+bestämma över den största. Duolingo gör tvärtom och det står i vår egen mätning: deras
+app-ikon är ansiktet beskuret ur en figur som ritats fri.
+<br><br>Nu gäller i stället: figuren har ögonvita, pupill, ögonlock och bryn. Märket får
+en egen förenklad ritning. Två detaljnivåer, gränsen mätt vid 32 px.</td>
+<td><span class="tagg varning">Upphävd</span><br><span class="note">Priset: avståndet
+till Duo är inte längre gratis och måste bäras av ögonens FORM. Se ögonavsnittet.</span></td></tr>
 
 <tr><td><b>Uttrycket bärs av en enda parameter</b></td>
 <td>Danska smileyordningen ändrar bara munnen, och Fødevarestyrelsen gick 1 januari 2022
@@ -584,9 +599,10 @@ SVG-filer.</p>
 <table>
 <tr><th>Mått</th><th>Duo, uppmätt</th><th>Prikko</th><th>Vad skillnaden betyder</th></tr>
 
-<tr><td>Banor i helkropp</td><td>15</td><td>11 respektive 13</td>
-<td>Vi ligger under deras egen budget. Det är inte automatiskt bättre: 6 former är enligt
-dem själva för abstrakt.</td></tr>
+<tr><td>Banor i helkropp</td><td>15</td><td>Grävlingen 26, gårdsvätten 23, uttern 23</td>
+<td>Vi ligger nu ÖVER deras budget, och det är en direkt följd av ögonen: fyra delar per
+öga är åtta banor som inte fanns förut. Duolingo räknar 30 som för många, så vi ligger
+inom ramen, men marginalen är borta och varje ny detalj måste betala för sig.</td></tr>
 
 <tr><td>Gradienter</td><td>0 i fyra officiella filer</td><td>0</td>
 <td>Samma. Volymen görs av platta ytor som ligger på varandra.</td></tr>
@@ -594,19 +610,22 @@ dem själva för abstrakt.</td></tr>
 <tr><td>Konturer</td><td>0 stroke-attribut</td><td>0</td><td>Samma.</td></tr>
 
 <tr><td>Ögonvitans bredd</td><td>31,6 % av ikonen per öga, 63 % tillsammans</td>
-<td>Ingen ögonvita. Pricken är 12,8 % av bredden</td>
-<td>Den största skillnaden i hela jämförelsen, och den är ett val. Deras öga är fem gånger
-så stort som vårt.</td></tr>
+<td>Uttern 35,4 och 32,3 % av huvudets bredd. Tidigare: ingen ögonvita alls, pricken
+var 12,8 %</td>
+<td>Här låg hela skillnaden, och den är stängd. Tidigare var deras öga fem gånger så
+stort som vårt.</td></tr>
 
 <tr><td>Pupillen</td><td>47,5 % av ögats bredd, aldrig vertikalt centrerad</td>
-<td>Ingen pupill</td>
-<td>Här ligger konsekvensen: Duo bär hela sitt känsloregister i ögonen. Vi har stängt den
-kanalen och måste därför bära det i munnen.</td></tr>
+<td>Uttern 46 % av ögats bredd, alltid 39 % av radien under mitten, konvergerande inåt</td>
+<td>Kanalen är öppnad. Uppmätt i den färdiga ritningen sitter uttern och grävlingen
+tydligt utanför mitten. Detta är ett tal som ska kontrolleras vid varje omritning,
+eftersom en centrerad pupill är det som gör en figur obehaglig.</td></tr>
 
 <tr><td>Munnens bredd</td><td>Övre näbben 11,9 % av kroppens bredd</td>
-<td>38,3 % av märkets bredd</td>
-<td>Vår mun är över tre gånger så bred relativt figuren. Det är rätt, eftersom den bär
-det ögonen bär hos honom.</td></tr>
+<td>Uttern 21 %, grävlingen 22 % av huvudets bredd. Tidigare 38,3 % av märkets</td>
+<td>Munnen har krympt, som avsett. Den bär inte längre tre besked ensam, den delar med
+ögonen. Kvar är fortfarande dubbelt mot Duo, vilket är rimligt: hans näbb är en accent,
+vår mun är bedömningens bärare i märket.</td></tr>
 
 <tr><td>Var rörelsen sitter</td><td>Mest i ansiktet. Kroppen står mestadels stilla, aldrig
 plötsliga eller snabba rörelser</td>
@@ -648,15 +667,21 @@ mätning. Duo bär sitt känsloregister i ögonen. Vi hade förbjudit ögon.</p>
 <table>
 <tr><th></th><th>Duo, uppmätt</th><th>Prikko, tidigare</th><th>Prikko, nu</th></tr>
 <tr><td>Ögonvitans bredd per öga</td><td>31,6 % av ikonen</td><td>Ingen ögonvita.
-Pricken var 12,8 %</td><td>Ögonvita, riktad mot Duos storleksordning</td></tr>
+Pricken var 12,8 %</td><td>Uttern 35,4 och 32,3 % av huvudets bredd</td></tr>
 <tr><td>Båda ögonen tillsammans</td><td>63 % av ikonens bredd</td><td>25,6 %</td>
-<td>Ögonen ska dominera ansiktet</td></tr>
+<td>Uttern 67,7 %. Alltså förbi Duo, vilket är en varning och inte en seger, se
+varumärkesnoten nedan.</td></tr>
 <tr><td>Pupill</td><td>47,5 % av ögats bredd, aldrig vertikalt centrerad</td>
-<td>Ingen</td><td>Finns, och sitter aldrig centrerad</td></tr>
+<td>Ingen</td><td>Uttern 46 % av ögats bredd, 39 % av radien under mitten,
+konvergerande inåt</td></tr>
 <tr><td>Ögonlock</td><td>Egen form som skär in uppifrån, bär känslan</td>
-<td>Fanns inte</td><td>Egen form, fyra vinklar</td></tr>
+<td>Fanns inte</td><td>Grävlingen och uttern har eget lock. Gårdsvätten har inget lock
+alls, där gör mösskanten hela arbetet, vilket är en egen och fungerande lösning men bör
+kallas vid sitt namn.</td></tr>
 <tr><td>Munnens bredd</td><td>Näbben 11,9 % av kroppsbredden</td>
-<td>38,3 % av märkets bredd</td><td>Krymper, eftersom ögonen tar över arbetet</td></tr>
+<td>38,3 % av märkets bredd</td><td>Uttern 21 %, grävlingen 22 % av huvudets bredd</td></tr>
+<tr><td>Raka linjekommandon</td><td>Nära noll, figuren är cirklar och mjuka bågar</td>
+<td>Hunden 90, tvättbjörnen 300</td><td>Grävlingen 0, gårdsvätten 0, uttern 0</td></tr>
 </table>
 <p class="note">Den sista raden är hela poängen. Vår mun var över tre gånger så bred som
 Duos relativt figuren, och det var ingen stilkänsla utan en konsekvens: när ögonen är
