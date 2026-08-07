@@ -10,6 +10,11 @@
 //
 // 120-ruta, marken på y=116.
 
+// Munnen bor inte här. Den är Prikkos, inte hundens, och hämtas ur det
+// centrala systemet. Figuren får inte ha stroke, så centrumkurvan därifrån
+// byggs om till en fylld form med samma bredd, tjocklek och pilhöjd.
+import { munbana, BREDD, TJOCKLEK, PILHOJD } from '../maskot-mun.mjs';
+
 // ============================================================ 1. FÄRG
 // Tre toner plus vitt. Mörka tonen är Prikkos egen, ljusa härleds ur grunden.
 const PALETT = {
@@ -34,34 +39,55 @@ const n = (v) => Math.round(v * 100) / 100;
 // cirklar sin radie och figuren kan aldrig få ojämn linjetjocklek.
 const T = (grad = 0, cx = 0, cy = 0, dx = 0, dy = 0) => {
   const a = (grad * Math.PI) / 180, s = Math.sin(a), c = Math.cos(a);
-  return (x, y) => [
+  const f = (x, y) => [
     cx + (x - cx) * c - (y - cy) * s + dx,
     cy + (x - cx) * s + (y - cy) * c + dy
   ];
+  f.sx = 1; f.sy = 1;
+  return f;
+};
+// SQUASH och STRETCH. Skalan läggs YTTERST, i världens koordinater, och är
+// därför alltid axelparallell. En cirkel som först vridits och sedan skalats
+// är en ellips med axlarna längs x och y, alltså kan varenda form skrivas
+// exakt utan att en enda punkt behöver samplas.
+const SKALA = (sx, sy, cx, cy) => {
+  const f = (x, y) => [cx + (x - cx) * sx, cy + (y - cy) * sy];
+  f.sx = sx; f.sy = sy;
+  return f;
 };
 const ID = T();
-const kombinera = (yttre, inre) => (x, y) => yttre(...inre(x, y));
+const kombinera = (yttre, inre) => {
+  const f = (x, y) => yttre(...inre(x, y));
+  f.sx = (yttre.sx ?? 1) * (inre.sx ?? 1);
+  f.sy = (yttre.sy ?? 1) * (inre.sy ?? 1);
+  return f;
+};
 
 // Cirkeln. Duolingos regel: ett tassavtryck är en perfekt cirkel.
-const cirkel = (m, x0, y0, r) => {
+const cirkel = (m, x0, y0, r, fx = 1, fy = 1) => {
   const [x, y] = m(x0, y0);
-  return `M${n(x - r)} ${n(y)}A${n(r)} ${n(r)} 0 1 0 ${n(x + r)} ${n(y)}A${n(r)} ${n(r)} 0 1 0 ${n(x - r)} ${n(y)}Z`;
+  const rx = r * (m.sx ?? 1) * fx, ry = r * (m.sy ?? 1) * fy;
+  return `M${n(x - rx)} ${n(y)}A${n(rx)} ${n(ry)} 0 1 0 ${n(x + rx)} ${n(y)}A${n(rx)} ${n(ry)} 0 1 0 ${n(x - rx)} ${n(y)}Z`;
 };
 
 // Kapseln: rundad stapel mellan två cirklar med olika radie. Ger avsmalnande
 // lemmar, öron och kroppar utan en enda spetsig ände.
 const kapsel = (m, ax, ay, r1, bx, by, r2) => {
-  const [x1, y1] = m(ax, ay), [x2, y2] = m(bx, by);
-  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
-  if (L < 0.01 || L <= Math.abs(r1 - r2)) return cirkel(ID, x1, y1, Math.max(r1, r2));
+  const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy);
+  if (L < 0.01 || L <= Math.abs(r1 - r2)) return cirkel(m, ax, ay, Math.max(r1, r2));
   const fi = Math.atan2(dy, dx), beta = Math.acos((r1 - r2) / L);
   const a1 = fi + beta, a2 = fi - beta;
-  const P = (x, y, r, a) => `${n(x + r * Math.cos(a))} ${n(y + r * Math.sin(a))}`;
+  const sx = m.sx ?? 1, sy = m.sy ?? 1;
+  const P = (x, y, r, a) => {
+    const [px, py] = m(x + r * Math.cos(a), y + r * Math.sin(a));
+    return `${n(px)} ${n(py)}`;
+  };
+  const R = (r) => `${n(r * sx)} ${n(r * sy)}`;
   return (
-    `M${P(x1, y1, r1, a1)}L${P(x2, y2, r2, a1)}` +
-    `A${n(r2)} ${n(r2)} 0 ${beta > Math.PI / 2 ? 1 : 0} 0 ${P(x2, y2, r2, a2)}` +
-    `L${P(x1, y1, r1, a2)}` +
-    `A${n(r1)} ${n(r1)} 0 ${beta < Math.PI / 2 ? 1 : 0} 0 ${P(x1, y1, r1, a1)}Z`
+    `M${P(ax, ay, r1, a1)}L${P(bx, by, r2, a1)}` +
+    `A${R(r2)} 0 ${beta > Math.PI / 2 ? 1 : 0} 0 ${P(bx, by, r2, a2)}` +
+    `L${P(ax, ay, r1, a2)}` +
+    `A${R(r1)} 0 ${beta < Math.PI / 2 ? 1 : 0} 0 ${P(ax, ay, r1, a1)}Z`
   );
 };
 
@@ -88,15 +114,49 @@ const band = (m, ax, ay, kx, ky, bx, by, w0, w1, steg = 11) => {
   );
 };
 
+// Munbandet. Samma kubiska kurva som det centrala munsystemet ritar med
+// stroke, men byggd som fylld form eftersom figuren inte får ha stroke.
+// Formeln är munbana():s, konstanterna hämtas därifrån, och bygget
+// kontrollerar att kurvorna är identiska.
+const munkurva = (cx, cy, w, pil, bredd, lutning) => {
+  const b = bredd * w, h = pil * b, k = h * 1.34;
+  const dy = Math.tan((lutning * Math.PI) / 180) * (b / 2);
+  return [
+    cx - b / 2, cy - h / 2 - dy,
+    cx - b / 2 + b / 3, cy + k - dy / 3,
+    cx + b / 2 - b / 3, cy + k + dy / 3,
+    cx + b / 2, cy - h / 2 + dy
+  ];
+};
+const kubband = (m, P, w0, w1, steg = 12) => {
+  const [x0, y0, c1x, c1y, c2x, c2y, x1, y1] = P;
+  const ov = [], un = [];
+  for (let i = 0; i <= steg; i++) {
+    const t = i / steg, u = 1 - t;
+    const px = u * u * u * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x1;
+    const py = u * u * u * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y1;
+    const tx = 3 * (u * u * (c1x - x0) + 2 * u * t * (c2x - c1x) + t * t * (x1 - c2x));
+    const ty = 3 * (u * u * (c1y - y0) + 2 * u * t * (c2y - c1y) + t * t * (y1 - c2y));
+    const L = Math.hypot(tx, ty) || 1, ww = w0 + (w1 - w0) * t;
+    const [ax, ay] = m(px - (ty / L) * ww, py + (tx / L) * ww);
+    const [bx2, by2] = m(px + (ty / L) * ww, py - (tx / L) * ww);
+    ov.push(`${n(ax)} ${n(ay)}`); un.push(`${n(bx2)} ${n(by2)}`);
+  }
+  const R = (r) => `${n(r * (m.sx ?? 1))} ${n(r * (m.sy ?? 1))}`;
+  return `M${ov[0]}L${ov.slice(1).join('L')}A${R(w1)} 0 0 1 ${un[steg]}` +
+    `L${un.slice(0, steg).reverse().join('L')}A${R(w0)} 0 0 1 ${ov[0]}Z`;
+};
+
 // Kalotten: cirkelns kapade del. Ger ett tonfält med HÅRD kant som slutar
 // exakt vid silhuettens kant, utan mask och utan clipPath.
 const kalott = (m, cx0, cy0, r, rx, ry, t) => {
-  const [cx, cy] = m(cx0, cy0);
-  const [ox, oy] = m(0, 0), [px, py] = m(rx, ry);
-  const a = Math.atan2(py - oy, px - ox);
+  const a = Math.atan2(ry, rx);
   const b = Math.acos(Math.max(-1, Math.min(1, t / r)));
-  const p = (v) => `${n(cx + r * Math.cos(v))} ${n(cy + r * Math.sin(v))}`;
-  return `M${p(a - b)}A${n(r)} ${n(r)} 0 ${b > Math.PI / 2 ? 1 : 0} 0 ${p(a + b)}Z`;
+  const p = (v) => {
+    const [x, y] = m(cx0 + r * Math.cos(v), cy0 + r * Math.sin(v));
+    return `${n(x)} ${n(y)}`;
+  };
+  return `M${p(a - b)}A${n(r * (m.sx ?? 1))} ${n(r * (m.sy ?? 1))} 0 ${b > Math.PI / 2 ? 1 : 0} 0 ${p(a + b)}Z`;
 };
 
 // Tassen: en dyna och tre tår, alltså riktiga ändar och inga rundade linjeslut.
@@ -111,18 +171,19 @@ const tass = (m, x, y, rikt, r) =>
 // Mulen sitter nästan rakt under skallen, bara lätt vriden åt vänster, så att
 // ansiktet fyller en kvadrat. Den lilla vridningen är hela kvartsvridningen.
 const SK = [44, 30, 14.5];        // skalle
-const MU = [40, 47, 9.6];         // mulen, EN mörk massa. Nosknappen är bortvald.
-const MASK = [37, 29, 6.6, 48.8, 27.4, 6.2]; // ögonmask, kapsel över båda ögonen
-const OGA_N = [36.6, 29, 4.4];    // nära öga
-const OGA_B = [48.8, 27.4, 3.9];  // bortre öga, mindre: den medvetna asymmetrin
+const MU = [40, 48, 11.5];         // mulen, EN mörk massa. Nosknappen är bortvald.
+const MASK = [38, 31, 7, 49.8, 29.4, 6.6]; // ögonmask, kapsel över båda ögonen
+const OGA_N = [37.6, 31, 4.7];    // nära öga
+const OGA_B = [49.8, 29.4, 4.2];  // bortre öga, mindre: den medvetna asymmetrin
 const ORA_N = [33, 34, 5.4, 26, 61, 8];   // vänster öra, fäste till lob
 const ORA_B = [55, 32, 5, 63, 54, 7.2];   // höger öra, kortare och smalare
 const NACKE = [48, 56];
-// Huvudets egen ruta. Skallen och mulen tillsammans upptar x 28,4 till 58,5 och
-// y 15,5 till 56,6, alltså 30 brett och 41 högt med mitt i (43,5 , 36).
-// Rutan är 38 och centrerad där, så att hjässan och hakan skärs ett par enheter
-// och öronen går ut genom sidorna. Det är beskärning, inte förminskning.
-const ANSIKTSRUTA = '25.5 17 38 38';
+// Huvudets egen ruta. Skallen och mulen tillsammans upptar x 28,5 till 58,5 och
+// y 15,5 till 59,5, alltså 30 brett och 44 högt med mitt i (43,5 , 37,5).
+// Rutan är 38 och centrerad där, alltså mindre än huvudet är högt: hjässan och
+// hakan skärs av. Det är beskärning, inte förminskning.
+// RUTBREDDEN 38 är också munnens referensmått, se avsnittet om munnen.
+const ANSIKTSRUTA = '24.5 18.5 38 38';
 const AXEL = [56, 64, 12.5];
 const HOFT = [66, 85, 10.5];
 
@@ -193,7 +254,14 @@ const POSER = {
 // Huvudet och öronen följer kroppen med EN RUTA fördröjning. Det är tyngden.
 export const GANG = { rutor: 8, halltid: [90, 70, 70, 110, 90, 70, 70, 110] };
 
-const H_HOJD = [0, 4.6, 0.6, -4.2, 0, 4.6, 0.6, -4.2];   // kroppens höjd, ner och upp
+// Squash och stretch. q är hur mycket volymen deformeras: positivt betyder
+// ihoptryckt, alltså bredare och lägre, negativt betyder sträckt. Skalan läggs
+// kring markpunkten (60,116), så fötterna står stilla medan kroppen studsar.
+// 7,5 procent i nedslaget och 7 procent i luften, alltså inom det som ser ut
+// som konstant volym. Det här är den enskilt största skillnaden mot förra
+// versionen, där figuren behöll exakt samma form genom hela cykeln.
+const H_SQUASH = [0, 0.075, 0.012, -0.07, 0, 0.075, 0.012, -0.07];
+const H_HOJD = [0, 0.8, 0.2, -0.8, 0, 0.8, 0.2, -0.8];   // liten rest ovanpå
 const GANGRUTOR = H_HOJD.map((h, i) => {
   const fram = [9, 5, 0, -5, -9, -6, 0, 6][i];   // nära fotens läge i steget
   const bak = [-9, -6, 0, 6, 9, 5, 0, -5][i];    // bortre fotens, en halv cykel fel
@@ -206,14 +274,21 @@ const GANGRUTOR = H_HOJD.map((h, i) => {
     armNdx: -fram * 0.8, armBdx: -bak * 0.8,
     // en ruta efter kroppen, alltid
     huvudDy: H_HOJD[(i + 7) % 8] * 0.8,
-    oron: [9, -11, -9, 11, 9, -11, -9, 11][i]
+    oron: [9, -11, -9, 11, 9, -11, -9, 11][i],
+    q: H_SQUASH[i],
+    // ansiktet rör sig med: munnen plattare i nedslaget, djupare i luften,
+    // ögonen hoptryckta i höjd i nedslaget
+    munk: [1, 0.5, 0.86, 1.35, 1, 0.5, 0.86, 1.35][i],
+    ogaSy: [1, 0.86, 0.97, 1.07, 1, 0.86, 0.97, 1.07][i],
+    // örat sträcks i luften och trycks ihop i nedslaget
+    oraStrack: [1, 0.93, 0.99, 1.08, 1, 0.93, 0.99, 1.08][i]
   };
 });
 
 export const META = {
   namn: 'Prikko, hunden',
   koncept: 'En blodhund i tjänst, alltid mitt i ett spår, som markerar fynd genom att sätta sig ner i stället för att skälla.',
-  former: 13,
+  former: 11,
   farger: 4,
   egenhet: 'Den har ingen ritad nosknapp. Hela mulen är nosen, en enda mörk massa, vilket är det enda draget som gör en tecknad hund omöjlig att förväxla med alla andra tecknade hundar.',
   svaghet: 'Spårhund för en tjänst som spårar upp saker är en bokstavlig metafor, och hund är dessutom det mest ritade djuret som finns.'
@@ -262,23 +337,26 @@ export function figur({
   const [bx, by] = a.blick;
   // Hela huvudet byggs ur EN transform, så att det kan sitta antingen på
   // kroppen eller ensamt i den beskurna kvadraten utan att ritas om.
-  const byggHuvud = (yttre) => {
+  const byggHuvud = (yttre, ram = false) => {
     const H = kombinera(yttre, T(a.hrot, NACKE[0], NACKE[1]));
     const huvudD = kapsel(H, SK[0], SK[1], SK[2], MU[0], MU[1], MU[2]) + cirkel(H, ...SK);
     // Ögonmasken är MÖRKARE än kroppen, tvärtemot Duos ljusa mask. Det är
     // förutsättningen för att de solida vita prickögonen ska hålla i 24 px.
     const markD = kapsel(H, ...MASK) + cirkel(H, ...MU);
+    // Ögonprickarna trycks ihop i höjd i nedslaget. Duos hela lärdom är att
+    // det mesta av rörelsen ligger i ansiktet, inte i kroppen.
+    const oy = g ? g.ogaSy : 1;
     const ogonD =
-      cirkel(H, OGA_N[0] + bx, OGA_N[1] + by, OGA_N[2]) +
-      cirkel(H, OGA_B[0] + bx * 0.8, OGA_B[1] + by * 0.8, OGA_B[2]);
+      cirkel(H, OGA_N[0] + bx, OGA_N[1] + by, OGA_N[2], 1 / Math.sqrt(oy), oy) +
+      cirkel(H, OGA_B[0] + bx * 0.8, OGA_B[1] + by * 0.8, OGA_B[2], 1 / Math.sqrt(oy), oy);
     // Ögonlocket är en cirkel i maskens ton som skjuts ner över pricken.
     const lockA = (o, g, f) =>
       g <= 0.01 ? '' : cirkel(H, o[0] + bx - 1.4 + g * 1.6, o[1] + by - (o[2] + 0.6) * 2 + g * (o[2] + 0.6) * 2.1 - f, o[2] + 0.6);
     const lockD = lockA(OGA_N, a.lock[0], 0) + lockA(OGA_B, a.lock[1], 0.5);
     // Brynen ligger på masken i ljus ton, alltså hundens tanfläckar över ögat.
     const brynD =
-      band(H, 33.4, 24.6 - a.bryn[0], 36.6, 22.8 - a.bryn[0] - a.bryn[2] * 0.1, 40.2, 23.6 - a.bryn[0] + a.bryn[2] * 0.14, 1.8, 1.3, 6) +
-      band(H, 45.6, 23 - a.bryn[1], 48.8, 21.4 - a.bryn[1] - a.bryn[2] * 0.09, 52, 22.2 - a.bryn[1] + a.bryn[2] * 0.12, 1.6, 1.15, 6);
+      band(H, 34.4, 26.6 - a.bryn[0], 37.6, 24.8 - a.bryn[0] - a.bryn[2] * 0.1, 41.2, 25.6 - a.bryn[0] + a.bryn[2] * 0.14, 1.9, 1.35, 6) +
+      band(H, 46.6, 25 - a.bryn[1], 49.8, 23.4 - a.bryn[1] - a.bryn[2] * 0.09, 53, 24.2 - a.bryn[1] + a.bryn[2] * 0.12, 1.7, 1.2, 6);
     // Munnen: en båge under nosen, längs mulens underkant. Nosen sitter HÖGT
     // på mulen och munnen lågt, så de delar mule men aldrig samma yta.
     const [mb, mf, ml] = a.mun;
@@ -291,9 +369,21 @@ export function figur({
     // Hängöron ska SLÄPA EFTER kroppen med en ruta och svänga tydligt. Det är
     // den billigaste livgivaren som finns i en hundfigur.
     const sv = g ? g.oron : 0;
+    // Örat SVÄNGER I FORM: lobens avstånd och radie ändras per bildruta, så att
+    // örat sträcks i luften och trycks ihop i nedslaget. Enbart rotation läser
+    // som en pappersfigur på pinne.
+    const st = g ? g.oraStrack : 1;
+    const dra = ([fx, fy, r1, lx, ly, r2]) => [
+      fx, fy, r1 * (2 - st) ** 0.5,
+      fx + (lx - fx) * st, fy + (ly - fy) * st,
+      r2 * (2 - st)
+    ];
+    // I INRAMAT läge vinklas öronen kraftigt olika, så att de bryter ramens
+    // kant asymmetriskt och läser som öron i rörelse och inte som två fält.
+    const rN = ram ? -30 : 0, rB = ram ? 11 : 0;
     const oronD =
-      kapsel(kombinera(H, T(p.orN + sv, ORA_N[0], ORA_N[1])), ...ORA_N) +
-      kapsel(kombinera(H, T(p.orB + sv * 0.8, ORA_B[0], ORA_B[1])), ...ORA_B);
+      kapsel(kombinera(H, T(p.orN + sv + rN, ORA_N[0], ORA_N[1])), ...dra(ORA_N)) +
+      kapsel(kombinera(H, T(p.orB + sv * 0.8 + rB, ORA_B[0], ORA_B[1])), ...dra(ORA_B));
     return [
       [oronD, c.mork],
       [huvudD, c.ljus],
@@ -311,12 +401,14 @@ export function figur({
   // 6 öronen skärs av ramens sidor och blir två mörka fält längs kanterna.
   // Huvudets egen fyllning är grundtonen, samma som ramens, så konturen
   // försvinner in i bakgrunden och bara dragen syns.
-  if (ansikte) return svg(byggHuvud(ID), size, ANSIKTSRUTA, klass, u, en);
+  if (ansikte) return svg(byggHuvud(ID, true), size, ANSIKTSRUTA, klass, u, en);
 
   // ---------------------------------------------------------- KROPPEN
-  const K = T(p.luta, HOFT[0], HOFT[1], 0, p.hojd);
+  // Squash och stretch kring markpunkten, ytterst av allt.
+  const S = g ? SKALA(1 + g.q, 1 - g.q, 60, 116) : ID;
+  const K = kombinera(S, T(p.luta, HOFT[0], HOFT[1], 0, p.hojd));
   // Huvudet flyttas med kroppens höjd från FÖRRA rutan, inte den här.
-  const KH = g ? T(p.luta, HOFT[0], HOFT[1], 0, g.huvudDy) : K;
+  const KH = g ? kombinera(S, T(p.luta, HOFT[0], HOFT[1], 0, g.huvudDy)) : K;
   const k = p.kliv, s = p.sitter;
   // Bakben. Sittande läge fäller ihop knäet under höften: hundens riktiga
   // markering av ett fynd är att sätta sig ner, inte att skälla.
@@ -362,7 +454,9 @@ export function figur({
   const bukD = kalott(K, AXEL[0], AXEL[1], AXEL[2], -0.42, 0.91, 5.5);
 
   // Skuggan är en PILLERFORM, aldrig en oval, eftersom ovaler antyder perspektiv.
-  const skuggaD = kapsel(ID, fotN[0] - 6, 114.6, 3.6, fotB[0] + 6, 114.6, 3.6);
+  // Skuggan följer squashen i BREDD men inte i höjd: bred och platt i nedslaget.
+  const skuggaD = kapsel(ID, fotN[0] - 6 - (g ? g.q * 40 : 0), 114.6, 3.6,
+    fotB[0] + 6 + (g ? g.q * 40 : 0), 114.6, 3.6);
   // Spåret: Prikkos egen prick, i luften framför nosen. Det figuren följer.
   // Spåret ligger PÅ marken, i skuggans egen linje, aldrig svävande i luften.
   const sparD = [

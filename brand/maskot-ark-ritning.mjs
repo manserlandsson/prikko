@@ -100,7 +100,35 @@ export function ritning(m, { steg = 6 } = {}) {
     <span>Steg ${i + 1}, ${n} av ${delar.length}</span>
   </div>`).join('');
 
-  return `${spok}<div class="block">
+  // Rundhetsprovet. Ägaren: "kolla på duo, den ser så rund och fin och perfekt
+  // ut, vår ser kantig och overklig ut." Konturen ensam, utan färg, i stor
+  // storlek, är det enda sättet att se det. Kantighet göms av färg och detalj,
+  // den syns bara i linjen.
+  const raka = (m.figur({ size: 120 }).match(/[LHVlhv]\s*[-\d.]/g) || []).length;
+  const rundhet = `<div class="block">
+  <h4>Rundhetsprovet. Konturen ensam, utan färg</h4>
+  <div class="ruta">
+    <div class="rad">
+      ${ram(delar.map((d) => kontur(d.kod, '#1D1D1F', 0.9)).join(''), 400)}
+      <div class="read" style="max-width:300px">
+        <p class="note">Duo ser rund ut för att han i praktiken är byggd av cirklar och
+        mjuka bågar där varje skarv är tangentkontinuerlig, alltså går kurvan över i nästa
+        utan att bryta riktning, och det finns nästan inga raka segment i honom alls.</p>
+        <p class="note">Tre fel att leta efter i den här bilden: <b>raka segment</b>, som
+        bryter rundheten direkt, <b>skarvar där två bågar möts med olika tangent</b>, som ger
+        ett hörn ögat läser som kantighet även utan spets, och <b>cirklar som ersatts med
+        bezierapproximationer</b>, som ser mätbart mindre runda ut än en riktig cirkel.</p>
+        <p class="note">Räknat i den här figurens banor: <b>${raka}</b> raka
+        linjekommandon (L, H eller V). Noll är målet. Varje sådant är en misstänkt som bör
+        ersättas med en båge, även en mycket svag.</p>
+        <p class="note">Kantighet göms av färg och detalj. Den syns bara i linjen, och det
+        är därför den här bilden står här och inte bara en färgad figur.</p>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+  return `${spok}${rundhet}<div class="block">
   <h4>Konstruktionsritning. ${delar.length} former i 120-rutan</h4>
   <div class="ruta">
     <div class="rad">

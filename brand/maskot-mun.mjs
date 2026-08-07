@@ -76,7 +76,9 @@ export const TJOCKLEK = { fin: 0.070, dagens: 0.082, kraftig: 0.100 };
 export const RADIE = { dagens: 0.318, rundare: 0.270, flackare: 0.400 };
 
 /** Pilhöjd räknad ur bredd och radie. Positiv = glad, negativ = ledsen. */
-export function pilhojd(b, R) {
+export function pilhojd(b, R) { return pilhojdRaknad(b, R); }
+
+function pilhojdRaknad(b, R) {
   const inre = R * R - (b / 2) * (b / 2);
   if (inre <= 0) return R;              // bågen är en halvcirkel eller mer
   return R - Math.sqrt(inre);
@@ -91,6 +93,21 @@ export function pilhojd(b, R) {
  * värde läser som tveksamhet i stället för som ingenting.
  */
 export const RIKTNING = { clean: 1, minor: -0.18, major: -0.9 };
+
+/**
+ * Bakåtkompatibel pilhöjd som andel av munnens bredd, för figurmoduler som
+ * ännu inte gått över till radiemodellen.
+ *
+ * HÄRLEDD, inte satt. Talen räknas ur den förordade bredden 46 procent och
+ * radien 31,8 procent, alltså exakt vad radiemodellen ger, så en modul som
+ * använder de här talen ritar samma mun som en som räknar själv. Nya moduler
+ * ska använda munbana() och inte den här.
+ */
+export const PILHOJD = (() => {
+  const b = BREDD.storre * 100;
+  const h = pilhojdRaknad(b, RADIE.dagens * 100) / b;
+  return { clean: h * RIKTNING.clean, minor: h * RIKTNING.minor, major: h * RIKTNING.major };
+})();
 /**
  * Bygger munbanan.
  *
