@@ -231,3 +231,41 @@ select
     count(*) filter (where kind = 'borta')             as departed
 from roster_events
 group by municipality_slug, to_char(observed_on, 'YYYY-MM');
+
+
+-- ---------------------------------------------------------------------------
+-- Radsäkerhet: stängt för alla utom service_role
+--
+-- Tabellerna ligger i `public`, och Supabase ger som standard anon- och
+-- authenticated-rollerna rättigheter på nya tabeller där. Utan raderna nedan
+-- hade alltså vem som helst med sajtens publika nyckel kunnat både läsa och
+-- skriva i rörelseloggen. SQL-editorn varnar för det, men varningen är lätt
+-- att klicka förbi, och en spärr som beror på vilken knapp någon tryckte på
+-- är ingen spärr.
+--
+-- RLS PÅ UTAN EN ENDA POLICY betyder nej till alla. Det är avsiktligt och
+-- fullständigt:
+--
+--   * Pipelinen skriver med service_role, som går förbi radsäkerheten.
+--   * Sajten läser aldrig de här tabellerna. Den läser de exporterade
+--     filerna, se pipeline/rorelse.py exportera och site/src/lib/rorelse.ts.
+--
+-- Skulle en yta någon gång behöva läsa loggen direkt är rätt åtgärd en
+-- namngiven läspolicy, inte att stänga av radsäkerheten.
+--
+-- Vyerna ärver tabellernas skydd genom security_invoker, alltså läser de med
+-- frågeställarens rättigheter och inte med sina egna.
+-- ---------------------------------------------------------------------------
+alter table roster_deliveries      enable row level security;
+alter table establishment_spells   enable row level security;
+
+revoke all on roster_deliveries    from anon, authenticated;
+revoke all on establishment_spells from anon, authenticated;
+
+alter view establishment_spell_counts set (security_invoker = true);
+alter view roster_events             set (security_invoker = true);
+alter view roster_months             set (security_invoker = true);
+
+revoke all on establishment_spell_counts from anon, authenticated;
+revoke all on roster_events             from anon, authenticated;
+revoke all on roster_months             from anon, authenticated;
