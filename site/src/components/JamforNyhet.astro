@@ -1,0 +1,94 @@
+---
+/**
+ * Introduktionen av jämförelsen, på verksamhetssidan.
+ *
+ * ## Formen
+ *
+ * Boolis nyhetsintroduktion, mätt ur den bild ägaren skickade: en liten etikett
+ * med vit text på färgad botten, halvfet rubrik på samma rad, två rader vanlig
+ * text under, och en understruken länk sist. Ingen låda, ingen ram, ingen
+ * bakgrund bakom blocket. Den ligger i flödet som ett stycke.
+ *
+ * Tre saker gjordes annorlunda, och de är skälet till att den inte ser
+ * hemmagjord ut bredvid resten av sidan:
+ *
+ * 1. **Etiketten bär inget utropstecken.** Booli skriver "Nytt!". Ett
+ *    utropstecken är en röst sajten inte har någon annanstans, och intill en
+ *    hygienbedömning låter den som reklam.
+ * 2. **Etiketten är versal och gles i stället för stor.** Elva punkter,
+ *    spärrad, som en kapitälrad. Boolis är en rund knapp i brödtextstorlek och
+ *    väger nästan lika mycket som rubriken bredvid; med mindre grad och mer
+ *    luft läser raden som EN rad i stället för som två element.
+ * 3. **Länken sist är handlingen, inte "Läs mer".** Det finns ingen sida att
+ *    läsa mer på: funktionen är knappen under. Att skicka någon till en text
+ *    om en knapp som står tio pixlar bort vore att lägga ett steg i vägen.
+ *    Därför bär raden inget eget "Läs mer" alls, och knappen under gör jobbet.
+ *
+ * ## Färgen
+ *
+ * Brandblå, ur tokens.css. Grön, gul och röd är bedömningens språk på den här
+ * sajten och får aldrig lånas ut till dekoration: en färgad etikett i
+ * betygsskalan intill ett ansiktsmärke läser som ett omdöme om verksamheten.
+ * Regeln står i docs/15_vad_sidorna_blir.md avsnitt 6 och gäller varje ny yta.
+ *
+ * ## Att den dör
+ *
+ * Slutdatumet bor i lib/jamfor.ts tillsammans med resonemanget. Passeras det
+ * renderar komponenten ingenting och knappen står kvar ensam. Se
+ * JAMFOR_NYHET_TILL.
+ */
+---
+
+<p class="nyhet">
+  <span class="etikett">Nytt</span>
+  <b class="rubrik">Jämför två ställen</b>
+  <span class="text">
+    Ställ det här stället bredvid ett annat i samma kommun och se bedömning,
+    kontrollhistorik och andel utan anmärkning sida vid sida.
+  </span>
+</p>
+
+<style>
+  /* Inget block, inget kort. Stycket ligger i flödet och hålls ihop av
+     typografin, precis som allt annat i huvudkolumnen. Se docs/19_formsystem.md
+     om varför huvudkolumnen aldrig får ramar. */
+  .nyhet {
+    margin: var(--s-6) 0 0;
+    max-width: var(--w-read);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Etiketten sitter på rubrikens baslinje. `vertical-align` och inte flex:
+     raden ska kunna brytas som text när spalten är smal, och en flexrad hade
+     hållit etikett och rubrik ihop tills de sprängde spalten. */
+  .etikett {
+    display: inline-block;
+    vertical-align: 1px;
+    margin-right: var(--s-2);
+    padding: 2px 8px;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    color: #fff;
+    font-size: var(--fs-micro);
+    line-height: 15px;
+    font-weight: 600;
+    /* Spärrad och versal. Gör de fyra bokstäverna till en etikett i stället
+       för till ett ord som råkar ligga i en oval. */
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .rubrik {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Egen rad under rubriken, men bara när spalten räcker. Under gränsen får
+     texten flyta direkt efter rubriken i stället för att lämna en tom rad. */
+  .text {
+    display: block;
+    margin-top: var(--s-1);
+  }
+</style>
