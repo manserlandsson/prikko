@@ -45,17 +45,52 @@ export const BREDD = { dagens: 0.383, storre: 0.460, storst: 0.540 };
 export const TJOCKLEK = { fin: 0.070, dagens: 0.082, kraftig: 0.100 };
 
 /**
- * Pilhöjd, alltså hur djup bågen är, som andel av munnens BREDD.
- * Dagens glada båge är 6,15 av 36,74, alltså 0,167.
+ * RADIEN, och varför den ersatte pilhöjden.
  *
- * Den raka är exakt 0 och det är ett problem: en rak linje mellan en glad och
- * en ledsen båge läser som "ingenting" snarare än som "mellanläge". Danska
- * smileyordningen har samma tre lägen och samma svaghet. Ett litet negativt
- * värde, alltså en nästan omärkligt nedåtböjd linje, läser som tveksamhet i
- * stället för som frånvaro, och det är vad `minor` använder här.
+ * Ägaren: "just nu är munnen typ rak och konstig också, kolla på duo, den ser
+ * så rund och fin och perfekt ut, vår ser kantig och overklig ut."
+ *
+ * Diagnosen är riktig och orsaken är räknebar. Första versionen höll PILHÖJDEN
+ * konstant som andel av bredden och ökade bredden. En båge med samma pilhöjd
+ * utdragen över nästan dubbla bredden blir flackare, inte gladare, och vid
+ * tillräcklig bredd läser den som ett streck. Vi gjorde alltså munnen rakare
+ * genom att göra den större.
+ *
+ * Rätt storhet att hålla fast är RADIEN. Håller radien och ökar bredden så
+ * ökar pilhöjden av sig själv, precis som på en riktig cirkel.
+ *
+ * Räknat ur dagens märke: bredd 36,74 och pilhöjd 6,15 ger radien
+ *   R = h/2 + b²/(8h) = 3,08 + 27,43 = 30,5 enheter av 96, alltså 31,8 procent.
+ * Det är alltså inte ett påhittat tal, det är den radie dagens mun redan har.
+ *
+ * Vad det ger vid olika bredder, med radien fast på 31,8 procent:
+ *   bredd 38,3 %  ->  pilhöjd 16,7 % av bredden   (dagens, oförändrad)
+ *   bredd 46,0 %  ->  pilhöjd 21,4 % av bredden
+ *   bredd 54,0 %  ->  pilhöjd 27,8 % av bredden
+ *
+ * Munnen ritas dessutom som en RIKTIG cirkelbåge, alltså ett A-kommando, och
+ * inte som en bezier som nästan är en cirkel. Det är samma sak som skiljer en
+ * rund figur från en som läser som polygon: fyra bezierkurvor som nästan är en
+ * cirkel ser inte lika runda ut som en cirkel.
  */
-export const PILHOJD = { clean: 0.167, minor: -0.030, major: -0.150 };
+export const RADIE = { dagens: 0.318, rundare: 0.270, flackare: 0.400 };
 
+/** Pilhöjd räknad ur bredd och radie. Positiv = glad, negativ = ledsen. */
+export function pilhojd(b, R) {
+  const inre = R * R - (b / 2) * (b / 2);
+  if (inre <= 0) return R;              // bågen är en halvcirkel eller mer
+  return R - Math.sqrt(inre);
+}
+
+/**
+ * Bågens riktning per tillstånd, som andel av full pilhöjd.
+ *
+ * Mellanläget är inte längre exakt noll. En rak linje mellan en glad och en
+ * ledsen båge läser som frånvaro snarare än som mellanläge, och danska
+ * smileyordningen har samma tre lägen och samma svaghet. Ett litet negativt
+ * värde läser som tveksamhet i stället för som ingenting.
+ */
+export const RIKTNING = { clean: 1, minor: -0.18, major: -0.9 };
 /**
  * Bygger munbanan.
  *
@@ -72,36 +107,61 @@ export const PILHOJD = { clean: 0.167, minor: -0.030, major: -0.150 };
  * Vår är i dag perfekt symmetrisk. Två grader räcker, och det är avsiktligt
  * så lite att ingen ser det medvetet.
  */
-export function munbana(cx, cy, w, nyckel, bredd = 'dagens', lutning = 2) {
+export function munbana(cx, cy, w, nyckel, bredd = 'storre', lutning = 2, radie = 'dagens') {
   const b = (typeof bredd === 'number' ? bredd : BREDD[bredd]) * w;
-  const p = PILHOJD[nyckel] ?? 0;
-  const h = p * b;
+  const R = (typeof radie === 'number' ? radie : RADIE[radie]) * w;
+  const r = RIKTNING[nyckel] ?? 0;
+  const h = pilhojd(b, R) * r;
+
   const x1 = cx - b / 2;
   const x2 = cx + b / 2;
-  // Kubisk båge med kontrollpunkter på en tredjedel, vilket ger en kurva som
-  // ligger nära en cirkelbåge men går att luta utan att ändarna vandrar.
-  const k = h * 1.34;
-  const rad = (lutning * Math.PI) / 180;
-  const dy = Math.tan(rad) * (b / 2);
-  return `M${x1.toFixed(2)} ${(cy - h / 2 - dy).toFixed(2)}` +
-    `C${(x1 + b / 3).toFixed(2)} ${(cy + k - dy / 3).toFixed(2)}` +
-    ` ${(x2 - b / 3).toFixed(2)} ${(cy + k + dy / 3).toFixed(2)}` +
-    ` ${x2.toFixed(2)} ${(cy - h / 2 + dy).toFixed(2)}`;
+  const dy = Math.tan((lutning * Math.PI) / 180) * (b / 2);
+  const y1 = cy - h / 2 - dy;
+  const y2 = cy - h / 2 + dy;
+
+  // Radien som faktiskt behövs för den valda pilhöjden. Vid full pilhöjd är
+  // det R, vid mellanlägena en mycket större radie, alltså en flackare båge.
+  const hh = Math.abs(h);
+  const Rr = hh < 0.001 ? b * 40 : hh / 2 + (b * b) / (8 * hh);
+  // sweep 1 böjer nedåt mellan ändpunkterna, alltså glad i en y-nedåt-ruta.
+  const sweep = h >= 0 ? 1 : 0;
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)}A${Rr.toFixed(2)} ${Rr.toFixed(2)} 0 0 ${sweep} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 
 export function mun(cx, cy, w, nyckel, {
-  bredd = 'dagens', tjocklek = 'dagens', farg = '#fff', lutning = 2,
+  bredd = 'storre', tjocklek = 'dagens', farg = '#fff', lutning = 2, radie = 'dagens',
 } = {}) {
   const sw = (typeof tjocklek === 'number' ? tjocklek : TJOCKLEK[tjocklek]) * w;
-  return `<path d="${munbana(cx, cy, w, nyckel, bredd, lutning)}" stroke="${farg}"` +
+  return `<path d="${munbana(cx, cy, w, nyckel, bredd, lutning, radie)}" stroke="${farg}"` +
     ` stroke-width="${sw.toFixed(2)}" stroke-linecap="round" fill="none"/>`;
 }
 
-/** Ögonen, dagens geometri skalad till valfri ruta. Prickar, inget annat. */
-export function ogon(w, { farg = '#fff', cy = 0.386, dx = 0.118, r = 0.0637 } = {}) {
+/**
+ * Ögonen, dagens geometri skalad till valfri ruta.
+ *
+ * `pupill` är ett PROV, inte ett ställningstagande. Ägaren öppnade för pupiller
+ * och bad uttryckligen om att se dem mätta i stället för bortargumenterade.
+ * Pupillen ritas som en mörk cirkel i den vita pricken, alltså ögonvitan är
+ * pricken själv. Andelen 0,42 är Duos egen, uppmätt: hans pupill är 47,5
+ * procent av ögats bredd, och vi ligger strax under eftersom vårt öga är
+ * mycket mindre från början.
+ */
+export function ogon(w, {
+  farg = '#fff', cy = 0.386, dx = 0.118, r = 0.0637,
+  pupill = null, pupillAndel = 0.42, blick = [0.12, 0.10],
+} = {}) {
   const c = w / 2;
-  return `<circle cx="${(c - dx * w).toFixed(2)}" cy="${(cy * w).toFixed(2)}" r="${(r * w).toFixed(2)}" fill="${farg}"/>` +
-    `<circle cx="${(c + dx * w).toFixed(2)}" cy="${(cy * w).toFixed(2)}" r="${(r * w).toFixed(2)}" fill="${farg}"/>`;
+  const R = r * w;
+  const oga = (x) => {
+    const vit = `<circle cx="${x.toFixed(2)}" cy="${(cy * w).toFixed(2)}" r="${R.toFixed(2)}" fill="${farg}"/>`;
+    if (!pupill) return vit;
+    // Aldrig vertikalt centrerad. Duolingos egen regel, och den billigaste
+    // knappen för liv som finns.
+    const px = x + R * blick[0];
+    const py = cy * w + R * blick[1];
+    return vit + `<circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="${(R * pupillAndel).toFixed(2)}" fill="${pupill}"/>`;
+  };
+  return oga(c - dx * w) + oga(c + dx * w);
 }
 
 /**
@@ -109,11 +169,14 @@ export function ogon(w, { farg = '#fff', cy = 0.386, dx = 0.118, r = 0.0637 } = 
  * Går bedömningen att läsa här är munnen bärande. Går den inte det är allt
  * annat vi ritat kosmetika.
  */
-export function baraMunnen({ size = 64, fyll = '#007BE0', bredd = 'dagens', tjocklek = 'dagens', rx = 17 } = {}) {
+export function baraMunnen({
+  size = 64, fyll = '#007BE0', bredd = 'storre', tjocklek = 'dagens', rx = 17,
+  radie = 'dagens', pupill = null,
+} = {}) {
   return ['clean', 'minor', 'major'].map((k) =>
     `<svg width="${size}" height="${size}" viewBox="0 0 100 100">
       <rect width="100" height="100" rx="${rx}" fill="${fyll}"/>
-      ${ogon(100)}
-      ${mun(50, 63.5, 100, k, { bredd, tjocklek })}
+      ${ogon(100, { pupill })}
+      ${mun(50, 63.5, 100, k, { bredd, tjocklek, radie })}
     </svg>`).join('');
 }

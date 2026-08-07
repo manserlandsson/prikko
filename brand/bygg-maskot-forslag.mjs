@@ -22,11 +22,11 @@ import { writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STIL } from './maskot-ark-stil.mjs';
-import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER } from './maskot-ark-text.mjs';
+import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER, DUOJAMFORELSE } from './maskot-ark-text.mjs';
 import { ritning } from './maskot-ark-ritning.mjs';
 import { RECEPT, omfarga, BAKGRUND } from './maskot-ark-marke.mjs';
 import { GANG_STANDARD, gangKeyframes, blinkSmil, remsa, REMSA_CSS } from './maskot-ark-rorelse.mjs';
-import { baraMunnen, BREDD, TJOCKLEK, PILHOJD, mun as munform, ogon as ogonform } from './maskot-mun.mjs';
+import { baraMunnen, BREDD, TJOCKLEK, RADIE, RIKTNING, pilhojd } from './maskot-mun.mjs';
 
 const HAR = dirname(fileURLToPath(import.meta.url));
 
@@ -388,6 +388,28 @@ hela arbetet, och näbben är en accent.</p>
 vi inte den kanalen, och då MÅSTE munnen göra hela arbetet. Den ska alltså vara större än
 den är i dag, inte lika stor som Duos.</p>
 
+<h4 style="margin-top:26px">Varför munnen såg rak ut, och vad som ändrades</h4>
+<p>Invändningen var att munnen läser som ett streck och att figuren ser kantig och overklig
+ut jämfört med Duo. Orsaken var räknebar och felet var vårt: vi höll <b>pilhöjden</b>
+konstant som andel av bredden och ökade bredden. En båge med samma pilhöjd utdragen över
+nästan dubbla bredden blir flackare, inte gladare. Vi gjorde alltså munnen rakare genom att
+göra den större.</p>
+<p>Rätt storhet att hålla fast är <b>radien</b>. Håller man radien och ökar bredden så ökar
+pilhöjden av sig själv, precis som på en riktig cirkel. Radien är inte påhittad: räknad ur
+dagens märke, bredd 36,74 och pilhöjd 6,15, blir den 30,5 av 96 enheter, alltså
+<b>31,8 procent av bredden</b>. Det är den radie munnen redan har.</p>
+<table style="margin-bottom:16px">
+<tr><th>Bredd</th><th>Pilhöjd med konstant radie</th><th>Pilhöjd i den gamla, felaktiga modellen</th></tr>
+${['dagens', 'storre', 'storst'].map((b) => {
+  const bb = BREDD[b] * 100;
+  const h = pilhojd(bb, RADIE.dagens * 100);
+  return `<tr><td>${bb.toFixed(1)} %</td><td><b>${(h / bb * 100).toFixed(1)} %</b> av bredden</td><td>16,7 % oavsett bredd, alltså allt flackare</td></tr>`;
+}).join('')}
+</table>
+<p class="note">Munnen ritas nu dessutom som en <b>riktig cirkelbåge</b>, alltså ett
+A-kommando, och inte som en bezier som nästan är en cirkel. Det är samma sak som skiljer en
+rund figur från en som läser som polygon.</p>
+
 <h4 style="margin-top:26px">Provet: endast munnen skiljer</h4>
 <p class="note">Samma ansikte tre gånger, samma ögon, samma färg, samma allt. Bara bågen
 byter riktning. Går bedömningen att läsa här är munnen bärande, och då är resten omgivning.
@@ -395,26 +417,51 @@ Går den inte det är allt annat vi har ritat kosmetika.</p>
 ${['dagens', 'storre', 'storst'].map((b) => `
 <div class="ruta" style="margin-top:14px">
   <div class="rad mitt">
-    <span style="width:130px" class="note"><b>${(BREDD[b] * 100).toFixed(1)} %</b> bredd${b === 'dagens' ? '<br>dagens märke' : ''}</span>
+    <span style="width:150px" class="note"><b>${(BREDD[b] * 100).toFixed(1)} %</b> bredd${b === 'dagens' ? '<br>dagens märke' : ''}${b === 'storre' ? '<br>förordas' : ''}<br>pilhöjd ${(pilhojd(BREDD[b] * 100, RADIE.dagens * 100) / (BREDD[b] * 100) * 100).toFixed(1)} %</span>
     ${[64, 40, 24, 16].map((s) => `<span style="display:flex;gap:8px;align-items:center;margin-right:18px">${baraMunnen({ size: s, bredd: b })}</span>`).join('')}
     <span style="display:flex;gap:8px;align-items:center;filter:grayscale(1)">${baraMunnen({ size: 24, bredd: b })}</span>
   </div>
 </div>`).join('')}
 
-<h4 style="margin-top:26px">Tjockleken</h4>
+<h4 style="margin-top:26px">Radien, tre val vid samma bredd</h4>
 <div class="ruta">
   <div class="rad mitt">
-    ${Object.entries(TJOCKLEK).map(([k, v]) => `<div class="cell">
-      <div style="display:flex;gap:8px">${baraMunnen({ size: 40, bredd: 'storre', tjocklek: k })}</div>
-      <span>${k}, ${(v * 100).toFixed(1)} %</span></div>`).join('')}
+    ${Object.entries(RADIE).map(([k, v]) => `<div class="cell">
+      <div style="display:flex;gap:8px">${baraMunnen({ size: 56, bredd: 'storre', radie: k })}</div>
+      <div style="display:flex;gap:6px;margin-top:8px">${baraMunnen({ size: 24, bredd: 'storre', radie: k })}</div>
+      <span>${k}, radie ${(v * 100).toFixed(1)} %</span></div>`).join('')}
   </div>
+  <p class="note" style="margin:12px 0 0">Mindre radie ger rundare mun. "rundare" på 27
+  procent är den gladaste, men mungiporna börjar krypa in mot den rundade kvadratens hörn.</p>
+</div>
+
+<h4 style="margin-top:26px">Pupiller. Provet, inte argumentet</h4>
+<p class="note">Förbudet mot pupiller är upphävt, och detta är provet i stället för
+resonemanget. Övre raden utan pupill, undre med. Pupillen är 42 procent av prickens bredd,
+förskjuten uppåt och inåt, alltså aldrig vertikalt centrerad, vilket är Duolingos egen regel.
+Deras pupill är 47,5 procent av ögats bredd.</p>
+<div class="ruta">
+  <div class="rad mitt">
+    ${[56, 32, 24, 16].map((s) => `<span style="display:flex;gap:8px;align-items:center;margin-right:20px">${baraMunnen({ size: s, bredd: 'storre' })}</span>`).join('')}
+  </div>
+  <div class="rad mitt" style="margin-top:14px">
+    ${[56, 32, 24, 16].map((s) => `<span style="display:flex;gap:8px;align-items:center;margin-right:20px">${baraMunnen({ size: s, bredd: 'storre', pupill: '#1D1D1F' })}</span>`).join('')}
+  </div>
+  <div class="rad mitt" style="margin-top:14px;filter:grayscale(1)">
+    ${[24, 16].map((s) => `<span style="display:flex;gap:8px;align-items:center;margin-right:20px">${baraMunnen({ size: s, bredd: 'storre', pupill: '#1D1D1F' })}</span>`).join('')}
+  </div>
+  <p class="note" style="margin:12px 0 0">Gränsen syns i raden: pupillen bär ned till 32 px.
+  Vid 24 px är den under en pixel bred och blir ett grumligt hack i pricken i stället för en
+  blick, och vid 16 px är den borta. Slutsatsen är därför inte att pupiller är fel, utan att
+  <b>de hör hemma i det fria läget och inte i märket</b>. Två detaljnivåer, precis som en
+  appikon har, med gränsen vid 32 px.</p>
 </div>
 
 <h4 style="margin-top:26px">Två ändringar mot dagens mun, båda små och båda med skäl</h4>
 <p><b>Mellanläget är inte längre en rak linje.</b> Dagens raka mun har pilhöjd exakt noll,
 och en rak linje mellan en glad och en ledsen båge läser som frånvaro snarare än som
 mellanläge. Danska smileyordningen har samma tre lägen och samma svaghet. Vår minor har nu
-pilhöjd ${(PILHOJD.minor * 100).toFixed(1)} procent, alltså en nästan omärkligt nedåtböjd
+pilhöjd ${(RIKTNING.minor * -100).toFixed(0)} procent av den glada bågens, alltså en nästan omärkligt nedåtböjd
 linje, vilket läser som tveksamhet i stället för som ingenting.</p>
 <p><b>Munnen lutar två grader.</b> Duolingos egen regel: munnen är den minst geometriska
 formen i hela stilen och ska vara asymmetrisk och favorisera ena sidan, eftersom det ger
@@ -544,6 +591,7 @@ const html = `<!doctype html>
     ${INGRESS}
   </div>
   ${RESEARCH}
+  ${DUOJAMFORELSE}
   ${FALTET}
   ${LAGEN}
   ${MUNSEKTION}

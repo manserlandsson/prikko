@@ -553,3 +553,70 @@ gränssnittet är en granskare.</td>
 </table>
 </div>
 `;
+
+export const DUOJAMFORELSE = `
+<h2>Duo bredvid vår, mätt</h2>
+
+<p class="read">Begäran var att lägga Duo bredvid våra skisser så att skillnaden går att se
+med ögat. Duos figur ritas <b>inte</b> av här, och det är ett medvetet val: Duolingo uppger
+i sina SEC-inlagor att de har registrerade upphovsrätter som täcker figuren, och att klistra
+in deras teckning i vår varumärkesmapp är precis det vi säger att vi inte gör. Det som går
+att jämföra utan att kopiera är TALEN, och de är uppmätta i deras egna publicerade
+SVG-filer.</p>
+
+<div class="kort">
+<table>
+<tr><th>Mått</th><th>Duo, uppmätt</th><th>Prikko</th><th>Vad skillnaden betyder</th></tr>
+
+<tr><td>Banor i helkropp</td><td>15</td><td>11 respektive 13</td>
+<td>Vi ligger under deras egen budget. Det är inte automatiskt bättre: 6 former är enligt
+dem själva för abstrakt.</td></tr>
+
+<tr><td>Gradienter</td><td>0 i fyra officiella filer</td><td>0</td>
+<td>Samma. Volymen görs av platta ytor som ligger på varandra.</td></tr>
+
+<tr><td>Konturer</td><td>0 stroke-attribut</td><td>0</td><td>Samma.</td></tr>
+
+<tr><td>Ögonvitans bredd</td><td>31,6 % av ikonen per öga, 63 % tillsammans</td>
+<td>Ingen ögonvita. Pricken är 12,8 % av bredden</td>
+<td>Den största skillnaden i hela jämförelsen, och den är ett val. Deras öga är fem gånger
+så stort som vårt.</td></tr>
+
+<tr><td>Pupillen</td><td>47,5 % av ögats bredd, aldrig vertikalt centrerad</td>
+<td>Ingen pupill</td>
+<td>Här ligger konsekvensen: Duo bär hela sitt känsloregister i ögonen. Vi har stängt den
+kanalen och måste därför bära det i munnen.</td></tr>
+
+<tr><td>Munnens bredd</td><td>Övre näbben 11,9 % av kroppens bredd</td>
+<td>38,3 % av märkets bredd</td>
+<td>Vår mun är över tre gånger så bred relativt figuren. Det är rätt, eftersom den bär
+det ögonen bär hos honom.</td></tr>
+
+<tr><td>Var rörelsen sitter</td><td>Mest i ansiktet. Kroppen står mestadels stilla, aldrig
+plötsliga eller snabba rörelser</td>
+<td>Bildrutor med ojämn hålltid, ansiktet deformeras med kroppen</td>
+<td>Detta är den kritiska punkten. En figur vars ansikte bara åker med läser som en
+pappersdocka, hur bra kroppen än rör sig.</td></tr>
+
+<tr><td>Looplängd</td><td>Fem sekunder eller kortare i appen</td>
+<td>0,68 sekunder för gångcykeln</td>
+<td>Vår är en loop, deras är en händelse. Olika saker.</td></tr>
+
+<tr><td>Nedskalning</td><td>Ansiktet beskuret tills ögonmasken går kant i kant. Kropp,
+vingar, öron, fötter och en färgnyans offras</td>
+<td>Samma metod, offerordningen redovisas per figur</td>
+<td>Samma.</td></tr>
+
+<tr><td>Teknik</td><td>Rive med State Machine. 8 huvudanimationer gånger 8
+kroppsanimationer ger över 64 varianter, filen under 1 MB. Två animationsstudior köpta,
+Gunner 2022 och Hobbes 2024 med tolv motion designers</td>
+<td>Bildrutor i SVG, noll körtid</td>
+<td>Ärligt: de har en avdelning, vi har en byggfil. Bildrutor är rätt val för oss, men det
+är ett val under en annan budget och det ska sägas rakt ut.</td></tr>
+</table>
+</div>
+
+<p class="note">Källor: design.duolingo.com/illustration/duo och /illustration/shape-language,
+blog.duolingo.com/how-to-draw-duo-the-owl och /reshaping-duo, samt egna mätningar i
+Duolingos publicerade lockup-SVG och app-ikon-SVG från design.duolingo.com/identity/logos.</p>
+`;

@@ -142,6 +142,39 @@ begin
 end;
 $$;
 
+-- Om kvoterna gäller den som skriver.
+--
+-- KVOTERNA ÄR ETT SKYDD MOT EN KÖ SOM SVÄMMAR ÖVER, INTE EN REGEL OM INNEHÅLL.
+-- Fem omdömen per dygn, fem bilder per dygn, tre per verksamhet och tio öppna
+-- finns för att en ensam människa ska hinna läsa allt som kommer in. Den
+-- människan är redaktionen, och en granskare som blockeras av sin egen kö är en
+-- spärr som skyddar mot fel person. Se pipeline/schema_admin.sql.
+--
+-- Funktionen svarar falskt för alla andra, och för alla utan undantag så länge
+-- schema_admin.sql inte körts.
+--
+-- VARFÖR EN EGEN FUNKTION OCH INTE ETT ANROP RAKT PÅ community.is_admin():
+-- den här filen ska gå att köra på en tom databas, i vilken ordning som helst,
+-- och schema_admin.sql kommer efter. Ett anrop på en funktion som ännu inte
+-- finns fäller varje uppladdning med "function does not exist" i stället för att
+-- bara sakna undantaget. Grenen nedan fångar exakt det felet och ingenting
+-- annat: ett fel INNE i is_admin() är ett riktigt fel och ska fortsätta upp.
+create or replace function community.quota_exempt()
+returns boolean
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+    return community.is_admin();
+exception when undefined_function then
+    return false;
+end;
+$$;
+
+comment on function community.quota_exempt() is
+    'Sant för redaktionen. Falskt för alla, och för alla tills schema_admin.sql körts.';
+
 -- ---------------------------------------------------------------------------
 -- Profiler
 --
@@ -728,6 +761,10 @@ create trigger reviews_visited_month
 --     skyddar också modereringskön från att svämma över, och en översvämmad kö
 --     är exakt det som gör en granskare slarvig.
 --
+--     Taket gäller inte redaktionen, se community.quota_exempt(). Åldersgränsen
+--     nedan gäller däremot alla: den avgör om en rad publiceras direkt, och det
+--     är ingen kvot utan en regel om innehåll.
+--
 --   Åldersgräns på kontot. Ett dygn. Det är den minsta gräns som överlever att
 --     någon skaffar konton och sprutar betyg i samma sittning. Yngre konton
 --     AVVISAS INTE, deras betyg landar som `pending`. Ett nytt konto ska inte
@@ -746,6 +783,8 @@ as $$
 declare
     kontots_alder interval;
     senaste_dygnet integer;
+    -- Redaktionen räknas inte. Se community.quota_exempt() längre upp.
+    fri boolean := community.quota_exempt();
 begin
     new.rejection_reason := null;
 
@@ -754,7 +793,7 @@ begin
     where r.user_id = new.user_id
       and r.created_at > now() - interval '24 hours';
 
-    if senaste_dygnet >= 5 then
+    if not fri and senaste_dygnet >= 5 then
         -- Meddelandet går rakt ut till besökaren. translate() i
         -- site/src/lib/community.ts skickar okända fel vidare ordagrant, så
         -- texten är skriven för den som läser den.
@@ -1119,6 +1158,10 @@ create index if not exists image_uploads_review_idx
 --     Granskningen är en ensam människa, och en kö som går att fylla snabbare
 --     än den töms är i praktiken en avstängning av funktionen.
 --
+-- INGEN AV DE TRE GÄLLER REDAKTIONEN. Skälet är samma mening som motiverar dem:
+-- de skyddar granskarens kö, och granskaren behöver inte skyddas från sig själv.
+-- Se community.quota_exempt() längre upp och pipeline/schema_admin.sql.
+--
 -- INGEN security definer. Funktionen läser bara community.image_uploads, och
 -- radsäkerheten där släpper redan ut varje egen rad. Filtret user_id =
 -- new.user_id står ändå utskrivet i varje fråga, av samma skäl som ownRows()
@@ -1132,6 +1175,8 @@ declare
     senaste_dygnet integer;
     pa_stallet     integer;
     oppna          integer;
+    -- Redaktionen räknas inte. Se community.quota_exempt() längre upp.
+    fri            boolean := community.quota_exempt();
 begin
     -- Statusen får aldrig komma utifrån. Kunde den skickas in vore
     -- granskningen borta i samma ögonblick som någon skickade
@@ -1151,35 +1196,41 @@ begin
             using errcode = 'check_violation';
     end if;
 
-    select count(*) into senaste_dygnet
-    from community.image_uploads i
-    where i.user_id = new.user_id
-      and i.created_at > now() - interval '24 hours';
+    -- SÖKVÄGSKONTROLLEN OVAN GÄLLER ALLA, ÄVEN REDAKTIONEN. Den är inte en kvot
+    -- utan ett samband: raden och filen måste peka på varandra, annars öppnar
+    -- storage-policyn en skrivning i någon annans mapp. De tre nedan är kvoter,
+    -- och de gäller inte den som ska granska dem.
+    if not fri then
+        select count(*) into senaste_dygnet
+        from community.image_uploads i
+        where i.user_id = new.user_id
+          and i.created_at > now() - interval '24 hours';
 
-    if senaste_dygnet >= 5 then
-        raise exception 'Fem bilder per dygn räcker. Försök igen i morgon.'
-            using errcode = 'check_violation';
-    end if;
+        if senaste_dygnet >= 5 then
+            raise exception 'Fem bilder per dygn räcker. Försök igen i morgon.'
+                using errcode = 'check_violation';
+        end if;
 
-    select count(*) into pa_stallet
-    from community.image_uploads i
-    where i.user_id = new.user_id
-      and i.establishment_id = new.establishment_id
-      and i.status <> 'rejected';
+        select count(*) into pa_stallet
+        from community.image_uploads i
+        where i.user_id = new.user_id
+          and i.establishment_id = new.establishment_id
+          and i.status <> 'rejected';
 
-    if pa_stallet >= 3 then
-        raise exception 'Tre bilder per verksamhet räcker.'
-            using errcode = 'check_violation';
-    end if;
+        if pa_stallet >= 3 then
+            raise exception 'Tre bilder per verksamhet räcker.'
+                using errcode = 'check_violation';
+        end if;
 
-    select count(*) into oppna
-    from community.image_uploads i
-    where i.user_id = new.user_id
-      and i.status = 'pending';
+        select count(*) into oppna
+        from community.image_uploads i
+        where i.user_id = new.user_id
+          and i.status = 'pending';
 
-    if oppna >= 10 then
-        raise exception 'Du har tio bilder som väntar på granskning. Vänta tills de är avgjorda.'
-            using errcode = 'check_violation';
+        if oppna >= 10 then
+            raise exception 'Du har tio bilder som väntar på granskning. Vänta tills de är avgjorda.'
+                using errcode = 'check_violation';
+        end if;
     end if;
 
     return new;
@@ -1683,6 +1734,30 @@ create policy "inkomna_delete_own" on storage.objects
 drop policy if exists "publika_delete_own" on storage.objects;
 create policy "publika_delete_own" on storage.objects
     for delete to authenticated
+    using (
+        bucket_id = 'verksamhetsbilder'
+        and (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+-- EN RADERING KRÄVER OCKSÅ LÄSRÄTT, och det var en tyst bugg i den här filen.
+--
+-- Mätt i produktion: med bara delete-policyn ovan svarar lagrings-API:t "Access
+-- denied" på varje försök att ta bort en fil ur den publika hinken. Supabase
+-- slår upp objektet innan det tas bort, och den uppslagningen prövas mot
+-- select-policyerna. Att hinken är publik hjälper inte: det gäller
+-- render-vägen, medan objekt-API:t går genom radsäkerheten som vanligt.
+--
+-- Följden var att deleteUpload() i site/src/lib/community.ts tog bort RADEN men
+-- lämnade kvar FILEN på en publik adress, tyst, eftersom funktionen med avsikt
+-- sväljer fel från lagringen. Den som bad om att få bort sin bild fick den
+-- borttagen ur listan medan adressen levde vidare. Det är precis den riktning
+-- kommentaren över de här två policyerna säger måste stängas.
+--
+-- Ingen uppgift lämnas ut. Filerna i hinken är publika, och det enda policyn
+-- ger är rätten att slå upp något som redan är läsbart för alla.
+drop policy if exists "publika_read_own" on storage.objects;
+create policy "publika_read_own" on storage.objects
+    for select to authenticated
     using (
         bucket_id = 'verksamhetsbilder'
         and (storage.foldername(name))[1] = auth.uid()::text

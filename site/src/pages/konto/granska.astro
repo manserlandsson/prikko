@@ -1,0 +1,805 @@
+---
+/**
+ * Granskning.
+ *
+ * Redaktionens arbetsyta: kön av omdömen, bilder, svar och anspråk som väntar på
+ * ett beslut, och två knappar per post.
+ *
+ * ---------------------------------------------------------------------------
+ * SIDAN ÄR INTE SPÄRREN
+ * ---------------------------------------------------------------------------
+ * HTML-filen byggs som varje annan sida och ligger öppet på prikko.se. Den är
+ * tom: allt innehåll hämtas i webbläsaren, och databasen släpper bara ut kön
+ * till ett konto som står i community.admins. Den som öppnar adressen utan
+ * behörighet ser en mening om att sidan är redaktionens, och en fråga mot API:t
+ * med samma konto svarar 42501.
+ *
+ * Ingen e-postadress står som villkor någonstans i den här filen. Rollen bor i
+ * databasen, se pipeline/schema_admin.sql och site/src/lib/granska.ts.
+ *
+ * ---------------------------------------------------------------------------
+ * FORMEN
+ * ---------------------------------------------------------------------------
+ * Detta är ett verktyg och inte en sida någon läser. Alltså: inga kort, inga
+ * ramar i huvudkolumnen, ingen förklarande brödtext, och tätt före snyggt. En
+ * hårfin linje mellan posterna och en markör i vänsterkanten för den som står i
+ * tur, precis som en inkorg.
+ *
+ * TANGENTBORDET RÄCKER. G godkänner, A avslår, J och K flyttar. Ett avslag
+ * kräver ett skäl, och skälet visas för den som skickade in på hens egen
+ * kontosida. Musen fungerar också, men den som går igenom trettio bilder ska
+ * aldrig behöva flytta handen.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD SIDAN INTE KAN
+ * ---------------------------------------------------------------------------
+ * Hygienbedömningen, kontrollhistoriken och utmärkelsen finns inte här och ska
+ * aldrig göra det. De kommer från kommunernas kontroller, de skrivs bara av
+ * pipelinen, och ingen funktion sidan når kan röra dem. Se schema_admin.sql.
+ */
+import Base from '../../layouts/Base.astro';
+import '../../styles/konto.css';
+---
+
+<Base title="Granska" description="Redaktionens granskning." noindex>
+  <div class="container konto-page konto-wide granska">
+    <p id="laddar" class="konto-empty">Hämtar kön …</p>
+
+    {/* Utloggad, eller inloggad utan behörighet. Samma yta, olika text. */}
+    <div id="nej" hidden>
+      <header class="konto-head">
+        <h1>Granska</h1>
+        <p class="konto-sub" id="nej-text">Den här sidan är redaktionens.</p>
+      </header>
+      <div class="konto-actions">
+        <button type="button" class="btn-primary" id="logga-in">Logga in</button>
+      </div>
+    </div>
+
+    <div id="verktyg" hidden>
+      <header class="konto-head granska-topp">
+        <h1>Granska</h1>
+        <span class="konto-meta" id="rakning"></span>
+      </header>
+
+      <p class="notice" id="global" hidden></p>
+
+      <ol class="granska-ko" id="ko"></ol>
+
+      <p class="konto-empty" id="tomt" hidden>
+        Kön är tom. Ingenting väntar på ett beslut.
+      </p>
+
+      <p class="granska-hjalp">
+        <b>G</b> godkänn · <b>A</b> avslå · <b>J</b> och <b>K</b> flyttar ·
+        <b>Esc</b> avbryter · <b>R</b> hämtar om
+      </p>
+    </div>
+  </div>
+</Base>
+
+<style is:global>
+  /*
+   * `is:global`, och varje selektor inleds med `.granska`.
+   *
+   * Astros scoping märker de element som står i MALLEN. Kön målas i webbläsaren
+   * med createElement, alltså saknar varje post märkningen och en scopad regel
+   * hade inte träffat en enda av dem. Samma skäl som gör att kontosidorna delar
+   * konto.css i stället för att styla sig själva.
+   *
+   * `.granska` sitter på sidans yttersta div och finns ingen annanstans på
+   * sajten, så räckvidden är den här sidan trots att regeln är global.
+   */
+
+  /* Sidan är bredare än kontosidorna. En bild i full storlek och en text
+     bredvid den ryms inte i 640 pixlar, och granskningen är det enda stället där
+     bilden är själva uppgiften. */
+  .granska {
+    max-width: 860px;
+  }
+
+  .granska .granska-topp {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+
+  .granska .granska-ko {
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Ingen ram runt posten. Linjen ligger mellan raderna, som i en inkorg, och
+     vänsterkanten bär markören för den som står i tur. */
+  .granska .granska-post {
+    border-bottom: 1px solid var(--hairline);
+    padding: var(--s-5) 0 var(--s-5) var(--s-4);
+    border-left: 3px solid transparent;
+  }
+
+  .granska .granska-post[data-vald='1'] {
+    border-left-color: var(--brand);
+  }
+
+  .granska .granska-rad {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+  }
+
+  .granska .granska-typ {
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    flex: none;
+  }
+
+  .granska .granska-plats {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .granska .granska-text {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* Bilden är uppgiften, alltså får den ta plats. Full bredd i kolumnen och
+     ingen beskärning: en beskuren bild är en bild man inte har granskat. */
+  .granska .granska-bild {
+    display: block;
+    margin-top: var(--s-3);
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--r-card);
+    background: var(--canvas);
+  }
+
+  .granska .granska-fakta {
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .granska .granska-fakta b { color: var(--text); font-weight: 600; }
+
+  .granska .granska-atgard {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+  }
+
+  .granska .granska-skal {
+    display: flex;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    flex-wrap: wrap;
+  }
+
+  /* Sexton pixlar är ett golv: under det zoomar iOS Safari in hela sidan när
+     fältet får fokus, och zoomar aldrig ut igen. Samma regel som arken. */
+  .granska .granska-skal input,
+  .granska .granska-atgard select {
+    font: 400 16px/1.4 var(--font-sans);
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    padding: 9px 12px;
+  }
+
+  .granska .granska-skal input {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+
+  /* Rullgardinen tar bredden efter sitt längsta alternativ, och ett flexbarn
+     vägrar krympa under sitt innehåll utan min-width. Utan de här två raderna
+     stack raden ut ur en telefonskärm och hela sidan gick att dra i sidled.
+     Mätt: 443 px i en 375 px bred vy. */
+  .granska .granska-atgard select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .granska .granska-skal input:focus-visible,
+  .granska .granska-atgard select:focus-visible {
+    border-color: var(--brand);
+    outline: 2px solid var(--brand);
+    outline-offset: 0;
+  }
+
+  .granska .granska-svar {
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .granska .granska-fel { color: var(--verdict-major-ink); }
+  .granska .granska-ok { color: var(--verdict-clean-ink); }
+
+  .granska .granska-hjalp {
+    margin-top: var(--s-6);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
+
+  .granska .granska-hjalp b {
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  import {
+    configured,
+    signedIn,
+    arAdmin,
+    ko,
+    bildlank,
+    publiceraOmdome,
+    avslaOmdome,
+    publiceraBild,
+    avslaBild,
+    publiceraSvar,
+    avslaSvar,
+    publiceraAnsprak,
+    avslaAnsprak,
+    METODER,
+    type KoPost,
+    type BildPost,
+    type OmdomePost,
+    type SvarPost,
+    type AnsprakPost,
+  } from '../../lib/granska';
+  import { captureLinkSession, placeNames, type PlaceName } from '../../lib/community';
+  import { openSignIn } from '../../lib/signin-dialog';
+
+  const laddar = document.getElementById('laddar') as HTMLParagraphElement;
+  const nej = document.getElementById('nej') as HTMLDivElement;
+  const nejText = document.getElementById('nej-text') as HTMLParagraphElement;
+  const loggaIn = document.getElementById('logga-in') as HTMLButtonElement;
+  const verktyg = document.getElementById('verktyg') as HTMLDivElement;
+  const rakning = document.getElementById('rakning') as HTMLSpanElement;
+  const global = document.getElementById('global') as HTMLParagraphElement;
+  const lista = document.getElementById('ko') as HTMLOListElement;
+  const tomt = document.getElementById('tomt') as HTMLParagraphElement;
+
+  const ETIKETT: Record<string, string> = {
+    omdome: 'Omdöme',
+    bild: 'Bild',
+    svar: 'Svar',
+    ansprak: 'Anspråk',
+  };
+
+  const MANADER = [
+    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+  ];
+
+  function datum(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    return `${d.getDate()} ${MANADER[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function stjarnor(rating: number | null): string {
+    if (!rating) return '';
+    return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Tillstånd                                                             */
+  /* -------------------------------------------------------------------- */
+
+  let poster: KoPost[] = [];
+  let platser = new Map<string, PlaceName>();
+  let vald = 0;
+  /** Sant medan ett beslut är på väg. Hindrar dubbla tryck på samma post. */
+  let arbetar = false;
+
+  function meddela(text: string, sort: 'ok' | 'fel' | 'vanta' = 'ok'): void {
+    global.hidden = !text;
+    global.textContent = text;
+    global.className = `notice notice-${sort === 'fel' ? 'error' : sort === 'vanta' ? 'wait' : 'ok'}`;
+  }
+
+  function platsnamn(post: KoPost): string {
+    if (post.sort === 'ansprak') return (post as AnsprakPost).establishment_name;
+    const p = platser.get(post.establishment_id);
+    /* Ett id är inte ett namn, men det är sant. En verksamhet som avpublicerats
+       sedan raden skrevs finns inte i den redaktionella vyn, och då ska posten
+       fortfarande gå att granska. */
+    return p?.name ?? post.establishment_id;
+  }
+
+  function lank(post: KoPost): string | null {
+    const p = platser.get(post.establishment_id);
+    return p ? `/${p.municipality_slug}/${p.slug}/` : null;
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Målning                                                               */
+  /* -------------------------------------------------------------------- */
+
+  /**
+   * En post i kön.
+   *
+   * Byggd med createElement och textContent, aldrig med innerHTML. Allt som
+   * står här är skrivet av någon annan, och granskningen är det sista stället
+   * där en text ska kunna bli kod.
+   */
+  function rita(post: KoPost, position: number): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = 'granska-post';
+    li.dataset.vald = position === vald ? '1' : '0';
+    li.tabIndex = -1;
+
+    const rad = document.createElement('div');
+    rad.className = 'granska-rad';
+
+    const typ = document.createElement('span');
+    typ.className = 'granska-typ';
+    typ.textContent = ETIKETT[post.sort] ?? post.sort;
+    rad.append(typ);
+
+    const href = lank(post);
+    const namn = document.createElement(href ? 'a' : 'span');
+    namn.className = 'granska-plats';
+    namn.textContent = platsnamn(post);
+    if (href) {
+      (namn as HTMLAnchorElement).href = href;
+      (namn as HTMLAnchorElement).target = '_blank';
+      (namn as HTMLAnchorElement).rel = 'noopener';
+    }
+    rad.append(namn);
+
+    const nar = document.createElement('span');
+    nar.className = 'konto-meta';
+    nar.textContent = datum(post.created_at);
+    rad.append(nar);
+    li.append(rad);
+
+    if (post.sort === 'omdome') li.append(...ritaOmdome(post as OmdomePost));
+    if (post.sort === 'bild') li.append(...ritaBild(post as BildPost));
+    if (post.sort === 'svar') li.append(...ritaSvar(post as SvarPost));
+    if (post.sort === 'ansprak') li.append(...ritaAnsprak(post as AnsprakPost));
+
+    li.append(ritaAtgarder(post, position));
+    return li;
+  }
+
+  function fakta(delar: Array<[string, string]>): HTMLParagraphElement {
+    const p = document.createElement('p');
+    p.className = 'granska-fakta';
+    delar.forEach(([etikett, varde], i) => {
+      if (i > 0) p.append(document.createTextNode(' · '));
+      p.append(document.createTextNode(`${etikett} `));
+      const b = document.createElement('b');
+      b.textContent = varde;
+      p.append(b);
+    });
+    return p;
+  }
+
+  function ritaOmdome(post: OmdomePost): HTMLElement[] {
+    const ut: HTMLElement[] = [];
+
+    if (post.body) {
+      const text = document.createElement('p');
+      text.className = 'granska-text';
+      text.textContent = post.body;
+      ut.push(text);
+    }
+
+    const delar: Array<[string, string]> = [];
+    if (post.rating) delar.push(['Betyg', `${stjarnor(post.rating)} ${post.rating} av 5`]);
+    if (post.visited_month) delar.push(['Besök', post.visited_month.slice(0, 7)]);
+    if (!post.body) delar.push(['Text', 'ingen, bara betyg']);
+    /* Att bilderna följer med vid ett avslag är inget granskaren ska behöva
+       minnas. Det står på raden, före beslutet. */
+    if (post.bilder > 0)
+      delar.push(['Bilder', `${post.bilder} i kön, avslås med texten`]);
+    if (delar.length > 0) ut.push(fakta(delar));
+
+    return ut;
+  }
+
+  function ritaBild(post: BildPost): HTMLElement[] {
+    const ut: HTMLElement[] = [];
+
+    const bild = document.createElement('img');
+    bild.className = 'granska-bild';
+    bild.alt = '';
+    bild.loading = 'lazy';
+    /* Länken signeras när posten målas. Den gäller en timme, vilket räcker för
+       en genomgång, och hinken förblir privat. */
+    void bildlank(post.storage_path)
+      .then((url) => {
+        bild.src = url;
+      })
+      .catch(() => {
+        const fel = document.createElement('p');
+        fel.className = 'granska-svar granska-fel';
+        fel.textContent = 'Bilden gick inte att hämta. Ladda om sidan.';
+        bild.replaceWith(fel);
+      });
+    ut.push(bild);
+
+    if (post.caption) {
+      const text = document.createElement('p');
+      text.className = 'granska-text';
+      text.textContent = post.caption;
+      ut.push(text);
+    }
+
+    /* Omdömet bilden hör till, ordagrant. En bild utan sammanhang är det
+       svåraste tänkbara granskningsärendet: texten säger om det är disken,
+       skylten eller en tallrik man tittar på. */
+    if (post.omdome) {
+      const text = document.createElement('p');
+      text.className = 'granska-text';
+      const betyg = post.omdome.rating ? `${stjarnor(post.omdome.rating)} ` : '';
+      text.textContent = `${betyg}${post.omdome.body ?? 'Omdömet bär bara ett betyg.'}`;
+      ut.push(text);
+    }
+
+    const delar: Array<[string, string]> = [
+      ['Format', post.content_type.replace('image/', '')],
+      ['Storlek', `${Math.round(post.byte_size / 1024)} kB`],
+    ];
+    if (!post.review_id) delar.push(['Text', 'ingen, bilden är inskickad för sig']);
+    if (post.omdome && post.omdome.status !== 'published')
+      delar.push(['Omdömet', post.omdome.status]);
+    ut.push(fakta(delar));
+
+    return ut;
+  }
+
+  function ritaSvar(post: SvarPost): HTMLElement[] {
+    const text = document.createElement('p');
+    text.className = 'granska-text';
+    text.textContent = post.body;
+
+    /* Att texten publiceras ordagrant eller inte alls är löftet i sidfoten, och
+       att den inte står på sajten förrän pipelinen skrivit den dit är ett steg
+       granskaren måste känna till. Båda står på raden. */
+    return [
+      text,
+      fakta([
+        ['Kontroll', post.inspection_id],
+        ['Publiceras', 'ordagrant, av moderate.py synka'],
+      ]),
+    ];
+  }
+
+  function ritaAnsprak(post: AnsprakPost): HTMLElement[] {
+    const delar: Array<[string, string]> = [
+      ['Sökande', post.claimant_name],
+      ['Roll', post.claimant_role],
+      ['E-post', post.contact_email],
+    ];
+    if (post.organization_number) delar.push(['Org.nr', post.organization_number]);
+    if (post.contact_phone) delar.push(['Telefon', post.contact_phone]);
+    return [fakta(delar)];
+  }
+
+  /**
+   * Knapparna.
+   *
+   * Två utfall, aldrig tre. Det finns ingen "ändra"-väg: texten är frusen efter
+   * insändning av en trigger i databasen, och redaktionen kan bara välja mellan
+   * att publicera ordagrant och att avslå.
+   */
+  function ritaAtgarder(post: KoPost, position: number): HTMLDivElement {
+    const holk = document.createElement('div');
+
+    const atgard = document.createElement('div');
+    atgard.className = 'granska-atgard';
+
+    let metod: HTMLSelectElement | null = null;
+    if (post.sort === 'ansprak') {
+      /* Ett godkänt anspråk måste bära hur det kontrollerades. Databasen fäller
+         raden annars, så valet står före knappen och inte i en ruta efteråt. */
+      metod = document.createElement('select');
+      metod.setAttribute('aria-label', 'Hur anspråket kontrollerades');
+      for (const m of METODER) {
+        const val = document.createElement('option');
+        val.value = m.varde;
+        val.textContent = m.text;
+        metod.append(val);
+      }
+      atgard.append(metod);
+    }
+
+    const godkann = document.createElement('button');
+    godkann.type = 'button';
+    godkann.className = 'btn-primary btn-tight';
+    godkann.textContent = 'Godkänn';
+    godkann.addEventListener('click', () => {
+      vald = position;
+      void besluta(post, 'publish', metod?.value ?? null, null);
+    });
+    atgard.append(godkann);
+
+    const avsla = document.createElement('button');
+    avsla.type = 'button';
+    avsla.className = 'btn-quiet btn-tight';
+    avsla.textContent = 'Avslå';
+    atgard.append(avsla);
+    holk.append(atgard);
+
+    /* Skälet. Ett avslag utan skäl finns inte: databasen kräver det, och skälet
+       är det enda den som skickade in kan göra något åt. */
+    const skalrad = document.createElement('div');
+    skalrad.className = 'granska-skal';
+    skalrad.hidden = true;
+
+    const falt = document.createElement('input');
+    falt.type = 'text';
+    falt.maxLength = 300;
+    falt.placeholder = 'Skäl, visas för avsändaren';
+    falt.setAttribute('aria-label', 'Skäl för avslag');
+    skalrad.append(falt);
+
+    const bekrafta = document.createElement('button');
+    bekrafta.type = 'button';
+    bekrafta.className = 'btn-quiet btn-tight';
+    bekrafta.textContent = 'Avslå';
+    skalrad.append(bekrafta);
+    holk.append(skalrad);
+
+    const oppna = () => {
+      vald = position;
+      skalrad.hidden = false;
+      /* preventScroll: sidan ska inte hoppa när fältet fälls ut. */
+      falt.focus({ preventScroll: true });
+    };
+    avsla.addEventListener('click', oppna);
+
+    const skicka = () => {
+      const skal = falt.value.trim();
+      if (!skal) {
+        falt.focus({ preventScroll: true });
+        return;
+      }
+      void besluta(post, 'reject', null, skal);
+    };
+    bekrafta.addEventListener('click', skicka);
+    falt.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        skicka();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        skalrad.hidden = true;
+        falt.value = '';
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    });
+
+    /* Kroken som tangentbordet använder. Att lägga den på elementet i stället
+       för att leta upp knappen med en selektor gör att formen på raden kan
+       ändras utan att styrningen går sönder. */
+    (holk as any).__godkann = () => godkann.click();
+    (holk as any).__avsla = () => oppna();
+    return holk;
+  }
+
+  function mala(): void {
+    lista.textContent = '';
+    if (vald >= poster.length) vald = Math.max(0, poster.length - 1);
+
+    poster.forEach((post, i) => lista.append(rita(post, i)));
+
+    tomt.hidden = poster.length > 0;
+    rakning.textContent =
+      poster.length === 0 ? 'inget väntar' : `${poster.length} väntar på beslut`;
+  }
+
+  function flytta(steg: number): void {
+    if (poster.length === 0) return;
+    vald = Math.min(poster.length - 1, Math.max(0, vald + steg));
+    mala();
+    const li = lista.children[vald] as HTMLElement | undefined;
+    li?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Beslut                                                                */
+  /* -------------------------------------------------------------------- */
+
+  async function besluta(
+    post: KoPost,
+    beslut: 'publish' | 'reject',
+    metod: string | null,
+    skal: string | null,
+  ): Promise<void> {
+    if (arbetar) return;
+    arbetar = true;
+    meddela(beslut === 'publish' ? 'Publicerar …' : 'Avslår …', 'vanta');
+
+    try {
+      let kvar: string[] = [];
+
+      if (post.sort === 'omdome') {
+        if (beslut === 'publish') await publiceraOmdome(post.id);
+        else kvar = await avslaOmdome(post.id, skal!);
+      } else if (post.sort === 'bild') {
+        if (beslut === 'publish') await publiceraBild(post as BildPost);
+        else kvar = await avslaBild(post.id, skal!);
+      } else if (post.sort === 'svar') {
+        if (beslut === 'publish') await publiceraSvar(post.id);
+        else await avslaSvar(post.id, skal!);
+      } else {
+        if (beslut === 'publish') await publiceraAnsprak(post.id, metod ?? 'register_check');
+        else await avslaAnsprak(post.id, skal!);
+      }
+
+      poster = poster.filter((p) => !(p.id === post.id && p.sort === post.sort));
+      /* Ett avslaget omdöme tar sina väntande bilder med sig. De försvinner ur
+         databasen som kö och ska försvinna ur listan i samma stund, annars
+         klickar granskaren på en post som redan är avgjord. */
+      if (post.sort === 'omdome' && beslut === 'reject') {
+        poster = poster.filter((p) => !(p.sort === 'bild' && (p as BildPost).review_id === post.id));
+      }
+      mala();
+
+      if (kvar.length > 0) {
+        meddela(
+          `Beslutet är skrivet, men ${kvar.length} fil(er) blev kvar i lagringen. ` +
+            `Ta bort dem för hand: ${kvar.join(', ')}`,
+          'vanta',
+        );
+      } else if (post.sort === 'svar' && beslut === 'publish') {
+        meddela(
+          'Svaret är godkänt. Texten står på sajten först efter ' +
+            'python3 pipeline/moderate.py synka och ett nytt bygge.',
+          'ok',
+        );
+      } else {
+        meddela(beslut === 'publish' ? 'Publicerat.' : 'Avslaget.', 'ok');
+      }
+    } catch (err) {
+      meddela(err instanceof Error ? err.message : 'Något gick fel.', 'fel');
+    } finally {
+      arbetar = false;
+    }
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Tangentbord                                                           */
+  /* -------------------------------------------------------------------- */
+
+  function tangent(e: KeyboardEvent): void {
+    const i = document.activeElement;
+    const skriver =
+      i instanceof HTMLInputElement ||
+      i instanceof HTMLTextAreaElement ||
+      i instanceof HTMLSelectElement;
+    if (skriver) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    const key = e.key.toLowerCase();
+    if (key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      flytta(1);
+      return;
+    }
+    if (key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      flytta(-1);
+      return;
+    }
+    if (key === 'r') {
+      e.preventDefault();
+      void hamta();
+      return;
+    }
+
+    const li = lista.children[vald] as HTMLElement | undefined;
+    if (!li) return;
+    const holk = li.lastElementChild as any;
+
+    if (key === 'g' || e.key === 'Enter') {
+      e.preventDefault();
+      holk?.__godkann?.();
+    }
+    if (key === 'a') {
+      e.preventDefault();
+      holk?.__avsla?.();
+    }
+  }
+
+  /* -------------------------------------------------------------------- */
+  /* Start                                                                 */
+  /* -------------------------------------------------------------------- */
+
+  async function hamta(): Promise<void> {
+    meddela('');
+    try {
+      poster = await ko();
+    } catch (err) {
+      laddar.hidden = true;
+      verktyg.hidden = false;
+      meddela(err instanceof Error ? err.message : 'Kön kunde inte hämtas.', 'fel');
+      return;
+    }
+
+    /* Namnen hämtas ur den redaktionella databasen, som vem som helst får läsa.
+       Kötabellerna bär bara ett id, och ska bara bära ett id: det finns ingen
+       främmande nyckel mellan de två scheman och ska inte finnas någon. */
+    try {
+      platser = await placeNames(poster.map((p) => p.establishment_id));
+    } catch {
+      /* Namnen är en förbättring, inte kön. Utan dem står id:t kvar. */
+    }
+
+    laddar.hidden = true;
+    verktyg.hidden = false;
+    mala();
+  }
+
+  async function start(): Promise<void> {
+    if (!configured) {
+      laddar.hidden = true;
+      nej.hidden = false;
+      nejText.textContent = 'Inloggningen är inte konfigurerad i det här bygget.';
+      loggaIn.hidden = true;
+      return;
+    }
+
+    captureLinkSession();
+
+    const visaNej = (text: string, knapp: boolean) => {
+      laddar.hidden = true;
+      verktyg.hidden = true;
+      nej.hidden = false;
+      nejText.textContent = text;
+      loggaIn.hidden = !knapp;
+    };
+
+    if (!(await signedIn())) {
+      visaNej('Logga in för att granska.', true);
+      loggaIn.addEventListener('click', async () => {
+        if (await openSignIn(loggaIn)) void start();
+      });
+      return;
+    }
+
+    /* Frågan ställs till databasen, aldrig till klienten. Svaret avgör bara vad
+       sidan visar; det som avgör vad som kan skrivas är radsäkerheten. */
+    if (!(await arAdmin())) {
+      visaNej(
+        'Den här sidan är redaktionens. Ditt konto har inte behörighet att granska.',
+        false,
+      );
+      return;
+    }
+
+    nej.hidden = true;
+    document.addEventListener('keydown', tangent);
+    await hamta();
+  }
+
+  void start();
+</script>

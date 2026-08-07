@@ -27,6 +27,24 @@
 export const BAS  = { blue: '#007BE0', clean: '#00B92B', minor: '#FECB00', major: '#EB0000' };
 export const MORK = { blue: '#0063B4', clean: '#009523', minor: '#DEB201', major: '#C50000' };
 
+/**
+ * Hur hårt figurens mörka plan ska mörkna per tillstånd.
+ *
+ * Gult har ett problem de andra inte har, och det har flaggats i två separata
+ * granskningar: #FECB00 mot #DEB201 är den minsta valörskillnaden i hela
+ * paletten, och artens tecken försvinner nästan helt i 24 px.
+ *
+ * Räknat: #FECB00 har relativ luminans 0,646 och #DEB201 har 0,504, alltså
+ * en kvot på 1,25:1. Grönt ligger på 1,38:1 och rött på 1,66:1. Gult är
+ * alltså det enda som ligger under det ögat klarar i litet format.
+ *
+ * Orsaken är att #DEB201 är en INK-färg. Den finns i tokens.css för att bära
+ * TEXT och är därför bara nätt och jämnt mörkare än ytan. Ett mörkt plan i en
+ * figur har ett annat jobb: det ska ge en kant. Därför mörknas gult mer, och
+ * det är ingen ny färg utan samma gula längre ned i sin egen skala.
+ */
+export const MORKGRAD = { blue: 0.22, clean: 0.24, minor: 0.42, major: 0.20 };
+
 export const BAKGRUND = [
   ['#FFFFFF', 'Vitt kort'],
   ['#FCFCFD', 'Canvas'],
@@ -125,6 +143,7 @@ export const RECEPT = {
 export function omfarga(ansiktssvg, ton, recept) {
   const bas = BAS[ton] ?? BAS.blue;
   const mork = MORK[ton] ?? MORK.blue;
+  const g = MORKGRAD[ton] ?? 0.22;
   const alla = fyllningar(ansiktssvg);
 
   // Dela upp i drag (nästan vitt) och päls (allt annat), pälsen sorterad ljust till mörkt.
@@ -139,11 +158,11 @@ export function omfarga(ansiktssvg, ton, recept) {
   if (recept === 'ingenplatta') {
     // Figuren bär färgen. Ljusaste pälstonen blir grundfärgen, de mörkare
     // blir mörkare släktingar. Dragen står kvar vita och läser mot figuren.
-    pals.forEach((c, i) => { karta[c] = i === 0 ? bas : blanda(bas, '#000000', 0.22 + (i - 1) * 0.14); });
+    pals.forEach((c, i) => { karta[c] = i === 0 ? bas : blanda(bas, '#000000', g + (i - 1) * 0.14); });
     ram = 'none';
     figurfarg = bas;
   } else if (recept === 'tonadplatta') {
-    pals.forEach((c, i) => { karta[c] = i === 0 ? bas : blanda(bas, '#000000', 0.22 + (i - 1) * 0.14); });
+    pals.forEach((c, i) => { karta[c] = i === 0 ? bas : blanda(bas, '#000000', g + (i - 1) * 0.14); });
     ram = blanda(bas, '#ffffff', 0.90);
     figurfarg = bas;
   } else if (recept === 'duo') {
@@ -153,7 +172,7 @@ export function omfarga(ansiktssvg, ton, recept) {
     ram = bas;
     figurfarg = blanda(bas, '#ffffff', 0.34);
   } else if (recept === 'duomork') {
-    pals.forEach((c, i) => { karta[c] = blanda(bas, '#000000', 0.30 + i * 0.14); });
+    pals.forEach((c, i) => { karta[c] = blanda(bas, '#000000', g + 0.08 + i * 0.14); });
     ram = bas;
     figurfarg = blanda(bas, '#000000', 0.30);
   } else if (recept === 'urstans') {

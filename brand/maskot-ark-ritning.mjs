@@ -29,18 +29,31 @@ function kontur(kod, farg = '#007BE0', vikt = 1.1) {
     .replace(/\/?>$/, ` fill="none" stroke="${farg}" stroke-width="${vikt}" vector-effect="non-scaling-stroke"/>`);
 }
 
-/** Rutnätet. Tio enheter i taget i 120-rutan, plus mittlinjen och marklinjen. */
-function rutnat() {
+/**
+ * Rutnätet, lagt över figurens EGEN viewBox.
+ *
+ * Första versionen ritade alltid ett 120-rutnät oavsett vad figuren hade för
+ * viewBox, och då hamnade rutnät och figur i otakt: konturen sköt ut nedanför
+ * marklinjen och utanför ramen. Rutnätet räknas nu ur viewBoxen, alltså kan
+ * det aldrig hamna fel igen.
+ */
+function rutnat(vb) {
+  const [x0, y0, w, h] = vb.split(/[\s,]+/).map(Number);
+  const steg = w / 12;
   const linjer = [];
-  for (let i = 10; i < 120; i += 10) {
-    const stark = i % 30 === 0;
-    linjer.push(`<path d="M${i} 0V120" stroke="#D8D8DE" stroke-width="${stark ? 0.6 : 0.3}"/>`);
-    linjer.push(`<path d="M0 ${i}H120" stroke="#D8D8DE" stroke-width="${stark ? 0.6 : 0.3}"/>`);
+  for (let i = 1; i < 12; i++) {
+    const stark = i % 3 === 0;
+    const x = x0 + steg * i;
+    const y = y0 + (h / 12) * i;
+    linjer.push(`<path d="M${x.toFixed(2)} ${y0}V${(y0 + h).toFixed(2)}" stroke="#D8D8DE" stroke-width="${stark ? 0.6 : 0.3}"/>`);
+    linjer.push(`<path d="M${x0} ${y.toFixed(2)}H${(x0 + w).toFixed(2)}" stroke="#D8D8DE" stroke-width="${stark ? 0.6 : 0.3}"/>`);
   }
+  const mitt = x0 + w / 2;
+  const mark = y0 + h * (116 / 120);
   return `<g>${linjer.join('')}
-  <path d="M60 0V120" stroke="#EB0000" stroke-width="0.5" stroke-dasharray="3 3"/>
-  <path d="M0 116H120" stroke="#EB0000" stroke-width="0.6"/>
-  <rect x="0" y="0" width="120" height="120" fill="none" stroke="#A1A1A6" stroke-width="0.8"/></g>`;
+  <path d="M${mitt.toFixed(2)} ${y0}V${(y0 + h).toFixed(2)}" stroke="#EB0000" stroke-width="0.5" stroke-dasharray="3 3"/>
+  <path d="M${x0} ${mark.toFixed(2)}H${(x0 + w).toFixed(2)}" stroke="#EB0000" stroke-width="0.6"/>
+  <rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="none" stroke="#A1A1A6" stroke-width="0.8"/></g>`;
 }
 
 /**
@@ -58,7 +71,7 @@ export function ritning(m, { steg = 6 } = {}) {
     `<svg width="${size}" height="${size}" viewBox="${vb}">${inner}</svg>`;
 
   // 1. Måttvyn
-  const matt = ram(rutnat() + delar.map((d) => kontur(d.kod)).join(''), 300);
+  const matt = ram(rutnat(vb) + delar.map((d) => kontur(d.kod)).join(''), 300);
 
   // 2. Formerna en och en, med figurens ytterkontur som svag referens under.
   //    Referensen definieras EN gång som en symbol och pekas på med use. Ritas
@@ -69,8 +82,13 @@ export function ritning(m, { steg = 6 } = {}) {
     <symbol id="${spokId}" viewBox="${vb}">
       <g opacity=".12">${delar.map((x) => kontur(x.kod, '#1D1D1F', 0.8)).join('')}</g>
     </symbol></svg>`;
+  // Brickorna har ett mellangrått underlag med flit: figurernas vita former,
+  // alltså ögonen och munnen, försvann helt mot en vit platta och en tredjedel
+  // av rutorna såg tomma ut. En formlista där formerna inte syns bevisar inget.
+  const [bx, by, bw, bh] = vb.split(/[\s,]+/).map(Number);
+  const platta = `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#9A9AA2"/>`;
   const enskilda = delar.map((d, i) => `<div class="cell">
-    ${ram(`<use href="#${spokId}" width="120" height="120" x="0" y="0"/>${d.kod}`, 78)}
+    ${ram(platta + `<use href="#${spokId}" width="${bw}" height="${bh}" x="${bx}" y="${by}"/>` + d.kod, 78)}
     <span>${i + 1}. ${d.tagg}</span>
   </div>`).join('');
 
@@ -78,7 +96,7 @@ export function ritning(m, { steg = 6 } = {}) {
   const punkter = Array.from({ length: steg }, (_, i) =>
     Math.max(1, Math.round(((i + 1) / steg) * delar.length)));
   const bygge = punkter.map((n, i) => `<div class="cell">
-    ${ram(delar.slice(0, n).map((d) => d.kod).join(''), 84)}
+    ${ram(platta + delar.slice(0, n).map((d) => d.kod).join(''), 84)}
     <span>Steg ${i + 1}, ${n} av ${delar.length}</span>
   </div>`).join('');
 
