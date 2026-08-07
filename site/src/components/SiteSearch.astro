@@ -51,6 +51,7 @@
  * samma lista.
  */
 import { siteCommands } from '../lib/kommandon';
+import { popularSearches } from '../lib/snabbval';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import type { Suggestion } from '../lib/sokforslag';
 
@@ -71,12 +72,26 @@ interface Props {
 
 const { size = 'bar' } = Astro.props;
 
+/* Populära sökningar som FÖRSLAGSRADER i panelen, inte som chips.
+   Ägaren tog bort chipsraden överst: "det enda jag ville att du skulle ta
+   bort va dom där pillsen med populära sökningar". Raderna är en annan sak.
+   De ser ut som träffar, ligger i listan där träffarna kommer, och svarar på
+   frågan "vad kan jag söka på" för den som öppnat en tom ruta.
+   Kedjorna får förstoringsglaset: de leder till en sökning, inte till ett
+   ställe. */
+const popular: Suggestion[] = popularSearches().map((p) => ({
+  label: p.name,
+  meta: p.meta,
+  href: p.href,
+  kind: p.kind === 'kommun' ? 'kommun' : 'query',
+}));
+
 const sections = await siteCommands();
 
 /* `<` maskeras: en artikelrubrik med "</script>" i sig skulle annars stänga
    taggen mitt i datan. Enda tecknet som kan göra det, och JSON-parsern läser
    < som ett vanligt <. */
-const suggestData = JSON.stringify({ sections }).replace(/</g, '\\u003c');
+const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c');
 ---
 
 <div
@@ -391,7 +406,8 @@ const suggestData = JSON.stringify({ sections }).replace(/</g, '\\u003c');
   }
 
   /* Första gruppen ska inte skjuta ner listan: luften ovanför den bärs
-     redan av chipsraden eller av panelens egen padding. */
+     av panelens egen padding. Här stod tidigare att chipsraden bar den, och
+     den raden finns inte längre. */
   .list :global(.group:first-child) {
     margin-top: var(--s-1);
   }
@@ -640,6 +656,7 @@ const suggestData = JSON.stringify({ sections }).replace(/</g, '\\u003c');
     const data = JSON.parse(
       root.querySelector<HTMLElement>('[data-suggest]')!.textContent!,
     ) as {
+      popular: Suggestion[];
       sections: { name: string; items: Suggestion[] }[];
     };
 
@@ -658,9 +675,9 @@ const suggestData = JSON.stringify({ sections }).replace(/</g, '\\u003c');
        och under heron; den fanns för den som inte visste vad hon skulle
        skriva, och den frågan löser fältets ledtext lika bra utan att fylla
        panelen med fyra genvägar till något annat än det man kom för. */
-    const emptyHtml = data.sections
-      .map((s) => sectionHtml(s.name, s.items, ''))
-      .join('');
+    const emptyHtml =
+      sectionHtml('Populära sökningar', data.popular, '') +
+      data.sections.map((s) => sectionHtml(s.name, s.items, '')).join('');
 
     /** Mac har cmd+K; ctrl+K på en Mac är dessutom emacs-bindningen "radera
      *  till radslut" i textfält och får inte kapas där. */
