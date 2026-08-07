@@ -274,8 +274,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           <span id="review-photos-label">
             Lägg till några bilder
             <span class="hint">
-              Frivilligt. JPEG, PNG eller WebP, högst 8 MB och tre bilder per
-              ställe.
+              Frivilligt. Högst 12 MB och tre bilder per ställe.
             </span>
           </span>
 
@@ -290,8 +289,20 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
             <span>Dra hit bilder eller <b>välj filer</b></span>
           </button>
 
+          {/* HEIC och HEIF står med, och ändelserna står med UTÖVER
+              MIME-typerna.
+
+              Skälet är att macOS filväljare gråar ut allt som inte matchar, och
+              den matchar på det den känner igen. Utan `.heic` i listan är
+              iPhone-bilder gråa i väljaren, och den som ser sina egna foton
+              oklickbara drar slutsatsen att något är trasigt.
+
+              Listan ska hållas i takt med ACCEPTED_TYPES i lib/community.ts.
+              Testet i pipeline/tests/test_besokarbilder.py fäller om de glider
+              isär. */}
           <input type="file" id="review-files" class="visually-hidden"
-                 accept="image/jpeg,image/png,image/webp" multiple />
+                 accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                 multiple />
 
           <ul class="picked" id="review-picked"></ul>
 
@@ -681,6 +692,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     myReview,
     submitReview,
     uploadImage,
+    imageType,
     claimFor,
     CommunityError,
     onAuthChange,
@@ -846,8 +858,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
      * för alltid. Sex här hade låtit besökaren välja tre bilder som sedan
      * avvisades en efter en.
      */
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
-    const MAX_BYTES = 8 * 1024 * 1024;
+    /* Vilka format som duger avgörs av imageType() i lib/community.ts och inte
+       av en egen lista här. Den funktionen kan läsa en tom `file.type`, vilket
+       är vad flera webbläsare rapporterar för HEIC, och faller då tillbaka på
+       filändelsen. En egen lista här hade sagt nej till en fil som databasen
+       tar emot. */
+    const MAX_BYTES = 12 * 1024 * 1024;
     const MAX_FILES = 3;
 
     /** De valda filerna, med den förhandsvisning som ritats för var och en. */
@@ -865,9 +881,22 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       chosen.forEach((item, index) => {
         const row = document.createElement('li');
 
+        /* Miniatyren ritas ur filen, och det går inte alltid.
+         *
+         * Chrome och Firefox kan inte avkoda HEIC, alltså laddar <img> aldrig
+         * och rutan blir en trasig bildikon. En trasig ikon läser som ett fel,
+         * och det är just den slutsatsen som inte får dras här: filen är hel och
+         * kommer att gå fram. Rutan byts därför mot en tyst platshållare, och
+         * filnamnet bredvid är kvar som det som säger vilken bild man valt. */
         const thumb = document.createElement('img');
         thumb.src = item.url;
         thumb.alt = '';
+        thumb.addEventListener('error', () => {
+          const box = document.createElement('span');
+          box.className = 'ingen-forhandsvisning';
+          box.setAttribute('aria-hidden', 'true');
+          thumb.replaceWith(box);
+        });
 
         const name = document.createElement('span');
         name.className = 'name';
@@ -929,12 +958,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           rejected.push(`Högst ${MAX_FILES} bilder per omdöme.`);
           break;
         }
-        if (!ALLOWED.includes(file.type)) {
-          rejected.push(`${file.name} är inte JPEG, PNG eller WebP.`);
+        if (!imageType(file)) {
+          rejected.push(`${file.name} är inte en bild vi kan ta emot.`);
           continue;
         }
         if (file.size > MAX_BYTES) {
-          rejected.push(`${file.name} är större än 8 MB.`);
+          rejected.push(`${file.name} är större än 12 MB.`);
           continue;
         }
         chosen.push({ file, url: URL.createObjectURL(file) });
@@ -1726,6 +1755,18 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     width: 44px;
     height: 44px;
     object-fit: cover;
+    border-radius: 8px;
+    background: var(--canvas);
+  }
+
+  /* Platshållaren när webbläsaren inte kan rita filen, alltså HEIC i allt utom
+     Safari. Samma mått och form som miniatyren så att raden inte hoppar, men
+     tom: en ikon här hade behövt betyda något, och det enda den kunde betyda är
+     att förhandsvisningen saknas, vilket ingen behöver veta. */
+  .write-dialog .picked .ingen-forhandsvisning {
+    flex: none;
+    width: 44px;
+    height: 44px;
     border-radius: 8px;
     background: var(--canvas);
   }

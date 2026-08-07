@@ -59,6 +59,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import textwrap
 import urllib.error
@@ -93,14 +94,18 @@ class Supabase:
         self.url = url.rstrip("/")
         self.key = key
 
-    def _request(self, method: str, path: str, body=None, headers=None) -> bytes:
+    def _request(self, method: str, path: str, body=None, headers=None, raw: bytes | None = None) -> bytes:
         merged = {
             "apikey": self.key,
             "Authorization": f"Bearer {self.key}",
         }
         merged.update(headers or {})
         data = None
-        if body is not None:
+        if raw is not None:
+            # Färdiga bytes, alltså en fil och ingen JSON. Anroparen sätter
+            # Content-Type själv.
+            data = raw
+        elif body is not None:
             data = json.dumps(body).encode("utf-8")
             merged.setdefault("Content-Type", "application/json")
 
@@ -151,6 +156,21 @@ class Supabase:
             },
         )
 
+    def download_object(self, bucket: str, path: str) -> bytes:
+        """Hämtar hem en fil. Används när den ska konverteras före publicering."""
+        return self._request("GET", f"storage/v1/object/{bucket}/{path}")
+
+    def upload_object(self, bucket: str, path: str, data: bytes, content_type: str) -> None:
+        """Skriver en fil vi själva skapat, till skillnad från copy_object som
+        låter Supabase flytta en befintlig."""
+        self._request(
+            "POST",
+            f"storage/v1/object/{bucket}/{path}",
+            body=None,
+            headers={"Content-Type": content_type},
+            raw=data,
+        )
+
     def remove_object(self, bucket: str, path: str) -> None:
         """Tar bort ett objekt ur lagringen.
 
@@ -161,6 +181,133 @@ class Supabase:
 
     def public_url(self, path: str) -> str:
         return f"{self.url}/storage/v1/object/public/{PUBLIC_BUCKET}/{path}"
+
+
+#: Format som inte får nå den publika hinken och därför konverteras vid
+#: publicering. Se heic_to_jpeg() nedan.
+NEEDS_CONVERSION = {
+    "image/heic",
+    "image/heif",
+    "image/heic-sequence",
+    "image/heif-sequence",
+}
+
+#: Längsta sidan på en publicerad bild. Samma mått som webbläsaren använder när
+#: den kan komprimera själv, se MAX_EDGE i site/src/lib/community.ts. En bild ska
+#: väga lika lite oavsett vilken väg in den tog.
+MAX_EDGE = 1600
+
+
+def _finish_jpeg(image) -> bytes:
+    """Skalar ner och skriver JPEG UTAN metadata.
+
+    Sista steget i varje konvertering, oavsett hur bilden avkodades. Två saker
+    händer och båda är avsiktliga:
+
+      Storleken. Samma 1600 pixlar som webbläsaren använder när den kan
+        komprimera själv.
+      EXIF FÖRSVINNER. Pillow skriver ingen exif om ingen skickas med, och det
+        är precis vad vi vill. Den vanliga vägen tappar metadatan redan i
+        webbläsaren, på en canvas. HEIC-vägen finns just för att webbläsaren
+        INTE kunde rita bilden, alltså är det HÄR den enda platsen där en
+        GPS-koordinat till fotografens hem kan tas bort. Omdömen är anonyma, och
+        en bild med koordinat är inte anonym.
+    """
+    import io
+
+    image = image.convert("RGB")
+    longest = max(image.size)
+    if longest > MAX_EDGE:
+        scale = MAX_EDGE / longest
+        image = image.resize(
+            (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+            resample=1,  # Image.LANCZOS, utan att importera enumet
+        )
+
+    out = io.BytesIO()
+    image.save(out, format="JPEG", quality=82, optimize=True)
+    return out.getvalue()
+
+
+def heic_to_jpeg(data: bytes) -> bytes:
+    """Gör en HEIC till en JPEG.
+
+    ---------------------------------------------------------------------------
+    VARFÖR HÄR OCH INTE I EN EDGE FUNCTION
+    ---------------------------------------------------------------------------
+    Konverteringen måste ske någonstans mellan uppladdning och publicering. De
+    två kandidaterna var granskningen, alltså den här filen, och en Supabase
+    Edge Function. Granskningen vann på tre punkter:
+
+      Den är redan grinden. Ingen bild når den publika hinken utan att gå genom
+        cmd_publish, så konverteringen kan inte glömmas bort på vägen. En Edge
+        Function hade behövt anropas av någon, och det någon är den här filen.
+      Ett fel drabbar rätt person. Faller konverteringen här stoppas EN
+        publicering och redaktionen ser felet direkt. Kördes den vid uppladdning
+        i stället, vilket är det naturliga för en Edge Function, hade ett fel
+        mött besökaren mitt i ett flöde hen inte kan göra något åt.
+      Ingen ny driftsdel. En Edge Function är en till körmiljö att distribuera,
+        hålla nycklar i och felsöka, för ett steg som körs några gånger om dagen
+        på en maskin som redan har allt den behöver.
+
+    ---------------------------------------------------------------------------
+    TVÅ VÄGAR IN, OCH INGEN AV DEM KRÄVER EN INSTALLATION PÅ EN MAC
+    ---------------------------------------------------------------------------
+      pillow-heif   om paketet finns. Bärbart, fungerar överallt, och det är den
+                    väg som gäller om granskningen någon gång flyttar till Linux
+                    eller till ett jobb i CI.
+      sips          annars. Ligger i /usr/bin på varje macOS och avkodar HEIC
+                    utan att något installeras. Det är den väg som körs i dag.
+
+    Båda avslutas med _finish_jpeg(), så utfallet är detsamma: nedskalad JPEG
+    utan metadata. sips används BARA för att avkoda, aldrig för att skriva den
+    färdiga filen, eftersom sips tar med metadatan över i det den skriver.
+    """
+    import io
+    import subprocess
+    import tempfile
+
+    try:
+        from PIL import Image
+    except ImportError as exc:  # pragma: no cover
+        raise ModerationError(
+            "Pillow saknas, och utan det går en HEIC inte att konvertera.\n"
+            "  python3 -m pip install Pillow"
+        ) from exc
+
+    # Väg 1: pillow-heif, om det finns.
+    try:
+        import pillow_heif  # type: ignore
+
+        pillow_heif.register_heif_opener()
+        with Image.open(io.BytesIO(data)) as image:
+            return _finish_jpeg(image)
+    except ImportError:
+        pass
+    except Exception as exc:
+        raise ModerationError(f"Bilden gick inte att läsa som HEIC: {exc}") from exc
+
+    # Väg 2: sips avkodar, Pillow skriver.
+    with tempfile.TemporaryDirectory() as folder:
+        source = os.path.join(folder, "in.heic")
+        target = os.path.join(folder, "ut.png")
+        with open(source, "wb") as handle:
+            handle.write(data)
+
+        result = subprocess.run(
+            ["sips", "-s", "format", "png", source, "--out", target],
+            capture_output=True,
+        )
+        if result.returncode != 0 or not os.path.exists(target):
+            raise ModerationError(
+                "Bilden gick inte att konvertera från HEIC.\n"
+                "  På macOS sköter /usr/bin/sips det utan att något installeras.\n"
+                "  På annan plattform: python3 -m pip install pillow-heif\n"
+                f"  sips sa: {result.stderr.decode('utf-8', 'replace')[:200]}"
+            )
+
+        with Image.open(target) as image:
+            return _finish_jpeg(image)
 
 
 def now() -> str:
@@ -280,6 +427,14 @@ def cmd_show(db: Supabase, kind: str, row_id: str) -> int:
     if table == "image_uploads":
         print("\nBilden (länken gäller en timme):")
         print("  " + db.sign(INBOX_BUCKET, row["storage_path"]))
+
+        # HEIC öppnas av Förhandsvisning och Safari men inte av Chrome, som
+        # laddar ned filen i stället för att visa den. Det ser ut som ett fel och
+        # är det inte, alltså står det här i stället för att bli en fråga.
+        if row.get("content_type") in NEEDS_CONVERSION:
+            print("  Formatet är HEIC. Öppna länken i Safari eller ladda ned och")
+            print("  öppna i Förhandsvisning. Chrome kan inte visa det.")
+            print("  Vid publicering konverteras bilden till JPEG.")
 
         # Omdömet bilden hör till, ordagrant. En bild utan sammanhang är det
         # svåraste tänkbara granskningsärendet: texten säger om det är disken,
@@ -406,7 +561,20 @@ def cmd_publish(db: Supabase, kind: str, row_id: str, method: str | None) -> int
                   "Bilden publiceras nu, texten när du tar ställning till den.")
 
         destination = row["storage_path"].replace("pending/", "", 1)
-        db.copy_object(row["storage_path"], destination)
+
+        # HEIC får aldrig nå den publika hinken. Chrome och Firefox kan inte
+        # avkoda formatet, så en publicerad HEIC hade varit osynlig för de
+        # flesta besökare. Hinken avvisar den dessutom, se schema_community.sql.
+        if row.get("content_type") in NEEDS_CONVERSION:
+            print("Konverterar från HEIC till JPEG.")
+            jpeg = heic_to_jpeg(db.download_object(INBOX_BUCKET, row["storage_path"]))
+            destination = re.sub(r"\.[^./]+$", ".jpg", destination)
+            db.upload_object(PUBLIC_BUCKET, destination, jpeg, "image/jpeg")
+        else:
+            # Serverkopia. Ingenting behöver hem till den här maskinen när filen
+            # redan har rätt format.
+            db.copy_object(row["storage_path"], destination)
+
         url = db.public_url(destination)
         # INGEN rad i public.images.
         #
@@ -459,8 +627,19 @@ def reject_image(db: Supabase, row: dict, reason: str, stamp: str, who: str) -> 
     # Den är den enda av de två som någon utomstående kan nå, så den måste bort
     # med. Att avslå en publicerad bild är ovanligt men händer när ett omdöme
     # avslås i efterhand.
+    #
+    # Sökvägen räknas ur published_url och GISSAS INTE ur storage_path. En HEIC
+    # byter ändelse när den konverteras vid publicering, alltså heter filen i
+    # den publika hinken något annat än originalet. Den gamla uträkningen hade
+    # letat efter en .heic som aldrig funnits där och lämnat kvar den .jpg som
+    # faktiskt låg på en publik URL.
     if row.get("published_url"):
-        städa.append((PUBLIC_BUCKET, row["storage_path"].replace("pending/", "", 1)))
+        marker = f"/public/{PUBLIC_BUCKET}/"
+        url = row["published_url"]
+        if marker in url:
+            städa.append((PUBLIC_BUCKET, url.split(marker, 1)[1]))
+        else:
+            print(f"Varning: kunde inte läsa ut sökvägen ur {url}. Ta bort filen för hand.")
 
     for bucket, path in städa:
         try:

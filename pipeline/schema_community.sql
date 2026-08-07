@@ -1015,9 +1015,30 @@ create table if not exists community.image_uploads (
     -- Sökväg i den privata bucketen, alltid 'pending/<user_id>/<uuid>.<ext>'.
     -- Formen kontrolleras av community.set_image_status(), inte bara här.
     storage_path      text not null unique,
+
+    -- HEIC OCH HEIF TAS EMOT HÄR, men aldrig i den publika hinken.
+    --
+    -- Formatet är förvalt på varje iPhone och alltså det vanligaste våra
+    -- besökare har. Ägaren: "varför tillåts ej heic bilder att ladda upp? så
+    -- länge det inte är något dåligt med dom, så låt dom."
+    --
+    -- Webbläsare är oense om att avkoda det: Safari kan, Chrome och Firefox kan
+    -- inte. Går det att avkoda ritas bilden om till JPEG redan i webbläsaren och
+    -- landar aldrig här som HEIC. Går det inte kommer originalet hit, och
+    -- pipeline/moderate.py konverterar det före publicering. En publicerad bild
+    -- måste kunna visas av alla.
     content_type      text not null check (content_type in
-                            ('image/jpeg', 'image/png', 'image/webp')),
-    byte_size         integer not null check (byte_size between 1 and 8388608),
+                            ('image/jpeg', 'image/png', 'image/webp',
+                             'image/heic', 'image/heif',
+                             'image/heic-sequence', 'image/heif-sequence')),
+
+    -- Tolv megabyte, inte åtta.
+    --
+    -- En bild som webbläsaren kan avkoda krymps före uppladdning och väger ett
+    -- par hundra kilobyte. En HEIC som den INTE kan avkoda går iväg som den är,
+    -- och en 48-megapixelbild från en modern iPhone sprängde det gamla taket.
+    -- Gränsen är alltså höjd för det fall där komprimeringen inte kan hjälpa.
+    byte_size         integer not null check (byte_size between 1 and 12582912),
     caption           text check (length(btrim(caption)) <= 200),
 
     -- Uppladdarens försäkran om att bilden är hens egen.
@@ -1047,6 +1068,26 @@ alter table community.image_uploads
 
 alter table community.image_uploads
     add column if not exists rights_confirmed boolean not null default false;
+
+-- Villkoren på content_type och byte_size ändrades när HEIC släpptes in, och ett
+-- `check` i en `create table if not exists` rör inte en tabell som redan finns.
+-- Raderna nedan är alltså de som faktiskt kör i produktion. Namnen är de
+-- Postgres själv ger ett kolumnvillkor: <tabell>_<kolumn>_check.
+alter table community.image_uploads
+    drop constraint if exists image_uploads_content_type_check;
+
+alter table community.image_uploads
+    add constraint image_uploads_content_type_check
+    check (content_type in ('image/jpeg', 'image/png', 'image/webp',
+                            'image/heic', 'image/heif',
+                            'image/heic-sequence', 'image/heif-sequence'));
+
+alter table community.image_uploads
+    drop constraint if exists image_uploads_byte_size_check;
+
+alter table community.image_uploads
+    add constraint image_uploads_byte_size_check
+    check (byte_size between 1 and 12582912);
 
 create index if not exists image_uploads_pending_idx
     on community.image_uploads (created_at) where status = 'pending';
@@ -1546,18 +1587,36 @@ revoke insert, update, delete on all tables in schema public from anon, authenti
 -- är den form Supabase själv använder. Den privata bucketen får aldrig sättas
 -- till public.
 -- ---------------------------------------------------------------------------
+-- DEN INKOMNA hinken tar emot HEIC och HEIF. Det är iPhones förvalda format och
+-- alltså det vanligaste våra besökare skickar.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('verksamhetsbilder-inkomna', 'verksamhetsbilder-inkomna', false, 8388608,
-        array['image/jpeg', 'image/png', 'image/webp'])
+values ('verksamhetsbilder-inkomna', 'verksamhetsbilder-inkomna', false, 12582912,
+        array['image/jpeg', 'image/png', 'image/webp',
+              'image/heic', 'image/heif',
+              'image/heic-sequence', 'image/heif-sequence'])
 on conflict (id) do update
     set public = false,
         file_size_limit = excluded.file_size_limit,
         allowed_mime_types = excluded.allowed_mime_types;
 
+-- DEN PUBLIKA hinken tar ALDRIG emot HEIC, och raden nedan är det som håller
+-- den regeln i databasen i stället för bara i moderate.py.
+--
+-- Skälet är enkelt: en publicerad bild ska kunna visas av alla, och Chrome och
+-- Firefox kan inte avkoda HEIC. Kommer en HEIC ända hit har konverteringen i
+-- granskningen missats, och då ska skrivningen fällas och inte bli en bild som
+-- är osynlig för de flesta besökare.
+--
+-- `do update` och inte `do nothing`. Med `do nothing` bevarade en omkörning
+-- vilken uppsättning hinken än råkade ha, och en hink som skapats för hand i
+-- panelen hade behållit sina inställningar tyst.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('verksamhetsbilder', 'verksamhetsbilder', true, 8388608,
+values ('verksamhetsbilder', 'verksamhetsbilder', true, 12582912,
         array['image/jpeg', 'image/png', 'image/webp'])
-on conflict (id) do nothing;
+on conflict (id) do update
+    set public = true,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
 
 -- Uppladdning: bara till en plats databasen redan delat ut.
 --

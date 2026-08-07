@@ -1033,8 +1033,77 @@ export async function submitOwnerResponse(
 const INBOX_BUCKET = 'verksamhetsbilder-inkomna';
 const PUBLIC_BUCKET = 'verksamhetsbilder';
 
-/** Största fil vi tar emot INNAN komprimering. Bucketen har samma tak. */
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+/**
+ * Största fil vi tar emot INNAN komprimering. Bucketen har samma tak.
+ *
+ * Höjt från åtta megabyte när HEIC släpptes in. Skälet är att en HEIC oftast
+ * INTE kan komprimeras här: Chrome och Firefox kan inte avkoda formatet, och då
+ * går originalet iväg som det är. En 48-megapixelbild från en modern iPhone
+ * ligger då på flera megabyte, och åtta var för snävt för det yttersta fallet.
+ * Se shrink() och docs/13, del C8.
+ */
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+
+/**
+ * Filformaten vi tar emot.
+ *
+ * HEIC OCH HEIF STÅR MED, och det är hela poängen med den här listan. Formatet
+ * är förvalt på varje iPhone sedan 2017, alltså på den vanligaste kameran våra
+ * besökare har. Att stänga ute det var vårt eget beslut och inget krav, och
+ * ägaren har rivit det: "varför tillåts ej heic bilder att ladda upp? så länge
+ * det inte är något dåligt med dom, så låt dom."
+ *
+ * Sekvensvarianterna finns med därför att en iPhone märker vissa bilder så, till
+ * exempel den stillbild som hör till en Live Photo.
+ *
+ * DEN PUBLIKA HINKEN TAR ALDRIG EMOT HEIC. En publicerad bild måste kunna visas
+ * av alla, och konverteringen sker i pipeline/moderate.py före publicering.
+ */
+const ACCEPTED_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/heic-sequence',
+  'image/heif-sequence',
+];
+
+/** Filändelse per typ. Sökvägen ska säga vad filen faktiskt är. */
+const SUFFIXES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'image/heic-sequence': 'heic',
+  'image/heif-sequence': 'heif',
+};
+
+/**
+ * Filens typ, eller null om vi inte tar emot den.
+ *
+ * `file.type` räcker inte ensamt. Webbläsare är oense om HEIC: Chrome på macOS
+ * säger `image/heic`, men flera andra lämnar fältet TOMT eftersom formatet inte
+ * står i deras egen tabell. En tom sträng är inte ett nej, den är ett "vet
+ * inte", och då är filändelsen det enda vi har att gå på.
+ *
+ * Åt andra hållet litar vi inte på ändelsen när typen finns: den som döper om en
+ * fil till .jpg ändrar inte vad den innehåller, och det är typen som följer med
+ * till lagringen och till granskningen.
+ */
+export function imageType(file: File): string | null {
+  const declared = (file.type || '').toLowerCase();
+  if (declared) return ACCEPTED_TYPES.includes(declared) ? declared : null;
+
+  const suffix = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  if (suffix === 'heic') return 'image/heic';
+  if (suffix === 'heif') return 'image/heif';
+  if (suffix === 'jpg' || suffix === 'jpeg') return 'image/jpeg';
+  if (suffix === 'png') return 'image/png';
+  if (suffix === 'webp') return 'image/webp';
+  return null;
+}
 
 /**
  * Längsta sidan på den bild som faktiskt skickas.
@@ -1106,7 +1175,12 @@ export async function deleteUpload(upload: Upload): Promise<void> {
 
   const objects: Array<[string, string]> = [[INBOX_BUCKET, upload.storage_path]];
   if (upload.published_url) {
-    objects.push([PUBLIC_BUCKET, upload.storage_path.replace(/^pending\//, '')]);
+    /* Sökvägen läses ur den publicerade adressen och räknas INTE ut ur
+       storage_path. En HEIC byter ändelse när granskningen konverterar den, så
+       filen i den publika hinken heter något annat än originalet i inkorgen. */
+    const marker = `/public/${PUBLIC_BUCKET}/`;
+    const at = upload.published_url.indexOf(marker);
+    if (at >= 0) objects.push([PUBLIC_BUCKET, upload.published_url.slice(at + marker.length)]);
   }
 
   for (const [bucket, path] of objects) {
@@ -1166,9 +1240,25 @@ export async function publishedImages(establishmentId: string): Promise<Publishe
  *      bero på en EXIF-tagg vi just tagit bort.
  *
  * Faller något tillbaka på originalfilen. En bild som inte gick att rita om är
- * fortfarande en bild, och databasen tar emot JPEG, PNG och WebP upp till
- * åtta megabyte. Då följer däremot EXIF med, vilket är skälet att fallet är
- * just ett fall och inte ett alternativ.
+ * fortfarande en bild. Då följer däremot EXIF med, vilket är skälet att fallet
+ * är just ett fall och inte ett alternativ.
+ *
+ * ---------------------------------------------------------------------------
+ * HEIC ÄR DET FALLET, OCH DET ÄR VANLIGT
+ * ---------------------------------------------------------------------------
+ * Mätt i Chrome 148 med en riktig HEIC-fil: `createImageBitmap` svarar
+ * `InvalidStateError: The source image could not be decoded`, och en <img> med
+ * samma fil laddar inte heller. Safari på Apples enheter avkodar formatet och
+ * går därför den vanliga vägen, alltså ut som JPEG utan EXIF.
+ *
+ * Utfallet blir alltså olika beroende på webbläsare, och det är avsiktligt:
+ *
+ *   avkodning finns    bilden krymps och skickas som JPEG. EXIF försvinner.
+ *   avkodning saknas   originalet skickas som det är, och konverteringen görs
+ *                      av redaktionen i pipeline/moderate.py före publicering.
+ *                      Först då försvinner EXIF.
+ *
+ * Det som ALDRIG händer är att en HEIC når den publika hinken. Se moderate.py.
  */
 async function shrink(file: File): Promise<File> {
   if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file;
@@ -1177,6 +1267,9 @@ async function shrink(file: File): Promise<File> {
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
+    /* Ingen avkodare för formatet. Originalet går iväg orört, och det är ett
+       fullgott utfall och inte ett fel: filen är fortfarande en bild, och
+       granskningen konverterar den innan någon ser den. */
     return file;
   }
 
@@ -1248,17 +1341,26 @@ export async function uploadImage(
   const user = currentUser();
   if (!user) throw new CommunityError('Du är utloggad. Logga in igen.');
 
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!allowed.includes(file.type))
-    throw new CommunityError('Bilden måste vara JPEG, PNG eller WebP.');
-  if (file.size > MAX_UPLOAD_BYTES) throw new CommunityError('Bilden får vara högst 8 MB.');
+  if (!imageType(file))
+    throw new CommunityError('Bilden måste vara JPEG, PNG, WebP eller HEIC.');
+  if (file.size > MAX_UPLOAD_BYTES) throw new CommunityError('Bilden får vara högst 12 MB.');
 
   const token = await validToken();
   if (!token) throw new CommunityError('Du är utloggad. Logga in igen.');
 
   const sending = await shrink(file);
-  const suffix =
-    sending.type === 'image/png' ? 'png' : sending.type === 'image/webp' ? 'webp' : 'jpg';
+  /*
+   * Typen läses ur den fil som FAKTISKT skickas, inte ur originalet.
+   *
+   * shrink() ger tillbaka en JPEG när webbläsaren kunde avkoda bilden och
+   * originalet när den inte kunde. En HEIC som gick igenom Safari är alltså en
+   * JPEG här, medan samma fil i Chrome fortfarande är en HEIC. Både
+   * `content_type` och filändelsen måste följa den skillnaden, annars ljuger
+   * raden om vad som ligger i hinken och granskningen kan inte veta vad den
+   * ska konvertera.
+   */
+  const type = imageType(sending) ?? 'image/jpeg';
+  const suffix = SUFFIXES[type] ?? 'jpg';
   /* Sökvägens form är inte fri. community.set_image_status() fäller varje rad
      som inte ligger under uppladdarens egen mapp, och storage-policyn kräver
      samma sak från andra hållet. */
@@ -1272,7 +1374,7 @@ export async function uploadImage(
       municipality_slug: place.municipalitySlug,
       review_id: reviewId || null,
       storage_path: path,
-      content_type: sending.type,
+      content_type: type,
       byte_size: sending.size,
       /* Uppladdarens försäkran om att bilden är hens egen. Skickas som ett
          värde och inte som ett antagande: rutan i formuläret är det som gör
@@ -1288,7 +1390,7 @@ export async function uploadImage(
       headers: {
         apikey: ANON_KEY,
         Authorization: `Bearer ${token}`,
-        'Content-Type': sending.type,
+        'Content-Type': type,
       },
       body: sending,
     });

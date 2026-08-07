@@ -19,8 +19,13 @@ stället för tyst:
 Körs utan beroenden:  python3 pipeline/tests/test_besokarbilder.py
 """
 
+import io
+import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -248,6 +253,149 @@ class Borttagning(unittest.TestCase):
         self.assertIn("quietButton('Ta bort'", konto)
 
 
+class Heic(unittest.TestCase):
+    """iPhones förvalda format, hela vägen.
+
+    Att stänga ute HEIC var vårt eget beslut och stängde ute den vanligaste
+    kameran våra besökare har. Ägaren rev det: "varför tillåts ej heic bilder
+    att ladda upp? så länge det inte är något dåligt med dom, så låt dom."
+
+    Kedjan har fyra led och vart och ett kan stoppa en bild tyst:
+    filväljaren, klientens kontroll, hinken, och konverteringen före publicering.
+    """
+
+    def test_filvaljaren_grayar_inte_ut_iphone_bilder(self):
+        # BÅDE MIME-typen och ändelsen. macOS filväljare matchar på det den
+        # känner igen, och utan `.heic` är iPhone-bilder oklickbara.
+        rad = re.search(r'id="review-files"[^>]*accept="([^"]+)"', RUTAN, re.S)
+        self.assertIsNotNone(rad, "Hittade inget accept-attribut på filfältet.")
+        accept = rad.group(1)
+        for väntat in ("image/heic", "image/heif", ".heic", ".heif"):
+            self.assertIn(väntat, accept)
+
+    def test_klienten_tar_emot_heic(self):
+        for typ in ("'image/heic'", "'image/heif'"):
+            self.assertIn(typ, KLIENTEN)
+
+    def test_klienten_klarar_en_tom_filtyp(self):
+        # Flera webbläsare lämnar `file.type` TOM för HEIC eftersom formatet inte
+        # står i deras tabell. En tom sträng är inte ett nej, den är ett vet
+        # inte, och då är ändelsen det enda vi har.
+        self.assertIn("export function imageType(file: File)", KLIENTEN)
+        kropp = KLIENTEN[KLIENTEN.index("export function imageType(file: File)") :]
+        kropp = kropp[: kropp.index("\n}\n")]
+        self.assertIn("file.name.toLowerCase()", kropp)
+        self.assertIn("'image/heic'", kropp)
+
+    def test_ingen_egen_formatlista_i_rutan(self):
+        # Två listor glider isär. Rutan ska fråga imageType() och inte ha en
+        # egen uppräkning som säger nej till något databasen tar emot.
+        self.assertNotIn("const ALLOWED = [", RUTAN)
+        self.assertIn("if (!imageType(file))", RUTAN)
+
+    def test_databasen_tar_emot_heic(self):
+        villkor = block(SCHEMAT, "add constraint image_uploads_content_type_check")
+        for typ in ("'image/heic'", "'image/heif'"):
+            self.assertIn(typ, villkor)
+
+    def test_inkomna_hinken_tar_emot_heic(self):
+        hink = block(SCHEMAT, "values ('verksamhetsbilder-inkomna'")
+        self.assertIn("'image/heic'", hink)
+        self.assertIn("'image/heif'", hink)
+
+    def test_publika_hinken_tar_ALDRIG_emot_heic(self):
+        """Den bärande regeln. En publicerad bild måste kunna visas av alla.
+
+        Chrome och Firefox kan inte avkoda HEIC, så en HEIC i den publika hinken
+        hade varit en bild som är osynlig för de flesta besökare.
+        """
+        hink = block(SCHEMAT, "values ('verksamhetsbilder',")
+        self.assertNotIn("heic", hink)
+        self.assertNotIn("heif", hink)
+        self.assertIn("'image/jpeg'", hink)
+        # `do nothing` hade låtit en hink som skapats för hand behålla sina egna
+        # inställningar tyst, alltså också en som råkar tillåta heic.
+        self.assertIn("on conflict (id) do update", hink)
+
+    def test_taket_racker_for_en_okomprimerad_heic(self):
+        # En HEIC som webbläsaren inte kan avkoda går iväg orörd. Åtta megabyte
+        # var för snävt för en 48-megapixelbild.
+        self.assertIn("between 1 and 12582912", SCHEMAT)
+        self.assertIn("file_size_limit = excluded.file_size_limit", SCHEMAT)
+        self.assertIn("12582912", block(SCHEMAT, "values ('verksamhetsbilder-inkomna'"))
+        self.assertIn("const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;", KLIENTEN)
+        self.assertIn("const MAX_BYTES = 12 * 1024 * 1024;", RUTAN)
+
+    def test_miniatyren_faller_tillbaka_nar_bilden_inte_kan_ritas(self):
+        # En trasig bildikon läser som ett fel, och filen är hel.
+        self.assertIn("thumb.addEventListener('error'", RUTAN)
+        self.assertIn("ingen-forhandsvisning", RUTAN)
+
+
+class Konvertering(unittest.TestCase):
+    """Själva omvandlingen, körd mot en riktig HEIC-fil.
+
+    Testet SKIPPAS där verktygen saknas, alltså i CI på Linux. Det är avsiktligt:
+    granskningen körs av ägaren på en Mac, och det är den maskinen provet gäller.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.heic = None
+        if not shutil.which("sips"):
+            return
+        try:
+            from PIL import Image
+        except ImportError:
+            return
+
+        cls.folder = tempfile.mkdtemp()
+        jpg = os.path.join(cls.folder, "in.jpg")
+        heic = os.path.join(cls.folder, "in.heic")
+
+        image = Image.new("RGB", (3000, 2000), (40, 90, 60))
+        # Metadata som en telefon faktiskt bär, inklusive koordinaten.
+        exif = Image.Exif()
+        exif[271] = "Apple"
+        exif[272] = "iPhone 15 Pro"
+        gps = exif.get_ifd(0x8825)
+        gps[1] = "N"
+        gps[2] = ((59, 1), (20, 1), (0, 1))
+        image.save(jpg, quality=95, exif=exif)
+
+        if subprocess.run(
+            ["sips", "-s", "format", "heic", jpg, "--out", heic], capture_output=True
+        ).returncode == 0 and os.path.exists(heic):
+            cls.heic = heic
+
+    def setUp(self):
+        if not self.heic:
+            self.skipTest("sips eller Pillow saknas, alltså inte den här maskinen")
+
+    def test_utfallet_ar_en_nedskalad_jpeg(self):
+        from PIL import Image
+
+        jpeg = moderate.heic_to_jpeg(open(self.heic, "rb").read())
+        image = Image.open(io.BytesIO(jpeg))
+        self.assertEqual(image.format, "JPEG")
+        self.assertEqual(max(image.size), moderate.MAX_EDGE)
+
+    def test_metadatan_foljer_inte_med(self):
+        """Den enda platsen där EXIF kan tas bort på HEIC-vägen.
+
+        Den vanliga vägen tappar metadatan i webbläsaren, på en canvas. HEIC-
+        vägen finns just för att webbläsaren INTE kunde rita bilden, alltså är
+        det här sista chansen. Omdömen är anonyma, och en bild med koordinaten
+        till fotografens hem är inte anonym.
+        """
+        from PIL import Image
+
+        jpeg = moderate.heic_to_jpeg(open(self.heic, "rb").read())
+        exif = Image.open(io.BytesIO(jpeg)).getexif()
+        self.assertEqual(dict(exif), {})
+        self.assertEqual(dict(exif.get_ifd(0x8825)), {})
+
+
 class Komprimeringen(unittest.TestCase):
     """Bilden ritas om innan den lämnar datorn.
 
@@ -270,10 +418,13 @@ class Komprimeringen(unittest.TestCase):
         self.assertLess(krymp, fil)
 
     def test_storleken_som_skickas_ar_den_komprimerade(self):
-        # byte_size måste beskriva filen som faktiskt skrivs, annars stämmer
-        # varken kontrollvillkoret i databasen eller det granskaren ser.
+        # byte_size och content_type måste beskriva filen som FAKTISKT skrivs,
+        # annars stämmer varken kontrollvillkoret i databasen eller det
+        # granskaren ser. Skillnaden märks på HEIC: samma fil blir en JPEG i
+        # Safari och förblir en HEIC i Chrome.
         self.assertIn("byte_size: sending.size", KLIENTEN)
-        self.assertIn("content_type: sending.type", KLIENTEN)
+        self.assertIn("const type = imageType(sending)", KLIENTEN)
+        self.assertIn("content_type: type,", KLIENTEN)
 
 
 class Visningen(unittest.TestCase):
@@ -374,11 +525,13 @@ class FalskDatabas:
     en besökares bild aldrig hamnar i public.images.
     """
 
-    def __init__(self, rader=None):
+    def __init__(self, rader=None, filer=None):
         self.rader = rader or {}
+        self.filer = filer or {}
         self.patchar = []
         self.raderade = []
         self.kopior = []
+        self.uppladdade = []
         self.publika_skrivningar = []
         self.url = "https://exempel.supabase.co"
 
@@ -403,6 +556,12 @@ class FalskDatabas:
     def copy_object(self, source, destination):
         self.kopior.append((source, destination))
 
+    def download_object(self, bucket, path):
+        return self.filer.get(path, b"\x00heic")
+
+    def upload_object(self, bucket, path, data, content_type):
+        self.uppladdade.append((bucket, path, content_type, len(data)))
+
     def remove_object(self, bucket, path):
         self.raderade.append((bucket, path))
 
@@ -416,9 +575,16 @@ BILD = {
     "establishment_id": "F-0580-1",
     "review_id": "r1",
     "storage_path": "pending/u1/abc.jpg",
+    "content_type": "image/jpeg",
     "status": "pending",
     "published_url": None,
 }
+
+HEIC = dict(
+    BILD,
+    storage_path="pending/u1/abc.heic",
+    content_type="image/heic",
+)
 
 OMDOME = {
     "id": "r1",
@@ -465,6 +631,38 @@ class Publicering(unittest.TestCase):
             moderate.cmd_publish(db, "bild", "b1", None)
         self.assertEqual(db.kopior, [])
 
+    def test_en_heic_konverteras_i_stallet_for_att_kopieras(self):
+        """Serverkopian duger inte här, för filen ska inte vara samma fil.
+
+        En kopia hade lagt en HEIC i den publika hinken, och den hinken avvisar
+        formatet. Bilden ska hem, göras om till JPEG och skrivas som en ny fil.
+        """
+        db = FalskDatabas({"image_uploads": [HEIC], "reviews": [OMDOME]})
+        db_heic = moderate.heic_to_jpeg
+        moderate.heic_to_jpeg = lambda data: b"jpeg-bytes"
+        try:
+            moderate.cmd_publish(db, "bild", "b1", None)
+        finally:
+            moderate.heic_to_jpeg = db_heic
+
+        self.assertEqual(db.kopior, [], "En HEIC får inte serverkopieras.")
+        self.assertEqual(len(db.uppladdade), 1)
+        bucket, path, content_type, _ = db.uppladdade[0]
+        self.assertEqual(bucket, "verksamhetsbilder")
+        self.assertEqual(content_type, "image/jpeg")
+        self.assertTrue(path.endswith(".jpg"), path)
+        self.assertNotIn("heic", path)
+
+        _, body = db.patchar[-1]
+        self.assertTrue(body["published_url"].endswith(".jpg"), body["published_url"])
+
+    def test_en_jpeg_kopieras_som_forut(self):
+        # Ingenting behöver hem till den här maskinen när formatet redan duger.
+        db = FalskDatabas({"image_uploads": [BILD], "reviews": [OMDOME]})
+        moderate.cmd_publish(db, "bild", "b1", None)
+        self.assertEqual(db.kopior, [("pending/u1/abc.jpg", "u1/abc.jpg")])
+        self.assertEqual(db.uppladdade, [])
+
     def test_redan_avgjord_bild_publiceras_inte_igen(self):
         db = FalskDatabas(
             {"image_uploads": [dict(BILD, status="published")], "reviews": [OMDOME]}
@@ -484,12 +682,35 @@ class Avslag(unittest.TestCase):
         self.assertEqual(body["rejection_reason"], "Föreställer inte verksamheten")
 
     def test_avslagen_publicerad_bild_raderas_ur_bada_bucketarna(self):
-        publicerad = dict(BILD, status="published", published_url="https://x/y.jpg")
+        publicerad = dict(
+            BILD,
+            status="published",
+            published_url="https://x/storage/v1/object/public/verksamhetsbilder/u1/abc.jpg",
+        )
         db = FalskDatabas({"image_uploads": [publicerad]})
         moderate.cmd_reject(db, "bild", "b1", "Ägaren har begärt bort den")
 
         self.assertIn(("verksamhetsbilder-inkomna", "pending/u1/abc.jpg"), db.raderade)
         self.assertIn(("verksamhetsbilder", "u1/abc.jpg"), db.raderade)
+
+    def test_en_konverterad_bild_raderas_pa_sin_riktiga_sokvag(self):
+        """Sökvägen läses ur published_url och gissas inte ur storage_path.
+
+        En HEIC byter ändelse vid publicering. Den gamla uträkningen hade letat
+        efter en .heic som aldrig funnits i den publika hinken och lämnat kvar
+        den .jpg som faktiskt låg på en publik adress.
+        """
+        publicerad = dict(
+            HEIC,
+            status="published",
+            published_url="https://x/storage/v1/object/public/verksamhetsbilder/u1/abc.jpg",
+        )
+        db = FalskDatabas({"image_uploads": [publicerad]})
+        moderate.cmd_reject(db, "bild", "b1", "Föreställer inte verksamheten")
+
+        self.assertIn(("verksamhetsbilder-inkomna", "pending/u1/abc.heic"), db.raderade)
+        self.assertIn(("verksamhetsbilder", "u1/abc.jpg"), db.raderade)
+        self.assertNotIn(("verksamhetsbilder", "u1/abc.heic"), db.raderade)
 
     def test_avslag_pa_omdome_tar_bilderna_med_sig(self):
         """Text och bild granskas som en enhet.

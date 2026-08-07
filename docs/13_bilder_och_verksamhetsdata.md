@@ -828,6 +828,62 @@ Klienten tar bort sin egen rad när en uppladdning faller, vilket täcker det
 vanliga fallet, men en webbläsare som stängs mitt i lämnar en tom plats i
 granskningskön. Den syns som ett ärende utan bild och kan avslås för hand.
 
+### C8. HEIC, alltså iPhones förvalda format
+
+Ägaren, 2026-08-05: "varför tillåts ej heic bilder att ladda upp? så länge det
+inte är något dåligt med dom, så låt dom."
+
+Formatet var utestängt av oss själva, och det stängde ute den vanligaste kameran
+våra besökare har. Det är nu inkopplat hela vägen. Kedjan har fyra led och vart
+och ett kunde stoppa en bild tyst.
+
+**Mätt, inte antaget.** I Chrome 148 med en riktig HEIC-fil svarar
+`createImageBitmap` med `InvalidStateError: The source image could not be
+decoded`, och en `<img>` med samma fil laddar inte heller. Safari på Apples
+enheter avkodar formatet. Följden är att komprimeringen i webbläsaren, som ritar
+bilden på en canvas, finns i Safari och saknas i Chrome och Firefox.
+
+Utfallet blir därför olika, och båda är riktiga:
+
+| webbläsaren kan avkoda | vad som skickas | när EXIF försvinner |
+|---|---|---|
+| ja, alltså Safari | JPEG, nedskalad till 1600 px | i webbläsaren, på canvasen |
+| nej, alltså Chrome och Firefox | HEIC-originalet, orört | vid publicering, i moderate.py |
+
+**Vad iOS gör i filväljaren har jag INTE kunnat mäta.** Det krävs en fysisk
+enhet. Det som är känt är att iOS ofta transkodar till JPEG när en bild väljs ur
+Bilder, men att beteendet beror på `accept`-attributet och på iOS-version. Bygget
+är därför gjort så att det inte spelar någon roll: kommer en JPEG komprimeras
+den, kommer en HEIC går den fram ändå. Det är hela poängen med tabellen ovan.
+
+**Konverteringen sker i granskningen, i `pipeline/moderate.py`.** Alternativet
+var en Supabase Edge Function. Granskningen vann på tre punkter: den är redan
+grinden som varje bild måste passera, så steget kan inte glömmas bort; ett fel
+stoppar en publicering i stället för att möta en besökare mitt i ett flöde hen
+inte kan göra något åt; och det tillkommer ingen körmiljö att distribuera, hålla
+nycklar i och felsöka för ett steg som körs några gånger om dagen.
+
+**Ingen installation krävs på en Mac.** Konverteringen har två vägar in:
+`pillow-heif` om paketet finns, annars `/usr/bin/sips`, som ligger på varje
+macOS. Båda avslutas i Pillow, som redan används av `prikko/imagery.py`. sips
+används bara för att AVKODA, aldrig för att skriva den färdiga filen, eftersom
+sips tar med metadatan över i det den skriver.
+
+**EXIF-rensningen hänger på det här steget, och det är nytt.** Del C5 säger att
+rensningen sker i webbläsaren. Det stämmer för alla format utom HEIC i Chrome och
+Firefox, där bilden aldrig ritas om. För dem är konverteringen vid publicering
+den enda platsen där en GPS-koordinat kan tas bort. Verifierat mot en HEIC med
+`Make`, `Model` och GPS: efter konvertering är samtliga borta.
+
+**Den publika hinken tar aldrig emot HEIC**, och det står som `allowed_mime_types`
+i databasen och inte bara som en regel i verktyget. En publicerad bild måste
+kunna visas av alla, och två av tre webbläsare kan inte visa formatet.
+
+**Taket är höjt från 8 till 12 MB.** En bild som kan komprimeras väger ett par
+hundra kilobyte. En HEIC som inte kan komprimeras går fram som den är, och en
+48-megapixelbild från en modern iPhone sprängde det gamla taket. Kvoterna är
+oförändrade: fem per dygn, tre per ställe, tio öppna.
+
 ### C7. Två småsaker som annars stoppar bygget
 
 - `public.images.source` har en check-villkor som bara tillåter
