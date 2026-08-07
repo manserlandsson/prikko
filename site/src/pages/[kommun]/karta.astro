@@ -119,12 +119,41 @@ const jsonLd = {
     line-height: var(--lh-h-s);
   }
 
-  /* Under 900 px växlar Karta.astro till lista ELLER karta i fullskärm, och
-     då ska sidan skrolla som ett vanligt dokument igen. */
+  /*
+   * Under 900 px lägger Karta.astro kartan över hela ytan med listan som ett
+   * ark ovanpå, se arkavsnittet där. Sidan bakom ska då inte skrolla alls:
+   * arket äger rullningen, och lib/page-lock.ts låser dokumentet så länge det
+   * är uppe. Rubriken och brödsmulorna behövs inte i den vyn; de står kvar i
+   * dokumentet för sökmotorn och för den som saknar skript, men skjuts undan
+   * så snart arket tar över.
+   *
+   * Utan skript får sidan bete sig som ett vanligt dokument igen, alltså
+   * rubrik, lista och karta under varandra.
+   */
   @media (max-width: 900px) {
     .page {
       height: auto;
       display: block;
+      padding-block: var(--s-4);
+    }
+
+    .page:has(.split.ark) {
+      height: 100dvh;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .page:has(.split.ark) .crumbs,
+    .page:has(.split.ark) h1 {
+      /* Kvar i dokumentet, ute ur vyn. Rubriken är sidans H1 och får inte
+         tas bort; på app-ytan är den däremot ren höjdförlust, och kommunens
+         namn står i arkets rubrik ändå. */
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   }
 

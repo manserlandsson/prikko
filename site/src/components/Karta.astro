@@ -120,7 +120,21 @@ const LEGEND = [
   <FaceSprite />
 
   {/* ── Listan ─────────────────────────────────────────────────────────── */}
-  <section class="lista" aria-labelledby="listrubrik">
+  <section class="lista" aria-labelledby="listrubrik" data-ark>
+    {/*
+      Handtagsremsan. Finns bara i markup för smal skärm, där listan är ett
+      ark som dras upp underifrån, och göms med display: none över 900 px.
+
+      Den ligger FÖRE listhuvudet och inte i det, eftersom den ska stå still
+      medan resten av arket rullar under den. Knappen är hela remsan: ett
+      3 mm brett streck är inte en träffyta, och tryckytan måste vara raden.
+    */}
+    <button type="button" class="handtag" data-handtag aria-expanded="false">
+      <span class="grepp" aria-hidden="true"></span>
+      <span class="visually-hidden" data-handtag-text>Visa listan</span>
+    </button>
+
+    <div class="arkinne" data-arkinne>
     <header class="listhuvud">
       <h2 id="listrubrik" data-rubrik>
         {formatNumber(data.count)} verksamheter i {kommun.city}
@@ -185,6 +199,7 @@ const LEGEND = [
       Visar de {formatNumber(Math.min(SERVER_ROWS, data.count))} första i
       bokstavsordning. <a href={path(base)}>Hela listan för {kommun.city}</a>.
     </p>
+    </div>
   </section>
 
   {/* ── Kartan ─────────────────────────────────────────────────────────── */}
@@ -231,15 +246,16 @@ const LEGEND = [
     </div>
   </section>
 
-  {/* Växeln på mobil. Ligger i markup men visas bara under 900 px, där en
-      delad vy inte får plats. Samma mönster som Airbnb. */}
-  <button type="button" class="vaxel" data-vaxel hidden aria-pressed="false">
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M12 21s7-6.4 7-11a7 7 0 1 0-14 0c0 4.6 7 11 7 11Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
-      <circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7" />
-    </svg>
-    <span data-vaxel-text>Karta</span>
-  </button>
+  {/*
+    Växelknappen som låg här är borta.
+
+    Den lät kartan och listan turas om att äga skärmen, alltså två vyer man
+    hoppade emellan och aldrig såg samtidigt. Mätt i Airbnbs sökresultat på
+    375 px gör de något annat: kartan ligger kvar över HELA skärmen och listan
+    är ett ark ovanpå den, med överkanten på 52 procent av höjden, 24 px radie
+    upptill och ett litet grått grepp i mitten. Man ser båda hela tiden och
+    väljer själv hur mycket av vardera. Arket är byggt nedan.
+  */}
 </div>
 
 <script>
@@ -279,6 +295,7 @@ const LEGEND = [
     FACE_MOUTH_WIDTH,
     type FaceKey,
   } from '../lib/face';
+  import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
   import { VERDICT } from '../lib/site';
 
@@ -309,6 +326,18 @@ const LEGEND = [
     u: boolean;
   }
 
+  /**
+   * Hur nära två punkter måste ligga för att räknas som SAMMA ADRESS.
+   *
+   * Koordinaterna i datafilen är avrundade till hundratusendels grad, alltså
+   * ungefär en meter, så två verksamheter i samma hus har oftast identiska
+   * tal. Tröskeln är ändå satt något över noll: en gallerias verksamheter kan
+   * ha geokodats mot samma adress med en meters spridning, och för en besökare
+   * är det samma plats. Tre hundratusendelar är omkring tre meter i nordsydlig
+   * led, alltså inom en byggnad och aldrig två grannhus.
+   */
+  const SAMMA_PLATS = 3e-5;
+
   const root = document.querySelector<HTMLElement>('[data-karta]');
 
   if (root) {
@@ -324,8 +353,28 @@ const LEGEND = [
     const kortInne = root.querySelector<HTMLElement>('[data-kort-inne]')!;
     const kortStang = root.querySelector<HTMLButtonElement>('[data-kort-stang]')!;
     const fel = root.querySelector<HTMLElement>('[data-fel]')!;
-    const vaxel = root.querySelector<HTMLButtonElement>('[data-vaxel]')!;
-    const vaxelText = root.querySelector<HTMLElement>('[data-vaxel-text]')!;
+    const ark = root.querySelector<HTMLElement>('[data-ark]')!;
+    const arkInne = root.querySelector<HTMLElement>('[data-arkinne]')!;
+    const handtag = root.querySelector<HTMLButtonElement>('[data-handtag]')!;
+    const handtagText = root.querySelector<HTMLElement>('[data-handtag-text]')!;
+
+    /** Nedskruvad rörelse. Läses en gång: arket, kortet och kartans easeTo
+     *  ska alla följa samma inställning, och den ändras inte under besöket. */
+    const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /**
+     * Kartan. Deklareras HÄR och inte nere vid sitt eget avsnitt.
+     *
+     * Arket sätts upp långt före kartan startar och rör den i samma andetag:
+     * `slaPaArk` kallar `karta.resize()`, eftersom rutan byter mått när
+     * app-ytan slås på. Låg deklarationen kvar nere vid kartavsnittet läste
+     * den raden en binding som ännu inte fanns, och hela skriptet dog med
+     * "Cannot access before initialization" innan `start()` ens kallades.
+     * Resultatet var lömskt: arket fungerade, listan stod kvar med sina
+     * server-renderade rader, och kartrutan var bara vit. Ingen felrad syntes,
+     * för felet inträffade utanför det try som visar den.
+     */
+    let karta: any = null;
 
     const BAS = root.dataset.base!;
     const EPOK = Date.parse(root.dataset.epoch!);
@@ -390,6 +439,81 @@ const LEGEND = [
 
     function punktKalla(): Punkt[] {
       return alla;
+    }
+
+    // ── Punkter på samma adress ──────────────────────────────────────────
+
+    /**
+     * Verksamheter som delar adress, grupperade.
+     *
+     * Det här är den andra halvan av klusterfrågan. Ett kluster kan alltid
+     * delas genom att zooma, ända tills punkterna ligger på SAMMA punkt, och
+     * då tar zoomen slut: en galleria med tolv serveringar är tolv nålar
+     * ovanpå varandra, och den understa går inte att peka på hur nära man än
+     * går. Stockholm har gott om dem, och Sturegallerian är typfallet.
+     *
+     * Mätt i webbläsaren gör Hemnet exakt två saker åt det, och båda byggs
+     * här: nålen får en liten ANTALSBRICKA i övre högra hörnet, och ett klick
+     * på den öppnar ett kort som BLÄDDRAS, med raden "Visar 1 av 6" i foten.
+     * Ingen spindel som slår ut nålarna i en ring, ingen lista som växer ur
+     * kartan.
+     *
+     * `nyckel` avrundar till SAMMA_PLATS-rutor. Två punkter i samma ruta
+     * hamnar i samma grupp; grannhus hamnar aldrig i samma ruta.
+     *
+     * Grupperna byggs EN gång, direkt efter avkodningen, och lever sedan
+     * oförändrade. Filtret ändrar vilka nålar som RITAS men aldrig var de
+     * ligger, så grupperingen behöver inte räknas om per tangent.
+     */
+    let grupp: Map<number, Punkt[]> = new Map();
+
+    function byggGrupper(punkter: Punkt[]) {
+      const rutor = new Map<string, Punkt[]>();
+      for (const p of punkter) {
+        const nyckel =
+          Math.round(p.lng / SAMMA_PLATS) + ':' + Math.round(p.lat / SAMMA_PLATS);
+        const lista = rutor.get(nyckel);
+        if (lista) lista.push(p);
+        else rutor.set(nyckel, [p]);
+      }
+
+      grupp = new Map();
+      for (const lista of rutor.values()) {
+        /*
+         * Ordningen i kortet är bokstavsordning, alltså samma ordning som
+         * listan bredvid. Den som bläddrar i kortet och den som läser listan
+         * ska möta samma sex namn i samma följd.
+         */
+        lista.sort((a, z) => a.namn.localeCompare(z.namn, 'sv'));
+        for (const p of lista) grupp.set(p.i, lista);
+      }
+    }
+
+    /** Gruppen punkten tillhör, alltid minst en lång. */
+    function gruppFor(p: Punkt): Punkt[] {
+      return grupp.get(p.i) ?? [p];
+    }
+
+    /**
+     * Den nål som ritas för en grupp.
+     *
+     * Den SÄMSTA bedömningen i gruppen, inte den första i bokstavsordning.
+     * Skälet är samma som ritordningen på kartsidan redan följer: en
+     * anmärkning får aldrig gömmas under en granne som klarade sig. Ligger
+     * ett rött och ett grönt ansikte på samma adress är det röda det som
+     * syns, och bläddringen visar båda.
+     *
+     * Talen är bedömningens ordning i datafilen, där 3 betyder ingen
+     * bedömning. Sorteringen är därför 2, 1, 0, 3 och inte rakt fallande.
+     */
+    const ALLVAR = [2, 1, 0, 3];
+
+    function huvudnal(lista: Punkt[]): Punkt {
+      let bast = lista[0];
+      for (const p of lista) {
+        if (ALLVAR.indexOf(p.v) < ALLVAR.indexOf(bast.v)) bast = p;
+      }
+      return bast;
     }
 
     function datumText(d: number): string | null {
@@ -626,6 +750,40 @@ const LEGEND = [
     });
     rader.addEventListener('mouseleave', () => satHovrad(null));
 
+    /*
+     * Kort → nål på pekskärm.
+     *
+     * Hovring finns inte på ett finger, så kopplingen måste hänga på något
+     * annat. Det som finns är rullningen: den nål som hör till det översta
+     * kortet i arket lyfts, och lyftet följer med när man rullar. Man ser
+     * alltså hela tiden var på kartan man befinner sig i listan, utan en enda
+     * extra knapp i korten. Motsatt väg, nål → kort, sköts av kartans
+     * klickhanterare längre ned.
+     *
+     * Läses i en rAF och inte per rullningshändelse: elementFromPoint tvingar
+     * fram layout, och en gång per bildruta är det som gör att arket fortsätter
+     * kännas mjukt medan det rullar.
+     */
+    let rullVantar = false;
+
+    function foljRullning() {
+      if (rullVantar) return;
+      rullVantar = true;
+      requestAnimationFrame(() => {
+        rullVantar = false;
+        if (!arkAktivt) return;
+        const topp = rader.getBoundingClientRect().top;
+        for (const li of rader.children) {
+          const r = (li as HTMLElement).getBoundingClientRect();
+          if (r.bottom > Math.max(topp, arkInne.getBoundingClientRect().top) + 4) {
+            const i = (li as HTMLElement).dataset.i;
+            if (i) satHovrad(Number(i));
+            return;
+          }
+        }
+      });
+    }
+
     // ── Nålens kort ──────────────────────────────────────────────────────
 
     let valdSlug: string | null = null;
@@ -652,6 +810,28 @@ const LEGEND = [
       return n;
     }
 
+    /** Rund knapp med en pil i, för bläddringen i stapelkortet. */
+    function knappMedPil(etikett: string, d: string, vid: () => void): HTMLButtonElement {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'kort-blad-knapp';
+      b.setAttribute('aria-label', etikett);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('aria-hidden', 'true');
+      const bana = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      bana.setAttribute('d', d);
+      bana.setAttribute('fill', 'none');
+      bana.setAttribute('stroke', 'currentColor');
+      bana.setAttribute('stroke-width', '2');
+      bana.setAttribute('stroke-linecap', 'round');
+      bana.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(bana);
+      b.appendChild(svg);
+      b.addEventListener('click', vid);
+      return b;
+    }
+
     function ansikte(v: number, storlek: number): SVGElement {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', 'face');
@@ -665,7 +845,15 @@ const LEGEND = [
       return svg;
     }
 
-    function visaKort(p: Punkt) {
+    /**
+     * Gruppen kortet bläddrar i, null när kortet visar en ensam verksamhet.
+     * Se stapelresonemanget vid byggGrupper: formen är Hemnets bläddring,
+     * "Visar 1 av 6", och inte en lista som växer ur kartan.
+     */
+    let valdGrupp: Punkt[] | null = null;
+
+    function visaKort(p: Punkt, gruppen: Punkt[] | null = null) {
+      valdGrupp = gruppen && gruppen.length > 1 ? gruppen : null;
       valdSlug = p.slug;
       valdPunkt = p;
       const datum = datumText(p.d);
@@ -748,8 +936,45 @@ const LEGEND = [
       lank.append(lankText, pil);
       inne.appendChild(lank);
 
+      /*
+       * Bläddringen. Bara när adressen bär fler än en verksamhet, och alltid
+       * längst ned: kortet läses uppifrån, och det man gör härnäst står sist.
+       * Formuleringen är Hemnets, för den säger både var man är och hur många
+       * som finns, vilket en ren pilrad inte gör.
+       */
+      if (valdGrupp) {
+        const nu = valdGrupp.indexOf(p);
+        const rad = e('div', 'kort-blad');
+        const stega = (steg: number) => {
+          const nasta = (nu + steg + valdGrupp!.length) % valdGrupp!.length;
+          visaKort(valdGrupp![nasta], valdGrupp);
+        };
+
+        const bak = knappMedPil('Föregående', 'M15 5l-6 7 6 7', () => stega(-1));
+        const fram = knappMedPil('Nästa', 'M9 5l6 7-6 7', () => stega(1));
+        const text = e('span', 'kort-blad-text');
+        text.textContent = `Visar ${nu + 1} av ${valdGrupp.length} på samma adress`;
+
+        rad.append(bak, text, fram);
+        inne.appendChild(rad);
+      }
+
       kortInne.replaceChildren(inne);
       kort.hidden = false;
+
+      /*
+       * Nål → kort på telefon. Arket dras ned till remsan så att kortet får
+       * plats ovanför det, och raden som hör till nålen markeras och rullas
+       * fram. Väljer man sedan att dra upp arket igen står man alltså på rätt
+       * ställe i listan. Andra halvan av kopplingen, kort → nål, ligger på
+       * arkets rullning längre upp.
+       */
+      if (arkAktivt) {
+        if (lage !== 'remsa') stallArk('remsa');
+        satHovrad(p.i);
+        const li = rader.querySelector(`li[data-i="${p.i}"]`);
+        if (li) li.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      }
 
       // Den valda nålen lyfts, som hos Airbnb. Samma lager som hovringen
       // använder, och av samma skäl: icon-size är layout och kan inte styras
@@ -812,6 +1037,7 @@ const LEGEND = [
       kort.hidden = true;
       valdSlug = null;
       valdPunkt = null;
+      valdGrupp = null;
       if (karta?.getLayer('nal-lyft')) karta.setFilter('nal-lyft', ['==', ['get', 'i'], -1]);
     }
 
@@ -820,36 +1046,265 @@ const LEGEND = [
       if (e.key === 'Escape' && !kort.hidden) stangKort();
     });
 
-    // ── Mobilväxeln ──────────────────────────────────────────────────────
+    // ── Mobilarket ───────────────────────────────────────────────────────
 
+    /**
+     * Listan som ark, på skärmar där en delad vy inte får plats.
+     *
+     * ## Formen
+     *
+     * Mätt i Airbnbs sökresultat på 375 px: kartan ligger över hela ytan,
+     * listan är ett vitt ark ovanpå med överkanten på 52 procent av höjden,
+     * 24 px radie i de övre hörnen, ingen skugga, och ett litet grått grepp
+     * centrerat i överkanten. Booli och Hemnet gör något annat på telefon,
+     * nämligen en knapp i kontrollraden som byter hela vyn, alltså precis den
+     * växel som stod här förut. Arket är det bättre svaret och det är Airbnbs.
+     *
+     * ## Tre lägen
+     *
+     * REMSA visar bara greppet och rubrikraden, alltså mest karta.
+     * HALV är vilolägets 52 procent, samma tal som Airbnb.
+     * HOG är nästan hela skärmen, för den som läser listan och inte kartan.
+     *
+     * Lägena är andelar av arkets höjd och inte fasta pixlar, så att en liten
+     * telefon och en stor får samma proportioner.
+     *
+     * ## Varför transform och inte height
+     *
+     * Arket har alltid HOG höjd och skjuts ned med translateY. Att animera
+     * höjden hade lagt om layouten i varje bildruta, alltså ett omflöde per
+     * fingerrörelse i en lista med sextio kort. En transform rör bara
+     * sammansättningen och går på grafikkortet.
+     *
+     * ## Rullningen
+     *
+     * Sidan bakom låses med lib/page-lock.ts hela tiden arket är uppe. Det är
+     * inte kosmetika: utan låset rullar webbläsaren själv sidan när filtret
+     * får fokus och tangentbordet fälls upp, och då glider hela app-ytan iväg.
+     * Låset ger dessutom `--keyboard-inset`, som arket lyfter sig med, och det
+     * är den enda källan som vet tangentbordets höjd på iOS: dvh räknar den
+     * inte, visualViewport gör det.
+     */
     const smal = window.matchMedia('(max-width: 900px)');
-    let visarKarta = false;
 
-    function stallInVaxel() {
-      vaxel.hidden = !smal.matches;
-      if (!smal.matches) {
-        root!.classList.remove('visar-karta');
-        visarKarta = false;
-        vaxel.setAttribute('aria-pressed', 'false');
+    const LAGEN = { remsa: 0, halv: 1, hog: 2 } as const;
+    type Lage = keyof typeof LAGEN;
+
+    /**
+     * Hur stor del av arkets höjd som SYNS i respektive läge.
+     *
+     * `halv` är 0,52, mätt i Airbnbs ark på 375 px. `remsa` är satt så att
+     * greppet OCH rubrikraden syns: ett ark som bara visar ett streck säger
+     * inte vad som ligger under det, och då blir det en knapp man måste gissa
+     * sig till. `hog` lämnar en remsa karta kvar upptill, så att man aldrig
+     * tappar bort att kartan finns kvar bakom.
+     */
+    const SYNS: Record<Lage, number> = { remsa: 0.15, halv: 0.52, hog: 0.94 };
+    const ORDNING: Lage[] = ['remsa', 'halv', 'hog'];
+
+    let arkAktivt = false;
+    let lage: Lage = 'halv';
+    /** Arkets höjd i pixlar, mätt en gång per storleksändring. */
+    let arkH = 0;
+
+    /** Hur långt ned arket ska stå i ett läge, i pixlar från sitt eget tak. */
+    function nedskjut(l: Lage): number {
+      return Math.round(arkH * (1 - SYNS[l]));
+    }
+
+    function stallArk(nytt: Lage, mjukt = true) {
+      lage = nytt;
+      ark.style.transition = mjukt && !reducerad ? 'transform 260ms cubic-bezier(.2,.8,.3,1)' : 'none';
+      ark.style.transform = `translateY(${nedskjut(nytt)}px)`;
+      handtag.setAttribute('aria-expanded', String(nytt !== 'remsa'));
+      handtagText.textContent = nytt === 'remsa' ? 'Visa listan' : 'Fäll ned listan';
+      /*
+       * Innehållet får bara rulla i det högsta läget. I remsa och halv ska ett
+       * svep i arket DRA arket, inte rulla listan, vilket är samma regel som
+       * varje inbyggt ark på iOS följer.
+       */
+      arkInne.style.overflowY = nytt === 'hog' ? 'auto' : 'hidden';
+      if (nytt !== 'hog') arkInne.scrollTop = 0;
+      root!.dataset.lage = nytt;
+
+      /*
+       * Hur högt arket når, som CSS-variabel.
+       *
+       * Attributionen till OpenStreetMap är ett LICENSKRAV och får aldrig
+       * döljas. Den ligger i kartans nedre högra hörn, alltså precis där
+       * arket är, och en fast bottenmarginal räcker inte: arket flyttar sig i
+       * tre lägen och skulle lägga sig över upphovet i två av dem. Kontrollen
+       * följer därför arkets överkant, se regeln i stilarna.
+       */
+      root!.style.setProperty('--ark-syns', `${arkH - nedskjut(nytt)}px`);
+    }
+
+    function matArk() {
+      if (!arkAktivt) return;
+      arkH = ark.offsetHeight;
+      stallArk(lage, false);
+    }
+
+    function slaPaArk() {
+      if (arkAktivt) return;
+      arkAktivt = true;
+      root!.classList.add('ark');
+      lockPage();
+      arkH = ark.offsetHeight;
+      stallArk('halv', false);
+      // Kartan har haft ramens gamla mått och måste räkna om till app-ytan.
+      if (karta) requestAnimationFrame(() => karta.resize());
+    }
+
+    function slaAvArk() {
+      if (!arkAktivt) return;
+      arkAktivt = false;
+      root!.classList.remove('ark');
+      delete root!.dataset.lage;
+      ark.style.transform = '';
+      ark.style.transition = '';
+      arkInne.style.overflowY = '';
+      unlockPage();
+      if (karta) requestAnimationFrame(() => karta.resize());
+    }
+
+    function stallInArk() {
+      if (smal.matches) slaPaArk();
+      else slaAvArk();
+    }
+
+    /*
+     * Dragningen.
+     *
+     * Pointer events och inte touch: samma kod bär finger, penna och mus, och
+     * setPointerCapture gör att ett finger som glider utanför remsan ändå
+     * fortsätter styra arket i stället för att tappas.
+     *
+     * Greppet startar alltid en dragning. Innehållet startar en dragning bara
+     * när listan står i topp och fingret går NEDÅT, annars äger rullningen
+     * gesten. Det är regeln som gör att man kan rulla i listan utan att arket
+     * åker ned under fingret.
+     */
+    let dragFran = 0;
+    let dragStart = 0;
+    let drar = false;
+    let dragTid = 0;
+    /** Vilken yta som startade den pågående dragningen. */
+    let franGreppNu = false;
+
+    function borjaDrag(ev: PointerEvent, franGrepp: boolean) {
+      if (!arkAktivt || ev.button !== 0) return;
+      if (!franGrepp && (lage !== 'hog' || arkInne.scrollTop > 0)) return;
+      drar = true;
+      dragFran = ev.clientY;
+      dragStart = nedskjut(lage);
+      dragTid = ev.timeStamp;
+      ark.style.transition = 'none';
+      /*
+       * Kastar NotFoundError om pekaren redan släppts, till exempel när ett
+       * samtal tar över skärmen mellan pointerdown och den här raden. Utan
+       * try hade hela hanteraren avbrutits och arket fastnat mitt i en
+       * dragning som aldrig kan avslutas.
+       */
+      try {
+        (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+      } catch {
+        /* Utan fångad pekare fungerar dragningen ändå, den tappas bara om
+           fingret glider utanför remsan. */
       }
     }
 
-    vaxel.addEventListener('click', () => {
-      visarKarta = !visarKarta;
-      root!.classList.toggle('visar-karta', visarKarta);
-      vaxel.setAttribute('aria-pressed', String(visarKarta));
-      vaxelText.textContent = visarKarta ? 'Lista' : 'Karta';
-      if (!visarKarta) stangKort();
-      // Kartan har haft bredd noll medan den var dold och måste räkna om.
-      if (visarKarta && karta) requestAnimationFrame(() => karta.resize());
+    function underDrag(ev: PointerEvent) {
+      if (!drar) return;
+      const delta = ev.clientY - dragFran;
+      if (!franGreppNu && delta < 0) {
+        // Uppåt från listans topp är en rullning, inte en dragning.
+        drar = false;
+        ark.style.transform = `translateY(${dragStart}px)`;
+        return;
+      }
+      ev.preventDefault();
+      /*
+       * Gummiband uppåt. Över det högsta läget blir varje pixel en fjärdedel,
+       * så arket känns fjädrat i stället för dött mot ett tak.
+       */
+      const min = nedskjut('hog');
+      const max = nedskjut('remsa');
+      let y = dragStart + delta;
+      if (y < min) y = min - (min - y) / 4;
+      if (y > max) y = max + (y - max) / 4;
+      ark.style.transform = `translateY(${y}px)`;
+    }
+
+    function slutaDrag(ev: PointerEvent) {
+      if (!drar) return;
+      drar = false;
+
+      const delta = ev.clientY - dragFran;
+      const tid = Math.max(1, ev.timeStamp - dragTid);
+      const fart = delta / tid;
+
+      /*
+       * En snabb flick hoppar ett steg åt sitt håll, oavsett hur långt
+       * fingret hann. Under den farten avgör var arket SLÄPPTES, alltså
+       * närmaste läge. Tröskeln är mätt på känsla mot iOS egna ark: 0,5 px per
+       * millisekund är ungefär den rörelse man gör när man menar "iväg".
+       */
+      const nu = ORDNING.indexOf(lage);
+      if (Math.abs(fart) > 0.5) {
+        stallArk(ORDNING[Math.min(ORDNING.length - 1, Math.max(0, nu + (fart > 0 ? -1 : 1)))]);
+        return;
+      }
+
+      const y = dragStart + delta;
+      let bast: Lage = lage;
+      let minsta = Infinity;
+      for (const l of ORDNING) {
+        const d = Math.abs(nedskjut(l) - y);
+        if (d < minsta) {
+          minsta = d;
+          bast = l;
+        }
+      }
+      stallArk(bast);
+    }
+
+    handtag.addEventListener('pointerdown', (ev) => {
+      franGreppNu = true;
+      borjaDrag(ev, true);
+    });
+    arkInne.addEventListener('pointerdown', (ev) => {
+      franGreppNu = false;
+      borjaDrag(ev, false);
     });
 
-    smal.addEventListener('change', stallInVaxel);
-    stallInVaxel();
+    for (const yta of [handtag, arkInne]) {
+      yta.addEventListener('pointermove', underDrag);
+      yta.addEventListener('pointerup', slutaDrag);
+      yta.addEventListener('pointercancel', slutaDrag);
+    }
+
+    arkInne.addEventListener('scroll', foljRullning, { passive: true });
+
+    /*
+     * Ett tryck på remsan utan dragning stegar uppåt, och från det högsta
+     * läget hela vägen ned. Klicket kommer efter pointerup, så en avslutad
+     * dragning får inte också räknas som ett tryck.
+     */
+    let dragLangd = 0;
+    handtag.addEventListener('pointerdown', (ev) => (dragLangd = ev.clientY));
+    handtag.addEventListener('click', (ev) => {
+      if (!arkAktivt) return;
+      if (Math.abs((ev as PointerEvent).clientY - dragLangd) > 6) return;
+      stallArk(lage === 'hog' ? 'remsa' : lage === 'halv' ? 'hog' : 'halv');
+    });
+
+    smal.addEventListener('change', stallInArk);
+    window.addEventListener('resize', matArk);
+    window.visualViewport?.addEventListener('resize', matArk);
+    stallInArk();
 
     // ── Kartan ───────────────────────────────────────────────────────────
-
-    let karta: any = null;
 
     /**
      * Nålen: droppe, färgad fyllning, VIT KONTUR, mjuk skugga, vit min inuti.
@@ -937,6 +1392,114 @@ const LEGEND = [
       });
     }
 
+    // ── Positionen i adressens fragment ──────────────────────────────────
+
+    /**
+     * `#map=<zoom>/<lat>/<lng>`, satt av platsknappen i sökpanelen.
+     *
+     * FRAGMENT och inte frågesträng, och det är ett integritetsbeslut och
+     * inte en formsak: enligt HTTP skickas fragmentet aldrig med i en
+     * begäran, så besökarens position lämnar aldrig enheten. Den är dessutom
+     * avrundad till tre decimaler, ungefär 110 meter, vilket är den siffra
+     * integritetspolicyn anger. Skriver kartan någon gång själv tillbaka till
+     * fragmentet MÅSTE den avrundningen behållas.
+     *
+     * Talformatet är OpenStreetMaps, alltså zoom före latitud före longitud,
+     * så att kontraktet syns i adressen utan att någon behöver slå upp det.
+     */
+    interface Vy {
+      zoom: number;
+      lat: number;
+      lng: number;
+    }
+
+    function lasFragment(): Vy | null {
+      const m = /^#map=([\d.]+)\/(-?[\d.]+)\/(-?[\d.]+)$/.exec(location.hash);
+      if (!m) return null;
+      const zoom = Number(m[1]);
+      const lat = Number(m[2]);
+      const lng = Number(m[3]);
+      /*
+       * Grinden mot skräp i adressen. Fragmentet kan skrivas av vem som helst,
+       * och en NaN-koordinat lägger MapLibre i ett läge det inte kommer ur:
+       * kartan blir svart och ingenting säger varför.
+       */
+      if (!Number.isFinite(zoom) || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      if (zoom < 1 || zoom > 20 || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+      return { zoom, lat, lng };
+    }
+
+    /**
+     * "Du är här".
+     *
+     * En ring på koordinaten, inte en nål med ansikte: nålarna betyder
+     * verksamhet och bedömning, och en av dem på besökarens egen position
+     * hade läst som att det ligger en restaurang precis där. Ringen är
+     * dessutom kartkonventionen för egen position, samma tecken som varje
+     * telefonkarta använder.
+     *
+     * Punkten läggs i en egen källa och inte i verksamheternas, av den enkla
+     * anledningen att den inte är en verksamhet: den ska inte klustras, inte
+     * räknas i listan och inte gå att söka fram.
+     */
+    function satHar(vy: Vy) {
+      if (!karta || !karta.isStyleLoaded()) return;
+      const data = {
+        type: 'FeatureCollection' as const,
+        features: [
+          {
+            type: 'Feature' as const,
+            properties: {},
+            geometry: { type: 'Point' as const, coordinates: [vy.lng, vy.lat] },
+          },
+        ],
+      };
+
+      const kalla = karta.getSource('har');
+      if (kalla) {
+        kalla.setData(data);
+        return;
+      }
+
+      karta.addSource('har', { type: 'geojson', data });
+      karta.addLayer({
+        id: 'har-ring',
+        type: 'circle',
+        source: 'har',
+        paint: {
+          // Ytan är svag och ringen tydlig: cirkeln säger "ungefär här", och
+          // ungefär är sant, eftersom koordinaten är avrundad till 110 meter.
+          'circle-radius': 9,
+          'circle-color': '#007BE0',
+          'circle-opacity': 0.25,
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#007BE0',
+        },
+      });
+    }
+
+    /**
+     * Fragmentet ändras utan att sidan laddas om.
+     *
+     * Det är inte ett kantfall utan huvudfallet: står besökaren REDAN på sin
+     * kommuns kartsida och trycker på platsraden i sökpanelen byts bara
+     * fragmentet, ingen navigering sker, och `hashchange` är den enda signal
+     * som finns. Utan den här lyssnaren händer ingenting alls vid det trycket.
+     */
+    window.addEventListener('hashchange', () => {
+      const vy = lasFragment();
+      if (!vy || !karta) return;
+      karta.easeTo({
+        center: [vy.lng, vy.lat],
+        zoom: vy.zoom,
+        duration: reducerad ? 0 : 600,
+      });
+      satHar(vy);
+      // På telefon ligger arket över halva kartan. Dras det ned till remsan
+      // ser man platsen man just bad om i stället för listan.
+      if (arkAktivt && lage !== 'remsa') stallArk('remsa');
+    });
+
     /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
      *  koden: adressen ska vara densamma i dev och i bygget. */
     function laddaCss() {
@@ -959,12 +1522,40 @@ const LEGEND = [
       ]);
 
       alla = avkoda(raw);
+      byggGrupper(alla);
 
-      const { Map, NavigationControl, AttributionControl, FullscreenControl } = maplibre;
+      /*
+       * `Map` byter namn här, och det är ingen stilfråga.
+       *
+       * MapLibres klass heter Map, precis som JavaScripts inbyggda. Plockas
+       * den ut med sitt eget namn SKUGGAR den den inbyggda i hela den här
+       * funktionen, alltså även i allt som skrivs inuti kartans load-hanterare
+       * längre ned. Där finns `new Map()` för grupperingen av adresser, och
+       * den raden byggde då en andra kartinstans utan argument i stället för
+       * en uppslagstabell. Felet blev "Cannot read properties of undefined
+       * (reading 'canvasContextAttributes')" kastat inuti en async-hanterare,
+       * alltså en obehandlad promise: kartbladen ritades, kontrollerna satt
+       * där, och INGA nålar eller kluster lades in, utan en rad som pekade ut
+       * varför.
+       */
+      const {
+        Map: MapLibreKarta,
+        NavigationControl,
+        AttributionControl,
+        FullscreenControl,
+      } = maplibre;
       const [w, s, e, n] = root!.dataset.bounds!.split(',').map(Number);
-      const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      karta = new Map({
+      /*
+       * Utgångsläget: fragmentets position när det finns, annars kommunens
+       * utsträckning. Talen sätts som center och zoom och INTE genom en
+       * easeTo efter start, eftersom en kamera som först visar hela kommunen
+       * och sedan flyger till kvarteret är en halv sekunds förvirring för
+       * ingenting. Den som klickat på platsraden har bett om sitt kvarter.
+       */
+      const startVy = lasFragment();
+
+      karta = new MapLibreKarta({
         container: duk,
         /*
          * Vår egen stil, byggd av scripts/kartstil.mjs och utlagd som statisk
@@ -977,8 +1568,9 @@ const LEGEND = [
          * ändras av någon annan mellan två besök.
          */
         style: '/kartstil/prikko.json',
-        bounds: [w, s, e, n],
-        fitBoundsOptions: { padding: 32 },
+        ...(startVy
+          ? { center: [startVy.lng, startVy.lat] as [number, number], zoom: startVy.zoom }
+          : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
         attributionControl: false,
       });
 
@@ -1016,15 +1608,52 @@ const LEGEND = [
          * originalindexet även i en filtrerad källa är det som håller
          * kopplingen rad ↔ nål ↔ kort intakt när filtret är på.
          */
-        const original = {
-          type: 'FeatureCollection' as const,
-          features: alla.map((p, i) => ({
-            type: 'Feature' as const,
-            id: i,
-            geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-            properties: { i, v: p.v },
-          })),
-        };
+        /*
+         * `n` är gruppens storlek och `h` är ett för den enda punkt i gruppen
+         * som ska bära antalsbrickan. ALLA punkter ligger kvar i källan:
+         * klustrens siffror ska räkna verksamheter och inte adresser, och
+         * nålarna ritas för alla, eftersom tolv identiska nålar ovanpå
+         * varandra ser ut som en och kostar försumbart vid våra mängder.
+         * Brickan får däremot bara ritas en gång per adress.
+         *
+         * Räknas per MÄNGD och inte en gång för alltid, eftersom filtret byter
+         * källdata: står tio av tolv kvar efter en sökning ska brickan säga
+         * tio. Se bytKalldata längre ned.
+         */
+        function byggFeatures(punkter: Punkt[]) {
+          const rutor = new Map<string, Punkt[]>();
+          for (const p of punkter) {
+            const nyckel =
+              Math.round(p.lng / SAMMA_PLATS) + ':' + Math.round(p.lat / SAMMA_PLATS);
+            const lista = rutor.get(nyckel);
+            if (lista) lista.push(p);
+            else rutor.set(nyckel, [p]);
+          }
+
+          const bricka = new Set<number>();
+          const storlek = new Map<number, number>();
+          for (const lista of rutor.values()) {
+            bricka.add(huvudnal(lista).i);
+            for (const p of lista) storlek.set(p.i, lista.length);
+          }
+
+          return {
+            type: 'FeatureCollection' as const,
+            features: punkter.map((p) => ({
+              type: 'Feature' as const,
+              id: p.i,
+              geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+              properties: {
+                i: p.i,
+                v: p.v,
+                n: storlek.get(p.i) ?? 1,
+                h: bricka.has(p.i) ? 1 : 0,
+              },
+            })),
+          };
+        }
+
+        const original = byggFeatures(alla);
 
         karta.addSource('verksamheter', {
           type: 'geojson',
@@ -1182,6 +1811,55 @@ const LEGEND = [
          * som finns. `setFilter` rör bara det lagret, som innehåller noll
          * eller en nål, så det kostar ingenting per bild.
          */
+        /*
+         * Antalsbrickan: en liten blå cirkel med vit siffra i nålens övre
+         * högra hörn, för adresser där mer än en verksamhet ligger.
+         *
+         * Formen är Hemnets, mätt i deras karta: en upphöjd liten ring vid
+         * märket, inte en siffra i märket och inte en utfälld ring av nålar.
+         * Färgen är klustrets blå, och det är avsiktligt. En blå ring med en
+         * siffra betyder samma sak överallt på kartan: här ligger fler än en,
+         * klicka så kommer du åt dem. Att klustret och stapeln talar samma
+         * språk är hela skillnaden mot att lära sig två tecken.
+         *
+         * Talen: nålen är PIN_H/2 gånger icon-size hög över koordinaten och
+         * PIN_W/2 gånger icon-size bred, alltså 24 x 18 CSS-pixlar vid
+         * icon-size 0,5. Brickan läggs vid dess övre högra hörn.
+         */
+        const BRICKA = ['all', ['!', ['has', 'point_count']], ['==', ['get', 'h'], 1], ['>', ['get', 'n'], 1]] as any;
+        const BRICKA_FLYTT: [number, number] = [8, -20];
+
+        karta.addLayer({
+          id: 'stapel-ring',
+          type: 'circle',
+          source: 'verksamheter',
+          filter: BRICKA,
+          paint: {
+            'circle-color': '#007BE0',
+            'circle-radius': 8,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#fff',
+            'circle-translate': BRICKA_FLYTT,
+          },
+        });
+
+        karta.addLayer({
+          id: 'stapel-antal',
+          type: 'symbol',
+          source: 'verksamheter',
+          filter: BRICKA,
+          layout: {
+            'text-field': ['to-string', ['get', 'n']],
+            // Noto Sans Bold av samma skäl som klustersiffran: stilens egna
+            // kakelfonter, och vit normalvikt på mättat blått blir grumligt.
+            'text-font': ['Noto Sans Bold'],
+            'text-size': 10,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+          },
+          paint: { 'text-color': '#fff', 'text-translate': BRICKA_FLYTT },
+        });
+
         karta.addLayer({
           id: 'nal-lyft',
           type: 'symbol',
@@ -1262,10 +1940,10 @@ const LEGEND = [
               kallanFiltrerad = false;
             }
           } else {
-            kalla.setData({
-              type: 'FeatureCollection',
-              features: original.features.filter((f) => traffar!.has(f.properties.i)),
-            });
+            // byggFeatures och inte ett filter på original.features: brickan
+            // ska räkna det som står kvar efter sökningen, inte det som stod
+            // där innan.
+            kalla.setData(byggFeatures(punktKalla().filter((p) => traffar!.has(p.i))));
             kallanFiltrerad = true;
           }
         }
@@ -1295,27 +1973,130 @@ const LEGEND = [
         karta.on('move', placeraKort);
         window.addEventListener('resize', placeraKort);
 
+        /*
+         * ── Klustret delar sig ───────────────────────────────────────────
+         *
+         * Här stod tidigare bara `getClusterExpansionZoom` följt av en easeTo
+         * till klustrets mittpunkt, och det var för lite. Det talet är den
+         * zoom där Supercluster SLUTAR slå ihop just det klustret, alltså det
+         * minsta steg som gör något alls. Klickar man på en bubbla med 300 i
+         * blir resultatet ofta fyra bubblor med 75 i, och man får klicka fem
+         * gånger till för att komma åt en enda verksamhet.
+         *
+         * Nu hämtas klustrets LÖV, alltså de verksamheter det faktiskt består
+         * av, och kameran läggs på deras utbredning. Då delar sig klustret
+         * hela vägen ned till nålar i ett svep när det går, och till några få
+         * bubblor när utbredningen är en hel stadsdel. `Math.max` mot
+         * expansionszoomen är garantin: en utbredning som råkar rymmas i rutan
+         * vid nuvarande zoom får ändå det steg som krävs för att bubblan ska
+         * släppa.
+         *
+         * Ligger löven på SAMMA ADRESS finns ingen zoom som delar dem, och då
+         * öppnas stapelkortet i stället. Det är den grind som gör att en
+         * bubbla aldrig kan bli en återvändsgränd.
+         */
+        const LOV_TAK = 500;
+
+        async function delaKluster(f: any) {
+          const kalla = karta.getSource('verksamheter');
+          const id = f.properties.cluster_id;
+
+          let lov: any[];
+          let expansion: number;
+          try {
+            [lov, expansion] = await Promise.all([
+              kalla.getClusterLeaves(id, LOV_TAK, 0),
+              kalla.getClusterExpansionZoom(id),
+            ]);
+          } catch {
+            // Klustret kan ha indexerats om under tiden, till exempel av
+            // filtret. Då finns id:t inte längre och ett zoomsteg är rätt
+            // svar, inte ett fel i konsolen.
+            karta.easeTo({ center: f.geometry.coordinates, zoom: karta.getZoom() + 2, duration: reducerad ? 0 : 400 });
+            return;
+          }
+
+          let vast = Infinity;
+          let ost = -Infinity;
+          let syd = Infinity;
+          let nord = -Infinity;
+          for (const l of lov) {
+            const [x, y] = l.geometry.coordinates;
+            if (x < vast) vast = x;
+            if (x > ost) ost = x;
+            if (y < syd) syd = y;
+            if (y > nord) nord = y;
+          }
+
+          if (ost - vast < SAMMA_PLATS && nord - syd < SAMMA_PLATS) {
+            // Samma adress. Ingen zoom i världen delar den här bubblan, så
+            // verksamheterna nås genom kortet i stället.
+            const punkter = lov
+              .map((l: any) => alla[l.properties.i])
+              .filter(Boolean)
+              .sort((a: Punkt, z: Punkt) => a.namn.localeCompare(z.namn, 'sv'));
+            if (punkter.length > 0) visaKort(punkter[0], punkter);
+            return;
+          }
+
+          /*
+           * cameraForBounds räknar på ramens verkliga mått, alltså tar den
+           * hänsyn till att kartan är halva sidan på skrivbordet och hela
+           * skärmen bakom arket på telefon. Paddingen hålls under en fjärdedel
+           * av den kortaste sidan; större padding än så ger ett negativt
+           * utrymme och en kamera som hoppar bakåt.
+           */
+          const luft = Math.min(56, Math.floor(Math.min(kartram.clientWidth, kartram.clientHeight) / 4));
+          const kamera = karta.cameraForBounds([[vast, syd], [ost, nord]], { padding: luft });
+
+          karta.easeTo({
+            center: kamera ? kamera.center : f.geometry.coordinates,
+            zoom: Math.max(kamera ? kamera.zoom : 0, expansion),
+            duration: reducerad ? 0 : 500,
+          });
+        }
+
         karta.on('click', 'kluster', (ev: any) => {
           const f = karta.queryRenderedFeatures(ev.point, { layers: ['kluster'] })[0];
-          if (!f) return;
-          karta.getSource('verksamheter').getClusterExpansionZoom(f.properties.cluster_id).then((z: number) => {
-            karta.easeTo({ center: f.geometry.coordinates, zoom: z, duration: reducerad ? 0 : 400 });
-          });
+          if (f) delaKluster(f);
         });
+
+        /*
+         * Klick på en nål, eller på dess antalsbricka. Ligger flera
+         * verksamheter på adressen öppnas kortet med hela gruppen och en
+         * bläddring i foten; ligger den ensam blir det ett vanligt kort.
+         */
+        function valjNal(i: number) {
+          const p = alla[i];
+          if (!p) return;
+          const lista = gruppFor(p);
+          visaKort(lista.length > 1 ? lista[0] : p, lista.length > 1 ? lista : null);
+        }
 
         karta.on('click', 'nalar', (ev: any) => {
           const f = ev.features?.[0];
-          if (!f) return;
-          visaKort(alla[f.properties.i]);
+          if (f) valjNal(f.properties.i);
         });
 
-        // Klick vid sidan av en nål stänger kortet, som hos Airbnb.
+        // Brickan är en egen liten yta bredvid nålen och måste kunna träffas
+        // för sig. Utan det är den en skylt man inte kan peka på.
+        for (const lager of ['stapel-ring', 'stapel-antal']) {
+          karta.on('click', lager, (ev: any) => {
+            const f = ev.features?.[0];
+            if (f) valjNal(f.properties.i);
+          });
+        }
+
+        // Klick vid sidan av en nål stänger kortet, som hos Airbnb. Brickan
+        // räknas som en del av nålen och får därför inte stänga.
         karta.on('click', (ev: any) => {
-          const träff = karta.queryRenderedFeatures(ev.point, { layers: ['nalar', 'kluster'] });
+          const träff = karta.queryRenderedFeatures(ev.point, {
+            layers: ['nalar', 'kluster', 'stapel-ring', 'stapel-antal'],
+          });
           if (träff.length === 0) stangKort();
         });
 
-        for (const lager of ['kluster', 'nalar']) {
+        for (const lager of ['kluster', 'nalar', 'stapel-ring', 'stapel-antal']) {
           karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
           karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
         }
@@ -1333,6 +2114,10 @@ const LEGEND = [
         });
 
         karta.on('mouseleave', 'nalar', () => satHovrad(null));
+
+        // "Du är här" kan inte läggas in förrän stilen finns, så den sätts
+        // här och inte vid konstruktionen.
+        if (startVy) satHar(startVy);
 
         karta.getCanvas().setAttribute('aria-label', `Karta över hygienkontroller i ${root!.dataset.city}`);
         root!.classList.add('live');
@@ -1790,6 +2575,47 @@ const LEGEND = [
   .kort :global(.kort-lank:hover) { background: var(--canvas); }
   .kort :global(.kort-lank svg) { width: 16px; height: 16px; flex: none; }
 
+  /* Bläddringen mellan verksamheter på samma adress. Ligger under länken och
+     får därför bära kortets nedre radie i stället för den. */
+  .kort :global(.kort-blad) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-2);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .kort :global(.kort-lank:has(+ .kort-blad)) { border-radius: 0; }
+
+  .kort :global(.kort-blad-text) {
+    flex: 1;
+    text-align: center;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .kort :global(.kort-blad-knapp) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 32 px, inte 26 som stängknappen. Bläddringen används flera gånger i
+       följd och ska gå att träffa med tummen utan att sikta. */
+    width: 32px;
+    height: 32px;
+    flex: none;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .kort :global(.kort-blad-knapp:hover) { background: var(--canvas); color: var(--text); }
+  .kort :global(.kort-blad-knapp svg) { width: 18px; height: 18px; }
+
   /* ── Under kartan ─────────────────────────────────────────────────────── */
 
   .under {
@@ -1833,63 +2659,177 @@ const LEGEND = [
 
   .kartram :global(.maplibregl-ctrl-attrib) { font-size: 10px; line-height: 14px; }
 
-  /* ── Mobil ────────────────────────────────────────────────────────────── */
+  /* ── Mobilarket ───────────────────────────────────────────────────────── */
 
-  .vaxel {
-    position: fixed;
-    left: 50%;
-    bottom: var(--s-6);
-    transform: translateX(-50%);
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    padding: 12px 20px;
-    border: 0;
-    border-radius: var(--r-pill);
-    background: var(--text);
-    color: #fff;
-    font: 600 var(--fs-body-s) / 1 var(--font-sans);
-    box-shadow: var(--shadow-pop);
-    cursor: pointer;
-  }
+  /* Handtagsremsan finns bara på smal skärm. Se arkresonemanget i skriptet. */
+  .handtag { display: none; }
 
-  .vaxel[hidden] { display: none; }
-  .vaxel svg { width: 18px; height: 18px; }
-
-  /* Under 900 px får en delad vy inte plats. Då är listan grundläget och
-     kartan läggs över den när man ber om den, precis som hos Airbnb. */
+  /*
+   * Under 900 px får en delad vy inte plats. Kartan fyller då HELA ytan och
+   * listan blir ett ark ovanpå den, som hos Airbnb. Se skriptets arkavsnitt
+   * för måtten och för varför det inte längre är en växel mellan två vyer.
+   */
   @media (max-width: 900px) {
     .split { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
 
-    /* Växelknappen ligger fast mot underkanten och täckte annars
-       attributionen, som är ett krav och inte en artighet. Knappens höjd
-       plus dess avstånd till kanten, med luft. */
-    .attribution { padding-bottom: 64px; }
-
-    .kartkolumn {
+    /*
+     * Två helt skilda världar: utan JavaScript är sidan ett vanligt dokument
+     * med lista och karta under varandra, med JavaScript är den en app-yta med
+     * ark. Klassen .ark sätts av skriptet, alltså bara när arket verkligen
+     * kan styras.
+     */
+    .split.ark {
+      display: block;
       position: fixed;
       inset: 0;
       z-index: 15;
-      display: none;
-      padding: var(--s-3);
+      gap: 0;
       background: var(--canvas);
     }
 
-    .split.visar-karta .kartkolumn { display: block; }
-    .split.visar-karta .lista { display: none; }
+    .split.ark .kartkolumn { position: static; height: 100%; }
 
-    .kartram { height: calc(100vh - 132px); min-height: 0; }
+    .split.ark .kartram {
+      position: absolute;
+      inset: 0;
+      height: auto;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+    }
 
-    /* Kortet blir ett ark mot underkanten, samma mönster som
-       inloggningsrutan använder på små skärmar. */
-    .kort {
+    /* Raden under kartan finns inte på app-ytan: den ligger per definition
+       under kartan, och kartan är hela skärmen. Teckenförklaringen faller
+       därmed bort på telefon, vilket är rimligt eftersom varje kort i listan
+       skriver ut sin bedömning i klartext bredvid ansiktet. Attributionen gör
+       det INTE, och den bärs i stället av MapLibres egen kontroll nedan. */
+    .split.ark .under { display: none; }
+
+    /*
+     * Upphovet till OpenStreetMap är ett licenskrav och får aldrig hamna
+     * bakom arket. --ark-syns är arkets synliga höjd och sätts av stallArk
+     * vid varje lägesbyte, så kontrollen ligger alltid strax ovanför arkets
+     * överkant oavsett vilket av de tre lägena som gäller. Reservvärdet är
+     * remsans höjd, för det fall variabeln inte hunnit sättas.
+     */
+    .split.ark :global(.maplibregl-ctrl-bottom-right) {
+      bottom: calc(var(--ark-syns, 122px) + 8px);
+      transition: bottom 260ms cubic-bezier(.2, .8, .3, 1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .split.ark :global(.maplibregl-ctrl-bottom-right) { transition: none; }
+    }
+
+    /* ── Arket ──────────────────────────────────────────────────────────── */
+
+    .split.ark .lista {
+      position: absolute;
       left: 0;
       right: 0;
-      bottom: 0;
-      width: 100%;
-      border-radius: var(--r-card) var(--r-card) 0 0;
-      padding-bottom: var(--s-6);
+      /* Toppen ligger under sidhuvudets rad. Höjden är resten, och lägena
+         skjuter ned arket därifrån med translateY. --keyboard-inset kommer
+         från lib/page-lock.ts och är det enda som vet tangentbordets höjd på
+         iOS; utan den lägger sig arkets underkant bakom tangentbordet. */
+      top: 0;
+      height: calc(100% - var(--keyboard-inset, 0px));
+      z-index: 16;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0;
+      background: var(--card);
+      /* 24 px, mätt i Airbnbs ark. Ingen skugga där heller: arket möter
+         kartan med en kant, inte med ett moln. */
+      border-radius: 24px 24px 0 0;
+      /* Skuggan finns för att arket ska läsa som ett lager ÖVER kartan, inte
+         som en yta bredvid den. Svagare än --shadow-pop, som är ett kort. */
+      box-shadow: 0 -2px 16px rgb(0 0 0 / 0.10);
+      will-change: transform;
     }
+
+    .split.ark .handtag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 100%;
+      /* Hela remsan är knappen. Greppet är ett streck och ingen träffyta;
+         44 px är den minsta yta en tumme träffar utan att sikta. */
+      height: 32px;
+      padding: 0;
+      border: 0;
+      background: none;
+      cursor: grab;
+      /* Utan detta tolkar webbläsaren dragningen som en sidrullning och
+         pointermove slutar komma mitt i gesten. */
+      touch-action: none;
+    }
+
+    .split.ark .handtag:active { cursor: grabbing; }
+
+    .split.ark .grepp {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--hairline);
+    }
+
+    .split.ark .arkinne {
+      flex: 1;
+      min-height: 0;
+      padding: 0 var(--s-4) var(--s-6);
+      /* Tröghetsrullning på iOS, och rullningen får inte fortsätta ut i
+         sidan bakom när listan tar slut. */
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Rubriken står kvar i remsläget och är det enda man ser av arket då, så
+       den bär hela beskedet om vad som ligger under. */
+    .split.ark .listhuvud { margin-bottom: var(--s-3); }
+
+    /*
+     * 16 px, inte --fs-body-s.
+     *
+     * iOS Safari zoomar in hela sidan när ett fält med mindre text än 16 px
+     * får fokus, och zoomen går inte tillbaka av sig själv. På en app-yta med
+     * ett ark blir det obrukbart. Golvet gäller alla fält på smal skärm och är
+     * inte förhandlingsbart.
+     */
+    .split.ark .filterfalt input { font-size: 16px; }
+
+    /* ── Nålens kort på telefon ─────────────────────────────────────────── */
+
+    /*
+     * Kortet ligger ÖVER arket och strax ovanför remsan, inte mot skärmens
+     * underkant. Skälet är att arket redan äger underkanten: två ark mot samma
+     * kant hade legat ovanpå varandra, och det som låg under hade sett ut som
+     * ett fel. Skriptet drar dessutom ned arket till remsan när ett kort
+     * öppnas, så kartan under kortet syns.
+     */
+    .split.ark .kort {
+      position: fixed;
+      left: var(--s-3);
+      right: var(--s-3);
+      top: auto;
+      bottom: calc(var(--ark-syns, 122px) + var(--s-3) + var(--keyboard-inset, 0px));
+      z-index: 17;
+      width: auto;
+      border-radius: var(--r-card);
+    }
+
+    /* Pilen pekar på en nål som kan ligga var som helst, alltså inte alls. */
+    .split.ark .kort::after { display: none; }
+  }
+
+  /*
+   * Utan JavaScript, och över 900 px, står kartan kvar i sitt flöde. Den
+   * gamla regeln lade kartkolumnen fixed och gömde den bakom en växelknapp;
+   * nu finns ingen knapp, så en sida utan skript ska helt enkelt visa listan
+   * och kartrutan under varandra.
+   */
+  @media (max-width: 900px) {
+    .split:not(.ark) .kartram { height: 60vh; min-height: 320px; }
   }
 </style>

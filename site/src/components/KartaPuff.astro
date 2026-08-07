@@ -30,15 +30,52 @@
  *    JavaScript avslaget, och Googlebot vid första passet, ser den här.
  *
  * 2. **Den levande kartan**, MapLibre med vår egen stil och samma punkter
- *    ovanpå riktiga kartblad. Vaknar på KLICK, aldrig av sig själv.
+ *    ovanpå riktiga kartblad. Vaknar av sig själv när villkoren nedan är
+ *    uppfyllda, annars på klick.
  *
- * ## Varför klick och inte vyn
+ * ## Varför den numera vaknar av sig själv
  *
- * Platskartan på verksamhetssidan vaknar när rutan når vyn. Det går där
- * eftersom den ligger långt ner på sidan. Här ligger rutan ovanför vecket i
- * båda bredderna, så "när rutan når vyn" hade betytt "alltid", och då är
- * lasten inte lat utan bara fördröjd. Knappen är därför den enda utlösaren,
- * och den säger i klartext vad ett klick ger.
+ * Kravet var "kartan ska synas direkt", och klicket var priset vi betalade
+ * för hubbens vikt. Räknat på nytt går priset att betala någon annanstans än
+ * i sidladdningen.
+ *
+ * Vad uppvaknandet faktiskt kostar, mätt med brotli:
+ *
+ *   maplibre-gl.mjs + shared + worker         232 kB
+ *   maplibre-gl.css                             8 kB
+ *   kartstil/prikko.json                        3 kB
+ *   kartdata, Kristinehamn                      3 kB
+ *   kartdata, Stockholm                       106 kB
+ *                                          ---------
+ *   summa                                 246–349 kB
+ *
+ * Plus kartblad, glyfer och sprite från OpenFreeMap, som är någon eller några
+ * hundra kilobyte till för det första utsnittet.
+ *
+ * Det är alltså inte gratis, och det är precis därför det INTE ligger i
+ * sidladdningen. Uppvaknandet är villkorat på tre saker, och alla tre måste
+ * hålla:
+ *
+ * 1. **Efter `load`, sedan i en tomgångslucka.** Sidan är helt klar innan
+ *    första kartbyten hämtas. LCP mäts på det som redan står där, punktbilden
+ *    ligger kvar i sin ruta hela tiden, och rutan byter aldrig storlek. Alltså
+ *    rör uppvaknandet varken LCP eller CLS, och huvudtrådsarbetet läggs i en
+ *    lucka där ingen väntar på det.
+ *
+ * 2. **Rutan ska synas.** IntersectionObserver, så att den som landar på sida
+ *    47 och aldrig rullar upp inte betalar för en karta hen inte ser.
+ *
+ * 3. **Uppkopplingen ska tåla det.** Det här är hela svaret på frågan om den
+ *    som kommer från Google på en telefon med dålig uppkoppling: `saveData`,
+ *    `effectiveType` sämre än 4g och `prefers-reduced-data` stoppar var för
+ *    sig uppvaknandet helt. Den besökaren får punktbilden och knappen, alltså
+ *    exakt det hen fick förut, och betalar noll extra byte. Signalen saknas i
+ *    Safari och Firefox; där vaknar kartan, vilket är rätt avvägning eftersom
+ *    punktbilden ändå redan är målad och sidan redan är användbar.
+ *
+ * Knappen finns kvar för dem som stoppas av villkor 3, och när något går fel.
+ * Ska kartan vakna av sig själv göms knappen direkt, innan någon hunnit se
+ * den, så att ingen erbjuds ett klick som är på väg att bli onödigt.
  *
  * ## Varför punkter och inte nålar
  *
@@ -79,17 +116,122 @@ const [west, south, east, north] = data.bounds;
  */
 const kx = Math.cos(((south + north) / 2) * (Math.PI / 180));
 
-/* Bilden får plats i en låda på 320 x 230 enheter och behåller kommunens
-   egna proportioner inom den. */
-const BOX_W = 320;
-const BOX_H = 230;
-const PAD = 8;
-const scale = Math.min(BOX_W / ((east - west) * kx), BOX_H / (north - south));
-const W = Math.round((east - west) * kx * scale) + PAD * 2;
-const H = Math.round((north - south) * scale) + PAD * 2;
+/*
+ * Bildens låda får RAMENS proportion, inte kommunens.
+ *
+ * Här stod tidigare en låda på 320 x 230 som kommunens form fick rymmas
+ * inom, och det var felet ägaren såg: "den är inte hela vägen ut till höger,
+ * det är ett litet gap". Punktbilden är en SVG med width och height på 100 %
+ * och `preserveAspectRatio` i sitt förval, alltså `xMidYMid meet`. Bilden
+ * skalas då tills den ryms och centreras, och skiljer sig kommunens form från
+ * ramens blir mellanskillnaden en tom remsa.
+ *
+ * Mätt i webbläsaren på de åtta kommuner som har kartdata, i den 318 x 378
+ * stora ramen på skrivbordet:
+ *
+ *   Kristinehamn   115 x 246   0,47   ritad 177 x 378   141 px tom i bredd
+ *   Karlstad       275 x 246   1,12   ritad 318 x 284    94 px tom i höjd
+ *   Stockholm      230 x 246   0,94   ritad 318 x 340    38 px tom i höjd
+ *   Linköping      218 x 246   0,89   ritad 318 x 359    19 px tom i höjd
+ *
+ * Kristinehamn är en långsmal kommun och tappar därför 141 px, alltså 70 px
+ * på var sida. Det är exakt det glapp till höger som anmäldes. På smal skärm,
+ * där ramen är 336 x 200 och alltså LIGGANDE medan varje kommun är stående,
+ * pillarboxas alla åtta, Kristinehamn värst: 93 px bild i en 336 px ram.
+ *
+ * Det är alltså ett proportionsfel och inte gles data. Två vägar finns, och
+ * bara den ena duger.
+ *
+ * Att VIDGA fönstret geografiskt tills det har ramens proportion låter rätt
+ * och löser ingenting: tomrummet flyttar bara in i bilden i stället för att
+ * ligga utanför den, och Kristinehamns prickar sitter kvar i ett smalt band
+ * mitt i rutan. En lång smal kommun KAN inte nå ut till högerkanten med
+ * geografin i behåll.
+ *
+ * Alltså BESKÄR vi, som en riktig karta gör. En kartvy är ett fönster mot
+ * världen och lägger aldrig svarta remsor vid sidan om; den visar det som
+ * ryms och klipper resten. Fönstret är därför den största ramformade
+ * rektangel som får plats INNANFÖR kommunens utsträckning, och bilden fyller
+ * ramen kant i kant oavsett kommunens form.
+ *
+ * Fönstret centreras på punkternas MEDIAN och inte på utsträckningens mitt.
+ * Skälet är Kristinehamn: kommunen är lång i nordsydlig led och staden ligger
+ * i ena änden, så ett fönster kring lådans mitt hade beskurit bort just den
+ * stad rutan finns för att visa. Medianen ligger där verksamheterna ligger,
+ * alltså på staden, och är okänslig för enstaka punkter långt ut.
+ *
+ * Den levande kartan får SAMMA fönster som `bounds` längre ned, så att
+ * uppvaknandet byter mark under punkterna i stället för att byta bild. Det
+ * var avsikten hela tiden och stämde inte förrän nu: fitBounds fyller ramen,
+ * medan den rymda punktbilden centrerade en mindre bild i den.
+ *
+ * Ramen är 320 x 380 på skrivbordet och 336 x 200 på smal skärm. Ingen låda
+ * passar båda, så markupen sätter `preserveAspectRatio="xMidYMid slice"` och
+ * låter den smala skärmen beskära vidare i höjd.
+ */
+const RAM_KVOT = 320 / 380;
+
+/** Kommunens egen utsträckning i projicerade enheter. */
+const dataW = (east - west) * kx;
+const dataH = north - south;
+
+/* Största ramformade rektangel som ryms i utsträckningen. Den axel som är
+   för lång beskärs, den andra behålls hel. */
+const winW = dataW / dataH > RAM_KVOT ? dataH * RAM_KVOT : dataW;
+const winH = winW / RAM_KVOT;
+
+/* Ritytan i SVG-enheter. Talen är godtyckliga så länge kvoten är ramens;
+   380 gör att en enhet är ungefär en pixel på skrivbordet, vilket håller
+   punktbanorna korta i markupen. */
+const H = 380;
+const W = Math.round(H * RAM_KVOT);
+const scale = W / winW;
+
+/**
+ * Fönstrets mitt: punkternas median per axel, klämd så att fönstret aldrig
+ * glider utanför utsträckningen. Utan klämningen hade en kommun med all sin
+ * bebyggelse i ett hörn fått halva rutan utanför sin egen data.
+ */
+function median(values: number[]): number {
+  const s = [...values].sort((a, b) => a - b);
+  return s[s.length >> 1];
+}
+
+/* Absoluta koordinater ur deltakodningen, en gång, och återanvänds i
+   ritslingan nedan. Se formatavsnittet i map-data.ts. */
+const lngs: number[] = [];
+const lats: number[] = [];
+{
+  let lng = 0;
+  let lat = 0;
+  for (let i = 0; i < raw.x.length; i++) {
+    lng += raw.x[i];
+    lat += raw.y[i];
+    lngs.push(lng / 1e5);
+    lats.push(lat / 1e5);
+  }
+}
+
+const klam = (v: number, lo: number, hi: number) => (lo > hi ? (lo + hi) / 2 : Math.min(Math.max(v, lo), hi));
+const halvW = winW / kx / 2;
+const halvH = winH / 2;
+const midLng = klam(median(lngs), west + halvW, east - halvW);
+const midLat = klam(median(lats), south + halvH, north - halvH);
+
+/** Fönstret som geografisk låda. Den levande kartan öppnar på exakt den. */
+const fonster: [number, number, number, number] = [
+  midLng - halvW,
+  midLat - halvH,
+  midLng + halvW,
+  midLat + halvH,
+];
 
 const MAX_DOTS = 650;
 const stride = Math.max(1, Math.ceil(raw.x.length / MAX_DOTS));
+
+/* Glesare kommuner får större punkter, annars ser Borgholmsklassen ut som
+   damm och Stockholm som en enda klump. */
+const dot = data.count > 3000 ? 3 : data.count > 800 ? 4 : 5;
 
 /*
  * En path per bedömning i stället för en cirkel per punkt: "M123 45h0" med
@@ -98,19 +240,16 @@ const stride = Math.max(1, Math.ceil(raw.x.length / MAX_DOTS));
  * mängden, samma prioritet som kartsidans nålar har.
  */
 const paths: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
-let lng = 0;
-let lat = 0;
-for (let i = 0; i < raw.x.length; i++) {
-  lng += raw.x[i];
-  lat += raw.y[i];
+for (let i = 0; i < lngs.length; i++) {
   if (i % stride !== 0) continue;
-  const gx = lng / 1e5;
-  const gy = lat / 1e5;
-  // Utsnittet är beskuret mot de yttersta halvprocenten (se extent() i
-  // map-data.ts). Punkter utanför skulle pressa ihop staden till en prick.
-  if (gx < west || gx > east || gy < south || gy > north) continue;
-  const px = Math.round(PAD + (gx - west) * kx * scale);
-  const py = Math.round(PAD + (north - gy) * scale);
+  // Mätt från fönstrets mitt, inte från en kant: fönstret är byggt kring
+  // medianen och har ingen given kant att räkna från.
+  const px = Math.round(W / 2 + (lngs[i] - midLng) * kx * scale);
+  const py = Math.round(H / 2 - (lats[i] - midLat) * scale);
+  // Utanför fönstret ritas ingenting. Det ÄR beskärningen, och den görs här
+  // i stället för att lämnas till overflow: punkter långt utanför hade annars
+  // blivit stora tal i markupen utan att någon får se dem.
+  if (px < -dot || px > W + dot || py < -dot || py > H + dot) continue;
   paths[raw.v[i]]?.push(`M${px} ${py}h0`);
 }
 
@@ -120,10 +259,6 @@ const LAYERS = [
   { d: paths['1'].join(''), color: 'var(--verdict-minor)' },
   { d: paths['2'].join(''), color: 'var(--verdict-major)' },
 ];
-
-/* Glesare kommuner får större punkter, annars ser Borgholmsklassen ut som
-   damm och Stockholm som en enda klump. */
-const dot = data.count > 3000 ? 3 : data.count > 800 ? 4 : 5;
 
 const href = path(`/${kommun.slug}`, 'karta');
 const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med känd plats`;
@@ -136,13 +271,15 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     class="kartram"
     data-kommunkarta
     data-src={data.url}
-    data-bounds={data.bounds.join(',')}
+    data-bounds={fonster.join(',')}
     data-city={city}
   >
     {/* Punktbilden. Ligger kvar under den levande kartan tills den ritat
         klart, så att bytet är en mjuk övergång och inte en vit blixt. */}
     <div class="still" data-still>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+      {/* slice och inte förvalet meet. Se fönsterresonemanget ovan: bilden
+          ska FYLLA ramen och beskära, inte rymmas och lämna en tom remsa. */}
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
         {LAYERS.map((l) => l.d && (
           <path
             d={l.d}
@@ -214,7 +351,17 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
             v: string;
           }>,
         ]);
-        const { Map, NavigationControl, AttributionControl, FullscreenControl } = maplibre;
+        /* Byter namn på MapLibres Map. Den heter likadant som JavaScripts
+           inbyggda och skuggar den annars i hela funktionen, så att ett
+           `new Map()` för en uppslagstabell bygger en andra karta i stället.
+           Det kostade en halvtimmes felsökning i Karta.astro; se kommentaren
+           där. */
+        const {
+          Map: MapLibreKarta,
+          NavigationControl,
+          AttributionControl,
+          FullscreenControl,
+        } = maplibre;
 
         /*
          * Deltakodade heltal i hundratusendels grad, se map-data.ts.
@@ -237,15 +384,21 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
         }
         const features = [...hinkar[3], ...hinkar[0], ...hinkar[1], ...hinkar[2]];
 
+        /*
+         * Samma fönster som punktbilden ritade, och utan padding. Punkterna
+         * hamnar då på exakt samma ställe före och efter uppvaknandet, vilket
+         * är hela poängen med att ha en punktbild under kartan. Padding hade
+         * krympt kartans utsnitt i förhållande till bildens och gett prickarna
+         * ett litet hopp inåt i samma sekund som kartbladen kom.
+         */
         const bounds = root!.dataset.bounds!.split(',').map(Number) as
           [number, number, number, number];
-        const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        const karta = new Map({
+        const karta = new MapLibreKarta({
           container: duk,
           style: KARTSTIL,
           bounds: [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
-          fitBoundsOptions: { padding: 16, animate: false },
+          fitBoundsOptions: { padding: 0, animate: false },
           attributionControl: false,
         });
 
@@ -297,7 +450,6 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
           still.setAttribute('aria-hidden', 'true');
         });
 
-        if (reducerad) karta.jumpTo(karta.getCenter() && karta.getCenter());
       } catch (error) {
         console.error(error);
         // Punktbilden står kvar. Den ÄR en karta; felraden säger bara att
@@ -308,6 +460,86 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     }
 
     knapp.addEventListener('click', start);
+
+    // ── Uppvaknandet av sig själv ────────────────────────────────────────
+
+    /**
+     * Tål uppkopplingen en karta?
+     *
+     * Det här är hela svaret på frågan om den som kommer från Google på en
+     * telefon med dålig uppkoppling, och det är därför villkoren är hårda och
+     * inte mjuka. Var och en av dem stoppar uppvaknandet HELT; besökaren får
+     * punktbilden och knappen och betalar noll extra byte.
+     *
+     * `saveData` är besökarens uttryckliga önskan och väger tyngst.
+     * `effectiveType` är webbläsarens egen mätning av verklig genomströmning
+     * och rundtid, inte en gissning ur radiotypen, så 3g betyder verkligen
+     * att en kvarts megabyte tar sekunder. `prefers-reduced-data` är samma
+     * önskan uttryckt i systemet i stället för i webbläsaren.
+     *
+     * Signalen finns bara i Chromium. I Safari och Firefox är `connection`
+     * odefinierad, och då vaknar kartan. Det är rätt avvägning: punktbilden
+     * är redan målad, sidan är redan färdigladdad, och alternativet vore att
+     * aldrig ge kartan till någon på de webbläsarna.
+     */
+    function uppkopplingenTal(): boolean {
+      const c = (navigator as any).connection;
+      if (c) {
+        if (c.saveData) return false;
+        if (c.effectiveType && c.effectiveType !== '4g') return false;
+      }
+      return !window.matchMedia('(prefers-reduced-data: reduce)').matches;
+    }
+
+    if (uppkopplingenTal()) {
+      /*
+       * Knappen göms med en gång. Skriptet är en modul och körs alltså efter
+       * att dokumentet tolkats men innan någon hunnit läsa rutan, så ingen
+       * erbjuds ett klick som är på väg att bli onödigt. Blir det fel längre
+       * fram kommer knappen tillbaka i catch-grenen ovan.
+       */
+      knapp.hidden = true;
+
+      /*
+       * Ordningen är: rutan syns, sidan är klar, huvudtråden är ledig.
+       *
+       * IntersectionObserver först, så att den som landar på sida 47 av
+       * Stockholm och aldrig rullar upp till sidopanelen slipper hämtningen.
+       * `load` sedan, så att kartbladen aldrig konkurrerar med sidans egna
+       * resurser. Tomgångsluckan sist, så att MapLibres halva megabyte
+       * tolkas när ingen väntar på svar. Timeouten på tre sekunder är
+       * ryggraden: en sida som aldrig blir riktigt tom i huvudtråden ska
+       * ändå få sin karta.
+       *
+       * requestIdleCallback saknas i äldre Safari, därav reservutgången.
+       */
+      const nar = (fn: () => void) => {
+        const idle = (window as any).requestIdleCallback;
+        if (idle) idle(fn, { timeout: 3000 });
+        else setTimeout(fn, 200);
+      };
+
+      const efterLoad = (fn: () => void) => {
+        if (document.readyState === 'complete') nar(fn);
+        else window.addEventListener('load', () => nar(fn), { once: true });
+      };
+
+      if ('IntersectionObserver' in window) {
+        const obs = new IntersectionObserver(
+          (poster) => {
+            if (!poster.some((p) => p.isIntersecting)) return;
+            obs.disconnect();
+            efterLoad(start);
+          },
+          // Marginalen gör att kartan hinner vakna precis innan rutan når
+          // vyn i stället för precis efter.
+          { rootMargin: '200px' },
+        );
+        obs.observe(root);
+      } else {
+        efterLoad(start);
+      }
+    }
   }
 </script>
 
@@ -340,8 +572,10 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     display: block;
     width: 100%;
     height: 100%;
-    /* Bilden är kommunens form och ska inte sträckas ur den. */
-    object-fit: contain;
+    /* Ingen object-fit. Den gäller ersatta element och gör ingenting på en
+       inbäddad SVG; det är preserveAspectRatio i markupen som avgör, och den
+       står på slice så att bilden fyller ramen. Regeln stod här och såg ut
+       att göra jobbet, vilket är värre än att den inte fanns. */
   }
 
   /* Knappen är platskartans: en pill mot underkanten som säger vad ett klick
@@ -366,6 +600,10 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     color: var(--brand-ink);
     box-shadow: var(--shadow-pop);
   }
+
+  /* position: absolute upphäver inte UA-stilens display: none, men den
+     kombinationen har lurats förr. Skrivet i klartext i stället. */
+  .knapp[hidden] { display: none; }
 
   .duk {
     position: absolute;
