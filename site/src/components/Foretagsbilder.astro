@@ -1,0 +1,346 @@
+---
+/**
+ * Verksamhetens egna bilder.
+ *
+ * ---------------------------------------------------------------------------
+ * INTE SAMMA BILDER SOM GÄSTERNAS, OCH INTE SAMMA FLÖDE
+ * ---------------------------------------------------------------------------
+ * Bilder.astro visar community.image_uploads, som hör till besökaren och vars
+ * insert-policy stänger ute den som har ett godkänt anspråk. Den här visar
+ * community.business_images, som kräver ett. De två avsnitten delar ingen kod,
+ * inga id:n och inga klassnamn, så att en ändring i det ena inte kan flytta det
+ * andra. Se kommentaren över INKORG i lib/foretag.ts.
+ *
+ * Ordningen på sidan säger vem bilden kommer från utan att en mening behöver
+ * göra det: företagets egna bilder står i företagets del av sidan, under
+ * företagets egna uppgifter, och gästernas står i gästernas del.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD BILDERNA ALDRIG FÅR VARA
+ * ---------------------------------------------------------------------------
+ * Ett svar på en kontroll. Avsnittet står långt under kontrollberättelsen och
+ * kan inte nå den, och en bildtext kan aldrig bli en kommentar till en
+ * bedömning: den som vill säga något om en kontroll gör det genom
+ * community.owner_responses, ordagrant och efter granskning.
+ *
+ * Tomt i bygget och fyllt i webbläsaren, som resten av företagsytan.
+ */
+interface Props {
+  establishmentId: string;
+  establishmentName: string;
+}
+
+const { establishmentId, establishmentName } = Astro.props;
+---
+
+<section
+  class="foretagsbilder tom"
+  id="foretagsbilder"
+  data-establishment={establishmentId}
+  data-name={establishmentName}
+>
+  <h2>Bilder från verksamheten</h2>
+  <div class="strip" id="foretagsbilder-strip"></div>
+</section>
+
+<dialog class="foretagsbild-lucka" id="foretagsbilder-lucka" aria-label={`Bild på ${establishmentName}`}>
+  <button type="button" class="stang" data-stang aria-label="Stäng">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      ></path>
+    </svg>
+  </button>
+  <img id="foretagsbilder-stor" alt="" />
+  <p class="text" id="foretagsbilder-text"></p>
+</dialog>
+
+<style>
+  /* Hopfällt tills det finns en bild.
+
+     `display: none` duger här, till skillnad från i Bilder.astro. Där måste
+     lådan finnas kvar för att en observatör ska kunna se den komma i sikte;
+     det här avsnittet hämtar sina bilder direkt när sidan laddats och behöver
+     ingen låda innan det har något att visa.
+
+     Fyra egenskaper hade behövt nollas med `visibility: hidden`, och det är
+     värt att veta varför: sidmallen ger varje syskon i huvudkolumnen marginal,
+     indrag OCH en hårlinje överst med `.main > * + *`. Ett avsnitt som bara
+     har `height: 0` syns därför ändå, som en avdelare mitt på sidan som inte
+     delar av något. */
+  .foretagsbilder.tom {
+    display: none;
+  }
+
+  .foretagsbilder h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  /* Samma form som gästernas bilder strax nedanför: rutnät på dator, band på
+     telefon. Två bildavsnitt på samma sida som beter sig olika läses som ett
+     fel, inte som en skillnad. Att bilderna kommer från olika håll säger
+     rubrikerna, och det räcker.
+
+     `auto-fill` och inte `auto-fit`, av samma skäl som i Bilder.astro: med
+     auto-fit blir en ensam bild en banderoll över hela spalten. */
+  .strip {
+    margin-top: var(--s-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--s-2);
+  }
+
+  .strip:empty {
+    display: none;
+  }
+
+  /* Telefonen: samma rutor på rad. Måtten är Bilder.astros, och de ska förbli
+     desamma. Se kommentarerna där för varför 56 % och varför `proximity`. */
+  @media (max-width: 640px) {
+    .strip {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      margin-right: calc(50% - 50vw);
+      padding-right: calc(50vw - 50%);
+      padding-block: 4px;
+      margin-top: calc(var(--s-4) - 4px);
+      scrollbar-width: none;
+    }
+
+    .strip::-webkit-scrollbar { display: none; }
+  }
+</style>
+
+<style is:global>
+  /* Rutan och luckan står utanför komponentens rot i DOM:en när dialogen
+     visas, och Astros scopeade selektorer når då inte in i dem. Namnen är
+     egna: besökarbildernas .ruta och .photo-dialog rörs inte. */
+  /* 4:3 sitter på RUTAN och inte på bilden, av samma skäl som i Bilder.astro:
+     rutan får sin bredd av raden och sin höjd av förhållandet, och en tom
+     remsa har därmed sin höjd innan en enda bild laddat. */
+  .foretagsbilder .bildruta {
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-control);
+    overflow: hidden;
+    background: var(--canvas);
+    cursor: zoom-in;
+    aspect-ratio: 4 / 3;
+  }
+
+  @media (max-width: 640px) {
+    .foretagsbilder .bildruta {
+      flex: 0 0 min(56%, 240px);
+      scroll-snap-align: start;
+    }
+  }
+
+  .foretagsbilder .bildruta:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .foretagsbilder .bildruta img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  dialog.foretagsbild-lucka {
+    padding: 0;
+    border: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: visible;
+  }
+
+  /*
+   * Rutan omsluter bilden och ingenting mer.
+   *
+   * SAMMA FÄLLA SOM photo-dialog GICK I, och den är värd att skriva ut: luckan
+   * är ett syskon till avsnittet i huvudkolumnen, alltså träffas den av
+   * sidmallens `.main > * + *`, som ger varje sektion `margin-top`,
+   * `padding-top` och en hårlinje. En modal ruta är ingen sektion. Utrymmet
+   * ovanför sköt ned bilden i förhållande till krysset, som räknar sitt avstånd
+   * från rutans kant, och krysset hamnade ovanför fotografiet i stället för i
+   * hörnet av det.
+   *
+   * Selektorn är avsiktligt tyngre än sidmallens: element, klass och attribut
+   * mot klass och attribut. `[open]` behövs också av ett andra skäl, att en rad
+   * med `display` annars slår ut den `display: none` som gör att en stängd
+   * dialog är stängd.
+   */
+  dialog.foretagsbild-lucka[open] {
+    display: grid;
+    margin: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .foretagsbild-lucka::backdrop {
+    background: rgb(0 0 0 / 0.72);
+  }
+
+  .foretagsbild-lucka img {
+    display: block;
+    max-width: calc(100vw - var(--s-8));
+    max-height: 82dvh;
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    border-radius: var(--r-card);
+  }
+
+  .foretagsbild-lucka .text {
+    margin-top: var(--s-3);
+    color: #fff;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    text-align: center;
+  }
+
+  .foretagsbild-lucka .text:empty {
+    display: none;
+  }
+
+  /* Krysset ligger ovanpå bilden i ett hörn och inte i en rad ovanför den.
+     44 px är det minsta mått ett finger träffar säkert, och det gäller på
+     dator också. Samma knapp som i Bilder.astro, med avsikt. */
+  .foretagsbild-lucka .stang {
+    position: absolute;
+    top: var(--s-3);
+    right: var(--s-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .foretagsbild-lucka .stang:hover { background: rgba(0, 0, 0, .75); }
+
+  .foretagsbild-lucka .stang svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .foretagsbild-lucka .stang:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  import { configured, publiceradeBilder } from '../lib/foretag';
+  import { lockPage, unlockPage } from '../lib/page-lock';
+
+  const section = document.getElementById('foretagsbilder') as HTMLElement | null;
+  const lucka = document.getElementById('foretagsbilder-lucka') as HTMLDialogElement | null;
+
+  if (section && lucka && configured) {
+    const strip = document.getElementById('foretagsbilder-strip') as HTMLDivElement;
+    const stor = document.getElementById('foretagsbilder-stor') as HTMLImageElement;
+    const text = document.getElementById('foretagsbilder-text') as HTMLParagraphElement;
+    const stang = lucka.querySelector('[data-stang]') as HTMLButtonElement;
+    const id = section.dataset.establishment ?? '';
+    const namn = section.dataset.name ?? '';
+
+    let oppnare: HTMLElement | null = null;
+
+    function open(url: string, caption: string, trigger: HTMLElement) {
+      oppnare = trigger;
+      stor.src = url;
+      stor.alt = caption || namn;
+      text.textContent = caption;
+      lockPage();
+      lucka!.showModal();
+    }
+
+    /* Esc, krysset och klick utanför bilden tar samma väg, så att fokus
+       hamnar tillbaka på rutan man öppnade i alla tre fallen. */
+    function close() {
+      if (lucka!.open) lucka!.close();
+      unlockPage();
+      stor.removeAttribute('src');
+      text.textContent = '';
+      const tillbaka = oppnare;
+      oppnare = null;
+      tillbaka?.focus({ preventScroll: true });
+    }
+
+    lucka.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      close();
+    });
+    stang.addEventListener('click', () => close());
+    lucka.addEventListener('click', (event) => {
+      if (event.target === lucka) close();
+    });
+
+    function render(rows: Array<{ id: string; published_url: string; caption: string | null }>) {
+      strip.textContent = '';
+      for (const row of rows) {
+        const caption = row.caption?.trim() ?? '';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'bildruta';
+        button.setAttribute('aria-label', caption || 'Visa bilden större');
+
+        const img = document.createElement('img');
+        img.src = row.published_url;
+        /* Bildtexten är företagets egen beskrivning och är därför den bästa
+           alt-texten som finns. Utan den får namnet på stället duga. */
+        img.alt = caption || namn;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+
+        button.append(img);
+        button.addEventListener('click', () => open(row.published_url, caption, button));
+        strip.append(button);
+      }
+      section!.classList.toggle('tom', rows.length === 0);
+    }
+
+    /*
+     * Hämtas vid sidladdning, INTE när avsnittet kommer i sikte.
+     *
+     * Besökarbilderna väntar på en IntersectionObserver, och det var förlagan
+     * här tills två saker visade sig.
+     *
+     * Den första är teknisk och mätt i webbläsaren: en observatör på det
+     * hopfällda avsnittet fick ALDRIG någon återanropning. Lådan är noll pixlar
+     * hög, och en måttlös låda korsar ingenting. Bilderna laddades alltså inte
+     * alls. Ett avsnitt som ska växa fram när det får innehåll kan inte
+     * samtidigt vara det som avgör när innehållet hämtas.
+     *
+     * Den andra gör frågan ointressant: Foretagsuppgifter.astro strax ovanför
+     * kontaktar redan Supabase när sidan laddas. Skälet att vänta var att inte
+     * kosta den som aldrig rullar ned en kontakt med tredje part, och den
+     * kontakten är då redan tagen. Det här är en andra fråga till samma värd,
+     * inte en ny förbindelse.
+     */
+    (async () => {
+      try {
+        render(await publiceradeBilder(id));
+      } catch {
+        /* Avsnittet står kvar hopfällt. Sidan är hel utan bilderna. */
+      }
+    })();
+  }
+</script>

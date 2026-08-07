@@ -40,6 +40,8 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
+import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
+import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import MatsnuskNote from '../../components/MatsnuskNote.astro';
@@ -260,6 +262,14 @@ const facts = [
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'FoodEstablishment',
+  /* Ett id att peka på.
+
+     Öppettider och telefon kommer från företagsytan och hämtas i webbläsaren,
+     alltså finns de inte när den här noden skrivs. Foretagsuppgifter.astro
+     lägger till en andra nod med SAMMA @id när uppgifterna kommit hem, och den
+     som läser strukturerad data slår då ihop de två i stället för att tro att
+     adressen har två restauranger. Utan ett id går det inte att göra. */
+  '@id': `${absolute(kommun.slug, e.slug)}#verksamhet`,
   name: e.name,
   url: absolute(kommun.slug, e.slug),
   address: {
@@ -459,6 +469,27 @@ const breadcrumbs = {
             city={kommun.city}
           />
         )}
+
+        {/*
+          Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.
+
+          Ordningen är ett påstående, samma som gäller bilder och omdömen: det
+          kommunen funnit först, det verksamheten själv säger sedan. En
+          presentation som stod ovanför bedömningen hade läst som en ingress
+          till den, och det är precis vad den aldrig får vara.
+
+          Tomt i HTML-filen och fyllt i webbläsaren. Avsnittet syns inte alls
+          på de sidor där ingen skickat in något, alltså på nästan alla. Se
+          Foretagsuppgifter.astro.
+        */}
+        <Foretagsuppgifter establishmentId={e.id} />
+
+        {/*
+          Verksamhetens egna bilder, direkt efter dess egna uppgifter och före
+          gästernas bilder. De två bildavsnitten delar varken tabell eller kod;
+          se Foretagsbilder.astro.
+        */}
+        <Foretagsbilder establishmentId={e.id} establishmentName={e.name} />
 
         {/*
           Bilderna står FÖRE omdömena och efter kartan.

@@ -1,0 +1,505 @@
+---
+/**
+ * Vad verksamheten själv uppgett: presentation, öppettider och kontakt.
+ *
+ * ---------------------------------------------------------------------------
+ * TOMT I BYGGET, FYLLS I WEBBLÄSAREN
+ * ---------------------------------------------------------------------------
+ * Samma ordning som Reviews.astro och Bilder.astro. Uppgifterna läses ur vyn
+ * community.published_profiles med anon-nyckeln. Ingenting som skickats in
+ * utifrån hamnar i det statiska bygget.
+ *
+ * Att de hämtas i webbläsaren har en praktisk sida också: en ändrad öppettid
+ * syns så fort redaktionen släppt fram den, utan att 16 000 sidor byggs om.
+ * Och "Öppet nu" GÅR inte att sätta vid bygget: sidan är statisk och kan ligga
+ * i en cache i timmar, så ett besked om en tidpunkt måste räknas när någon
+ * läser den.
+ *
+ * ---------------------------------------------------------------------------
+ * VAD AVSNITTET ALDRIG FÅR RÖRA
+ * ---------------------------------------------------------------------------
+ * Bedömningen, kontrollhistoriken och utmärkelsen. Avsnittet står nedanför
+ * hela kontrollberättelsen och kan inte nå den. Det företaget skriver om sig
+ * självt ändrar aldrig vad kommunen funnit, och ordningen på sidan säger det
+ * utan att en enda mening behöver göra det.
+ *
+ * Därför bär "Öppet nu" heller ingen färg. En grön prick intill ett besked om
+ * en hygienkontroll läses som ett omdöme om hygienen, och färgerna på den här
+ * sidan tillhör bedömningen.
+ *
+ * ---------------------------------------------------------------------------
+ * FORMEN
+ * ---------------------------------------------------------------------------
+ * Faktablocket på en svensk objektsida, sett på ett riktigt objekt: ikon till
+ * vänster, tyst etikett, värdet i halvfet ute till höger. Ingen ram, ingen
+ * kant, inga skiljelinjer mellan raderna, och gott om luft. Hårlinjen som
+ * skiljer det här avsnittet från nästa sätts av huvudkolumnen i [slug].astro
+ * och hör inte hit.
+ *
+ * Öppettiderna använder samma rad som kontaktuppgifterna, utan ikon. Sju dagar
+ * med var sin ikon blir ett mönster att titta på i stället för en tabell att
+ * läsa.
+ *
+ * Ingen brödtext förklarar vad avsnittet är eller varifrån uppgifterna kommer.
+ * Se docs/18_sprakregler.md.
+ */
+interface Props {
+  establishmentId: string;
+}
+
+const { establishmentId } = Astro.props;
+
+const DAGAR = [
+  ['mon', 'Måndag'],
+  ['tue', 'Tisdag'],
+  ['wed', 'Onsdag'],
+  ['thu', 'Torsdag'],
+  ['fri', 'Fredag'],
+  ['sat', 'Lördag'],
+  ['sun', 'Söndag'],
+] as const;
+---
+
+{/* `hidden` duger här, till skillnad från i Bilder.astro: det avsnittet
+    behövde en låda att observera för att hämta bilder först när de kom i
+    sikte. Uppgifterna hämtas direkt när sidan laddats, så avsnittet behöver
+    ingen höjd innan det har något att visa. */}
+<section class="foretaget" id="foretaget" data-establishment={establishmentId} hidden>
+  <h2>Om verksamheten</h2>
+
+  <p class="presentation" id="foretaget-text" hidden></p>
+
+  <div class="oppet" id="foretaget-oppet" hidden>
+    <div class="oppet-topp">
+      <p class="rubrik">Öppettider</p>
+      <p class="lage" id="foretaget-lage" hidden></p>
+    </div>
+    <ul class="rader">
+      {
+        DAGAR.map(([day, name]) => (
+          <li id={`oppet-${day}`} hidden>
+            <span class="etikett">{name}</span>
+            <span class="varde" />
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="avvikande" id="foretaget-avvikande" hidden>
+      <p class="rubrik">Avvikande tider</p>
+      <ul class="rader" id="foretaget-avvikande-rader"></ul>
+    </div>
+  </div>
+
+  <ul class="rader kontakt" id="foretaget-kontakt"></ul>
+</section>
+
+<style>
+  .presentation {
+    max-width: 62ch;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    white-space: pre-line;
+  }
+
+  /* Luft mellan delarna, aldrig en linje. Linjen skiljer avsnitt åt, och det
+     här är ett avsnitt. */
+  .oppet,
+  .kontakt {
+    margin-top: var(--s-6);
+  }
+
+  /* Mer luft än mellan två dagrader, annars läses "Avvikande tider" som en
+     åttonde veckodag. Rubriken behöver se ut som en ny fråga, inte som nästa
+     rad i tabellen ovanför. */
+  .avvikande {
+    margin-top: var(--s-6);
+  }
+
+  .rubrik {
+    margin-bottom: var(--s-2);
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Rubriken och läget på samma rad. "Öppet nu" hör till öppettiderna och inte
+     till sidan i stort, så det står där man läser dem. */
+  .oppet-topp {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    margin-bottom: var(--s-2);
+    max-width: 26rem;
+  }
+
+  .lage {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+</style>
+
+<style is:global>
+  /*
+   * GLOBAL, OCH DET ÄR INTE EN GENVÄG.
+   *
+   * Kontaktraderna, de avvikande datumen och ordet "Öppet nu" byggs av skriptet
+   * i webbläsaren. Astros scopeade stilar märker bara upp det som stod i mallen
+   * när sidan byggdes, alltså får ett element som skriptet skapat ingen
+   * märkning och ingen stil. Resultatet syntes: etikett och värde satt ihop i
+   * en klump, i fel storlek, utan högerkant.
+   *
+   * Veckodagarnas rader står i mallen och hade sett rätt ut ändå. Att de ändå
+   * styrs härifrån är hela poängen: tre sorters rader i samma tabell ska inte
+   * hämta sina mått från två olika ställen.
+   *
+   * Varje selektor börjar med .foretaget. Ingenting här kan nå ut ur avsnittet.
+   */
+  .foretaget .lage b {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Faktaraden: etikett till vänster, värdet ute till höger. Ingen linje
+     mellan raderna. */
+  .foretaget .rader {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 26rem;
+  }
+
+  .foretaget .rader li {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Raden ovan slår ut det `hidden` självt gör, eftersom en stil vi skrivit går
+     före webbläsarens egen oavsett vikt. Utan den här raden står alla sju
+     veckodagar kvar tomma på en sida där företaget bara angett fem. */
+  .foretaget .rader li[hidden] {
+    display: none;
+  }
+
+  .foretaget .rader .etikett {
+    color: var(--text-secondary);
+    min-width: 0;
+  }
+
+  .foretaget .rader .varde {
+    margin-left: auto;
+    padding-left: var(--s-3);
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Dagens rad väger tyngre. Det är den enda raden de flesta läser, och att
+     leta upp veckodagen själv är arbete sidan kan göra åt en. */
+  .foretaget .rader li.idag .etikett {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* Kontaktraderna är bredare än öppettiderna: en webbadress är längre än ett
+     klockslag, och en telefonrad ska inte behöva brytas. */
+  .foretaget .kontakt {
+    max-width: 34rem;
+  }
+
+  .foretaget .kontakt li {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  .foretaget .kontakt svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+  }
+
+  .foretaget .kontakt .varde a {
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  import {
+    DAGNAMN,
+    kommandeAvvikelser,
+    oppetNu,
+    oppettiderSchema,
+    publiceradeUppgifter,
+    type Avvikelser,
+    type Dag,
+    type Oppettider,
+  } from '../lib/foretag';
+
+  const section = document.getElementById('foretaget') as HTMLElement | null;
+  if (section) void paint(section);
+
+  const DAGAR: Dag[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+  /** getDay() räknar söndag som 0. Vår vecka börjar på måndag. */
+  function today(): Dag {
+    return DAGAR[(new Date().getDay() + 6) % 7];
+  }
+
+  /** Klockslag utan inledande nolla ser ut som en tid och inte som en tabell. */
+  function clock(value: string): string {
+    return value.replace(/^0/, '');
+  }
+
+  /**
+   * Ett par klockslag, skrivet så att en kväll efter midnatt syns.
+   *
+   * "11:00 till 2:00" läses som ett skrivfel. Nollan får därför stå kvar på
+   * stängningen när den ligger på nästa dygn, alltså när den är mindre än eller
+   * lika med öppningen. Då säger raden "11:00 till 02:00", och att tvåan hör
+   * till natten framgår av att den är mindre än elvan.
+   */
+  function span(from: string, to: string): string {
+    return `${clock(from)} till ${to <= from ? to : clock(to)}`;
+  }
+
+  /** "24 december". Årtalet är brus på ett datum som ligger inom tolv månader. */
+  const DATUM = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'long' });
+
+  function icon(path: string): SVGElement {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 20 20');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const node = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    node.setAttribute('d', path);
+    node.setAttribute('fill', 'none');
+    node.setAttribute('stroke', 'currentColor');
+    node.setAttribute('stroke-width', '1.6');
+    node.setAttribute('stroke-linecap', 'round');
+    node.setAttribute('stroke-linejoin', 'round');
+    svg.append(node);
+    return svg;
+  }
+
+  const PHONE =
+    'M6.5 3.5h-2a1 1 0 0 0-1 1c0 6.6 5.4 12 12 12a1 1 0 0 0 1-1v-2l-3-1-1.5 1.5a10.5 10.5 0 0 1-5-5L8.5 7.5z';
+  const GLOBE =
+    'M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zM2.5 10h15M10 2.5c4 4.5 4 10.5 0 15-4-4.5-4-10.5 0-15z';
+  const BOOK = 'M4.5 4.5h11v12h-11zM7.5 2.5v3M12.5 2.5v3M4.5 8.5h11';
+
+  /** Värdmaskinen räcker som etikett. Hela adressen är brus i en rad. */
+  function host(url: string): string {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return url;
+    }
+  }
+
+  /** En faktarad: ikon, etikett, värdet ute till höger. */
+  function row(path: string, label: string, node: Node): HTMLLIElement {
+    const li = document.createElement('li');
+    const text = document.createElement('span');
+    text.className = 'etikett';
+    text.textContent = label;
+    const value = document.createElement('span');
+    value.className = 'varde';
+    value.append(node);
+    li.append(icon(path), text, value);
+    return li;
+  }
+
+  function link(href: string, text: string): HTMLAnchorElement {
+    const a = document.createElement('a');
+    a.href = href;
+    a.textContent = text;
+    /* Utgående länkar bär rel: sajten går inte i god för någon annans sida. */
+    a.rel = 'nofollow noopener';
+    return a;
+  }
+
+  /** Veckoschemat, med dagens rad framhävd. */
+  function paintHours(hours: Oppettider): boolean {
+    const now = today();
+    let någon = false;
+    for (const day of DAGAR) {
+      const value = hours[day];
+      if (!value) continue;
+      const li = document.getElementById(`oppet-${day}`) as HTMLLIElement;
+      const slot = li.querySelector('.varde') as HTMLSpanElement;
+      slot.textContent =
+        'closed' in value ? 'Stängt' : span(value.from, value.to);
+      if (day === now) li.classList.add('idag');
+      li.hidden = false;
+      någon = true;
+    }
+    return någon;
+  }
+
+  /**
+   * Öppet eller stängt just nu.
+   *
+   * Räknas här och inte vid bygget, och alltid i svensk tid. Se oppetNu() i
+   * lib/foretag.ts.
+   */
+  function paintState(hours: Oppettider | null, exceptions: Avvikelser | null) {
+    const box = document.getElementById('foretaget-lage') as HTMLParagraphElement;
+    const läge = oppetNu(hours, exceptions);
+    if (!läge) return;
+
+    const stark = document.createElement('b');
+    stark.textContent = läge.open ? 'Öppet nu' : 'Stängt';
+    box.append(stark);
+
+    if (läge.open && läge.stanger) {
+      box.append(` · Stänger ${clock(läge.stanger)}`);
+    } else if (läge.oppnar) {
+      const när = läge.oppnar.dag
+        ? `${DAGNAMN[läge.oppnar.dag].toLowerCase()} ${clock(läge.oppnar.klocka)}`
+        : clock(läge.oppnar.klocka);
+      box.append(` · Öppnar ${när}`);
+    }
+
+    box.hidden = false;
+  }
+
+  /** Avvikande datum som ännu inte passerat. */
+  function paintExceptions(exceptions: Avvikelser | null): boolean {
+    const rows = kommandeAvvikelser(exceptions);
+    if (rows.length === 0) return false;
+
+    const list = document.getElementById('foretaget-avvikande-rader') as HTMLUListElement;
+    for (const { datum, avvikelse } of rows) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      label.className = 'etikett';
+      /* Datumet först, dagens namn efter. Den som letar efter julafton känner
+         igen ordet, den som planerar en kväll läser datumet. */
+      const namn = avvikelse.label?.trim();
+      label.textContent = namn
+        ? `${DATUM.format(new Date(`${datum}T00:00:00`))}, ${namn}`
+        : DATUM.format(new Date(`${datum}T00:00:00`));
+
+      const value = document.createElement('span');
+      value.className = 'varde';
+      value.textContent =
+        'closed' in avvikelse
+          ? 'Stängt'
+          : span(avvikelse.from, avvikelse.to);
+
+      li.append(label, value);
+      list.append(li);
+    }
+
+    (document.getElementById('foretaget-avvikande') as HTMLDivElement).hidden = false;
+    return true;
+  }
+
+  /**
+   * Öppettiderna som maskinläsbar uppgift.
+   *
+   * Sidans egna JSON-LD skrivs vid bygget och kan inte innehålla det här, för
+   * uppgifterna finns inte då. Noden bär därför samma @id som den byggda och
+   * beskriver alltså SAMMA verksamhet: den som läser strukturerad data slår
+   * ihop två noder med samma @id, i stället för att tro att adressen har två
+   * restauranger.
+   *
+   * Ingen bedömning, inget betyg och ingen Review här. Se Reviews.astro.
+   */
+  function paintSchema(
+    hours: Oppettider | null,
+    exceptions: Avvikelser | null,
+    phone: string | null,
+    website: string | null,
+  ) {
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href;
+    if (!canonical) return;
+
+    const spec = oppettiderSchema(hours, exceptions);
+    if (spec.length === 0 && !phone && !website) return;
+
+    const node: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'FoodEstablishment',
+      '@id': `${canonical}#verksamhet`,
+    };
+    if (spec.length > 0) node.openingHoursSpecification = spec;
+    if (phone) node.telephone = phone;
+    /* Företagets egen webbplats som sameAs och inte som url. `url` på den här
+       noden är sidan du står på, och den är redan satt i bygget. */
+    if (website) node.sameAs = [website];
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(node);
+    document.head.append(script);
+  }
+
+  async function paint(section: HTMLElement) {
+    const id = section.dataset.establishment;
+    if (!id) return;
+
+    let facts = null;
+    try {
+      facts = await publiceradeUppgifter(id);
+    } catch {
+      /* Ingen uppkoppling eller inget svar. Avsnittet står kvar dolt, och
+         sidan ser ut som den gjorde innan funktionen fanns. */
+      return;
+    }
+    if (!facts) return;
+
+    let något = false;
+
+    if (facts.presentation) {
+      const text = document.getElementById('foretaget-text') as HTMLParagraphElement;
+      text.textContent = facts.presentation;
+      text.hidden = false;
+      något = true;
+    }
+
+    /* published_profiles läses med select=*, så ett fält kan saknas helt i en
+       databas där kolumnen ännu inte lagts till. Därav ?? null. */
+    const hours = (facts.opening_hours ?? null) as Oppettider | null;
+    const exceptions = (facts.opening_hours_exceptions ?? null) as Avvikelser | null;
+
+    const harVecka = hours && Object.keys(hours).length > 0 ? paintHours(hours) : false;
+    const harAvvikande = paintExceptions(exceptions);
+
+    if (harVecka || harAvvikande) {
+      paintState(hours, exceptions);
+      (document.getElementById('foretaget-oppet') as HTMLDivElement).hidden = false;
+      något = true;
+    }
+
+    const list = document.getElementById('foretaget-kontakt') as HTMLUListElement;
+
+    if (facts.phone) {
+      const number = document.createElement('b');
+      number.textContent = facts.phone;
+      list.append(row(PHONE, 'Telefon', number));
+      något = true;
+    }
+
+    if (facts.website) {
+      list.append(row(GLOBE, 'Webbplats', link(facts.website, host(facts.website))));
+      något = true;
+    }
+
+    if (facts.booking_url) {
+      list.append(row(BOOK, 'Bokning', link(facts.booking_url, 'Boka bord')));
+      något = true;
+    }
+
+    if (!något) return;
+
+    section.hidden = false;
+    paintSchema(hours, exceptions, facts.phone, facts.website);
+  }
+</script>

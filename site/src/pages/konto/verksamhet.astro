@@ -217,7 +217,51 @@ const DAGAR = [
               </div>
             ))
           }
+
+          {/* Avvikande datum: röda dagar, inventering, semesterstängt.
+
+              Vi räknar inte fram röda dagar åt någon. Vilka dagar som är röda
+              går att slå upp, men vad ETT ställe gör en röd dag gör det inte,
+              och en gissning här hade blivit ett påstående på verksamhetens
+              sida som ingen på verksamheten skrivit. */}
+          <div class="avvikande">
+            <p class="avvikande-rubrik">Avvikande datum</p>
+            <ul class="undantag" id="exceptions"></ul>
+            <button type="button" class="btn-quiet btn-tight" id="add-exception">
+              Lägg till datum
+            </button>
+          </div>
         </fieldset>
+
+        {/* Raderna klonas härifrån och inte ur skriptet.
+
+            Stilarna i den här filen är scoped, och Astro märker bara upp det
+            som stod i mallen när sidan byggdes. Ett element som skriptet
+            skapar från grunden får ingen märkning och därmed ingen stil. Det
+            som ligger i en <template> stod i mallen, alltså bär kopian
+            märkningen med sig. */}
+        <template id="exception-template">
+          <li class="undantag-rad">
+            <input type="date" class="ex-date" aria-label="Datum" required />
+            <input
+              type="text"
+              class="ex-label"
+              maxlength="40"
+              placeholder="Namn på dagen"
+              aria-label="Namn på dagen"
+            />
+            <div class="hour-times">
+              <input type="time" class="ex-from" aria-label="Öppnar" />
+              <span>till</span>
+              <input type="time" class="ex-to" aria-label="Stänger" />
+            </div>
+            <label class="hour-shut">
+              <input type="checkbox" class="ex-shut" />
+              <span>Stängt</span>
+            </label>
+            <button type="button" class="btn-quiet btn-tight ex-remove">Ta bort</button>
+          </li>
+        </template>
 
         <label class="field">
           <span>Telefon</span>
@@ -249,6 +293,62 @@ const DAGAR = [
       <h3 class="sub">Dina insändningar</h3>
       <ul class="konto-list" id="submissions"></ul>
       <p class="konto-empty" id="submissions-empty">Du har inte skickat in några uppgifter än.</p>
+    </div>
+
+    {/* Verksamhetens egna bilder.
+
+        Egen ruta och inte en del av uppgifterna ovanför: en bild är en fil som
+        laddas upp en i taget och lever sitt eget liv, medan uppgifterna är ett
+        formulär som skickas in i sin helhet.
+
+        Det här är INTE besökarnas bildflöde. Den som har ett godkänt anspråk
+        är uttryckligen utestängd därifrån, och den spärren står kvar. Se
+        Foretagsbilder.astro. */}
+    <div class="konto-card" id="photos-card" hidden>
+      <h2>Bilder</h2>
+      <p class="konto-lead">
+        Granskas innan de visas. Den översta bilden står först på sidan.
+      </p>
+
+      <form id="photo-form" novalidate>
+        <label class="field">
+          <span>
+            Bild
+            <span class="hint" id="photo-hint">JPEG, PNG, WebP eller HEIC. Högst 12 MB.</span>
+          </span>
+          {/* HEIC och HEIF står med, och ändelserna står med UTÖVER typerna.
+              Flera webbläsare lämnar `file.type` tom för HEIC, eftersom
+              formatet inte står i deras egen tabell, och filväljaren matchar
+              då på det den känner igen. Utan `.heic` i listan är iPhone-bilden
+              gråmarkerad i rutan och går inte att välja alls. Samma lista som
+              besökarnas uppladdning, se Reviews.astro. */}
+          <input
+            type="file"
+            id="photo-file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+          />
+        </label>
+
+        <label class="field">
+          <span>Bildtext <span class="hint">Frivilligt. Högst 120 tecken.</span></span>
+          <input type="text" id="photo-caption" maxlength="120" />
+        </label>
+
+        <label class="samtycke">
+          <input type="checkbox" id="photo-rights" />
+          <span>Bilden är vår egen, eller så har vi fotografens tillstånd att publicera den.</span>
+        </label>
+
+        <p class="notice notice-error" id="photo-error" hidden role="alert"></p>
+
+        <div class="konto-actions">
+          <button type="submit" class="btn-primary" id="photo-submit">Ladda upp</button>
+        </div>
+      </form>
+
+      <h3 class="sub">Era bilder</h3>
+      <ul class="konto-list" id="photo-list"></ul>
+      <p class="konto-empty" id="photo-empty">Ni har inte lagt upp någon bild än.</p>
     </div>
 
     {/* Svar på en kontroll. */}
@@ -370,6 +470,90 @@ const DAGAR = [
     white-space: nowrap;
   }
 
+  /* Avvikande datum ligger under veckoschemat och skiljs av luft, inte av en
+     ram. Det är samma uppgift sedd på ett annat sätt, inte ett nytt avsnitt. */
+  .avvikande {
+    margin-top: var(--s-5);
+  }
+
+  .avvikande-rubrik {
+    margin-bottom: var(--s-2);
+    font-size: var(--fs-small);
+    color: var(--ink-2);
+  }
+
+  .undantag {
+    list-style: none;
+    margin: 0 0 var(--s-2);
+    padding: 0;
+  }
+
+  .undantag-rad {
+    display: grid;
+    grid-template-columns: auto minmax(6rem, 1fr) auto auto auto;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-2) 0;
+  }
+
+  .undantag-rad + .undantag-rad {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .undantag-rad input[type='date'],
+  .undantag-rad input[type='text'] {
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: inherit;
+    font: inherit;
+    font-size: var(--fs-small);
+    min-width: 0;
+  }
+
+  /* Samtyckesrutan står som en rad och inte som ett fält: kryssrutan och
+     texten hör ihop och ska ligga bredvid varandra. */
+  .samtycke {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+    font-size: var(--fs-small);
+    line-height: 1.5;
+  }
+
+  .samtycke input {
+    margin-top: 2px;
+    flex: none;
+  }
+
+  /* Miniatyren i listan över egna bilder. Så liten att en rad fortfarande är
+     en rad, och stor nog att man ser vilken bild det gäller. */
+  .bild-mini {
+    width: 56px;
+    height: 42px;
+    flex: none;
+    object-fit: cover;
+    border-radius: var(--r-control);
+    background: var(--canvas);
+  }
+
+  /* Smal skärm: de fem kolumnerna i en avvikande rad får inte plats. Datum och
+     namn delar första raden, klockslagen och "Stängt" den andra, och
+     borttagningen den tredje. */
+  @media (max-width: 620px) {
+    .undantag-rad {
+      grid-template-columns: 1fr auto;
+    }
+
+    .undantag-rad .ex-date { grid-column: 1; }
+    .undantag-rad .ex-label { grid-column: 1 / -1; }
+    .undantag-rad .hour-times { grid-column: 1; }
+    .undantag-rad .hour-shut { grid-column: 2; }
+    .undantag-rad .ex-remove { grid-column: 1 / -1; justify-self: start; }
+  }
+
   /* Smal skärm: dagen och "Stängt" delar första raden, klockslagen får hela
      den andra. Utan den uttryckliga placeringen hamnar "Stängt" på en tredje
      rad, eftersom klockslagen spänner över båda spalterna och trycker ner
@@ -411,13 +595,19 @@ const DAGAR = [
   import {
     DAGAR,
     angraInsandning,
+    egnaBilder,
     insandningar,
+    laddaUppBild,
     losInKod,
     nivaFor,
     skickaUppgifter,
+    taBortBild,
     tierFor,
+    type Avvikelser,
     type Dag,
+    type Foretagsbild,
     type Insandning,
+    type Niva,
     type Oppettider,
   } from '../../lib/foretag';
   import { openSignIn } from '../../lib/signin-dialog';
@@ -445,6 +635,21 @@ const DAGAR = [
   const submissionList = document.getElementById('submissions') as HTMLUListElement;
   const submissionEmpty = document.getElementById('submissions-empty') as HTMLParagraphElement;
 
+  const exceptionList = document.getElementById('exceptions') as HTMLUListElement;
+  const exceptionTemplate = document.getElementById('exception-template') as HTMLTemplateElement;
+  const addException = document.getElementById('add-exception') as HTMLButtonElement;
+
+  const photosCard = document.getElementById('photos-card') as HTMLDivElement;
+  const photoForm = document.getElementById('photo-form') as HTMLFormElement;
+  const photoError = document.getElementById('photo-error') as HTMLParagraphElement;
+  const photoSubmit = document.getElementById('photo-submit') as HTMLButtonElement;
+  const photoFile = document.getElementById('photo-file') as HTMLInputElement;
+  const photoCaption = document.getElementById('photo-caption') as HTMLInputElement;
+  const photoRights = document.getElementById('photo-rights') as HTMLInputElement;
+  const photoHint = document.getElementById('photo-hint') as HTMLSpanElement;
+  const photoList = document.getElementById('photo-list') as HTMLUListElement;
+  const photoEmpty = document.getElementById('photo-empty') as HTMLParagraphElement;
+
   const respondCard = document.getElementById('respond-card') as HTMLDivElement;
   const respondForm = document.getElementById('respond-form') as HTMLFormElement;
   const respondError = document.getElementById('respond-error') as HTMLParagraphElement;
@@ -461,6 +666,12 @@ const DAGAR = [
   };
 
   const FACTS_STATUS: Record<string, string> = {
+    pending: 'Granskas',
+    published: 'Visas',
+    rejected: 'Avslagen',
+  };
+
+  const PHOTO_STATUS: Record<string, string> = {
     pending: 'Granskas',
     published: 'Visas',
     rejected: 'Avslagen',
@@ -624,9 +835,26 @@ const DAGAR = [
     }
 
     lead.textContent = 'Du är godkänd som företrädare för den här verksamheten.';
+
+    /* Nivån läses EN gång och skickas vidare. Vad en nivå får göra står i
+       NIVAER i lib/foretag.ts och ingen annanstans: den dag en gräns ska bli
+       en betalgräns flyttas den där, inte i varje ruta på den här sidan. */
+    let niva = nivaFor('gratis');
+    try {
+      niva = nivaFor(await tierFor(place.id));
+    } catch {
+      /* Kunde inte läsa nivån. Gratisnivån är rätt förval. */
+    }
+
     factsCard.hidden = false;
     respondCard.hidden = false;
-    await wireFacts(place);
+    await wireFacts(place, niva);
+
+    if (niva.bilder > 0) {
+      photosCard.hidden = false;
+      await wirePhotos(place, niva);
+    }
+
     await wireRespond(place);
   }
 
@@ -734,6 +962,89 @@ const DAGAR = [
     return Object.keys(hours).length > 0 ? hours : null;
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Avvikande datum                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  /** En tom rad, klonad ur mallen så att den bär sidans stilar. */
+  function addExceptionRow(values?: {
+    datum: string;
+    label?: string;
+    from?: string;
+    to?: string;
+    closed?: boolean;
+  }): HTMLLIElement {
+    const row = exceptionTemplate.content.firstElementChild!.cloneNode(true) as HTMLLIElement;
+    const date = row.querySelector('.ex-date') as HTMLInputElement;
+    const label = row.querySelector('.ex-label') as HTMLInputElement;
+    const from = row.querySelector('.ex-from') as HTMLInputElement;
+    const to = row.querySelector('.ex-to') as HTMLInputElement;
+    const shut = row.querySelector('.ex-shut') as HTMLInputElement;
+
+    if (values) {
+      date.value = values.datum;
+      label.value = values.label ?? '';
+      from.value = values.from ?? '';
+      to.value = values.to ?? '';
+      shut.checked = Boolean(values.closed);
+    }
+
+    /* Stängt och klockslag är varandras motsatser, precis som i veckoschemat. */
+    const sync = () => {
+      from.disabled = shut.checked;
+      to.disabled = shut.checked;
+      if (shut.checked) {
+        from.value = '';
+        to.value = '';
+      }
+    };
+    shut.addEventListener('change', sync);
+    sync();
+
+    (row.querySelector('.ex-remove') as HTMLButtonElement).addEventListener('click', () => {
+      row.remove();
+    });
+
+    exceptionList.append(row);
+    return row;
+  }
+
+  function readExceptions(): Avvikelser | null {
+    const out: Avvikelser = {};
+    for (const row of Array.from(exceptionList.children) as HTMLLIElement[]) {
+      const datum = (row.querySelector('.ex-date') as HTMLInputElement).value;
+      if (!datum) continue;
+      const label = (row.querySelector('.ex-label') as HTMLInputElement).value.trim();
+      const shut = (row.querySelector('.ex-shut') as HTMLInputElement).checked;
+      const from = (row.querySelector('.ex-from') as HTMLInputElement).value;
+      const to = (row.querySelector('.ex-to') as HTMLInputElement).value;
+
+      if (shut) {
+        out[datum] = label ? { closed: true, label } : { closed: true };
+      } else if (from && to) {
+        out[datum] = label ? { from, to, label } : { from, to };
+      }
+      /* En rad med ett datum men varken tider eller "Stängt" säger ingenting
+         och hoppas över i tysthet. Databasen hade avvisat hela insändningen. */
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  }
+
+  function fillExceptions(values: Avvikelser | null) {
+    exceptionList.textContent = '';
+    if (!values) return;
+    for (const datum of Object.keys(values).sort()) {
+      const value = values[datum];
+      addExceptionRow({
+        datum,
+        label: value.label,
+        closed: 'closed' in value,
+        from: 'closed' in value ? undefined : value.from,
+        to: 'closed' in value ? undefined : value.to,
+      });
+    }
+  }
+
   /** Fyller formuläret med det som senast skickades in. */
   function fillFrom(item: Insandning) {
     presentation.value = item.presentation ?? '';
@@ -741,6 +1052,8 @@ const DAGAR = [
     (factsForm.elements.namedItem('website') as HTMLInputElement).value = item.website ?? '';
     (factsForm.elements.namedItem('bookingUrl') as HTMLInputElement).value =
       item.booking_url ?? '';
+
+    fillExceptions(item.opening_hours_exceptions);
 
     if (!item.opening_hours) return;
     for (const day of DAGAR) {
@@ -766,6 +1079,7 @@ const DAGAR = [
     const parts: string[] = [];
     if (item.presentation) parts.push('presentation');
     if (item.opening_hours) parts.push('öppettider');
+    if (item.opening_hours_exceptions) parts.push('avvikande datum');
     if (item.phone) parts.push('telefon');
     if (item.website) parts.push('webbplats');
     if (item.booking_url) parts.push('bokning');
@@ -824,19 +1138,24 @@ const DAGAR = [
     submissionEmpty.hidden = rows.length > 0;
   }
 
-  async function wireFacts(place: { id: string; name: string; municipalitySlug: string }) {
+  async function wireFacts(
+    place: { id: string; name: string; municipalitySlug: string },
+    niva: Niva,
+  ) {
     wireHours();
+    addException.addEventListener('click', () => {
+      addExceptionRow().querySelector<HTMLInputElement>('.ex-date')?.focus();
+    });
 
-    /* Nivån på anspråket avgör vad som får fyllas i. I dag får gratis allt,
-       men gränsen läses härifrån och inte ur den här sidmallen. */
-    let niva = nivaFor('gratis');
-    try {
-      niva = nivaFor(await tierFor(place.id));
-    } catch {
-      /* Kunde inte läsa nivån. Gratisnivån är rätt förval. */
-    }
     presentation.maxLength = niva.presentation;
     presentationHint.textContent = `Minst 20 tecken, högst ${niva.presentation}.`;
+
+    /* Nivån styr, inte en lista i den här filen. Ingen nivå stänger av
+       avvikande datum i dag; raden finns för att den ska kunna göra det utan
+       att någon skriver om formuläret. */
+    if (!niva.avvikandeTider) {
+      (document.querySelector('.avvikande') as HTMLElement | null)?.setAttribute('hidden', '');
+    }
 
     let rows: Insandning[] = [];
     try {
@@ -868,6 +1187,7 @@ const DAGAR = [
         await skickaUppgifter(place, {
           presentation: text,
           openingHours: readHours(),
+          exceptions: readExceptions(),
           phone: String(data.get('phone') ?? '').trim(),
           website: String(data.get('website') ?? '').trim(),
           bookingUrl: String(data.get('bookingUrl') ?? '').trim(),
@@ -881,6 +1201,119 @@ const DAGAR = [
       } finally {
         factsSubmit.disabled = false;
         factsSubmit.textContent = 'Skicka in';
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Bilder                                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  async function paintPhotos(place: { id: string }, niva: Niva) {
+    let rows: Foretagsbild[] = [];
+    try {
+      rows = await egnaBilder(place.id);
+    } catch {
+      return;
+    }
+
+    photoList.textContent = '';
+    for (const bild of rows) {
+      const li = document.createElement('li');
+
+      /* En miniatyr först när bilden är publicerad. Den som väntar på
+         granskning har ingen publik URL, och en signerad länk till inkorgen
+         hör till redaktionens verktyg och inte hit. */
+      if (bild.published_url) {
+        const img = document.createElement('img');
+        img.className = 'bild-mini';
+        img.src = bild.published_url;
+        img.alt = bild.caption ?? '';
+        img.loading = 'lazy';
+        li.append(img);
+      }
+
+      const main = row(
+        bild.caption ?? 'Utan bildtext',
+        false,
+        bild.status === 'rejected' ? bild.rejection_reason : null,
+      );
+      const when = document.createElement('span');
+      when.className = 'konto-meta';
+      when.textContent = dates.format(new Date(bild.created_at));
+      main.append(when);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn-quiet btn-tight';
+      /* En publicerad bild går också att ta bort. En bild är varken en uppgift
+         som ersätts av en ny insändning eller ett yttrande som ska stå kvar:
+         det kan vara fel bild, ett ombyggt kök eller en fotograf som ändrat
+         sig, och då ska den bort utan att någon behöver be om lov. */
+      remove.textContent = 'Ta bort';
+      remove.addEventListener('click', async () => {
+        remove.disabled = true;
+        try {
+          await taBortBild(bild);
+          await paintPhotos(place, niva);
+        } catch (err) {
+          say(photoError, err instanceof CommunityError ? err.message : 'Kunde inte ta bort bilden.');
+          remove.disabled = false;
+        }
+      });
+
+      li.append(main, side(tag(bild.status, PHOTO_STATUS), remove));
+      photoList.append(li);
+    }
+
+    photoEmpty.hidden = rows.length > 0;
+
+    /* Kvar av nivån, räknat på det som inte avslagits. Taket i databasen är
+       ett annat och högre tal; se check_business_image(). */
+    const anvanda = rows.filter((b) => b.status !== 'rejected').length;
+    const kvar = Math.max(0, niva.bilder - anvanda);
+    photoHint.textContent =
+      kvar > 0
+        ? `JPEG, PNG, WebP eller HEIC. Högst 12 MB. ${kvar} av ${niva.bilder} kvar.`
+        : `Ni har lagt upp ${niva.bilder} bilder. Ta bort en för att lägga till en ny.`;
+    photoSubmit.disabled = kvar === 0;
+  }
+
+  async function wirePhotos(
+    place: { id: string; name: string; municipalitySlug: string },
+    niva: Niva,
+  ) {
+    await paintPhotos(place, niva);
+
+    photoForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      photoError.hidden = true;
+
+      const file = photoFile.files?.[0];
+      if (!file) {
+        say(photoError, 'Välj en bild.');
+        return;
+      }
+      if (!photoRights.checked) {
+        say(photoError, 'Bekräfta att bilden är er egen att publicera.');
+        return;
+      }
+
+      photoSubmit.disabled = true;
+      photoSubmit.textContent = 'Laddar upp';
+
+      try {
+        /* Nya bilder hamnar sist. Ordningen ändras genom att en bild tas bort
+           och läggs upp på nytt, precis som allt annat på företagsytan. */
+        const sist = photoList.children.length;
+        await laddaUppBild(place, file, photoCaption.value, Math.min(sist, 99));
+        photoForm.reset();
+        await paintPhotos(place, niva);
+      } catch (err) {
+        say(photoError, err instanceof CommunityError ? err.message : 'Kunde inte ladda upp bilden.');
+      } finally {
+        photoSubmit.disabled = false;
+        photoSubmit.textContent = 'Ladda upp';
       }
     });
   }

@@ -456,15 +456,30 @@ Vi får alltså hotlinka men inte lagra. Och hotlinka är sämre än det låter:
 - En og:image är ofta en logotyp, en meny-PDF eller en generisk stockbild av en
   hamburgare. Den ger inte igenkänningen ägaren är ute efter.
 
-**Går det i skala?** Nej, av en enkel anledning: **vi lagrar inga webbplatser.**
-Det finns inget `website`-fält i `public.establishments`, och `schema_community.sql`
-konstaterar redan det i sin kommentar om anspråksverifiering: `'domain_email'`
-kan inte användas eftersom vi inte har domänen. Att först hitta 8 802 webbplatser
-och sedan hämta og:image från var och en är två svåra steg, av vilka det första
-löses bättre av OSM (del B).
+**Går det i skala?** Nej. Att först hitta 8 802 webbplatser och sedan hämta
+og:image från var och en är två svåra steg, av vilka det första löses bättre av
+OSM (del B).
 
-**Verdikt.** Inte en bildkälla. Men webbplatsen i sig är en bra uppgift att visa,
-och OSM kan ge oss den.
+**Verdikt.** Inte en bildkälla. Men webbplatsen i sig är en bra uppgift att visa.
+
+#### Rättelse 2026-08: vi lagrar webbplatser nu
+
+Här stod tidigare att vi inte lagrar några webbplatser alls, och att det gällde
+generellt. Det stämmer inte längre, och skillnaden är värd att hålla isär:
+
+- **Adresser vi själva letar upp** lagrar vi fortfarande inte. Det var det
+  påståendet handlade om, och det gäller: ingen pipeline skrapar fram
+  webbplatser åt 8 802 verksamheter, och det finns inget `website`-fält i
+  `public.establishments`.
+- **Adressen företaget själv lämnar** lagras, i
+  `community.business_profiles.website`. Den granskas av en människa innan den
+  publiceras och visas på verksamhetssidan. Se `pipeline/schema_foretagsyta.sql`
+  och `site/src/components/Foretagsuppgifter.astro`.
+
+Följdändringen är att `'domain_email'` som verifieringsmetod inte längre är
+otänkbar av det skäl som stod här, eftersom domänen finns för de företag som
+lämnat den. **Den byggs ändå inte.** Verifieringen sker manuellt, och det
+beslutet är ägarens och ligger fast. Se docs/21.
 
 ---
 
@@ -566,10 +581,12 @@ resurs, samma resonemang som rapport 12 för om Stockholms e-tjänst.
 
 **En andrahandsvinst som är lätt att missa:** får vi verksamheternas webbplatser
 från OSM blir `'domain_email'` i `community.establishment_claims.verification_method`
-plötsligt användbar. Den står i dag som omöjlig just för att vi saknar domänen. Att
-kunna verifiera en ägare med ett mejl från restaurangens egen domän, i stället för
-en manuell registerkontroll per anspråk, är skillnaden mellan att ägaruppladdning
-skalar och inte.
+tekniskt användbar. Den står i äldre stycken här som omöjlig just för att vi saknar
+domänen.
+
+**Överspelad 2026-08.** Verifieringen sker manuellt och ingen automatisk metod
+byggs. Beslutet är ägarens och ligger fast; se docs/21. Stycket står kvar för att
+resonemanget om OSM-fälten i övrigt gäller.
 
 ### B2. Verksamhetstyp och kök
 
@@ -1071,11 +1088,12 @@ håll de OSM-härledda fälten i en egen tabell så att ODbL-gränsen går att p
 repot någon gång blir publikt. "© OpenStreetMap contributors" i sidfoten. Ögonkolla
 femtio matchningar innan något publiceras.
 
-Den här punkten har en andrahandsvinst som är värd mer än den ser ut: med
+Den här punkten hade en andrahandsvinst som var värd mer än den såg ut: med
 verksamheternas webbplatser i databasen blir `'domain_email'`-verifieringen av
-ägaranspråk möjlig, och den står i dag utskriven som omöjlig just för att vi saknar
-domänen. Det är skillnaden mellan att ägaruppladdning kräver en manuell
-registerkontroll per anspråk och att den skalar.
+ägaranspråk tekniskt möjlig.
+
+**Överspelad 2026-08.** Verifieringen sker manuellt och ingen automatisk metod
+byggs. Se docs/21.
 
 **Det som medvetet INTE ligger i topp tre:**
 

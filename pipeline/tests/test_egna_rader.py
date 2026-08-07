@@ -38,6 +38,7 @@ EGNA_TABELLER = (
     "notice_reads",
     "profiles",
     "business_profiles",
+    "business_images",
 )
 
 # De tabeller klienten faktiskt läser i dag. Håller motsatta riktningen i
@@ -110,7 +111,7 @@ class ForetagsytanOckso(EgnaRader):
         self.kod = FORETAGSYTAN.read_text(encoding="utf-8")
 
     def test_lasningarna_finns_kvar_filtrerade(self):
-        for tabell in ("business_profiles", "establishment_claims"):
+        for tabell in ("business_profiles", "establishment_claims", "business_images"):
             self.assertRegex(
                 self.kod,
                 r"ownRows\(\s*[`'\"]" + tabell + r"\?",
