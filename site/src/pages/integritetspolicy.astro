@@ -37,8 +37,12 @@
  *  - StreetPhoto.astro finns men ingen datamängd innehåller ännu `image`.
  *    Om Mapillary-bilder börjar serveras från Mapillarys egen domän i stället
  *    för vår, blir det en tredje part till och sidan måste uppdateras.
- *  - Platstjänsten i PlacePicker.astro läser koordinaten i webbläsaren och
- *    skickar den aldrig vidare. Verifierat i källkoden.
+ *  - Platstjänsten i SiteSearch.astro läser koordinaten i webbläsaren och
+ *    skickar den aldrig vidare. Verifierat i källkoden. Koordinaten kan hamna
+ *    i adressens fragment (#map=zoom/lat/lng), avrundad till tre decimaler.
+ *    Fragmentet skickas per HTTP aldrig med i ett anrop, alltså syns det inte
+ *    i värdtjänstens loggar. En query-parameter hade gjort det, och används
+ *    därför inte.
  *
  * ADVOKATEN MÅSTE TA STÄLLNING TILL (numren återkommer i rapporten):
  *  A1. Enskild firma. Verksamhetsnamnet är ofta en fysisk persons namn och
@@ -277,10 +281,16 @@ const UPDATED = '3 augusti 2026';
 
       <h3>Platstjänsten</h3>
       <p>
-        Väljer du "min plats" i platsväljaren frågar webbläsaren om lov och
+        Väljer du "använd min plats" i sökrutan frågar webbläsaren om lov och
         räknar sedan ut vilken kommun som ligger närmast. Det sker helt i din
         webbläsare. Din position skickas aldrig till oss och lämnar aldrig din
         enhet.
+      </p>
+      <p>
+        Ligger du i en kommun vi täcker öppnas kartan över den, centrerad på
+        dig. Koordinaten står då i adressfältet, efter tecknet #, avrundad till
+        ungefär hundra meter. Den delen av en adress skickas aldrig med till
+        någon server.
       </p>
 
       <h3>Sökfunktionen</h3>

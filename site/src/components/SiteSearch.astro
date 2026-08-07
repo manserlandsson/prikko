@@ -49,8 +49,49 @@
  * har. Raderna byggs i stället av lib/sokforslag, samma funktion som ritar
  * träffarna, vilket är själva garantin för att tomt läge och träffläge är
  * samma lista.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR "ANVÄND MIN PLATS" BOR HÄR OCH INTE I MENYN
+ * ---------------------------------------------------------------------------
+ * Knappen låg i hamburgarmenyn, bredvid en lista över tolv kommuner. Ägaren:
+ * "hela den hamburgaremenyn, den är fett skum ... om något så bör använd min
+ * plats endast vara för att typ direkt hamna där".
+ *
+ * Två fel, och båda är åtgärdade.
+ *
+ * Fel ett var placeringen. En plats är ett svar på frågan VAR, och frågan var
+ * ställs i sökfältet. Att gömma svaret bakom en knapp i ett hörn betyder att
+ * den som redan står i fältet och undrar vad som finns nära aldrig ser att
+ * alternativet finns. Raden ligger nu först i panelen och visas när fältet är
+ * tomt, alltså exakt när besökaren inte vet vad hon ska skriva.
+ *
+ * Fel två var målet. Knappen räknade fram närmaste kommun och fyllde i ett val
+ * åt besökaren i en lista hon just öppnat. Nu leder den till KARTAN över den
+ * kommun hon står i, centrerad på henne. Det är hela skillnaden mellan vad en
+ * position kan svara på och vad en kommungräns kan: en punkt bär närhet, och
+ * närhet syns bara på en karta. Kommunhubben är en bokstavsordnad lista över
+ * upp till 8 500 ställen och besvarar inte "vad finns runt mig" bättre för den
+ * som delat sin plats än för den som inte gjort det.
+ *
+ * Formen är hämtad ur hitta.se, OpenStreetMap och Google Maps: alla tre lägger
+ * platsknappen på eller intill kartan och låter den flytta vyn. Ingen av dem
+ * har den i en meny. Booli har ingen platsknapp alls; deras motsvarighet är ett
+ * områdesmärke i sökfältet, vilket är samma slutsats i en annan form: platsen
+ * hör till sökningen.
+ *
+ * Kommuner utan kartsida (fyra av tolv saknar koordinater) faller tillbaka på
+ * hubben. Fältet `karta` i platsdatan nedan avgör det, byggt ur mapDatasets(),
+ * alltså samma källa som kartrutterna själva.
+ *
+ * POSITIONEN LÄMNAR ALDRIG WEBBLÄSAREN. Koordinaten läggs i adressens
+ * fragment, delen efter #, som per HTTP aldrig skickas med i något anrop, och
+ * den avrundas till tre decimaler, ungefär 110 meter. En query-parameter hade
+ * hamnat i värdtjänstens loggar och är därför utesluten. Se
+ * /integritetspolicy/.
  */
+import { municipalityPoints } from '../lib/data';
 import { siteCommands } from '../lib/kommandon';
+import { mapDatasets } from '../lib/map-data';
 import { popularSearches } from '../lib/snabbval';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import type { Suggestion } from '../lib/sokforslag';
@@ -88,10 +129,23 @@ const popular: Suggestion[] = popularSearches().map((p) => ({
 
 const sections = await siteCommands();
 
+/* Kommunpunkterna, för platsraden. En punkt per kommun, plus om kommunen har
+   en kartsida att landa på. Punkten är verksamheternas median eller en
+   uppslagen ortskoordinat, se lib/data: den används enbart för att räkna
+   avstånd mot besökarens position, aldrig för att rita en nål. */
+const kartaSlugs = new Set(mapDatasets().map((d) => d.municipality.slug));
+const platser = municipalityPoints().map((p) => ({
+  slug: p.slug,
+  city: p.city,
+  lat: p.lat,
+  lng: p.lng,
+  karta: kartaSlugs.has(p.slug),
+}));
+
 /* `<` maskeras: en artikelrubrik med "</script>" i sig skulle annars stänga
    taggen mitt i datan. Enda tecknet som kan göra det, och JSON-parsern läser
    < som ett vanligt <. */
-const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c');
+const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g, '\\u003c');
 ---
 
 <div
@@ -142,6 +196,40 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
   </form>
 
   <div class="panel glass" hidden data-panel>
+
+    {/* Platsraden. Först i panelen, och bara när fältet är tomt.
+
+        Ligger UTANFÖR listboxen med flit. En listbox får bara innehålla
+        alternativ som går att välja, och det här är en handling: målet kan
+        omöjligt vara känt före klicket, eftersom det beror på var besökaren
+        visar sig vara. Den kan alltså inte vara en <a> med en riktig href, och
+        en <a> utan mål i en lista av riktiga länkar är sämre än en knapp
+        bredvid listan. Tangentbordet når den med tabb; piltangenterna hör till
+        listan och ska fortsätta göra det.
+
+        Blocket startar hidden och väcks av skriptet. Utan skript finns ingen
+        panel över huvud taget, och utan geolocation väcks raden aldrig. */}
+    <div class="plats" hidden data-plats>
+      <button type="button" class="plats-rad" data-locate>
+        <span class="plats-ikon">
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <circle cx="10" cy="10" r="3.2" stroke="currentColor" stroke-width="1.6" fill="none" />
+            <circle cx="10" cy="10" r="6.6" stroke="currentColor" stroke-width="1.6" fill="none" />
+            <path d="M10 1.2v2.2M10 16.6v2.2M1.2 10h2.2M16.6 10h2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </span>
+        Använd min plats
+      </button>
+
+      {/* Beskedet och de eventuella vägarna vidare är två element, för att
+          svaret aldrig ska bli en återvändsgränd: när platsen hamnar utanför
+          täckningen ska besökaren kunna göra något med beskedet och inte bara
+          läsa det. Länkarna är riktiga <a> och alltså tangentbordsnåbara. */}
+      <div class="plats-svar" hidden data-plats-svar>
+        <p role="status" aria-live="polite" data-plats-text></p>
+        <p class="plats-vidare" hidden data-plats-vidare></p>
+      </div>
+    </div>
 
     {/* Beskedet står FÖRE listan, inte efter den. Det bär tre lägen: hämtar
         registret, registret gick inte att hämta, och inga träffar. I alla
@@ -372,6 +460,93 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
   }
 
   .panel[hidden] { display: none; }
+
+  /* ── Platsraden ─────────────────────────────────────────────────────────
+     Ritas som en förslagsrad och inte som en knapp: den ligger i samma panel
+     som träffarna och ska läsa som en av dem. Hårlinje under, spegelbilden av
+     handlingsraden längst ned i listan, så att panelen blir handling, förslag,
+     handling. */
+  .plats {
+    flex-shrink: 0;
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .plats[hidden] { display: none; }
+
+  .plats-rad {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    padding: var(--s-2);
+    border: 0;
+    border-radius: var(--r-control);
+    background: none;
+    font: 500 var(--fs-body-s)/var(--lh-body-s) var(--font-sans);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .plats-rad:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+  .plats-rad:disabled { color: var(--text-secondary); cursor: default; }
+
+  /* Samma 28 px märkeskolumn som listans rader, så att namnet står på exakt
+     samma linje som verksamheternas och sidornas gör. Ikonen i brandblått:
+     den är grafik bredvid en läsbar etikett och aldrig ensam informationsbärare,
+     alltså gäller 3:1 och inte 4,5:1. */
+  .plats-ikon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--brand);
+  }
+
+  .plats-ikon svg { width: 20px; height: 20px; }
+
+  .plats-svar {
+    margin: var(--s-1) var(--s-2) 0;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--brand) 7%, var(--card));
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text);
+  }
+
+  /* Måste stå utskrivet: `hidden` är display: none i webbläsarens egen
+     stilmall, och varje egen display-regel vinner över den. */
+  .plats-svar[hidden],
+  .plats-vidare[hidden] { display: none; }
+
+  .plats-vidare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-2);
+  }
+
+  /* :global PÅ LÄNKARNA, OCH DET MÅSTE STÅ KVAR.
+     Länkarna byggs med document.createElement och finns alltså inte i mallen
+     vid bygget. Astro sätter sitt scope-attribut på varje led i en
+     selektorkedja, så `.plats-vidare a` hade kompilerats till
+     `.plats-vidare[data-astro-cid-…] a[data-astro-cid-…]`, och den andra
+     halvan matchar aldrig en nod som skriptet byggt. Behållaren står oscopad
+     ovan eftersom den FINNS i mallen. */
+
+  /* Första vägen vidare är den som svarar på frågan besökaren ställde, och den
+     ska väga tyngre än den som förklarar täckningen. --brand-ink och inte
+     --brand: rutan ligger på glaset, där #007BE0 bara når 2,80:1. */
+  .plats-vidare :global(a:first-child) {
+    font-weight: 600;
+    color: var(--brand-ink);
+  }
+
+  .plats-vidare :global(a) { color: var(--text-secondary); }
 
   .chip {
     display: inline-flex;
@@ -643,6 +818,16 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
     type Suggestion,
   } from '../lib/sokforslag';
 
+  /** En kommun som besökarens position kan mätas mot. Se frontmattern. */
+  interface Plats {
+    slug: string;
+    city: string;
+    lat: number;
+    lng: number;
+    /** Har kommunen en kartsida att landa på? Fyra av tolv har det inte. */
+    karta: boolean;
+  }
+
   const root = document.querySelector<HTMLElement>('[data-sitesearch]');
 
   if (root) {
@@ -651,6 +836,11 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
     const panel = root.querySelector<HTMLElement>('[data-panel]')!;
     const list = root.querySelector<HTMLElement>('[data-list]')!;
     const note = root.querySelector<HTMLElement>('[data-note]')!;
+    const platsBox = root.querySelector<HTMLElement>('[data-plats]')!;
+    const locate = root.querySelector<HTMLButtonElement>('[data-locate]')!;
+    const platsSvar = root.querySelector<HTMLElement>('[data-plats-svar]')!;
+    const platsText = root.querySelector<HTMLElement>('[data-plats-text]')!;
+    const platsVidare = root.querySelector<HTMLElement>('[data-plats-vidare]')!;
 
     /** Panelens eget innehåll, ur JSON i dokumentet. Ingen hämtning. */
     const data = JSON.parse(
@@ -658,6 +848,7 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
     ) as {
       popular: Suggestion[];
       sections: { name: string; items: Suggestion[] }[];
+      platser: Plats[];
     };
 
     /** Sidorna, kartorna och artiklarna i en följd, för rankningen. */
@@ -805,6 +996,10 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
       panel.hidden = true;
       input.setAttribute('aria-expanded', 'false');
       setActive(-1);
+      // Platsbeskedet är ett svar på ett klick och överlever inte att panelen
+      // stängs. Utan raden mötte nästa öppning "Du delade inte din plats" som
+      // en upplysning om ingenting.
+      hushPlats();
       window.removeEventListener('scroll', sizePanel);
       window.removeEventListener('resize', sizePanel);
       untrackKeyboard();
@@ -828,9 +1023,14 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
       if (!q) {
         list.innerHTML = emptyHtml;
         say('');
+        showPlats(true);
         refreshOptions();
         return;
       }
+
+      // Platsraden hör till tomma läget. Har man börjat skriva har man svarat
+      // på frågan var själv, och raden skulle bara stjäla plats från träffarna.
+      showPlats(false);
 
 
       // Sidorna ligger i dokumentet och kan svara direkt. Registret kan
@@ -1000,6 +1200,203 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
       hint.addEventListener('click', shortcut);
     }
 
+    // ---- Använd min plats -------------------------------------------------
+
+    /**
+     * Zoomen platsen landar på. 14 spänner ungefär två kilometer på bredden,
+     * alltså gångavstånd, vilket är den enda fråga en position kan svara på.
+     */
+    const PLATS_ZOOM = 14;
+
+    /**
+     * Två avstånd, för att svaret ska vara ärligt i alla tre lägen.
+     *
+     * Vi täcker tolv kommuner av 290. Att då alltid svara "närmast dig är X"
+     * är missvisande på gränsen till fel: den som står i Kiruna får Uppsala,
+     * 898 km bort, och en mening som låter som ett svar är sämre än ett
+     * besked om att vi inte når dit än.
+     *
+     * NEAR   Det här ÄR din kommun, alltså byter vi sida utan att fråga.
+     *        Punkten är verksamheternas median och inte en gräns, och en
+     *        kommun är stor, så talet är grovt tilltaget med flit.
+     * REACH  Inte din kommun, men nära nog att vara värd något. Göteborg
+     *        ligger 131 km från Jönköping och den som söker en restaurang
+     *        inför en resa dit är hjälpt av erbjudandet. Vi påstår aldrig att
+     *        den är "din", vi skriver ut avståndet och låter besökaren välja.
+     * Bortom Då erbjuds ingen kommun alls. Malmö till Jönköping är 252 km och
+     *        ingen i Malmö vill dit för lunch. Kvar står täckningen, alltså
+     *        beskedet om att kommunen kan komma senare.
+     */
+    const NEAR_METRES = 40000;
+    const REACH_METRES = 200000;
+
+    const platser = data.platser ?? [];
+
+    /**
+     * Raden visas bara där den kan göra sitt jobb.
+     *
+     * En avstängd rad mitt i en lista av fungerande förslag läser som att
+     * panelen är trasig, och en förklaring till varför den inte går att
+     * trycka på är precis den sortens brödtext sajten inte skriver. Saknar
+     * webbläsaren geolocation, eller saknar bygget kommunpunkter, finns raden
+     * alltså inte. Samma princip som styrde de skriptberoende kontrollerna i
+     * den gamla menyn.
+     *
+     * Nekad behörighet är något helt annat och hanteras i felgrenen nedan:
+     * där finns en besökare som tryckt och förtjänar ett svar.
+     */
+    const platsRedo = 'geolocation' in navigator && platser.length > 0;
+
+    /** Sant medan tillståndsdialogen står öppen, se focusout-hanteraren. */
+    let locating = false;
+
+    function showPlats(on: boolean) {
+      platsBox.hidden = !on || !platsRedo;
+      if (!on) hushPlats();
+    }
+
+    function hushPlats() {
+      platsSvar.hidden = true;
+      platsText.textContent = '';
+      platsVidare.textContent = '';
+      platsVidare.hidden = true;
+    }
+
+    /**
+     * Beskedet, med noll eller flera vägar vidare.
+     *
+     * open() först: dialogen kan ha stängt panelen på vägen, och ett svar
+     * ingen ser är inget svar. Rutan synas före texten sätts, eftersom en
+     * aria-live-region som är display: none när innehållet ändras inte läses
+     * upp av alla skärmläsare.
+     */
+    function platsSay(text: string, ...vidare: Array<{ href: string; text: string }>) {
+      open();
+      platsBox.hidden = false;
+      platsSvar.hidden = false;
+      platsText.textContent = text;
+      platsVidare.textContent = '';
+      for (const v of vidare) {
+        const a = document.createElement('a');
+        a.href = v.href;
+        a.textContent = v.text;
+        platsVidare.append(a);
+      }
+      platsVidare.hidden = vidare.length === 0;
+    }
+
+    /** Avstånd i meter (haversine). Samma formel som lib/data.ts. */
+    function distance(aLat: number, aLng: number, bLat: number, bLng: number) {
+      const R = 6371000;
+      const rad = (d: number) => (d * Math.PI) / 180;
+      const dLat = rad(bLat - aLat);
+      const dLng = rad(bLng - aLng);
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    /**
+     * Adressen en plats leder till.
+     *
+     * Kartan när kommunen har en, annars hubben. `nara` styr om kartan
+     * dessutom centreras på besökaren: står hon 130 km bort är hennes egen
+     * punkt fel mitt på den kartan, och då ska kommunen få bestämma vyn.
+     *
+     * Fragmentet följer OpenStreetMaps form, `#map=zoom/lat/lng`, eftersom det
+     * är den konvention kartor på webben faktiskt delar. Tre decimaler,
+     * ungefär 110 meter: kvarteret, inte porten. Positionen ligger i
+     * fragmentet och ALDRIG i en query-parameter — fragmentet skickas per HTTP
+     * aldrig med i ett anrop, en query-sträng hamnar i värdtjänstens loggar.
+     */
+    function platsMal(p: Plats, lat: number, lng: number, nara: boolean) {
+      if (!p.karta) return `/${p.slug}/`;
+      if (!nara) return `/${p.slug}/karta/`;
+      return `/${p.slug}/karta/#map=${PLATS_ZOOM}/${lat.toFixed(3)}/${lng.toFixed(3)}`;
+    }
+
+    /* Platsdelning utlöses ALDRIG av sidladdning. Webbläsarens tillståndsdialog
+       som dyker upp oombedd är påträngande, och en besökare som möts av den
+       innan hon sett något litar mindre på sajten efteråt. Den kommer bara när
+       någon aktivt trycker på raden, vilket också är vad API:et kräver: en
+       användargest i ett säkert sammanhang. */
+    locate.addEventListener('click', () => {
+      locate.disabled = true;
+      locating = true;
+      platsSay('Hämtar din plats…');
+
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          locate.disabled = false;
+          locating = false;
+
+          let nearest = platser[0];
+          let best = Infinity;
+          for (const p of platser) {
+            const d = distance(coords.latitude, coords.longitude, p.lat, p.lng);
+            if (d < best) {
+              best = d;
+              nearest = p;
+            }
+          }
+
+          const km = Math.round(best / 1000);
+          const tackning = { href: '/kallor/#fler-kommuner', text: 'Om täckningen' };
+
+          if (best <= NEAR_METRES) {
+            platsSay(`Öppnar ${nearest.city}…`);
+            location.assign(platsMal(nearest, coords.latitude, coords.longitude, true));
+            return;
+          }
+
+          if (best > REACH_METRES) {
+            platsSay(
+              `Vi täcker ingen kommun i din del av landet än. Närmast är ${nearest.city}, ungefär ${km} km bort.`,
+              tackning,
+            );
+            return;
+          }
+
+          platsSay(
+            `Vi täcker inte din kommun än. Närmast dig är ${nearest.city}, ungefär ${km} km bort.`,
+            { href: platsMal(nearest, coords.latitude, coords.longitude, false), text: `Öppna ${nearest.city}` },
+            tackning,
+          );
+        },
+        (error) => {
+          locate.disabled = false;
+          locating = false;
+
+          if (error.code === error.PERMISSION_DENIED) {
+            /* Nekad kan betyda två helt olika saker, och besökaren kan bara
+               åtgärda den ena. Antingen sa hon nej nyss, eller så är
+               platsdelning blockerad sedan tidigare och webbläsaren svarar
+               nej UTAN att ens fråga. Det andra fallet ser ut som att raden
+               är trasig.
+
+               navigator.permissions säger vilket det är. Saknas API:et
+               (Safari länge) faller vi tillbaka på den neutrala texten. */
+            const blockerad = 'Platsdelning är blockerad för den här sidan. '
+              + 'Ändra det i webbläsarens adressfält.';
+            const nekad = 'Du delade inte din plats.';
+            if (navigator.permissions?.query) {
+              navigator.permissions.query({ name: 'geolocation' })
+                .then((p) => platsSay(p.state === 'denied' ? blockerad : nekad))
+                .catch(() => platsSay(nekad));
+            } else {
+              platsSay(nekad);
+            }
+          } else if (error.code === error.TIMEOUT) {
+            platsSay('Det tog för lång tid att hämta din plats. Försök igen.');
+          } else {
+            platsSay('Din plats gick inte att avgöra.');
+          }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      );
+    });
+
     // ---- Musen ----------------------------------------------------------
 
     // Musen ska markera samma rad som tangentbordet skulle ha gjort.
@@ -1043,7 +1440,11 @@ const suggestData = JSON.stringify({ popular, sections }).replace(/</g, '\\u003c
     });
 
     root.addEventListener('focusout', (event) => {
-      if (pointerHeld) return;
+      // `locating`: webbläsarens tillståndsdialog tar fokus ur dokumentet, och
+      // relatedTarget är då null. Utan undantaget stängde panelen sig själv
+      // medan besökaren svarade på frågan, och beskedet efteråt hade ingen
+      // yta att stå på.
+      if (pointerHeld || locating) return;
       const to = (event as FocusEvent).relatedTarget as Node | null;
       if (!to || !root.contains(to)) close();
     });
