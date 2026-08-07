@@ -326,6 +326,39 @@ class Heic(unittest.TestCase):
         self.assertIn("const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;", KLIENTEN)
         self.assertIn("const MAX_BYTES = 12 * 1024 * 1024;", RUTAN)
 
+    def test_varje_format_har_en_egen_filandelse(self):
+        """Raden, filändelsen och Content-Type måste alltid säga samma sak.
+
+        Det här är felet som inte syns förrän vid publiceringen: en rad som
+        säger heic med en jpeg i hinken, eller tvärtom. Tabellen SUFFIXES är det
+        som håller ihop dem, och den måste täcka VARJE godtagen typ. Saknas en
+        faller uppslaget tillbaka på 'jpg', och då får en HEIC en .jpg-sökväg
+        medan raden och Content-Type säger heic.
+        """
+        typer = re.search(r"const ACCEPTED_TYPES = \[(.*?)\];", KLIENTEN, re.S).group(1)
+        typer = set(re.findall(r"'([^']+)'", typer))
+        suffix = re.search(r"const SUFFIXES: Record<string, string> = \{(.*?)\};", KLIENTEN, re.S)
+        suffix = dict(re.findall(r"'([^']+)':\s*'([^']+)'", suffix.group(1)))
+
+        self.assertTrue(typer)
+        saknas = typer - set(suffix)
+        self.assertFalse(
+            saknas,
+            f"Dessa format saknar filändelse och skulle få '.jpg': {sorted(saknas)}",
+        )
+        # Och ingen HEIC får sluta som .jpg av misstag.
+        for typ in typer:
+            if "heic" in typ:
+                self.assertEqual(suffix[typ], "heic")
+            elif "heif" in typ:
+                self.assertEqual(suffix[typ], "heif")
+
+    def test_typen_lases_ur_filen_som_faktiskt_skickas(self):
+        # Safari avkodar en HEIC och shrink() ger då tillbaka en JPEG. Läses
+        # typen ur ORIGINALET skulle raden säga heic om en jpeg i hinken.
+        self.assertIn("const type = imageType(sending)", KLIENTEN)
+        self.assertNotIn("imageType(file) ?? 'image/jpeg'", KLIENTEN)
+
     def test_miniatyren_faller_tillbaka_nar_bilden_inte_kan_ritas(self):
         # En trasig bildikon läser som ett fel, och filen är hel.
         self.assertIn("thumb.addEventListener('error'", RUTAN)
