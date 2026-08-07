@@ -17,9 +17,33 @@ import Base from '../../layouts/Base.astro';
 import { formatNumber } from '../../lib/data';
 import { chains } from '../../lib/kedjor';
 import { absolute, path } from '../../lib/urls';
+import '../../styles/kedja.css';
 
 const all = chains();
 const locations = all.reduce((n, c) => n + c.total, 0);
+const kommuner = new Set(all.flatMap((c) => c.municipalities.map((m) => m.municipality.slug)));
+
+/**
+ * Bokstavsavdelarna.
+ *
+ * Femtiotvå rader i bokstavsordning är en katalog, och en katalog visar var i
+ * alfabetet man befinner sig. Ratsit, allabolag och hitta.se gör alla samma
+ * sak. Avdelaren är ren form: ordningen kommer fortfarande ur chains(), och
+ * raden ritas när begynnelsebokstaven byts.
+ *
+ * Siffror samlas under en rubrik i stället för att få varsin: "7-Eleven" är
+ * enda raden pa 7 i dag, och en avdelare med en rad under sig ser ut som ett
+ * fel.
+ */
+function initial(name: string): string {
+  const first = name.trim().charAt(0).toLocaleUpperCase('sv');
+  return /[0-9]/.test(first) ? '0–9' : first;
+}
+
+const rows = all.map((c, i) => ({
+  chain: c,
+  letter: i === 0 || initial(c.name) !== initial(all[i - 1].name) ? initial(c.name) : null,
+}));
 
 const answer =
   `${formatNumber(all.length)} kedjor och ${formatNumber(locations)} ställen, ` +
@@ -48,94 +72,55 @@ const jsonLd = [
 ---
 
 <Base title="Kedjor" description={answer} jsonLd={jsonLd}>
-  <div class="container page">
-    <nav class="crumbs" aria-label="Brödsmulor">
+  <div class="container kedja-page">
+    <nav class="kedja-crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
     </nav>
 
-    <header class="head">
+    {/* Registret leder med sitt omfång, inte med en mening om sig självt.
+        Talet till höger är hela skälet till att sidan finns: ingen kommunal
+        tjänst kan visa ett bestånd över kommungränserna. */}
+    <div class="kedja-topp">
       <h1>Kedjor</h1>
-      <p class="answer">{answer}</p>
-    </header>
+      <p class="kedja-omfang">
+        {formatNumber(all.length)} kedjor · {formatNumber(locations)} ställen ·{' '}
+        {formatNumber(kommuner.size)} kommuner
+      </p>
+    </div>
 
-    <table class="grid">
-      <thead>
-        <tr>
-          <th scope="col">Kedja</th>
-          <th scope="col" class="num">Ställen</th>
-          <th scope="col" class="num">Kommuner</th>
-        </tr>
-      </thead>
-      <tbody>
-        {all.map((c) => (
-          <tr>
-            <th scope="row"><a href={path('kedja', c.id)}>{c.name}</a></th>
-            <td class="num">{formatNumber(c.total)}</td>
-            <td class="num text-secondary">{formatNumber(c.municipalities.length)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div class="kedja-main">
+      <section aria-labelledby="registret">
+        {/* Rubriken finns för skärmläsaren och för dokumentets kontur. På
+            skärmen vore den en etikett på det enda som står på sidan, alltså
+            en rubrik som inte skiljer något från något. */}
+        <h2 id="registret" class="visually-hidden">Alla kedjor</h2>
+
+        <table class="kedja-tabell">
+          <thead>
+            <tr>
+              <th scope="col">Kedja</th>
+              <th scope="col" class="num">Ställen</th>
+              <th scope="col" class="num">Kommuner</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ chain: c, letter }) => (
+              <>
+                {letter && (
+                  <tr class="bokstav">
+                    <th colspan="3">{letter}</th>
+                  </tr>
+                )}
+                <tr>
+                  <th scope="row"><a href={path('kedja', c.id)}>{c.name}</a></th>
+                  <td class="num antal">{formatNumber(c.total)}</td>
+                  <td class="num tyst">{formatNumber(c.municipalities.length)}</td>
+                </tr>
+              </>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
   </div>
 </Base>
-
-<style>
-  .page {
-    padding-block: var(--s-8) var(--s-12);
-    max-width: var(--w-page);
-  }
-
-  .crumbs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-    align-items: center;
-    font-size: var(--fs-body-s);
-    color: var(--text-muted);
-    margin-bottom: var(--s-4);
-  }
-
-  .crumbs a { color: var(--text-secondary); }
-
-  .head h1 {
-    font-size: var(--fs-title);
-    line-height: var(--lh-title);
-  }
-
-  .answer {
-    margin-top: var(--s-3);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-  }
-
-  .grid {
-    width: 100%;
-    margin-top: var(--s-8);
-    border-collapse: collapse;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
-
-  .grid th,
-  .grid td {
-    padding: var(--s-3) 0;
-    border-bottom: 1px solid var(--hairline);
-    text-align: left;
-    font-weight: 400;
-  }
-
-  .grid thead th {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-    font-weight: 600;
-  }
-
-  .grid tbody th { font-weight: 600; }
-
-  .grid .num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-</style>

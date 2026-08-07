@@ -1,0 +1,291 @@
+/* Kedjesidorna: /kedja och /kedja/[kedja].
+   ---------------------------------------------------------------------------
+   Egen fil, inte två scopade block. De två sidorna delar sidhuvud, faktarad
+   och datatabell, och en kopia i vardera filen är exakt så de sju bredderna i
+   docs/19_formsystem.md uppstod. Varje värde kommer ur tokens.css.
+
+   Formen är verksamhetssidans, för det är den ägaren har godkänt: ingenting är
+   inramat, sektionerna skiljs av en hårlinje och luft, och sidan har EN
+   tyngdpunkt högst upp i stället för fyra lika tunga block.
+
+   Klassprefixet är `kedja-` och finns ingen annanstans på sajten. */
+
+.kedja-page {
+  max-width: var(--w-page);
+  padding-block: var(--s-6) var(--s-16);
+}
+
+.kedja-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-muted);
+  margin-bottom: var(--s-3);
+}
+
+.kedja-crumbs a { color: var(--text-secondary); }
+
+/* Namnet till vänster, storleken till höger, botten mot botten. Samma grepp
+   som verksamhetssidans topprad, och av samma skäl: en rubrikrad som är tom
+   till höger lämnar ett hål ner till det som faktiskt är sidans besked. */
+.kedja-topp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-6);
+  flex-wrap: wrap;
+}
+
+.kedja-topp h1 {
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  letter-spacing: -.024em;
+}
+
+.kedja-omfang {
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Sektionerna
+
+   Öppna på sidan, skilda av en hårlinje och luft. Ingen ruta, ingen skugga.
+   Regeln är samma rad som bär verksamhetssidans huvudkolumn.
+   --------------------------------------------------------------------------- */
+.kedja-main { margin-top: var(--s-8); }
+
+.kedja-main > * + * {
+  margin-top: var(--s-8);
+  padding-top: var(--s-8);
+  border-top: 1px solid var(--hairline);
+}
+
+/* Sektionsrubrik till vänster, sektionens omfång till höger. Att varje rubrik
+   har något att luta sig mot i högerkanten är det som gör att sektionerna
+   läser som olika saker och inte som samma block upprepat. */
+.kedja-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.kedja-bar h2 {
+  font-size: var(--fs-h);
+  line-height: var(--lh-h);
+  font-weight: 600;
+}
+
+.kedja-bar span {
+  flex: none;
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Tyngdpunkten
+
+   Boolis grepp med priset: en tyst etikett, ett stort tal med en pinne
+   framför, och nyckelfakta i en öppen rad under. Talet är ett ANTAL och
+   aldrig ett rikssnitt i procent, se filhuvudet i pages/kedja/[kedja].astro.
+   --------------------------------------------------------------------------- */
+.kedja-etikett {
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+  margin-bottom: var(--s-2);
+}
+
+/* Pinnen är 4 px och bär bedömningsfärgen; talet står i vanligt bläck.
+   Uppmätt på Boolis objektsida, där slutpriset har exakt samma pinne. Skälet
+   är läsbarhet: ett stort tal i grönt läser som ett omdöme om kedjan, ett
+   stort tal i svart läser som ett tal. */
+.kedja-tal {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--s-2);
+  padding-left: var(--s-3);
+  border-left: 4px solid var(--verdict-clean);
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 600;
+  letter-spacing: -.024em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kedja-tal .av {
+  font-size: var(--fs-h-s);
+  line-height: var(--lh-h-s);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+
+.kedja-svarsmening {
+  margin-top: var(--s-3);
+  max-width: 56ch;
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  color: var(--text-secondary);
+}
+
+/* Fördelningen som en tunn rad. Springorna mellan segmenten är avsiktliga:
+   det är tre mängder, inte en tonad yta. Samma komponent som sidopanelen på
+   verksamhetssidan. Färgen står aldrig ensam. Varje mängd har sitt tal med
+   utskriven etikett i faktaraden strax under. */
+.kedja-stapel {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  margin-top: var(--s-6);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.kedja-stapel span { min-width: 3px; }
+
+/* Faktaraden är komponenten FactGrid, alltså Boolis öppna rad under priset.
+   Luften sätts här: komponenten bär inget eget yttermått, av samma skäl som
+   den inte bär någon ram. */
+.kedja-svar .factgrid { margin-top: var(--s-6); }
+
+.kedja-metod { margin-top: var(--s-6); }
+
+/* ---------------------------------------------------------------------------
+   Datatabellen
+
+   Boolis form: en hårlinje under varje rad, ingen zebra, ingen ram runt
+   tabellen, radhöjd omkring 55 px.
+
+   VIKTEN LIGGER PÅ ANTALET, inte på utfallet. Kommunnamnet och antalet
+   ställen står i halvfet bläck; andelen utan anmärkning och kommunens egen
+   referenslinje står i tyst grå och en grad mindre. Sorteringen är på antal
+   (lib/kedjor.ts), och den här vikten är det som gör att ögat läser storlek i
+   stället för att leta efter en vinnare. En kedjesida får inte bli en
+   rangordning av kommuner i förklädnad.
+   --------------------------------------------------------------------------- */
+.kedja-tabell {
+  width: 100%;
+  margin-top: var(--s-4);
+  border-collapse: collapse;
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+}
+
+.kedja-tabell thead th {
+  padding: 0 0 var(--s-2);
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.kedja-tabell tbody th,
+.kedja-tabell tbody td {
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--hairline);
+  text-align: left;
+  font-weight: 400;
+}
+
+.kedja-tabell tbody th { font-weight: 600; }
+
+.kedja-tabell .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-left: var(--s-4);
+}
+
+/* Antalet är tabellens huvudtal och står i bläck. */
+.kedja-tabell .antal { font-weight: 600; }
+
+/* Utfallskolumnerna är stödtal: en grad mindre och tysta. */
+.kedja-tabell .tyst {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* Bokstavsavdelaren i registret. En rad som säger var i alfabetet man är, som
+   i vilken katalog som helst. Den bär inget tal och ska inte läsa som en rad
+   med data: versal, tyst, och utan hårlinje under sig. */
+.kedja-tabell .bokstav th {
+  padding: var(--s-8) 0 var(--s-2);
+  border-bottom: 0;
+  font-size: var(--fs-h-xs);
+  line-height: var(--lh-h-xs);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kedja-tabell .bokstav:first-child th { padding-top: var(--s-4); }
+
+/* Fyra kolumner på 390 px. Talen är korta ("11", "10 av 11", "89 %"), det är
+   rubrikerna som är långa, och de får radbrytas i stället för att kolumnen
+   ska tas bort. Referenslinjen är sidans enda giltiga jämförelse och får inte
+   falla bort just på den skärm där de flesta läser den. */
+@media (max-width: 560px) {
+  .kedja-tabell tbody th,
+  .kedja-tabell tbody td { padding: var(--s-3) 0; }
+
+  .kedja-tabell .num { padding-left: var(--s-3); }
+}
+
+/* ---------------------------------------------------------------------------
+   Foten: länknätet till de andra kedjorna
+   --------------------------------------------------------------------------- */
+
+/* Kolumner i stället för en vägg. 51 länkar på rad efter varandra läser som
+   spill; samma 51 i tre kolumner med sitt antal till höger läser som ett
+   register. */
+.kedja-andra {
+  list-style: none;
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  columns: 3;
+  column-gap: var(--s-8);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+}
+
+.kedja-andra li {
+  break-inside: avoid;
+  padding-block: 5px;
+}
+
+.kedja-andra a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  color: var(--text);
+}
+
+.kedja-andra a:hover { color: var(--brand-ink); }
+
+.kedja-andra .antal {
+  flex: none;
+  font-size: var(--fs-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .kedja-andra { columns: 2; }
+}
+
+@media (max-width: 420px) {
+  .kedja-andra { columns: 1; }
+}

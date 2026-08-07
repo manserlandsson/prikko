@@ -57,22 +57,31 @@ import '../../styles/konto.css';
     </div>
 
     <div id="verktyg" hidden>
-      <header class="konto-head granska-topp">
+      {/* Apphuvudet, klistrat.
+
+          Rubriken är 17 px och inte 32: det här är ett verktygsfält och inte
+          en sidtitel, samma val som booli gör på sitt sökresultat, där h1
+          renderas i 14 px. Se docs/19_formsystem.md.
+
+          Att raden är klistrad är hela skälet till att genvägarna får plats.
+          De stod förut i en fotnot under kön, alltså osynliga från post nummer
+          två och nedåt, vilket är precis de poster man behöver dem för. */}
+      <header class="granska-topp">
         <h1>Granska</h1>
-        <span class="konto-meta" id="rakning"></span>
+        <span class="granska-rakning" id="rakning"></span>
+        <p class="granska-tangenter" aria-hidden="true">
+          <span><kbd>J</kbd><kbd>K</kbd> flytta</span>
+          <span><kbd>Esc</kbd> avbryt</span>
+          <span><kbd>R</kbd> hämta om</span>
+        </p>
       </header>
 
       <p class="notice" id="global" hidden></p>
 
       <ol class="granska-ko" id="ko"></ol>
 
-      <p class="konto-empty" id="tomt" hidden>
+      <p class="granska-tomt" id="tomt" hidden>
         Kön är tom. Ingenting väntar på ett beslut.
-      </p>
-
-      <p class="granska-hjalp">
-        <b>G</b> godkänn · <b>A</b> avslå · <b>J</b> och <b>K</b> flyttar ·
-        <b>Esc</b> avbryter · <b>R</b> hämtar om
       </p>
     </div>
   </div>
@@ -89,107 +98,290 @@ import '../../styles/konto.css';
    *
    * `.granska` sitter på sidans yttersta div och finns ingen annanstans på
    * sajten, så räckvidden är den här sidan trots att regeln är global.
+   *
+   * -------------------------------------------------------------------------
+   * FORMEN ÄR ETT VERKTYG OCH INTE EN SIDA
+   * -------------------------------------------------------------------------
+   * Tätt slår luftigt. Låg kontrast i det som är ram (linjer, etiketter,
+   * knappkanter), hög kontrast i det som är innehåll (bilden, texten,
+   * beslutet). Referensen är Linear och inte en publik sajt: den som går
+   * igenom trettio bilder ska aldrig behöva flytta handen eller leta.
    */
 
-  /* Sidan är bredare än kontosidorna. En bild i full storlek och en text
-     bredvid den ryms inte i 640 pixlar, och granskningen är det enda stället där
-     bilden är själva uppgiften. */
+  /* Bredden är --w-wide och inte ett eget tal.
+     Här stod 860 px, alltså en femte sidbredd på en sajt som har fyra
+     (docs/19_formsystem.md). Verktyget behöver dessutom mer än 860: bilden och
+     texten om den ska stå BREDVID varandra, och det gör de inte i 860. */
   .granska {
-    max-width: 860px;
+    max-width: var(--w-wide);
+    /* Ingen luft över: den klistrade huvudraden ska nå toppen av rullningen.
+       De två lägen som INTE är verktyget får sin luft var för sig nedan. */
+    padding-block: 0 var(--s-16);
   }
 
+  .granska #laddar,
+  .granska #nej { padding-top: var(--s-12); }
+
+  /* ----------------------------------------------------------------------- */
+  /* Apphuvudet                                                              */
+  /* ----------------------------------------------------------------------- */
+
   .granska .granska-topp {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    align-items: center;
     gap: var(--s-3);
+    padding-block: var(--s-3);
+    /* Ogenomskinlig, inte glas: kön rullar under raden och en halvgenomskinlig
+       list hade lagt en bild ovanpå rubriken. Glas hör hemma på lager som
+       svävar, se tokens.css. */
+    background: var(--canvas);
+    border-bottom: 1px solid var(--hairline);
   }
+
+  .granska .granska-topp h1 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    letter-spacing: 0;
+    flex: none;
+  }
+
+  /* Räkningen som en liten sifferbricka. Den är det enda i huvudet som ändrar
+     sig, och den ska gå att läsa i ögonvrån utan att söka efter den. */
+  .granska .granska-rakning {
+    flex: none;
+    padding: 2px var(--s-2);
+    border-radius: var(--r-pill);
+    background: var(--brand-wash);
+    color: var(--brand-ink);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .granska .granska-tangenter {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--s-1) var(--s-4);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--text-muted);
+  }
+
+  .granska .granska-tangenter span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* Tangenten som tangent. En bokstav i en liten ram säger vad man ska trycka
+     på utan en enda förklarande mening. */
+  .granska kbd {
+    display: inline-block;
+    min-width: 17px;
+    padding: 1px 4px;
+    border: 1px solid var(--hairline);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: var(--card);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: 15px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* ----------------------------------------------------------------------- */
+  /* Kön                                                                     */
+  /* ----------------------------------------------------------------------- */
 
   .granska .granska-ko {
     list-style: none;
-    margin: var(--s-6) 0 0;
+    margin: 0;
     padding: 0;
-    border-top: 1px solid var(--hairline);
   }
 
   /* Ingen ram runt posten. Linjen ligger mellan raderna, som i en inkorg, och
-     vänsterkanten bär markören för den som står i tur. */
+     vänsterkanten bär markören för den som står i tur. Den valda posten får
+     dessutom en svag fyllning: en 3 px kant ensam syns inte när kön är hundra
+     poster lång och man rör sig med J och K. */
+  /* Raden går ut i sidans marginal, som i en inkorg: markeringen ska nå
+     kanten, inte sitta som en ruta inne på ytan. */
   .granska .granska-post {
     border-bottom: 1px solid var(--hairline);
-    padding: var(--s-5) 0 var(--s-5) var(--s-4);
     border-left: 3px solid transparent;
+    /* Vänsterindraget är s-4 MINUS markörens 3 px, så att postens text står i
+       exakt samma lodräta linje som rubriken i huvudraden. */
+    padding: var(--s-4) var(--s-4) var(--s-6) calc(var(--s-4) - 3px);
+    margin-inline: calc(var(--s-4) * -1);
   }
 
   .granska .granska-post[data-vald='1'] {
     border-left-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
   }
 
+  /* Postens huvudrad: sort, vad det gäller, när det kom.
+     Sorten står i en kolumn med fast bredd så att kön går att skanna lodrätt.
+     Det är det enda som skiljer en lista med fyra sorters ärenden från en
+     lista där varje rad börjar på ett nytt ställe. */
   .granska .granska-rad {
     display: flex;
     align-items: baseline;
-    gap: var(--s-2);
+    gap: var(--s-2) var(--s-3);
     flex-wrap: wrap;
   }
 
   .granska .granska-typ {
-    font-size: var(--fs-eyebrow);
-    line-height: var(--lh-eyebrow);
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
     flex: none;
+    min-width: 68px;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
   }
 
   .granska .granska-plats {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
     font-weight: 600;
     overflow-wrap: anywhere;
   }
 
+  .granska .granska-rad .konto-meta {
+    margin-left: auto;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ----------------------------------------------------------------------- */
+  /* Postens kropp: bilden till vänster, allt att läsa till höger             */
+  /* ----------------------------------------------------------------------- */
+
+  .granska .granska-kropp {
+    margin-top: var(--s-3);
+    /* Texten radbryts på granskarens ögonmått och inte på spaltens.
+       Ett omdöme är brödtext och brödtext blir oläsbar över 70 tecken. */
+    max-width: 74ch;
+  }
+
+  /* Bilden är uppgiften, alltså får den plats, och texten om bilden ska gå
+     att läsa utan att rulla förbi den. Därför två kolumner och inte en stapel.
+     Bilden ligger till vänster eftersom ögat börjar där, och beslutet står
+     längst ned till höger, dit läsningen tar vägen. */
+  .granska .granska-kropp[data-media='1'] {
+    display: grid;
+    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+    gap: var(--s-6);
+    align-items: start;
+    max-width: none;
+  }
+
+  .granska .granska-innehall > * + * { margin-top: var(--s-3); }
+
+  /* INGEN BESKÄRNING. En beskuren bild är en bild man inte har granskat, så
+     `contain` och aldrig `cover`. Takhöjden finns för att en stående bild
+     annars gör raden tre skärmar hög, och då är kön inte längre en kö. */
+  .granska .granska-bild {
+    display: block;
+    width: 100%;
+    max-height: 460px;
+    object-fit: contain;
+    object-position: left top;
+    border-radius: var(--r-card);
+    background: var(--canvas);
+    box-shadow: 0 0 0 1px var(--hairline);
+  }
+
   .granska .granska-text {
-    margin-top: var(--s-2);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
 
-  /* Bilden är uppgiften, alltså får den ta plats. Full bredd i kolumnen och
-     ingen beskärning: en beskuren bild är en bild man inte har granskat. */
-  .granska .granska-bild {
-    display: block;
-    margin-top: var(--s-3);
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--r-card);
-    background: var(--canvas);
-  }
-
   .granska .granska-fakta {
-    margin-top: var(--s-2);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    color: var(--text-secondary);
+    color: var(--text-muted);
   }
 
-  .granska .granska-fakta b { color: var(--text); font-weight: 600; }
+  .granska .granska-fakta b { color: var(--text-secondary); font-weight: 600; }
+
+  /* ----------------------------------------------------------------------- */
+  /* Beslutet                                                                */
+  /* ----------------------------------------------------------------------- */
 
   .granska .granska-atgard {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--s-2);
-    margin-top: var(--s-3);
+    margin-top: var(--s-4);
   }
 
   .granska .granska-skal {
     display: flex;
     gap: var(--s-2);
-    margin-top: var(--s-3);
+    margin-top: var(--s-2);
     flex-wrap: wrap;
   }
+
+  /* Knapparna är verktygsknappar och inte sajtens piller. En piller-CTA hör
+     till en sida som vill något av besökaren; den här raden är två utfall i
+     ett verktyg, och de ska ligga tätt och se lika viktiga ut. */
+  .granska .granska-atgard .btn-primary,
+  .granska .granska-atgard .btn-quiet,
+  .granska .granska-skal .btn-quiet {
+    gap: var(--s-2);
+    border-radius: var(--r-control);
+    padding: 8px 12px;
+    font-size: var(--fs-caption);
+  }
+
+  .granska .granska-atgard .btn-quiet,
+  .granska .granska-skal .btn-quiet {
+    border-color: var(--glass-edge);
+  }
+
+  /* Bara den post man står på har en fylld knapp.
+     Fyra blå knappar rakt ner i en kö skriker lika högt allihop, och då bär
+     färgen ingen information. Fylld = här är du, och det är också den enda
+     rad där G och A gör något. Musen får tillbaka fyllningen vid hovring, så
+     ingenting går förlorat för den som inte använder tangentbordet. */
+  .granska .granska-post:not([data-vald='1']) .granska-atgard .btn-primary {
+    background: transparent;
+    color: var(--brand-ink);
+    box-shadow: inset 0 0 0 1px var(--glass-edge);
+  }
+
+  .granska .granska-post .granska-atgard .btn-primary:hover {
+    background: var(--brand-ink);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  .granska .granska-atgard .btn-primary kbd {
+    border-color: rgba(255, 255, 255, .45);
+    background: transparent;
+    color: #fff;
+  }
+
+  /* Genvägen står PÅ knappen, men bara på den post man faktiskt står på.
+     Annars säger sidan "tryck G" på åttio rader samtidigt, och då säger den
+     ingenting. `visibility` och inte `display`: knappen ska inte ändra bredd
+     när markeringen flyttar. */
+  .granska .granska-atgard kbd { visibility: hidden; }
+  .granska .granska-post[data-vald='1'] .granska-atgard kbd { visibility: visible; }
 
   /* Sexton pixlar är ett golv: under det zoomar iOS Safari in hela sidan när
      fältet får fokus, och zoomar aldrig ut igen. Samma regel som arken. */
@@ -198,9 +390,9 @@ import '../../styles/konto.css';
     font: 400 16px/1.4 var(--font-sans);
     color: var(--text);
     background: var(--card);
-    border: 1px solid var(--hairline);
+    border: 1px solid var(--glass-edge);
     border-radius: var(--r-control);
-    padding: 9px 12px;
+    padding: 7px 10px;
   }
 
   .granska .granska-skal input {
@@ -235,16 +427,40 @@ import '../../styles/konto.css';
   .granska .granska-fel { color: var(--verdict-major-ink); }
   .granska .granska-ok { color: var(--verdict-clean-ink); }
 
-  .granska .granska-hjalp {
-    margin-top: var(--s-6);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-muted);
+  /* Tom kö är ett arbetsläge och inte ett fel. Den ska se ut som ett avslutat
+     pass, alltså luft och en mening mitt i ytan, inte en grå rad under en
+     rubrik. */
+  .granska .granska-tomt {
+    padding: var(--s-16) 0;
+    text-align: center;
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    color: var(--text-secondary);
   }
 
-  .granska .granska-hjalp b {
-    color: var(--text-secondary);
-    font-weight: 600;
+  /* ----------------------------------------------------------------------- */
+  /* Telefon                                                                 */
+  /* ----------------------------------------------------------------------- */
+
+  @media (max-width: 860px) {
+    /* Ingen tangentbordslegend på en skärm utan tangentbord. */
+    .granska .granska-tangenter { display: none; }
+
+    .granska .granska-kropp[data-media='1'] {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-3);
+    }
+
+    .granska .granska-bild { max-height: 340px; }
+
+    .granska .granska-post {
+      padding-inline: calc(var(--s-3) - 3px) var(--s-3);
+      margin-inline: calc(var(--s-3) * -1);
+    }
+
+    .granska .granska-typ { min-width: 0; }
+
+    .granska .granska-rad .konto-meta { margin-left: 0; }
   }
 </style>
 
@@ -378,12 +594,50 @@ import '../../styles/konto.css';
     rad.append(nar);
     li.append(rad);
 
-    if (post.sort === 'omdome') li.append(...ritaOmdome(post as OmdomePost));
-    if (post.sort === 'bild') li.append(...ritaBild(post as BildPost));
-    if (post.sort === 'svar') li.append(...ritaSvar(post as SvarPost));
-    if (post.sort === 'ansprak') li.append(...ritaAnsprak(post as AnsprakPost));
+    let delar: HTMLElement[] = [];
+    if (post.sort === 'omdome') delar = ritaOmdome(post as OmdomePost);
+    if (post.sort === 'bild') delar = ritaBild(post as BildPost);
+    if (post.sort === 'svar') delar = ritaSvar(post as SvarPost);
+    if (post.sort === 'ansprak') delar = ritaAnsprak(post as AnsprakPost);
 
-    li.append(ritaAtgarder(post, position));
+    /*
+     * Bilden i egen kolumn, allt att läsa i den andra.
+     *
+     * Delarna kommer i en platt lista från rita*-funktionerna, och det som är
+     * en bild plockas ut här i stället för att varje funktion ska behöva veta
+     * hur posten är byggd. Sorteringen är formens ansvar, inte innehållets.
+     *
+     * Att bilden ligger BREDVID texten och inte över den är hela skälet: den
+     * som granskar en bild måste se bildtexten och omdömet den hör till
+     * samtidigt som bilden, annars är det två uppgifter i stället för en.
+     */
+    const kropp = document.createElement('div');
+    kropp.className = 'granska-kropp';
+
+    const bilder = delar.filter((el) => el.classList.contains('granska-bild'));
+    if (bilder.length > 0) {
+      const media = document.createElement('div');
+      media.className = 'granska-media';
+      media.append(...bilder);
+      kropp.dataset.media = '1';
+      kropp.append(media);
+    }
+
+    const innehall = document.createElement('div');
+    innehall.className = 'granska-innehall';
+    innehall.append(...delar.filter((el) => !el.classList.contains('granska-bild')));
+
+    const holk = ritaAtgarder(post, position);
+    innehall.append(holk);
+    kropp.append(innehall);
+    li.append(kropp);
+
+    /* Tangentbordets krok sitter på POSTEN och inte på ett visst barn. Den låg
+       på sista elementet, och den formen är just det som ändras när sidan
+       ritas om; att flytta kroken hit gör att styrningen överlever nästa
+       omgång layout. */
+    (li as any).__godkann = (holk as any).__godkann;
+    (li as any).__avsla = (holk as any).__avsla;
     return li;
   }
 
@@ -530,10 +784,21 @@ import '../../styles/konto.css';
       atgard.append(metod);
     }
 
+    /* Genvägen står på knappen, som en tangent.
+       En rad text längst ned på sidan som räknar upp fem bokstäver är en
+       fotnot man läser en gång och glömmer; bokstaven på själva knappen är
+       kvar nästa gång man tittar. CSS visar den bara på den post man står på,
+       se stilblocket ovan. */
+    const tangent = (bokstav: string) => {
+      const k = document.createElement('kbd');
+      k.textContent = bokstav;
+      return k;
+    };
+
     const godkann = document.createElement('button');
     godkann.type = 'button';
     godkann.className = 'btn-primary btn-tight';
-    godkann.textContent = 'Godkänn';
+    godkann.append('Godkänn', tangent('G'));
     godkann.addEventListener('click', () => {
       vald = position;
       void besluta(post, 'publish', metod?.value ?? null, null);
@@ -543,7 +808,7 @@ import '../../styles/konto.css';
     const avsla = document.createElement('button');
     avsla.type = 'button';
     avsla.className = 'btn-quiet btn-tight';
-    avsla.textContent = 'Avslå';
+    avsla.append('Avslå', tangent('A'));
     atgard.append(avsla);
     holk.append(atgard);
 
@@ -612,16 +877,32 @@ import '../../styles/konto.css';
     poster.forEach((post, i) => lista.append(rita(post, i)));
 
     tomt.hidden = poster.length > 0;
-    rakning.textContent =
-      poster.length === 0 ? 'inget väntar' : `${poster.length} väntar på beslut`;
+    rakning.textContent = poster.length === 0 ? 'inget väntar' : `${poster.length} väntar`;
+  }
+
+  /**
+   * Flyttar bara markeringen.
+   *
+   * Att rita om hela kön för att byta vilken rad som är markerad kostade en
+   * ny signerad länk för VARJE bild i kön vid varje tryck på J. Med en kö på
+   * hundra poster är det hundra anrop per tangenttryckning, och bilderna
+   * blinkade bort och kom tillbaka medan man bläddrade. Markeringen är ett
+   * attribut, alltså byts attributet.
+   */
+  function markera(): void {
+    for (let i = 0; i < lista.children.length; i += 1) {
+      (lista.children[i] as HTMLElement).dataset.vald = i === vald ? '1' : '0';
+    }
   }
 
   function flytta(steg: number): void {
     if (poster.length === 0) return;
     vald = Math.min(poster.length - 1, Math.max(0, vald + steg));
-    mala();
+    markera();
     const li = lista.children[vald] as HTMLElement | undefined;
-    li?.scrollIntoView({ block: 'nearest' });
+    /* `center` och inte `nearest`: den klistrade huvudraden ligger över kön,
+       och en rad som rullas till kanten hamnar under den. */
+    li?.scrollIntoView({ block: 'center' });
   }
 
   /* -------------------------------------------------------------------- */
@@ -716,17 +997,16 @@ import '../../styles/konto.css';
       return;
     }
 
-    const li = lista.children[vald] as HTMLElement | undefined;
+    const li = lista.children[vald] as any;
     if (!li) return;
-    const holk = li.lastElementChild as any;
 
     if (key === 'g' || e.key === 'Enter') {
       e.preventDefault();
-      holk?.__godkann?.();
+      li.__godkann?.();
     }
     if (key === 'a') {
       e.preventDefault();
-      holk?.__avsla?.();
+      li.__avsla?.();
     }
   }
 
