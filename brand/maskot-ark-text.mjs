@@ -9,22 +9,38 @@
  */
 
 export const INGRESS = `
-<p class="lead">Fem maskotförslag har underkänts. Det här arket är gjort på ett annat
-sätt: först research i Duolingos egna filer och i varumärkesregistret, sedan fem
-tolkningar ritade oberoende av varandra, sedan urval. Bredd först, förfining sedan.</p>
+<p class="lead">Sex maskotförslag har underkänts. Det sjunde arket är gjort efter att vi
+hittat felet, och det var ett metodfel och inte ett ritfel: <b>vi har hela tiden ritat
+karaktären under bedömningsmärkets begränsningar.</b></p>
 
-<p>Beskedet som styr allt här: figuren ska se äkta ut, den ska gå att ha springande
-på sidan, den ska byta färg med bedömningen, den får inte vara en fågel, och den ska
-vara <b>tydlig men också supersnygg eller kul</b>. Tydlig betyder att man ser vad
-figuren känner i 24 px. Kul betyder att den har en egenhet man minns. En figur som
-är tydlig utan att vara kul blir ett piktogram. En som är kul utan att vara tydlig
-går inte att använda som bedömningsmärke.</p>
+<div class="kort">
+<h4>Kedjan som förlamade varje figur</h4>
+<p>Bedömningsmärket måste fungera i 24 px. En pupill kräver en ögonvita. En ögonvita
+kräver en kant. En kant slammar igen i 24 px. Alltså förbjöd vi ögonvita och pupiller
+i hela figuren, inte bara i märket.</p>
+<p>Resultatet blev figurer som överlever i 24 px och är döda i 200 px. Varje granskning
+sa samma sak i olika ord, och ägaren sa det rakast: "fortsatt inte i närheten av duo".</p>
+<p><b>Duolingo gör tvärtom, och det står i vår egen mätning.</b> Deras app-ikon är inte
+Duo förminskad, den är ansiktet BESKURET tills ögonmasken går kant i kant. De ritar
+figuren först, komplett, och härleder ikonen ur den. Kropp, vingar, öron, fötter och en
+färgnyans offras i ikonen, inte i figuren.</p>
+<p>Duo bär dessutom hela sitt känsloregister i ögonen: ögonvitan, pupillens läge och
+ögonlockets vinkel gör nästan allt arbete, och näbben är en accent. Uppmätt är hans
+ögonvita 31,6 procent av ikonens bredd per öga, alltså 63 procent tillsammans. Våra
+prickar var 12,8 procent. Fem gånger mindre. Vi valde bort exakt det som gör honom
+levande, och lade sedan hela bördan på munnen.</p>
+</div>
 
-<p>Och det senaste beskedet, som är rätt ände att bygga från: munnen och ögonen är
-maskotens kärna. Prikkos identitet är redan ett ansikte. Ordmärket bär två punkter
-och en båge, bedömningsmärkena är samma två punkter med bågen vänd åt tre håll.
-Varje figur här nedanför är därför ritad ansikte först, och varje figur prövas med
-kroppen bortklippt.</p>
+<p class="read">Det här arket är därför byggt i omvänd ordning mot alla tidigare. Först
+figurerna, fria och stora och i rörelse, ritade utan en tanke på 24 px. Sedan märket,
+härlett ur dem genom beskärning och förenkling. Sedan mätningarna. Blir märket sämre är
+det ett problem vi löser då, med en egen förenklad ritning, inte ett skäl att förlama
+figuren från början. Två detaljnivåer är helt normalt, och gränsen är redan mätt: pupillen
+bär ned till 32 px.</p>
+
+<p class="read">Urvalet är också öppnat på nytt. Grävlingen och hunden har inget företräde
+längre, gårdsvätten och tvättbjörnen är tillbaka, och uttern är ny. Det är först nu de får
+visa vad de går för, eftersom det är först nu de har ögon.</p>
 `;
 
 export const RESEARCH = `
@@ -619,4 +635,65 @@ Gunner 2022 och Hobbes 2024 med tolv motion designers</td>
 <p class="note">Källor: design.duolingo.com/illustration/duo och /illustration/shape-language,
 blog.duolingo.com/how-to-draw-duo-the-owl och /reshaping-duo, samt egna mätningar i
 Duolingos publicerade lockup-SVG och app-ikon-SVG från design.duolingo.com/identity/logos.</p>
+`;
+
+export const OGONEN = `
+<h2>Ögonen. Det som var förbjudet och nu är uppdraget</h2>
+
+<p class="read">Det här är rundans hela ärende, så det står före allt annat som handlar om
+mätning. Duo bär sitt känsloregister i ögonen. Vi hade förbjudit ögon.</p>
+
+<div class="kort">
+<h4>Vad förbudet kostade, räknat</h4>
+<table>
+<tr><th></th><th>Duo, uppmätt</th><th>Prikko, tidigare</th><th>Prikko, nu</th></tr>
+<tr><td>Ögonvitans bredd per öga</td><td>31,6 % av ikonen</td><td>Ingen ögonvita.
+Pricken var 12,8 %</td><td>Ögonvita, riktad mot Duos storleksordning</td></tr>
+<tr><td>Båda ögonen tillsammans</td><td>63 % av ikonens bredd</td><td>25,6 %</td>
+<td>Ögonen ska dominera ansiktet</td></tr>
+<tr><td>Pupill</td><td>47,5 % av ögats bredd, aldrig vertikalt centrerad</td>
+<td>Ingen</td><td>Finns, och sitter aldrig centrerad</td></tr>
+<tr><td>Ögonlock</td><td>Egen form som skär in uppifrån, bär känslan</td>
+<td>Fanns inte</td><td>Egen form, fyra vinklar</td></tr>
+<tr><td>Munnens bredd</td><td>Näbben 11,9 % av kroppsbredden</td>
+<td>38,3 % av märkets bredd</td><td>Krymper, eftersom ögonen tar över arbetet</td></tr>
+</table>
+<p class="note">Den sista raden är hela poängen. Vår mun var över tre gånger så bred som
+Duos relativt figuren, och det var ingen stilkänsla utan en konsekvens: när ögonen är
+förbjudna måste munnen ensam bära tre besked. Nu delar de på det.</p>
+</div>
+
+<div class="kort">
+<h4>Ögat är fyra utbytbara delar, inte en prick</h4>
+<ol class="steg">
+<li><b>Ögonvitan.</b> En form, inte nödvändigtvis en cirkel. En aningen oregelbunden form
+läser mer levande än en perfekt.</li>
+<li><b>Pupillen.</b> En solid mörk form som kan flyttas fritt inom ögonvitan. Aldrig
+vertikalt centrerad, vilket är Duolingos egen skrivna regel med motiveringen att en
+centrerad pupill gör figuren obehaglig. Pupillerna konvergerar dessutom svagt inåt.</li>
+<li><b>Ögonlocket.</b> En form i kroppens färg som skär in över ögonvitan uppifrån. Locket
+gör hela känsloarbetet: lutar det inåt är figuren arg, lutar det utåt är den ledsen, ligger
+det lågt och rakt är den trött. Detta är den enskilt billigaste uttrycksbäraren som finns.</li>
+<li><b>Brynet.</b> En separat form ovanför, gärna fritt liggande och inte fastvuxen i
+pannan. Klassiskt grepp med stort utslag.</li>
+</ol>
+<p>Fyra delar per öga betyder att formbudgeten spricker mot Duos femton banor. Det är i sin
+ordning: hans femton är helkroppen med hans ögon, och våra siffror redovisas per figur så
+att jämförelsen går att göra själv.</p>
+</div>
+
+<div class="kort">
+<h4>Varumärkesrisken ökar, och vad vi gör åt den</h4>
+<p>Så länge vi hade solida prickar var avståndet till Duo garanterat: han hade ljust fält
+med mörk kärna, vi hade mörkt fält med ljus kärna. Det var en inversion, inte en variation.
+Den garantin är borta nu, och den måste ersättas av ett medvetet formval.</p>
+<p>Duos ögon är två nästan perfekta cirklar som sitter tätt ihop i en gemensam ljusare
+mask. Det får vår figur inte vara. Fritt och oanvänt: ögon som sitter isär, ögon i olika
+storlek, ögonvita utan gemensam mask, en ögonvita som inte är rund, och ett lock som täcker
+mer av ögat än hos honom.</p>
+<p class="note">Påminnelsen från Buc-ee's mot Mickey's 2026 gäller fortfarande och blir
+viktigare nu: det var inte arten som fällde, det var att båda var "a cartoon animal facing
+right with wide eyes and a smile, overlaying a round background". Vi har nu wide eyes. Då
+måste posen, inramningen och paletten bära avståndet i stället.</p>
+</div>
 `;

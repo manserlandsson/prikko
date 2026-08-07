@@ -87,7 +87,8 @@ export function ritning(m, { steg = 6 } = {}) {
   // av rutorna såg tomma ut. En formlista där formerna inte syns bevisar inget.
   const [bx, by, bw, bh] = vb.split(/[\s,]+/).map(Number);
   const platta = `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#9A9AA2"/>`;
-  const enskilda = delar.map((d, i) => `<div class="cell">
+  const visade = delar.slice(0, 16);
+  const enskilda = visade.map((d, i) => `<div class="cell">
     ${ram(platta + `<use href="#${spokId}" width="${bw}" height="${bh}" x="${bx}" y="${by}"/>` + d.kod, 78)}
     <span>${i + 1}. ${d.tagg}</span>
   </div>`).join('');
@@ -149,7 +150,7 @@ export function ritning(m, { steg = 6 } = {}) {
 </div>
 
 <div class="block">
-  <h4>Formerna, en och en, i ritordning</h4>
+  <h4>Formerna, en och en, i ritordning${delar.length > 16 ? `, de 16 första av ${delar.length}` : ''}</h4>
   <div class="ruta"><div class="rutnat">${enskilda}</div></div>
 </div>
 

@@ -22,7 +22,7 @@ import { writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STIL } from './maskot-ark-stil.mjs';
-import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER, DUOJAMFORELSE } from './maskot-ark-text.mjs';
+import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER, DUOJAMFORELSE, OGONEN } from './maskot-ark-text.mjs';
 import { ritning } from './maskot-ark-ritning.mjs';
 import { RECEPT, omfarga, BAKGRUND } from './maskot-ark-marke.mjs';
 import { GANG_STANDARD, gangKeyframes, blinkSmil, remsa, REMSA_CSS } from './maskot-ark-rorelse.mjs';
@@ -30,16 +30,23 @@ import { baraMunnen, BREDD, TJOCKLEK, RADIE, RIKTNING, pilhojd } from './maskot-
 
 const HAR = dirname(fileURLToPath(import.meta.url));
 
-/* Fem tolkningar ritades oberoende av varandra. Ägaren har sedan valt:
-   grävlingen och hunden går vidare, de tre andra faller. De kvarvarande får
-   hela provbatteriet, de fallna en kort ruta var med skälet, eftersom ett
-   bortval är värt att kunna gå tillbaka till. */
-const ARTER = ['gravling', 'hund'];
-const FALLNA = ['kameleont', 'tvattbjorn', 'vatte'];
+/* Urvalet är öppnat på nytt. Kameleonten är den enda som är död, och den föll
+   på betydelse och inte på form: SAOB ger kameleont om en person som "med egen
+   fördel för ögonen, ändrar mening", alltså anpassling, och Singapores
+   bankförening använder sedan 2024 en kameleont som BEDRAGAREN i sin
+   antibedrägerimaskot, alltså i vår kategori med omvänd symbolik.
+
+   Ordningen här är inte en rangordning. Den figur som ritats om enligt den nya
+   metoden, alltså med riktiga ögon, står först. */
+const ARTER = ['gravling', 'vatte', 'utter', 'tvattbjorn', 'hund'];
+/* Kandidater delas automatiskt: den som har META.raka är omritad enligt den
+   omvända metoden, alltså med riktiga ögon, och tävlar på nya villkor. Den
+   som saknar fältet är kvar i sin gamla form och visas kort, eftersom den
+   inte är jämförbar förrän den fått ögon. */
+const arOmritad = (m) => typeof m.META?.raka === 'number';
+const FALLNA = ['kameleont'];
 const FALLSKAL = {
-  kameleont: 'Ägarens eget uppslag, och det enda djur där färgbytet är artens egenskap. Föll på språket: SAOB ger kameleont om en person som "person som, med egen fördel för ögonen, ändrar mening", alltså anpassling och opportunist. Vår tjänst går ut på motsatsen. Dessutom använder Singapores bankförening sedan 2024 en kameleont som BEDRAGAREN i sin antibedrägerimaskot, alltså i vår kategori med omvänd symbolik, och SUSE äger kameleonten i teknikvärlden sedan 2000.',
-  tvattbjorn: 'Tekniskt tydligast av alla fem i 24 px, och den enda som klarade gråskaleprovet i båda lägena. Föll ändå på tre saker som inte går att rita bort: Naturvårdsverket och Havs- och vattenmyndigheten säger uttryckligen att tvättbjörnen INTE tvättar sin mat, arten är EU-listad invasiv och förbjuden i Sverige, och figuren blev den mest generiskt söta på arket, alltså exakt den AI-arketyp vi ska undvika.',
-  vatte: 'Bäst betydelse av alla. Institutet för språk och folkminnen beskriver tomtegubben som ett väsen som sopade, höll ordning, KRÄVDE renlighet och straffade slarv, alltså Prikkos affärsidé som svensk folktro. Luvspetsen som visare var arkets enda idé granskaren sa sig komma ihåg om en vecka. Föll på två ting: det är inte ett djur, och i rött läge, som är det argaste uttrycket, är den närmast jultomten.',
+  kameleont: 'Ägarens eget uppslag, och det enda djur där färgbytet är artens egenskap. Föll på språket och inte på formen: SAOB ger kameleont om en person som "med egen fördel för ögonen, ändrar mening eller uppträder helt olika allt efter omständigheterna", alltså anpassling och opportunist. Vår tjänst går ut på motsatsen. Dessutom lanserade Singapores bankförening 2024 antibedrägerimaskoten Leon the Skameleon, där kameleonten står för BEDRAGAREN som byter färg för att smälta in. Det är konsumentskydd, alltså vår kategori, med rakt motsatt symbolik. SUSE äger dessutom kameleonten i teknikvärlden sedan 2000.',
 };
 
 const TONER = ['clean', 'minor', 'major'];
@@ -99,8 +106,8 @@ const BAS = { blue: '#007BE0', clean: '#00B92B', minor: '#FECB00', major: '#EB00
 
 let idRaknare = 0;
 
-function inramat(m, { size = 64, ton = 'clean', uttryck = 'clean', siluett = false } = {}) {
-  const inre = m.figur({ size: 100, ton, uttryck, ansikte: true, siluett });
+function inramat(m, { size = 64, ton = 'clean', uttryck = 'clean', siluett = false, detalj } = {}) {
+  const inre = m.figur({ size: 100, ton, uttryck, ansikte: true, siluett, ...(detalj ? { detalj } : {}) });
   const vb = (inre.match(/viewBox="([^"]+)"/) || [null, '0 0 120 120'])[1];
   const kropp = inre.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   const id = `pkram${idRaknare++}`;
@@ -142,48 +149,38 @@ function ramad(inre, ton, ramfarg, size) {
 
 function kontrastprov(m) {
   const recept = Object.keys(RECEPT);
-  const rad = (nyckel, size, gra = false) => TONER.map((t) => {
+  const rad = (nyckel, size) => TONER.map((t) => {
     const r = omfarga(m.figur({ size: 100, ton: t, uttryck: t, ansikte: true }), t, nyckel);
     return ramad(r.svg, t, r.ram, size);
   }).join('');
 
+  // Bantad med flit. Arket leder nu med figurerna, och mätsektionerna ska
+  // finnas och gå att lita på utan att svälla filen. Två storlekar och EN
+  // gråskalerad räcker för att välja recept, resten var upprepning.
   const kort = recept.map((nyckel) => {
     const r = RECEPT[nyckel];
     const matt = TONER.map((t) => {
       const o = omfarga(m.figur({ size: 100, ton: t, uttryck: t, ansikte: true }), t, nyckel);
-      return `${TON_ETIKETT[t]}: figur mot ram ${o.kFigurRam.toFixed(2)}:1, drag mot figur ${o.kDragFigur.toFixed(2)}:1`;
-    }).join('<br>');
-    return `<div class="kort" style="margin:16px 0">
-    <h4 style="margin-bottom:4px">${r.namn}</h4>
-    <p class="note" style="margin:0 0 14px">${r.kort}<br><b>Ger:</b> ${r.varde} <b>Kostar:</b> ${r.pris}</p>
-    <div class="ruta">
-      <div class="rad mitt">
-        <span style="display:flex;gap:10px;align-items:center;margin-right:22px">${rad(nyckel, 56)}</span>
-        <span style="display:flex;gap:8px;align-items:center;margin-right:22px">${rad(nyckel, 32)}</span>
-        <span style="display:flex;gap:6px;align-items:center">${rad(nyckel, 24)}</span>
-      </div>
-      <div class="rad mitt" style="filter:grayscale(1);margin-top:14px">
-        <span style="display:flex;gap:10px;align-items:center;margin-right:22px">${rad(nyckel, 56)}</span>
-        <span style="display:flex;gap:8px;align-items:center;margin-right:22px">${rad(nyckel, 32)}</span>
-        <span style="display:flex;gap:6px;align-items:center">${rad(nyckel, 24)}</span>
-      </div>
-      <p class="note" style="margin:12px 0 0">Övre raden i färg, undre i gråskala. Storlekar
-      56, 32 och 24 px.<br>${matt}</p>
+      return `${TON_ETIKETT[t]} ${o.kFigurRam.toFixed(2)}:1`;
+    }).join(' · ');
+    return `<div class="ruta" style="margin:12px 0">
+    <div class="rad mitt">
+      <span style="width:150px" class="note"><b>${r.namn}</b></span>
+      <span style="display:flex;gap:10px;align-items:center;margin-right:22px">${rad(nyckel, 48)}</span>
+      <span style="display:flex;gap:6px;align-items:center;margin-right:22px">${rad(nyckel, 24)}</span>
+      <span style="display:flex;gap:6px;align-items:center;filter:grayscale(1)">${rad(nyckel, 24)}</span>
     </div>
-    <div class="rad" style="margin-top:12px">
-      ${BAKGRUND.map(([bg, namn]) => `<div class="cell" style="background:${bg};padding:14px 16px;border-radius:10px;border:1px solid var(--hairline)">
-        <div style="display:flex;gap:8px">${rad(nyckel, 32)}</div><span style="margin-top:8px">${namn}</span>
-      </div>`).join('')}
-    </div>
+    <p class="note" style="margin:10px 0 0">${r.kort} <b>Ger:</b> ${r.varde}
+    <b>Kostar:</b> ${r.pris}<br>Figur mot platta: ${matt}</p>
   </div>`;
   }).join('');
 
   return `<div class="block">
   <h4>Kontrastprovet. Fem vägar ur klumpproblemet</h4>
-  <p class="note" style="max-width:680px">Problemet är att figurens huvud och märkets fält
-  har samma färg, och då finns ingen kant. Duo klarar samma upplägg för att hans ansikte har
-  fyra värden inuti det gröna fältet: ljusare ögonmask, vit ögonvita, mörk pupill och gul näbb.
-  Vår figur har ett värde plus vitt. Nedan fem svar, mätta i stället för tyckta.</p>
+  <p class="note" style="max-width:680px">Problemet uppstod när figurens huvud och plattan
+  fick samma färg, alltså fanns ingen kant. Kolumnerna: 48 px i färg, 24 px i färg, 24 px i
+  gråskala. Klarar receptet inte den sista kolumnen bär färgen betydelsen ensam, och det är
+  underkänt oavsett hur bra det ser ut i färg.</p>
   ${kort}
 </div>`;
 }
@@ -519,37 +516,126 @@ function pasidan(m, recept = 'duomork') {
 </div>`;
 }
 
+
+/* ── Härledningen ────────────────────────────────────────────────────────
+ *
+ * Det andra ledet i den omvända metoden. Figuren ritas fri, och märket
+ * HÄRLEDS ur den i fyra steg, precis som Duolingo gör: app-ikonen är inte Duo
+ * förminskad, den är ansiktet beskuret tills ögonmasken går kant i kant, och
+ * kropp, vingar, öron, fötter och en färgnyans offras på vägen.
+ *
+ * Kedjan visas i sin helhet, med varje steg namngivet, så att det går att se
+ * VAR något går förlorat i stället för att bara konstatera att märket blev
+ * sämre eller bättre.
+ */
+function harledning(m) {
+  const stodjerDetalj = (() => {
+    try { return m.figur({ size: 100, ansikte: true, detalj: 'rik' }) !== m.figur({ size: 100, ansikte: true, detalj: 'enkel' }); }
+    catch { return false; }
+  })();
+
+  const steg = [
+    ['1. Figuren fri', m.figur({ size: 150 }),
+     'Ritad utan en tanke på 24 px. Ögonvita, pupill, ögonlock, bryn.'],
+    ['2. Ansiktet beskuret', m.figur({ size: 150, ansikte: true, detalj: 'rik' }),
+     'Beskuret tills ögonpartiet går kant i kant. Kropp, lemmar och svans offras.'],
+    ['3. Förenklat', m.figur({ size: 150, ansikte: true, detalj: stodjerDetalj ? 'enkel' : 'rik' }),
+     stodjerDetalj
+       ? 'Det som inte överlever nedskalning är omritat, inte bortplockat.'
+       : 'Figuren har ännu ingen egen förenklad ritning, så steget visar samma bild som steg 2.'],
+    ['4. Inramat märke', inramat(m, { size: 150, ton: 'clean', uttryck: 'clean' }),
+     'Lagt i FaceMark.astro:s egen ram, 100-ruta med rx 17.'],
+  ];
+
+  const storlekar = [96, 56, 32, 24, 16];
+  return `<div class="block">
+  <h4>Härledningen. Från fri figur till märke, i fyra steg</h4>
+  <div class="ruta">
+    <div class="rad" style="align-items:flex-start;gap:22px">
+      ${steg.map(([namn, svg, text]) => `<div class="cell" style="max-width:170px">
+        ${svg}<span style="margin-top:8px"><b>${namn}</b><br>${text}</span>
+      </div>`).join('')}
+    </div>
+    <p class="note" style="margin:16px 0 0">Blir märket sämre än förut är det ett problem
+    vi löser i steg 3, med en egen förenklad ritning, och inte genom att förlama figuren i
+    steg 1. Två detaljnivåer är helt normalt. Gränsen är mätt: pupillen bär ned till 32 px,
+    vid 24 px blir den ett grumligt hack i ögonvitan och vid 16 px är den borta.</p>
+  </div>
+
+  <div class="ruta" style="margin-top:12px">
+    <h4 style="margin:0 0 10px">Var gränsen faktiskt går</h4>
+    <div class="rad mitt">
+      <span style="width:110px" class="note"><b>Rik</b><br>ögonvita, pupill, lock</span>
+      ${storlekar.map((z) => `<span style="margin-right:14px">${inramat(m, { size: z, ton: 'clean', uttryck: 'clean', detalj: 'rik' })}</span>`).join('')}
+    </div>
+    <div class="rad mitt" style="margin-top:12px">
+      <span style="width:110px" class="note"><b>Enkel</b><br>omritad för litet format</span>
+      ${storlekar.map((z) => `<span style="margin-right:14px">${inramat(m, { size: z, ton: 'clean', uttryck: 'clean', detalj: stodjerDetalj ? 'enkel' : 'rik' })}</span>`).join('')}
+    </div>
+    <p class="note" style="margin:12px 0 0">96, 56, 32, 24 och 16 px. Punkten där den övre
+    raden slutar vara läsbar och den undre fortfarande är det, där går gränsen mellan
+    detaljnivåerna.</p>
+  </div>
+</div>`;
+}
+
 function kort(m, nr) {
   const e = m.META;
+  const ny = typeof e.raka === 'number';
   return `<section class="kort" id="${m.art}">
   <h3 style="margin-top:0">${nr}. ${e.namn}</h3>
   <p class="lead" style="font-size:17px;line-height:26px">${e.koncept}</p>
   <div class="taggar">
+    ${ny ? '<span class="tagg ok">Ritad om med riktiga ögon</span>' : '<span class="tagg varning">Ännu inte omritad, gamla prickögon</span>'}
     <span class="tagg">${e.former} former</span>
     <span class="tagg">${e.farger} färger</span>
-    <span class="tagg ok">Egenhet: ${e.egenhet}</span>
-    <span class="tagg varning">Svaghet: ${e.svaghet}</span>
+    ${ny ? `<span class="tagg ${e.raka < 10 ? 'ok' : 'varning'}">${e.raka} raka linjekommandon</span>` : ''}
   </div>
+  <p class="note" style="max-width:680px"><b>Egenhet:</b> ${e.egenhet}<br><b>Svaghet:</b> ${e.svaghet}</p>
+
   <div class="block">
-    <h4>Grundposen. Figuren mitt i sitt yrke, inte i givakt</h4>
+    <h4>Figuren fri. 320 och 200 px</h4>
     <div class="ruta"><div class="rad mitt">
-      ${[240, 160, 96].map((s) => m.figur({ size: s })).join('')}
+      ${m.figur({ size: 320 })}
+      ${m.figur({ size: 200, uttryck: 'soker' })}
+      ${m.figur({ size: 200, uttryck: 'hittat' })}
     </div></div>
   </div>
+
+  ${rorelseprov(m)}
+  ${uttrycksprov(m)}
+  ${ritning(m)}
+  ${harledning(m)}
+  ${pasidan(m)}
   ${kontrastprov(m)}
   ${ansiktsprov(m)}
   ${tillstandsprov(m)}
   ${siluettprov(m)}
-  ${ritning(m)}
-  ${uttrycksprov(m)}
-  ${rorelseprov(m)}
-  ${pasidan(m)}
 </section>`;
+}
+
+/* Galleriet högst upp: alla kandidater bredvid varandra i stor storlek, innan
+   ett enda mätvärde. Ägaren dömer på hur figuren KÄNNS, och tidigare ark ledde
+   med märken och tabeller, vilket är rätt ordning för den som bygger och fel
+   för den som väljer. */
+function galleri(moduler) {
+  return `<div class="ruta" style="margin:28px 0 8px">
+  <div class="rad mitt" style="gap:36px;justify-content:center">
+    ${moduler.map((m) => `<div class="cell">
+      ${m.figur({ size: 240, klass: 'a-vagga' })}
+      <span style="font-size:14px;margin-top:10px"><b>${m.META.namn}</b></span>
+    </div>`).join('')}
+  </div>
+  <p class="note" style="margin:18px 0 0;text-align:center">Kandidaterna sida vid sida,
+  i den storlek de faktiskt är ritade för. Mätningarna kommer längre ned.</p>
+</div>`;
 }
 
 /* ── Bygget ──────────────────────────────────────────────────────────── */
 
-const moduler = (await Promise.all(ARTER.map(las))).filter(Boolean);
+const alla = (await Promise.all(ARTER.map(las))).filter(Boolean);
+const moduler = alla.filter(arOmritad);
+const gamla = alla.filter((m) => !arOmritad(m));
 const fallna = (await Promise.all(FALLNA.map(las))).filter(Boolean);
 
 /** Kort ruta för en tolkning som valts bort. Grundpose, tre tillstånd, skälet. */
@@ -565,7 +651,29 @@ function fallkort(m) {
 </div>`;
 }
 
-const fallnaSektion = fallna.length ? `<h2>De tre som föll</h2>
+const gamlaSektion = gamla.length ? `<h2>Väntar på omritning</h2>
+<p class="read">De här två är kvar i tävlingen men ännu inte omritade med riktiga ögon,
+och de är därför inte jämförbara med de tre ovan. De visas som de ser ut i dag, med de
+gamla prickögonen, plus rundhetsmätningen som säger var problemet sitter.</p>
+${gamla.map((m) => {
+  const raka = (m.figur({ size: 120 }).match(/[LHVlhv]\s*[-\d.]/g) || []).length;
+  return `<div class="kort" style="margin:16px 0">
+  <h4 style="margin-bottom:6px">${m.META.namn}</h4>
+  <div class="taggar">
+    <span class="tagg varning">Gamla prickögon</span>
+    <span class="tagg ${raka < 10 ? 'ok' : 'varning'}">${raka} raka linjekommandon</span>
+    <span class="tagg">${m.META.former} former</span>
+  </div>
+  <div class="ruta"><div class="rad mitt">
+    ${m.figur({ size: 150 })}
+    ${TONER.map((t) => m.figur({ size: 72, ton: t, uttryck: t })).join('')}
+    ${TONER.map((t) => inramat(m, { size: 40, ton: t, uttryck: t })).join('')}
+  </div></div>
+  <p class="note" style="margin:12px 0 0">${m.META.egenhet} <b>Svaghet:</b> ${m.META.svaghet}</p>
+</div>`;
+}).join('')}` : '';
+
+const fallnaSektion = fallna.length ? `<h2>Den som föll</h2>
 <p class="read">Alla fem ritades färdigt innan någon valde. Det är hela poängen med att
 gå brett först: ett bortval som är gjort mot en färdig ritning är värt något, ett bortval
 som är gjort mot en beskrivning är det inte. Här är de tre, med skälet.</p>
@@ -588,6 +696,9 @@ const html = `<!doctype html>
 <div class="wrap">
   <div class="read">
     <h1>Prikkos maskot, ${moduler.length} tolkningar</h1>
+  </div>
+  ${galleri(moduler)}
+  <div class="read">
     ${INGRESS}
   </div>
   ${RESEARCH}
@@ -595,6 +706,7 @@ const html = `<!doctype html>
   ${FALTET}
   ${LAGEN}
   ${MUNSEKTION}
+  ${OGONEN}
   <h2>Tolkningarna</h2>
   <p class="read">Ritade oberoende av varandra, var och en av en egen agent som inte
   såg de andras arbete. Alla följer samma kontrakt och visas i samma prov, så de går
