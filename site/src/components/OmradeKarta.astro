@@ -1,0 +1,542 @@
+---
+/**
+ * Områdets karta: en riktig karta med gator och omgivning, med gränsen ovanpå.
+ *
+ * Här låg tidigare en ritad kontur: en blå polygon med prickar i, svävande i
+ * vitt. Ägarens dom var att det inte var en karta, och den är riktig. En
+ * kontur visar formen på ett administrativt område, vilket är det enda ingen
+ * besökare undrar över. Den som läser om Bandhagen vill veta VAR i Stockholm
+ * det ligger och vad som finns runt omkring, och den frågan kan bara en karta
+ * med omgivning besvara.
+ *
+ * Fyra saker följer av det, och alla fyra är krav och inte smak:
+ *
+ * 1. **Riktiga kartblad.** MapLibre mot vår egen stil, samma som kartsöksidan
+ *    och kommunhubben. Gator, vatten och kvarter, inte tomt papper.
+ * 2. **Gränsen är ett LAGER, inte bilden.** Den ligger ovanpå kartan som en
+ *    markering och tar inte hela ytan i anspråk.
+ * 3. **Omgivningen syns och går att panorera till.** Ett område är ingen ö.
+ *    Fönstret öppnar därför vidare än gränsen, se PADDING nedan.
+ * 4. **Verksamheterna utanför gränsen ritas också**, nedtonade. Ett område
+ *    där allt utanför är tomt ser ut som ett fel, och gränsen betyder
+ *    ingenting om det inte finns något på andra sidan den.
+ *
+ * ## Vikten
+ *
+ * Villkoren för uppvaknandet är ordagrant KartaPuffs, och skälen står där i
+ * sin helhet: MapLibre väger 231 kB brotlat och får aldrig ligga i
+ * sidladdningen. Kartan vaknar när rutan syns, efter `load`, i en
+ * tomgångslucka, och den vaknar inte alls vid `saveData`, vid uppkoppling
+ * sämre än 4g eller vid `prefers-reduced-data`. Den som kommer från Google på
+ * en telefon med dålig uppkoppling får stillbilden och knappen och betalar
+ * noll extra byte.
+ *
+ * Punkterna hämtas ur kommunens egen kartdatafil, alltså samma oföränderliga
+ * fil som kommunhubben och kartsöksidan redan använder. Ingen ny datamängd,
+ * och för den som redan sett kommunsidan ligger den i cachen.
+ *
+ * ## Var gränsen delas
+ *
+ * Vilken punkt som ligger innanför avgörs på TVÅ ställen: här vid bygget för
+ * stillbilden, och i webbläsaren för den levande kartan. De måste svara
+ * likadant, annars hoppar prickarna färg i samma sekund som kartbladen kommer.
+ * Byggsidan använder containsPoint i lib/omraden.ts; klientsidan har samma
+ * strålmetod inlagd nedan, eftersom modulen inte följer med till webbläsaren.
+ */
+import type { Municipality } from '../lib/data';
+import { formatNumber } from '../lib/data';
+import type { MapDataset } from '../lib/map-data';
+import { areaBounds, containsPoint, type Area } from '../lib/omraden';
+import { path } from '../lib/urls';
+import '../styles/kartram.css';
+
+interface Props {
+  kommun: Municipality;
+  area: Area;
+  data: MapDataset;
+  /** Antal verksamheter i området. Bara för den alternativa texten. */
+  count: number;
+}
+
+const { kommun, area, data, count } = Astro.props;
+
+/** Stillbildens låda. Ramen är bredare än hög, som en kartvy ska vara. */
+const W = 640;
+const H = 420;
+
+/**
+ * Hur mycket utanför gränsen fönstret öppnar, som andel av områdets egen
+ * storlek per axel.
+ *
+ * Det här är punkt 3 ovan uttryckt som ett tal. Noll gav den kritiserade
+ * bilden: gränsen fyllde rutan kant i kant och ingenting fanns utanför den.
+ * Fyrtio procent är valt för att Gamla stan, som är vårt minsta område med
+ * egen sida, då får med Slussen, Norrmalm och en bit av Riddarfjärden, alltså
+ * tillräckligt för att man ska se var i staden det ligger. Södermalm, som är
+ * det största, får med Kungsholmen och Årsta utan att staden blir ett suddigt
+ * översiktsläge.
+ */
+const PADDING = 0.4;
+
+const [aw, as, ae, an] = areaBounds(area);
+const padX = (ae - aw) * PADDING;
+const padY = (an - as) * PADDING;
+let west = aw - padX;
+let east = ae + padX;
+let south = as - padY;
+let north = an + padY;
+
+// Breddgradskorrigering, samma som KartaPuff: en longitudgrad är smalare än
+// en latitudgrad utanför ekvatorn, och utan cosinus blir varje svensk stad
+// dubbelt så bred som i verkligheten.
+const kx = Math.cos(((south + north) / 2) * (Math.PI / 180));
+
+/*
+ * Fönstret vidgas till ramens proportion i stället för att bilden rymmas i
+ * ramen. Skälet är KartaPuffs, mätt och utskrivet där: en rymd bild lämnar
+ * tomma remsor vid sidan om, och en kartvy lägger aldrig sådana. Här VIDGAR
+ * vi i stället för att beskära, eftersom mer omgivning aldrig är fel på just
+ * den här kartan; att beskära hade kunnat klippa bort halva området.
+ */
+const ratio = W / H;
+const spanY = north - south;
+const spanX = (east - west) * kx;
+if (spanX / spanY < ratio) {
+  const want = (spanY * ratio) / kx;
+  const mid = (west + east) / 2;
+  west = mid - want / 2;
+  east = mid + want / 2;
+} else {
+  const want = spanX / ratio;
+  const mid = (south + north) / 2;
+  south = mid - want / 2;
+  north = mid + want / 2;
+}
+
+const scale = W / ((east - west) * kx);
+
+function px(lon: number, lat: number): [number, number] {
+  return [(lon - west) * kx * scale, (north - lat) * scale];
+}
+
+/* Områdets kontur som SVG-bana. Ytterringar och hål i samma bana, så att
+   `fill-rule: evenodd` gör hålen till hål. */
+const outline = [...area.outer, ...area.inner]
+  .map(
+    (ring) =>
+      ring
+        .map(([lon, lat], i) => {
+          const [x, y] = px(lon, lat);
+          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+        })
+        .join('') + 'Z',
+  )
+  .join('');
+
+/*
+ * Punkterna packas upp ur kommunens kartdatafil: deltakodade heltal i
+ * hundratusendels grad, se formatavsnittet i map-data.ts.
+ */
+const raw = JSON.parse(data.body) as { x: number[]; y: number[]; v: string };
+
+/*
+ * En bana per bedömning plus en för allt utanför gränsen. "M123 45h0" med
+ * rund linjeände är en punkt för en tiondel av markupen, samma grepp som
+ * KartaPuff använder för att få plats med 8 511 punkter i en sida på 30 kB.
+ */
+/*
+ * Punkterna utanför gränsen behåller sin BEDÖMNINGSFÄRG och tonas ned med
+ * storlek och opacitet, aldrig med grått.
+ *
+ * Grått betyder "ingen bedömning" överallt annars på sajten. Ritade vi allt
+ * utanför området grått hade samma färg fått en andra betydelse på just den
+ * här kartan, och en grön restaurang tvärs över gatan hade sett ut som en
+ * okontrollerad. Vikten säger vad som är sammanhang; färgen fortsätter säga
+ * vad den alltid säger.
+ */
+const inne: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
+const ute: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
+
+let lng = 0;
+let lat = 0;
+for (let i = 0; i < raw.x.length; i += 1) {
+  lng += raw.x[i];
+  lat += raw.y[i];
+  const lon = lng / 1e5;
+  const la = lat / 1e5;
+
+  const x = (lon - west) * kx * scale;
+  const y = (north - la) * scale;
+  // Utanför fönstret ritas ingenting. Det ÄR beskärningen, och den görs här
+  // så att punkter i andra änden av kommunen inte blir stora tal i markupen
+  // utan att någon får se dem.
+  if (x < -4 || x > W + 4 || y < -4 || y > H + 4) continue;
+
+  const dot = `M${Math.round(x)} ${Math.round(y)}h0`;
+  if (containsPoint(area, lon, la)) inne[raw.v[i]]?.push(dot);
+  else ute[raw.v[i]]?.push(dot);
+}
+
+const FARG: Record<string, string> = {
+  '3': 'var(--verdict-none)',
+  '0': 'var(--verdict-clean)',
+  '1': 'var(--verdict-minor)',
+  '2': 'var(--verdict-major)',
+};
+
+/* Ritordning: allt utanför först, sedan områdets egna. Inom varje grupp
+   grått, grönt, gult, rött, så att en anmärkning aldrig hamnar under
+   mängden. */
+const LAGER = [
+  ...['3', '0', '1', '2'].map((v) => ({ d: ute[v].join(''), color: FARG[v], ute: true })),
+  ...['3', '0', '1', '2'].map((v) => ({ d: inne[v].join(''), color: FARG[v], ute: false })),
+];
+
+const label = `Karta över ${area.name} i ${kommun.city} med ${formatNumber(count)} verksamheter`;
+
+/* Ringarna skickas till webbläsaren för att ritas som lager och för att
+   avgöra vad som ligger innanför. Fem decimaler räcker till en meter och är
+   samma precision som pipelinen lagrar. */
+const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
+---
+
+<figure class="omradeskarta">
+  <div
+    class="kartram"
+    data-omradeskarta
+    data-src={data.url}
+    data-bounds={[west, south, east, north].join(',')}
+    data-rings={rings}
+    data-label={label}
+  >
+    <div class="still" data-still>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+        <path d={outline} class="yta" fill-rule="evenodd" />
+        {LAGER.map((l) => l.d && (
+          <path
+            d={l.d}
+            stroke={l.color}
+            stroke-width={l.ute ? 3 : 5}
+            stroke-opacity={l.ute ? 0.5 : 1}
+            stroke-linecap="round"
+            fill="none"
+          />
+        ))}
+      </svg>
+      <button type="button" class="knapp" data-aktivera>Visa kartan</button>
+    </div>
+
+    <div class="duk" data-duk aria-hidden="true"></div>
+
+    <p class="fel" data-fel hidden role="alert">Kartan gick inte att ladda.</p>
+  </div>
+
+  <figcaption>
+    <a href={path(`/${kommun.slug}`, 'karta')}>Sök på kartan över {kommun.city}</a>
+  </figcaption>
+</figure>
+
+<style>
+  .omradeskarta { margin: 0; }
+
+  /* Rutan sätter sitt eget mått, ramen kommer från kartram.css. */
+  .kartram {
+    aspect-ratio: 640 / 420;
+  }
+
+  @media (max-width: 560px) {
+    .kartram { aspect-ratio: 4 / 3; }
+  }
+
+  .still,
+  .duk {
+    position: absolute;
+    inset: 0;
+  }
+
+  .still svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Ytan är tonad och kanten tydlig. Gränsen ska läsa som en markering ovanpå
+     en karta, inte som en figur på ett papper: fyllningen får därför vara
+     nästan omärklig och det är LINJEN som bär. */
+  .yta {
+    fill: color-mix(in srgb, var(--brand) 10%, transparent);
+    stroke: var(--brand);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-opacity: 0.75;
+  }
+
+  /* Duken ligger under stillbilden tills kartan är målad, så att bytet inte
+     blinkar. Samma ordning som KartaPuff. */
+  .duk { opacity: 0; }
+  .kartram.live .duk { opacity: 1; }
+  .kartram.live .still { opacity: 0; pointer-events: none; }
+
+  .knapp {
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-end: var(--s-3);
+    transform: translateX(-50%);
+    padding: var(--s-2) var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: var(--text);
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .fel {
+    position: absolute;
+    inset-inline: var(--s-3);
+    inset-block-end: var(--s-3);
+    margin: 0;
+    font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  figcaption {
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+</style>
+
+<script>
+  /**
+   * Uppvaknandet. Villkoren är KartaPuffs, ordagrant, och resonemanget står
+   * där: rutan ska synas, sidan ska vara klar, huvudtråden ska vara ledig, och
+   * uppkopplingen ska tåla en halv megabyte.
+   */
+  import { KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+
+  const root = document.querySelector<HTMLElement>('[data-omradeskarta]');
+
+  if (root) {
+    const duk = root.querySelector<HTMLElement>('[data-duk]')!;
+    const still = root.querySelector<HTMLElement>('[data-still]')!;
+    const knapp = root.querySelector<HTMLButtonElement>('[data-aktivera]')!;
+    const fel = root.querySelector<HTMLElement>('[data-fel]')!;
+
+    /* Bedömningens ytfärger. Samma värden som tokens.css, skrivna som tal av
+       samma skäl som i Karta.astro och KartaPuff: MapLibre målar i WebGL och
+       kan inte läsa en CSS-variabel. */
+    const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
+    /** --brand i tokens.css. Ändras den där ändras den här. */
+    const BRAND = '#007BE0';
+
+    type Ringar = { outer: number[][][]; inner: number[][][] };
+    const ringar: Ringar = JSON.parse(root.dataset.rings!);
+
+    /** Strålmetoden. Samma test som lib/omraden.ts gör vid bygget. */
+    function iRing(x: number, y: number, ring: number[][]): boolean {
+      let inne = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+        const [xi, yi] = ring[i];
+        const [xj, yj] = ring[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inne = !inne;
+      }
+      return inne;
+    }
+
+    function iOmradet(x: number, y: number): boolean {
+      if (!ringar.outer.some((r) => iRing(x, y, r))) return false;
+      return !ringar.inner.some((r) => iRing(x, y, r));
+    }
+
+    let startad = false;
+
+    async function start() {
+      if (startad) return;
+      startad = true;
+      knapp.disabled = true;
+
+      try {
+        laddaMaplibreCss();
+        const [maplibre, raw] = await Promise.all([
+          laddaMaplibre(),
+          fetch(root!.dataset.src!).then((r) => r.json()) as Promise<{
+            x: number[];
+            y: number[];
+            v: string;
+          }>,
+        ]);
+
+        /* Byter namn på MapLibres Map: den skuggar annars JavaScripts inbyggda
+           i hela funktionen. Se den dyrköpta anteckningen i Karta.astro. */
+        const {
+          Map: MapLibreKarta,
+          NavigationControl,
+          AttributionControl,
+          FullscreenControl,
+        } = maplibre;
+
+        const inne: GeoJSON.Feature[][] = [[], [], [], []];
+        const uteHinkar: GeoJSON.Feature[][] = [[], [], [], []];
+        let lng = 0;
+        let lat = 0;
+        for (let i = 0; i < raw.x.length; i += 1) {
+          lng += raw.x[i];
+          lat += raw.y[i];
+          const lon = lng / 1e5;
+          const la = lat / 1e5;
+          const v = Number(raw.v[i]);
+          const f: GeoJSON.Feature = {
+            type: 'Feature',
+            properties: { v },
+            geometry: { type: 'Point', coordinates: [lon, la] },
+          };
+          if (iOmradet(lon, la)) inne[v]?.push(f);
+          else uteHinkar[v]?.push(f);
+        }
+        // Grått, grönt, gult, rött. En anmärkning ska inte hamna under mängden.
+        const innePunkter = [...inne[3], ...inne[0], ...inne[1], ...inne[2]];
+        const utePunkter = [...uteHinkar[3], ...uteHinkar[0], ...uteHinkar[1], ...uteHinkar[2]];
+
+        const b = root!.dataset.bounds!.split(',').map(Number);
+
+        const karta = new MapLibreKarta({
+          container: duk,
+          style: KARTSTIL,
+          bounds: [[b[0], b[1]], [b[2], b[3]]],
+          // Noll padding: fönstret är redan vidgat vid bygget, så kartbladen
+          // lägger sig exakt där stillbildens punkter redan står.
+          fitBoundsOptions: { padding: 0, animate: false },
+          attributionControl: false,
+        });
+
+        karta.addControl(new FullscreenControl({ container: root! }), 'top-right');
+        karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+        karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
+
+        karta.on('load', () => {
+          /* Gränsen först, så att den ligger UNDER punkterna. Den är en
+             markering av var man är, inte sidans motiv. */
+          karta.addSource('omrade', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'Polygon',
+                coordinates: [...ringar.outer, ...ringar.inner],
+              },
+            },
+          });
+          karta.addLayer({
+            id: 'omrade-yta',
+            type: 'fill',
+            source: 'omrade',
+            paint: { 'fill-color': BRAND, 'fill-opacity': 0.08 },
+          });
+          karta.addLayer({
+            id: 'omrade-kant',
+            type: 'line',
+            source: 'omrade',
+            paint: { 'line-color': BRAND, 'line-width': 2, 'line-opacity': 0.75 },
+          });
+
+          /* Det som ligger utanför gränsen. Nedtonat, aldrig dolt: gränsen
+             betyder ingenting om det inte finns något på andra sidan den.
+
+             Nedtoningen sker med STORLEK och OPACITET, inte med färg. Se
+             anteckningen vid stillbilden: grått betyder "ingen bedömning"
+             överallt annars på sajten och får inte låna en andra betydelse
+             här. */
+          karta.addSource('ute', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: utePunkter },
+          });
+          karta.addLayer({
+            id: 'ute',
+            type: 'circle',
+            source: 'ute',
+            paint: {
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 3.5, 17, 5],
+              'circle-color': ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]],
+              'circle-opacity': 0.5,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff',
+              'circle-stroke-opacity': 0.5,
+            },
+          });
+
+          karta.addSource('inne', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: innePunkter },
+          });
+          karta.addLayer({
+            id: 'inne',
+            type: 'circle',
+            source: 'inne',
+            paint: {
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5, 17, 8],
+              'circle-color': ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]],
+              // Vit kontur av samma skäl som nålen har den: utan kant drunknar
+              // en gul punkt i en gul gata.
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff',
+            },
+          });
+
+          karta.getCanvas().setAttribute('aria-label', root!.dataset.label!);
+          duk.removeAttribute('aria-hidden');
+          root!.classList.add('live');
+          still.setAttribute('aria-hidden', 'true');
+        });
+      } catch (error) {
+        console.error(error);
+        // Stillbilden står kvar. Den bär samma punkter och samma gräns.
+        fel.hidden = false;
+        knapp.hidden = true;
+      }
+    }
+
+    knapp.addEventListener('click', start);
+
+    /** Tål uppkopplingen en karta? Se KartaPuff för varför villkoren är hårda. */
+    function uppkopplingenTal(): boolean {
+      const c = (navigator as any).connection;
+      if (c) {
+        if (c.saveData) return false;
+        if (c.effectiveType && c.effectiveType !== '4g') return false;
+      }
+      return !window.matchMedia('(prefers-reduced-data: reduce)').matches;
+    }
+
+    if (uppkopplingenTal()) {
+      knapp.hidden = true;
+
+      const nar = (fn: () => void) => {
+        const idle = (window as any).requestIdleCallback;
+        if (idle) idle(fn, { timeout: 3000 });
+        else setTimeout(fn, 200);
+      };
+
+      const efterLoad = (fn: () => void) => {
+        if (document.readyState === 'complete') nar(fn);
+        else window.addEventListener('load', () => nar(fn), { once: true });
+      };
+
+      if ('IntersectionObserver' in window) {
+        const obs = new IntersectionObserver(
+          (poster) => {
+            if (!poster.some((p) => p.isIntersecting)) return;
+            obs.disconnect();
+            efterLoad(start);
+          },
+          { rootMargin: '200px' },
+        );
+        obs.observe(root);
+      } else {
+        efterLoad(start);
+      }
+    }
+  }
+</script>

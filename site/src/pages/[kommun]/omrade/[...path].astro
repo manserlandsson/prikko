@@ -1,0 +1,59 @@
+---
+/**
+ * Områdessidorna: /[kommun]/omrade/[omrade][/sida/[n]].
+ *
+ * En routefil för båda formerna, av samma skäl som kategorisidorna har det:
+ * två filer som beskriver samma serie glider isär, och vi räknar ut sidorna
+ * själva med slicePage i stället för att använda Astros paginate(), som lägger
+ * sida 1 på seriens rotparameter.
+ *
+ * Ett område som inte förtjänar en URL får ingen. Se MIN_AREA_PAGE i
+ * lib/omraden.ts, och resonemanget om gränskällan i pipeline/omraden.py.
+ */
+import OmradeHub from '../../../components/OmradeHub.astro';
+import { municipalities, type Municipality } from '../../../lib/data';
+import { areaListing, areaSlice, linkedAreas } from '../../../lib/omraden';
+import { slicePage, tailPages } from '../../../lib/pagination';
+
+interface PathProps {
+  kommun: Municipality;
+  areaSlug: string;
+  n: number;
+}
+
+export async function getStaticPaths() {
+  const paths: Array<{ params: { kommun: string; path: string }; props: PathProps }> = [];
+
+  for (const kommun of municipalities()) {
+    for (const slice of linkedAreas(kommun.slug)) {
+      const base = slice.area.slug;
+      const push = (path: string, n: number) => {
+        paths.push({
+          params: { kommun: kommun.slug, path },
+          props: { kommun, areaSlug: slice.area.slug, n },
+        });
+      };
+      push(base, 1);
+      for (const n of tailPages(slice.count)) push(`${base}/sida/${n}`, n);
+    }
+  }
+
+  return paths;
+}
+
+const { kommun, areaSlug, n } = Astro.props as PathProps;
+
+// linkedAreas har redan garanterat att området finns; uppslaget kan inte missa.
+const slice = areaSlice(kommun.slug, areaSlug)!;
+const page = slicePage(areaListing(kommun.slug, areaSlug), n);
+---
+
+<OmradeHub
+  kommun={kommun}
+  slice={slice}
+  items={page.items}
+  currentPage={page.currentPage}
+  lastPage={page.lastPage}
+  start={page.start}
+  total={page.total}
+/>

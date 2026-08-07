@@ -1,0 +1,410 @@
+---
+/**
+ * Områdessidan: stadsdelen som egen adress.
+ *
+ * Sidan svarar på fyra saker och ingenting mer. Vilka ställen finns här, hur
+ * ser det ut mot kommunen i stort, var i området ligger de, och vad finns
+ * intill. Allt annat hör hemma på kommunhubben eller på verksamhetssidan.
+ *
+ * Formen är kommunhubbens och kategorisidans: hårlinje och luft, inga ramar i
+ * huvudkolumnen, ingen ingress som beskriver vad sidan innehåller. Kartan är
+ * det enda som bär en ram, och den bär den för att en karta utan kant flyter
+ * ihop med sidan.
+ */
+import Base from '../layouts/Base.astro';
+import EstablishmentList from './EstablishmentList.astro';
+import OmradeKarta from './OmradeKarta.astro';
+import Pagination from './Pagination.astro';
+import { formatNumber, type Establishment, type Municipality } from '../lib/data';
+import { mapDataset } from '../lib/map-data';
+import {
+  areaPreposition,
+  municipalityCleanShare,
+  nearbyAreas,
+  type AreaSlice,
+} from '../lib/omraden';
+import { pageUrl } from '../lib/pagination';
+import { SITE, VERDICT } from '../lib/site';
+import { absolute, path } from '../lib/urls';
+
+interface Props {
+  kommun: Municipality;
+  slice: AreaSlice;
+  items: Establishment[];
+  currentPage: number;
+  lastPage: number;
+  start: number;
+  total: number;
+}
+
+const { kommun, slice, items, currentPage, lastPage, start, total } = Astro.props;
+
+const city = kommun.city;
+const area = slice.area;
+const kommunBase = `/${kommun.slug}`;
+const base = `${kommunBase}/omrade/${area.slug}`;
+
+const prep = areaPreposition(area.name);
+const platsen = `${prep} ${area.name}`;
+
+/*
+ * Andelen räknas på BEDÖMDA och aldrig på totalen, samma regel som gäller
+ * överallt annars på sajten. Med totalen som nämnare hade ett område där
+ * kommunen kontrollerat lite sett sämre ut än ett där den kontrollerat mycket.
+ */
+const share = slice.assessed ? Math.round((slice.clean / slice.assessed) * 100) : 0;
+const kommunen = municipalityCleanShare(kommun.slug);
+
+/** Kartan. Finns bara där kommunen har koordinater, alltså överallt där ett
+ *  område alls kan ha en sida. */
+const karta = mapDataset(kommun.slug);
+
+/*
+ * Fördelningen som stapel och antal, i kommunhubbens egen form: en tunn rad
+ * med färgband och siffror, inga rutor.
+ *
+ * Här stod tidigare precis samma tal utskrivna som mening, "1 197
+ * verksamheter på Södermalm, 939 av de 1 037 vi kan bedöma fick inga
+ * anmärkningar...". Det är den förklarande brödtext docs/18 förbjuder: talen
+ * ska VISAS, inte berättas.
+ *
+ * Formen är KommunOversikts, men komponenten återanvänds inte. Dess rubrik
+ * lyder "Fördelning i kommunen", vilket är fel påstående på en områdessida,
+ * och den bär ett id som skulle bli en dubblett om båda sidorna använde den.
+ * Att lägga till en rubrikflagga där hade ändrat en fil som hör till
+ * kommunhubben för en sidtyp som inte gör det.
+ *
+ * Färgerna är bedömningens egna och betyder här vad de betyder överallt
+ * annars. Varje segment bär sin etikett i text: färg ensam är aldrig ett
+ * budskap.
+ */
+const segments = [
+  { n: slice.clean, label: VERDICT.clean.label, surface: 'var(--verdict-clean)' },
+  { n: slice.minor, label: VERDICT.minor.label, surface: 'var(--verdict-minor)' },
+  { n: slice.major, label: VERDICT.major.label, surface: 'var(--verdict-major)' },
+  // "Ingen bedömning" är inte en nivå och får aldrig läsas som en mild
+  // variant av de andra. Därför grått, och därför sist.
+  { n: total - slice.assessed, label: 'Ingen bedömning', surface: 'var(--verdict-none)' },
+].filter((s) => s.n > 0);
+
+const barLabel = segments.map((s) => `${s.label}: ${formatNumber(s.n)}`).join('. ');
+
+/** Andel i hela procent. Visas inte under 1 %, eftersom "0 %" bredvid ett tal
+ *  som inte är noll läser som ett fel. */
+function share100(n: number): string | null {
+  if (!total) return null;
+  const pct = Math.round((n / total) * 100);
+  return pct >= 1 ? `${pct} %` : null;
+}
+
+/*
+ * Meningen nedan syns inte på sidan. Den är sidans meta-beskrivning, som
+ * måste vara en mening, och den enda rad ett AI-svar sannolikt citerar.
+ */
+const answer =
+  slice.assessed > 0
+    ? `${formatNumber(total)} verksamheter ${platsen}. ${formatNumber(slice.clean)} av de ` +
+      `${formatNumber(slice.assessed)} vi kan bedöma fick inga anmärkningar vid sin senaste ` +
+      `hygienkontroll, ${formatNumber(slice.minor + slice.major)} fick anmärkningar.`
+    : `${formatNumber(total)} verksamheter ${platsen}. Ingen av dem har en kontroll som går att bedöma.`;
+
+const grannar = currentPage === 1 ? nearbyAreas(kommun.slug, area.slug) : [];
+
+const title =
+  currentPage === 1
+    ? `Hygienkontroller ${platsen}, ${city}`
+    : `Hygienkontroller ${platsen}, ${city}, sida ${currentPage} av ${lastPage}`;
+
+const description =
+  currentPage === 1
+    ? answer
+    : `Verksamhet ${formatNumber(start)}–${formatNumber(start + items.length - 1)} av ` +
+      `${formatNumber(total)} ${platsen} i ${city}, i bokstavsordning. Sida ${currentPage} av ${lastPage}.`;
+
+const crumbs = [
+  { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+  { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommunBase) },
+  ...(currentPage === 1
+    ? [{ '@type': 'ListItem', position: 3, name: area.name }]
+    : [
+        { '@type': 'ListItem', position: 3, name: area.name, item: absolute(base) },
+        { '@type': 'ListItem', position: 4, name: `Sida ${currentPage}` },
+      ]),
+];
+
+const jsonLd = [
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Verksamheter ${platsen}, ${city}`,
+    numberOfItems: total,
+    // Bara sidans egna poster, med sin riktiga position i hela listan.
+    itemListElement: items.slice(0, 25).map((e, i) => ({
+      '@type': 'ListItem',
+      position: start + i,
+      url: absolute(kommunBase, e.slug),
+      name: e.name,
+    })),
+  },
+];
+
+const prev = currentPage > 1 ? pageUrl(base, currentPage - 1, SITE.url) : undefined;
+const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) : undefined;
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} prev={prev} next={next}>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(kommunBase)}>{city}</a>
+      {currentPage > 1 && (
+        <>
+          <span aria-hidden="true">›</span>
+          <a href={path(base)}>{area.name}</a>
+        </>
+      )}
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">{kommun.name}</p>
+      <h1>
+        Hygienkontroller {platsen}
+        {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
+      </h1>
+      {/* Omfånget som tal, inte som mening. Samma form som kedjesidans rad
+          under namnet. */}
+      <p class="omfang">
+        {formatNumber(total)} verksamheter
+        {currentPage > 1 && (
+          <> · {formatNumber(start)}–{formatNumber(start + items.length - 1)}, sida {currentPage} av {lastPage}</>
+        )}
+      </p>
+    </header>
+
+    {currentPage === 1 && (
+      <>
+        <section class="fordelning" aria-labelledby="fordelning-rubrik">
+          <h2 id="fordelning-rubrik" class="eyebrow">Bedömning {platsen}</h2>
+
+          <div class="bar" role="img" aria-label={barLabel}>
+            {segments.map((s) => (
+              <span style={`width:${(s.n / total) * 100}%;background:${s.surface}`}></span>
+            ))}
+          </div>
+
+          <ul class="legend">
+            {segments.map((s) => {
+              const pct = share100(s.n);
+              return (
+                <li>
+                  <span class="swatch" style={`background:${s.surface}`} aria-hidden="true"></span>
+                  <b>{formatNumber(s.n)}</b>
+                  <span class="lbl">{s.label}</span>
+                  {pct && <span class="pct">{pct}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* Jämförelsen mot kommunen i stort. Två tal under en etikett, inga
+            rutor och ingen mening: det är data, inte ett resonemang. Står
+            bara när båda talen har underlag, annars jämför den ingenting. */}
+        {slice.assessed > 0 && kommunen.assessed > 0 && (
+          <dl class="jamfor">
+            <dt>Utan anmärkningar</dt>
+            <dd><b>{share} %</b> {area.name}</dd>
+            <dd><b>{kommunen.share} %</b> {city}</dd>
+          </dl>
+        )}
+
+        {karta && (
+          <div class="karta">
+            <OmradeKarta kommun={kommun} area={area} data={karta} count={total} />
+            {/* Attributionen står här OCH i kartans hörn, av samma skäl som i
+                Karta.astro: kravet är att den syns, och ett kontrollelement
+                som kan fällas ihop är ingen garanti. */}
+            <p class="attribution text-muted">
+              Kartdata och områdesgräns <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
+              kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
+            </p>
+          </div>
+        )}
+      </>
+    )}
+
+    <EstablishmentList items={items} kommunSlug={kommun.slug} />
+
+    <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter ${platsen}`} />
+
+    <footer class="foot">
+      {grannar.length > 0 && (
+        <nav aria-label={`Områden intill ${area.name}`}>
+          <p class="text-secondary">Områden intill</p>
+          <ul class="others">
+            {grannar.map((g) => (
+              <li>
+                <a href={path(kommunBase, 'omrade', g.area.slug)}>
+                  {g.area.name} <span class="text-muted">{formatNumber(g.count)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <p>
+        <a href={path(kommunBase)}>Se alla verksamheter i {city}</a>
+      </p>
+    </footer>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: var(--w-page);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    margin-top: var(--s-1);
+  }
+
+  .head h1 span { font-weight: 400; }
+
+  .omfang {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Fördelningen. Samma mått och samma språk som kommunhubbens rad, se
+     KommunOversikt.astro: ett åtta pixlar högt band och en teckenförklaring
+     i caption-grad. Inget kort, ingen ram. */
+  .fordelning { margin-top: var(--s-6); }
+
+  .bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: var(--s-2);
+    background: var(--verdict-none);
+  }
+
+  .bar > span { display: block; height: 100%; }
+
+  .legend {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-4);
+  }
+
+  .legend li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Färgprickens enda uppgift är att koppla posten till sitt segment i
+     bandet. Betydelsen står i texten bredvid, så prickens kontrast bär ingen
+     information. */
+  .swatch {
+    flex-shrink: 0;
+    align-self: center;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  .legend b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lbl { color: var(--text-secondary); }
+  .pct { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  /* Två tal under en etikett. Ingen ram och ingen bakgrund: raden är
+     sammanhang, inte ett resultat som behöver inramning. */
+  .jamfor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2) var(--s-4);
+    margin: var(--s-6) 0 0;
+  }
+
+  .jamfor dt {
+    flex-basis: 100%;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .jamfor dd {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .jamfor b {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .karta { margin-top: var(--s-6); }
+
+  .attribution {
+    margin-top: var(--s-2);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+  }
+
+  .foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .foot p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .others {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    list-style: none;
+    margin: var(--s-2) 0 var(--s-6);
+    padding: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .others .text-muted {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
