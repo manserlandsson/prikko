@@ -39,7 +39,6 @@ import {
 import { articleFiles, sectionReady } from './artiklar';
 import { mapDataset } from './map-data';
 import { hasMatsnuskPage } from './matsnusk';
-import { linkedAreas } from './omraden';
 import { hasMovementPage, hasNationalPage, movement } from './rorelse';
 import { REPORTS } from './rapporter';
 import { barRange, editions, numeral, standings } from './utmarkelser';
@@ -229,17 +228,6 @@ function kommunLinks(m: Municipality): MapLink[] {
     links.push({
       href: path(m.slug, 'kategori', slice.category.slug),
       label: slice.category.name,
-      count: slice.count,
-    });
-  }
-
-  // Områdessidorna, med samma villkor: `linkedAreas` är exakt den lista
-  // getStaticPaths i pages/[kommun]/omrade/[...path].astro bygger sidor ur.
-  // Kommuner utan gränsdata i OSM har ingen lista och lägger alltså inget här.
-  for (const slice of linkedAreas(m.slug)) {
-    links.push({
-      href: path(m.slug, 'omrade', slice.area.slug),
-      label: slice.area.name,
       count: slice.count,
     });
   }

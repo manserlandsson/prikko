@@ -43,7 +43,6 @@ import Platskarta from '../../components/Platskarta.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
-import JamforNyhet from '../../components/JamforNyhet.astro';
 import MatsnuskNote from '../../components/MatsnuskNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
@@ -75,7 +74,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
-import { JAMFOR_NYHET_SYNS, compareHref, compareSuggestions } from '../../lib/jamfor';
+import { compareHref, compareSuggestions } from '../../lib/jamfor';
 import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
@@ -452,18 +451,11 @@ const breadcrumbs = {
             det här stället ifyllt, och väljaren där gör samma sak i två steg.
             Med JavaScript öppnas rutan i stället. Ingen knapp kan bli död. */}
         {compareWith.length > 0 && (
-          <>
-            {/* Introduktionen står här och inte på startsidan. På startsidan
-                hade den blivit reklam för oss själva; här står den intill det
-                den jämför, hos någon som just läst ett besked och kan undra
-                hur det står sig. Den dör av sig själv, se lib/jamfor.ts. */}
-            {JAMFOR_NYHET_SYNS && <JamforNyhet />}
-            <p class="jamfor-rad">
-              <a class="jamfor-knapp" data-jamfor href={compareHref(kommun.slug, e.slug)}>
-                Jämför med ett annat ställe
-              </a>
-            </p>
-          </>
+          <p class="jamfor-rad">
+            <a class="jamfor-knapp" data-jamfor href={compareHref(kommun.slug, e.slug)}>
+              Jämför med ett annat ställe
+            </a>
+          </p>
         )}
 
         {/* Utmärkelsen stod här som ett eget fält och är flyttad upp till

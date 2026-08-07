@@ -88,13 +88,22 @@ jobs:
             echo "Inga datafiler att ladda — avbryter."
             exit 1
           fi
+          # FÖRE inläsningen, aldrig efter. Steget jämför nattens utlämning
+          # med föregående körning för att se vad som tillkommit och
+          # försvunnit. Körs det efter load_supabase.py jämförs utlämningen
+          # med sig själv och svaret blir alltid noll. Skriptet vägrar och
+          # säger till om ordningen kastas om, men ordningen ska ändå vara
+          # rätt här.
+          python3 pipeline/rorelse.py registrera "${files[@]}"
           python3 pipeline/load_supabase.py "${files[@]}"
 
       - name: Exportera ögonblicksbild till bygget
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python3 pipeline/export_supabase.py --out site/src/data
+        run: |
+          python3 pipeline/export_supabase.py --out site/src/data
+          python3 pipeline/rorelse.py exportera
 
       # MÅSTE ligga mellan exporten och commiten. Steget jämför arbetskopian
       # (dagens export) med HEAD (gårdagens incheckade ögonblicksbild). Efter
