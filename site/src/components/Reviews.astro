@@ -273,7 +273,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         <div class="field photos" id="review-photos">
           <span id="review-photos-label">
             Lägg till några bilder
-            <span class="hint">
+            <span class="hint" id="review-photos-hint">
               Frivilligt. Högst 12 MB och tre bilder per ställe.
             </span>
           </span>
@@ -727,6 +727,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     const about = dialog.querySelector('.about') as HTMLParagraphElement;
     const title = document.getElementById('review-dialog-title') as HTMLHeadingElement;
     const photos = document.getElementById('review-photos') as HTMLDivElement;
+    const photosHint = document.getElementById('review-photos-hint') as HTMLSpanElement;
     const dropzone = document.getElementById('review-dropzone') as HTMLButtonElement;
     const files = document.getElementById('review-files') as HTMLInputElement;
     const picked = document.getElementById('review-picked') as HTMLUListElement;
@@ -866,6 +867,24 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     const MAX_BYTES = 12 * 1024 * 1024;
     const MAX_FILES = 3;
 
+    /**
+     * Hur många filer fältet tar emot just nu.
+     *
+     * KLIENTENS GRÄNS ÄR EN ARTIGHET OCH INTE EN SPÄRR. Den som räknar är
+     * community.set_image_status() i pipeline/schema_community.sql, och den
+     * frågar community.quota_exempt() först. Redaktionen möter alltså ingen
+     * kvot på servern, varken fem per dygn, tre per verksamhet eller tio
+     * öppna, och då ska den inte mötas av en i formuläret heller.
+     *
+     * Tolv megabyte per fil står kvar för alla. Det är vad hinken tar emot,
+     * alltså en egenskap hos lagringen och inte en kvot.
+     *
+     * Värdet sätts av request() när rutan öppnas, med svaret från databasen.
+     * Ingen e-postadress står som villkor här, och ingen får någonsin skrivas
+     * in: rollen bor i community.admins.
+     */
+    let filgrans = MAX_FILES;
+
     /** De valda filerna, med den förhandsvisning som ritats för var och en. */
     const chosen: Array<{ file: File; url: string }> = [];
 
@@ -954,8 +973,8 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
       const rejected: string[] = [];
       for (const file of Array.from(incoming)) {
-        if (chosen.length >= MAX_FILES) {
-          rejected.push(`Högst ${MAX_FILES} bilder per omdöme.`);
+        if (chosen.length >= filgrans) {
+          rejected.push(`Högst ${filgrans} bilder per omdöme.`);
           break;
         }
         if (!imageType(file)) {
@@ -1209,6 +1228,31 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     }
 
     /**
+     * Släpper bildantalet för redaktionen.
+     *
+     * Frågan ställs till DATABASEN, via arAdmin() i lib/granska.ts, som anropar
+     * community.is_admin(). Den kan inte besvaras här: svaret hade då bara
+     * varit vad klienten tror, och en klient som tror fel ska inte kunna ge
+     * sig själv en rättighet. Falskt vid varje fel, så en trasig fråga ger
+     * den vanliga gränsen och aldrig den fria.
+     *
+     * Modulen hämtas först här och inte överst i filen. granska.ts drar in
+     * bildkonvertering och en egen REST-klient, och den koden hör inte hemma i
+     * paketet som varje verksamhetssida laddar. Anropet sker parallellt med de
+     * två andra frågorna i request(), alltså kostar det ingen väntan.
+     */
+    async function slappKvoten() {
+      try {
+        const { arAdmin } = await import('../lib/granska');
+        if (!(await arAdmin())) return;
+      } catch {
+        return;
+      }
+      filgrans = Number.POSITIVE_INFINITY;
+      photosHint.textContent = 'Frivilligt. Högst 12 MB per bild.';
+    }
+
+    /**
      * Rutans två lägen.
      *
      * Ett omdöme per person och verksamhet står kvar. Men en bild är sedan
@@ -1237,11 +1281,12 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 
     async function request(trigger: HTMLElement | null) {
       /*
-       * Två frågor, ställda samtidigt: har man redan ett omdöme, och företräder
-       * man stället. Båda ställs när rutan öppnas och inte vid sidladdning. Den
-       * som aldrig trycker på knappen ska inte kosta ett anrop mot Supabase.
+       * Tre frågor, ställda samtidigt: har man redan ett omdöme, företräder man
+       * stället, och gäller kvoterna kontot. Alla tre ställs när rutan öppnas
+       * och inte vid sidladdning. Den som aldrig trycker på knappen ska inte
+       * kosta ett anrop mot Supabase.
        */
-      const [harOmdome] = await Promise.all([refreshMine(), hideForOwners()]);
+      const [harOmdome] = await Promise.all([refreshMine(), hideForOwners(), slappKvoten()]);
 
       if (harOmdome && photos.hidden) {
         /* Inget kvar att lämna: omdömet är skrivet, och bildfältet är dolt
