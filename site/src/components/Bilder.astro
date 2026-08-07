@@ -33,6 +33,41 @@
  * Avsnittet är dolt tills det finns något att visa. De allra flesta av sajtens
  * verksamheter har inga bilder, och en tom rubrik med en tom yta under är
  * sämre än ingen rubrik alls.
+ *
+ * ---------------------------------------------------------------------------
+ * TELEFONEN: ETT BAND, INTE EN TRAVE
+ * ---------------------------------------------------------------------------
+ * Rutnätet föll ihop till en spalt på telefon. Tre bilder blev tre rutor på
+ * 343x257 under varandra, alltså 862 px avsnitt på en skärm som är 812 px hög:
+ * en hel skärm som är bilder och ingenting annat, mitt i en sida vars hjälte är
+ * bedömningen. Ägaren, 2026-08-07: "på mobil ser det lite konstigt ut".
+ *
+ * Ingen av tjänsterna vi mätte gör så. Alla håller bilderna i ETT band med
+ * bestämd höjd och flyttar det som inte får plats i sidled. Mätt vid 375 px:
+ *
+ *   Google Maps  remsa, bandhöjd 192, 8 px mellanrum, 20 px indrag. En stor
+ *                ruta 248x192 följd av två staplade 120x92, sedan om igen.
+ *                Ungefär tre bilder syns, resten sveper man fram.
+ *   Booli        helbredds karusell, 375x251 (3:2), en i taget, räknare 1/25.
+ *   Hemnet       helbredds karusell, 375x250 (3:2), en i taget.
+ *   Airbnb       helbredds karusell, 375x356, en i taget.
+ *   TripAdvisor  remsa inne i kortet, kvadratiska rutor kring 116 px.
+ *
+ * De tre karusellerna är hjältebilder: bilden ÄR varan. Här är den det inte,
+ * och en helbredds bild hade tagit över sidan från beskedet. Google Maps är
+ * därför måttstocken, för där är bilderna precis som här ett tillbehör till ett
+ * ställe. Vi tar deras form och håller oss under deras mått: bandet är 4:3 och
+ * 56 % av spaltbredden, alltså 192x144 vid 375 px. Två bilder syns, den andra
+ * skuren i kanten, och avsnittet går från 862 px till omkring 190.
+ *
+ * Remsan blöder ut till skärmens högerkant med `calc(50% - 50vw)`. En ruta som
+ * slutar tvärt vid spaltens marginal ser ut som en ruta som slutade; en som
+ * fortsätter ut ur skärmen säger att det finns fler.
+ *
+ * Datorn ändras inte i sak. Där ger rutnätet redan 228x171 i en spalt på 700,
+ * vilket är Googles egen sidopanel (200x150) med några pixlar till. Samma
+ * beskärning, samma bildförhållande, samma ruta: det enda som skiljer är att
+ * bandet radbryts i stället för att rulla.
  */
 interface Props {
   establishmentId: string;
@@ -77,7 +112,30 @@ const { establishmentId, establishmentName } = Astro.props;
             stroke-linecap="round" />
     </svg>
   </button>
+
+  {/*
+    Bläddringen finns för att telefonen behöver den. Öppnar man den första av
+    tre bilder på en liten skärm är nästa bild det enda man rimligen vill, och
+    att stänga, sikta på nästa ruta och öppna igen är tre steg för ett svep.
+    Booli visar samma två pilar ovanpå bilden i sin mobilvy, Google Maps och
+    Airbnb låter en svepa. Här går båda vägarna, och pilarna göms när de inte
+    leder någonstans i stället för att stå kvar som döda knappar.
+  */}
+  <button type="button" class="bladdra bakat" data-prev aria-label="Föregående bild" hidden>
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M12.5 4L6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
+
   <img id="bilder-stor" alt="" />
+
+  <button type="button" class="bladdra framat" data-next aria-label="Nästa bild" hidden>
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M7.5 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
 </dialog>
 
 <style>
@@ -113,8 +171,7 @@ const { establishmentId, establishmentName } = Astro.props;
    *
    * Med auto-fit sträcker sig en ensam bild över hela spaltbredden och blir en
    * banderoll. Med auto-fill behåller den sitt spårmått, så en bild ser ut som
-   * en bild och tre ser ut som tre. Det är också vad Booli gör med sina
-   * bildrader.
+   * en bild och tre ser ut som tre.
    */
   .grid {
     margin-top: var(--s-4);
@@ -124,6 +181,48 @@ const { establishmentId, establishmentName } = Astro.props;
   }
 
   .grid:empty { display: none; }
+
+  /*
+   * Telefonen. Samma rutor, men på rad i stället för i trave.
+   *
+   * `flex` och inte `grid-auto-flow: column`: rutorna ska behålla sin bredd
+   * oavsett hur många de är, och en ensam bild ska varken sträckas eller
+   * krympas. `flex: 0 0` säger just det.
+   *
+   * Bredden är 56 % av spalten och som mest 240 px. Vid 375 px blir det
+   * 192x144, alltså två bilder i bild med den andra skuren. Taket finns för
+   * mellanläget strax under brytpunkten, där 56 % annars blivit en banderoll.
+   *
+   * `proximity` och inte `mandatory`. Med mandatory rycker en halvskuren ruta
+   * till på plats mitt i ett svep, och remsan är gjord för att man ska KUNNA
+   * stanna mellan två bilder.
+   */
+  @media (max-width: 640px) {
+    .grid {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      /* Ut till skärmkanten till höger, och lika mycket luft efter sista
+         rutan så att den inte klistrar sig mot kanten när man rullat klart.
+         Räknas ur spaltens egen bredd, alltså utan att sidans marginal
+         behöver stå skriven här. */
+      margin-right: calc(50% - 50vw);
+      padding-right: calc(50vw - 50%);
+      /* En rullningslåda klipper i BÅDA riktningarna. Utan de fyra pixlarna
+         kapas fokusringen upptill och nedtill, och den som tabbar sig genom
+         remsan ser inte var den står. Luften ovanför dras av mot samma mått,
+         så raden står kvar där den stod. */
+      padding-block: 4px;
+      margin-top: calc(var(--s-4) - 4px);
+      /* Rullningslisten är en linje under bilderna som ingen behöver se.
+         Svepet och tabbningen fungerar utan den. */
+      scrollbar-width: none;
+    }
+
+    .grid::-webkit-scrollbar { display: none; }
+  }
 </style>
 
 <style is:global>
@@ -133,6 +232,23 @@ const { establishmentId, establishmentName } = Astro.props;
   /* Knappen är bilden. Ingen kant, ingen bakgrund, inget inre mellanrum: det
      enda som skiljer den från en <img> är att den går att trycka på och att
      tangentbordet kan nå den. */
+  /*
+   * 4:3 sitter på RUTAN och inte på bilden.
+   *
+   * Bilderna kommer från telefoner i alla riktningar, och ett band där varje
+   * ruta har sin egen höjd är inte ett band. Beskärningen är ett visningsval
+   * och inte en bearbetning: originalet ligger orört i lagringen, och
+   * förstoringen visar hela bilden.
+   *
+   * Att förhållandet ligger på knappen och inte på <img> är vad som gör att
+   * remsan kan styras från bredden: rutan får sin bredd av flexraden och sin
+   * höjd av förhållandet, och bilden fyller den. Ligger förhållandet på bilden
+   * har rutan ingen egen höjd förrän bilden har laddat, och en tom remsa på
+   * noll pixlar hade vuxit i besökarens ansikte.
+   *
+   * 4:3 är också vad tjänsterna själva beskär till: Googles sidopanel 200x150,
+   * deras mobilremsa 248x192 och 120x92.
+   */
   .bilder .ruta {
     display: block;
     padding: 0;
@@ -141,6 +257,7 @@ const { establishmentId, establishmentName } = Astro.props;
     border-radius: var(--r-control);
     overflow: hidden;
     cursor: zoom-in;
+    aspect-ratio: 4 / 3;
   }
 
   .bilder .ruta:focus-visible {
@@ -148,19 +265,19 @@ const { establishmentId, establishmentName } = Astro.props;
     outline-offset: 2px;
   }
 
-  /*
-   * 4:3 och `cover`.
-   *
-   * Bilderna kommer från telefoner i alla riktningar, och ett rutnät där varje
-   * ruta har sin egen höjd är inte ett rutnät. Beskärningen är ett visningsval
-   * och inte en bearbetning: originalet ligger orört i lagringen, och
-   * förstoringen visar hela bilden.
-   */
   .bilder .ruta img {
     display: block;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    height: 100%;
     object-fit: cover;
+  }
+
+  /* Remsans mått. Se kommentaren vid .grid i den scopeade stilen. */
+  @media (max-width: 640px) {
+    .bilder .ruta {
+      flex: 0 0 min(56%, 240px);
+      scroll-snap-align: start;
+    }
   }
 
   /* Vid pekare lyfts bilden en aning. Samma stillsamma rörelse som korten på
@@ -193,6 +310,28 @@ const { establishmentId, establishmentName } = Astro.props;
     overflow: visible;
   }
 
+  /*
+   * Rutan omsluter bilden och ingenting mer.
+   *
+   * Den låg 33 px för högt, och skälet är att den bor i huvudkolumnen: den är
+   * ett syskon till avsnittet, alltså träffas den av sidmallens
+   * `.main > * + *`, som ger varje sektion `margin-top`, `padding-top` och en
+   * hårlinje. En modal ruta är ingen sektion. Utrymmet ovanför sköt ned bilden
+   * i förhållande till krysset, som räknar sitt avstånd från rutans kant, och
+   * krysset hamnade ovanför fotografiet i stället för inuti det.
+   *
+   * Selektorn är avsiktligt tyngre än sidmallens: element, klass och attribut
+   * mot klass och attribut. `[open]` krävs också av ett andra skäl, att en rad
+   * med `display` annars hade slagit ut den `display: none` som gör att en
+   * stängd dialog är stängd.
+   */
+  dialog.photo-dialog[open] {
+    display: grid;
+    margin: auto;
+    padding: 0;
+    border: 0;
+  }
+
   .photo-dialog::backdrop {
     background: rgba(0, 0, 0, .8);
   }
@@ -207,13 +346,14 @@ const { establishmentId, establishmentName } = Astro.props;
   }
 
   /* Krysset ligger ovanpå bilden i ett hörn och inte i en rad ovanför den.
-     En rubrikrad över en fotoförstoring stjäl höjd från det man öppnade. */
-  .photo-dialog .stang {
+     En rubrikrad över en fotoförstoring stjäl höjd från det man öppnade.
+     Knapparna är 44 px, alltså det minsta mått ett finger träffar säkert, och
+     det gäller överallt: en pekskärm är inte något datorn saknar. */
+  .photo-dialog .stang,
+  .photo-dialog .bladdra {
     position: absolute;
-    top: var(--s-3);
-    right: var(--s-3);
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -224,10 +364,34 @@ const { establishmentId, establishmentName } = Astro.props;
     cursor: pointer;
   }
 
-  .photo-dialog .stang:hover { background: rgba(0, 0, 0, .75); }
-  .photo-dialog .stang svg { width: 20px; height: 20px; }
+  .photo-dialog .stang {
+    top: var(--s-3);
+    right: var(--s-3);
+  }
 
-  .photo-dialog .stang:focus-visible {
+  /* Pilarna sitter mitt på bildens sidor och ovanpå den, som Boolis. Utanför
+     bilden hade de legat på bakgrunden, och bakgrunden är det man klickar på
+     för att stänga. */
+  .photo-dialog .bladdra {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .photo-dialog .bakat { left: var(--s-3); }
+  .photo-dialog .framat { right: var(--s-3); }
+
+  /* `display` ovan slår ut det `hidden` självt gör, alltså måste attributet
+     sägas om här. Utan raden står pilarna kvar vid ändarna. */
+  .photo-dialog .bladdra[hidden] { display: none; }
+
+  .photo-dialog .stang:hover,
+  .photo-dialog .bladdra:hover { background: rgba(0, 0, 0, .75); }
+
+  .photo-dialog .stang svg,
+  .photo-dialog .bladdra svg { width: 20px; height: 20px; }
+
+  .photo-dialog .stang:focus-visible,
+  .photo-dialog .bladdra:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
@@ -244,15 +408,32 @@ const { establishmentId, establishmentName } = Astro.props;
     const grid = document.getElementById('bilder-grid') as HTMLDivElement;
     const stor = document.getElementById('bilder-stor') as HTMLImageElement;
     const stang = dialog.querySelector('[data-close]') as HTMLButtonElement;
+    const bakat = dialog.querySelector('[data-prev]') as HTMLButtonElement;
+    const framat = dialog.querySelector('[data-next]') as HTMLButtonElement;
     const place = section.dataset.establishment ?? '';
     const name = section.dataset.name ?? '';
 
-    let opener: HTMLElement | null = null;
+    /* Adresserna i den ordning de står i bandet, och rutorna som visar dem.
+       Bläddringen är ett index i den här listan och ingenting mer. */
+    let urls: string[] = [];
+    let rutor: HTMLButtonElement[] = [];
+    let index = -1;
 
-    function open(url: string, trigger: HTMLElement) {
-      opener = trigger;
-      stor.src = url;
+    /** Visar bilden på platsen `i` och rättar pilarna efter var man står. */
+    function show(i: number) {
+      if (i < 0 || i >= urls.length) return;
+      index = i;
+      stor.src = urls[i];
+      /* Ingen bildtext och ingen upplysning om vem som skickat in bilden.
+         Namnet på stället är vad alt-texten kan säga sant om en bild ingen
+         har beskrivit. */
       stor.alt = name;
+      bakat.hidden = i === 0;
+      framat.hidden = i === urls.length - 1;
+    }
+
+    function open(i: number) {
+      show(i);
       lockPage();
       dialog!.showModal();
     }
@@ -261,15 +442,19 @@ const { establishmentId, establishmentName } = Astro.props;
      * Stängning på ett ställe, som i omdömesrutan.
      *
      * Esc, krysset och klick utanför bilden tar samma väg, så fokus hamnar
-     * tillbaka på rutan man öppnade i alla tre fallen. `src` nollställs så att
-     * en stor bild inte ligger kvar i minnet efter att rutan stängts.
+     * tillbaka i bandet i alla tre fallen. `src` nollställs så att en stor bild
+     * inte ligger kvar i minnet efter att rutan stängts.
+     *
+     * Fokus går till rutan för den bild man SÅG SIST, inte till den man råkade
+     * öppna först. Har man bläddrat tre steg är det där man är, och att kastas
+     * tillbaka till början av bandet vore att tappa bort sig.
      */
     function close() {
       if (dialog!.open) dialog!.close();
       unlockPage();
       stor.removeAttribute('src');
-      const back = opener;
-      opener = null;
+      const back = rutor[index];
+      index = -1;
       back?.focus({ preventScroll: true });
     }
 
@@ -279,23 +464,56 @@ const { establishmentId, establishmentName } = Astro.props;
     });
 
     stang.addEventListener('click', () => close());
+    bakat.addEventListener('click', () => show(index - 1));
+    framat.addEventListener('click', () => show(index + 1));
+
+    /* Piltangenterna gör samma sak som pilarna. Rutan är modal, alltså är den
+       enda som hör tangentbordet medan den är uppe. */
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft') show(index - 1);
+      else if (event.key === 'ArrowRight') show(index + 1);
+      else return;
+      event.preventDefault();
+    });
+
+    /*
+     * Svep på pekskärm, för det är vad man gör med en bild på en telefon.
+     *
+     * Bara vågrätt: ett lodrätt drag är sidans egen rullning och får inte
+     * råka byta bild. Tröskeln på 45 px skiljer ett svep från ett tryck som
+     * halkade. `passive`, eftersom ingenting här ska hindras.
+     */
+    let startX = 0;
+    let startY = 0;
+
+    dialog.addEventListener('touchstart', (event) => {
+      startX = event.changedTouches[0].clientX;
+      startY = event.changedTouches[0].clientY;
+    }, { passive: true });
+
+    dialog.addEventListener('touchend', (event) => {
+      const dx = event.changedTouches[0].clientX - startX;
+      const dy = event.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
+      show(dx < 0 ? index + 1 : index - 1);
+    }, { passive: true });
 
     /* Klick utanför bilden stänger. Backdrop-klick landar på <dialog> självt,
-       och krysset ligger ovanpå bilden men är en egen knapp. */
+       och knapparna ligger ovanpå bilden men är egna knappar. */
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) close();
     });
 
     function render(rows: Array<{ id: string; published_url: string }>) {
       grid.textContent = '';
-      for (const row of rows) {
+      urls = rows.map((row) => row.published_url);
+      rutor = [];
+
+      rows.forEach((row, i) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'ruta';
-        /* Ingen bildtext och ingen upplysning om vem som skickat in bilden.
-           Namnet på stället är vad alt-texten kan säga sant om en bild ingen
-           har beskrivit. */
-        button.setAttribute('aria-label', `Visa bilden större`);
+        button.setAttribute('aria-label', 'Visa bilden större');
 
         const img = document.createElement('img');
         img.src = row.published_url;
@@ -304,9 +522,11 @@ const { establishmentId, establishmentName } = Astro.props;
         img.decoding = 'async';
 
         button.append(img);
-        button.addEventListener('click', () => open(row.published_url, button));
+        button.addEventListener('click', () => open(i));
         grid.append(button);
-      }
+        rutor.push(button);
+      });
+
       /* Rubriken visas först när det finns något under den. */
       section!.classList.toggle('tom', rows.length === 0);
     }
