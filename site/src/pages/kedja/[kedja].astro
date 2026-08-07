@@ -1,0 +1,394 @@
+---
+/**
+ * Kedjesidan: /kedja/[kedja].
+ *
+ * Sajtens enda sidtyp som skär tvärs igenom kommunerna, och den enda fråga
+ * ingen kommunal livsmedelskarta kan besvara. Stockholms e-tjänst kan visa 33
+ * Espresso House i Stockholm; ingen svensk yta kan visa alla 52.
+ *
+ * Sidan svarar på tre frågor i den ordningen:
+ *
+ *   Hur står kedjan sig   Antalsraden överst. Antal, aldrig ett rikssnitt.
+ *   Var ligger den        Kommuntabellen, och registret längst ner.
+ *   Vilka är bäst, sämst  De två listorna däremellan.
+ *
+ * VARFÖR INGET RIKSSNITT I PROCENT: kommunerna publicerar olika. Andelen
+ * kvarstående brister varierar mellan 0,3 procent i Jönköping och 23,7 i
+ * Oskarshamn, och den skillnaden speglar hur kommunen publicerar snarare än
+ * hur rent det är. Ett tal som "84 % av kedjans ställen är utan anmärkning"
+ * hade vägt ihop tolv publiceringspraxis till en siffra som SER jämförbar ut.
+ * Kommuntabellen ställer i stället kedjan mot sin egen kommuns bestånd, där
+ * täljare och nämnare kommer från samma utgivare.
+ *
+ * VARFÖR KOMMUNRADERNA SORTERAS PÅ ANTAL: sorterade på utfall vore tabellen
+ * en rangordning av kommuner på kontrollresultat, vilket sajten aldrig
+ * publicerar. Sorteringen ligger i lib/kedjor.ts, inte här.
+ */
+import Base from '../../layouts/Base.astro';
+import EstablishmentList from '../../components/EstablishmentList.astro';
+import FaceSprite from '../../components/FaceSprite.astro';
+import KedjeLista from '../../components/KedjeLista.astro';
+import { formatNumber } from '../../lib/data';
+import { chain, chains, type Chain } from '../../lib/kedjor';
+import { DISTINCTION, VERDICT } from '../../lib/site';
+import { absolute, path } from '../../lib/urls';
+
+export async function getStaticPaths() {
+  return chains().map((c) => ({ params: { kedja: c.id }, props: { id: c.id } }));
+}
+
+const { id } = Astro.props as { id: string };
+const k = chain(id) as Chain;
+
+/**
+ * Självbärande första mening, skriven för att kunna citeras rakt av.
+ *
+ * Andelen räknas på BEDÖMDA och aldrig på totalen, av samma skäl som på
+ * kategorisidan: med totalen som nämnare hade en kedja i en kommun som
+ * kontrollerat lite sett sämre ut än en i en kommun som kontrollerat mycket.
+ * Här står den ändå som antal och inte som procent, se filhuvudet.
+ */
+const remarked = k.minor + k.major;
+const answer =
+  `${formatNumber(k.total)} ${k.name} i ${formatNumber(k.municipalities.length)} ` +
+  `${k.municipalities.length === 1 ? 'kommun' : 'kommuner'}. ` +
+  `${formatNumber(k.clean)} av de ${formatNumber(k.assessed)} vi kan bedöma fick inga ` +
+  `anmärkningar vid sin senaste hygienkontroll, ${formatNumber(remarked)} fick anmärkningar.`;
+
+const title = `${k.name}, hygienkontroller`;
+
+const crumbs = [
+  { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+  { '@type': 'ListItem', position: 2, name: 'Kedjor', item: absolute('kedja') },
+  { '@type': 'ListItem', position: 3, name: k.name },
+];
+
+const jsonLd = [
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: title,
+    numberOfItems: k.total,
+    // Bara de första posterna, med sin riktiga position i hela listan. Samma
+    // gräns som kategorisidan använder.
+    itemListElement: k.municipalities
+      .flatMap((m) => m.items)
+      .slice(0, 25)
+      .map((e, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: absolute(e.municipality.slug, e.slug),
+        name: e.name,
+      })),
+  },
+];
+
+/** Övriga kedjor, för fotens länknät. Bokstavsordning, aldrig utfall. */
+const siblings = chains().filter((c) => c.id !== k.id);
+
+const stats = [
+  { label: VERDICT.clean.label, value: k.clean, ink: VERDICT.clean.colorVar },
+  { label: VERDICT.minor.label, value: k.minor, ink: VERDICT.minor.colorVar },
+  { label: VERDICT.major.label, value: k.major, ink: VERDICT.major.colorVar },
+  { label: 'Ingen bedömning', value: k.unassessed, ink: 'var(--verdict-none-ink)' },
+];
+---
+
+<Base
+  title={title}
+  description={answer}
+  jsonLd={jsonLd}
+  dataUpdated={k.latest ?? undefined}
+>
+  <FaceSprite />
+
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path('kedja')}>Kedjor</a>
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">Kedja</p>
+      <h1>{k.name}</h1>
+      <p class="answer">{answer}</p>
+    </header>
+
+    <dl class="stats">
+      {stats.map((s) => (
+        <div class="stat">
+          <dt>{s.label}</dt>
+          <dd>
+            <span class="pin" style={`background: ${s.ink}`} aria-hidden="true"></span>
+            {formatNumber(s.value)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+
+    <section class="block" aria-labelledby="kommuner">
+      <h2 id="kommuner">Var {k.name} finns</h2>
+      <table class="grid">
+        <thead>
+          <tr>
+            <th scope="col">Kommun</th>
+            <th scope="col" class="num">Ställen</th>
+            <th scope="col" class="num">Utan anmärkning</th>
+            {/* Referenslinjen. Kedjans siffra betyder ingenting utan kommunens
+                egen, och kommunens egen är det ENDA tal som går att jämföra
+                mot: samma utgivare, samma publiceringspraxis. */}
+            <th scope="col" class="num">Kommunen i stort</th>
+          </tr>
+        </thead>
+        <tbody>
+          {k.municipalities.map((m) => (
+            <tr>
+              <th scope="row">
+                <a href={path(m.municipality.slug)}>{m.municipality.city}</a>
+              </th>
+              <td class="num">{formatNumber(m.total)}</td>
+              <td class="num">
+                {m.assessed > 0 ? (
+                  <>{formatNumber(m.clean)} av {formatNumber(m.assessed)}</>
+                ) : (
+                  <span class="text-muted">–</span>
+                )}
+              </td>
+              <td class="num text-secondary">
+                {m.baselineAssessed > 0 ? `${m.baseline} %` : '–'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+
+    {k.remarks.length > 0 && (
+      <section class="block" aria-labelledby="brister">
+        <h2 id="brister">Anmärkningar vid senaste kontrollen</h2>
+        <KedjeLista items={k.remarks} />
+      </section>
+    )}
+
+    {k.spotless.length > 0 && (
+      <section class="block" aria-labelledby="ren-historik">
+        <h2 id="ren-historik">{DISTINCTION.label}</h2>
+        <KedjeLista items={k.spotless} />
+      </section>
+    )}
+
+    <section class="block" aria-labelledby="alla">
+      <h2 id="alla">Alla {formatNumber(k.total)} {k.name}</h2>
+      {k.municipalities.map((m) => (
+        <div class="group">
+          <h3>
+            <a href={path(m.municipality.slug)}>{m.municipality.city}</a>
+            <span class="text-muted">{formatNumber(m.total)}</span>
+          </h3>
+          <EstablishmentList items={m.items} kommunSlug={m.municipality.slug} />
+        </div>
+      ))}
+    </section>
+
+    <footer class="foot">
+      {siblings.length > 0 && (
+        <nav aria-label="Andra kedjor">
+          <p class="text-secondary">Andra kedjor</p>
+          <ul class="others">
+            {siblings.map((c) => (
+              <li>
+                <a href={path('kedja', c.id)}>
+                  {c.name} <span class="text-muted">{formatNumber(c.total)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <p>
+        <a href={path('kedja')}>Alla kedjor på Prikko</a>
+      </p>
+    </footer>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: var(--w-page);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    margin-top: var(--s-1);
+  }
+
+  .answer {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Antalsraden. Inga kort, inga ringar, ingen mätare: fyra tal på rad,
+     avgränsade av samma hårlinje som allt annat på sidan. Booli gör exakt
+     detta med sina nyckeltal, och det är därför deras datasidor läser som
+     data och inte som en instrumentpanel.
+
+     Talen står i vanlig bläckfärg och bär sin bedömningsfärg i en 3 px
+     pinne bredvid. Det är Boolis eget grepp, mätt på deras objektsida: en
+     3 px bred, 24 px hög pinne med full radie framför slutpriset. Skälet är
+     läsbarhet snarare än stil. Fyra färgade tal på rad läser som en
+     trafikljusparad och drar ögat till den starkaste färgen i stället för
+     till det största talet; en pinne bär samma information utan att göra
+     siffran svårare att läsa, och 0 i rött ser inte längre ut som en varning
+     när den är ett besked om att inget finns att varna för. */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-4);
+    margin: var(--s-8) 0 0;
+    padding-block: var(--s-4);
+    border-block: 1px solid var(--hairline);
+  }
+
+  .stat dt {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .stat dd {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin: var(--s-1) 0 0;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pin {
+    width: 3px;
+    height: var(--lh-h-s);
+    border-radius: var(--r-pill);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .block { margin-top: var(--s-12); }
+
+  .block h2 {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    font-weight: 600;
+  }
+
+  /* Datatabell i Boolis form: hårlinje under varje rad, ingen zebra, ingen ram
+     runt tabellen. Se docs/19_formsystem.md. */
+  .grid {
+    width: 100%;
+    margin-top: var(--s-4);
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .grid th,
+  .grid td {
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .grid thead th {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .grid tbody th { font-weight: 600; }
+
+  .grid .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Fyra kolumner på 390 px. Talen är korta ("11", "10 av 11", "89 %"), det
+     är rubrikerna som är långa, och de får radbrytas i stället för att
+     kolumnen ska tas bort. Referenslinjen är sidans enda giltiga jämförelse
+     och får inte falla bort just på den skärm där de flesta läser den. */
+  @media (max-width: 560px) {
+    .grid {
+      font-size: var(--fs-caption);
+      line-height: var(--lh-caption);
+    }
+
+    .grid th,
+    .grid td { padding: var(--s-2) 0; }
+  }
+
+  .group { margin-top: var(--s-8); }
+
+  .group h3 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  .group h3 .text-muted {
+    font-size: var(--fs-body-s);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .foot {
+    margin-top: var(--s-12);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .foot p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .others {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    list-style: none;
+    margin: var(--s-2) 0 var(--s-6);
+    padding: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .others .text-muted {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

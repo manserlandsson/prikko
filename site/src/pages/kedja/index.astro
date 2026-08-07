@@ -1,0 +1,141 @@
+---
+/**
+ * Kedjeregistret: /kedja.
+ *
+ * Ingången till kedjesidorna, och det enda stället på sajten där kedjorna står
+ * bredvid varandra.
+ *
+ * VARFÖR TABELLEN BARA VISAR STORLEK: en kolumn med "utan anmärkning" per kedja
+ * hade läst som en liga, och den ligan hade varit falsk. Kedjorna ligger i
+ * olika blandningar av kommuner, kommunerna publicerar olika mycket, och en
+ * kedja som råkar ha alla sina ställen i en kommun med sparsam publicering
+ * hade toppat listan utan att vara renare. Antal ställen och antal kommuner är
+ * däremot samma sorts tal oavsett var kedjan finns. Jämförelsen som faktiskt
+ * bär görs på kedjans egen sida, mot kommunens eget bestånd.
+ */
+import Base from '../../layouts/Base.astro';
+import { formatNumber } from '../../lib/data';
+import { chains } from '../../lib/kedjor';
+import { absolute, path } from '../../lib/urls';
+
+const all = chains();
+const locations = all.reduce((n, c) => n + c.total, 0);
+
+const answer =
+  `${formatNumber(all.length)} kedjor och ${formatNumber(locations)} ställen, ` +
+  'samlade över kommungränserna.';
+
+const crumbs = [
+  { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+  { '@type': 'ListItem', position: 2, name: 'Kedjor' },
+];
+
+const jsonLd = [
+  { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Kedjor på Prikko',
+    numberOfItems: all.length,
+    itemListElement: all.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: absolute('kedja', c.id),
+      name: c.name,
+    })),
+  },
+];
+---
+
+<Base title="Kedjor" description={answer} jsonLd={jsonLd}>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+    </nav>
+
+    <header class="head">
+      <h1>Kedjor</h1>
+      <p class="answer">{answer}</p>
+    </header>
+
+    <table class="grid">
+      <thead>
+        <tr>
+          <th scope="col">Kedja</th>
+          <th scope="col" class="num">Ställen</th>
+          <th scope="col" class="num">Kommuner</th>
+        </tr>
+      </thead>
+      <tbody>
+        {all.map((c) => (
+          <tr>
+            <th scope="row"><a href={path('kedja', c.id)}>{c.name}</a></th>
+            <td class="num">{formatNumber(c.total)}</td>
+            <td class="num text-secondary">{formatNumber(c.municipalities.length)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: var(--w-page);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+  }
+
+  .answer {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .grid {
+    width: 100%;
+    margin-top: var(--s-8);
+    border-collapse: collapse;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .grid th,
+  .grid td {
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .grid thead th {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .grid tbody th { font-weight: 600; }
+
+  .grid .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

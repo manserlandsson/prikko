@@ -22,23 +22,23 @@ import {
   municipalitySummaries,
   type TopCategoryId,
 } from './data';
+import { chain, type Chain } from './kedjor';
 import { path } from './urls';
 
 /**
- * Kedjor och antal förekomster i beståndet 2026-08-02. Räknade, inte valda
- * på känsla. Pressbyrån är vanligast med 115 men är en kiosk, inte ett
- * ställe man väljer att äta på, så listan tar de tre största kedjorna som
- * någon faktiskt planerar ett besök till.
+ * Kedjorna som lyfts fram, med sina id i kedjeregistret.
  *
- * Stavningen måste matcha datat, inte hur kedjan skriver sig själv.
- * "McDonald's" med apostrof ger noll träffar: kommunerna registrerar dem
- * som "Mcdonalds" och "McDonalds", aldrig med apostrof.
+ * Antalet står inte här längre. Det räknas ur beståndet av lib/kedjor.ts, och
+ * ett handskrivet tal bredvid ett räknat är ett tal som kommer att bli fel:
+ * de tre som stod här ("Espresso House 51, Max 43, McDonalds 38") var redan
+ * inaktuella mot dagens 52, 31 och 40.
+ *
+ * Urvalet är däremot fortfarande ett val. Pressbyrån är störst av de riktiga
+ * kedjorna med 118 ställen men är en kiosk, inte ett ställe man väljer att äta
+ * på; ICA och Coop är större men är en veckohandling snarare än ett besök.
+ * Listan tar de tre största kedjorna någon faktiskt planerar ett besök till.
  */
-const CHAINS = [
-  { query: 'Espresso House', count: 51 },
-  { query: 'Max', count: 43 },
-  { query: 'McDonalds', count: 38 },
-];
+const CHAINS = ['espresso-house', 'mcdonalds', 'max'];
 
 const TOP_MUNICIPALITIES = 3;
 
@@ -53,11 +53,17 @@ export interface PopularItem {
  * De vanligaste ingångarna: största kommunerna varvade med största kedjorna,
  * så listan inte läser som två separata block.
  *
- * Kedjorna pekar på /sok och aldrig på ett enskilt ställe: att lyfta fram
- * ett namngivet ställe i en förvald lista är ett redaktionellt val vi inte
- * har underlag för. Har det brister ser det ut som att vi pekar ut någon,
- * har det inga ser det ut som reklam. En kedjesökning är i stället en
- * verklig fråga med ett verkligt svar.
+ * Kedjorna pekar aldrig på ett enskilt ställe: att lyfta fram ett namngivet
+ * ställe i en förvald lista är ett redaktionellt val vi inte har underlag
+ * för. Har det brister ser det ut som att vi pekar ut någon, har det inga ser
+ * det ut som reklam.
+ *
+ * De pekade tidigare på `/sok/?q=Espresso%20House`, alltså på ett fritextfält
+ * som fylls i webbläsaren. Det var det bästa som fanns då. Nu finns
+ * `/kedja/espresso-house/`, som är samma fråga med ett riktigt svar: en sida
+ * med alla 52, kommun för kommun, som går att länka, dela och indexera. En
+ * förvald sökning som leder till en sida är alltid bättre än en som leder
+ * till ett sökresultat.
  */
 export function popularSearches(): PopularItem[] {
   const cities = municipalities()
@@ -71,12 +77,16 @@ export function popularSearches(): PopularItem[] {
       kind: 'kommun' as const,
     }));
 
-  const chains = CHAINS.map((c) => ({
-    href: `/sok/?q=${encodeURIComponent(c.query)}`,
-    name: c.query,
-    meta: `${c.count} ställen`,
-    kind: 'kedja' as const,
-  }));
+  // Kedjor som fallit under kvalitetsgrinden i lib/kedjor.ts har ingen sida
+  // och faller därför ut här också, i stället för att bli en död länk.
+  const chains = CHAINS.map((id) => chain(id))
+    .filter((c): c is Chain => c !== null)
+    .map((c) => ({
+      href: path('kedja', c.id),
+      name: c.name,
+      meta: `${c.total} ställen`,
+      kind: 'kedja' as const,
+    }));
 
   return cities.flatMap((c, i) => (chains[i] ? [c, chains[i]] : [c]));
 }
@@ -108,10 +118,15 @@ export function quickPicks(): QuickPick[] {
     return { label, href: path(biggest.slug, 'kategori', slice.category.slug) };
   };
 
+  // Kedjechipet pekar på kedjesidan och inte längre på en fritextsökning, av
+  // samma skäl som popularSearches: en sida med ett svar slår ett sökfält med
+  // en förifylld sträng. Faller kedjan under kvalitetsgrinden faller chipet.
+  const first = chain(CHAINS[0]);
+
   return [
     chip('restaurang', `Restauranger i ${biggest.city}`),
     chip('cafe', `Caféer i ${biggest.city}`),
     chip('skola', `Skolor och omsorg i ${biggest.city}`),
-    { label: 'Espresso House', href: '/sok/?q=Espresso%20House' },
+    first ? { label: first.name, href: path('kedja', first.id) } : null,
   ].filter((c) => c !== null);
 }

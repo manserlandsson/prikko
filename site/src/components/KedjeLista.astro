@@ -1,0 +1,111 @@
+---
+/**
+ * Lista över verksamheter i EN kedja, med kommunen utskriven på varje rad.
+ *
+ * Skiljer sig från EstablishmentList på exakt en punkt, och det är den punkt
+ * som gör kedjesidan möjlig: raderna kan komma från olika kommuner, så
+ * kommunen måste stå i raden. På en kommunhubb vore den redundant, här är den
+ * det enda som skiljer två rader med samma namn åt. Formen i övrigt är
+ * densamma, av samma skäl som står i EstablishmentList: hårlinjer och luft,
+ * inga kort.
+ *
+ * Anroparen bestämmer ordningen. Komponenten sorterar aldrig om, eftersom
+ * kedjesidans två listor har varsin ordning som betyder något: brister först
+ * efter allvar, ren historik efter datum.
+ */
+import FaceRef from './FaceRef.astro';
+import { formatDate, isIndexable, latestInspectionDate, type Establishment } from '../lib/data';
+import { VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
+
+interface Props {
+  items: Establishment[];
+}
+
+const { items } = Astro.props;
+---
+
+<ul class="list">
+  {items.map((e) => {
+    const date = latestInspectionDate(e);
+    return (
+      <li class="item">
+        <a
+          href={path(e.municipality.slug, e.slug)}
+          rel={isIndexable(e) ? undefined : 'nofollow'}
+        >
+          <FaceRef verdict={e.verdict} size={38} />
+          <span class="info">
+            <b>{e.name}</b>
+            <span class="meta text-secondary">
+              {/* Karlstad publicerar ingen adress, och då ska raden inte bära
+                  en hängande punkt. Kommunen står alltid först: den är radens
+                  skiljemärke på just den här sidan. */}
+              {[e.municipality.city, e.address, date && formatDate(date)]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </span>
+          <span
+            class="verdict"
+            style={`color: ${e.verdict ? VERDICT[e.verdict].colorVar : 'var(--verdict-none-ink)'}`}
+          >
+            {e.verdict ? VERDICT[e.verdict].label : 'Ingen kontroll'}
+          </span>
+        </a>
+      </li>
+    );
+  })}
+</ul>
+
+<style>
+  .list {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    border-block: 1px solid var(--hairline);
+  }
+
+  .item + .item { border-top: 1px solid var(--hairline); }
+
+  .item a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: var(--s-3) var(--s-3);
+    margin-inline: calc(var(--s-3) * -1);
+    color: var(--text);
+  }
+
+  .item a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
+    border-radius: var(--r-control);
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .info b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .meta {
+    font-size: var(--fs-caption);
+  }
+
+  .verdict {
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 560px) {
+    .verdict { display: none; }
+  }
+</style>

@@ -75,6 +75,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
+import { chainFor } from '../../lib/kedjor';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 
@@ -165,6 +166,19 @@ const ownCategories: CategorySlice[] = kommunCats.usable
       .categories.map((id) => kommunCats.slices.find((s) => s.category.id === id))
       .filter((s): s is CategorySlice => s !== undefined && s.linked)
   : [];
+
+/**
+ * Vägen i sidled ut ur kommunen.
+ *
+ * Kategorilänken ovanför går till "Caféer i Stockholm". Den här går till
+ * "Espresso House", alla 52, i alla kommuner vi har. Det är den enda länk på
+ * sidan som lämnar kommunen, och den frågan är den enda ingen kommunal
+ * livsmedelskarta i Sverige kan besvara.
+ *
+ * `chainFor` är null när kedjan inte har en sida, så länken kan aldrig peka
+ * på en URL som kvalitetsgrinden håller borta. Se lib/kedjor.ts.
+ */
+const kedja = chainFor(e);
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -594,6 +608,13 @@ const breadcrumbs = {
                 </a>
               </li>
             ))}
+            {kedja && (
+              <li>
+                <a href={path('kedja', kedja.id)}>
+                  Alla {formatNumber(kedja.total)} {kedja.name}
+                </a>
+              </li>
+            )}
           </ul>
         </div>
       </aside>
