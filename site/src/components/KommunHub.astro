@@ -53,8 +53,8 @@ import {
 import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
 import { kontrollen } from '../lib/kontrollen';
 import { mapDataset } from '../lib/map-data';
-import { linkedAreas } from '../lib/omraden';
 import { pageUrl } from '../lib/pagination';
+import { hasMovementPage } from '../lib/rorelse';
 import { SITE } from '../lib/site';
 import { tathet } from '../lib/tathet';
 import { absolute, path } from '../lib/urls';
@@ -100,16 +100,6 @@ const limits = sourceLimits(kommun.slug);
  */
 const cats = currentPage === 1 ? municipalityCategories(kommun.slug) : null;
 const categories = cats?.usable ? cats : null;
-
-/*
- * Stadsdelarna, som egna sidor. Bara de som förtjänar en URL, alltså bara de
- * som klarar MIN_AREA_PAGE, och bara i kommuner där det finns riktiga gränser
- * att gå på. Här står inga oklickbara chips som för kategorierna: ett område
- * under gränsen är inte en tom hylla som behöver redovisas, det är ett område
- * vi inte gjort en sida av, och kommunens verksamheter finns fullständigt i
- * listan under ändå. Se lib/omraden.ts.
- */
-const areas = currentPage === 1 ? linkedAreas(kommun.slug) : [];
 
 /*
  * Kommunens två egna insikter. Båda är påståenden om KOMMUNEN och aldrig om en
@@ -301,21 +291,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           </section>
         )}
 
-        {areas.length > 0 && (
-          <section class="filter" aria-labelledby="omraden">
-            <h2 id="omraden">Verksamheter efter område</h2>
-            <ul class="chips">
-              {areas.map(({ area, count }) => (
-                <li>
-                  <a href={path(base, 'omrade', area.slug)} class="chip">
-                    {area.name} <span class="n">{formatNumber(count)}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
         <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
         <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
@@ -428,6 +403,17 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 vill se det som avviker ska inte behöva bläddra sig fram. */}
             <a href={path(base, 'anmarkningar')}>
               Se de {formatNumber(remarks)} verksamheterna med anmärkningar i {city}
+            </a>
+          </p>
+        )}
+
+        {/* Rörelsen i beståndet. Sidan finns bara i kommuner där loggen bär
+            något, se lib/rorelse.ts, och länken följer samma villkor: en
+            länk till en sida som inte byggts fäller byggrinden. */}
+        {hasMovementPage(kommun.slug) && (
+          <p class="jump">
+            <a href={path(base, 'nytt-och-borta')}>
+              Se vad som tillkommit och försvunnit i {city}
             </a>
           </p>
         )}

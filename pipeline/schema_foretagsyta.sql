@@ -320,7 +320,18 @@ create trigger business_profiles_frozen
 -- security_invoker så att vyn läser med frågeställarens rättigheter och inte
 -- med sina egna. Utan det hade vyn varit en väg runt radsäkerheten.
 -- ---------------------------------------------------------------------------
-create or replace view community.published_profiles
+-- DROP före CREATE, inte "create or replace".
+--
+-- Postgres vägrar byta namn eller ordning på en befintlig vys kolumner med
+-- create or replace, och svarar då "cannot change name of view column". Det
+-- slog till när presentationen fick fältet opening_hours_exceptions: kolumnen
+-- lades in mitt i listan, och alla kolumner efter den förskjöts.
+--
+-- Filen ska gå att köra om hur många gånger som helst, också efter att vyn
+-- ändrat form. Ett drop är ofarligt här: vyn bär ingen egen data, den läses
+-- av sajten i webbläsaren och byggs om i samma transaktion.
+drop view if exists community.published_profiles;
+create view community.published_profiles
 with (security_invoker = true) as
 select distinct on (establishment_id)
     establishment_id,
@@ -526,7 +537,10 @@ create trigger business_images_checked
 -- ---------------------------------------------------------------------------
 -- Vad sidan läser
 -- ---------------------------------------------------------------------------
-create or replace view community.published_business_images
+-- Samma skäl som vid published_profiles ovan: drop före create, så att filen
+-- går att köra om även när vyns kolumner ändrat namn eller ordning.
+drop view if exists community.published_business_images;
+create view community.published_business_images
 with (security_invoker = true) as
 select
     id,

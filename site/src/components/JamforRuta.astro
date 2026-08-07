@@ -1,0 +1,405 @@
+---
+/**
+ * Jämförelserutan: genvägen från en verksamhetssida till en jämförelse.
+ *
+ * ## Varför rutan finns
+ *
+ * En jämförelsesida man måste hitta själv och fylla i två namn i kommer nästan
+ * aldrig att användas. Handlingen börjar någon annanstans: man står på ett
+ * ställe och undrar hur det står sig mot ett annat. Alltså hör ingången hemma
+ * här, med det ställe man redan tittar på ifyllt.
+ *
+ * Zillow är den enda av husets förebilder som har jämförelse alls, och deras
+ * lösning är just den här: urvalet sker där man bläddrar, målet är en riktig
+ * sida med egen adress. Booli och Hemnet har ingen jämförelse, vilket i sig är
+ * ett svar. Ett objekt i taget klarar sig utan den; ett register gör det inte.
+ *
+ * ## Rutan är genvägen, aldrig destinationen
+ *
+ * Att välja här leder till /jamfor/ med båda ställena i adressen. Rutan visar
+ * inga tal och ersätter ingen sida, för en jämförelse man inte kan skicka till
+ * någon är halva funktionen.
+ *
+ * ## Utan JavaScript
+ *
+ * Knapparna som öppnar rutan är LÄNKAR till jämförelsesidan med det här
+ * stället redan ifyllt som det första. Skriptet fångar klicket och öppnar
+ * rutan i stället. Går skriptet inte fram leder länken dit den säger, och
+ * väljaren på sidan gör samma sak i två steg. Ingen knapp kan bli död.
+ *
+ * ## Kommungränsen
+ *
+ * Förslagen kommer ur samma kommun, sökfältet söker bara i samma kommun, och
+ * adressen rutan bygger bär en enda kommun. Det finns ingen väg härifrån till
+ * en jämförelse över kommungränsen. Se lib/jamfor.ts för varför den gränsen
+ * är regeln som gör talen jämförbara.
+ */
+import FaceMark from './FaceMark.astro';
+import { formatDistance, type Establishment } from '../lib/data';
+import { compareHref } from '../lib/jamfor';
+import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
+import { VERDICT } from '../lib/site';
+
+interface Props {
+  establishment: Establishment;
+  kommunSlug: string;
+  city: string;
+  /** Förslagen, redan rangordnade. Se compareSuggestions i lib/jamfor.ts. */
+  suggestions: Establishment[];
+  /** Avstånd i meter per slug, när det finns. Grannarna bär det redan. */
+  metres?: Record<string, number>;
+}
+
+const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.props;
+---
+
+<dialog
+  class="jamfor-ruta"
+  id="jamfor-ruta"
+  aria-labelledby="jamfor-ruta-titel"
+  data-kommun={kommunSlug}
+  data-slug={e.slug}
+  data-index={SEARCH_INDEX_URL}
+  data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+>
+  <div class="ark">
+    <header class="bar">
+      <h2 class="bar-title" id="jamfor-ruta-titel">Jämför {e.name} med</h2>
+      <button type="button" class="ikon" data-close aria-label="Stäng">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M5 5l10 10M15 5L5 15"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"></path>
+        </svg>
+      </button>
+    </header>
+
+    <div class="kropp">
+      {/* Fältet söker bara i den här kommunen, och det står i platshållaren
+          i stället för i en mening under. */}
+      <input
+        type="text"
+        id="jamfor-ruta-sok"
+        role="combobox"
+        aria-expanded="false"
+        aria-autocomplete="list"
+        aria-controls="jamfor-ruta-lista"
+        autocomplete="off"
+        placeholder={`Sök i ${city}`}
+      />
+
+      {/* Förslagen står renderade i HTML, inte hämtade. Rutan ska vara
+          ifylld i samma ögonblick den öppnas, och sex rader är ingenting att
+          vänta på nätverket för. Skriptet byter bara ut dem när man skriver. */}
+      <ul class="lista" id="jamfor-ruta-lista" role="listbox">
+        {suggestions.map((s) => (
+          <li role="presentation">
+            <a role="option" aria-selected="false" href={compareHref(kommunSlug, e.slug, s.slug)}>
+              <FaceMark verdict={s.verdict} size={30} variant="round" />
+              <span class="info">
+                <b>{s.name}</b>
+                <span class="meta text-secondary">
+                  {[s.address, metres[s.slug] !== undefined ? formatDistance(metres[s.slug]) : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </span>
+              <span
+                class="verdict"
+                style={`color: ${s.verdict ? VERDICT[s.verdict].colorVar : 'var(--verdict-none-ink)'}`}
+              >
+                {s.verdict ? VERDICT[s.verdict].label : ''}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <p class="tom caption text-muted" id="jamfor-ruta-tom" hidden></p>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  /* Elementnamnet med, av samma skäl som i Reviews.astro: rutan står som
+     syskon i sidans flöde tills showModal() lyfter den, och sidmallens
+     `.main > * + *` skulle annars äta av dess yta. */
+  dialog.jamfor-ruta {
+    padding: 0;
+    border: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .jamfor-ruta::backdrop {
+    background: rgba(0, 0, 0, .45);
+  }
+
+  /* Smalare än omdömesrutans 520: här skriver man ett ord och läser en lista,
+     man skriver inget stycke. */
+  .ark {
+    width: min(460px, calc(100vw - var(--s-8)));
+    max-height: calc(100dvh - var(--keyboard-inset, 0px) - var(--s-8));
+    display: flex;
+    flex-direction: column;
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+    overflow: hidden;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-4) var(--s-3);
+  }
+
+  .bar-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  .ikon {
+    flex: none;
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-pill);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .ikon:hover { background: var(--canvas); }
+  .ikon svg { width: 18px; height: 18px; }
+
+  .kropp {
+    padding: 0 var(--s-4) var(--s-4);
+    overflow-y: auto;
+  }
+
+  .kropp input {
+    width: 100%;
+    font: inherit;
+    font-size: var(--fs-body-s);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .kropp input:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* Raderna är inga kort. Hårlinje per rad, som listorna i övrigt. */
+  .lista {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+  }
+
+  .tom:not([hidden]) { margin: var(--s-4) 0 0; }
+</style>
+
+{/*
+  Global, och namnrymden är rutans egen id.
+
+  Astros scopeade CSS märker de element som står i mallen med ett
+  hash-attribut. Raderna byts ut av skriptet när man söker, och de nya raderna
+  får aldrig märket. Utan det här blocket ritas sökträffarna helt ostilade
+  medan de förrenderade förslagen ser rätt ut, alltså ser rutan trasig ut
+  först när man använder den.
+*/}
+<style is:global>
+  #jamfor-ruta .lista li + li {
+    border-top: 1px solid var(--hairline);
+  }
+
+  #jamfor-ruta .lista a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-2);
+    margin-inline: calc(var(--s-2) * -1);
+    border-radius: var(--r-control);
+    color: var(--text);
+  }
+
+  #jamfor-ruta .lista a:hover,
+  #jamfor-ruta .lista a:focus-visible {
+    background: color-mix(in srgb, var(--brand) 5%, transparent);
+    text-decoration: none;
+  }
+
+  #jamfor-ruta .lista .info { flex: 1; min-width: 0; }
+
+  #jamfor-ruta .lista .info b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #jamfor-ruta .lista .meta {
+    display: block;
+    font-size: var(--fs-caption);
+  }
+
+  #jamfor-ruta .lista .verdict {
+    flex: none;
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  @media (max-width: 420px) {
+    #jamfor-ruta .lista .verdict { display: none; }
+  }
+</style>
+
+<script>
+  import { loadIndex, normalise, searchIndex } from '../lib/sokforslag';
+  import { registerCompareDialog } from '../lib/jamfor-dialog';
+  import { lockPage, unlockPage } from '../lib/page-lock';
+
+  const dialog = document.getElementById('jamfor-ruta') as HTMLDialogElement | null;
+
+  if (dialog) {
+    const field = document.getElementById('jamfor-ruta-sok') as HTMLInputElement;
+    const list = document.getElementById('jamfor-ruta-lista') as HTMLUListElement;
+    const empty = document.getElementById('jamfor-ruta-tom') as HTMLParagraphElement;
+    const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
+
+    const kommun = dialog.dataset.kommun!;
+    const self = dialog.dataset.slug!;
+
+    /** Förslagen som de står renderade. Återställs när fältet töms. */
+    const suggested = list.innerHTML;
+
+    let opener: HTMLElement | null = null;
+
+    function escapeHtml(s: string) {
+      return s.replace(
+        /[&<>"]/g,
+        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+      );
+    }
+
+    /**
+     * Träffar i DEN HÄR kommunen.
+     *
+     * Kommunfiltret är inte en bekvämlighet utan regeln som gör talen
+     * jämförbara. Andelen med kvarstående brister ligger på 0,3 procent i
+     * Jönköping och 23,7 i Oskarshamn, och den skillnaden speglar hur
+     * kommunen publicerar. Inom en kommun är jämförelsen ren, och därför
+     * finns ingen väg härifrån ut ur kommunen.
+     */
+    function search(query: string) {
+      const index = searchIndex();
+      const needle = normalise(query.trim());
+      const found: Array<[string, string, string]> = [];
+
+      for (let i = 0; i < index.rows.length && found.length < 8; i += 1) {
+        const [name, address, slug, k] = index.rows[i];
+        if (index.kommuner[k][0] !== kommun) continue;
+        if (slug === self) continue;
+        if (!index.hay[i].includes(needle)) continue;
+        found.push([name, address, slug]);
+      }
+      return found;
+    }
+
+    function paint(query: string) {
+      if (!query.trim()) {
+        list.innerHTML = suggested;
+        list.hidden = false;
+        empty.hidden = true;
+        field.setAttribute('aria-expanded', 'false');
+        return;
+      }
+
+      const found = search(query);
+      if (!found.length) {
+        list.innerHTML = '';
+        list.hidden = true;
+        empty.textContent = 'Ingen träff.';
+        empty.hidden = false;
+        field.setAttribute('aria-expanded', 'false');
+        return;
+      }
+
+      /* Ansiktsmärket följer inte med i sökträffarna. Det ritas av en
+         Astro-komponent vid bygget och finns inte att bygga i webbläsaren,
+         och en halv rad utan märke är bättre än ett märke som visar fel
+         bedömning. Bedömningen står ändå på den sida raden leder till. */
+      list.innerHTML = found
+        .map(
+          ([name, address, slug]) =>
+            `<li role="presentation"><a role="option" aria-selected="false" href="/jamfor/?k=${encodeURIComponent(
+              kommun,
+            )}&a=${encodeURIComponent(self)}&b=${encodeURIComponent(slug)}">` +
+            `<span class="info"><b>${escapeHtml(name)}</b>` +
+            `<span class="meta text-secondary">${escapeHtml(address)}</span></span></a></li>`,
+        )
+        .join('');
+      list.hidden = false;
+      empty.hidden = true;
+      field.setAttribute('aria-expanded', 'true');
+    }
+
+    function open(trigger: HTMLElement | null) {
+      opener = trigger;
+      field.value = '';
+      paint('');
+      lockPage();
+      dialog!.showModal();
+      /* Fokus i fältet. Rullningen läggs tillbaka av låset, så en extra
+         framrullning skulle bara flytta sidan under. */
+      field.focus({ preventScroll: true });
+      // Registret behövs först när någon skriver, men hämtningen startar nu
+      // så att första tangenttrycket har det på plats. Är det redan hämtat av
+      // sidhuvudets sökruta är det här en no-op.
+      void loadIndex(dialog!.dataset.index!, dialog!.dataset.indexFallback ?? null);
+    }
+
+    function shut() {
+      if (dialog!.open) dialog!.close();
+      unlockPage();
+      const back = opener;
+      opener = null;
+      if (back?.isConnected) back.focus({ preventScroll: true });
+    }
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      shut();
+    });
+    close.addEventListener('click', () => shut());
+    // Klick utanför arket stänger. Backdrop-klick landar på <dialog> självt.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) shut();
+    });
+
+    field.addEventListener('input', () => paint(field.value));
+
+    registerCompareDialog(open);
+  }
+</script>

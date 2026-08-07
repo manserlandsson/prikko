@@ -40,12 +40,18 @@ export interface ChainEntry {
 /**
  * Kedjorna vi känner igen.
  *
- * URVALSREGELN: maten ska vara skälet till besöket. Restauranger, snabbmat,
- * caféer, bagerier, livsmedelsbutiker, servicebutiker och bemannade
- * drivmedelsstationer. Utanför står gym, apotek, klädbutiker, biografer och
- * lågprisvaruhus. De är registrerade livsmedelsverksamheter och finns på
- * sajten som vanligt, men en sida med rubriken "XXL" som handlar om
- * hygienkontroll säger mer om vår datamodell än om vad besökaren undrade.
+ * URVALSREGELN VAR "maten ska vara skälet till besöket", och den är UPPHÄVD.
+ *
+ * Regeln höll gym, apotek, biografer och lågprisvaruhus utanför, med
+ * argumentet att en sida om hygienkontroll hos XXL säger mer om vår
+ * datamodell än om vad besökaren undrade. Ägaren underkände det: de är
+ * registrerade livsmedelsverksamheter, de kontrolleras av samma inspektör
+ * efter samma regelverk, och den som köper en smoothie på gymmet eller en
+ * matlåda i lågprisvaruhuset har exakt samma intresse av resultatet.
+ *
+ * Kvar som gräns står bara att kedjan ska hantera livsmedel och nå
+ * tröskeln i `kedjor.ts`. En butikskedja som aldrig rör mat hamnar inte i
+ * beståndet över huvud taget, så den gränsen sköter sig själv.
  *
  * Att lägga till en kedja är en rad. Sidan byggs bara om raden klarar
  * gränserna i `kedjor.ts`, så en felaktig rad ger ingen sida snarare än en
@@ -112,6 +118,18 @@ export const REGISTER: ChainEntry[] = [
   { id: 'circle-k', name: 'Circle K', patterns: ['circle k'] },
   { id: 'okq8', name: 'OKQ8', patterns: ['okq8'] },
   { id: 'preem', name: 'Preem', patterns: ['preem'] },
+
+  /* Verksamheter där maten inte är skälet till besöket, men som ändå säljer
+     eller hanterar livsmedel och kontrolleras för det. Se regeln ovan. */
+  { id: 'nordic-wellness', name: 'Nordic Wellness', patterns: ['nordic wellness'] },
+  { id: 'apotek-hjartat', name: 'Apotek Hjärtat', patterns: ['apotek hjartat'] },
+  { id: 'dollarstore', name: 'Dollarstore', patterns: ['dollarstore', 'dollar store'] },
+  { id: 'sats', name: 'SATS', patterns: ['sats'] },
+  { id: 'apoteket', name: 'Apoteket', patterns: ['apoteket'] },
+  { id: 'kronans-apotek', name: 'Kronans Apotek', patterns: ['kronans apotek'] },
+  { id: 'filmstaden', name: 'Filmstaden', patterns: ['filmstaden'] },
+  { id: 'ohoj', name: 'Öob', patterns: ['oob', 'overskottsbolaget'] },
+  { id: 'rusta', name: 'Rusta', patterns: ['rusta'] },
 ];
 
 /** Samma translitterering som `slugify` i slug.ts, och av samma skäl. */

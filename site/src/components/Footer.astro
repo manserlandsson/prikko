@@ -27,6 +27,7 @@
  * Wordmarken ligger uppe till vänster och ger blocket en startpunkt.
  */
 import { establishments, municipalities } from '../lib/data';
+import { chains } from '../lib/kedjor';
 import { SITE } from '../lib/site';
 import { path } from '../lib/urls';
 import Wordmark from './Wordmark.astro';
@@ -50,6 +51,25 @@ const bySize = all
 
 const listed = bySize.slice(0, MAX_PER_COLUMN);
 const truncated = bySize.length > MAX_PER_COLUMN;
+
+/*
+ * Kedjorna, störst först.
+ *
+ * Samma skäl som kommunkolumnerna: sidtypen är ny, ingen länkar till den
+ * utifrån, och sidfoten är den billigaste vägen att ge 52 sidor tyngd i varje
+ * dokument sajten har. Ägaren föreslog det själv: "kedjor kanske kan vara i
+ * footern så som vi har med kommuner?"
+ *
+ * Störst först och inte i bokstavsordning, av samma anledning som kommunerna:
+ * ryms bara ett urval ska det vara de som flest söker på. `chains()` sorterar
+ * alfabetiskt, så vi sorterar om.
+ */
+const byChainSize = chains()
+  .slice()
+  .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'sv'));
+
+const listedChains = byChainSize.slice(0, MAX_PER_COLUMN);
+const moreChains = byChainSize.length > MAX_PER_COLUMN;
 
 // Bara kommuner som faktiskt HAR anmärkningar får en länk hit. En
 // leaderboard utan rader är precis den tunna sida kvalitetsgrinden finns
@@ -97,6 +117,16 @@ const withRemarks = bySize
         {withRemarks.map((m) => (
           <li><a href={path(m.slug, "anmarkningar")}>Anmärkningar i {m.city}</a></li>
         ))}
+      </ul>
+    </nav>
+
+    <nav class="col" aria-label="Kedjor">
+      <p class="col-title">Kedjor</p>
+      <ul>
+        {listedChains.map((c) => (
+          <li><a href={path('kedja', c.id)}>{c.name}</a></li>
+        ))}
+        {moreChains && <li><a href="/kedja/">Alla kedjor</a></li>}
       </ul>
     </nav>
 
@@ -175,7 +205,8 @@ const withRemarks = bySize
   .inner {
     display: grid;
     /* Märkeskolumnen är bredare: den bär löpande text, de andra listor. */
-    grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
+    /* Fyra länkkolumner sedan kedjorna kom till, plus avsändarblocket. */
+    grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr));
     /* 48 px radluft om kolumnerna bryter, 32 px mellan kolumnerna. */
     gap: var(--s-12) var(--s-8);
     /* 48 px in och 48 px ut. Var 32 — för lite för ett block med 24 länkar,
@@ -292,12 +323,12 @@ const withRemarks = bySize
     text-underline-offset: 3px;
   }
 
-  /* Surfplatta: märkeskolumnen lägger sig ovanför och tar hela bredden, de
-     tre listorna står kvar på rad. Två kolumner hade lämnat den tredje
-     listan ensam på en egen rad. */
+  /* Surfplatta: märkeskolumnen lägger sig ovanför och tar hela bredden, och
+     de FYRA listorna ställer sig två och två. Tre kolumner hade lämnat den
+     fjärde ensam på en egen rad sedan kedjorna kom till. */
   @media (max-width: 900px) {
     .inner {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: var(--s-12) var(--s-8);
     }
 

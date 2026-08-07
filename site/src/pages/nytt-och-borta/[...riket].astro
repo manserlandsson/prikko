@@ -1,0 +1,214 @@
+---
+/**
+ * Rikets rörelse: en tidsordnad följd av vad som tillkommit och försvunnit.
+ *
+ * ## Varför det inte finns ett enda tal per kommun här
+ *
+ * Frestelsen på en riksvy är en tabell: kommun, antal nya, antal borta. Den
+ * tabellen får inte byggas. Talen speglar hur kommunen sköter sitt register
+ * minst lika mycket som hur många verksamheter som faktiskt tillkommer, och en
+ * kommun som rensar sitt register en gång om året skulle hamna högst upp på en
+ * lista över "mest rörelse" utan att någonting hänt i en enda lokal. Det är
+ * samma fel som att rangordna kommuner på kontrollresultat, och lika lite vår
+ * sak att göra. En kommuns tal står på kommunens egen sida.
+ *
+ * Kvar blir det riksvyn faktiskt kan bära: en följd av händelser med datum,
+ * sorterad på datum och ingenting annat, med kommunen som en upplysning på
+ * raden i stället för som en rubrik att jämföra under.
+ */
+import Base from '../../layouts/Base.astro';
+import { formatDate, formatNumber } from '../../lib/data';
+import {
+  eventIsLive,
+  hasNationalPage,
+  monthLabel,
+  nationalMovement,
+  type NationalEvent,
+} from '../../lib/rorelse';
+import { absolute, path } from '../../lib/urls';
+
+/**
+ * Rutten är en viloparameter av en enda anledning: `getStaticPaths` finns bara
+ * på dynamiska rutter, och sidan måste kunna välja att inte byggas alls. Med
+ * `riket: undefined` blir den byggda adressen /nytt-och-borta/ och ingen
+ * annan. Loggen börjar tom, och en riksvy utan händelser är en tunn sida.
+ */
+export function getStaticPaths() {
+  return hasNationalPage() ? [{ params: { riket: undefined } }] : [];
+}
+
+const events = nationalMovement();
+const arrived = events.filter((e) => e.kind === 'ny').length;
+const departed = events.length - arrived;
+const latest = events[0]?.on ?? null;
+
+const answer =
+  `${formatNumber(arrived)} verksamheter har tillkommit i kommunernas register ` +
+  `och ${formatNumber(departed)} har försvunnit ur dem.`;
+
+/** Grupperat på månad, nyast först. Enda ordningen är datum. */
+const months: Array<{ month: string; label: string; rows: NationalEvent[] }> = [];
+for (const event of events) {
+  const month = event.on.slice(0, 7);
+  let bucket = months[months.length - 1];
+  if (!bucket || bucket.month !== month) {
+    bucket = { month, label: monthLabel(month), rows: [] };
+    months.push(bucket);
+  }
+  bucket.rows.push(event);
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+    { '@type': 'ListItem', position: 2, name: 'Nytt och borta' },
+  ],
+};
+---
+
+<Base
+  title="Nytt och borta"
+  description={answer}
+  jsonLd={jsonLd}
+  dataUpdated={latest ?? undefined}
+>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+    </nav>
+
+    <h1>Nytt och borta</h1>
+    <p class="answer">{answer}</p>
+
+    {months.map((month) => (
+      <section class="month">
+        <h2>{month.label}</h2>
+        <ul class="list">
+          {month.rows.map((event) => (
+            <li>
+              <span class="what">
+                {eventIsLive(event.municipality.slug, event) ? (
+                  <a class="name" href={path(event.municipality.slug, event.slug)}>{event.name}</a>
+                ) : (
+                  <span class="name">{event.name}</span>
+                )}
+                <span class="meta text-secondary">
+                  {[event.address, event.municipality.city, formatDate(event.on)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </span>
+              <span class="kind text-secondary">
+                {event.kind === 'ny' ? 'Tillkommen' : 'Försvunnen'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <section class="foot">
+      <p>
+        Varje verksamhet kan svara, och svaren publiceras ordagrant. Är en
+        uppgift fel, <a href={path('ratta')}>begär rättelse</a>.
+      </p>
+      <p class="caption">
+        <a href={path('metodik')}>Så räknas bedömningen fram</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-page);
+    padding-block: var(--s-6) var(--s-16);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-caption);
+    color: var(--text-muted);
+    margin-bottom: var(--s-3);
+  }
+  .crumbs a { color: var(--text-secondary); }
+
+  h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .answer {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+    margin: var(--s-3) 0 0;
+    max-width: var(--w-read);
+  }
+
+  .month {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .month h2 {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .list {
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-4);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .what { flex: 1; min-width: 0; }
+
+  .name {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .meta {
+    display: block;
+    font-size: var(--fs-caption);
+  }
+
+  .kind {
+    font-size: var(--fs-caption);
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .foot {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+    max-width: var(--w-read);
+  }
+
+  .foot p { margin: 0 0 var(--s-2); }
+</style>

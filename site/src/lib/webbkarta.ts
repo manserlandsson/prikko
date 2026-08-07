@@ -39,7 +39,7 @@ import {
 import { articleFiles, sectionReady } from './artiklar';
 import { mapDataset } from './map-data';
 import { hasMatsnuskPage } from './matsnusk';
-import { linkedAreas } from './omraden';
+import { hasMovementPage, hasNationalPage, movement } from './rorelse';
 import { REPORTS } from './rapporter';
 import { barRange, editions, numeral, standings } from './utmarkelser';
 import { path } from './urls';
@@ -207,6 +207,17 @@ function kommunLinks(m: Municipality): MapLink[] {
     links.push({ href: path(m.slug, 'matsnusk'), label: 'Matsnusk' });
   }
 
+  // Rörelsen i beståndet. Loggen börjar tom och byggs på natt för natt, så
+  // sidan finns inte i någon kommun förrän det finns något att visa. Villkoret
+  // är samma anrop som getStaticPaths i pages/[kommun]/nytt-och-borta gör.
+  if (hasMovementPage(m.slug)) {
+    links.push({
+      href: path(m.slug, 'nytt-och-borta'),
+      label: 'Nytt och borta',
+      count: movement(m.slug)!.events.length,
+    });
+  }
+
   // Kategorisidorna, men bara de som byggts. `linked` är samma flagga som
   // getStaticPaths i pages/[kommun]/kategori/[...path].astro läser, alltså
   // exakt de kategorier som har en URL. Underkategorierna räknas inte upp
@@ -217,17 +228,6 @@ function kommunLinks(m: Municipality): MapLink[] {
     links.push({
       href: path(m.slug, 'kategori', slice.category.slug),
       label: slice.category.name,
-      count: slice.count,
-    });
-  }
-
-  // Områdessidorna, med samma villkor: `linkedAreas` är exakt den lista
-  // getStaticPaths i pages/[kommun]/omrade/[...path].astro bygger sidor ur.
-  // Kommuner utan gränsdata i OSM har ingen lista och lägger alltså inget här.
-  for (const slice of linkedAreas(m.slug)) {
-    links.push({
-      href: path(m.slug, 'omrade', slice.area.slug),
-      label: slice.area.name,
       count: slice.count,
     });
   }
@@ -337,6 +337,12 @@ function omSection(): MapSection {
           { href: path('metodik'), label: 'Så räknas bedömningen fram' },
           { href: path('kallor'), label: 'Källor och uppdatering' },
           { href: path('sok'), label: 'Sök verksamhet' },
+          { href: path('jamfor'), label: 'Jämför två ställen' },
+          // Riksvyn byggs bara när loggen bär tillräckligt. Utan villkoret
+          // hade byggrinden fällt bygget på en länk till en sida som inte finns.
+          ...(hasNationalPage()
+            ? [{ href: path('nytt-och-borta'), label: 'Nytt och borta' }]
+            : []),
           { href: path('ratta'), label: 'Rätta en uppgift' },
           { href: path('integritetspolicy'), label: 'Integritetspolicy' },
           { href: path('villkor'), label: 'Användarvillkor' },

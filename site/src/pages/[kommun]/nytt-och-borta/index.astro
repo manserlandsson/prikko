@@ -1,0 +1,268 @@
+---
+/**
+ * Rörelsen i kommunens bestånd, månad för månad.
+ *
+ * ## Varför rubriken inte säger "nyöppnat" och "stängt"
+ *
+ * Vi vet inte när något öppnade eller stängde. Ingen källa säger det, och de
+ * fält som skulle kunna bära uppgiften är null i de flesta kommunerna. Det vi
+ * har observerat är att ett anläggnings-id dök upp i en utlämning, eller
+ * slutade lämnas ut. Sidan säger därför exakt det, och ingenting mer.
+ *
+ * Skillnaden är inte en formalitet. En kommun som lägger om sitt register
+ * skulle med den andra rubriken se ut att öppna trehundra restauranger på en
+ * dag, och en verksamhet som fått nytt id skulle stå som nedlagd fast den
+ * ligger kvar. Båda felen är utfiltrerade i pipelinen, se
+ * pipeline/prikko/rorelse.py, men rubriken ska stämma även när filtret en dag
+ * missar något.
+ *
+ * ## Varför sidan inte finns i alla kommuner
+ *
+ * Loggen börjar den natt pipeline/rorelse.py körs första gången, och första
+ * körningen publicerar ingenting. En kommun med färre än MIN_MOVEMENT_PAGE
+ * händelser får ingen sida: fyra rader är ett utsnitt av kommunhubben och
+ * ingenting mer. Villkoret upprepas i lib/webbkarta.ts och måste hållas i takt
+ * med det.
+ *
+ * ## Ingen sida per månad
+ *
+ * Månaderna är rubriker på den här sidan, inte egna adresser. Ett arkiv med
+ * tolv sidor per kommun och år hade gett tunna sidor i tiotal, vilket är
+ * precis det bibeln §6 varnar för, och den återkommande trafiken kommer av att
+ * DEN HÄR sidan ändras varje månad — inte av att det finns en URL till
+ * september.
+ */
+import Base from '../../../layouts/Base.astro';
+import { formatDate, formatNumber } from '../../../lib/data';
+import {
+  eventIsLive,
+  movement,
+  movementMunicipalities,
+  type MovementEvent,
+} from '../../../lib/rorelse';
+import { absolute, path } from '../../../lib/urls';
+
+export function getStaticPaths() {
+  return movementMunicipalities().map((m) => ({
+    params: { kommun: m.slug },
+    props: { kommun: m },
+  }));
+}
+
+const { kommun } = Astro.props;
+const data = movement(kommun.slug)!;
+const city = kommun.city;
+
+/*
+ * Självbärande första mening. Talen är vad vi har observerat, och perioden
+ * står med eftersom ett tal utan period inte betyder något: fjorton tillkomna
+ * är en helt annan uppgift på en månad än på ett år.
+ */
+const answer =
+  `${formatNumber(data.arrived)} verksamheter har tillkommit i ${city}s register ` +
+  `och ${formatNumber(data.departed)} har försvunnit ur det` +
+  (data.observedFrom ? `, räknat från ${formatDate(data.observedFrom)}.` : '.');
+
+const latest = data.events[0]?.on ?? null;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+      { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommun.slug) },
+      { '@type': 'ListItem', position: 3, name: 'Nytt och borta' },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Nytt och borta i ${city}`,
+    inLanguage: 'sv-SE',
+    numberOfItems: data.events.length,
+    itemListOrder: 'https://schema.org/ItemListOrderDescending',
+  },
+];
+
+/** En rad. Länkas bara när verksamheten har en sida att länka till. */
+function line(event: MovementEvent) {
+  return {
+    live: eventIsLive(kommun.slug, event),
+    meta: [event.address, formatDate(event.on)].filter(Boolean).join(' · '),
+  };
+}
+---
+
+<Base
+  title={`Nytt och borta i ${city}`}
+  description={`${formatNumber(data.arrived)} verksamheter har tillkommit i ${city}s register och ${formatNumber(data.departed)} har försvunnit ur det.`}
+  jsonLd={jsonLd}
+  dataUpdated={latest ?? undefined}
+>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(kommun.slug)}>{city}</a>
+      <span aria-hidden="true">›</span>
+    </nav>
+
+    <h1>Nytt och borta i {city}</h1>
+    <p class="answer">{answer}</p>
+
+    {data.months.map((month) => (
+      <section class="month">
+        <h2>{month.label}</h2>
+
+        {month.arrived.length > 0 && (
+          <div class="block">
+            <h3>Tillkomna <span class="count text-muted">{month.arrived.length}</span></h3>
+            <ul class="list">
+              {month.arrived.map((event) => {
+                const row = line(event);
+                return (
+                  <li>
+                    {row.live ? (
+                      <a class="name" href={path(kommun.slug, event.slug)}>{event.name}</a>
+                    ) : (
+                      <span class="name">{event.name}</span>
+                    )}
+                    <span class="meta text-secondary">{row.meta}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {month.departed.length > 0 && (
+          <div class="block">
+            <h3>Försvunna <span class="count text-muted">{month.departed.length}</span></h3>
+            <ul class="list">
+              {month.departed.map((event) => {
+                const row = line(event);
+                return (
+                  <li>
+                    {/* Försvunna verksamheter har ingen sida kvar. Namnet står
+                        utan länk i stället för att peka på en 404. */}
+                    {row.live ? (
+                      <a class="name" href={path(kommun.slug, event.slug)}>{event.name}</a>
+                    ) : (
+                      <span class="name">{event.name}</span>
+                    )}
+                    <span class="meta text-secondary">{row.meta}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
+    ))}
+
+    <section class="foot">
+      <p>
+        Varje verksamhet kan svara, och svaren publiceras ordagrant. Är en
+        uppgift fel, <a href={path('ratta')}>begär rättelse</a>.
+      </p>
+      <p class="caption">
+        <a href={path(kommun.slug)}>Alla verksamheter i {city}</a>
+        <span aria-hidden="true"> · </span>
+        <a href={path('metodik')}>Så räknas bedömningen fram</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-page);
+    padding-block: var(--s-6) var(--s-16);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-caption);
+    color: var(--text-muted);
+    margin-bottom: var(--s-3);
+  }
+  .crumbs a { color: var(--text-secondary); }
+
+  h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .answer {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+    margin: var(--s-3) 0 0;
+    max-width: var(--w-read);
+  }
+
+  /* Sektioner skiljs av hårlinje och luft, aldrig av en ruta. */
+  .month {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .month h2 {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .block { margin-top: var(--s-6); }
+
+  .block h3 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .count { font-weight: 400; }
+
+  .list {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .list li {
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .name {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .meta {
+    display: block;
+    font-size: var(--fs-caption);
+  }
+
+  .foot {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+    max-width: var(--w-read);
+  }
+
+  .foot p { margin: 0 0 var(--s-2); }
+</style>

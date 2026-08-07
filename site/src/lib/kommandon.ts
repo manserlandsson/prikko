@@ -36,6 +36,7 @@ export interface CommandSection {
  */
 const PAGES: Suggestion[] = [
   { label: 'Sök', meta: 'Alla verksamheter och kommuner', href: path('sok'), kind: 'page', kw: 'hitta' },
+  { label: 'Jämför två ställen', meta: 'Bedömning och kontrollhistorik sida vid sida', href: path('jamfor'), kind: 'page', kw: 'jämför jamfor jämförelse mot' },
   { label: 'Metodik', meta: 'Så räknas bedömningen fram', href: path('metodik'), kind: 'page', kw: 'metod bedömning betyg modell' },
   { label: 'Källor', meta: 'Varifrån uppgifterna kommer', href: path('kallor'), kind: 'page', kw: 'data öppna data' },
   { label: 'Rapporter', meta: 'Räknat ur hela beståndet', href: path('rapporter'), kind: 'page', kw: 'statistik siffror' },

@@ -40,10 +40,9 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
-import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
-import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
+import JamforRuta from '../../components/JamforRuta.astro';
 import MatsnuskNote from '../../components/MatsnuskNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
@@ -75,7 +74,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
-import { chainFor } from '../../lib/kedjor';
+import { compareHref, compareSuggestions } from '../../lib/jamfor';
 import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
@@ -107,6 +106,13 @@ const latestInspection = e.inspections[0];
 const stats = statistics(e);
 const neighbours = nearby(e);
 const hasCoords = e.lat !== null && e.lng !== null;
+
+/*
+ * Vad jämförelserutan föreslår. Grannarna är redan uträknade ovan och skickas
+ * in, så förslagen kostar inget nytt svep över kommunen. Se lib/jamfor.ts.
+ */
+const compareWith = compareSuggestions(e, neighbours);
+const compareMetres = Object.fromEntries(neighbours.map((n) => [n.slug, n.metres]));
 
 /**
  * Kommunen som jämförelsepunkt.
@@ -170,19 +176,6 @@ const ownCategories: CategorySlice[] = kommunCats.usable
       .categories.map((id) => kommunCats.slices.find((s) => s.category.id === id))
       .filter((s): s is CategorySlice => s !== undefined && s.linked)
   : [];
-
-/**
- * Vägen i sidled ut ur kommunen.
- *
- * Kategorilänken ovanför går till "Caféer i Stockholm". Den här går till
- * "Espresso House", alla 52, i alla kommuner vi har. Det är den enda länk på
- * sidan som lämnar kommunen, och den frågan är den enda ingen kommunal
- * livsmedelskarta i Sverige kan besvara.
- *
- * `chainFor` är null när kedjan inte har en sida, så länken kan aldrig peka
- * på en URL som kvalitetsgrinden håller borta. Se lib/kedjor.ts.
- */
-const kedja = chainFor(e);
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -280,14 +273,6 @@ const facts = [
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'FoodEstablishment',
-  /* Ett id att peka på.
-
-     Öppettider och telefon kommer från företagsytan och hämtas i webbläsaren,
-     alltså finns de inte när den här noden skrivs. Foretagsuppgifter.astro
-     lägger till en andra nod med SAMMA @id när uppgifterna kommit hem, och den
-     som läser strukturerad data slår då ihop de två i stället för att tro att
-     adressen har två restauranger. Utan ett id går det inte att göra. */
-  '@id': `${absolute(kommun.slug, e.slug)}#verksamhet`,
   name: e.name,
   url: absolute(kommun.slug, e.slug),
   address: {
@@ -456,6 +441,23 @@ const breadcrumbs = {
             Boarea · Rum · Byggår under priset. Förbehållen bor i tipsen. */}
         <FactGrid facts={facts} />
 
+        {/* Jämförelsen står vid nyckeltalen och inte i handlingsraden.
+            Handlingsraden är låst vid två knappar av dokumenterade skäl, se
+            Handlingsrad.astro, och talen här ÄR det jämförelsen ställer
+            bredvid varandra: kontroller, andel utan anmärkning, återbesök.
+            En knapp hör hemma där dess verkan sker.
+
+            Länk och inte knapp: utan JavaScript leder den till /jamfor/ med
+            det här stället ifyllt, och väljaren där gör samma sak i två steg.
+            Med JavaScript öppnas rutan i stället. Ingen knapp kan bli död. */}
+        {compareWith.length > 0 && (
+          <p class="jamfor-rad">
+            <a class="jamfor-knapp" data-jamfor href={compareHref(kommun.slug, e.slug)}>
+              Jämför med ett annat ställe
+            </a>
+          </p>
+        )}
+
         {/* Utmärkelsen stod här som ett eget fält och är flyttad upp till
             bedömningsraden, se AwardNote.astro. Matsnusk står kvar: den är
             inget erkännande utan ett påstående om kvarstående brister, och
@@ -494,27 +496,6 @@ const breadcrumbs = {
             city={kommun.city}
           />
         )}
-
-        {/*
-          Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.
-
-          Ordningen är ett påstående, samma som gäller bilder och omdömen: det
-          kommunen funnit först, det verksamheten själv säger sedan. En
-          presentation som stod ovanför bedömningen hade läst som en ingress
-          till den, och det är precis vad den aldrig får vara.
-
-          Tomt i HTML-filen och fyllt i webbläsaren. Avsnittet syns inte alls
-          på de sidor där ingen skickat in något, alltså på nästan alla. Se
-          Foretagsuppgifter.astro.
-        */}
-        <Foretagsuppgifter establishmentId={e.id} />
-
-        {/*
-          Verksamhetens egna bilder, direkt efter dess egna uppgifter och före
-          gästernas bilder. De två bildavsnitten delar varken tabell eller kod;
-          se Foretagsbilder.astro.
-        */}
-        <Foretagsbilder establishmentId={e.id} establishmentName={e.name} />
 
         {/*
           Bilderna står FÖRE omdömena och efter kartan.
@@ -584,6 +565,14 @@ const breadcrumbs = {
                 </li>
               ))}
             </ul>
+            {/* Jämförelsen hör hemma här och inte i handlingsraden, som är
+                låst vid två knappar av dokumenterade skäl. Panelen handlar om
+                andra ställen, vilket är precis vad en jämförelse gör.
+                Adressen bär kommunen, och det är den som gör jämförelsen
+                ärlig: se lib/jamfor.ts. */}
+            <p class="near-foot caption">
+              <a data-jamfor href={compareHref(kommun.slug, e.slug)}>Jämför med ett annat ställe</a>
+            </p>
           </div>
         )}
 
@@ -619,13 +608,6 @@ const breadcrumbs = {
                 </a>
               </li>
             ))}
-            {kedja && (
-              <li>
-                <a href={path('kedja', kedja.id)}>
-                  Alla {formatNumber(kedja.total)} {kedja.name}
-                </a>
-              </li>
-            )}
           </ul>
         </div>
       </aside>
@@ -637,7 +619,41 @@ const breadcrumbs = {
     <ArtikelBanner prefer={artikelval} />
   </div>
 
+  {/* Rutan ligger sist och utanför spalterna. Den lyfts av showModal() och
+      syns aldrig förrän någon ber om den. */}
+  {compareWith.length > 0 && (
+    <JamforRuta
+      establishment={e}
+      kommunSlug={kommun.slug}
+      city={kommun.city}
+      suggestions={compareWith}
+      metres={compareMetres}
+    />
+  )}
 </Base>
+
+<script>
+  /**
+   * Länkarna till jämförelsen öppnar rutan i stället för att lämna sidan.
+   *
+   * Båda ingångarna, den vid nyckeltalen och den i närliggande-panelen, bär
+   * `data-jamfor` och är riktiga länkar till /jamfor/ med det här stället
+   * ifyllt. Går skriptet inte fram leder de dit de säger.
+   *
+   * Modifierade klick lämnas i fred: den som cmd-klickar vill ha en ny flik,
+   * och en ruta i den här fliken är inte det hen bad om.
+   */
+  import { openCompareDialog } from '../../lib/jamfor-dialog';
+
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-jamfor]')) {
+    link.addEventListener('click', (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+        return;
+      }
+      if (openCompareDialog(link)) event.preventDefault();
+    });
+  }
+</script>
 
 <style>
   .page {
@@ -828,6 +844,34 @@ const breadcrumbs = {
   }
 
   .near-info span { font-size: var(--fs-micro); line-height: var(--lh-micro); }
+
+  /* Stilla knapp under nyckeltalen. Formen är btn-quiet ur konto.css, men
+     klassen kan inte lånas rakt av: den bor i ett stilark den här sidan inte
+     laddar, och att dra in hela kontostilen för en knapp vore dyrare än de
+     åtta raderna. Måtten är btn-tights, alltså radens knapp och inte sidans
+     egen åtgärd — bedömningen ovanför är det man kom för. */
+  .jamfor-rad { margin: var(--s-4) 0 0; }
+
+  .jamfor-knapp {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 7px 16px;
+    font: 600 var(--fs-caption)/1 var(--font-sans);
+  }
+
+  .jamfor-knapp:hover {
+    background: var(--canvas);
+    text-decoration: none;
+
+  .near-foot {
+    margin: var(--s-3) 0 0;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--hairline);
+  }
 
   /* Fördelningsstapeln: tre andelar av samma helhet på en tunn rad.
      Springorna mellan segmenten är avsiktliga — tre mängder, inte en

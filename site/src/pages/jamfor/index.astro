@@ -1,0 +1,691 @@
+---
+/**
+ * Jämför två ställen.
+ *
+ * Folk gör det redan, genom att öppna två flikar. Den här sidan gör det till
+ * en handling med en adress som går att dela.
+ *
+ * ## Kommungränsen är byggd in i formen
+ *
+ * Två verksamheter i olika kommuner får inte ställas bredvid varandra som om
+ * talen betydde samma sak. Andelen med kvarstående brister ligger på 0,3
+ * procent i Jönköping och 23,7 i Oskarshamn, och det speglar hur kommunen
+ * publicerar och inte hur rent det är i köken. Inom en kommun är jämförelsen
+ * ren.
+ *
+ * Sajten har en stående regel mot förklarande brödtext (docs/18_sprakregler.md),
+ * så förbehållet får inte lösas med en varningsruta. Det är löst i
+ * konstruktionen i stället, på tre ställen samtidigt:
+ *
+ *   1. Adressen bär EN kommun. `?k=stockholm&a=…&b=…`. Det finns ingen plats
+ *      att skriva en andra kommun på.
+ *   2. Registret ligger i en fil per kommun, och sidan hämtar en enda fil.
+ *      Talen för en verksamhet i en annan kommun finns bokstavligen inte i
+ *      webbläsaren.
+ *   3. Väljaren för det andra stället söker bara i den kommun det första
+ *      ligger i, och byter man det första nollställs det andra.
+ *
+ * En jämförelse över kommungränsen går alltså inte att uttrycka. Ingen text
+ * behöver säga det.
+ *
+ * ## Varför sidan hämtar sina tal i stället för att bära dem
+ *
+ * 126 miljoner par går inte att förrendera, och även det snävaste urvalet av
+ * dem spränger filbudgeten på Cloudflare Pages. En sida som hämtar är det enda
+ * som ryms. Väljaren använder sökregistret, som redan ligger i besökarens
+ * cache eftersom sidhuvudet laddar det på varje sida, så det enda som tillkommer
+ * är kommunens egen fil med talen. Se lib/jamfor.ts.
+ */
+import Base from '../../layouts/Base.astro';
+import { JAMFOR_URLS, comparableMunicipalities } from '../../lib/jamfor';
+import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../../lib/search-index';
+import { DISTINCTION, VERDICT, VERDICTS } from '../../lib/site';
+import { formatNumber } from '../../lib/data';
+import { absolute, path } from '../../lib/urls';
+
+const kommuner = comparableMunicipalities();
+const total = kommuner.length;
+
+/*
+ * Bedömningens etiketter och färger måste följa med till klienten, eftersom
+ * tabellen ritas där. De läses ur site.ts och skrivs inte av för hand: en
+ * etikett som glider isär från verksamhetssidans är samma fel som två
+ * definitioner av "bedömd" var på kommunhubben.
+ */
+const presentation = {
+  verdicts: VERDICTS.map((v) => ({
+    label: VERDICT[v].label,
+    ink: `var(--verdict-${v}-ink)`,
+  })),
+  none: { label: 'Ingen bedömning', ink: 'var(--verdict-none-ink)' },
+  distinction: DISTINCTION.short,
+  urls: JAMFOR_URLS,
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+    { '@type': 'ListItem', position: 2, name: 'Jämför två ställen' },
+  ],
+};
+---
+
+<Base
+  title="Jämför två ställen"
+  description="Ställ två verksamheter bredvid varandra: bedömning, kontrollhistorik, andel utan anmärkning och återbesök."
+  jsonLd={jsonLd}
+>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+    </nav>
+
+    <h1>Jämför två ställen</h1>
+    <p class="answer">
+      Bedömning, kontrollhistorik, andel utan anmärkning och återbesök, sida vid
+      sida. {formatNumber(total)} kommuner.
+    </p>
+
+    <form
+      class="pick"
+      id="jamfor"
+      autocomplete="off"
+      data-index={SEARCH_INDEX_URL}
+      data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+      data-presentation={JSON.stringify(presentation)}
+      novalidate
+    >
+      <div class="field" data-side="a">
+        <label for="j-a">Första stället</label>
+        <input
+          id="j-a"
+          type="text"
+          role="combobox"
+          aria-expanded="false"
+          aria-autocomplete="list"
+          aria-controls="j-a-lista"
+          placeholder="Sök på namn eller adress"
+        />
+        <ul id="j-a-lista" class="options" role="listbox" hidden></ul>
+      </div>
+
+      <div class="field" data-side="b">
+        <label for="j-b">Andra stället</label>
+        <input
+          id="j-b"
+          type="text"
+          role="combobox"
+          aria-expanded="false"
+          aria-autocomplete="list"
+          aria-controls="j-b-lista"
+          placeholder="Sök på namn eller adress"
+        />
+        <ul id="j-b-lista" class="options" role="listbox" hidden></ul>
+      </div>
+    </form>
+
+    <p class="status" id="jamfor-status" role="status" aria-live="polite"></p>
+
+    <div id="jamfor-resultat"></div>
+
+    <noscript>
+      <p class="answer"><a href={path('sok')}>Sök</a> fram en verksamhet i stället.</p>
+    </noscript>
+
+    <section class="foot">
+      {/* Replikrätten. Står kvar för att sidan namnger verksamheter, ordagrant
+          som på matsnusklistan så att de två inte kan glida isär. */}
+      <p>
+        Varje verksamhet kan svara, och svaren publiceras ordagrant. Är en
+        uppgift fel, <a href={path('ratta')}>begär rättelse</a>.
+      </p>
+      <p class="caption">
+        <a href={path('metodik')}>Så räknas bedömningen fram</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import { loadIndex, normalise, searchIndex, indexFailed } from '../../lib/sokforslag';
+
+  const form = document.getElementById('jamfor') as HTMLFormElement | null;
+  const statusEl = document.getElementById('jamfor-status');
+  const resultEl = document.getElementById('jamfor-resultat');
+  if (form && statusEl && resultEl) start(form, statusEl, resultEl);
+
+  /** En rad ur kommunens jämförelseregister. Se lib/jamfor.ts för ordningen. */
+  type Numbers = [number, number, number, number, string, string, number, Array<[string, number]>];
+
+  interface Chosen {
+    kommun: string;
+    slug: string;
+    name: string;
+    address: string;
+  }
+
+  const MONTHS = [
+    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+  ];
+
+  function formatDate(iso: string): string {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-').map(Number);
+    return `${d} ${MONTHS[m - 1]} ${y}`;
+  }
+
+  function escapeHtml(s: string): string {
+    return s.replace(
+      /[&<>"]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+    );
+  }
+
+  function start(form: HTMLFormElement, statusEl: HTMLElement, resultEl: HTMLElement) {
+    const presentation = JSON.parse(form.dataset.presentation!) as {
+      verdicts: Array<{ label: string; ink: string }>;
+      none: { label: string; ink: string };
+      distinction: string;
+      urls: Record<string, string>;
+    };
+
+    /** Kommunens tal, hämtade en gång per kommun och behållna. */
+    const numbers = new Map<string, Record<string, Numbers>>();
+
+    const chosen: Record<'a' | 'b', Chosen | null> = { a: null, b: null };
+
+    function fields(side: 'a' | 'b') {
+      const wrap = form.querySelector(`.field[data-side="${side}"]`) as HTMLElement;
+      return {
+        wrap,
+        input: wrap.querySelector('input') as HTMLInputElement,
+        list: wrap.querySelector('.options') as HTMLUListElement,
+      };
+    }
+
+    // ---- Kandidater ------------------------------------------------------
+
+    /**
+     * Verksamheter som får väljas i ett fält.
+     *
+     * Kommungränsen sitter här. Är det första stället valt söker det andra
+     * fältet BARA i den kommunen. Det finns ingen väg genom gränssnittet till
+     * en jämförelse över kommungränsen, och därför behöver ingen text säga att
+     * en sådan vore missvisande.
+     */
+    function candidates(side: 'a' | 'b', query: string) {
+      const index = searchIndex();
+      const other = side === 'a' ? chosen.b : chosen.a;
+      const lock = other ? other.kommun : null;
+      const needle = normalise(query.trim());
+      if (!needle) return [];
+
+      const found: Chosen[] = [];
+      for (let i = 0; i < index.rows.length && found.length < 8; i += 1) {
+        const [name, address, slug, k] = index.rows[i];
+        const kommun = index.kommuner[k][0];
+        if (lock && kommun !== lock) continue;
+        if (!index.hay[i].includes(needle)) continue;
+        found.push({ kommun, slug, name, address });
+      }
+      return found;
+    }
+
+    function renderOptions(side: 'a' | 'b', items: Chosen[]) {
+      const { input, list } = fields(side);
+      if (!items.length) {
+        list.hidden = true;
+        list.innerHTML = '';
+        input.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      const city = (slug: string) => {
+        const found = searchIndex().kommuner.find(([s]) => s === slug);
+        return found ? found[1] : slug;
+      };
+      list.innerHTML = items
+        .map(
+          (item, n) =>
+            `<li role="option" aria-selected="false" data-n="${n}">` +
+            `<b>${escapeHtml(item.name)}</b>` +
+            `<span class="meta text-secondary">${escapeHtml(
+              [item.address, city(item.kommun)].filter(Boolean).join(' · '),
+            )}</span></li>`,
+        )
+        .join('');
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      list.querySelectorAll('li').forEach((li) => {
+        li.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          choose(side, items[Number((li as HTMLElement).dataset.n)]);
+        });
+      });
+    }
+
+    // ---- Val -------------------------------------------------------------
+
+    function choose(side: 'a' | 'b', item: Chosen) {
+      const other = side === 'a' ? 'b' : 'a';
+      // Byter man kommun i det ena fältet kan det andra inte stå kvar: paret
+      // skulle då spänna över två kommuner.
+      if (chosen[other] && chosen[other]!.kommun !== item.kommun) {
+        chosen[other] = null;
+        fields(other).input.value = '';
+      }
+      chosen[side] = item;
+
+      const { input, list } = fields(side);
+      input.value = item.name;
+      list.hidden = true;
+      list.innerHTML = '';
+      input.setAttribute('aria-expanded', 'false');
+
+      writeUrl();
+      render();
+    }
+
+    function writeUrl() {
+      const params = new URLSearchParams();
+      const kommun = chosen.a?.kommun ?? chosen.b?.kommun;
+      if (kommun) params.set('k', kommun);
+      if (chosen.a) params.set('a', chosen.a.slug);
+      if (chosen.b) params.set('b', chosen.b.slug);
+      const query = params.toString();
+      history.replaceState(null, '', query ? `?${query}` : location.pathname);
+    }
+
+    // ---- Talen -----------------------------------------------------------
+
+    function load(kommun: string): Promise<Record<string, Numbers> | null> {
+      const cached = numbers.get(kommun);
+      if (cached) return Promise.resolve(cached);
+      const url = presentation.urls[kommun];
+      if (!url) return Promise.resolve(null);
+      return fetch(url)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) numbers.set(kommun, data);
+          return data;
+        })
+        .catch(() => null);
+    }
+
+    // ---- Tabellen --------------------------------------------------------
+
+    function verdictOf(side: Chosen): { label: string; ink: string } {
+      const index = searchIndex();
+      for (let i = 0; i < index.rows.length; i += 1) {
+        const [, , slug, k, v] = index.rows[i];
+        if (slug === side.slug && index.kommuner[k][0] === side.kommun) {
+          return v >= 0 ? presentation.verdicts[v] : presentation.none;
+        }
+      }
+      return presentation.none;
+    }
+
+    /**
+     * Kontrollhistoriken som en remsa prickar, äldst till vänster.
+     *
+     * SVG:n är illustration, tabellcellens text är sanningen: varje pricks
+     * datum och bedömning står i `title`, och raden under remsan skriver ut
+     * hur många kontroller den bär. Se docs/17_produktfunktioner.md.
+     */
+    function strip(history: Array<[string, number]>): string {
+      if (!history.length) return '<span class="text-muted">—</span>';
+      const dots = [...history]
+        .reverse()
+        .map(([date, assessment]) => {
+          const colour = ['var(--verdict-clean)', 'var(--verdict-minor)', 'var(--verdict-major)'][
+            assessment
+          ];
+          const label = `${formatDate(date)}: ${presentation.verdicts[assessment].label}`;
+          return `<span class="dot" style="background:${colour}" title="${escapeHtml(label)}"></span>`;
+        })
+        .join('');
+      return `<span class="strip">${dots}</span>`;
+    }
+
+    function cell(numbersFor: Numbers | undefined, pick: (n: Numbers) => string): string {
+      if (!numbersFor) return '<span class="text-muted">—</span>';
+      return pick(numbersFor);
+    }
+
+    function render() {
+      const { a, b } = chosen;
+      if (!a || !b) {
+        resultEl.innerHTML = '';
+        statusEl.textContent = indexFailed()
+          ? 'Registret kunde inte hämtas.'
+          : '';
+        return;
+      }
+
+      load(a.kommun).then((data) => {
+        if (!data) {
+          statusEl.textContent = 'Talen kunde inte hämtas.';
+          return;
+        }
+        statusEl.textContent = '';
+        const na = data[a.slug];
+        const nb = data[b.slug];
+
+        const share = (n: Numbers) => (n[0] ? `${Math.round((n[1] / n[0]) * 100)} %` : '—');
+        const verdictA = verdictOf(a);
+        const verdictB = verdictOf(b);
+
+        const rows: Array<[string, string, string]> = [
+          [
+            'Bedömning',
+            `<b style="color:${verdictA.ink}">${escapeHtml(verdictA.label)}</b>`,
+            `<b style="color:${verdictB.ink}">${escapeHtml(verdictB.label)}</b>`,
+          ],
+          [
+            presentation.distinction,
+            cell(na, (n) => (n[3] ? 'Ja' : '<span class="text-muted">—</span>')),
+            cell(nb, (n) => (n[3] ? 'Ja' : '<span class="text-muted">—</span>')),
+          ],
+          ['Kontroller', cell(na, (n) => String(n[0])), cell(nb, (n) => String(n[0]))],
+          [
+            'Utan anmärkning',
+            cell(na, (n) => `${n[1]} <span class="text-muted">av ${n[0]} · ${share(n)}</span>`),
+            cell(nb, (n) => `${n[1]} <span class="text-muted">av ${n[0]} · ${share(n)}</span>`),
+          ],
+          ['Återbesök', cell(na, (n) => String(n[2])), cell(nb, (n) => String(n[2]))],
+          [
+            'Avvikelser vid senaste kontrollen',
+            cell(na, (n) => String(n[6])),
+            cell(nb, (n) => String(n[6])),
+          ],
+          [
+            'Senaste kontroll',
+            cell(na, (n) => formatDate(n[4]) || '—'),
+            cell(nb, (n) => formatDate(n[4]) || '—'),
+          ],
+          ['Äldsta kontroll', cell(na, (n) => n[5] || '—'), cell(nb, (n) => n[5] || '—')],
+          ['Kontrollhistorik', cell(na, (n) => strip(n[7])), cell(nb, (n) => strip(n[7]))],
+        ];
+
+        const head = (side: Chosen) =>
+          `<th scope="col"><a href="/${encodeURIComponent(side.kommun)}/${encodeURIComponent(
+            side.slug,
+          )}/">${escapeHtml(side.name)}</a>` +
+          `<span class="meta text-secondary">${escapeHtml(side.address || '')}</span></th>`;
+
+        resultEl.innerHTML =
+          '<table class="compare"><thead><tr><td></td>' +
+          head(a) +
+          head(b) +
+          '</tr></thead><tbody>' +
+          rows
+            .map(
+              ([label, left, right]) =>
+                `<tr><th scope="row">${escapeHtml(label)}</th><td>${left}</td><td>${right}</td></tr>`,
+            )
+            .join('') +
+          '</tbody></table>';
+      });
+    }
+
+    // ---- Fälten ----------------------------------------------------------
+
+    (['a', 'b'] as const).forEach((side) => {
+      const { input, list } = fields(side);
+      input.addEventListener('input', () => {
+        if (chosen[side] && input.value !== chosen[side]!.name) {
+          chosen[side] = null;
+          writeUrl();
+          resultEl.innerHTML = '';
+        }
+        renderOptions(side, candidates(side, input.value));
+      });
+      input.addEventListener('blur', () => {
+        window.setTimeout(() => {
+          list.hidden = true;
+          input.setAttribute('aria-expanded', 'false');
+        }, 120);
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          list.hidden = true;
+          input.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+
+    // ---- Adressen --------------------------------------------------------
+
+    /**
+     * En delad adress ska ge samma sida hos mottagaren.
+     *
+     * Bara EN kommun läses. En adress med två kommuner går inte att skriva,
+     * och ett `a` eller `b` som inte finns i den kommunen hittas helt enkelt
+     * inte i registret och blir inget val.
+     */
+    function readUrl() {
+      const params = new URLSearchParams(location.search);
+      const kommun = params.get('k');
+      if (!kommun) return;
+      const index = searchIndex();
+
+      (['a', 'b'] as const).forEach((side) => {
+        const wanted = params.get(side);
+        if (!wanted) return;
+        for (let i = 0; i < index.rows.length; i += 1) {
+          const [name, address, slug, k] = index.rows[i];
+          if (slug !== wanted || index.kommuner[k][0] !== kommun) continue;
+          chosen[side] = { kommun, slug, name, address };
+          fields(side).input.value = name;
+          return;
+        }
+      });
+    }
+
+    statusEl.textContent = 'Hämtar registret…';
+    loadIndex(form.dataset.index!, form.dataset.indexFallback ?? null).then(() => {
+      statusEl.textContent = indexFailed() ? 'Registret kunde inte hämtas.' : '';
+      if (indexFailed()) return;
+      readUrl();
+      render();
+    });
+  }
+</script>
+
+<style>
+  .page {
+    max-width: var(--w-page);
+    padding-block: var(--s-6) var(--s-16);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-caption);
+    color: var(--text-muted);
+    margin-bottom: var(--s-3);
+  }
+  .crumbs a { color: var(--text-secondary); }
+
+  h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .answer {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+    margin: var(--s-3) 0 0;
+    max-width: var(--w-read);
+  }
+
+  /* Väljaren är ett verktyg och inte innehåll, så den får bära kontroller.
+     Huvudinnehållet under ligger öppet på sidan. Se docs/19_formsystem.md. */
+  .pick {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+    margin-top: var(--s-8);
+  }
+
+  .field { position: relative; }
+
+  .field label {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    margin-bottom: var(--s-2);
+  }
+
+  .field input {
+    width: 100%;
+    font: inherit;
+    font-size: var(--fs-body-s);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: var(--text);
+  }
+
+  .field input:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .status {
+    font-size: var(--fs-caption);
+    color: var(--text-muted);
+    margin: var(--s-3) 0 0;
+    min-height: var(--lh-caption);
+  }
+
+  .foot {
+    margin-top: var(--s-16);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+    max-width: var(--w-read);
+  }
+
+  .foot p { margin: 0 0 var(--s-2); }
+
+  @media (max-width: 560px) {
+    .pick { grid-template-columns: 1fr; }
+  }
+</style>
+
+{/*
+  Global, och det är inte lättja.
+
+  Astros scopeade CSS märker de element som står i MALLEN med ett
+  hash-attribut, och väljarna kräver det attributet. Förslagsraderna och hela
+  jämförelsetabellen skapas av skriptet med innerHTML och får aldrig märket,
+  alltså träffade ingen enda regel dem. Tabellen ritades i webbläsarens
+  standardstil: centrerade fetstilta rubriker, inga hårlinjer, adressen
+  hoptryckt mot namnet, och prickremsan osynlig.
+
+  Reglerna är i stället låsta vid två id:n som bara finns på den här sidan.
+  Det är samma räckvidd som scopet gav, buret av dokumentet i stället för av
+  byggverktyget.
+*/}
+<style is:global>
+  #jamfor .options {
+    position: absolute;
+    z-index: 5;
+    inset-inline: 0;
+    top: 100%;
+    margin: var(--s-1) 0 0;
+    padding: var(--s-1);
+    list-style: none;
+    background: var(--card);
+    border-radius: var(--r-control);
+    box-shadow: var(--shadow-pop);
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  #jamfor .options li {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-control);
+    cursor: pointer;
+  }
+
+  #jamfor .options li:hover {
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
+
+  #jamfor .options b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  #jamfor .options .meta,
+  #jamfor-resultat .meta {
+    display: block;
+    font-size: var(--fs-caption);
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  /* Datatabell enligt formsystemet: hårlinje under varje rad, ingen zebra,
+     ingen ram runt tabellen. */
+  #jamfor-resultat table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: var(--s-6);
+    table-layout: fixed;
+  }
+
+  #jamfor-resultat th,
+  #jamfor-resultat td {
+    text-align: left;
+    padding: var(--s-3) var(--s-3) var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+    font-size: var(--fs-body-s);
+    font-weight: 400;
+    vertical-align: baseline;
+  }
+
+  #jamfor-resultat thead th {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    padding-bottom: var(--s-4);
+    vertical-align: bottom;
+  }
+
+  #jamfor-resultat tbody th {
+    color: var(--text-secondary);
+    width: 32%;
+  }
+
+  /* Remsan är illustration. Datumet och bedömningen står i varje pricks
+     title, och raderna ovanför bär samma sanning i text. */
+  #jamfor-resultat .strip {
+    display: inline-flex;
+    gap: var(--s-1);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  #jamfor-resultat .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--r-pill);
+    display: inline-block;
+  }
+
+  @media (max-width: 560px) {
+    #jamfor-resultat tbody th { width: 40%; }
+  }
+</style>
