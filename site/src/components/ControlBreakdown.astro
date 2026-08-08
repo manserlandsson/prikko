@@ -1,20 +1,25 @@
 ---
 /**
- * Vad kontrollen visade — Yuka-mönstret ur bibeln §13c.
+ * Vad kontrollen visade. Yuka-mönstret ur bibeln §13c.
  *
- * Brister först, godkänt sedan. Varje rad bär en ikon för sitt
- * lagstiftningsområde och en (i) som förklarar vad området innebär. Koden
- * ("J03") står kvar men nedtonad — den är till för den som vill slå upp
- * punkten hos Livsmedelsverket, inte för att förklara något för en besökare.
+ * Avsnittet är svaret på sidans egentliga fråga: inte OM stället fick en
+ * anmärkning, utan VAD den gällde. En kommunal karta ger en smiley; här står
+ * kommunens egen formulering, punkt för punkt, brister först och godkänt sedan.
+ *
+ * Tre beslut styr raden, och alla tre är mätta i beståndet. Ikonen visas bara
+ * när den skiljer raderna åt, se iconsCarryMeaning. Underraden är källans egna
+ * ord och inte våra, se present. Koden ("J03") står nedtonad längst ut och är
+ * till för den som vill slå upp punkten hos Livsmedelsverket, inte för att
+ * förklara något för en besökare.
  */
 import AreaIcon from './AreaIcon.astro';
 import InfoTip from './InfoTip.astro';
 import {
-  AREA_STATUS_COLOR,
   AREA_STATUS_INK,
   AREA_STATUS_LABEL,
   isRemark,
   legislationArea,
+  mergedAreas,
   type ControlArea,
 } from '../lib/data';
 
@@ -23,23 +28,34 @@ interface Props {
   inspectedAt: string;
 }
 
-const { areas, inspectedAt } = Astro.props;
+const { areas: raw, inspectedAt } = Astro.props;
 
+// Samma punkt en gång, med sitt strängaste läge. Se mergedAreas i data.ts för
+// varför Örebro bokför en del punkter två gånger vid samma besök.
+const areas = mergedAreas(raw);
 const remarks = areas.filter(isRemark);
 const passed = areas.filter((a) => !isRemark(a));
 const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områden');
 
+/** Hel rapporteringspunkt, "J03", till skillnad från en bar områdesbokstav. */
+const POINT = /^[A-Z]\d/i;
+
 /**
  * Rubrik och underrad per område.
  *
- * Alla källor har inte Livsmedelsverkets områdeskoder. Lomma och Uppsala
- * saknar dem helt, och då hittas ingen förklaring att visa. Mallen föll
- * tidigare tillbaka på källans egen grupptext, som i de kommunerna nästan
- * alltid är EXAKT samma ord som beskrivningen: "svårstädad lokal" med
- * "Svårstädad lokal" under. 114 av 120 rader i Lomma, 858 av 858 i Uppsala.
+ * KÄLLANS EGNA ORD GÅR FÖRE VÅRA. Underraden var tidigare vårt eget namn på
+ * lagstiftningsområdet, alltså "Hygien" ur LEGISLATION_AREAS, och källans egen
+ * grupptext användes bara när koden var okänd. Örebro skriver
+ * "Grundförutsättningar, hygien" på varenda rad där vi skrev "Hygien", och det
+ * är kommunens formulering som är svaret på vad anmärkningen gällde. Vårt namn
+ * står kvar som reserv för de källor som inte lämnar någon grupp: Stockholm har
+ * ingen alls, och där bär bokstaven ensam betydelsen.
  *
- * En underrad som upprepar rubriken tillför ingenting och får läsaren att
- * tro att sidan är trasig. Den utelämnas nu när den inte skiljer sig.
+ * En underrad som bara upprepar rubriken utelämnas. I Lomma och Uppsala är
+ * grupptexten nästan alltid EXAKT samma ord som beskrivningen: "svårstädad
+ * lokal" med "Svårstädad lokal" under, 114 av 120 rader i Lomma och 858 av 858
+ * i Uppsala. En sådan rad tillför ingenting och får läsaren att tro att sidan
+ * är trasig.
  *
  * Källorna skriver dessutom med olika inledande versal. Beskrivningen får
  * stor bokstav här i stället för att bära igenom kommunens godtycke.
@@ -47,26 +63,118 @@ const areaWord = (n: number) => (n === 1 ? 'granskat område' : 'granskade områ
 function present(a: ControlArea) {
   const known = legislationArea(a.code);
   const title = a.description.trim() || a.group.trim();
-  const sub = known?.name ?? a.group.trim();
+  const sub = a.group.trim() || known?.name || '';
   return {
     title: title.charAt(0).toUpperCase() + title.slice(1),
     // Bara när underraden faktiskt säger något nytt.
     sub: sub && sub.toLowerCase() !== title.toLowerCase() ? sub : null,
     explanation: known?.explanation ?? null,
-    // Utan kod finns ingen meningsfull ikon, bara reservcirkeln. Sex
-    // identiska cirklar i rad är brus, inte information.
-    icon: known ? a.code : null,
+    letter: known ? a.code.trim().charAt(0).toUpperCase() : null,
+    // Koden är till för den som vill slå upp punkten hos Livsmedelsverket. En
+    // bar bokstav går inte att slå upp, och Lomma och Uppsala lämnar ingen kod
+    // alls, så kolumnen faller bort helt i stället för att stå tom.
+    code: POINT.test(a.code.trim()) ? a.code.trim() : '',
   };
 }
+
+/**
+ * BÄR IKONERNA INFORMATION I DEN HÄR LISTAN? Avgörs per lista, inte en gång
+ * för hela sajten.
+ *
+ * Ägaren frågade en gång om det var en bugg att alla ikoner såg likadana ut.
+ * Det var det inte. Område J heter "Grundförutsättningar, hygien" och rymmer
+ * nästan allt en restaurang får anmärkningar på: 57 % av avvikelseraderna i
+ * Örebro, 72 % i Linköping, 80 % i Borgholm. Sex identiska droppar i rad säger
+ * ingenting, och svaret då var att ta bort ikonen överallt.
+ *
+ * Det svaret var för trubbigt. Fördelningen är inte densamma på varje sida, och
+ * villkoret nedan mäter den där den gäller: på den lista läsaren har framför
+ * sig. Två krav, båda nödvändiga.
+ *
+ * 1. VARJE RAD MÅSTE HA EN HEL RAPPORTERINGSPUNKT, alltså "J03" och inte "J".
+ *    Där koden bara är bokstaven ÄR raden området, och radens egen text är
+ *    områdets namn: Stockholm skriver "Hygien" i fetstil, och en droppe intill
+ *    det ordet är dekor. Örebro och Linköping skriver i stället "Bekämpning av
+ *    skadedjur" under bokstaven J, och där säger ikonen vilken familj punkten
+ *    hör till, vilket texten inte gör. Lomma och Uppsala lämnar ingen kod alls.
+ *
+ * 2. LISTAN MÅSTE SPÄNNA ÖVER MER ÄN ETT OMRÅDE. Är alla rader J är alla ikoner
+ *    droppar, och en kolumn med samma tecken hela vägen ned är brus. Villkoret
+ *    faller på 31 % av Örebros flerradiga avvikelselistor och 43 % av
+ *    Linköpings. En ensam avvikelse har per definition bara ett område och får
+ *    därför ingen ikon heller: det finns inget att skilja den från.
+ *
+ * Kvar blir ikoner på de listor där de faktiskt skiljer raderna åt, och en ren
+ * textlista där de inte gör det. Ikonen är en genväg för ögat, aldrig ett
+ * bärande besked: allt den säger står i klartext på samma rad.
+ *
+ * Detta gäller DEN HÄR listan. Återkommande brister har mätt sig fram till att
+ * aldrig visa ikoner alls, och det beslutet står kvar, se RecurringIssues.astro.
+ */
+const lookupable = (a: ControlArea) =>
+  POINT.test(a.code.trim()) && legislationArea(a.code) !== undefined;
+
+function iconsCarryMeaning(rows: ControlArea[]): boolean {
+  if (rows.length < 2 || !rows.every(lookupable)) return false;
+  return new Set(rows.map((a) => a.code.trim().charAt(0).toUpperCase())).size > 1;
+}
+
+/**
+ * AVVIKELSELISTAN AVGÖR FÖR HELA AVSNITTET. De två listorna får inte hamna på
+ * olika indrag: en godkäntlista med ikoner under en avvikelselista utan såg ut
+ * som en underlista till raderna ovanför. Avvikelserna är dessutom det avsnittet
+ * handlar om, så det är där ikonen ska förtjäna sin plats. Finns inga
+ * avvikelser är godkäntlistan den enda listan och bestämmer själv.
+ */
+const remarkIcons = remarks.length > 0 && iconsCarryMeaning(remarks);
+const passedIcons =
+  (remarkIcons || (remarks.length === 0 && iconsCarryMeaning(passed))) &&
+  passed.every(lookupable);
+
+/**
+ * Förklaringen av ett område står EN gång per lista.
+ *
+ * Sju rader i Örebro bär sju gånger "Grundförutsättningar, hygien", och varje
+ * rad hade sitt eget (i) med exakt samma text bakom. En kolumn med identiska
+ * frågetecken hela vägen ned är brus, och samma förklaring på kort avstånd är
+ * just det docs/18_sprakregler.md förbjuder. Den första raden i ett område bär
+ * tipset, resten bär bara texten.
+ */
+function rows(list: ControlArea[]) {
+  const explained = new Set<string>();
+  return list.map((a) => {
+    const p = present(a);
+    const tip = p.explanation !== null && p.sub !== null && !explained.has(p.sub);
+    if (tip) explained.add(p.sub!);
+    /*
+     * Sista ordet och (i)-symbolen hålls ihop.
+     *
+     * Underraden bryts på 375 px, och symbolen hamnade då ensam på en tredje
+     * rad under texten den hör till: "Grundförutsättningar, hygien" och sedan
+     * ett i på egen hand. Sista ordet och symbolen sätts därför i ett svep som
+     * inte får brytas, så symbolen följer med det ordet ned.
+     */
+    const words = (p.sub ?? '').split(' ');
+    return { area: a, ...p, tip, subHead: words.slice(0, -1).join(' '), subTail: words.at(-1)! };
+  });
+}
+
+const remarkRows = rows(remarks);
+const passedRows = rows(passed);
 ---
 
 <section class="breakdown">
   <div class="head">
     <h2>
       Vad kontrollen visade
+      {/* Förbehållet står HÄR och ingen annanstans i avsnittet. Samma sak stod
+          tidigare både i tipset och i en fotrad under listan, se
+          docs/18_sprakregler.md om upprepning på kort avstånd. Att
+          okontrollerat inte är detsamma som godkänt är däremot en sakuppgift
+          som skyddar verksamheten och måste finnas kvar. */}
       <InfoTip
         label="kontrollområden"
-        text="Kommunen granskar verksamheten mot Livsmedelsverkets lagstiftningsområden. Alla områden granskas inte vid varje besök. Kontrollerna sprids över en treårscykel."
+        text="Alla områden granskas inte vid varje besök. De som saknas i listan är okontrollerade, inte godkända."
       />
     </h2>
     <p class="count text-secondary">
@@ -78,31 +186,31 @@ function present(a: ControlArea) {
 
   {remarks.length > 0 && (
     <ul class="rows">
-      {remarks.map((a) => {
-        const p = present(a);
-        return (
-          <li class:list={['row', !p.icon && 'no-icon']}>
-            {p.icon && (
-              <span class="icon">
-                <AreaIcon letter={p.icon} />
+      {remarkRows.map((p) => (
+        <li class:list={['row', !remarkIcons && 'no-icon', !p.code && 'no-code']}>
+          {remarkIcons && p.letter && (
+            <span class="icon">
+              <AreaIcon letter={p.letter} />
+            </span>
+          )}
+          <span class="what">
+            <b>{p.title}</b>
+            {p.sub && (
+              <span class="group text-secondary">
+                {p.subHead && `${p.subHead} `}
+                <span class="tail">
+                  {p.subTail}
+                  {p.tip && <InfoTip label={p.sub} text={p.explanation!} />}
+                </span>
               </span>
             )}
-            <span class="what">
-              <b>{p.title}</b>
-              {p.sub && (
-                <span class="group text-secondary">
-                  {p.sub}
-                  {p.explanation && <InfoTip label={p.sub} text={p.explanation} />}
-                </span>
-              )}
-            </span>
-            <span class="code text-muted">{a.code}</span>
-            <span class="status" style={`color: ${AREA_STATUS_INK[a.status]}`}>
-              {AREA_STATUS_LABEL[a.status]}
-            </span>
-          </li>
-        );
-      })}
+          </span>
+          {p.code && <span class="code text-muted">{p.code}</span>}
+          <span class="status" style={`color: ${AREA_STATUS_INK[p.area.status]}`}>
+            {AREA_STATUS_LABEL[p.area.status]}
+          </span>
+        </li>
+      ))}
     </ul>
   )}
 
@@ -110,37 +218,35 @@ function present(a: ControlArea) {
     <details class="passed">
       <summary>Visa {passed.length} {areaWord(passed.length)} utan avvikelse</summary>
       <ul class="rows">
-        {passed.map((a) => {
-          const p = present(a);
-          return (
-            <li class:list={['row', !p.icon && 'no-icon']}>
-              {p.icon && (
-                <span class="icon muted">
-                  <AreaIcon letter={p.icon} />
+        {passedRows.map((p) => (
+          <li class:list={['row', !passedIcons && 'no-icon', !p.code && 'no-code']}>
+            {passedIcons && p.letter && (
+              <span class="icon muted">
+                <AreaIcon letter={p.letter} />
+              </span>
+            )}
+            <span class="what">
+              <b>{p.title}</b>
+              {p.sub && (
+                <span class="group text-secondary">
+                  {p.subHead && `${p.subHead} `}
+                  <span class="tail">
+                    {p.subTail}
+                    {p.tip && <InfoTip label={p.sub} text={p.explanation!} />}
+                  </span>
                 </span>
               )}
-              <span class="what">
-                <b>{p.title}</b>
-                {p.sub && (
-                  <span class="group text-secondary">
-                    {p.sub}
-                    {p.explanation && <InfoTip label={p.sub} text={p.explanation} />}
-                  </span>
-                )}
-              </span>
-              <span class="code text-muted">{a.code}</span>
-              <span class="status text-secondary">{AREA_STATUS_LABEL[a.status]}</span>
-            </li>
-          );
-        })}
+            </span>
+            {p.code && <span class="code text-muted">{p.code}</span>}
+            <span class="status text-secondary">{AREA_STATUS_LABEL[p.area.status]}</span>
+          </li>
+        ))}
       </ul>
     </details>
   )}
 
-  <p class="asof caption text-muted">
-    Avser kontrollen den {inspectedAt}. Områden som inte granskades vid detta
-    besök saknas i listan. De är okontrollerade, inte godkända.
-  </p>
+  {/* Datumstämpel, inte proveniens: den säger NÄR, inte varifrån. */}
+  <p class="asof caption text-muted">Kontrollen den {inspectedAt}.</p>
 </section>
 
 <style>
@@ -176,7 +282,7 @@ function present(a: ControlArea) {
     border-top: 1px solid var(--hairline);
   }
 
-  /* Bara ikonen, i bläckfärg — ingen färgad platta bakom.
+  /* Bara ikonen, i bläckfärg. Ingen färgad platta bakom.
    *
    * Statusen står redan utskriven i klartext längst till höger på raden och
    * är färgad där. Att dessutom färga en platta bakom ikonen sa samma sak en
@@ -194,10 +300,19 @@ function present(a: ControlArea) {
     color: var(--text-muted);
   }
 
-  /* Utan ikon faller ikonkolumnen bort helt, annars börjar texten 34 px in
-     med tomrum framför sig. */
+  /* Raden har fyra möjliga former, och en kolumn utan innehåll ska aldrig
+     lämnas kvar: då börjar texten 34 px in med tomrum framför sig, eller
+     trycks statusen in mot mitten av en tom kodkolumn. */
   .row.no-icon {
     grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .row.no-code {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .row.no-icon.no-code {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .what b {
@@ -207,10 +322,16 @@ function present(a: ControlArea) {
     line-height: 20px;
   }
 
+  /* Inline och inte inline-flex. Som flexbehållare blev underradens text ETT
+     flexobjekt och (i)-symbolen ett annat, så när texten bröts på två rader
+     lade sig symbolen lodrätt mitt emellan dem i stället för efter sista
+     ordet. Syns bara på smala skärmar, alltså på de flesta besök. */
   .group {
     font-size: var(--fs-caption);
-    display: inline-flex;
-    align-items: center;
+  }
+
+  .group .tail {
+    white-space: nowrap;
   }
 
   .code {
@@ -240,9 +361,18 @@ function present(a: ControlArea) {
     margin-top: var(--s-4);
   }
 
+  /* På telefon får koden vika. Den är en uppslagsdetalj, och statusen längst
+     till höger behöver bredden mer. Kvar blir samma två former som ovan, med
+     eller utan ikon. */
   @media (max-width: 560px) {
-    .row {
+    .row,
+    .row.no-code {
       grid-template-columns: 34px minmax(0, 1fr) auto;
+    }
+
+    .row.no-icon,
+    .row.no-icon.no-code {
+      grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .code { display: none; }

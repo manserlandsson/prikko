@@ -117,21 +117,41 @@ class Supabase:
         Sammanslagningen här ersätter inte att adaptern ska lämna rena data.
         Den finns för att en enda kommuns trasiga id aldrig ska stoppa
         inläsningen av de elva andra.
+
+        ## RADER UTAN KONFLIKTNYCKEL SLÅS ALDRIG IHOP
+
+        En rad som inte bär nyckeln kan omöjligt krocka med en annan: databasen
+        sätter nyckeln vid inläggningen. control_areas har `id bigserial` och
+        skickas utan id, alltså saknade VARJE rad nyckeln, och den första
+        versionen av sammanslagningen här läste `row.get("id")` till None för
+        allihop och lade dem i samma fack. Kvar blev en enda rad per kommun och
+        körning.
+
+        Så försvann 103 000 kontrollområden natten till 2026-08-07: Örebros
+        33 498 punkter blev 1, Linköpings 52 571 blev 1, Stockholms 16 312 blev
+        1. Kontrollområdena är det som svarar på vad en anmärkning gällde, och
+        sajten stod utan dem i ett dygn utan att något larmade. Kaskaden från
+        `delete_where_in("inspections", ...)` hade redan tömt tabellen, så
+        gårdagens rader fanns inte kvar att falla tillbaka på.
         """
         if not rows:
             return
 
         keys = [k.strip() for k in on_conflict.split(",")]
-        merged: dict = {}
+        keyed, unkeyed = [], []
         for row in rows:
-            merged[tuple(row.get(k) for k in keys)] = row
-        if len(merged) != len(rows):
+            (keyed if all(row.get(k) is not None for k in keys) else unkeyed).append(row)
+
+        merged: dict = {}
+        for row in keyed:
+            merged[tuple(row[k] for k in keys)] = row
+        if len(merged) != len(keyed):
             print(
-                f"  ! {len(rows) - len(merged)} rader i {table} delade "
+                f"  ! {len(keyed) - len(merged)} rader i {table} delade "
                 f"konfliktnyckel ({on_conflict}) och slogs ihop",
                 file=sys.stderr,
             )
-        rows = list(merged.values())
+        rows = list(merged.values()) + unkeyed
 
         query = urllib.parse.urlencode({"on_conflict": on_conflict})
         for start in range(0, len(rows), BATCH):

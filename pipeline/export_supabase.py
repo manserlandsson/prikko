@@ -146,6 +146,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         by_municipality[e["municipality_code"]].append(e)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    collapsed = 0
 
     for m in municipalities:
         records = []
@@ -235,14 +236,72 @@ def export(client: Supabase, out_dir: Path) -> None:
         }
 
         path = out_dir / f"{m['slug']}.json"
+        losses = collapse(path, records)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"  {path}  {len(records)} verksamheter", file=sys.stderr)
+        collapsed += losses
+
+    if collapsed:
+        sys.exit(
+            f"\nAVBRYTER: {collapsed} kommuner tappade nästan hela sin\n"
+            "kontrollhistorik i den här exporten. Filerna är skrivna men får\n"
+            "INTE checkas in. Ett fel uppströms är långt troligare än att en\n"
+            "kommun slutat publicera. Se pipeline/load_supabase.py, upsert().\n"
+            "Är fallet verkligt: kör om med --tillat-ras."
+        )
+
+
+def count_points(records: list) -> int:
+    return sum(len(i["areas"]) for e in records for i in e["inspections"])
+
+
+#: Så stor andel av gårdagens kontrollpunkter måste finnas kvar i dagens
+#: export. Kontrollpunkterna är det som svarar på VAD en anmärkning gällde,
+#: alltså sidans egentliga innehåll, och de rör sig långsamt: en kommun lämnar
+#: ut sin historik varje natt, inte bara det som är nytt.
+#:
+#: Natten till 2026-08-07 skrevs 103 000 punkter över med tolv. Exporten sa
+#: "12 kommuner · 15 900 verksamheter · 69 000 kontroller · 12 områden" och
+#: checkade in resultatet, och ingenting stannade upp. Talet stod där hela
+#: tiden. Ingen läser en rad som ser likadan ut varje natt.
+MIN_POINTS_KEPT = 0.5
+
+ALLOW_COLLAPSE = False
+
+
+def collapse(path: Path, records: list) -> int:
+    """Har kommunen tappat nästan alla sina kontrollpunkter sedan i går?
+
+    Jämförelsen sker mot filen som redan ligger på disken, alltså föregående
+    exports ögonblicksbild, för det är den nattkörningen ersätter.
+    """
+    if ALLOW_COLLAPSE or not path.exists():
+        return 0
+    try:
+        before = count_points(json.loads(path.read_text("utf-8"))["establishments"])
+    except (ValueError, KeyError):
+        return 0
+    after = count_points(records)
+    if before and after < before * MIN_POINTS_KEPT:
+        print(
+            f"  ! {path.name}: {before} kontrollpunkter blev {after}",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
 
 
 def main() -> None:
+    global ALLOW_COLLAPSE
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, default=Path("site/src/data"))
+    parser.add_argument(
+        "--tillat-ras",
+        action="store_true",
+        help="Skriv även när en kommuns kontrollpunkter nästan försvunnit.",
+    )
     args = parser.parse_args()
+    ALLOW_COLLAPSE = args.tillat_ras
 
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_ANON_KEY")

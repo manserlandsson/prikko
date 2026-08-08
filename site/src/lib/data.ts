@@ -529,9 +529,51 @@ export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[
   );
 }
 
+/**
+ * Kontrollens områden, med samma punkt bara EN gång.
+ *
+ * Örebro registrerar då och då samma rapporteringspunkt två gånger vid ett och
+ * samma besök, med olika status: 366 gånger i beståndet, i 310 av 5 491
+ * kontroller. Vanligast är "Åtgärdad" tillsammans med "Utan avvikelse" (154),
+ * därefter "Avvikelse" med "Utan avvikelse" (61) och "Avvikelse" med
+ * "Kvarstår" (40). Det ser ut som att kommunen bokför både uppföljningen av en
+ * gammal brist och dagens läge på samma punkt.
+ *
+ * Två identiska rader intill varandra som säger emot varandra läser som en
+ * bugg hos oss. Punkten har ett läge vid ett besök, och det är det strängaste:
+ * en punkt som någon gång under besöket stod som avvikelse var en avvikelse.
+ * Att i stället visa den mildaste hade tonat ned en brist, och det får aldrig
+ * hända åt det hållet.
+ *
+ * Ordningen bevaras: den första förekomsten behåller sin plats i listan.
+ * Källor utan dubbletter, alltså alla utom Örebro, går igenom oförändrade.
+ */
+const AREA_SEVERITY: Record<AreaStatus, number> = {
+  ok: 0,
+  fixed: 1,
+  deviation: 2,
+  persisting: 3,
+};
+
+export function mergedAreas(areas: ControlArea[]): ControlArea[] {
+  const at = new Map<string, number>();
+  const out: ControlArea[] = [];
+  for (const area of areas) {
+    const key = `${area.code}|${area.description}`;
+    const seen = at.get(key);
+    if (seen === undefined) {
+      at.set(key, out.length);
+      out.push(area);
+    } else if (AREA_SEVERITY[area.status] > AREA_SEVERITY[out[seen].status]) {
+      out[seen] = area;
+    }
+  }
+  return out;
+}
+
 /** Avvikelser vid en enskild kontroll. */
 export function deviations(inspection: Inspection): ControlArea[] {
-  return inspection.areas.filter(isRemark);
+  return mergedAreas(inspection.areas).filter(isRemark);
 }
 
 // ---------------------------------------------------------------------------
