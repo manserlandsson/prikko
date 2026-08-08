@@ -32,6 +32,7 @@ import Base from '../layouts/Base.astro';
 import CommonIssues from './CommonIssues.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import FaceMark from './FaceMark.astro';
+import Filterrad from './Filterrad.astro';
 import FollowUpRate from './FollowUpRate.astro';
 import KartaPuff from './KartaPuff.astro';
 import KommunBanner from './KommunBanner.astro';
@@ -279,41 +280,38 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         {categories && (
           <section class="filter" aria-labelledby="kategorier">
             <h2 id="kategorier">Verksamheter efter typ</h2>
-            <ul class="chips">
-              {categories.shown.map(({ category, count, linked }) =>
-                linked ? (
-                  <li>
-                    <a href={path(base, 'kategori', category.slug)} class="chip">
-                      {category.name} <span class="n">{formatNumber(count)}</span>
-                    </a>
-                  </li>
-                ) : (
-                  <li>
-                    {/* Ingen länk. En kategori med en handfull verksamheter
-                        förtjänar ingen egen URL — men siffran är sann och står
-                        kvar. */}
-                    <span class="chip off">
-                      {category.name} <span class="n">{formatNumber(count)}</span>
-                    </span>
-                  </li>
-                ),
-              )}
-            </ul>
+            <Filterrad
+              label={`Verksamheter efter typ i ${city}`}
+              lead={{ href: path(base), label: 'Alla', count: total, ikon: 'alla', current: true }}
+              items={categories.shown.map(({ category, count, linked }) => ({
+                // Utan länk: kategorin finns och siffran är sann, men en
+                // kategori med en handfull verksamheter förtjänar ingen egen
+                // URL. Filterrad tonar ner den i stället för att dölja den.
+                href: linked ? path(base, 'kategori', category.slug) : undefined,
+                label: category.name,
+                count,
+                ikon: category.id,
+              }))}
+            />
           </section>
         )}
 
         {areas.length > 0 && (
           <section class="filter" aria-labelledby="omraden">
             <h2 id="omraden">Verksamheter efter område</h2>
-            <ul class="chips">
-              {areas.map(({ area, count }) => (
-                <li>
-                  <a href={path(base, 'omrade', area.slug)} class="chip">
-                    {area.name} <span class="n">{formatNumber(count)}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+            {/* Inga ikoner, se resonemanget i Filterrad.astro: stadsdelarna
+                är ortnamn och har inga symboler vi kan stå för. Inget
+                hemläge heller, eftersom områdena inte delar upp kommunen:
+                långt ifrån varje verksamhet ligger i ett område med egen
+                sida, så "Alla" hade lovat en helhet raden inte är en del av. */}
+            <Filterrad
+              label={`Verksamheter efter område i ${city}`}
+              items={areas.map(({ area, count }) => ({
+                href: path(base, 'omrade', area.slug),
+                label: area.name,
+                count,
+              }))}
+            />
           </section>
         )}
 
@@ -504,47 +502,11 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-    list-style: none;
-    margin: var(--s-3) 0 0;
-    padding: 0;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--s-2);
-    padding: var(--s-2) var(--s-3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
-    background: var(--card);
-    color: var(--text-secondary);
-    font-size: var(--fs-caption);
-    font-weight: 600;
-  }
-
-  a.chip:hover {
-    text-decoration: none;
-    border-color: var(--brand);
-    color: var(--brand);
-  }
-
-  /* Utan länk: kategorin finns men förtjänar ingen egen sida, eller går inte
-     att fylla i den här kommunen. Nedtonad, aldrig dold — siffran är svaret. */
-  .chip.off {
-    background: transparent;
-    color: var(--text-muted);
-    font-weight: 400;
-  }
-
-  .chip .n {
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.7;
-  }
+  /* Luften mellan rubriken och raden. Allt annat om filterraden bor i
+     Filterrad.astro. Måtten, rullningen, tangentbordet och markeringen av
+     aktivt val ska stå på ETT ställe, eftersom samma rad används här och på
+     områdessidan. */
+  .filter :global(.filterrad) { margin-top: var(--s-3); }
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {
@@ -726,7 +688,29 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     }
 
     .side > :global(.kartruta) { order: -1; }
-    .main { order: 0; }
     .side > :global(.panel) { order: 1; }
+
+    /*
+     * `align-self: stretch` och `min-width: 0` är inte pynt. Utan dem rullar
+     * inte filterraden, den spränger sidan.
+     *
+     * .layout sätter `align-items: start` för rutnätet ovanför, och den
+     * deklarationen följer med hit ner. I ett rutnät betyder den "toppställ
+     * spalterna". I en flexkolumn betyder den något helt annat: tväraxeln är
+     * vågrät, så varje barn blir INNEHÅLLSBRETT i stället för att fylla
+     * spalten. Det syntes aldrig så länge huvudspalten bara innehöll text och
+     * chips som radbryter. Filterradens spår är max-content brett, 2 407 px
+     * för Stockholms trettio områden, och då blev .main 2 407 px, hela sidan
+     * fick vågrät rullning, och raden rullade inte alls eftersom den hade
+     * fått all plats den bad om.
+     *
+     * `align-self` och inte `align-items` på föräldern: kartpuffen och
+     * panelerna är också barn här, och deras bredd är inte det här ärendet.
+     *
+     * `min-width: 0` står kvar som andra spärr, alltså mot att innehållet
+     * trycker ut spalten inifrån. Skrivbordsläget har den redan i form av
+     * nollan i `minmax(0, 1fr)`.
+     */
+    .main { order: 0; align-self: stretch; min-width: 0; }
   }
 </style>

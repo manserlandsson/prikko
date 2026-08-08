@@ -13,12 +13,14 @@
  */
 import Base from '../layouts/Base.astro';
 import EstablishmentList from './EstablishmentList.astro';
+import Filterrad from './Filterrad.astro';
 import OmradeKarta from './OmradeKarta.astro';
 import Pagination from './Pagination.astro';
 import { formatNumber, type Establishment, type Municipality } from '../lib/data';
 import { mapDataset } from '../lib/map-data';
 import {
   areaPreposition,
+  linkedAreas,
   municipalityCleanShare,
   nearbyAreas,
   type AreaSlice,
@@ -110,6 +112,21 @@ const answer =
 
 const grannar = currentPage === 1 ? nearbyAreas(kommun.slug, area.slug) : [];
 
+/*
+ * Kommunens övriga områden, som filterrad överst.
+ *
+ * Härifrån gick det tidigare bara att komma till de sex närmaste grannarna,
+ * längst ned i sidfoten. Raden når alla trettio i Stockholms fall, kostar en
+ * rad i höjd och visar dessutom var man står.
+ *
+ * Sidfotens "Områden intill" står kvar och är inte en dubblett: den är
+ * sorterad på avstånd och bär geografi, raden är i bokstavsordning och bär
+ * register. Det är två olika frågor.
+ *
+ * Bara på sida 1. Den som bläddrat till sida 4 av ett område har redan valt.
+ */
+const omraden = currentPage === 1 ? linkedAreas(kommun.slug) : [];
+
 const title =
   currentPage === 1
     ? `Hygienkontroller ${platsen}, ${city}`
@@ -182,6 +199,22 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         )}
       </p>
     </header>
+
+    {/* Områdesväljaren. Riktiga länkar till de områdessidor som redan finns,
+        alltså en genväg och inte en ersättning: adresserna är sidor för att de
+        kan rankas, och de står kvar precis som de var. Se Filterrad.astro. */}
+    {omraden.length > 1 && (
+      <Filterrad
+        label={`Områden i ${city}`}
+        lead={{ href: path(kommunBase), label: `Hela ${city}`, count: undefined }}
+        items={omraden.map((o) => ({
+          href: path(kommunBase, 'omrade', o.area.slug),
+          label: o.area.name,
+          count: o.count,
+          current: o.area.slug === area.slug,
+        }))}
+      />
+    )}
 
     {currentPage === 1 && (
       <>
@@ -293,6 +326,10 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     line-height: var(--lh-body-s);
     color: var(--text-secondary);
   }
+
+  /* Filterraden står mellan rubriken och bedömningen. Måtten bor i
+     Filterrad.astro, här bara luften omkring. */
+  .page :global(.filterrad) { margin-top: var(--s-6); }
 
   /* Fördelningen. Samma mått och samma språk som kommunhubbens rad, se
      KommunOversikt.astro: ett åtta pixlar högt band och en teckenförklaring

@@ -1,0 +1,68 @@
+---
+/**
+ * Ikon per toppkategori.
+ *
+ * Egna ikoner, ritade på samma 24-rutnät med 1.6 px streck som AreaIcon.astro.
+ * Inga lånade emoji, inget ikonbibliotek, ingenting avritat från någon annans
+ * sajt. Det är en del av att inte se generisk ut.
+ *
+ * Fem former som INTE går att förväxla med varandra vid 24 pixlar: bestick,
+ * kopp, kasse, byggnad, låda. Det är villkoret som styrde varje val. Butiken
+ * ritades först som butiksfasad med markis och byttes till kasse, eftersom en
+ * fasad och en skolbyggnad är samma silhuett i den här storleken.
+ *
+ * `alla` är inte en kategori utan filterradens hemläge, alltså "ingen
+ * filtrering". Den bor här för att den ritas i samma språk som de fem.
+ */
+import type { IkonNyckel } from '../lib/ikoner';
+
+interface Props {
+  namn: IkonNyckel;
+  size?: number;
+}
+
+const { namn, size = 24 } = Astro.props;
+
+const PATHS: Record<IkonNyckel, string> = {
+  // Hemläget. Staplade lager, alltså hela bunten.
+  alla:
+    'M5 11.5h14a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19v-6A1.5 1.5 0 0 1 5 11.5z' +
+    'M5.5 8h13M8 4.5h8',
+  // Restauranger. Gaffel och kniv.
+  restaurang:
+    'M5 3v4.5a2.5 2.5 0 0 0 5 0V3M7.5 10v11' +
+    'M16 3c1.5 2.1 2.2 4.4 2.2 6.7 0 1.8-.8 3.3-2.2 3.3zM16 13v8',
+  // Caféer och bagerier. Kopp med öra.
+  cafe:
+    'M4 8.5h13v4.5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8.5z' +
+    'M17 10h1.5a2.5 2.5 0 0 1 0 5H17M3 21h15',
+  // Butiker. Kasse med handtag.
+  butik:
+    'M5 8h14l-1.2 11.3a2 2 0 0 1-2 1.7H8.2a2 2 0 0 1-2-1.7L5 8z' +
+    'M9 8V6.5a3 3 0 0 1 6 0V8',
+  // Skolor och omsorg. Byggnad med sadeltak och valvport.
+  //
+  // Porten är valvformad och inte rak, och det är hela skillnaden mellan en
+  // institution och ett bostadshus i den här storleken. Ett fönsterband låg
+  // först ovanför porten och togs bort: det hamnade i skarven mellan tak och
+  // vägg och läste som en garageport vid 24 pixlar.
+  skola: 'M12 3.2 3 8v12.8h18V8zM9.5 20.8v-4.3a2.5 2.5 0 0 1 5 0v4.3',
+  // Övrigt. Låda: tillverkare, grossister, lager, det man inte besöker.
+  ovrigt: 'M12 3.2 3.8 7.3v9.4L12 20.8l8.2-4.1V7.3zM3.8 7.3 12 11.4l8.2-4.1M12 11.4v9.4',
+};
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.6"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={PATHS[namn]} />
+</svg>
