@@ -722,6 +722,69 @@ function amplitudprov(m) {
 </div>`;
 }
 
+
+/**
+ * HÄRLEDNINGSPROVET. Är märkets ansikte samma ansikte som figurens?
+ *
+ * Ägarens observation, och den pekade rakt på lösningen: "den har redan
+ * korrekt ansikte när den inte är förenklad i html filen". Alltså sitter det
+ * FRIA ansiktet rätt och det FÖRENKLADE gör det inte.
+ *
+ * Slutsatsen är att märkets ansikte inte ska ritas, det ska HÄRLEDAS ur det
+ * fria genom beskärning. Det fria är facit. Skiljer sig något åt ska det gå
+ * att säga exakt vad och varför, och allt som skiljer utan skäl är ett fel.
+ *
+ * Provet ställer de två bredvid varandra i samma höjd, så att skillnaden går
+ * att se i stället för att diskuteras.
+ */
+function harledningsprov(m) {
+  const rad = (extra, etikett) => `<div style="margin-bottom:18px">
+    <span class="note" style="display:block;margin-bottom:6px"><b>${etikett}</b></span>
+    <div class="rad mitt">
+      ${TONER.map((t) => `<span style="display:flex;gap:14px;align-items:center;margin-right:26px">
+        ${m.figur({ size: 150, ton: t, uttryck: t, ansikte: true, ...extra })}
+      </span>`).join('')}
+    </div>
+  </div>`;
+
+  const harEnkel = (() => {
+    try {
+      return m.figur({ size: 100, ansikte: true, detalj: 'rik' })
+          !== m.figur({ size: 100, ansikte: true, detalj: 'enkel' });
+    } catch { return false; }
+  })();
+
+  return `<div class="block">
+  <h4>Härledningsprovet. Samma ansikte, annat utsnitt</h4>
+  <p class="note" style="max-width:680px">Det fria ansiktet är facit. Märket ska vara samma
+  ansikte beskuret, inte ett nytt ansikte ritat för små storlekar. De två raderna nedan ska
+  därför skilja sig i utsnitt och i detaljmängd, men aldrig i brynens vinkel, ögonens form
+  eller munnens djup relativt utsnittets bredd.</p>
+  <div class="ruta">
+    ${rad({ detalj: 'rik' }, 'Rikt ansikte, det fria. Facit.')}
+    ${rad({ detalj: harEnkel ? 'enkel' : 'rik' }, harEnkel
+      ? 'Förenklat ansikte, märkets. Ska vara samma ansikte i annat utsnitt.'
+      : 'Figuren har ännu ingen egen förenklad ritning, raden visar samma bild som ovan.')}
+    <p class="note" style="margin:8px 0 0"><b>Felet att leta efter:</b> att dragen behållit
+    sina absoluta mått medan ytan krympt, så att uttrycket glesnar ut och ansiktet blir tomt
+    i mitten. Dragen ska skala med utsnittet, alltså vara uttryckta som andelar av utsnittets
+    bredd och inte i absoluta enheter.</p>
+  </div>
+
+  <div class="ruta" style="margin-top:12px">
+    <span class="note" style="display:block;margin-bottom:8px"><b>Offerordningen.</b> Vad som
+    försvinner och vid vilken storlek. Duolingos egen ordning för Duo är kropp, vingar, öron,
+    fötter och till sist en färgnyans.</span>
+    ${femRad(m, { detalj: 'rik' })}
+    ${femRad(m, { detalj: harEnkel ? 'enkel' : 'rik' })}
+    <p class="note" style="margin:10px 0 0">Övre raden rik, undre förenklad, i 96, 64, 40, 24
+    och 16 px. Punkten där den övre slutar vara läsbar och den undre fortfarande är det, där
+    går gränsen mellan detaljnivåerna. Förenklingen ska ske stegvis och en detalj i taget,
+    först när detaljen faktiskt slammar igen, aldrig i förväg.</p>
+  </div>
+</div>`;
+}
+
 function kort(m, nr) {
   const e = m.META;
   const ny = typeof e.raka === 'number';
@@ -745,6 +808,7 @@ function kort(m, nr) {
     </div></div>
   </div>
 
+  ${harledningsprov(m)}
   ${plattprov(m)}
   ${amplitudprov(m)}
   ${isoleringsprov(m)}
