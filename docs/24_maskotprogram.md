@@ -81,7 +81,27 @@ bara säger att en sida är tom.
 | **Tomma lägen** | `tom` | Sökning utan träffar, konto utan bevakningar, kö utan poster. |
 | **Startsidans hero** | `soker` eller `clean` | Sajten presenterar sig. Ingen enskild verksamhet på skärmen. |
 | **Om, metod, kontakt** | `clean` | Sidor där tjänsten talar om sig själv. |
-| **Delningsbilder** | Valfritt | Kommunikation, inte produkt. Se nedan. |
+| **Bevakningsmejlets huvud** | `soker` | Ett mejl är inte en offentlig lista. Byggd, se noten nedan. |
+| **Delningsbilder** | Valfritt | Bara kommun-, kategori- och kedjesidor. Aldrig en enskild verksamhet, av samma skäl som matsnusk. |
+
+### Mejlet, som är den placering som ligger närmast gränsen
+
+Bevakningsmejlet innehåller rader om namngivna verksamheter och deras
+bedömning. Figuren står ändå i mejlets huvud, och avvägningen ska stå skriven.
+
+Skillnaden som gör det försvarbart: ett mejl är inte en offentlig lista. Vi
+talar till EN mottagare om hens egen bevakning, och figuren står i
+avsändarraden, inte intill ett företagsnamn. Duolingos egen manual nämner
+uttryckligen notiser och e-post som platser där Duo hör hemma.
+
+**Villkoret är hårt: figuren stannar i huvudet.** Kommer den någonsin ned bland
+raderna är regeln bruten. Det är också skälet till att den här noten finns: en
+gränsdragning som bara lever i någons huvud flyttar sig.
+
+Tekniskt: Gmail rensar bort SVG och Outlook renderar den inte alls, så mejlet
+använder en PNG på en publik adress. Den rasteriseras ur samma figur som allt
+annat av `brand/bygg-appikon.mjs`, eftersom en figur som ritas för hand vid
+sidan av slutar likna produkten.
 
 ### Frekvensregeln
 

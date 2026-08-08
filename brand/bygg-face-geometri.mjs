@@ -38,6 +38,7 @@ const UT = join(ROT, 'site', 'src', 'lib', 'face-geometri.ts');
 const UT_GANG = join(ROT, 'site', 'public', 'maskot', 'gang.svg');
 const UT_IKON = join(ROT, 'site', 'public', 'favicon.svg');
 const UT_APPIKON = join(ROT, 'site', 'public', 'maskot', 'appikon.svg');
+const UT_MEJL = join(ROT, 'site', 'public', 'maskot', 'mejl.svg');
 
 const LAGEN = ['clean', 'minor', 'major', 'none'];
 const NIVAER = ['rik', 'enkel', 'nal'];
@@ -323,6 +324,18 @@ ${unikaId(inre(m.figur({ size: 100, ton: 'blue', uttryck: 'clean', ansikte: true
 `);
 console.log(`Skrev ${UT_IKON}`);
 console.log(`Skrev ${UT_APPIKON}`);
+
+/* Underlag för e-postbilden. Helfigur och inte ansikte: i ett mejl talar vi
+   till EN mottagare om hens egen bevakning, alltså är vi avsändare och inte
+   en dom bredvid ett namn i en offentlig lista. Det är en av de ytor som
+   fältet är entydigt positivt till, Duolingos egen manual nämner notiser och
+   mejl uttryckligen. Genomskinlig botten, mejlmallen har vit yta. */
+writeFileSync(UT_MEJL, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="144" height="144" role="img" aria-label="Prikko">
+<!-- GENERERAD FIL. Skapad av brand/bygg-face-geometri.mjs.
+     Rasteriseras till site/public/maskot-mejl.png av brand/bygg-appikon.mjs. -->
+${figurMarkup.soker ?? figurMarkup.clean}</svg>
+`);
+console.log(`Skrev ${UT_MEJL}`);
 
 writeFileSync(UT, fil);
 console.log(`Skrev ${UT}`);
