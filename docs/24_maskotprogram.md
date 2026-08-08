@@ -383,6 +383,25 @@ bredvid ett företagsnamn är samma fel som i produkten, bara i ett annat format
 
 ---
 
+## 5b. Delningsbilden är blockerad, och det är ett fynd
+
+Delningsbilden stod på listan över ytor figuren skulle få, begränsat till
+kommun-, kategori- och kedjesidor. Den byggdes inte, och skälet är strukturellt.
+
+Sajten har **en enda delningsbild**, `site/public/og-default.png`, som används
+av samtliga sidor. Enda undantaget är artiklarna, som kan sätta en egen. Det
+betyder att en grävling i delningsbilden hamnar på **varje verksamhetssida**,
+alltså precis där den bärande regeln säger att den aldrig får vara.
+
+Det går inte att lösa med en bild. Det kräver **delningsbilder per sidtyp**,
+alltså en för kommun, en för kategori, en för kedja och en neutral för
+verksamheter. Det är ett eget uppdrag med egen kostnad, eftersom bilderna
+antingen måste genereras vid bygget eller ritas för hand per typ.
+
+Fyndet är värt mer än ytan: det säger att den bärande regeln har konsekvenser i
+tekniken och inte bara i designen, och att sådana konsekvenser dyker upp där man
+inte letar. Den som senare bygger delningsbilder per sidtyp ska läsa §2 först.
+
 ## 6. Vad som återstår
 
 - Tomma lägen är ännu inte byggda. Sökningen utan träffar renderas i
