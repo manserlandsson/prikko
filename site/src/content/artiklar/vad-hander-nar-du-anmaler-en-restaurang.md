@@ -4,6 +4,9 @@ description: "En anmälan kan utlösa en händelsestyrd kontroll. De hittar anm�
 lede: "Att höra av sig till kommunen känns ofta som att skicka iväg något i tomma intet. Kontrollerna som anmälningar utlöser är den sorts besök som oftast leder till en notering."
 category: "Guide"
 published: "2026-08-08"
+image:
+  alt: "Gult tegelhus vid en kaj med en restaurang bakom gulvit markis och en svensk flagga intill."
+  source: "Pexels"
 ---
 
 ## Vart anmälan går

@@ -4,6 +4,9 @@ description: "Visste köket att inspektören skulle komma noteras avvikelser vid
 lede: "Huvudregeln är att kontrollen ska vara oanmäld. Ungefär var sjunde planerad kontroll är det ändå inte, och skillnaden i utfall är större än man skulle tro."
 category: "Förklarat"
 published: "2026-08-08"
+image:
+  alt: "Person i röd tröja med engångshandskar antecknar på ett skrivunderlägg utomhus."
+  source: "Pexels"
 ---
 
 ## En regel med undantag

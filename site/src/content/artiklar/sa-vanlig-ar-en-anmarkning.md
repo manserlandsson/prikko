@@ -4,6 +4,9 @@ description: "Nästan alla verksamheter får en anmärkning förr eller senare. 
 lede: "En anmärkning låter allvarligt tills man vet hur vanlig den är. Det avgörande talet är inte om ett ställe har fått en, utan hur många gånger kommunen hunnit titta."
 category: "Förklarat"
 published: "2026-08-08"
+image:
+  alt: "Tom restaurangsal med dukade bord, trästolar och pendellampor i varmt ljus."
+  source: "Pexels"
 ---
 
 ## Frågan bakom frågan

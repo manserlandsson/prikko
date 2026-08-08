@@ -4,6 +4,9 @@ description: "Kontrollhistoriken är offentlig, men den är lätt att läsa fel.
 lede: "Recensioner berättar om maten och servicen. De berättar aldrig om köket. Det gör däremot kontrollhistoriken, om man vet vilka fyra saker man ska titta på."
 category: "Guide"
 published: "2026-08-08"
+image:
+  alt: "Restaurang sedd genom en glasvägg mot gatan, med dukade bord och gäster som äter."
+  source: "Pexels"
 ---
 
 ## Det recensionerna aldrig ser

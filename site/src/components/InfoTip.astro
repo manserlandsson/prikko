@@ -85,9 +85,14 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-muted);
+    /* Vit fylld cirkel med hårlinje. Den ska LÄSA som en ikon, inte som ett
+       löst i mitt i en rad. Ett försök att tona ned den genom att ta bort
+       ringen i viloläget gick för långt: kvar blev en bokstav utan form.
+       Vitt mot kortets vita ger ingen ruta, det är hårlinjen som ger formen,
+       och mot canvasens ljusgrå lyfter den lite. */
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--text-secondary);
     font: 600 10px/1 var(--font-sans);
     cursor: help;
     padding: 0;

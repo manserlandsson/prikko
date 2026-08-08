@@ -4,6 +4,9 @@ description: "Myndigheterna svarar att det beror på risken. Vi har mätt vad so
 lede: "Frågan brukar besvaras med att det beror på riskklassningen. Det är sant, och det är inget svar. Här är de uppmätta intervallen, per verksamhetstyp och per kommun."
 category: "Förklarat"
 published: "2026-08-08"
+image:
+  alt: "Kock med ryggen mot kameran vid passet i ett storkök, med hängande glas, kastruller och stålkåpa."
+  source: "Pexels"
 ---
 
 ## Ett svar som inte är ett svar
