@@ -40,6 +40,8 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
+import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
+import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
@@ -74,6 +76,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
+import { chainFor } from '../../lib/kedjor';
 import { JAMFOR_NYHET_SYNS, compareHref, compareSuggestions } from '../../lib/jamfor';
 import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
@@ -178,6 +181,19 @@ const ownCategories: CategorySlice[] = kommunCats.usable
   : [];
 
 /**
+ * Vägen i sidled ut ur kommunen.
+ *
+ * Kategorilänken ovanför går till "Caféer i Stockholm". Den här går till
+ * "Espresso House", alla 52, i alla kommuner vi har. Det är den enda länk på
+ * sidan som lämnar kommunen, och den frågan är den enda ingen kommunal
+ * livsmedelskarta i Sverige kan besvara.
+ *
+ * `chainFor` är null när kedjan inte har en sida, så länken kan aldrig peka
+ * på en URL som kvalitetsgrinden håller borta. Se lib/kedjor.ts.
+ */
+const kedja = chainFor(e);
+
+/**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
  * sannolikt citerar. Måste vara självbärande och sann i varje utfall.
  *
@@ -273,6 +289,14 @@ const facts = [
 const jsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'FoodEstablishment',
+  /* Ett id att peka på.
+
+     Öppettider och telefon kommer från företagsytan och hämtas i webbläsaren,
+     alltså finns de inte när den här noden skrivs. Foretagsuppgifter.astro
+     lägger till en andra nod med SAMMA @id när uppgifterna kommit hem, och den
+     som läser strukturerad data slår då ihop de två i stället för att tro att
+     adressen har två restauranger. Utan ett id går det inte att göra. */
+  '@id': `${absolute(kommun.slug, e.slug)}#verksamhet`,
   name: e.name,
   url: absolute(kommun.slug, e.slug),
   address: {
@@ -363,8 +387,8 @@ const breadcrumbs = {
         <p class="place text-secondary">
           {[e.types[0], e.address, kommun.city].filter(Boolean).join(' · ')}
           {/* Stadsdelen sist i raden, och bara när den har en egen sida. Den
-              binder verksamheten till sitt område i länkgrafen, vilket är det
-              som gör områdessidorna nåbara nerifrån och inte bara uppifrån
+              binder verksamheten till sitt område i länkgrafen, vilket är
+              det som gör områdessidorna nåbara nerifrån och inte bara från
               kommunhubben. Se lib/omraden.ts. */}
           {omrade && (
             <> · <a href={path(kommun.slug, 'omrade', omrade.slug)}>{omrade.name}</a></>
@@ -512,6 +536,27 @@ const breadcrumbs = {
         )}
 
         {/*
+          Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.
+
+          Ordningen är ett påstående, samma som gäller bilder och omdömen: det
+          kommunen funnit först, det verksamheten själv säger sedan. En
+          presentation som stod ovanför bedömningen hade läst som en ingress
+          till den, och det är precis vad den aldrig får vara.
+
+          Tomt i HTML-filen och fyllt i webbläsaren. Avsnittet syns inte alls
+          på de sidor där ingen skickat in något, alltså på nästan alla. Se
+          Foretagsuppgifter.astro.
+        */}
+        <Foretagsuppgifter establishmentId={e.id} />
+
+        {/*
+          Verksamhetens egna bilder, direkt efter dess egna uppgifter och före
+          gästernas bilder. De två bildavsnitten delar varken tabell eller kod;
+          se Foretagsbilder.astro.
+        */}
+        <Foretagsbilder establishmentId={e.id} establishmentName={e.name} />
+
+        {/*
           Bilderna står FÖRE omdömena och efter kartan.
 
           De hör till stället och inte till ett enskilt omdöme, alltså hör de
@@ -622,6 +667,13 @@ const breadcrumbs = {
                 </a>
               </li>
             ))}
+            {kedja && (
+              <li>
+                <a href={path('kedja', kedja.id)}>
+                  Alla {formatNumber(kedja.total)} {kedja.name}
+                </a>
+              </li>
+            )}
           </ul>
         </div>
       </aside>
@@ -745,11 +797,18 @@ const breadcrumbs = {
     line-height: var(--lh-body-s);
   }
 
+  /* Märket i höjd med beskedet, inte mitt i textblocket.
+     `center` centrerade det mot hela blocket, alltså mot rubriken PLUS
+     svarsmeningen under, och då hamnade märket en bit under den rad det hör
+     ihop med. Ägaren såg det direkt. Nu ligger överkanterna i linje och
+     märket nudgas ned till rubrikens optiska mitt. */
   .verdict {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--s-4);
   }
+
+  .verdict > :global(.face) { margin-top: 2px; }
 
   .besked { flex: 1 1 auto; }
 

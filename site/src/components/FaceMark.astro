@@ -23,7 +23,7 @@
  * ensamma i 24 px i gråskala.
  */
 import type { VerdictOrNone } from '../lib/site';
-import { FACE_MARKUP, FACE_PLATE, faceDetalj, faceKey } from '../lib/face';
+import { FACE_MARKUP, FACE_PLATE, MASKOT, faceDetalj, faceKey } from '../lib/face';
 
 interface Props {
   verdict: VerdictOrNone;
@@ -62,11 +62,30 @@ const ansikte = FACE_MARKUP[key][niva];
 
 // Blinkningen är förstärkning av ett gott besked. Att låta en verksamhet med
 // brister blinka vore att sockra ett underkännande.
-const winking = wink && verdict === 'clean';
+/*
+ * RÖRELSERNA ÄR PAUSADE MEDAN GRÄVLINGEN GÄLLER.
+ *
+ * Båda var ritade för den gamla figuren och överlevde inte bytet:
+ *
+ *  - Munnens uppritning använder `stroke-dasharray`, men grävlingens mun är
+ *    en FYLLD bana utan stroke, eftersom figuren har noll stroke som regel.
+ *    Ett streckmönster på en fyllning gör ingenting, alltså är animationen
+ *    en tyst nolla i dag.
+ *  - Blinkningen skalar ögonlocket sex gånger. Sexan är tagen för det gamla
+ *    ögats mått. Grävlingens lock är ett annat element med en annan höjd, och
+ *    resultatet skaver. Ägaren: "animering är sämst, den ser konstigt ut".
+ *
+ * Propsen `animate` och `wink` finns kvar och rörs inte av anropsplatserna.
+ * De två raderna nedan är hela pausen, och de tas bort när rörelsen ritats om
+ * mot grävlingens egen geometri. Går `MASKOT` tillbaka till false i face.ts
+ * lever de gamla rörelserna igen, eftersom då gäller den gamla ritningen.
+ */
+const animating = animate && !MASKOT;
+const winking = wink && verdict === 'clean' && !MASKOT;
 ---
 
 <svg
-  class:list={['face', variant, { animate, winking }]}
+  class:list={['face', variant, { animate: animating, winking }]}
   width={size}
   height={size}
   viewBox="0 0 100 100"
