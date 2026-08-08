@@ -490,12 +490,13 @@ en karta, och står kvar på hubben för de fyra som inte har det.
 
 Varje steg ska kunna pushas ensamt utan att sajten går sönder.
 
-1. **Pipelinen.** `scripts/kartrutor.mjs` bygger arkivet ur beståndet och
-   skriver `public/kartrutor/punkter-<hash>.pmtiles`. Ingen sida läser det
-   ännu.
-2. **Klienten byter källa.** `punktKalla()` i `Karta.astro` slutar läsa
-   kommunfilen och läser rutorna. `delaKluster()` läser `ez` och `bx` i stället
-   för att fråga källan. Kommunfilerna ligger kvar orörda som reserv.
+1. ~~**Pipelinen.**~~ KLAR. `src/lib/kartrutor.ts` bygger arkivet, `src/lib/pmtiles.ts`
+   skriver det, och `pages/kartrutor/[file].pmtiles.ts` lägger ut det på en
+   innehållsbaserad adress. `scripts/kartrutegrind.mjs` öppnar den färdiga
+   filen med den läsare webbläsaren kör och stoppar bygget om något inte går.
+2. ~~**Klienten byter källa.**~~ KLAR. `punktKalla()` läser rutorna,
+   `delaKluster()` läser `ez` och `bx`, och antalsbrickan läser `h` och `n`.
+   Kommunfilerna ligger kvar orörda som reserv.
 3. **`/karta/`** byggs som ny sida.
 4. **Adressen bär filter.** Fragmentet utvidgas, `history.replaceState` skriver
    tillbaka utsnittet.
@@ -505,6 +506,34 @@ Varje steg ska kunna pushas ensamt utan att sajten går sönder.
    tas `map-data.ts` och `pages/kartdata/[file].json.ts` bort. Båda
    komponenterna läser `data.body` för sina byggtidsbilder, så modulen kan inte
    bara raderas; punktbilderna behöver en egen liten datakälla.
+
+## Tre saker som beter sig annorlunda efter steg 2
+
+Ingen av dem är en bugg, alla tre följer av att punkterna inte längre ligger i
+minnet, och alla tre är värda ägarens ögon.
+
+**1. Rubriken räknar utsnittet, listan visar nålarna.** Förut var varje punkt
+en rad, oavsett om kartan råkade rita den som en bubbla. Nu ligger nästan allt
+i bubblor på kommunens öppningszoom: Stockholm har 8 488 verksamheter i vyn och
+ett femtontal lösa nålar. Rubriken säger därför 8 488 och foten säger "Visar 14
+av 8 488. Zooma in för att se resten." Alternativet, att låta rubriken säga 14,
+hade varit falskt.
+
+**2. Filtret gäller det man ser.** Fältet sökte förut igenom hela kommunen. En
+rikskarta har ingen sådan mängd, och det var hela skälet till rutorna. Fältets
+etikett har alltid lovat att det filtrerar vyn, och det är vad det gör. Den som
+vill söka i hela landet gör det i sidhuvudets sökfält, som har hela registret.
+
+**3. Bubblorna och brickorna göms medan ett filter är på.** De är räknade vid
+bygget och kan inte räknas om i webbläsaren. En bubbla som säger 300 bredvid en
+lista med fyra träffar påstår något som inte stämmer, och en bricka som säger
+tolv likaså. Att gömma dem säger i stället sanningen: det här matchar, zooma in
+för att se mer.
+
+Mätt i webbläsaren mot det byggda utfallet: Stockholms kartsida kostade 125 kB
+kartdata innan en nål ritades. Samma vy kostar nu 21,7 kB i fem
+räckviddssvar. Två klick på bubblor tar 8 488 till 3 132 till 144, filtret ger
+tre träffar på apotek, och arket på smal skärm fungerar som förut.
 
 ## Vad som INTE ändras
 
