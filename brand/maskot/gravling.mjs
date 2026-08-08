@@ -57,6 +57,20 @@
  * Och ett verktyg: `isolera` låser allt utom en enda uttrycksbärare till clean,
  * så att frågan om en bärare bär går att avgöra i stället för att tyckas om.
  *
+ * ── v6, när grävlingen skulle in i sajten ─────────────────────────────
+ * Ingenting i teckningen ändrades. Det som ändrades är mekanik, och allt utom
+ * det grå är räknat i tecken per märke gånger 8 511 märken på Stockholms hubb:
+ *
+ *   GRÅTT     sajten har FYRA lägen och inte tre. `none` är verksamheten som
+ *             ännu inte bedömts. Den ligger nu i PALETT, i PLATTA_TONER, i
+ *             BRYN_LAGE, i MUNNAR, i UTTRYCK och i POS, härledd med exakt samma
+ *             recept som de fyra andra kulörerna. Se PALETT.none.
+ *   NÅLEN     `detalj: 'nal'`, en tredje detaljnivå på tusen tecken mot det
+ *             enkla lägets sextusen, utan en enda beskärning. Se 5b.
+ *   BESKÄRNINGARNA  ögonbeskärningen ritas bara när den beskär något, alltså
+ *             aldrig i bedömningsmärket. Se pupillenRyms.
+ *   DECIMALERNA  varje koordinat i varje variant går genom P eller N. Se lem().
+ *
  * ── Rundheten ─────────────────────────────────────────────────────────
  * Slutna konturer ritas genom `mjuk()`, som lägger en Catmull-Rom-kurva genom
  * en punktlista och räknar om den till kubiska bezier. Kontrollpunkterna kring
@@ -421,6 +435,31 @@ const MITT = 51;                                      // ansiktets mittlinje i r
 
 /** Gemensamma mått. Ett bryn byter höjd och lutning med humöret, inte längd. */
 const BRYN_FORM = { langd: 0.2688, tjocklek: 0.120, glugg: 0.2252 };
+
+/**
+ * BRYNETS TJOCKLEK PER DETALJNIVÅ.
+ *
+ * Tjockleken höjdes en gång från 0,0988 till 0,120, och till 0,140 i major,
+ * eftersom brynen läste som tunna streck i 24 px och isoleringsprovet föll
+ * där. Det var rätt för märket och fel för de stora storlekarna: ägaren såg
+ * det direkt live, "är inte ögonbrynen lite tjocka".
+ *
+ * Båda har rätt, och felet var att tjockleken var EN konstant för alla
+ * storlekar. Ett bryn som ska bära bedömningen i 24 px måste vara kraftigare
+ * än ett som bara ska se rätt ut i 200 px. Samma logik som resten av
+ * nivåsystemet: det som krymper får kompensera.
+ *
+ * Faktorerna multiplicerar BRYN_FORM.tjocklek, alltså 0,120:
+ *
+ *   rik    0,823  ->  0,0988, exakt originalets. Används över 56 px, där
+ *                    ingenting går förlorat på att brynet är tunnare.
+ *   enkel  1,35   ->  0,162. 32 till 56 px.
+ *   nal    1,35   ->  0,162. Under 32 px, och där bär brynen ensamma.
+ *
+ * Ändras något av talen ska isoleringsprovet på enbart brynen köras om i
+ * 24 px i gråskala. Det är det provet som avgör om brynen fortfarande bär.
+ */
+export const BRYN_TJOCKNA = { rik: 0.823, enkel: 1.35, nal: 1.35 };
 
 export const BRYN_LAGE = {
   /* ── De tre bedömningarna ────────────────────────────────────────── */
@@ -1081,7 +1120,8 @@ function ansikte(p, T, enkel, o = {}) {
   }).join('');
 
   const brynen = par.map(([k, i]) => `<path d="${bryn(OGA[k], lage, i, {
-    amp, gapSkala: brynGap, tjockna: enkel ? 1.35 : 1, just: p.brynJust || 0,
+    amp, gapSkala: brynGap, tjockna: enkel ? BRYN_TJOCKNA.enkel : BRYN_TJOCKNA.rik,
+    just: p.brynJust || 0,
   })}"/>`).join('');
 
   const m = MUNNAR[p.mun] || MUNNAR.glad;
@@ -1092,7 +1132,7 @@ function ansikte(p, T, enkel, o = {}) {
   const hal = enkel ? '' : kavitet(d, m.djup);
   const munnen =
     (hal ? `<path d="${hal}" fill="${T.djup}"/>` : '') +
-    `<path class="mun" d="${d}" fill="none" stroke="${T.mork}" stroke-width="${N(sw)}" stroke-linecap="round"/>`;
+    `<path class="mun" pathLength="1" d="${d}" fill="none" stroke="${T.mork}" stroke-width="${N(sw)}" stroke-linecap="round"/>`;
 
   return (
     `<defs>` +
@@ -1228,7 +1268,7 @@ const NAL_TOPP = (() => {
  * ett drag läses i absoluta pixlar och inte i andelar. Talen är högre här
  * eftersom ytan är mindre. Brynets ellips tappar dessutom tjocklek mot ändarna
  * där den riktiga staven är som tjockast, alltså kompenserar 1,35 två saker. */
-const NAL_BRYN_TJOCKNA = 1.35;
+const NAL_BRYN_TJOCKNA = BRYN_TJOCKNA.nal;
 const NAL_MUN_TJOCKNA = 1.35;
 
 /** Bandet som piller. Bredden är ögats egen ram, alltså samma W som band(). */
@@ -1302,7 +1342,7 @@ function nalMarke(p, T, plattfarg, size, kl, a11y, ramskala, amp) {
     }).join('')}</g>` +
     par.map(([k]) => pupill(OGA[k], p.blick, T, true)).join('') +
     `<g fill="${T.ljus}">${par.map(([k, i]) => nalBryn(OGA[k], lage, i, amp)).join('')}</g>` +
-    `<path class="mun" d="${d}" fill="none" stroke="${T.mork}"` +
+    `<path class="mun" pathLength="1" d="${d}" fill="none" stroke="${T.mork}"` +
       ` stroke-width="${N(MUN_SW * 100 * NAL_MUN_TJOCKNA)}" stroke-linecap="round"/>` +
     `</g></svg>`
   );

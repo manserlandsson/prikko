@@ -1,0 +1,95 @@
+---
+/**
+ * MASKOTEN I HELFIGUR. Prikko, grävlingen, med kropp.
+ *
+ * Det finns två lägen av samma karaktär och de gör olika jobb:
+ *
+ *   Bedömningsmärket, FaceMark.astro. Ansiktet beskuret i en rundad kvadrat.
+ *   Det är DATA: grönt, gult eller rött om en namngiven verksamhet. Det står
+ *   i listor, på kartnålar och i sökträffar, tusentals gånger per sida.
+ *
+ *   Maskoten, den här filen. Hela figuren, alltid i Prikkoblå, aldrig i en
+ *   bedömningsfärg. Den är AVSÄNDARE och inte data. Den står där sajten talar
+ *   i eget namn: en tom lista, en adress som inte finns, en sida utan träffar.
+ *
+ * ── Regeln som styr var den får stå ─────────────────────────────────────
+ *
+ * MASKOTEN FÅR ALDRIG STÅ BREDVID EN BEDÖMNING AV EN NAMNGIVEN VERKSAMHET.
+ *
+ * Vi rapporterar myndighetsbeslut om enskilda företag. En figur bredvid
+ * "brister som kvarstår" hos en namngiven restaurang gör en myndighetsuppgift
+ * till ett skämt, och läses lätt som att vi hånar någon. Där står märket, som
+ * är ett neutralt tecken, och ingenting annat.
+ *
+ * Maskoten hör därför hemma exakt där det INTE finns någon verksamhet att
+ * bedöma. Det är också varför den alltid är blå: bedömningsfärgerna betyder
+ * något om ett företag, och den betydelsen ska inte kunna smitta av sig på en
+ * figur som bara säger att en sida är tom.
+ *
+ * ── Storlek och vikt ────────────────────────────────────────────────────
+ *
+ * Figuren är omkring 14 kB per pose. Det är många gånger märkets kostnad och
+ * fullt rimligt för EN figur på en sida, och orimligt i en lista. Komponenten
+ * har därför ingen listvariant och ska inte få någon.
+ */
+import { FIGUR_MARKUP } from '../lib/face-geometri';
+
+export type MaskotPose =
+  | 'clean'
+  | 'soker'
+  | 'hittat'
+  | 'vantar'
+  | 'nojd'
+  | 'tom'
+  | 'fyrafyra';
+
+interface Props {
+  /**
+   * Vilket läge figuren står i. Väljs efter vad SIDAN säger, inte efter vad
+   * som ser trevligast ut.
+   *
+   *   tom       en lista eller ett resultat som är tomt
+   *   fyrafyra  en adress som inte finns
+   *   soker     något pågår, figuren letar
+   *   hittat    något hittades och det är sidans poäng
+   *   nojd      en handling gick igenom
+   *   vantar    en kö eller ett läge som väntar på någon annan
+   *   clean     neutralt viloläge
+   */
+  pose?: MaskotPose;
+  size?: number;
+  /**
+   * Alternativtext. Lämna tom när figuren är dekoration bredvid en rubrik som
+   * redan säger samma sak, vilket är det normala. En figur som upprepar
+   * rubriken i en skärmläsare är brus, inte tillgänglighet.
+   */
+  alt?: string;
+  class?: string;
+}
+
+const { pose = 'clean', size = 120, alt = '', class: klass } = Astro.props;
+
+const markup = FIGUR_MARKUP[pose] ?? FIGUR_MARKUP.clean;
+const dold = alt === '';
+---
+
+<svg
+  class:list={['maskot', klass]}
+  width={size}
+  height={size}
+  viewBox="0 0 120 120"
+  fill="none"
+  role={dold ? undefined : 'img'}
+  aria-hidden={dold ? 'true' : undefined}
+  aria-label={dold ? undefined : alt}
+  focusable="false"
+>
+  <Fragment set:html={markup} />
+</svg>
+
+<style>
+  .maskot {
+    display: block;
+    flex-shrink: 0;
+  }
+</style>

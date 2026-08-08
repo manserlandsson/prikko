@@ -38,7 +38,7 @@
  * sidhuvudet tar dem vidare i ett klick.
  */
 import Base from '../layouts/Base.astro';
-import FaceMark from '../components/FaceMark.astro';
+import Maskot from '../components/Maskot.astro';
 import { coverage, formatNumber, municipalities } from '../lib/data';
 import { path } from '../lib/urls';
 
@@ -52,11 +52,21 @@ const total = coverage();
   noindex
 >
   <div class="container sida">
-    {/* Vårt eget ansikte i sitt obedömda läge, alltså exakt det märke sajten
-        använder när den inte vet något om en verksamhet. Det säger samma sak
-        som sidan: här finns ingenting att visa. Ingen lånad illustration och
-        ingen 404 i jättegrad, som blivit den generiska lösningen. */}
-    <FaceMark verdict={null} size={72} variant="round" />
+    {/* Maskoten i helfigur, i sitt 404-läge.
+    
+        Här stod tidigare bedömningsmärket i sitt obedömda läge, alltså ett
+        grått ansikte. Det var rätt tanke med fel verktyg: märket är DATA om en
+        namngiven verksamhet, och på den här sidan finns ingen verksamhet. Ett
+        grått bedömningsmärke sa i praktiken "den här sidan är obedömd", vilket
+        inte är vad som hänt.
+        
+        Maskoten är avsändare och inte data, och den hör hemma exakt där det
+        inte finns någon verksamhet att bedöma. Den är alltid blå av samma skäl:
+        bedömningsfärgerna betyder något om ett företag, och den betydelsen ska
+        inte kunna smitta av sig på en figur som bara säger att en adress inte
+        leder någonstans. Ingen lånad illustration och ingen 404 i jättegrad,
+        som blivit den generiska lösningen. */}
+    <Maskot pose="fyrafyra" size={132} />
 
     <h1>Sidan finns inte</h1>
     <p class="lede">
@@ -92,6 +102,13 @@ const total = coverage();
     max-width: var(--w-page);
     padding-block: var(--s-16);
     text-align: center;
+  }
+
+  /* Figuren är ett block och centreras därför inte av .sida:s text-align.
+     Det gällde inte förut, eftersom bedömningsmärket som stod här var litet
+     nog att inte synas som felplacerat. En helfigur i 132 px är det. */
+  .sida :global(.maskot) {
+    margin-inline: auto;
   }
 
   h1 {

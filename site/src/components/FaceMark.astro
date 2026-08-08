@@ -23,7 +23,7 @@
  * ensamma i 24 px i gråskala.
  */
 import type { VerdictOrNone } from '../lib/site';
-import { FACE_MARKUP, FACE_PLATE, MASKOT, faceDetalj, faceKey } from '../lib/face';
+import { FACE_MARKUP, FACE_PLATE, faceDetalj, faceKey } from '../lib/face';
 
 interface Props {
   verdict: VerdictOrNone;
@@ -63,25 +63,24 @@ const ansikte = FACE_MARKUP[key][niva];
 // Blinkningen är förstärkning av ett gott besked. Att låta en verksamhet med
 // brister blinka vore att sockra ett underkännande.
 /*
- * RÖRELSERNA ÄR PAUSADE MEDAN GRÄVLINGEN GÄLLER.
+ * RÖRELSERNA ÄR IGÅNG IGEN, omritade mot grävlingens egen geometri.
  *
- * Båda var ritade för den gamla figuren och överlevde inte bytet:
+ * De var pausade en tid, och skälet var att båda var ritade för den gamla
+ * figuren och inte överlevde bytet. Ägarens dom var kort och riktig:
+ * "animering är sämst, den ser konstigt ut". Vad som var fel och vad som
+ * gjordes åt det står vid respektive regel i stilblocket längre ned.
  *
- *  - Munnens uppritning använder `stroke-dasharray`, men grävlingens mun är
- *    en FYLLD bana utan stroke, eftersom figuren har noll stroke som regel.
- *    Ett streckmönster på en fyllning gör ingenting, alltså är animationen
- *    en tyst nolla i dag.
- *  - Blinkningen skalar ögonlocket sex gånger. Sexan är tagen för det gamla
- *    ögats mått. Grävlingens lock är ett annat element med en annan höjd, och
- *    resultatet skaver. Ägaren: "animering är sämst, den ser konstigt ut".
+ * Kort: munnens uppritning hade banans längd som ett hårdkodat tal och löser
+ * det nu med pathLength, och blinkningen försökte skala ett lock vars båda
+ * kanter rör sig åt olika håll och animerar nu geometrin i stället.
  *
- * Propsen `animate` och `wink` finns kvar och rörs inte av anropsplatserna.
- * De två raderna nedan är hela pausen, och de tas bort när rörelsen ritats om
- * mot grävlingens egen geometri. Går `MASKOT` tillbaka till false i face.ts
- * lever de gamla rörelserna igen, eftersom då gäller den gamla ritningen.
+ * Går `MASKOT` tillbaka till false i face.ts gäller den gamla ritningen igen.
+ * Uppritningen fungerar även då, eftersom pathLength är normaliserad och den
+ * gamla munnen också är en strokead bana. Blinkningen gör det INTE: dess
+ * värden är grävlingens lockmått. Byter du tillbaka figuren, läs om dem.
  */
-const animating = animate && !MASKOT;
-const winking = wink && verdict === 'clean' && !MASKOT;
+const animating = animate;
+const winking = wink && verdict === 'clean';
 ---
 
 <svg
@@ -114,58 +113,66 @@ const winking = wink && verdict === 'clean' && !MASKOT;
     clip-path: inset(0 round 17%);
   }
 
-  /* Munnen ritas upp när märket kommer in. Diskret — det här är ett
-     register, inte en app-onboarding.
+  /* Munnen ritas upp när märket kommer in. Diskret: det här är ett register,
+     inte en app-onboarding.
 
-     Munnen är en egen bana i figuren och bär klassen `mun`, så uppritningen
-     kan hitta den utan att komponenten känner till geometrin. */
-  .animate :global(.mun) {
-    stroke-dasharray: 60;
-    stroke-dashoffset: 60;
-    animation: draw .45s cubic-bezier(.4, 0, .2, 1) .1s forwards;
-  }
+     ── Varför den var trasig, och vad som ändrades ─────────────────────
+     Uppritningen låg tidigare på `stroke-dasharray: 60`, ett tal taget för
+     det gamla märkets mun. Grävlingens munbåge är ungefär en tredjedel så
+     lång, så streckmönstret var längre än hela banan: munnen låg helt i
+     gapet, hoppade fram på en bråkdel av tiden och stod stilla resten.
+     Ägarens dom var kort och riktig, "animering är sämst, den ser konstigt ut".
 
+     Felet var inte talet utan att det VAR ett tal. En bana som ritas om när
+     figuren ändras kan inte ha sin längd hårdkodad i en stilmall.
+
+     `pathLength="1"` löser det i grunden: banan säger själv att den är en
+     enhet lång, oavsett verklig geometri. Dasharray 1 och offset 1 betyder
+     därmed alltid exakt hela munnen, och kommer aldrig att glida isär igen
+     när bågen ritas om. Attributet sätts av figuren, se brand/maskot/. */
   @keyframes draw {
     to { stroke-dashoffset: 0; }
   }
 
-  /* Blinkningen. Den bor numera i ÖGONLOCKEN, som figuren redan har som eget
-     system, i stället för i en hoptryckning av hela ögat. Skillnaden är att ett
-     lock som faller läser som en blinkning, medan ett öga som skalas i höjd
-     läser som en bild som klämts ihop.
+  /* Blinkningen. Ögonlocket faller över ögat och lyfts igen.
 
-     Namnet måste vara unikt. @keyframes är GLOBALA i CSS. Astro scopar
-     selektorer men inte keyframe-namn, och den här hette tidigare `wink`,
-     vilket krockade med sidhuvudets, som numera heter `wordmark-wink`.
+     ── Varför den var trasig ───────────────────────────────────────────
+     Den skalade locket sex gånger i höjd, ett mått taget för det gamla ögat.
+     Grävlingens lock är i sitt öppna läge en nästan platt ellips med ry 0,4
+     som ligger precis ovanför ögat, alltså osynlig. Sex gånger 0,4 är 2,4,
+     och locket rörde sig knappt. Det syntes som ett ryck, inte som en blink.
 
-     ── Varför den ser ut som den gör ─────────────────────────────────────
-     En tidigare version var 0,4 sekunder lång, kördes en enda gång 0,65 s
-     efter sidladdning och tryckte ihop ögat till 12 %. Den avlöpte medan
-     besökaren fortfarande läste verksamhetens namn och var över innan blicken
-     hann till märket. En animation som bara syns om man råkar titta på rätt
-     plats vid rätt tiondels sekund finns i praktiken inte.
+     ── Varför det inte går att lösa med en skalning ────────────────────
+     Locket i sitt SLUTNA läge är inte det öppna förstorat. Uppmätt i figuren:
+     öppet är cy 33,5 och ry 0,4, slutet är cy 27,78 och ry 19,6. Locket växer
+     alltså både nedåt och uppåt, och ingen transform med fast origo kan flytta
+     en form vars båda kanter rör sig åt olika håll.
 
-     Locket sitter i viloläget precis ovanför ögats överkant och är därmed
-     osynligt. Blinkningen skalar det NEDÅT, alltså med origo i överkanten, så
-     att det faller över ögat och lyfts igen.
+     Därför animeras GEOMETRIN i stället, alltså ellipsens egna cy och ry. Båda
+     är animerbara CSS-egenskaper för SVG-geometri i alla nuvarande webbläsare,
+     och värdena är figurens egna mätvärden och inte påhittade tal. Ändras
+     locket i figuren ska de här två talen läsas om ur den.
 
-     Nu är cykeln 8 sekunder och blinkningen upptar de första tio procenten:
+     ── Tajmingen ──────────────────────────────────────────────────────
+     Cykeln är 8 sekunder och blinkningen upptar de första tio procenten:
      locket faller på 0,32 s, står nere i 0,12 s och lyfts på 0,32 s. Drygt sju
      sekunders stillhet följer, och det är uppehållet som gör att upprepningen
      läser som ett andetag och inte som en tic.
 
      Fördröjningen på 0,9 s låter munnen ritas klart först. Två animationer på
-     samma ansikte samtidigt läser som en glitch. */
+     samma ansikte samtidigt läser som en glitch.
+
+     Namnet måste vara unikt. @keyframes är GLOBALA i CSS. Astro scopar
+     selektorer men inte keyframe-namn, och den här hette tidigare `wink`,
+     vilket krockade med sidhuvudets, som numera heter `wordmark-wink`. */
   .winking :global(.lock-hoger) {
-    transform-box: fill-box;
-    transform-origin: top;
     animation: facemark-wink 8s cubic-bezier(.4, 0, .2, 1) .9s infinite;
   }
 
   @keyframes facemark-wink {
-    0%, 1%      { transform: scaleY(1); }
-    5%, 6.5%    { transform: scaleY(6); }
-    10.5%, 100% { transform: scaleY(1); }
+    0%, 1%      { cy: 33.5; ry: .4; }
+    5%, 6.5%    { cy: 27.78; ry: 19.6; }
+    10.5%, 100% { cy: 33.5; ry: .4; }
   }
 
   /* Rörelse kan utlösa yrsel och illamående hos den som har en vestibulär

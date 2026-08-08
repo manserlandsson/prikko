@@ -1,37 +1,13 @@
-<svg viewBox="23.4 24 50 50" xmlns="http://www.w3.org/2000/svg">
-  <!--
-    Bara smileyn, ingen platta, genomskinlig botten.
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Prikko">
+<!--
+  GENERERAD FIL. Ändra inte för hand.
+  Skapad av brand/bygg-face-geometri.mjs ur brand/maskot/gravling.mjs.
 
-    viewBox är beskuren till märkets egen yta i stället för till den gamla
-    96-rutan, som var ritad för att rymma en bakgrundsplatta som inte längre
-    finns. Måtten är räknade ur banorna: innehållet ligger mellan x 26,1 och
-    70,7 och y 31 och 67, alltså mitt i (48,4, 49) och en kvadrat på 50 runt
-    den. Geometrin är oförändrad, bara ramen runt.
+  Grävlingens ansikte i den rundade kvadraten, byggt ur nal-nivån eftersom
+  en favicon visas i 16 till 32 px. Blå och inte grön: ikonen säger vem
+  sajten är, inte hur det står till med en verksamhet.
 
-    FÄRGEN STÅR BOKSTAVLIGT i attributen och inte som var(). En custom property
-    i ett presentationsattribut resolveras inte av alla renderare, och när den
-    faller bort blir fill svart och stroke ingenting alls. Provrenderat i 16, 32
-    och 64 px: med var() försvann munnen helt och ögonen blev svarta.
-
-    Mörkt läge skrivs över med en vanlig CSS-regel i stället, vilket fungerar
-    överallt där mediefrågan alls läses. En favicon ligger mot flikradens
-    botten, som är nästan svart i mörkt tema, och prikko-blått mot den ytan
-    hamnar runt 3,2:1. Formen syns men blir mörk, därför en ljusare blå. Safari
-    läser inte mediefrågor i en SVG-favicon och får den vanliga blån, vilket är
-    läsbart och inte fel.
-
-    apple-touch-icon.png rörs INTE och ska förbli fylld. iOS lägger den mot en
-    egen bakgrund och gör genomskinligt till svart, så en transparent ikon blir
-    en svart fyrkant på hemskärmen.
-  -->
-  <style>
-    @media (prefers-color-scheme: dark) {
-      .ink { fill: #4DA6F0; }
-      .ink-stroke { stroke: #4DA6F0; }
-    }
-  </style>
-
-  <path class="ink" fill="#007BE0" d="M37.8719 43.2457C41.2535 43.2457 43.9948 40.5044 43.9948 37.1229C43.9948 33.7413 41.2535 31 37.8719 31C34.4903 31 31.749 33.7413 31.749 37.1229C31.749 40.5044 34.4903 43.2457 37.8719 43.2457Z"/>
-  <path class="ink" fill="#007BE0" d="M60.6141 43.2457C63.9957 43.2457 66.737 40.5044 66.737 37.1229C66.737 33.7413 63.9957 31 60.6141 31C57.2325 31 54.4912 33.7413 54.4912 37.1229C54.4912 40.5044 57.2325 43.2457 60.6141 43.2457Z"/>
-  <path class="ink-stroke" d="M30 55.4883C42.2457 67.1509 54.4915 67.1509 66.7372 55.4883" stroke="#007BE0" stroke-width="7.87226" stroke-linecap="round" fill="none"/>
-</svg>
+  Plattan är fylld, vilket gör den gamla mörka-läget-regeln onödig: en fylld
+  platta bär sin egen bakgrund mot flikradens nästan svarta yta.
+-->
+<clipPath id="ikon-ram"><rect width="100" height="100" rx="17"/></clipPath><g clip-path="url(#ikon-ram)"><rect width="100" height="100" fill="#619ed1"/><g transform="translate(50 50)scale(1.2)translate(-51 -55)"><rect x="10" y="9.5" width="81" height="84" rx="26" fill="#9ecdf3"/><g fill="#005ba6"><rect x="15.4" y="12" width="31.2" height="62" rx="15.6"/><rect x="54.8" y="12" width="32.4" height="60" rx="16.2"/></g><g fill="#fff"><ellipse cx="31" cy="50.5" rx="12.4" ry="13.1"/><ellipse cx="71" cy="48.5" rx="13.2" ry="14"/></g><circle cx="32.96" cy="53.63" r="6.82" fill="#002f55"/><circle cx="70.15" cy="51.9" r="7.26" fill="#002f55"/><g fill="#9ecdf3"><ellipse cx="31.33" cy="29.4" rx="12.66" ry="6.56" transform="rotate(-4.5 31.33 29.4)"/><ellipse cx="71.35" cy="25.9" rx="13.47" ry="6.56" transform="rotate(6 71.35 25.9)"/></g><path class="mun" pathLength="1" d="M41.56 75.86A11.96 11.96 0 0 0 60.44 76.52" fill="none" stroke="#005ba6" stroke-width="6.5" stroke-linecap="round"/></g></g></svg>
