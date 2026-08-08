@@ -69,22 +69,36 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     margin-left: 6px;
   }
 
+  /* Ringen bor i hovringen, inte i viloläget.
+   *
+   * Nyckeltalsraden bär fem av de här bredvid varandra, och fem ringar
+   * konkurrerar med de fem tal de är till för att förklara. Ägaren frågade om
+   * de skulle vara vita eller av glas. Svaret är varken: vitt försvinner mot
+   * kortet, och glas är en dekoration som sajten bara använder där något
+   * faktiskt svävar över innehåll, alltså i bubblan nedan.
+   *
+   * Rätt åtgärd är att göra dem tystare. Bokstaven står kvar, ringen kommer
+   * fram när man närmar sig. Måtten ändras inte, så träffytan är densamma
+   * och raden hoppar aldrig.
+   */
   .dot {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    border: 1px solid var(--text-muted);
+    border: 1px solid transparent;
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--text-muted);
     font: 600 10px/1 var(--font-sans);
     cursor: help;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: color .12s ease, border-color .12s ease;
   }
 
-  .dot:hover {
+  .dot:hover,
+  .dot:focus-visible {
     border-color: var(--brand);
     color: var(--brand);
   }

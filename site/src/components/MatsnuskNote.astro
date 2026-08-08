@@ -49,10 +49,15 @@ const listed = row !== null && hasMatsnuskPage(e.municipality.slug);
           </>
         )}
       </p>
-      <p>
-        Märket försvinner när en ny kontroll visar att bristerna åtgärdats.
-        {' '}<a href={path('ratta')}>Rätta en uppgift</a>.
-      </p>
+      {/* Här stod "Märket försvinner när en ny kontroll visar att bristerna
+          åtgärdats" plus en länk till rättelsen. Struket av ägaren.
+
+          Det var en efterhandsförklaring av en funktion, alltså precis det
+          `docs/18_sprakregler.md` förbjuder. Att märket följer kontrollerna
+          är hur hela sajten fungerar och sägs inte om på varje yta. Vill
+          någon veta står det i metodiken. Rättelselänken finns kvar i
+          sidopanelen på samma sida, se ActionPanel.astro, så vägen att säga
+          ifrån är inte borta. */}
     </div>
   </section>
 )}
