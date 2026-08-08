@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import { inloggningsgrind } from './scripts/inloggningsgrind.mjs';
+import { kartrutegrind } from './scripts/kartrutegrind.mjs';
 import {
   establishments,
   latestInspectionDate,
@@ -272,6 +273,10 @@ export default defineConfig({
     /* Vaktar de fyra regler som gör att arken inte hoppar på telefon.
        Grinden bor i scripts/inloggningsgrind.mjs och förklarar sig själv. */
     inloggningsgrind(),
+    /* Öppnar det färdiga rutarkivet med samma läsare som webbläsaren kör.
+       Vi skriver PMTiles själva, och en egen skrivare utan en mätning är ett
+       löfte. Grinden bor i scripts/kartrutegrind.mjs. */
+    kartrutegrind(),
   ],
 
   build: {
