@@ -84,17 +84,36 @@ const CLUSTER_MAX_ZOOM = 13;
 const DAY = 86_400_000;
 const epochMs = Date.parse(MAP_EPOCH);
 
-export interface TileSet {
-  /** Antal punkter i pyramiden. */
+/**
+ * Utsnitt och tal för EN vy: hela riket, eller en kommun.
+ *
+ * Kartsidan behöver samma fyra saker vare sig den öppnar på Sverige eller på
+ * Linköping, och sedan `/karta/` finns är kommunen inte längre given. Därför
+ * ligger de här och inte i en kommunspecifik modul.
+ */
+export interface Utsnitt {
+  /** Antal punkter i vyn. */
   count: number;
-  /** Antal rutor i arkivet. */
-  tiles: number;
-  /** [väst, syd, öst, nord] över hela beståndet. */
+  /** [väst, syd, öst, nord]. Kartan öppnar på den här utsträckningen. */
   bounds: [number, number, number, number];
-  /** Kommunernas slugar i den ordning `m` i rutorna pekar på dem. */
-  keys: string[];
   /** Punkter per bedömning, index som MAP_VERDICTS plus 3 för obedömda. */
   counts: [number, number, number, number];
+  /**
+   * Alla koordinater i vyn är geokodade ur adressen i stället för lämnade av
+   * kommunen, och kartan ska då bära förbehållet om beräknade lägen. Per
+   * kommun, eftersom källorna är det: en kommun lämnar antingen koordinater
+   * eller inga alls.
+   */
+  derived: boolean;
+}
+
+export interface TileSet extends Utsnitt {
+  /** Antal rutor i arkivet. */
+  tiles: number;
+  /** Kommunernas slugar i den ordning `m` i rutorna pekar på dem. */
+  keys: string[];
+  /** Utsnitt och tal per kommun, för de kommuner som har minst en punkt. */
+  perKommun: Map<string, Utsnitt>;
   /** Rader vars slug inte gick att härleda. Bara för rapportering. */
   slugOverrides: number;
   body: Buffer;
@@ -108,6 +127,51 @@ interface Punkt {
   props: Record<string, string | number>;
 }
 
+/**
+ * Ytterkanten på en mängd punkter, beskuren mot de yttersta halvprocenten.
+ *
+ * Rå min och max går sönder på en enda felkodad koordinat. Stockholm har
+ * verksamheter registrerade på adresser långt utanför kommunen, och en karta
+ * som öppnar på hela den utsträckningen visar mest Östersjön. Punkten FINNS
+ * kvar i rutorna, den ligger bara utanför det första utsnittet.
+ */
+function extent(values: number[]): [number, number] {
+  const sorted = [...values].sort((a, b) => a - b);
+  return [
+    sorted[Math.floor(sorted.length * 0.005)],
+    sorted[Math.ceil(sorted.length * 0.995) - 1],
+  ];
+}
+
+/**
+ * Hur nära två punkter måste ligga för att räknas som SAMMA ADRESS.
+ *
+ * Koordinaterna är avrundade till hundratusendels grad, ungefär en meter, så
+ * två verksamheter i samma hus har oftast identiska tal. Tröskeln ligger ändå
+ * något över noll: en gallerias verksamheter kan ha geokodats mot samma adress
+ * med en meters spridning, och för en besökare är det samma plats. Tre
+ * hundratusendelar är omkring tre meter i nordsydlig led, alltså inom en
+ * byggnad och aldrig två grannhus.
+ *
+ * Talet MÅSTE vara detsamma som `SAMMA_PLATS` i Karta.astro. Bygget sätter
+ * brickan, webbläsaren bygger gruppen bakom den, och pekar de på olika
+ * adresser säger brickan sex medan kortet bläddrar bland fem.
+ */
+const SAMMA_PLATS = 3e-5;
+
+/**
+ * Den nål som bär brickan för en adress: den SÄMSTA bedömningen i gruppen.
+ *
+ * Inte den första i bokstavsordning. Skälet är samma som ritordningen på
+ * kartan redan följer: en anmärkning får aldrig gömmas under en granne som
+ * klarade sig. Ligger ett rött och ett grönt ansikte på samma adress är det
+ * röda det som syns, och bläddringen i kortet visar båda.
+ *
+ * Ordningen 2, 1, 0, 3 och inte rakt fallande, eftersom 3 betyder ingen
+ * bedömning och inte "värst". Samma tabell som `ALLVAR` i Karta.astro.
+ */
+const ALLVAR = [2, 1, 0, 3];
+
 function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body' | 'hash' | 'url' | 'tiles'> } {
   const keys = municipalities().map((m) => m.slug);
   const keyIndex = new Map(keys.map((s, i) => [s, i]));
@@ -115,24 +179,37 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
   const punkter: Punkt[] = [];
   const counts: [number, number, number, number] = [0, 0, 0, 0];
   let slugOverrides = 0;
-  let west = 180;
-  let south = 90;
-  let east = -180;
-  let north = -90;
+
+  /** Per kommun: bedömningar, koordinater och om varje läge är härlett. */
+  const perKommun = new Map<
+    string,
+    { counts: [number, number, number, number]; lngs: number[]; lats: number[]; derived: boolean }
+  >();
 
   const rows = establishments().filter((e) => e.lat !== null && e.lng !== null);
 
   rows.forEach((e, i) => {
     const lng = e.lng!;
     const lat = e.lat!;
-    if (lng < west) west = lng;
-    if (lng > east) east = lng;
-    if (lat < south) south = lat;
-    if (lat > north) north = lat;
 
     const raw = e.verdict ? MAP_VERDICTS.indexOf(e.verdict) : 3;
     const v = raw < 0 ? 3 : raw;
     counts[v] += 1;
+
+    let per = perKommun.get(e.municipality.slug);
+    if (!per) {
+      per = { counts: [0, 0, 0, 0], lngs: [], lats: [], derived: true };
+      perKommun.set(e.municipality.slug, per);
+    }
+    per.counts[v] += 1;
+    per.lngs.push(lng);
+    per.lats.push(lat);
+    /* `derived` betyder att INGEN koordinat i kommunen kommer från kommunen
+       själv. Villkoret räknar varje källa vi själva härlett ur adressen, alltså
+       även Lantmäteriets belägenhetsadressregister. Se samma anteckning i
+       map-data.ts, där en tidigare formulering ritade en adress slagen mot
+       registret som om kommunen publicerat punkten. */
+    if (e.geoSource === undefined) per.derived = false;
 
     /*
      * All blankrymd pressas till ett mellanslag. Två av Stockholms namn
@@ -167,14 +244,73 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
     punkter.push({ lng, lat, props });
   });
 
+  /*
+   * Antalsbrickan, satt här i stället för i webbläsaren.
+   *
+   * Kartan ritar en liten blå ring med en siffra i nålens övre högra hörn för
+   * adresser där mer än en verksamhet ligger. Förut räknades den om i klienten
+   * vid varje filterändring, ur hela kommunens punktlista. Den listan finns
+   * inte längre: klienten ser bara det som ligger i de rutor den hämtat.
+   *
+   * `h: 1` sätts på den nål som ska bära brickan och `n` på hur många adressen
+   * rymmer. Bara BÄRAREN får fälten. De andra nålarna i stapeln ritas som
+   * vanligt, eftersom tolv identiska nålar ovanpå varandra ser ut som en, och
+   * de kostar inget att utelämna fälten på.
+   *
+   * Följden är att brickan alltid säger hur många som FINNS på adressen, även
+   * när ett filter är på. Det är avsiktligt: en bricka som säger tre för att
+   * sökningen råkar träffa tre av tolv beskriver sökningen och inte platsen.
+   */
+  const rutor = new Map<string, Punkt[]>();
+  for (const p of punkter) {
+    const nyckel = Math.round(p.lng / SAMMA_PLATS) + ':' + Math.round(p.lat / SAMMA_PLATS);
+    const lista = rutor.get(nyckel);
+    if (lista) lista.push(p);
+    else rutor.set(nyckel, [p]);
+  }
+  for (const lista of rutor.values()) {
+    if (lista.length < 2) continue;
+    let barare = lista[0];
+    for (const p of lista) {
+      if (ALLVAR.indexOf(p.props.v as number) < ALLVAR.indexOf(barare.props.v as number)) barare = p;
+    }
+    barare.props.h = 1;
+    barare.props.n = lista.length;
+  }
+
+  const utsnitt = (lngs: number[], lats: number[]): [number, number, number, number] => {
+    const [w, e] = extent(lngs);
+    const [s, n] = extent(lats);
+    return [w, s, e, n];
+  };
+
   return {
     punkter,
     keys,
     set: {
       count: punkter.length,
-      bounds: [west, south, east, north],
+      bounds: utsnitt(
+        punkter.map((p) => p.lng),
+        punkter.map((p) => p.lat),
+      ),
       keys,
       counts,
+      /* Rikskartan bär förbehållet bara om VARENDA läge i landet är härlett,
+         vilket det inte är så snart en enda kommun lämnar egna koordinater.
+         I praktiken alltså false, och det är rätt: en mening om att platserna
+         kan ligga några tiotal meter fel hör hemma där den gäller. */
+      derived: [...perKommun.values()].every((v) => v.derived),
+      perKommun: new Map(
+        [...perKommun].map(([slug, v]) => [
+          slug,
+          {
+            count: v.lngs.length,
+            bounds: utsnitt(v.lngs, v.lats),
+            counts: v.counts,
+            derived: v.derived,
+          },
+        ]),
+      ),
       slugOverrides,
     },
   };
@@ -307,6 +443,8 @@ function build(): TileSet {
           dt: 'Number',
           k: 'Number',
           u: 'Number',
+          h: 'Number',
+          n: 'Number',
           cluster: 'Boolean',
           point_count: 'Number',
           point_count_abbreviated: 'String',
@@ -338,6 +476,20 @@ let cache: TileSet | null = null;
 export function tileSet(): TileSet {
   if (!cache) cache = build();
   return cache;
+}
+
+/**
+ * Utsnittet en sida ska öppna kartan på: kommunens, eller hela rikets när
+ * ingen kommun är given.
+ *
+ * `undefined` betyder att kommunen inte har en enda punkt med känt läge, och
+ * då ska den varken få en kartsida eller en länk till en. Fyra av tolv
+ * kommuner lämnar inga koordinater alls.
+ */
+export function utsnitt(slug?: string): Utsnitt | undefined {
+  const set = tileSet();
+  if (slug === undefined) return set;
+  return set.perKommun.get(slug);
 }
 
 /** Ett år, oföränderligt — adressen ÄR innehållet. Se search-index.ts. */

@@ -14,12 +14,12 @@
 import Base from '../../layouts/Base.astro';
 import Karta from '../../components/Karta.astro';
 import { formatNumber, municipalities, sourceFor } from '../../lib/data';
-import { mapDataset } from '../../lib/map-data';
+import { utsnitt } from '../../lib/kartrutor';
 import { absolute, path } from '../../lib/urls';
 
 export async function getStaticPaths() {
   return municipalities()
-    .map((m) => ({ kommun: m, data: mapDataset(m.slug) }))
+    .map((m) => ({ kommun: m, data: utsnitt(m.slug) }))
     .filter((x) => x.data !== undefined)
     .map(({ kommun, data }) => ({
       params: { kommun: kommun.slug },

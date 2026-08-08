@@ -813,7 +813,7 @@ const LEGEND = [
       } else {
         rubrik.textContent = filtrerat
           ? `${iVyn.toLocaleString('sv-SE')} ${iVyn === 1 ? 'träff' : 'träffar'}`
-          : `${iVyn.toLocaleString('sv-SE')} verksamheter`;
+          : `${iVyn.toLocaleString('sv-SE')} ${iVyn === 1 ? 'verksamhet' : 'verksamheter'}`;
         underrubrik.hidden = true;
       }
       rensa.hidden = !(filtrerat && iVyn === 0);
