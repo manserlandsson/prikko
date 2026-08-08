@@ -471,9 +471,13 @@ const DAGAR = [
   }
 
   /* Avvikande datum ligger under veckoschemat och skiljs av luft, inte av en
-     ram. Det är samma uppgift sedd på ett annat sätt, inte ett nytt avsnitt. */
+     ram. Det är samma uppgift sedd på ett annat sätt, inte ett nytt avsnitt.
+
+     Steget heter --s-6 och inte --s-5. Skalan hoppar över 5, se tokens.css,
+     och en token som inte finns tar hela deklarationen med sig i fallet.
+     Luften som kommentaren ovan beskriver fanns alltså inte alls. */
   .avvikande {
-    margin-top: var(--s-5);
+    margin-top: var(--s-6);
   }
 
   .avvikande-rubrik {
