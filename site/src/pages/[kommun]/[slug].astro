@@ -74,7 +74,7 @@ import {
   type CategorySlice,
   type Establishment,
 } from '../../lib/data';
-import { compareHref, compareSuggestions } from '../../lib/jamfor';
+import { JAMFOR_NYHET_SYNS, compareHref, compareSuggestions } from '../../lib/jamfor';
 import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
@@ -451,8 +451,22 @@ const breadcrumbs = {
             det här stället ifyllt, och väljaren där gör samma sak i två steg.
             Med JavaScript öppnas rutan i stället. Ingen knapp kan bli död. */}
         {compareWith.length > 0 && (
+          /* EN rad, inte fyra.
+             Introduktionen var ett eget stycke ovanför knappen: etikett,
+             rubrik och två rader text, alltså fyra rader för att presentera
+             en knapp på en. Ägaren: "jämför grejen och hela nytt grejen tar
+             upp för mkt plats".
+             Etiketten sitter nu PÅ knappen. Det är också vad Booli gör i
+             förlagan han skickade: deras "Nytt!" står inline med rubriken,
+             inte staplat ovanför den. Etiketten försvinner av sig själv, se
+             JAMFOR_NYHET_SYNS i lib/jamfor.ts, och kvar blir en vanlig knapp.
+
+             Introduktionen står här och inte på startsidan. Där hade den
+             blivit reklam för oss själva; här står den intill det den
+             jämför, hos någon som just läst ett besked. */
           <p class="jamfor-rad">
             <a class="jamfor-knapp" data-jamfor href={compareHref(kommun.slug, e.slug)}>
+              {JAMFOR_NYHET_SYNS && <span class="jamfor-nytt">Nytt</span>}
               Jämför med ett annat ställe
             </a>
           </p>
@@ -855,12 +869,28 @@ const breadcrumbs = {
   .jamfor-knapp {
     display: inline-flex;
     align-items: center;
+    gap: var(--s-2);
     background: transparent;
     color: var(--text);
     border: 1px solid var(--hairline);
     border-radius: var(--r-pill);
     padding: 7px 16px;
     font: 600 var(--fs-caption)/1 var(--font-sans);
+  }
+
+  /* Brandblå och aldrig grönt, gult eller rött. De tre färgerna är
+     bedömningens och skulle läsas som ett omdöme om verksamheten. */
+  .jamfor-nytt {
+    background: var(--brand);
+    color: #fff;
+    border-radius: var(--r-pill);
+    padding: 2px 7px;
+    /* --fs-micro ÄR 11 px. Ett rått värde med reservtoken hade sagt att
+       skalan saknar graden, och nästa gång skalan justeras hade etiketten
+       blivit kvar. Se docs/19_formsystem.md. */
+    font-size: var(--fs-micro);
+    line-height: 1.4;
+    letter-spacing: .01em;
   }
 
   .jamfor-knapp:hover {

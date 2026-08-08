@@ -72,10 +72,24 @@ const jsonLd = {
 };
 ---
 
+{/*
+  noindex, och det är ett produktbeslut och inte en försiktighetsåtgärd.
+
+  Ägarens princip, 2026-08-07: sidor byggs för SEO, aldrig för funktioner. Den
+  här sidan har ingenting att ranka på. Den bär inget eget innehåll, bara ett
+  par väljare och ett resultat som ritas i webbläsaren, och den svarar inte på
+  någon sökning någon gör. Jämförelsen SKER numera i rutan på verksamhetssidan,
+  som är sidan som faktiskt rankar.
+
+  Sidan finns kvar av ett enda skäl: en delad länk måste leda någonstans. Den
+  som får /jamfor/?k=…&a=…&b= skickad till sig ska se jämförelsen, och det är
+  hela dess uppgift.
+*/}
 <Base
   title="Jämför två ställen"
   description="Ställ två verksamheter bredvid varandra: bedömning, kontrollhistorik, andel utan anmärkning och återbesök."
   jsonLd={jsonLd}
+  noindex={true}
 >
   <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">

@@ -1,44 +1,52 @@
 ---
 /**
- * Jämförelserutan: genvägen från en verksamhetssida till en jämförelse.
+ * Jämförelserutan: hela jämförelsen, på verksamhetssidan.
  *
- * ## Varför rutan finns
+ * ## Varför jämförelsen sker här och inte på en egen sida
  *
- * En jämförelsesida man måste hitta själv och fylla i två namn i kommer nästan
- * aldrig att användas. Handlingen börjar någon annanstans: man står på ett
- * ställe och undrar hur det står sig mot ett annat. Alltså hör ingången hemma
- * här, med det ställe man redan tittar på ifyllt.
+ * Ägarens princip, 2026-08-07: **sidor byggs för SEO, aldrig för funktioner.**
+ * En funktion som kräver att besökaren lämnar sidan hen står på har lagt till
+ * en sida utan att lägga till något som kan rankas. Rutan hade tidigare rollen
+ * att välja motpart och sedan skicka iväg besökaren till /jamfor/. Nu väljer
+ * man motpart och ser jämförelsen direkt, där man står.
  *
- * Zillow är den enda av husets förebilder som har jämförelse alls, och deras
- * lösning är just den här: urvalet sker där man bläddrar, målet är en riktig
- * sida med egen adress. Booli och Hemnet har ingen jämförelse, vilket i sig är
- * ett svar. Ett objekt i taget klarar sig utan den; ett register gör det inte.
+ * /jamfor/ finns kvar men bara som ingång utifrån: den som får en länk skickad
+ * till sig ska kunna öppna den. Den bär `noindex`, eftersom den enligt samma
+ * princip inte har något att ranka på.
  *
- * ## Rutan är genvägen, aldrig destinationen
+ * ## Formen: skillnaden är det intressanta
  *
- * Att välja här leder till /jamfor/ med båda ställena i adressen. Rutan visar
- * inga tal och ersätter ingen sida, för en jämförelse man inte kan skicka till
- * någon är halva funktionen.
+ * Två likadana kolumner med samma etiketter upprepade är den självklara och
+ * tråkiga lösningen, och den gör läsaren till en maskin som ska ögonmäta
+ * sexton tal. Här står varje uppgift EN gång som radetikett, och de rader där
+ * de två faktiskt är lika säger "samma" i stället för att skriva ut talet två
+ * gånger. Kvar i fetstil står bara det som skiljer dem åt, alltså det man kom
+ * hit för.
+ *
+ * Formen är hämtad ur Boolis objektsida (mätt 2026-08-07): etikett i litet
+ * grått över värdet, hårlinje mellan raderna, ingen ram och ingen bakgrund,
+ * och skillnaden som en egen lugn rad i stället för som en färg.
+ *
+ * ## Ingen vinnare
+ *
+ * Grön, gul och röd är hygienbedömningens språk och får aldrig markera vem som
+ * "vinner" en rad. Bedömningsraden bär sin färg därför att den ÄR bedömningen,
+ * precis som på verksamhetssidan. Alla andra rader är svarta på vitt. En
+ * jämförelse är ingen tävling och vi utser ingen.
  *
  * ## Utan JavaScript
  *
- * Knapparna som öppnar rutan är LÄNKAR till jämförelsesidan med det här
- * stället redan ifyllt som det första. Skriptet fångar klicket och öppnar
- * rutan i stället. Går skriptet inte fram leder länken dit den säger, och
- * väljaren på sidan gör samma sak i två steg. Ingen knapp kan bli död.
- *
- * ## Kommungränsen
- *
- * Förslagen kommer ur samma kommun, sökfältet söker bara i samma kommun, och
- * adressen rutan bygger bär en enda kommun. Det finns ingen väg härifrån till
- * en jämförelse över kommungränsen. Se lib/jamfor.ts för varför den gränsen
- * är regeln som gör talen jämförbara.
+ * Förslagen är renderade som riktiga länkar till /jamfor/ med båda ställena i
+ * adressen. Går skriptet fram fångas klicket och jämförelsen ritas i rutan i
+ * stället. Går det inte fram leder länken dit den säger.
  */
-import FaceMark from './FaceMark.astro';
+import FaceRef from './FaceRef.astro';
+import FaceSprite from './FaceSprite.astro';
 import { formatDistance, type Establishment } from '../lib/data';
-import { compareHref } from '../lib/jamfor';
+import { FACE_SPRITE_ID } from '../lib/face';
+import { JAMFOR_URLS, compareHref, inlineNumbers } from '../lib/jamfor';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
-import { VERDICT } from '../lib/site';
+import { MISSING, VERDICT } from '../lib/site';
 
 interface Props {
   establishment: Establishment;
@@ -51,74 +59,112 @@ interface Props {
 }
 
 const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.props;
+
+/*
+ * Allt rutan behöver för det vanliga fallet ligger i dokumentet: verksamheten
+ * själv och de sex förslagen. Först den som söker upp någon annan behöver
+ * hämta kommunens register.
+ */
+const numbers = inlineNumbers([e, ...suggestions]);
+
+const identity = Object.fromEntries(
+  [e, ...suggestions].map((x) => [
+    x.slug,
+    {
+      name: x.name,
+      address: x.address ?? '',
+      verdict: x.verdict,
+      label: x.verdict ? VERDICT[x.verdict].label : MISSING.no_inspections.label,
+      ink: x.verdict ? VERDICT[x.verdict].colorVar : 'var(--verdict-none-ink)',
+    },
+  ]),
+);
+
+const setup = {
+  kommun: kommunSlug,
+  self: e.slug,
+  sprite: FACE_SPRITE_ID,
+  numbers,
+  identity,
+  shard: JAMFOR_URLS[kommunSlug] ?? null,
+  verdicts: {
+    clean: { label: VERDICT.clean.label, ink: VERDICT.clean.colorVar },
+    minor: { label: VERDICT.minor.label, ink: VERDICT.minor.colorVar },
+    major: { label: VERDICT.major.label, ink: VERDICT.major.colorVar },
+    none: { label: MISSING.no_inspections.label, ink: 'var(--verdict-none-ink)' },
+  },
+};
 ---
 
 <dialog
   class="jamfor-ruta"
   id="jamfor-ruta"
   aria-labelledby="jamfor-ruta-titel"
-  data-kommun={kommunSlug}
-  data-slug={e.slug}
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
+  data-setup={JSON.stringify(setup)}
 >
+  <FaceSprite />
+
   <div class="ark">
     <header class="bar">
+      {/* Tillbakaknappen syns bara när en jämförelse står ritad. Den byter
+          motpart utan att stänga rutan, alltså utan att man tappar det man
+          höll på med. */}
+      <button type="button" class="ikon" id="jamfor-ruta-tillbaka" hidden aria-label="Välj ett annat ställe">
+        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M12 4 6 10l6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
       <h2 class="bar-title" id="jamfor-ruta-titel">Jämför {e.name} med</h2>
       <button type="button" class="ikon" data-close aria-label="Stäng">
         <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-          <path
-            d="M5 5l10 10M15 5L5 15"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"></path>
+          <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"></path>
         </svg>
       </button>
     </header>
 
     <div class="kropp">
-      {/* Fältet söker bara i den här kommunen, och det står i platshållaren
-          i stället för i en mening under. */}
-      <input
-        type="text"
-        id="jamfor-ruta-sok"
-        role="combobox"
-        aria-expanded="false"
-        aria-autocomplete="list"
-        aria-controls="jamfor-ruta-lista"
-        autocomplete="off"
-        placeholder={`Sök i ${city}`}
-      />
+      <div id="jamfor-ruta-valj">
+        <input
+          type="text"
+          id="jamfor-ruta-sok"
+          role="combobox"
+          aria-expanded="false"
+          aria-autocomplete="list"
+          aria-controls="jamfor-ruta-lista"
+          autocomplete="off"
+          placeholder={`Sök i ${city}`}
+        />
 
-      {/* Förslagen står renderade i HTML, inte hämtade. Rutan ska vara
-          ifylld i samma ögonblick den öppnas, och sex rader är ingenting att
-          vänta på nätverket för. Skriptet byter bara ut dem när man skriver. */}
-      <ul class="lista" id="jamfor-ruta-lista" role="listbox">
-        {suggestions.map((s) => (
-          <li role="presentation">
-            <a role="option" aria-selected="false" href={compareHref(kommunSlug, e.slug, s.slug)}>
-              <FaceMark verdict={s.verdict} size={30} variant="round" />
-              <span class="info">
-                <b>{s.name}</b>
-                <span class="meta text-secondary">
-                  {[s.address, metres[s.slug] !== undefined ? formatDistance(metres[s.slug]) : null]
-                    .filter(Boolean)
-                    .join(' · ')}
+        {/* Förslagen står renderade i HTML, inte hämtade. Rutan ska vara ifylld
+            i samma ögonblick den öppnas. Skriptet byter ut dem när man söker. */}
+        <ul class="lista" id="jamfor-ruta-lista" role="listbox">
+          {suggestions.map((s) => (
+            <li role="presentation">
+              <a role="option" aria-selected="false" data-slug={s.slug}
+                 href={compareHref(kommunSlug, e.slug, s.slug)}>
+                <FaceRef verdict={s.verdict} size={30} />
+                <span class="info">
+                  <b>{s.name}</b>
+                  <span class="meta text-secondary">
+                    {[s.address, metres[s.slug] !== undefined ? formatDistance(metres[s.slug]) : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                 </span>
-              </span>
-              <span
-                class="verdict"
-                style={`color: ${s.verdict ? VERDICT[s.verdict].colorVar : 'var(--verdict-none-ink)'}`}
-              >
-                {s.verdict ? VERDICT[s.verdict].label : ''}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
+              </a>
+            </li>
+          ))}
+        </ul>
 
-      <p class="tom caption text-muted" id="jamfor-ruta-tom" hidden></p>
+        <p class="tom caption text-muted" id="jamfor-ruta-tom" hidden></p>
+      </div>
+
+      {/* Jämförelsen ritas hit. Tom tills någon valt. */}
+      <div id="jamfor-ruta-resultat" hidden></div>
     </div>
   </div>
 </dialog>
@@ -140,10 +186,10 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
     background: rgba(0, 0, 0, .45);
   }
 
-  /* Smalare än omdömesrutans 520: här skriver man ett ord och läser en lista,
-     man skriver inget stycke. */
   .ark {
-    width: min(460px, calc(100vw - var(--s-8)));
+    /* Bredare än väljaren behövde: här står två spalter tal bredvid varandra,
+       och under 520 börjar namnen brytas mitt i. */
+    width: min(560px, calc(100vw - var(--s-6)));
     max-height: calc(100dvh - var(--keyboard-inset, 0px) - var(--s-8));
     display: flex;
     flex-direction: column;
@@ -156,7 +202,7 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
   .bar {
     display: flex;
     align-items: center;
-    gap: var(--s-3);
+    gap: var(--s-2);
     padding: var(--s-4) var(--s-4) var(--s-3);
   }
 
@@ -207,7 +253,6 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
     outline-offset: 2px;
   }
 
-  /* Raderna är inga kort. Hårlinje per rad, som listorna i övrigt. */
   .lista {
     list-style: none;
     margin: var(--s-3) 0 0;
@@ -218,18 +263,16 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
 </style>
 
 {/*
-  Global, och namnrymden är rutans egen id.
+  Global, med rutans egna id som räckvidd.
 
-  Astros scopeade CSS märker de element som står i mallen med ett
-  hash-attribut. Raderna byts ut av skriptet när man söker, och de nya raderna
-  får aldrig märket. Utan det här blocket ritas sökträffarna helt ostilade
-  medan de förrenderade förslagen ser rätt ut, alltså ser rutan trasig ut
-  först när man använder den.
+  Astros scopeade CSS märker de element som står i MALLEN med ett hash-attribut.
+  Sökträffarna och hela jämförelsen skapas av skriptet och får aldrig märket, så
+  utan det här blocket ritas de i webbläsarens standardstil: centrerade fetstilta
+  tabellrubriker, inga hårlinjer, adressen hoptryckt mot namnet. Rutan ser alltså
+  hel ut tills man använder den.
 */}
 <style is:global>
-  #jamfor-ruta .lista li + li {
-    border-top: 1px solid var(--hairline);
-  }
+  #jamfor-ruta .lista li + li { border-top: 1px solid var(--hairline); }
 
   #jamfor-ruta .lista a {
     display: flex;
@@ -263,15 +306,140 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
     font-size: var(--fs-caption);
   }
 
-  #jamfor-ruta .lista .verdict {
-    flex: none;
-    font-size: var(--fs-caption);
-    font-weight: 600;
-    text-align: right;
+  /* ---- Jämförelsen ---------------------------------------------------- */
+
+  /* Huvudet: de två ställena EN gång vardera. Det är den enda ytan där två
+     spalter är rätt, för här är de två sakerna som jämförs och inte två
+     upprepningar av samma etiketter. */
+  #jamfor-ruta .huvud {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+    padding-bottom: var(--s-4);
+    border-bottom: 1px solid var(--hairline);
   }
 
-  @media (max-width: 420px) {
-    #jamfor-ruta .lista .verdict { display: none; }
+  #jamfor-ruta .sida {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-width: 0;
+  }
+
+  #jamfor-ruta .sida .namn {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  #jamfor-ruta .sida .adress {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Bedömningens färg står kvar HÄR och ingen annanstans i rutan. Den är
+     bedömningen själv, precis som på verksamhetssidan, inte en markering av
+     vem som vinner. */
+  #jamfor-ruta .sida .niva {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+  }
+
+  #jamfor-ruta .rader {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #jamfor-ruta .rader li {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-4);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* Etiketten står EN gång, över de två värdena, som Boolis fältetiketter.
+     Två spalter med samma etikett upprepad i varje är precis det den här
+     rutan finns för att slippa. */
+  #jamfor-ruta .rader .etikett {
+    grid-column: 1 / -1;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    margin-bottom: var(--s-1);
+  }
+
+  #jamfor-ruta .rader .varde {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    min-width: 0;
+    /* Talen står i två spalter under varandra. Utan tabellsiffror hoppar
+       kolumnerna i sidled mellan raderna och ögat kan inte läsa dem lodrätt,
+       vilket är hela poängen med att ställa dem bredvid varandra. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Det som SKILJER de två åt står i halvfet. Det som är lika står kvar i
+     vanlig vikt och skrivs bara en gång. Ögat landar därmed på skillnaderna
+     utan att någon färg pekat ut en vinnare. */
+  #jamfor-ruta .rader .skiljer { font-weight: 600; }
+
+  #jamfor-ruta .rader .lika {
+    grid-column: 1 / -1;
+  }
+
+  #jamfor-ruta .rader .samma {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  #jamfor-ruta .rader .stod { color: var(--text-muted); }
+
+  /* Remsan är illustration. Datum och bedömning står i varje pricks title,
+     och raden ovanför bär samma sanning i text. */
+  #jamfor-ruta .strip {
+    display: inline-flex;
+    gap: var(--s-1);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  #jamfor-ruta .strip .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: var(--r-pill);
+    display: inline-block;
+  }
+
+  #jamfor-ruta .fot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    align-items: center;
+    margin-top: var(--s-4);
+    font-size: var(--fs-caption);
+  }
+
+  #jamfor-ruta .fot .dela {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 6px 14px;
+    font: 600 var(--fs-caption)/1 var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  #jamfor-ruta .fot .dela:hover { background: var(--canvas); }
+
+  @media (max-width: 460px) {
+    #jamfor-ruta .huvud { gap: var(--s-3); }
+    #jamfor-ruta .rader li { gap: var(--s-3); }
   }
 </style>
 
@@ -282,54 +450,104 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
 
   const dialog = document.getElementById('jamfor-ruta') as HTMLDialogElement | null;
 
-  if (dialog) {
+  if (dialog) start(dialog);
+
+  /** En rad ur jämförelseregistret. Se lib/jamfor.ts för ordningen. */
+  type Row = [number, number, number, number, string, string, number, Array<[string, number]>];
+
+  interface Identity {
+    name: string;
+    address: string;
+    verdict: 'clean' | 'minor' | 'major' | null;
+    label: string;
+    ink: string;
+  }
+
+  const MONTHS = [
+    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+  ];
+
+  function formatDate(iso: string): string {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-').map(Number);
+    return `${d} ${MONTHS[m - 1]} ${y}`;
+  }
+
+  function escapeHtml(s: string): string {
+    return s.replace(
+      /[&<>"]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+    );
+  }
+
+  function start(dialog: HTMLDialogElement) {
+    const setup = JSON.parse(dialog.dataset.setup!) as {
+      kommun: string;
+      self: string;
+      sprite: string;
+      numbers: Record<string, Row>;
+      identity: Record<string, Identity>;
+      shard: string | null;
+      verdicts: Record<string, { label: string; ink: string }>;
+    };
+
     const field = document.getElementById('jamfor-ruta-sok') as HTMLInputElement;
     const list = document.getElementById('jamfor-ruta-lista') as HTMLUListElement;
     const empty = document.getElementById('jamfor-ruta-tom') as HTMLParagraphElement;
+    const body = dialog.querySelector('.kropp') as HTMLDivElement;
+    const picker = document.getElementById('jamfor-ruta-valj') as HTMLDivElement;
+    const result = document.getElementById('jamfor-ruta-resultat') as HTMLDivElement;
+    const back = document.getElementById('jamfor-ruta-tillbaka') as HTMLButtonElement;
     const close = dialog.querySelector('[data-close]') as HTMLButtonElement;
+    const title = document.getElementById('jamfor-ruta-titel') as HTMLHeadingElement;
 
-    const kommun = dialog.dataset.kommun!;
-    const self = dialog.dataset.slug!;
-
-    /** Förslagen som de står renderade. Återställs när fältet töms. */
     const suggested = list.innerHTML;
-
+    const heading = title.textContent ?? '';
     let opener: HTMLElement | null = null;
 
-    function escapeHtml(s: string) {
-      return s.replace(
-        /[&<>"]/g,
-        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
-      );
-    }
+    /** Talen vi har. Fylls på när kommunens register hämtats. */
+    const numbers: Record<string, Row> = { ...setup.numbers };
+    const identity: Record<string, Identity> = { ...setup.identity };
+    let shardLoaded = false;
+
+    // ---- Väljaren --------------------------------------------------------
 
     /**
      * Träffar i DEN HÄR kommunen.
      *
      * Kommunfiltret är inte en bekvämlighet utan regeln som gör talen
      * jämförbara. Andelen med kvarstående brister ligger på 0,3 procent i
-     * Jönköping och 23,7 i Oskarshamn, och den skillnaden speglar hur
-     * kommunen publicerar. Inom en kommun är jämförelsen ren, och därför
-     * finns ingen väg härifrån ut ur kommunen.
+     * Jönköping och 23,7 i Oskarshamn, och den skillnaden speglar hur kommunen
+     * publicerar. Inom en kommun är jämförelsen ren, och därför finns ingen väg
+     * härifrån ut ur kommunen.
      */
     function search(query: string) {
       const index = searchIndex();
       const needle = normalise(query.trim());
-      const found: Array<[string, string, string]> = [];
+      const found: Array<{ name: string; address: string; slug: string; verdict: number }> = [];
 
       for (let i = 0; i < index.rows.length && found.length < 8; i += 1) {
-        const [name, address, slug, k] = index.rows[i];
-        if (index.kommuner[k][0] !== kommun) continue;
-        if (slug === self) continue;
+        const [name, address, slug, k, v] = index.rows[i];
+        if (index.kommuner[k][0] !== setup.kommun) continue;
+        if (slug === setup.self) continue;
         if (!index.hay[i].includes(needle)) continue;
-        found.push([name, address, slug]);
+        found.push({ name, address, slug, verdict: v });
       }
       return found;
     }
 
-    function paint(query: string) {
+    const FACE_KEYS = ['clean', 'minor', 'major'];
+
+    function face(verdict: string | null, size: number): string {
+      const key = verdict ?? 'none';
+      return `<svg class="face" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><use href="#${setup.sprite}-${key}"></use></svg>`;
+    }
+
+    function paintPicker(query: string) {
       if (!query.trim()) {
         list.innerHTML = suggested;
+        bindRows();
         list.hidden = false;
         empty.hidden = true;
         field.setAttribute('aria-expanded', 'false');
@@ -346,60 +564,245 @@ const { establishment: e, kommunSlug, city, suggestions, metres = {} } = Astro.p
         return;
       }
 
-      /* Ansiktsmärket följer inte med i sökträffarna. Det ritas av en
-         Astro-komponent vid bygget och finns inte att bygga i webbläsaren,
-         och en halv rad utan märke är bättre än ett märke som visar fel
-         bedömning. Bedömningen står ändå på den sida raden leder till. */
       list.innerHTML = found
-        .map(
-          ([name, address, slug]) =>
-            `<li role="presentation"><a role="option" aria-selected="false" href="/jamfor/?k=${encodeURIComponent(
-              kommun,
-            )}&a=${encodeURIComponent(self)}&b=${encodeURIComponent(slug)}">` +
-            `<span class="info"><b>${escapeHtml(name)}</b>` +
-            `<span class="meta text-secondary">${escapeHtml(address)}</span></span></a></li>`,
-        )
+        .map((item) => {
+          identity[item.slug] = identity[item.slug] ?? {
+            name: item.name,
+            address: item.address,
+            verdict: (FACE_KEYS[item.verdict] ?? null) as Identity['verdict'],
+            label: setup.verdicts[FACE_KEYS[item.verdict] ?? 'none'].label,
+            ink: setup.verdicts[FACE_KEYS[item.verdict] ?? 'none'].ink,
+          };
+          return (
+            `<li role="presentation"><a role="option" aria-selected="false" data-slug="${escapeHtml(item.slug)}" ` +
+            `href="/jamfor/?k=${encodeURIComponent(setup.kommun)}&a=${encodeURIComponent(setup.self)}&b=${encodeURIComponent(item.slug)}">` +
+            face(FACE_KEYS[item.verdict] ?? null, 30) +
+            `<span class="info"><b>${escapeHtml(item.name)}</b>` +
+            `<span class="meta text-secondary">${escapeHtml(item.address)}</span></span></a></li>`
+          );
+        })
         .join('');
+      bindRows();
       list.hidden = false;
       empty.hidden = true;
       field.setAttribute('aria-expanded', 'true');
     }
 
+    function bindRows() {
+      list.querySelectorAll<HTMLAnchorElement>('a[data-slug]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          void compare(link.dataset.slug!);
+        });
+      });
+    }
+
+    // ---- Jämförelsen -----------------------------------------------------
+
+    /**
+     * Kommunens hela register, hämtat först när någon valt en motpart vars tal
+     * inte redan ligger i dokumentet. Det vanliga fallet är ett av förslagen,
+     * och då sker ingen hämtning alls.
+     */
+    async function ensure(slug: string): Promise<boolean> {
+      if (numbers[slug]) return true;
+      if (shardLoaded || !setup.shard) return false;
+      try {
+        const response = await fetch(setup.shard);
+        if (!response.ok) return false;
+        Object.assign(numbers, await response.json());
+        shardLoaded = true;
+      } catch {
+        return false;
+      }
+      return Boolean(numbers[slug]);
+    }
+
+    /**
+     * Kontrollhistoriken som en remsa prickar, äldst till vänster.
+     *
+     * Här FÅR bedömningsfärgerna användas: prickarna visar faktiska
+     * bedömningar och ingenting annat. De markerar inte vem som klarar sig
+     * bäst av de två.
+     *
+     * Remsan är illustration. Hela sanningen står i `aria-label` och i varje
+     * pricks `title`, och raderna ovanför bär samma uppgifter i text, så
+     * ingenting går förlorat för den som inte kan se färg.
+     */
+    function strip(history: Array<[string, number]>): string {
+      if (!history.length) return '<span class="stod">—</span>';
+      const order = [...history].reverse();
+      const dots = order
+        .map(([date, assessment]) => {
+          const colour = ['var(--verdict-clean)', 'var(--verdict-minor)', 'var(--verdict-major)'][assessment];
+          const label = `${formatDate(date)}: ${setup.verdicts[FACE_KEYS[assessment]].label}`;
+          return `<span class="dot" style="background:${colour}" title="${escapeHtml(label)}"></span>`;
+        })
+        .join('');
+      const spoken = order
+        .map(([date, assessment]) => `${formatDate(date)} ${setup.verdicts[FACE_KEYS[assessment]].label}`)
+        .join(', ');
+      return `<span class="strip" role="img" aria-label="${escapeHtml(`De ${order.length} senaste kontrollerna: ${spoken}`)}">${dots}</span>`;
+    }
+
+    /**
+     * En rad. Är de två lika skrivs värdet EN gång och andra spalten säger
+     * "samma"; skiljer de sig står båda i halvfet.
+     *
+     * Det är hela poängen med rutans form: ögat ska landa på det som skiljer
+     * utan att någon färg pekat ut en vinnare.
+     */
+    function line(label: string, a: string, b: string, alltidBada = false): string {
+      const same = a === b && !alltidBada;
+      if (same) {
+        return (
+          `<li><span class="etikett">${escapeHtml(label)}</span>` +
+          `<span class="varde lika">${a} <span class="samma">samma för båda</span></span></li>`
+        );
+      }
+      return (
+        `<li><span class="etikett">${escapeHtml(label)}</span>` +
+        `<span class="varde skiljer">${a}</span><span class="varde skiljer">${b}</span></li>`
+      );
+    }
+
+    function head(slug: string): string {
+      const who = identity[slug];
+      return (
+        `<div class="sida">${face(who.verdict, 34)}` +
+        `<span class="namn">${escapeHtml(who.name)}</span>` +
+        (who.address ? `<span class="adress">${escapeHtml(who.address)}</span>` : '') +
+        `<span class="niva" style="color:${who.ink}">${escapeHtml(who.label)}</span></div>`
+      );
+    }
+
+    async function compare(slug: string) {
+      const ok = await ensure(slug);
+      const a = numbers[setup.self];
+      const b = numbers[slug];
+      if (!ok || !a || !b) {
+        empty.textContent = 'Talen kunde inte hämtas.';
+        empty.hidden = false;
+        return;
+      }
+
+      const share = (n: Row) => (n[0] ? `${Math.round((n[1] / n[0]) * 100)} %` : '—');
+      const rows = [
+        line('Utan anmärkning',
+          `${share(a)} <span class="stod">${a[1]} av ${a[0]}</span>`,
+          `${share(b)} <span class="stod">${b[1]} av ${b[0]}</span>`),
+        line('Kontroller', String(a[0]), String(b[0])),
+        line('Återbesök', String(a[2]), String(b[2])),
+        line('Avvikelser vid senaste kontrollen', String(a[6]), String(b[6])),
+        line('Ren historik', a[3] ? 'Ja' : 'Nej', b[3] ? 'Ja' : 'Nej'),
+        line('Senaste kontroll', formatDate(a[4]) || '—', formatDate(b[4]) || '—'),
+        line('Äldsta kontroll', a[5] || '—', b[5] || '—'),
+        // Remsorna är alltid två: två identiska historiker är ett sammanträffande
+        // och inte ett besked, och "samma" hade påstått mer än vi vet.
+        line('Kontrollhistorik', strip(a[7]), strip(b[7]), true),
+      ].join('');
+
+      const url = `${location.origin}/jamfor/?k=${encodeURIComponent(setup.kommun)}&a=${encodeURIComponent(setup.self)}&b=${encodeURIComponent(slug)}`;
+      const canCopy = typeof navigator.clipboard?.writeText === 'function';
+
+      result.innerHTML =
+        `<div class="huvud">${head(setup.self)}${head(slug)}</div>` +
+        `<ul class="rader">${rows}</ul>` +
+        `<p class="fot"><a href="/${encodeURIComponent(setup.kommun)}/${encodeURIComponent(slug)}/">` +
+        `Öppna ${escapeHtml(identity[slug].name)}</a>` +
+        (canCopy ? `<button type="button" class="dela" data-url="${escapeHtml(url)}">Kopiera länk</button>` : '') +
+        `</p>`;
+
+      const dela = result.querySelector<HTMLButtonElement>('.dela');
+      dela?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(dela.dataset.url!);
+          dela.textContent = 'Länken är kopierad';
+        } catch {
+          dela.textContent = 'Kunde inte kopiera';
+        }
+      });
+
+      picker.hidden = true;
+      result.hidden = false;
+      back.hidden = false;
+      title.textContent = 'Jämförelse';
+      /* Överst, alltid.
+         Kroppen är rullbar och stod kvar där väljaren lämnade den, så
+         jämförelsen öppnade mitt i tabellen med de två namnen ovanför
+         bildkanten. Det första en läsare måste se är VILKA två som ställts
+         mot varandra; utan det är talen under anonyma. */
+      body.scrollTop = 0;
+      // Fokus till tillbakaknappen: den är första interaktiva elementet i det
+      // nya läget, och utan flytten sitter fokus kvar i det dolda sökfältet.
+      back.focus({ preventScroll: true });
+    }
+
+    function toPicker() {
+      result.hidden = true;
+      result.innerHTML = '';
+      picker.hidden = false;
+      back.hidden = true;
+      title.textContent = heading;
+      body.scrollTop = 0;
+      field.focus({ preventScroll: true });
+    }
+
+    // ---- Rutan -----------------------------------------------------------
+
     function open(trigger: HTMLElement | null) {
       opener = trigger;
       field.value = '';
-      paint('');
+      paintPicker('');
+      toPicker();
       lockPage();
-      dialog!.showModal();
-      /* Fokus i fältet. Rullningen läggs tillbaka av låset, så en extra
-         framrullning skulle bara flytta sidan under. */
+      dialog.showModal();
       field.focus({ preventScroll: true });
-      // Registret behövs först när någon skriver, men hämtningen startar nu
+      // Registret behövs först när någon skriver. Hämtningen startar ändå nu,
       // så att första tangenttrycket har det på plats. Är det redan hämtat av
-      // sidhuvudets sökruta är det här en no-op.
-      void loadIndex(dialog!.dataset.index!, dialog!.dataset.indexFallback ?? null);
+      // sidhuvudets sökruta är anropet en no-op.
+      void loadIndex(dialog.dataset.index!, dialog.dataset.indexFallback ?? null);
     }
 
     function shut() {
-      if (dialog!.open) dialog!.close();
+      if (dialog.open) dialog.close();
       unlockPage();
-      const back = opener;
+      const trigger = opener;
       opener = null;
-      if (back?.isConnected) back.focus({ preventScroll: true });
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     }
 
     dialog.addEventListener('cancel', (event) => {
       event.preventDefault();
-      shut();
+      // Esc i jämförelseläget går tillbaka till väljaren i stället för att
+      // stänga. Ett steg tillbaka är nästan alltid det man menar.
+      if (!result.hidden) toPicker();
+      else shut();
     });
     close.addEventListener('click', () => shut());
-    // Klick utanför arket stänger. Backdrop-klick landar på <dialog> självt.
+    back.addEventListener('click', () => toPicker());
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) shut();
     });
 
-    field.addEventListener('input', () => paint(field.value));
+    field.addEventListener('input', () => paintPicker(field.value));
+    bindRows();
 
     registerCompareDialog(open);
+
+    /**
+     * En delad adress ska visa jämförelsen även här.
+     *
+     * Den som får /jamfor/?k=…&a=…&b=… skickad till sig landar på den sidan,
+     * men den som redan står på verksamhetssidan och byter till en jämförelse
+     * ska kunna länka vidare. Öppnas verksamhetssidan med ?jamfor=<slug> ritas
+     * jämförelsen direkt.
+     */
+    const wanted = new URLSearchParams(location.search).get('jamfor');
+    if (wanted) {
+      open(null);
+      void compare(wanted);
+    }
   }
 </script>

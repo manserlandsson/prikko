@@ -96,6 +96,20 @@ export function noindexPaths(): Set<string> {
   paths.add(path('ratta'));
   for (const page of ACCOUNT_PAGES) paths.add(path(page));
 
+  /*
+   * Jämförelsesidan. Sidor byggs för SEO, aldrig för funktioner (ägaren,
+   * 2026-08-07), och den här sidan har ingenting att ranka på: den bär inget
+   * eget innehåll och svarar inte på någon sökning. Jämförelsen sker i rutan
+   * på verksamhetssidan, som är sidan som faktiskt rankar. /jamfor/ finns
+   * kvar enbart för att en delad länk måste leda någonstans.
+   *
+   * Raden här gör två saker på en gång: håller sidan ur XML-sitemapen och
+   * lyfter bort den ur webbkartan, eftersom siteMap() filtrerar mot den här
+   * mängden. Utan den hade byggrinden fällt bygget på att webbkartan länkar
+   * en sida som säger noindex.
+   */
+  paths.add(path('jamfor'));
+
   // Artikelsektionens kvalitetsgrind: under MIN_ARTICLES publicerade artiklar
   // bär hela sektionen noindex (satt i sidmallarna via samma funktion) och ska
   // då varken ligga i sitemapen eller stå i webbkartan.
@@ -349,7 +363,6 @@ function omSection(): MapSection {
           { href: path('metodik'), label: 'Så räknas bedömningen fram' },
           { href: path('kallor'), label: 'Källor och uppdatering' },
           { href: path('sok'), label: 'Sök verksamhet' },
-          { href: path('jamfor'), label: 'Jämför två ställen' },
           // Riksvyn byggs bara när loggen bär tillräckligt. Utan villkoret
           // hade byggrinden fällt bygget på en länk till en sida som inte finns.
           ...(hasNationalPage()

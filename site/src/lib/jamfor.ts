@@ -110,6 +110,26 @@ function build(slug: string): { body: string; count: number } {
   return { body: JSON.stringify(rows), count };
 }
 
+/**
+ * Talen för en handfull verksamheter, att lägga i sidans HTML.
+ *
+ * Jämförelsen sker i rutan på verksamhetssidan, och det vanliga fallet är att
+ * man väljer en av de grannar rutan redan föreslår. Ligger deras tal i
+ * dokumentet är den jämförelsen färdig i samma ögonblick man klickar, utan en
+ * enda hämtning. Sex rader väger under ett kilobyte.
+ *
+ * Kommunens hela register hämtas först om man söker upp någon som inte står
+ * bland förslagen. Se `JAMFOR_URLS`.
+ */
+export function inlineNumbers(items: readonly Establishment[]): Record<string, Row> {
+  const rows: Record<string, Row> = {};
+  for (const e of items) {
+    if (e.verdict === null || e.inspections.length === 0) continue;
+    rows[e.slug] = row(e);
+  }
+  return rows;
+}
+
 export interface JamforShard {
   slug: string;
   body: string;
@@ -174,6 +194,56 @@ export function compareHref(kommun: string, a: string, b?: string): string {
   if (b) params.set('b', b);
   return `/jamfor/?${params.toString()}`;
 }
+
+// ---------------------------------------------------------------------------
+// Introduktionen
+// ---------------------------------------------------------------------------
+
+/**
+ * Sista dagen jämförelsen presenteras som ny.
+ *
+ * ## Varför den har ett slutdatum och inte en knapp
+ *
+ * En "Nytt"-etikett som står kvar i ett år är en lögn, och den lögnen kostar
+ * mer än notisen är värd: en besökare som sett samma nyhet i nio månader
+ * slutar tro på nästa. Notisen dör därför av sig själv. Datat byggs om varje
+ * natt, så dagen efter det här datumet är den borta ur varje sida utan att
+ * någon behöver komma ihåg något.
+ *
+ * Ett kryss per besökare vore det uppenbara alternativet och är uteslutet:
+ * det kräver att valet sparas i webbläsaren, och /cookies räknar upp exakt
+ * två nycklar och påstår att listan är uttömmande. En tredje nyckel för en
+ * notis vore att göra det påståendet falskt för att slippa en rad text.
+ *
+ * ## Att ta bort den helt
+ *
+ * Sätt konstanten till null. Då renderar JamforNyhet.astro ingenting och
+ * knappen står kvar ensam, precis som den gjorde innan. Komponenten och den
+ * här konstanten kan sedan tas bort när som helst utan att röra något annat.
+ */
+export const JAMFOR_NYHET_TILL: string | null = '2026-11-07';
+
+/**
+ * Ska jämförelsen presenteras som ny vid det här bygget?
+ *
+ * Klockan skickas in i stället för att läsas internt, av samma skäl som i
+ * pipeline/prikko/grading.py: det som styr vad en sida visar ska gå att testa
+ * utan att flytta systemtiden.
+ */
+export function showCompareNews(today: Date = new Date()): boolean {
+  if (!JAMFOR_NYHET_TILL) return false;
+  return today.toISOString().slice(0, 10) <= JAMFOR_NYHET_TILL;
+}
+
+/**
+ * Svaret för det HÄR bygget, räknat en gång.
+ *
+ * Verksamhetssidan finns i 15 916 exemplar och dess frontmatter körs en gång
+ * per sida. Ett `new Date()` per sida hade gett samma svar 15 916 gånger, och
+ * dessutom kunnat ge OLIKA svar inom ett och samma bygge om det pågick över
+ * midnatt natten notisen slocknar. En modulnivåkonstant kan inte glida.
+ */
+export const JAMFOR_NYHET_SYNS = showCompareNews();
 
 /**
  * Kan de här två alls jämföras?
