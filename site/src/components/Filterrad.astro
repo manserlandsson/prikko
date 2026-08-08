@@ -210,14 +210,19 @@ const talrad = alla.some((v) => v.count !== undefined);
     gap: var(--s-1);
     padding-block: var(--s-1) var(--s-3);
     border-bottom: 2px solid transparent;
-    color: var(--text-secondary);
+    /* Etiketten är sajtens vanliga bläck, inte grått.
+       Den var `--text-secondary`, alltså grå på varenda val utom det
+       aktiva, och hela raden läste som avstängd. Ägaren: "rubriken är ju i
+       grått istället för vår mörka/svarta". Det aktiva valet skiljs ut av
+       understreck och halvfet vikt, vilket är två bärare och räcker. Talet
+       under är fortfarande tyst, se .antal. */
+    color: var(--text);
     text-align: center;
     white-space: nowrap;
   }
 
   .val:hover {
     text-decoration: none;
-    color: var(--text);
     border-bottom-color: var(--text-muted);
   }
 
@@ -280,6 +285,19 @@ const talrad = alla.some((v) => v.count !== undefined);
   /* ── Rullknapparna ──────────────────────────────────────────────────────
      Ligger ovanpå spårets kanter med en tona-ut bakom sig, så att valet
      under inte ser avhugget ut. Bara mus, se skriptet. */
+  /*
+   * Rullknappen: en rund knapp ovanpå en tonad yta, som hos referensen.
+   *
+   * Den var tidigare bara en tonning mot `--canvas`, alltså sidans grå, men
+   * raden ligger på kortets vita. Färgerna gick isär och det avklippta ordet
+   * syntes rakt igenom. Ägaren: "det är en rulle åt vänster men täcker ju
+   * inte ens på typ".
+   *
+   * Ytan tas nu ur `--filterrad-yta`, som förvalt är kortets vita och kan
+   * sättas om av den som placerar raden på en annan botten. Och själva
+   * knappen är en ogenomskinlig cirkel, vilket löser problemet oavsett hur
+   * väl tonningen råkar träffa: en bokstav bakom en fylld cirkel syns inte.
+   */
   .rulla {
     position: absolute;
     top: 0;
@@ -287,25 +305,60 @@ const talrad = alla.some((v) => v.count !== undefined);
     z-index: 1;
     display: flex;
     align-items: center;
-    width: 44px;
+    width: 56px;
     padding: 0;
     border: 0;
-    color: var(--text-secondary);
+    background: none;
+    color: var(--text);
     cursor: pointer;
   }
 
-  .rulla:hover { color: var(--text); }
+  .rulla::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .rulla svg {
+    /* Cirkeln är knappen. 28 px är samma mått som sökpanelens runda
+       kontroller, se tokens.css. */
+    box-sizing: content-box;
+    width: 16px;
+    height: 16px;
+    padding: 6px;
+    background: var(--filterrad-yta, var(--card));
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .rulla:hover svg { background: var(--canvas); }
 
   .rulla.vanster {
     left: 0;
     justify-content: flex-start;
-    background: linear-gradient(to right, var(--canvas) 55%, transparent);
+  }
+
+  .rulla.vanster::before {
+    background: linear-gradient(
+      to right,
+      var(--filterrad-yta, var(--card)) 60%,
+      transparent
+    );
   }
 
   .rulla.hoger {
     right: 0;
     justify-content: flex-end;
-    background: linear-gradient(to left, var(--canvas) 55%, transparent);
+  }
+
+  .rulla.hoger::before {
+    background: linear-gradient(
+      to left,
+      var(--filterrad-yta, var(--card)) 60%,
+      transparent
+    );
   }
 
   /* `hidden` överlever inte en egen display, och knappen är flex. */

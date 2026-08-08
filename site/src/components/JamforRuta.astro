@@ -203,7 +203,7 @@ const setup = {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    padding: var(--s-4) var(--s-4) var(--s-3);
+    padding: var(--s-4) var(--s-4) var(--s-2);
   }
 
   .bar-title {
@@ -232,8 +232,14 @@ const setup = {
   .ikon:hover { background: var(--canvas); }
   .ikon svg { width: 18px; height: 18px; }
 
+  /* Fyra pixlar luft upptill, inte noll.
+     Sökfältets fokusring är 2 px bred med 2 px offset, alltså når den fyra
+     pixlar ovanför fältet. Med `overflow-y: auto` och noll toppadding klipper
+     rullningsbehållaren bort dem, och ringen ser ut att flyta upp under
+     rubrikraden. Huvudets nedre padding är minskad med lika mycket, så
+     avståndet mellan rubrik och fält är oförändrat. */
   .kropp {
-    padding: 0 var(--s-4) var(--s-4);
+    padding: var(--s-1) var(--s-4) var(--s-4);
     overflow-y: auto;
   }
 
