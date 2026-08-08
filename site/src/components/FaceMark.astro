@@ -2,21 +2,28 @@
 /**
  * Bedömningsmärket — varumärket och bedömningen i samma tecken.
  *
- * Geometrin är Måns egen, ritad i Figma och levererad som SVG i brand/:
- * green/yellow/red-smiley-box.svg och -round.svg. Banorna nedan är kopierade
- * ordagrant därifrån. Ändras filerna ska den här komponenten följa — den är
- * inte en tolkning av logotypen, den ÄR logotypen.
+ * Märket är Prikkos grävling, beskuren till ansiktet. All geometri kommer ur
+ * lib/face.ts och komponenten har INGA egna kopior. Den bar tidigare en egen
+ * uppsättning banor med en kommentar om att den borde importera i stället, och
+ * två kopior av en sanning divergerar alltid till slut.
  *
- * Två varianter:
- *   box   — fylld kvadrat med gradient, vit min. Bär tyngd, används där
- *           bedömningen är sidans huvudbudskap och som kartnål.
- *   round — vit cirkel med färgad ring. Lättare, används i listor där många
- *           märken står bredvid varandra och fyllda rutor blir tunga.
+ * FORMEN ÄR EN RUNDAD KVADRAT, ÖVERALLT. Ägarens beslut, och skälen står i
+ * lib/face.ts. Propen `variant` finns kvar för att inte tvinga fram en ändring
+ * på ett fyrtiotal anropsplatser, men båda värdena ritar numera samma form.
+ * `round` var förr en vit cirkel med färgad ring, en lättare form för listor,
+ * och den skillnaden bärs nu av storleken i stället för av formen.
+ *
+ * DETALJNIVÅN VÄLJS AV KOMPONENTEN, inte av anropsplatsen. Ett ansikte med
+ * pupill och pälsnyanser är meningslöst i 16 px och kostar tio gånger så mycket
+ * att skicka. Regeln bor i faceDetalj() och gränserna är mätta, inte valda.
  *
  * Tillgänglighet: ansiktet är förstärkning. Betydelsen bärs alltid av texten
- * bredvid, aldrig av färgen eller minen ensam.
+ * bredvid, aldrig av färgen eller minen ensam. Skillnaden mellan de tre
+ * bedömningarna sitter i brynens vinkel och munnens båge, och båda är prövade
+ * ensamma i 24 px i gråskala.
  */
 import type { VerdictOrNone } from '../lib/site';
+import { FACE_MARKUP, FACE_PLATE, faceDetalj, faceKey } from '../lib/face';
 
 interface Props {
   verdict: VerdictOrNone;
@@ -31,57 +38,27 @@ interface Props {
    * kommunsida listar hundratals gröna ansikten, och skulle de blinka allihop
    * vore sidan oläslig. Blinkningen hör hemma på det stora märket högst upp på
    * en verksamhets sida, där den är ett enskilt tecken och inte ett myller.
-   *
-   * Låg tidigare som en enda blinkning strax efter att munnen ritats. Den
-   * gick tekniskt igång men syntes aldrig: den var över på 0,4 sekunder, ögat
-   * var hoptryckt i 0,16 av dem, och det inträffade en enda gång medan
-   * besökaren fortfarande läste rubriken. Se stilarna längre ner.
    */
   wink?: boolean;
+  /**
+   * Tvinga en detaljnivå. Finns för prov och för de få ställen där ytan är
+   * större än storleken antyder. Lämna orörd i vanliga fall.
+   */
+  detalj?: 'rik' | 'enkel' | 'nal';
 }
 
-const { verdict, size = 56, variant = 'box', animate = false, wink = false } = Astro.props;
+const {
+  verdict,
+  size = 56,
+  variant = 'box',
+  animate = false,
+  wink = false,
+  detalj,
+} = Astro.props;
 
-const key = verdict ?? 'none';
-
-/** Gradientstopp ur originalfilerna. */
-const FILL: Record<string, [string, string]> = {
-  clean: ['#00B92B', '#009523'],
-  minor: ['#FECB00', '#DEB201'],
-  major: ['#FF0000', '#C50000'],
-  none: ['#C7C7CC', '#AEAEB2'],
-};
-
-/** Ringfärg i den runda varianten. */
-const RING: Record<string, string> = {
-  clean: '#00B92B',
-  minor: '#FECB00',
-  major: '#FF0000',
-  none: '#C7C7CC',
-};
-
-/** Munnens bana. Glad, rak, ledsen — exakt som i originalen. */
-const MOUTH: Record<string, string> = {
-  clean: 'M32 57.4883C44.2457 69.1509 56.4915 69.1509 68.7372 57.4883',
-  minor: 'M32 61.0004C44.5 61 56.5 60.9995 68.7372 61.0004',
-  major: 'M32 64.2196C44.5511 57.3262 56.6858 57.1944 68.7372 64.2196',
-  none: 'M40 61.0004C46 61 54 61 60 61.0004',
-};
-
-const EYE_LEFT =
-  'M39.8719 45.2457C43.2535 45.2457 45.9948 42.5044 45.9948 39.1229C45.9948 35.7413 43.2535 33 39.8719 33C36.4903 33 33.749 35.7413 33.749 39.1229C33.749 42.5044 36.4903 45.2457 39.8719 45.2457Z';
-const EYE_RIGHT =
-  'M62.6141 45.2457C65.9957 45.2457 68.737 42.5044 68.737 39.1229C68.737 35.7413 65.9957 33 62.6141 33C59.2325 33 56.4912 35.7413 56.4912 39.1229C56.4912 42.5044 59.2325 45.2457 62.6141 45.2457Z';
-
-// Unikt id per instans — flera märken på samma sida får inte dela gradient.
-//
-// Räknare, inte slump. Math.random() gav ett nytt id vid varje bygge, vilket
-// betydde att varenda sida ändrades i utfallet även när ingen data gjort det:
-// omöjligt att se verkliga skillnader, och CDN:er fick ompröva allt i onödan.
-let counter = 0;
-const gradientId = `pg-${key}-${counter++}`;
-
-const ink = variant === 'box' ? '#fff' : RING[key];
+const key = faceKey(verdict);
+const niva = detalj ?? faceDetalj(size);
+const ansikte = FACE_MARKUP[key][niva];
 
 // Blinkningen är förstärkning av ett gott besked. Att låta en verksamhet med
 // brister blinka vore att sockra ett underkännande.
@@ -97,34 +74,33 @@ const winking = wink && verdict === 'clean';
   aria-hidden="true"
   focusable="false"
 >
-  {variant === 'box' ? (
-    <>
-      <defs>
-        <linearGradient id={gradientId} x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
-          <stop stop-color={FILL[key][0]} />
-          <stop offset="1" stop-color={FILL[key][1]} />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="100" rx="17" fill={`url(#${gradientId})`} />
-    </>
-  ) : (
-    <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff" stroke={RING[key]} stroke-width="7" />
-  )}
-
-  <path class="eye" d={EYE_LEFT} fill={ink} />
-  <path class="eye right" d={EYE_RIGHT} fill={ink} />
-  <path class="mouth" d={MOUTH[key]} stroke={ink} stroke-width="7.87226" stroke-linecap="round" fill="none" />
+  <rect width="100" height="100" fill={FACE_PLATE[key]} />
+  <Fragment set:html={ansikte} />
 </svg>
 
 <style>
+  /* Ramen rundas med CSS och inte med en clipPath i svg:n, och det är en
+     mätt skillnad och ingen stilfråga.
+     
+     Första versionen la ett <defs><clipPath> i varje märke. På kedjesidan för
+     ICA blev det 104 clipPath-block, alltså omkring 18 kB på en enda sida, för
+     en form som är identisk i varenda instans. `inset(0 round 17%)` ligger i
+     stilmallen en gång och kostar noll per märke.
+     
+     17 procent är samma radie som viewBoxens rx 17 på 100 enheter, alltså
+     exakt samma form. Se FACE_RAM_RADIE i lib/face.ts. */
   .face {
     display: block;
     flex-shrink: 0;
+    clip-path: inset(0 round 17%);
   }
 
   /* Munnen ritas upp när märket kommer in. Diskret — det här är ett
-     register, inte en app-onboarding. */
-  .animate .mouth {
+     register, inte en app-onboarding.
+
+     Munnen är en egen bana i figuren och bär klassen `mun`, så uppritningen
+     kan hitta den utan att komponenten känner till geometrin. */
+  .animate :global(.mun) {
     stroke-dasharray: 60;
     stroke-dashoffset: 60;
     animation: draw .45s cubic-bezier(.4, 0, .2, 1) .1s forwards;
@@ -134,42 +110,42 @@ const winking = wink && verdict === 'clean';
     to { stroke-dashoffset: 0; }
   }
 
-  /* Blinkningen. Höger öga plattas till och öppnas igen. Ögat skalas kring
-     sin EGEN mittpunkt. Utan fill-box räknar webbläsaren origo från hela
-     svg:n, och då glider ögat iväg i stället för att blinka.
+  /* Blinkningen. Den bor numera i ÖGONLOCKEN, som figuren redan har som eget
+     system, i stället för i en hoptryckning av hela ögat. Skillnaden är att ett
+     lock som faller läser som en blinkning, medan ett öga som skalas i höjd
+     läser som en bild som klämts ihop.
 
      Namnet måste vara unikt. @keyframes är GLOBALA i CSS. Astro scopar
      selektorer men inte keyframe-namn, och den här hette tidigare `wink`,
      vilket krockade med sidhuvudets, som numera heter `wordmark-wink`.
 
-     ── Varför den inte syntes förut ──────────────────────────────────────
-     Den gamla versionen var 0,4 sekunder lång, kördes en enda gång 0,65 s
-     efter sidladdning och tryckte ihop ögat till 12 %. Det gav 0,04 sekunder
-     helt hoptryckt och knappt två tiondelar där ihoptryckningen alls var
-     märkbar. Den avlöpte medan besökaren fortfarande läste verksamhetens
-     namn, och var över innan blicken hann till märket. En animation som bara
-     syns om man råkar titta på rätt plats vid rätt tiondels sekund finns i
-     praktiken inte.
+     ── Varför den ser ut som den gör ─────────────────────────────────────
+     En tidigare version var 0,4 sekunder lång, kördes en enda gång 0,65 s
+     efter sidladdning och tryckte ihop ögat till 12 %. Den avlöpte medan
+     besökaren fortfarande läste verksamhetens namn och var över innan blicken
+     hann till märket. En animation som bara syns om man råkar titta på rätt
+     plats vid rätt tiondels sekund finns i praktiken inte.
 
-     Nu är den byggd som sidhuvudets wordmark, som fungerar: långsam,
-     nästan fullständig, och upprepad med långt uppehåll. Cykeln är 8
-     sekunder och blinkningen upptar de första tio procenten. Ögat sluts på
-     0,32 s, står slutet i 0,12 s och öppnas på 0,32 s, alltså 0,76 sekunder
-     rörelse följt av drygt sju sekunders stillhet. Uppehållet är det som gör
-     att upprepningen läser som ett andetag och inte som en tic.
+     Locket sitter i viloläget precis ovanför ögats överkant och är därmed
+     osynligt. Blinkningen skalar det NEDÅT, alltså med origo i överkanten, så
+     att det faller över ögat och lyfts igen.
 
-     Fördröjningen på 0,9 s låter munnen ritas klart först (0,1 s väntan plus
-     0,45 s uppritning). Två animationer på samma ansikte samtidigt läser som
-     en glitch. */
-  .winking .eye.right {
+     Nu är cykeln 8 sekunder och blinkningen upptar de första tio procenten:
+     locket faller på 0,32 s, står nere i 0,12 s och lyfts på 0,32 s. Drygt sju
+     sekunders stillhet följer, och det är uppehållet som gör att upprepningen
+     läser som ett andetag och inte som en tic.
+
+     Fördröjningen på 0,9 s låter munnen ritas klart först. Två animationer på
+     samma ansikte samtidigt läser som en glitch. */
+  .winking :global(.lock-hoger) {
     transform-box: fill-box;
-    transform-origin: center;
+    transform-origin: top;
     animation: facemark-wink 8s cubic-bezier(.4, 0, .2, 1) .9s infinite;
   }
 
   @keyframes facemark-wink {
     0%, 1%      { transform: scaleY(1); }
-    5%, 6.5%    { transform: scaleY(.06); }
+    5%, 6.5%    { transform: scaleY(6); }
     10.5%, 100% { transform: scaleY(1); }
   }
 
@@ -177,12 +153,12 @@ const winking = wink && verdict === 'clean';
      sjukdom. Att respektera inställningen är inte en artighet — den som
      bett om mindre rörelse har oftast ett medicinskt skäl. */
   @media (prefers-reduced-motion: reduce) {
-    .animate .mouth {
+    .animate :global(.mun) {
       animation: none;
       stroke-dashoffset: 0;
     }
 
-    .winking .eye.right {
+    .winking :global(.lock-hoger) {
       animation: none;
     }
   }

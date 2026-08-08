@@ -3,33 +3,54 @@
  * Sprite för bedömningsmärket — läggs ut EN gång per sida, listorna pekar
  * på den med <use>.
  *
- * Varför: på en kommunlista står märket bredvid varje rad. Inlinat är varje
- * märke ~700 byte SVG, och Stockholms hubb hade 8 511 rader. Det var den
- * enskilt största posten i ett 11 MB-dokument. Symbolerna nedan renderar
- * pixelidentiskt med FaceMark round-varianten — samma banor, samma färger,
- * de kommer ur samma modul.
+ * Varför den finns: på en kommunlista står märket bredvid varje rad, och
+ * Stockholms hubb har tusentals. Inlinat kostar varje märke sin fulla markup,
+ * och märkena var en gång den enskilt största posten i ett elva megabyte stort
+ * dokument. Med sprite betalas ansiktet en gång per sida och varje rad kostar
+ * bara en <use>-rad.
  *
- * Bara den runda varianten finns här. Box-varianten bär gradienter och
- * används en gång per sida, där lönar sig ingen sprite.
+ * ── Varför symbolerna byggs ur NAL-nivån ────────────────────────────────
+ *
+ * Märket är numera Prikkos grävling, och ett ansikte med pupill, ögonlock och
+ * pälsnyanser är mycket större än två prickar och en båge. Det rika ansiktet
+ * hade lagt tiotusentals tecken på varje hubbsida utan att synas, eftersom
+ * märkena i en lista står i 24 till 40 px.
+ *
+ * Nal-nivån bär plattan, ögonen, brynen och munnen. Brynen är kvar, och det är
+ * hela poängen: de är den enda bäraren som klarar 24 px i gråskala. Det som
+ * offras är pupillen och de finaste nyanserna, alltså precis det som ändå inte
+ * syns i den storleken.
+ *
+ * Ansiktet kommer ur lib/face.ts. Den här filen har inga egna banor.
  */
-import {
-  FACE_EYE_LEFT,
-  FACE_EYE_RIGHT,
-  FACE_KEYS,
-  FACE_MOUTH,
-  FACE_MOUTH_WIDTH,
-  FACE_RING,
-  FACE_SPRITE_ID,
-} from '../lib/face';
+import { FACE_KEYS, FACE_MARKUP, FACE_PLATE, FACE_RAM_RADIE, FACE_SPRITE_ID } from '../lib/face';
+
+interface Props {
+  /**
+   * Finns kvar för att inte tvinga fram en ändring på varje anropsplats.
+   * Formen är numera alltid en rundad kvadrat, se noten i lib/face.ts.
+   */
+  variant?: 'round' | 'box';
+  /**
+   * Detaljnivå. Lämna orörd. Finns för att en sida med ovanligt stora märken
+   * i mängd ska kunna välja upp sig, men den kostar direkt i dokumentstorlek.
+   */
+  detalj?: 'rik' | 'enkel' | 'nal';
+}
+
+const { detalj = 'nal' } = Astro.props;
 ---
 
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
   {FACE_KEYS.map((key) => (
     <symbol id={`${FACE_SPRITE_ID}-${key}`} viewBox="0 0 100 100">
-      <rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff" stroke={FACE_RING[key]} stroke-width="7" />
-      <path d={FACE_EYE_LEFT} fill={FACE_RING[key]} />
-      <path d={FACE_EYE_RIGHT} fill={FACE_RING[key]} />
-      <path d={FACE_MOUTH[key]} stroke={FACE_RING[key]} stroke-width={FACE_MOUTH_WIDTH} stroke-linecap="round" fill="none" />
+      <clipPath id={`${FACE_SPRITE_ID}-clip-${key}`}>
+        <rect width="100" height="100" rx={FACE_RAM_RADIE} />
+      </clipPath>
+      <g clip-path={`url(#${FACE_SPRITE_ID}-clip-${key})`}>
+        <rect width="100" height="100" fill={FACE_PLATE[key]} />
+        <Fragment set:html={FACE_MARKUP[key][detalj]} />
+      </g>
     </symbol>
   ))}
 </svg>

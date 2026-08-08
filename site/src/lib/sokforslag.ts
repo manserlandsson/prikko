@@ -18,14 +18,7 @@
  * astro:. lib/face importeras för geometrin och drar bara in en typ, som
  * försvinner vid kompileringen.
  */
-import {
-  FACE_EYE_LEFT,
-  FACE_EYE_RIGHT,
-  FACE_MOUTH,
-  FACE_MOUTH_WIDTH,
-  FACE_RING,
-  type FaceKey,
-} from './face';
+import { FACE_MARKUP, FACE_PLATE, FACE_RING, type FaceKey } from './face';
 
 /** Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex]. */
 export type Row = [string, string, string, number, number];
@@ -101,7 +94,14 @@ function faceSvg(verdict: number | undefined): string {
   const key: FaceKey =
     verdict === undefined ? 'none' : (FACE_BY_INDEX[verdict] ?? 'none');
   const c = FACE_RING[key];
-  return `<svg class="face" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="93" height="93" rx="46.5" fill="#fff" stroke="${c}" stroke-width="7"/><path d="${FACE_EYE_LEFT}" fill="${c}"/><path d="${FACE_EYE_RIGHT}" fill="${c}"/><path d="${FACE_MOUTH[key]}" stroke="${c}" stroke-width="${FACE_MOUTH_WIDTH}" stroke-linecap="round" fill="none"/></svg>`;
+  // Nal-nivån, av samma skäl som på kartan: förslagslistan buntas till
+  // webbläsaren och märket ritas i 20 till 24 px. Det rika ansiktet hade lagt
+  // åtta kilobyte per läge i en fil som laddas på varje sidvisning, för
+  // detaljer som ändå inte syns i den storleken.
+  return `<svg class="face" viewBox="0 0 100 100" aria-hidden="true" focusable="false">` +
+    `<clipPath id="sf-${key}"><rect width="100" height="100" rx="17"/></clipPath>` +
+    `<g clip-path="url(#sf-${key})">` +
+    `<rect width="100" height="100" fill="${FACE_PLATE[key]}"/>${FACE_MARKUP[key].nal}</g></svg>`;
 }
 
 function verdictWord(verdict: number | undefined): string {

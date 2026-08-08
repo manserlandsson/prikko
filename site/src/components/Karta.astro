@@ -32,15 +32,34 @@
  * på det anropet. De måste: miljontals objekt, priser som beror på datum,
  * tillgänglighet som ändras.
  *
- * Vi har inget av det. Ett kommunbestånd är litet och orörligt mellan bygg, så
- * hela kommunen skickas en gång och filtreras lokalt. Ingen omladdning, inget
- * skelett, ingen väntan — listan följer med medan man drar. Det är inte en
- * förenkling av deras lösning utan en bättre, som deras datamängd inte tillåter.
+ * Vi frågar ingen. Punkterna ligger i en förgenererad rutpyramid, och rutorna
+ * för utsnittet är redan hämtade när listan ritas. Ingen omladdning, inget
+ * skelett, ingen väntan: listan följer med medan man drar.
  *
- * Det gäller per kommun. En riksvy blir omkring 90 000 punkter vid full
- * täckning och kräver rutor eller en serverfråga. Därför läser klienten
- * punkter genom EN funktion, `punktKalla` nedan. Byts den byts datakällan, och
- * ingenting annat i kartan behöver veta om det.
+ * ## Var klustringen tog vägen
+ *
+ * Det här är det som förvirrar mest vid första läsningen, så det står först.
+ *
+ * Källan var förut hela kommunen som GeoJSON med `cluster: true`, alltså
+ * supercluster i MapLibres arbetare. Den lösningen hade en vägg: en fil per
+ * kommun kan bara svara på "vad finns i Linköping", och en rikskarta ställer
+ * frågan "vad finns i den här rektangeln". Vid 290 kommuner är beståndet
+ * dessutom omkring 90 000 punkter, som inte skickas till en telefon.
+ *
+ * Källan är därför en VEKTORRUTEKÄLLA mot ett PMTiles-arkiv, och en sådan kan
+ * inte klustras av MapLibre. Klustringen finns kvar och ser likadan ut, men
+ * den är körd EN gång vid bygget av `lib/kartrutor.ts`, med samma supercluster
+ * och samma tre tal: radie 38, minst fem punkter, upp till zoom 13.
+ *
+ * Det som följde med bytet, och som annars ser ut som saknad funktionalitet:
+ * `getClusterExpansionZoom()` och `getClusterLeaves()` finns bara på en
+ * GeoJSON-källa. Svaren är i stället inbakade i varje bubbla som `ez` och
+ * `bx`, så `delaKluster()` nedan blev synkron och gör exakt samma sak. Samma
+ * med antalsbrickan: `h` och `n` sätts vid bygget.
+ *
+ * Klienten läser fortfarande punkter genom EN funktion, `punktKalla` nedan.
+ * Det var den ordningen som gjorde det här bytet möjligt utan att röra listan,
+ * kortet, arket eller samspelet mellan rad och nål.
  */
 import FaceMark from './FaceMark.astro';
 import FaceRef from './FaceRef.astro';
@@ -52,7 +71,7 @@ import {
   municipalityListing,
   type Municipality,
 } from '../lib/data';
-import { MAP_EPOCH, type MapDataset } from '../lib/map-data';
+import { MAP_EPOCH, tileSet, type Utsnitt } from '../lib/kartrutor';
 import { hasMark, markRatio } from '../lib/marke';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
@@ -60,11 +79,24 @@ import { latestEdition } from '../lib/utmarkelser';
 
 interface Props {
   kommun: Municipality;
-  data: MapDataset;
+  /** Utsnittet kartan öppnar på, och talen under den. Kommunens i dag, hela
+   *  rikets när `/karta/` byggs. Kommer ur lib/kartrutor.ts. */
+  data: Utsnitt;
 }
 
 const { kommun, data } = Astro.props;
 const base = `/${kommun.slug}`;
+
+/*
+ * Rutarkivet, hela riket i en fil.
+ *
+ * Adressen är innehållsbaserad och kan därför cachas för alltid. Kommunernas
+ * slugar följer med som ordbok: nålen i rutan bär bara ett index, och länken
+ * /<kommun>/<slug>/ går inte att bygga utan den. Tolv rader i dag, 290 den dag
+ * täckningen är hel, alltså några hundra byte i sidans HTML mot en extra
+ * hämtning som skulle behöva vara klar innan första nålen kan klickas.
+ */
+const rutor = tileSet();
 
 /*
  * Listan som ligger i HTML.
@@ -107,9 +139,9 @@ const LEGEND = [
 <div
   class="split"
   data-karta
-  data-url={data.url}
+  data-url={rutor.url}
+  data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
-  data-base={path(base)}
   data-city={kommun.city}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
@@ -286,15 +318,15 @@ const LEGEND = [
    * maplibre-gl 6 har ingen default-export. Destrukturera namn ur modulen,
    * skriv aldrig `mod.default`.
    */
-  import {
-    FACE_EYE_LEFT,
-    FACE_EYE_RIGHT,
-    FACE_FILL,
-    FACE_KEYS,
-    FACE_MOUTH,
-    FACE_MOUTH_WIDTH,
-    type FaceKey,
-  } from '../lib/face';
+  import { FACE_KEYS, type FaceKey } from '../lib/face';
+  /* Nålen ritas av lib/kartnal.ts. Den här filen hade tidigare en EGEN kopia
+     av samma funktion, alltså två sanningar om hur en nål ser ut, och de hade
+     hunnit divergera i kommentarerna redan. Samma fel som FaceMark bar mot
+     lib/face. En kopia av en sanning divergerar alltid till slut.
+
+     Nålen bor i en egen fil och inte i kartbas.ts, eftersom kartbas importerar
+     maplibre ur public och därför bara får laddas dynamiskt i webbläsaren. */
+  import { faceSvg } from '../lib/kartnal';
   import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
   import { VERDICT } from '../lib/site';
@@ -316,6 +348,9 @@ const LEGEND = [
     v: number;
     namn: string;
     slug: string;
+    /** Kommunens slug. Nålen bär ett index mot ordboken i sidans HTML, och
+     *  utan det kan en rikskarta inte bygga länken till verksamheten. */
+    kommun: string;
     /** Dagar sedan epok. 0 = ingen kontroll. */
     d: number;
     /** Kommunens egen benämning på verksamheten. Tom när källan saknar den. */
@@ -376,69 +411,121 @@ const LEGEND = [
      */
     let karta: any = null;
 
-    const BAS = root.dataset.base!;
+    /**
+     * Adressen till en verksamhet.
+     *
+     * Byggd ur PUNKTENS egen kommun och inte ur sidans. På kommunens kartsida
+     * är de alltid samma, men rikskartan visar hela landet i samma vy, och en
+     * nål i Uppsala som länkade till /stockholm/ hade varit en 404 med rätt
+     * utseende.
+     */
+    function adress(p: Punkt): string {
+      return `/${p.kommun}/${p.slug}/`;
+    }
     const EPOK = Date.parse(root.dataset.epoch!);
     const DAG = 86_400_000;
 
+    /** Kommunernas slugar, i den ordning `m` i rutorna pekar på dem. En
+     *  rikskarta kan inte gissa vilken kommun en nål tillhör, och länken
+     *  /<kommun>/<slug>/ behöver veta det. */
+    const KOMMUNER: string[] = JSON.parse(root.dataset.keys!);
+
     /**
-     * Avkodar kolumnformatet till punkter.
+     * En nål ur rutan till en punkt.
      *
-     * Speglar `build` i lib/map-data.ts exakt: koordinaterna är kumulativa
-     * deltan i hundratusendels grad, namnen ligger i en sträng med radbrytning
-     * mellan, och slugen härleds ur namnet utom där bygget skickat ett
-     * undantag. Se lib/slug.ts för varför härledningen är trygg.
+     * Rutorna bär allt kortet och raden behöver, av ett skäl som står utskrivet
+     * i lib/kartrutor.ts: rutan hämtas ändå bara för det utsnitt man tittar på,
+     * och att i stället skicka id och hämta namnen hade lagt en andra rundtur
+     * mitt i en panorering.
+     *
+     * Två fält räknas fram i stället för att skickas. Slugen härleds ur namnet
+     * och följer med i rutan bara när härledningen inte stämmer; bygget jämför
+     * alltid mot den slug pipelinen satte, så en felräknad slug kan inte nå
+     * hit. Se lib/slug.ts. Kommunen är ett index mot ordboken ovan.
      */
-    function avkoda(raw: {
-      x: number[];
-      y: number[];
-      v: string;
-      n: string;
-      o: Record<string, string>;
-      d: number[];
-      t: number[];
-      td: string[];
-      k: number[];
-      u: number[];
-    }): Punkt[] {
-      const namn = raw.n.split('\n');
-      const utmarkta = new Set(raw.u);
-      const ut: Punkt[] = [];
-      let x = 0;
-      let y = 0;
-      for (let i = 0; i < raw.x.length; i++) {
-        x += raw.x[i];
-        y += raw.y[i];
-        ut.push({
-          i,
-          lng: x / 1e5,
-          lat: y / 1e5,
-          v: Number(raw.v[i]),
-          namn: namn[i],
-          slug: raw.o[i] ?? slugify(namn[i]),
-          d: raw.d[i],
-          typ: raw.td[raw.t[i]] ?? '',
-          k: raw.k[i] ?? 0,
-          u: utmarkta.has(i),
-        });
-      }
-      return ut;
+    function franRuta(props: any, lng: number, lat: number): Punkt {
+      const namn = props.nm as string;
+      return {
+        i: props.i,
+        lng,
+        lat,
+        v: props.v,
+        namn,
+        slug: props.s ?? slugify(namn),
+        kommun: KOMMUNER[props.m] ?? KOMMUNER[0],
+        d: props.dt ?? 0,
+        typ: props.ty ?? '',
+        k: props.k ?? 0,
+        u: props.u === 1,
+      };
     }
 
     /**
      * Datakällans enda gränssnitt mot kartan.
      *
-     * I dag: hela kommunen i en fil, hämtad en gång, filtrerad lokalt. Det
-     * håller upp till några tiotusen punkter.
+     * FÖRUT: hela kommunen i en fil, hämtad en gång, filtrerad lokalt. Det höll
+     * upp till några tiotusen punkter, alltså en kommun i taget, och gick inte
+     * att sträcka till en rikskarta. Ingen kommunfil kan svara på "vad finns i
+     * den här rektangeln", och vid 290 kommuner är beståndet omkring 90 000
+     * punkter.
      *
-     * En riksvy blir omkring 90 000 punkter och kräver något annat —
-     * förgenererade rutor i objektlagring eller en ruteformad fråga mot
-     * Supabase. Byt DEN HÄR funktionen då. Allt nedanför tar emot en lista
-     * punkter och bryr sig inte om varifrån de kom.
+     * NU: en rutpyramid över hela riket i EN PMTiles-fil, byggd av
+     * lib/kartrutor.ts. Webbläsaren läser de rutor som ligger i utsnittet,
+     * alltså tiotals kilobyte, aldrig arkivet. Funktionen läser därför ur de
+     * rutor MapLibre redan hämtat.
+     *
+     * Allt nedanför tar emot en lista punkter och bryr sig fortfarande inte om
+     * varifrån de kom. Det var hela poängen med att lägga källan i EN funktion,
+     * och den höll.
+     *
+     * `version` räknas upp varje gång rutor kommit eller kartan rört sig, och
+     * är det som gör att mängden räknas om en gång per bild i stället för en
+     * gång per anropare.
      */
-    let alla: Punkt[] = [];
+    let lastade: Punkt[] = [];
+    let lastadVersion = -1;
+    let version = 0;
 
     function punktKalla(): Punkt[] {
-      return alla;
+      if (lastadVersion === version) return lastade;
+      if (!karta || !karta.getSource('verksamheter')) return lastade;
+
+      /*
+       * `querySourceFeatures` ger allt i de LADDADE rutorna, alltså även en bit
+       * utanför skärmen. Det är rätt mängd här: listan beskärs ändå mot
+       * utsnittet längre ned, och grupperingen av adresser blir mer korrekt med
+       * marginal runt kanten.
+       *
+       * Avdubbleringen på `i` är INTE valfri. Vektorrutor har en kantbuffert, så
+       * en nål nära en rutgräns ligger i båda rutorna. Utan mängden får listan
+       * dubbletter och kortets bläddring räknar samma verksamhet två gånger.
+       */
+      const sedda = new Map<number, Punkt>();
+      const features = karta.querySourceFeatures('verksamheter', {
+        sourceLayer: 'punkter',
+        filter: ['!', ['has', 'point_count']],
+      });
+
+      for (const f of features) {
+        const props = f.properties;
+        if (sedda.has(props.i)) continue;
+        // MapLibre lämnar ut geometrin i longitud och latitud, inte i rutans
+        // egna heltal, vilket är precis vad listan och kortet vill ha.
+        const c = f.geometry.coordinates;
+        sedda.set(props.i, franRuta(props, c[0], c[1]));
+      }
+
+      lastade = [...sedda.values()];
+      lastadVersion = version;
+      // Grupperna och söktexten hörde till den förra mängden.
+      byggGrupper(lastade);
+      sokbar = null;
+      return lastade;
+    }
+
+    /** Punkten med ett visst radnummer, om den ligger i en laddad ruta. */
+    function punktMed(i: number): Punkt | undefined {
+      return punktKalla().find((p) => p.i === i);
     }
 
     // ── Punkter på samma adress ──────────────────────────────────────────
@@ -545,11 +632,17 @@ const LEGEND = [
     /** Fältets värde som det står, för rubriken och tomtexten. */
     let filterVarde = '';
 
-    /** Sökbar text per punkt: gemener, skiljetecken ersatta med mellanslag,
-     *  och ett inledande mellanslag så att varje ordstart kan hittas med ett
-     *  enda includes. Byggs en gång vid första sökningen, inte per tangent
-     *  och inte vid sidladdning. */
-    let sokbar: string[] | null = null;
+    /**
+     * Sökbar text per punkt: gemener, skiljetecken ersatta med mellanslag, och
+     * ett inledande mellanslag så att varje ordstart kan hittas med ett enda
+     * includes. Byggs en gång per mängd laddade rutor, inte per tangent.
+     *
+     * En Map och inte en array. Radnumret var förut punktens plats i kommunens
+     * egen fil, alltså tätt från noll. Nu är det ett radnummer i HELA riket och
+     * mängden som ligger i de laddade rutorna är gles: en array indexerad på
+     * det talet hade blivit tiotusentals tomma platser.
+     */
+    let sokbar: Map<number, string> | null = null;
 
     function normalisera(s: string): string {
       return s
@@ -559,13 +652,13 @@ const LEGEND = [
     }
 
     function raknaTraffar(tokens: string[]): Set<number> {
+      const punkter = punktKalla();
       if (!sokbar) {
-        // p.i är radens position i alla, så indexet här är radnumret.
-        sokbar = punktKalla().map((p) => ' ' + normalisera(p.namn + ' ' + p.typ));
+        sokbar = new Map(punkter.map((p) => [p.i, ' ' + normalisera(p.namn + ' ' + p.typ)]));
       }
       const ut = new Set<number>();
-      for (const p of punktKalla()) {
-        const text = sokbar[p.i];
+      for (const p of punkter) {
+        const text = sokbar.get(p.i)!;
         let allaMed = true;
         for (const tok of tokens) {
           if (!text.includes(' ' + tok)) {
@@ -625,7 +718,14 @@ const LEGEND = [
      *  tvåkolumnsgriden, mer än någon rullar igenom medan kartan rör sig. */
     const MAX_RADER = 60;
 
-    function ritaLista(synliga: Punkt[], totalt: number) {
+    /**
+     * @param synliga  Nålarna i utsnittet, alltså de som blir kort.
+     * @param totalt   Hur många av dem det är.
+     * @param iBubbla  Hur många verksamheter i utsnittet som ligger inne i en
+     *                 bubbla och därför INTE kan bli kort. Noll när ett filter
+     *                 är på, eftersom bubblorna göms då.
+     */
+    function ritaLista(synliga: Punkt[], totalt: number, iBubbla = 0) {
       const visa = synliga.slice(0, MAX_RADER);
       const frag = document.createDocumentFragment();
 
@@ -634,7 +734,7 @@ const LEGEND = [
         // Radnumret är nålens id. Utan det kan kortet inte peka ut sin nål.
         li.dataset.i = String(p.i);
         const a = document.createElement('a');
-        a.href = BAS + p.slug + '/';
+        a.href = adress(p);
 
         // Samma struktur som de server-renderade korten i mallen ovan, av
         // samma skäl som stilarna ligger under :global: klienten byter ut
@@ -688,7 +788,21 @@ const LEGEND = [
        */
       const stad = root!.dataset.city;
       const filtrerat = traffar !== null;
-      if (totalt === 0) {
+
+      /*
+       * Rubriken räknar HELA utsnittet, alltså nålarna plus det som ligger inne
+       * i bubblorna. Listan kan bara visa nålarna.
+       *
+       * Skillnaden fanns inte förut. Hela kommunen låg då i minnet och varje
+       * punkt var en rad, oavsett om kartan råkade rita den som en bubbla. Med
+       * rutor finns bara det rutan bär, och på kommunens öppningszoom är nästan
+       * allt sammanslaget: ett Stockholm med 8 499 verksamheter ger ett
+       * femtontal lösa nålar. En rubrik som sa "15 verksamheter" hade varit
+       * falsk, inte bara mindre användbar.
+       */
+      const iVyn = totalt + iBubbla;
+
+      if (iVyn === 0) {
         // Samma tomrubrik med och utan filter, men förklaringen är en annan:
         // med filter är det filtret som tömde vyn, och rensknappen visas.
         rubrik.textContent = 'Inga verksamheter här';
@@ -698,15 +812,27 @@ const LEGEND = [
         underrubrik.hidden = false;
       } else {
         rubrik.textContent = filtrerat
-          ? `${totalt.toLocaleString('sv-SE')} ${totalt === 1 ? 'träff' : 'träffar'}`
-          : `${totalt.toLocaleString('sv-SE')} verksamheter`;
+          ? `${iVyn.toLocaleString('sv-SE')} ${iVyn === 1 ? 'träff' : 'träffar'}`
+          : `${iVyn.toLocaleString('sv-SE')} verksamheter`;
         underrubrik.hidden = true;
       }
-      rensa.hidden = !(filtrerat && totalt === 0);
+      rensa.hidden = !(filtrerat && iVyn === 0);
 
-      listfot.hidden = totalt <= MAX_RADER;
-      if (!listfot.hidden) {
-        listfot.textContent = `Visar ${visa.length} av ${totalt.toLocaleString('sv-SE')}. Zooma in för att se färre åt gången.`;
+      /*
+       * Foten säger vad man inte ser, och varför. Två olika skäl, två olika
+       * meningar: antingen ryms inte alla kort på en gång, eller så ligger
+       * verksamheterna i bubblor som måste delas först.
+       */
+      if (iBubbla > 0) {
+        listfot.hidden = false;
+        listfot.textContent = totalt === 0
+          ? `Zooma in eller klicka på en prick för att se dem i listan.`
+          : `Visar ${visa.length} av ${iVyn.toLocaleString('sv-SE')}. Zooma in för att se resten.`;
+      } else {
+        listfot.hidden = totalt <= MAX_RADER;
+        if (!listfot.hidden) {
+          listfot.textContent = `Visar ${visa.length} av ${totalt.toLocaleString('sv-SE')}. Zooma in för att se färre åt gången.`;
+        }
       }
     }
 
@@ -917,7 +1043,7 @@ const LEGEND = [
 
       const lank = document.createElement('a');
       lank.className = 'kort-lank';
-      lank.href = BAS + p.slug + '/';
+      lank.href = adress(p);
       const lankText = document.createElement('span');
       lankText.textContent = 'Se kontrollerna';
       const pil = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1306,53 +1432,6 @@ const LEGEND = [
 
     // ── Kartan ───────────────────────────────────────────────────────────
 
-    /**
-     * Nålen: droppe, färgad fyllning, VIT KONTUR, mjuk skugga, vit min inuti.
-     *
-     * Formen är den som Google, Apple och Ednia använder, och den valdes av ett
-     * skäl som inte är smak: en droppe PEKAR. En kvadrat måste man gissa
-     * mittpunkten på, medan spetsen säger exakt vilken adress det gäller.
-     * Därför sitter också `icon-anchor: bottom` på lagret — spetsen ska ligga
-     * på koordinaten, inte märkets mitt.
-     *
-     * Den vita konturen är inte dekoration. Kartbotten är färgad, och utan
-     * kontur drunknar en gul nål i en gul gata och en grön i en park. Konturen
-     * ger varje nål en egen kant mot vad som helst under sig, vilket är exakt
-     * varför de tre nämnda kartorna alla har den.
-     *
-     * Minen är vit. Det är inte ett val här utan en regel som redan står i
-     * tokens.css: symbolen på märket är alltid vit. Banorna kommer ur
-     * lib/face.ts, samma modul som FaceSprite och FaceRef läser, så nålen på
-     * kartan är samma tecken som märket i listan.
-     */
-    function faceSvg(key: FaceKey): string {
-      const [from, to] = FACE_FILL[key];
-      // Ansiktets innehåll spänner x 33,7–68,7 och y 33–69 i sin egen 100-ruta.
-      // Mitten ligger alltså på (51,2, 51), och den punkten flyttas till
-      // droppens cirkelmitt (50, 46) och skalas till 72 procent.
-      const face =
-        `<g transform="translate(50 46) scale(.72) translate(-51.2 -51)">` +
-        `<path d="${FACE_EYE_LEFT}" fill="#fff"/><path d="${FACE_EYE_RIGHT}" fill="#fff"/>` +
-        `<path d="${FACE_MOUTH[key]}" stroke="#fff" stroke-width="${FACE_MOUTH_WIDTH}" ` +
-        `stroke-linecap="round" fill="none"/></g>`;
-
-      return (
-        `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="132" viewBox="0 0 100 132">` +
-        `<defs>` +
-        `<linearGradient id="g" x1="50" y1="4" x2="50" y2="120" gradientUnits="userSpaceOnUse">` +
-        `<stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient>` +
-        `<filter id="s" x="-50%" y="-20%" width="200%" height="160%">` +
-        `<feGaussianBlur in="SourceAlpha" stdDeviation="3"/>` +
-        `<feOffset dy="3"/><feComponentTransfer><feFuncA type="linear" slope="0.35"/>` +
-        `</feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/>` +
-        `</feMerge></filter>` +
-        `</defs>` +
-        `<path filter="url(#s)" d="M50 124C50 124 87 74 87 46A37 37 0 1 0 13 46C13 74 50 124 50 124Z" ` +
-        `fill="url(#g)" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>` +
-        face +
-        `</svg>`
-      );
-    }
 
     /** Droppens proportion är 100×132. Vid pixelRatio 2 blir nålen 36×47
      *  CSS-pixlar, alltså i nivå med märket i listan. */
@@ -1513,16 +1592,31 @@ const LEGEND = [
     async function start() {
       laddaCss();
 
-      const [maplibre, raw] = await Promise.all([
+      /*
+       * Två moduler, hämtade på olika sätt, och skillnaden är inte godtycklig.
+       *
+       * MapLibre kommer från /maplibre/ som statiska filer, av skälet överst i
+       * filen: den startar en vektorarbetare med en adress relativ sig själv,
+       * och paketeras den blir arbetaren 404 utan att något syns.
+       *
+       * `pmtiles` går genom paketeraren som vanligt. Den startar ingen
+       * arbetare, den är 18 kB minifierad, och den behövs bara här. Den lär
+       * MapLibre att läsa `pmtiles://`-adresser med räckviddsförfrågningar in i
+       * arkivet, alltså att hämta de rutor utsnittet kräver i stället för hela
+       * filen.
+       */
+      const [maplibre, pmtiles] = await Promise.all([
         import(/* @vite-ignore */ MAPLIBRE_URL),
-        fetch(root!.dataset.url!).then((r) => {
-          if (!r.ok) throw new Error('kartdata svarade ' + r.status);
-          return r.json();
-        }),
+        import('pmtiles'),
       ]);
 
-      alla = avkoda(raw);
-      byggGrupper(alla);
+      /* Protokollet registreras en gång per sida. Kommunhubbens puff och den
+         här kartan kan båda ligga på samma dokument, och MapLibre kastar om
+         samma namn registreras två gånger. */
+      if (!(window as any).__prikkoPmtiles) {
+        maplibre.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+        (window as any).__prikkoPmtiles = true;
+      }
 
       /*
        * `Map` byter namn här, och det är ingen stilfråga.
@@ -1600,91 +1694,35 @@ const LEGEND = [
         }
 
         /*
-         * Originalet behålls som objekt vid sidan av källan. Filtret byter
-         * källdata med setData, och tillbakavägen ska vara att lämna tillbaka
-         * exakt det här objektet, inte att bygga om det. Properties bär BARA
-         * radnumret och bedömningen, aldrig namnen: namnen väger, och
-         * radnumret räcker för att slå upp allt annat i `alla`. Att `i` är
-         * originalindexet även i en filtrerad källa är det som håller
-         * kopplingen rad ↔ nål ↔ kort intakt när filtret är på.
-         */
-        /*
-         * `n` är gruppens storlek och `h` är ett för den enda punkt i gruppen
-         * som ska bära antalsbrickan. ALLA punkter ligger kvar i källan:
-         * klustrens siffror ska räkna verksamheter och inte adresser, och
-         * nålarna ritas för alla, eftersom tolv identiska nålar ovanpå
-         * varandra ser ut som en och kostar försumbart vid våra mängder.
-         * Brickan får däremot bara ritas en gång per adress.
+         * Källan är en VEKTORRUTEKÄLLA, inte GeoJSON.
          *
-         * Räknas per MÄNGD och inte en gång för alltid, eftersom filtret byter
-         * källdata: står tio av tolv kvar efter en sökning ska brickan säga
-         * tio. Se bytKalldata längre ned.
+         * Här låg tidigare hela kommunen som ett GeoJSON-objekt med
+         * `cluster: true`, alltså supercluster i MapLibres arbetare. Klustringen
+         * finns kvar och ser likadan ut, men den är körd EN gång vid bygget i
+         * stället för i varje besökares webbläsare. Se lib/kartrutor.ts, där de
+         * tre talen 38, 5 och 13 står kvar ordagrant.
+         *
+         * VAD SOM FÖLJDE MED BYTET, och som nästa läsare annars kommer att
+         * undra över: `getClusterExpansionZoom()` och `getClusterLeaves()` finns
+         * bara på en GeoJSON-källa. `delaKluster()` längre ned byggde hela sitt
+         * beteende på dem, och de var dessutom asynkrona, alltså en väntan mitt
+         * i ett klick. Svaren är nu INBAKADE i bubblan av bygget:
+         *
+         *     ez   expansionszoomen, det minsta steg som delar bubblan
+         *     bx   lövens utbredning som "väst,syd,öst,nord"
+         *
+         * Klustringen tog alltså inte vägen någonstans. Den flyttade till
+         * lib/kartrutor.ts, och frågorna man förut ställde till källan besvaras
+         * numera av rutan man redan har.
+         *
+         * `n` och `h` bakas in på samma sätt. `h` är ett på den enda nål i en
+         * stapel som ska bära antalsbrickan, `n` är hur många adressen rymmer.
+         * Förut räknades de om i klienten vid varje filterändring, ur hela
+         * kommunens punktlista; den listan finns inte längre.
          */
-        function byggFeatures(punkter: Punkt[]) {
-          const rutor = new Map<string, Punkt[]>();
-          for (const p of punkter) {
-            const nyckel =
-              Math.round(p.lng / SAMMA_PLATS) + ':' + Math.round(p.lat / SAMMA_PLATS);
-            const lista = rutor.get(nyckel);
-            if (lista) lista.push(p);
-            else rutor.set(nyckel, [p]);
-          }
-
-          const bricka = new Set<number>();
-          const storlek = new Map<number, number>();
-          for (const lista of rutor.values()) {
-            bricka.add(huvudnal(lista).i);
-            for (const p of lista) storlek.set(p.i, lista.length);
-          }
-
-          return {
-            type: 'FeatureCollection' as const,
-            features: punkter.map((p) => ({
-              type: 'Feature' as const,
-              id: p.i,
-              geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-              properties: {
-                i: p.i,
-                v: p.v,
-                n: storlek.get(p.i) ?? 1,
-                h: bricka.has(p.i) ? 1 : 0,
-              },
-            })),
-          };
-        }
-
-        const original = byggFeatures(alla);
-
         karta.addSource('verksamheter', {
-          type: 'geojson',
-          data: original,
-          /*
-           * MapLibres inbyggda klustring, alltså Supercluster i en arbetare.
-           * Vald efter mätning: 8 511 punkter indexeras på tiotals
-           * millisekunder, och vid full utzoomning ritar kartan ett trettiotal
-           * cirklar i stället för åttatusen nålar. Ett eget rutnät hade varit
-           * mer maskineri för ett problem biblioteket redan löser i rätt tråd.
-           */
-          cluster: true,
-          /*
-           * Tre tal som tillsammans avgör hur mycket blått man ser.
-           *
-           * Det första utsnittet av Stockholm gav ett trettiotal stora
-           * cirklar och nästan inga nålar, alltså en karta som mest bestod av
-           * vår varumärkesblå. Poängen med kartan är ansiktena, och ett
-           * kluster är bara ett kvitto på att de inte får plats.
-           *
-           * clusterMinPoints är den som gör mest: under fem punkter ritas de
-           * som var sin nål i stället för som en bubbla med en trea i. Två
-           * grannar behöver ingen sammanfattning, de behöver ritas.
-           *
-           * clusterRadius sänkt från 55 till 38 gör klustren lokala i stället
-           * för stadsdelsstora, och clusterMaxZoom 13 släpper fram nålarna ett
-           * zoomsteg tidigare.
-           */
-          clusterMaxZoom: 13,
-          clusterRadius: 38,
-          clusterMinPoints: 5,
+          type: 'vector',
+          url: 'pmtiles://' + root!.dataset.url!,
         });
 
         /*
@@ -1706,6 +1744,7 @@ const LEGEND = [
           id: 'kluster-skugga',
           type: 'circle',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: ['has', 'point_count'],
           paint: {
             'circle-color': '#000',
@@ -1720,6 +1759,7 @@ const LEGEND = [
           id: 'kluster',
           type: 'circle',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: ['has', 'point_count'],
           paint: {
             'circle-color': '#007BE0',
@@ -1748,6 +1788,7 @@ const LEGEND = [
           id: 'kluster-antal',
           type: 'symbol',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: ['has', 'point_count'],
           layout: {
             'text-field': ['get', 'point_count_abbreviated'],
@@ -1775,6 +1816,7 @@ const LEGEND = [
                 id: 'nalar',
                 type: 'symbol',
                 source: 'verksamheter',
+                'source-layer': 'punkter',
                 filter: ['!', ['has', 'point_count']],
                 layout: {
                   'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
@@ -1788,6 +1830,7 @@ const LEGEND = [
                 id: 'nalar',
                 type: 'circle',
                 source: 'verksamheter',
+                'source-layer': 'punkter',
                 filter: ['!', ['has', 'point_count']],
                 paint: {
                   'circle-radius': 7,
@@ -1833,6 +1876,7 @@ const LEGEND = [
           id: 'stapel-ring',
           type: 'circle',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: BRICKA,
           paint: {
             'circle-color': '#007BE0',
@@ -1847,6 +1891,7 @@ const LEGEND = [
           id: 'stapel-antal',
           type: 'symbol',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: BRICKA,
           layout: {
             'text-field': ['to-string', ['get', 'n']],
@@ -1864,6 +1909,7 @@ const LEGEND = [
           id: 'nal-lyft',
           type: 'symbol',
           source: 'verksamheter',
+          'source-layer': 'punkter',
           filter: ['==', ['get', 'i'], -1],
           layout: {
             'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
@@ -1874,49 +1920,120 @@ const LEGEND = [
           },
         });
 
-        // Listan speglar utsnittet. `move` och inte bara `moveend`: hela
-        // poängen med att ha punkterna lokalt är att listan följer med medan
-        // man drar i stället för att komma efter.
-        const uppdatera = () => {
+        /*
+         * Listan speglar utsnittet.
+         *
+         * `move` och inte bara `moveend`: hela poängen med att ha punkterna
+         * lokalt är att listan följer med medan man drar i stället för att komma
+         * efter. Det gäller fortfarande, men "lokalt" betyder numera de rutor
+         * som hunnit landa.
+         *
+         * Därför lyssnar den också på `sourcedata`. En panorering kan hinna
+         * sluta innan rutan under den nya kanten kommit, och utan den signalen
+         * hade listan stått kvar och saknat de verksamheter som just ritats ut
+         * på kartan bredvid.
+         */
+        function uppdatera() {
           const b = karta.getBounds();
-          const synliga = punktKalla().filter(
+          const punkter = punktKalla();
+
+          /*
+           * Träffarna räknas om mot den NYA mängden, inte mot den gamla.
+           *
+           * Förut låg hela kommunen i minnet, så en sökning kunde räknas en gång
+           * och gälla resten av besöket. Nu byts mängden varje gång en ruta
+           * landar, och ett radnummer som inte fanns när man skrev bokstaven
+           * hade annars aldrig kunnat bli en träff: man drar kartan västerut,
+           * nya nålar dyker upp, och ingen av dem matchar det man skrivit.
+           */
+          if (traffar !== null) {
+            const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
+            if (tokens.length > 0) traffar = raknaTraffar(tokens);
+            filtreraNalar();
+          }
+
+          const synliga = punkter.filter(
             (p) =>
               (traffar === null || traffar.has(p.i)) &&
               p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth(),
           );
           synliga.sort((a, z) => a.namn.localeCompare(z.namn, 'sv'));
-          ritaLista(synliga, synliga.length);
-        };
+          ritaLista(synliga, synliga.length, traffar === null ? iBubblor(b) : 0);
+        }
 
-        karta.on('move', uppdatera);
+        /**
+         * Hur många verksamheter i utsnittet som ligger inne i en bubbla.
+         *
+         * Rubriken sa förut hur många punkter listan hade, och det stämde,
+         * eftersom hela kommunen låg i minnet och varenda punkt var en rad.
+         * Med rutor är det inte längre sant: på kommunens öppningszoom är
+         * nästan allt sammanslaget till bubblor, och nålarna som ligger lösa är
+         * ett femtontal. En rubrik som sa "15 verksamheter" över ett Stockholm
+         * med 8 499 hade varit fel, inte bara mindre användbar.
+         *
+         * Talet räknas därför ur bubblornas egna summor. Avdubbleringen på läge
+         * och antal är nödvändig av samma skäl som för nålarna: rutorna har en
+         * kantbuffert, så en bubbla nära en rutgräns ligger i två rutor.
+         */
+        function iBubblor(b: any): number {
+          const sedda = new Set<string>();
+          let summa = 0;
+          for (const f of karta.querySourceFeatures('verksamheter', {
+            sourceLayer: 'punkter',
+            filter: ['has', 'point_count'],
+          })) {
+            const [lng, lat] = f.geometry.coordinates;
+            if (lng < b.getWest() || lng > b.getEast() || lat < b.getSouth() || lat > b.getNorth()) continue;
+            const nyckel = lng.toFixed(5) + ':' + lat.toFixed(5) + ':' + f.properties.point_count;
+            if (sedda.has(nyckel)) continue;
+            sedda.add(nyckel);
+            summa += f.properties.point_count;
+          }
+          return summa;
+        }
+
+        karta.on('move', () => {
+          version += 1;
+          uppdatera();
+        });
+
+        karta.on('sourcedata', (ev: any) => {
+          if (ev.sourceId !== 'verksamheter' || !ev.isSourceLoaded) return;
+          version += 1;
+          uppdatera();
+        });
+
         uppdatera();
 
         // ── Filtret mot kartan ───────────────────────────────────────────
 
         /*
-         * Filtret slår i två steg, för att varje tangent ska kännas direkt
-         * utan att betala för det dyra arbetet varje gång.
+         * Filtret gäller det man KAN SE, och det är inte en försämring utan vad
+         * fältets egen etikett alltid har lovat.
          *
-         * Steg 1, per tangent: listan ritas om och lagret `nalar` filtreras
-         * med ett uttryck på radnumret. `match` med en literal lista, inte
-         * `in`: match kompileras till ett uppslag och kostar konstant per nål,
-         * medan in söker listan linjärt och hade gjort varje tangent dyrare ju
-         * fler träffar filtret har.
+         * Förut låg hela kommunen i minnet och filtret sökte igenom den. Med en
+         * rikskarta finns ingen sådan mängd: 90 000 punkter skickas inte till en
+         * telefon, och det var hela skälet till rutorna. Fältet filtrerar därför
+         * listan och nålarna i utsnittet. Den som vill söka i hela landet gör
+         * det i sidhuvudets sökfält, som har hela registret.
          *
-         * Steg 2, debouncat 150 ms: källdatan byts med setData till enbart
-         * träffarna. Det steget går inte att hoppa över för klustren: MapLibre
-         * räknar kluster ur KÄLLAN i en arbetare, inte ur lagrens filter, så
-         * en klustercirkel ändrar varken antal eller siffra av att lagret
-         * filtreras. Priset är en omindexering per anrop, och det är därför
-         * den debouncas i stället för att köras per tangent.
+         * Lagret `nalar` filtreras med ett uttryck på radnumret. `match` med en
+         * literal lista, inte `in`: match kompileras till ett uppslag och kostar
+         * konstant per nål, medan in söker listan linjärt och hade gjort varje
+         * tangent dyrare ju fler träffar filtret har.
+         *
+         * KLUSTREN GÖMS medan ett filter är på, och det är ett medvetet val.
+         * Bubblorna är räknade vid bygget och kan inte räknas om i webbläsaren;
+         * en bubbla som säger 300 bredvid en lista med fyra träffar påstår något
+         * som inte stämmer. Att gömma dem säger i stället sanningen: det här är
+         * vad som matchar, zooma in för att se mer.
          *
          * `nal-lyft` behöver inget eget uttryck: lyftet pekar alltid på en rad
          * eller nål man just rör vid, och de är filtrerade redan. Det som
          * däremot måste städas är en hovring eller ett öppet kort vars punkt
          * filtreras bort, annars står kortet kvar och pekar på ingenting.
          */
-        let setDataTimer: ReturnType<typeof setTimeout> | undefined;
-        let kallanFiltrerad = false;
+        const KLUSTERLAGER = ['kluster-skugga', 'kluster', 'kluster-antal'];
 
         function filtreraNalar() {
           const bas = ['!', ['has', 'point_count']];
@@ -1928,23 +2045,16 @@ const LEGEND = [
                 ? ['boolean', false]
                 : ['all', bas, ['match', ['get', 'i'], [...traffar], true, false]],
           );
-        }
 
-        function bytKalldata() {
-          const kalla = karta.getSource('verksamheter');
-          if (traffar === null) {
-            // Bara om källan hann filtreras. Den som tömmer fältet innan
-            // debouncen slagit till slipper hela omindexeringen.
-            if (kallanFiltrerad) {
-              kalla.setData(original);
-              kallanFiltrerad = false;
-            }
-          } else {
-            // byggFeatures och inte ett filter på original.features: brickan
-            // ska räkna det som står kvar efter sökningen, inte det som stod
-            // där innan.
-            kalla.setData(byggFeatures(punktKalla().filter((p) => traffar!.has(p.i))));
-            kallanFiltrerad = true;
+          for (const lager of KLUSTERLAGER) {
+            karta.setLayoutProperty(lager, 'visibility', traffar === null ? 'visible' : 'none');
+          }
+
+          /* Brickan säger hur många som FINNS på adressen och inte hur många
+             sökningen träffar. Med ett filter på blir den därför missvisande
+             och göms, av samma skäl som bubblorna. */
+          for (const lager of ['stapel-ring', 'stapel-antal']) {
+            karta.setLayoutProperty(lager, 'visibility', traffar === null ? 'visible' : 'none');
           }
         }
 
@@ -1960,8 +2070,6 @@ const LEGEND = [
 
           filtreraNalar();
           uppdatera();
-          clearTimeout(setDataTimer);
-          setDataTimer = setTimeout(bytKalldata, 150);
         }
 
         tillampa = tillampaFilter;
@@ -1976,66 +2084,53 @@ const LEGEND = [
         /*
          * ── Klustret delar sig ───────────────────────────────────────────
          *
-         * Här stod tidigare bara `getClusterExpansionZoom` följt av en easeTo
-         * till klustrets mittpunkt, och det var för lite. Det talet är den
-         * zoom där Supercluster SLUTAR slå ihop just det klustret, alltså det
-         * minsta steg som gör något alls. Klickar man på en bubbla med 300 i
-         * blir resultatet ofta fyra bubblor med 75 i, och man får klicka fem
-         * gånger till för att komma åt en enda verksamhet.
+         * Här stod tidigare `getClusterExpansionZoom` och `getClusterLeaves`,
+         * två ASYNKRONA anrop mot GeoJSON-källan, alltså en väntan mitt i ett
+         * klick. Ingen av dem finns på en vektorrutekälla.
          *
-         * Nu hämtas klustrets LÖV, alltså de verksamheter det faktiskt består
-         * av, och kameran läggs på deras utbredning. Då delar sig klustret
-         * hela vägen ned till nålar i ett svep när det går, och till några få
-         * bubblor när utbredningen är en hel stadsdel. `Math.max` mot
-         * expansionszoomen är garantin: en utbredning som råkar rymmas i rutan
-         * vid nuvarande zoom får ändå det steg som krävs för att bubblan ska
-         * släppa.
+         * DE ÄR INTE BORTA. Svaren räknas fram vid bygget av lib/kartrutor.ts,
+         * som kör samma supercluster mot samma tre tal, och bakas in i bubblan:
          *
-         * Ligger löven på SAMMA ADRESS finns ingen zoom som delar dem, och då
-         * öppnas stapelkortet i stället. Det är den grind som gör att en
-         * bubbla aldrig kan bli en återvändsgränd.
+         *     ez   expansionszoomen, alltså den zoom där bubblan slutar slås
+         *          ihop. Det minsta steg som gör något alls.
+         *     bx   lövens utbredning som "väst,syd,öst,nord".
+         *
+         * Funktionen är därmed synkron och gör exakt vad den gjorde förut.
+         *
+         * Varför utbredningen och inte bara expansionszoomen: klickar man på en
+         * bubbla med 300 i ger expansionszoomen ofta fyra bubblor med 75 i, och
+         * man får klicka fem gånger till för att komma åt en verksamhet. Läggs
+         * kameran på LÖVENS utbredning delar sig bubblan hela vägen ned till
+         * nålar i ett svep när det går, och till några få bubblor när
+         * utbredningen är en hel stadsdel. `Math.max` mot expansionszoomen är
+         * garantin: en utbredning som råkar rymmas i rutan vid nuvarande zoom
+         * får ändå det steg som krävs för att bubblan ska släppa.
+         *
+         * Ligger löven på SAMMA ADRESS finns ingen zoom som delar dem. Det är
+         * Sturegallerian, och grinden som gör att en bubbla aldrig kan bli en
+         * återvändsgränd. Kameran flyger då in till den zoom där nålarna finns
+         * och stapelkortet öppnas när rutan landat. Löven själva finns inte
+         * längre att öppna kortet direkt ur, eftersom bubblan bara bär sin
+         * utbredning och inte sina medlemmar.
          */
-        const LOV_TAK = 500;
+        const STAPELZOOM = 18;
 
-        async function delaKluster(f: any) {
-          const kalla = karta.getSource('verksamheter');
-          const id = f.properties.cluster_id;
+        function delaKluster(f: any) {
+          const bx = String(f.properties.bx ?? '').split(',').map(Number);
+          const expansion = Number(f.properties.ez);
 
-          let lov: any[];
-          let expansion: number;
-          try {
-            [lov, expansion] = await Promise.all([
-              kalla.getClusterLeaves(id, LOV_TAK, 0),
-              kalla.getClusterExpansionZoom(id),
-            ]);
-          } catch {
-            // Klustret kan ha indexerats om under tiden, till exempel av
-            // filtret. Då finns id:t inte längre och ett zoomsteg är rätt
-            // svar, inte ett fel i konsolen.
+          if (bx.length !== 4 || bx.some((v) => !Number.isFinite(v))) {
+            // Ska inte kunna hända: kartrutegrinden i bygget kräver båda
+            // fälten på varje bubbla. Ett zoomsteg är ändå rätt svar, inte ett
+            // fel i konsolen.
             karta.easeTo({ center: f.geometry.coordinates, zoom: karta.getZoom() + 2, duration: reducerad ? 0 : 400 });
             return;
           }
 
-          let vast = Infinity;
-          let ost = -Infinity;
-          let syd = Infinity;
-          let nord = -Infinity;
-          for (const l of lov) {
-            const [x, y] = l.geometry.coordinates;
-            if (x < vast) vast = x;
-            if (x > ost) ost = x;
-            if (y < syd) syd = y;
-            if (y > nord) nord = y;
-          }
+          const [vast, syd, ost, nord] = bx;
 
           if (ost - vast < SAMMA_PLATS && nord - syd < SAMMA_PLATS) {
-            // Samma adress. Ingen zoom i världen delar den här bubblan, så
-            // verksamheterna nås genom kortet i stället.
-            const punkter = lov
-              .map((l: any) => alla[l.properties.i])
-              .filter(Boolean)
-              .sort((a: Punkt, z: Punkt) => a.namn.localeCompare(z.namn, 'sv'));
-            if (punkter.length > 0) visaKort(punkter[0], punkter);
+            oppnaStapel(f.geometry.coordinates);
             return;
           }
 
@@ -2051,8 +2146,35 @@ const LEGEND = [
 
           karta.easeTo({
             center: kamera ? kamera.center : f.geometry.coordinates,
-            zoom: Math.max(kamera ? kamera.zoom : 0, expansion),
+            zoom: Math.max(kamera ? kamera.zoom : 0, Number.isFinite(expansion) ? expansion : 0),
             duration: reducerad ? 0 : 500,
+          });
+        }
+
+        /**
+         * En bubbla vars verksamheter alla ligger på samma adress.
+         *
+         * Kameran går in till den zoom där nålarna finns, och när rutan landat
+         * öppnas stapelkortet på den punkt som ligger närmast mitten. `once`
+         * och inte en vanlig lyssnare: den ska svara på DEN här inflygningen
+         * och inte på varje gång kartan blir stilla efteråt.
+         */
+        function oppnaStapel(center: [number, number]) {
+          karta.easeTo({ center, zoom: STAPELZOOM, duration: reducerad ? 0 : 500 });
+          karta.once('idle', () => {
+            version += 1;
+            let bast: Punkt | null = null;
+            let kortast = Infinity;
+            for (const p of punktKalla()) {
+              const d = (p.lng - center[0]) ** 2 + (p.lat - center[1]) ** 2;
+              if (d < kortast) {
+                kortast = d;
+                bast = p;
+              }
+            }
+            if (!bast) return;
+            const lista = gruppFor(bast);
+            visaKort(lista[0], lista.length > 1 ? lista : null);
           });
         }
 
@@ -2067,7 +2189,7 @@ const LEGEND = [
          * bläddring i foten; ligger den ensam blir det ett vanligt kort.
          */
         function valjNal(i: number) {
-          const p = alla[i];
+          const p = punktMed(i);
           if (!p) return;
           const lista = gruppFor(p);
           visaKort(lista.length > 1 ? lista[0] : p, lista.length > 1 ? lista : null);

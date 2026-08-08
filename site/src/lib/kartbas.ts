@@ -28,14 +28,8 @@
  * maplibre-gl 6 har ingen default-export. Destrukturera namn ur modulen,
  * skriv aldrig `mod.default`.
  */
-import {
-  FACE_EYE_LEFT,
-  FACE_EYE_RIGHT,
-  FACE_FILL,
-  FACE_MOUTH,
-  FACE_MOUTH_WIDTH,
-  type FaceKey,
-} from './face';
+import { type FaceKey } from './face';
+export { faceSvg, PIN_W, PIN_H } from './kartnal';
 
 /**
  * Vår egen kartstil, byggd av scripts/kartstil.mjs och utlagd som statisk
@@ -66,68 +60,6 @@ export function laddaMaplibreCss(): void {
 export function laddaMaplibre(): Promise<any> {
   return import(/* @vite-ignore */ MAPLIBRE_URL);
 }
-
-/**
- * Nålen: droppe, färgad fyllning, VIT KONTUR, mjuk skugga, vit min inuti.
- *
- * Formen är den som Google, Apple och Ednia använder, och den valdes av ett
- * skäl som inte är smak: en droppe PEKAR. En kvadrat måste man gissa
- * mittpunkten på, medan spetsen säger exakt vilken adress det gäller.
- * Därför ska nålen alltid ankras i underkanten — spetsen ska ligga på
- * koordinaten, inte märkets mitt.
- *
- * Den vita konturen är inte dekoration. Kartbotten är färgad, och utan
- * kontur drunknar en gul nål i en gul gata och en grön i en park. Konturen
- * ger varje nål en egen kant mot vad som helst under sig, vilket är exakt
- * varför de tre nämnda kartorna alla har den.
- *
- * Minen är vit. Det är inte ett val här utan en regel som redan står i
- * tokens.css: symbolen på märket är alltid vit. Banorna kommer ur
- * lib/face.ts, samma modul som FaceSprite och FaceRef läser, så nålen på
- * kartan är samma tecken som märket i listan.
- *
- * `streckad` ritar den vita konturen streckad i stället för hel. Det är
- * konventionen för en HÄRLEDD koordinat, geokodad ur adressen i stället för
- * lämnad av kommunen: samma grepp som kartors streckade preliminära gränser,
- * och samma konvention som verksamhetssidans nål har haft sedan den var en
- * statisk bild. En streckad kant säger "punkten är inte fastställd" utan att
- * påstå hur långt fel den kan vara.
- */
-export function faceSvg(key: FaceKey, streckad = false): string {
-  const [from, to] = FACE_FILL[key];
-  // Ansiktets innehåll spänner x 33,7–68,7 och y 33–69 i sin egen 100-ruta.
-  // Mitten ligger alltså på (51,2, 51), och den punkten flyttas till
-  // droppens cirkelmitt (50, 46) och skalas till 72 procent.
-  const face =
-    `<g transform="translate(50 46) scale(.72) translate(-51.2 -51)">` +
-    `<path d="${FACE_EYE_LEFT}" fill="#fff"/><path d="${FACE_EYE_RIGHT}" fill="#fff"/>` +
-    `<path d="${FACE_MOUTH[key]}" stroke="#fff" stroke-width="${FACE_MOUTH_WIDTH}" ` +
-    `stroke-linecap="round" fill="none"/></g>`;
-
-  const kontur = streckad ? ' stroke-dasharray="13 9"' : '';
-
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="132" viewBox="0 0 100 132">` +
-    `<defs>` +
-    `<linearGradient id="g" x1="50" y1="4" x2="50" y2="120" gradientUnits="userSpaceOnUse">` +
-    `<stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient>` +
-    `<filter id="s" x="-50%" y="-20%" width="200%" height="160%">` +
-    `<feGaussianBlur in="SourceAlpha" stdDeviation="3"/>` +
-    `<feOffset dy="3"/><feComponentTransfer><feFuncA type="linear" slope="0.35"/>` +
-    `</feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/>` +
-    `</feMerge></filter>` +
-    `</defs>` +
-    `<path filter="url(#s)" d="M50 124C50 124 87 74 87 46A37 37 0 1 0 13 46C13 74 50 124 50 124Z" ` +
-    `fill="url(#g)" stroke="#fff" stroke-width="7" stroke-linejoin="round"${kontur}/>` +
-    face +
-    `</svg>`
-  );
-}
-
-/** Droppens proportion är 100×132. Vid pixelRatio 2 blir nålen 36×47
- *  CSS-pixlar, alltså i nivå med märket i listan. */
-export const PIN_W = 72;
-export const PIN_H = 95;
 
 /** Nålen som bitmapp, för MapLibres addImage. Symbol-lager kan inte rita
  *  SVG direkt, så droppen rasteriseras via en canvas. `streckad` följer med
