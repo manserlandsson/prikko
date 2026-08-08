@@ -192,6 +192,40 @@ första vy 2,6 kB. Den dyraste tänkbara vyn i landet, maxzoom mitt på Norrmalm
 kostar 84 kB, alltså fortfarande mindre än vad Stockholm kostar i dag för att
 bara öppna kartan.
 
+### Byggt och kört i webbläsaren
+
+Pipelinen ligger nu i `src/lib/kartrutor.ts` och `src/lib/pmtiles.ts`, och
+arkivet skrivs av rutten `pages/kartrutor/[file].pmtiles.ts`. Bygget säger:
+
+```
+Rutarkivet kartrutor/punkter-6646b77a6cfe.pmtiles går att läsa: 1,31 MB,
+1 720 rutor, z0-14. Tyngsta provade rutan z14/9014/4817 är 50,3 kB uppackad
+med 856 features.
+```
+
+Grinden i `scripts/kartrutegrind.mjs` öppnar den färdiga filen med det
+officiella `pmtiles`-paketet, packar upp pyramidens topp och landets tätaste
+ruta, och kräver att varje bubbla bär `ez` och `bx`. En egen skrivare utan en
+mätning är ett löfte.
+
+Arkivet är sedan laddat i MapLibre 6 i en riktig webbläsare, mot vår egen
+kartstil, över en server som svarar `206 Partial Content`:
+
+| | Utfall |
+|---|---|
+| z4 över Sverige | 5 bubblor, 0 nålar, 13 577 verksamheter summerade |
+| z15 över Sergels torg | 691 nålar, noll bubblor |
+| Attribut på en nål | `{i, v, m, nm: "Stockholm Inn Hotel & Cafe", ty: "Café", dt, k}` |
+| Attribut på en bubbla | `{point_count: 9465, point_count_abbreviated: "9.5k", ez: 5, bx: "17.19714,59.23140,18.20097,60.02940"}` |
+| Fel i konsolen | inga |
+| Överfört under hela sessionen | nio räckviddssvar, 655 byte till 26 kB styck, omkring 165 kB totalt |
+
+Den sista raden är hela poängen. Arkivet är 1,31 MB och webbläsaren hämtade
+aldrig det: den läste huvudet, katalogen och de rutor den behövde.
+
+`pmtiles`-läsaren väger 18,4 kB minifierad, alltså ungefär 7 kB brotlad, och
+laddas bara på kartsidan.
+
 ### Maxzoom 14, och varför inte högre
 
 | maxzoom | arkiv | rutor | största ruta |
@@ -294,36 +328,47 @@ nålarnas placering vid hög zoom, och är en försämring vi tar bara om vi tvi
 
 ### Vad Booli faktiskt gör
 
-Mätt i webbläsaren, inte hämtat ur minnet.
+**Källkritik först, eftersom det är en stående regel här.** Raderna nedan är av
+två slag, och de får inte blandas ihop.
+
+MÄTT i webbläsaren vid ett tidigare tillfälle, och nedskrivet i
+`KartaPuff.astro` där mätningen gjordes:
 
 | | Booli | Vi |
 |---|---|---|
-| Spaltbredder vid 1440 px | `43rem 1fr`: lista 688 px vänster, karta 752 px höger, noll gap | Samma. Vår lista ligger redan till vänster. |
-| Brytpunkter | 1024 px: `32rem 1fr`. 1280 px: `43rem 1fr` | Samma trappa |
-| Sidhuvud | 64 px, `position: fixed` | 58 px inklusive hårlinje, satt i `Header.astro` |
-| Kartans höjd | `position: fixed`, dokumentet skrollar under | **Vi avviker, se nedan** |
-| Filterhuvud över listan | 252 px | Rubrik plus filterfält |
-| Kort | en spalt, 688 px breda, 226 px höga, bild 308 × 172 till vänster | två spalter utan bild |
-| Sidindelning | 36 kort per sida, inte oändlig rullning | de 60 första i utsnittet |
-| Utsnittet i adressen | **nej**, bara `areaIds`. Panorering ändrar inte URL:en | **Vi avviker, se nedan** |
-| Kort → nål | hover lyfter nålen | har vi |
-| Nål → kort | kort på kartan, listan rör sig inte | vi rullar dessutom fram raden |
-| Under 1024 px | kartan tas bort helt, knapp "Visa karta" ger helskärm | **ark i tre lägen, behålls** |
-| "Sök när jag flyttar kartan" | finns inte | finns inte |
+| Vid 1440 px | kartan är ett FAST lager på hela högra halvan, 752 × 836 px | Samma mått. Vår lista ligger redan till vänster. |
+| Listspalten | 688 px, rullar bredvid | Samma bredd |
+| Vid 390 px | listan och kartan byter plats via knappen "Visa karta" i kontrollraden överst, 40 px hög med 4 px radie, inte en svävande knapp ovanpå innehållet | **Vi avviker: ark i tre lägen, se nedan** |
+
+ÄNNU INTE MÄTT av oss, och därför inte talat om som fakta. En mätning är
+beställd och tabellen fylls i när den kommer. Ingen av punkterna blockerar
+arbetet, eftersom de rör kortens form och inte arkitekturen:
+
+- Exakt `grid-template-columns` och var brytpunkterna ligger.
+- Sidhuvudets höjd och om det ligger kvar när listan rullar.
+- Hur högt filterhuvudet över listan är och vad det består av.
+- Kortens mått, om de ligger i en eller två spalter, och bildstorleken.
+- Om det är sidindelning eller oändlig rullning i listan.
+- Om URL:en bär kartans utsnitt, och om panorering gör nätverksanrop.
+
+Det vi däremot vet om oss själva och som avgör de tre avvikelserna nedan står i
+våra egna filer: `pages/[kommun]/karta.astro` för app-ytan, `Karta.astro` för
+fragmentet och arket, `Header.astro` för sidhuvudets 58 px.
 
 ### De tre ställen vi avviker, och varför
 
-**1. App-yta, inte dokument.** Booli låter dokumentet skrolla 14 631 px och
-spikar kartan med `position: fixed`. Vår sida fyller exakt höjden under
-sidhuvudet och skrollar aldrig på sidnivå; listan skrollar i sin egen spalt.
+**1. App-yta, inte dokument.** Boolis karta är ett FAST lager, alltså ligger
+den still medan dokumentet rullar under den. Vår sida fyller i stället exakt
+höjden under sidhuvudet och skrollar aldrig på sidnivå; listan skrollar i sin
+egen spalt.
 Det är ett avgjort ärende och inte en smakfråga: det var ägarens andra klagomål
 på raken om skroll på den här sidan, och en sticky karta löste det aldrig
 eftersom teckenförklaring och sidfot låg kvar under och gav sidan en svans.
 Motiveringen står redan i `pages/[kommun]/karta.astro` och ändras inte här.
 
-**2. Adressen bär utsnittet.** Booli gör det inte. Ägaren har begärt att den
-gör det hos oss, och han har rätt: en delad vy som inte går att dela är en app
-och inte en sida. `#map=zoom/lat/lng` finns redan, läses redan av
+**2. Adressen bär utsnittet.** Om Booli gör det är ännu inte mätt, och det
+spelar mindre roll: ägaren har begärt att adressen gör det hos oss, och han har
+rätt. En delad vy som inte går att dela är en app och inte en sida. `#map=zoom/lat/lng` finns redan, läses redan av
 `Karta.astro`, och är OpenStreetMaps form. Det utvidgas till att bära filter,
 med `&` mellan nycklarna precis som OSM gör:
 
@@ -342,8 +387,9 @@ tillbaka till fragmentet själv.
 Skrivningen sker med `history.replaceState`, aldrig `location.hash =`, annars
 fyller varje panorering historiken så att bakåtknappen slutar fungera.
 
-**3. Kartan finns kvar under 1024 px.** Booli tar bort den och ger en
-växelknapp. Vi har ett ark i tre lägen som redan är byggt, redan godkänt och
+**3. Kartan finns kvar på smal skärm.** Booli växlar mellan lista och karta med
+knappen "Visa karta" vid 390 px, alltså två vyer man hoppar emellan och aldrig
+ser samtidigt. Vi har ett ark i tre lägen som redan är byggt, redan godkänt och
 redan låser dokumentet med `lib/page-lock.ts`. Det byggs inte om.
 
 ### Beteendet per skärm
@@ -351,13 +397,15 @@ redan låser dokumentet med `lib/page-lock.ts`. Det byggs inte om.
 | | Karta | Lista | Filter |
 |---|---|---|---|
 | **Skrivbord, 1280 px och uppåt** | höger, 752 px vid 1440, fyller höjden under sidhuvudet, skrollar aldrig | vänster, 688 px vid 1440, skrollar i egen spalt, två kortspalter | fält i listhuvudet |
-| **Surfplatta, 1024 till 1279 px** | höger, `32rem 1fr` alltså listan 512 px | vänster, EN kortspalt, annars blir korten smalare än sin egen text | samma fält |
+| **Surfplatta, 1024 till 1279 px** | höger, listan krymper till omkring 512 px och kartan tar resten | vänster, EN kortspalt, annars blir korten smalare än sin egen text | samma fält |
 | **Under 1024 px** | hela ytan, bakom arket | ark underifrån i tre lägen: remsa, halv, hel. `page-lock` låser dokumentet så länge arket är uppe | i arkets huvud, följer med när arket dras |
 | **Utan JavaScript** | ingenting | vanligt dokument: rubrik, sextio serverrenderade rader, länk till hela listan | inget |
 
+Talen för surfplattan är satta av oss och inte hämtade från någon, eftersom
+Boolis brytpunkter ännu inte är mätta. De ska mätas innan de skrivs in i CSS.
+
 Kortens form, en spalt mot två och bild mot ingen bild, är formgivningsarbete
-och ligger utanför den här planen. Booli-måtten står i tabellen ovan för den
-som tar det arbetet.
+och ligger utanför den här planen.
 
 ---
 
