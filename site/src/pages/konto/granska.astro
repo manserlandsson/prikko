@@ -1,4 +1,5 @@
 ---
+import Maskot from '../../components/Maskot.astro';
 /**
  * Granskning.
  *
@@ -81,6 +82,10 @@ import '../../styles/konto.css';
       <ol class="granska-ko" id="ko"></ol>
 
       <p class="granska-tomt" id="tomt" hidden>
+        {/* Maskoten i tomt läge. Kön nämner ingen verksamhet när den är tom,
+            och den här sidan är intern. Statisk, av samma skäl som överallt
+            annars: en loop parallellt med annat innehåll utlöser WCAG 2.2.2. */}
+        <Maskot pose="tom" size={88} />
         Kön är tom. Ingenting väntar på ett beslut.
       </p>
     </div>

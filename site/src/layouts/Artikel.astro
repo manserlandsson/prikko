@@ -1,4 +1,5 @@
 ---
+import Maskot from '../components/Maskot.astro';
 /**
  * Layout för en författad artikel.
  *
@@ -156,6 +157,14 @@ const jsonLd = {
     <slot />
 
     <section class="method">
+      {/* Maskoten som avsändare, och det är hela skälet till att han står just
+          här. Rutan säger att artiklarna är skrivna av Prikko, alltså är detta
+          en byline och inte dekoration. Ytan är dessutom den enda i en artikel
+          där ingen enskild verksamhet nämns, så den bärande regeln håller.
+
+          Posen är `soker`: han förklarar, han dömer inte. En artikel är den yta
+          där tjänsten är mest pedagogisk och minst myndighetsutövande. */}
+      <Maskot pose="soker" size={72} class="byline" />
       <h2>Om artikeln</h2>
       <p>
         Artiklarna är skrivna och redigerade av Prikko, till skillnad från
@@ -174,6 +183,26 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Figuren flyter till höger så att rubriken och texten lindar sig runt den.
+     Första försöket var absolut positionerad i rutans hörn och lade sig i
+     samma rad som rubriken. Ett absolut positionerat element vet ingenting om
+     texten bredvid, och rubrikens längd ändras med språket och bredden.
+
+     Statisk, ingen rörelse: rutan står under hela artikeln, och NN/g:s
+     specifika varning gäller rörliga bilder intill stillastående text. */
+  .method :global(.byline) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-4);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 640px) {
+    .method :global(.byline) {
+      float: none;
+      margin: 0 0 var(--s-2);
+    }
+  }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

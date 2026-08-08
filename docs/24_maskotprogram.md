@@ -83,6 +83,23 @@ bara säger att en sida är tom.
 | **Om, metod, kontakt** | `clean` | Sidor där tjänsten talar om sig själv. |
 | **Delningsbilder** | Valfritt | Kommunikation, inte produkt. Se nedan. |
 
+### Frekvensregeln
+
+**Ju fler gånger en användare ser figuren, desto starkare skäl krävs för att
+behålla den.** En yta som återkommer på mer än ett par hundra av våra 15 916
+sidor är per definition högfrekvent och ska ha korthet före charm.
+
+Regeln är inte en åsikt. Intuit om tomma lägen: "Repeated exposure to the same
+message may result in delightful content becoming irritating over time." NN/g om
+felmeddelanden: "Avoid humor since it can become stale if users encounter the
+error frequently."
+
+Regeln har redan kostat en yta. **Sidfoten var beställd som en liten signatur och
+byggdes, men togs bort igen**, eftersom sidfoten ligger på samtliga 15 916 sidor
+och därmed är den mest högfrekventa ytan som finns. Wordmarken gör redan
+signaturens jobb där. Beslutet står öppet för ägaren, men figuren ska i så fall
+tas in med öppna ögon om vad den kostar i uttröttning.
+
 ### Får aldrig synas
 
 1. **Bredvid en bedömning av en namngiven verksamhet.** Verksamhetssidans
@@ -90,13 +107,35 @@ bara säger att en sida är tom.
 2. **I en lista, i mängd.** Maskoten är ett per sida. En figur som upprepas
    femtio gånger på en skärm slutar vara en karaktär och blir ett mönster.
 3. **I en bedömningsfärg.** Aldrig grön, gul eller röd. Se ovan.
-4. **På granskningslistan** eller någon annan yta som pekar ut ett företag som
-   misskött. Där är figuren inte bara olämplig, den är ett omdöme.
+4. **På matsnusklistan.** Ett namngivet undantag, eftersom frågan ställdes och
+   kommer att ställas igen. Matsnusk är en bedömning av namngivna verksamheter
+   och den hårdaste vi gör: den listar ställen där brister kvarstod efter
+   kommunens uppföljning. En grävling bredvid namnet på en sådan restaurang gör
+   vårt allvarligaste påstående till ett skämt, och det är exakt den invändning
+   en verksamhet skulle använda mot oss den dagen de hör av sig. Ingen figur på
+   matsnusk, i helfigur eller på annat sätt.
 5. **I felmeddelanden som beror på användaren**, till exempel ett formulär som
    inte gick igenom. En figur som ser bekymrad ut när någon skrivit fel läser
    som att den tycker något om personen.
-6. **I sidhuvud och sidfot.** Där bor ordmärket. En maskot som alltid syns
-   slutar betyda något.
+6. **I sidhuvud och sidfot.** Där bor ordmärket. Regeln ifrågasattes för
+   sidfoten och prövades i bygget, men föll på frekvensregeln ovan.
+
+7. **Som avsändare av text i första person.** Han talar inte. Ingen "Hej, jag
+   är Prikko och jag har grävt fram". Behöver något sägas är det tjänsten som
+   säger det, i redaktionell text. Alla tre förebilderna har samma regel
+   skriven: Mailchimp "he does not talk. Don't write in his voice", Reddit "Do
+   not put words in Snoo's mouth", Duolingo "Duo doesn't talk or make sounds".
+
+8. **I feltillstånd.** Serverfel, misslyckad inskickning, trasig data: ikon och
+   text, ingen figur, inget skämt, inget hoppsan, inget utropstecken. GitHubs
+   eget produktdesignsystem är entydigt: "If a Blankslate is being used to
+   convey an error state, the graphic should not attempt to bring delight or be
+   playful. Instead, the graphic should reinforce that something went wrong."
+   Google skriver rakt ut: "Don't attempt to make error messages humorous."
+
+   Skillnaden mot ett tomt läge är vem som orsakat det. "Du har inga notiser
+   än" är ett normalläge och får figur. "Det gick inte att spara" är ett fel och
+   får ikon.
 
 ---
 
@@ -130,41 +169,182 @@ tummen ned. Alla fyra läser som omdömen om en person.
 
 ## 4. Rörelsen
 
-Sajten har tre rörelser totalt och alla är korta. Maskoten ändrar inte det.
+Sajten har tre rörelser totalt och alla är korta. Maskoten ändrar inte det, och
+efter research ändrades den här delen i grunden.
 
-### Regler
+### Den regel som styr allt annat: WCAG 2.2.2
 
-1. **Rörelse bara där figuren är ensam på ytan.** Aldrig i en lista, aldrig i
-   ett märke bredvid en verksamhet.
-2. **Aldrig bredvid en bedömning.** En figur som rör sig bredvid "brister som
-   kvarstår" är värre än en som står still där, eftersom rörelse drar blicken.
-3. **`prefers-reduced-motion` gäller alltid**, och regeln är global i
-   `tokens.css`. Varje pose är dessutom ritad som ett giltigt stillbildsläge,
-   så det som blir kvar när rörelsen stängs av är korrekt och inte halvfärdigt.
-4. **Loopar hålls under en sekund** och står stilla däremellan, eller loopar
-   inte alls. Gångcykeln är 0,68 sekunder.
+**Ingen loopande rörelse får finnas på en yta där annat innehåll syns
+samtidigt.** Det är inte en smakfråga utan ett krav på nivå A.
 
-### Vad som finns
+WCAG 2.2.2 Pause, Stop, Hide säger att allt som rör sig, startar automatiskt,
+varar mer än fem sekunder och visas parallellt med annat innehåll måste ha en
+mekanism för att pausa, stoppa eller dölja. En loop uppfyller aldrig
+femsekundersvillkoret, eftersom den aldrig tar slut.
 
-**Gångcykeln.** Åtta bildrutor med ojämna hålltider, 90, 70, 70, 110, 90, 70,
-70, 110 ms. Kontaktlägena ligger kvar längre än passeringarna, och det är
-skillnaden mellan billigt och dyrt: en ren `steps(8)` håller varje ruta lika
-länge och den jämnheten läser ögat som mekanisk. Squash och stretch i kroppen,
-och ansiktet släpar en ruta efter kroppen.
+Två vägar ut, och vi använder båda:
 
-Den ligger som **egen fil**, `site/public/maskot/gang.svg`, och inte i HTML:en.
-Åtta rutor är omkring 118 kB, vilket är oförsvarbart inlinat och gratis som
-cachad fil som bara laddas där den används.
+1. **Låt rörelsen ta slut.** Alla våra rörelser är engångsrörelser utlösta av
+   något som hänt. Ingen loopar.
+2. **Eller visa den ensam på ytan.** W3C:s eget exempel är en laddningsindikator
+   som ligger ensam på skärmen och därför inte behöver pausknapp. Det är enda
+   stället där en loop är tillåten hos oss.
 
-**Bedömningsmärkets två rörelser** lever kvar men är omritade mot grävlingens
-geometri: munnens uppritning använder nu `pathLength="1"` i stället för ett
-hårdkodat streckmönster, och blinkningen animerar ögonlockets egen geometri i
-stället för att skala ett lock vars båda kanter rör sig åt olika håll.
+En enda ospelbar loop kan underkänna hela sidan. Kostnaden för att ha fel här är
+alltså inte proportionell mot hur kul rörelsen är.
 
-Blinkningen gäller **bara vid `clean`**. Att låta en verksamhet med brister
-blinka vore att sockra ett underkännande.
+### Vad Duolingo faktiskt säger om rörelse
 
----
+Deras varumärkesguide har ingen rörelsesektion alls. Reglerna ligger i
+skrivguiden, under Duos And Duon'ts, och lyder ordagrant: "Duo mostly stands
+still", "Duo makes slight, expressive movements, like waving or pumping his
+fist", "Duo doesn't make any sudden or quick movements".
+
+Deras egen produkt bekräftar det. På lärvägen, alltså huvudytan, laddas noll
+canvaselement och inga riggade figurfiler: varje figur där är en statisk SVG.
+Rive går in på lektionsytan, inte på navigationsytan.
+
+### Rörelserna
+
+Åtta namngivna, alla engångs utom en. Längderna ligger inom det spann Material,
+Carbon, Atlassian och NN/g är överens om, alltså 200 till 500 ms för synlig men
+inte stor rörelse.
+
+| Namn | Roll | Längd | Var |
+|---|---|---|---|
+| `arrive` | Ankomst, sätter sig | 420 ms | Enbart startsidans hero, en gång per session |
+| `blink` | Livstecken | 120 ms | Enbart hero, max tre inom 4,5 s, sedan stilla |
+| `perk` | Spetsar öron | 380 ms | Hover och fokus på figuren själv eller sökknappen |
+| `nod` | Bekräftelse | 260 ms | När en sökning gett träffar. En gång per handling |
+| `dig` | Väntan, gräver | 900 ms, **enda tillåtna loopen** | Enbart laddyta där inget annat visas |
+| `wince` | Bekymmer | 480 ms | Tomt resultat eller fel. En gång |
+| `cheer` | Glädje | 650 ms | Sällsynt positiv händelse |
+| `wave` | Avsked | 520 ms | 404 och slutet på en lång lista. En gång |
+
+Gemensamt: efterföljning på två bildrutor, alltså 83 ms vid 24 fps, för öron och
+svans mot kroppen. Ingen översläng på färg eller opacitet, bara på position och
+skala, vilket är Material 3:s enda auktoritativa regel om översläng.
+
+**Samma rörelse spelas aldrig två gånger på samma sidvisning.** NN/g:s
+testdeltagare, ordagrant: "this was nice the first time, but now it's getting
+annoying".
+
+Vid `prefers-reduced-motion: reduce`: behåll `nod`, `wince` och `cheer` som ren
+opacitetsväxling med samma timing, eftersom WCAG uttryckligen undantar färg och
+opacitet från motion animation. Ta bort `arrive`, `perk` och `wave` helt. Ersätt
+`dig` med en stillbild. Använd `0.001ms` plus `animation-iteration-count: 1`, och
+inte `animation: none`, som bryter `animationend`-lyssnare.
+
+### Gångcykeln, och varför den inte används ännu
+
+Åtta bildrutor med ojämna hålltider, 90, 70, 70, 110, 90, 70, 70, 110 ms.
+Kontaktlägena ligger kvar längre än passeringarna, och det är skillnaden mellan
+billigt och dyrt: en ren `steps(8)` håller varje ruta lika länge och den
+jämnheten läser ögat som mekanisk.
+
+Summan är 680 ms. Richard Williams tabell säger 16 bildrutor vid 24 fps för
+tecknad gång, alltså 667 ms. Cykeln ligger på 16,3 rutor och är därmed rätt
+timad mot den klassiska normen.
+
+Den ligger som egen fil, `site/public/maskot/gang.svg`, och används **ingenstans
+än**. Skälet är regeln överst: en gående grävling bredvid innehåll är precis den
+ambient loop som utlöser WCAG 2.2.2. Den hör hemma i en laddyta där den ligger
+ensam, och den ytan finns inte byggd ännu.
+
+### Tekniken, och varför inte Rive
+
+Bildrutor med CSS `steps()`. Det är den enda tekniken som samtidigt ger fri
+formändring, noll körtid och fungerande `prefers-reduced-motion`.
+
+Rive utreddes på riktigt den här gången, eftersom det tidigare valdes bort på en
+princip i stället för på ett tal. Talen: canvas-lite kostar 412 kB gzip, alltså
+87 kB JavaScript plus 325 kB WebAssembly. Det är 1,5 gånger hela vår
+MapLibre-installation på 271 kB gzip, och kartan finns bara på kartsidorna medan
+maskoten finns överallt. Därtill 150 till 400 ms kompilering på en snabb dator,
+mer på mobil, och figuren är osynlig tills skriptet kört om vi inte bygger en
+egen fallback.
+
+Principen om lite JavaScript avgjorde alltså inte. Talet gjorde det. Hade Rive
+kostat 40 kB vore svaret ett annat.
+
+Vad bildrutor inte klarar, och som Duolingo faktiskt använder Rive till: blanda
+två tillstånd samtidigt, kombinera åtta huvuden med åtta kroppar till 64
+varianter, reagera kontinuerligt på indata, och läppsynka mot tal. Inget av det
+finns i vårt behov. Åtta diskreta engångsrörelser är precis vad bildrutor är bra
+på.
+
+Två fällor att undvika: CSS-egenskapen `d` ser ut att lösa formändring utan
+skript men har ingen effekt i Safari, och SMIL fungerar överallt men kan inte
+stängas av vid reduced motion utan JavaScript.
+
+### Bedömningsmärkets två rörelser
+
+De lever kvar och är omritade mot grävlingens geometri. Munnens uppritning
+använder `pathLength="1"` i stället för ett hårdkodat streckmönster, och
+blinkningen animerar ögonlockets egen geometri i stället för att skala ett lock
+vars båda kanter rör sig åt olika håll.
+
+Blinkningen gäller bara vid `clean`. Att låta en verksamhet med brister blinka
+vore att sockra ett underkännande.
+
+## 4b. Vad forskningen säger emot oss
+
+Det starkaste motargumentet mot en maskot i vår kategori är inte estetiskt.
+
+Puzakova, Kwak och Rocereto, *When Humanizing Brands Goes Wrong*, Journal of
+Marketing 77: en förmänskligad varumärkesfigur kan **försämra** bedömningen när
+något gått fel, eftersom en levande figur uppfattas ha avsikter och felet därmed
+läses som avsiktligt. En senare studie i European Journal of Marketing pekar på
+att effekten slår till vid moraliska fel men inte vid kompetensfel.
+
+Det är precis vår situation: vi rapporterar andras fel. Slutsatsen är inte att
+maskoten ska bort, utan att den bärande gränsen i §2 är den rätta gränsen, och
+att den inte får förhandlas bort yta för yta.
+
+Ett varningsexempel som är värt att känna till: en dansk kro gjorde en
+satirvideo av sin neutrala smiley och fick över 350 000 visningar, med budskapet
+att märkningen inte skiljer på matsäkerhet och administrativa krav. **Figuren
+blir själv skämtobjektet när bedömningen upplevs som orättvis.** Vår metodik
+skiljer redan på administrativa avvikelser och brister, se `docs/11` och
+metodiksidan, och det är också vårt bästa skydd mot samma sak.
+
+## 4c. Kontrollen: så här ser andra på samma gräns
+
+Uppmätt i deras egna produkter och manualer.
+
+**Duolingo.** Duo finns i onboarding, i interstitials mellan uppgifter, i
+notiser och i app-ikonen. Han finns **inte** inne i själva övningen, inte vid
+rätt svar, inte vid fel svar, inte på laddskärmen, inte i hjälpcentret och inte
+på villkorssidan. Rätt och fel svar bärs av en bock och ett kryss, inte av
+figuren.
+
+**Mailchimp**, ur deras designpersona: "Freddie does not ever give application
+feedback, stats, or help a user with a task." Och: "In critical situations like
+when a server goes down, or a credit card is declined, MailChimp drops the humor
+and speaks directly."
+
+**GitHub**, publikt: "Don't use mascots to explain, interrupt, or sell." Och:
+"Don't use mascots for serious topics. Money, security, sales, enterprise
+offerings, apologies, politics or crises should have proper copywriting,
+illustration, and visuals."
+
+**Reddit**: märket är Snoos huvud och det är "always blank, like a canvas".
+Maskoten själv är ett separat, uttrycksfullt material.
+
+Mönstret är detsamma hos alla fyra, och det är exakt vår delning: **märket är en
+uttryckslös abstraktion, maskoten är ett separat material med miner.**
+
+**Danska smileyordningen**, som är närmast oss: tre ansikten i minimal linjekonst,
+ingen kropp, inga armar, ingen personlighet, ingen maskot. Grossistledet får
+siffror i stället för ansikten. Verksamhet utan kontroll får ett neutralt
+registreringsmärke, inte en fjärde min. De tog dessutom bort ett av fyra ansikten
+2022 eftersom konsumenter inte kunde avkoda dem.
+
+**Svenska och nordiska myndigheters designsystem** reglerar färg, ikon och
+typografi men inte illustration, av det enkla skälet att de inte har någon.
+Frånvaron är svaret. Brittiska ONS är den enda som skriver ut principen: "Where
+more sensitive topics are being presented, icons would be best to use as
+supporting imagery over illustrations."
 
 ## 5. Produkt och kommunikation är två discipliner
 
@@ -188,7 +368,21 @@ bredvid ett företagsnamn är samma fel som i produkten, bara i ett annat format
 - Tomma lägen är ännu inte byggda. Sökningen utan träffar renderas i
   webbläsaren och behöver en egen lösning.
 - Startsidans hero är beslutad i princip men inte byggd.
-- Utmärkelsen och matsnuskmärket bär i dag ordmärkets smiley. Om grävlingen är
-  maskoten hör han troligen hemma där också, men det är ett större beslut och
-  ett eget uppdrag: båda märkena laddas ner och sätts i fönster av verksamheter,
-  alltså lämnar de sajten och kan inte ändras i efterhand.
+- **Utmärkelsen är ett öppet val, och det är ägarens.** Den är gränsfallet åt
+  andra hållet: en glad grävling bredvid någon som klarat sig är beröm och inte
+  hån, så den bärande regeln stoppar den inte.
+
+  *För:* det är den enda ytan där en verksamhet frivilligt sätter upp vårt märke
+  i sitt fönster, alltså vår mest spridda yta. En figur är mer minnesvärd än ett
+  ordmärke, och beröm är det enda sammanhang där en maskot är oantastlig.
+
+  *Emot:* märket laddas ner och lämnar sajten, så det går inte att ändra i
+  efterhand. Det som sitter i ett fönster sitter kvar i åratal, även om vi ritar
+  om figuren. Utmärkelsen är dessutom ett formellt erkännande, och ju mer den
+  liknar ett institutionellt intyg desto mer väger den. En figur drar åt andra
+  hållet. Och märket blir svårare att göra i tryck och i en färg.
+
+  Byggs inte förrän beslutet är fattat.
+
+- Matsnuskmärket bär i dag ordmärkets smiley och ska fortsätta göra det. Se
+  förbudet ovan.

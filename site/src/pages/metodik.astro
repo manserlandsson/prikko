@@ -12,6 +12,7 @@
  */
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
+import Maskot from '../components/Maskot.astro';
 import {
   HISTORY_DEPTH,
   limitedMunicipalities,
@@ -135,7 +136,15 @@ const jsonLd = {
       </p>
     </header>
 
-    <section>
+    <section class="nivaer-sektion">
+      {/* Maskoten granskar, och det är precis vad avsnittet handlar om. Här
+          förklarar tjänsten sin egen metod, alltså finns ingen namngiven
+          verksamhet på skärmen och den bärande regeln håller.
+
+          Märkena i listan nedanför är DATA, alltså de tre bedömningsfärgerna.
+          Figuren är AVSÄNDARE och är därför blå. Att de två står i samma
+          avsnitt är själva poängen: den som ser efter, och det han kan säga. */}
+      <Maskot pose="soker" size={80} class="granskaren" />
       <h2>De tre nivåerna</h2>
       <p>
         Nivåerna beskriver vad som hänt, inte hur allvarligt vi tycker att det
@@ -553,6 +562,36 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Figuren flyter till höger så att texten lindar sig runt den i stället för
+     att ligga under den. Första försöket var absolut positionerad i avsnittets
+     hörn, och den lade sig rakt ovanpå brödtexten. Ett absolut positionerat
+     element vet ingenting om texten bredvid, och en textmängd som ändras med
+     innehållet kan aldrig hållas fri med en fast koordinat.
+
+     Statisk, ingen rörelse. Metodiksidan är den yta där sajten förklarar sig
+     själv, och rörelse här hade dragit blicken från just det man ska läsa.
+     Duolingos egen regel om Duo är "mostly stands still", och NN/g:s specifika
+     varning gäller rörliga bilder intill stillastående text. */
+  .nivaer-sektion :global(.granskaren) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  /* Listan med de tre nivåerna får aldrig hamna bredvid figuren. Den har egna
+     märken i rad, och två figurer i samma höjd läser som en jämförelse de inte
+     är. */
+  .levels {
+    clear: right;
+  }
+
+  @media (max-width: 700px) {
+    .nivaer-sektion :global(.granskaren) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

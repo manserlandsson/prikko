@@ -1,4 +1,5 @@
 ---
+import Maskot from '../../components/Maskot.astro';
 /**
  * Notiser.
  *
@@ -68,7 +69,18 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
           Nya bedömningar hos verksamheter du bevakar, och besked om dina omdömen.
         </p>
         <ul class="konto-list notis-list" id="list"></ul>
-        <p class="konto-empty" id="empty">Du har inga notiser än.</p>
+        {/* Maskoten i tomt läge. Ytan är rätt enligt den bärande regeln: en
+            tom notislista nämner ingen verksamhet, och det är sajten som talar
+            till en inloggad person om hens eget konto.
+
+            Statisk. Rörelse här hade brutit mot WCAG 2.2.2, som kräver en
+            paus-, stopp- eller döljkontroll för allt som rör sig mer än fem
+            sekunder parallellt med annat innehåll. En loop uppfyller aldrig
+            femsekundersvillkoret. */}
+        <div class="konto-empty" id="empty">
+          <Maskot pose="tom" size={96} />
+          <p>Du har inga notiser än.</p>
+        </div>
       </section>
     </div>
   </div>

@@ -282,6 +282,21 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
   flex: none;
 }
 
+/* Tomma lägen bär numera maskoten, och då är rutan en stapel och inte en rad.
+   Figuren står över texten och centreras med den. Regeln gäller bara när det
+   FINNS en figur, så gamla textrader med samma klass ser ut som förut. */
+.konto-empty:has(svg) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: center;
+}
+
+.konto-empty:has(svg) p {
+  margin: 0;
+}
+
 .konto-empty {
   margin-top: var(--s-3);
   font-size: var(--fs-body-s);
