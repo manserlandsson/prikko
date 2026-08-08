@@ -1,8 +1,11 @@
 # Dependencies
 node_modules/
 
-# Byggartefakter
-dist/
+# Byggartefakter. Mönstret täcker prefixet och inte bara dist/, eftersom bygget
+# rutinmässigt körs med --outDir dist-<namn> när flera agenter arbetar samtidigt.
+# Med enbart dist/ blir resultatet ett fyrtiotal ospårade men oignorerade
+# byggkataloger i site/, tiotals gigabyte som ett enda git add -A skulle svälja.
+dist*/
 .astro/
 .output/
 .vercel/
