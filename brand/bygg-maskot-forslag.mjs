@@ -22,9 +22,9 @@ import { writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STIL } from './maskot-ark-stil.mjs';
-import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER, DUOJAMFORELSE, OGONEN } from './maskot-ark-text.mjs';
+import { INGRESS, RESEARCH, FALTET, LAGEN, DETEKTIV, BETYDELSE, VARUMARKE, NAMN, REGLER, DUOJAMFORELSE, OGONEN, INKOPPLING } from './maskot-ark-text.mjs';
 import { ritning } from './maskot-ark-ritning.mjs';
-import { RECEPT, omfarga, BAKGRUND } from './maskot-ark-marke.mjs';
+import { RECEPT, omfarga, BAKGRUND, kontrast } from './maskot-ark-marke.mjs';
 import { GANG_STANDARD, gangKeyframes, blinkSmil, remsa, REMSA_CSS } from './maskot-ark-rorelse.mjs';
 import { baraMunnen, BREDD, TJOCKLEK, RADIE, RIKTNING, pilhojd } from './maskot-mun.mjs';
 
@@ -38,13 +38,16 @@ const HAR = dirname(fileURLToPath(import.meta.url));
 
    Ordningen här är inte en rangordning. Den figur som ritats om enligt den nya
    metoden, alltså med riktiga ögon, står först. */
-const ARTER = ['gravling', 'vatte', 'utter', 'tvattbjorn', 'hund'];
+/* Ägaren har valt. Grävlingen är maskoten, allt annat är historik och raderas
+   inte men får ingen mer tid. */
+const ARTER = ['gravling'];
+const HISTORIK = ['utter', 'vatte', 'tvattbjorn', 'hund', 'kameleont'];
 /* Kandidater delas automatiskt: den som har META.raka är omritad enligt den
    omvända metoden, alltså med riktiga ögon, och tävlar på nya villkor. Den
    som saknar fältet är kvar i sin gamla form och visas kort, eftersom den
    inte är jämförbar förrän den fått ögon. */
 const arOmritad = (m) => typeof m.META?.raka === 'number';
-const FALLNA = ['kameleont'];
+const FALLNA = [];
 const FALLSKAL = {
   kameleont: 'Ägarens eget uppslag, och det enda djur där färgbytet är artens egenskap. Föll på språket och inte på formen: SAOB ger kameleont om en person som "med egen fördel för ögonen, ändrar mening eller uppträder helt olika allt efter omständigheterna", alltså anpassling och opportunist. Vår tjänst går ut på motsatsen. Dessutom lanserade Singapores bankförening 2024 antibedrägerimaskoten Leon the Skameleon, där kameleonten står för BEDRAGAREN som byter färg för att smälta in. Det är konsumentskydd, alltså vår kategori, med rakt motsatt symbolik. SUSE äger dessutom kameleonten i teknikvärlden sedan 2000.',
 };
@@ -579,6 +582,146 @@ function harledning(m) {
 </div>`;
 }
 
+
+/* ── Bevisproven för grävlingen ──────────────────────────────────────────
+ *
+ * Ägaren valde märket, inte figuren: "speciellt den enkla med, så denna:
+ * Inramat läge. Detta ÄR bedömningsmärket. 96, 64, 40, 24 och 16 px."
+ *
+ * De fem storlekarna är därför hans lista och måttet i varje prov här. Något
+ * som bara fungerar i 96 är inte klart.
+ */
+const STORLEKAR = [96, 64, 40, 24, 16];
+
+/** Stödjer modulen en parameter? Prövas genom att jämföra två utfall. */
+function stodjer(m, nyckel, a, b) {
+  try {
+    return m.figur({ size: 100, ansikte: true, [nyckel]: a })
+        !== m.figur({ size: 100, ansikte: true, [nyckel]: b });
+  } catch { return false; }
+}
+
+/** En rad med de tre bedömningarna i alla fem storlekarna. */
+function femRad(m, extra = {}, gra = false) {
+  return `<div class="rad mitt"${gra ? ' style="filter:grayscale(1)"' : ''}>
+    ${STORLEKAR.map((z) => `<span style="display:flex;gap:${Math.max(4, z / 8)}px;align-items:center;margin-right:22px">
+      ${TONER.map((t) => inramat(m, { size: z, ton: t, uttryck: t, ...extra })).join('')}
+    </span>`).join('')}
+  </div>`;
+}
+
+/**
+ * PLATTANS TON. Ägaren: "kanske den ska ha bakgrund som är lite lite starkare
+ * av originalfärgen men samtidigt ljus".
+ *
+ * Villkoret som avgör är inte smak utan kontrast: huvudets kontur måste synas
+ * mot plattan, också i gråskala, också i 16 px. Blir plattan för ljus smälter
+ * konturen in, vilket är samma fel som gjorde det första inramade förslaget
+ * till en klump. Blir den för mättad slutar den läsa som bakgrund.
+ */
+function plattprov(m) {
+  if (!stodjer(m, 'platta', 0, 4)) {
+    return `<div class="block"><h4>Plattans ton</h4><div class="ruta">
+      <p class="note" style="margin:0">Figuren har ännu ingen <code>platta</code>-parameter,
+      så stegen kan inte visas. Provet byggs så fort modulen exponerar den.</p></div></div>`;
+  }
+  const steg = [0, 1, 2, 3, 4];
+  const matt = m.PLATTA_TONER
+    ? `<table style="margin-top:14px"><tr><th>Steg</th>${TONER.map((t) => `<th>${TON_ETIKETT[t]}</th>`).join('')}</tr>
+       ${steg.map((i) => `<tr><td>${i}${i === 0 ? ', dagens' : ''}</td>${TONER.map((t) => {
+         const platta = m.PLATTA_TONER[t]?.[i];
+         const huvud = m.PALETT?.[t]?.bas;
+         if (!platta || !huvud) return '<td>saknas</td>';
+         return `<td><code>${platta}</code><br>${kontrast(platta, huvud).toFixed(2)}:1 mot huvudet</td>`;
+       }).join('')}</tr>`).join('')}</table>`
+    : '';
+  return `<div class="block">
+  <h4>Plattans ton. Fem steg, valet görs i 24 px</h4>
+  <div class="ruta">
+    ${steg.map((i) => `<div style="margin-bottom:16px">
+      <span class="note" style="display:block;margin-bottom:6px"><b>Steg ${i}</b>${i === 0 ? ', dagens ljusa' : ''}</span>
+      ${femRad(m, { platta: i })}
+      ${femRad(m, { platta: i }, true)}
+    </div>`).join('')}
+    <p class="note" style="margin:8px 0 0">Övre raden i färg, undre i gråskala. Villkoret är
+    inte smak utan kontrast: huvudets kontur måste synas mot plattan också i gråskala och
+    också i 16 px. För ljus platta ger en klump, för mättad slutar läsa som bakgrund.</p>
+    ${matt}
+  </div>
+</div>`;
+}
+
+/**
+ * ISOLERINGSPROVEN. Det prov som begärts tre gånger och aldrig levererats.
+ *
+ * Med bara EN bärare aktiv i taget syns det svart på vitt om bäraren faktiskt
+ * bär. Går de tre bedömningarna inte att skilja åt när enbart brynen ändras,
+ * är brynsystemet inte färdigt, oavsett hur bra hela ansiktet ser ut.
+ */
+function isoleringsprov(m) {
+  const har = stodjer(m, 'isolera', 'bryn', 'mun');
+  if (!har) {
+    return `<div class="block"><h4>Isoleringsproven</h4><div class="ruta">
+      <p class="note" style="margin:0">Figuren har ännu ingen <code>isolera</code>-parameter.
+      Provet byggs så fort modulen exponerar den.</p></div></div>`;
+  }
+  const block = (nyckel, rubrik, text) => `<div style="margin-bottom:22px">
+    <span class="note" style="display:block;margin-bottom:6px"><b>${rubrik}</b> ${text}</span>
+    ${femRad(m, { isolera: nyckel })}
+    ${femRad(m, { isolera: nyckel }, true)}
+  </div>`;
+  return `<div class="block">
+  <h4>Isoleringsproven. Bär bäraren?</h4>
+  <p class="note" style="max-width:680px">Allt utom en bärare låses till clean-läget. Går de
+  tre bedömningarna att skilja åt ändå, bär den bäraren. Går de inte det gör den det inte,
+  hur bra hela ansiktet än ser ut tillsammans. Övre raden i färg, undre i gråskala.</p>
+  <div class="ruta">
+    ${block('bryn', 'Endast brynen skiljer.', 'Mun, ögonlock, pupiller och huvudlutning är identiska i alla tre.')}
+    ${block('mun', 'Endast munnen skiljer.', 'Bryn, ögonlock, pupiller och huvudlutning är identiska i alla tre.')}
+    <div>
+      <span class="note" style="display:block;margin-bottom:6px"><b>Allt samverkar.</b> Så här ser märket ut i drift.</span>
+      ${femRad(m)}
+      ${femRad(m, {}, true)}
+    </div>
+  </div>
+</div>`;
+}
+
+/**
+ * AMPLITUDEN. Ägaren: "vi ska göra det tydligare att han är arg med munnen och
+ * ögonbrynen".
+ *
+ * Grundregeln i karaktärsdesign är att överdriva och sedan mäta, eftersom små
+ * storlekar äter nyans. Ett bryn som ser lagom argt ut i 96 px är osynligt i 24.
+ * Valet görs därför i 24-pixelsraden och kontrolleras sedan i 96.
+ */
+function amplitudprov(m) {
+  if (!stodjer(m, 'amp', 1, 2)) {
+    return `<div class="block"><h4>Amplituden i det röda uttrycket</h4><div class="ruta">
+      <p class="note" style="margin:0">Figuren har ännu ingen <code>amp</code>-parameter.
+      Provet byggs så fort modulen exponerar den.</p></div></div>`;
+  }
+  const steg = [1, 1.5, 2];
+  return `<div class="block">
+  <h4>Amplituden. Överdriv, och mät sedan</h4>
+  <p class="note" style="max-width:680px">Tre steg på brynvinkel och munnens bågdjup.
+  <b>Välj i 24-pixelsraden, inte i 96.</b> Det är den storlek märket oftast visas i, i listor
+  och sökträffar, och det minsta värde som fortfarande läser tydligt argt där är rätt värde.
+  Blir samma värde grotesk i 96 är svaret två detaljnivåer, inte ett svagare uttryck i båda.</p>
+  <div class="ruta">
+    ${steg.map((a) => `<div style="margin-bottom:16px">
+      <span class="note" style="display:block;margin-bottom:6px"><b>amp ${a}</b>${a === 1 ? ', dagens' : ''}</span>
+      ${femRad(m, { amp: a })}
+      ${femRad(m, { amp: a }, true)}
+    </div>`).join('')}
+    <p class="note" style="margin:8px 0 0">Gränsen: argt, inte elakt. Vi rapporterar en
+    kontroll, vi anklagar ingen. Inga tänder, ingen sned mun, inga smala rovdjursögon. Och
+    gult är det svåra fallet: när rött blir kraftigare måste gult fortfarande vara entydigt
+    skilt från både grönt och rött, och läsa som tveksamhet snarare än som glad eller arg.</p>
+  </div>
+</div>`;
+}
+
 function kort(m, nr) {
   const e = m.META;
   const ny = typeof e.raka === 'number';
@@ -602,6 +745,9 @@ function kort(m, nr) {
     </div></div>
   </div>
 
+  ${plattprov(m)}
+  ${amplitudprov(m)}
+  ${isoleringsprov(m)}
   ${rorelseprov(m)}
   ${uttrycksprov(m)}
   ${ritning(m)}
@@ -634,9 +780,8 @@ function galleri(moduler) {
 /* ── Bygget ──────────────────────────────────────────────────────────── */
 
 const alla = (await Promise.all(ARTER.map(las))).filter(Boolean);
-const moduler = alla.filter(arOmritad);
-const gamla = alla.filter((m) => !arOmritad(m));
-const fallna = (await Promise.all(FALLNA.map(las))).filter(Boolean);
+const historik = (await Promise.all(HISTORIK.map(las))).filter(Boolean);
+const moduler = alla;
 
 /** Kort ruta för en tolkning som valts bort. Grundpose, tre tillstånd, skälet. */
 function fallkort(m) {
@@ -651,41 +796,40 @@ function fallkort(m) {
 </div>`;
 }
 
-const gamlaSektion = gamla.length ? `<h2>Väntar på omritning</h2>
-<p class="read">De här två är kvar i tävlingen men ännu inte omritade med riktiga ögon,
-och de är därför inte jämförbara med de tre ovan. De visas som de ser ut i dag, med de
-gamla prickögonen, plus rundhetsmätningen som säger var problemet sitter.</p>
-${gamla.map((m) => {
+const HISTSKAL = {
+  utter: 'Kom längst av utmanarna. Betydelsen är sann och stark: uttern måste putsa pälsen konstant för att överleva, alltså ett djur där renlighet är ett livsvillkor och inte en vana. Ögonen bar de nio uttrycken bäst av alla. Föll på siluetten: i ren kontur läser den som björnunge eller murmeldjur, eftersom arten bärs av morrhår, mule och svans, alltså av det som försvinner först vid nedskalning.',
+  vatte: 'Bäst betydelse av alla, och den enda idé en oberoende granskare sa sig minnas en vecka senare, luvspetsen som visare. Institutet för språk och folkminnen beskriver tomtegubben som ett väsen som sopade, höll ordning, krävde renlighet och straffade slarv. Föll på tre ting: den är inte ett djur, den läser som troll eller liten djävul i rött läge, och dess ögon var två koncentriska perfekta cirklar, alltså Duos ögonkonstruktion rakt av, med ett ögonpar på 74 procent av märkets bredd mot Duos 63.',
+  tvattbjorn: 'Tekniskt tydligast av alla i 24 px och den enda som klarade gråskaleprovet i båda lägena. Föll på tre saker som inte går att rita bort: Naturvårdsverket och Havs- och vattenmyndigheten säger uttryckligen att tvättbjörnen INTE tvättar sin mat, arten är EU-listad invasiv och förbjuden i Sverige, och figuren blev den mest generiskt söta på arket. Mäter dessutom 300 raka linjekommandon.',
+  hund: 'Det mest ritade djuret som finns, och metaforen är bokstavlig på samma sätt som Dockers val med containrar på ryggen. Bortvalet av nosknappen var en riktig idé, hela mulen är nosen. Föll på läsbarheten: ansiktet satt felplacerat i märkets ruta, grönt och gult gick inte att skilja åt i gråskala i 16 px, och figuren läser som krokodil. Mäter 90 raka linjekommandon.',
+  kameleont: 'Ägarens eget uppslag, och det enda djur där färgbytet är artens egenskap. Föll på betydelsen och inte på formen: SAOB ger kameleont om en person som "med egen fördel för ögonen, ändrar mening eller uppträder helt olika allt efter omständigheterna", alltså anpassling och opportunist, vilket är motsatsen till vårt löfte. Singapores bankförening lanserade dessutom 2024 antibedrägerimaskoten Leon the Skameleon, där kameleonten står för BEDRAGAREN. Det är vår kategori med omvänd symbolik. SUSE äger kameleonten i teknikvärlden sedan 2000.',
+};
+
+/* Historiken sparas i sin helhet. Ett bortval som går att gå tillbaka till är
+   värt något, ett som bara finns i ett chattflöde är det inte. */
+const historikSektion = historik.length ? `<h2>Historiken. De fem som inte blev det</h2>
+<p class="read">Sparade, inte raderade. Alla ritades färdigt innan någon valde, vilket var
+hela poängen med att gå brett: ett bortval mot en färdig ritning är värt något, ett mot en
+beskrivning är det inte. Här är de med skälet, och de får ingen mer tid.</p>
+${historik.map((m) => {
   const raka = (m.figur({ size: 120 }).match(/[LHVlhv]\s*[-\d.]/g) || []).length;
   return `<div class="kort" style="margin:16px 0">
   <h4 style="margin-bottom:6px">${m.META.namn}</h4>
   <div class="taggar">
-    <span class="tagg varning">Gamla prickögon</span>
     <span class="tagg ${raka < 10 ? 'ok' : 'varning'}">${raka} raka linjekommandon</span>
     <span class="tagg">${m.META.former} former</span>
   </div>
   <div class="ruta"><div class="rad mitt">
-    ${m.figur({ size: 150 })}
-    ${TONER.map((t) => m.figur({ size: 72, ton: t, uttryck: t })).join('')}
+    ${m.figur({ size: 130 })}
+    ${TONER.map((t) => m.figur({ size: 64, ton: t, uttryck: t })).join('')}
     ${TONER.map((t) => inramat(m, { size: 40, ton: t, uttryck: t })).join('')}
   </div></div>
-  <p class="note" style="margin:12px 0 0">${m.META.egenhet} <b>Svaghet:</b> ${m.META.svaghet}</p>
+  <p class="note" style="margin:12px 0 0">${HISTSKAL[m.art] ?? ''}</p>
 </div>`;
 }).join('')}` : '';
 
-const fallnaSektion = fallna.length ? `<h2>Den som föll</h2>
-<p class="read">Alla fem ritades färdigt innan någon valde. Det är hela poängen med att
-gå brett först: ett bortval som är gjort mot en färdig ritning är värt något, ett bortval
-som är gjort mot en beskrivning är det inte. Här är de tre, med skälet.</p>
-${fallna.map(fallkort).join('')}` : '';
-if (!moduler.length) {
-  console.error('Inga figurmoduler hittades i brand/maskot/. Inget att bygga.');
-  process.exit(1);
-}
+const gamlaSektion = '';
+const fallnaSektion = '';
 
-/* Korten renderas FÖRE dokumentet. Gång-keyframesen genereras nämligen inne
-   i rorelseprov(), och en template literal evalueras vänster till höger, så
-   ett style-block som skrivs före korten hade blivit tomt. */
 const korten = moduler.map((m, i) => kort(m, i + 1)).join('');
 
 const html = `<!doctype html>

@@ -722,3 +722,81 @@ right with wide eyes and a smile, overlaying a round background". Vi har nu wide
 måste posen, inramningen och paletten bära avståndet i stället.</p>
 </div>
 `;
+
+export const INKOPPLING = `
+<h2>Inkopplingen. Vad ett byte faktiskt innebär</h2>
+
+<p class="read">Grävlingen är vald, men ingenting i <code>site/</code> är rört och ska inte
+röras förrän beskedet kommer. Det här avsnittet finns för att beslutet ska kunna fattas med
+kostnaden känd. Kartläggningen är gjord i koden, inte gissad.</p>
+
+<div class="kort">
+<h4>Sanningen bor på två ställen i dag</h4>
+<p><b><code>site/src/lib/face.ts</code></b> är geometrin: ögonbanor, tre munbanor,
+gradientstopp, ringfärger. <b><code>site/src/components/FaceMark.astro</code></b> är
+komponenten, och den bär i dag en EGEN KOPIA av samma banor. Filens egen kommentar säger
+det rakt ut: den borde importera från modulen men redigerades av annan hand samtidigt.</p>
+<p><b>Det är den första uppgiften, och den är värd att göra oavsett vad som händer med
+maskoten:</b> slå ihop de två så att det finns en enda sanning. Ett maskotbyte mot två
+divergerande kopior är hur man får ett halvbytt märke.</p>
+</div>
+
+<div class="kort">
+<h4>Elva filer rör märket. De faller i tre grupper.</h4>
+<table>
+<tr><th>Grupp</th><th>Filer</th><th>Vad bytet innebär</th></tr>
+
+<tr><td><b>1. Komponenten</b></td>
+<td><code>FaceMark.astro</code>, <code>lib/face.ts</code></td>
+<td>Här sker själva bytet. Grävlingens beskurna ansikte ersätter dagens två prickar och
+båge inuti samma rundade kvadrat, 100-ruta med rx 17, som står kvar oförändrad. Propsen
+<code>verdict</code>, <code>size</code>, <code>variant</code>, <code>animate</code> och
+<code>wink</code> kan behållas rakt av, alltså behöver ingen anropsplats ändras.</td></tr>
+
+<tr><td><b>2. Spriten och kartan</b></td>
+<td><code>FaceSprite.astro</code>, <code>lib/kartbas.ts</code>, <code>lib/sokforslag.ts</code>,
+<code>Karta.astro</code>, <code>KartaPuff.astro</code>, <code>Platskarta.astro</code></td>
+<td>Här sitter den verkliga kostnaden, och den är en prestandafråga. Spriten finns för att
+Stockholms hubb hade 8 511 rader och varje inlinat märke var omkring 700 byte, alltså den
+enskilt största posten i ett 11 MB-dokument. Grävlingens ansikte är fler banor än två
+prickar och en båge. <b>Symbolen måste därför byggas ur den FÖRENKLADE varianten, inte den
+rika</b>, och bytet ska mätas i dokumentstorlek innan det går live. Kartnålarna i
+<code>kartbas.ts</code> serialiseras dessutom till data-URI:er, där varje extra bana
+kostar i varje nål.</td></tr>
+
+<tr><td><b>3. Rena anropsplatser</b></td>
+<td><code>Header.astro</code>, <code>KommunHub.astro</code>, <code>[kommun]/[slug].astro</code>,
+<code>metodik.astro</code>, <code>404.astro</code>, <code>FaceRef.astro</code>,
+<code>JamforRuta.astro</code>, <code>MatsnuskSeal.astro</code>, <code>sok.astro</code>,
+<code>HeroVektor.astro</code></td>
+<td>Behöver inte ändras alls om propsen hålls. De ärver bytet. Två undantag som ska ses
+över för hand: <code>404.astro</code> och tomma lägen, där grävlingens FRIA figur är bättre
+än märket, och <code>Header.astro</code>, där ordmärkets ansikte blinkar och bör stämma med
+figurens nya öga.</td></tr>
+</table>
+</div>
+
+<div class="kort">
+<h4>Fyra saker som måste bestämmas innan bytet, inte under</h4>
+<ol class="steg">
+<li><b>Den runda varianten.</b> FaceMark har <code>variant="round"</code>, en vit cirkel med
+färgad ring, och spriten bär bara den. Rundad kvadrat är vår ram för maskoten, av
+varumärkesskäl: i Buc-ee's mot Mickey's 2026 var grunden att båda figurerna låg på en
+<b>rund</b> bakgrund. Antingen får den runda varianten behålla dagens prickansikte, eller
+så avvecklas den. Det är ett eget beslut.</li>
+<li><b>Gradienten försvinner.</b> Dagens box-variant bär en linjär gradient. Maskotens regel
+är noll gradienter, verifierat i fyra officiella Duo-filer. Bytet gör alltså märket plattare,
+vilket är avsett men syns.</li>
+<li><b>Blinkningen.</b> <code>wink</code> gäller i dag bara vid <code>clean</code>, med
+motiveringen att blinkningen förstärker ett gott besked och att låta ett underkännande
+blinka vore att sockra det. Den regeln bör överleva bytet ordagrant.</li>
+<li><b>Två detaljnivåer i kod.</b> Rik variant över 32 px, förenklad under. Gränsen är mätt.
+Den behöver bli en prop eller en automatisk regel på <code>size</code>, annars kommer
+någon att rendera det rika ansiktet i 16 px.</li>
+</ol>
+</div>
+
+<p class="note">Ordningen jag föreslår: slå först ihop <code>face.ts</code> och
+<code>FaceMark.astro</code> till en sanning, byt sedan geometrin där, mät dokumentstorleken
+på Stockholms hubb före och efter, och rör kartan sist.</p>
+`;
