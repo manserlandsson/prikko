@@ -193,6 +193,62 @@ function lastmodFor(pathname) {
  * Integrationen måste ligga EFTER sitemap i `integrations`: hookarna körs i
  * arrayordning, och sitemap-0.xml finns inte förrän sitemap kört sin.
  */
+/**
+ * Grinden mot CSS som svalt sitt eget stylesheet.
+ *
+ * En saknad avslutande klammer i ett scopeat <style> är INTE ett syntaxfel.
+ * CSS-nästling är giltig syntax, så allt som står efter den trasiga regeln
+ * blir i stället nästlat INUTI den. Bygget säger ingenting, loggen är tom, och
+ * filen ser normal ut. Reglerna gäller bara i det tillstånd den yttre
+ * selektorn beskriver.
+ *
+ * Det hände 2026-08-08 och kostade oss ett halvt dygn i två skepnader som
+ * ingen kopplade ihop: fördelningsstapeln i kommunpanelen försvann, och
+ * verksamhetssidans sidopanel la sig ovanpå texten på telefon. Båda berodde på
+ * att `.jamfor-knapp:hover` saknade sin klammer. Sist i den svalda svansen låg
+ * `@media (max-width: 900px)`, alltså mediefrågan som lägger sidopanelen under
+ * huvudkolumnen, och utan den pressades huvudkolumnen till noll pixlars bredd
+ * av den fasta 300-pixelsspalten.
+ *
+ * Vakten letar därför efter nästling i det MINIFIERADE resultatet, som är där
+ * felet blir synligt. Sajten skriver ingen nästling för hand, så varje träff är
+ * ett fel. Skulle vi någon gång vilja använda nästling med avsikt är rätt
+ * åtgärd att lista den filen som undantag här, med skälet skrivet, inte att ta
+ * bort vakten.
+ */
+function nestingGuard() {
+  return {
+    name: 'prikko:nesting-guard',
+    hooks: {
+      'astro:build:done': ({ dir, logger }) => {
+        const out = fileURLToPath(dir);
+        const traffar = [];
+
+        for (const file of globSync('**/*.css', { cwd: out })) {
+          const css = readFileSync(`${out}${file}`, 'utf8');
+          /* `}& ` och `;& ` är hur en nästlad regel ser ut efter minifiering:
+             en avslutad deklaration eller regel följd av nästningsväljaren. */
+          const antal = (css.match(/[};]&[\s.#\[:]/g) ?? []).length;
+          if (antal > 0) traffar.push(`${file}: ${antal}`);
+        }
+
+        if (traffar.length > 0) {
+          throw new Error(
+            'CSS-nästling i byggd stilfil. Nästan alltid en saknad avslutande\n' +
+              '  klammer i ett <style>-block: allt efter den trasiga regeln har\n' +
+              '  hamnat inuti den och gäller bara i dess tillstånd.\n\n' +
+              traffar.map((t) => `    ${t}`).join('\n') +
+              '\n\n  Sök i site/src efter det senast ändrade stilblocket och räkna\n' +
+              '  klamrarna. Se prikko:nesting-guard i astro.config.mjs.',
+          );
+        }
+
+        logger.info('inga nästlade CSS-regler, alltså inget svalt stilark.');
+      },
+    },
+  };
+}
+
 function sitemapGuard() {
   return {
     name: 'prikko:sitemap-guard',
@@ -270,6 +326,7 @@ export default defineConfig({
       },
     }),
     sitemapGuard(),
+    nestingGuard(),
     /* Vaktar de fyra regler som gör att arken inte hoppar på telefon.
        Grinden bor i scripts/inloggningsgrind.mjs och förklarar sig själv. */
     inloggningsgrind(),

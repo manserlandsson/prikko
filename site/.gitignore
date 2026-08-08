@@ -25,3 +25,8 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# Byggkataloger från parallella agenter. Bygget körs med --outDir dist-<namn>,
+# och .gitignore täckte bara dist/, så ett fyrtiotal kataloger på över en
+# gigabyte låg och väntade på nästa git add -A.
+dist-*/
