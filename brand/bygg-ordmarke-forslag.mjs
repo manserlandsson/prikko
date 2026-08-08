@@ -168,6 +168,62 @@ const html = `<!doctype html>
     </div>
   </div>
 
+  <h2>Vad provet gav</h2>
+  <div class="read">
+    <p>Renderat och avläst i sidhuvudets verkliga höjd, inte på ett vitt ark.
+    Svaret är obekvämt och tydligt.</p>
+  </div>
+
+  <div class="kort">
+    <h4>Ansiktet bär inte inuti ordet</h4>
+    <p><b>Variant B och D faller</b>, och de faller på geometri och inte på smak.
+    Smileyns plats i ordet är x-höjd hög. I ett sidhuvud på 36 px betyder det att
+    ansiktet får vara omkring 14 px. Grävlingens ansikte har ögonvita, pupill, bryn,
+    band och mun. Fem drag i fjorton pixlar blir en blå fläck, och i 20 px höjd blir
+    det en prick. I gråskala försvinner det helt.</p>
+    <p>Det är samma sak som gjorde att märket behövde tre detaljnivåer, och slutsatsen
+    är densamma: <b>ett ansikte som ska bära i litet format måste få egen höjd.</b>
+    Inuti ordet finns ingen höjd att ge det.</p>
+    <p class="note">D har dessutom ett eget problem: två små rutor bredvid ordet läser
+    som två ikoner, inte som ett ansikte, och i gråskala som två fläckar.</p>
+  </div>
+
+  <div class="kort">
+    <h4>Variant C är den enda som fungerar, och den ändrar mest</h4>
+    <p>När ansiktet står FÖRE ordet är det inte längre bundet till x-höjden. Det får
+    hela märkets höjd, alltså 36 px i sidhuvudet i stället för 14, och då bär dragen.
+    Det är också den konstruktion fältet använder: Duolingo, Reddit, GitHub och
+    Mailchimp har alla symbolen som en egen enhet bredvid eller i stället för ordet,
+    aldrig inbakad i en bokstav.</p>
+    <p>Priset är att det är ett riktigt byte. Ordet tappar sitt ansikte och blir ren
+    text, och märket blir bredare, vilket märks mest i 375 px där sidhuvudet är trångt.</p>
+  </div>
+
+  <div class="kort">
+    <h4>Variant A är den ärliga mellanvägen</h4>
+    <p>Ordmärket behåller exakt sin form, men smileyns ögon och båge får grävlingens
+    proportioner. Släktskapet syns när man vet om det, och ingenting går sönder i
+    någon storlek eftersom formen är oförändrad.</p>
+    <p>Det är också den enda varianten som inte kostar något: favikon, delningsbild,
+    mejlbild och tryckt material fungerar som förut.</p>
+  </div>
+
+  <div class="kort">
+    <h4>Rekommendationen, och varför den är delad</h4>
+    <p><b>Vill du att grävlingen ska vara central, är C den enda vägen.</b> B och D
+    ser ut som en kompromiss men är i praktiken ingen förändring alls, eftersom
+    ansiktet inte syns i de storlekar märket faktiskt används i.</p>
+    <p><b>Vill du inte byta logga, ta A och låt det vara.</b> Figuren är redan central
+    på de ytor där han får vara: favikonen, app-ikonen, 404, tomma lägen, artiklarna,
+    metodiken och mejlet. Att pressa in honom i ordmärket för att det känns som att
+    han borde synas mer är fel skäl att ändra en logotyp.</p>
+    <p class="note">En sak till att väga in, och den drar åt A: en rundad kvadrat med
+    ett djuransikte som logotyp är exakt Duolingos app-ikonkonstruktion. Så länge
+    ansiktet bara är vårt bedömningsmärke är avståndet stort, eftersom märket bär
+    data och deras bär varumärke. Blir samma form vår LOGOTYP möts de två i samma
+    roll, och då är det posen, inramningen och paletten som ska bära avståndet.</p>
+  </div>
+
   <h2>Varianterna</h2>
   <p class="read">Från minsta till största ingrepp. Alla i Prikkoblå, aldrig i en
   bedömningsfärg: loggan är avsändare och inte data, och den delningen står i
