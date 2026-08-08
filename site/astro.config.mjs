@@ -2,6 +2,7 @@
 import { globSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import { inloggningsgrind } from './scripts/inloggningsgrind.mjs';
 import { kartrutegrind } from './scripts/kartrutegrind.mjs';
@@ -315,6 +316,11 @@ export default defineConfig({
   site: 'https://prikko.se',
 
   integrations: [
+    /* Artiklarna är .mdx för att en text ska kunna visa ett diagram där talet
+       annars stått i löptext. Ligger först i arrayen: sitemapGuard nedan läser
+       de färdiga sidorna, och MDX måste vara registrerad innan samlingen
+       laddas. Rapporterna påverkas inte, de är TypeScript och inte innehåll. */
+    mdx(),
     sitemap({
       // Kvalitetsgrind: no-indexade sidor får aldrig hamna i sitemap.
       filter: (page) => !excluded.has(new URL(page).pathname),

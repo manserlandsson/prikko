@@ -5,7 +5,7 @@
  *
  * Samma mönster som stadsfotona i KommunKort.astro. Bilderna upptäcks från
  * filsystemet, och namnet på filen ÄR kopplingen: heter artikeln
- * `sa-laser-du-en-hygienkontroll.md` heter bilden
+ * `sa-laser-du-en-hygienkontroll.mdx` heter bilden
  * `sa-laser-du-en-hygienkontroll.jpg`. Ingen sökväg att skriva av i tolv
  * frontmatterblock, och ingen sökväg som pekar fel dagen en artikel byter
  * filnamn.
@@ -70,14 +70,14 @@ export function articleImage(
 
   if (src && !meta) {
     throw new Error(
-      `src/assets/artiklar/${slug}.jpg finns, men ${slug}.md saknar image: i frontmattern. ` +
+      `src/assets/artiklar/${slug}.jpg finns, men ${slug}.mdx saknar image: i frontmattern. ` +
         'En bild utan alt-text får inte publiceras. Se src/content/artiklar/README.md.',
     );
   }
   if (meta && !src) {
     throw new Error(
-      `${slug}.md har image: i frontmattern, men src/assets/artiklar/${slug}.jpg saknas. ` +
-        'Bilden hittas på artikelns slug, så filen måste heta exakt som .md-filen.',
+      `${slug}.mdx har image: i frontmattern, men src/assets/artiklar/${slug}.jpg saknas. ` +
+        'Bilden hittas på artikelns slug, så filen måste heta exakt som .mdx-filen.',
     );
   }
   if (!src || !meta) return null;

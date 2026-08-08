@@ -6,10 +6,10 @@ Den här filen är instruktion, inte artikel. Den är undantagen i
 ## Var filen ska ligga
 
 ```
-site/src/assets/artiklar/<samma namn som artikelns .md-fil>.jpg
+site/src/assets/artiklar/<samma namn som artikelns .mdx-fil>.jpg
 ```
 
-Filnamnet **är** kopplingen. Artikeln `sa-laser-du-en-hygienkontroll.md` får
+Filnamnet **är** kopplingen. Artikeln `sa-laser-du-en-hygienkontroll.mdx` får
 sin bild från `sa-laser-du-en-hygienkontroll.jpg`. Ingen sökväg skrivs någonstans
 i frontmattern, och byter en artikel filnamn ska bilden byta namn med den.
 

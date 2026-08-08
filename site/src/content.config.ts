@@ -22,7 +22,7 @@ const artiklar = defineCollection({
    * sin egen glob för sitemapen. Glider de två isär hamnar /artiklar/readme/ i
    * sitemapen utan att sidan finns, och sitemapGuard stoppar bygget.
    */
-  loader: glob({ pattern: ['*.md', '!README.md'], base: './src/content/artiklar' }),
+  loader: glob({ pattern: ['*.mdx', '!README.md'], base: './src/content/artiklar' }),
   schema: z.object({
     /** H1 och länktext. Base lägger till varumärket i <title>. */
     title: z.string().min(10).max(80),
