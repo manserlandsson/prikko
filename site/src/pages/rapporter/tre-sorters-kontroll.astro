@@ -12,6 +12,7 @@
  * vore en rapport som inte går att lita på.
  */
 import Rapport from '../../layouts/Rapport.astro';
+import Stapel from '../../components/Stapel.astro';
 import { formatNumber } from '../../lib/data';
 import { MIN_FOLLOW_UPS, formatShare, inspectionTypeReport } from '../../lib/rapporter';
 import { path } from '../../lib/urls';
@@ -112,22 +113,17 @@ const typeGapNote =
 
   <section>
     <h2>Andel kontroller med anmärkning</h2>
-    <ul class="bars">
-      {r.types.map((t) => (
-        <li>
-          <div class="row">
-            <span class="name">{t.label}</span>
-            <span class="num">{formatShare(t.share)} %</span>
-          </div>
-          <div class="track">
-            <div class="bar" style={`width: ${(t.share / scale) * 100}%`}></div>
-          </div>
-          <p class="text-secondary note">
-            {formatNumber(t.withRemark)} av {formatNumber(t.total)} kontroller.
-          </p>
-        </li>
-      ))}
-    </ul>
+    <Stapel
+      scale={scale}
+      avdelare
+      label="Andel kontroller med anmärkning per kontrollslag"
+      rows={r.types.map((t) => ({
+        label: t.label,
+        value: t.share,
+        display: `${formatShare(t.share)} %`,
+        note: `${formatNumber(t.withRemark)} av ${formatNumber(t.total)} kontroller.`,
+      }))}
+    />
 
     {gapNote && <p>{gapNote}</p>}
     {eventNote && <p>{eventNote}</p>}
@@ -227,55 +223,5 @@ const typeGapNote =
     line-height: var(--lh-body-s);
   }
 
-  .bars {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .bars li {
-    padding: var(--s-4) 0;
-    border-top: 1px solid var(--hairline);
-  }
-
-  .bars li:last-child {
-    border-bottom: 1px solid var(--hairline);
-  }
-
-  .row {
-    display: flex;
-    gap: var(--s-4);
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  .name {
-    font-weight: 600;
-  }
-
-  .num {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .track {
-    margin-top: var(--s-2);
-    height: 8px;
-    border-radius: var(--r-pill);
-    background: var(--hairline);
-    overflow: hidden;
-  }
-
-  .bar {
-    height: 100%;
-    border-radius: var(--r-pill);
-    background: var(--brand);
-    min-width: 2px;
-  }
-
-  .note {
-    margin-top: var(--s-2);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
+  /* Staplarna ritas av components/Stapel.astro, med avdelare. */
 </style>

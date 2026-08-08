@@ -211,6 +211,39 @@
 /* Antalet är tabellens huvudtal och står i bläck. */
 .kedja-tabell .antal { font-weight: 600; }
 
+/* Ställen-kolumnen sattes förut av sitt innehåll, och "11" är sextio pixlar
+   smalt. En stapel i den bredden hade inte kunnat visa skillnaden mellan tre
+   och trettio. Kommunnamnet är kolumnen som har plats att ge. */
+.kedja-tabell tr > *:nth-child(2) { width: 5.5rem; }
+
+/* Stapeln under antalet. Den växer åt vänster från talets högerkant, så att
+   den delar kant med sin egen siffra och inte kan läsas som en rad-summering.
+   Grå och aldrig bedömningens färger: en kedja med många ställen i en kommun
+   är varken bra eller dåligt, det är bara många.
+
+   INGET SPÅR. Första försöket hade ett ljust spår bakom fyllningen, som på
+   rapportsidorna. Det gick inte att läsa på 7-Eleven, som har 44 ställen i
+   Stockholm och ett i var och en av de tre andra kommunerna: tre rader fick
+   en tvåpixels fyllning i ett spår som gick hela vägen, och de tomma spåren
+   såg ut som understrykningar under talen i stället för som data. Ednia gör
+   likadant i sin högskolelista, där det inte finns någon ränna alls. Utan
+   spår ritas ingen tomhet, och en etta blir en liten stump i stället för en
+   nästan tom ränna. */
+.kedja-tabell .stallen-spar {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+}
+
+.kedja-tabell .stallen-spar > span {
+  display: block;
+  height: 100%;
+  margin-left: auto;
+  border-radius: var(--r-pill);
+  background: var(--text-muted);
+  min-width: 2px;
+}
+
 /* Utfallskolumnerna är stödtal: en grad mindre och tysta. */
 .kedja-tabell .tyst {
   font-size: var(--fs-caption);

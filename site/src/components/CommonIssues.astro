@@ -19,6 +19,7 @@
  */
 import { formatNumber } from '../lib/data';
 import type { CommonIssue } from '../lib/kommunprofil';
+import Stapel from './Stapel.astro';
 
 interface Props {
   issues: CommonIssue[];
@@ -28,15 +29,20 @@ interface Props {
 }
 
 const { issues, withRemarks, city, limit = 6 } = Astro.props;
-const shown = issues.slice(0, limit);
 
 // Stapelns längd sätts mot den vanligaste bristen, inte mot 100 %. Annars är
 // varje stapel kort i en välskött kommun och sidan säger ingenting om det
-// inbördes förhållandet, som är det man faktiskt läser här.
-const top = shown[0]?.count ?? 0;
+// inbördes förhållandet, som är det man faktiskt läser här. Stapel.astro gör
+// det utan scale-prop, men listan är redan sorterad så den största är shown[0]
+// och det är värt att säga varför den skalan är rätt just här.
+const rows = issues.slice(0, limit).map((i) => ({
+  label: i.description,
+  value: i.count,
+  display: formatNumber(i.count),
+}));
 ---
 
-{shown.length > 0 && (
+{rows.length > 0 && (
   <section class="issues" aria-labelledby="brister">
     <h2 id="brister">Vanligast bland anmärkningarna i {city}</h2>
     {/* "Så här fördelar de sig" berättade vad listan under gör. Listan gör
@@ -48,23 +54,15 @@ const top = shown[0]?.count ?? 0;
       senaste kontroll. Formuleringarna är kommunens.
     </p>
 
-    <ul>
-      {shown.map((i) => (
-        <li>
-          <span class="row">
-            <span class="what">{i.description}</span>
-            <span class="n">{formatNumber(i.count)}</span>
-          </span>
-          {/* Stapeln är dekor för siffran som redan står i klartext bredvid.
-              Den bär ingen egen information och är därför neutral i färg —
-              bedömningens grön, gul och röd betyder något och får inte
-              användas för att pigga upp ett stapeldiagram. */}
-          <span class="track" aria-hidden="true">
-            <span style={`width:${top ? (i.count / top) * 100 : 0}%`}></span>
-          </span>
-        </li>
-      ))}
-    </ul>
+    {/* Stapeln är avläsningshjälp åt siffran som redan står i klartext
+        bredvid. Den bär ingen egen information och är därför neutral i färg
+        (ton="tyst"). Bedömningens grön, gul och röd betyder något och får
+        inte användas för att pigga upp ett stapeldiagram. */}
+    <Stapel
+      rows={rows}
+      ton="tyst"
+      label={`Vanligaste anmärkningarna i ${city}`}
+    />
   </section>
 )}
 
@@ -83,46 +81,6 @@ const top = shown[0]?.count ?? 0;
     line-height: var(--lh-body-s);
   }
 
-  ul {
-    list-style: none;
-    margin: var(--s-4) 0 0;
-    padding: 0;
-  }
-
-  li + li { margin-top: var(--s-3); }
-
-  .row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-4);
-  }
-
-  .what {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
-
-  .n {
-    flex-shrink: 0;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .track {
-    display: block;
-    height: 4px;
-    margin-top: 5px;
-    border-radius: 2px;
-    background: var(--hairline);
-  }
-
-  .track > span {
-    display: block;
-    height: 100%;
-    border-radius: 2px;
-    background: var(--text-muted);
-  }
+  /* Raderna ritas av Stapel.astro. Spåret var 4 px här och 8 px på
+     rapportsidorna, utan att skillnaden betydde något. */
 </style>

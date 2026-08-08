@@ -42,6 +42,12 @@ export async function getStaticPaths() {
 const { id } = Astro.props as { id: string };
 const k = chain(id) as Chain;
 
+/* Skalan för staplarna i Ställen-kolumnen: den kommun där kedjan har flest
+   ställen blir full bredd. Mot 100 hade allt utom den största blivit strimmor,
+   och det inbördes förhållandet är det enda man läser i den kolumnen.
+   Math.max på tom lista ger -Infinity, därför nollan sist. */
+const storsta = Math.max(...k.municipalities.map((m) => m.total), 1);
+
 /**
  * Självbärande första mening, skriven för att kunna citeras rakt av.
  *
@@ -200,7 +206,21 @@ const segments = [
                 <th scope="row">
                   <a href={path(m.municipality.slug)}>{m.municipality.city}</a>
                 </th>
-                <td class="num antal">{formatNumber(m.total)}</td>
+                {/* Stapeln ligger i Ställen-kolumnen och delar högerkant med
+                    sitt eget tal, så det aldrig går att läsa den som en
+                    sammanfattning av hela raden. Den bär antal ställen, det
+                    tabellen redan är sorterad på, och aldrig utfall. De två
+                    utfallskolumnerna får ingen stapel, och det är med flit:
+                    kvarstående brister ligger på 0,3 procent i Jönköping och
+                    23,7 i Oskarshamn, och den skillnaden är
+                    publiceringspraxis och inte renlighet. En stapel hade
+                    gjort den till en tävling. */}
+                <td class="num antal">
+                  {formatNumber(m.total)}
+                  <span class="stallen-spar" aria-hidden="true">
+                    <span style={`width:${(m.total / storsta) * 100}%`}></span>
+                  </span>
+                </td>
                 <td class="num tyst">
                   {m.assessed > 0 ? (
                     <>{formatNumber(m.clean)} av {formatNumber(m.assessed)}</>

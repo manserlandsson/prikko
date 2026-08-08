@@ -13,6 +13,7 @@
  * annat område kommer i närheten. Slutar det stämma skrivs de inte ut.
  */
 import Rapport from '../../layouts/Rapport.astro';
+import Stapel from '../../components/Stapel.astro';
 import { formatNumber } from '../../lib/data';
 import { deviationAreaReport, formatShare, percent } from '../../lib/rapporter';
 import { path } from '../../lib/urls';
@@ -90,22 +91,17 @@ const sameOrderSentence = sameOrderEverywhere
 
   <section>
     <h2>Områdena, störst först</h2>
-    <ul class="areas">
-      {r.areas.map((a) => (
-        <li>
-          <div class="row">
-            <span class="name">{a.name}</span>
-            <span class="num">{percent(a.count, r.coded)} %</span>
-          </div>
-          <div class="track">
-            <div class="bar" style={`width: ${(a.count / scale) * 100}%`}></div>
-          </div>
-          <p class="text-secondary note">
-            {a.explanation} {formatNumber(a.count)} avvikelser.
-          </p>
-        </li>
-      ))}
-    </ul>
+    <Stapel
+      scale={scale}
+      avdelare
+      label="Avvikelser per lagstiftningsområde, störst först"
+      rows={r.areas.map((a) => ({
+        label: a.name,
+        value: a.count,
+        display: `${percent(a.count, r.coded)} %`,
+        note: `${a.explanation} ${formatNumber(a.count)} avvikelser.`,
+      }))}
+    />
     {topTwo && <p>{topTwo}</p>}
     <p>
       Det andra området är värt att stanna vid.{' '}
@@ -190,59 +186,7 @@ const sameOrderSentence = sameOrderEverywhere
 </Rapport>
 
 <style>
-  .areas {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .areas li {
-    padding: var(--s-4) 0;
-    border-top: 1px solid var(--hairline);
-  }
-
-  .areas li:last-child {
-    border-bottom: 1px solid var(--hairline);
-  }
-
-  .row {
-    display: flex;
-    gap: var(--s-4);
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  .name {
-    font-weight: 600;
-  }
-
-  .num {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  /* Spåret bär ingen information, bara stapelns skala. Därför en yta utan
-     kant: kanten skulle läsa som en nivå att jämföra mot. */
-  .track {
-    margin-top: var(--s-2);
-    height: 8px;
-    border-radius: var(--r-pill);
-    background: var(--hairline);
-    overflow: hidden;
-  }
-
-  .bar {
-    height: 100%;
-    border-radius: var(--r-pill);
-    background: var(--brand);
-    /* Ett område med en handfull avvikelser ska synas som en strimma, inte
-       försvinna. Utan minsta bredd blir de sex minsta raderna tomma spår. */
-    min-width: 2px;
-  }
-
-  .note {
-    margin-top: var(--s-2);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-  }
+  /* Staplarna ritas av components/Stapel.astro, med avdelare. Spåret bär
+     ingen information, bara stapelns skala, och är därför en yta utan kant:
+     kanten skulle läsa som en nivå att jämföra mot. */
 </style>

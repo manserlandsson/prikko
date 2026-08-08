@@ -146,10 +146,22 @@ const dist = kommunSummary.assessed
       .map((k) => ({
         k,
         n: kommunSummary[k],
+        label: VERDICT[k].label,
         share: (kommunSummary[k] / kommunSummary.assessed) * 100,
       }))
       .filter((d) => d.n > 0)
   : [];
+
+/* Stapeln bar tidigare tre färger och inte ett enda tal. Färgen sa vilken
+   sorts mängd det var, längden sa ungefär hur stor, och exakt hur stor stod
+   ingenstans. Man fick gissa, eller läsa meningen under, som bara upprepade
+   ett av de tre talen i ord. Nyckeln under stapeln är samma form som
+   KommunOversikt redan använder på kommunhubben: prick, tal, ord. Att den
+   säger ordet och inte bara färgen är också det som gör att stapeln inte bär
+   sin uppgift i färg ensam. */
+const distLabel = dist
+  .map((d) => `${d.label}: ${formatNumber(d.n)}`)
+  .join('. ');
 
 /**
  * Ledde uppföljningen till åtgärd?
@@ -638,23 +650,40 @@ const breadcrumbs = {
         <div class="panel">
           <h2 class="panel-title">Så ser det ut i {kommun.city}</h2>
           {dist.length > 0 && (
-            <div
-              class="fordelning"
-              role="img"
-              aria-label={`Av ${formatNumber(kommunSummary.assessed)} bedömda verksamheter i ${kommun.city}: ${formatNumber(kommunSummary.clean)} utan anmärkningar, ${formatNumber(kommunSummary.minor)} med brister och ${formatNumber(kommunSummary.major)} med brister som kvarstår.`}
-            >
-              {dist.map((d) => (
-                <span
-                  style={`flex-basis:${d.share}%;background:var(--verdict-${d.k})`}
-                ></span>
-              ))}
-            </div>
+            <>
+              {/* Talet först, stapeln under, nyckeln sist. Ordningen är
+                  Stripes: värdet i bläck med sin etikett tyst under sig, och
+                  aldrig tabellsiffror på ett ensamt tal, eftersom de ger
+                  varje siffra nollans bredd och får "89" att glesna. */}
+              <p class="fordelning-tal">
+                <b>{kommunSummary.cleanShare} %</b>
+                <span>
+                  utan anmärkningar av {formatNumber(kommunSummary.assessed)}
+                  {' '}bedömda i {kommun.city}
+                </span>
+              </p>
+              <div class="fordelning" role="img" aria-label={distLabel}>
+                {dist.map((d) => (
+                  <span
+                    style={`flex-basis:${d.share}%;background:var(--verdict-${d.k})`}
+                  ></span>
+                ))}
+              </div>
+              <ul class="fordelning-nyckel">
+                {dist.map((d) => (
+                  <li>
+                    <span
+                      class="prick"
+                      style={`background:var(--verdict-${d.k})`}
+                      aria-hidden="true"
+                    ></span>
+                    <b>{formatNumber(d.n)}</b>
+                    <span class="lbl">{d.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
-          <p class="kommun-line">
-            <b>{kommunSummary.cleanShare} %</b> av de
-            {' '}{formatNumber(kommunSummary.assessed)} bedömda verksamheterna i
-            {' '}{kommun.city} fick inga anmärkningar vid sin senaste kontroll.
-          </p>
           <ul class="kommun-links">
             <li><a href={path(kommun.slug)}>Alla hygienkontroller i {kommun.city}</a></li>
             {ownCategories.map((s) => (
@@ -963,6 +992,27 @@ const breadcrumbs = {
     border-top: 1px solid var(--hairline);
   }
 
+  /* Panelens huvudtal. Stort nog att läsas först, litet nog att inte tävla
+     med sidans egen rubrik: en panel i en aside har inget hjältetal. */
+  .fordelning-tal {
+    margin-top: var(--s-3);
+  }
+
+  .fordelning-tal b {
+    display: block;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .fordelning-tal span {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
   /* Fördelningsstapeln: tre andelar av samma helhet på en tunn rad.
      Springorna mellan segmenten är avsiktliga — tre mängder, inte en
      tonad yta. */
@@ -972,24 +1022,50 @@ const breadcrumbs = {
     height: 8px;
     border-radius: var(--r-pill);
     overflow: hidden;
-    margin-bottom: var(--s-3);
+    margin-top: var(--s-3);
   }
 
   .fordelning span {
     min-width: 3px;
   }
 
-  .kommun-line {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
+  /* Nyckeln, i samma form som KommunOversikt på kommunhubben. Här ligger den
+     i en smal panel och staplas därför lodrätt i stället för att radbrytas. */
+  .fordelning-nyckel {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
   }
 
-  .kommun-line b {
+  .fordelning-nyckel li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Prickens enda uppgift är att koppla posten till sitt segment i stapeln.
+     Betydelsen står i ord bredvid, så prickens kontrast bär ingen
+     information och behöver inte klara 3:1. */
+  .prick {
+    flex-shrink: 0;
+    align-self: center;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  .fordelning-nyckel b {
     font-weight: 600;
     color: var(--text);
     font-variant-numeric: tabular-nums;
   }
+
+  .fordelning-nyckel .lbl { color: var(--text-secondary); }
 
   .kommun-links {
     list-style: none;

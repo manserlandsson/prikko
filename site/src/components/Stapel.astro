@@ -1,0 +1,170 @@
+---
+/**
+ * Stapelrad: en etikett, ett tal och en vågrät stapel.
+ *
+ * Sajten hade åtta egna stapelimplementationer när den här skrevs. De ville
+ * alla samma sak men kom aldrig överens: 4 px eller 8 px, spåret i --hairline
+ * eller --verdict-none, fyllningen i --brand eller --text-muted, talet över
+ * stapeln eller bredvid, skalan mot 100 eller mot den största raden. Ingen av
+ * skillnaderna bar någon betydelse. De var bara sju tillfällen där någon skrev
+ * samma CSS igen.
+ *
+ * Formen är mätt i webbläsaren på ednia.se och stripe.com i augusti 2026:
+ *
+ *   Ednia   spår 8 px, radie 99 px, #f7f7f7. Etiketten i bläck 16 px till
+ *           vänster, talet 14 px i #717171 till höger. Ingen axel, inget
+ *           rutnät, ingen legend. Skalan går mot den största raden, inte mot
+ *           100 %: i deras högskolelista blir 23 % full bredd och 17 % blir
+ *           476/644 av den.
+ *   Stripe  talet 24 px i vikt 500, aldrig 700, och aldrig tabellsiffror på
+ *           ett ensamt tal. Etiketten under i tyst grå, vikt 300, gemener,
+ *           inget kolon.
+ *
+ * Två saker är våra egna och gäller före förebilderna:
+ *
+ * 1. FYLLNINGEN FÅR ALDRIG BÄRA BEDÖMNING. Ednia färgar samma stapel blå
+ *    under åtta och grön över åtta. Vi kan inte. Grön, gul och röd betyder
+ *    bedömning på den här sajten och betyder ingenting annat, och en stapel
+ *    som råkar vara lång är inte en bedömning. Därför har den här komponenten
+ *    ingen färgprop. Den har en ton, och båda tonerna är neutrala.
+ * 2. TALET STÅR ALLTID I KLARTEXT. Stapeln är den grova avläsningen, talet är
+ *    den exakta. Ingen uppgift får bo i enbart en stapellängd, så spåret är
+ *    aria-hidden och skärmläsaren får etiketten och talet som text.
+ */
+
+interface Rad {
+  /** Vad raden heter. Står i bläck till vänster. */
+  label: string;
+  /** Det som styr stapelns längd. */
+  value: number;
+  /** Talet som skrivs ut. Sätts den inte skrivs value ut som det är. */
+  display?: string;
+  /** Tyst rad under stapeln, till exempel nämnaren eller en förklaring. */
+  note?: string;
+}
+
+interface Props {
+  rows: Rad[];
+  /**
+   * 'brand'  blå fyllning. Grundvalet, och det som rapportsidorna använder.
+   * 'tyst'   grå fyllning, för listor där stapeln bara är avläsningshjälp åt
+   *          ett tal som redan står bredvid.
+   */
+  ton?: 'brand' | 'tyst';
+  /**
+   * Vad full bredd betyder. Utelämnad blir det den största raden, vilket är
+   * det som gör inbördes förhållanden läsbara i en välskött kommun där varje
+   * andel annars är kort. Sätt den till 100 bara när nollan till hundra är
+   * det man faktiskt läser.
+   */
+  scale?: number;
+  /** Läsbar sammanfattning av listan för skärmläsare. */
+  label?: string;
+  /**
+   * Hårlinje mellan raderna. Rapportsidorna listar sjutton lagstiftningsområden
+   * med en förklaring under varje stapel, och utan linjer flyter den ena radens
+   * not ihop med nästa rads etikett. På kommunhubbens sex rader utan noter är
+   * luften nog och linjerna blir bara ränder.
+   */
+  avdelare?: boolean;
+}
+
+const { rows, ton = 'brand', scale, label, avdelare = false } = Astro.props;
+
+// Nollskydd: en tom lista och en lista där allt är noll ger båda division med
+// noll, och en rad med bredd NaN renderas som full bredd i Safari.
+const top = scale ?? Math.max(...rows.map((r) => r.value), 0);
+const bredd = (v: number) => (top > 0 ? (v / top) * 100 : 0);
+---
+
+{rows.length > 0 && (
+  <ul
+    class:list={['stapelrader', `ton-${ton}`, { avdelare }]}
+    aria-label={label}
+  >
+    {rows.map((r) => (
+      <li>
+        <span class="topp">
+          <span class="etikett">{r.label}</span>
+          <span class="tal">{r.display ?? r.value}</span>
+        </span>
+        <span class="spar" aria-hidden="true">
+          <span class="fyllning" style={`width:${bredd(r.value)}%`}></span>
+        </span>
+        {r.note && <span class="not">{r.note}</span>}
+      </li>
+    ))}
+  </ul>
+)}
+
+<style>
+  .stapelrader {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .stapelrader li + li { margin-top: var(--s-4); }
+
+  .avdelare li {
+    margin: 0;
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .avdelare li:last-child { border-bottom: 1px solid var(--hairline); }
+
+  /* Etikett och tal delar en baslinje. Talet krymper aldrig: en lång etikett
+     bryter hellre rad än trycker ihop "1 284". */
+  .topp {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+  }
+
+  .etikett {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Talet är tyst med flit. Stapeln bredvid har redan sagt hur stort det är,
+     och två röster som säger samma sak gör raden högljudd utan att den säger
+     mer. Ednia gör likadant: etikett i bläck, tal i grått en grad mindre. */
+  .tal {
+    flex-shrink: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .spar {
+    display: block;
+    height: 8px;
+    margin-top: var(--s-2);
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .fyllning {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    /* En rad med en handfull avvikelser ska synas som en strimma, inte
+       försvinna. Utan minsta bredd blir listans svans tomma spår. */
+    min-width: 2px;
+  }
+
+  .ton-brand .fyllning { background: var(--brand); }
+  .ton-tyst .fyllning { background: var(--text-muted); }
+
+  .not {
+    display: block;
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+</style>
