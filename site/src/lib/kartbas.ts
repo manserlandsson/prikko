@@ -29,7 +29,21 @@
  * skriv aldrig `mod.default`.
  */
 import { type FaceKey } from './face';
-export { faceSvg, PIN_W, PIN_H } from './kartnal';
+
+/*
+ * Nålen importeras OCH återexporteras, inte bara återexporteras.
+ *
+ * `export { faceSvg, PIN_W, PIN_H } from './kartnal'` skickar vidare namnen
+ * utan att binda dem här i modulen. `faceBitmap` nedan använder alla tre, och
+ * de blev då fria variabler: paketeraren skrev ut dem ordagrant och
+ * `new Image(PIN_W, PIN_H)` kastade ReferenceError första gången någon rullade
+ * ner till verksamhetssidans karta. Felet fångades av `catch` i
+ * Platskarta.astro, så kartan aldrig vaknade och sidan stod kvar med
+ * platshållaren och sin enda nål. Karta.astro har egna kopior av samma
+ * konstanter och märkte därför ingenting.
+ */
+import { faceSvg, PIN_W, PIN_H } from './kartnal';
+export { faceSvg, PIN_W, PIN_H };
 
 /**
  * Vår egen kartstil, byggd av scripts/kartstil.mjs och utlagd som statisk
