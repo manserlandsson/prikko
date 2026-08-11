@@ -50,9 +50,12 @@ async function arkivadress() {
 const adress = await arkivadress();
 console.log(`arkiv        ${adress}`);
 
+/* HEAD och inte GET: filen är över en megabyte och vi vill bara se huvudena.
+   Cloudflare svarar utan `content-length` på HEAD, så storleken läses i
+   stället ur `content-range` i provet nedan. Att skriva ut en nolla här hade
+   sett ut som ett andra fel. */
 const hel = await fetch(`${bas}${adress}`, { method: 'HEAD' });
-const storlek = Number(hel.headers.get('content-length'));
-console.log(`hela filen   ${hel.status}, ${storlek.toLocaleString('sv-SE')} byte`);
+console.log(`hela filen   ${hel.status}`);
 console.log(`cache        ${hel.headers.get('cache-control')}`);
 console.log(`typ          ${hel.headers.get('content-type')}`);
 console.log(`accept-range ${hel.headers.get('accept-ranges') ?? 'SAKNAS'}`);
@@ -67,6 +70,17 @@ const del = await fetch(`${bas}${adress}`, { headers: { Range: 'bytes=0-127' } }
 const kropp = await del.arrayBuffer();
 console.log(`räckvidd     ${del.status}, ${kropp.byteLength.toLocaleString('sv-SE')} byte`);
 console.log(`content-range ${del.headers.get('content-range') ?? 'SAKNAS'}`);
+
+/*
+ * Kantens dom, och den enda rad som säger VARFÖR det gick som det gick.
+ *
+ * Felmeddelandet nedan har alltid bett läsaren kontrollera den här rubriken
+ * utan att skriva ut den. HIT, MISS och REVALIDATED betyder att filen ligger i
+ * kanten, och då besvaras räckvidd. DYNAMIC betyder att den strömmas rakt
+ * igenom, och då gör den inte det, hur filen än ser ut.
+ */
+const kant = del.headers.get('cf-cache-status') ?? hel.headers.get('cf-cache-status');
+console.log(`cf-cache     ${kant ?? 'SAKNAS'}`);
 
 if (del.status !== 206) {
   fel(
