@@ -42,8 +42,8 @@ async function arkivadress() {
   const svar = await fetch(`${bas}/stockholm/karta/`);
   if (!svar.ok) throw new Error(`${bas}/stockholm/karta/ svarade ${svar.status}`);
   const html = await svar.text();
-  const träff = /data-url="([^"]+\.pmtiles)"/.exec(html);
-  if (!träff) throw new Error('hittade ingen data-url med ett pmtiles-arkiv på kartsidan');
+  const träff = /data-url="(\/kartrutor\/[^"]+)"/.exec(html);
+  if (!träff) throw new Error('hittade ingen data-url mot /kartrutor/ på kartsidan');
   return träff[1];
 }
 

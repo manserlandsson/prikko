@@ -462,7 +462,32 @@ function build(): TileSet {
     tiles: archive.tiles,
     body: archive.buffer,
     hash,
-    url: `/kartrutor/punkter-${hash}.pmtiles`,
+    /*
+     * `.bin` och inte `.pmtiles`. Ändelsen är inte kosmetik, den avgör om
+     * kartan fungerar.
+     *
+     * Cloudflares kant cachar efter FILÄNDELSE, ur en fast lista, och läser
+     * inte vårt `Cache-Control` för att avgöra saken. Mätt mot prikko.se
+     * 2026-08-11, med `_headers` redan på plats:
+     *
+     *   /_astro/*.js      max-age=14400, must-revalidate   REVALIDATED
+     *   /favicon.svg      max-age=14400, must-revalidate   REVALIDATED
+     *   /og-default.png   max-age=14400, must-revalidate   REVALIDATED
+     *   /sok-index/*.json max-age=31536000, immutable      DYNAMIC
+     *   *.pmtiles         max-age=31536000, immutable      DYNAMIC
+     *
+     * Ett år och `immutable` hjälpte alltså ingenting, och fyra timmar med
+     * `must-revalidate` räckte. Det som skiljer raderna åt är ändelsen.
+     * `.pmtiles` och `.json` står inte på listan, `.bin` gör det.
+     *
+     * Och det är räckvidden som hänger på det: kanten besvarar `Range` ur sin
+     * cache, en DYNAMIC-förfrågan strömmas rakt igenom och svarar 200 med hela
+     * filen, och då hittar PMTiles ingen ruta. Se `docs/23_rikskartan.md`.
+     *
+     * Innehållet är oförändrat. PMTiles-läsaren bryr sig inte om vad filen
+     * heter, den läser magin i de första sju byten.
+     */
+    url: `/kartrutor/punkter-${hash}.bin`,
   };
 }
 

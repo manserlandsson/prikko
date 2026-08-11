@@ -330,9 +330,40 @@ fil och kastar huvudena**, utan ett ord i byggloggen. Samma sak gällde
 `/sok-index/` och `/kartdata/`, som båda hade levererats med Pages standard
 sedan de skrevs.
 
-Rättningen är `site/public/_headers`, den enda kanal Pages läser. Ett långt
-`Cache-Control` är alltså inte en prestandajustering på den här adressen, det
-är det som gör att kartan fungerar alls.
+Rättningen var `site/public/_headers`, den enda kanal Pages läser.
+
+### Och den rättningen räckte inte. Ändelsen avgör.
+
+`_headers` rullades ut och mättes igen. `Cache-Control` blev rätt och filen låg
+kvar utanför kanten. Mätt mot prikko.se 2026-08-11, med `_headers` i drift:
+
+| Adress | `cache-control` | `cf-cache-status` |
+|---|---|---|
+| `/_astro/*.js` | `max-age=14400, must-revalidate` | REVALIDATED |
+| `/favicon.svg` | `max-age=14400, must-revalidate` | REVALIDATED |
+| `/og-default.png` | `max-age=14400, must-revalidate` | REVALIDATED |
+| `/kartstil/*.json` | `max-age=0, must-revalidate` | DYNAMIC |
+| `/sok-index/*.json` | `max-age=31536000, immutable` | DYNAMIC |
+| `*.pmtiles` | `max-age=31536000, immutable` | DYNAMIC |
+
+Ett år och `immutable` gav DYNAMIC. Fyra timmar med `must-revalidate` gav
+REVALIDATED. **`Cache-Control` avgör alltså ingenting om vad som hamnar i
+kanten.** Det som skiljer raderna åt är FILÄNDELSEN: Cloudflares kant cachar ur
+en fast lista av ändelser. `.js`, `.svg`, `.png` och `.bin` står på den.
+`.json` och `.pmtiles` gör det inte.
+
+Arkivet heter därför `punkter-<hash>.bin`. Innehållet är oförändrat och läsaren
+bryr sig inte om namnet, den läser magin i de första sju byten.
+
+`_headers` står kvar. Reglerna där är rätt, de var bara inte tillräckliga, och
+den halvan av diagnosen är värd att ha kvar nedskriven: ett `Cache-Control` som
+en Astro-rutt sätter i ett statiskt bygge når aldrig fram, oavsett vad det står
+i det.
+
+`/sok-index/` och `/kartdata/` är fortfarande DYNAMIC av samma skäl. De hämtas
+en gång och fungerar, alltså kostar det svarstid och inte en trasig sida, men
+samma byte av ändelse skulle hjälpa dem också. Sökregistret hämtas på varje
+sidvisning, så det är den av de två som är värd att mäta härnäst.
 
 Två saker till, båda för att felet aldrig ska kunna kosta samma sak igen:
 

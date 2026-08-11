@@ -15,28 +15,38 @@
 # skrevs. Adresserna är innehållsbaserade: byts innehållet byts filnamnet, så
 # ett år är inte en optimering utan vad adressen redan lovar.
 #
-# ## Och varför det gjorde kartan tom, inte bara långsam
+# ## Men huvudena räckte INTE, och det är den viktigaste raden i filen
 #
-# PMTiles läser ett arkiv med HTTP-räckviddsförfrågningar. Utan dem hittar
-# läsaren ingen ruta och kartan får noll punkter.
+# Rättningen ovan rullades ut och mättes. `Cache-Control` blev rätt, men
+# kartans arkiv låg kvar utanför kanten. Mätt mot prikko.se 2026-08-11, alltså
+# MED den här filen i drift:
 #
-# Mätt mot prikko.se 2026-08-08:
+#   /_astro/*.js         max-age=14400, must-revalidate    REVALIDATED
+#   /favicon.svg         max-age=14400, must-revalidate    REVALIDATED
+#   /og-default.png      max-age=14400, must-revalidate    REVALIDATED
+#   /kartstil/*.json     max-age=0, must-revalidate        DYNAMIC
+#   /sok-index/*.json    max-age=31536000, immutable       DYNAMIC
+#   *.pmtiles            max-age=31536000, immutable       DYNAMIC
 #
-#   /og-default.png          cache-control: public, max-age=14400
-#                            accept-ranges: bytes
-#                            cf-cache-status: REVALIDATED
-#                            Range: bytes=0-127  ->  206, 128 byte
+# Ett år och `immutable` gav DYNAMIC. Fyra timmar med `must-revalidate` gav
+# REVALIDATED. `Cache-Control` avgör alltså ingenting här. Det som skiljer
+# raderna åt är FILÄNDELSEN: Cloudflares kant cachar ur en fast lista av
+# ändelser, `.js`, `.svg`, `.png` och `.bin` står på den, `.json` och
+# `.pmtiles` gör det inte.
 #
-#   /kartrutor/*.pmtiles     cache-control: public, max-age=0, must-revalidate
-#                            accept-ranges: SAKNAS
-#                            cf-cache-status: DYNAMIC
-#                            Range: bytes=0-127  ->  200, 1 229 322 byte
+# Och det är räckvidden som hänger på kanten. PMTiles läser arkivet med
+# HTTP-räckviddsförfrågningar, kanten besvarar `Range` ur sin cache, och en
+# DYNAMIC-förfrågan strömmas rakt igenom och svarar 200 med hela filen även när
+# man bett om 128 byte. Läsaren hittar då ingen ruta och kartan får noll
+# punkter.
 #
-# Skillnaden är kanten. Cloudflare besvarar räckvidd ur sin EDGE-CACHE, och
-# `max-age=0, must-revalidate` håller filen utanför den: varje förfrågan blir
-# DYNAMIC och strömmas rakt igenom utan stöd för räckvidd. Ett långt
-# `Cache-Control` är därför inte en prestandajustering här, det är det som gör
-# att kartan fungerar alls.
+# Därför heter arkivet `punkter-<hash>.bin` och inte `.pmtiles`. Ändelsen är
+# rättningen; se `lib/kartrutor.ts`. Reglerna nedan står kvar för att de är
+# rätt, inte för att de räckte.
+#
+# `/sok-index/` och `/kartdata/` är fortfarande DYNAMIC av samma skäl. De
+# hämtas en gång och fungerar, alltså kostar det svarstid och inte en trasig
+# sida, men samma byte av ändelse skulle hjälpa dem också.
 #
 # KONTROLLERA EFTER UTRULLNING. Ett bygge kan inte se det här felet, eftersom
 # det uppstår i värdens beteende och inte i filen. Kör:

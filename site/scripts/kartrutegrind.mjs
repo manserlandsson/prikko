@@ -50,13 +50,13 @@ export function kartrutegrind() {
     hooks: {
       'astro:build:done': async ({ dir, logger }) => {
         const out = fileURLToPath(dir);
-        const filer = globSync('kartrutor/*.pmtiles', { cwd: out });
+        const filer = globSync('kartrutor/*.bin', { cwd: out });
 
         if (filer.length !== 1) {
           throw new Error(
             `Förväntade exakt ett rutarkiv i dist/kartrutor/, hittade ${filer.length}. ` +
               'Adressen är innehållsbaserad, så två filer betyder att rutten byggt ' +
-              'fler hashar än en. Se src/pages/kartrutor/[file].pmtiles.ts.',
+              'fler hashar än en. Se src/pages/kartrutor/[file].bin.ts.',
           );
         }
 
