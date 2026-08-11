@@ -26,6 +26,7 @@
  * Airbnb, och hierarkin bärs av storlek och vikt i stället för av VERSALER.
  * Wordmarken ligger uppe till vänster och ger blocket en startpunkt.
  */
+import { getCollection } from 'astro:content';
 import { establishments, municipalities } from '../lib/data';
 import { chains } from '../lib/kedjor';
 import { SITE } from '../lib/site';
@@ -70,6 +71,23 @@ const byChainSize = chains()
 
 const listedChains = byChainSize.slice(0, MAX_PER_COLUMN);
 const moreChains = byChainSize.length > MAX_PER_COLUMN;
+
+/*
+ * Artiklarna, nyast först.
+ *
+ * De fanns inte i sidfoten alls, trots att de är den enda sidtyp som är
+ * skriven för att läsas snarare än slås upp, och trots att de bär den data
+ * ingen annan har. Ägaren: "artiklar ej länkade i footer".
+ *
+ * Titeln kortas inte. En artikelrubrik är skriven för att bära sig själv, och
+ * en avhuggen rubrik i en länklista läser som ett fel.
+ */
+const artiklar = (await getCollection('artiklar', ({ data }) => !data.draft))
+  .map((e) => ({ slug: e.id, title: e.data.title, published: e.data.published }))
+  .sort((a, b) => b.published.localeCompare(a.published));
+
+const listedArticles = artiklar.slice(0, MAX_PER_COLUMN);
+const moreArticles = artiklar.length > MAX_PER_COLUMN;
 
 // Bara kommuner som faktiskt HAR anmärkningar får en länk hit. En
 // leaderboard utan rader är precis den tunna sida kvalitetsgrinden finns
@@ -149,6 +167,16 @@ const withRemarks = bySize
       </ul>
     </nav>
 
+    <nav class="col" aria-label="Artiklar">
+      <p class="col-title">Läsning</p>
+      <ul>
+        {listedArticles.map((a) => (
+          <li><a href={path('artiklar', a.slug)}>{a.title}</a></li>
+        ))}
+        {moreArticles && <li><a href="/artiklar/">Alla artiklar</a></li>}
+      </ul>
+    </nav>
+
     <nav class="col" aria-label="Om Prikko">
       <p class="col-title">Prikko</p>
       <ul>
@@ -225,8 +253,8 @@ const withRemarks = bySize
   .inner {
     display: grid;
     /* Märkeskolumnen är bredare: den bär löpande text, de andra listor. */
-    /* Fyra länkkolumner sedan kedjorna kom till, plus avsändarblocket. */
-    grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr));
+    /* Fem länkkolumner sedan artiklarna kom till, plus avsändarblocket. */
+    grid-template-columns: minmax(0, 1.25fr) repeat(5, minmax(0, 1fr));
     /* 48 px radluft om kolumnerna bryter, 32 px mellan kolumnerna. */
     gap: var(--s-12) var(--s-8);
     /* 48 px in och 48 px ut. Var 32 — för lite för ett block med 24 länkar,

@@ -1,0 +1,59 @@
+# Svarshuvuden för Cloudflare Pages.
+#
+# Filen kopieras rakt igenom från public/ till dist/ och läses av Pages vid
+# utrullning. Den finns av ett skäl som kostade en trasig karta i produktion:
+#
+# ## Astro-rutter kan inte sätta huvuden i ett statiskt bygge
+#
+# `src/pages/kartrutor/[file].pmtiles.ts` returnerar ett `Response` med
+# `Cache-Control: public, max-age=31536000, immutable`. I ett statiskt bygge
+# skrivs bara KROPPEN till en fil. Huvudena kastas, och det syns inte någonstans
+# i byggloggen.
+#
+# Samma sak gäller `/sok-index/` och `/kartdata/`, som båda dokumenterar samma
+# avsikt i sina moduler och båda har levererats med `max-age=0` sedan de
+# skrevs. Adresserna är innehållsbaserade: byts innehållet byts filnamnet, så
+# ett år är inte en optimering utan vad adressen redan lovar.
+#
+# ## Och varför det gjorde kartan tom, inte bara långsam
+#
+# PMTiles läser ett arkiv med HTTP-räckviddsförfrågningar. Utan dem hittar
+# läsaren ingen ruta och kartan får noll punkter.
+#
+# Mätt mot prikko.se 2026-08-08:
+#
+#   /og-default.png          cache-control: public, max-age=14400
+#                            accept-ranges: bytes
+#                            cf-cache-status: REVALIDATED
+#                            Range: bytes=0-127  ->  206, 128 byte
+#
+#   /kartrutor/*.pmtiles     cache-control: public, max-age=0, must-revalidate
+#                            accept-ranges: SAKNAS
+#                            cf-cache-status: DYNAMIC
+#                            Range: bytes=0-127  ->  200, 1 229 322 byte
+#
+# Skillnaden är kanten. Cloudflare besvarar räckvidd ur sin EDGE-CACHE, och
+# `max-age=0, must-revalidate` håller filen utanför den: varje förfrågan blir
+# DYNAMIC och strömmas rakt igenom utan stöd för räckvidd. Ett långt
+# `Cache-Control` är därför inte en prestandajustering här, det är det som gör
+# att kartan fungerar alls.
+#
+# KONTROLLERA EFTER UTRULLNING. Ett bygge kan inte se det här felet, eftersom
+# det uppstår i värdens beteende och inte i filen. Kör:
+#
+#     node scripts/kontrollera-rackvidd.mjs
+#
+# Klienten har dessutom en reserv som hämtar hela arkivet en gång när räckvidd
+# inte fungerar, så felet kostar bandbredd i stället för att tömma kartan. Se
+# `rutkalla()` i Karta.astro.
+
+/kartrutor/*
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: application/octet-stream
+  Accept-Ranges: bytes
+
+/sok-index/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/kartdata/*
+  Cache-Control: public, max-age=31536000, immutable

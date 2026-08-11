@@ -303,24 +303,53 @@ flyger kameran i stället in till den zoom där nålarna finns, och stapelkortet
 skärmen, och grinden mot återvändsgränd står kvar: en bubbla kan aldrig sluta i
 ingenting.
 
-### Risken med räckviddsförfrågningar
+### Risken med räckviddsförfrågningar: den slog in
 
-PMTiles bygger på att servern svarar på `Range`. Cloudflare Pages gör det för
-statiska filer, men det är ett antagande vi inte får bygga på utan att mäta i
-drift:
+Här stod att Cloudflare Pages svarar på `Range` för statiska filer, "men det är
+ett antagande vi inte får bygga på utan att mäta i drift". Antagandet var fel,
+mätningen gjordes inte, och kartan låg tom i produktion i tre dygn. Ägaren:
+"inga restauranger på kartvyn".
 
-```
-curl -s -o /dev/null -D - -H 'Range: bytes=0-127' https://prikko.se/kartrutor/<fil>.pmtiles
-```
+Mätt mot prikko.se 2026-08-08, efter utrullning:
 
-Svaret ska vara `206 Partial Content` med `Content-Range`. Läsaren felar
-dessutom högljutt av sig själv om servern skickar hela filen på en
-räckviddsbegäran, alltså kan felet inte passera obemärkt.
+| | `/og-default.png` | `/kartrutor/*.pmtiles` |
+|---|---|---|
+| `cache-control` | `public, max-age=14400` | `public, max-age=0, must-revalidate` |
+| `accept-ranges` | `bytes` | SAKNAS |
+| `cf-cache-status` | REVALIDATED | DYNAMIC |
+| `Range: bytes=0-127` | 206, 128 byte | **200, 1 229 322 byte** |
 
-Faller det, är reservvägen att skriva rutorna som vanliga filer men bara ned
-till z11, alltså 221 filer i dag och kanske 2 000 vid full täckning, och låta
-MapLibre överzooma därifrån. Det ryms i filbudgeten, ger sämre precision i
-nålarnas placering vid hög zoom, och är en försämring vi tar bara om vi tvingas.
+Pages svarar på räckvidd ur sin KANTCACHE. En fil som inte ligger där blir
+DYNAMIC och strömmas rakt igenom med 200 och hela kroppen, hur liten bit man än
+bett om. PMTiles hittar då ingen ruta och kartan får noll punkter.
+
+Rutten `pages/kartrutor/[file].pmtiles.ts` satte redan
+`Cache-Control: public, max-age=31536000, immutable`. Det huvudet nådde aldrig
+fram: **ett statiskt Astro-bygge skriver bara KROPPEN av ett `Response` till
+fil och kastar huvudena**, utan ett ord i byggloggen. Samma sak gällde
+`/sok-index/` och `/kartdata/`, som båda hade levererats med Pages standard
+sedan de skrevs.
+
+Rättningen är `site/public/_headers`, den enda kanal Pages läser. Ett långt
+`Cache-Control` är alltså inte en prestandajustering på den här adressen, det
+är det som gör att kartan fungerar alls.
+
+Två saker till, båda för att felet aldrig ska kunna kosta samma sak igen:
+
+- **`scripts/kontrollera-rackvidd.mjs`** frågar den PUBLICERADE filen och
+  kräver 206 med 128 byte och magin `PMTiles`. Den kan inte vara en bygggrind.
+  `kartrutegrind.mjs` öppnar filen i `dist/` och var grön hela tiden medan
+  kartan var tom, och den hade rätt: felet fanns inte i filen utan i värden. En
+  lokal statisk server svarar 206 utan att blinka, och det är precis därför
+  felet inte syntes förrän det låg live.
+- **`rutkalla()` i `Karta.astro`** behåller kroppen när ett räckviddssvar ändå
+  kommer tillbaka som 200 och läser allt vidare ur den. Mätt mot en server som
+  struntar i `Range`: en enda hämtning av hela arkivet, och kartan ritar sina
+  bubblor och nålar som vanligt. Felet kostar därmed bandbredd i stället för
+  att tömma kartan.
+
+Reservvägen som stod här, att skriva rutorna som vanliga filer ned till z11,
+behövs inte och tas inte.
 
 ---
 
