@@ -2,157 +2,377 @@
 /**
  * Sajtens meny i sidhuvudet.
  *
- * KOMMUNLISTAN ÄR BORTA, OCH DET ÄR HELA POÄNGEN MED FILEN SOM DEN SER UT NU.
- * Menyn hette platsväljare och bar tolv kommuner, ett eget sökfält för att
- * hitta bland dem och en platsknapp. Ägarens dom: "välj kommun i
- * hamburgareikonen bringar inget värde", och han har rätt. Sidhuvudets sökfält
- * hittar redan kommuner, verksamheter, kartor, sidor och artiklar i EN panel,
- * och en lista i menyn var en andra väg till samma sak med sämre svar. Ett
- * gränssnitt som erbjuder två vägar till samma mål tvingar besökaren att välja
- * mellan dem innan hon vet vad de gör.
+ * ── VAD DEN ÄR NU ───────────────────────────────────────────────────────────
+ * En helbreddspanel under sidhuvudsraden, inte en 300 px bred låda i hörnet.
+ * Formen är mätt i webbläsaren på ednia.se den 11 augusti 2026, vid 1512 px,
+ * med menyn öppen. Det som mättes och det som togs med:
  *
- * Platsknappen flyttade till sökpanelen och bor numera i SiteSearch.astro. Den
- * fyllde tidigare i ett val åt besökaren; nu tar den henne direkt till kartan
- * över den kommun hon står i. Skälen står där.
+ *   panelen      helbredd, vit, ingen radie, ingen skugga, 491 px hög. Sidans
+ *                egen ytterpadding gäller inuti (48 px där, vår .container
+ *                här, så att panelens vänsterkant hamnar exakt under
+ *                wordmarken i raden ovanför).
+ *   två kort     252 x 120, radie 12, 1 px #ddd, skugga 0 2px 4px rgba(0,0,0,.08),
+ *                16 px mellan dem. Ikon uppe, etikett nere.
+ *   länkspalten  bredvid korten, tre kolumner med 264 px delning. Länkarna
+ *                14/21 i vikt 600, färg #717171, padding 6/10, radie 8.
+ *   hårlinjen    1 px #ebebeb tvärs över hela innerbredden, 24 px luft under.
+ *   avsnitten    rubrik 16/20 vikt 600 i bläck, därunder en rad ikonval:
+ *                platta 80 x 80, radie 12, #f6f6f6, ikon 32 px, etikett under,
+ *                100 px delning.
  *
- * Kvar är en meny, och bara det: den framhävda raden till /ratta, tre länkar om
- * oss, och kontoraden. Förebilden är hitta.se, vars hamburgare rymmer ett
- * kontoblock, fyra destinationer och en liten rad med Privacy, Cookies och
- * Support. Ingen av dem har en ortlista i menyn.
+ * Måtten är omräknade till våra token och till 1080 px container. Det som
+ * INTE kopierades står under "Två avsteg" nedan.
  *
- * Menyn växte INTE tillbaka med rapporter, utmärkelser och jämförelsen för att
- * fylla tomrummet. De ligger alla i sökpanelens grupp "Sidor" (se
- * lib/kommandon) och i sidfoten, som är fullständig. Att flytta in dem här
- * hade återskapat exakt den dubbleringen som kommunlistan straffades för.
+ * OMMÄTT DEN 12 AUGUSTI 2026, VID 1440 px: ednias panel är 250 px hög, inte
+ * 491. Skillnaden är inte viewporten utan vad som mäts. 491 är skalet medan
+ * deras sidhuvud räknas med; 250 är innehållet, läst direkt ur
+ * desktopMenu-module__menuContent. 250 är talet som betyder något för oss,
+ * eftersom vår panel börjar under raden och alltså aldrig innehåller ett
+ * sidhuvud. Vår egen panel var 525 px och är efter omläggningen 358. Se
+ * .avsnitten i stilen för hela mätningen och för airbnb och booli.
  *
- * Grundläget är ett <details>. Det är inte en genväg: elementet ger
- * öppna/stäng, tangentbord och skärmläsarsemantik utan en rad JavaScript.
- * Utan skript fungerar menyn alltså fullt ut, och Google följer länkarna.
- * Skriptet tillför två saker: kontoraden och en fokusfälla.
+ * ── VARFÖR DEN VÄXTE ────────────────────────────────────────────────────────
+ * Menyn var fyra rader: rättelse, Metodik, Källor, Om. Den var rätt när sajten
+ * var en kommunlista med tre textsidor bredvid. Sajten är det inte längre. Den
+ * har sök, kedjor, kartor, jämförelse, utmärkelser, rapporter, artiklar,
+ * matsnusklistor, konto och granskning, och av allt det syntes fyra textsidor.
+ * En meny som visar det minsta av sajten gömmer resten.
  *
- * Kontoraden ligger sist med avsikt och efter förebild. Den som öppnar menyn
- * kommer för att rätta en uppgift eller läsa om oss; inloggningen är det fåtal
- * återvändande gör och hör därför sist. Airbnb löser det likadant.
+ * KOMMUNLISTAN KOMMER INTE TILLBAKA, och det är fortfarande rätt. Ägarens dom
+ * står kvar: "välj kommun i hamburgareikonen bringar inget värde". Sökfältet i
+ * raden ovanför hittar redan kommuner, verksamheter, kartor, sidor och
+ * artiklar i EN panel. Menyn här listar SEKTIONER, alltså ytor man inte kan
+ * söka fram för att man inte vet att de finns. Det är en annan uppgift än
+ * sökfältets, och därför ingen dubblering.
+ *
+ * ── TVÅ AVSTEG FRÅN FÖRLAGAN, BÅDA MEDVETNA ─────────────────────────────────
+ * 1. INGA FLIKAR I MITTEN. Ednias två flikar, Gymnasium och Universitet, byter
+ *    DATAMÄNGD för hela sajten: två skolformer, två register, två sökfält.
+ *    Prikko har ett register. Ett flikpar här hade fått hitta på en uppdelning
+ *    som inte finns, och varje flik hade gömt hälften av strukturen bakom ett
+ *    klick, alltså motsatsen till varför menyn byggdes om. Mittfältet i raden bär i
+ *    stället det som redan står där: sökfältet.
+ * 2. INGEN ORTVÄLJARE UPPE TILL VÄNSTER. Se kommunlistan ovan. Platsen längst
+ *    till vänster i raden är wordmarken, som redan står där och blir kvar
+ *    synlig eftersom panelen börjar UNDER raden i stället för att täcka den.
+ *
+ * Att panelen börjar under raden är också ett byteval: ett Ednia-likt lock
+ * över hela sidhuvudet hade krävt en andra kopia av wordmarkens svg, alltså
+ * omkring 1,9 kB på var och en av 15 500 sidor, för att sedan rita om exakt
+ * det som redan fanns. Krysset löses i stället genom att hamburgarens glyf
+ * byts mot ett kryss när menyn är öppen. Samma besked, noll extra byte, och
+ * knappen ligger kvar där handen redan är.
+ *
+ * ── VILLKOREN ───────────────────────────────────────────────────────────────
+ * EN IKONUPPSÄTTNING, INGA UNDANTAG. Varje ikon i den här filen ritas på
+ * 24-rutnätet med 1,6 px streck i en enda färg, alltså exakt det som står i
+ * AreaIcon.astro och Kategoriikon.astro. Det är sajtens ikonspråk och det
+ * gäller även här.
+ *
+ * Korten bröt mot det och ägaren såg det direkt: "hamburgaremenyn verkar ha
+ * egna ikoner för rättelse och jämför, ser ej bra ut". De satt på ett
+ * 40-rutnät i stället för 24, och de var tvåfärgade, med en blå accent som
+ * ingen annan ikon på sajten har. Två av åtta ikoner i samma panel tillhörde
+ * alltså en annan uppsättning, och det syns även för den som inte kan säga
+ * varför.
+ *
+ * Ingen av de två ritades om på fri hand. Pennan finns redan i Reviews.astro
+ * och räknades om från 20-rutnätet till 24. Vågen finns redan som E i
+ * AreaIcon.astro och kopierades tecken för tecken. Behöver menyn en ikon till
+ * ska den hämtas på samma sätt, och först om den inte finns får en ny ritas,
+ * på 24-rutnätet med 1,6 px streck.
+ *
+ * INGEN BRÖDTEXT. Varje rad i panelen är en etikett och en destination. Den
+ * gamla rättelserutan hade en förklarande mening under rubriken; den är borta.
+ * En meny läses genom att skummas, och en mening per rad gör skumningen
+ * långsammare utan att göra valet lättare.
+ *
+ * RIKTIGA LÄNKAR, OCH ALLT FUNGERAR UTAN JAVASCRIPT. Grundläget är ett
+ * <details>: öppna, stäng, tangentbord och skärmläsarsemantik utan en rad
+ * skript, och Google följer varenda href. Skriptet nedan tillför fyra saker
+ * som inte GÅR att göra utan det: kontoraden, skrollåset, stängning vid klick
+ * utanför, och fokusfällan.
+ *
+ * SKROLLÅSET ÄR page-lock.ts. Ingen egen `body.style.overflow` här. Modulen
+ * räknar hållare, den lägger tillbaka rullningen på pixeln, och den vet vad
+ * tangentbordet på iOS gör med viewporten. Tre saker som en egen rad inte gör,
+ * och som gör att menyn och inloggningsrutan kan vara öppna i samma kedja utan
+ * att sidan hoppar. Se filens egen not.
+ *
+ * ── FULLSKÄRM PÅ TELEFON ────────────────────────────────────────────────────
+ * Här stod en varning om att fullskärmsarket inte skulle komma tillbaka. Den
+ * gällde en meny på sex rader: sex rader utlagda över en 812 px hög vit yta
+ * läste som en sida som inte laddat klart. Panelen är nu tolv destinationer i
+ * fyra grupper, och den fyller ytan den tar. Villkoret bakom varningen, att
+ * ytan ska vara motiverad av innehållet, är alltså uppfyllt, inte upphävt.
+ * Arket behöver heller inget eget stängkryss: hamburgaren står kvar i raden
+ * ovanför och är krysset.
  */
+import { path } from '../lib/urls';
+
+/**
+ * Rikskartan, som ännu inte finns.
+ *
+ * En agent bygger just nu om kartan från tolv kommunkartor till EN rikstäckande
+ * yta på /karta/. Menyn ska peka på den och inte på tolv, men den får inte
+ * heller peka på en sida som ännu inte byggs: en död länk i huvudmenyn på
+ * 15 500 sidor är värre än en meny utan kartrad.
+ *
+ * Frågan ställs därför till filsystemet vid bygget. Finns sidan syns raden,
+ * annars inte, och ingen behöver komma ihåg att ändra här den dagen den landar.
+ * import.meta.glob returnerar ett tomt objekt när mönstret inte träffar något.
+ */
+const HAR_RIKSKARTA =
+  Object.keys(import.meta.glob('../pages/karta/index.astro')).length > 0 ||
+  Object.keys(import.meta.glob('../pages/karta.astro')).length > 0;
+
+/**
+ * Ikonvalen i avsnitten. En rad per avsnitt, ingen karusell: de får plats.
+ *
+ * KARTAN LIGGER SIST, och det är ägarens ordning: "i hamburgaremenyn så kan ju
+ * också kartvy vara en av rutorna så efter sök, kedjor, kommuner kanske". Den
+ * låg tidigare på andra plats.
+ *
+ * Rutan syns fortfarande inte, och det är inte en glömska. Sökningen i
+ * site/src/pages/ ger `[kommun]/karta.astro`, alltså tolv kommunkartor, och
+ * ingen `karta.astro` eller `karta/`. Det finns med andra ord ingen adress att
+ * peka på ännu, och HAR_RIKSKARTA ovanför är noll. Dagen rikskartan landar
+ * tänds rutan av sig själv, på den plats ägaren bett om.
+ */
+const HITTA = [
+  { href: path('sok'), label: 'Sök', ikon: 'sok' },
+  { href: path('kedja'), label: 'Kedjor', ikon: 'kedja' },
+  { href: path('webbkarta'), label: 'Kommuner', ikon: 'kommun' },
+  ...(HAR_RIKSKARTA ? [{ href: path('karta'), label: 'Karta', ikon: 'karta' }] : []),
+] as const;
+
+const LASA = [
+  { href: path('artiklar'), label: 'Artiklar', ikon: 'artikel' },
+  { href: path('rapporter'), label: 'Rapporter', ikon: 'rapport' },
+  { href: path('utmarkelser'), label: 'Utmärkelser', ikon: 'utmarkelse' },
+] as const;
 ---
 
 <details class="picker" data-picker>
   {/*
     Bara ikonen, ingen etikett. Knappen hette "Kommun" när panelen bara
-    innehöll kommunväljaren. Nu rymmer den rättelse, metodik, källor, om och
-    kontot, och då ljuger etiketten om vad som finns bakom.
+    innehöll kommunväljaren. Namnet ligger i aria-label i stället, så att den
+    som använder skärmläsare får veta vad knappen gör utan att en etikett
+    begränsar vad som får finnas bakom den.
 
-    Namnet ligger i aria-label i stället, så att den som använder skärmläsare
-    får veta vad knappen gör utan att texten begränsar innehållet.
+    Glyfen byts mot ett kryss när menyn är öppen, se stilen. Det är samma
+    knapp hela tiden, alltså fungerar stängningen utan skript.
   */}
   <summary class="trigger" aria-label="Meny" data-trigger>
     <svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+      <path class="g-meny" d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+      <path class="g-kryss" d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
     </svg>
 
     {/* Klockan. Dold tills skriptet vet att det finns något oläst.
 
-        SYNS BARA NÄR DET FINNS EN OLÄST NOTIS, och det är ett val och inte en
-        förenkling. Förlagan är Booking, som har klockan framme jämt, men de
-        har ett sidhuvud att ta av. Vårt är 58 px och bär redan wordmark,
-        sökfält och avatar; en tredje ikon i samma piller som alltid står där
-        och för det mesta inte betyder något är brus. En ikon som dyker upp
-        just när den bär ett besked går däremot inte att missa.
+        SYNS BARA NÄR DET FINNS EN OLÄST NOTIS. Förlagan är Booking, som har
+        klockan framme jämt, men de har ett sidhuvud att ta av. Vårt är 58 px
+        och bär redan wordmark, sökfält och avatar; en tredje ikon som alltid
+        står där och för det mesta inte betyder något är brus.
 
         Den är INTE klickbar, och kan inte vara det: hela knappen är en
         <summary>, och en knapp inuti en knapp går varken att träffa med
-        tangentbord eller att förklara för en skärmläsare. Vägen till listan
-        är raden "Notiser" i panelen, som alltid finns för den som är inloggad.
-        Klockan här är en markering, ingen genväg.
-
-        aria-hidden av samma skäl som avataren: knappens namn skrivs om till
-        "Meny, N olästa notiser" av skriptet, så beskedet finns i klartext
-        utan att skärmläsaren först läser upp en ensam ikon. */}
+        tangentbord eller att förklara för en skärmläsare. Vägen till listan är
+        raden "Notiser" i panelen. Klockan är en markering, ingen genväg. */}
     <span class="bell" hidden data-bell aria-hidden="true">
       <svg viewBox="0 0 20 20" fill="none" focusable="false">
         <path
           d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.2 4-1.7 4.6-.2.2 0 .6.3.6h11.8c.3 0 .5-.4.3-.6-.5-.6-1.7-1.6-1.7-4.6A4.5 4.5 0 0 0 10 3Z"
           stroke="currentColor"
-          stroke-width="1.5"
+          stroke-width="1.6"
           stroke-linejoin="round"
         />
-        <path d="M8.4 15.3a1.7 1.7 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M8.4 15.3a1.7 1.7 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
       </svg>
       <span class="pip"></span>
     </span>
 
-    {/* Avataren. Dold tills skriptet vet att någon är inloggad.
-
-        Bokstaven är e-postadressens första tecken, inte en gubbe. En generisk
-        siluett säger "någon är inloggad", en bokstav säger "DU är inloggad",
-        och skillnaden märks på en delad dator. Ingen bilduppladdning finns för
-        profiler, så alternativet hade varit samma siluett för alla.
-
-        aria-hidden: knappen heter redan Meny, och att skärmläsaren läser upp
-        en ensam bokstav efter det är brus. Vem man är står i klartext i
-        panelen, som är där man kan göra något åt det. */}
+    {/* Avataren. Dold tills skriptet vet att någon är inloggad. Bokstaven är
+        e-postadressens första tecken, inte en gubbe: en siluett säger "någon
+        är inloggad", en bokstav säger "DU är inloggad", och skillnaden märks
+        på en delad dator. */}
     <span class="avatar" hidden data-avatar aria-hidden="true"></span>
   </summary>
 
-  <div class="panel glass" data-panel>
-    <a class="feature" href="/ratta/">
-      <span class="feature-text">
-        <span class="feature-title">Rätta en uppgift</span>
-        <span class="feature-body">
-          Ser något fel ut, eller vill du svara på en kontroll? Hör av dig.
-        </span>
-      </span>
-      {/* Linjeteckning, inte ikon: raden ska väga tyngre än länkarna under
-          den. Bladet i sekundärgrå, pennan i brandblått. En enda accent,
-          ingen toning. */}
-      <svg class="art" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="6" width="19" height="28" rx="3" />
-          <path d="M8 14h11M8 20h11M8 26h7" />
-        </g>
-        <g class="pen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M24.5 33 26 29.6l7.5-7.4 1.8 1.8-7.4 7.5Z" />
-          <path d="M26 29.6l1.9 1.9" />
-        </g>
-      </svg>
-    </a>
+  {/* Skuggan bakom panelen. Ligger FÖRE panelen i dokumentet så att panelen
+      målas ovanpå den utan att någon behöver räkna z-index mellan syskon.
+      Utan skript går den inte att klicka bort, och det är i sin ordning:
+      knappen i raden ovanför står kvar synlig och stänger menyn. */}
+  <div class="scrim" data-scrim></div>
 
-    <nav class="more" aria-label="Mer om Prikko">
-      <a href="/metodik/">Metodik</a>
-      <a href="/kallor/">Källor</a>
-      <a href="/om/">Om Prikko</a>
-    </nav>
+  {/* Två lager, och båda behövs.
 
-    {/* Kontoraden, längst ned under en egen linje. Samma placering som
-        Airbnb: menyns innehåll först, sedan en avdelare, sedan en enda rad
-        om vem du är.
+      .panel är luckan: den klipper och den är det som växer i höjd när menyn
+      öppnas. .rull är innehållet som rullar när panelen slår i skärmens
+      underkant. Ett enda lager kan inte vara båda, eftersom `overflow: hidden`
+      är det som gör höjdförloppet till en lucka och `overflow-y: auto` är det
+      som gör innehållet rullbart. */}
+  <div class="panel" data-panel>
+    <div class="rull">
+      <div class="container inner">
+      {/* Överdelen: två kort till vänster, länkspalterna till höger.
+          Korten är HANDLINGAR, länkarna är SIDOR. Det är hela skälet till att
+          de ser olika ut och inte en smakfråga: ett kort ber om något av
+          besökaren, en länk tar henne någonstans. */}
+      <div class="top">
+        <div class="tools">
+          {/* Pennan. Samma penna som knappen "Skriv ett omdöme" i
+              Reviews.astro, räknad från 20-rutnätet till 24 genom att varje tal
+              multiplicerats med 1,2. Ingen ny ikon: sajten har redan en penna,
+              och två olika pennor för samma sorts handling är precis den sortens
+              glidning som gör att en meny ser hopplockad ut. */}
+          <a class="kort" href={path('ratta')}>
+            <svg class="kort-ikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 19v-3.5L15.7 4.8a1.9 1.9 0 0 1 2.8 0l.7.7a1.9 1.9 0 0 1 0 2.8L8.5 19H5Z" />
+              <path d="M14.8 5.8l3.5 3.5" />
+            </svg>
+            <span class="kort-text">Rätta en uppgift</span>
+          </a>
 
-        Server-renderad som utloggad. Sajten är statisk och sidhuvudet ligger
-        på 16 000 sidor, så vem som är inloggad kan omöjligt vara känt vid
-        bygget. Skriptet nedan skriver om raden när det vet bättre. Det gör
-        att en utloggad besökare ser rätt sak utan att något behöver köras,
-        och en inloggad ser fel i några millisekunder. Motsatt förval hade
-        visat "Ditt konto" för alla som har JavaScript avstängt.
+          {/* Vågen. Ligger redan i huset som AreaIcon.astro:s E, alltså
+              handelsnormer, och betyder samma sak här: två saker vägda mot
+              varandra. Kopierad tecken för tecken och inte omritad. */}
+          <a class="kort" href={path('jamfor')}>
+            <svg class="kort-ikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 4v16M6 8h12M6 8l-3 6h6zM18 8l3 6h-6z" />
+            </svg>
+            <span class="kort-text">Jämför två ställen</span>
+          </a>
+        </div>
 
-        `hidden` på den inloggade delen i stället för två separata
-        renderingar: raden ska inte hoppa i höjd när skriptet byter läge. */}
-    <div class="account">
-      <button type="button" class="account-in" data-signin>Logga in eller skapa konto</button>
+        <div class="meta">
+          <nav class="lankar" aria-label="Om Prikko">
+            <a href={path('metodik')}>Metodik</a>
+            <a href={path('kallor')}>Källor</a>
+            <a href={path('om')}>Om Prikko</a>
+            <a href={path('webbkarta')}>Webbkarta</a>
+          </nav>
 
-      <div class="account-out" hidden data-account>
-        <p class="who" data-who></p>
-        {/* Vägen till notiserna. Står FÖRST bland kontoraderna: det är den
-            enda av dem som kan ha förändrats sedan förra besöket.
+          {/* Kontoblocket. Ligger sist i läsordningen med avsikt och efter
+              förebild: den som öppnar menyn kommer för att hitta en yta eller
+              rätta en uppgift, och inloggningen är det fåtal återvändande gör.
+              Airbnb och hitta.se löser det likadant.
 
-            Antalet står i raden och inte bara som en prick. En prick i en
-            panel man redan öppnat har inget kvar att säga; siffran avgör om
-            det är värt att klicka. */}
-        <a class="notis-rad" href="/konto/notiser/">
-          Notiser
-          <span class="notis-antal" hidden data-notis-antal></span>
-        </a>
-        <a href="/konto/">Ditt konto</a>
-        <button type="button" class="linky" data-signout>Logga ut</button>
+              Server-renderat som UTLOGGAT. Sajten är statisk och sidhuvudet
+              ligger på 15 500 sidor, så vem som är inloggad kan omöjligt vara
+              känt vid bygget. Skriptet skriver om blocket när det vet bättre.
+              Motsatt förval hade visat "Ditt konto" för alla som har
+              JavaScript avstängt. */}
+          <div class="account">
+            <button type="button" class="account-in" data-signin>Logga in</button>
+
+            <div class="account-out" hidden data-account>
+              <p class="who" data-who></p>
+              {/* Notiserna står FÖRST bland kontoraderna: de är det enda som
+                  kan ha förändrats sedan förra besöket. Antalet står i raden
+                  och inte bara som en prick. En prick i en panel man redan
+                  öppnat har inget kvar att säga. */}
+              <a class="notis-rad" href={path('konto', 'notiser')}>
+                Notiser
+                <span class="notis-antal" hidden data-notis-antal></span>
+              </a>
+              <a href={path('konto')}>Ditt konto</a>
+              <a href={path('konto', 'granska')}>Granska</a>
+              <button type="button" class="linky" data-signout>Logga ut</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="delare" />
+
+      {/* Avsnitten. Rubrik plus en rad ikonval, precis som förlagan. Ingen
+          karusell: Ednia behövde en för femton program, vi har tre och fyra.
+
+          BREDVID VARANDRA, inte staplade. Ägaren: "ska dom inte ligga bredvid
+          varandra istället för att göra hamburgaremenyn inte gå ner så mycket".
+          Måtten bakom beslutet står vid .avsnitten i stilen nedan. */}
+      <div class="avsnitten">
+      <nav class="avsnitt" aria-labelledby="meny-hitta">
+        <h2 class="rubrik" id="meny-hitta">Hitta ett ställe</h2>
+        <ul class="rutor">
+          {HITTA.map((item) => (
+            <li>
+              <a href={item.href}>
+                <span class="platta">
+                  <svg class="ikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    {item.ikon === 'sok' && (
+                      <Fragment>
+                        <circle cx="11" cy="11" r="6" />
+                        <path d="m15.5 15.5 4 4" />
+                      </Fragment>
+                    )}
+                    {item.ikon === 'karta' && (
+                      <Fragment>
+                        <path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4Z" />
+                        <path d="M9 4v13M15 6.5v13" />
+                      </Fragment>
+                    )}
+                    {item.ikon === 'kedja' && (
+                      <Fragment>
+                        <path d="M4 9h16l-1 11H5L4 9Z" />
+                        <path d="M4 9 5.5 4h13L20 9" />
+                        <path d="M9.5 13.5h5" />
+                      </Fragment>
+                    )}
+                    {item.ikon === 'kommun' && (
+                      <Fragment>
+                        <path d="M3 20h18" />
+                        <path d="M5 20V9l5-4 5 4v11" />
+                        <path d="M15 20V12h4v8" />
+                        <path d="M9 20v-4h2v4" />
+                      </Fragment>
+                    )}
+                  </svg>
+                </span>
+                <span class="ruta-text">{item.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <nav class="avsnitt" aria-labelledby="meny-lasa">
+        <h2 class="rubrik" id="meny-lasa">Läs vad siffrorna säger</h2>
+        <ul class="rutor">
+          {LASA.map((item) => (
+            <li>
+              <a href={item.href}>
+                <span class="platta">
+                  <svg class="ikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    {item.ikon === 'artikel' && (
+                      <Fragment>
+                        <rect x="4" y="4" width="16" height="16" rx="2.5" />
+                        <path d="M8 9h8M8 13h8M8 17h5" />
+                      </Fragment>
+                    )}
+                    {item.ikon === 'rapport' && (
+                      <Fragment>
+                        <path d="M4 20h16" />
+                        <path d="M7 20V12M12 20V5M17 20v-6" />
+                      </Fragment>
+                    )}
+                    {item.ikon === 'utmarkelse' && (
+                      <Fragment>
+                        <circle cx="12" cy="9.5" r="5.5" />
+                        <path d="m8.5 14.5-1.5 6 5-2.5 5 2.5-1.5-6" />
+                      </Fragment>
+                    )}
+                  </svg>
+                </span>
+                <span class="ruta-text">{item.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      </div>
       </div>
     </div>
   </div>
@@ -160,32 +380,85 @@
 
 <style>
   .picker {
-    position: relative;
+    /* Ingen `position: relative` längre. Panelen är helbredd och ankras i
+       viewporten, inte i knappen, och en relativ förälder hade inte ändrat
+       det, men den hade gjort det oklart vad panelen egentligen räknar mot. */
     flex-shrink: 0;
   }
 
-  /* Kvadratiska mått, inte höjd plus padding.
-   *
-   * Knappen var ett piller med texten "Kommun" bredvid ikonen. När texten
-   * togs bort behöll den `padding-inline`, så bredden blev ikonen plus två
-   * paddingar medan höjden satt låst på 36. Resultatet blev en oval.
-   *
-   * Nu samma tal på båda ledder, och cirkeln följer av det.
-   *
-   * Cirkeln får vara kvar och den får vara tom. Den markerar att ikonen är
-   * något man trycker på och ger en träffyta på 36 px, vilket är ungefär
-   * gränsen för en fingertopp. En fylld yta hade vägt lika tungt som
-   * wordmarken i andra änden av raden, och sidhuvudet ska vara lugnt.
-   * Fyllningen kommer i stället vid hover, som en kvittens. */
+  /* ── KNAPPEN ───────────────────────────────────────────────────────────── */
+
+  /* Kvadratiska mått, inte höjd plus padding. Knappen var ett piller med
+     texten "Kommun" bredvid ikonen; när texten togs bort behöll den sin
+     padding-inline och blev en oval. Nu samma tal på båda ledder.
+
+     Cirkeln får vara tom. Den markerar att ikonen är något man trycker på och
+     ger en träffyta på 36 px, ungefär gränsen för en fingertopp. En fylld yta
+     hade vägt lika tungt som wordmarken i andra änden av raden. */
+  .trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    /* Knappen ska ligga över panelen och skuggan. Den är krysset. */
+    position: relative;
+    z-index: 2;
+  }
+
   /* Inloggad blir knappen ett piller med hamburgaren och avataren bredvid
-     varandra, som hos Airbnb. Utloggad är den en tom cirkel som förut.
-     Bredden får växa, höjden aldrig: sidhuvudet är 58 px och en knapp som
-     ändrar höjd skulle flytta wordmarken och sökfältet när man loggar in. */
+     varandra, som hos Airbnb. Utloggad är den en tom cirkel. Bredden får växa,
+     höjden aldrig: sidhuvudet är 58 px och en knapp som ändrar höjd skulle
+     flytta wordmarken och sökfältet när man loggar in. */
   .picker[data-signed-in] .trigger {
     width: auto;
     gap: 6px;
     padding: 0 5px 0 10px;
     border-radius: var(--r-pill);
+  }
+
+  .trigger:hover {
+    background: var(--canvas);
+    border-color: var(--text-muted);
+  }
+
+  /* Safari ritar en egen triangel på summary. */
+  .trigger::-webkit-details-marker { display: none; }
+
+  .glyph {
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+  }
+
+  /* Glyfbytet. Ett kryss när menyn är öppen, tre streck när den är stängd.
+     Bytet sker i CSS ur <details open>, alltså utan en rad skript, och därför
+     stämmer ikonen även för den som har JavaScript avstängt. */
+  .glyph .g-kryss { display: none; }
+  .picker[open] .glyph .g-meny { display: none; }
+  .picker[open] .glyph .g-kryss { display: block; }
+
+  /* Under utgången är menyn tekniskt fortfarande öppen, se skriptet. Knappen
+     ska ändå säga "meny" direkt vid klicket: besked om att stängningen tagit
+     emot ska inte vänta på att den blivit klar. */
+  .picker[data-stanger] .glyph .g-meny { display: block; }
+  .picker[data-stanger] .glyph .g-kryss { display: none; }
+
+  .picker[open] .trigger {
+    background: var(--canvas);
+    border-color: var(--text-muted);
+  }
+
+  .picker[data-stanger] .trigger {
+    background: var(--card);
+    border-color: var(--hairline);
   }
 
   .avatar {
@@ -204,11 +477,9 @@
 
   .avatar[hidden] { display: none; }
 
-  /* Klockan. Ligger mellan hamburgaren och avataren, alltså i knappen och
-     intill avataren på samma gång.
-
-     Ingen egen fyllning och ingen ram: den ska väga som glyfen till vänster om
-     sig och inte som en andra knapp. Det som drar blicken är pricken. */
+  /* Klockan mellan hamburgaren och avataren. Ingen egen fyllning och ingen
+     ram: den ska väga som glyfen till vänster om sig och inte som en andra
+     knapp. Det som drar blicken är pricken. */
   .bell {
     position: relative;
     display: inline-flex;
@@ -220,10 +491,9 @@
   }
 
   .bell[hidden] { display: none; }
-
   .bell svg { width: 18px; height: 18px; }
 
-  /* Pricken sitter på klockan och inte bredvid den. --brand mot --card ger
+  /* Pricken sitter PÅ klockan och inte bredvid den. --brand mot --card ger
      3,3:1, alltså under 4,5:1 för text men klart över 3:1 för grafik, och
      pricken är grafik: beskedet finns i klartext i knappens aria-label och i
      panelens rad. Vit ring runt om så att den läser som en pålagd markering
@@ -239,182 +509,195 @@
     background: var(--brand);
   }
 
-  .trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--hairline);
-    border-radius: 50%;
+  /* ── PANELEN ───────────────────────────────────────────────────────────── */
+
+  /* 58 px är sidhuvudsradens höjd, satt i Header.astro. Panelen börjar där
+     raden slutar, alltså under wordmarken och sökfältet, som båda blir kvar
+     synliga och användbara. Se filhuvudet för varför den inte täcker raden. */
+  .panel {
+    position: fixed;
+    top: 58px;
+    left: 0;
+    right: 0;
+    z-index: 1;
     background: var(--card);
+    border-bottom: 1px solid var(--hairline);
+    /* Sista utvägen på en låg skärm i liggande läge. dvh och inte vh: på iOS
+       är vh den utfällda adressfältets höjd, alltså fel varje gång fältet är
+       inne. */
+    max-height: calc(100dvh - 58px);
+
+    /* Rutnätet finns bara för att höjden ska gå att animera.
+       `grid-template-rows` mellan 0fr och 1fr är den enda vägen till ett
+       höjdförlopp som slutar på innehållets EGEN höjd, utan att någon mäter
+       panelen i skript och utan ett påhittat max-height att räkna ned från.
+       Se förloppet längst ned i filen. */
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+  }
+
+  /* Raden i rutnätet ovanför. `min-height: 0` är det som gör att raden får
+     krympa till noll: ett rutnätsspår vägrar annars bli mindre än sitt
+     innehåll, och hela höjdförloppet uteblir utan att något ser trasigt ut. */
+  .rull {
+    min-height: 0;
+    overflow-y: auto;
+    /* Rullar man klart inuti panelen ska sidan bakom inte ta vid. */
+    overscroll-behavior: contain;
+  }
+
+  .inner {
+    padding-top: var(--s-6);
+    padding-bottom: var(--s-8);
+  }
+
+  /* Skuggan. Täcker allt under raden, alltså exakt det panelen inte gör.
+     Svag: sidan ska läsa som nedtonad, inte som bortsläckt. */
+  .scrim {
+    position: fixed;
+    top: 58px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+    background: rgba(0, 0, 0, .28);
+  }
+
+  /* ── ÖVERDELEN: KORT OCH LÄNKAR ────────────────────────────────────────── */
+
+  /* Ednia ger korten 520 av 1416 px, alltså 37 procent, och länkspalterna
+     resten. Samma förhållande här, uttryckt i fraktioner så att det håller i
+     varje bredd. */
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 37fr) minmax(0, 63fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+
+  .tools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-4);
+  }
+
+  /* Korten. --shadow-sm bär både ringen och lyftet, så ingen egen border:
+     en border ovanpå ringen hade gett två linjer på samma kant. */
+  .kort {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--s-4);
+    min-height: 108px;
+    padding: var(--s-4);
+    border-radius: var(--r-card);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
     color: var(--text);
-    cursor: pointer;
-    list-style: none;
-    user-select: none;
   }
 
-  .trigger:hover {
-    background: var(--canvas);
-    border-color: var(--text-muted);
+  .kort:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 5%, var(--card));
   }
 
-  /* Safari ritar en egen triangel på summary. */
-  .trigger::-webkit-details-marker { display: none; }
-
-  .glyph {
-    width: 18px;
-    height: 18px;
+  /* Samma mått som .ikon i avsnitten nedanför, inte större.
+     Korten är bredare än plattorna, och ikonen fick tidigare 32 px för att
+     fylla dem. Det gjorde den till panelens tyngsta grafik och till den enda
+     som inte matchade de sex andra, trots att den ritades i samma streck.
+     Ett kort får sin tyngd av sin ram och sin etikett, inte av sin ikon. */
+  .kort-ikon {
+    width: 26px;
+    height: 26px;
     color: var(--text-secondary);
   }
 
-  /* Det svävande lagret. Ytan står i .glass i tokens.css: kant, fyllning,
-     oskärpa, lyft och reservregeln utan backdrop-filter. Sätt aldrig någon
-     av dem här: den här filen och SiteSearch hade var sin kopia av samma
-     yta, och två kopior glider isär.
-
-     Här bor bara panelens mått och layout. */
-  .panel {
-    position: absolute;
-    top: calc(100% + var(--s-2));
-    right: 0;
-    z-index: 50;
-    display: flex;
-    flex-direction: column;
-    width: 300px;
-    max-width: calc(100vw - var(--s-8));
-    /* Sista utvägen. Menyn är sex rader och får plats överallt utom på en
-       riktigt låg skärm i liggande läge, och där är en rullande panel bättre
-       än avklippta länkar. Ingen inre rullande yta finns kvar: den fanns för
-       kommunlistan, som är borta. */
-    max-height: min(80vh, 480px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: var(--s-3);
-  }
-
-  /* Den framhävda raden. Ligger först i panelen, och det är avsiktligt: att
-     rätta en uppgift är det enda vi ber besökaren om. */
-  .feature {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    padding: var(--s-3);
-    border-radius: var(--r-control);
-    color: var(--text);
-  }
-
-  .feature:hover {
-    text-decoration: none;
-    background: color-mix(in srgb, var(--brand) 6%, transparent);
-  }
-
-  .feature-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .feature-title {
+  .kort-text {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
   }
 
-  .feature-body {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
+  /* Länkspalterna. Tre kolumner med två, två och en rad, alltså exakt
+     förlagans fördelning: Ednia har Räkna ut merit / Om Ednia, Karta med alla
+     skolor / För SYVare, och För skolor ensam i tredje.
+
+     Kolumnerna HUGGER sitt innehåll i stället för att delas lika. Med
+     `1fr 1fr` sträcktes de över hela 63-procentsytan och kontoraden hamnade
+     ensam ute vid högerkanten med tvåhundra tomma pixlar omkring sig. Ednias
+     kolumner ligger 264 px isär, vilket är etiketten plus luft och inte en
+     tredjedel av något. --s-12 är vårt närmaste mått på den luften. */
+  .meta {
+    display: flex;
+    gap: var(--s-12);
+    align-items: start;
   }
 
-  .art {
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    color: var(--text-secondary);
+  /* Två rader, sedan ny kolumn. Ordningen blir Metodik / Källor i första
+     kolumnen och Om Prikko / Webbkarta i andra, alltså läsordning nedåt och
+     inte i sicksack. */
+  .lankar {
+    display: grid;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    gap: 0 var(--s-12);
+    justify-content: start;
   }
 
-  .art .pen { color: var(--brand); }
-
-  /* Avdelarna ligger på nav-behållaren, aldrig på länkarna själva: en
-     border-top följer border-radius och hade böjt sig runt den framhävda
-     radens hörn i stället för att gå rakt tvärs över panelen. */
-  .more {
-    flex-shrink: 0;
+  .account,
+  .account-out {
     display: flex;
     flex-direction: column;
-    margin-top: var(--s-2);
-    padding-top: var(--s-2);
-    border-top: 1px solid var(--hairline);
+    align-items: start;
   }
 
-  .more a {
-    padding: var(--s-2) var(--s-3);
-    border-radius: var(--r-control);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text);
-  }
+  /* Måste stå utskrivet. `hidden` är display: none i webbläsarens egen
+     stilmall, och varje egen display-regel vinner över den. Utan de här två
+     raderna syns både kontoblocket och den inloggade delen alltid. */
+  .account[hidden],
+  .account-out[hidden] { display: none; }
 
-  .more a:hover {
-    text-decoration: none;
-    background: color-mix(in srgb, var(--brand) 6%, transparent);
-  }
-
-  /* Kontoraden. Egen linje ovanför, så att den läser som en avdelning för sig
-     och inte som en fjärde länk bland Metodik, Källor och Om. */
-  .account {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    margin-top: var(--s-2);
-    padding-top: var(--s-2);
-    border-top: 1px solid var(--hairline);
-  }
-
-  /* Knappen ska se ut som länkarna ovanför, inte som en knapp. Den gör samma
-     sorts sak: den tar dig vidare. Att den tekniskt är en <button> beror bara
-     på att den öppnar en ruta i stället för att byta sida, och det är ett
-     genomförandedetalj som inte ska synas. */
+  /* En enda regel för varje klickbar rad i spalterna, oavsett om den tekniskt
+     är en <a> eller en <button>. Att utloggningen är en knapp beror bara på
+     att den inte byter sida, och det är ett genomförandedetalj som inte ska
+     synas. */
+  .lankar a,
   .account-in,
   .account-out a,
   .linky {
-    padding: var(--s-2) var(--s-3);
+    padding: 6px 10px;
+    margin-inline: -10px;
     border-radius: var(--r-control);
     font: inherit;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    color: var(--text);
+    font-weight: 600;
+    color: var(--text-secondary);
     text-align: left;
     background: none;
     border: 0;
     cursor: pointer;
   }
 
+  .lankar a:hover,
   .account-in:hover,
   .account-out a:hover,
   .linky:hover {
-    background: var(--canvas);
     text-decoration: none;
-  }
-
-  .account-out {
-    display: flex;
-    flex-direction: column;
+    color: var(--text);
+    background: var(--canvas);
   }
 
   /* Notisraden. Samma rad som "Ditt konto", plus ett tal längst ut. */
   .notis-rad {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--s-2);
   }
 
-  /* Talet. Piller i brandblått med vit text, alltså 4,5:1 och läsbart som
-     text ska vara. Träffytan är radens, inte pillrets: hela raden är länken. */
+  /* Talet. Piller i brandblått med vit text, alltså 4,5:1 och läsbart som text
+     ska vara. Träffytan är radens, inte pillrets: hela raden är länken. */
   .notis-antal {
     flex: none;
     min-width: 20px;
@@ -430,43 +713,255 @@
 
   .notis-antal[hidden] { display: none; }
 
-  /* Måste stå utskrivet. `hidden` är display: none i webbläsarens egen
-     stilmall, och varje egen display-regel vinner över den. Utan de här två
-     raderna syns både kontoraden och den inloggade delen alltid. */
-  .account[hidden],
-  .account-out[hidden] { display: none; }
-
   /* Adressen man loggat in med. Inte en länk och inte klickbar: den är en
      upplysning om vem sajten tror att du är, och det enda man vill göra med
      den är att läsa den. */
   .who {
-    padding: var(--s-2) var(--s-3) 0;
+    padding: 0 0 var(--s-1);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    color: var(--text-secondary);
+    color: var(--text-muted);
     overflow-wrap: anywhere;
   }
 
-  @media (max-width: 480px) {
-    /* Här stod `.trigger span { display: none }`. Regeln är från den tid då
-       knappen bar etiketten "Kommun" i ett span bredvid ikonen, och etiketten
-       är borta sedan panelen fick mer än kommuner i sig. Kvar blev en regel
-       som på telefon dolde precis det som ska synas där: avataren, klockan och
-       pricken, alla tre spans i knappen. Just på en telefon är sidhuvudet det
-       enda man ser av kontot utan att öppna menyn.
+  /* ── HÅRLINJEN OCH AVSNITTEN ───────────────────────────────────────────── */
 
-       Regeln är alltså borttagen och inte ersatt. Paddingen står kvar: den
-       gäller bara utloggad, där knappen är en cirkel med fast bredd, eftersom
-       .picker[data-signed-in] .trigger väger tyngre. */
+  .delare {
+    height: 1px;
+    margin: var(--s-6) 0;
+    border: 0;
+    background: var(--hairline);
+  }
+
+  /* Avsnitten sida vid sida.
+   *
+   * MÄTT I WEBBLÄSAREN DEN 12 AUGUSTI 2026, VID 1440 px, MED MENYN ÖPPEN:
+   *
+   *   ednia.se    panelen helbredd 1425 px och 250 px HÖG. Allt ligger i ETT
+   *               band: två kort 234 och 246 px breda med 16 px emellan till
+   *               vänster, och länkarna i två spalter till höger, 300 px isär,
+   *               raddelning 40 px, radhöjd 32, text 14 px vikt 600 i #717171.
+   *               Inga avdelare alls, bara luft.
+   *   airbnb.se   en LITEN panel, 265 x 329 px, radie 12, skugga
+   *               0 2px 16px rgba(0,0,0,.12), rader 36 px höga, text 14 px
+   *               vikt 400, hårlinje mellan grupperna, kontoraden sist.
+   *   booli.se    HAR INGEN meny på desktop. Fem länkar direkt i raden.
+   *               Ingen panel att mäta, alltså ingen förlaga för det här.
+   *
+   * Vår panel var 525 px hög, alltså mer än dubbelt mot ednias 250. Skillnaden
+   * satt inte i innehållet utan i att vi staplade tre band där ednia har ett:
+   * kort och länkar överst, sedan Hitta ett ställe, sedan Läs vad siffrorna
+   * säger. Två av banden tar 128 px var plus luft.
+   *
+   * Spalterna HUGGER sitt innehåll och delar inte panelen i halvor. Fyra rutor
+   * blir 4 x 84 + 3 x 8 = 360 px och tre blir 268 px, med --s-12 emellan alltså
+   * 676 px av 1080. Resten lämnas tom med flit: sträcks spalterna ut till
+   * varsin halva hamnar tre rutor med 250 tomma pixlar bredvid sig, och då
+   * läser panelen som en sida med kolumner i stället för som en meny. Det är
+   * samma val som redan gjorts för länkspalterna i .meta ovanför, och det är
+   * så ednia gör med sina 300 px.
+   */
+  .avsnitten {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-6) var(--s-12);
+    align-items: start;
+  }
+
+  .rubrik {
+    margin: 0 0 var(--s-3);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .rutor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rutor a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-2);
+    width: 84px;
+    padding: var(--s-2) 0;
+    border-radius: var(--r-card);
+    color: var(--text);
+    text-align: center;
+  }
+
+  .rutor a:hover { text-decoration: none; }
+
+  /* Plattan. Ednia har #f6f6f6 mot vitt; --canvas ligger tre RGB-steg från
+     --card och hade inte synts alls, så tonen räknas ur bläcket i stället och
+     följer därmed med i mörkt läge. */
+  .platta {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--r-card);
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+    color: var(--text-secondary);
+  }
+
+  .rutor a:hover .platta {
+    background: color-mix(in srgb, var(--brand) 10%, transparent);
+    color: var(--brand-ink);
+  }
+
+  .ikon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .ruta-text {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* ── SMALA SKÄRMAR ─────────────────────────────────────────────────────── */
+
+  @media (max-width: 720px) {
+    /* Korten och länkarna över varandra. Under ungefär 720 px blir en 37/63-
+       delning två kolumner som båda är för smala för sitt innehåll: kortens
+       etiketter bryts mitt i ett ord och länkarna hamnar i två rader var. */
+    .top {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-6);
+    }
+
+    /* Länkarna blir EN spalt. Tre kolumner som hugger sitt innehåll får plats
+       i bredd även här, men de blir tre smala remsor med 48 px emellan, och
+       ögat läser dem då som tre orelaterade listor i stället för som en. */
+    .meta {
+      flex-direction: column;
+      gap: var(--s-4);
+    }
+
+    .lankar {
+      grid-auto-flow: row;
+      grid-template-rows: none;
+    }
+
+    /* Avsnitten under varandra igen. Två spalter om 360 och 268 px får inte
+       plats bredvid varandra under 720, och en spalt som bryter mitt i en rad
+       rutor läser som att något saknas. */
+    .avsnitten {
+      flex-direction: column;
+      gap: var(--s-6);
+    }
+
+    .inner {
+      padding-top: var(--s-4);
+      padding-bottom: var(--s-6);
+    }
+
+    .delare { margin: var(--s-4) 0; }
+  }
+
+  @media (max-width: 480px) {
+    /* Här låg en regel som dolde varje span i knappen. Den var från den tid då
+       knappen bar etiketten "Kommun", och när etiketten försvann dolde den i
+       stället precis det som ska synas på telefon: avataren, klockan och
+       pricken. Just där är sidhuvudet det enda man ser av kontot utan att
+       öppna menyn. Regeln är borttagen och inte ersatt. */
     .trigger { padding-inline: var(--s-2); }
 
-    /* HÄR LÅG FULLSKÄRMSARKET, OCH DET SKA INTE KOMMA TILLBAKA.
-       Menyn öppnade som en hel yta på mobil så länge den bar en kommunlista
-       som kunde växa till 290 rader. Den listan är borta. Sex rader utlagda
-       över en 812 px hög vit yta läser inte som en meny utan som en sida som
-       inte hunnit ladda klart, och arket krävde dessutom ett eget stängkryss
-       eftersom ett ark inte har något "utanför". Panelen är förankrad i
-       knappen i alla bredder nu, precis som hitta.se gör med sin. */
+    /* Plattorna krymper så att fyra ryms i bredd på en 375 px skärm:
+       4 x 76 + 3 x 8 = 328, mot 343 tillgängliga innanför containerns
+       padding. Fem hade inte gått, och en rad som bryter mitt i ett avsnitt
+       läser som att något saknas. */
+    .rutor a { width: 76px; }
+    .platta { width: 60px; height: 60px; }
+  }
+
+  /* ── FÖRLOPPET ─────────────────────────────────────────────────────────── */
+
+  /* Här stod tidigare att panelen INTE skulle tona in, med skälet att text som
+     tonar in läses senare än text som står där. Beställningen är en annan:
+     menyn ska öppna mjukt. Skälet gäller fortfarande för långsam text, och
+     det är därför innehållet är klart efter 280 ms medan luckan håller på i
+     380 ms, alltså läser man medan panelen slutar röra sig, inte efteråt.
+     Ingen läsare hinner vänta på 280 ms, och en meny som slår upp utan förlopp
+     läser som ett sidbyte i stället för som ett lager ovanpå sidan.
+
+     Talen är mätta på ednia.se den 12 augusti 2026, i webbläsaren, med deras
+     egen desktopmeny öppen:
+
+       luckan     transition height, .38s cubic-bezier(.48, .22, .04, 1)
+       innehållet transform + opacity, .28s samma kurva, scale .95 till 1
+
+     Kurvan är samma i båda riktningarna. Den startar snabbt och lägger sig
+     långsamt, alltså rör sig menyn mest när den är minst och står nästan
+     stilla när den är störst. Det är det som gör att en yta på en halv skärm
+     inte känns tung.
+
+     Ett avsteg: vår skala går till .97 och inte .95. Ednias panel börjar vid
+     y=0 och täcker sidhuvudet, alltså skalas den kring skärmens mitt. Vår
+     börjar under raden, och .95 räknat från vår mittpunkt drog kortens
+     vänsterkant synligt inåt från wordmarken ovanför. */
+  /* ÖVERGÅNG OCH INTE @KEYFRAMES, och det är mätt fram och inte valt.
+   *
+   * Första versionen la `animation: meny-lucka-in` på `.picker[open] .panel`
+   * och lät alltså <details> starta förloppet genom att börja matcha. Det gav
+   * en meny som ibland slog upp utan rörelse. Mätt i webbläsaren, samma sida,
+   * samma bildruteloop: ena gången skapades tre animationer och panelen stod
+   * på 0px i första bildrutan, andra gången skapades ingen alls och den stod
+   * på 358px direkt. Samma kod, olika utfall.
+   *
+   * Skälet är att panelen byter från olayoutad till layoutad i exakt samma
+   * ögonblick som regeln börjar gälla, och om en animation då startar eller
+   * anses redan avslutad är inget man ska behöva gissa. Ett förlopp som
+   * fungerar för det mesta är värre än inget förlopp: det ser ut som en bugg.
+   *
+   * En övergång mellan två lägen som SKRIPTET sätter är däremot entydig. Vi
+   * ger panelen 0fr, låter en bildruta gå så att webbläsaren hinner se det
+   * läget, och sätter sedan data-oppen. Då finns två tillstånd att gå emellan
+   * och rörelsen blir densamma varje gång.
+   *
+   * UTAN SKRIPT gäller inget av det här. `.panel` står kvar på 1fr, menyn
+   * fälls ut på studs och allt fungerar, precis som filhuvudet lovar. Motionen
+   * ligger bakom data-mjuk, som skriptet sätter först när det vet att det kan
+   * ta hand om både vägen in och vägen ut. */
+  @media (prefers-reduced-motion: no-preference) {
+    .picker[data-mjuk] .panel {
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 380ms cubic-bezier(.48, .22, .04, 1);
+    }
+
+    .picker[data-mjuk] .inner {
+      opacity: 0;
+      transform: scale(.97);
+      transition:
+        opacity 280ms cubic-bezier(.48, .22, .04, 1),
+        transform 280ms cubic-bezier(.48, .22, .04, 1);
+    }
+
+    .picker[data-mjuk] .scrim {
+      opacity: 0;
+      transition: opacity 180ms ease-out;
+    }
+
+    .picker[data-mjuk][data-oppen] .panel { grid-template-rows: 1fr; }
+    .picker[data-mjuk][data-oppen] .inner { opacity: 1; transform: none; }
+    .picker[data-mjuk][data-oppen] .scrim { opacity: 1; }
+
+    /* Utgången är kortare än ingången, som allt som stänger: att öppna är ett
+       svar på en fråga och får ta tid, att stänga är ett besked om att man är
+       klar. Bara tiden skrivs om, aldrig kurvan: samma rörelse åt båda håll
+       är det som gör att panelen känns som ETT föremål. Två attribut väger
+       tyngre än ett, så reglerna vinner över tiderna ovanför oavsett ordning. */
+    .picker[data-mjuk][data-stanger] .panel { transition-duration: 300ms; }
+    .picker[data-mjuk][data-stanger] .inner { transition-duration: 200ms; }
+    .picker[data-mjuk][data-stanger] .scrim { transition-duration: 260ms; }
   }
 </style>
 
@@ -480,17 +975,13 @@
     unreadNotices,
   } from '../lib/community';
   import { openSignIn } from '../lib/signin-dialog';
+  import { lockPage, unlockPage } from '../lib/page-lock';
 
   /**
-   * Kontoraden längst ned i menyn.
+   * Kontoblocket i panelen.
    *
-   * Ligger före menyns egen kod eftersom den inte har med öppna och stäng att
+   * Ligger före menyns egen kod eftersom det inte har med öppna och stäng att
    * göra och inte får falla bort om något i den delen brister.
-   *
-   * Server-renderad som utloggad, se markupen. Den här funktionen skriver om
-   * raden när den vet bättre. Är inloggning inte uppsatt alls, alltså när
-   * anon-nyckeln saknas vid bygget, döljs raden helt: en knapp som öppnar en
-   * ruta som aldrig kan logga in någon är sämre än ingen knapp.
    */
   {
     const box = document.querySelector<HTMLElement>('.account');
@@ -500,12 +991,12 @@
     const signout = document.querySelector<HTMLButtonElement>('[data-signout]');
 
     if (box && signin && out && who && signout) {
-      /* Bara `configured`, ALDRIG signInAvailable() här.
-         signInAvailable() svarar på om rutan hunnit registrera sig, och det
-         beror på skriptordningen: menyn ligger i sidhuvudet och rutan sist i
-         body, så menyns skript kör först och får alltid nej. Raden doldes
-         därför alltid, och eftersom `hidden` inte överlever en egen
-         `display: flex` syntes den ändå, fast utan klickhanterare.
+      /* Bara `configured`, ALDRIG signInAvailable() här. signInAvailable()
+         svarar på om rutan hunnit registrera sig, och det beror på
+         skriptordningen: menyn ligger i sidhuvudet och rutan sist i body, så
+         menyns skript kör först och får alltid nej. Blocket doldes därför
+         alltid, och eftersom `hidden` inte överlever en egen `display: flex`
+         syntes det ändå, fast utan klickhanterare.
 
          openSignIn() svarar redan false när rutan saknas, så hanteraren får
          sitta ovillkorligt. */
@@ -523,11 +1014,10 @@
          *
          * ETT anrop, och bara för den som är inloggad. Sidhuvudet ligger på
          * 15 500 sidor, så räkningen görs av community.unread_notices() i
-         * databasen i stället för av tre frågor härifrån. Se
-         * pipeline/schema_community.sql.
+         * databasen i stället för av tre frågor härifrån.
          *
-         * Anropet läggs sist i paint() och inte först: raden ska vara rätt
-         * målad innan vi väntar på nätet. Faller anropet svarar
+         * Anropet läggs sist i paint() och inte först: blocket ska vara rätt
+         * målat innan vi väntar på nätet. Faller anropet svarar
          * unreadNotices() noll, och klockan uteblir i stället för att skrika
          * om ett fel besökaren inte kan göra något åt.
          */
@@ -592,7 +1082,7 @@
         });
 
         /* Loggar man in via bevakningsknappen eller omdömesknappen ska
-           raden här visa det utan omladdning. */
+           blocket här visa det utan omladdning. */
         onAuthChange(() => void paint());
 
         void paint();
@@ -601,34 +1091,183 @@
   }
 
   /**
-   * Progressiv förstärkning av menyn. Allt här är sådant som inte går att
-   * göra utan skript. Markupen ovanför fungerar utan.
+   * Progressiv förstärkning av menyn. Allt här är sådant som INTE går att göra
+   * utan skript. Markupen ovanför fungerar utan.
    */
   const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
   if (picker) {
     const summary = picker.querySelector('summary')!;
     const panel = picker.querySelector<HTMLElement>('[data-panel]')!;
+    const scrim = picker.querySelector<HTMLElement>('[data-scrim]')!;
 
     summary.setAttribute('aria-expanded', 'false');
 
+    /* Skrollåset. page-lock.ts och ingen egen rad: modulen räknar hållare, så
+       kedjan meny -> inloggningsruta lämnar över låset utan att sidan hinner
+       återgå och hoppa emellan. `held` finns för att toggle kan avfyras av
+       annat än ett klick, och ett obalanserat lockPage/unlockPage lämnar
+       sidan fixerad för gott. */
+    let held = false;
+
+    /**
+     * Motionen slås PÅ HÄR och inte i markupen.
+     *
+     * `data-mjuk` är skriptets löfte om att det tar hand om både vägen in och
+     * vägen ut. Stilen ger panelen 0fr bakom det attributet, och utan skript
+     * sätts det aldrig, alltså står panelen kvar på 1fr och menyn fungerar på
+     * studs. Det är skillnaden mellan en förstärkning och ett krav.
+     */
+    picker.setAttribute('data-mjuk', '');
+
+    /* Står menyn redan öppen när skriptet kommer fram ska den FÖRBLI öppen.
+       Skriptet ligger i sidhuvudet men körs som modul, alltså efter att sidan
+       ritats, och hinner man klicka på hamburgaren dessförinnan är menyn öppen
+       utan data-oppen. Raden ovanför ger då panelen 0fr och menyn viks ihop av
+       sig själv i samma ögonblick som skriptet laddar. Ett attribut till, och
+       det kan inte hända. */
+    if (picker.open) picker.setAttribute('data-oppen', '');
+
+    /**
+     * Fäller ut panelen, alltså startar övergången från 0fr till 1fr.
+     *
+     * TVÅ BILDRUTOR, INTE EN. Panelen finns inte i layouten medan menyn är
+     * stängd. Sätts data-oppen i samma bildruta som `open` ser webbläsaren bara
+     * slutläget, och då finns ingenting att gå emellan: menyn slår upp utan
+     * rörelse.
+     *
+     * OCH EN TIMER BAKOM DEM. requestAnimationFrame kör INTE i en dold flik.
+     * Mätt på det byggda bygget: fliken låg i bakgrunden, `document.hidden` var
+     * true, och återanropet kom aldrig inom 1,5 sekunder. Menyn öppnade sig då
+     * till en enda pixel och blev kvar så, eftersom 0fr är utgångsläget och det
+     * enda som tar den därifrån är just det attributet. En meny som öppnar sig
+     * till ingenting är värre än en meny helt utan förlopp, och den sortens fel
+     * märks först när någon byter flik mitt i.
+     *
+     * Är fliken redan dold hoppas rörelsen över helt. Det finns ingen att visa
+     * den för, och panelen ska stå färdigt utfälld när man kommer tillbaka.
+     */
+    const visaPanelen = () => {
+      const visa = () => {
+        if (picker.open) picker.setAttribute('data-oppen', '');
+      };
+
+      if (document.hidden) {
+        visa();
+        return;
+      }
+
+      requestAnimationFrame(() => requestAnimationFrame(visa));
+      setTimeout(visa, 100);
+    };
+
     picker.addEventListener('toggle', () => {
       summary.setAttribute('aria-expanded', String(picker.open));
+
+      if (picker.open) {
+        visaPanelen();
+      } else {
+        picker.removeAttribute('data-oppen');
+      }
+
+      if (picker.open && !held) {
+        held = true;
+        lockPage();
+      } else if (!picker.open && held) {
+        held = false;
+        unlockPage();
+      }
     });
 
+    /**
+     * Stängningen, och varför den behöver en egen funktion.
+     *
+     * <details> tar bort panelen ur layouten i samma ögonblick som `open`
+     * försvinner, alltså är det som skulle tona ut redan borta när bildrutan
+     * ritas. Funktionen gör därför en enda sak: den tar bort data-oppen så att
+     * övergången vänder, och skjuter upp `open = false` tills den spelat klart.
+     *
+     * Under uppskjutningen bär elementet `data-stanger`, som stilen använder
+     * för att korta tiderna och för att vända glyfen tillbaka till tre streck
+     * direkt. Menyn är alltså öppen i markupen men stängd för ögat, i 300 ms.
+     *
+     * Utan skript händer ingenting av detta, och menyn stänger på studs som
+     * förut. Det är fortfarande ett fungerande läge och inte ett trasigt.
+     */
+    const mindreRorelse = matchMedia('(prefers-reduced-motion: reduce)');
+
+    const stang = () => {
+      if (!picker.open || picker.hasAttribute('data-stanger')) return;
+
+      /* Den som bett om mindre rörelse ska INTE få stängningen fördröjd med
+         300 ms i stället för animerad. Uteblir rörelsen ska även väntan göra
+         det, annars känns menyn bara trög. */
+      if (mindreRorelse.matches) {
+        picker.open = false;
+        return;
+      }
+
+      /* data-stanger kortar tiderna, data-oppen bort vänder riktningen. */
+      picker.setAttribute('data-stanger', '');
+      picker.removeAttribute('data-oppen');
+
+      let klar = false;
+      const slut = () => {
+        if (klar) return;
+        klar = true;
+        /* `open` först, attributen sedan. I omvänd ordning finns det en
+           bildruta där panelen varken är hopfälld eller borttagen, och då
+           blinkar den upp i full höjd innan den försvinner. */
+        picker.open = false;
+        picker.removeAttribute('data-stanger');
+      };
+
+      /* Panelen bär det längsta förloppet, men transitionend BUBBLAR: kortens
+         opacitet är klar efter 200 ms och skulle annars stänga menyn för
+         tidigt. Därav både target och propertyName. */
+      panel.addEventListener('transitionend', (event) => {
+        if (event.target === panel && event.propertyName === 'grid-template-rows') slut();
+      });
+
+      /* Reservutgången. transitionend uteblir helt om fliken döljs mitt i
+         förloppet, om höjden råkar vara oförändrad, eller om någon stilmall
+         stryper övergången till noll. En meny som fastnar öppen med skrollåset
+         på är värre än en meny som stänger utan förlopp. Talet ligger över de
+         300 ms rörelsen tar. */
+      setTimeout(slut, 420);
+    };
+
+    /* Klick på knappen när menyn är öppen. <details> hade stängt på studs, och
+       preventDefault lämnar över till förloppet ovanför i stället. Öppningen
+       rörs inte: den sköter elementet själv. */
+    summary.addEventListener('click', (event) => {
+      if (!picker.open || picker.hasAttribute('data-stanger')) return;
+      event.preventDefault();
+      stang();
+    });
+
+    /* Klick utanför stänger. Skuggan ligger INNE i <details>, alltså räknas
+       den inte som utanför av contains(), och därför en egen rad för den. */
+    scrim.addEventListener('click', stang);
+
     document.addEventListener('click', (event) => {
-      if (picker.open && !picker.contains(event.target as Node)) picker.open = false;
+      if (picker.open && !picker.contains(event.target as Node)) stang();
     });
 
     picker.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        picker.open = false;
+        stang();
+        /* Fokus flyttas MED EN GÅNG och inte när förloppet är klart. Panelen är
+           på väg bort, och 300 ms utan fokus någonstans är 300 ms då nästa
+           tangenttryck går till dokumentet i stället för till knappen. */
         summary.focus();
         return;
       }
       if (event.key !== 'Tab' || !picker.open) return;
 
-      // Fokusfälla: lagret ligger ovanpå sidan, och att tabba ut ur det utan
-      // att stänga det lämnar användaren med fokus på något osynligt.
+      /* Fokusfälla: panelen ligger ovanpå sidan, och att tabba ut ur den utan
+         att stänga den lämnar användaren med fokus på något som ligger under
+         en skugga. Listan räknas om vid varje Tab eftersom kontoblocket byter
+         innehåll när någon loggar in medan menyn står öppen. */
       const focusable = [
         summary,
         ...panel.querySelectorAll<HTMLElement>(
