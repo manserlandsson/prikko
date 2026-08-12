@@ -355,8 +355,9 @@ function utmarkelseSection(): MapSection {
 /**
  * Sidorna om Prikko självt.
  *
- * Listan är handskriven, och det är rätt här: det är sju sidor med skriven
- * text som inte härleds ur någon datamängd. Faller någon av dem bort fångas
+ * Listan är handskriven, och det är rätt här: det är sidor med skriven text
+ * som inte härleds ur någon datamängd. Ett tal här hade dessutom ruttnat vid
+ * varje ny sida, vilket det hann göra en gång. Faller någon av dem bort fångas
  * det av byggrinden, som kräver att varje länk på webbkartan finns i
  * XML-sitemapen.
  */
@@ -381,6 +382,8 @@ function omSection(): MapSection {
             ? [{ href: path('nytt-och-borta'), label: 'Nytt och borta' }]
             : []),
           { href: path('ratta'), label: 'Rätta en uppgift' },
+          { href: path('hjalp'), label: 'Hjälp och vanliga frågor' },
+          { href: path('kontakt'), label: 'Kontakt' },
           { href: path('integritetspolicy'), label: 'Integritetspolicy' },
           { href: path('villkor'), label: 'Användarvillkor' },
           { href: path('cookies'), label: 'Kakor' },

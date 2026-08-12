@@ -250,8 +250,10 @@ const LASA = [
           <nav class="lankar" aria-label="Om Prikko">
             <a href={path('metodik')}>Metodik</a>
             <a href={path('kallor')}>Källor</a>
+            <a href={path('hjalp')}>Hjälp</a>
             <a href={path('om')}>Om Prikko</a>
             <a href={path('webbkarta')}>Webbkarta</a>
+            <a href={path('kontakt')}>Kontakt</a>
           </nav>
 
           {/* Kontoblocket. Ligger sist i läsordningen med avsikt och efter
@@ -634,12 +636,17 @@ const LASA = [
     align-items: start;
   }
 
-  /* Två rader, sedan ny kolumn. Ordningen blir Metodik / Källor i första
-     kolumnen och Om Prikko / Webbkarta i andra, alltså läsordning nedåt och
-     inte i sicksack. */
+  /* Tre rader, sedan ny kolumn. Ordningen blir Metodik / Källor / Hjälp i
+     första kolumnen och Om Prikko / Webbkarta / Kontakt i andra, alltså
+     läsordning nedåt och inte i sicksack.
+
+     Raderna var två så länge länkarna var fyra. Hjälp och Kontakt gjorde dem
+     sex, och med två rader hade det blivit tre smala remsor med 48 px emellan.
+     Talet här är alltså antalet länkar delat på två, och det ska ändras när
+     listan gör det. */
   .lankar {
     display: grid;
-    grid-template-rows: repeat(2, auto);
+    grid-template-rows: repeat(3, auto);
     grid-auto-flow: column;
     gap: 0 var(--s-12);
     justify-content: start;

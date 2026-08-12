@@ -41,8 +41,13 @@ const PAGES: Suggestion[] = [
   { label: 'Källor', meta: 'Varifrån uppgifterna kommer', href: path('kallor'), kind: 'page', kw: 'data öppna data' },
   { label: 'Rapporter', meta: 'Räknat ur hela beståndet', href: path('rapporter'), kind: 'page', kw: 'statistik siffror' },
   { label: 'Utmärkelser', meta: 'Ställen som klarat kontrollerna över tid', href: path('utmarkelser'), kind: 'page', kw: 'utmärkelse' },
-  { label: 'Om Prikko', meta: 'Vad sajten är och vem som gör den', href: path('om'), kind: 'page', kw: 'om oss kontakt' },
+  { label: 'Om Prikko', meta: 'Vad sajten är och vem som gör den', href: path('om'), kind: 'page', kw: 'om oss' },
   { label: 'Rätta en uppgift', meta: 'Anmäl något som står fel', href: path('ratta'), kind: 'page', kw: 'fel rättelse felanmälan' },
+  { label: 'Hjälp', meta: 'Frågor och svar', href: path('hjalp'), kind: 'page', kw: 'vanliga frågor faq support hjälpcenter' },
+  /* Ordet "kontakt" satt tidigare som sökord på Om Prikko, eftersom det inte
+     fanns någon kontaktsida att leda till. Nu finns det en, och två rader som
+     svarar på samma ord hade tvingat den som skriver "kontakt" att välja. */
+  { label: 'Kontakt', meta: 'Så når du oss', href: path('kontakt'), kind: 'page', kw: 'kontakt mejl mail e-post kontakta' },
 ];
 
 let cache: CommandSection[] | null = null;

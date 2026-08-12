@@ -1,0 +1,224 @@
+---
+/**
+ * Hjälpen. EN sida, inga underartiklar.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR EN SIDA OCH INTE ETT HJÄLPCENTER
+ * ---------------------------------------------------------------------------
+ * Förebilderna mättes innan sidan ritades. Airbnb delar hjälpen i fem roller
+ * och sju ämnesgrupper med några hundra artiklar under sig. Booli har tretton
+ * samlingar och 125 artiklar, köpta som Intercom och speglade under
+ * booli.se/vanliga-fragor/. Båda taxonomierna finns för att de har hundratals
+ * svar att sortera.
+ *
+ * Vi har åtta frågor, och fem av svaren står redan skrivna på /metodik/,
+ * /kallor/, /ratta/, /utmarkelser/emblem/ och /konto/verksamhet/. Uppgiften är
+ * alltså inte att skriva ett bibliotek utan att ge det som finns en ingång.
+ * Åtta underrutter hade blivit åtta tunna sidor som ingen söker på, och regeln
+ * är att en funktion aldrig får kosta en sida.
+ *
+ * Tvådelningen är Airbnbs rollflikar, hopfällda till två rubriker: den som
+ * letar efter ett ställe, och den som driver ett. Frågorna är skrivna som de
+ * ställs, i första person, efter Boolis förebild ("Slutpriset på en bostadsrätt
+ * är fel, vad gör jag?"). En rubrik som lyder "Rättelseförfarande" hittas inte
+ * av någon.
+ *
+ * ---------------------------------------------------------------------------
+ * INGEN SÖKRUTA, INGEN INNEHÅLLSFÖRTECKNING, INGEN DRAGSPELSLIST
+ * ---------------------------------------------------------------------------
+ * Sökrutan hos Airbnb och Booli söker i hjälpartiklarna. Vår SiteSearch söker
+ * i verksamheter. Ett fält här hade alltså sett ut som hjälpsökning och svarat
+ * med restauranger, vilket är sämre än inget fält.
+ *
+ * En innehållsförteckning skulle räkna upp åtta rubriker som står en skärm
+ * längre ned, och det är precis vad språkreglerna kallar att skriva ut det som
+ * står en rad bort.
+ *
+ * Dragspel avfärdat efter Ednia: deras fyra vanliga frågor ligger hopfällda
+ * längst ned på om-sidan, och den fråga som betyder mest av dem, hur gymnasier
+ * sorteras, ligger därmed bakom ett klick. Ett svar bakom ett klick läses av
+ * färre, och just de svar man helst vill dölja är de som ska stå öppet.
+ *
+ * ---------------------------------------------------------------------------
+ * INGET FAQPage-SCHEMA, OCH DET ÄR ETT BESLUT
+ * ---------------------------------------------------------------------------
+ * Det låg här en stund och togs bort. Schemat kräver att varje svar skrivs en
+ * gång till som ren sträng, eftersom `acceptedAnswer` inte kan bära markup.
+ * Sidans svar innehåller länkar mitt i meningarna, alltså hade texten funnits
+ * i två uppsättningar som ska hållas lika för hand. De hade glidit isär, och
+ * ett schema som säger något annat än sidan är värre än inget schema.
+ *
+ * Vad vi ger upp är litet: Google slutade ge rika resultat för FAQ-markering i
+ * augusti 2023 för alla utom myndigheter och vårdgivare, och en språkmodell
+ * läser rubrik och stycke utan hjälp av JSON-LD.
+ */
+import Base from '../layouts/Base.astro';
+import { coverage } from '../lib/db';
+import { numeral } from '../lib/utmarkelser';
+
+const kommuner = numeral(coverage().municipalities);
+---
+
+<Base
+  title="Hjälp och vanliga frågor"
+  description="Hur bedömningen räknas fram, hur ofta uppgifterna uppdateras, hur du rättar något som står fel, och vad du som driver ett ställe kan göra."
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Hjälp</p>
+      <h1>Frågor och svar</h1>
+    </header>
+
+    <section>
+      <h2>Uppgifterna</h2>
+
+      <h3 id="bedomningen">Hur räknas bedömningen fram?</h3>
+      <p>
+        Tre nivåer, och det är den senaste kontrollen som avgör. Bedömningen är
+        Prikkos egen slutsats och inget officiellt betyg: Sverige har inget
+        nationellt hygienbetygssystem.
+        {' '}<a href="/metodik/">Hela beräkningen står i metodiken</a>.
+      </p>
+
+      <h3 id="uppdatering">Hur ofta uppdateras uppgifterna?</h3>
+      <p>
+        Uppgifterna hämtas om regelbundet, och varje verksamhets sida visar
+        datumet för sin senaste hämtning. Att en kontroll har gjorts betyder
+        inte att den syns direkt, eftersom den först ska publiceras av kommunen.
+        {' '}<a href="/kallor/">Täckning och hämtdatum</a>.
+      </p>
+
+      <h3 id="kommun-saknas">Varför saknas min kommun?</h3>
+      <p>
+        Prikko täcker {kommuner} av 290 kommuner. Sverige har inget nationellt
+        system för publicering av livsmedelskontroller, varje kommun bestämmer
+        själv, och de flesta publicerar ingenting alls. Nya tillkommer
+        efterhand. <a href="/kallor/">Vilka som är med i dag</a>.
+      </p>
+      <p>
+        Arbetar du på en kontrollmyndighet och vill att era kontroller ska
+        finnas här, <a href="/kontakt/">hör av dig</a>.
+      </p>
+
+      <h3 id="anmala">Hur anmäler jag ett ställe?</h3>
+      <p>
+        Klagomål på hygienen i en lokal går till kommunens miljöförvaltning,
+        som är kontrollmyndighet. Prikko tar inte emot anmälningar och skickar
+        inga ärenden åt någon, varken i dag eller senare. Vi är inte en
+        myndighet och företräder ingen.
+      </p>
+      <p>
+        Handlar det i stället om något som står fel här är det
+        {' '}<a href="/ratta/">en rättelse</a> du vill göra, inte en anmälan.
+      </p>
+    </section>
+
+    <section>
+      <h2>Om du driver ett ställe</h2>
+
+      <h3 id="fel-uppgift">Det står fel om mitt ställe. Hur rättar jag det?</h3>
+      <p>
+        <a href="/ratta/">Fyll i rättelseformuläret</a>, så går det till
+        redaktionen.
+      </p>
+      <p>
+        Två fall skiljs åt. Har vi återgett en uppgift fel rättar vi den. Är det
+        kommunens egen uppgift som är fel måste den rättas hos kommunen, för det
+        är deras handling vi återger, och ändringen följer med vid nästa
+        hämtning.
+      </p>
+
+      <h3 id="ta-bort">Kan ni ta bort en anmärkning?</h3>
+      <p>
+        Nej. En kontrollrapport är en allmän handling, och det som står i den
+        försvinner inte för att den som granskats vill det. En sajt där
+        verksamheter plockar bort sina egna anmärkningar är inte värd att läsa.
+        Du kan inte heller betala för att slippa synas.
+      </p>
+      <p>
+        Det du kan göra är att begära rättelse om uppgiften är fel, och att
+        svara på kontrollen. Svaret står kvar bredvid bedömningen så länge
+        kontrollen gör det.
+      </p>
+
+      <h3 id="svara">Hur svarar jag på en kontroll?</h3>
+      <p>
+        Skapa ett konto och
+        {' '}<a href="/konto/verksamhet/">ansök om att företräda verksamheten</a>.
+        Rätten att svara uppstår först när redaktionen kontrollerat att du står
+        skriven på bolaget.
+      </p>
+      <p>
+        Svaret granskas innan det publiceras och publiceras sedan ordagrant,
+        bredvid bedömningen. Vi redigerar inte i det och vi går inte i svaromål
+        i samma text.
+      </p>
+
+      <h3 id="emblem">Hur hämtar jag emblemet?</h3>
+      <p>
+        Verksamheter som klarat sina kontroller över tid får en
+        {' '}<a href="/utmarkelser/">utmärkelse</a>, och den som har en hämtar
+        märket som kod eller bildfil på
+        {' '}<a href="/utmarkelser/emblem/">emblemsidan</a>. Villkoren för att
+        använda det står där. Märket går inte att köpa.
+      </p>
+    </section>
+
+    {/* Vägen till en människa ligger sist, som hos Airbnb och Booli, och av
+        samma skäl: den som fått sitt svar ovanför ska inte behöva skriva.
+        Skillnaden mot Airbnb är vad som möter en när man klickar. Deras
+        "Kontakta oss" kräver inloggning och visar tolv artiklar till innan
+        någon kanal syns. Vår kontaktsida har varken vägg eller mellansteg. */}
+    <section>
+      <h2>Kontakt</h2>
+      <p>
+        Frågan som inte står här ställer du på mejl.
+        {' '}<a href="/kontakt/">Så når du oss</a>.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-read);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
+
+  /* Linjen är gruppens gräns. Sidan har tre nivåer och inte två, och utan
+     något som bryter av läser den som en enda lång lista där bara typsnittet
+     skiljer en gruppindelning från en fråga. */
+  section {
+    margin-top: var(--s-12);
+    padding-top: var(--s-8);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Gruppens rubrik är --fs-title och inte den vanliga h2-graden. 24 mot
+     frågans 21 är tre punkter, alltså ingen skillnad alls på en skärm, och en
+     rubriknivå som inte syns är ingen rubriknivå. Stegen blir nu 40, 32, 21,
+     17. Ednias om-sida går från h1 rakt till h3 och har därmed en enda nivå
+     under rubriken; allt väger lika mycket och inget styr ögat. */
+  section h2 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    margin-bottom: var(--s-6);
+  }
+
+  /* Frågan väger mer än ett stycke och mindre än gruppens rubrik. Avståndet
+     uppåt är större än nedåt, så att en fråga läses ihop med sitt eget svar
+     och inte med svaret ovanför. */
+  section h3 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+  }
+
+  section h2 + h3 { margin-top: 0; }
+
+  section p { line-height: var(--lh-body); }
+  section p + p { margin-top: var(--s-4); }
+</style>

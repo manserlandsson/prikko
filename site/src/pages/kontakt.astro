@@ -1,0 +1,188 @@
+---
+/**
+ * Kontaktsidan.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR EN EGEN RUTT OCH INTE ETT ANKARE PÅ /om/
+ * ---------------------------------------------------------------------------
+ * Ednia löser det med `#kontakt` på om-sidan, och deras sidfotslänk "Kontakt"
+ * pekar dit. Det är en av sakerna som gör den sidan svår att lita på: den som
+ * söker efter en avsändare landar mitt i en text om grundarnas skolbesök och
+ * får leta. Booli har i stället /om/kontakt som en egen sida, och hitta.se,
+ * allabolag och Airbnb gör likadant.
+ *
+ * "<varumärke> kontakt" är dessutom en av de vanligaste sökningarna på ett
+ * varumärke över huvud taget, alltså finns frågan sidan svarar på. Den kostar
+ * inte en sida i den mening regeln menar.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR INGET FORMULÄR HÄR
+ * ---------------------------------------------------------------------------
+ * Ett mejlformulär kräver två saker: en mottagare och en backend.
+ *
+ * Backend finns. /ratta postar till /api/ratta, en Pages Function i
+ * site/functions/api/. Mottagaren finns inte färdig: mejlen är enligt
+ * docs/25 inte flyttad till Migadu än, och docs/13 §5 säger rakt ut att
+ * Resend inte ska bära människopost innan flytten är gjord.
+ *
+ * Även med en färdig brevlåda vore ett andra formulär fel. Rättelser är den
+ * ende ärendetypen med volym, och de har redan ett formulär som ställer de
+ * frågor redaktionen behöver och som lägger raden i granskningskön. Ett
+ * allmänt kontaktformulär vid sidan om hade delat samma kö i två och samlat
+ * ärenden som ingen räknar.
+ *
+ * Sidan ruttar därför på ärende i stället, precis som Boolis kontaktsida gör,
+ * och skickar rättelser till formuläret som finns.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR ADRESSERNA SKRIVS UT I KLARTEXT
+ * ---------------------------------------------------------------------------
+ * De är redan utskrivna på /ratta och i integritetspolicyn, alltså har en
+ * skrapare dem sedan länge och en tredje förekomst ändrar ingenting. Att
+ * obfuskera dem hade kostat skärmläsaren och den som saknar JavaScript en
+ * fungerande länk, för ingen vinst.
+ *
+ * Skräpposten hanteras där den ska hanteras: Cloudflares catch-all-regel byts
+ * från Send to till Drop den dag det börjar droppa in, se docs/13 steg 1.9.
+ *
+ * INGA NYA ADRESSER. docs/13 är uttrycklig: inga info@, kontakt@, support@
+ * eller press@. Varje adress är en brevlåda som måste bevakas, och en radda
+ * rolladresser bygger en organisation som inte finns. Sidan använder de två
+ * som redan är utlovade i koden, PUBLISHER.email och PUBLISHER.correctionEmail.
+ *
+ * ---------------------------------------------------------------------------
+ * INGA SVARSTIDER
+ * ---------------------------------------------------------------------------
+ * Sidan lovar ingen. Ett löfte om svar inom ett dygn är det första en
+ * ensamdriven tjänst bryter, och ett brutet löfte på kontaktsidan kostar mer
+ * än frånvaron av ett löfte.
+ *
+ * SAKNAS: postadress, samma lucka som på /villkor. Se PUBLISHER i
+ * src/lib/site.ts. 8 § e-handelslagen räknar upp adress i etableringsstaten
+ * som en egen punkt vid sidan av e-post.
+ */
+import Base from '../layouts/Base.astro';
+import { PUBLISHER, SITE } from '../lib/site';
+---
+
+<Base
+  title="Kontakt"
+  description="Så når du Prikko: rättelser, dataskyddsärenden, verksamheter som vill svara på en kontroll, och kommuner som vill vara med."
+>
+  <article class="container page">
+    <header>
+      <p class="eyebrow">Kontakt</p>
+      <h1>Så når du oss</h1>
+      <p class="lede text-secondary">
+        Ärendet avgör vägen. <a href="/hjalp/">Vanliga frågor</a> besvaras
+        redan i hjälpen.
+      </p>
+    </header>
+
+    <section>
+      <h2>Något står fel</h2>
+      <p>
+        <a href="/ratta/">Rättelseformuläret</a> är den snabbaste vägen. Det
+        ställer de frågor redaktionen ändå behöver ställa och lägger ärendet i
+        kön direkt.
+      </p>
+      <p>
+        Vill du hellre skriva själv går det till
+        {' '}<a href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>.
+        Skriv med vilken verksamhet och vilken kontroll det gäller, annars blir
+        första svaret bara en fråga om det.
+      </p>
+    </section>
+
+    <section>
+      <h2>Personuppgifter</h2>
+      <p>
+        Registerutdrag, rättelse, radering och invändning:
+        {' '}<a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>.
+        Vilka rättigheter du har och vad de omfattar står i
+        {' '}<a href="/integritetspolicy/">integritetspolicyn</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Om du driver en verksamhet</h2>
+      <p>
+        Ansökan om att företräda en verksamhet, och svar på en kontroll, sker
+        på <a href="/konto/verksamhet/">ditt konto</a> och inte på mejl. Där
+        knyts anspråket till organisationsnumret, vilket ett mejl inte gör.
+      </p>
+      <p>
+        Ska en anmärkning bort
+        {' '}<a href="/hjalp/#ta-bort">står svaret i hjälpen</a>, och det är nej.
+      </p>
+    </section>
+
+    <section>
+      <h2>Kommuner och kontrollmyndigheter</h2>
+      <p>
+        Arbetar du på en kontrollmyndighet och vill att era kontroller ska
+        finnas här, skriv till
+        {' '}<a href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>.
+        Vi hämtar i första hand från öppna gränssnitt, och i andra hand genom
+        utlämnande enligt offentlighetsprincipen.
+      </p>
+    </section>
+
+    {/* Uppgifterna står också i villkoren, som är den sida 8 § e-handelslagen
+        pekar på. Att upprepa dem här är inte att skriva ut det som står en rad
+        bort: en kontaktsida utan avsändare är själva luckan, och den som söker
+        "prikko kontakt" ska inte behöva vidare till villkorssidan för att få
+        veta vem hen skriver till. */}
+    <section>
+      <h2>Vem som står bakom</h2>
+      <dl class="facts">
+        <div><dt>Företag</dt><dd>{PUBLISHER.legalName}</dd></div>
+        <div><dt>Organisationsnummer</dt><dd>{PUBLISHER.orgNumber}</dd></div>
+        <div><dt>Momsregistreringsnummer</dt><dd>{PUBLISHER.vatNumber}</dd></div>
+        <div><dt>Webbplats</dt><dd>{SITE.url.replace('https://', '')}</dd></div>
+      </dl>
+      <p class="text-secondary">
+        Prikko är varumärket. {PUBLISHER.legalName} är den juridiska person som
+        står bakom det. <a href="/villkor/">Villkoren</a> säger vad tjänsten
+        ansvarar för.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-read);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: var(--lh-body); }
+  section p + p { margin-top: var(--s-4); }
+
+  .facts {
+    display: grid;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .facts > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    justify-content: space-between;
+    padding: var(--s-3) var(--s-4);
+  }
+
+  .facts > div + div { border-top: 1px solid var(--hairline); }
+  .facts dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
+  .facts dd { margin: 0; font-size: var(--fs-body-s); font-weight: 600; }
+
+  .facts + p { margin-top: var(--s-4); font-size: var(--fs-body-s); }
+</style>
