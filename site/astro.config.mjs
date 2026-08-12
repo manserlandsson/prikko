@@ -175,6 +175,126 @@ function lastmodFor(pathname) {
 }
 
 /**
+ * En sitemapfil per sidtyp, i stället för en enda på 14 000 rader.
+ *
+ * Bakgrunden är en mätning, inte en smaksak. Search Console rapporterade en
+ * vecka efter lansering 12 indexerade sidor mot 13 999 "Discovered, currently
+ * not indexed". På en domän som är en vecka gammal är det crawlbudget och inte
+ * ett tekniskt fel, men med allt i EN fil går det inte att se VILKA sidor som
+ * väntar. Search Console redovisar täckning PER SITEMAPFIL, och det är den
+ * enda uppdelning verktyget erbjuder. Med en fil kan vi alltså inte skilja
+ * "de sexhundra rankbara sidorna är indexerade och svansen väntar" från
+ * "ingenting går in", och de två lägena kräver rakt motsatta åtgärder.
+ *
+ * VALET AV VÄG. Integrationens `chunks` gör precis det här: en nyckel per
+ * grupp, en återanropsfunktion per nyckel, och filerna heter efter nyckeln.
+ * En egen generator hade betytt att vi själva skriver XML-escaping,
+ * indexfilen, styckningen vid `entryLimit` och `lastmod` per fil, alltså fyra
+ * saker som redan är lösta och underhållna. Det enda vi inte kommer åt är
+ * ändelsen: filerna heter `sitemap-kommuner-0.xml` och inte
+ * `sitemap-kommuner.xml`, eftersom nollan är styckningsnumret. Det är rätt
+ * pris. Numret betyder något den dag verksamheterna passerar 45 000 och måste
+ * ligga i två filer, och namnet är läsbart i Search Console ändå, vilket var
+ * hela poängen.
+ *
+ * ORDNINGEN SPELAR INGEN ROLL, MEN UTESLUTNINGEN GÖR DET. Integrationen kör
+ * varje återanrop över SAMTLIGA URL:er, så en URL som två grupper säger ja
+ * till hamnar i båda och räknas dubbelt. Därför finns ett enda klassificerande
+ * uttryck här, `sidtyp()`, och varje grupp frågar bara om svaret är dess eget.
+ * Två grupper kan då inte överlappa ens av misstag.
+ *
+ * `sidtyp()` svarar `null` för en sökväg den inte känner igen. Sådana URL:er
+ * hamnar i integrationens egen restgrupp, `sitemap-pages-0.xml`, och den
+ * filens blotta existens fäller bygget i `sitemapGuard`. En ny sidtyp ska
+ * alltså räknas upp här, inte tyst falla ned i en fil som heter fel.
+ */
+const kommunSlugs = new Set(municipalities().map((m) => m.slug));
+
+/** Toppnivåns skrivna och räknade sidor, alltså sajten om sig själv. */
+const START_PAGES = new Set([
+  'om',
+  'metodik',
+  'kallor',
+  'sok',
+  'webbkarta',
+  'villkor',
+  'cookies',
+  'integritetspolicy',
+  'hjalp',
+  'kontakt',
+]);
+
+function sidtyp(pathname) {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return 'start';
+
+  if (kommunSlugs.has(segments[0])) {
+    if (segments.length === 1) return 'kommuner';
+
+    switch (segments[1]) {
+      case 'kategori':
+        return 'kategorier';
+      case 'omrade':
+        return 'omraden';
+      case 'karta':
+        return 'kartor';
+      /* Kommunens övriga listsidor. Sidindelningen, anmärkningslistan,
+         matsnusksidan och rörelseloggen är alla vyer över samma register och
+         hör ihop med hubben de nås från. */
+      case 'sida':
+      case 'anmarkningar':
+      case 'matsnusk':
+      case 'nytt-och-borta':
+        return 'kommuner';
+      default:
+        /* `/stockholm/vesuvio/` och ingenting djupare. En tredje nivå under en
+           kommun som inte fångats ovan är en sidtyp vi inte känner till. */
+        return segments.length === 2 ? 'verksamheter' : null;
+    }
+  }
+
+  switch (segments[0]) {
+    case 'artiklar':
+      return 'artiklar';
+    case 'rapporter':
+      return 'rapporter';
+    case 'utmarkelser':
+      return 'utmarkelser';
+    case 'kedja':
+      return 'kedjor';
+    /* Rikskartan ligger hos kommunkartorna och inte bland toppsidorna: den
+       besvarar samma fråga för hela landet som de gör för sin kommun. */
+    case 'karta':
+      return 'kartor';
+    case 'nytt-och-borta':
+      return 'kommuner';
+    default:
+      return segments.length === 1 && START_PAGES.has(segments[0]) ? 'start' : null;
+  }
+}
+
+/** Grupperna, i den ordning de ska läsas i Search Console. */
+const SITEMAP_GROUPS = [
+  'start',
+  'kommuner',
+  'kategorier',
+  'omraden',
+  'kartor',
+  'kedjor',
+  'artiklar',
+  'rapporter',
+  'utmarkelser',
+  'verksamheter',
+];
+
+const sitemapChunks = Object.fromEntries(
+  SITEMAP_GROUPS.map((grupp) => [
+    grupp,
+    (item) => (sidtyp(new URL(item.url).pathname) === grupp ? item : undefined),
+  ]),
+);
+
+/**
  * Bygggrind: sitemapen, `noindex` och webbkartan får aldrig säga emot varandra.
  *
  * Filtret ovan läser KÄLLDATAN. Den här läser UTFALLET, och kontrollerar två
@@ -191,8 +311,19 @@ function lastmodFor(pathname) {
  *    sida som slutat byggas, eller till en sida som fallit under sin
  *    kvalitetsgrind, stoppar bygget.
  *
+ * 3. Ingen URL får ha hamnat utanför grupperna i `sitemapChunks`. Restgruppen
+ *    heter `pages` i integrationen och går inte att döpa om, så en fil med det
+ *    namnet betyder att en ny sidtyp tillkommit utan att `sidtyp()` känner
+ *    igen den. Den skulle då ligga i en sitemapfil vars namn inte säger vad
+ *    den innehåller, alltså precis det blindläge delningen skulle bort med.
+ *
+ * Läsningen sker över SAMTLIGA `sitemap-*.xml`, inte över en enskild fil.
+ * Sitemapen är delad per sidtyp och antalet filer ändras när en sidtyp
+ * tillkommer, så en vakt som läste en namngiven fil hade slutat mäta tyst.
+ * Indexfilens egna rader hoppas över på att de pekar på .xml.
+ *
  * Integrationen måste ligga EFTER sitemap i `integrations`: hookarna körs i
- * arrayordning, och sitemap-0.xml finns inte förrän sitemap kört sin.
+ * arrayordning, och sitemapfilerna finns inte förrän sitemap kört sin.
  */
 /**
  * Grinden mot CSS som svalt sitt eget stylesheet.
@@ -258,11 +389,27 @@ function sitemapGuard() {
         const out = fileURLToPath(dir);
 
         const listed = new Set();
-        for (const file of globSync('sitemap-*.xml', { cwd: out })) {
+        const perFile = [];
+        for (const file of globSync('sitemap-*.xml', { cwd: out }).sort()) {
           const xml = readFileSync(`${out}${file}`, 'utf8');
+          let n = 0;
           for (const match of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
             if (match[1].endsWith('.xml')) continue;
             listed.add(new URL(match[1]).pathname);
+            n += 1;
+          }
+          if (n > 0) perFile.push(`${file.replace(/^sitemap-|-\d+\.xml$/g, '')} ${n}`);
+
+          if (file.startsWith('sitemap-pages-')) {
+            const strays = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+              .map((m) => new URL(m[1]).pathname)
+              .slice(0, 5);
+            throw new Error(
+              `${n} URL:er föll utanför sitemapens grupper och hamnade i ${file}. ` +
+                'Filnamnet säger då ingenting om vad den innehåller, och Search ' +
+                'Console kan inte skilja sidtyperna åt. Lägg till sidtypen i ' +
+                `sidtyp() i astro.config.mjs. Först: ${strays.join(', ')}`,
+            );
           }
         }
 
@@ -307,6 +454,7 @@ function sitemapGuard() {
           `${listed.size} URL:er i sitemapen, ingen motsäger sin egen noindex. ` +
             `Webbkartan länkar ${links} av dem.`,
         );
+        logger.info(`sitemapen delad per sidtyp: ${perFile.join(', ')}.`);
       },
     },
   };
@@ -330,6 +478,10 @@ export default defineConfig({
         const lastmod = lastmodFor(new URL(item.url).pathname);
         return lastmod ? { url: item.url, lastmod } : { url: item.url };
       },
+      // En fil per sidtyp under sitemap-index.xml. Se `sitemapChunks` ovan för
+      // varför uppdelningen finns och varför den görs med integrationens egna
+      // alternativ i stället för med en egen generator.
+      chunks: sitemapChunks,
     }),
     sitemapGuard(),
     nestingGuard(),
