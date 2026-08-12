@@ -9,6 +9,9 @@ image:
   source: "Pexels"
 ---
 
+import Diagram from '../../components/Diagram.astro';
+import Stapel from '../../components/Stapel.astro';
+
 ## Vart anmälan går
 
 Blev du sjuk av maten, eller såg du något i lokalen som inte stämde? Anmälan ska till **miljöförvaltningen i den kommun där stället ligger**, inte till Livsmedelsverket och inte till polisen. Det är kommunen som kontrollerar restauranger, kaféer, butiker och skolkök, och det är kommunen som kan göra något åt saken.
@@ -29,11 +32,21 @@ När besöket väl blir av är det den sortens kontroll som oftast hittar något
 
 I beståndet finns 2 153 händelsestyrda kontroller. Utfallet skiljer sig tydligt från de andra två sorterna:
 
-| Kontrollsort | Antal | Andel med minst en anmärkning |
-| --- | --- | --- |
-| Händelsestyrd | 2 153 | **40,3 %** |
-| Planerad | 51 190 | 31,5 % |
-| Återbesök | 15 552 | 19,4 % |
+<Diagram
+  titel="Händelsestyrda besök hittar oftast något"
+  underlag="Andel kontroller med minst en anmärkning, per kontrollsort. 68 895 kontroller i tolv kommuner."
+>
+  <Stapel
+    label="Andel kontroller med minst en anmärkning, per kontrollsort"
+    scale={100}
+    avdelare
+    rows={[
+      { label: 'Händelsestyrd kontroll', value: 40.3, display: '40,3 %', note: '2 153 kontroller' },
+      { label: 'Planerad kontroll', value: 31.5, display: '31,5 %', note: '51 190 kontroller' },
+      { label: 'Återbesök', value: 19.4, display: '19,4 %', note: '15 552 kontroller' },
+    ]}
+  />
+</Diagram>
 
 Fyra av tio händelsestyrda kontroller ger alltså minst en notering, mot drygt tre av tio planerade.
 
@@ -43,7 +56,26 @@ Den rimliga slutsatsen är i stället riktningen: ett besök som görs för att 
 
 ## Vad de hittar
 
-Bland de händelsestyrda kontroller där kontrollpunkterna publicerats gäller de flesta avvikelserna grundläggande hygien, alltså rengöring, lokaler, kylkedja och skadedjur. Med 243 noteringar är det den klart största gruppen. Därefter kommer livsmedelsinformation och märkning med 68, administrativa krav med 64, faroanalys och HACCP med 39 och spårbarhet med 37.
+Bland de händelsestyrda kontroller där kontrollpunkterna publicerats gäller de flesta avvikelserna grundläggande hygien, alltså rengöring, lokaler, kylkedja och skadedjur:
+
+<Diagram
+  titel="Hygien är den klart största gruppen"
+  underlag="1 132 kodade avvikelser vid händelsestyrda kontroller, i de kommuner som publicerar rapporteringspunkten."
+>
+  <Stapel
+    label="Kodade avvikelser vid händelsestyrda kontroller, per lagstiftningsområde"
+    ton="tyst"
+    avdelare
+    rows={[
+      { label: 'Hygien', value: 519, display: '519', note: 'Lokaler, rengöring, kylkedja, personlig hygien och skadedjur.' },
+      { label: 'Administrativa krav', value: 215, display: '215', note: 'Godkännande och registrering av verksamheten.' },
+      { label: 'Allmän livsmedelsinformation', value: 168, display: '168', note: 'Innehållsförteckning, allergener och märkning.' },
+      { label: 'HACCP', value: 87, display: '87', note: 'Faroanalys och mikrobiologiska kriterier.' },
+      { label: 'Spårbarhet', value: 78, display: '78', note: 'Varifrån råvarorna kommer.' },
+      { label: 'Övriga områden', value: 65, display: '65', note: 'Åtta områden med färre än 25 avvikelser vardera.' },
+    ]}
+  />
+</Diagram>
 
 Det stämmer väl med vad man kan vänta sig: människor anmäler det de kan se och känna, och det är också det inspektören först får syn på. Hur avvikelserna fördelar sig över hela beståndet, alla kontrollsorter inräknade, står i rapporten [Vad anmärkningarna faktiskt gäller](/rapporter/vad-anmarkningarna-galler/).
 
@@ -52,6 +84,20 @@ Det stämmer väl med vad man kan vänta sig: människor anmäler det de kan se 
 Det här är det tal som säger mest om att en anmälan får en fortsättning.
 
 Av de 868 händelsestyrda kontroller som ledde till minst en anmärkning följdes **543, alltså 62,6 procent, av ett återbesök inom ett halvår.** Till jämförelse följdes 51,3 procent av de planerade kontrollerna med anmärkning upp lika snabbt.
+
+<Diagram
+  titel="Anmärkningen följs upp oftare när besöket kom av en anledning"
+  underlag="Andel kontroller med anmärkning som följdes av ett återbesök inom 180 dagar."
+>
+  <Stapel
+    label="Andel kontroller med anmärkning som fick ett återbesök inom ett halvår"
+    scale={100}
+    rows={[
+      { label: 'Händelsestyrd kontroll', value: 62.6, display: '62,6 %', note: '543 av 868 kontroller med anmärkning' },
+      { label: 'Planerad kontroll', value: 51.3, display: '51,3 %', note: '8 280 av 16 142 kontroller med anmärkning' },
+    ]}
+  />
+</Diagram>
 
 En anmälan som leder till ett besök som leder till en notering har alltså större chans än vanligt att också leda till att kommunen kommer tillbaka och kontrollerar att saken är åtgärdad. Hela kedjan därifrån, via föreläggande och i sista hand förbud, har vi beskrivit i [Vad händer när en restaurang får en anmärkning?](/artiklar/vad-hander-efter-en-anmarkning/)
 

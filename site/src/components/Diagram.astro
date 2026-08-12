@@ -1,0 +1,100 @@
+---
+/**
+ * Ramen runt ett diagram: rubrik, underrad, själva figuren och källraden.
+ *
+ * ## Varför den finns
+ *
+ * Diagrammen bar tidigare bara en `aria-label`, alltså en rubrik som ingen
+ * seende läsare kunde se. En figur utan synlig rubrik läser som en stympad
+ * lista, och det var precis så den lästes: ägaren såg staplarna som "konstigt
+ * formatterat" och "compressed mot texten". Två fel i ett. Rubriken saknades,
+ * och luften omkring saknades.
+ *
+ * Formen är mätt i webbläsaren på ednia.se i augusti 2026. Deras diagram har
+ * tre delar i den här ordningen: en fet rubrik i bläck ("Elevernas åsikter"),
+ * en tyst grå rad under den med underlaget ("Baserat på 399 svar, 88 %
+ * svarsfrekvens"), och därefter grafiken. Ingen ram, ingen låda, ingen
+ * bakgrundsyta. Avgränsningen görs med luft.
+ *
+ * ## Varför en wrapper och inte en prop på varje diagram
+ *
+ * Stapel.astro används på ett tjugotal ställen utanför artiklarna, bland annat
+ * på rapportsidorna och kommunhubben, och där sitter rubriken redan i
+ * sidmallen. Skulle rubriken bakas in i Stapel skulle varje sådant ställe få
+ * en dubbel rubrik eller ett undantag. Ramen ligger därför utanpå, och samma
+ * ram passar varje diagramform: Stapel, Andelsstapel, Parstapel, Spann och
+ * Tidslinje.
+ *
+ * ## Varför den också fixar vänsterkanten
+ *
+ * Artikelmallen formar all brödtext, och `.page ul` ger listor `padding-left`
+ * så att punktlistor får sitt indrag. Ett diagram som råkar vara en `<ul>` fick
+ * samma indrag och började en bit in medan brödtexten började vid kanten.
+ * Nollställningen ligger i Artikel.astro och hakar i klassnamnet här, eftersom
+ * en scoped stil i den här filen inte når in i det som skickas via `<slot />`.
+ */
+
+interface Props {
+  /** Diagrammets synliga rubrik. Säg vad som mäts, inte vad slutsatsen är. */
+  titel: string;
+  /**
+   * Tyst rad under rubriken. Här hör underlaget hemma: nämnaren, urvalet,
+   * mätperioden. Ednias "Baserat på 399 svar".
+   */
+  underlag?: string;
+  /** Källraden under figuren, för det som inte är räknat ur vårt eget bestånd. */
+  kalla?: string;
+}
+
+const { titel, underlag, kalla } = Astro.props;
+---
+
+<figure class="diagram">
+  <figcaption class="huvud">
+    <span class="titel">{titel}</span>
+    {underlag && <span class="underlag">{underlag}</span>}
+  </figcaption>
+
+  <slot />
+
+  {kalla && <p class="kalla">{kalla}</p>}
+</figure>
+
+<style>
+  /* Luften är hela poängen. Ett diagram mellan två stycken ska läsa som ett
+     eget objekt, inte som ännu ett stycke, och --s-4 räckte inte på långa
+     vägar. --s-8 över och under är samma avstånd artikelmallen ger en h3. */
+  .diagram {
+    margin: var(--s-8) 0;
+  }
+
+  .huvud {
+    display: block;
+    margin-bottom: var(--s-3);
+  }
+
+  /* Samma storlek som brödtexten men fet. En egen rubriknivå hade konkurrerat
+     med artikelns h3, och diagrammets rubrik är en etikett på en figur, inte
+     ett avsnitt i texten. */
+  .titel {
+    display: block;
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  .underlag {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .kalla {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+</style>

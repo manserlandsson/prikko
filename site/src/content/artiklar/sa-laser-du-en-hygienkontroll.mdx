@@ -9,6 +9,10 @@ image:
   source: "Pexels"
 ---
 
+import Andelsstapel from '../../components/Andelsstapel.astro';
+import Diagram from '../../components/Diagram.astro';
+import Stapel from '../../components/Stapel.astro';
+
 ## Vem kontrollerar maten?
 
 Restauranger, kaféer, butiker och skolkök kontrolleras i de allra flesta fall av kommunen. Arbetet görs av miljöförvaltningen eller motsvarande, med stöd av EU:s kontrollförordning (2017/625) och den svenska livsmedelslagen. Livsmedelsverket leder och samordnar kontrollen nationellt och kontrollerar själv vissa anläggningar, till exempel slakterier. Länsstyrelserna kontrollerar primärproduktionen, alltså gårdarna.
@@ -21,7 +25,28 @@ Kontrollen är inte gratis för verksamheten. Den betalas med avgifter enligt ko
 
 Ordet hygienkontroll leder tanken till smuts, men kontrollen omfattar hela livsmedelslagstiftningen. Varje kontrollpunkt hör till ett område: allmän hygien förstås, alltså rengöring, kylkedja, skadedjur och personlig hygien, men också märkning, spårbarhet, egna rutiner och faroanalys.
 
-I de kommuner som publicerar vilket område varje avvikelse gällde är hygien mycket riktigt störst, men långt ifrån allt: näst störst är märkning och livsmedelsinformation. Vi har räknat på det över hela vårt bestånd i rapporten [Vad anmärkningarna faktiskt gäller](/rapporter/vad-anmarkningarna-galler/).
+I de kommuner som publicerar vilket område varje avvikelse gällde är hygien mycket riktigt störst, men långt ifrån allt:
+
+<Diagram
+  titel="Var tredje anmärkning handlar om något annat än hygien"
+  underlag="26 089 avvikelser med en kod vi kan tolka, i de kommuner som publicerar rapporteringspunkten."
+>
+  <Stapel
+    label="Kodade avvikelser per lagstiftningsområde"
+    ton="tyst"
+    avdelare
+    rows={[
+      { label: 'Hygien', value: 57.1, display: '57,1 %', note: 'Lokaler, rengöring, kylkedja, personlig hygien och skadedjur.' },
+      { label: 'Allmän livsmedelsinformation', value: 23.5, display: '23,5 %', note: 'Innehållsförteckning, allergener och annan märkning.' },
+      { label: 'HACCP', value: 9.1, display: '9,1 %', note: 'Faroanalys och mikrobiologiska kriterier.' },
+      { label: 'Spårbarhet', value: 4.2, display: '4,2 %', note: 'Varifrån kött, ägg och andra råvaror kommer.' },
+      { label: 'Administrativa krav', value: 2.2, display: '2,2 %', note: 'Godkännande och registrering av verksamheten.' },
+      { label: 'Elva övriga områden', value: 3.9, display: '3,9 %', note: 'Bland annat särskild märkning, handelsnormer, import och dricksvatten.' },
+    ]}
+  />
+</Diagram>
+
+Hela uppdelningen, område för område och kommun för kommun, står i rapporten [Vad anmärkningarna faktiskt gäller](/rapporter/vad-anmarkningarna-galler/).
 
 ## Orden i rapporten
 
@@ -32,6 +57,24 @@ I de kommuner som publicerar vilket område varje avvikelse gällde är hygien m
 **Åtgärdad** och **kvarstår** förekommer i en del kommuners rapporter när en tidigare påpekad brist följts upp. Det är de orden som säger något om riktningen: en verksamhet som rättar till sina brister och en som inte gör det får likadana avvikelser, men olika uppföljning.
 
 I de kommuner vi hämtar data från graderas dessutom varje besök som helhet i tre steg: inga anmärkningar, avvikelse eller kvarstående avvikelse.
+
+Det är värt att veta hur ovanligt ordet avvikelse faktiskt är, räknat på enskilda kontrollpunkter i stället för på besök. Sju av tio granskade punkter går igenom utan anmärkning:
+
+<Diagram
+  titel="Utfallet på en granskad kontrollpunkt"
+  underlag="103 456 kontrollpunkter med utskrivet utfall, i de kommuner som publicerar dem."
+>
+  <Andelsstapel
+    label="Utfall på samtliga granskade kontrollpunkter"
+    note="Åtgärdad och kvarstår sätts vid ett återbesök, när kommunen prickar av en tidigare påpekad brist."
+    segments={[
+      { label: 'Utan anmärkning', value: 73554, display: '71,1 %' },
+      { label: 'Avvikelse', value: 26464, display: '25,6 %' },
+      { label: 'Åtgärdad', value: 2821, display: '2,7 %' },
+      { label: 'Kvarstår', value: 617, display: '0,6 %' },
+    ]}
+  />
+</Diagram>
 
 ## Tre sorters kontroll
 

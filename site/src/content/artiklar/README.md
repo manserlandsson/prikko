@@ -89,3 +89,50 @@ Båda felen ska upptäckas vid bygget och inte av en läsare.
 Två ställen, båda automatiska: bildtexten under bilden i artikeln, och listan
 under "Bilderna i artiklarna" på `/kallor/`. Ingen av dem skrivs för hand, båda
 läser samma frontmatter.
+
+## Dubbletterna är åtgärdade
+
+Mätningen görs med en perceptuell jämförelse av alla filer, nedskalade till
+16 x 16 gråsteg och jämförda parvis. Skalan är 0 till 255 per bildpunkt, och
+allt under omkring 5 är samma beskärning omkodad en gång till.
+
+Den 11 augusti 2026 låg tre par nära varandra. Alla tre är lösta den 12
+augusti, och det närmaste paret ligger nu på 42,8, alltså långt från allt som
+läser som samma bild:
+
+| Artikel | Bild |
+|---|---|
+| `skolmaten-ar-den-renaste-maten` | Ny, ur `brand/storkok-personal.jpg`. Artikeln saknade bild helt. |
+| `hur-ofta-kontrolleras-en-restaurang` | Ny, ur `brand/pexels-aysenur-sahin-57769289-30308756.jpg`. Ersatte en andra beskärning av kockbilden. |
+| `darfor-gar-kommunernas-siffror-inte-att-jamfora` | Ny, ur `brand/konditori-disk.jpg`. Ersatte en andra beskärning av klämbrädesbilden. |
+
+Två beskärningar är gjorda med bestämd avsikt och ska inte flyttas tillbaka:
+
+- Kafébilden är beskuren till höger om entrén, eftersom verksamhetens namn står
+  läsbart på dörren i originalet.
+- Konditoribilden är beskuren till höger om de gula plåtburkarna, som bär ett
+  läsbart varumärke. Det som blir kvar är rader av likadana kantiner med olika
+  innehåll, vilket är precis den bild artikeln behöver.
+
+### Artiklar som fortfarande saknar bild
+
+De tre artiklarna i matförgiftningsklustret har ingen bild, eftersom det inte
+finns fler obrukade original i `brand/`. Sidorna fungerar och ser hela ut utan,
+men de ska få varsin. Motiv, inte stämning, och samma regler som ovan:
+
+1. **`matforgiftning-fran-restaurang`** — motiv: ett tomt kuvert på ett
+   restaurangbord efter måltiden, eller en dukning i motljus utan gäster.
+   Undvik allt som ser sjukt ut. Sökord på Pexels: `empty restaurant table
+   after meal`, `restaurant place setting daylight`.
+
+2. **`inkubationstid-matforgiftning`** — artikeln handlar om tid. Motiv: en
+   klocka på en kökvägg i ett storkök, eller en timer på en rostfri bänk.
+   Sökord: `commercial kitchen clock`, `kitchen timer stainless steel`.
+
+3. **`kylkedjan-brister-oftast-pa-sommaren`** — motiv: ett kylrum inifrån med
+   backar på rostfria hyllor, eller en termometer i en kyldisk. Tomt på
+   människor, inga läsbara varumärken på förpackningarna. Sökord: `walk in
+   cooler shelves`, `refrigerator thermometer commercial`.
+
+Originalet i full storlek läggs i `brand/`, beskärningen till 1400 x 788 i
+`src/assets/artiklar/`.

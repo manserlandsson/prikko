@@ -38,6 +38,7 @@ import KartaPuff from './KartaPuff.astro';
 import KommunBanner from './KommunBanner.astro';
 import KommunOversikt from './KommunOversikt.astro';
 import Kontrollen from './Kontrollen.astro';
+import Kontrolltakt from './Kontrolltakt.astro';
 import Pagination from './Pagination.astro';
 import Tathet from './Tathet.astro';
 import Uncovered from './Uncovered.astro';
@@ -414,6 +415,12 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         )}
 
         <FollowUpRate record={record} city={city} />
+
+        {/* Utvecklingen över tid, efter nuläget och före förklaringen av hur
+            kontrollen bedrivs. Den läser bäst där, eftersom den svarar på
+            "har det blivit fler besök" som en naturlig följdfråga på "hur gick
+            uppföljningen". */}
+        <Kontrolltakt slug={kommun.slug} city={city} />
 
         {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
             avsnittet förklarar båda, och det läser bäst mellan dem. */}

@@ -1,0 +1,122 @@
+---
+title: "Kylkedjan brister oftast på sommaren"
+description: "I juli underkänns 20,3 procent av kontrollpunkterna om kylkedja och temperatur, i december 10,3. Vi har räknat 10 536 granskade punkter månad för månad."
+lede: "Temperaturen är den punkt i ett kök som avgör mest och som syns minst. Sett över hela året följer anmärkningarna om den ett mönster som ingen kontrollplan har lagt."
+category: "Förklarat"
+published: "2026-08-12"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import Stapel from '../../components/Stapel.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
+
+## Den punkt som avgör mest
+
+Bakterier förökar sig när maten håller mellan 8 och ungefär 50 grader, skriver Livsmedelsverket. Allt som ett kök gör för att hålla mat utanför det intervallet är kylkedjan: kylskåpen, kylrummet, varmhållningen, nedkylningen efter tillagning och de minuter en kantin står framme på passet.
+
+Det är också en av de få saker en gäst omöjligt kan bedöma. En diskbänk syns, en kylrumstemperatur gör det inte.
+
+Kommunens inspektör mäter den däremot, och i de kommuner som publicerar varje kontrollpunkt går det att räkna på utfallet. Vi har 10 536 granskade punkter om kylkedja och temperaturkriterier i beståndet. 1 470 av dem gav en avvikelse, alltså 14,0 procent. Det gör kylkedjan till den femte största enskilda anmärkningsposten över huvud taget.
+
+## Kurvan över året
+
+Delar man upp punkterna på den månad kontrollen gjordes framträder ett mönster som håller genom hela materialet.
+
+<Diagram
+  titel="Andel underkända temperaturpunkter, per månad"
+  underlag="10 536 granskade kontrollpunkter om kylkedja och temperaturkriterier, samtliga år i beståndet lagda på varandra."
+>
+  <Tidslinje
+    label="Andel granskade temperaturpunkter som gav en avvikelse, per månad"
+    enhet="%"
+    min={10}
+    max={21}
+    points={[
+      { label: 'jan', value: 13.0, display: '13,0' },
+      { label: 'feb', value: 10.9, display: '10,9' },
+      { label: 'mar', value: 13.8, display: '13,8' },
+      { label: 'apr', value: 13.6, display: '13,6' },
+      { label: 'maj', value: 15.7, display: '15,7' },
+      { label: 'jun', value: 14.7, display: '14,7' },
+      { label: 'jul', value: 20.3, display: '20,3' },
+      { label: 'aug', value: 18.2, display: '18,2' },
+      { label: 'sep', value: 14.9, display: '14,9' },
+      { label: 'okt', value: 12.1, display: '12,1' },
+      { label: 'nov', value: 12.4, display: '12,4' },
+      { label: 'dec', value: 10.3, display: '10,3' },
+    ]}
+  />
+</Diagram>
+
+Juli och augusti ligger tillsammans på 18,9 procent underkända punkter. December, januari och februari ligger på 11,5. Det är en skillnad på nästan två tredjedelar mellan årets varmaste och kallaste kontroller, mätt på exakt samma sorts krav.
+
+Notera att skalan börjar på 10 och inte på noll. Det är gjort för att kurvans form ska synas, och nivån står utskriven under diagrammet så att ingen ska behöva gissa var botten ligger.
+
+## Vad kurvan inte bevisar
+
+Det frestande svaret är att värmen ensam gör jobbet, och materialet räcker inte till det.
+
+Juli är den månad med minst kontroller i hela beståndet, 2 928 av 68 895 besök, och bara 374 av temperaturpunkterna. Ett litet underlag rör sig mer. Sommaren är dessutom en annan sorts säsong i sig: uteserveringar, sommarvikarier, ett kök som lagar mat på ett annat sätt än i februari, och i turistkommunerna verksamheter som bara har öppet några månader om året.
+
+Det som talar för att effekten ändå är verklig är att den finns i två månader i rad, att den har ett rimligt fysikaliskt skäl och att den syns även i maj och september, alltså i månader med gott om mätpunkter.
+
+Det som går att säga är alltså att risken för en temperaturanmärkning är märkbart högre under sommarhalvåret. Varför den är det är en tolkning, och tolkningen finns inte i datan.
+
+## Vem som får dem
+
+Anmärkningarna fördelar sig jämnare mellan branscherna än man kan tro.
+
+<Diagram
+  titel="Andel underkända temperaturpunkter, per kategori"
+  underlag="Samma 10 536 granskade punkter, uppdelade på verksamhetens kategori."
+>
+  <Stapel
+    label="Andel granskade temperaturpunkter som gav en avvikelse, per kategori"
+    scale={20}
+    avdelare
+    rows={[
+      { label: 'Butiker', value: 15.7, display: '15,7 %', note: '177 avvikelser av 1 128 granskade punkter' },
+      { label: 'Caféer och bagerier', value: 15.7, display: '15,7 %', note: '142 av 903' },
+      { label: 'Restauranger', value: 14.5, display: '14,5 %', note: '639 av 4 397' },
+      { label: 'Skolor och omsorg', value: 13.1, display: '13,1 %', note: '483 av 3 689' },
+      { label: 'Övriga verksamheter', value: 3.9, display: '3,9 %', note: '12 av 305' },
+    ]}
+  />
+</Diagram>
+
+Att butik och kafé ligger högst är begripligt: en kyldisk som står öppen mot butiksgolvet är svårare att hålla kall än ett stängt kylrum. Att skolköken ligger lägst stämmer med hur de ligger på alla andra punkter, vilket vi har gått igenom i [Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
+
+Övriga verksamheter, alltså grossister, lager och tillverkare, sticker ut åt andra hållet med 3,9 procent. Där är kylkedjan inte något man håller på med vid sidan av matlagningen, den är verksamheten.
+
+## Vad myndigheten säger om detsamma
+
+Vår mätning gäller vad kontrollen hittade. Livsmedelsverkets egen sammanställning av anmälda matförgiftningar 2024 tittar från andra hållet, på vad som bidrog när någon faktiskt blev sjuk, och där ligger hög kylförvaringstemperatur bland de två vanligaste bidragande faktorerna med 20 rapporter. Den enda som var vanligare var smitta eller dålig hygien hos personalen, med 28.
+
+Två olika material, samma punkt högt upp i båda.
+
+## Talen som köket ska hålla
+
+Det här är Livsmedelsverkets egna riktvärden, och de är värda att känna till också som gäst eftersom de säger vad inspektören mäter emot.
+
+- **Kylvaror: omkring 4 grader.** Vid temperaturer över 8 grader ökar risken för tillväxt väsentligt.
+- **Farlig zon: 8 till omkring 50 grader.** Det är där bakterierna förökar sig.
+- **Varmhållning: över 60 grader** ger en säkerhetsmarginal.
+- **Nedkylning: från 60 till 8 grader på högst sex timmar.** Sporer överlever tillagningen även när maten varit över 70 grader, och det är den långsamma avsvalningen som låter dem gro.
+- **Köttfärs: genomstekt vid 70 grader.** Färgen duger inte som mått. Färs förpackad i modifierad atmosfär kan se färdiglagad ut redan vid 55 grader.
+
+För kyckling säger Livsmedelsverket genomstek utan att sätta en siffra. De 70 grader som ofta citeras är branschens egen rekommendation, och myndigheten påpekar samtidigt att en lägre temperatur under längre tid ger samma effekt.
+
+## Så ser du det på en verksamhetssida
+
+I de kommuner som publicerar kontrollpunkterna står avvikelsen med sin egen text, till exempel upprätthållande av kylkedjan och uppfyllande av temperaturkriterier. Där syns det också om samma punkt återkommer besök efter besök, vilket är den verkliga skillnaden mellan en engångshändelse och ett problem.
+
+Hur du läser det står i [Så läser du en hygienkontroll](/artiklar/sa-laser-du-en-hygienkontroll/). Vill du titta på ett bestämt ställe går det snabbast att [söka på namnet](/sok/), och verksamheter med noteringar just nu finns samlade per kommun, som i [Stockholm](/stockholm/anmarkningar/), [Linköping](/linkoping/anmarkningar/) och [Örebro](/orebro/anmarkningar/).
+
+Blev du själv dålig av något du ätit står gången från symtom till anmälan i [Matförgiftning från restaurang](/artiklar/matforgiftning-fran-restaurang/), och tiderna som avgör vilken måltid som ens är möjlig i [Hur lång tid tar det innan matförgiftningen märks?](/artiklar/inkubationstid-matforgiftning/)
+
+## Källor
+
+- [Livsmedelsverkets kontrollwiki, artikel 349: Temperatur](https://kontrollwiki.livsmedelsverket.se/artikel/349/temperatur): gränsen vid 8 grader, varmhållning över 60 grader, nedkylning på sex timmar, resonemanget om sporer och om färgen på köttfärs.
+- [Livsmedelsverket: Matförgiftning](https://www.livsmedelsverket.se/matvanor-halsa--miljo/sjukdomar-allergier-och-halsa/matforgiftning/): temperaturintervallet där bakterier förökar sig, kylvaror vid omkring 4 grader och kravet på genomstekt köttfärs.
+- [Livsmedelsverket, rapport L 2025 nr 11: Rapporterade misstänkta matförgiftningar 2024](https://www.livsmedelsverket.se/4a4e07/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-11---rapporterade-misstankta-matforgiftningar-2024.pdf): hög kylförvaringstemperatur som bidragande faktor i 20 rapporter.
+- Andelarna per månad och per kategori är räknade ur Prikkos bestånd i augusti 2026, över de kommuner som publicerar enskilda kontrollpunkter. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

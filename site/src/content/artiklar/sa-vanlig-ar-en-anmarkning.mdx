@@ -9,6 +9,10 @@ image:
   source: "Pexels"
 ---
 
+import Diagram from '../../components/Diagram.astro';
+import Andelsstapel from '../../components/Andelsstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+
 ## Frågan bakom frågan
 
 Du har slagit upp en restaurang och ser att den har en anmärkning i historiken. Nu vill du veta en enda sak: är det illa?
@@ -23,19 +27,29 @@ Av de 14 482 verksamheter i beståndet som har minst en publicerad kontroll har 
 
 Det är den inte. Talet är nästan helt och hållet en funktion av hur många gånger kommunen hunnit komma:
 
-| Antal kontroller | Andel helt utan anmärkning | Antal verksamheter |
-| --- | --- | --- |
-| 1 | 86,2 % | 3 946 |
-| 2 | 59,7 % | 2 304 |
-| 3 | 44,6 % | 1 798 |
-| 4 | 30,2 % | 1 124 |
-| 5 | 23,2 % | 965 |
-| 7 | 19,0 % | 694 |
-| 8 | 13,6 % | 553 |
-| 9 | 7,8 % | 384 |
-| 10 eller fler | 2,4 % | 1 980 |
+<Diagram
+  titel="Ju fler kontroller, desto färre är helt utan anmärkning"
+  underlag="Andel verksamheter utan en enda anmärkning i historiken, efter antal kontroller. 14 482 verksamheter med minst en publicerad kontroll."
+>
+  <Stapel
+    label="Andel verksamheter helt utan anmärkning, efter antal kontroller"
+    scale={100}
+    avdelare
+    rows={[
+      { label: '1 kontroll', value: 86.2, display: '86,2 %', note: '3 946 verksamheter' },
+      { label: '2', value: 59.7, display: '59,7 %', note: '2 304 verksamheter' },
+      { label: '3', value: 44.6, display: '44,6 %', note: '1 798 verksamheter' },
+      { label: '4', value: 30.2, display: '30,2 %', note: '1 124 verksamheter' },
+      { label: '5', value: 23.2, display: '23,2 %', note: '965 verksamheter' },
+      { label: '7', value: 19.0, display: '19,0 %', note: '694 verksamheter' },
+      { label: '8', value: 13.6, display: '13,6 %', note: '553 verksamheter' },
+      { label: '9', value: 7.8, display: '7,8 %', note: '384 verksamheter' },
+      { label: '10 eller fler', value: 2.4, display: '2,4 %', note: '1 980 verksamheter' },
+    ]}
+  />
+</Diagram>
 
-Läs den tabellen nedifrån. Bland verksamheter som kontrollerats tio gånger eller mer har **97,6 procent** fått minst en anmärkning någon gång. En fläckfri historik är alltså inte normaltillståndet bland de välbesökta. Den är undantaget.
+Läs listan nedifrån. Bland verksamheter som kontrollerats tio gånger eller mer har **97,6 procent** fått minst en anmärkning någon gång. En fläckfri historik är alltså inte normaltillståndet bland de välbesökta. Den är undantaget.
 
 Kurvan faller i nästan varje steg. Sex kontroller bryter mönstret svagt, med 26,7 procent utan anmärkning mot 23,2 vid fem, och den sortens hack är väntat när grupperna är små. Riktningen är entydig.
 
@@ -43,7 +57,23 @@ Slutsatsen är obekväm men enkel: **ett ställe utan anmärkningar och med en e
 
 ## Vad som händer när man ändå räknar
 
-Bedömningen på en verksamhetssida ser bara på den senaste kontrollen, inte på hela historiken. Räknat så får 11 976 av de 13 579 verksamheter vi kan bedöma inga anmärkningar vid sitt senaste besök, alltså 88,2 procent. 1 228 har en avvikelse och 375 har brister som kvarstår.
+Bedömningen på en verksamhetssida ser bara på den senaste kontrollen, inte på hela historiken. Räknat så ser hela beståndet ut så här:
+
+<Diagram
+  titel="Bedömningen vid senaste kontrollen"
+  underlag="13 579 verksamheter med en kontroll som är yngre än tre år."
+>
+  <Andelsstapel
+    label="Bedömning vid senaste kontrollen, samtliga verksamheter vi kan bedöma"
+    ton="bedomning"
+    note="Ytterligare 2 404 verksamheter saknar bedömning, eftersom de antingen inte har någon publicerad kontroll alls eller bara har kontroller som är äldre än tre år."
+    segments={[
+      { label: 'Inga anmärkningar', value: 11976, display: '88,2 %' },
+      { label: 'Avvikelse', value: 1228, display: '9,0 %' },
+      { label: 'Brister som kvarstår', value: 375, display: '2,8 %' },
+    ]}
+  />
+</Diagram>
 
 Skillnaden mellan 45,7 procent och 88,2 procent är inte en motsägelse. Den första siffran frågar "har det här stället någonsin haft något att rätta till", den andra frågar "hade de något att rätta till senast". Nästan alla har haft det någon gång. Nästan ingen har det just nu. Det är precis vad ett fungerande kontrollsystem ska producera, och det är skälet till att den senaste kontrollen avgör hos oss. Hela beräkningen står i [metodiken](/metodik/).
 
@@ -51,11 +81,25 @@ Skillnaden mellan 45,7 procent och 88,2 procent är inte en motsägelse. Den fö
 
 Andelen som klarade sin senaste kontroll utan anmärkning, per kategori:
 
-- [Skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/): 92,2 procent
-- [Caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/): 88,8 procent
-- [Restauranger](/stockholm/kategori/restauranger/): 87,6 procent
-- [Butiker](/stockholm/kategori/butiker/): 87,1 procent
-- Övriga verksamheter, alltså grossister, lager och tillverkare: 84,6 procent
+<Diagram
+  titel="Vissa kök är renare än andra"
+  underlag="Andel som klarade sin senaste kontroll utan anmärkning. 13 322 bedömda verksamheter med känd kategori."
+>
+  <Stapel
+    label="Andel som klarade sin senaste kontroll utan anmärkning, per kategori"
+    scale={100}
+    avdelare
+    rows={[
+      { label: 'Skolor och omsorg', value: 92.2, display: '92,2 %', note: '2 654 bedömda verksamheter' },
+      { label: 'Caféer och bagerier', value: 88.8, display: '88,8 %', note: '1 414 bedömda verksamheter' },
+      { label: 'Restauranger', value: 87.6, display: '87,6 %', note: '5 611 bedömda verksamheter' },
+      { label: 'Butiker', value: 87.1, display: '87,1 %', note: '1 818 bedömda verksamheter' },
+      { label: 'Övriga verksamheter', value: 84.6, display: '84,6 %', note: '1 825 bedömda verksamheter, alltså grossister, lager och tillverkare' },
+    ]}
+  />
+</Diagram>
+
+Kategorierna finns per kommun, som [skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/), [caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/), [restauranger](/stockholm/kategori/restauranger/) och [butiker](/stockholm/kategori/butiker/) i Stockholm.
 
 Spannet är fem procentenheter. Det är mindre än de flesta gissar, och det är den kanske nyttigaste upplysningen i hela den här texten: skillnaden mellan branscher är liten jämfört med skillnaden mellan hur ofta olika verksamheter besöks.
 

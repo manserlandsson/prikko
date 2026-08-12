@@ -144,6 +144,98 @@ export function formatShare(value: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Kontrolltakten över tid
+// ---------------------------------------------------------------------------
+
+/**
+ * Första året som får ritas.
+ *
+ * Beståndet innehåller tre kontroller från 2017, alla i Linköping. Ett år som
+ * vilar på tre besök är inte ett år i en tidsserie, det är en svans från när
+ * kommunens system började föras. Det skulle dessutom bli seriens lägsta punkt
+ * i varje kommun och därmed styra hela skalan.
+ */
+export const FIRST_YEAR = 2018;
+
+export interface YearPoint {
+  year: number;
+  /**
+   * Kontroller det året, eller null när kommunen inte har någon uppgift alls
+   * för året.
+   *
+   * Skillnaden är hela poängen med fältet. Uppsala, Jönköping, Karlstad och
+   * Borgholm har ingenting före 2024, eftersom källan inte lämnar ut äldre
+   * kontroller. Att rita det som noll vore att påstå att kommunen inte
+   * kontrollerade någonting 2018, vilket är fel och dessutom en nedgång som
+   * aldrig har hänt. Null ritas som en lucka i linjen; en riktig nolla mitt i
+   * en serie, som Oskarshamn 2020, ritas som en nolla.
+   */
+  count: number | null;
+  /** Andel av årets kontroller som gav minst en anmärkning, eller null. */
+  remarkShare: number | null;
+}
+
+const yearCache = new Map<string, YearPoint[]>();
+
+/**
+ * Kontroller per år, för hela beståndet eller för en kommun.
+ *
+ * ## Varför det innevarande året klipps bort
+ *
+ * En tidsserie som slutar i ett år som pågår ritar alltid en brant nedgång i
+ * sista steget, och den nedgången är en artefakt av kalendern. Serien slutar
+ * därför på det senaste avslutade året. Gränsen läses ur klockan vid bygget
+ * och inte ur datan: hämtningen kan halka efter, och det är ändå kalendern
+ * som avgör vilket år som är färdigt.
+ *
+ * ## Varför tomma år före källans början blir null och inte noll
+ *
+ * Se YearPoint.count. Startpunkten är kommunens första år med en publicerad
+ * kontroll; allt före det är null.
+ */
+export function inspectionsPerYear(slug?: string): YearPoint[] {
+  const key = slug ?? '*';
+  const cached = yearCache.get(key);
+  if (cached) return cached;
+
+  const total = new Map<number, { n: number; r: number }>();
+
+  for (const e of establishments()) {
+    if (slug && e.municipality.slug !== slug) continue;
+    for (const i of e.inspections) {
+      const year = Number(i.date.slice(0, 4));
+      const bucket = total.get(year) ?? { n: 0, r: 0 };
+      bucket.n += 1;
+      if (i.assessment > 0) bucket.r += 1;
+      total.set(year, bucket);
+    }
+  }
+
+  const lastComplete = new Date().getUTCFullYear() - 1;
+  const years = [...total.keys()].filter((y) => y >= FIRST_YEAR && y <= lastComplete);
+  if (!years.length) return [];
+
+  const first = Math.min(...years);
+
+  const points: YearPoint[] = [];
+  for (let y = FIRST_YEAR; y <= lastComplete; y += 1) {
+    if (y < first) {
+      points.push({ year: y, count: null, remarkShare: null });
+      continue;
+    }
+    const bucket = total.get(y) ?? { n: 0, r: 0 };
+    points.push({
+      year: y,
+      count: bucket.n,
+      remarkShare: bucket.n ? share(bucket.r, bucket.n) : null,
+    });
+  }
+
+  yearCache.set(key, points);
+  return points;
+}
+
+// ---------------------------------------------------------------------------
 // Rapport: vad anmärkningarna gäller
 // ---------------------------------------------------------------------------
 

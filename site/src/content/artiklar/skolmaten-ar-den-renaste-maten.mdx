@@ -4,8 +4,13 @@ description: "Skolor och förskolor får anmärkning vid 18,5 procent av kontrol
 lede: "Skolmaten får mycket kritik, men nästan aldrig av inspektören. Räknat på hygien är skolköken den skötsammaste delen av hela beståndet, och de kontrolleras samtidigt mest sällan."
 category: "Förklarat"
 published: "2026-08-09"
+image:
+  alt: "Två anställda i vita rockar och hårnät i ett kaklat storkök, med en stapel serveringsbrickor framför sig."
+  source: "Pexels"
 ---
 
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
 import Stapel from '../../components/Stapel.astro';
 
 ## Två sorters kritik
@@ -18,17 +23,22 @@ Livsmedelskontrollen ställer en annan fråga. Den bryr sig inte om maten är go
 
 Andel kontroller som gav minst en anmärkning, per kategori:
 
-<Stapel
-  label="Andel kontroller med minst en anmärkning, per kategori"
-  scale={100}
-  rows={[
-    { label: 'Övriga verksamheter', value: 34.4, display: '34,4 %', note: '7 207 kontroller' },
-    { label: 'Butiker', value: 33.4, display: '33,4 %', note: '8 185 kontroller' },
-    { label: 'Restauranger', value: 30.9, display: '30,9 %', note: '33 530 kontroller' },
-    { label: 'Caféer och bagerier', value: 30.4, display: '30,4 %', note: '6 292 kontroller' },
-    { label: 'Skolor och omsorg', value: 18.5, display: '18,5 %', note: '13 277 kontroller' },
-  ]}
-/>
+<Diagram
+  titel="Skolköken ligger ensamma under tjugo procent"
+  underlag="Andel kontroller som gav minst en anmärkning. 68 491 kontroller med känd kategori."
+>
+  <Stapel
+    label="Andel kontroller med minst en anmärkning, per kategori"
+    scale={100}
+    rows={[
+      { label: 'Övriga verksamheter', value: 34.4, display: '34,4 %', note: '7 207 kontroller' },
+      { label: 'Butiker', value: 33.4, display: '33,4 %', note: '8 185 kontroller' },
+      { label: 'Restauranger', value: 30.9, display: '30,9 %', note: '33 530 kontroller' },
+      { label: 'Caféer och bagerier', value: 30.4, display: '30,4 %', note: '6 292 kontroller' },
+      { label: 'Skolor och omsorg', value: 18.5, display: '18,5 %', note: '13 277 kontroller' },
+    ]}
+  />
+</Diagram>
 
 Skolköken ligger tolv procentenheter under restaurangerna och är ensamma under tjugo. Räknat per verksamhet i stället för per kontroll är bilden densamma: 92,2 procent av de [skolor och omsorgsverksamheter](/stockholm/kategori/skolor-och-omsorg/) vi kan bedöma klarade sin senaste kontroll utan anmärkning, mot 87,6 procent av [restaurangerna](/stockholm/kategori/restauranger/).
 
@@ -38,16 +48,21 @@ Det intressanta är inte att skolköken är bättre, utan var de är bättre. Ko
 
 På **grundläggande hygien**, alltså rengöring, lokaler, kylkedja och skadedjur, underkändes 7,2 procent av de 19 660 punkter som granskats i skolkök. I restaurangkök var motsvarande andel 17,3 procent av 23 319 punkter. Det är mer än dubbelt så hög felfrekvens på samma sorts krav.
 
-<Stapel
-  label="Andel granskade punkter som gav en avvikelse"
-  scale={20}
-  rows={[
-    { label: 'Hygien, restaurangkök', value: 17.3, display: '17,3 %', note: '23 319 granskade punkter' },
-    { label: 'Hygien, skolkök', value: 7.2, display: '7,2 %', note: '19 660 granskade punkter' },
-    { label: 'Faroanalys, restaurangkök', value: 18.4, display: '18,4 %', note: '2 206 granskade punkter' },
-    { label: 'Faroanalys, skolkök', value: 12.0, display: '12,0 %', note: '2 056 granskade punkter' },
-  ]}
-/>
+<Diagram
+  titel="Samma krav, dubbelt så hög felfrekvens i restaurangköket"
+  underlag="Andel granskade kontrollpunkter som gav en avvikelse, i de kommuner som publicerar punkterna."
+>
+  <Parstapel
+    label="Andel granskade punkter som gav en avvikelse, restaurangkök mot skolkök"
+    serieA="Restaurangkök"
+    serieB="Skolkök"
+    scale={20}
+    rows={[
+      { label: 'Grundläggande hygien', a: 17.3, b: 7.2, aDisplay: '17,3 %', bDisplay: '7,2 %', note: '23 319 respektive 19 660 granskade punkter' },
+      { label: 'Faroanalys och HACCP', a: 18.4, b: 12.0, aDisplay: '18,4 %', bDisplay: '12,0 %', note: '2 206 respektive 2 056 granskade punkter' },
+    ]}
+  />
+</Diagram>
 
 Även på faroanalysen, alltså de skriftliga rutinerna för vad som kan gå fel och hur det förebyggs, ligger skolköken före: 12,0 mot 18,4 procent.
 
@@ -61,16 +76,21 @@ Trots att skolköken lagar mat åt de gäster som tål minst, alltså barn och �
 
 Följden syns i hur färsk uppgiften är. Bara **40,0 procent** av skolköken har en kontroll som är yngre än ett år, mot 65,9 procent av restaurangerna. Medianåldern på ett skolköks senaste kontroll är 488 dagar.
 
-<Stapel
-  label="Andel verksamheter med en kontroll yngre än ett år"
-  scale={100}
-  rows={[
-    { label: 'Restauranger', value: 65.9, display: '65,9 %' },
-    { label: 'Butiker', value: 51.6, display: '51,6 %' },
-    { label: 'Caféer och bagerier', value: 47.7, display: '47,7 %' },
-    { label: 'Skolor och omsorg', value: 40.0, display: '40,0 %' },
-  ]}
-/>
+<Diagram
+  titel="Och ändå kontrolleras skolköken minst"
+  underlag="Andel verksamheter vars senaste kontroll är yngre än ett år. Mätt i augusti 2026."
+>
+  <Stapel
+    label="Andel verksamheter med en kontroll yngre än ett år"
+    scale={100}
+    rows={[
+      { label: 'Restauranger', value: 65.9, display: '65,9 %' },
+      { label: 'Butiker', value: 51.6, display: '51,6 %' },
+      { label: 'Caféer och bagerier', value: 47.7, display: '47,7 %' },
+      { label: 'Skolor och omsorg', value: 40.0, display: '40,0 %' },
+    ]}
+  />
+</Diagram>
 
 Det betyder i praktiken att en tom eller gammal historik på ett skolkök är normaltillståndet, inte en varningssignal. Letar du efter ditt barns förskola och hittar en kontroll från 2023 är det inte för att någon glömt bort den, utan för att den ligger i en lägre kontrollfrekvens. Är den senaste kontrollen äldre än tre år sätter vi ingen bedömning alls, vilket förklaras i [metodiken](/metodik/).
 

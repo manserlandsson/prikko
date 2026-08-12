@@ -163,8 +163,18 @@ const jsonLd = {
           där ingen enskild verksamhet nämns, så den bärande regeln håller.
 
           Posen är `soker`: han förklarar, han dömer inte. En artikel är den yta
-          där tjänsten är mest pedagogisk och minst myndighetsutövande. */}
-      <Maskot pose="soker" size={72} class="byline" />
+          där tjänsten är mest pedagogisk och minst myndighetsutövande.
+
+          Storleken är 112 och inte 72. Vid 72 blev han en ikon bredvid en
+          rubrik, alltså läst som en dekoration man sveper förbi. Det här är
+          den enda ytan i en artikel där maskoten är avsändare, och en avsändare
+          som syns sämre än sin egen bildtext gör inte sitt jobb.
+
+          Rörelsen är spaningen, samma som på 404. Den går EN gång när rutan
+          kommer in i vyn och sedan står han still. En figur som rör sig i
+          evighet längst ned på en artikel drar blicken från texten som är
+          sidans poäng, och prefers-reduced-motion släcker den helt. */}
+      <Maskot pose="soker" size={112} rorelse="m-spana" class="byline" />
       <h2>Om artikeln</h2>
       <p>
         Artiklarna är skrivna och redigerade av Prikko, till skillnad från
@@ -281,13 +291,32 @@ const jsonLd = {
     margin-top: var(--s-4);
   }
 
-  .page :global(ul),
-  .page :global(ol) {
+  /* Listreglerna gäller PROSANS listor och ingenting inuti ett diagram.
+   *
+   * En Stapel är en <ul> och en Parstapel är två. Utan undantaget fick de
+   * listans padding-left och började alltså en bit in medan brödtexten
+   * började vid kanten, vilket är precis det ägaren såg som "inte helt left
+   * aligned". li-regelns margin-top lade dessutom på ett extra hopp mellan
+   * diagrammets rader.
+   *
+   * Undantaget är skrivet som :not() på prosans egen selektor i stället för
+   * som en nollställning efteråt, och det är ett medvetet val. En
+   * nollställning måste väga tyngre än prosan men lättare än varje
+   * diagramkomponents egna mått, och det spannet är för smalt för att vara
+   * stabilt: `.page .diagram li` väger tyngre än `.spannrader li + li` och
+   * hade tyst ätit upp avståndet mellan raderna i Spann. Med :not() når
+   * reglerna aldrig in i ett diagram, och komponenten råder ensam över sitt
+   * inre.
+   *
+   * Undantaget måste stå här och inte i Diagram.astro, eftersom en scoped
+   * stil där inte når in i det som skickas via <slot />. */
+  .page :global(ul:not(.diagram *)),
+  .page :global(ol:not(.diagram *)) {
     margin: var(--s-4) 0 0;
     padding-left: var(--s-4);
   }
 
-  .page :global(li) {
+  .page :global(li:not(.diagram *)) {
     margin-top: var(--s-3);
     line-height: var(--lh-body);
   }

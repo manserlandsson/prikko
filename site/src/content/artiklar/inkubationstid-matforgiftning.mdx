@@ -1,0 +1,105 @@
+---
+title: "Hur lång tid tar det innan matförgiftningen märks?"
+description: "Toxiner slår till på ett par timmar, campylobacter kan dröja tio dygn. Här är Livsmedelsverkets inkubationstider, och varför gårdagens middag sällan är den skyldiga."
+lede: "Nästan alla misstänker den senaste måltiden. Inkubationstiderna säger att den nästan aldrig är rätt misstänkt, och skillnaden mellan smittämnena är större än ett dygn."
+category: "Förklarat"
+published: "2026-08-12"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import Spann from '../../components/Spann.astro';
+
+## Fel måltid får nästan alltid skulden
+
+Den måltid man minns är den senaste. Blir man dålig på kvällen är det lunchen man tänker på, och det är sällan där svaret ligger.
+
+Tiden från att man fått i sig något till att symtomen börjar kallas inkubationstid, och den skiljer sig åt med en faktor hundra mellan smittämnena. Ett bakterietoxin som redan bildats i maten kan ge kräkningar efter en timme. Campylobacter kan ta tio dygn. Mellan de två ligger flera dagar av måltider som alla ser lika misstänkta ut.
+
+Talen nedan kommer ur Livsmedelsverkets kontrollwiki, som är myndighetens eget underlag för utredningar av matförgiftning. Vi har inte räknat fram dem, vi återger dem.
+
+## Timmar: toxinerna
+
+En del av det som kallas matförgiftning är ingen infektion. Bakterier har hunnit växa i maten och bildat gifter, och det är gifterna man får i sig. Då behöver ingenting föröka sig i kroppen först, och därför kommer symtomen fort.
+
+<Diagram
+  titel="Smittämnen som ger symtom samma dag"
+  underlag="Pricken är den vanligaste inkubationstiden, bandet är hela det angivna intervallet."
+  kalla="Livsmedelsverkets kontrollwiki, artikel 21."
+>
+  <Spann
+    label="Inkubationstid i timmar för toxinbildande bakterier"
+    max={24}
+    rows={[
+      { label: 'Bacillus cereus, kräkvariant', low: 1, mid: 3, high: 5, display: '2 till 4 timmar', note: 'Intervall 1 till 5 timmar. Symtomen varar 1 till 1,5 dygn.' },
+      { label: 'Staphylococcus aureus', low: 1, mid: 3, high: 6, display: '2 till 4 timmar', note: 'Intervall 1 till 6 timmar. Symtomen varar 1 till 2 dygn.' },
+      { label: 'Bacillus cereus, diarrévariant', low: 8, mid: 12, high: 16, display: '8 till 16 timmar', note: 'Livsmedelsverket anger inget yttre intervall för den här varianten.' },
+      { label: 'Clostridium perfringens', low: 8, mid: 11, high: 24, display: '10 till 12 timmar', note: 'Intervall 8 timmar till 1 dygn. Symtomen varar 1 till 2 dygn.' },
+    ]}
+  />
+</Diagram>
+
+Det praktiska med den här gruppen är att den pekar tillbaka på samma dag. Kräkningar som börjar tre timmar efter lunchen är förenliga med lunchen. Kräkningar som börjar tre timmar efter lunchen dagen därpå är det inte.
+
+Clostridium perfringens är den klassiska storköksbakterien. Den bildar sporer som överlever tillagningen, och sporerna gror när maten står och svalnar långsamt. Det är också därför Livsmedelsverket har ett riktvärde för nedkylning: från 60 till 8 grader på högst sex timmar.
+
+## Dygn: bakterierna och virusen
+
+Här handlar det om levande smittämnen som måste föröka sig innan man märker något, och då blir tidsfönstret ett helt annat.
+
+<Diagram
+  titel="Smittämnen som tar dygn"
+  underlag="Pricken är den vanligaste inkubationstiden, bandet är hela det angivna intervallet."
+  kalla="Livsmedelsverkets kontrollwiki, artikel 21."
+>
+  <Spann
+    label="Inkubationstid i dygn för virus och infektionsbakterier"
+    max={10}
+    rows={[
+      { label: 'Salmonella', low: 0.25, mid: 1.25, high: 3, display: '0,5 till 2 dygn', note: 'Intervall 6 timmar till 3 dygn. Symtomen kan hålla i sig från dygn till veckor.' },
+      { label: 'Norovirus', low: 0.5, mid: 1.5, high: 2, display: '1,5 dygn', note: 'Intervall 0,5 till 2 dygn. Symtomen varar 1 till 2 dygn, ibland längre.' },
+      { label: 'EHEC', low: 2, mid: 3, high: 8, display: '2 till 4 dygn', note: 'Intervall 2 till 8 dygn. Symtomen kan hålla i sig från dygn till veckor.' },
+      { label: 'Campylobacter', low: 1, mid: 3.5, high: 10, display: '2 till 5 dygn', note: 'Intervall 1 till 10 dygn. Symtomen kan hålla i sig från dygn till veckor.' },
+    ]}
+  />
+</Diagram>
+
+Campylobacter är den som gör utredningar svåra. Med ett intervall på tio dygn ligger ett tjugotal måltider inom fönstret, och den som ska svara på vad hen åt kommer inte ihåg det. Det är just därför kommunens frågelista ber om måltiderna ett till två dygn före insjuknandet och inte bara om den senaste.
+
+Norovirus är samtidigt det som oftast påvisas. I Livsmedelsverkets sammanställning för 2024 stod norovirus för 31 rapporter och 671 fall, följt av salmonella med fem rapporter och 222 fall.
+
+En anmärkning om källorna: Livsmedelsverket anger norovirus till 0,5 till 2 dygn medan Folkhälsomyndigheten skriver 12 till 48 timmar. Det är samma spann uttryckt på två sätt. Vi följer Livsmedelsverket genomgående här för att alla rader ska komma ur samma tabell.
+
+## Listeria hör till en annan tidsskala
+
+Listeria ryms inte i diagrammen ovan, och det är inte en förenkling utan ett faktum om bakterien. Den invasiva formen ger tre olika sjukdomsbilder med tre olika inkubationstider: blodförgiftning oftast 1 till 5 dygn, hjärnhinneinflammation 4 dygn till 2 veckor, och hos gravida vanligtvis 2 till 5 veckor med ett yttre intervall på 2 till 10 veckor.
+
+En smitta som kan visa sig tio veckor efter måltiden går i praktiken inte att koppla till en enskild middag utan laboratorieanalys. Det är också skälet till att gravida får särskilda kostråd.
+
+## Vad tiderna betyder när du ska anmäla
+
+Tre saker följer av tabellerna.
+
+**Skriv när symtomen började, inte bara vad du åt.** Klockslaget är det som avgör vilka måltider som ens är möjliga, och det är den uppgift handläggaren behöver först.
+
+**Ta med måltiderna ett par dygn bakåt.** För campylobacter och EHEC räcker gårdagens middag inte som underlag.
+
+**Var fler i sällskapet dåliga vid ungefär samma tidpunkt är det en stark uppgift.** Två sjuka personer räcker för att myndigheten ska räkna det som ett utbrott, och samtidiga insjuknanden pekar ut en gemensam måltid mycket bättre än ett ensamt fall.
+
+Hela gången från anmälan till kontroll står i [Matförgiftning från restaurang: vad du gör och vart anmälan går](/artiklar/matforgiftning-fran-restaurang/).
+
+## Kopplingen till det kontrollen mäter
+
+Inkubationstiderna beskriver vad som händer efter att maten ätits. Kommunens kontroll tittar på det som händer före, och den punkt som oftast fälls är just den som styr hur mycket bakterier hinner växa: temperaturen.
+
+Av de 10 536 kontrollpunkter om kylkedja och temperaturkriterier som granskats i vårt bestånd gav 1 470 en avvikelse, alltså 14,0 procent. Hur det varierar över året står i [Kylkedjan brister oftast på sommaren](/artiklar/kylkedjan-brister-oftast-pa-sommaren/).
+
+Vill du se vad som noterats hos ett bestämt ställe finns hela historiken på verksamhetssidan. [Sök fram stället](/sok/), eller börja i din kommun, till exempel [Stockholm](/stockholm/), [Uppsala](/uppsala/) eller [Linköping](/linkoping/).
+
+## Källor
+
+- [Livsmedelsverkets kontrollwiki, artikel 21: Smittämnen och agens, symtom, inkubationstid och varaktighet](https://kontrollwiki.livsmedelsverket.se/artikel/21/smittamnen-agens-symtom-inkubationstid-och-varaktighet): samtliga inkubationstider och varaktigheter ovan.
+- [Livsmedelsverkets kontrollwiki, artikel 349: Temperatur](https://kontrollwiki.livsmedelsverket.se/artikel/349/temperatur): riktvärdet för nedkylning och resonemanget om sporer som överlever upphettning.
+- [Livsmedelsverkets kontrollwiki, artikel 13: Intervjufrågor vid matförgiftning](https://kontrollwiki.livsmedelsverket.se/artikel/13/intervjufragor-vid-matforgiftning): frågan om måltider ett till två dygn före insjuknandet.
+- [Livsmedelsverket, rapport L 2025 nr 11: Rapporterade misstänkta matförgiftningar 2024](https://www.livsmedelsverket.se/4a4e07/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-11---rapporterade-misstankta-matforgiftningar-2024.pdf): norovirus och salmonella som de vanligaste påvisade smittämnena.
+- [Folkhälsomyndigheten: Sjukdomsinformation om vinterkräksjuka](https://www.folkhalsomyndigheten.se/smittskydd-beredskap/smittsamma-sjukdomar/sjukdomsinformation-om-vinterkraksjuka/): inkubationstiden 12 till 48 timmar för norovirus.
+- Andelen avvikelser på kontrollpunkter om kylkedja och temperatur är räknad ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

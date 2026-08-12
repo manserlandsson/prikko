@@ -1,0 +1,159 @@
+---
+/**
+ * Andelsstapel: en enda stapel delad i segment som tillsammans är helheten.
+ *
+ * Stapel.astro svarar på "hur stort är vart och ett". Den här svarar på den
+ * andra frågan, "hur delar de på alltihop", och den skillnaden är värd en
+ * egen form: lägger man en fördelning i fem fristående staplar måste läsaren
+ * själv addera dem för att se att de går ihop till hundra.
+ *
+ * Formen är mätt i webbläsaren på ednia.se i augusti 2026, på deras
+ * könsfördelning: en stapel 24 px hög med radie 8 px, segmenten kant i kant
+ * utan mellanrum, och etiketterna under stapeln i stället för inuti. Radien
+ * är avsiktligt inte --r-pill: en helt rund stapel delad i segment får två
+ * segment med rundade ändar och resten raka, vilket ser ut som ett fel.
+ *
+ * TVÅ REGLER SOM GÄLLER FÖRE FÖREBILDEN
+ *
+ * 1. FÄRGEN BÄR BARA BEDÖMNING NÄR SEGMENTEN ÄR BEDÖMNINGEN. Ednia färgar
+ *    sina två segment rött och blått för att det ser bra ut. Vi kan inte:
+ *    grönt, gult och rött betyder bedömning på den här sajten och betyder
+ *    ingenting annat. Därför finns bara två toner. `brand` är en trappa i
+ *    märkesblått och säger ingenting om bra eller dåligt. `bedomning` tar
+ *    --verdict-tokens och får användas ENBART när segmenten i ordning är
+ *    ren, avvikelse och kvarstående brist, alltså när färgen betyder exakt
+ *    det den betyder på resten av sajten.
+ * 2. VARJE ANDEL STÅR I KLARTEXT UNDER STAPELN. Ett smalt segment går inte
+ *    att mäta med ögat, och 2,8 procent är en av de viktigare uppgifterna vi
+ *    publicerar. Stapeln är den grova avläsningen, teckenförklaringen är den
+ *    exakta, och därför är själva stapeln aria-hidden.
+ */
+
+interface Segment {
+  /** Vad segmentet heter. Står i teckenförklaringen under stapeln. */
+  label: string;
+  /** Segmentets storlek. Summan av alla segment är helheten. */
+  value: number;
+  /** Andelen som den ska skrivas. Utelämnad räknas den ur value. */
+  display?: string;
+}
+
+interface Props {
+  segments: Segment[];
+  /**
+   * 'brand'      trappa i märkesblått, från mättad till ljus. Neutral.
+   * 'bedomning'  ren, avvikelse, kvarstående brist, i den ordningen.
+   *              Använd bara när segmenten faktiskt är de tre nivåerna.
+   */
+  ton?: 'brand' | 'bedomning';
+  /** Läsbar sammanfattning för skärmläsare. */
+  label?: string;
+  /** Tyst rad under teckenförklaringen, oftast nämnaren. */
+  note?: string;
+}
+
+const { segments, ton = 'brand', label, note } = Astro.props;
+
+const total = segments.reduce((sum, s) => sum + s.value, 0);
+
+// Nollskydd: en tom lista eller idel nollor ger annars bredd NaN, vilket
+// Safari renderar som full bredd.
+const andel = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+
+const skriv = (s: Segment) =>
+  s.display ?? `${andel(s.value).toFixed(1).replace('.', ',')} %`;
+---
+
+{segments.length > 0 && total > 0 && (
+  <figure class="andelsstapel" aria-label={label}>
+    <div class:list={['stapel', `ton-${ton}`]} aria-hidden="true">
+      {segments.map((s, i) => (
+        <span class={`del del-${i}`} style={`width:${andel(s.value)}%`}></span>
+      ))}
+    </div>
+
+    <ul class:list={['nyckel', `ton-${ton}`]}>
+      {segments.map((s, i) => (
+        <li>
+          <span class={`prick del-${i}`}></span>
+          <span class="namn">{s.label}</span>
+          <span class="tal">{skriv(s)}</span>
+        </li>
+      ))}
+    </ul>
+
+    {note && <figcaption class="not">{note}</figcaption>}
+  </figure>
+)}
+
+<style>
+  .andelsstapel {
+    margin: var(--s-4) 0 0;
+  }
+
+  .stapel {
+    display: flex;
+    height: 24px;
+    border-radius: var(--s-2);
+    overflow: hidden;
+    background: var(--hairline);
+  }
+
+  .del {
+    display: block;
+    height: 100%;
+    /* Ett segment på några tiondelar av en procent ska synas som en strimma
+       och inte försvinna helt. Utan detta blir 0,6 procent noll pixlar. */
+    min-width: 2px;
+  }
+
+  /* Trappan i märkesblått. Fyra steg räcker: en fördelning med fler än fyra
+     delar ska vara en Stapel med en rad per del, inte den här. */
+  .ton-brand .del-0 { background: var(--brand); }
+  .ton-brand .del-1 { background: color-mix(in srgb, var(--brand) 62%, #fff); }
+  .ton-brand .del-2 { background: color-mix(in srgb, var(--brand) 34%, #fff); }
+  .ton-brand .del-3 { background: color-mix(in srgb, var(--brand) 16%, #fff); }
+
+  .ton-bedomning .del-0 { background: var(--verdict-clean); }
+  .ton-bedomning .del-1 { background: var(--verdict-minor); }
+  .ton-bedomning .del-2 { background: var(--verdict-major); }
+
+  .nyckel {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-6);
+  }
+
+  .nyckel li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .prick {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-pill);
+    flex-shrink: 0;
+    /* Prickens baslinje ligger annars på textens, och den ser då ut att
+       hänga under raden. */
+    transform: translateY(-1px);
+  }
+
+  .tal {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .not {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+</style>

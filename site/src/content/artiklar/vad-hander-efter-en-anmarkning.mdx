@@ -5,9 +5,13 @@ lede: "En anmärkning är inte ett slutbetyg. Den startar en kedja med åtgärd,
 category: "Förklarat"
 published: "2026-08-04"
 image:
-  alt: "Tom restauranglokal i dagsljus med dukade bord, stoppade stolar och orange lampskärmar framför ett fönster."
+  alt: "Dukade bord och trästolar i förgrunden av en restaurangsal, med gäster i motljus bakom en glasvägg."
   source: "Pexels"
 ---
+
+import Andelsstapel from '../../components/Andelsstapel.astro';
+import Diagram from '../../components/Diagram.astro';
+import Spann from '../../components/Spann.astro';
 
 ## Anmärkningen är början, inte domen
 
@@ -24,7 +28,22 @@ Men rapporten är bara första länken i en kedja. Vad en anmärkning betyder av
 
 ## Återbesöket kommer snabbare än man tror
 
-Uppföljningen är ingen formalitet på obestämd framtid. I vårt bestånd finns 14 582 återbesök som går att para ihop med kontrollen före (mätt i augusti 2026): vart fjärde gjordes inom fyra dagar, hälften inom drygt tre veckor och tre av fyra inom fyra månader.
+Uppföljningen är ingen formalitet på obestämd framtid. I vårt bestånd finns 14 707 återbesök som går att para ihop med kontrollen före, mätt i augusti 2026.
+
+<Diagram
+  titel="Så snabbt kommer kommunen tillbaka"
+  underlag="Tid från en kontroll till det återbesök som följde på den. 14 707 hopparade besök."
+>
+  <Spann
+    label="Tid från kontroll till återbesök, median och mittersta hälften"
+    max={120}
+    rows={[
+      { label: 'Dagar till återbesöket', low: 3, mid: 23, high: 106, display: '23 dagar', note: 'Pricken är medianen. Bandet går från 3 till 106 dagar, alltså den mittersta hälften av besöken.' },
+    ]}
+  />
+</Diagram>
+
+Vart fjärde återbesök gjordes alltså inom tre dagar och hälften inom tre veckor. Svansen är samtidigt lång: en fjärdedel dröjde mer än 106 dagar, och var tionde mer än 353.
 
 Ett återbesök är också en annan sorts kontroll än den planerade. Kommunen kommer dit där den redan vet att något var fel, och hittar därför oftare avvikelser. Hur utfallen skiljer sig mellan planerade kontroller, återbesök och händelsestyrda kontroller har vi räknat fram i rapporten [Tre sorters kontroll, tre olika utfall](/rapporter/tre-sorters-kontroll/).
 
@@ -32,7 +51,41 @@ Hur stor del av kontrollarbetet som är uppföljning skiljer sig kraftigt åt me
 
 ## Åtgärdad eller kvarstående: det är den verkliga skiljelinjen
 
-Vid återbesöket antecknar en del kommuner utfallet på varje punkt: åtgärdad eller kvarstår. Andra kommuner ger besöket en samlad bedömning. I båda fallen är det här kontrollhistoriken säger något på riktigt. En verksamhet som får en anmärkning och rättar den har gjort exakt vad systemet är byggt för. En verksamhet där samma brist står kvar besök efter besök är något annat.
+Vid återbesöket antecknar en del kommuner utfallet på varje punkt: åtgärdad eller kvarstår. Andra kommuner ger besöket en samlad bedömning.
+
+Räknat på de punkter där kommunen skrivit ut utfallet är svaret entydigt. Bristen är nästan alltid borta när kommunen kommer tillbaka:
+
+<Diagram
+  titel="Fyra av fem påpekade brister är åtgärdade vid återbesöket"
+  underlag="3 437 kontrollpunkter som följts upp vid ett återbesök och fått ett utfall utskrivet."
+>
+  <Andelsstapel
+    label="Utfall på de kontrollpunkter som följdes upp vid ett återbesök"
+    segments={[
+      { label: 'Åtgärdad', value: 2821, display: '82,1 %' },
+      { label: 'Kvarstår', value: 616, display: '17,9 %' },
+    ]}
+  />
+</Diagram>
+
+Besöket som helhet pekar åt samma håll. Av samtliga 15 552 återbesök i beståndet gav fyra av fem inget att anmärka på:
+
+<Diagram
+  titel="Bedömningen av själva återbesöket"
+  underlag="15 552 återbesök i tolv kommuner, augusti 2026."
+>
+  <Andelsstapel
+    label="Kommunens samlade bedömning av återbesöket"
+    ton="bedomning"
+    segments={[
+      { label: 'Inga anmärkningar', value: 12536, display: '80,6 %' },
+      { label: 'Avvikelse', value: 2479, display: '15,9 %' },
+      { label: 'Kvarstående avvikelse', value: 537, display: '3,5 %' },
+    ]}
+  />
+</Diagram>
+
+I båda fallen är det här kontrollhistoriken säger något på riktigt. En verksamhet som får en anmärkning och rättar den har gjort exakt vad systemet är byggt för. En verksamhet där samma brist står kvar besök efter besök är något annat.
 
 Det är därför Prikkos allvarligaste nivå inte heter "allvarliga brister" utan [Brister som kvarstår](/metodik/). Vi graderar inte hur illa något var, för det gör inte kommunerna heller på något jämförbart sätt. Vi läser i stället mönstret: kom kommunen tillbaka och fann att bristen levde kvar?
 

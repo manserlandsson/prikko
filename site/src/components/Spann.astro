@@ -1,0 +1,162 @@
+---
+/**
+ * Spann: en rad per grupp, där stapeln visar var mitten ligger OCH hur brett
+ * det spretar omkring den.
+ *
+ * Behovet kommer ur att medianen ensam ljuger genom att låta precis. Två
+ * restaurangkategorier med medianen 327 och 412 dagar mellan besöken låter
+ * nästan lika. Den ena har halva sitt material mellan 197 och 443 dagar, den
+ * andra mellan 280 och 709, och det är den skillnaden läsaren behöver se.
+ * En vanlig stapel kan inte visa den, för en stapel har bara en ände.
+ *
+ * FORMEN
+ *
+ * Spåret är Stapel.astro:s: 8 px, radie --r-pill, --hairline. Det är med
+ * flit, för de två formerna står ofta i samma artikel och ska läsa som
+ * samma familj. Ovanpå spåret ligger bandet mellan de två ytterpunkterna i
+ * en ljus märkesblå, och mitt i bandet står medianen som en solid prick i
+ * samma blå. Ingen axel, ingen legend, inget rutnät, precis som på ednia.se
+ * (mätt i webbläsaren i augusti 2026).
+ *
+ * TVÅ REGLER SOM DEN DELAR MED STAPEL
+ *
+ * 1. INGEN FÄRGPROP. En lång stapel är inte en dom, och grönt, gult och rött
+ *    är reserverade för bedömning. Formen har en enda blå och inga val.
+ * 2. TALEN STÅR I KLARTEXT. Mittvärdet skrivs till höger som på Stapel, och
+ *    spannets båda ändar skrivs i noten under. Ingen uppgift får bo enbart i
+ *    en pixelbredd, så spåret är aria-hidden och skärmläsaren får raden som
+ *    text.
+ *
+ * SKALAN ÄR GEMENSAM FÖR ALLA RADER
+ *
+ * Till skillnad från Stapel, där varje rad kan läsas för sig, är den här
+ * formen meningslös om raderna inte delar linjal: hela poängen är att se
+ * ett band ligga längre åt höger och vara bredare än ett annat. Skalan går
+ * därför från 0 till den största ytterpunkten i hela listan, om inte `max`
+ * sätts uttryckligen.
+ */
+
+interface Rad {
+  /** Vad raden heter. Står i bläck till vänster. */
+  label: string;
+  /** Spannets nedre ände, till exempel den 25:e percentilen. */
+  low: number;
+  /** Mitten, till exempel medianen. Måste ligga mellan low och high. */
+  mid: number;
+  /** Spannets övre ände, till exempel den 75:e percentilen. */
+  high: number;
+  /** Mittvärdet som det ska skrivas. Utelämnat skrivs `mid` som det är. */
+  display?: string;
+  /** Tyst rad under stapeln. Här hör spannets ändar hemma. */
+  note?: string;
+}
+
+interface Props {
+  rows: Rad[];
+  /** Vad full bredd betyder. Utelämnad blir det listans största `high`. */
+  max?: number;
+  /** Läsbar sammanfattning av listan för skärmläsare. */
+  label?: string;
+}
+
+const { rows, max, label } = Astro.props;
+
+const top = max ?? Math.max(...rows.map((r) => r.high), 0);
+const andel = (v: number) => (top > 0 ? Math.min(100, (v / top) * 100) : 0);
+---
+
+{rows.length > 0 && (
+  <ul class="spannrader" aria-label={label}>
+    {rows.map((r) => (
+      <li>
+        <span class="topp">
+          <span class="etikett">{r.label}</span>
+          <span class="tal">{r.display ?? r.mid}</span>
+        </span>
+
+        <span class="spar" aria-hidden="true">
+          <span
+            class="band"
+            style={`left:${andel(r.low)}%;width:${Math.max(andel(r.high) - andel(r.low), 0.6)}%`}
+          ></span>
+          {/* Pricken är 8 px bred och skulle hänga ut ur spåret vid 0 och
+              100 procent. translateX(-50%) plus en clamp på left håller den
+              innanför kanterna utan att flytta den märkbart. */}
+          <span class="mitt" style={`left:clamp(4px, ${andel(r.mid)}%, calc(100% - 4px))`}></span>
+        </span>
+
+        {r.note && <span class="not">{r.note}</span>}
+      </li>
+    ))}
+  </ul>
+)}
+
+<style>
+  .spannrader {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  /* Mer luft än Stapel har, och det är avsiktligt. En spannrad slutar med en
+     not som skriver ut båda ändarna, och noten och nästa rads etikett har
+     samma storlek. Med --s-4 emellan läste de som ett stycke. */
+  .spannrader li + li { margin-top: var(--s-6); }
+
+  .topp {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-4);
+  }
+
+  .etikett {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Samma tysta tal som i Stapel: stapeln har redan sagt ungefär hur stort
+     det är, och två röster som säger samma sak gör raden högljudd. */
+  .tal {
+    flex-shrink: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .spar {
+    position: relative;
+    display: block;
+    height: 8px;
+    margin-top: var(--s-2);
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+  }
+
+  .band {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--brand) 30%, #fff);
+  }
+
+  .mitt {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+  }
+
+  .not {
+    display: block;
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+</style>

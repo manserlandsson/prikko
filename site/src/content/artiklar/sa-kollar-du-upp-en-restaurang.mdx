@@ -9,13 +9,30 @@ image:
   source: "Pexels"
 ---
 
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+
 ## Det recensionerna aldrig ser
 
 En gäst kan bedöma nästan allt på en restaurang. Maten, väntetiden, ljudnivån, notan. Det enda hen aldrig ser är kylrummet, diskrutinen, temperaturloggen och skadedjursfällorna bakom passet.
 
 Just det ser inspektören, och anteckningarna blir en allmän handling. Det är en av få uppgifter om ett företag som är både offentlig och svår att skönmåla. Den är däremot skriven för myndigheten, inte för dig, och den är därför lätt att läsa fel åt båda hållen.
 
-Här är metoden, i den ordning stegen faktiskt spelar roll.
+Här är metoden, i den ordning stegen faktiskt spelar roll. Fyra tal ur beståndet är värda att ha med sig innan du börjar, eftersom de förklarar varför stegen kommer i just den ordningen:
+
+<Diagram
+  titel="Fyra tal att läsa historiken mot"
+  underlag="Räknade ur Prikkos bestånd av 68 895 kontroller i tolv kommuner, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Rena med en enda kontroll', value: '86,2', unit: '%' },
+      { label: 'Rena med tio kontroller eller fler', value: '2,4', unit: '%' },
+      { label: 'Anmärkning vid oanmält besök', value: '33,7', unit: '%' },
+      { label: 'Median till återbesöket', value: '23', unit: 'dagar' },
+    ]}
+  />
+</Diagram>
 
 ## 1. Börja med datumet, inte med bedömningen
 

@@ -9,6 +9,10 @@ image:
   source: "Pexels"
 ---
 
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+
 ## En regel med undantag
 
 Livsmedelskontrollen ska som huvudregel vara oanmäld. Skälet är självklart: inspektören ska se verksamheten som den är en vanlig arbetsdag, inte en version som städats inför besök.
@@ -21,10 +25,19 @@ Sex av kommunerna i beståndet skriver ut om kontrollen var anmäld eller inte: 
 
 Bland de planerade kontrollerna:
 
-| | Antal kontroller | Andel med minst en anmärkning |
-| --- | --- | --- |
-| Anmäld i förväg | 8 882 | **26,5 %** |
-| Oanmäld | 38 685 | **33,7 %** |
+<Diagram
+  titel="Anmälda kontroller hittar anmärkningar mer sällan"
+  underlag="47 567 planerade kontroller i de sex kommuner som skriver ut om besöket var aviserat."
+>
+  <Stapel
+    label="Andel planerade kontroller med minst en anmärkning, anmälda mot oanmälda"
+    scale={100}
+    rows={[
+      { label: 'Oanmäld', value: 33.7, display: '33,7 %', note: '38 685 kontroller' },
+      { label: 'Anmäld i förväg', value: 26.5, display: '26,5 %', note: '8 882 kontroller' },
+    ]}
+  />
+</Diagram>
 
 Sju procentenheter, eller ungefär en fjärdedel fler anmärkningar när besöket kom utan förvarning.
 
@@ -34,26 +47,52 @@ Samma sak gäller återbesöken, där nivån är lägre men avståndet finns kva
 
 En enskild siffra av det här slaget kan alltid vara en artefakt av att en stor kommun råkar göra saker på ett visst sätt. Så är det inte här. Bland planerade kontroller, per kommun:
 
-| Kommun | Anmäld | Oanmäld |
-| --- | --- | --- |
-| [Linköping](/linkoping/) | 22,2 % | 31,4 % |
-| [Kristinehamn](/kristinehamn/) | 25,8 % | 39,3 % |
-| [Stockholm](/stockholm/) | 26,2 % | 33,3 % |
-| [Örebro](/orebro/) | 32,6 % | 38,8 % |
-| [Svenljunga](/svenljunga/) | 33,3 % | 55,7 % |
-| [Uppsala](/uppsala/) | 37,2 % | 39,1 % |
+<Diagram
+  titel="Mönstret håller i varje kommun"
+  underlag="Andel planerade kontroller med minst en anmärkning."
+>
+  <Parstapel
+    label="Andel planerade kontroller med minst en anmärkning, per kommun"
+    serieA="Anmäld i förväg"
+    serieB="Oanmäld"
+    scale={60}
+    rows={[
+      { label: 'Linköping', a: 22.2, b: 31.4, aDisplay: '22,2 %', bDisplay: '31,4 %', note: '1 177 anmälda, 5 195 oanmälda' },
+      { label: 'Kristinehamn', a: 25.8, b: 39.3, aDisplay: '25,8 %', bDisplay: '39,3 %', note: '62 anmälda, 107 oanmälda' },
+      { label: 'Stockholm', a: 26.2, b: 33.3, aDisplay: '26,2 %', bDisplay: '33,3 %', note: '6 831 anmälda, 29 390 oanmälda' },
+      { label: 'Örebro', a: 32.6, b: 38.8, aDisplay: '32,6 %', bDisplay: '38,8 %', note: '261 anmälda, 2 428 oanmälda' },
+      { label: 'Svenljunga', a: 33.3, b: 55.7, aDisplay: '33,3 %', bDisplay: '55,7 %', note: '57 anmälda, 88 oanmälda' },
+      { label: 'Uppsala', a: 37.2, b: 39.1, aDisplay: '37,2 %', bDisplay: '39,1 %', note: '494 anmälda, 1 477 oanmälda' },
+    ]}
+  />
+</Diagram>
+
+Kommunsidorna finns för [Linköping](/linkoping/), [Kristinehamn](/kristinehamn/), [Stockholm](/stockholm/), [Örebro](/orebro/), [Svenljunga](/svenljunga/) och [Uppsala](/uppsala/).
 
 Sex kommuner av sex pekar åt samma håll. Storleken varierar kraftigt, från 1,9 procentenheter i Uppsala till 22,4 i Svenljunga, och de minsta kommunerna vilar på få kontroller. Men ingen kommun går emot.
 
 Det gör också varje kategori:
 
-| Kategori | Anmäld | Oanmäld |
-| --- | --- | --- |
-| [Caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/) | 24,7 % | 36,4 % |
-| [Restauranger](/stockholm/kategori/restauranger/) | 25,8 % | 37,6 % |
-| [Skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/) | 15,6 % | 19,4 % |
-| [Butiker](/stockholm/kategori/butiker/) | 34,1 % | 37,9 % |
-| Övriga verksamheter | 31,5 % | 42,5 % |
+<Diagram
+  titel="Och i varje kategori"
+  underlag="Andel planerade kontroller med minst en anmärkning."
+>
+  <Parstapel
+    label="Andel planerade kontroller med minst en anmärkning, per kategori"
+    serieA="Anmäld i förväg"
+    serieB="Oanmäld"
+    scale={60}
+    rows={[
+      { label: 'Caféer och bagerier', a: 24.7, b: 36.4, aDisplay: '24,7 %', bDisplay: '36,4 %', note: '729 anmälda, 3 553 oanmälda' },
+      { label: 'Restauranger', a: 25.8, b: 37.6, aDisplay: '25,8 %', bDisplay: '37,6 %', note: '3 413 anmälda, 19 495 oanmälda' },
+      { label: 'Skolor och omsorg', a: 15.6, b: 19.4, aDisplay: '15,6 %', bDisplay: '19,4 %', note: '1 375 anmälda, 8 783 oanmälda' },
+      { label: 'Butiker', a: 34.1, b: 37.9, aDisplay: '34,1 %', bDisplay: '37,9 %', note: '728 anmälda, 4 567 oanmälda' },
+      { label: 'Övriga verksamheter', a: 31.5, b: 42.5, aDisplay: '31,5 %', bDisplay: '42,5 %', note: '2 581 anmälda, 2 261 oanmälda' },
+    ]}
+  />
+</Diagram>
+
+Kategorierna finns per kommun, till exempel [caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/), [restauranger](/stockholm/kategori/restauranger/), [skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/) och [butiker](/stockholm/kategori/butiker/) i Stockholm.
 
 Störst är avståndet i restaurang och kafé, alltså precis där ett förvarnat kök hinner göra mest åt saken. Minst är det i butik, där mycket av det som kontrolleras är märkning och datum på hyllan och svårare att snygga till på en förmiddag.
 

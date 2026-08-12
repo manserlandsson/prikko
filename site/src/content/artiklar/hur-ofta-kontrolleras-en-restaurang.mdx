@@ -5,9 +5,15 @@ lede: "Frågan brukar besvaras med att det beror på riskklassningen. Det är sa
 category: "Förklarat"
 published: "2026-08-08"
 image:
-  alt: "Kock med ryggen mot kameran vid passet i ett storkök, med hängande glas, kastruller och stålkåpa."
+  alt: "Kafé mot gatan med öppen serveringslucka, krittavlor med meny och granar i kruka utanför."
   source: "Pexels"
+  credit: "Aysenur Sahin"
+  creditUrl: "https://www.pexels.com/photo/30308756/"
 ---
+
+import Diagram from '../../components/Diagram.astro';
+import Spann from '../../components/Spann.astro';
+import Stapel from '../../components/Stapel.astro';
 
 ## Ett svar som inte är ett svar
 
@@ -19,12 +25,22 @@ Så vi räknade. Nedan står tiden mellan två på varandra följande **planerad
 
 ## Ett år, ungefär
 
-| Verksamhetstyp | Median | En fjärdedel snabbare än | En fjärdedel långsammare än | Mätpunkter |
-| --- | --- | --- | --- | --- |
-| [Restauranger](/stockholm/kategori/restauranger/) | 327 dagar | 197 dagar | 443 dagar | 18 470 |
-| [Butiker](/stockholm/kategori/butiker/) | 337 dagar | 169 dagar | 616 dagar | 3 874 |
-| [Skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/) | 377 dagar | 259 dagar | 578 dagar | 8 096 |
-| [Caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/) | 412 dagar | 280 dagar | 709 dagar | 3 147 |
+<Diagram
+  titel="Så lång tid går det mellan två planerade kontroller"
+  underlag="Pricken är medianen, bandet är den mittersta hälften av mätpunkterna."
+>
+  <Spann
+    label="Tid mellan två planerade kontroller, median och mittersta hälften, per verksamhetstyp"
+    rows={[
+      { label: 'Restauranger', low: 197, mid: 327, high: 443, display: '327 dagar', note: 'Mittersta hälften 197 till 443 dagar. 18 470 mätpunkter.' },
+      { label: 'Butiker', low: 169, mid: 337, high: 616, display: '337 dagar', note: 'Mittersta hälften 169 till 616 dagar. 3 874 mätpunkter.' },
+      { label: 'Skolor och omsorg', low: 259, mid: 377, high: 578, display: '377 dagar', note: 'Mittersta hälften 259 till 578 dagar. 8 096 mätpunkter.' },
+      { label: 'Caféer och bagerier', low: 280, mid: 412, high: 709, display: '412 dagar', note: 'Mittersta hälften 280 till 709 dagar. 3 147 mätpunkter.' },
+    ]}
+  />
+</Diagram>
+
+Bandet är det spann en fjärdedel av mätpunkterna ligger under och en fjärdedel över. Kategorisidorna finns per kommun, till exempel [restauranger](/stockholm/kategori/restauranger/), [butiker](/stockholm/kategori/butiker/), [skolor och omsorg](/stockholm/kategori/skolor-och-omsorg/) och [caféer och bagerier](/stockholm/kategori/cafeer-och-bagerier/) i Stockholm.
 
 Mediantiden mellan två planerade restaurangkontroller är alltså 327 dagar. Ungefär ett år, med en spridning som är bredare än den känns: var fjärde restaurang får nästa besök inom ett halvår, och var tionde får vänta i mer än 653 dagar.
 
@@ -49,14 +65,24 @@ Vi sätter ingen bedömning alls när den senaste kontrollen är äldre än tre 
 
 Samma sorts restaurang kontrolleras olika ofta beroende på var den ligger. Mediantiden mellan två planerade restaurangkontroller:
 
-| Kommun | Median | Mätpunkter |
-| --- | --- | --- |
-| [Uppsala](/uppsala/kategori/restauranger/) | 222 dagar | 514 |
-| [Linköping](/linkoping/kategori/restauranger/) | 254 dagar | 2 206 |
-| [Jönköping](/jonkoping/) | 315 dagar | 187 |
-| [Stockholm](/stockholm/kategori/restauranger/) | 336 dagar | 14 732 |
-| [Örebro](/orebro/kategori/restauranger/) | 342 dagar | 742 |
-| [Borgholm](/borgholm/) | 370 dagar | 54 |
+<Diagram
+  titel="Samma sorts restaurang, olika takt beroende på kommun"
+  underlag="Tid mellan två planerade restaurangkontroller. Pricken är medianen."
+>
+  <Spann
+    label="Tid mellan två planerade restaurangkontroller, per kommun"
+    rows={[
+      { label: 'Uppsala', low: 161, mid: 222, high: 328, display: '222 dagar', note: 'Mittersta hälften 161 till 328 dagar. 514 mätpunkter.' },
+      { label: 'Linköping', low: 160, mid: 254, high: 391, display: '254 dagar', note: 'Mittersta hälften 160 till 391 dagar. 2 206 mätpunkter.' },
+      { label: 'Jönköping', low: 177, mid: 315, high: 404, display: '315 dagar', note: 'Mittersta hälften 177 till 404 dagar. 187 mätpunkter.' },
+      { label: 'Stockholm', low: 209, mid: 336, high: 459, display: '336 dagar', note: 'Mittersta hälften 209 till 459 dagar. 14 732 mätpunkter.' },
+      { label: 'Örebro', low: 221, mid: 342, high: 475, display: '342 dagar', note: 'Mittersta hälften 221 till 475 dagar. 742 mätpunkter.' },
+      { label: 'Borgholm', low: 350, mid: 370, high: 389, display: '370 dagar', note: 'Mittersta hälften 350 till 389 dagar. 54 mätpunkter.' },
+    ]}
+  />
+</Diagram>
+
+Borgholms smala band är inte en tajtare planering utan för få mätpunkter: 54 intervall räcker inte för att spannet ska betyda något. Restaurangerna finns per kommun i [Uppsala](/uppsala/kategori/restauranger/), [Linköping](/linkoping/kategori/restauranger/), [Stockholm](/stockholm/kategori/restauranger/) och [Örebro](/orebro/kategori/restauranger/), och för [Jönköping](/jonkoping/) och [Borgholm](/borgholm/) på kommunsidan.
 
 En restaurang i Uppsala får i typfallet besök ungefär en och en halv gång så ofta som en restaurang i Örebro. Det säger inget om hygienen i någondera staden, och det är värt att säga rakt ut: skillnaden ligger i bemanning, i hur registret ser ut och i vad förvaltningen prioriterar. Varför kommuntal inte går att ställa mot varandra som betyg har vi skrivit om separat, i [Därför går det inte att jämföra kommuners kontrollsiffror](/artiklar/darfor-gar-kommunernas-siffror-inte-att-jamfora/).
 
@@ -65,6 +91,22 @@ En restaurang i Uppsala får i typfallet besök ungefär en och en halv gång s�
 Det finns ett mönster i materialet som ingen riskklassning styr, och som håller i varenda kommun vi mäter.
 
 Kontrollerna sker mitt i veckan. Tisdag, onsdag och torsdag står tillsammans för **77 procent** av alla 68 895 besök. Måndag är nere på 10,8 procent och fredag på 11,5 procent. Helg förekommer knappt: 125 lördagar och 23 söndagar i hela beståndet.
+
+<Diagram
+  titel="Inspektören kommer mitt i veckan"
+  underlag="Andel av samtliga 68 895 besök i beståndet."
+>
+  <Stapel
+    label="Andel av alla kontrollbesök per veckodag"
+    scale={100}
+    rows={[
+      { label: 'Tisdag till torsdag', value: 77, display: '77 %', note: 'omkring 53 000 besök' },
+      { label: 'Fredag', value: 11.5, display: '11,5 %' },
+      { label: 'Måndag', value: 10.8, display: '10,8 %' },
+      { label: 'Lördag och söndag', value: 0.2, display: '0,2 %', note: '148 besök' },
+    ]}
+  />
+</Diagram>
 
 Mönstret varierar i styrka men aldrig i riktning. I Stockholm ligger 80,4 procent av besöken tisdag till torsdag, i Örebro 76,7 procent, i Uppsala 67,6 procent. Ingen kommun bryter mot det.
 

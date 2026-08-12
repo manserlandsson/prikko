@@ -1,0 +1,294 @@
+---
+/**
+ * Tidslinje: en serie mätpunkter i ordning, som en linje med ytan under.
+ *
+ * ## Varför den inte är en stapelrad
+ *
+ * En stapel svarar på "hur stort", en tidslinje på "åt vilket håll". Nio år som
+ * nio staplar under varandra tvingar läsaren att jämföra nio längder parvis för
+ * att se en kurva som ögat annars läser på en sekund. Formen är alltså inte en
+ * variant av Stapel utan en annan fråga: använd den när x-axeln är tid och
+ * punkterna hör ihop i ordning, aldrig när raderna är fristående kategorier.
+ *
+ * ## Formen, mätt och inte minnesbaserad
+ *
+ * Mätt i webbläsaren på ednia.se den 12 augusti 2026, på deras antagningspoäng
+ * per år. Deras graf är byggd exakt så här och vi följer den:
+ *
+ *   viewBox   0 0 100 100 med preserveAspectRatio="none", alltså ett eget
+ *             koordinatsystem som sträcks i x-led för att fylla spalten.
+ *   ytan      en fylld polyline med en lodrät gradient, ogenomskinlig upptill
+ *             och genomskinlig nedtill (deras stopp: 0,7 till 0).
+ *   linjen    2 px, i märkesfärgen.
+ *   punkterna ligger som HTML ovanpå grafiken, inte som <circle> inuti den.
+ *             Det är nödvändigt och inte en smaksak: i ett koordinatsystem som
+ *             skalas olika i x och y blir en cirkel en liggande ellips.
+ *   axeln     årtal i liten grå text under, ingen y-axel, inga rutlinjer,
+ *             ingen legend.
+ *
+ * Stripe kompletterar med sin taltypografi, som vi redan följer på annat håll:
+ * ett stort tal i vikt 500 med en tyst etikett under. Det talet sätter
+ * Diagram.astro ovanför grafen, inte den här komponenten.
+ *
+ * ## Luckor ritas som luckor
+ *
+ * `value: null` betyder INGEN UPPGIFT och är inte samma sak som noll. Flera
+ * kommuner i beståndet saknar de tidiga åren helt, eftersom källan inte lämnar
+ * ut dem, och en linje som dyker ner till noll 2018 och upp igen 2021 påstår
+ * en nedgång som aldrig har hänt. Därför ritas serien i sammanhängande
+ * avsnitt: linjen och ytan bryts vid en lucka, punkten uteblir, men årtalet
+ * står kvar på axeln så att luckan syns som en lucka.
+ *
+ * Ett ofullständigt sista år är samma sorts lögn i andra änden, och det måste
+ * anroparen lösa: skicka inte in ett år som pågår. Se `inspectionsPerYear` i
+ * lib/rapporter.ts, som klipper det innevarande året av just det skälet.
+ *
+ * ## Ingen färgprop
+ *
+ * Samma regel som i Stapel och av samma skäl: grönt, gult och rött betyder
+ * bedömning på den här sajten. En kurva som pekar uppåt är inte en dom.
+ */
+
+interface Punkt {
+  /** Etiketten på x-axeln, till exempel "2024" eller "jan". */
+  label: string;
+  /** Mätvärdet, eller null när uppgift saknas för perioden. */
+  value: number | null;
+  /** Talet som skrivs ut vid punkten. Utelämnat skrivs value som det är. */
+  display?: string;
+}
+
+interface Props {
+  points: Punkt[];
+  /** Skalans botten. Utelämnad blir det seriens lägsta värde. */
+  min?: number;
+  /** Skalans tak. Utelämnat blir det seriens högsta värde. */
+  max?: number;
+  /** Enheten som skrivs efter talen, till exempel "%". */
+  enhet?: string;
+  /** Läsbar sammanfattning för skärmläsare. */
+  label?: string;
+}
+
+const { points, min, max, enhet = '', label } = Astro.props;
+
+// Grafikens eget koordinatsystem, samma som ednias.
+const W = 100;
+const H = 100;
+
+const varden = points.filter((p) => p.value !== null).map((p) => p.value as number);
+const botten = min ?? Math.min(...varden);
+const taket = max ?? Math.max(...varden);
+const spann = taket - botten || 1;
+
+const x = (i: number) => (points.length > 1 ? (i / (points.length - 1)) * W : W / 2);
+const y = (v: number) => H - ((v - botten) / spann) * H;
+
+/**
+ * Sammanhängande avsnitt av serien. Ett avsnitt bryts vid varje null, och
+ * varje avsnitt får sin egen linje och sin egen yta. Se huvudkommentaren.
+ */
+const avsnitt: { i: number; v: number }[][] = [];
+let aktuellt: { i: number; v: number }[] = [];
+points.forEach((p, i) => {
+  if (p.value === null) {
+    if (aktuellt.length) avsnitt.push(aktuellt);
+    aktuellt = [];
+    return;
+  }
+  aktuellt.push({ i, v: p.value });
+});
+if (aktuellt.length) avsnitt.push(aktuellt);
+
+const punkter = (a: { i: number; v: number }[]) =>
+  a.map((p) => `${x(p.i).toFixed(2)},${y(p.v).toFixed(2)}`).join(' ');
+
+const ytan = (a: { i: number; v: number }[]) =>
+  `${x(a[0].i).toFixed(2)},${H} ${punkter(a)} ${x(a[a.length - 1].i).toFixed(2)},${H}`;
+
+const matta = points.filter((p) => p.value !== null);
+const hogst = matta.reduce((a, b) => ((b.value as number) > (a.value as number) ? b : a), matta[0]);
+const lagst = matta.reduce((a, b) => ((b.value as number) < (a.value as number) ? b : a), matta[0]);
+
+/**
+ * Talet vid varje punkt, eller bara vid ytterpunkterna.
+ *
+ * Ednia skriver ut alla fem åren, och det är rätt när punkterna är få. Tolv
+ * månader med tolv tal blir i stället en talrad som konkurrerar med kurvan,
+ * så över åtta punkter skrivs bara högsta och lägsta ut. Resten finns som text
+ * för skärmläsare oavsett, precis som spåret i Stapel är aria-hidden.
+ */
+const allaTal = matta.length <= 8;
+
+const skriv = (p: Punkt) => `${p.display ?? p.value}${enhet ? ' ' + enhet : ''}`;
+
+/**
+ * Skalans ändpunkter i samma form som punkternas tal.
+ *
+ * Utan den här skrev raden "till 1366" bredvid en punkt märkt "1 366", alltså
+ * två skrivsätt för samma sorts tal i samma mening. Hårt mellanslag, så att
+ * talet aldrig bryts över två rader.
+ */
+const skala = (v: number) =>
+  `${v.toString().replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}${
+    enhet ? ' ' + enhet : ''
+  }`;
+
+// Unikt id, annars pekar två grafer på samma sida mot samma gradient.
+const gid = `tl-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+{matta.length > 1 && (
+  <div class="tidslinje">
+    {/* Talen står ovanför punkterna, och den översta punkten ligger i grafens
+        tak. Luften skapas av .lager så att .ruta kan vara exakt lika hög som
+        grafiken: punkternas `top` anges i procent och måste räknas mot samma
+        höjd som svg-koordinaterna, annars glider de isär. */}
+    <div class="lager">
+     <div class="ruta">
+      <svg class="graf" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--brand)" stop-opacity="0.28" />
+            <stop offset="1" stop-color="var(--brand)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        {avsnitt.map((a) => a.length > 1 && (
+          <polygon class="yta" points={ytan(a)} fill={`url(#${gid})`} />
+        ))}
+
+        {avsnitt.map((a) => a.length > 1 && (
+          <polyline class="linje" points={punkter(a)} vector-effect="non-scaling-stroke" />
+        ))}
+      </svg>
+
+      {points.map((p, i) => p.value !== null && (
+        <span
+          class="punkt"
+          aria-hidden="true"
+          style={`left:clamp(4px, ${x(i)}%, calc(100% - 4px));top:${y(p.value)}%`}
+        ></span>
+      ))}
+
+      {points.map((p, i) => p.value !== null && (allaTal || p === hogst || p === lagst) && (
+        <span
+          class:list={['punkttal', { ytter: p === hogst || p === lagst }]}
+          aria-hidden="true"
+          style={`left:${x(i)}%;top:${y(p.value)}%`}
+        >{p.display ?? p.value}</span>
+      ))}
+     </div>
+    </div>
+
+    <ul class="axel" aria-hidden="true">
+      {points.map((p) => <li>{p.label}</li>)}
+    </ul>
+
+    <p class="intervall">
+      Högst <strong>{hogst.label}</strong>, {skriv(hogst)}. Lägst <strong>{lagst.label}</strong>,
+      {' '}{skriv(lagst)}. Skalan går från {skala(botten)} till {skala(taket)}.
+    </p>
+
+    <ul class="dold">
+      {points.map((p) => <li>{p.label}: {p.value === null ? 'ingen uppgift' : skriv(p)}</li>)}
+    </ul>
+  </div>
+)}
+
+<style>
+  .tidslinje { margin: 0; }
+
+  /* Luften för talen ovanför den högsta punkten. Utan den hamnar det talet
+     ovanpå diagramrubriken. */
+  .lager { padding-top: var(--s-6); }
+
+  /* Exakt lika hög som grafiken, eftersom punkternas top anges i procent av
+     samma höjd som svg-koordinaterna. */
+  .ruta {
+    position: relative;
+    height: 128px;
+  }
+
+  .graf {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .linje {
+    fill: none;
+    stroke: var(--brand);
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .punkt {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+  }
+
+  .punkttal {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    margin-top: -8px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Ytterpunkterna är det kurvan handlar om och skrivs i bläck. Ednia gör
+     tvärtom och skriver alla lika, men deras graf har fem punkter och vår kan
+     ha tolv. */
+  .punkttal.ytter {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .axel {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--text-secondary);
+  }
+
+  .axel li { margin: 0; }
+
+  /* Tolv etiketter får plats på en bred spalt och krockar på en telefon.
+     Varannan räcker för att riktningen ska gå att läsa. */
+  @media (max-width: 480px) {
+    .axel li:nth-child(even) { visibility: hidden; }
+  }
+
+  .intervall {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .intervall strong { font-weight: 600; color: var(--text); }
+
+  .dold {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>

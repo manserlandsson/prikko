@@ -5,9 +5,13 @@ lede: "Det ser ut som en tabell som bara väntar på att sorteras. Men kommunern
 category: "Förklarat"
 published: "2026-08-04"
 image:
-  alt: "Person i vinröd piké och genomskinliga engångshandskar antecknar med penna på ett papper fäst i ett klämbräde."
+  alt: "Rader av likadana rostfria kantiner i en konditoridisk, var och en fylld med ett annat bakverk."
   source: "Pexels"
 ---
+
+import Diagram from '../../components/Diagram.astro';
+import Stapel from '../../components/Stapel.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
 
 ## Frestelsen att göra en lista
 
@@ -19,7 +23,26 @@ Det ser ut som en färdig nyhet: sämsta kommunen, bästa kommunen, en karta i r
 
 Varje kontrollmyndighet rapporterar årligen till Livsmedelsverket hur många anläggningar den har i sitt register och hur många den kontrollerat. För 2024 var medianen bland landets kontrollmyndigheter att 47 procent av anläggningarna fick minst en kontroll under året.
 
-Spridningen kring den medianen är stor även bland våra tolv kommuner: i [Karlstad](/karlstad/) kontrollerades 65 procent av anläggningarna under 2024, i [Svenljunga](/svenljunga/) 32 procent. En kommun som hinner runt oftare hittar fler brister per år, av det enkla skälet att den tittar oftare. Fler noterade brister kan alltså betyda mer kontroll, inte sämre kök.
+Spridningen kring den medianen är stor även bland våra tolv kommuner: i [Karlstad](/karlstad/) kontrollerades 65 procent av anläggningarna under 2024, i [Svenljunga](/svenljunga/) 32 procent.
+
+<Diagram
+  titel="Kommunerna hinner olika långt runt sitt register"
+  underlag="Andel av anläggningarna som fick minst en kontroll under 2024."
+  kalla="Livsmedelsverket, Sveriges livsmedelskontroll 2024 (L 2025 nr 13)."
+>
+  <Stapel
+    label="Andel av anläggningarna i registret som fick minst en kontroll under 2024"
+    scale={100}
+    ton="tyst"
+    rows={[
+      { label: 'Karlstad', value: 65, display: '65 %' },
+      { label: 'Rikets median', value: 47, display: '47 %', note: 'Medianen bland landets kontrollmyndigheter.' },
+      { label: 'Svenljunga', value: 32, display: '32 %' },
+    ]}
+  />
+</Diagram>
+
+En kommun som hinner runt oftare hittar fler brister per år, av det enkla skälet att den tittar oftare. Fler noterade brister kan alltså betyda mer kontroll, inte sämre kök.
 
 Och omvändningen gäller inte heller. En hög kontrollandel kan betyda god tillsyn, eller ett register som städats från nedlagda verksamheter, eller en riskklassning som styr om resurser. Talet säger hur kommunen arbetar, inte hur bra den är.
 
@@ -37,9 +60,64 @@ Två kommuner med samma ambition men olika bemanning får olika kontrollfrekvens
 
 ## Och olika mycket publiceras
 
-Allt ovan gäller kontrollen som gjordes. Därtill kommer vad som lämnas ut. Några kommuner publicerar varje kontrollpunkt med utfall, andra i praktiken bara besökets datum och samlade bedömning. I vårt bestånd saknar till exempel 8 395 av Stockholms 9 681 återbesök utlämnade kontrollpunkter (mätt i augusti 2026). Vissa kommuners bedömningsskalor saknar dessutom ett eget värde för kvarstående brister, så samma händelse kan över huvud taget inte se likadan ut i två kommuners data.
+Allt ovan gäller kontrollen som gjordes. Därtill kommer vad som lämnas ut. Några kommuner publicerar varje kontrollpunkt med utfall, andra i praktiken bara besökets datum och samlade bedömning.
+
+Det syns tydligast på hur stor andel av kontrollerna som kommer med sina kontrollpunkter. Mätt i augusti 2026, över alla kontroller i beståndet:
+
+<Diagram
+  titel="Hur mycket av kontrollen som går att läsa i efterhand"
+  underlag="Andel av kommunens kontroller där de enskilda kontrollpunkterna publicerats. 68 895 kontroller, augusti 2026."
+>
+  <Stapel
+    label="Andel av kommunens kontroller där kontrollpunkterna publicerats"
+    scale={100}
+    ton="tyst"
+    avdelare
+    rows={[
+      { label: 'Örebro', value: 100, display: '100 %', note: '5 491 kontroller' },
+      { label: 'Linköping', value: 99.9, display: '99,9 %', note: '9 105 kontroller' },
+      { label: 'Lomma', value: 51.3, display: '51,3 %', note: '150 kontroller' },
+      { label: 'Uppsala', value: 30.0, display: '30,0 %', note: '2 909 kontroller' },
+      { label: 'Stockholm', value: 28.4, display: '28,4 %', note: '47 285 kontroller' },
+      { label: 'Borgholm', value: 11.9, display: '11,9 %', note: '413 kontroller' },
+      { label: 'Övriga sex kommuner', value: 0, display: '0 %', note: 'Jönköping, Karlstad, Kristinehamn, Höganäs, Oskarshamn och Svenljunga lämnar bara besökets datum och samlade bedömning.' },
+    ]}
+  />
+</Diagram>
+
+Listan är inte en kvalitetsordning. Den mäter en enda sak: hur mycket av kontrollen som går att läsa i efterhand. En kommun högt upp gör inte fler fynd, den visar dem. I vårt bestånd saknar till exempel 8 395 av Stockholms 9 681 återbesök utlämnade kontrollpunkter. Vissa kommuners bedömningsskalor saknar dessutom ett eget värde för kvarstående brister, så samma händelse kan över huvud taget inte se likadan ut i två kommuners data.
 
 Den som ändå sorterar kommunerna i en tabell gör därför något bakvänt: utser den kommun som redovisar minst till den renaste.
+
+## Och det ändrar sig från år till år
+
+Samma sak gäller över tid. Antalet kontroller i vårt bestånd har mer än fördubblats sedan 2018:
+
+<Diagram
+  titel="Publicerade kontroller per år i hela beståndet"
+  underlag="Året som pågår är borträknat, eftersom ett halvt år alltid ser ut som ett ras."
+>
+  <Tidslinje
+    label="Antal publicerade kontroller per år i Prikkos bestånd"
+    min={0}
+    points={[
+      { label: '2018', value: 5258, display: '5 258' },
+      { label: '2019', value: 5979, display: '5 979' },
+      { label: '2020', value: 5709, display: '5 709' },
+      { label: '2021', value: 6765, display: '6 765' },
+      { label: '2022', value: 7639, display: '7 639' },
+      { label: '2023', value: 8338, display: '8 338' },
+      { label: '2024', value: 9794, display: '9 794' },
+      { label: '2025', value: 12368, display: '12 368' },
+    ]}
+  />
+</Diagram>
+
+Kurvan säger nästan ingenting om svensk livsmedelskontroll och nästan allt om oss. Av de drygt fyra tusen kontroller som skiljer 2025 från 2023 kommer två tredjedelar från fyra kommuner som tillkommit i beståndet under tiden. Det är alltså vår täckning som växer, inte nödvändigtvis kontrollen.
+
+Den enda punkt som pekar nedåt är 2020, och den ska läsas försiktigt av samma skäl: vi vet vad som publicerats, inte vad som gjordes.
+
+Det är också därför varje kommunsida visar sin egen kurva med sitt eget första år, och skriver ut att talet är vad kommunen har lämnat ut och inte nödvändigtvis vad den har gjort.
 
 ## Vad som faktiskt går att jämföra
 

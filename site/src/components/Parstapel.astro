@@ -1,0 +1,205 @@
+---
+/**
+ * Parstapel: två mätningar av samma sak, rad för rad.
+ *
+ * Formen finns för den fråga som återkommer i artiklarna och som varken
+ * Stapel eller en tabell svarar bra på: håller skillnaden i varje kommun,
+ * i varje kategori, i varje kök? En tabell med två sifferkolumner tvingar
+ * läsaren att subtrahera arton gånger. Två staplar under samma etikett gör
+ * avståndet till en form man ser på en sekund, och ordningen mellan dem
+ * blir omedelbart läsbar den enda gång den bryts.
+ *
+ * FÄRGEN SKILJER SERIER, ALDRIG KVALITET
+ *
+ * Samma regel som i Stapel, av samma skäl: grönt, gult och rött betyder
+ * bedömning på den här sajten. De två serierna får därför märkesblått och
+ * grått, alltså exakt de två toner Stapel redan har, och vilken som är
+ * vilken står i teckenförklaringen ovanför. Det finns ingen färgprop och det
+ * ska inte finnas någon: den serie som råkar ligga högst är inte den sämre.
+ *
+ * SKALAN ÄR GEMENSAM
+ *
+ * Båda serierna mäts mot samma linjal, annars jämför formen ingenting. Skalan
+ * går mot listans största värde om inte `scale` sätts. Sätt `scale={100}` när
+ * det är andelar och nollan till hundra är det man faktiskt läser.
+ */
+
+interface Rad {
+  /** Vad raden heter, till exempel en kommun eller en kategori. */
+  label: string;
+  /** Första seriens värde. */
+  a: number;
+  /** Andra seriens värde. */
+  b: number;
+  /** Talen som skrivs ut. Utelämnade skrivs a och b som de är. */
+  aDisplay?: string;
+  bDisplay?: string;
+  /** Tyst rad under paret, till exempel nämnaren. */
+  note?: string;
+}
+
+interface Props {
+  rows: Rad[];
+  /** Vad första serien heter. Står i teckenförklaringen. */
+  serieA: string;
+  /** Vad andra serien heter. */
+  serieB: string;
+  /** Vad full bredd betyder. Utelämnad blir det största värdet i listan. */
+  scale?: number;
+  /** Läsbar sammanfattning av listan för skärmläsare. */
+  label?: string;
+}
+
+const { rows, serieA, serieB, scale, label } = Astro.props;
+
+const top =
+  scale ?? Math.max(...rows.flatMap((r) => [r.a, r.b]), 0);
+const bredd = (v: number) => (top > 0 ? (v / top) * 100 : 0);
+---
+
+{rows.length > 0 && (
+  <figure class="parstapel" aria-label={label}>
+    <ul class="nyckel" aria-hidden="true">
+      <li><span class="prick a"></span>{serieA}</li>
+      <li><span class="prick b"></span>{serieB}</li>
+    </ul>
+
+    <ul class="rader">
+      {rows.map((r) => (
+        <li>
+          <span class="etikett">{r.label}</span>
+
+          <span class="par">
+            <span class="mat">
+              <span class="spar" aria-hidden="true">
+                <span class="fyllning a" style={`width:${bredd(r.a)}%`}></span>
+              </span>
+              <span class="tal"><span class="dold">{serieA}: </span>{r.aDisplay ?? r.a}</span>
+            </span>
+
+            <span class="mat">
+              <span class="spar" aria-hidden="true">
+                <span class="fyllning b" style={`width:${bredd(r.b)}%`}></span>
+              </span>
+              <span class="tal"><span class="dold">{serieB}: </span>{r.bDisplay ?? r.b}</span>
+            </span>
+          </span>
+
+          {r.note && <span class="not">{r.note}</span>}
+        </li>
+      ))}
+    </ul>
+  </figure>
+)}
+
+<style>
+  .parstapel { margin: var(--s-4) 0 0; }
+
+  .nyckel {
+    list-style: none;
+    margin: 0 0 var(--s-3);
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-6);
+  }
+
+  .nyckel li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .prick {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-pill);
+    flex-shrink: 0;
+    transform: translateY(-1px);
+  }
+
+  .rader {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hårlinjer mellan raderna, till skillnad från Stapel utan avdelare. Ett
+     par staplar är tre rader högt, och utan linje flyter nästa etikett ihop
+     med föregående pars undre stapel. */
+  .rader li {
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .rader li:last-child { border-bottom: 1px solid var(--hairline); }
+
+  .etikett {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .par { display: block; margin-top: var(--s-2); }
+
+  .mat {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
+  .mat + .mat { margin-top: 5px; }
+
+  .spar {
+    display: block;
+    flex: 1;
+    height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--hairline);
+    overflow: hidden;
+  }
+
+  .fyllning {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    min-width: 2px;
+  }
+
+  .fyllning.a, .prick.a { background: var(--brand); }
+  .fyllning.b, .prick.b { background: var(--text-muted); }
+
+  .tal {
+    flex-shrink: 0;
+    min-width: 4.2em;
+    text-align: right;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Seriens namn läses upp före talet men syns inte: utan det får den som
+     lyssnar två tal i rad utan att veta vilket som är vilket. */
+  .dold {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .not {
+    display: block;
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+</style>

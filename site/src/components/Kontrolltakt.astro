@@ -1,0 +1,95 @@
+---
+/**
+ * Hur många kontroller kommunen publicerat per år.
+ *
+ * Bandet "{stad} i siffror" svarar på vad kontrollen hittade. Det här svarar
+ * på en fråga bandet saknade helt: har det blivit fler eller färre besök över
+ * tid? Det är den enda uppgiften på kommunsidan som är en utveckling och inte
+ * ett nuläge, och därför den enda som ritas som en linje.
+ *
+ * ## Vad talet ÄR och inte är
+ *
+ * Antalet PUBLICERADE kontroller, inte antalet gjorda. En kurva som stiger kan
+ * betyda att kommunen kontrollerar mer, och den kan betyda att kommunen börjat
+ * lämna ut mer. De två går inte att skilja åt i det vi får, och rutan säger
+ * det rakt ut i stället för att låta läsaren anta det första. Samma hållning
+ * som i artikeln om varför kommuners siffror inte går att jämföra.
+ *
+ * ## Kommuner utan serie får ingen ruta
+ *
+ * Två år räcker inte för en linje som ska läsas som en utveckling. Kommuner
+ * med färre än tre år med uppgift utelämnas helt, precis som FollowUpRate
+ * utelämnar kommuner utan underlag i stället för att visa en tom ruta.
+ */
+import InfoTip from './InfoTip.astro';
+import Tidslinje from './Tidslinje.astro';
+import { formatNumber } from '../lib/data';
+import { FIRST_YEAR, inspectionsPerYear } from '../lib/rapporter';
+
+interface Props {
+  /** Kommunens slug, eller utelämnad för hela beståndet. */
+  slug?: string;
+  city: string;
+}
+
+const { slug, city } = Astro.props;
+
+const points = inspectionsPerYear(slug);
+const matta = points.filter((p) => p.count !== null);
+const visa = matta.length >= 3;
+
+const forsta = matta[0];
+const sista = matta[matta.length - 1];
+const summa = matta.reduce((sum, p) => sum + (p.count ?? 0), 0);
+---
+
+{visa && (
+  <section class="takt" aria-labelledby="kontrolltakt">
+    <h2 id="kontrolltakt">
+      Kontroller per år i {city}
+      <InfoTip
+        label="Kontroller per år"
+        text="Antalet kontroller kommunen har publicerat för respektive år. Året som pågår visas inte, eftersom det alltid ser ut som ett ras. År utan uppgift ritas som en lucka i linjen och inte som en nolla."
+      />
+    </h2>
+
+    <Tidslinje
+      label={`Publicerade kontroller per år i ${city}`}
+      min={0}
+      points={points.map((p) => ({
+        label: String(p.year),
+        value: p.count,
+        display: p.count === null ? undefined : formatNumber(p.count),
+      }))}
+    />
+
+    <p class="caveat caption text-secondary">
+      {formatNumber(summa)} kontroller mellan {forsta.year} och {sista.year}.
+      Talet är vad kommunen har lämnat ut, inte nödvändigtvis vad den har gjort:
+      en stigande kurva kan lika gärna betyda att mer publiceras som att mer
+      kontrolleras.
+      {/* Meningen om luckan sätts bara när det FINNS en lucka. Utan villkoret
+          stod den på varje kommunsida, också på de vars serie börjar i
+          diagrammets första år, och påstod då ett hål som inte fanns. */}
+      {forsta.year > FIRST_YEAR && (
+        <> Kommunens källa lämnar inget före {forsta.year}, så åren dessförinnan
+        står som en lucka i linjen i stället för som nollor.</>
+      )}
+    </p>
+  </section>
+)}
+
+<style>
+  /* Ingen ruta, se CommonIssues.astro och docs/19_formsystem.md. */
+  .takt h2 {
+    display: flex;
+    align-items: center;
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .caveat {
+    margin-top: var(--s-3);
+    max-width: var(--w-read);
+  }
+</style>
