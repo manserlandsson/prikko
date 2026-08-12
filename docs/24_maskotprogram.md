@@ -187,6 +187,134 @@ tummen ned. Alla fyra läser som omdömen om en person.
 
 ---
 
+## 3b. Vem bär vad i ansiktet
+
+Ansiktet har flera kanaler och de gjorde länge samma jobb samtidigt, vilket
+gick att se men inte att mäta. Ägaren har satt arbetsdelningen och den gäller:
+
+**Munnen bär BEDÖMNINGEN.** Ordagrant: "munnen ska såklart skilja på alla".
+Den ska ensam skilja de tre lägena åt, i 24 px och i gråskala, och provet är
+`isolera: 'mun'` i figuren. Tre former och inte tre grader av en form: båge
+uppåt, praktiskt taget rak, båge nedåt. Pilhöjderna är 0,30, −0,05 och −0,27
+av munnens egen bredd.
+
+**Brynen bär TONEN.** De säger om figuren är bekymrad eller lugn, inte vilket
+besked det är. Kravet att brynen ensamma skulle skilja de tre bedömningarna åt
+är därför **struket**. `isolera: 'bryn'` finns kvar som mätning, inte som
+godkännandevillkor.
+
+Två saker följde av delningen, och båda kom ur att ägaren såg märket live.
+
+**Munnen växte tillbaka**, från 22 till 30 procent av huvudets bredd. Den hade
+krympt när grävlingens stora ögon tog över uttrycket, vilket var rätt för
+ansiktet och fel för märket: alla fyra lägen har samma ögon, alltså kan ögonen
+inte bära vilket besked det är. Vid 22 procent låg skillnaden mellan clean och
+minor under strykets egen tjocklek i 24 px.
+
+**Brynen i `major` gick från 21 grader till nära platt.** Ägaren: "gör inte
+ögonbrynen på prikko grävlingen så arga liksom lite mer platta hållet på den
+ledsna, den ser arg ut istället för ledsen". Skillnaden mellan argt och ledset
+sitter i vilken ände som är låg, och 21 grader gånger amplituden 1,5 blev 31,5
+grader inre änden ned, alltså en rynkad panna på ett märke vars mening är
+"brister som kvarstår". Det är samma invändning som §4b beskriver i teorin: en
+figur som ser ut att ha en avsikt får felet att läsas som avsiktligt. Det som
+skiljer major i brynkanalen är numera HÖJDEN, alltså att brynen sitter lägst av
+alla lägen, och låga platta bryn läser som allvar.
+
+**En regel som kom ur ett fel.** När munnen fördjupades växte bågen in i mulen,
+eftersom munnens mittlinje stod på ett fast tal. Ägaren såg det direkt: "munnen
+går liksom upp i näsan". Mittlinjen räknas nu fram ur mulens underkant plus
+strykets halva tjocklek plus munnens högsta punkt över sin egen mittlinje,
+alltså flyttar munnen ned av sig själv när den fördjupas. Provarket ritar
+dessutom ut mulens underkant som en linje, eftersom talen i den filen alla såg
+riktiga ut medan felet var uppenbart i bild.
+
+**Och samma regel höll inte hela vägen.** Reserven räknade munnens DJUP men inte
+dess LUTNING. Munnen lutar två grader, vilket är Duolingos egen regel om att
+munnen ska vara asymmetrisk och som ska vara kvar, men lutningen lyfter den ena
+mungipan en halv enhet som ingen hade reserverat plats för. I det glada läget är
+det just mungiporna som är munnens högsta punkt, alltså slog felet till exakt
+där. I `rik` räckte marginalen ändå av en slump, i `enkel` med sitt 18 procent
+grövre stryk gjorde den det inte, och app-ikonen ritades i den kombinationen:
+uppmätt luftspalt 0,95 enheter mot de 1,2 regeln lovar, och i bild ett leende
+som satt ihop med mulen till en enda mörk fläck. Reserven räknar nu djup och
+lutning per mun, alltså kan felet inte komma tillbaka genom att ett djup ändras.
+
+Det är samma sensmoral som sweep-flaggan i `maskot-mun.mjs` en gång gav: **en
+reserv som stämmer av en slump är samma sak som ingen reserv.** Den håller precis
+tills någon ändrar talet den råkade ha marginal mot.
+
+## 3c. Detaljnivåerna är avställda
+
+Märket ritades i tre nivåer, `rik`, `enkel` och `nal`, valda ur storleken. Nu
+gäller `rik` överallt, inklusive kartnålen. Ägaren: "använd inte den basic
+grävlingen det ser inte bra ut", och sedan "använd samma för nål, det ska vara
+inramat rikt hela tiden".
+
+Domen är riktig och den går att se. `nal` ritade inte samma ansikte enklare,
+den ritade ett annat ansikte: rundad rektangel i stället för huvudkontur, inga
+öron, ingen nos, banden som två piller och brynen som två ellipser tjocka nog
+att läsa som ett andra par ögonlock. Den vann provet den var byggd för, alltså
+att fyra lägen ska gå att skilja åt i 16 px, och förlorade det som inte mättes:
+att det är samma figur.
+
+Priset är mätt på en hel byggd sajt, före och efter:
+
+| Sida | HTML före | HTML efter | gzip före | gzip efter |
+|---|---|---|---|---|
+| `/stockholm/` | 153 478 B | 185 828 B | 23 412 B | 24 861 B |
+| `/sok/` | 44 852 B | 77 202 B | 8 411 B | 9 674 B |
+| `/kedja/ica/` | 283 328 B | 315 678 B | 23 782 B | 25 254 B |
+
+Påslaget är exakt 32 350 byte rått per sida med lista, alltså vad fyra
+symboler i `rik` kostar mot fyra i `nal`, och det är **konstant**. Stockholms
+hubb har 8 511 rader och betalar samma påslag som en sida med tio, eftersom
+raderna pekar på spriten med `<use>`. Gzippat är det 1,3 till 1,5 kB.
+
+Kartnålen kostar ingenting extra: den ritas en gång per läge och registreras
+som fyra bilder hos kartmotorn, inte en gång per verksamhet.
+
+Ritningarna för `enkel` och `nal` genereras fortfarande och ligger kvar i
+`site/src/lib/face-geometri.ts`. De är avställda, inte borttagna, av samma skäl
+som det klassiska märket ligger kvar bakom `MASKOT = false`: valet ska gå att
+pröva om på en rad. `faceDetalj()` står kvar som den enda platsen där frågan
+besvaras och svarar `rik` för varje storlek.
+
+### Ikonerna var undantaget som överlevde, och varför det inte syntes
+
+Avställningen gällde sajten och inte ikonerna. **Faviconen byggdes ur `nal` och
+app-ikonen ur `enkel`** i ytterligare ett halvår efter att `faceDetalj()`
+börjat svara `rik`, eftersom nivån för de två filerna står i
+`brand/bygg-face-geometri.mjs` och inte i sajten. Den som läste `lib/face.ts`
+såg alltså ett åtgärdat system. Ägaren såg något annat, i flikraden och på
+hemskärmen: "fortfarande den enkla prikko grävlingen på många ställen".
+
+Båda bygger nu ur `rik`. Priset är mätt: 2 588 B gzip mot nal-nivåns 503, alltså
+2,1 kB en gång, för en fil som `site/public/_headers` ger fyra timmars max-age.
+Invändningen som stod i koden räknade rätt men jämförde fel, eftersom den utgick
+från att faviconen laddas på varje sidvisning.
+
+**Lärdomen är värd mer än ytan, och den är generell.** Ett beslut som ska gälla
+överallt måste kunna kontrolleras på ETT ställe. Här bodde det på två, en
+funktion i sajten och ett par argument i en generator, och det andra stället
+hade ingen anledning att någonsin läsas igen. Det som slutligen avgjorde saken
+var inte en genomläsning utan ett provark som ritar varje fyndplats bredvid
+samma yta i `rik`, `brand/prov-alla-gravlingar.mjs`: två olika grävlingar
+bredvid varandra syns, en glömd rad i en generator gör det inte.
+
+Två följdfel föll ut ur samma sak och är rättade:
+
+- **Förvalet i `figur()` var `enkel` för inramat ansikte.** Varje anropsplats som
+  glömde `detalj` fick tyst den förenklade. Förvalet är nu `rik` överallt, och
+  den som vill ha en förenkling måste be om den vid namn.
+- **`enkel` lät leendet växa ihop med mulen.** Se §3b: reserven under mulen
+  räknade munnens djup men inte dess LUTNING, som lyfter ena mungipan. I den
+  rika nivån räckte marginalen ändå, i den enkla nivåns grövre stryk gjorde den
+  det inte, och app-ikonen ritades i just den kombinationen. Reserven räknar nu
+  båda, alltså kan felet inte komma tillbaka genom att ett djup ändras.
+
+---
+
 ## 4. Rörelsen
 
 Sajten har tre rörelser totalt och alla är korta. Maskoten ändrar inte det, och

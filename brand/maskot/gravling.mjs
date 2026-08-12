@@ -81,7 +81,7 @@
  * bezierkurvor som nästan är en cirkel.  Raka linjekommandon i figuren: 0.
  */
 
-import { munbana, BREDD, TJOCKLEK, RADIE } from '../maskot-mun.mjs';
+import { munbana, BREDD, TJOCKLEK, RADIE, RIKTNING } from '../maskot-mun.mjs';
 
 /* ══ 1. FÄRG ═══════════════════════════════════════════════════════════ */
 
@@ -305,10 +305,13 @@ const BAND_H = band(OGA.h);
  * NOSEN. Bandens nedre ändar löper in i den, så att nos och band är ETT
  * system och inte tre lösa fläckar. En rundad sköld, bredast upptill.
  */
-const NOS = mjuk([
+const NOS_PUNKTER = [
   [39.5, 62.0], [45.0, 57.5], [51.0, 56.5], [57.0, 57.5], [62.5, 62.0],
   [61.5, 67.5], [57.0, 72.0], [51.0, 74.5], [45.0, 72.0], [40.5, 67.5],
-], 0.9);
+];
+const NOS = mjuk(NOS_PUNKTER, 0.9);
+/** Mulens underkant. Munnen får aldrig gå ovanför den, se MUN_CY. */
+const NOS_UNDERKANT = Math.max(...NOS_PUNKTER.map((q) => q[1]));   // 74,5
 
 /**
  * ÖRONSPETSARNA. Grävlingens öron är svarta med en VIT KANT, och det är det
@@ -474,8 +477,38 @@ export const BRYN_LAGE = {
    * formen som läser hotfullt. Vid 0,185 står spetsarna isär med en ljus glugg
    * kvar, och samma vinkel läser då som rynkad panna i stället för som mask.
    * Skillnaden i läsbarhet i 24 px mellan de två är försumbar, skillnaden i
-   * tonläge är inte det. */
-  major: { ...BRYN_FORM, glugg: 0.1850, tjocklek: 0.140, dy: [0.0272, 0.0321], vinkel: [21, 19] },
+   * tonläge är inte det.
+   *
+   * ── VINKELN ÄR NEDSATT FRÅN 21 OCH 19 TILL NÄRA PLATT ────────────────
+   * Ägaren, efter att ha sett märket live: "gör inte ögonbrynen på prikko
+   * grävlingen så arga liksom lite mer platta hållet på den ledsna, den ser arg
+   * ut istället för ledsen". Och efter att ha sett tre steg renderade: "kör
+   * nära platt".
+   *
+   * Skillnaden mellan argt och ledset sitter i VILKEN ÄNDE SOM ÄR LÅG. Inre
+   * änden ned mot näsroten är argt, inre änden upp är ledset, platt är
+   * neutralt. 21 grader gånger amplituden 1,5 blev 31,5 grader inre änden ned,
+   * alltså en tydligt arg panna på ett märke vars mening är "brister som
+   * kvarstår". Vi rapporterar en myndighets kontroll, vi anklagar ingen, och en
+   * arg figur bredvid ett företagsnamn är precis den invändning verksamheten
+   * skulle använda mot oss.
+   *
+   * 3 grader, alltså 4,5 i bild, är avsiktligt inte noll. Ett exakt vågrätt
+   * bryn läser som ritat med linjal, och den sista lilla lutningen håller kvar
+   * allvaret utan att bli en anklagelse.
+   *
+   * Vad som bär bedömningen i stället: MUNNEN, som är den bäraren ägaren pekat
+   * ut ("munnen ska såklart skilja på alla"). Brynen bär numera TONEN, alltså
+   * om figuren är bekymrad eller lugn, och inte informationen om vilket besked
+   * det är. Kravet att brynen ensamma skulle skilja de tre bedömningarna åt i
+   * 24 px är därmed struket som godkännandevillkor. Provet `isolera: 'bryn'`
+   * finns kvar som mätning.
+   *
+   * Det som fortfarande skiljer major från de andra i brynkanalen är HÖJDEN:
+   * dy 0,027 och 0,032 är de lägsta i hela tabellen, alltså sitter brynen tätt
+   * ned mot ögat. Låga och platta bryn läser som allvar. Låga och vinklade
+   * läser som ilska. */
+  major: { ...BRYN_FORM, glugg: 0.1850, tjocklek: 0.140, dy: [0.0272, 0.0321], vinkel: [3, 3] },
 
   /* ── Det obedömda ────────────────────────────────────────────────── */
   /* `none` är avspänt och ingenting annat. Vinkeln är NOLL på båda sidor, alltså
@@ -551,15 +584,66 @@ function bryn(o, lage, i, { amp = 1, gapSkala = 1, tjockna = 1, just = 0 } = {})
  * pilhöjden fortfarande 21,4 procent av munnens bredd, alltså exakt märkets
  * egen bågform, bara mindre.
  */
-const MUN_B = (0.22 * HUVUD_BREDD) / 100;              // 0,1782 av rutan
-const KRYMP = MUN_B / BREDD.storre;                    // 0,3874
+/* ── MUNNEN VÄXTE TILLBAKA, OCH VARFÖR ────────────────────────────────────
+ *
+ * 0,30 och inte 0,22 av huvudbredden. Ägaren har satt arbetsdelningen:
+ * "munnen ska såklart skilja på alla". Munnen bär alltså BEDÖMNINGEN och
+ * brynen bär TONEN, och en bärare som ska klara 24 px i gråskala ensam kan
+ * inte vara en accent.
+ *
+ * Räknat på vad den var: vid 0,22 blev munnen 5,1 px bred i ett märke på
+ * 24 px, med en pilhöjd på 1,3 px i clean och 0,2 px i minor. Skillnaden
+ * mellan clean och minor låg alltså under strykets egen tjocklek, och det
+ * stämmer med figurens egen anteckning om att just det paret var det knappa.
+ * Vid 0,30 är munnen 7,0 px bred och pilhöjden 2,2 px, alltså större än
+ * stryket i stället för mindre.
+ *
+ * Historiken är värd att spara, eftersom pendeln gått åt båda hållen. Munnen
+ * var 46 procent av rutan när den ensam bar hela bedömningen och två prickar
+ * var ögon. Den krymptes till 22 när grävlingens stora ögon tog över
+ * uttrycket. Det var rätt för ANSIKTET och fel för MÄRKET: ögonen bär
+ * humöret, men de bär inte vilket besked det är, eftersom alla fyra lägen har
+ * samma ögon. Bedömningen har bara en kanal som verkligen skiljer, och det är
+ * bågens riktning.
+ */
+const MUN_B = (0.30 * HUVUD_BREDD) / 100;              // 0,243 av rutan
+const KRYMP = MUN_B / BREDD.storre;                    // 0,5283
 const MUN_R = RADIE.dagens * KRYMP;
 /* Tjockleken skalas inte rakt av. Märkets 21,4 procent av munbredden gällde en
  * mun som var två och en halv gånger så bred, och ett stryk som krymper linjärt
  * försvinner: en linje läses av ögat i absoluta pixlar och inte i andelar.
- * 27 procent av den nya bredden ger tillbaka ungefär samma synliga vikt. */
-const MUN_SW = MUN_B * 0.27;
-const MUN_CY = 78.5;
+ * Faktorn sänktes från 0,27 till 0,23 när munnen växte, så att stryket blev
+ * 16 procent tjockare i absoluta enheter i stället för 36. Munnen ska bli
+ * större, inte fetare: det är bågens DJUP som bär bedömningen, och ett för
+ * tjockt stryk äter upp djupet inifrån. */
+const MUN_SW = MUN_B * 0.23;
+
+/**
+ * PILHÖJDEN SOM MÅTT, och radien räknad ur den.
+ *
+ * Munnens djup ändras genom RADIEN och aldrig genom flyttade ändpunkter, se
+ * ../maskot-mun.mjs. Men radien är ett dåligt mått att välja i: sambandet
+ * radie till djup är kraftigt olinjärt, alltså säger "radie 0,76" ingenting om
+ * hur djup bågen blir, och två munnar med samma radie men olika bredd får helt
+ * olika djup.
+ *
+ * Måttet som betyder något för ögat är PILHÖJDEN som andel av munnens egen
+ * bredd. Den går att jämföra mellan munnar, den går att mäta i en rendering,
+ * och den är det som avgör om de tre bedömningarna går att skilja åt.
+ *
+ * Funktionen vänder alltså på ordningen: vi väljer djupet och RÄKNAR FRAM
+ * radien. Munbanan ritas fortfarande som en riktig cirkelbåge med ett
+ * A-kommando och ändpunkterna står stilla, alltså är regeln ovan obruten.
+ *
+ * `munbana()` skalar den fulla pilhöjden med RIKTNING, så radien måste räknas
+ * på den fulla höjden och inte på den önskade.
+ */
+function radieUrPilhojd(bAbs, nyckel, sag) {
+  const r = Math.abs(RIKTNING[nyckel] ?? 0);
+  if (!r || !sag) return null;
+  const h = (Math.abs(sag) * bAbs) / r;
+  return (h / 2 + (bAbs * bAbs) / (8 * h)) / 100;
+}
 
 /**
  * `ampK` är munnens andel i amplituden, se AMP. Djupet ändras genom att RADIEN
@@ -572,10 +656,38 @@ const MUN_CY = 78.5;
  * hade gjort clean till ett leende som går ut i en halvcirkel, alltså clown i
  * stället för nöjd. `vagig` står på noll, se AMP.
  */
+/* `sag` är PILHÖJDEN som andel av munnens egen bredd, och den vinner över `r`
+ * när den finns. Se radieUrPilhojd ovan för varför måttet är valt i djup i
+ * stället för i radie.
+ *
+ * De tre talen ÄR bedömningsskalan, och de är valda som tre FORMER och inte
+ * som tre grader av en form:
+ *
+ *   glad    +0,30  båge uppåt
+ *   vagig   -0,05  praktiskt taget rak
+ *   ledsen  -0,27  båge nedåt
+ *
+ * Att mellanläget är nära noll är inte lättja. Tre steg i en skala läses
+ * säkrast som upp, rakt och ned, och det är samma tre former som danska
+ * smileyordningen och som vår egen klassiska ritning använde. En vågig mun
+ * vore en fjärde form och en riktigare bild av tveksamhet, men en våg behöver
+ * fyra vändpunkter över munnens bredd, och i 24 px är munnen sju bildpunkter
+ * bred. Vågen finns alltså inte att rita där, och en form som bara syns i de
+ * stora storlekarna är inte en bärare.
+ *
+ * Att minor inte står på exakt noll är däremot medvetet: en aning nedåt läser
+ * som tveksamhet, exakt noll läser som frånvaro. Frånvaro är vad `rak` säger,
+ * och den munnen tillhör det obedömda läget. Se `rak` längre ned.
+ *
+ * Djupen är nästan spegelvända, +0,30 mot -0,27, och skillnaden är avsiktlig.
+ * En båge nedåt läser djupare än en båge uppåt vid samma pilhöjd, eftersom
+ * ögat läser en nedåtbåge tillsammans med ögonens och brynens nedåtriktning.
+ * Efter amplituden 1,5 hamnar de två på 0,309 och 0,311, alltså i praktiken
+ * lika djupa. */
 const MUNNAR = {
-  glad: { n: 'clean', b: 1.06, r: 1, lut: 2, djup: 2.6, ampK: 0.06 },
-  vagig: { n: 'minor', b: 1.0, r: 1, lut: 2.5, djup: 0, ampK: 0 },
-  ledsen: { n: 'major', b: 0.98, r: 1, lut: 2, djup: 0, ampK: 0.30 },
+  glad: { n: 'clean', b: 1.06, sag: 0.30, r: 1, lut: 2, djup: 2.6, ampK: 0.06 },
+  vagig: { n: 'minor', b: 1.0, sag: 0.05, r: 1, lut: 2.5, djup: 0, ampK: 0 },
+  ledsen: { n: 'major', b: 0.98, sag: 0.27, r: 1, lut: 2, djup: 0, ampK: 0.30 },
   smal: { n: 'minor', b: 0.68, r: 0.8, lut: 3, djup: 0, ampK: 0 },
   finurlig: { n: 'clean', b: 0.9, r: 0.76, lut: 7, djup: 2, ampK: 0 },
   oppen: { n: 'clean', b: 0.92, r: 0.8, lut: 2, djup: 6.5, ampK: 0 },
@@ -593,6 +705,110 @@ const MUNNAR = {
    * avsiktligt: munnens riktning ska bestämmas på ett ställe för alla figurer. */
   rak: { n: 'none', b: 1.0, r: 1, lut: 2, djup: 0, ampK: 0 },
 };
+
+/**
+ * MUNNENS MITTLINJE, RÄKNAD UR MULEN OCH INTE SKRIVEN.
+ *
+ * Ägaren, samma dag som munnen gjordes större: "nu ser grävlingen annorlunda
+ * ut när du gjorde om den, munnen går liksom upp i näsan... herregud."
+ *
+ * Felet var verkligt och det var mitt. Mittlinjen stod på ett fast tal, 78,5,
+ * som passade den GAMLA grunda munnen. Bågen är centrerad kring mittlinjen,
+ * alltså växer den lika mycket uppåt som nedåt när djupet ökar, och när
+ * pilhöjden gick från 3,8 till 8,4 enheter vandrade leendets ändar och det
+ * ledsna ansiktets båge rakt in i mulen. Med strykets halva tjocklek inräknad
+ * gick bläcket 3,2 enheter in i nosen.
+ *
+ * Att bara flytta ned talet hade rättat symtomet och lämnat kvar orsaken: nästa
+ * ändring av djupet hade gett samma kollision igen, och den syns inte i något
+ * tal utan bara i en bild. Mittlinjen RÄKNAS därför fram ur tre storheter som
+ * alla redan finns:
+ *
+ *   mulens underkant        NOS_UNDERKANT, ur nosens egen punktlista
+ *   djupaste munnens halva  över alla munnar i MUNNAR, vid högsta amplituden
+ *   strykets halva tjocklek MUN_SW, och den räknas i det ENKLA lägets grövre
+ *                           stryk, eftersom det är det tjockaste som ritas
+ *
+ * plus en luftspalt. Fördjupas munnen flyttar sig munnen ned av sig själv, och
+ * kollisionen kan inte uppstå igen utan att någon aktivt tar bort den här
+ * raden.
+ *
+ * Luftspalten är 1,2 enheter, alltså drygt en procent av rutan. Den är vald så
+ * att mun och mule läser som två former också när kantutjämningen suddar en
+ * halv bildpunkt i 24 px. Noll hade gett två former som nuddar varandra, och
+ * två former som nuddar läser som en.
+ */
+const MUN_LUFT = 1.2;
+
+/**
+ * Munnens högsta punkt över mittlinjen, över alla munnar, vid högsta amplituden.
+ *
+ * Två storheter lyfter munnen över sin egen mittlinje, och båda måste med.
+ *
+ * HALVA PILHÖJDEN. Bågen är centrerad kring mittlinjen, alltså är det halva
+ * pilhöjden som sticker upp. Munhålan räknas INTE med, fast den är den största
+ * formen i munnen. Den buktar uteslutande NEDÅT under bågen och kan därför
+ * aldrig nå mulen. Räknades den med sköts munnen ned fem enheter för mycket och
+ * hamnade i stället i hakan, vilket den hann göra en gång innan den här
+ * meningen skrevs.
+ *
+ * LUTNINGEN, som saknades och som är skälet till att den här funktionen skrevs
+ * om. `munbana()` lutar munnen med `lut` grader kring sin mittpunkt, alltså
+ * går den ena änden UPP med tan(lut)·b/2 medan den andra går ned lika mycket.
+ * Duolingos egen regel om att munnen ska vara asymmetrisk är riktig och
+ * lutningen ska vara kvar, men den lyfter ett hörn som reserven inte kände
+ * till.
+ *
+ * Felet syntes exakt där det skulle: i det GLADA läget, vars högsta punkt ÄR
+ * ändpunkterna, och i det ENKLA lägets grövre stryk. App-ikonen ritades i den
+ * kombinationen och där växte leendets hörn ihop med mulen till en enda mörk
+ * fläck. Uppmätt luftspalt var 0,95 enheter mot de 1,2 som MUN_LUFT lovar, och
+ * differensen 0,25 är precis lutningens 0,45 minus den marginal ledsen-munnens
+ * djup råkade ge. En reserv som stämmer av misstag är samma sak som ingen
+ * reserv: den slutar stämma nästa gång ett tal ändras.
+ *
+ * Lutningen läggs på för varje mun för sig och inte som ett påslag efteråt,
+ * eftersom den mun som är djupast och den som lutar mest inte behöver vara
+ * samma mun.
+ */
+function hogstaOverMittlinjen() {
+  let mest = 0;
+  for (const m of Object.values(MUNNAR)) {
+    const bAbs = MUN_B * m.b * 100;
+    const k = 1 + (AMP.kraftig - 1) * (m.ampK || 0);
+    /* Med `sag` är pilhöjden känd direkt. Utan den räknas den ur radien på
+     * samma sätt som munbana() gör, alltså aldrig avskrivet. */
+    const h = m.sag
+      ? Math.abs(m.sag * k) * bAbs
+      : Math.abs(RIKTNING[m.n] ?? 0) * pilhojdUrRadie(bAbs, ((MUN_R * m.r) / k) * 100);
+    /* Samma räkning som munbana() gör på sitt `dy`, alltså aldrig avskriven. */
+    const lyft = Math.abs(Math.tan(((m.lut || 0) * Math.PI) / 180)) * (bAbs / 2);
+    mest = Math.max(mest, h / 2 + lyft);
+  }
+  return mest;
+}
+
+function pilhojdUrRadie(b, R) {
+  const inre = R * R - (b / 2) * (b / 2);
+  return inre <= 0 ? R : R - Math.sqrt(inre);
+}
+
+/**
+ * Grövsta stryket som ritas TILLSAMMANS MED EN MULE, alltså 1,18 som är det
+ * enkla lägets faktor.
+ *
+ * Talet stod tidigare inbakat i uttrycket nedan med motiveringen att det var
+ * det tjockaste som ritas. Det är inte sant: nålnivån ritar 1,35, se
+ * NAL_MUN_TJOCKNA. Skälet att den ändå inte styr är ett annat och bättre, och
+ * det är värt att stå skrivet i stället för att vara underförstått: NÅLNIVÅN
+ * RITAR INGEN MULE. Den kan inte kollidera med en form den inte har, och att
+ * reservera plats för den hade skjutit munnen ned i hakan i alla andra nivåer
+ * för ingenting.
+ */
+const MUN_SW_GROVST = 1.18;
+
+const MUN_CY =
+  NOS_UNDERKANT + MUN_LUFT + (MUN_SW * 100 * MUN_SW_GROVST) / 2 + hogstaOverMittlinjen();
 
 const BAGE = /^M([-\d.]+) ([-\d.]+)A([-\d.]+) [-\d.]+ 0 0 (\d) ([-\d.]+) ([-\d.]+)$/;
 
@@ -613,6 +829,27 @@ const BAGE = /^M([-\d.]+) ([-\d.]+)A([-\d.]+) [-\d.]+ 0 0 (\d) ([-\d.]+) ([-\d.]
  */
 function munD(nyckel, b, lut, r) {
   return munbana(51, MUN_CY, 100, nyckel, b, lut, r);
+}
+
+/**
+ * MUNNENS BANA UR EN POST I MUNNAR. En väg, två anropsplatser.
+ *
+ * Den låg tidigare som tre rader i ansikte() och tre likadana i nalMarke().
+ * Två kopior av samma räkning divergerar alltid, och just den här räkningen
+ * avgör om bedömningen går att läsa, alltså är det den sämsta tänkbara raden
+ * att ha i två exemplar. Nålen ritade dessutom sin mun med samma tal men utan
+ * munhålan, och skillnaden gick inte att se i koden.
+ *
+ * Amplituden går in på ETT ställe här. Har munnen en `sag` räknas radien fram
+ * ur den önskade pilhöjden och amplituden förstärker DJUPET direkt, vilket är
+ * vad amplituden alltid menade. Saknas `sag` gäller den gamla vägen, alltså
+ * `r` som faktor på grundradien med amplituden som en krympning av radien.
+ */
+function munBana(m, amp = 1) {
+  const bAbs = MUN_B * m.b;
+  const k = 1 + (amp - 1) * (m.ampK || 0);
+  const radie = m.sag ? radieUrPilhojd(bAbs * 100, m.n, m.sag * k) : null;
+  return munD(m.n, bAbs, m.lut, radie ?? (MUN_R * m.r) / k);
 }
 
 /**
@@ -1126,8 +1363,7 @@ function ansikte(p, T, enkel, o = {}) {
 
   const m = MUNNAR[p.mun] || MUNNAR.glad;
   /* Djupare båge genom MINDRE RADIE, aldrig genom flyttade ändpunkter. */
-  const rAmp = 1 / (1 + (amp - 1) * (m.ampK || 0));
-  const d = munD(m.n, MUN_B * m.b, m.lut, MUN_R * m.r * rAmp);
+  const d = munBana(m, amp);
   const sw = MUN_SW * 100 * (enkel ? 1.18 : 1);
   const hal = enkel ? '' : kavitet(d, m.djup);
   const munnen =
@@ -1304,8 +1540,7 @@ function nalMarke(p, T, plattfarg, size, kl, a11y, ramskala, amp) {
   const lage = BRYN_LAGE[p.bryn] || BRYN_LAGE.clean;
   const par = [['v', 0], ['h', 1]];
   const m = MUNNAR[p.mun] || MUNNAR.glad;
-  const rAmp = 1 / (1 + (amp - 1) * (m.ampK || 0));
-  const d = munD(m.n, MUN_B * m.b, m.lut, MUN_R * m.r * rAmp);
+  const d = munBana(m, amp);
   const R = NAL_RUTA;
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"${kl}${a11y}>` +
@@ -1425,7 +1660,24 @@ export function figur({
     : toner(ton);
   const kl = klass ? ` class="${klass}"` : '';
   const a11y = ' role="img" aria-label="Prikkos grävling"';
-  const niva = detalj ?? (inramat ? 'enkel' : 'rik');
+  /* FÖRVALET ÄR RIK, OCH DET GÄLLER OCKSÅ INRAMAT.
+   *
+   * Raden stod tidigare `detalj ?? (inramat ? 'enkel' : 'rik')`, alltså fick
+   * varje inramat ansikte som INTE bad om en nivå den förenklade. Det var
+   * förvalet från den tid då nivåerna valdes ur storleken, och det överlevde
+   * beslutet att ställa av dem.
+   *
+   * Priset var inte teoretiskt. `faceDetalj()` i sajten svarade `rik` för varje
+   * storlek, alltså såg allt rätt ut i den enda fil någon läste, medan
+   * app-ikonen ritades här utan `detalj` och därför blev enkel. Det är exakt
+   * ägarens iakttagelse: "fortfarande den enkla prikko grävlingen på många
+   * ställen". Ett förval som är fel gör varje glömd parameter till en tyst
+   * nedgradering, och en glömd parameter syns inte i någon diff.
+   *
+   * Nu måste den som vill ha en förenkling BE om den vid namn. Det är rätt håll
+   * för ett förval att luta åt: den dyra och riktiga figuren är det som händer
+   * av sig självt, och avstegen är de som kräver en rad. */
+  const niva = detalj ?? 'rik';
   /* 'nal' ritas av nalMarke och når aldrig ansikte(). Kommer den ändå hit, alltså
    * i det fria läget, är den det enkla ansiktet: en figur med kropp och lemmar
    * har inget att vinna på en förenkling som är gjord för 16 px. */
@@ -1444,7 +1696,7 @@ export function figur({
       /* Det enfärgade enpathsläget, alltså faviconen: bara arttecknet och
        * munnen står kvar, i en färg, på genomskinlig botten. */
       const m = MUNNAR[p.mun] || MUNNAR.glad;
-      const d = munD(m.n, MUN_B * m.b, m.lut, MUN_R * m.r);
+      const d = munBana(m);
       return (
         `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"${kl}${a11y}>` +
         `<g transform="translate(50 50)scale(${RAMSKALA})translate(-51 -55)">` +

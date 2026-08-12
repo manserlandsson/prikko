@@ -39,6 +39,7 @@ const UT_GANG = join(ROT, 'site', 'public', 'maskot', 'gang.svg');
 const UT_IKON = join(ROT, 'site', 'public', 'favicon.svg');
 const UT_APPIKON = join(ROT, 'site', 'public', 'maskot', 'appikon.svg');
 const UT_MEJL = join(ROT, 'site', 'public', 'maskot', 'mejl.svg');
+const UT_MARK = join(ROT, 'site', 'public', 'prikko-mark.svg');
 
 const LAGEN = ['clean', 'minor', 'major', 'none'];
 const NIVAER = ['rik', 'enkel', 'nal'];
@@ -271,10 +272,42 @@ if (gangRutor.length) {
  * med grävlingens ansikte exakt det formatet en ikon vill ha, och det är också
  * det enda stället där en app-ikon och ett bedömningsmärke är samma sak.
  *
- * Ikonen byggs ur NAL-nivån och inte ur den rika. En favicon visas i 16 till
- * 32 px i en flikrad, alltså precis det spann nal-nivån är ritad för. Den rika
- * hade lagt åtta kilobyte på en fil som laddas på varje sidvisning, för
- * detaljer som ingen kan se.
+ * IKONERNA BYGGS UR RIK, OCH INGEN AV DEM FÖRENKLAS.
+ *
+ * Här satt avvikelsen som gjorde ägaren till rätta: faviconen byggdes ur NAL
+ * och app-ikonen ur ENKEL, medan sajtens `faceDetalj()` svarade `rik` för varje
+ * storlek. Ansiktskomponenten var alltså åtgärdad och ikonerna var inte det,
+ * och eftersom nivån stod i den här filen och inte i sajten syntes det inte för
+ * den som läste lib/face.ts. Ägaren såg det ändå, i flikraden och på
+ * hemskärmen: "fortfarande den enkla prikko grävlingen på många ställen".
+ *
+ * Domen går att se och den är inte en smakfråga. Nal-nivån ritar inte samma
+ * ansikte enklare, den ritar ett ANNAT ansikte: rundad rektangel i stället för
+ * huvudkontur, inga öron, ingen nos, banden som två piller. En favicon är den
+ * mest sedda bilden sajten har, och att just den visar en annan figur än
+ * produkten är den dyraste tänkbara platsen för en förenkling.
+ *
+ * ── Skälet som stod här, och varför det inte höll ──────────────────────
+ * Invändningen var att den rika lägger åtta kilobyte på en fil som laddas på
+ * varje sidvisning. Mätt i stället för gissat, samma ansikte i tre nivåer:
+ *
+ *   rik      8 736 tecken   2 588 B gzip
+ *   enkel    6 662 tecken   2 134 B gzip
+ *   nal      1 021 tecken     503 B gzip
+ *
+ * Påslaget är alltså 2,1 kB gzip, EN GÅNG. Invändningens premiss var att filen
+ * laddas på varje sidvisning, och det stämmer inte: site/public/_headers ger
+ * favicon.svg fyra timmars max-age, alltså betalas påslaget en gång per
+ * besökare och inte en gång per sida. Priset var riktigt räknat och fel
+ * jämfört.
+ *
+ * ── Och 16 px, alltså den fråga nivån en gång byggdes för ──────────────
+ * En förenkling för 16 px hade behövt vara HÄRLEDD ur den rika, och den enda
+ * ärliga sådana är den rika själv: en SVG-favicon rasteriseras av webbläsaren i
+ * skärmens upplösning, alltså 32 bildpunkter på en dubbelupplöst skärm, och
+ * samma fil används i bokmärken, historik och fliköversikten i storlekar långt
+ * över 16. Nivåerna finns kvar och genereras fortfarande, se face-geometri.ts,
+ * så valet går att pröva om på en rad.
  *
  * Blå och inte grön. Ikonen är AVSÄNDARE och inte data: den säger vem sajten
  * är, inte hur det står till med en verksamhet. Ett grönt märke i flikraden
@@ -287,7 +320,7 @@ if (gangRutor.length) {
  */
 function ikon(storlek, kommentar) {
   const inreKod = unikaId(inre(m.figur({
-    size: 100, ton: 'blue', uttryck: 'clean', ansikte: true, detalj: 'nal', platta: 3,
+    size: 100, ton: 'blue', uttryck: 'clean', ansikte: true, detalj: 'rik', platta: 3,
   })), 'ikon');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${storlek}" height="${storlek}" role="img" aria-label="Prikko">\n<!--\n${kommentar}\n-->\n` +
     `<clipPath id="ikon-ram"><rect width="100" height="100" rx="${17}"/></clipPath>` +
@@ -298,9 +331,11 @@ writeFileSync(UT_IKON, ikon(100, [
   '  GENERERAD FIL. Ändra inte för hand.',
   '  Skapad av brand/bygg-face-geometri.mjs ur brand/maskot/gravling.mjs.',
   '',
-  '  Grävlingens ansikte i den rundade kvadraten, byggt ur nal-nivån eftersom',
-  '  en favicon visas i 16 till 32 px. Blå och inte grön: ikonen säger vem',
-  '  sajten är, inte hur det står till med en verksamhet.',
+  '  Grävlingens ansikte i den rundade kvadraten, i nivån rik. Ingen förenkling:',
+  '  ikonen ska vara samma figur som produkten, och en SVG-favicon rasteriseras',
+  '  i skärmens upplösning och används dessutom i bokmärken och fliköversikt i',
+  '  storlekar långt över 16 px. Blå och inte grön: ikonen säger vem sajten är,',
+  '  inte hur det står till med en verksamhet.',
   '',
   '  Plattan är fylld, vilket gör den gamla mörka-läget-regeln onödig: en fylld',
   '  platta bär sin egen bakgrund mot flikradens nästan svarta yta.',
@@ -319,11 +354,63 @@ writeFileSync(UT_APPIKON, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 
   UTAN rundade hörn med flit: iOS maskar ikonen själv, och rundar man hörnen
   två gånger blir kanten grå och fransig. Fylld kant i kant av samma skäl som
   förut, iOS gör genomskinligt till svart.
+
+  Nivån är rik. Den var enkel, och det var fel på en ikon som visas i 180 px:
+  där finns plats för varenda drag, och det enda enkel-nivån gjorde var att ta
+  bort ögonvitans modulering och munhålan. Värre än så: enkel ritar munnen med
+  ett 18 procent grövre stryk, och i det glada läget växte leendets hörn ihop
+  med mulen till en enda mörk fläck. Det var ägarens iakttagelse om att munnen
+  går upp i näsan, och den satt alltså i just den här filen.
 -->
-${unikaId(inre(m.figur({ size: 100, ton: 'blue', uttryck: 'clean', ansikte: true, detalj: 'enkel', platta: 3 })), 'app')}</svg>
+${unikaId(inre(m.figur({ size: 100, ton: 'blue', uttryck: 'clean', ansikte: true, detalj: 'rik', platta: 3 })), 'app')}</svg>
 `);
 console.log(`Skrev ${UT_IKON}`);
 console.log(`Skrev ${UT_APPIKON}`);
+
+/* ── ORGANISATIONENS LOGOTYP, alltså den Google får se ───────────────────
+ *
+ * site/public/prikko-mark.svg är det index.astro skickar som schema.org
+ * `logo`. Den var en HANDRITAD fil som ingenting genererade: det gamla märket
+ * med två prickar, en båge och en gradient, alltså en TREDJE ritning vid sidan
+ * av figuren och bedömningsmärket. Det är precis den divergens lib/face.ts och
+ * lib/marke-raster.ts båda är skrivna för att förhindra, och den syntes inte
+ * eftersom filen låg still medan allt annat ritades om.
+ *
+ * Ägarens beslut: samma grävlingsansikte i rundad kvadrat hela vägen från
+ * flikraden till sökresultatet, alltså ETT igenkänt märke. Den ritas därför av
+ * samma `ikon()` som faviconen och kan inte längre glida ifrån den.
+ *
+ * ── Googles krav, kontrollerade och inte gissade ────────────────────────
+ * Ur Google Search Centrals sida om logotypens strukturerade data:
+ *
+ *   STORLEK      "The image must be 112x112px, at minimum." Den gamla filen var
+ *                96 x 96, alltså under gränsen. Den här är 512, med marginal.
+ *                Ingen bildkvot krävs, och kvadratiskt är vad märket är.
+ *   FORMAT       "The image file format must be supported by Google Images",
+ *                och Google Images stödjer BMP, GIF, JPEG, PNG, WebP, SVG och
+ *                AVIF. SVG går alltså bra, vilket är skälet att den inte
+ *                behöver rasteriseras som app-ikonen måste.
+ *   VIT BOTTEN   "Make sure the image looks how you intend it to look on a
+ *                purely white background". Plattan är FYLLD, alltså bär märket
+ *                sin egen botten och kan inte försvinna mot vitt. Det är samma
+ *                skäl som gjorde faviconens platta fylld.
+ *   ÅTKOMST      "The image URL must be crawlable and indexable." Filen ligger
+ *                i public/ och robots.txt har `Allow: /` med undantag bara för
+ *                /sok och /preview.
+ */
+writeFileSync(UT_MARK, ikon(512, [
+  '  GENERERAD FIL. Ändra inte för hand.',
+  '  Skapad av brand/bygg-face-geometri.mjs ur brand/maskot/gravling.mjs.',
+  '',
+  '  Organisationens logotyp, alltså schema.org `logo` i index.astro. Samma',
+  '  ritning som faviconen, eftersom märket ska vara ett och detsamma från',
+  '  flikraden till sökresultatet.',
+  '',
+  '  512 px och inte 96: Google kräver minst 112 x 112 för en logotyp, och den',
+  '  handritade fil som låg här förut låg under gränsen. Plattan är fylld, så',
+  '  att märket ser ut som avsett också mot den vita botten Google ritar på.',
+].join('\n')));
+console.log(`Skrev ${UT_MARK}`);
 
 /* Underlag för e-postbilden. Helfigur och inte ansikte: i ett mejl talar vi
    till EN mottagare om hens egen bevakning, alltså är vi avsändare och inte
