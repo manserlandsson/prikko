@@ -28,9 +28,58 @@
  *
  * ── Storlek och vikt ────────────────────────────────────────────────────
  *
- * Figuren är omkring 14 kB per pose. Det är många gånger märkets kostnad och
- * fullt rimligt för EN figur på en sida, och orimligt i en lista. Komponenten
- * har därför ingen listvariant och ska inte få någon.
+ * Mätt i ett färdigt bygge den 12 augusti 2026, 16 611 sidor, inte uppskattat.
+ *
+ *   Figurens svg          14 864 till 15 635 B rått, 4 944 till 5 147 gzippat
+ *                         Spannet är riggen: en figur med rörelse bär en
+ *                         namngiven led per del och väger 771 B mer.
+ *   Rörelsekatalogen      14 735 B rått, se noten vid KATALOG_UTAN_NOTER
+ *
+ * DE TALEN ÄR INTE PÅSLAGET. Ett gzippat dokument komprimeras som en helhet,
+ * alltså kostar en figur mindre på en sida som redan är full av liknande
+ * svg-banor. Det verkliga påslaget är sidan med figur mot samma sida med
+ * figuren urklippt, och det ser ut så här:
+ *
+ *   /stockholm/karta/     3 150 B   figuren ensam, sida full av märken redan
+ *   /konto/               6 048 B   figuren ensam
+ *   /sok/                 6 379 B   figur och rörelse, sidan har märkesspriten
+ *   en artikel            8 379 B   figur och rörelse
+ *   /sluta-bevaka/        9 321 B   figur och rörelse, tunn sida
+ *   /404                  9 329 B   figur och rörelse, tunn sida
+ *   /ratta/               9 408 B   figur och rörelse, tunn sida
+ *
+ * Alltså: EN figur kostar mellan tre och nio kilobyte beroende på vad som
+ * redan står på sidan, och den dyraste sidan är den tunnaste. Det är rimligt
+ * för en figur på en sida och orimligt i en lista. Komponenten har därför
+ * ingen listvariant och ska inte få någon.
+ *
+ * ── Var figuren står i dag, och vad ytorna kostar tillsammans ───────────
+ *
+ * Frekvensregeln i docs/24 §2 är skälet till att listan står här: en yta som
+ * inte går att räkna är en yta som glider. Talen är uppmätta i bygget och
+ * listan är uttömmande, alltså framtagen genom att söka igenom hela dist och
+ * inte genom att räkna upp vad någon minns.
+ *
+ *   Artikelfoten              18 sidor   + rörelse
+ *   Kartans tomma utsnitt      8 sidor              bara kommunernas kartor
+ *   404                        1 sida    + rörelse
+ *   Metodiken                  1 sida
+ *   Tom notislista             1 sida
+ *   Tom granskningskö          1 sida
+ *   Tomt sökresultat           1 sida    + rörelse
+ *   Kontot utan bevakningar    1 sida
+ *   Kvittensen på rättelsen    1 sida    + rörelse
+ *   Avskedet i sluta-bevaka    1 sida    + rörelse
+ *                             ────────
+ *                             34 sidor av 16 611, alltså 0,2 procent
+ *
+ * Hela programmet väger 846 597 B rått och 231 509 B gzippat över bygget,
+ * snitt 6 809 B per sida. Kontrollerat i samma svep: ingen sida bär mer än EN
+ * figur, och ingen verksamhetssida bär någon.
+ *
+ * Den dagen någon vill lägga figuren i sökpanelen eller i sidfoten är talet
+ * 15 916 sidor gånger omkring 6 kB, alltså närmare 100 MB gzippat, och det är
+ * svaret.
  */
 import { FIGUR_MARKUP } from '../lib/face-geometri';
 import { rigga } from '../lib/maskot-rigg.mjs';
@@ -86,6 +135,54 @@ const rent = FIGUR_MARKUP[pose] ?? FIGUR_MARKUP.clean;
 const dold = alt === '';
 
 /**
+ * KATALOGEN UTAN SINA NOTER, OCH VARFÖR DEN RADEN FINNS.
+ *
+ * Katalogen skrivs in i sidan som RÅ text längst ned i den här filen. Rå text
+ * går förbi Astros stilpipeline, alltså rör ingen minifiering den, alltså
+ * hamnar varje tecken i filen i HTML-dokumentet precis som det står skrivet.
+ *
+ * Uppmätt på maskot-rorelse.css den 12 augusti 2026:
+ *
+ *   med noter    69 211 B rått
+ *   utan noter   14 735 B rått
+ *   noterna         54 476 B, alltså 79 procent av filen
+ *
+ * OCH SÅ HÄR MYCKET GJORDE DET I FÄRDIGA DOKUMENT. Mätt genom att byta
+ * tillbaka den avskalade katalogen mot originalet i tre byggda sidor:
+ *
+ *   /ratta/   19 539 B gzippat nu, mot 38 800 B utan avskalningen
+ *   /sok/     22 980 B gzippat nu, mot 42 182 B
+ *   /404      17 914 B gzippat nu, mot 37 181 B
+ *
+ * Sidan var alltså mer än DUBBELT så stor, och det som fördubblade den var
+ * kommentarer. 19 200 B gzippat per sida gånger de 22 sidor som bär rörelse
+ * är 423 kB över bygget, för text ingen webbläsare läser.
+ *
+ * Kommentarerna i den filen är värda sin plats i KÄLLAN och ingenting alls i
+ * dokumentet. Utan den här raden hade varje sida som ber om en rörelse burit
+ * nitton kilobyte resonemang om Thomas och Johnston, alltså FYRA GÅNGER
+ * figurens egen vikt. Rörelsen hade då varit dyrare än grävlingen den
+ * animerar, och det hade avgjort varje senare fråga om han får stå på en yta
+ * till av fel skäl.
+ *
+ * Bygget bekräftar dessutom antagandet raden vilar på: katalogen ligger i de
+ * färdiga dokumenten på exakt 14 735 B, alltså byte för byte det som skrivs
+ * här. Ingen minifiering rör den, precis som resonemanget ovan säger.
+ *
+ * Avskalningen sker här och inte i filen, eftersom brand/maskot-forslag.html
+ * läser samma fil för att kunna visa vad sajten faktiskt skickar. Ett provark
+ * som läser en avskalad fil är ett provark utan skäl.
+ *
+ * Alla sjutton `.m-` och `.mm-`-selektorer överlever avskalningen, kontrollerat
+ * mot filen. Regeln kan bara gå sönder om någon skriver `/*` inuti en
+ * strängvärdig CSS-egenskap, och katalogen har inga sådana.
+ */
+const KATALOG_UTAN_NOTER = KATALOG
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/\n{2,}/g, '\n')
+  .trim();
+
+/**
  * Riggen läser en hel svg och inte lös markup, eftersom den letar rätt på
  * rotnoden för att veta var kroppen börjar. FIGUR_MARKUP är bara innehållet,
  * så det lindas i en svg inför riggningen och skalas av efteråt. Att i stället
@@ -136,7 +233,7 @@ if (rorelse) {
     skrivs ut som en rå style-tagg, och Fragment används i stället för ett
     style-element, eftersom Astro kompilerar och scopar riktiga style-taggar och
     då aldrig skulle nå fram till delarna som riggen har lindat in. */}
-{rorelse && <Fragment set:html={`<style>${KATALOG}</style>`} />}
+{rorelse && <Fragment set:html={`<style>${KATALOG_UTAN_NOTER}</style>`} />}
 
 {/* Rörelsen startar när figuren syns, inte när sidan laddas.
 

@@ -64,6 +64,7 @@
 import FaceMark from './FaceMark.astro';
 import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
+import Maskot from './Maskot.astro';
 import {
   formatDate,
   formatNumber,
@@ -307,6 +308,52 @@ const LEGEND = [
     </ol>
 
     {/*
+      TOMT UTSNITT.
+
+      Kartkolumnen visar en yta utan en enda nål och listkolumnen står tom.
+      Rubriken ovanför säger "Inga verksamheter här" och raden under den säger
+      vad man gör åt det. Det som saknas är att någon står bakom svaret, och
+      det är exakt den roll figuren har: han är avsändare och inte data.
+
+      Ytan är rätt enligt den bärande regeln i docs/24 §2 av det starkaste
+      skälet som finns. Regeln säger att figuren hör hemma där det INTE finns
+      någon verksamhet att bedöma, och den här ytan ÄR definierad av att det
+      inte finns någon. Kommer det tillbaka en enda verksamhet i utsnittet
+      försvinner figuren i samma bildruta som den första nålen ritas.
+
+      STATISK, och det är inte försiktighet. Två skäl, båda hårda:
+
+        WCAG 2.2.2. Kartan ligger bredvid och rör sig medan man drar. En
+        rörelse här ligger alltså parallellt med annat innehåll, och det är
+        precis det villkoret kravet handlar om.
+
+        FREKVENS. Läget kommer och går varje gång någon panorerar ut över
+        vatten eller skog. En rörelse som spelas om vid varje drag är NN/g:s
+        testdeltagare ordagrant: trevlig första gången, irriterande sedan.
+        Katalogen skrivs därför inte heller in på kartsidorna, alltså kostar
+        de 0 B för rörelsen.
+
+      BARA KOMMUNENS KARTA, ALDRIG RIKSKARTAN, och skälet är att figuren annars
+      hade legat där utan att någonsin visas. Rikskartans listkolumn faller
+      tillbaka på kommunraderna så fort kartan inte gett några kort, alltså står
+      den kolumnen aldrig tom: drar man ut över Östersjön är rutan tom men
+      svaret på skärmen är tolv vägar vidare. En grävling som säger "här finns
+      ingenting" ovanför den listan säger fel sak, och en grävling som aldrig
+      visas är 4 939 B ren last. `kommunrader` är tom på exakt de sidor som
+      saknar den reserven, alltså är det rätt villkor och inte en approximation.
+
+      Kostnad: 4 939 B gzippat per kommunkarta, alltså åtta sidor vid den här
+      mätningen: de kommuner som lämnar koordinater. Sidorna väger redan tolv
+      gånger en hubb, se noten överst i filen, så påslaget är ungefär en procent
+      av en sida som redan är dyr.
+    */}
+    {kommunrader.length === 0 && (
+      <div class="tomvy" data-tomvy hidden>
+        <Maskot pose="tom" size={104} />
+      </div>
+    )}
+
+    {/*
       Kommunraderna. Rikskartan bara, och synliga så länge kortlistan är tom,
       alltså på hela den zoom där landet ligger i bubblor. Se `kommunrader` i
       frontmatteret för varför det är den listan och inte sextio namn.
@@ -511,6 +558,9 @@ const LEGEND = [
     /* Finns bara på rikskartan. Kommunens kartsida har sextio riktiga rader i
        stället, och då behövs ingen ingång till kommunerna. */
     const kommuner = root.querySelector<HTMLElement>('[data-kommuner]');
+    /* Maskotens block i det tomma utsnittet. Frivilligt: saknas det ska
+       kartan fungera ändå, för figuren är avsändare och inte funktion. */
+    const tomvy = root.querySelector<HTMLElement>('[data-tomvy]');
     const kategorimarke = root.querySelector<HTMLButtonElement>('[data-kategorimarke]')!;
     const kategorinamn = root.querySelector<HTMLElement>('[data-kategorinamn]')!;
 
@@ -1013,6 +1063,14 @@ const LEGEND = [
         underrubrik.hidden = true;
       }
       rensa.hidden = !(filtrerat && iVyn === 0);
+      /* Figuren följer rubriken ovanför, och bara den. En egen regel här hade
+         betytt att de två kan hamna i otakt, alltså en grävling som säger att
+         här finns ingenting bredvid en rubrik som räknar fyrtio verksamheter.
+
+         Elementet finns bara på kommunernas kartor, se markupen. Är det inte
+         där händer ingenting, och rikskartan behöver därför inget undantag i
+         den här raden. */
+      if (tomvy) tomvy.hidden = iVyn !== 0;
 
       /*
        * Foten säger vad man inte ser, och varför. Två olika skäl, två olika
@@ -2841,6 +2899,21 @@ const LEGEND = [
     margin: 0;
     padding: 0;
   }
+
+  /* Maskoten i det tomma utsnittet. Han står där korten skulle ha stått,
+     alltså i listkolumnens egen yta och inte över kartan, och centrerad
+     eftersom kolumnen då inte har någon vänsterkant att hänga i.
+
+     Luften ovanför är avsiktligt stor: raden ovanför är en instruktion om att
+     dra i kartan, och figuren ska läsas som ett svar på den och inte som en
+     bildtext till den. */
+  .tomvy {
+    display: flex;
+    justify-content: center;
+    padding-block: var(--s-8) var(--s-4);
+  }
+
+  .tomvy[hidden] { display: none; }
 
   /* En kolumn när ytan blir för smal för två läsbara textkort. Två spann:
      mellanläget där listspalten delar bredd med kartan, och små mobiler där

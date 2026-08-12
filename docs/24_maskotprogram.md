@@ -76,13 +76,42 @@ bara säger att en sida är tom.
 
 | Yta | Läge | Skäl |
 |---|---|---|
-| **404** | `fyrafyra` | Ingen verksamhet finns. Sajten talar i eget namn. Byggd. |
+| **404** | `fyrafyra` + `m-spana` | Ingen verksamhet finns. Sajten talar i eget namn. Byggd. |
 | **Favicon och app-ikon** | Ansiktet i rundad kvadrat, blå | Ikonen säger vem sajten är. Byggd. |
-| **Tomma lägen** | `tom` | Sökning utan träffar, konto utan bevakningar, kö utan poster. |
-| **Startsidans hero** | `soker` eller `clean` | Sajten presenterar sig. Ingen enskild verksamhet på skärmen. |
-| **Om, metod, kontakt** | `clean` | Sidor där tjänsten talar om sig själv. |
+| **Tomt sökresultat** | `tom` + `m-spana` | Noll träffar betyder noll verksamheter på skärmen. Byggd, `sok.astro`. |
+| **Tom notislista** | `tom` | Byggd, `konto/notiser.astro`. |
+| **Tom granskningskö** | `tom` | Byggd, `konto/granska.astro`. |
+| **Konto utan bevakningar** | `tom` | Byggd, `konto/index.astro`. Ett per sida: omdömesrutan strax under får ingen. |
+| **Kartans tomma utsnitt** | `tom` | Ytan är definierad av att ingen verksamhet finns där. Byggd, `Karta.astro`, bara kommunernas kartor. Statisk, se nedan. |
+| **Kvittens efter en handling** | `nojd` + `m-nick` | Byggd, `ratta.astro`. Reservvägen bredvid är ett fel och får ingen figur. |
+| **Avsked** | `clean` + `m-vinka` | Byggd, `sluta-bevaka.astro`. Enda posen med tassen uppe. |
+| **Startsidans hero** | `soker` eller `clean` | Sajten presenterar sig. Ingen enskild verksamhet på skärmen. Inte byggd, se §6. |
+| **Om, metod, kontakt** | `clean` | Sidor där tjänsten talar om sig själv. Metodiken är byggd. |
 | **Bevakningsmejlets huvud** | `soker` | Ett mejl är inte en offentlig lista. Byggd, se noten nedan. |
 | **Delningsbilder** | Valfritt | Bara kommun-, kategori- och kedjesidor. Aldrig en enskild verksamhet, av samma skäl som matsnusk. |
+
+**Kartans tomma utsnitt är statiskt, och båda skälen är hårda.** Kartan ligger
+bredvid och rör sig medan man drar, alltså skulle en rörelse där ligga
+parallellt med annat innehåll, vilket är precis WCAG 2.2.2:s villkor. Och läget
+kommer och går varje gång någon panorerar ut över vatten: en rörelse som
+spelas om vid varje drag är NN/g:s testdeltagare ordagrant, trevlig första
+gången och irriterande sedan.
+
+**Rikskartan får ingen figur, och det är inte en glömska.** Dess listkolumn
+faller tillbaka på kommunraderna så fort kartan inte gett några kort, alltså
+står den kolumnen aldrig tom: drar man ut över Östersjön är rutan tom men
+svaret på skärmen är tolv vägar vidare. En figur som säger "här finns
+ingenting" ovanför den listan säger fel sak, och en figur som aldrig visas är
+ren last, uppmätt till 3 150 B gzippat på en kartsida. Det är samma regel som
+styr sökningen: **ger sidan ett svar står figuren still, hur tom rutan än ser
+ut.**
+
+**Avskedet ligger närmast gränsen av de nya ytorna, och avvägningen ska stå
+skriven.** Raden ovanför figuren nämner en verksamhet vid namn, "Du bevakar
+inte Pizzeria X längre". Den säger ingenting OM verksamheten: ingen bedömning,
+ingen färg, inget märke. Regeln förbjuder figuren bredvid en bedömning, inte
+bredvid ett namn, och det är samma skillnad som gör mejlets huvud försvarbart.
+Kommer det någon gång en bedömning på den sidan ska figuren bort samma dag.
 
 ### Mejlet, som är den placering som ligger närmast gränsen
 
@@ -494,6 +523,122 @@ Frånvaron är svaret. Brittiska ONS är den enda som skriver ut principen: "Whe
 more sensitive topics are being presented, icons would be best to use as
 supporting imagery over illustrations."
 
+## 4d. Fyra sajter öppnade på riktigt, och vad som gick att låna
+
+Uppmätt i webbläsaren den 12 augusti 2026, inte hämtat ur minnet. Ägaren pekade
+ut hitta.se, ednia.se, booli.se och Duolingo, och de svarar på olika frågor.
+
+### hitta.se: gränsen finns hos dem också, men de har ingen figur
+
+Ingen maskot någonstans. Deras illustrationer är platta människofigurer i
+märkesblått, och de förekommer **bara i korten som säljer in dem själva**,
+alltså "Verifiera ditt företag" och "Dina uppgifter". Bredvid en företagsrad
+står ingen illustration någonsin. Det är exakt vår delning mellan avsändare och
+data, gjord av någon annan, i samma kategori och på svenska.
+
+Deras 404 är den bästa lånade formen: ingen bild alls, en rad i en färgad
+remsa, och **sökrutan överst i stället för meddelandet**. Vägen ut är det
+dominerande elementet och budskapet är en bisats. Texten säger "Vi hittar det
+mesta, men inte just den här sidan", alltså varumärkesnamnet som verb, vilket
+är samma grepp som gör "Prikko säger inga anmärkningar" möjligt.
+
+**Fyndet som var mest värt något:** deras sökning har inget tomt läge, eftersom
+den aldrig blir tom. Nonsenssträngen `zzzzzzzzzzzzzzzzzzzzzzzz` gav 2 403
+träffar. Det är den starkaste designen av alla: det bästa tomma läget är det
+som aldrig inträffar. Vår sökning viker redan ihop stavningar och söker på
+avstånd, och det arbetet är därför värt mer än figuren som står där när det
+ändå tar slut.
+
+**Vad som inte passar oss:** deras laddläge är ingenting alls, och deras karta
+ligger som ett tomt grönt fält medan den laddar.
+
+### ednia.se: skelettet, och ett tomt läge som är för torftigt
+
+Laddningen är grå skelettblock i exakt kortets form. Sidhuvudet, kategoriflikarna
+och filterknapparna ritas direkt och står stilla; bara innehållsytan skelettas.
+Ingen spinner, ingen figur.
+
+Deras tomma sökresultat är centrerat, med rubriken "Inga resultat" i **16 px
+halvfet**, alltså brödtextstorlek och inte display, och en mening under med
+ordet "filtret" som inline-länk. Under det ligger sedan sexhundra pixlar tomt.
+Det är den svagaste av de fyra, och det är just den ytan ägaren vill förbättra.
+Lärdomen som ändå håller: **rubriken i ett tomt läge ska vara liten.** Ett tomt
+läge som skriker är värre än ett som viskar.
+
+### booli.se: formen vi faktiskt lånade
+
+Två saker, båda uppmätta.
+
+**Det tomma sökresultatet.** Rubriken "Inga träffar i din sökning." i 24/32
+halvfet, vänsterställd på x = 24. Under den en rad som säger vad man GÖR åt
+det. Under den de aktiva filtren som avtagbara brickor med kryss, plus "Rensa
+filter". Och till höger, på x = 536, en 128 px illustration på en rundad ljus
+persikofärgad skiva: ett finger som drar i ett filterreglage. **Bilden
+föreställer handlingen, inte känslan.** Ingen ledsen figur, ingen tom låda.
+
+Det är den uppställning vårt tomma sökresultat nu har: text till vänster,
+figuren till höger, och raden under rubriken bär åtgärden. Skillnaden är vad
+bilden föreställer, och den skillnaden har vi råd med: de har ett bibliotek med
+situationsbilder, vi har en avsändare.
+
+**404:an.** Ett varmt tonat fält, `#F8F0E8`, rubriken "Åh nej!" i 40/52, ett
+stycke, en svart knapp, och till höger en 490 × 373 illustration som är deras
+egna siffror 404 i märkessvart, utspillda över ytan med logotypens orange prick
+och triangel inbakade. Ingen karaktär, ingen lånad clipart: **bokstäverna är
+bilden.** Vår 404 gör samma sak med en figur i stället, och båda lösningarna är
+märkeseget material.
+
+Kostnaden är värd att skriva: deras 404-illustration väger **2 427 B** och
+ligger som egen fil på deras CDN, alltså cachad över sidor och gratis på sidor
+som inte visar den. Vår figur väger 14 861 B och ligger inbakad i dokumentet.
+Inbakad är rätt för EN figur på en sida, eftersom den slipper en förfrågan och
+kan animeras av sidans CSS, vilket en `<img>` aldrig kan. Skulle figuren någon
+gång behöva stå på hundratals sidor är en cachad fil den bättre affären, och då
+faller rörelsen bort. **Rörelsen är alltså vad som betalar för inbakningen**,
+och det är skälet till att statiska förekomster inte automatiskt hör hemma
+inline.
+
+**Deras laddlägen:** listan får grå skelettkort, kartan får en liten mörk
+spinner och texten "Laddar karta…" på varm ton. Ingen illustration i något av
+dem. Designriktningen sätter alltså inte en figur i ett laddläge, och det är ett
+argument mot att vi gör det.
+
+### Duolingo: placeringen, inte figuren
+
+Ägarens fråga var VAR Duo står. Svaret är snävare än ryktet.
+
+**Duolingos egen 404 har ingen Duo.** Den är serverns oformaterade standardsida
+i Times New Roman: "404 Not Found. The resource could not be found." Företaget
+som är mest förknippat med en maskot lägger honom inte på sin 404. Vi gör det,
+och det är ett medvetet avsteg: vår 404 är en av trettiofyra sidor där han finns, hos
+dem är den en av tiotusentals skärmar där han inte finns.
+
+**Deras hjälpcenter har ingen Duo.** Bara ordmärket och en lista med frågor.
+
+**På startsidan står han inte som helfigur.** Han står som ett ANSIKTE inuti en
+telefonram, alltså samma beskurna huvud som deras app-ikon, inte en kropp med
+armar.
+
+Deras skrivguide, ordagrant hämtad samma dag: "Duo mostly stands still", "Duo
+makes slight, expressive movements, like waving or pumping his fist", "Duo
+doesn't make any sudden or quick movements". Och den mening som skiljer dem från
+oss: **"Duo communicates through text. You know it's from Duo if the copy says
+'Hi, it's Duo.'"** Duo får alltså vara avsändare av text i första person. Prikko
+får det inte, se §2 punkt 7, och skillnaden är inte estetisk: de driver ett spel,
+vi återger myndighetsbeslut.
+
+En regel ur deras illustrationsguide som är värd att pröva mot vår figur:
+skuggan under en karaktär ska vara en pillerform och aldrig en ellips, eftersom
+en ellips antyder ett perspektiv som resten av teckningen inte har. Vår figur
+har en skugga i `r-skugga`, och formen på den är inte prövad mot den regeln. Den
+ligger som öppen punkt i §6.
+
+**Sammanfattningen av hela researchen:** ingen av de fyra sätter en figur
+bredvid en post i sin katalog. Tre av fyra sätter aldrig en figur alls i
+produkten. Den enda som har en maskot håller honom borta från 404, hjälpcenter
+och laddskärmar. Vår figur står därför på trettiofyra sidor och inte på 15 916, och
+det är inte försiktighet utan vad kontrollen faktiskt visar.
+
 ## 5. Produkt och kommunikation är två discipliner
 
 Den vanligaste missen med en maskot är att blanda dem.
@@ -530,11 +675,119 @@ Fyndet är värt mer än ytan: det säger att den bärande regeln har konsekvens
 tekniken och inte bara i designen, och att sådana konsekvenser dyker upp där man
 inte letar. Den som senare bygger delningsbilder per sidtyp ska läsa §2 först.
 
+## 5c. Kostnaden är mätt i ett färdigt bygge, och den styr frekvensregeln
+
+Talen nedan är mätta i ett bygge om 16 611 sidor den 12 augusti 2026. Ingenting
+här är uppskattat.
+
+### Vad delarna väger var för sig
+
+| Vad | Rått | Noterat |
+|---|---|---|
+| Figurens svg | 14 864 till 15 635 B | Spannet är riggen: en figur med rörelse bär en namngiven led per del och väger 771 B mer |
+| Rörelsekatalogen i dokumentet | 14 735 B | Identisk på varje sida som bär rörelse |
+
+### Vad den faktiskt kostar på en sida, vilket är något annat
+
+Ett gzippat dokument komprimeras som en helhet, alltså kostar en figur mindre
+på en sida som redan är full av liknande svg-banor. Det verkliga påslaget är
+sidan med figur mot samma sida med figuren urklippt:
+
+| Sida | Påslag gzippat | Vad som ingår |
+|---|---|---|
+| `/stockholm/karta/` | **3 150 B** | figuren ensam, sidan är redan full av märken |
+| `/konto/` | 6 048 B | figuren ensam |
+| `/sok/` | 6 379 B | figur och rörelse |
+| en artikel | 8 379 B | figur och rörelse |
+| `/sluta-bevaka/` | 9 321 B | figur och rörelse, tunn sida |
+| `/404` | 9 329 B | figur och rörelse, tunn sida |
+| `/ratta/` | **9 408 B** | figur och rörelse, tunn sida |
+
+Alltså: en figur kostar mellan tre och nio kilobyte beroende på vad som redan
+står på sidan, och **den dyraste sidan är den tunnaste**. Hela programmet väger
+846 597 B rått och 231 509 B gzippat över bygget, snitt 6 809 B per sida.
+
+### Katalogen bar sina egna kommentarer ut i varje dokument
+
+Det var en riktig bugg och inte en skönhetsfläck. `maskot-rorelse.css` skrivs in
+i sidan som RÅ text, eftersom en riktig `<style>`-tagg hade scopats av Astro och
+då aldrig nått delarna riggen lindat in. Rå text går förbi stilpipelinen, alltså
+rörde ingen minifiering den, alltså följde 54 476 byte resonemang om Thomas och
+Johnston med ut i HTML-dokumentet.
+
+Vad det gjorde, mätt genom att byta tillbaka originalet i tre byggda sidor:
+
+| Sida | Nu | Utan avskalningen |
+|---|---|---|
+| `/ratta/` | 19 539 B gzippat | 38 800 B |
+| `/sok/` | 22 980 B gzippat | 42 182 B |
+| `/404` | 17 914 B gzippat | 37 181 B |
+
+**Sidan var mer än dubbelt så stor, och det som fördubblade den var
+kommentarer.** 19 200 B gzippat per sida gånger de 22 sidor som bär rörelse är
+423 kB över bygget, för text ingen webbläsare läser. Rörelsen kostade därmed
+fyra gånger mer än grävlingen den animerar.
+
+Kommentarerna skalas nu av i `Maskot.astro` vid inläsningen. Resultatet är byte
+för byte identiskt med källan efter normaliserad blankrad, kontrollerat på 314
+klamrar, 50 `@keyframes` och samtliga sjutton selektorer, och bygget bekräftar
+att katalogen ligger i dokumenten på exakt de 14 735 B som skrivs.
+
+Sensmoralen är generell och värd mer än de nitton kilobyten: **det som går förbi
+ett byggsteg går också förbi byggstegets mätning.** Ingen hade sett talet,
+eftersom ingen hade anledning att titta på storleken av något som "bara är CSS".
+
+### Summan, och svaret på nästa fråga
+
+Figuren står på **34 sidor av 16 611**, alltså 0,2 procent. Listan är framtagen
+genom att söka igenom hela `dist` och inte genom att räkna upp vad någon minns,
+och samma sökning bekräftar två saker: ingen sida bär mer än EN figur, och ingen
+verksamhetssida bär någon.
+
+Jämförelsen som avgör varje framtida fråga: figuren i sidfoten eller i
+sökpanelen hade betytt 15 916 sidor gånger omkring 6 kB, alltså **närmare
+100 MB gzippat**, och det är svaret nästa gång frågan ställs.
+
 ## 6. Vad som återstår
 
-- Tomma lägen är ännu inte byggda. Sökningen utan träffar renderas i
-  webbläsaren och behöver en egen lösning.
-- Startsidans hero är beslutad i princip men inte byggd.
+- Startsidans hero är beslutad i princip men inte byggd. `HeroVektor.astro`
+  arbetades på parallellt när ytorna byggdes, alltså lämnades index.astro
+  orörd. Frågan är inte om figuren får stå där, den är beslutad, utan hur han
+  och vektorheron delar plats.
+- **Hjälpcentret är ett öppet val, och det är ägarens.** Sidan är byggd och
+  ligger uppe. Ingen figur är införd där, med flit, eftersom beläggen pekar åt
+  två håll och beslutet därför inte ska fattas i förbifarten av den som råkade
+  bygga ytan.
+
+  *Rekommendationen:* EN figur i `clean` på hjälpens ingångssida, ingen på de
+  enskilda svaren. Ingången är en sida där tjänsten talar om sig själv, alltså
+  samma sorts yta som om- och metodiksidan, och där hör avsändaren hemma. De
+  enskilda svaren är innehåll man kommit till för att lösa ett problem, och en
+  figur bredvid ett svar på "varför står det ingen kontroll" är precis
+  Mailchimps förbud: figuren ger aldrig återkoppling på en uppgift.
+
+  *Emot, och det är det tyngsta belägget i hela researchen:*
+  `support.duolingo.com` har **ingen Duo alls**, varken på ingången eller på
+  artiklarna. Uppmätt live den 12 augusti 2026: sidan bär ordmärket, rubriken
+  "Frequently Asked Questions" och en lista med frågor, och ingenting annat.
+  Samma sak gäller deras 404, som är serverns oformaterade standardsida. Det
+  företag som är mest förknippat med en maskot håller alltså både hjälpen och
+  404:an fria från honom.
+
+  *Vad som ändå skiljer oss från dem:* Duo finns på tusentals skärmar i deras
+  app, alltså är hjälpen en av många ytor där han är frånvarande. Vår figur
+  finns på 32 sidor av 15 916. Frekvensargumentet som gör att de kan avstå är
+  alltså det motsatta hos oss, och det är skälet till att vi redan gjort
+  avsteget på 404. Frågan är om hjälpen är ett andra avsteg eller gränsen.
+
+  Byggs inte förrän beslutet är fattat.
+
+- **Skuggans form är inte prövad.** Duolingos illustrationsguide kräver att
+  skuggan under en karaktär är en pillerform och aldrig en ellips, eftersom en
+  ellips antyder ett perspektiv som resten av teckningen inte har. Vår figur har
+  en skugga, `r-skugga` i riggen, och den formen har aldrig ställts mot den
+  regeln. Det är en liten sak som syns på varje förekomst, alltså värd en egen
+  mätning i provarket. Görs inte nu.
 - **Utmärkelsen är ett öppet val, och det är ägarens.** Den är gränsfallet åt
   andra hållet: en glad grävling bredvid någon som klarat sig är beröm och inte
   hån, så den bärande regeln stoppar den inte.

@@ -16,6 +16,7 @@
  * namnet på verksamheten hämtas i webbläsaren med token ur adressen.
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import '../styles/konto.css';
 ---
 
@@ -37,13 +38,67 @@ import '../styles/konto.css';
         </button>
       </div>
 
-      <p class="konto-lead" id="after" hidden>
-        Vill du börja bevaka igen finns knappen kvar på verksamhetens sida.
-        <a href="/konto/">Dina bevakningar</a> ligger på ditt konto.
-      </p>
+      {/*
+        AVSKEDET, OCH VARFÖR DET ÄR EN VINKNING.
+
+        Rörelsekatalogen har haft `m-vinka` beskriven som "avsked" sedan den
+        skrevs och den har aldrig haft en yta. Det här är den: sidan är det
+        enda stället i produkten där någon faktiskt går, och det enda som
+        återstår efteråt är en artighet.
+
+        Ytan är rätt enligt den bärande regeln i docs/24 §2, och gränsen är
+        värd att skriva ut eftersom den ligger nära. Raden ovanför NÄMNER en
+        verksamhet vid namn, "Du bevakar inte Pizzeria X längre". Den säger
+        ingenting om verksamheten: ingen bedömning, ingen färg, inget märke,
+        ingen anmärkning. Regeln förbjuder figuren bredvid en BEDÖMNING av en
+        namngiven verksamhet, inte bredvid ett namn, och skillnaden är hela
+        skälet till att mejlets huvud får ha honom medan matsnusklistan inte
+        får det. Kommer det någonsin en bedömning på den här sidan ska figuren
+        bort samma dag.
+
+        Posen är `clean`, alltså viloläget, som är den enda pose vars högra
+        framtass sitter uppe: `klorHogt` i brand/maskot/gravling.mjs, med
+        tassen på 89, 42. En vinkning från `nojd`, vars tass ligger på 83, 90,
+        hade viftat i midjehöjd. En rörelse kan inte laga en pose.
+
+        `nojd` valdes bort av ett andra skäl också, och det är det tyngre: en
+        nöjd grävling när någon just tackat nej till oss läser som lättnad
+        över att bli av med dem.
+
+        Rörelsen går en gång, när blocket visas, alltså efter ett tryck som
+        besökaren själv gjort. Ingen loop, inget som ligger parallellt med
+        annat innehåll medan det snurrar, alltså ingen fråga om WCAG 2.2.2.
+
+        Kostnad: 4 939 B gzippat för figuren och 2 826 B för katalogen, på EN
+        sida, som dessutom är noindex och besöks en gång per bevakning.
+      */}
+      <div class="avsked" id="after" hidden>
+        <Maskot pose="clean" size={96} rorelse="m-vinka" />
+        <p class="konto-lead">
+          Vill du börja bevaka igen finns knappen kvar på verksamhetens sida.
+          <a href="/konto/">Dina bevakningar</a> ligger på ditt konto.
+        </p>
+      </div>
     </div>
   </div>
 </Base>
+
+<style>
+  /* Figuren står FÖRE texten och inte bredvid: hela kortet är smalt, och en
+     vinkning som ska gå att se behöver stå i mitten av det man tittar på. */
+  .avsked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-6);
+    text-align: center;
+  }
+
+  .avsked[hidden] { display: none; }
+
+  .avsked :global(p) { margin: 0; }
+</style>
 
 <script>
   import { configured, followByToken, stopFollowing } from '../lib/community';
@@ -52,7 +107,10 @@ import '../styles/konto.css';
   const actions = document.getElementById('actions') as HTMLDivElement;
   const one = document.getElementById('one') as HTMLButtonElement;
   const all = document.getElementById('all') as HTMLButtonElement;
-  const after = document.getElementById('after') as HTMLParagraphElement;
+  /* HTMLElement och inte HTMLParagraphElement: raden bär numera maskoten och
+     är därför en div. Ingen kod skriver textContent på den, alltså kan inte
+     figuren råka städas bort. */
+  const after = document.getElementById('after') as HTMLElement;
 
   const params = new URLSearchParams(location.search);
   const token = params.get('t') ?? '';

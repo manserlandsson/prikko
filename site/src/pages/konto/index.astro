@@ -24,6 +24,7 @@
  * hantera där, och en tom rubrik är ingen upplysning.
  */
 import Base from '../../layouts/Base.astro';
+import Maskot from '../../components/Maskot.astro';
 import { municipalities } from '../../lib/data';
 import '../../styles/konto.css';
 
@@ -69,7 +70,34 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
           Vi mejlar när kommunen hittar nya anmärkningar hos någon av dem.
         </p>
         <ul class="konto-list" id="follows"></ul>
-        <p class="konto-empty" id="follows-empty">Du bevakar ingen verksamhet än.</p>
+        {/*
+          Maskoten i tomt läge, samma yta och samma skäl som den tomma
+          notislistan och den tomma granskningskön: ett konto utan bevakningar
+          nämner ingen verksamhet, alltså finns ingen bedömning att stå
+          bredvid, och det är sajten som talar till en inloggad person om hens
+          eget konto.
+
+          ETT per sida. Sidan har två tomma lägen, det här och "Du har inte
+          skrivit något omdöme än" strax nedanför, och bara det första får
+          figur. Två grävlingar på samma skärm är inte en avsändare, det är ett
+          mönster, och docs/24 §2 säger ett per sida utan undantag. Det första
+          får den eftersom bevakningar är vad kontot är till för.
+
+          Statisk. Rörelse här hade legat parallellt med annat innehåll och
+          därmed fallit på WCAG 2.2.2, och den som är inloggad ser den här
+          skärmen ofta. Frekvensregeln i docs/24 §2 gäller även rörelse.
+
+          Felraden får INGEN figur, och det sköter sig självt: skriptet skriver
+          `followEmpty.textContent` när hämtningen misslyckas, vilket tar bort
+          svg:n i samma svep. Det är exakt vad docs/24 §2 punkt 8 kräver, och
+          skillnaden mot ett tomt läge är vem som orsakat det.
+
+          Kostnad: 4 939 B gzippat på EN sida, som dessutom är noindex.
+        */}
+        <div class="konto-empty" id="follows-empty">
+          <Maskot pose="tom" size={96} />
+          <p>Du bevakar ingen verksamhet än.</p>
+        </div>
       </section>
 
       <section class="konto-card">
@@ -133,7 +161,9 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     myUploads,
     deleteUpload,
     placeNames,
+    placeStates,
   } from '../../lib/community';
+  import type { PlaceState } from '../../lib/community';
   import { openSignIn } from '../../lib/signin-dialog';
 
   const guest = document.getElementById('guest') as HTMLDivElement;
@@ -143,7 +173,10 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
   const signoutButton = document.getElementById('signout') as HTMLButtonElement;
 
   const followList = document.getElementById('follows') as HTMLUListElement;
-  const followEmpty = document.getElementById('follows-empty') as HTMLParagraphElement;
+  /* HTMLElement och inte HTMLParagraphElement: raden bär numera maskoten och
+     är därför en div. Felgrenen nedan skriver textContent på den, vilket tar
+     bort figuren, och det är avsiktligt. Ett fel får ingen figur. */
+  const followEmpty = document.getElementById('follows-empty') as HTMLElement;
 
   const reviewList = document.getElementById('reviews') as HTMLUListElement;
   const reviewEmpty = document.getElementById('reviews-empty') as HTMLParagraphElement;
@@ -234,17 +267,60 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
   /* Bevakningar ------------------------------------------------------- */
 
   /*
-   * Verksamheten når man via sökningen och inte direkt.
+   * Sökningen är RESERVEN, inte vägen.
    *
    * `follows` lagrar namn och kommun, aldrig verksamhetens slug, och slugen
-   * går inte att räkna fram ur namnet i webbläsaren. Sökningen med namnet
-   * ifyllt är den ärliga vägen; en länk rakt till kommunsidan hade sett ut
-   * som en länk till stället.
+   * går inte att räkna fram ur namnet i webbläsaren. Den slås därför upp med
+   * de andra uppgifterna i placeStates(). Går den uppslagningen fel, eller har
+   * verksamheten avpublicerats sedan man tryckte Följ, finns ingen adress att
+   * länka till, och då är sökningen med namnet ifyllt den ärliga vägen. En
+   * gissad adress hade sett ut som en länk till stället.
    */
   function searchUrl(name: string): string {
     return `/sok/?q=${encodeURIComponent(name)}`;
   }
 
+  /** Datum på svenska, samma form som notislistan och notismejlet skriver. */
+  const MONTHS = [
+    'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+    'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+  ];
+
+  function swedishDate(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  /*
+   * Bedömningens tre ord, ordagrant som på verksamhetssidan.
+   *
+   * Upprepade här och inte importerade ur lib/site: den modulen drar in
+   * bygg-data som inte hör hemma i paketet för en inloggad sida. Ändras ett
+   * ord där måste det ändras här, vilket är priset för att kontosidan inte
+   * ska bära beståndet.
+   *
+   * Ingen färgskala i sig, bara samma bläck som statusetiketterna redan
+   * använder. En rad som bara är färgad säger ingenting för den som inte ser
+   * färg; det är ordet som bär beskedet.
+   */
+  const VERDICT_LABEL: Record<string, string> = {
+    clean: 'Inga anmärkningar',
+    minor: 'Brister',
+    major: 'Brister som kvarstår',
+  };
+
+  /**
+   * Bevakningarna, med läget hos varje ställe.
+   *
+   * Raden sade tidigare bara namn och stad, alltså exakt lika mycket som den
+   * sagt den sekund man tryckte Följ. Att bevaka något vars läge man ändå
+   * måste gå och titta efter är ingen bevakning.
+   *
+   * Ordningen är senaste kontroll först, inte när man tryckte Följ. Det är
+   * listans enda uppgift: säga vad som hänt sedan sist. Ställen utan känt
+   * datum ligger sist, för de har ingenting att sortera på.
+   */
   async function paintFollows() {
     let rows: Awaited<ReturnType<typeof follows>> = [];
     try {
@@ -254,16 +330,44 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       return;
     }
 
+    /* ETT anrop för hela listan. Faller det står raderna kvar med namn och
+       stad, alltså som förut, i stället för att listan uteblir. */
+    let states = new Map<string, PlaceState>();
+    try {
+      states = await placeStates(rows.map((row) => row.establishment_id));
+    } catch {
+      /* Utan läge duger namnet. Bevakningen är fortfarande ens egen. */
+    }
+
+    const sorted = [...rows].sort((a, b) => {
+      const one = states.get(a.establishment_id)?.latest_inspection ?? '';
+      const two = states.get(b.establishment_id)?.latest_inspection ?? '';
+      return two.localeCompare(one);
+    });
+
     followList.textContent = '';
-    for (const row of rows) {
+    for (const row of sorted) {
+      const state = states.get(row.establishment_id);
       const li = document.createElement('li');
+
+      const city = CITIES[row.municipality_slug] ?? row.municipality_slug;
+      /* Namnet ur uppslagningen när den finns: en verksamhet som bytt namn
+         sedan man tryckte Följ ska stå med det namn sidan den länkar till
+         bär. Kopian på bevakningsraden är en reserv och inte sanningen. */
+      const name = state?.name ?? row.establishment_name;
+
       li.append(
         main(
-          row.establishment_name,
-          CITIES[row.municipality_slug] ?? row.municipality_slug,
-          searchUrl(row.establishment_name),
+          name,
+          state?.latest_inspection
+            ? `${city} · Kontrollerad ${swedishDate(state.latest_inspection)}`
+            : city,
+          state ? `/${state.municipality_slug}/${state.slug}/` : searchUrl(name),
         ),
         side(
+          ...(state?.verdict && VERDICT_LABEL[state.verdict]
+            ? [verdictTag(state.verdict)]
+            : []),
           quietButton('Sluta bevaka', async () => {
             await unfollow(row.establishment_id);
             li.remove();
@@ -274,6 +378,14 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       followList.append(li);
     }
     followEmpty.hidden = rows.length > 0;
+  }
+
+  /** Bedömningen som etikett, samma form som statusetiketterna på sidan. */
+  function verdictTag(verdict: string): HTMLSpanElement {
+    const span = document.createElement('span');
+    span.className = `status-tag verdict-${verdict}`;
+    span.textContent = VERDICT_LABEL[verdict];
+    return span;
   }
 
   /* Omdömen ----------------------------------------------------------- */
@@ -444,7 +556,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
        för hela listan, inte ett per bild. En verksamhet som avpublicerats
        sedan bilden skickades saknas i svaret, och raden får då stå utan namn
        i stället för att utelämnas. */
-    let names = new Map<string, { name: string }>();
+    let names = new Map<string, { name: string; slug: string; municipality_slug: string }>();
     try {
       names = await placeNames(rows.map((row) => row.establishment_id));
     } catch {
@@ -455,11 +567,19 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     for (const row of rows) {
       const li = document.createElement('li');
 
-      const box = document.createElement('div');
+      /* Raden länkar till verksamheten, precis som omdömesraden gör.
+         En publicerad bild ska gå att gå och titta på, och det var enda
+         skillnaden mellan de två listorna. Saknas uppslagningen står raden
+         kvar som en div: en gissad adress är sämre än ingen. */
+      const plats = names.get(row.establishment_id);
+      const box = document.createElement(plats ? 'a' : 'div');
       box.className = 'konto-main';
+      if (plats) {
+        (box as HTMLAnchorElement).href = `/${plats.municipality_slug}/${plats.slug}/#bilder`;
+      }
 
       const title = document.createElement('b');
-      title.textContent = names.get(row.establishment_id)?.name ?? 'Verksamheten';
+      title.textContent = plats?.name ?? 'Verksamheten';
       box.append(title);
 
       const where = document.createElement('span');

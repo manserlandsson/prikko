@@ -21,6 +21,7 @@
  */
 import Base from '../layouts/Base.astro';
 import FaceSprite from '../components/FaceSprite.astro';
+import Maskot from '../components/Maskot.astro';
 import { coverage, formatNumber, municipalities } from '../lib/data';
 import { FACE_SPRITE_ID } from '../lib/face';
 import { siteCommandList } from '../lib/kommandon';
@@ -94,6 +95,50 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
     </section>
 
     <ul id="results" class="results"></ul>
+
+    {/*
+      TOMT SÖKRESULTAT.
+
+      Ytan är rätt enligt den bärande regeln i docs/24 §2, och det är just
+      tomheten som gör den rätt: finns ingen träff finns ingen verksamhet på
+      skärmen, alltså ingen bedömning att stå bredvid. Blocket visas därför
+      BARA i det helt tomma läget. Ger sökningen kommuner eller sidor men
+      inga verksamheter står figuren still, eftersom sidan då svarar med
+      något och inte med ingenting.
+
+      Formen är lånad rakt av från booli.se, uppmätt i deras eget gränssnitt
+      den 12 augusti 2026: rubriken bär vad som hände, raden under bär VAD MAN
+      GÖR ÅT DET, och bilden står bredvid texten i stället för ovanför den.
+      Deras illustration är 128 px och deras rubrik 24/32. Skillnaden är vad
+      bilden föreställer: Booli ritar handlingen, ett finger som drar i ett
+      filter, medan vi ställer dit avsändaren. Vi har råd med det de inte har,
+      eftersom vi har en figur och de har ett bibliotek med situationsbilder.
+
+      Statusraden ovanför behåller sin mening och sin aria-live. Texten här
+      upprepar den alltså inte, den fortsätter den: skärmläsaren ska höra vad
+      som hände en gång, inte två.
+
+      Rörelsen är spaningen, som är den enda ägaren godkänt, och den är den
+      enda i katalogen vars innebörd sammanfaller med vad sidan är: han letar
+      vidare. Den startar när blocket visas och inte när sidan laddas, se
+      observatören i Maskot.astro, alltså går den exakt en gång och exakt när
+      någon faktiskt fick noll träffar.
+
+      Kostnad: 4 939 B gzippat för figuren och 2 826 B för katalogen, på EN
+      sida. Sökpanelen i sidhuvudet får samma text men ingen figur, och det
+      är inte en smakfråga: panelen ligger på samtliga 15 916 sidor.
+    */}
+    <div class="tomt" id="tomt" hidden>
+      <div class="tomt-text">
+        <p class="tomt-rad">
+          Prova ett kortare ord, eller stavningen som står på skylten.
+        </p>
+        <p class="tomt-rad text-secondary">
+          Alla kommuner vi täcker ligger längst ner på sidan.
+        </p>
+      </div>
+      <Maskot pose="tom" size={104} rorelse="m-spana" />
+    </div>
 
     {/* Sidorna EFTER träffarna, av samma skäl som i panelen: den som söker
         en restaurang ska inte få metodiksidan först. */}
@@ -191,6 +236,46 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
     font-size: var(--fs-caption);
     font-weight: 600;
     flex-shrink: 0;
+  }
+
+  /* Det tomma läget. Text till vänster, figuren till höger, samma uppställning
+     som booli.se har på sitt "Inga träffar i din sökning" och av samma skäl:
+     en figur ovanpå texten läser som en illustrerad rubrik, en figur BREDVID
+     texten läser som att någon står där och svarar.
+
+     `align-items: center` och inte `flex-start`: figuren är kvadratisk och
+     tyngdpunkten sitter i mitten, alltså hamnar hans blick i höjd med raden
+     man ska läsa.
+
+     Under 34 rem faller figuren ovanför texten i stället för bredvid, eftersom
+     104 px bredvid en textrad på en telefon lämnar tjugo tecken per rad. */
+  .tomt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-6);
+    margin-top: var(--s-6);
+    padding-block: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .tomt[hidden] { display: none; }
+
+  .tomt-text { min-width: 0; }
+
+  .tomt-rad {
+    margin: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .tomt-rad + .tomt-rad { margin-top: var(--s-1); }
+
+  @media (max-width: 34rem) {
+    .tomt {
+      flex-direction: column-reverse;
+      align-items: flex-start;
+      gap: var(--s-4);
+    }
   }
 
   /* Kommunerna och sidorna. Samma rad som sökpanelen ritar, alltså samma
@@ -336,6 +421,9 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
   const kommunRows = document.getElementById('kommun-rows');
   const sidorBlock = document.getElementById('sidor-block');
   const sidorRows = document.getElementById('sidor-rows');
+  /* Maskotens block. Står utanför if-satsens villkor med flit: saknas det ska
+     sökningen fungera ändå, för figuren är avsändare och inte funktion. */
+  const tomt = document.getElementById('tomt');
 
   if (form && input && results && status && kommunBlock && kommunRows && sidorBlock && sidorRows) {
     const spriteId = form.dataset.sprite!;
@@ -366,6 +454,12 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
     function render(term: string) {
       const text = term.trim();
       const q = normalise(text);
+
+      /* Figuren döljs FÖRST i varje varv och tänds bara i det ena läge som
+         förtjänar honom. Skrivs den raden i stället i varje utgång glömmer
+         någon en av dem, och då står grävlingen kvar bredvid fyrtio träffar. */
+      if (tomt) tomt.hidden = true;
+
       if (q.length < 2) {
         results!.innerHTML = '';
         status!.textContent = '';
@@ -419,6 +513,16 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
         : kommunRows!.children.length || sidorRows!.children.length
           ? `Ingen verksamhet matchar ”${text}”.`
           : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
+
+      /* Det HELT tomma läget, alltså varken verksamhet, kommun eller sida.
+         Bara där. Ger sökningen en kommun har sidan svarat på frågan, och en
+         grävling som säger "här finns ingenting" bredvid en rad som säger
+         "Stockholm" är ett svar som motsäger sig självt. */
+      if (tomt) {
+        tomt.hidden = !(
+          !found && !kommunRows!.children.length && !sidorRows!.children.length
+        );
+      }
 
       results!.innerHTML = shown
         .map((s) => {
