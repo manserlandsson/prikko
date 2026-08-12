@@ -33,6 +33,8 @@
  * har därför ingen listvariant och ska inte få någon.
  */
 import { FIGUR_MARKUP } from '../lib/face-geometri';
+import { rigga } from '../lib/maskot-rigg.mjs';
+import KATALOG from '../styles/maskot-rorelse.css?raw';
 
 export type MaskotPose =
   | 'clean'
@@ -65,16 +67,41 @@ interface Props {
    */
   alt?: string;
   class?: string;
+  /**
+   * Rörelse ur katalogen i styles/maskot-rorelse.css, till exempel 'm-spana'.
+   *
+   * Sätts den så riggas figuren, alltså varje del får en namngiven led som
+   * stilmallen kan peka på, och katalogen laddas. Sätts den inte händer
+   * ingenting alls: ingen rigg, inget stilark, ingen kostnad. Det är avsiktligt
+   * och det är hela poängen med att rörelsen är en PROP och inte en förvald
+   * egenskap. Figuren står på sidor som ska vara snabba, och en sida som inte
+   * ber om rörelse ska inte betala för den.
+   */
+  rorelse?: string;
 }
 
-const { pose = 'clean', size = 120, alt = '', class: klass } = Astro.props;
+const { pose = 'clean', size = 120, alt = '', class: klass, rorelse } = Astro.props;
 
-const markup = FIGUR_MARKUP[pose] ?? FIGUR_MARKUP.clean;
+const rent = FIGUR_MARKUP[pose] ?? FIGUR_MARKUP.clean;
 const dold = alt === '';
+
+/**
+ * Riggen läser en hel svg och inte lös markup, eftersom den letar rätt på
+ * rotnoden för att veta var kroppen börjar. FIGUR_MARKUP är bara innehållet,
+ * så det lindas i en svg inför riggningen och skalas av efteråt. Att i stället
+ * låta riggen sätta rotens klass hade betytt att komponenten tappade sin egen
+ * svg med aria och storlek, och det är den som är kontraktet utåt.
+ */
+let markup = rent;
+if (rorelse) {
+  const { svg: riggad } = rigga(`<svg viewBox="0 0 120 120">${rent}</svg>`);
+  markup = riggad.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+}
 ---
 
 <svg
-  class:list={['maskot', klass]}
+  class:list={['maskot', rorelse && 'r-figur', klass]}
+  data-rorelse={rorelse}
   width={size}
   height={size}
   viewBox="0 0 120 120"
@@ -92,4 +119,49 @@ const dold = alt === '';
     display: block;
     flex-shrink: 0;
   }
+
+  /* Rörelsen sträcker sig utanför rutan: örat spetsas uppåt, hoppet lyfter
+     figuren tjugo pixlar. Utan det här klipps den mot sin egen viewBox mitt i
+     rörelsen. */
+  .maskot.r-figur {
+    overflow: visible;
+  }
 </style>
+
+{/* Katalogen skrivs in i sidan bara när någon ber om en rörelse.
+
+    Ett vanligt `import '../styles/maskot-rorelse.css'` hade Astro hissat till
+    varje sida som använder komponenten, oavsett prop, alltså ett kilobytetungt
+    stilark på sidor som står helt stilla. Katalogen läses därför som text och
+    skrivs ut som en rå style-tagg, och Fragment används i stället för ett
+    style-element, eftersom Astro kompilerar och scopar riktiga style-taggar och
+    då aldrig skulle nå fram till delarna som riggen har lindat in. */}
+{rorelse && <Fragment set:html={`<style>${KATALOG}</style>`} />}
+
+{/* Rörelsen startar när figuren syns, inte när sidan laddas.
+
+    Katalogens rörelser går med `both`, alltså direkt vid inläsning. Det är
+    rätt för en figur högst upp och fel för en som står längst ned i en artikel:
+    då har den redan spelat färdigt innan läsaren har scrollat dit, och det enda
+    som återstår är en stillbild. En observatör kostar några rader och gör att
+    varje figur rör sig exakt en gång, när någon faktiskt tittar på den.
+
+    Skriptet är is:inline och avsiktligt utan buntning: det är kortare än
+    importraden som annars hade lagts till sidan. */}
+{rorelse && (
+  <script is:inline>
+    document.querySelectorAll('svg[data-rorelse]:not([data-igang])').forEach((figur) => {
+      figur.dataset.igang = '1';
+      const start = () => figur.classList.add(figur.dataset.rorelse);
+      if (!('IntersectionObserver' in window)) return start();
+      const oga = new IntersectionObserver((poster) => {
+        for (const post of poster) {
+          if (!post.isIntersecting) continue;
+          start();
+          oga.disconnect();
+        }
+      }, { threshold: 0.4 });
+      oga.observe(figur);
+    });
+  </script>
+)}

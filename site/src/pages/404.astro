@@ -66,7 +66,11 @@ const total = coverage();
         inte kunna smitta av sig på en figur som bara säger att en adress inte
         leder någonstans. Ingen lånad illustration och ingen 404 i jättegrad,
         som blivit den generiska lösningen. */}
-    <Maskot pose="fyrafyra" size={132} />
+    {/* Spaningen. Figuren tittar sig omkring efter en sida som inte finns, och
+        det är den enda rörelsen i katalogen vars innebörd sammanfaller med vad
+        sidan säger. Den går en gång vid laddning och sedan är den klar, för en
+        figur som letar i evighet på en 404 är en figur som aldrig hittar. */}
+    <Maskot pose="fyrafyra" size={132} rorelse="m-spana" />
 
     <h1>Sidan finns inte</h1>
     <p class="lede">

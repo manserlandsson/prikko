@@ -144,11 +144,12 @@ const years = (days: number) => Math.floor(days / 365);
    * datan inte kan visa, inte ett omdöme om verksamheten. Röd eller gul hade
    * lånat betydelse från bedömningsnivåerna och lagt ännu ett larm på en sida
    * som redan har ett. */
+  /* Ingen egen ruta. Förbehållet stod tidigare i en inramad ruta, och en ram
+     är en signal om att något är avgränsat och viktigt nog att lyftas ur
+     texten. Det här är en fotnot till listan under, inte en varning, och
+     ramen gav den en tyngd som fick hela avsnittet att se ut som ett larm. */
   .caveat {
-    margin-top: var(--s-4);
-    padding: var(--s-3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
+    margin-top: var(--s-3);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);

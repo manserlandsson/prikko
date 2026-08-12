@@ -124,6 +124,12 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     inset: auto;
     width: max-content;
     max-width: 260px;
+    /* Webbläsarens egen regel för [popover] sätter overflow: auto, och en
+       bubbla som är två rader text fick därmed en rullningslist när höjden
+       råkade bli en pixel knappare än innehållet. Ett verktygstips ska aldrig
+       gå att rulla i: får texten inte plats är texten för lång, och då är det
+       texten som ska kortas. */
+    overflow: visible;
     font-size: var(--fs-caption);
     line-height: 17px;
     font-weight: 400;

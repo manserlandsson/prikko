@@ -398,11 +398,31 @@ export function rigga(indata, { klass = '' } = {}) {
   const ansikte = lasAnsikte(svgNod, mark);
 
   /* Insättningen. Varje märkt nod får en tom omslutande grupp; se
-     modulkommentaren för varför det inte räcker att sätta en klass. */
+     modulkommentaren för varför det inte räcker att sätta en klass.
+     ────────────────────────────────────────────────────────────────────────
+     Varje insättning är en EGEN punkt, och punkterna sorteras tillsammans.
+     Att i stället sortera per NOD och skriva parets båda taggar i en följd är
+     rätt så länge noderna är syskon och fel så snart en förälder är märkt
+     tillsammans med sina barn: föräldern har lägst start och behandlas därför
+     sist, medan barnens insättningar redan har flyttat föräldrans slutindex
+     framåt. Föräldrans `</g>` landade då mitt inne i ett attributvärde, till
+     exempel `ry="4</g>.2"` på höger öra, och `</g>` klipptes in i höger
+     ögonbryns `d`. Ingenting kastade fel: taggarna gick jämnt ut, `saknas` var
+     tom, och ändå saknade varje riggad figur ett öra och ett ögonbryn.
+
+     Vid samma position skrivs öppningen före stängningen, eftersom den som
+     skrivs sist hamnar först i strängen. Två angränsande syskon ska bli
+     `</g><g class="...">` och inte tvärtom. */
+  const punkter = [];
+  for (const { nod, namn } of jobb) {
+    punkter.push({ pos: nod.start, text: `<g class="${namn}">`, oppning: true });
+    punkter.push({ pos: nod.slut, text: '</g>', oppning: false });
+  }
+  punkter.sort((a, b) => b.pos - a.pos || Number(b.oppning) - Number(a.oppning));
+
   let ut = svg;
-  for (const { nod, namn } of jobb.sort((a, b) => b.nod.start - a.nod.start)) {
-    ut = ut.slice(0, nod.slut) + '</g>' + ut.slice(nod.slut);
-    ut = ut.slice(0, nod.start) + `<g class="${namn}">` + ut.slice(nod.start);
+  for (const { pos, text } of punkter) {
+    ut = ut.slice(0, pos) + text + ut.slice(pos);
   }
 
   /* Rotens egen klass. Hela figuren ska kunna komma in, hoppa och tona. */
