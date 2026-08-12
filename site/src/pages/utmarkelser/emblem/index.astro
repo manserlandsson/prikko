@@ -1,0 +1,452 @@
+---
+/**
+ * Emblemsidan: en enda sida, och skälet till att det blev en enda står i
+ * lib/emblem.ts.
+ *
+ * Sidan har två publiker och de kommer från olika håll.
+ *
+ *   VERKSAMHETEN kommer från utgåvan eller från sigillet på sin egen sida och
+ *   vill ha filerna och koden. Det är avsnittet "Hämta".
+ *
+ *   FÖRBIPASSERANDE kommer från Google efter att ha sett en blå lagerkrans med
+ *   "prikko 2026" i ett fönster och vill veta vad den betyder. Det är rubriken
+ *   och de första styckena, och det är den sökningen sidan är byggd att svara
+ *   på: den finns inte på någon annan sida hos oss.
+ *
+ * Väljaren är en `<select>` och inte ett sökfält. 254 rader grupperade på
+ * kommun ryms i en, webbläsarens egen skrivsökning hittar rätt post på tre
+ * bokstäver, och den fungerar med tangentbord och skärmläsare utan att vi
+ * bygger om det. Ett eget sökfält hade krävt ett index, en lista, en
+ * markörhantering och fyra aria-attribut för att bli exakt lika bra.
+ *
+ * Utan JavaScript står snutten kvar med adressen `/kommun/verksamhet/` i sig,
+ * alltså en mall någon kan ändra en rad i för hand. Filerna är generiska och
+ * går att ladda ner oavsett.
+ */
+import Base from '../../../layouts/Base.astro';
+import AwardSeal from '../../../components/AwardSeal.astro';
+import { formatDate, formatNumber } from '../../../lib/data';
+import { SITE } from '../../../lib/site';
+import { absolute, path } from '../../../lib/urls';
+import { latestEdition } from '../../../lib/utmarkelser';
+import {
+  EMBED_WIDTH,
+  emblemFiles,
+  emblemHolders,
+  emblemSnippet,
+  holderKey,
+  holdersByCity,
+} from '../../../lib/emblem';
+
+const edition = latestEdition();
+if (!edition) throw new Error('Ingen utgåva finns. Kör scripts/utmarkelser.mjs.');
+
+const year = edition.year;
+const holders = emblemHolders();
+const groups = holdersByCity();
+const files = emblemFiles(year);
+
+/**
+ * Snutten som mall, med en adress som är läsbar som en lucka.
+ *
+ * Servern renderar mallen, skriptet byter ut den ena strängen mot den valda
+ * verksamhetens adress. Det håller EN beskrivning av snutten, i lib/emblem.ts,
+ * i stället för en i TypeScript och en till i webbläsaren.
+ */
+const PLACEHOLDER = absolute('kommun', 'verksamhet');
+const template = emblemSnippet({
+  municipality: 'kommun',
+  municipalityName: '',
+  city: '',
+  slug: 'verksamhet',
+  name: '',
+  year,
+});
+
+const description =
+  `Den blå lagerkransen med årtalet står för Prikkos utmärkelse för genomgående skötsamhet. ` +
+  `${formatNumber(holders.length)} verksamheter i ${year} års utgåva får sätta upp den. ` +
+  'Här finns märket som SVG och PNG, och koden som lägger det på en egen webbplats.';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Emblemet',
+  description,
+  inLanguage: 'sv-SE',
+  url: absolute('utmarkelser', 'emblem'),
+  isPartOf: { '@type': 'WebPage', url: absolute('utmarkelser') },
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+};
+---
+
+<Base
+  title="Emblemet"
+  description={description}
+  jsonLd={jsonLd}
+  dataUpdated={edition.asOf}
+>
+  <article class="container page">
+    {/* Brödsmulor och inte en eyebrow. Utgåvans kommunsidor ser likadana ut,
+        och en eyebrow som säger "Utmärkelser" ovanför en brödsmula som redan
+        säger Utmärkelser är samma ord två gånger på två rader. */}
+    <nav class="crumbs text-secondary" aria-label="Brödsmulor">
+      <a href={path('utmarkelser')}>Utmärkelser</a>
+      <span aria-hidden="true">›</span>
+      <a href={path('utmarkelser', year)}>{year}</a>
+      <span aria-hidden="true">›</span>
+      <span>Emblemet</span>
+    </nav>
+
+    <header>
+      <h1>Emblemet</h1>
+      <p class="lede text-secondary">
+        Märket får sättas upp av de {formatNumber(holders.length)} verksamheter
+        som står i {year} års utgåva av utmärkelsen för genomgående skötsamhet.
+        På en webbplats, i ett fönster, i ett inlägg.
+      </p>
+    </header>
+
+    <section class="visning">
+      <AwardSeal year={year} width={220} decorative />
+      <div>
+        <h2>Vad det säger</h2>
+        <p>
+          Verksamheten hade den längsta obrutna raden av kontroller utan en enda
+          anmärkning i sin kommun när {year} års utgåva frystes
+          {' '}{formatDate(edition.asOf)}.
+        </p>
+        <p>
+          Årtalet står i ritningen. Märket säger därför ingenting om hur det ser
+          ut i dag, och kan aldrig bli osant där det sitter. Dagens bedömning
+          står på verksamhetens egen sida, dit märket länkar.
+        </p>
+        <p>
+          <a href={path('utmarkelser', year)}>Se hela {year} års lista</a> ·
+          {' '}<a href={path('utmarkelser')}>Vad som krävs</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="hamta">
+      <h2>Hämta</h2>
+
+      <div
+        class="valj"
+        data-emblem
+        data-placeholder={PLACEHOLDER}
+        data-origin={SITE.url}
+      >
+        <label for="verksamhet">Verksamhet</label>
+        <select id="verksamhet" name="verksamhet">
+          <option value="">Välj i listan</option>
+          {groups.map((g) => (
+            <optgroup label={g.city}>
+              {g.holders.map((h) => (
+                <option value={holderKey(h)}>{h.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <p class="caption text-muted hint">
+          Står inte verksamheten här har den inte utmärkelsen i {year} års utgåva.
+        </p>
+      </div>
+
+      <h3>Koden till en webbplats</h3>
+      <p class="text-secondary">
+        Klistra in där märket ska stå. Adressen i första raden byts mot
+        verksamhetens egen när den är vald ovan.
+      </p>
+      <pre class="kod"><code id="snutt" data-template={template}>{template}</code></pre>
+      <p class="knapprad">
+        <button type="button" class="btn-ghost" id="kopiera" hidden>Kopiera koden</button>
+        <span class="caption text-muted" id="kvittens" role="status"></span>
+      </p>
+
+      <h3>Filerna</h3>
+      <ul class="filer">
+        {files.map((f) => (
+          <li>
+            <a href={f.href} download>{f.label}</a>
+            <span class="caption text-muted">{f.purpose}. {f.size}.</span>
+          </li>
+        ))}
+      </ul>
+      <p class="caption text-muted">
+        SVG till webben, PNG till tryck och sociala medier. Filerna är desamma
+        för alla i utgåvan: det som skiljer ett emblem från ett annat är länken
+        det sitter i.
+      </p>
+    </section>
+
+    <section id="villkor">
+      <h2>Villkor</h2>
+      <ol class="villkor">
+        <li>
+          <strong>Vem.</strong> Märket hör till den verksamhet som står i
+          utgåvan, på den adressen. Det följer inte med till ett annat ställe,
+          en annan enhet i samma kedja eller ett nytt bolag på samma skylt.
+        </li>
+        <li>
+          <strong>Länken ska finnas kvar.</strong> På en webbplats ska märket
+          vara en länk till verksamhetens sida hos oss. Den länken är skälet
+          till att märket får sitta uppe: dagens bedömning är alltid ett klick
+          bort.
+        </li>
+        <li>
+          <strong>Ritningen ändras inte.</strong> Inte färgen, inte
+          proportionerna, inte årtalet. Ingen beskärning, ingen egen text i
+          eller ovanpå märket, ingenting som får det att se ut som ett annat år
+          eller en annan utmärkelse.
+        </li>
+        <li>
+          <strong>Ordet bredvid.</strong> Skriv gärna vad märket är. Skriv inte
+          att verksamheten är godkänd, certifierad eller kontrollerad av oss,
+          och skriv inte att den är bäst. Utmärkelsen är ett erkännande från
+          Prikko, inte ett myndighetsbeslut.
+        </li>
+        <li>
+          <strong>Det kostar inget och går inte att köpa.</strong> Varken märket
+          eller platsen i utgåvan.
+        </li>
+        <li>
+          <strong>Vi kan säga ifrån.</strong> Använder någon märket utan att stå
+          i en utgåva, eller i strid med punkterna ovan, ber vi att det tas ned.
+        </li>
+      </ol>
+      <p class="caption text-muted">
+        <a href={path('villkor')}>Villkor för att använda Prikko</a> ·
+        {' '}<a href={path('utmarkelser')}>Utmärkelsen</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-read);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    font-size: var(--fs-body-s);
+  }
+
+  .crumbs a { color: inherit; }
+
+  h1 {
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+    margin-top: var(--s-4);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+
+  section h3 {
+    margin-top: var(--s-8);
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+  }
+
+  section p { line-height: var(--lh-body); }
+  section p + p { margin-top: var(--s-4); }
+
+  /* Märket och meningen om vad det betyder står tillsammans. Samma form som
+     seal-block på /utmarkelser/, men utan platta: den här sidan är en läsande
+     sida och huvudkolumnen bär inga ramar. */
+  .visning {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-6);
+    margin-top: var(--s-12);
+  }
+
+  .visning h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .visning p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .visning p + p { margin-top: var(--s-3); }
+
+  .valj {
+    margin-bottom: var(--s-8);
+  }
+
+  .valj label {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    margin-bottom: var(--s-2);
+  }
+
+  .valj select {
+    width: 100%;
+    max-width: 420px;
+    padding: 11px var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: var(--text);
+    font: 400 var(--fs-body-s)/1.4 var(--font-sans);
+  }
+
+  .hint { margin-top: var(--s-2); }
+
+  /* Kodrutan får en botten. Det är inte en ram runt innehåll utan märkningen
+     av att strängen ska läsas tecken för tecken och kopieras hel. */
+  .kod {
+    margin: 0;
+    padding: var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow-x: auto;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body-s);
+  }
+
+  .kod code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+
+  .knapprad {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-3);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 9px 18px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .btn-ghost:hover { background: var(--canvas); }
+
+  .filer {
+    list-style: none;
+    margin: 0 0 var(--s-4);
+    padding: 0;
+  }
+
+  /* Namnet på egen rad och beskrivningen under, inte bredvid. Bredvid ser
+     jämnt ut tills en av de tre beskrivningarna är längre än raden, och då
+     bryter just den ned medan de andra står kvar. */
+  .filer li {
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .filer li:first-child { border-top: 1px solid var(--hairline); }
+
+  .filer a {
+    display: block;
+    font-weight: 600;
+  }
+
+  .filer span {
+    display: block;
+    margin-top: var(--s-1);
+  }
+
+  .villkor {
+    margin: 0 0 var(--s-4);
+    padding-left: var(--s-4);
+  }
+
+  .villkor li {
+    margin-top: var(--s-3);
+    line-height: var(--lh-body);
+  }
+
+  @media (max-width: 560px) {
+    .visning {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--s-4);
+    }
+  }
+</style>
+
+<script>
+  /**
+   * Väljaren skriver om en enda sträng i snutten.
+   *
+   * Mallen kommer från servern och byggs av `emblemSnippet` i lib/emblem.ts.
+   * Skriptet bygger alltså aldrig en egen snutt: gör det någon, då finns två
+   * beskrivningar av samma kod och den ena kommer att sluta stämma.
+   *
+   * Adressen kan komma med i länken hit som `?v=stockholm/ag`, så att en länk
+   * från utgåvan eller ur ett mejl landar färdigt vald. Värdet sätts på
+   * `<select>` och accepteras bara om det finns som alternativ, alltså kan
+   * ingen adress få sidan att visa en snutt för något som saknar utmärkelse.
+   */
+  const root = document.querySelector<HTMLElement>('[data-emblem]');
+  const select = document.getElementById('verksamhet') as HTMLSelectElement | null;
+  const code = document.getElementById('snutt');
+  const copy = document.getElementById('kopiera') as HTMLButtonElement | null;
+  const note = document.getElementById('kvittens');
+
+  if (root && select && code) {
+    const placeholder = root.dataset.placeholder ?? '';
+    const origin = root.dataset.origin ?? location.origin;
+    const template = code.dataset.template ?? code.textContent ?? '';
+
+    function paint() {
+      const key = select!.value;
+      const url = key ? `${origin}/${key}/` : placeholder;
+      code!.textContent = template.replace(placeholder, url);
+    }
+
+    select.addEventListener('change', paint);
+
+    /* Förvalet ur adressen. `select.value` blir tomt av sig själv om värdet
+       inte finns bland alternativen, och då visas mallen som vanligt. */
+    const wanted = new URLSearchParams(location.search).get('v');
+    if (wanted) {
+      select.value = wanted;
+      paint();
+    }
+
+    /* Knappen finns bara där urklipp finns, som delaknappen i handlingsraden.
+       Utan JavaScript eller utan urklipp markerar man koden och kopierar den
+       som vilken text som helst, och då ska ingen död knapp stå kvar. */
+    if (copy && typeof navigator.clipboard?.writeText === 'function') {
+      copy.hidden = false;
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code!.textContent ?? '');
+          if (note) note.textContent = 'Koden är kopierad.';
+        } catch {
+          if (note) note.textContent = 'Kunde inte kopiera. Markera koden i stället.';
+        }
+      });
+    }
+  }
+</script>

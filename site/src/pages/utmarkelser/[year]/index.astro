@@ -177,10 +177,12 @@ const jsonLd = {
           att den fanns med i {e.year} års utgåva, inte hur det ser ut i dag, så
           ett märke som sitter kvar i ett fönster kan inte bli osant.
         </p>
+        {/* Länken gick förut rakt till SVG-filen. Den ensam räckte inte: en
+            verksamhet som laddat ner ritningen har fortfarande varken koden som
+            lägger den på en sajt, en PNG att skriva ut eller villkoren. Allt
+            det står på emblemsidan, och filen ligger kvar som första rad där. */}
         <p>
-          <a href={path('utmarkelser', e.year) + 'marke.svg'} download={`prikko-${e.year}.svg`}>
-            Ladda ner märket som SVG
-          </a>
+          <a href={path('utmarkelser', 'emblem')}>Hämta märket och koden till din sajt</a>
         </p>
       </div>
     </section>

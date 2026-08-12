@@ -320,11 +320,16 @@ function utmarkelseSection(): MapSection {
       // kommuner som är stora nog att ha en egen lista.
       {
         heading: { href: path('utmarkelser'), label: 'Alla utgåvor', count: all.length },
-        links: all.map((e) => ({
-          href: path('utmarkelser', String(e.year)),
-          label: `Utmärkelsen ${e.year}`,
-          count: e.totals.qualified,
-        })),
+        links: [
+          ...all.map((e) => ({
+            href: path('utmarkelser', String(e.year)),
+            label: `Utmärkelsen ${e.year}`,
+            count: e.totals.qualified,
+          })),
+          /* Emblemsidan hör hit och inte till "Om Prikko". Den som söker upp
+             den söker på märket, alltså på utmärkelsen. */
+          { href: path('utmarkelser', 'emblem'), label: 'Emblemet' },
+        ],
       },
       ...all.map((e) => ({
         heading: {
