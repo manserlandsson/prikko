@@ -1043,21 +1043,40 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       // Sista raden går alltid till /sok. Panelen visar ett urval; den som
       // söker något bredare ska inte hamna i en återvändsgränd. Raden är en
       // handling och ritas som en sådan, avskild med en hårlinje.
+      //
+      // Verksamhetsraderna markeras mot groups.term och inte mot det skrivna.
+      // De två är samma sträng utom när avståndspasset rättat en felstavning,
+      // och då sitter träffen i den rättade stavningen. Utan bytet stod
+      // raderna omarkerade, alltså utan att visa varför de låg i listan.
+      // Sidraderna markeras mot det skrivna: de har inget avståndspass.
       list.innerHTML =
-        sectionHtml('Verksamheter och kommuner', places, q) +
+        sectionHtml('Verksamheter och kommuner', places, groups ? groups.term : q) +
         sectionHtml('Sidor och kartor', hits, q) +
         actionLi(text, `/sok/?q=${encodeURIComponent(text)}`);
 
       refreshOptions();
 
+      /* Beskedets fjärde läge: rättningen.
+       *
+       * Den står bara när modulen är säker, alltså när det skrivna inte gav
+       * en enda träff och exakt ett ord låg exakt ett tecken från en enda
+       * rimlig stavning. Är det jämnt mellan flera ligger träffarna kvar i
+       * listan men raden uteblir, för då vet vi inte vad besökaren menade och
+       * ska inte låtsas att vi gör det.
+       *
+       * Frågetecknet och inte "visar träffar för": raderna under är redan de
+       * rättade, och meningen är till för den som undrar varför listan säger
+       * något annat än fältet. */
       say(
         !loaded
           ? indexFailed()
             ? 'Sökregistret gick inte att hämta just nu.'
             : 'Hämtar sökregistret…'
-          : places.length || hits.length
-            ? ''
-            : `Inga träffar för ”${text}”`,
+          : groups?.didYouMean
+            ? `Menade du ”${groups.didYouMean}”?`
+            : places.length || hits.length
+              ? ''
+              : `Inga träffar för ”${text}”`,
       );
 
       if (!allowComplete || !forward || !groups) return;
@@ -1067,6 +1086,13 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 
       const completion = completionFor(groups);
       if (!completion || completion.length <= raw.length) return;
+      /* normalise och INTE söknyckeln, fast rankningen som valde förslaget
+         körde på nyckeln. Raden nedanför skarvar det skrivna med resten av
+         etiketten, tecken för tecken, och det går bara om etiketten börjar
+         med precis de tecken som står i fältet. Söker man "kaf" och får
+         "Café" som enda prefixträff fylls alltså ingenting i: förslaget är
+         rätt, men "kaf" + "é" hade blivit "kafé" i ett fält där besökaren
+         skrivit ett k. Bättre att låta fältet stå still. */
       if (normalise(completion).slice(0, q.length) !== q) return;
 
       input.value = raw + completion.slice(raw.length);

@@ -450,7 +450,7 @@ const setup = {
 </style>
 
 <script>
-  import { loadIndex, normalise, searchIndex } from '../lib/sokforslag';
+  import { foldKey, loadIndex, searchIndex } from '../lib/sokforslag';
   import { registerCompareDialog } from '../lib/jamfor-dialog';
   import { lockPage, unlockPage } from '../lib/page-lock';
 
@@ -530,7 +530,8 @@ const setup = {
      */
     function search(query: string) {
       const index = searchIndex();
-      const needle = normalise(query.trim());
+      // Söknyckeln och inte normalise: index.hay är vikt, se lib/sokforslag.
+      const needle = foldKey(query.trim());
       const found: Array<{ name: string; address: string; slug: string; verdict: number }> = [];
 
       for (let i = 0; i < index.rows.length && found.length < 8; i += 1) {

@@ -164,7 +164,7 @@ const jsonLd = {
 </Base>
 
 <script>
-  import { loadIndex, normalise, searchIndex, indexFailed } from '../../lib/sokforslag';
+  import { foldKey, loadIndex, searchIndex, indexFailed } from '../../lib/sokforslag';
 
   const form = document.getElementById('jamfor') as HTMLFormElement | null;
   const statusEl = document.getElementById('jamfor-status');
@@ -235,7 +235,10 @@ const jsonLd = {
       const index = searchIndex();
       const other = side === 'a' ? chosen.b : chosen.a;
       const lock = other ? other.kommun : null;
-      const needle = normalise(query.trim());
+      // Söknyckeln och inte normalise: index.hay är vikt, och en fråga som
+      // inte viks likadant kan inte träffa den. Att fälten här tål "caffe"
+      // för "Café" följer med på köpet.
+      const needle = foldKey(query.trim());
       if (!needle) return [];
 
       const found: Chosen[] = [];

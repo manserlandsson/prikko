@@ -394,7 +394,10 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
         .filter((s) => s.kind === 'place')
         .slice(0, MAX_RESULTS);
 
-      fill(kommunBlock!, kommunRows!, [...groups.kommunPrefix, ...groups.kommunLoose], q);
+      // groups.term och inte q: har avståndspasset rättat en felstavning är
+      // det den rättade stavningen som sitter i raderna. Samma byte som i
+      // panelen, av samma skäl.
+      fill(kommunBlock!, kommunRows!, [...groups.kommunPrefix, ...groups.kommunLoose], groups.term);
 
       // Det sanna antalet, inte "40+". collect räknar hela registret även
       // när den bara sparar de fyrtio bästa raderna.
@@ -403,10 +406,16 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       // hårda mellanslag.
       const found = groups.count;
       const nice = found.toLocaleString('sv-SE');
+      // Rättningen står FÖRE antalet, eftersom antalet annars svarar på en
+      // annan fråga än den besökaren ställde. "Menade du Stensholmsvägen? 5
+      // träffar" är begripligt; "5 träffar" ensamt efter en felstavning ser
+      // ut som om sidan hittat det skrivna, vilket den inte gjorde. Raden
+      // står bara när modulen är säker, se lib/sokforslag.
+      const mean = groups.didYouMean ? `Menade du ”${groups.didYouMean}”? ` : '';
       status!.textContent = found
         ? found > shown.length
-          ? `${nice} träffar, de ${shown.length} närmast visas`
-          : `${nice} ${found === 1 ? 'träff' : 'träffar'}`
+          ? `${mean}${nice} träffar, de ${shown.length} närmast visas`
+          : `${mean}${nice} ${found === 1 ? 'träff' : 'träffar'}`
         : kommunRows!.children.length || sidorRows!.children.length
           ? `Ingen verksamhet matchar ”${text}”.`
           : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
