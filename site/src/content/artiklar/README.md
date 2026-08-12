@@ -98,7 +98,9 @@ allt under omkring 5 är samma beskärning omkodad en gång till.
 
 Den 11 augusti 2026 låg tre par nära varandra. Alla tre är lösta den 12
 augusti, och det närmaste paret ligger nu på 42,8, alltså långt från allt som
-läser som samma bild:
+läser som samma bild. Talet står kvar på 42,8 efter att de tre bilderna längst
+ner lagts in: ingen av dem hamnade närmare någon annan bild än så. Närmast av de
+nya är köksbilden mot kafébilden, på 44,6.
 
 | Artikel | Bild |
 |---|---|
@@ -116,9 +118,8 @@ Två beskärningar är gjorda med bestämd avsikt och ska inte flyttas tillbaka:
 
 ### Artiklar som fortfarande saknar bild
 
-Sex artiklar har ingen bild, eftersom det inte finns fler obrukade original i
-`brand/`. Sidorna fungerar och ser hela ut utan, men de ska få varsin. Motiv,
-inte stämning, och samma regler som ovan:
+Tre artiklar har ingen bild. Sidorna fungerar och ser hela ut utan, men de ska
+få varsin. Motiv, inte stämning, och samma regler som ovan:
 
 1. **`matforgiftning-fran-restaurang`**. Motiv: ett tomt kuvert på ett
    restaurangbord efter måltiden, eller en dukning i motljus utan gäster.
@@ -134,32 +135,27 @@ inte stämning, och samma regler som ovan:
    människor, inga läsbara varumärken på förpackningarna. Sökord: `walk in
    cooler shelves`, `refrigerator thermometer commercial`.
 
-De tre artiklarna från den 12 augusti står utan bild av samma skäl. Motiven
-nedan är valda så att de går att skilja från varandra och från de nio bilder som
-redan ligger inne, alltså inte ännu en kaklad köksvägg:
+De tre artiklarna från den 12 augusti har fått sina bilder. Motiven valdes för
+att gå att skilja från varandra och från de nio som redan låg inne, alltså inte
+ännu en kaklad köksvägg:
 
-4. **`skadedjur-ar-den-ovanligaste-anmarkningen`**. Artikeln handlar om det som
-   hålls ute, inte om djuret. Visa aldrig en råtta eller en kackerlacka: bilden
-   ligger bredvid namngivna verksamheter i flödet och skulle läsa som ett
-   påstående om dem. Motiv: en stängd lastkaj eller en tät bakdörr av stål mot en
-   gränd, eller ett förråd med varor på rostfria hyllor ovanför golvet. Tomt på
-   människor. Sökord på Pexels: `restaurant back door alley`, `metal shelving
-   storage room`, `loading dock closed door`.
+| Artikel | Bild |
+|---|---|
+| `skadedjur-ar-den-ovanligaste-anmarkningen` | Två stängda lastportar i dagsljus. Matthew Jackson, Pexels 37907538. |
+| `sa-hittar-du-de-frascha-restaurangerna` | Uteservering på en solig gata. Jan van der Wolf, Pexels 16230999. |
+| `hur-en-livsmedelskontroll-gar-till` | Passet i ett restaurangkök före öppning. Maria Orlova, Pexels 4947388. |
 
-5. **`sa-hittar-du-de-frascha-restaurangerna`**. Artikeln handlar om att välja,
-   inte om att städa. Motiv: en gata med flera matställen intill varandra i
-   dagsljus, sedd på håll, eller ett fönsterbord med utsikt mot gatan. Ljust och
-   vardagligt. Alla skyltar måste vara oläsliga eller beskurna, vilket är
-   svårare på just det här motivet än på de andra. Sökord: `street with cafes
-   daylight`, `restaurant window seat street view`.
+Tre beskärningar är gjorda med bestämd avsikt och ska inte flyttas tillbaka:
 
-6. **`hur-en-livsmedelskontroll-gar-till`**. Läsaren är den som driver stället,
-   och motivet ska vara arbetsdagen och inte inspektionen. Motiv: en rostfri
-   arbetsbänk sedd rakt uppifrån med redskap och en anteckningsbok, eller ett
-   kök före öppning med tänd belysning och tomma pass. Undvik personer i
-   skyddskläder som pekar och antecknar: den bilden ligger redan på
-   `anmalda-kontroller-hittar-farre-fel`. Sökord: `stainless steel prep counter
-   overhead`, `empty commercial kitchen before service`.
+- Lastkajsbilden är beskuren till höger om de två portar vars gummitätningar bär
+  läsbara märken från portleverantören.
+- Gatubilden söktes först som en gata med flera matställen sedd på håll. Den
+  bästa kandidaten hade en läsbar kebabskylt mitt i motivet som inte gick att
+  beskära bort utan att förlora gatan, och valet föll därför på en uteservering
+  där ingen skylt går att läsa.
+- Köksbilden är beskuren till passet och inte till hela lokalen. Den vidare
+  beskärningen låg på 39,9 mot kafébilden i mätningen ovan, alltså närmare än
+  det par som var närmast före insatsen. Den valda ligger på 44,6.
 
-Originalet i full storlek läggs i `brand/`, beskärningen till 1400 x 788 i
-`src/assets/artiklar/`.
+Originalet i full storlek läggs i `brand/` och står i `.gitignore`,
+beskärningen till 1400 x 788 i `src/assets/artiklar/`.
