@@ -182,14 +182,27 @@
   line-height: var(--lh-body-s);
 }
 
+/* Kolumnrubriken är en RUBRIK och väger därefter: bläck och vikt 600.
+
+   Den låg på --fs-caption i vikt 400 i --text-secondary, alltså mindre, tunnare
+   OCH ljusare än raderna under sig, och var därmed sajtens enda rubrik som
+   vägde mindre än sin egen text. Ägaren såg det på en gång: "rubriken är typ
+   grå istället för svart som de andra headersna". Sajtens övriga tabeller låg
+   redan på 600 (jämförelsetabellen i --fs-h-xs och bläck, källor och cookies i
+   --fs-caption), så den här var ensam om vikt 400.
+
+   Graden är --fs-body-s, densamma som radernas, och inte --fs-h-xs. Vikten och
+   färgen skiljer rubriken från datan; en grad till hade gjort rubrikraden
+   tyngre än kommunnamnen den står över. Samma resonemang som docs/19: en rubrik
+   får aldrig väga mindre än texten under sig. */
 .kedja-tabell thead th {
   padding: 0 0 var(--s-2);
   border-bottom: 1px solid var(--hairline);
   text-align: left;
-  font-size: var(--fs-caption);
-  line-height: var(--lh-caption);
-  font-weight: 400;
-  color: var(--text-secondary);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  font-weight: 600;
+  color: var(--text);
 }
 
 .kedja-tabell tbody th,
@@ -265,15 +278,114 @@
 
 .kedja-tabell .bokstav:first-child th { padding-top: var(--s-4); }
 
-/* Fyra kolumner på 390 px. Talen är korta ("11", "10 av 11", "89 %"), det är
-   rubrikerna som är långa, och de får radbrytas i stället för att kolumnen
-   ska tas bort. Referenslinjen är sidans enda giltiga jämförelse och får inte
-   falla bort just på den skärm där de flesta läser den. */
+/* Enheten och etiketterna hör till postformen längre ner och är tysta så länge
+   kolumnrubrikerna står kvar. Ett tal ska inte bära sin rubrik två gånger. */
+.kedja-tabell .enhet,
+.kedja-tabell .etikett { display: none; }
+
+/* ---------------------------------------------------------------------------
+   Kommuntabellen på liten skärm: en post per kommun, ingen tabell
+
+   VAD SOM VAR FEL. Fyra kolumner delade på 343 px, och kolumnbredden sattes av
+   rubrikerna och inte av talen: "anmärkning" och "Kommunen" är odelbara ord på
+   omkring 70 px vardera. Tabellens minsta bredd mätte 309 px, alltså rymdes den
+   med 34 px till godo på en iPhone och inte alls på en 320 px skärm eller hos
+   någon som förstorat texten. Då rullade HELA sidan i sidled, eftersom
+   ingenting här har en egen rullningsbehållare. Ägaren: "varför är det scroll
+   på första bilden".
+
+   VARFÖR INTE overflow: auto. En rullningsbehållare gömmer referenslinjen
+   utanför skärmkanten, och den är sidans enda giltiga jämförelse. Den lägger
+   dessutom ett rullningsfält tvärs över datan på dator så fort fönstret är
+   smalt, vilket var ägarens andra anmärkning.
+
+   VARFÖR INTE KORTARE RUBRIKER. "Utan anm." och "I kommunen" hade räckt i
+   bredd, men förkortningar är inte sajtens språk och "Kommunen i stort" är
+   redan så kort begreppet går att skriva.
+
+   VAD REFERENSERNA GÖR. Ednia håller kvar fyra kolumner på 375 px, men deras
+   rubriker är "År", "Andra", "Reserv" och "Förändring" och kolumnerna är
+   låsta med subgrid; ingen rubrik där är längre än tio tecken. Uppmätt på
+   ednia.se 2026-08-12. Booli renderar över huvud taget ingen flerkolumnstabell
+   i sitt responsiva gränssnitt: både objektsidans bostadsfakta och
+   sökträffarna är poster med etikett och värde i två våningar, uppmätt på
+   booli.se samma dag. Vi kan inte korta rubrikerna till Ednias längd, alltså
+   gör vi det Booli gör.
+
+   FORMEN. Kommunen och antalet på första raden, stapeln under sitt eget tal,
+   och de två stödtalen på raden därunder med var sin utskriven etikett.
+   Posten kan inte svämma över: varje ruta är 1fr eller innehållets bredd, och
+   en lång etikett bryter i stället för att skjuta ut raden.
+   --------------------------------------------------------------------------- */
 @media (max-width: 560px) {
   .kedja-tabell tbody th,
   .kedja-tabell tbody td { padding: var(--s-3) 0; }
 
   .kedja-tabell .num { padding-left: var(--s-3); }
+
+  .kedja-kommuner .enhet,
+  .kedja-kommuner .etikett { display: inline; }
+
+  /* Enheten är inte en del av talet och ska inte bära dess vikt. */
+  .kedja-kommuner .enhet {
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  /* Rubrikraden går bort, och därför bär varje tal sin etikett i markeringen i
+     stället. Med dolda kolumnrubriker och rutnätsceller är det här inte längre
+     en tabell för hjälpmedel heller, utan en lista med poster där varje värde
+     säger vad det är. Det är avsiktligt: en tabellroll utan kolumnrubriker
+     hade lovat en struktur som inte finns kvar. */
+  .kedja-kommuner thead { display: none; }
+
+  .kedja-kommuner,
+  .kedja-kommuner tbody { display: block; }
+
+  .kedja-kommuner tr {
+    display: grid;
+    /* Andra spalten är minst 7 rem, annars blir stapeln så smal att en kommun
+       med tre ställen och en med trettiotre ser lika ut. */
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, auto);
+    align-items: baseline;
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-4) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .kedja-kommuner tbody th,
+  .kedja-kommuner tbody td {
+    display: block;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  /* Rutnätet bestämmer bredden nu, inte cellen. 5,5 rem är tabellens mått på
+     Ställen-kolumnen och skulle här lämna en glugg mellan talet och radens
+     högerkant. Vänstermarginalen är kolumnavståndets jobb. */
+  .kedja-kommuner tr > :nth-child(2) { width: auto; }
+  .kedja-kommuner .num { padding-left: 0; }
+
+  .kedja-kommuner tbody th { grid-area: 1 / 1; }
+  .kedja-kommuner .antal { grid-area: 1 / 2; }
+
+  /* Stödtalen på egen rad, det ena i vänsterkant och det andra i höger, så att
+     procenten hamnar under antalet och de två talen står lodrätt i linje. */
+  .kedja-kommuner tr > :nth-child(3) {
+    grid-area: 2 / 1;
+    text-align: left;
+  }
+
+  .kedja-kommuner tr > :nth-child(4) { grid-area: 2 / 2; }
+
+  /* Etiketten är en grad tystare än sitt eget tal. Vikten ligger fortfarande på
+     antalet: stödtalen är kvar i --fs-caption och vikt 400 medan kommunen och
+     antalet är --fs-body-s i 600. En kedjesida får inte bli en rangordning av
+     kommuner, och det är vikten som håller den från att bli det. */
+  .kedja-kommuner .etikett {
+    color: var(--text-muted);
+    margin-right: var(--s-1);
+  }
 }
 
 /* ---------------------------------------------------------------------------

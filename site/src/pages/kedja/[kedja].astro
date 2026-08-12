@@ -188,7 +188,12 @@ const segments = [
             {k.municipalities.length === 1 ? 'kommun' : 'kommuner'}
           </span>
         </div>
-        <table class="kedja-tabell">
+        {/* `kedja-kommuner` är fyrakolumnersvarianten. Under 560 px lämnar den
+            tabellformen och blir en post per kommun, och etiketterna nedan är
+            det som gör den läsbar när kolumnrubrikerna försvinner. Se
+            styles/kedja.css. Registersidans tabell har tre korta kolumner och
+            är kvar som tabell hela vägen ner. */}
+        <table class="kedja-tabell kedja-kommuner">
           <thead>
             <tr>
               <th scope="col">Kommun</th>
@@ -214,14 +219,21 @@ const segments = [
                     kvarstående brister ligger på 0,3 procent i Jönköping och
                     23,7 i Oskarshamn, och den skillnaden är
                     publiceringspraxis och inte renlighet. En stapel hade
-                    gjort den till en tävling. */}
+                    gjort den till en tävling.
+
+                    Enheten står i markeringen och inte i CSS: i postformen
+                    försvinner kolumnrubriken, och "33" ensamt bredvid ett
+                    kommunnamn säger inte vad som är trettiotre. */}
                 <td class="num antal">
-                  {formatNumber(m.total)}
+                  <span class="tal">
+                    {formatNumber(m.total)}<span class="enhet"> ställen</span>
+                  </span>
                   <span class="stallen-spar" aria-hidden="true">
                     <span style={`width:${(m.total / storsta) * 100}%`}></span>
                   </span>
                 </td>
                 <td class="num tyst">
+                  <span class="etikett">Utan anmärkning</span>
                   {m.assessed > 0 ? (
                     <>{formatNumber(m.clean)} av {formatNumber(m.assessed)}</>
                   ) : (
@@ -229,6 +241,7 @@ const segments = [
                   )}
                 </td>
                 <td class="num tyst">
+                  <span class="etikett">Kommunen i stort</span>
                   {m.baselineAssessed > 0 ? `${m.baseline} %` : '–'}
                 </td>
               </tr>
