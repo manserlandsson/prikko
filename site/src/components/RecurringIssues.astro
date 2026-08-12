@@ -100,12 +100,12 @@ const years = (days: number) => Math.floor(days / 365);
       </p>
     </div>
 
-    <p class="caveat">
-      Kommunen registrerar kontrollerna på lokalen och inte på företaget, och
-      anger inte när en verksamhet startat eller bytt ägare. Noteringarna nedan
-      behöver därför inte gälla samma verksamhet.
-      {' '}<a href="/metodik/#lokalen">Så hanterar vi det</a>.
-    </p>
+    {/* Förbehållet om lokalen mot företaget stod här som en egen mening under
+        rubriken. Först tappade den sin ram, sedan bad ägaren att den skulle bort
+        helt. Den är inte struken utan flyttad: samma sak står redan i tipset på
+        rubriken ovanför, som dessutom säger vad vi GÖR åt det, alltså att
+        brister vars noteringar ligger långt isär rangordnas ner. Två meningar om
+        samma sak med tio pixlar emellan var hela problemet. */}
 
     <ul class="rows">
       {issues.map((issue) => (
@@ -144,17 +144,6 @@ const years = (days: number) => Math.floor(days / 365);
    * datan inte kan visa, inte ett omdöme om verksamheten. Röd eller gul hade
    * lånat betydelse från bedömningsnivåerna och lagt ännu ett larm på en sida
    * som redan har ett. */
-  /* Ingen egen ruta. Förbehållet stod tidigare i en inramad ruta, och en ram
-     är en signal om att något är avgränsat och viktigt nog att lyftas ur
-     texten. Det här är en fotnot till listan under, inte en varning, och
-     ramen gav den en tyngd som fick hela avsnittet att se ut som ett larm. */
-  .caveat {
-    margin-top: var(--s-3);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
   .maybe {
     display: block;
     margin-top: 2px;
