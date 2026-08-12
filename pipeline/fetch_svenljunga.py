@@ -21,12 +21,14 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from prikko.dates import resolve_control_date  # noqa: E402
 from prikko.grading import Inspection, assess  # noqa: E402
 from prikko.pdf import extract_text  # noqa: E402
 from prikko.sources.svenljunga import (  # noqa: E402
@@ -114,10 +116,27 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
                 unreadable += 1
                 continue
             try:
-                reports.append(parse_report(extract_text(raw), file))
+                report = parse_report(extract_text(raw), file)
             except UnknownSourceValue as exc:
                 print(f"  ! {exc}", file=sys.stderr)
                 unreadable += 1
+                continue
+
+            # Kontrolldatumet enligt ordningen i prikko/dates.py: brödtexten
+            # först, rapportens eget datum när brödtexten säger något som inte
+            # kan ha hänt än, dagens datum som sista utväg. Det görs HÄR och
+            # inte i parse_report, som ska förbli en ren tolkning av det
+            # rapporten säger, utan klocka och utan utskrifter.
+            resolved = resolve_control_date(report.inspected_at, file.published_at, today)
+            if resolved.rejected is not None:
+                print(
+                    f"  ! {file.filename}: kontrolldatumet {resolved.rejected} ligger i "
+                    f"framtiden, använder {resolved.value} ur {resolved.source}",
+                    file=sys.stderr,
+                )
+                report = replace(report, inspected_at=resolved.value)
+
+            reports.append(report)
 
         establishment = normalize_establishment(listing)
         inspections = normalize_inspections(listing, reports, establishment.id_national)

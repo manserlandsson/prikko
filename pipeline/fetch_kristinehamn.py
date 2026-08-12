@@ -21,12 +21,14 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from prikko.dates import resolve_control_date  # noqa: E402
 from prikko.grading import Inspection, assess  # noqa: E402
 from prikko.pdf import extract_text  # noqa: E402
 from prikko.sources.kristinehamn import (  # noqa: E402
@@ -184,10 +186,27 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
                 unreadable += 1
                 continue
             try:
-                reports.append(parse_report(extract_text(raw), attachment))
+                report = parse_report(extract_text(raw), attachment)
             except UnknownSourceValue as exc:
                 print(f"  ! {exc}", file=sys.stderr)
                 unreadable += 1
+                continue
+
+            # Samma ordning som i Svenljunga, av samma skäl: kommunen kan ha
+            # skrivit fel årtal i brödtexten. Se prikko/dates.py. Bilagans eget
+            # datum är fallbacken, aldrig förstahandskällan.
+            resolved = resolve_control_date(
+                report.inspected_at, attachment.published_at, today
+            )
+            if resolved.rejected is not None:
+                print(
+                    f"  ! {attachment.filename}: kontrolldatumet {resolved.rejected} "
+                    f"ligger i framtiden, använder {resolved.value} ur {resolved.source}",
+                    file=sys.stderr,
+                )
+                report = replace(report, inspected_at=resolved.value)
+
+            reports.append(report)
 
         inspections = normalize_inspections(
             attachments, reports, establishment.id_national

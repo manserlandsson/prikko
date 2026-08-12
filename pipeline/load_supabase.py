@@ -35,8 +35,13 @@ import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import date
 from pathlib import Path
 from typing import Iterable
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from prikko.dates import clamp_future_inspections, log_clamped  # noqa: E402
 
 BATCH = 500
 
@@ -454,6 +459,12 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
     establishments = payload["establishments"]
 
     print(f"{municipality['name']}: {len(establishments)} anläggningar", file=sys.stderr)
+
+    # FÖRE allt annat: ett kontrolldatum i framtiden får inte nå databasen, och
+    # därmed inte sajtens ögonblicksbild eller sitemapens lastmod. Det här är
+    # den enda inläsning alla tolv kommuner passerar, så regeln behöver bara
+    # stå på ett ställe. Motiveringen bor i prikko/dates.py.
+    log_clamped(clamp_future_inspections(establishments, date.today()))
 
     client.upsert(
         "municipalities",

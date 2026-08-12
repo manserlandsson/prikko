@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from prikko.dates import clamp_future_inspections, log_clamped  # noqa: E402
 from prikko.grading import Area, Inspection, assess  # noqa: E402
 
 LABELS = {
@@ -38,6 +39,12 @@ def recompute(path: Path, today: date) -> None:
 
     before = collections.Counter(e.get("verdict") for e in establishments)
     changed = 0
+
+    # Samma regel som i load_supabase.py, av samma skäl. Den behövs på två
+    # ställen eftersom filerna har två vägar in: nattens hämtning går via
+    # databasen, medan en redan publicerad fil rättas här utan att hämtas om.
+    # En hämtning av Svenljunga kostar 225 anrop till kommunen.
+    log_clamped(clamp_future_inspections(establishments, today))
 
     for e in establishments:
         inspections = [
