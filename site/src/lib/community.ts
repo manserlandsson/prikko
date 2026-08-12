@@ -1293,9 +1293,27 @@ async function shrink(file: File): Promise<File> {
     });
     if (!blob) return file;
 
-    /* Bara om det faktiskt blev bättre. En liten bild som redan är en JPEG kan
-       bli större av att kodas om, och då är originalet rätt fil att skicka. */
-    if (blob.size >= file.size && file.type === 'image/jpeg') return file;
+    /*
+     * DEN OMRITADE BILDEN VINNER ÄVEN NÄR DEN VÄGER MER.
+     *
+     * Här stod ett undantag: blev den omkodade filen större än originalet och
+     * originalet redan var en JPEG, skickades originalet i stället. Det lät som
+     * en optimering och var en läcka. En liten JPEG rakt ur en kamera är just
+     * det fall där omkodningen inte tjänar något i byte, och den är också det
+     * fall som bär kamerans EXIF, alltså modell, tidsstämpel och GPS-koordinat.
+     * Den filen kopieras sedan rakt in i den publika hinken av moderate.py,
+     * eftersom formatet redan duger och ingen konvertering behövs. Koordinaten
+     * till fotografens hem hade legat på en publik adress bredvid ett omdöme
+     * som är anonymt med avsikt.
+     *
+     * Undantaget kan inte räddas med ett villkor till. Att välja original är
+     * att välja metadatan, och den avvägningen finns inte: det som gick att
+     * rita om ska gå iväg omritat. Några kilobyte är inte ett skäl.
+     *
+     * Kvar står bara det fall där webbläsaren INTE kunde avkoda filen, se
+     * fångsten ovan. Då finns ingen omritad bild att välja, och metadatan tas
+     * bort av granskningen i stället.
+     */
 
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
       type: 'image/jpeg',

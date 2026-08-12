@@ -450,6 +450,17 @@ class Komprimeringen(unittest.TestCase):
         fil = KLIENTEN.index("storage/v1/object/${INBOX_BUCKET}")
         self.assertLess(krymp, fil)
 
+    def test_originalet_valjs_aldrig_bort_pa_storlek(self):
+        """Den omritade bilden vinner även när den väger mer.
+
+        Undantaget "originalet är mindre, skicka det i stället" träffade exakt
+        de filer som bär EXIF: en liten JPEG rakt ur en kamera. Den kopieras
+        sedan rakt in i den publika hinken av moderate.py, eftersom formatet
+        redan duger, och koordinaten till fotografens hem hade legat på en
+        publik adress bredvid ett anonymt omdöme.
+        """
+        self.assertNotIn("blob.size >= file.size", KLIENTEN)
+
     def test_storleken_som_skickas_ar_den_komprimerade(self):
         # byte_size och content_type måste beskriva filen som FAKTISKT skrivs,
         # annars stämmer varken kontrollvillkoret i databasen eller det
@@ -495,9 +506,20 @@ class Visningen(unittest.TestCase):
         # i en byggd fil. Rutnätet ska vara tomt i mallen.
         self.assertIn('<div class="grid" id="bilder-grid"></div>', VISNINGEN)
 
-    def test_avsnittet_kan_observeras_nar_det_ar_hopfallt(self):
-        # `display: none` ger ingen låda, och en IntersectionObserver på ett
-        # element utan låda utlöser aldrig. Bilderna hade då aldrig hämtats.
+    def test_hamtningen_hanger_inte_pa_en_observator(self):
+        """Ett hopfällt avsnitt kan inte avgöra när dess eget innehåll hämtas.
+
+        Avsnittet börjar på noll pixlars höjd, och en IntersectionObserver på en
+        måttlös låda är inget löfte. Foretagsbilder.astro mätte det och fick
+        aldrig någon återanropning alls; bilderna hämtades då inte. Kostnaden
+        att hämta direkt är dessutom redan tagen, för Foretagsuppgifter.astro
+        och Foretagsbilder.astro frågar samma värd tidigare i samma spalt.
+        """
+        self.assertNotIn("new IntersectionObserver", VISNINGEN)
+
+    def test_det_tomma_avsnittet_behaller_sin_plats(self):
+        # `visibility: hidden` och inte `display: none`: höjden går från noll
+        # till bandets höjd på ETT ställe när bilderna kommit hem.
         tom = block(VISNINGEN, ".bilder.tom {", "}")
         self.assertIn("visibility: hidden", tom)
         self.assertNotIn("display: none", tom)
