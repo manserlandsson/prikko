@@ -116,23 +116,50 @@ Två beskärningar är gjorda med bestämd avsikt och ska inte flyttas tillbaka:
 
 ### Artiklar som fortfarande saknar bild
 
-De tre artiklarna i matförgiftningsklustret har ingen bild, eftersom det inte
-finns fler obrukade original i `brand/`. Sidorna fungerar och ser hela ut utan,
-men de ska få varsin. Motiv, inte stämning, och samma regler som ovan:
+Sex artiklar har ingen bild, eftersom det inte finns fler obrukade original i
+`brand/`. Sidorna fungerar och ser hela ut utan, men de ska få varsin. Motiv,
+inte stämning, och samma regler som ovan:
 
-1. **`matforgiftning-fran-restaurang`** — motiv: ett tomt kuvert på ett
+1. **`matforgiftning-fran-restaurang`**. Motiv: ett tomt kuvert på ett
    restaurangbord efter måltiden, eller en dukning i motljus utan gäster.
    Undvik allt som ser sjukt ut. Sökord på Pexels: `empty restaurant table
    after meal`, `restaurant place setting daylight`.
 
-2. **`inkubationstid-matforgiftning`** — artikeln handlar om tid. Motiv: en
+2. **`inkubationstid-matforgiftning`**. Artikeln handlar om tid. Motiv: en
    klocka på en kökvägg i ett storkök, eller en timer på en rostfri bänk.
    Sökord: `commercial kitchen clock`, `kitchen timer stainless steel`.
 
-3. **`kylkedjan-brister-oftast-pa-sommaren`** — motiv: ett kylrum inifrån med
+3. **`kylkedjan-brister-oftast-pa-sommaren`**. Motiv: ett kylrum inifrån med
    backar på rostfria hyllor, eller en termometer i en kyldisk. Tomt på
    människor, inga läsbara varumärken på förpackningarna. Sökord: `walk in
    cooler shelves`, `refrigerator thermometer commercial`.
+
+De tre artiklarna från den 12 augusti står utan bild av samma skäl. Motiven
+nedan är valda så att de går att skilja från varandra och från de nio bilder som
+redan ligger inne, alltså inte ännu en kaklad köksvägg:
+
+4. **`skadedjur-ar-den-ovanligaste-anmarkningen`**. Artikeln handlar om det som
+   hålls ute, inte om djuret. Visa aldrig en råtta eller en kackerlacka: bilden
+   ligger bredvid namngivna verksamheter i flödet och skulle läsa som ett
+   påstående om dem. Motiv: en stängd lastkaj eller en tät bakdörr av stål mot en
+   gränd, eller ett förråd med varor på rostfria hyllor ovanför golvet. Tomt på
+   människor. Sökord på Pexels: `restaurant back door alley`, `metal shelving
+   storage room`, `loading dock closed door`.
+
+5. **`sa-hittar-du-de-frascha-restaurangerna`**. Artikeln handlar om att välja,
+   inte om att städa. Motiv: en gata med flera matställen intill varandra i
+   dagsljus, sedd på håll, eller ett fönsterbord med utsikt mot gatan. Ljust och
+   vardagligt. Alla skyltar måste vara oläsliga eller beskurna, vilket är
+   svårare på just det här motivet än på de andra. Sökord: `street with cafes
+   daylight`, `restaurant window seat street view`.
+
+6. **`hur-en-livsmedelskontroll-gar-till`**. Läsaren är den som driver stället,
+   och motivet ska vara arbetsdagen och inte inspektionen. Motiv: en rostfri
+   arbetsbänk sedd rakt uppifrån med redskap och en anteckningsbok, eller ett
+   kök före öppning med tänd belysning och tomma pass. Undvik personer i
+   skyddskläder som pekar och antecknar: den bilden ligger redan på
+   `anmalda-kontroller-hittar-farre-fel`. Sökord: `stainless steel prep counter
+   overhead`, `empty commercial kitchen before service`.
 
 Originalet i full storlek läggs i `brand/`, beskärningen till 1400 x 788 i
 `src/assets/artiklar/`.

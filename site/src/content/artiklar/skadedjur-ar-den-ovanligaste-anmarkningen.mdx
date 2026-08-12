@@ -1,0 +1,230 @@
+---
+title: "Råttor och kackerlackor: den ovanligaste anmärkningen"
+description: "Skadedjur ger avvikelse vid 4,6 procent av granskningarna, lägst av alla hygienpunkter. Men den sitter hårdast av dem alla, och den kommer sällan ensam."
+lede: "Det är skadedjuren som hamnar i rubrikerna, och det är rimligt. Räknat på kontrollerna är de samtidigt det inspektören anmärker på mest sällan, och det som är svårast att bli av med när det väl står i protokollet."
+category: "Förklarat"
+published: "2026-08-12"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Punkten heter J06
+
+I kommunens protokoll finns ingen rad som heter råttor. Det som finns är
+rapporteringspunkt J06, bekämpning av skadedjur, en av åtta punkter under
+rubriken grundförutsättningar och hygien. Under den ryms allt från en mus i ett
+förråd till flugor över ett pass och otäta dörrar mot en bakgata.
+
+Punkten redovisas inte av alla kommuner. Linköping och Örebro skriver ut varje
+kontrollpunkt inspektören tittade på, också de som var utan anmärkning, och det
+är den enda sortens redovisning som ger både täljare och nämnare. Talen nedan är
+räknade på 14 588 kontroller därifrån.
+
+<Diagram
+  titel="Skadedjur i siffror"
+  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Gånger punkten granskats', value: '5 320' },
+      { label: 'Gånger den gav avvikelse', value: '247' },
+      { label: 'Andel av granskningarna', value: '4,6', unit: '%' },
+      { label: 'Plats bland åtta hygienpunkter', value: 'Sist' },
+    ]}
+  />
+</Diagram>
+
+## Den ovanligaste av åtta
+
+Det finns åtta hygienpunkter, och skadedjur är den som ger avvikelse mest
+sällan. Punkterna som ligger högst handlar i stället om hur maten hanteras, hur
+lokalen är byggd och underhållen, och om temperaturen.
+
+<Diagram
+  titel="Andel granskningar som gav avvikelse, per hygienpunkt"
+  underlag="Samma 14 588 kontroller. Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades."
+>
+  <Stapel
+    label="Andel av granskningarna som gav en avvikelse, per hygienpunkt"
+    scale={20}
+    avdelare
+    rows={[
+      { label: 'Hygien före, under och efter processen', value: 17.4, display: '17,4 %', note: '1 977 avvikelser av 11 344 granskningar' },
+      { label: 'Utformning och underhåll av lokaler', value: 15.2, display: '15,2 %', note: '1 349 av 8 895' },
+      { label: 'Kylkedja och temperatur', value: 13.8, display: '13,8 %', note: '1 457 av 10 521' },
+      { label: 'Material i kontakt med livsmedel', value: 11.0, display: '11,0 %', note: '396 av 3 598' },
+      { label: 'Allmänna krav på livsmedelssäkerhet', value: 7.0, display: '7,0 %', note: '144 av 2 051' },
+      { label: 'Personlig hygien', value: 6.4, display: '6,4 %', note: '567 av 8 897' },
+      { label: 'Utbildning i hygien och arbetsmetoder', value: 5.4, display: '5,4 %', note: '275 av 5 066' },
+      { label: 'Bekämpning av skadedjur', value: 4.6, display: '4,6 %', note: '247 av 5 320' },
+    ]}
+  />
+</Diagram>
+
+Ordningen är värd att stanna vid. Den punkt som oftast brister handlar om
+hanteringen: hur råvaror och färdig mat hålls isär, hur ytor och redskap sköts
+under passet, hur det städas efteråt. Den syns aldrig från matsalen. Skadedjuret
+gör det, och just därför blir det bilden av vad en hygienbrist är.
+
+## Men den sitter hårdast
+
+En avvikelse ska åtgärdas, och kommunen kommer tillbaka för att se efter. Vänder
+man på materialet och frågar hur ofta en avvikelse fortfarande stod kvar vid
+uppföljningen byter skadedjuren plats i listan, från sist till först.
+
+<Diagram
+  titel="Hur ofta punkten brister, och hur ofta bristen kvarstår"
+  underlag="Andel av granskningarna som gav avvikelse, mot andel av avvikelserna som stod kvar vid kommunens uppföljning. Samma 14 588 kontroller."
+>
+  <Parstapel
+    serieA="Gav avvikelse"
+    serieB="Avvikelsen kvarstod"
+    scale={20}
+    label="Andel granskningar som gav avvikelse, och andel av avvikelserna som kvarstod"
+    rows={[
+      { label: 'Bekämpning av skadedjur', a: 4.6, b: 9.3, aDisplay: '4,6 %', bDisplay: '9,3 %', note: '247 avvikelser, 23 kvarstod' },
+      { label: 'Hygien före, under och efter', a: 17.4, b: 7.0, aDisplay: '17,4 %', bDisplay: '7,0 %', note: '1 977 avvikelser, 139 kvarstod' },
+      { label: 'Utformning och underhåll', a: 15.2, b: 5.0, aDisplay: '15,2 %', bDisplay: '5,0 %', note: '1 349 avvikelser, 68 kvarstod' },
+      { label: 'Kylkedja och temperatur', a: 13.8, b: 3.8, aDisplay: '13,8 %', bDisplay: '3,8 %', note: '1 457 avvikelser, 55 kvarstod' },
+      { label: 'Personlig hygien', a: 6.4, b: 1.6, aDisplay: '6,4 %', bDisplay: '1,6 %', note: '567 avvikelser, 9 kvarstod' },
+      { label: 'Material i kontakt med livsmedel', a: 11.0, b: 1.0, aDisplay: '11,0 %', bDisplay: '1,0 %', note: '396 avvikelser, 4 kvarstod' },
+    ]}
+  />
+</Diagram>
+
+Skadedjur är alltså den punkt som är minst sannolik att brista och mest sannolik
+att fortfarande brista när inspektören kommer tillbaka. Var elfte
+skadedjursavvikelse överlevde uppföljningen, mot var hundrade avvikelse om
+material i kontakt med livsmedel.
+
+Det stämmer med hur problemen skiljer sig åt i praktiken. En kylskåpstemperatur
+rättas samma dag. En personalrutin rättas på en vecka. Ett skadedjursangrepp
+sitter i byggnaden, ofta i något som inte ens är verksamhetens eget, och kräver
+sanering och täta åtgärder som tar tid.
+
+## Den kommer sällan ensam
+
+Det mest användbara i materialet är inte hur ofta skadedjursanmärkningen kommer,
+utan vad den kommer tillsammans med.
+
+<Diagram
+  titel="Övriga avvikelser vid samma kontroll"
+  underlag="Genomsnittligt antal andra avvikelser vid kontroller där skadedjurspunkten granskades. Samma 14 588 kontroller."
+>
+  <Stapel
+    label="Genomsnittligt antal övriga avvikelser vid samma kontroll"
+    scale={2}
+    avdelare
+    rows={[
+      { label: 'Skadedjurspunkten gav avvikelse', value: 1.74, display: '1,74', note: '247 kontroller' },
+      { label: 'Skadedjurspunkten var utan anmärkning', value: 0.68, display: '0,68', note: '5 071 kontroller' },
+    ]}
+  />
+</Diagram>
+
+Av de 247 skadedjursavvikelserna stod 195 tillsammans med minst en annan
+avvikelse vid samma besök, alltså 78,9 procent. Bara 52 stod ensamma.
+
+Det hänger ihop med vad kraven faktiskt gäller. Livsmedelsverket pekar på otäta
+dörrar och fönster, avfall som djuren kommer åt och överfyllda förråd där saker
+står på golvet. Det är samma förhållanden som lockar djuren och som noteras under
+punkterna om lokalens underhåll och om hygienen i hanteringen. Ett kök med
+skadedjur är därför sällan ett kök där allt annat fungerar.
+
+För den som läser en kontrollhistorik betyder det att en skadedjursrad ska läsas
+tillsammans med resten av protokollet, inte som en enskild olycka.
+
+## Vilka kök som får dem
+
+<Diagram
+  titel="Andel granskningar som gav skadedjursavvikelse, per kategori"
+  underlag="5 295 av de 5 320 granskningarna, alltså de där verksamhetens kategori går att avgöra."
+>
+  <Stapel
+    label="Andel granskningar av skadedjurspunkten som gav avvikelse, per kategori"
+    scale={10}
+    avdelare
+    rows={[
+      { label: 'Restauranger', value: 7.1, display: '7,1 %', note: '143 avvikelser av 2 004 granskningar' },
+      { label: 'Butiker', value: 6.1, display: '6,1 %', note: '41 av 673' },
+      { label: 'Övriga verksamheter', value: 3.9, display: '3,9 %', note: '14 av 362' },
+      { label: 'Caféer och bagerier', value: 3.0, display: '3,0 %', note: '13 av 438' },
+      { label: 'Skolor och omsorg', value: 2.0, display: '2,0 %', note: '36 av 1 818' },
+    ]}
+  />
+</Diagram>
+
+Restaurangerna ligger högst och skolköken lägst, med drygt tre gånger så stor
+andel i den ena änden som i den andra. Mönstret är detsamma som på nästan alla
+andra punkter, vilket vi har gått igenom i
+[Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
+
+Att restaurangerna sticker ut har begripliga skäl. Ett kök som lagar mat kvällar
+och helger har mer spill, mer varumottagning och fler dörrar mot en bakgata än
+ett tillagningskök som stänger klockan två.
+
+## Vad lagen kräver av köket
+
+Med skadedjur menas råttor, möss, fåglar, kackerlackor och andra djur som kan
+sprida smitta eller göra maten otjänlig genom sin närvaro i lokalen. Så
+definierar Livsmedelsverket det, och definitionen är bredare än ordet brukar
+vara i vardagligt tal.
+
+Kravet ligger inte på att det ska vara omöjligt att få in ett djur. Det ligger på
+att lokalen ska vara byggd och underhållen så att de hålls ute, och att
+verksamheten ska ha rutiner både för att upptäcka spår och för att hantera fynd.
+
+I praktiken handlar det om täta dörrar och fönster, portar som är stängda när
+varumottagning inte pågår, insektsnät i fönster som behöver stå öppna, och avfall
+som hanteras så att djuren inte kommer åt det. Till det kommer ordning i förråd
+och källare, eftersom spår efter en råtta inte går att se i ett utrymme där saker
+står staplade på golvet.
+
+Vid ett fynd ska det finnas ett förfarande. Livsmedelsverket nämner att kontakta
+ett skadedjursföretag och att vid behov låta bli att använda den berörda delen av
+lokalen. Att fortsätta använda lokalen under pågående bekämpning kan godtas, men
+då med extra noggrann rengöring före och efter, och utan att maten kontamineras
+av bekämpningsmedel.
+
+Det är också ungefär de frågorna inspektören ställer: finns rutin för att
+upptäcka spår, finns springor vid dörrar och ventiler, hanteras avfallet rätt,
+och finns resultat från fällor och indikatorstationer.
+
+## Om du ser ett skadedjur på ett ställe
+
+Ser du en råtta, en mus eller kackerlackor i en matsal eller ett kök går anmälan
+till kommunen, inte till Livsmedelsverket och inte till polisen. Det är
+miljöförvaltningen eller miljö- och hälsoskyddskontoret i kommunen där stället
+ligger som kontrollerar restauranger, kaféer, butiker och skolkök, och det är den
+som kan åka dit.
+
+Det som gör en anmälan användbar är detsamma här som annars: datum och ungefär
+vilken tid, var i lokalen du såg djuret, och foto om du hann. En anmälan kan
+utlösa en händelsestyrd kontroll, och de besöken hittar anmärkningar oftare än
+andra. Hela den kedjan står i
+[Vad händer när du anmäler en restaurang?](/artiklar/vad-hander-nar-du-anmaler-en-restaurang/)
+
+Blev du dessutom sjuk gäller en annan ordning, och den står i
+[Matförgiftning från restaurang](/artiklar/matforgiftning-fran-restaurang/).
+
+## Slå upp stället
+
+En skadedjursrad i protokollet är offentlig och står kvar i historiken. Så här
+läser du den: [sök på namnet](/sok/), eller bläddra bland
+[verksamheter med anmärkningar i Stockholm](/stockholm/anmarkningar/),
+[i Uppsala](/uppsala/anmarkningar/) eller [i Örebro](/orebro/anmarkningar/).
+
+Vad de olika raderna betyder står i
+[Så läser du en hygienkontroll](/artiklar/sa-laser-du-en-hygienkontroll/), och
+hur man väger en enstaka anmärkning mot en historik i
+[Så vanlig är en anmärkning egentligen](/artiklar/sa-vanlig-ar-en-anmarkning/).
+
+## Källor
+
+- [Livsmedelsverkets kontrollwiki: Skadedjursbekämpning](https://kontrollwiki.livsmedelsverket.se/artikel/348/skadedjursbekampning): definitionen av skadedjur, kraven på lokal och rutiner, förfarandet vid fynd och de frågor kontrollen utgår från.
+- [Livsmedelsverkets kontrollwiki: J, grundförutsättningar och hygien](https://kontrollwiki.livsmedelsverket.se/artikel/246/j-grundforutsattningar-hygien): de nio rapporteringspunkterna J01 till J09, där J06 är bekämpning av skadedjur.
+- [Europaparlamentets och rådets förordning (EG) nr 852/2004 om livsmedelshygien](https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX%3A32004R0852): bilaga II, kapitel I punkt 2c om lokalernas utformning, kapitel II punkt 1d om öppna dörrar och fönster, och kapitel IX punkt 4 om förfaranden vid fynd.
+- Andelarna per kontrollpunkt, kvarstående avvikelser, samtidiga avvikelser och kategorier är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

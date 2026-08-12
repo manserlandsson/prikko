@@ -1,0 +1,159 @@
+---
+title: "Så hittar du de fräscha restaurangerna"
+description: "Nästan nio av tio verksamheter klarade sin senaste kontroll utan anmärkning. Det gör inte listan kort. Här är ribban som faktiskt skiljer, och varför den är tre."
+lede: "Recensionerna betygsätter maten och servicen. Ingen av dem har varit i köket. Det har däremot kommunen, och den som vill veta var det är rent behöver bara veta vilket av tre tal man ska titta på."
+category: "Guide"
+published: "2026-08-12"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Problemet med att fråga efter de fräscha
+
+Frågan låter enkel. Vilka ställen i stan är rena? Kontrollhistoriken borde svara
+direkt, och den gör det nästan. Haken är att det självklara svaret, alltså de
+som inte fick någon anmärkning, släpper igenom nästan alla.
+
+<Diagram
+  titel="Från alla verksamheter till dem utan anmärkning"
+  underlag="15 983 verksamheter i tolv kommuner, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Verksamheter i beståndet', value: '15 983' },
+      { label: 'Med underlag nog för en bedömning', value: '13 579' },
+      { label: 'Utan anmärkning vid senaste kontrollen', value: '11 976' },
+      { label: 'Andel av de bedömda', value: '88,2', unit: '%' },
+    ]}
+  />
+</Diagram>
+
+Ett urval som släpper in 88,2 procent är ingen lista över de bästa. Det är
+listan. Och den skulle dessutom vara sämre än talet ser ut, av ett skäl som inte
+syns förrän man tittar på hur många gånger kommunen faktiskt har varit där.
+
+## Ett besök räcker inte
+
+Bedömningen utan anmärkning säger något om den senaste kontrollen. Den säger
+ingenting om hur många kontroller som ligger bakom den.
+
+<Diagram
+  titel="Antal kontroller bakom bedömningen utan anmärkning"
+  underlag="De 11 976 verksamheter vars senaste kontroll saknade anmärkning."
+>
+  <Stapel
+    label="Antal kontroller i historiken, för verksamheter utan anmärkning"
+    scale={35}
+    avdelare
+    rows={[
+      { label: 'En kontroll', value: 26.9, display: '26,9 %', note: '3 223 verksamheter' },
+      { label: 'Två kontroller', value: 16.0, display: '16,0 %', note: '1 920 verksamheter' },
+      { label: 'Tre kontroller', value: 12.4, display: '12,4 %', note: '1 486 verksamheter' },
+      { label: 'Fyra kontroller', value: 7.8, display: '7,8 %', note: '939 verksamheter' },
+      { label: 'Fem kontroller', value: 6.7, display: '6,7 %', note: '805 verksamheter' },
+      { label: 'Sex eller fler', value: 30.1, display: '30,1 %', note: '3 603 verksamheter' },
+    ]}
+  />
+</Diagram>
+
+Var fjärde av dem har exakt en kontroll bakom sig. En lista över stans fräschaste
+ställen byggd på bedömningen ensam skulle alltså till 26,9 procent bestå av
+ställen kommunen tittat på en enda gång. Det är inte ett bevis på att det är
+rent. Det är frånvaron av bevis på motsatsen.
+
+Skillnaden mellan de två spelar roll åt båda hållen. Ett ställe med tolv
+kontroller och en anmärkning har visat mer om sig självt än ett ställe med en
+kontroll och ingen. Det har vi räknat på i
+[Så vanlig är en anmärkning egentligen](/artiklar/sa-vanlig-ar-en-anmarkning/).
+
+## Ribban som håller är tre
+
+Därför finns ett andra tal. Ren historik kräver minst tre kontroller inom en
+treårsperiod, och att samtliga tre saknade anmärkning. Kravet på antal gör
+arbetet: en verksamhet med färre än tre kontroller kan aldrig få märkningen, hur
+ren den än råkar se ut.
+
+<Diagram
+  titel="Tre ribbor, samma bestånd"
+  underlag="Andel av de 13 579 verksamheter som har underlag nog för en bedömning."
+>
+  <Stapel
+    label="Andel av de bedömda verksamheterna som når respektive ribba"
+    scale={100}
+    avdelare
+    rows={[
+      { label: 'Utan anmärkning', value: 88.2, display: '88,2 %', note: '11 976 verksamheter. Senaste kontrollen saknade anmärkning.' },
+      { label: 'Ren historik', value: 11.3, display: '11,3 %', note: '1 537 verksamheter. Minst tre kontroller inom tre år, alla utan anmärkning.' },
+      { label: 'Utmärkelsen 2026', value: 1.9, display: '1,9 %', note: '254 verksamheter. Kontroller i rad utan anmärkning, ribban satt per kommun.' },
+    ]}
+  />
+</Diagram>
+
+Ren historik uppfylls av 1 537 verksamheter. Den räknas om vid varje
+uppdatering, vilket är avsiktligt: ett ställe som har rättat till sina brister
+och sedan klarat tre kontroller ska komma in på listan, inte vänta ett år på det.
+
+Utmärkelsen är den hårdare varianten och fungerar tvärtom. Den mäter kontroller i
+rad utan anmärkning, den fryses i en årsutgåva, och 2026 års utgåva innehåller
+254 verksamheter. Ett erkännande som står kvar ett år skadar ingen, och därför
+får den vara fryst.
+
+## Varför listan inte finns överallt
+
+Ren historik kräver tre kontroller i historiken. Alla kommuner lämnar inte ut
+tre.
+
+I Karlstad, Lomma och Oskarshamn finns aldrig mer än en enda kontroll per
+verksamhet i det som lämnas ut. Ingen verksamhet där kan nå ribban, hur skötsam
+den än är, eftersom kravet på tre kontroller aldrig kan uppfyllas. I Höganäs går
+det i teorin, men bara en enda verksamhet i hela kommunen har tre kontroller i
+historiken.
+
+Det säger ingenting om hur rena köken är i de kommunerna. Det säger något om vad
+som lämnas ut, och det är två helt olika saker. Hela den skillnaden har vi gått
+igenom i
+[Därför går det inte att jämföra kommuners kontrollsiffror](/artiklar/darfor-gar-kommunernas-siffror-inte-att-jamfora/).
+
+Av samma skäl går ribban inte att jämföra mellan kommuner. I Stockholm publiceras
+upp till 113 kontroller för en enskild verksamhet, i Uppsala aldrig fler än fem.
+En rikslista sorterad på seriens längd hade lagt nästan varje verksamhet i
+Uppsala under nästan varje verksamhet i Stockholm, och den ordningen hade mätt
+kommunernas utlämnande i stället för köken.
+
+## Så gör du i praktiken
+
+Fyra saker, i tur och ordning.
+
+**Börja i din kommun.** Verksamheterna i
+[Stockholm](/stockholm/), [Uppsala](/uppsala/), [Örebro](/orebro/) och de övriga
+kommunerna finns samlade per ort, och därifrån går det att skära på typ av
+ställe och på stadsdel.
+
+**Titta efter märkningen ren historik.** Den sitter på verksamhetssidan och
+betyder tre kontroller utan anmärkning, inte en.
+
+**Räkna kontrollerna innan du drar slutsatser.** Står det en enda rad i
+historiken vet du mindre än talet antyder. Vad de olika raderna betyder står i
+[Så läser du en hygienkontroll](/artiklar/sa-laser-du-en-hygienkontroll/).
+
+**Titta på när det senast hände.** En anmärkning från 2019 som är åtgärdad säger
+något annat än en från i våras. De fem stegen står i
+[Så kollar du upp en restaurang innan du går dit](/artiklar/sa-kollar-du-upp-en-restaurang/).
+
+## Vad ingen av ribborna säger
+
+Ingen av dem är ett omdöme om maten, om priset eller om hur det ser ut i
+matsalen. De säger vad kommunens inspektör såg vid de tillfällen inspektören var
+där, och de tillfällena är få och utspridda.
+
+En verksamhet utan anmärkning kan ha haft en dålig vecka mellan två besök, och en
+verksamhet med en anmärkning från i fjol kan ha rättat till allt dagen efter.
+Kontrollhistoriken är den enda offentliga uppgiften om köket som finns, och den
+är bättre än ingenting. Den är inte en garanti, och den ska inte läsas som en.
+
+## Källor
+
+- Andelarna, kontrollantalen och ribborna är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Kraven för ren historik och för utmärkelsen, samt varför de skiljer sig åt, står i sin helhet på [metodiksidan](/metodik/) och på [utmärkelsernas sida](/utmarkelser/).
