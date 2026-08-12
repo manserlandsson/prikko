@@ -25,36 +25,7 @@ Senast genomgången: 2026-08-12.
 
 ## Agenter arbetar just nu
 
-**Hamburgarmenyn.** Fyra saker i samma vända: ikonerna på rättelse och jämför
-hör inte ihop med resten och ska antingen bort eller ersättas ur en enda
-uppsättning; avsnitten ska ligga bredvid varandra i stället för staplade så att
-panelen slutar bli hög; kartvyn ska in som egen ruta efter sök, kedjor och
-kommuner; och måtten ska sättas efter att ednia, airbnb och booli faktiskt
-öppnats och mätts.
-
-**Artiklarna.** Diagrammen ligger indragna mot brödtexten, eftersom `Stapel`
-renderar en `ul` och artikellayouten ger alla listor `padding-left`. Samma regel
-ger dem för lite luft, alltså det hoptryckta intrycket. Därtill: bara en
-diagramform används trots att tre finns, etiketten är osynlig så diagrammen
-saknar rubrik, flera artiklar delar bild, och fler artiklar ska skrivas på
-sökordsanalys. Två nya foton ligger i `brand/`, `storkok-personal.jpg` till
-skolmatsartikeln och `konditori-disk.jpg`.
-
-**Grävlingen som ritning.** Den förenklade figuren lever kvar på flera ställen
-och ska bort överallt. Den röda ska ha nära platta ögonbryn, munnen ensam ska
-skilja alla tre lägen, och på rent bågar munnen just nu in i nosen.
-
-**Rörelserna.** Av nitton håller en, spaningen. Skillnaden är mätbar: spaningen
-har håll i bildrutorna, liten amplitud och en kurva utan överslag, medan hoppet
-och ögonpoppen har squash och stretch och kurvor som skjuter förbi målet med
-åttio till nittio procent. Agenten gör om resten och ska säga rakt ut vilka som
-borde strykas helt.
-
-**Kommunsidans statistik.** Två ytor som båda ser undermåliga ut. Avsnittet
-"i siffror" har gråa nästan osynliga staplar, tal långt från sin etikett, två
-olika stapelspråk på samma yta och en källrad som säger SCB två gånger på sex
-ord. Kommunsidans topp har en oläslig teckenförklaring och ikoner ur olika
-uppsättningar.
+Ingen. Kön är tom och allt är pushat, se listan längst ned.
 
 ---
 
@@ -99,3 +70,21 @@ uppsättningar.
   scrollas in i vyn.
 - Riggen och rörelsekatalogen är sparade, och `brand/_prov-rorelse.html` spelar
   upp dem.
+
+---
+
+## Ednia är ednia.se, inte Eniro
+
+Två agenter drog olika slutsats om samma referens och byggde på var sin, så det
+skrivs ned här en gång.
+
+`ednia.se` svarar och är en svensk tjänst för gymnasium och universitet, alltså
+en katalogtjänst med samma grundproblem som vår: många poster, tunn data per
+post, och sökningen som huvudingång. Det är den ägaren pekat på genom hela
+projektet, både för menyn och för statistiken.
+
+`ednia.com` finns inte. En agent som slog på den adressen fick inget svar,
+läste sedan en rad i `21_foretagsyta_och_verifiering.md` som påstod att Ednia
+var ägarens namn på Eniro, och mätte eniro.se i stället. Den raden var fel och
+är borttagen. Eniro är fortfarande en relevant jämförelse för företagsytan, men
+den är inte Ednia.

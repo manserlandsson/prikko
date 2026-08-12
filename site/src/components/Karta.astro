@@ -375,15 +375,20 @@ const LEGEND = [
         ))}
       </ul>
 
-      {/* Attributionen står här OCH i kartans hörn. Kravet är att den syns,
-          och ett kontrollelement som kan fällas ihop är ingen garanti. */}
-      <p class="attribution text-muted">
-        Kartdata <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
-        kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
-        {data.derived && (
-          <> Platserna i {plats} är beräknade ur adressen och kan ligga några tiotal meter fel.</>
-        )}
-      </p>
+      {/* Attributionen stod förut BÅDE här och i kartans hörn, med motiveringen
+          att kravet är att den syns och att ett kontrollelement som kan fällas
+          ihop inte är någon garanti. Den motiveringen gäller inte längre:
+          kontrollen skapas med `compact: false`, alltså utfälld i alla lägen och
+          utan knapp att fälla ihop den med. Kvar blev samma mening två gånger
+          med tio pixlar emellan.
+
+          Ändra ALDRIG `compact` till true utan att sätta tillbaka raden här.
+          Attributionen är ett licensvillkor och inte en artighet. */}
+      {data.derived && (
+        <p class="attribution text-muted">
+          Platserna i {plats} är beräknade ur adressen och kan ligga några tiotal meter fel.
+        </p>
+      )}
     </div>
   </section>
 

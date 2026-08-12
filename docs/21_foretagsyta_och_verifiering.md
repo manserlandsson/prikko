@@ -61,7 +61,7 @@ företaget.
 
 ### Eniro
 
-Eniro (sajten som stod som "Ednia" i frågan) är den viktigaste jämförelsen,
+Eniro är den viktigaste jämförelsen,
 för de ger bort mest. Ett företag kan uppdatera hela sin profil **gratis** via
 uppdatera.eniro.se, och signerar ändringen med **BankID**. Gratis ger dessutom
 ett verifieringsmärke på listningen.
