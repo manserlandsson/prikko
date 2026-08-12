@@ -37,7 +37,7 @@ import {
   type Municipality,
 } from './data';
 import { articleFiles, sectionReady } from './artiklar';
-import { mapDataset } from './map-data';
+import { utsnitt } from './kartrutor';
 import { hasMatsnuskPage } from './matsnusk';
 import { linkedAreas } from './omraden';
 import { hasMovementPage, hasNationalPage, movement } from './rorelse';
@@ -206,7 +206,11 @@ function kommunLinks(m: Municipality): MapLink[] {
   // gör inte det, och en karta utan nålar är den tunna sidan kvalitetsgrinden
   // ska hålla borta. Villkoret är samma anrop som getStaticPaths i
   // pages/[kommun]/karta.astro gör, inte en egen bedömning av samma sak.
-  if (mapDataset(m.slug) !== undefined) {
+  //
+  // Anropet var `mapDataset` tills kartan bytte källa, alltså en annan modul
+  // än den sidan själv frågar. Två oberoende svar på samma fråga är precis vad
+  // byggrinden fäller sajten på den dag de säger olika saker.
+  if (utsnitt(m.slug) !== undefined) {
     links.push({ href: path(m.slug, 'karta'), label: 'Karta' });
   }
 
@@ -368,6 +372,9 @@ function omSection(): MapSection {
           { href: path('metodik'), label: 'Så räknas bedömningen fram' },
           { href: path('kallor'), label: 'Källor och uppdatering' },
           { href: path('sok'), label: 'Sök verksamhet' },
+          // Rikskartan står bland verktygen och inte under kommunerna: den är
+          // en ingång till alla tolv på en gång, inte en av deras sidor.
+          { href: path('karta'), label: 'Karta över hela Sverige' },
           // Riksvyn byggs bara när loggen bär tillräckligt. Utan villkoret
           // hade byggrinden fällt bygget på en länk till en sida som inte finns.
           ...(hasNationalPage()

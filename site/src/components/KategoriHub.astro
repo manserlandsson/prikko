@@ -25,6 +25,7 @@ import {
   type Municipality,
   type SubCategorySlice,
 } from '../lib/data';
+import { utsnitt } from '../lib/kartrutor';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
@@ -51,6 +52,21 @@ const { kommun, slice, sub, subs, siblings, items, currentPage, lastPage, start,
 
 const city = kommun.city;
 const kommunBase = `/${kommun.slug}`;
+
+/**
+ * Vägen in i kartan med kategorin påslagen.
+ *
+ * Fragmentet och inte en frågesträng, och inte heller en egen kartadress per
+ * kategori: ingången är en funktion och funktioner kostar aldrig en sida. Se
+ * docs/23_rikskartan.md del 4.
+ *
+ * Bara på sida 1. En länk som säger "visa restaurangerna på karta" och står på
+ * sida 4 av 9 lovar de fyrtio raderna man ser, och kartan visar alla.
+ */
+const kartlank =
+  currentPage === 1 && utsnitt(kommun.slug)
+    ? `${path(kommunBase, 'karta')}#typ=${slice.category.slug}`
+    : null;
 const categoryBase = `${kommunBase}/kategori/${slice.category.slug}`;
 const base = sub ? `${categoryBase}/${sub.sub.slug}` : categoryBase;
 
@@ -161,6 +177,24 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
       {currentPage === 1 && !sub && (
         <p class="blurb text-muted">{slice.category.blurb}.</p>
       )}
+
+      {/*
+        In i den delade vyn med kategorin påslagen.
+
+        Kategorisidan är en LISTA, och frågan "var ligger de" har den inget
+        svar på. Kartan har det, och sedan fragmentet bär `typ=` behöver den
+        inte en egen sida för varje kategori för att kunna visa en: en funktion
+        får aldrig kosta en sida.
+
+        Bara toppkategorin. Underkategorierna finns inte i rutorna, och en länk
+        som lovar konditorier men levererar hela kaféklassen är värre än ingen
+        länk. Sidan bär då kategorins länk i stället, vilket är sant.
+      */}
+      {kartlank && (
+        <p class="kartlank">
+          <a href={kartlank}>Visa {slice.category.plural} i {city} på karta</a>
+        </p>
+      )}
     </header>
 
     {showFilters && linkedSubs.length > 0 && (
@@ -246,6 +280,15 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
     margin-top: var(--s-2);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
+  }
+
+  /* Kartlänken. En rad i huvudet och inte en knapp: sidan är en lista, och
+     kartan är nästa steg för den som vill se var, inte sidans huvudhandling. */
+  .kartlank {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
   }
 
   /* Filterraden. Länkar, inte knappar — tangentbord och skärmläsare fungerar

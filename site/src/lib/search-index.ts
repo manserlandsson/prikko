@@ -24,6 +24,7 @@
  */
 import { createHash } from 'node:crypto';
 import { establishments, municipalities } from './data';
+import { utsnitt } from './kartrutor';
 
 /** Ordningen speglar VERDICTS. -1 = ingen bedömning. */
 const VERDICTS = ['clean', 'minor', 'major'];
@@ -55,7 +56,22 @@ function build(): string {
   ]);
 
   return JSON.stringify({
-    k: kommuner.map((m) => [m.slug, m.city]),
+    /*
+     * Slug, ort och en etta för de kommuner som har en kartsida.
+     *
+     * Trean finns för att ägaren bad om det: "söker man på en kommun tex i sök
+     * ska man komma till split screen på karta och lista". Kommunraden i
+     * panelen pekar därför på `/<kommun>/karta/` när den finns, och på hubben
+     * för de fyra som inte lämnar en enda koordinat. Villkoret är samma anrop
+     * som kartsidans getStaticPaths gör, alltså inte en andra bedömning av
+     * samma sak.
+     *
+     * En etta och inte ett booleskt värde: `true` är fyra tecken per rad i
+     * JSON och `1` är ett, och registret ligger på varje sidvisning.
+     */
+    k: kommuner.map((m) =>
+      utsnitt(m.slug) ? [m.slug, m.city, 1] : [m.slug, m.city],
+    ),
     v: VERDICTS,
     e: rows,
   });

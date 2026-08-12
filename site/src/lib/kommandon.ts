@@ -20,7 +20,7 @@
 import { getCollection } from 'astro:content';
 import { sectionReady } from './artiklar';
 import { formatNumber, municipalities } from './data';
-import { mapDataset } from './map-data';
+import { utsnitt } from './kartrutor';
 import type { Suggestion } from './sokforslag';
 import { path } from './urls';
 
@@ -56,8 +56,10 @@ let cache: CommandSection[] | null = null;
 export async function siteCommands(): Promise<CommandSection[]> {
   if (cache) return cache;
 
+  const riket = utsnitt();
+
   const maps: Suggestion[] = municipalities()
-    .map((m) => ({ m, data: mapDataset(m.slug) }))
+    .map((m) => ({ m, data: utsnitt(m.slug) }))
     .filter((x) => x.data !== undefined)
     /* Störst först, inte i bokstavsordning. Åtta kommuner har karta och
        listan visar bara några åt gången: i bokstavsordning slutade "karta"
@@ -94,7 +96,23 @@ export async function siteCommands(): Promise<CommandSection[]> {
 
   cache = [
     { name: 'Sidor', items: PAGES },
-    { name: 'Kartor', items: maps },
+    /* Rikskartan först, före kommunerna. Den är ingången till alla på en gång
+       och den enda raden som svarar på "karta" utan en ort efter. */
+    {
+      name: 'Kartor',
+      items: riket
+        ? [
+            {
+              label: 'Karta över Sverige',
+              meta: `${formatNumber(riket.count)} ställen med nål`,
+              href: path('karta'),
+              kind: 'map' as const,
+              kw: 'kartor riket hela landet sverige',
+            },
+            ...maps,
+          ]
+        : maps,
+    },
     { name: 'Artiklar', items: articles },
   ].filter((g) => g.items.length > 0);
 

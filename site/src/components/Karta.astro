@@ -68,24 +68,36 @@ import {
   formatDate,
   formatNumber,
   latestInspectionDate,
+  municipalities,
   municipalityListing,
+  TOP_CATEGORIES,
   type Municipality,
 } from '../lib/data';
-import { MAP_EPOCH, tileSet, type Utsnitt } from '../lib/kartrutor';
+import { kategoriBitar, MAP_EPOCH, tileSet, utsnitt, type Utsnitt } from '../lib/kartrutor';
 import { hasMark, markRatio } from '../lib/marke';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
 
 interface Props {
-  kommun: Municipality;
-  /** Utsnittet kartan öppnar på, och talen under den. Kommunens i dag, hela
-   *  rikets när `/karta/` byggs. Kommer ur lib/kartrutor.ts. */
+  /**
+   * Kommunen vyn öppnar på, eller ingen alls.
+   *
+   * Utelämnad betyder RIKSKARTAN, alltså `/karta/`. Ytan, datan och beteendet
+   * är desamma; det som skiljer är utsnittet den öppnar på och vad som ligger
+   * serverrenderat i listan. Se `kommunrader` nedan.
+   */
+  kommun?: Municipality;
+  /** Utsnittet kartan öppnar på, och talen under den. Kommunens, eller hela
+   *  rikets. Kommer ur lib/kartrutor.ts. */
   data: Utsnitt;
 }
 
 const { kommun, data } = Astro.props;
-const base = `/${kommun.slug}`;
+const base = kommun ? `/${kommun.slug}` : '';
+
+/** Vyns namn i klartext. Står i rubriken, i kartans etikett och i tomläget. */
+const plats = kommun ? kommun.city : 'Sverige';
 
 /*
  * Rutarkivet, hela riket i en fil.
@@ -111,9 +123,59 @@ const rutor = tileSet();
  * punkterna är hämtade.
  */
 const SERVER_ROWS = 60;
-const initial = municipalityListing(kommun.slug)
-  .filter((e) => e.lat !== null && e.lng !== null)
-  .slice(0, SERVER_ROWS);
+const initial = kommun
+  ? municipalityListing(kommun.slug)
+      .filter((e) => e.lat !== null && e.lng !== null)
+      .slice(0, SERVER_ROWS)
+  : [];
+
+/**
+ * Rikskartans serverrenderade lista: kommunerna, inte sextio verksamheter.
+ *
+ * Två skäl, och båda gäller bara den nationella vyn.
+ *
+ * Sextio namn ur ett bestånd på 13 544 är godtyckliga. Vilka sextio det blir
+ * avgörs av bokstavsordningen i den första kommunen, alltså av ingenting som
+ * har med Sverige att göra, och sidan hade lovat en lista över landet och
+ * levererat en lista över Borgholm.
+ *
+ * Och `/karta/` öppnar på hela landet, där varenda punkt ligger i en bubbla.
+ * Kortlistan är därför tom tills man zoomat in, och en tom app-yta är precis
+ * den tunna sida kvalitetsgrinden finns för att hålla borta. Kommunraderna
+ * står kvar så länge kortlistan är tom och är då sidans innehåll: en riktig
+ * ingång till varje kommun med sitt eget tal.
+ *
+ * Kommuner utan en enda känd koordinat saknas, av samma skäl som de inte får
+ * en kartsida: en rad som leder till en tom karta är värre än ingen rad.
+ */
+const kommunrader = kommun
+  ? []
+  : municipalities()
+      .map((m) => ({ m, vy: utsnitt(m.slug) }))
+      .filter((x) => x.vy !== undefined)
+      /* Störst först, inte i bokstavsordning. Samma val som kartraderna i
+         sökpanelen: i bokstavsordning hamnar Stockholms 8 500 nålar sist. */
+      .sort((a, z) => z.vy!.count - a.vy!.count || a.m.city.localeCompare(z.m.city, 'sv'))
+      .map(({ m, vy }) => ({
+        city: m.city,
+        href: path(`/${m.slug}`, 'karta'),
+        count: vy!.count,
+      }));
+
+/**
+ * Kategorierna kartan kan filtreras på, som ordbok från URL-segment till bit.
+ *
+ * Bitarna sätts av lib/kartrutor.ts vid bygget och ligger i varje nåls `c`.
+ * Ordboken följer med i sidans HTML av samma skäl som kommunernas slugar:
+ * klienten måste kunna översätta `#...&typ=restauranger` till samma tal som
+ * bygget skrev, och en andra tabell i klientkoden hade kunnat glida isär från
+ * den första.
+ */
+const kategorier = TOP_CATEGORIES.map((c) => ({
+  slug: c.slug,
+  name: c.name,
+  bit: kategoriBitar()[c.slug],
+}));
 
 /*
  * Utmärkelseikonen i nålens kort är den riktiga ritningen, samma fil som
@@ -142,7 +204,8 @@ const LEGEND = [
   data-url={rutor.url}
   data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
-  data-city={kommun.city}
+  data-city={plats}
+  data-kategorier={JSON.stringify(kategorier)}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
   data-marke={markeUrl}
@@ -169,7 +232,7 @@ const LEGEND = [
     <div class="arkinne" data-arkinne>
     <header class="listhuvud">
       <h2 id="listrubrik" data-rubrik>
-        {formatNumber(data.count)} verksamheter i {kommun.city}
+        {formatNumber(data.count)} verksamheter i {plats}
       </h2>
       <p class="text-secondary" data-underrubrik>
         Med känd plats. Dra i kartan för att se dem som ligger där.
@@ -178,6 +241,22 @@ const LEGEND = [
       {/* Syns bara vid tomt resultat MED filter. Vid tomt utsnitt utan filter
           är rådet att dra i kartan, och då finns inget att rensa. */}
       <button type="button" class="rensa" data-rensa hidden>Rensa filtret</button>
+
+      {/*
+        Kategorimärket. Syns bara när adressen bär `typ=`, alltså när man
+        kommit hit från en kategorisida. Det är den ENDA plats i vyn som säger
+        att ett kategorifilter är på, och utan det hade kartan sett ut att ha
+        tappat nio tiondelar av sina nålar utan att säga varför.
+
+        En knapp och inte en etikett: det som filtrerar måste gå att stänga av
+        där det syns. Krysset rensar kategorin och lämnar textfiltret ifred.
+      */}
+      <button type="button" class="kategorimarke" data-kategorimarke hidden>
+        <span data-kategorinamn></span>
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </button>
 
       {/* Filtret. Sidhuvudets sök leder till andra sidor; det här fältet
           filtrerar vyn man står i, kort och nålar samtidigt, medan man
@@ -227,15 +306,45 @@ const LEGEND = [
       ))}
     </ol>
 
-    <p class="listfot text-secondary" data-listfot>
-      Visar de {formatNumber(Math.min(SERVER_ROWS, data.count))} första i
-      bokstavsordning. <a href={path(base)}>Hela listan för {kommun.city}</a>.
-    </p>
+    {/*
+      Kommunraderna. Rikskartan bara, och synliga så länge kortlistan är tom,
+      alltså på hela den zoom där landet ligger i bubblor. Se `kommunrader` i
+      frontmatteret för varför det är den listan och inte sextio namn.
+
+      En <nav> och inte en <ol>: raderna är en navigering till tolv sidor, inte
+      ett sökresultat, och de byts aldrig ut av kartan.
+    */}
+    {kommunrader.length > 0 && (
+      <nav class="kommuner" data-kommuner aria-label="Kommuner med karta">
+        <p class="kommuner-inledning text-secondary">
+          Zooma in, eller välj en kommun.
+        </p>
+        <ul>
+          {kommunrader.map((k) => (
+            <li>
+              <a href={k.href}>
+                <b>{k.city}</b>
+                <span class="text-secondary">{formatNumber(k.count)} verksamheter</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    {kommun ? (
+      <p class="listfot text-secondary" data-listfot>
+        Visar de {formatNumber(Math.min(SERVER_ROWS, data.count))} första i
+        bokstavsordning. <a href={path(base)}>Hela listan för {kommun.city}</a>.
+      </p>
+    ) : (
+      <p class="listfot text-secondary" data-listfot hidden></p>
+    )}
     </div>
   </section>
 
   {/* ── Kartan ─────────────────────────────────────────────────────────── */}
-  <section class="kartkolumn" aria-label={`Karta över ${kommun.city}`}>
+  <section class="kartkolumn" aria-label={`Karta över ${plats}`}>
     <div class="kartram" data-kartram>
       <div class="duk" data-duk></div>
 
@@ -272,7 +381,7 @@ const LEGEND = [
         Kartdata <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
         kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
         {data.derived && (
-          <> Platserna i {kommun.city} är beräknade ur adressen och kan ligga några tiotal meter fel.</>
+          <> Platserna i {plats} är beräknade ur adressen och kan ligga några tiotal meter fel.</>
         )}
       </p>
     </div>
@@ -359,6 +468,8 @@ const LEGEND = [
     k: number;
     /** Har utmärkelse. */
     u: boolean;
+    /** Toppkategorierna som bitmask, satt av bygget. 0 = okänd kategori. */
+    kat: number;
   }
 
   /**
@@ -392,6 +503,11 @@ const LEGEND = [
     const arkInne = root.querySelector<HTMLElement>('[data-arkinne]')!;
     const handtag = root.querySelector<HTMLButtonElement>('[data-handtag]')!;
     const handtagText = root.querySelector<HTMLElement>('[data-handtag-text]')!;
+    /* Finns bara på rikskartan. Kommunens kartsida har sextio riktiga rader i
+       stället, och då behövs ingen ingång till kommunerna. */
+    const kommuner = root.querySelector<HTMLElement>('[data-kommuner]');
+    const kategorimarke = root.querySelector<HTMLButtonElement>('[data-kategorimarke]')!;
+    const kategorinamn = root.querySelector<HTMLElement>('[data-kategorinamn]')!;
 
     /** Nedskruvad rörelse. Läses en gång: arket, kortet och kartans easeTo
      *  ska alla följa samma inställning, och den ändras inte under besöket. */
@@ -457,6 +573,7 @@ const LEGEND = [
         typ: props.ty ?? '',
         k: props.k ?? 0,
         u: props.u === 1,
+        kat: props.c ?? 0,
       };
     }
 
@@ -651,13 +768,38 @@ const LEGEND = [
         .trim();
     }
 
-    function raknaTraffar(tokens: string[]): Set<number> {
+    /**
+     * Kategorin som filtrerar, som bitmask. 0 betyder ingen.
+     *
+     * Sätts av adressens `typ=`-nyckel och av kategorimärket i listhuvudet, och
+     * aldrig av något annat: kartan har medvetet ingen egen kategoriväljare.
+     * Kategorisidorna är sidor för att de kan rankas, och en andra väljare på
+     * kartan hade konkurrerat med dem om samma handling.
+     */
+    let katMask = 0;
+
+    /** Kategoriernas ordbok ur sidans HTML. Bitarna är bygget som satte dem. */
+    const KATEGORIER: Array<{ slug: string; name: string; bit: number }> =
+      JSON.parse(root.dataset.kategorier ?? '[]');
+
+    /**
+     * Mängden som matchar BÅDA filtren, eller null när inget av dem är på.
+     *
+     * Ett snitt och inte två steg: kategorin och texten är två villkor ovanpå
+     * kartutsnittet, och allt nedanför frågar bara "matchar den här raden".
+     * Null och inte en full mängd, av skälet vid `traffar` ovan.
+     */
+    function raknaTraffar(): Set<number> | null {
+      const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
+      if (tokens.length === 0 && katMask === 0) return null;
+
       const punkter = punktKalla();
       if (!sokbar) {
         sokbar = new Map(punkter.map((p) => [p.i, ' ' + normalisera(p.namn + ' ' + p.typ)]));
       }
       const ut = new Set<number>();
       for (const p of punkter) {
+        if (katMask !== 0 && (p.kat & katMask) === 0) continue;
         const text = sokbar.get(p.i)!;
         let allaMed = true;
         for (const tok of tokens) {
@@ -671,6 +813,29 @@ const LEGEND = [
       return ut;
     }
 
+    /** Vad filtret säger, i ord. Står i tomtexten, som annars hade sagt att
+     *  utsnittet är tomt utan att nämna att ett filter tömde det. */
+    function filterOrd(): string {
+      const kat = KATEGORIER.find((k) => k.bit === katMask);
+      const delar: string[] = [];
+      if (kat) delar.push(kat.name.toLocaleLowerCase('sv'));
+      if (filterVarde) delar.push(`”${filterVarde}”`);
+      return delar.join(' och ');
+    }
+
+    /**
+     * Kategorimärket i listhuvudet speglar `katMask`.
+     *
+     * Märket är den enda synliga signalen om att en kategori filtrerar, och det
+     * är också den enda vägen ut ur den. Krysset rensar kategorin och lämnar
+     * textfältet ifred, eftersom de är två filter och inte ett.
+     */
+    function stallKategorimarke() {
+      const kat = KATEGORIER.find((k) => k.bit === katMask);
+      kategorimarke.hidden = !kat;
+      if (kat) kategorinamn.textContent = kat.name;
+    }
+
     /**
      * Fältets lyssnare sätts vid sidladdning, men filtret kan verka först när
      * punkterna och kartan finns. Kartans load-hanterare pekar om `tillampa`
@@ -681,10 +846,24 @@ const LEGEND = [
 
     filterFalt.addEventListener('input', () => tillampa?.());
 
+    /* Rensknappen tar BÅDA filtren. Den syns bara när vyn är tom trots att ett
+       filter är på, alltså är den vägen ut ur en återvändsgränd, och en väg ut
+       som lämnar hälften av det som stängde vägen kvar är ingen väg ut. */
     rensa.addEventListener('click', () => {
       filterFalt.value = '';
+      katMask = 0;
+      stallKategorimarke();
       tillampa?.();
       filterFalt.focus();
+    });
+
+    /* Kategorimärket tar bara sin egen kategori. Det är två filter, och den
+       som skrivit i fältet ska inte förlora det för att hen stänger av
+       kategorin hen kom in med. */
+    kategorimarke.addEventListener('click', () => {
+      katMask = 0;
+      stallKategorimarke();
+      tillampa?.();
     });
 
     filterFalt.addEventListener('keydown', (ev) => {
@@ -704,8 +883,15 @@ const LEGEND = [
      * som täcker båda.
      */
     window.addEventListener('pageshow', () => {
-      if (filterFalt.value) {
-        filterFalt.value = '';
+      /* Adressen och inte tomt. Regeln är fortfarande att fältet inte får
+         överleva ett sidbyte av sig självt, men sedan fragmentet kan bära `q`
+         är det ADRESSEN som säger vad fältet ska innehålla. Ett blint
+         nollställande här hade tömt fältet på varje sidladdning av en delad
+         länk, alltså gjort delningen värdelös i just det fall den finns för. */
+      const frag = lasFragment();
+      if (filterFalt.value !== frag.q) {
+        filterFalt.value = frag.q;
+        filterVarde = frag.q.trim();
         tillampa?.();
       }
     });
@@ -802,12 +988,17 @@ const LEGEND = [
        */
       const iVyn = totalt + iBubbla;
 
+      /* Kommunraderna, bara på rikskartan: de är listans innehåll så länge
+         kartan inte gett några kort, och försvinner i samma stund den gör det.
+         Se `kommunrader` i frontmatteret. */
+      if (kommuner) kommuner.hidden = visa.length > 0;
+
       if (iVyn === 0) {
         // Samma tomrubrik med och utan filter, men förklaringen är en annan:
         // med filter är det filtret som tömde vyn, och rensknappen visas.
         rubrik.textContent = 'Inga verksamheter här';
         underrubrik.textContent = filtrerat
-          ? `Ingenting i utsnittet matchar ”${filterVarde}”. Dra i kartan eller rensa filtret.`
+          ? `Ingenting i utsnittet matchar ${filterOrd()}. Dra i kartan eller rensa filtret.`
           : `Dra eller zooma ut för att se fler i ${stad}.`;
         underrubrik.hidden = false;
       } else {
@@ -1474,17 +1665,26 @@ const LEGEND = [
     // ── Positionen i adressens fragment ──────────────────────────────────
 
     /**
-     * `#map=<zoom>/<lat>/<lng>`, satt av platsknappen i sökpanelen.
+     * Adressen bär vyn: `#map=<zoom>/<lat>/<lng>`, plus filtren efter den.
      *
      * FRAGMENT och inte frågesträng, och det är ett integritetsbeslut och
      * inte en formsak: enligt HTTP skickas fragmentet aldrig med i en
      * begäran, så besökarens position lämnar aldrig enheten. Den är dessutom
      * avrundad till tre decimaler, ungefär 110 meter, vilket är den siffra
-     * integritetspolicyn anger. Skriver kartan någon gång själv tillbaka till
-     * fragmentet MÅSTE den avrundningen behållas.
+     * integritetspolicyn anger, och den avrundningen gäller ALLT som skrivs
+     * hit, även kartans egen återskrivning nedan.
      *
      * Talformatet är OpenStreetMaps, alltså zoom före latitud före longitud,
      * så att kontraktet syns i adressen utan att någon behöver slå upp det.
+     * Nycklarna efter den skiljs med `&`, precis som OSM gör:
+     *
+     *     #map=15/59.331/18.065
+     *     #map=15/59.331/18.065&typ=restauranger
+     *     #map=12/58.410/15.621&q=sushi
+     *
+     * Varje del är valfri. `#typ=restauranger` utan position är giltigt och
+     * betyder "kommunens vanliga utsnitt, med kategorin på", vilket är precis
+     * vad en kategorisida behöver kunna länka till utan att kunna en zoom.
      */
     interface Vy {
       zoom: number;
@@ -1492,20 +1692,94 @@ const LEGEND = [
       lng: number;
     }
 
-    function lasFragment(): Vy | null {
-      const m = /^#map=([\d.]+)\/(-?[\d.]+)\/(-?[\d.]+)$/.exec(location.hash);
-      if (!m) return null;
-      const zoom = Number(m[1]);
-      const lat = Number(m[2]);
-      const lng = Number(m[3]);
-      /*
-       * Grinden mot skräp i adressen. Fragmentet kan skrivas av vem som helst,
-       * och en NaN-koordinat lägger MapLibre i ett läge det inte kommer ur:
-       * kartan blir svart och ingenting säger varför.
-       */
-      if (!Number.isFinite(zoom) || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-      if (zoom < 1 || zoom > 20 || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-      return { zoom, lat, lng };
+    interface Fragment {
+      vy: Vy | null;
+      /** Textfiltret. Tom sträng när nyckeln saknas. */
+      q: string;
+      /** Kategorins URL-segment. Tom sträng när nyckeln saknas. */
+      typ: string;
+    }
+
+    function lasFragment(): Fragment {
+      const ut: Fragment = { vy: null, q: '', typ: '' };
+      const rad = location.hash.replace(/^#/, '');
+      if (!rad) return ut;
+
+      for (const del of rad.split('&')) {
+        const vid = del.indexOf('=');
+        if (vid < 0) continue;
+        const nyckel = del.slice(0, vid);
+        const varde = del.slice(vid + 1);
+
+        if (nyckel === 'map') {
+          const m = /^([\d.]+)\/(-?[\d.]+)\/(-?[\d.]+)$/.exec(varde);
+          if (!m) continue;
+          const zoom = Number(m[1]);
+          const lat = Number(m[2]);
+          const lng = Number(m[3]);
+          /*
+           * Grinden mot skräp i adressen. Fragmentet kan skrivas av vem som
+           * helst, och en NaN-koordinat lägger MapLibre i ett läge det inte
+           * kommer ur: kartan blir svart och ingenting säger varför.
+           */
+          if (!Number.isFinite(zoom) || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+          if (zoom < 1 || zoom > 20 || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+          ut.vy = { zoom, lat, lng };
+        } else if (nyckel === 'q') {
+          // Fältet tar emot vad som helst och matchar bara mot text; det som
+          // skrivs hit hamnar i en input via value och aldrig i markup.
+          ut.q = decodeURIComponent(varde.replace(/\+/g, ' ')).slice(0, 80);
+        } else if (nyckel === 'typ') {
+          ut.typ = decodeURIComponent(varde);
+        }
+      }
+      return ut;
+    }
+
+    /**
+     * Kartan skriver tillbaka sitt utsnitt och sina filter.
+     *
+     * En delad vy som inte går att dela är en app och inte en sida, och det var
+     * ägarens beställning. Tre saker är låsta här och får inte ändras utan att
+     * skälet ändras med dem:
+     *
+     * `replaceState` och ALDRIG `location.hash =`. Det senare lägger en post i
+     * historiken per panorering, och efter en minut på kartan går bakåtknappen
+     * inte längre tillbaka till sidan man kom ifrån.
+     *
+     * Tre decimaler på lat och lng, alltså omkring 110 meter. Det är talet
+     * integritetspolicyn anger, och det gäller kartans mitt av samma skäl som
+     * det gäller platsknappens position: en adress som lämnar enheten i en
+     * delning ska peka ut ett kvarter och inte en port.
+     *
+     * Och en flagga i `history.state`. Den skiljer vår egen återskrivning från
+     * ett fragment någon annan satt, vilket är det som avgör om ringen "du är
+     * här" ska ritas. Utan den hade varje omladdning av en karta man dragit i
+     * påstått att besökaren står mitt i utsnittet. `history.state` överlever en
+     * omladdning av samma historikpost, vilket är precis vad frågan gäller.
+     */
+    let skrivVantar = 0;
+
+    function skrivFragment() {
+      if (!karta) return;
+      const c = karta.getCenter();
+      const delar = [
+        `map=${Math.round(karta.getZoom() * 100) / 100}/${c.lat.toFixed(3)}/${c.lng.toFixed(3)}`,
+      ];
+      const kat = KATEGORIER.find((k) => k.bit === katMask);
+      if (kat) delar.push(`typ=${kat.slug}`);
+      if (filterVarde) delar.push(`q=${encodeURIComponent(filterVarde)}`);
+
+      const hash = '#' + delar.join('&');
+      if (hash === location.hash) return;
+      history.replaceState({ ...history.state, prikkoVy: true }, '', hash);
+    }
+
+    /** Rörelsen slutar, inte varje bildruta: en replaceState per bild är
+     *  onödigt arbete i huvudtråden och syns som hack i dragningen. */
+    function planeraSkrivning() {
+      clearTimeout(skrivVantar);
+      skrivVantar = window.setTimeout(skrivFragment, 250);
     }
 
     /**
@@ -1566,18 +1840,40 @@ const LEGEND = [
      * som finns. Utan den här lyssnaren händer ingenting alls vid det trycket.
      */
     window.addEventListener('hashchange', () => {
-      const vy = lasFragment();
-      if (!vy || !karta) return;
+      /* Vår egen återskrivning utlöser ingen hashchange, eftersom
+         replaceState inte gör det. Kommer händelsen ändå är det någon annan
+         som satt fragmentet, alltså platsknappen, och då är det en riktig
+         "du är här". */
+      const frag = lasFragment();
+      if (!karta) return;
+      if (frag.typ || frag.q) tillampaFragment(frag);
+      if (!frag.vy) return;
       karta.easeTo({
-        center: [vy.lng, vy.lat],
-        zoom: vy.zoom,
+        center: [frag.vy.lng, frag.vy.lat],
+        zoom: frag.vy.zoom,
         duration: reducerad ? 0 : 600,
       });
-      satHar(vy);
+      satHar(frag.vy);
       // På telefon ligger arket över halva kartan. Dras det ned till remsan
       // ser man platsen man just bad om i stället för listan.
       if (arkAktivt && lage !== 'remsa') stallArk('remsa');
     });
+
+    /**
+     * Filtren ur adressen in i vyn.
+     *
+     * Pekar mot `tillampa`, alltså mot ingenting innan kartan vaknat. Det är
+     * rätt ordning: värdet läggs i fältet och i `katMask` med en gång, och
+     * kartans load-hanterare plockar upp båda när den kör sitt första filter.
+     */
+    function tillampaFragment(frag: Fragment) {
+      const kat = KATEGORIER.find((k) => k.slug === frag.typ);
+      katMask = kat ? kat.bit : 0;
+      if (frag.q) filterFalt.value = frag.q;
+      filterVarde = filterFalt.value.trim();
+      stallKategorimarke();
+      tillampa?.();
+    }
 
     /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
      *  koden: adressen ska vara densamma i dev och i bygget. */
@@ -1712,7 +2008,17 @@ const LEGEND = [
        * och sedan flyger till kvarteret är en halv sekunds förvirring för
        * ingenting. Den som klickat på platsraden har bett om sitt kvarter.
        */
-      const startVy = lasFragment();
+      const startFrag = lasFragment();
+      const startVy = startFrag.vy;
+      /* Ringen bara när fragmentet kom utifrån. Se skrivFragment: vår egen
+         återskrivning bär en flagga i history.state, och den överlever en
+         omladdning av samma historikpost. */
+      const egenVy = Boolean(history.state && (history.state as any).prikkoVy);
+
+      /* Filtren ur adressen innan kartan byggs. `tillampa` är fortfarande
+         null här, alltså sätter anropet bara fältet, masken och märket, och
+         load-hanterarens första filterkörning plockar upp dem. */
+      tillampaFragment(startFrag);
 
       karta = new MapLibreKarta({
         container: duk,
@@ -2012,8 +2318,7 @@ const LEGEND = [
            * nya nålar dyker upp, och ingen av dem matchar det man skrivit.
            */
           if (traffar !== null) {
-            const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
-            if (tokens.length > 0) traffar = raknaTraffar(tokens);
+            traffar = raknaTraffar();
             filtreraNalar();
           }
 
@@ -2067,6 +2372,11 @@ const LEGEND = [
           version += 1;
           uppdatera();
         });
+
+        /* Adressen följer vyn. `moveend` och inte `move`, se planeraSkrivning:
+           en replaceState per bildruta är arbete i huvudtråden som ingen bett
+           om och som syns i dragningen. */
+        karta.on('moveend', planeraSkrivning);
 
         uppdatera();
 
@@ -2124,9 +2434,8 @@ const LEGEND = [
         }
 
         function tillampaFilter() {
-          const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
           filterVarde = filterFalt.value.trim();
-          traffar = tokens.length === 0 ? null : raknaTraffar(tokens);
+          traffar = raknaTraffar();
 
           if (traffar !== null) {
             if (hovrad !== null && !traffar.has(hovrad)) satHovrad(null);
@@ -2135,11 +2444,13 @@ const LEGEND = [
 
           filtreraNalar();
           uppdatera();
+          skrivFragment();
         }
 
         tillampa = tillampaFilter;
-        // Hann någon skriva innan kartan vaknade plockas värdet upp här.
-        if (filterFalt.value) tillampaFilter();
+        // Hann någon skriva innan kartan vaknade, eller kom ett filter ur
+        // adressen, plockas det upp här.
+        if (filterFalt.value || katMask !== 0) tillampaFilter();
 
         // Kortet är limmat vid sin nål och följer med när kartan rör sig, i
         // stället för att stå still medan nålen glider iväg under det.
@@ -2303,8 +2614,10 @@ const LEGEND = [
         karta.on('mouseleave', 'nalar', () => satHovrad(null));
 
         // "Du är här" kan inte läggas in förrän stilen finns, så den sätts
-        // här och inte vid konstruktionen.
-        if (startVy) satHar(startVy);
+        // här och inte vid konstruktionen. Bara när fragmentet kom utifrån:
+        // ett utsnitt kartan själv skrivit tillbaka är en vy och inte en
+        // position, och en ring mitt i den hade påstått något falskt.
+        if (startVy && !egenVy) satHar(startVy);
 
         karta.getCanvas().setAttribute('aria-label', `Karta över hygienkontroller i ${root!.dataset.city}`);
         root!.classList.add('live');
@@ -2446,6 +2759,74 @@ const LEGEND = [
 
   .rensa:hover { border-color: var(--brand); color: var(--brand-ink); }
   .rensa[hidden] { display: none; }
+
+  /* Kategorimärket. Ett chips med ett kryss, samma form som filterchipsen
+     annars på sajten, och placerat före filterfältet eftersom det är det
+     bredare av de två villkoren. */
+  .kategorimarke {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--brand);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
+    font: 600 var(--fs-caption) / 1 var(--font-sans);
+    color: var(--brand-ink);
+    cursor: pointer;
+  }
+
+  .kategorimarke svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+
+  .kategorimarke:hover { background: color-mix(in srgb, var(--brand) 16%, var(--card)); }
+  .kategorimarke[hidden] { display: none; }
+
+  /*
+   * Kommunraderna på rikskartan.
+   *
+   * De ligger i listspalten och inte på kartan, och de är en NAVIGERING och
+   * inte ett sökresultat: hårlinjer och luft, som Boolis listor, i stället för
+   * kortens ram. Skillnaden i form är avsiktlig, eftersom raderna leder till
+   * en annan sida medan korten leder till en verksamhet.
+   */
+  .kommuner[hidden] { display: none; }
+
+  .kommuner-inledning {
+    margin: 0 0 var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .kommuner ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .kommuner li + li { border-top: 1px solid var(--hairline); }
+
+  .kommuner a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-1);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .kommuner a:hover b { color: var(--brand-ink); }
+
+  .kommuner span {
+    flex-shrink: 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
 
   .rader {
     display: grid;

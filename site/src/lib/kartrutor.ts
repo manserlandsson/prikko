@@ -46,7 +46,8 @@
 import { createHash } from 'node:crypto';
 import Supercluster from 'supercluster';
 import vtpbf from 'vt-pbf';
-import { establishments, latestInspectionDate, municipalities } from './data';
+import { TOP_CATEGORIES } from './categories';
+import { categoriesOf, establishments, latestInspectionDate, municipalities } from './data';
 import { writePMTiles } from './pmtiles';
 import { slugify } from './slug';
 
@@ -172,6 +173,32 @@ const SAMMA_PLATS = 3e-5;
  */
 const ALLVAR = [2, 1, 0, 3];
 
+/**
+ * Kategorin som en bitmask, och varför det inte är ett tal.
+ *
+ * 1,4 procent av beståndet hör hemma i två toppkategorier samtidigt, främst
+ * Stockholm där `1. Café` och `1. Restaurang` står på samma verksamhet. Båda
+ * är sanna, och ett fält som bara rymmer den ena hade tappat halva sanningen
+ * för just de raderna. En bitmask rymmer alla fem i ett tal.
+ *
+ * Bitordningen är TOP_CATEGORIES ordning, alltså restaurang, café, butik,
+ * skola, övrigt. `kategoriBitar()` nedan är den enda källan för den
+ * översättningen, och kartan läser den i stället för att räkna ut den igen.
+ *
+ * Okänt får INGEN bit, av samma skäl som `categories.ts` skiljer okänt från
+ * övrigt: fältet utelämnas, och en verksamhet vi inte kan kategorisera visas
+ * därför inte under någon kategori i stället för att gömmas under fel.
+ */
+export function kategoriBitar(): Record<string, number> {
+  const ut: Record<string, number> = {};
+  TOP_CATEGORIES.forEach((c, i) => {
+    ut[c.slug] = 1 << i;
+  });
+  return ut;
+}
+
+const KATEGORI_BIT = new Map(TOP_CATEGORIES.map((c, i) => [c.id, 1 << i]));
+
 function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body' | 'hash' | 'url' | 'tiles'> } {
   const keys = municipalities().map((m) => m.slug);
   const keyIndex = new Map(keys.map((s, i) => [s, i]));
@@ -234,6 +261,10 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
 
     const type = e.types[0];
     if (type) props.ty = type;
+
+    let kat = 0;
+    for (const id of categoriesOf(e).categories) kat |= KATEGORI_BIT.get(id) ?? 0;
+    if (kat) props.c = kat;
 
     const date = latestInspectionDate(e);
     if (date) props.dt = Math.round((Date.parse(date) - epochMs) / DAY);
@@ -440,6 +471,7 @@ function build(): TileSet {
           nm: 'String',
           s: 'String',
           ty: 'String',
+          c: 'Number',
           dt: 'Number',
           k: 'Number',
           u: 'Number',
@@ -519,3 +551,50 @@ export function utsnitt(slug?: string): Utsnitt | undefined {
 
 /** Ett år, oföränderligt — adressen ÄR innehållet. Se search-index.ts. */
 export const TILES_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+/**
+ * En låda som kartfragment: `#map=<zoom>/<lat>/<lng>`.
+ *
+ * Landningssidorna, alltså kategori och område, ska kunna peka in i kartan på
+ * SITT utsnitt och inte på kommunens. De vet var deras innehåll ligger men inte
+ * vilken zoom det motsvarar, och den räkningen hör hemma på ett ställe.
+ *
+ * Måtten nedan är ett ANTAGANDE och står därför utskrivet. Kartrutan är olika
+ * stor på olika skärmar, och zoomen som får en låda att rymmas beror på den.
+ * 1024 gånger 768 är medvetet snålt taget: en bredare ruta visar mer än lådan,
+ * vilket är rätt fel att göra, medan en för hög zoom hade klippt bort en del av
+ * det området sidan handlar om. MapLibre räknar med 512-rutor, se `tileSize` i
+ * kartstilen.
+ *
+ * Tre decimaler på mitten, av samma skäl som överallt annars där en position
+ * skrivs i en adress: ungefär 110 meter, alltså kvarteret och inte porten. Se
+ * integritetspolicyn och fragmentavsnittet i Karta.astro.
+ */
+export function kartfragment(bounds: [number, number, number, number]): string {
+  const [vast, syd, ost, nord] = bounds;
+
+  const RUTA = 512;
+  const BREDD = 1024;
+  const HOJD = 768;
+
+  /* Mercators y som andel av världen. En latitudgrad är inte lika hög överallt,
+     och en linjär räkning hade gett fel zoom ju längre norrut lådan ligger. */
+  const merc = (lat: number) =>
+    Math.log(Math.tan(Math.PI / 4 + (Math.max(-85, Math.min(85, lat)) * Math.PI) / 360));
+
+  const dx = Math.max(1e-6, (ost - vast) / 360);
+  const dy = Math.max(1e-6, (merc(nord) - merc(syd)) / (2 * Math.PI));
+
+  const zoom = Math.min(
+    Math.log2(BREDD / (RUTA * dx)),
+    Math.log2(HOJD / (RUTA * dy)),
+  );
+
+  /* Klämd i båda ändar. Under 4 ser man Europa, över 17 finns inga rutor och
+     MapLibre överzoomar utan att visa mer. */
+  const z = Math.round(Math.max(4, Math.min(17, zoom)) * 100) / 100;
+  const lat = (syd + nord) / 2;
+  const lng = (vast + ost) / 2;
+
+  return `#map=${z}/${lat.toFixed(3)}/${lng.toFixed(3)}`;
+}

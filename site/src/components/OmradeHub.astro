@@ -17,8 +17,10 @@ import Filterrad from './Filterrad.astro';
 import OmradeKarta from './OmradeKarta.astro';
 import Pagination from './Pagination.astro';
 import { formatNumber, type Establishment, type Municipality } from '../lib/data';
+import { kartfragment, utsnitt } from '../lib/kartrutor';
 import { mapDataset } from '../lib/map-data';
 import {
+  areaBounds,
   areaPreposition,
   linkedAreas,
   municipalityCleanShare,
@@ -60,6 +62,18 @@ const kommunen = municipalityCleanShare(kommun.slug);
 /** Kartan. Finns bara där kommunen har koordinater, alltså överallt där ett
  *  område alls kan ha en sida. */
 const karta = mapDataset(kommun.slug);
+
+/**
+ * Vägen vidare in i den delade vyn, på områdets utsnitt.
+ *
+ * Villkoret är kartsidans eget, alltså `utsnitt`: en länk till en kartsida som
+ * inte byggs är en 404, och de fyra kommuner som inte lämnar koordinater har
+ * ingen. I praktiken har varje kommun med en områdessida också en kartsida,
+ * men det är en följd och inte en garanti, och en följd är inget att länka på.
+ */
+const kartlank = utsnitt(kommun.slug)
+  ? path(kommunBase, 'karta') + kartfragment(areaBounds(area))
+  : null;
 
 /*
  * Fördelningen som stapel och antal, i kommunhubbens egen form: en tunn rad
@@ -267,6 +281,16 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
             {/* Attributionen står här OCH i kartans hörn, av samma skäl som i
                 Karta.astro: kravet är att den syns, och ett kontrollelement
                 som kan fällas ihop är ingen garanti. */}
+            {/* Vidare in i den delade vyn, på områdets eget utsnitt.
+                Områdeskartan visar var stället ligger; den delade vyn kan
+                sökas, filtreras och läsas rad för rad. Fragmentet räknas av
+                lib/kartrutor.ts så att zoomen inte blir en gissning per
+                sidmall. */}
+            {kartlank && (
+              <p class="vidare">
+                <a href={kartlank}>Öppna {area.name} i hela kartan</a>
+              </p>
+            )}
             <p class="attribution text-muted">
               Kartdata och områdesgräns <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
               kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
@@ -438,6 +462,15 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   }
 
   .karta { margin-top: var(--s-6); }
+
+  /* Vidarelänken står mellan kartan och attributionen: den hör till kartan,
+     och upphovsraden är alltid det sista under en karta. */
+  .vidare {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
 
   .attribution {
     margin-top: var(--s-2);

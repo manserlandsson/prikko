@@ -1,337 +1,200 @@
 ---
 /**
- * Kommunhubbens karta: en riktig karta, lat laddad.
+ * Kommunhubbens karta: den RIKTIGA kartan, i litet format, lat laddad.
  *
- * Ägarens dom om det förra försöket: "se linköping på karta är skumt gjort,
- * vi vill ju visa kartan också." Rutan var då en liten bild som länkade
- * vidare, alltså fortfarande en länk och inte en karta.
+ * ## Vad som stod här förut, och varför det är borta
  *
- * Booli mätt i webbläsaren, sökresultatet i 1440 px: kartan ligger som ett
- * FAST lager på hela högra halvan, 752 × 836 px, medan listan rullar bredvid
- * i sin 688-spalt. Kartan är alltså inte en puff hos dem utan halva sidan.
- * I 390 px byter den plats med listan genom en knapp i kontrollraden överst,
- * "Visa karta", 40 px hög med 4 px radie — inte en svävande knapp ovanpå
- * innehållet.
+ * Fram till nu ritade den här filen en PUNKTBILD vid bygget: sex hundra
+ * prickar ur kommunens egen datafil, färgade efter bedömning, och ovanpå den
+ * en andra MapLibre-instans som ritade samma punkter som CIRKLAR mot en egen
+ * GeoJSON-källa.
  *
- * Vi kan inte ge kartan halva sidan, och skälet är vikt, inte smak. Se
- * viktresonemanget i Karta.astro: hubben är sidtypen som bär trafiken, den
- * väger 16 kB brotlat, och MapLibre väger 231 kB. Booli är en app som råkar
- * ha adresser; hubben är en sida Google läser. Kartan får därför den plats
- * en karta behöver för att LÄSAS som en karta, och biblioteket betalas bara
- * av den som ber om det.
+ * Ägarens dom: "den lila som finns på restauranger för stockholm och det andra
+ * ställen där vi bara kör prickar är ju bara prickar men går ej att klicka,
+ * samt att det är kraftigt överlapp med vår riktiga robusta kartvy."
  *
- * ## Två lager, i den ordningen
+ * Båda halvorna stämmer, och den andra är den allvarliga.
  *
- * 1. **Punktbilden**, ritad vid bygget ur kartsidans egen datamängd. Varje
- *    punkt är en verksamhet på sin riktiga plats, färgad efter sin
- *    bedömning. Punktmolnet tecknar stadens form utan ett enda kartblad,
- *    kostar noll JavaScript och några kilobyte SVG, och ljuger aldrig mot
- *    kartan man kommer till, eftersom det ÄR kartans data. Den som har
- *    JavaScript avslaget, och Googlebot vid första passet, ser den här.
+ * Prickarna gick inte att klicka därför att de var cirklar utan namn, datum
+ * eller länk. En karta man inte kan peka på är en bild av en karta.
  *
- * 2. **Den levande kartan**, MapLibre med vår egen stil och samma punkter
- *    ovanpå riktiga kartblad. Vaknar av sig själv när villkoren nedan är
- *    uppfyllda, annars på klick.
+ * Överlappet var inte kosmetiskt: rutan var en ANDRA kartimplementation mot en
+ * ANDRA datakälla. `map-data.ts` levererade kommunfilen hit medan
+ * `kartrutor.ts` levererade rutarkivet till kartvyn, alltså två vägar till
+ * samma sanning som kunde glida isär utan att något sa ifrån.
  *
- * ## Varför den numera vaknar av sig själv
+ * ## Vad som står här i stället
  *
- * Kravet var "kartan ska synas direkt", och klicket var priset vi betalade
- * för hubbens vikt. Räknat på nytt går priset att betala någon annanstans än
- * i sidladdningen.
+ * Samma arkiv, samma nålar, samma kluster och samma klusterdelning som
+ * `/<kommun>/karta/`. Prickarna är alltså numera droppnålar med ansikte, ett
+ * klick på en nål går till verksamhetens sida, och ett klick på en bubbla
+ * delar den. Det finns EN datakälla och EN uppsättning kartlager på sajten.
  *
- * Vad uppvaknandet faktiskt kostar, mätt med brotli:
+ * Det som INTE följer med hit är listan, filterfältet, nålens kort och arket.
+ * De hör till den delade vyn, och den har en egen adress. Rutan är en karta
+ * man kan använda, och en dörr till den som kan mer.
+ *
+ * ## Varför den vaknar av sig själv, och varför det ändå är billigt
+ *
+ * Kravet är att kartan ska SYNAS på kommunsidan, se punkt 3 i
+ * `docs/22_teknisk_och_ux_granskning.md`. Klicket var priset vi betalade för
+ * hubbens vikt, och det priset betalas i stället någon annanstans än i
+ * sidladdningen.
+ *
+ * Vad uppvaknandet kostar, mätt med brotli:
  *
  *   maplibre-gl.mjs + shared + worker         232 kB
  *   maplibre-gl.css                             8 kB
  *   kartstil/prikko.json                        3 kB
- *   kartdata, Kristinehamn                      3 kB
- *   kartdata, Stockholm                       106 kB
- *                                          ---------
- *   summa                                 246–349 kB
+ *   pmtiles-läsaren                             7 kB
+ *   rutorna för utsnittet                    2–25 kB
  *
- * Plus kartblad, glyfer och sprite från OpenFreeMap, som är någon eller några
- * hundra kilobyte till för det första utsnittet.
+ * Den sista raden är hela vinsten med bytet. Förut hämtades HELA kommunfilen,
+ * 106 kB brotlat för Stockholm, innan en enda prick kunde ritas. Nu hämtas de
+ * rutor utsnittet kräver, och ett utzoomat kommunutsnitt är några kilobyte.
  *
- * Det är alltså inte gratis, och det är precis därför det INTE ligger i
- * sidladdningen. Uppvaknandet är villkorat på tre saker, och alla tre måste
- * hålla:
+ * Uppvaknandet är villkorat på tre saker, och alla tre måste hålla. Villkoren
+ * är oförändrade och skälen står kvar ordagrant:
  *
  * 1. **Efter `load`, sedan i en tomgångslucka.** Sidan är helt klar innan
- *    första kartbyten hämtas. LCP mäts på det som redan står där, punktbilden
- *    ligger kvar i sin ruta hela tiden, och rutan byter aldrig storlek. Alltså
- *    rör uppvaknandet varken LCP eller CLS, och huvudtrådsarbetet läggs i en
- *    lucka där ingen väntar på det.
+ *    första kartbyten hämtas. LCP mäts på det som redan står där, rutan byter
+ *    aldrig storlek, och huvudtrådsarbetet läggs i en lucka där ingen väntar.
  *
  * 2. **Rutan ska synas.** IntersectionObserver, så att den som landar på sida
  *    47 och aldrig rullar upp inte betalar för en karta hen inte ser.
  *
- * 3. **Uppkopplingen ska tåla det.** Det här är hela svaret på frågan om den
- *    som kommer från Google på en telefon med dålig uppkoppling: `saveData`,
- *    `effectiveType` sämre än 4g och `prefers-reduced-data` stoppar var för
- *    sig uppvaknandet helt. Den besökaren får punktbilden och knappen, alltså
- *    exakt det hen fick förut, och betalar noll extra byte. Signalen saknas i
- *    Safari och Firefox; där vaknar kartan, vilket är rätt avvägning eftersom
- *    punktbilden ändå redan är målad och sidan redan är användbar.
+ * 3. **Uppkopplingen ska tåla det.** `saveData`, `effectiveType` sämre än 4g
+ *    och `prefers-reduced-data` stoppar var för sig uppvaknandet HELT. Den
+ *    besökaren får platshållaren och knappen och betalar noll extra byte.
+ *    Signalen saknas i Safari och Firefox; där vaknar kartan, vilket är rätt
+ *    avvägning eftersom sidan ändå redan är färdigladdad.
  *
- * Knappen finns kvar för dem som stoppas av villkor 3, och när något går fel.
- * Ska kartan vakna av sig själv göms knappen direkt, innan någon hunnit se
- * den, så att ingen erbjuds ett klick som är på väg att bli onödigt.
- *
- * ## Varför punkter och inte nålar
- *
- * Kartsidan ritar droppnålar med ansikte, klustrar dem och kan sökas. Den
- * här kartan visar var verksamheterna FINNS. Stockholm är 8 511 punkter, och
- * 8 511 nålar i en 328 px bred ruta är en enda klump. Cirklarna är dessutom
- * samma tecken som punktbilden under, så uppvaknandet byter mark under
- * punkterna i stället för att byta bild.
- *
- * Den som vill söka, filtrera och läsa korten går vidare till /karta/, och
- * länken dit står kvar under rutan.
+ * Platshållaren är inte längre en punktbild utan en ingång: nålsymbolen och
+ * knappen "Öppna kartan". Den ljuger därmed inte om vad den är, vilket
+ * punktbilden gjorde i det ögonblick ägaren läste den som en karta.
  */
 import { formatNumber, type Municipality } from '../lib/data';
+import { tileSet, utsnitt } from '../lib/kartrutor';
 import type { MapDataset } from '../lib/map-data';
 import { path } from '../lib/urls';
 import '../styles/kartram.css';
 
 interface Props {
   kommun: Municipality;
-  data: MapDataset;
+  /**
+   * Kommunens punktfil ur `map-data.ts`.
+   *
+   * ANVÄNDS INTE LÄNGRE och ligger kvar bara för att anroparen skickar den.
+   * Både utsnittet och talen läses numera ur rutarkivet, alltså ur kartans egen
+   * källa. Nästa gång KommunHub.astro ändå ska ändras ska propen och
+   * `mapDataset`-anropet där bort; då kan `map-data.ts` och
+   * `pages/kartdata/[file].json.ts` följa med, så snart OmradeKarta bytt källa.
+   */
+  data?: MapDataset;
 }
 
-const { kommun, data } = Astro.props;
+const { kommun } = Astro.props;
 const city = kommun.city;
 
 /*
- * Punkterna packas upp ur samma kropp som klienten på kartsidan läser:
- * deltakodade heltal i hundratusendels grad. Se formatavsnittet i
- * map-data.ts. Ordningen i `v` följer punktordningen.
+ * Utsnittet och talet kommer ur rutarkivet, alltså ur exakt samma mängd som
+ * kartan ritar. Två källor för samma tal var hela problemet ovan.
+ *
+ * `undefined` betyder att kommunen inte lämnar en enda koordinat, och då finns
+ * varken en karta att rita eller en kartsida att leda till. Anroparen visar
+ * redan inte rutan i det fallet, men villkoret står här också: en länk till en
+ * sida som inte byggs är en 404, och det får inte hänga på att någon annan
+ * kommer ihåg det.
  */
-const raw = JSON.parse(data.body) as { x: number[]; y: number[]; v: string };
-const [west, south, east, north] = data.bounds;
-
-/*
- * Plattprojektion med breddgradskorrigering: en longitudgrad är smalare än
- * en latitudgrad utanför ekvatorn, och utan cos-faktorn blir varje svensk
- * stad dubbelt så bred som i verkligheten.
- */
-const kx = Math.cos(((south + north) / 2) * (Math.PI / 180));
-
-/*
- * Bildens låda får RAMENS proportion, inte kommunens.
- *
- * Här stod tidigare en låda på 320 x 230 som kommunens form fick rymmas
- * inom, och det var felet ägaren såg: "den är inte hela vägen ut till höger,
- * det är ett litet gap". Punktbilden är en SVG med width och height på 100 %
- * och `preserveAspectRatio` i sitt förval, alltså `xMidYMid meet`. Bilden
- * skalas då tills den ryms och centreras, och skiljer sig kommunens form från
- * ramens blir mellanskillnaden en tom remsa.
- *
- * Mätt i webbläsaren på de åtta kommuner som har kartdata, i den 318 x 378
- * stora ramen på skrivbordet:
- *
- *   Kristinehamn   115 x 246   0,47   ritad 177 x 378   141 px tom i bredd
- *   Karlstad       275 x 246   1,12   ritad 318 x 284    94 px tom i höjd
- *   Stockholm      230 x 246   0,94   ritad 318 x 340    38 px tom i höjd
- *   Linköping      218 x 246   0,89   ritad 318 x 359    19 px tom i höjd
- *
- * Kristinehamn är en långsmal kommun och tappar därför 141 px, alltså 70 px
- * på var sida. Det är exakt det glapp till höger som anmäldes. På smal skärm,
- * där ramen är 336 x 200 och alltså LIGGANDE medan varje kommun är stående,
- * pillarboxas alla åtta, Kristinehamn värst: 93 px bild i en 336 px ram.
- *
- * Det är alltså ett proportionsfel och inte gles data. Två vägar finns, och
- * bara den ena duger.
- *
- * Att VIDGA fönstret geografiskt tills det har ramens proportion låter rätt
- * och löser ingenting: tomrummet flyttar bara in i bilden i stället för att
- * ligga utanför den, och Kristinehamns prickar sitter kvar i ett smalt band
- * mitt i rutan. En lång smal kommun KAN inte nå ut till högerkanten med
- * geografin i behåll.
- *
- * Alltså BESKÄR vi, som en riktig karta gör. En kartvy är ett fönster mot
- * världen och lägger aldrig svarta remsor vid sidan om; den visar det som
- * ryms och klipper resten. Fönstret är därför den största ramformade
- * rektangel som får plats INNANFÖR kommunens utsträckning, och bilden fyller
- * ramen kant i kant oavsett kommunens form.
- *
- * Fönstret centreras på punkternas MEDIAN och inte på utsträckningens mitt.
- * Skälet är Kristinehamn: kommunen är lång i nordsydlig led och staden ligger
- * i ena änden, så ett fönster kring lådans mitt hade beskurit bort just den
- * stad rutan finns för att visa. Medianen ligger där verksamheterna ligger,
- * alltså på staden, och är okänslig för enstaka punkter långt ut.
- *
- * Den levande kartan får SAMMA fönster som `bounds` längre ned, så att
- * uppvaknandet byter mark under punkterna i stället för att byta bild. Det
- * var avsikten hela tiden och stämde inte förrän nu: fitBounds fyller ramen,
- * medan den rymda punktbilden centrerade en mindre bild i den.
- *
- * Ramen är 320 x 380 på skrivbordet och 336 x 200 på smal skärm. Ingen låda
- * passar båda, så markupen sätter `preserveAspectRatio="xMidYMid slice"` och
- * låter den smala skärmen beskära vidare i höjd.
- */
-const RAM_KVOT = 320 / 380;
-
-/** Kommunens egen utsträckning i projicerade enheter. */
-const dataW = (east - west) * kx;
-const dataH = north - south;
-
-/* Största ramformade rektangel som ryms i utsträckningen. Den axel som är
-   för lång beskärs, den andra behålls hel. */
-const winW = dataW / dataH > RAM_KVOT ? dataH * RAM_KVOT : dataW;
-const winH = winW / RAM_KVOT;
-
-/* Ritytan i SVG-enheter. Talen är godtyckliga så länge kvoten är ramens;
-   380 gör att en enhet är ungefär en pixel på skrivbordet, vilket håller
-   punktbanorna korta i markupen. */
-const H = 380;
-const W = Math.round(H * RAM_KVOT);
-const scale = W / winW;
-
-/**
- * Fönstrets mitt: punkternas median per axel, klämd så att fönstret aldrig
- * glider utanför utsträckningen. Utan klämningen hade en kommun med all sin
- * bebyggelse i ett hörn fått halva rutan utanför sin egen data.
- */
-function median(values: number[]): number {
-  const s = [...values].sort((a, b) => a - b);
-  return s[s.length >> 1];
-}
-
-/* Absoluta koordinater ur deltakodningen, en gång, och återanvänds i
-   ritslingan nedan. Se formatavsnittet i map-data.ts. */
-const lngs: number[] = [];
-const lats: number[] = [];
-{
-  let lng = 0;
-  let lat = 0;
-  for (let i = 0; i < raw.x.length; i++) {
-    lng += raw.x[i];
-    lat += raw.y[i];
-    lngs.push(lng / 1e5);
-    lats.push(lat / 1e5);
-  }
-}
-
-const klam = (v: number, lo: number, hi: number) => (lo > hi ? (lo + hi) / 2 : Math.min(Math.max(v, lo), hi));
-const halvW = winW / kx / 2;
-const halvH = winH / 2;
-const midLng = klam(median(lngs), west + halvW, east - halvW);
-const midLat = klam(median(lats), south + halvH, north - halvH);
-
-/** Fönstret som geografisk låda. Den levande kartan öppnar på exakt den. */
-const fonster: [number, number, number, number] = [
-  midLng - halvW,
-  midLat - halvH,
-  midLng + halvW,
-  midLat + halvH,
-];
-
-const MAX_DOTS = 650;
-const stride = Math.max(1, Math.ceil(raw.x.length / MAX_DOTS));
-
-/* Glesare kommuner får större punkter, annars ser Borgholmsklassen ut som
-   damm och Stockholm som en enda klump. */
-const dot = data.count > 3000 ? 3 : data.count > 800 ? 4 : 5;
-
-/*
- * En path per bedömning i stället för en cirkel per punkt: "M123 45h0" med
- * rund linjeände är en punkt för en tiondel av markupen. Ritordningen är
- * grått, grönt, gult, rött så att anmärkningarna inte försvinner under
- * mängden, samma prioritet som kartsidans nålar har.
- */
-const paths: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
-for (let i = 0; i < lngs.length; i++) {
-  if (i % stride !== 0) continue;
-  // Mätt från fönstrets mitt, inte från en kant: fönstret är byggt kring
-  // medianen och har ingen given kant att räkna från.
-  const px = Math.round(W / 2 + (lngs[i] - midLng) * kx * scale);
-  const py = Math.round(H / 2 - (lats[i] - midLat) * scale);
-  // Utanför fönstret ritas ingenting. Det ÄR beskärningen, och den görs här
-  // i stället för att lämnas till overflow: punkter långt utanför hade annars
-  // blivit stora tal i markupen utan att någon får se dem.
-  if (px < -dot || px > W + dot || py < -dot || py > H + dot) continue;
-  paths[raw.v[i]]?.push(`M${px} ${py}h0`);
-}
-
-const LAYERS = [
-  { d: paths['3'].join(''), color: 'var(--verdict-none)' },
-  { d: paths['0'].join(''), color: 'var(--verdict-clean)' },
-  { d: paths['1'].join(''), color: 'var(--verdict-minor)' },
-  { d: paths['2'].join(''), color: 'var(--verdict-major)' },
-];
-
+const vy = utsnitt(kommun.slug);
+const rutor = tileSet();
 const href = path(`/${kommun.slug}`, 'karta');
-const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med känd plats`;
 ---
 
-<section class="kartruta" aria-labelledby="kartrubrik">
-  <h2 id="kartrubrik" class="visually-hidden">Karta över {city}</h2>
+{vy && (
+  <section class="kartruta" aria-labelledby="kartrubrik">
+    <h2 id="kartrubrik" class="visually-hidden">Karta över {city}</h2>
 
-  <div
-    class="kartram"
-    data-kommunkarta
-    data-src={data.url}
-    data-bounds={fonster.join(',')}
-    data-city={city}
-  >
-    {/* Punktbilden. Ligger kvar under den levande kartan tills den ritat
-        klart, så att bytet är en mjuk övergång och inte en vit blixt. */}
-    <div class="still" data-still>
-      {/* slice och inte förvalet meet. Se fönsterresonemanget ovan: bilden
-          ska FYLLA ramen och beskära, inte rymmas och lämna en tom remsa. */}
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
-        {LAYERS.map((l) => l.d && (
+    <div
+      class="kartram"
+      data-kommunkarta
+      data-url={rutor.url}
+      data-keys={JSON.stringify(rutor.keys)}
+      data-bounds={vy.bounds.join(',')}
+      data-city={city}
+    >
+      <div class="duk" data-duk aria-hidden="true"></div>
+
+      {/*
+        Platshållaren. Ligger över duken tills kartan ritat klart, så att bytet
+        är en mjuk övergång och inte en vit blixt, och den ligger kvar för gott
+        för den som stoppas av villkor 3 eller saknar skript.
+
+        Ytan är enfärgad och bär en nålsymbol. Ingen punktbild och ingen
+        antydan till geografi: en bild som ser ut som data men inte går att
+        peka på var precis det ägaren underkände.
+      */}
+      <div class="platshallare" data-platshallare>
+        <svg class="nal" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path
-            d={l.d}
-            stroke={l.color}
-            stroke-width={dot}
-            stroke-linecap="round"
+            d="M10 17.4c3.2-3.5 4.9-6.2 4.9-8.2a4.9 4.9 0 1 0-9.8 0c0 2 1.7 4.7 4.9 8.2Z"
             fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linejoin="round"
           />
-        ))}
-      </svg>
-      <button type="button" class="knapp" data-aktivera>Visa kartan</button>
+          <circle cx="10" cy="9" r="1.9" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <a class="knapp" href={href}>Öppna kartan</a>
+      </div>
+
+      <p class="fel" data-fel hidden role="alert">
+        Kartan gick inte att ladda.
+      </p>
     </div>
 
-    <div class="duk" data-duk aria-hidden="true"></div>
-
-    <p class="fel" data-fel hidden role="alert">
-      Kartan gick inte att ladda.
+    {/* Antalet i klartext under rutan, aldrig läst ur bilden. Länken går till
+        den delade vyn, som kan sökas och filtreras och visar varje ställe med
+        namn och datum. */}
+    <p class="fot">
+      <span class="antal text-secondary">
+        {formatNumber(vy.count)} verksamheter med känd plats
+      </span>
+      <a href={href}>Öppna hela kartan</a>
     </p>
-  </div>
-
-  {/* Antalet i klartext under rutan, aldrig läst ur bilden. Länken går till
-      kartsidan, som kan sökas och visar varje ställe med namn och datum. */}
-  <p class="fot">
-    <span class="antal text-secondary">
-      {formatNumber(data.count)} verksamheter med känd plats
-    </span>
-    <a href={href}>Öppna hela kartan</a>
-  </p>
-</section>
+  </section>
+)}
 
 <script>
   /**
-   * Kartans uppvaknande. Se modulkommentaren för varför den bara vaknar på
-   * klick, och lib/kartbas.ts för varför MapLibre laddas som statisk fil
-   * utanför paketeraren.
+   * Kartans uppvaknande och dess lager.
+   *
+   * Nålen, kartstilen och biblioteket kommer alla ur lib/kartbas.ts, alltså ur
+   * samma modul som verksamhetssidans platskarta läser. Lagren nedan är
+   * Karta.astros, med samma tal: en kopia av en sanning divergerar alltid till
+   * slut, och de tal som INTE får glida isär (klusterradier, färger, nålens
+   * storlek) står därför utskrivna med en hänvisning till originalet.
    */
-  import { KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { FACE_KEYS, type FaceKey } from '../lib/face';
+  import { faceBitmap, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { slugify } from '../lib/slug';
 
   const root = document.querySelector<HTMLElement>('[data-kommunkarta]');
 
   if (root) {
     const duk = root.querySelector<HTMLElement>('[data-duk]')!;
-    const still = root.querySelector<HTMLElement>('[data-still]')!;
-    const knapp = root.querySelector<HTMLButtonElement>('[data-aktivera]')!;
+    const platshallare = root.querySelector<HTMLElement>('[data-platshallare]')!;
     const fel = root.querySelector<HTMLElement>('[data-fel]')!;
 
-    /*
-     * Bedömningens ytfärger. Samma värden som tokens.css och som kartsidans
-     * nålar, skrivna som tal av samma skäl som där: MapLibre målar i WebGL
-     * och kan inte läsa en CSS-variabel. Ändras en färg i tokens ändras den
-     * här, i Karta.astro och i lib/face.ts.
-     */
+    const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /** Kommunernas slugar i den ordning `m` i rutorna pekar på dem. Rutorna är
+     *  rikets, så en nål i den här rutan kan i princip tillhöra grannkommunen,
+     *  och länken måste då peka dit. */
+    const KOMMUNER: string[] = JSON.parse(root.dataset.keys!);
+
+    /** Bedömningens ytfärger, samma tal som tokens.css och Karta.astro.
+     *  MapLibre målar i WebGL och kan inte läsa en CSS-variabel. */
     const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
 
     let startad = false;
@@ -339,23 +202,18 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     async function start() {
       if (startad) return;
       startad = true;
-      knapp.disabled = true;
 
       try {
         laddaMaplibreCss();
-        const [maplibre, raw] = await Promise.all([
+        const [maplibre, pmtiles] = await Promise.all([
           laddaMaplibre(),
-          fetch(root!.dataset.src!).then((r) => r.json()) as Promise<{
-            x: number[];
-            y: number[];
-            v: string;
-          }>,
+          import('pmtiles'),
         ]);
+
         /* Byter namn på MapLibres Map. Den heter likadant som JavaScripts
            inbyggda och skuggar den annars i hela funktionen, så att ett
            `new Map()` för en uppslagstabell bygger en andra karta i stället.
-           Det kostade en halvtimmes felsökning i Karta.astro; se kommentaren
-           där. */
+           Det kostade en halvtimmes felsökning i Karta.astro. */
         const {
           Map: MapLibreKarta,
           NavigationControl,
@@ -364,123 +222,297 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
         } = maplibre;
 
         /*
-         * Deltakodade heltal i hundratusendels grad, se map-data.ts.
-         * Ritordningen är källans ordning för cirkellager, så punkterna
-         * sorteras grått, grönt, gult, rött: en anmärkning ska inte hamna
-         * under mängden. Samma prioritet som punktbilden och kartsidan har.
+         * Räckviddskällan, med reserv för en värd som struntar i Range.
+         *
+         * Samma funktion och samma skäl som i Karta.astro, se den långa
+         * anteckningen där: Cloudflares kant besvarar `Range` ur sin cache, och
+         * en fil utanför cachen strömmas rakt igenom med 200 och hela kroppen.
+         * PMTiles hittar då ingen ruta, och kartan blir tom utan ett ord i
+         * konsolen. Behåller vi kroppen vi ändå fick kostar felet bandbredd i
+         * stället för en tom karta.
          */
-        const hinkar: GeoJSON.Feature[][] = [[], [], [], []];
-        let lng = 0;
-        let lat = 0;
-        for (let i = 0; i < raw.x.length; i++) {
-          lng += raw.x[i];
-          lat += raw.y[i];
-          const v = Number(raw.v[i]);
-          hinkar[v]?.push({
-            type: 'Feature',
-            properties: { v },
-            geometry: { type: 'Point', coordinates: [lng / 1e5, lat / 1e5] },
-          });
-        }
-        const features = [...hinkar[3], ...hinkar[0], ...hinkar[1], ...hinkar[2]];
+        function rutkalla(url: string) {
+          let hel: Promise<ArrayBuffer> | null = null;
 
-        /*
-         * Samma fönster som punktbilden ritade, och utan padding. Punkterna
-         * hamnar då på exakt samma ställe före och efter uppvaknandet, vilket
-         * är hela poängen med att ha en punktbild under kartan. Padding hade
-         * krympt kartans utsnitt i förhållande till bildens och gett prickarna
-         * ett litet hopp inåt i samma sekund som kartbladen kom.
-         */
-        const bounds = root!.dataset.bounds!.split(',').map(Number) as
-          [number, number, number, number];
+          return {
+            getKey: () => url,
+            async getBytes(offset: number, length: number) {
+              if (hel) {
+                const buf = await hel;
+                return { data: buf.slice(offset, offset + length) };
+              }
+
+              const svar = await fetch(url, {
+                headers: { Range: `bytes=${offset}-${offset + length - 1}` },
+              });
+              if (!svar.ok) throw new Error('rutarkivet svarade ' + svar.status);
+
+              if (svar.status === 200) {
+                const buf = await svar.arrayBuffer();
+                hel = Promise.resolve(buf);
+                return { data: buf.slice(offset, offset + length) };
+              }
+
+              return { data: await svar.arrayBuffer() };
+            },
+          };
+        }
+
+        const arkiv = root!.dataset.url!;
+        if (!(window as any).__prikkoPmtiles) {
+          const protokoll = new pmtiles.Protocol();
+          protokoll.add(new pmtiles.PMTiles(rutkalla(arkiv) as any));
+          maplibre.addProtocol('pmtiles', protokoll.tile);
+          (window as any).__prikkoPmtiles = true;
+        }
+
+        const [w, s, e, n] = root!.dataset.bounds!.split(',').map(Number);
 
         const karta = new MapLibreKarta({
           container: duk,
           style: KARTSTIL,
-          bounds: [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
-          fitBoundsOptions: { padding: 0, animate: false },
+          bounds: [[w, s], [e, n]] as [[number, number], [number, number]],
+          fitBoundsOptions: { padding: 16, animate: false },
           attributionControl: false,
         });
 
         // Helskärm på ramen och inte på duken, så att felraden följer med in.
-        // Samma resonemang som på kartsöksidan och platskartan.
+        // Samma resonemang som på kartsidan och platskartan.
         karta.addControl(new FullscreenControl({ container: root! }), 'top-right');
         karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
-        // Kompakt attribution: rutan är 328 px bred, och den fulla raden
-        // hade lagt sig i två våningar över kartans underkant. Kravet är att
-        // upphovet SKA stå, inte att det ska ta en fjärdedel av kartan.
+        // Kompakt attribution: rutan är 328 px bred, och den fulla raden hade
+        // lagt sig i två våningar över kartans underkant.
         karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
 
-        karta.on('load', () => {
-          karta.addSource('punkter', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features },
+        karta.on('load', async () => {
+          /*
+           * Ansiktena som bitmappar. Misslyckas rasteriseringen ritas nålarna
+           * som färgade cirklar i stället, alltså samma reservväg som
+           * Karta.astro har: en karta utan nålar är värre än en karta med
+           * enklare nålar.
+           */
+          let ansikten = true;
+          try {
+            const bitmaps = await Promise.all(FACE_KEYS.map((k: FaceKey) => faceBitmap(k)));
+            FACE_KEYS.forEach((key: FaceKey, i: number) => {
+              if (!karta.hasImage('face-' + key)) {
+                karta.addImage('face-' + key, bitmaps[i], { pixelRatio: 2 });
+              }
+            });
+          } catch {
+            ansikten = false;
+          }
+
+          karta.addSource('verksamheter', {
+            type: 'vector',
+            url: 'pmtiles://' + arkiv,
           });
+
+          /* Klustrets tal är Karta.astros, oförändrade. Blått är ägarens
+             beslut, och klustret bär ANTAL och aldrig bedömning: en klusterfärg
+             efter andel anmärkningar vore en värmekarta över vilka kvarter som
+             sköter sig sämst. */
           karta.addLayer({
-            id: 'punkter',
+            id: 'kluster-skugga',
             type: 'circle',
-            source: 'punkter',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['has', 'point_count'],
             paint: {
-              // Växer med zoomen: i utzoomat läge ska staden läsas som en
-              // form, inzoomat ska den enskilda punkten gå att peka på.
-              'circle-radius': [
-                'interpolate', ['linear'], ['zoom'],
-                8, 2.5,
-                12, 4,
-                16, 7,
-              ],
-              'circle-color': [
-                'match', ['get', 'v'],
-                0, FARG[0],
-                1, FARG[1],
-                2, FARG[2],
-                FARG[3],
-              ],
-              // Vit kontur av samma skäl som nålen har den: kartbotten är
-              // färgad, och utan kant drunknar en gul punkt i en gul gata.
-              'circle-stroke-width': 1,
-              'circle-stroke-color': '#fff',
+              'circle-color': '#000',
+              'circle-opacity': 0.14,
+              'circle-blur': 0.9,
+              'circle-translate': [0, 2],
+              'circle-radius': ['step', ['get', 'point_count'], 15, 25, 17, 100, 20, 500, 24],
             },
           });
+
+          karta.addLayer({
+            id: 'kluster',
+            type: 'circle',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-color': '#007BE0',
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': '#fff',
+              'circle-radius': ['step', ['get', 'point_count'], 13, 25, 15, 100, 18, 500, 22],
+              'circle-radius-transition': { duration: reducerad ? 0 : 250 },
+            },
+          });
+
+          karta.addLayer({
+            id: 'kluster-antal',
+            type: 'symbol',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': ['get', 'point_count_abbreviated'],
+              // Stilens egna kakelfonter, och fet: vit normalvikt på mättat
+              // blått blir grumlig. Se Karta.astro.
+              'text-font': ['Noto Sans Bold'],
+              'text-size': ['step', ['get', 'point_count'], 12, 100, 13, 500, 14],
+              'text-allow-overlap': true,
+              'text-ignore-placement': true,
+            },
+            paint: { 'text-color': '#fff' },
+          });
+
+          karta.addLayer(
+            ansikten
+              ? {
+                  id: 'nalar',
+                  type: 'symbol',
+                  source: 'verksamheter',
+                  'source-layer': 'punkter',
+                  filter: ['!', ['has', 'point_count']],
+                  layout: {
+                    'icon-image': [
+                      'match', ['get', 'v'],
+                      0, 'face-clean',
+                      1, 'face-minor',
+                      2, 'face-major',
+                      'face-none',
+                    ],
+                    'icon-size': 0.5,
+                    'icon-allow-overlap': true,
+                    // Droppens spets ligger på adressen, inte märkets mitt.
+                    'icon-anchor': 'bottom',
+                  },
+                }
+              : {
+                  id: 'nalar',
+                  type: 'circle',
+                  source: 'verksamheter',
+                  'source-layer': 'punkter',
+                  filter: ['!', ['has', 'point_count']],
+                  paint: {
+                    'circle-radius': 7,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#fff',
+                    'circle-color': [
+                      'match', ['get', 'v'],
+                      0, FARG[0],
+                      1, FARG[1],
+                      2, FARG[2],
+                      FARG[3],
+                    ],
+                  },
+                },
+          );
+
+          /*
+           * Klustret delar sig, precis som i den delade vyn.
+           *
+           * `ez` och `bx` är inbakade i bubblan av lib/kartrutor.ts, alltså är
+           * delningen synkron. Kameran läggs på lövens utbredning, dock minst
+           * expansionszoomen: utbredningen delar bubblan hela vägen ned till
+           * nålar i ett svep när det går, och `Math.max` mot expansionszoomen
+           * är garantin mot en bubbla som inte släpper.
+           *
+           * Ligger löven på samma adress finns ingen zoom som delar dem. Rutan
+           * här har inget stapelkort att öppna, så kameran går in till den zoom
+           * där nålarna finns och lämnar resten till den delade vyn. En bubbla
+           * kan därmed aldrig bli en återvändsgränd här heller.
+           */
+          const SAMMA_PLATS = 3e-5;
+          const STAPELZOOM = 18;
+
+          karta.on('click', 'kluster', (ev: any) => {
+            const f = karta.queryRenderedFeatures(ev.point, { layers: ['kluster'] })[0];
+            if (!f) return;
+
+            const bx = String(f.properties.bx ?? '').split(',').map(Number);
+            const expansion = Number(f.properties.ez);
+
+            if (bx.length !== 4 || bx.some((v) => !Number.isFinite(v))) {
+              karta.easeTo({
+                center: f.geometry.coordinates,
+                zoom: karta.getZoom() + 2,
+                duration: reducerad ? 0 : 400,
+              });
+              return;
+            }
+
+            const [vast, syd, ost, nord] = bx;
+
+            if (ost - vast < SAMMA_PLATS && nord - syd < SAMMA_PLATS) {
+              karta.easeTo({
+                center: f.geometry.coordinates,
+                zoom: STAPELZOOM,
+                duration: reducerad ? 0 : 500,
+              });
+              return;
+            }
+
+            const luft = Math.min(
+              32,
+              Math.floor(Math.min(root!.clientWidth, root!.clientHeight) / 4),
+            );
+            const kamera = karta.cameraForBounds([[vast, syd], [ost, nord]], { padding: luft });
+
+            karta.easeTo({
+              center: kamera ? kamera.center : f.geometry.coordinates,
+              zoom: Math.max(kamera ? kamera.zoom : 0, Number.isFinite(expansion) ? expansion : 0),
+              duration: reducerad ? 0 : 500,
+            });
+          });
+
+          /*
+           * Ett klick på en nål går till verksamheten.
+           *
+           * Rutan har inget kort att öppna, och ett kort här hade varit den
+           * delade vyn en gång till på fel sida. Slugen härleds ur namnet och
+           * följer med i rutan bara när härledningen inte stämmer; bygget
+           * jämför alltid mot den slug pipelinen satte, se lib/slug.ts.
+           */
+          karta.on('click', 'nalar', (ev: any) => {
+            const p = ev.features?.[0]?.properties;
+            if (!p) return;
+            const kommunSlug = KOMMUNER[p.m] ?? KOMMUNER[0];
+            const slug = p.s ?? slugify(String(p.nm));
+            location.href = `/${kommunSlug}/${slug}/`;
+          });
+
+          for (const lager of ['kluster', 'nalar']) {
+            karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
+            karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
+          }
 
           karta.getCanvas().setAttribute('aria-label', `Karta över ${root!.dataset.city}`);
           duk.removeAttribute('aria-hidden');
 
           root!.classList.add('live');
-          still.setAttribute('aria-hidden', 'true');
+          platshallare.setAttribute('aria-hidden', 'true');
         });
-
       } catch (error) {
         console.error(error);
-        // Punktbilden står kvar. Den ÄR en karta; felraden säger bara att
-        // den levande varianten uteblev.
+        // Platshållaren står kvar med sin knapp. Felraden säger bara att den
+        // levande kartan uteblev, inte att vägen till den är stängd.
         fel.hidden = false;
-        knapp.hidden = true;
       }
     }
 
-    knapp.addEventListener('click', start);
-
-    // ── Uppvaknandet av sig själv ────────────────────────────────────────
+    // ── Uppvaknandet ─────────────────────────────────────────────────────
 
     /**
      * Tål uppkopplingen en karta?
      *
-     * Det här är hela svaret på frågan om den som kommer från Google på en
-     * telefon med dålig uppkoppling, och det är därför villkoren är hårda och
-     * inte mjuka. Var och en av dem stoppar uppvaknandet HELT; besökaren får
-     * punktbilden och knappen och betalar noll extra byte.
+     * Villkoren är hårda och inte mjuka, och det är hela svaret på frågan om
+     * den som kommer från Google på en telefon med dålig uppkoppling. Var och
+     * en av dem stoppar uppvaknandet HELT; besökaren får platshållaren och
+     * knappen och betalar noll extra byte.
      *
      * `saveData` är besökarens uttryckliga önskan och väger tyngst.
      * `effectiveType` är webbläsarens egen mätning av verklig genomströmning
-     * och rundtid, inte en gissning ur radiotypen, så 3g betyder verkligen
-     * att en kvarts megabyte tar sekunder. `prefers-reduced-data` är samma
-     * önskan uttryckt i systemet i stället för i webbläsaren.
+     * och rundtid, inte en gissning ur radiotypen. `prefers-reduced-data` är
+     * samma önskan uttryckt i systemet i stället för i webbläsaren.
      *
      * Signalen finns bara i Chromium. I Safari och Firefox är `connection`
-     * odefinierad, och då vaknar kartan. Det är rätt avvägning: punktbilden
-     * är redan målad, sidan är redan färdigladdad, och alternativet vore att
-     * aldrig ge kartan till någon på de webbläsarna.
+     * odefinierad, och då vaknar kartan: sidan är redan färdigladdad, och
+     * alternativet vore att aldrig ge kartan till någon på de webbläsarna.
      */
     function uppkopplingenTal(): boolean {
       const c = (navigator as any).connection;
@@ -493,25 +525,20 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
 
     if (uppkopplingenTal()) {
       /*
-       * Knappen göms med en gång. Skriptet är en modul och körs alltså efter
-       * att dokumentet tolkats men innan någon hunnit läsa rutan, så ingen
-       * erbjuds ett klick som är på väg att bli onödigt. Blir det fel längre
-       * fram kommer knappen tillbaka i catch-grenen ovan.
-       */
-      knapp.hidden = true;
-
-      /*
        * Ordningen är: rutan syns, sidan är klar, huvudtråden är ledig.
        *
        * IntersectionObserver först, så att den som landar på sida 47 av
        * Stockholm och aldrig rullar upp till sidopanelen slipper hämtningen.
        * `load` sedan, så att kartbladen aldrig konkurrerar med sidans egna
-       * resurser. Tomgångsluckan sist, så att MapLibres halva megabyte
-       * tolkas när ingen väntar på svar. Timeouten på tre sekunder är
-       * ryggraden: en sida som aldrig blir riktigt tom i huvudtråden ska
-       * ändå få sin karta.
+       * resurser. Tomgångsluckan sist, så att MapLibres halva megabyte tolkas
+       * när ingen väntar på svar. Timeouten på tre sekunder är ryggraden: en
+       * sida som aldrig blir riktigt tom i huvudtråden ska ändå få sin karta.
        *
        * requestIdleCallback saknas i äldre Safari, därav reservutgången.
+       *
+       * Knappen göms INTE i förväg. Den är numera en riktig länk till kartvyn
+       * och inte en utlösare, alltså är den nyttig ända tills kartan ritat och
+       * platshållaren tonar bort av sig själv.
        */
       const nar = (fn: () => void) => {
         const idle = (window as any).requestIdleCallback;
@@ -531,8 +558,8 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
             obs.disconnect();
             efterLoad(start);
           },
-          // Marginalen gör att kartan hinner vakna precis innan rutan når
-          // vyn i stället för precis efter.
+          // Marginalen gör att kartan hinner vakna precis innan rutan når vyn
+          // i stället för precis efter.
           { rootMargin: '200px' },
         );
         obs.observe(root);
@@ -540,59 +567,59 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
         efterLoad(start);
       }
     }
+
+    // Knappen är en länk till kartvyn och behöver ingen lyssnare. Referensen
+    // finns för att platshållaren ska kunna nås av stilarna vid uppvaknandet.
+    void knapp;
   }
 </script>
 
 <style>
   /* Måtten är kartans egna; ramen (kant, radie, yta) bor i kartram.css. */
   .kartram {
-    /* 380 och inte 320. Kartan är sidopanelens överst stående ruta och
-       panelen är klistrad, alltså följer kartan med genom hela listan. Samma
-       roll som Boolis karta, som ligger fast på halva sökresultatsidan. Den
-       höjden är det närmaste vi kommer den rollen utan att betala för
-       kartprogrammet i förskott; se viktresonemanget i modulkommentaren. */
+    /* 380 och inte 320. Kartan är sidopanelens överst stående ruta och panelen
+       är klistrad, alltså följer kartan med genom hela listan. Samma roll som
+       Boolis karta, som ligger fast på halva sökresultatsidan. */
     height: 380px;
-    /* Punktbilden ligger på en svag blå ton som skiljer den från kortets
-       vita och läser som vatten och mark läser på en riktig karta: som en
-       yta, inte som tomrum. */
+    /* Platshållarens yta läser som mark på en karta läser: som en yta, inte
+       som tomrum. */
     background: color-mix(in srgb, var(--brand) 7%, var(--card));
   }
 
-  .still {
+  .duk {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .platshallare {
     position: absolute;
     inset: 0;
     z-index: 2;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--s-3);
     transition: opacity 0.35s ease;
   }
 
-  .still svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    /* Ingen object-fit. Den gäller ersatta element och gör ingenting på en
-       inbäddad SVG; det är preserveAspectRatio i markupen som avgör, och den
-       står på slice så att bilden fyller ramen. Regeln stod här och såg ut
-       att göra jobbet, vilket är värre än att den inte fanns. */
+  .platshallare .nal {
+    width: 32px;
+    height: 32px;
+    color: var(--brand);
   }
 
-  /* Knappen är platskartans: en pill mot underkanten som säger vad ett klick
-     ger. Den är den ENDA utlösaren här, se modulkommentaren. */
+  /* Knappen är platskartans: en pill som säger vad ett klick ger. Här är den
+     en riktig länk, eftersom målet är en egen adress. */
   .knapp {
-    position: absolute;
-    left: 50%;
-    bottom: var(--s-3);
-    transform: translateX(-50%);
     padding: var(--s-2) var(--s-4);
     background: var(--card);
-    border: 0;
     border-radius: var(--r-pill);
     box-shadow: var(--shadow-sm);
     font: 600 var(--fs-caption) / var(--lh-caption) var(--font-sans);
     color: var(--text);
-    cursor: pointer;
+    text-decoration: none;
     white-space: nowrap;
   }
 
@@ -601,18 +628,8 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     box-shadow: var(--shadow-pop);
   }
 
-  /* position: absolute upphäver inte UA-stilens display: none, men den
-     kombinationen har lurats förr. Skrivet i klartext i stället. */
-  .knapp[hidden] { display: none; }
-
-  .duk {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-  }
-
-  /* Kartan vaken: punktbilden tonar bort och släpper igenom pekaren. */
-  .live .still {
+  /* Kartan vaken: platshållaren tonar bort och släpper igenom pekaren. */
+  .live .platshallare {
     opacity: 0;
     pointer-events: none;
   }
@@ -641,7 +658,7 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
     align-items: baseline;
     justify-content: space-between;
     /* Ryms inte båda på raden får länken en egen rad. Utan wrap bröts i
-       stället antalet mitt i frasen, med länken kvar uppe till höger. */
+       stället antalet mitt i frasen. */
     flex-wrap: wrap;
     gap: var(--s-1) var(--s-3);
     margin-top: var(--s-2);
@@ -655,9 +672,7 @@ const label = `Karta över ${city}: ${formatNumber(data.count)} verksamheter med
   }
 
   /* Smal skärm: kartan ligger ovanför listan, se ordningen i KommunHub.astro.
-     Där behöver den inte vara lika hög som i spalten bredvid listan. 200 px
-     räcker för att staden ska läsas som en stad utan att kartan blir en vägg
-     framför det man kom för. */
+     Där behöver den inte vara lika hög som i spalten bredvid listan. */
   @media (max-width: 900px) {
     .kartram { height: 200px; }
   }

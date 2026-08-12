@@ -257,7 +257,9 @@ export interface SearchIndex {
    *  är därmed samma sak som en prefixträff på namnet, och träffens position
    *  säger dessutom om den sitter i namnet eller i adressen. */
   hay: string[];
-  kommuner: Array<[string, string]>;
+  /** [slug, ort] och en etta på de kommuner som har en kartsida. Se
+   *  lib/search-index.ts för varför den tredje platsen finns. */
+  kommuner: Array<[string, string] | [string, string, number]>;
 }
 
 const index: SearchIndex = { rows: [], hay: [], kommuner: [] };
@@ -401,9 +403,24 @@ export function collect(q: string, keep: number): Groups {
   let count = 0;
 
   for (let i = 0; i < kommuner.length; i++) {
-    const [slug, city] = kommuner[i];
+    const [slug, city, karta] = kommuner[i];
     const c = normalise(city);
-    const item: Suggestion = { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
+    /*
+     * Kommunraden leder till den delade vyn när kommunen har en.
+     *
+     * Ägarens beställning, ordagrant: "söker man på en kommun tex i sök ska
+     * man komma till split screen på karta och lista". Den som söker på en
+     * ORT vill se orten, och kartsidan är den enda sida som visar den; hubben
+     * är en bokstavsordnad katalog. De fyra kommuner som inte lämnar en enda
+     * koordinat har ingen kartsida och står därför kvar på hubben.
+     *
+     * Metaraden säger vilken av de två raden leder till. Utan den ser två
+     * kommunrader identiska ut och leder olika, vilket är värre än att den
+     * ena är en katalog.
+     */
+    const item: Suggestion = karta
+      ? { label: city, meta: 'Kommun · karta och lista', href: `/${slug}/karta/`, kind: 'kommun' }
+      : { label: city, meta: 'Kommun', href: `/${slug}/`, kind: 'kommun' };
     if (c.startsWith(q)) kommunPrefix.push(item);
     else if (c.includes(q)) kommunLoose.push(item);
   }

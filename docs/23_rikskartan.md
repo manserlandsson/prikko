@@ -195,7 +195,9 @@ bara öppna kartan.
 ### Byggt och kört i webbläsaren
 
 Pipelinen ligger nu i `src/lib/kartrutor.ts` och `src/lib/pmtiles.ts`, och
-arkivet skrivs av rutten `pages/kartrutor/[file].pmtiles.ts`. Bygget säger:
+arkivet skrivs av rutten `pages/kartrutor/[file].bin.ts`. Mätningen nedan är
+gjord innan ändelsen byttes, därav namnet i utskriften; innehållet är
+oförändrat och skälet till bytet står längre ned. Bygget säger:
 
 ```
 Rutarkivet kartrutor/punkter-6646b77a6cfe.pmtiles går att läsa: 1,31 MB,
@@ -400,16 +402,48 @@ MÄTT i webbläsaren vid ett tidigare tillfälle, och nedskrivet i
 | Listspalten | 688 px, rullar bredvid | Samma bredd |
 | Vid 390 px | listan och kartan byter plats via knappen "Visa karta" i kontrollraden överst, 40 px hög med 4 px radie, inte en svävande knapp ovanpå innehållet | **Vi avviker: ark i tre lägen, se nedan** |
 
-ÄNNU INTE MÄTT av oss, och därför inte talat om som fakta. En mätning är
-beställd och tabellen fylls i när den kommer. Ingen av punkterna blockerar
-arbetet, eftersom de rör kortens form och inte arkitekturen:
+MOBILVYN mätt om 2026-08-12 vid 375 × 812, eftersom arket var beställt att
+byggas mot en färsk mätning och inte ur minnet. Bilden är oförändrad och
+skarpare:
 
-- Exakt `grid-template-columns` och var brytpunkterna ligger.
-- Sidhuvudets höjd och om det ligger kvar när listan rullar.
-- Hur högt filterhuvudet över listan är och vad det består av.
-- Kortens mått, om de ligger i en eller två spalter, och bildstorleken.
-- Om det är sidindelning eller oändlig rullning i listan.
-- Om URL:en bär kartans utsnitt, och om panorering gör nätverksanrop.
+| | Booli i kartläget, mätt |
+|---|---|
+| Kartan | ETT fast lager över hela fönstret, duken är 375 × 812 och börjar på y = 0, alltså även bakom sidhuvudet. |
+| Listan | Finns inte i vyn. Det är ett byte, inte en delning. |
+| Vägen tillbaka | Två svävande knappar OVANPÅ kartan, "Visa lista" 114 × 44 och "Kartval" 95 × 44, radie 4 px, med överkant på 130 px. |
+| Ark | Inget. Ingen remsa, inget grepp, ingen halvhöjd. |
+| Sidhuvudet | Krymper till sökfält plus två knappar och ligger kvar överst. |
+
+Det bekräftar avvikelse 3 nedan i stället för att rubba den: hos Booli ser man
+antingen listan eller kartan, aldrig båda. Vårt ark visar båda och låter
+besökaren välja hur mycket av vardera. Det är ett medvetet avsteg från
+förebilden, taget på en mätning och inte på ett minne.
+
+MÄTT 2026-08-12 i webbläsaren, på `booli.se/sok/slutpriser?areaIds=2`, med
+måtten lästa ur DOM:en och inte ur en skärmbild. Det som stod som obesvarat här
+har därmed svar:
+
+| Fråga | Boolis svar, mätt |
+|---|---|
+| `grid-template-columns` vid 1440 px | `688px 737px`. Kartan är `position: fixed`, `right/bottom/left: 0`, och rutan är 737 × 836 px med överkant på 64 px. |
+| Sidhuvudets höjd | 64 px, `position: fixed`, ligger kvar när listan rullar. |
+| Filterhuvudet över listan | INTE klistrat. Inget element på sidan har `position: sticky`. Sökfältet rullar med. |
+| Kortens mått | 640 × 172 px i EN spalt, 24 px indrag i 688-spalten, 49 px mellan korten. |
+| Sidindelning eller oändlig rullning | Oändlig rullning. Dokumentet är 15 848 px högt vid första vyn. |
+| Bär adressen kartans utsnitt | **Nej.** Efter panorering står `?areaIds=2` kvar oförändrat, `location.hash` är tomt och `history.length` är 1. |
+
+Två av raderna ändrar vad vi gör, och båda gör oss till det motsatta av Booli
+med öppna ögon:
+
+**En spalt hos dem, två hos oss.** Boolis kort bär en stor bild och en
+prisrad, och två sådana bredvid varandra i 688 px hade blivit 320 px breda.
+Våra kort är namn, typ och en bedömningsrad, alltså text, och 320 px räcker
+gott. Två spalter ger dubbelt så många ställen i vyn, vilket är hela poängen
+med en lista som följer kartan.
+
+**Adressen bär utsnittet hos oss.** Booli gör det inte, och det är nu mätt i
+stället för antaget. Ägaren har ändå begärt det, och han har rätt: en delad vy
+som inte går att dela är en app och inte en sida. Se punkt 2 nedan.
 
 Det vi däremot vet om oss själva och som avgör de tre avvikelserna nedan står i
 våra egna filer: `pages/[kommun]/karta.astro` för app-ytan, `Karta.astro` för
@@ -426,26 +460,41 @@ på raken om skroll på den här sidan, och en sticky karta löste det aldrig
 eftersom teckenförklaring och sidfot låg kvar under och gav sidan en svans.
 Motiveringen står redan i `pages/[kommun]/karta.astro` och ändras inte här.
 
-**2. Adressen bär utsnittet.** Om Booli gör det är ännu inte mätt, och det
-spelar mindre roll: ägaren har begärt att adressen gör det hos oss, och han har
-rätt. En delad vy som inte går att dela är en app och inte en sida. `#map=zoom/lat/lng` finns redan, läses redan av
-`Karta.astro`, och är OpenStreetMaps form. Det utvidgas till att bära filter,
-med `&` mellan nycklarna precis som OSM gör:
+**2. Adressen bär utsnittet.** BYGGT. Booli gör det inte, vilket nu är mätt och
+inte antaget, och det ändrar ingenting: ägaren har begärt att adressen gör det
+hos oss, och han har rätt. En delad vy som inte går att dela är en app och inte
+en sida. `#map=zoom/lat/lng` fanns redan och är OpenStreetMaps form. Det bär nu
+också filtren, med `&` mellan nycklarna precis som OSM gör:
 
 ```
 #map=15/59.331/18.065
 #map=15/59.331/18.065&typ=restauranger
 #map=12/58.410/15.621&q=sushi
+#typ=restauranger
 ```
+
+Varje del är valfri, och den sista raden är skälet: en kategorisida vet vilken
+kategori den vill visa men inte vilken zoom kommunen har. `#typ=restauranger`
+betyder "kommunens vanliga utsnitt, med kategorin på", och kartan fyller i
+resten och skriver sedan tillbaka hela adressen.
 
 FRAGMENT och inte frågesträng, och det är ett redan fattat integritetsbeslut:
 enligt HTTP skickas fragmentet aldrig med i en begäran, så en position lämnar
 aldrig enheten. Avrundningen till tre decimaler, omkring 110 meter, är den
-siffra integritetspolicyn anger och MÅSTE behållas när kartan börjar skriva
-tillbaka till fragmentet själv.
+siffra integritetspolicyn anger och gäller även kartans egen återskrivning.
 
 Skrivningen sker med `history.replaceState`, aldrig `location.hash =`, annars
-fyller varje panorering historiken så att bakåtknappen slutar fungera.
+fyller varje panorering historiken så att bakåtknappen slutar fungera. Den är
+dessutom fördröjd 250 ms efter `moveend`, så att en dragning inte kostar en
+historikskrivning per bildruta.
+
+**En detalj som annars blir en bugg om ett halvår.** Ringen "du är här" ritades
+förut så snart adressen bar `#map=`. I samma stund kartan börjar SKRIVA det
+fragmentet betyder en position i adressen inte längre "besökaren står här" utan
+"det här är vyn", och en omladdning hade då ritat en ring mitt i ett utsnitt
+någon dragit fram. Vår egen skrivning märker därför historikposten med
+`history.state.prikkoVy`, som överlever en omladdning, och ringen ritas bara när
+märket saknas. Platsknappen i sökpanelen behövde därmed inte röras.
 
 **3. Kartan finns kvar på smal skärm.** Booli växlar mellan lista och karta med
 knappen "Visa karta" vid 390 px, alltså två vyer man hoppar emellan och aldrig
@@ -486,7 +535,7 @@ sida. Dörrarna finns för att de kan rankas. Ytan bakom är en.
 
 | Adress | Vad den är efter bytet |
 |---|---|
-| `/karta/` | NY. Rikskartan, öppnar på hela Sverige. Serverrenderar kommunlistan med tal, alltså en riktig ingång till varje kommunsida och inte en tom app. |
+| `/karta/` | BYGGD. Rikskartan, öppnar på hela Sverige. Serverrenderar kommunlistan med tal, alltså en riktig ingång till varje kommunsida och inte en tom app. Står också i webbkartan bland verktygen, inte under kommunerna. |
 | `/<kommun>/karta/` | **Står kvar med sin adress.** Samma komponent, samma arkiv, men öppnar på kommunens utsträckning och serverrenderar kommunens sextio första rader precis som i dag. |
 | `/<kommun>/` | Kommunhubben. Oförändrad som sidtyp. |
 | `/<kommun>/omrade/<omrade>/` | Områdessidan. Se nedan, den är redan byggd. |
@@ -523,14 +572,33 @@ koordinater helt får ingen sida och ingen länk. Fyra av tolv i dag.
   betyder "ingen bedömning" överallt annars. Gamla stan väger 17,5 kB gzippat.
   Den lösningen är rätt och rivs inte. Den enda ändring den behöver av det här
   arbetet är att byta datakälla från kommunfilen till arkivet, i steg 7 nedan.
-- **`KartaPuff.astro`** på kommunhubben ritar en punktbild vid bygget och
-  väcker sedan MapLibre mot kommunens egen datafil. Punktbilden står kvar
-  oförändrad: den kostar noll JavaScript och är vad den utan skript och
-  Googlebot ser. Den levande kartan byter datakälla till arkivet, så att det
-  inte finns två datavägar. Villkoren för uppvaknandet, `saveData`,
-  `effectiveType` och tomgångsluckan efter `load`, står kvar ordagrant. Den som
-  kommer från Google på telefon med dålig uppkoppling får punktbilden och
-  betalar noll extra byte, precis som i dag.
+- **`KartaPuff.astro`** på kommunhubben är omgjord, och punktbilden som stod
+  här som "oförändrad" är BORTA. Ägaren om den: "den lila som finns på
+  restauranger för stockholm och det andra ställen där vi bara kör prickar är
+  ju bara prickar men går ej att klicka, samt att det är kraftigt överlapp med
+  vår riktiga robusta kartvy."
+
+  Båda halvorna stämde. Prickarna var cirklar utan namn, datum eller länk,
+  alltså en bild av en karta. Och överlappet var inte kosmetiskt: rutan var en
+  andra kartimplementation mot en andra datakälla, `map-data.ts` hit och
+  `kartrutor.ts` till kartvyn, två vägar till samma sanning som kunde glida
+  isär utan att något sa ifrån.
+
+  Rutan ritar nu **samma arkiv, samma nålar, samma kluster och samma
+  klusterdelning** som `/<kommun>/karta/`. Prickarna är droppnålar med ansikte,
+  ett klick på en nål går till verksamhetens sida, och ett klick på en bubbla
+  delar den. Det som inte följer med är listan, filtret, nålens kort och arket:
+  de hör till den delade vyn, som har en egen adress och en länk härifrån.
+
+  Villkoren för uppvaknandet står kvar ordagrant, `saveData`, `effectiveType`
+  och tomgångsluckan efter `load`. Det som möter den som stoppas av dem är
+  numera en PLATSHÅLLARE med nålsymbol och knappen "Öppna kartan", inte en
+  punktbild. Rutan påstår därmed aldrig att den är en karta när den inte är
+  det, och den kostar fortfarande noll extra byte för den besökaren.
+
+  Bytet gjorde uppvaknandet billigare och inte dyrare: förut hämtades hela
+  kommunfilen, 106 kB brotlat för Stockholm, innan en prick kunde ritas. Nu
+  hämtas rutorna för utsnittet, alltså några kilobyte.
 
 Ägarens formulering var att landningssidorna ska sluta rita egna kartor. Den
 läses här som att det inte får finnas en andra datakälla och en andra
@@ -539,10 +607,24 @@ den byggdes.
 
 ### Sökningen
 
-I dag leder ett kommunförslag i sökpanelen till `/<kommun>/`. Ägaren: "söker
+BYGGT. Ett kommunförslag i sökpanelen ledde till `/<kommun>/`. Ägaren: "söker
 man på en kommun tex i sök ska man komma till split screen på karta och lista".
-Kommunförslaget pekas alltså om till `/<kommun>/karta/` för de kommuner som har
-en karta, och står kvar på hubben för de fyra som inte har det.
+Kommunförslaget pekar nu på `/<kommun>/karta/` för de kommuner som har en
+karta, och står kvar på hubben för de fyra som inte har det.
+
+Villkoret följer med i sökregistret som en tredje plats i kommunraden,
+`[slug, ort, 1]`, satt av samma `utsnitt()`-anrop som kartsidans
+`getStaticPaths` frågar. Alternativet, att klienten gissar ur något annat, hade
+varit en andra bedömning av samma sak och därmed en 404 den dag de två sa emot
+varandra.
+
+Metaraden under förslaget säger "Kommun · karta och lista" för de åtta och
+"Kommun" för de fyra. Två rader som ser identiska ut och leder till olika sorters
+sida är värre än att den ena är en katalog.
+
+Sökpanelen har dessutom en rad för **rikskartan**, "Karta över Sverige", först
+bland kartorna. Den är den enda raden som svarar på ordet "karta" utan en ort
+efter sig.
 
 ---
 
@@ -551,21 +633,87 @@ en karta, och står kvar på hubben för de fyra som inte har det.
 Varje steg ska kunna pushas ensamt utan att sajten går sönder.
 
 1. ~~**Pipelinen.**~~ KLAR. `src/lib/kartrutor.ts` bygger arkivet, `src/lib/pmtiles.ts`
-   skriver det, och `pages/kartrutor/[file].pmtiles.ts` lägger ut det på en
-   innehållsbaserad adress. `scripts/kartrutegrind.mjs` öppnar den färdiga
+   skriver det, och `pages/kartrutor/[file].bin.ts` lägger ut det på en
+   innehållsbaserad adress. Ändelsen är `.bin` och inte `.pmtiles`, se
+   avsnittet om kantcachen. `scripts/kartrutegrind.mjs` öppnar den färdiga
    filen med den läsare webbläsaren kör och stoppar bygget om något inte går.
 2. ~~**Klienten byter källa.**~~ KLAR. `punktKalla()` läser rutorna,
    `delaKluster()` läser `ez` och `bx`, och antalsbrickan läser `h` och `n`.
    Kommunfilerna ligger kvar orörda som reserv.
-3. **`/karta/`** byggs som ny sida.
-4. **Adressen bär filter.** Fragmentet utvidgas, `history.replaceState` skriver
-   tillbaka utsnittet.
-5. **Landningssidorna** pekas in i kartan på rätt utsnitt.
-6. **Sökningen** pekas om.
-7. **Städningen.** `KartaPuff` och `OmradeKarta` byter datakälla. Först därefter
-   tas `map-data.ts` och `pages/kartdata/[file].json.ts` bort. Båda
-   komponenterna läser `data.body` för sina byggtidsbilder, så modulen kan inte
-   bara raderas; punktbilderna behöver en egen liten datakälla.
+3. ~~**`/karta/`** byggs som ny sida.~~ KLAR. `pages/karta.astro` renderar
+   samma `Karta.astro` med `utsnitt()` utan slug, alltså hela riket.
+   `kommun`-propen är valfri, och saknas den serverrenderar listan KOMMUNERNA
+   med sina tal i stället för sextio verksamheter. Skälet står i komponenten:
+   på landets zoom ligger varenda punkt i en bubbla, så kortlistan är tom tills
+   man zoomat in, och en tom app-yta är precis den tunna sida kvalitetsgrinden
+   finns för att hålla borta. Kommunraderna försvinner i samma stund kartan
+   ger kort.
+4. ~~**Adressen bär filter.**~~ KLAR. Fragmentet är utvidgat till nycklar
+   skilda med `&`, och `history.replaceState` skriver tillbaka utsnittet 250 ms
+   efter `moveend`. Se avvikelse 2 i del 3 för formen, avrundningen och
+   `history.state`-märket som håller ringen "du är här" ärlig.
+5. ~~**Landningssidorna** pekas in i kartan på rätt utsnitt.~~ KLAR.
+   Kategorisidan länkar till `/<kommun>/karta/#typ=<kategori>`, områdessidan
+   till `#map=` räknat ur områdets egen låda av `kartfragment()` i
+   `lib/kartrutor.ts`. Att zoomen räknas på ETT ställe är hela poängen: varje
+   sidmall som gissar en zoom gissar olika.
+6. ~~**Sökningen** pekas om.~~ KLAR. Se "Sökningen" ovan.
+7. **Städningen.** DELVIS. `KartaPuff` läser numera arkivet och ingenting ur
+   `map-data.ts`. Kvar står `OmradeKarta`, som läser `data.body` för sin
+   byggtidsbild och sin egen GeoJSON-källa. Först när den bytt kan
+   `map-data.ts` och `pages/kartdata/[file].json.ts` tas bort, och
+   `KartaPuff`-propen `data` och `mapDataset`-anropet i `KommunHub.astro` med
+   dem. Se "Vad som är kvar" nedan.
+
+## Kategorifiltret, och varför det finns i rutorna
+
+Fragmentets `typ=` kräver att kartan vet vilken kategori en nål tillhör, och
+den uppgiften ligger nu i rutan som `c`.
+
+Talet är en BITMASK och inte ett kategoriindex. 1,4 procent av beståndet hör
+hemma i två toppkategorier samtidigt, främst Stockholm där `1. Café` och
+`1. Restaurang` står på samma verksamhet, och båda är sanna. Ett fält som bara
+rymmer den ena hade tappat halva sanningen för just de raderna.
+
+Bitordningen är `TOP_CATEGORIES` ordning, och `kategoriBitar()` i
+`lib/kartrutor.ts` är den enda källan för översättningen slug till bit. Ordboken
+följer med i sidans HTML, av samma skäl som kommunernas slugar gör det: en andra
+tabell i klientkoden kan glida isär från den bygget skrev.
+
+Okänt får INGEN bit, av samma skäl som `categories.ts` skiljer okänt från
+övrigt. En verksamhet vi inte kan kategorisera visas därför inte under någon
+kategori, i stället för att gömmas under fel.
+
+Filtreringen sker i JavaScript och inte i ett stiluttryck, eftersom
+uttrycksspråket saknar bitvisa operatorer. Det kostar ingenting: mängden som
+filtreras är de nålar som ligger i de laddade rutorna, och textfiltret gick
+redan samma väg. Kategorin och texten är ett SNITT och inte två steg.
+
+Bubblorna och antalsbrickorna göms medan ett kategorifilter är på, av exakt
+samma skäl som medan ett textfilter är på: de är räknade vid bygget och kan inte
+räknas om i webbläsaren.
+
+Kartan har medvetet INGEN egen kategoriväljare. Kategorisidorna är sidor för att
+de kan rankas, och en andra väljare på kartan hade konkurrerat med dem om samma
+handling. Det enda som syns i vyn är ett kategorimärke i listhuvudet med ett
+kryss som stänger av filtret, eftersom det som filtrerar måste gå att stänga av
+där det syns.
+
+## Vad som är kvar
+
+- **`OmradeKarta.astro` läser fortfarande `map-data.ts`.** Den ritar en
+  byggtidsbild ur `data.body` och väcker sedan MapLibre mot en egen
+  GeoJSON-källa med gränsen som ett lager ovanpå. Lösningen är godkänd och rivs
+  inte, men den är den sista andra datavägen. Bytet är inte en radering utan ett
+  eget arbete: nedtoningen av det som ligger utanför gränsen bygger på att varje
+  punkt prövas mot polygonen vid bygget, och med rutor sker prövningen i
+  klienten mot det som råkar ligga i de laddade rutorna.
+- **`map-data.ts` och `pages/kartdata/[file].json.ts`** kan tas bort först
+  därefter, tillsammans med `KartaPuff`-propen `data` och `mapDataset`-anropet i
+  `KommunHub.astro`.
+- **Kortens form i den delade vyn.** Mätningen av Booli ovan säger en spalt med
+  640 × 172; vi kör två spalter med textkort. Valet är motiverat, men
+  kortformen som sådan är formgivningsarbete och ligger utanför den här planen.
 
 ## Tre saker som beter sig annorlunda efter steg 2
 

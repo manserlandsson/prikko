@@ -1,0 +1,117 @@
+---
+/**
+ * Rikskartan.
+ *
+ * Den enda sida som tillkommer av hela rutpyramiden, och den tillkommer för
+ * att "karta över restauranger i Sverige" är en sökning. Inte för att
+ * funktionen behöver en adress: funktionen finns redan på varje kommuns
+ * kartsida, och ägarens princip är att sidor köps för SEO och aldrig för
+ * funktioner. Se docs/23_rikskartan.md del 4.
+ *
+ * Ytan är densamma som `/<kommun>/karta/` in i minsta detalj: samma komponent,
+ * samma arkiv, samma beteende. Det som skiljer är utsnittet den öppnar på och
+ * att listan serverrenderar KOMMUNERNA med sina tal i stället för sextio
+ * verksamheter. Skälet står i Karta.astro vid `kommunrader`: på hela landets
+ * zoom ligger varenda punkt i en bubbla, alltså är kortlistan tom, och en tom
+ * app-yta är precis den tunna sida kvalitetsgrinden finns för att hålla borta.
+ *
+ * `/<kommun>/karta/` omdirigeras INTE hit. Adresserna är publicerade och
+ * crawlade, frågan "karta över hygienkontroller i Linköping" finns och har en
+ * sida som svarar exakt på den, och en 301 hit hade indexerat rikskartan tolv
+ * gånger under tolv olika frågor. Se `docs/adr/0003-slugen-ar-permanent.md`.
+ */
+import Base from '../layouts/Base.astro';
+import Karta from '../components/Karta.astro';
+import { formatNumber } from '../lib/data';
+import { utsnitt } from '../lib/kartrutor';
+import { absolute } from '../lib/urls';
+
+/* Utan slug ger `utsnitt()` hela riket. Rikskartan kan inte sakna punkter så
+   länge en enda kommun har koordinater, alltså finns ingen tom-gren här som
+   motsvarigheten i `[kommun]/karta.astro` har. */
+const data = utsnitt()!;
+
+const title = 'Karta över hygienkontroller i Sverige';
+const description =
+  `Karta med ${formatNumber(data.count)} restauranger och livsmedelsverksamheter i Sverige. ` +
+  `Varje nål visar hur verksamheten klarade sin senaste hygienkontroll.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
+    { '@type': 'ListItem', position: 2, name: 'Karta' },
+  ],
+};
+---
+
+<Base title={title} description={description} jsonLd={jsonLd} footer={false}>
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+    </nav>
+
+    {/* Rubriken och sedan kartan. Ingenting emellan, av samma skäl som på
+        kommunens kartsida: en karta med färgade ansikten och en
+        teckenförklaring under sig förklarar sig själv, och varje lodrät pixel
+        ovanför kartan är en pixel karta som försvinner. */}
+    <h1>Karta över hygienkontroller i Sverige</h1>
+
+    <Karta data={data} />
+  </div>
+</Base>
+
+<style>
+  /* Måtten är kommunens kartsidas, ordagrant, eftersom det är samma yta. Se
+     motiveringen där: app-yta och inte dokument, ingen sidskroll, sidfoten
+     avstängd via Base-propen footer, 59 px för sidhuvudet plus dess hårlinje. */
+  .page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 59px);
+    padding-block: var(--s-4) var(--s-4);
+    max-width: var(--w-full);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+  }
+
+  h1 {
+    margin-block: var(--s-1) var(--s-4);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  /* Under 900 px tar arket över, se arkavsnittet i Karta.astro. Sidan bakom
+     ska då inte skrolla alls, och rubriken står kvar i dokumentet men ute ur
+     vyn: den är sidans H1 och får inte tas bort. */
+  @media (max-width: 900px) {
+    .page {
+      height: auto;
+      display: block;
+      padding-block: var(--s-4);
+    }
+
+    .page:has(.split.ark) {
+      height: 100dvh;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .page:has(.split.ark) .crumbs,
+    .page:has(.split.ark) h1 {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+</style>
