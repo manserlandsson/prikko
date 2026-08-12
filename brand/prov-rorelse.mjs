@@ -34,21 +34,19 @@ const CSS = readFileSync(new URL('../site/src/styles/maskot-rorelse.css', import
  * den röda, hoppet till den gröna.
  */
 const RORELSER = [
-  { klass: 'm-ankomst', namn: 'Ankomst', not: 'Kroppen först, huvudet efter, öronen sist. Skuggan hinner ikapp.' },
+  { klass: 'm-ankomst', namn: 'Ankomst', not: 'Kroppen först, huvudet efter, öronen sist. Skuggan står kvar på marken.' },
   { klass: 'm-andas', namn: 'Andning', not: 'Vilan. Går för alltid och ska knappt märkas.', loop: true },
   { klass: 'm-blink', namn: 'Blinkning', not: 'Höger öga tolv millisekunder efter vänster. Ingen blinkar synkront.' },
-  { klass: 'm-spana', namn: 'Spaning', not: 'Blicken går ut, huvudet följer efter, öronen sist.' },
+  { klass: 'm-spana', namn: 'Spaning', not: 'Den godkända, och orörd. Måttstocken för alla andra.' },
   { klass: 'm-spetsa', namn: 'Spetsade öron', not: 'Hovringens läge. Stannar kvar tills pekaren lämnar.' },
-  { klass: 'm-nick', namn: 'Nick', not: 'Bekräftelsen. Kort och färdig.' },
-  { klass: 'm-titt', namn: 'Titt', not: 'Kikar fram, till exempel ur en tom lista.' },
-  { klass: 'm-vinka', namn: 'Vink', not: 'Armen, tassen och huvudet på tre olika kurvor.' },
-  { klass: 'm-glad', namn: 'Hopp', ton: 'clean', not: 'Gröna grävlingen. Skuggan krymper i luften.' },
-  { klass: 'm-ogonpopp', namn: 'Ögonpopp', ton: 'major', not: 'Röda grävlingen. Ögonvitan går ut, pupillen efter.' },
-  { klass: 'm-rok', namn: 'Rök ur öronen', ton: 'major', rekvisita: 'rok', not: 'Röda grävlingen, när det gått för långt.' },
-  { klass: 'm-skaka', namn: 'Rysning', not: 'Skakar av sig. Kroppen och öronen ur fas.' },
-  { klass: 'm-grav', namn: 'Grävning', not: 'Armarna arbetar, huvudet dyker.' },
-  { klass: 'm-gang', namn: 'Gång', not: 'Hela cykeln. Ben, fot, bål, arm, öra och skugga.', loop: true },
-  { klass: 'm-lupp', namn: 'Förstoringsglaset', rekvisita: 'lupp', not: 'Detektiven. Ögat bakom glaset förstoras.' },
+  { klass: 'm-nick', namn: 'Nick', not: 'Bekräftelsen. Hållet i botten är 213 ms.' },
+  { klass: 'm-titt', namn: 'Titt', not: 'Blicken går först, huvudet följer. Längsta hållet i katalogen.' },
+  { klass: 'm-vinka', namn: 'Vink', not: 'Arm och tass roterar kring axeln, tassen 60 ms efter.' },
+  { klass: 'm-glad', namn: 'Hopp', ton: 'clean', not: 'Gröna grävlingen. Hangtime på toppen, skuggan kvar på marken.' },
+  { klass: 'm-ogonpopp', namn: 'Ögonpopp', ton: 'major', not: 'Röda grävlingen. Pupillen krymper först, sedan hållet.' },
+  { klass: 'm-rok', namn: 'Rök ur öronen', ton: 'major', rekvisita: 'rok', not: 'Röda grävlingen, när det gått för långt.', loop: true },
+  { klass: 'm-skaka', namn: 'Rysning', not: 'Darrning, och sedan ett håll i en sjunken pose.' },
+  { klass: 'm-grav', namn: 'Grävning', not: 'Armarna arbetar, huvudet dyker.', loop: true },
 ];
 
 /**
@@ -63,6 +61,20 @@ const MARKESRORELSER = [
   { klass: 'mm-allvar', namn: 'Allvaret', ton: 'major' },
 ];
 
+/* Riggen skriver in `</g>` INUTI ett attributvärde när en märkt grupp har
+ * märkta barn, alltså när högerörat ligger i örongruppen. Följden syns direkt
+ * i bild: högerörats `ry` blir `4</g>.2`, örat renderas inte alls, och
+ * högerbrynets bana kapas mitt i.
+ *
+ * Arket LAGAR INTE det, och det är ett medvetet val. Hela poängen med filen är
+ * att det som syns här per definition är det sajten skickar; ett ark som
+ * städar upp efter riggen skulle dölja precis det fel som gör att figuren ser
+ * fel ut. Det RÄKNAS i stället, och står i en varning högst upp.
+ *
+ * Felet bor i site/src/lib/maskot-rigg.mjs och rättas där. */
+const trasigaAttribut = (svg) => (svg.match(/="[^"]*<\/g>[^"]*"/g) || []).length;
+let trasigaTotalt = 0;
+
 function ruta({ klass, namn, not, ton = 'blue', uttryck, ansikte = false, loop, rekvisita }) {
   const ren = figur({
     size: ansikte ? 100 : 132,
@@ -71,11 +83,12 @@ function ruta({ klass, namn, not, ton = 'blue', uttryck, ansikte = false, loop, 
     ansikte,
     detalj: 'rik',
   });
-  /* Rekvisitan läggs FÖRE riggningen, så att luppen och röken hamnar inuti
-     rot-svg:n och alltså under rörelsens klass. Läggs den efteråt sitter den
-     utanför selektorn och rör sig aldrig. */
+  /* Rekvisitan läggs FÖRE riggningen, så att röken hamnar inuti rot-svg:n och
+     alltså under rörelsens klass. Läggs den efteråt sitter den utanför
+     selektorn och rör sig aldrig. */
   const medProps = rekvisita ? medRekvisita(ren, [rekvisita]) : ren;
   const { svg, saknas } = rigga(medProps, { klass });
+  trasigaTotalt += trasigaAttribut(svg);
   const varning = saknas.length
     ? `<p class="saknas">Riggen hittade inte: ${saknas.join(', ')}</p>`
     : '';
@@ -90,6 +103,24 @@ function ruta({ klass, namn, not, ton = 'blue', uttryck, ansikte = false, loop, 
     </figcaption>
   </figure>`;
 }
+
+/* Rutorna byggs FÖRE mallen, eftersom varningen om trasig markup står högst
+   upp i dokumentet och räkningen sker medan rutorna byggs. */
+const figurRutor = RORELSER.map(ruta).join('');
+const markesRutor = MARKESRORELSER.map((r) => ruta({ ...r, ansikte: true })).join('');
+
+const riggvarning = trasigaTotalt
+  ? `<p class="riggfel"><strong>Riggen skickar trasig markup: ${trasigaTotalt} attribut
+     innehåller ett <code>&lt;/g&gt;</code> som hamnat inuti sitt eget värde.</strong>
+     Följden syns i varje figur nedan: <strong>högerörat ritas inte alls</strong>, eftersom
+     dess <code>ry</code> blivit <code>4&lt;/g&gt;.2</code>, och <strong>högerbrynets bana kapas
+     mitt i</strong>. Orsaken är att <code>rigga()</code> i
+     <code>site/src/lib/maskot-rigg.mjs</code> sätter in sina grupper bakifrån efter
+     nodens <em>start</em>, vilket håller för syskon men inte för en förälder som är
+     märkt tillsammans med sina barn: föräldern behandlas sist och dess slutindex har då
+     redan flyttats av barnens insättningar. Arket lagar det inte med flit, se filhuvudet.
+     Rörelserna nedan går alltså på en figur som saknar ett öra.</p>`
+  : '';
 
 const html = `<!doctype html>
 <html lang="sv">
@@ -129,6 +160,19 @@ const html = `<!doctype html>
   .not { font-size: 12.5px; color: #61667a; }
   .loopar { font-size: 11px; color: #2f6feb; }
   .saknas { margin: 4px 0 0; font-size: 12px; color: #b42318; }
+  .riggfel {
+    margin: 18px 0 0; padding: 13px 15px; max-width: 92ch;
+    border: 1px solid #f0c2bc; background: #fdf3f2; border-radius: 10px;
+    font-size: 13px; line-height: 1.5; color: #7a2a20;
+  }
+  .riggfel code { color: #7a2a20; }
+  /* Bildrutevyn. En rörelse går inte att bedöma i farten: hållen syns bara
+     när tiden står stilla. Varje ruta kan därför visa sin egen rörelse som
+     åtta pausade lägen i rad. */
+  .ruta.rutor .scen { height: auto; padding: 8px 0; }
+  .rutband { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
+  .rutband > div { width: 62px; text-align: center; font: 9px/1.4 ui-monospace, Menlo, monospace; color: #8b90a0; }
+  .rutband svg { display: block; margin: 0 auto; }
 ${CSS}
 </style>
 
@@ -136,17 +180,22 @@ ${CSS}
 <p class="ingress">Arket läser <code>site/src/styles/maskot-rorelse.css</code> direkt, så det som
 syns här är exakt det sajten skickar. Klicka på en ruta för att spela om den, eller kör alla på en gång.</p>
 <p class="ingress">Riggen namnger ${RIGGDELAR.length} leder på figuren. Hittar den inte en led står det i rutan.</p>
+<p class="ingress"><strong>Bildrutor</strong> visar varje rörelse som åtta pausade lägen i rad. Det är
+den enda vyn där HÅLLEN går att se, alltså de bildrutor där posen står kvar, och hållen är
+skillnaden mellan rörelse som ser dyr ut och rörelse som ser billig ut.</p>
+${riggvarning}
 
 <div class="rad">
   <button id="alla">Spela alla</button>
   <button id="langsamt">Kvartsfart</button>
+  <button id="rutor">Bildrutor</button>
 </div>
 
 <h2>Figuren</h2>
-<div class="rutnat">${RORELSER.map(ruta).join('')}</div>
+<div class="rutnat">${figurRutor}</div>
 
 <h2>Bedömningsmärket</h2>
-<div class="rutnat">${MARKESRORELSER.map((r) => ruta({ ...r, ansikte: true })).join('')}</div>
+<div class="rutnat">${markesRutor}</div>
 
 <script>
   // En css-animation startar inte om av sig själv. Klassen måste bort, en
@@ -163,6 +212,61 @@ syns här är exakt det sajten skickar. Klicka på en ruta för att spela om den
   document.getElementById('alla').addEventListener('click', () => {
     document.querySelectorAll('.ruta').forEach(spela);
   });
+  // BILDRUTEVYN. En kopia av figuren per tidpunkt, var och en pausad på sitt
+  // eget läge med Web Animations API. Att pausa KOPIOR i stället för originalet
+  // är hela tricket: originalet ligger kvar och går att spela som vanligt, och
+  // varje kopia bär samma klass och därmed samma css-regler.
+  const RUTOR = 8;
+  function langd(svg) {
+    let tot = 0;
+    for (const a of svg.getAnimations({ subtree: true })) {
+      const t = a.effect.getTiming();
+      const d = (t.delay || 0) + (typeof t.duration === 'number' ? t.duration : 0);
+      if (d > tot) tot = d;
+    }
+    return tot;
+  }
+  function rutband(ruta) {
+    const scen = ruta.querySelector('.scen');
+    const svg = scen.querySelector('svg');
+    const tot = langd(svg);
+    if (!tot) return;
+    ruta.dataset.scen = scen.innerHTML;
+    const band = document.createElement('div');
+    band.className = 'rutband';
+    // Bandet läggs in i dokumentet FÖRE kopiorna. En css-animation finns inte
+    // på ett element som inte renderas, alltså ger getAnimations() en tom lista
+    // på en lös nod och ingenting går att pausa. Det felet syns inte som ett
+    // fel: rutorna visas, de visar bara alla samma bildruta.
+    scen.innerHTML = '';
+    scen.appendChild(band);
+    ruta.classList.add('rutor');
+    for (let i = 0; i < RUTOR; i++) {
+      const t = (tot * i) / (RUTOR - 1);
+      const cell = document.createElement('div');
+      band.appendChild(cell);
+      const kopia = svg.cloneNode(true);
+      kopia.setAttribute('width', 58);
+      kopia.setAttribute('height', 58);
+      cell.appendChild(kopia);
+      cell.appendChild(document.createTextNode(Math.round(t)));
+      for (const a of kopia.getAnimations({ subtree: true })) { a.pause(); a.currentTime = t; }
+    }
+  }
+  document.getElementById('rutor').addEventListener('click', (e) => {
+    const pa = document.body.dataset.rutor === '1';
+    document.body.dataset.rutor = pa ? '' : '1';
+    document.querySelectorAll('.ruta').forEach((r) => {
+      if (pa) {
+        if (r.dataset.scen) r.querySelector('.scen').innerHTML = r.dataset.scen;
+        r.classList.remove('rutor');
+      } else {
+        rutband(r);
+      }
+    });
+    e.target.textContent = pa ? 'Bildrutor' : 'Tillbaka';
+  });
+
   document.getElementById('langsamt').addEventListener('click', (e) => {
     const pa = document.documentElement.style.getPropertyValue('--prov-fart') === '4';
     document.documentElement.style.setProperty('--prov-fart', pa ? '' : '4');
