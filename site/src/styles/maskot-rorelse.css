@@ -1,0 +1,1085 @@
+/**
+ * MASKOTENS RÖRELSER.
+ *
+ * Den här filen är rörelsekatalogen, och den är sanningen. Förslagsarket i
+ * brand/maskot-forslag.html LÄSER den här filen i stället för att ha en egen
+ * kopia, så det ägaren ser i arket är per definition det sajten skickar.
+ *
+ * Läs site/src/lib/maskot-rigg.mjs först. Den ger figuren namngivna leder
+ * (`r-huvud`, `r-ora-v`, `r-pupill-h` …), och utan dem är varenda selektor här
+ * meningslös.
+ *
+ * ══ VAD SOM AVGJORDE UTFÖRANDET ══════════════════════════════════════════
+ *
+ * ── 1. Enskilda transformegenskaper, aldrig `transform` ─────────────────
+ *
+ * Delarna bär redan `transform` som ATTRIBUT, och attributet ÄR egenskapen
+ * `transform`. En animation som skriver `transform` slår alltså ut huvudets
+ * placering och figuren faller isär i samma bildruta som rörelsen börjar.
+ *
+ * `translate`, `rotate` och `scale` är egna egenskaper och läggs enligt
+ * specen PÅ transformen i stället för att ersätta den. Två saker följer:
+ *
+ *   a) placeringen överlever rörelsen, och
+ *   b) TVÅ animationer kan gå på samma del samtidigt, en på `rotate` och en
+ *      på `scale`, med olika längd och olika kurva.
+ *
+ * Punkt b är inte en teknikalitet. Överlappande rörelse, alltså att delar
+ * slutar röra sig vid olika tidpunkter, är den klassiska principen som skiljer
+ * en levande figur från en pappersdocka, och med en enda `transform` per del
+ * går den inte att skriva utan att räkna ihop allt för hand i varje bildruta.
+ *
+ * ── 2. transform-box: fill-box ──────────────────────────────────────────
+ *
+ * Ett öra ska rotera kring sin egen fästpunkt. SVG:ns förval är rutans
+ * övre vänstra hörn, alltså fel. `view-box` vore också fel: den syftar på
+ * närmaste SVG-viewport, alltså rotens 120-ruta, medan örat sitter inne i en
+ * grupp som är skalad 0,62, så ett origo i rotens enheter landar fel med samma
+ * faktor. `fill-box` räknar mot delens EGEN låda, alltså betyder
+ * `transform-origin: 50% 100%` underkanten av just den delen. Samma stilmall
+ * fungerar därmed på helfiguren i 120-rutan och på det beskurna märket i
+ * 100-rutan, utan ett enda omräknat tal.
+ *
+ * ── 3. Varför ingen körtid, och vad som mättes ──────────────────────────
+ *
+ * Valet stod mellan bildrutor, en riggad figur i CSS, och Rive. Talen står i
+ * docs/24. Kort: det som avgör om en rörelse ser dyr eller billig ut är
+ * TAJMINGEN, alltså hur länge varje del står stilla och när den släpper, och
+ * tajming är precis vad `@keyframes` med procentsatser ger exakt kontroll
+ * över. En körtid tillför ingenting där. Den tillför formändring mellan
+ * godtyckliga lägen, och de två ställen vi verkligen behöver det, ögonlocket
+ * och munnen, är animerbar SVG-geometri som CSS redan når.
+ *
+ * ── 4. Reducerad rörelse ────────────────────────────────────────────────
+ *
+ * tokens.css nollar redan alla varaktigheter globalt. Det räcker inte, och
+ * det är en riktig bugg och inte en formalitet: en `infinite` animation med
+ * varaktigheten 0,01 ms slutar inte, den snurrar så fort webbläsaren orkar.
+ * Blocket längst ned sätter därför även `animation-iteration-count: 1` och
+ * lägger de loopande rörelserna i sitt vilande läge.
+ *
+ * ══ VAR VARJE RÖRELSE FÅR ANVÄNDAS ═══════════════════════════════════════
+ *
+ * Programmet i docs/24 delar världen i två, och delningen gäller även rörelse.
+ *
+ *   FRITT LÄGE, prefix `m-`.  Maskoten, alltid blå, står där ingen verksamhet
+ *   bedöms: 404, tomma lägen, kartans laddyta. Här finns ingen gräns. Ögon som
+ *   poppar ur och rök ur öronen hör hemma här och ingen annanstans.
+ *
+ *   MÄRKET, prefix `mm-`.  Bedömningen av en NAMNGIVEN verksamhet. Bara det
+ *   stora, ensamma märket högst upp på verksamhetssidan får reagera, en gång,
+ *   kort. Listornas märken rör sig aldrig: kommunsidan har 8 511 rader.
+ *
+ * Och den regel som styr allt i `mm-`: rött betyder att en namngiven
+ * restaurang har brister som kvarstår. Utstående ögon och rök ur öronen gör
+ * det till ett skämt, och det är precis den kritik en verksamhet skulle
+ * använda mot oss. Rött läser som BEKYMRAT. Grönt har inga sådana hämningar.
+ *
+ * ══ FYNDET SOM TALAR EMOT OSS, OCH SOM MÅSTE STÅ HÄR ═════════════════════
+ *
+ * Researchen till den här filen hittade ett resultat i EXAKT vår domän, och
+ * det är starkare än allt annat som skrivits om maskotar:
+ *
+ *   Vainio, Ollila, Sørensen, Kaskela, Finell, Leisner och Lundén (2023),
+ *   Food Control, DOI 10.1016/j.foodcont.2022.109382. Populationsbaserat
+ *   surveyexperiment, nationellt representativa urval i Danmark och Finland.
+ *
+ *   SAMMA kontrollbetyg uppfattades MER POSITIVT när rapporten innehöll en
+ *   smiley, och mer negativt när den innehöll text. Slutsatsen är att text är
+ *   effektivast för att kommunicera ett DÅLIGT betyg och smileyn för ett bra.
+ *
+ * Ett ansikte på ett dåligt resultat FÖRSKÖNAR alltså det dåliga resultatet.
+ * Det är inte en smakfråga om varumärkeston, det är en mätbar snedvridning av
+ * den information tjänsten finns för att förmedla.
+ *
+ * Vad det innebär här, konkret:
+ *
+ *   GRÖNT   rörelse är stödd av forskningen. `mm-glad` är den enda rörelse i
+ *           katalogen som har ett publicerat resultat FÖR sig.
+ *   GULT    `mm-bryn` lyfter och sänker brynen, alltså läser som "det här bör
+ *           du veta om". Den sockrar inte, den pekar.
+ *   RÖTT    `mm-allvar` är byggd men är AVSTÄNGD i förvalet, se FaceMark.astro.
+ *           Fyndet ovan är skälet. Den finns för att beslutet ska kunna fattas
+ *           med rörelsen framför ögonen i stället för i teorin.
+ *
+ * ══ TALEN SOM ANDRA HAR PUBLICERAT ═══════════════════════════════════════
+ *
+ * För jämförelse, och för att våra egna tal ska gå att pröva mot något:
+ *
+ *   GitHub Primer, produkt   micro 100, short 200, medium 300, long 500 ms.
+ *                            Regeln i tokenfilen: "MUST keep UI interactions
+ *                            ≤300ms", "NEVER exceed 500ms".
+ *   GitHub Primer, MARKNAD   200, 300, 600, 700 ms, stagger 100 ms.
+ *                            Alltså: marknadsföring får dubbelt så långsam
+ *                            rörelse som produkten. Det är den tydligaste
+ *                            numeriska gränsen någon publicerat mellan de två
+ *                            disciplinerna, och den är exakt vår delning i
+ *                            docs/24 §5.
+ *   Intuit qbal (MIT)        85, 167, 250, 333, 417, 500, 750, 1000, 2000 ms.
+ *                            Stegen är filmbaserade, alltså 1/12, 2/12, 3/12
+ *                            sekund. En animatörsskala och inte en
+ *                            webbutvecklarskala. De reserverar dessutom
+ *                            översläng till en namngiven delmängd, "spirited",
+ *                            i stället för att göra den till förval, vilket är
+ *                            samma sak som `--m-gummi` gör här.
+ *   NN/g                     100 till 500 ms, och "At 500ms, animations start
+ *                            to feel like a real drag for users".
+ *   Stripe                   "in most cases you'll want to stay under 500
+ *                            milliseconds", men deras enda dokumenterade
+ *                            undantag är 800 ms.
+ *
+ * Våra gester går längre än produkttaket, och det är ett medvetet val med ett
+ * villkor: de spelas BARA där figuren står ensam och ingenting väntar på den,
+ * alltså 404, tomma lägen och laddytan. NN/g:s tak gäller rörelse användaren
+ * VÄNTAR PÅ. Ingen väntar på att en grävling ska vinka på en 404-sida.
+ *
+ * ══ TESTET SOM AVGÖR OM EN RÖRELSE FÅR FINNAS ════════════════════════════
+ *
+ * Michaël Villar, som byggde Stripe Checkout: stäng av animationen. Känns
+ * flödet trasigt? Då är rörelsen funktionell. Känns det inte trasigt är den
+ * dekorativ, och då ska den vara avstängbar och den ska vara sällsynt.
+ *
+ * Varenda rörelse i den här filen faller på det testet, alltså är samtliga
+ * dekorativa. Det är därför de ligger bakom `prefers-reduced-motion`, bakom en
+ * uttrycklig prop på komponenten, och bara på ytor där ingen väntar på något.
+ */
+
+/* ══ 1. TAJMINGEN ════════════════════════════════════════════════════════
+ *
+ * Talen här är inte valda på känsla och inte hämtade ur minnet. De är mätta,
+ * dels i Duolingos publika filer, dels mot de webbsystem som faktiskt
+ * publicerat tokenvärden.
+ *
+ * ── Vad mätningen av Duolingo visade, och vad den ändrade ───────────────
+ *
+ * Först en rättelse som är värd att skriva ned, eftersom den stod fel i
+ * docs/24: Duolingo har INGEN publicerad rörelsesektion. "Duos and Duon'ts"
+ * på design.duolingo.com/writing/duo handlar om hans RÖST i text, inte om hur
+ * han rör sig. Ingen varaktighet, ingen kurva och ingen kadensregel finns
+ * publicerad någonstans hos dem. Allt nedan är därför uppmätt i deras
+ * levererade filer, webbklient 1.327.0, den 8 augusti 2026.
+ *
+ * Deras 177 Lottie-filer faller i tre tydliga register:
+ *
+ *   GRÄNSSNITT       617 till 1 667 ms, median 1 550
+ *   FIGURREAKTION  2 900 till 7 500 ms, median omkring 4 200
+ *   VILOLOOP      14 000 till 33 000 ms
+ *
+ * Det ändrade den här filen. Första utkastet låg på 160 till 900 ms rakt
+ * igenom, alltså UNDER hela Duos gränssnittsregister. Ägaren: "vår är okej,
+ * men den kan bli mkt bättre", och det här är en stor del av varför. En
+ * rörelse som är för kort hinner inte bli en rörelse; den blir ett hopp.
+ *
+ * Vi ligger nu i två register i stället för ett, och delningen är avsiktlig:
+ *
+ *   SVAR PÅ EN HANDLING   200 till 560 ms. Hovring, nick, blink, märket.
+ *                         Får aldrig kännas som en väntan.
+ *   FIGUREN GÖR NÅGOT     900 till 2 400 ms. Ankomst, spaning, luppen, hoppet.
+ *                         Här ligger karaktären, och här är kort billigt.
+ *
+ * Det andra registret är kortare än Duos, och skälet är att vi är ett register
+ * över myndighetskontroller och inte ett spel. Men det ligger inom deras
+ * gränssnittsband, alltså inte under det.
+ *
+ * ── Kurvorna, och varför tre av dem är Duolingos egna ───────────────────
+ *
+ * Duolingos webbklient har bara sex distinkta cubic-bezier i 178 CSS-filer.
+ * Tre av dem gör jobbet, och vi använder samma tal, eftersom det är hela
+ * poängen med att mäta i stället för att gissa:
+ *
+ *   .22 1 .36 1      utfart, alltså snabb start och lång landning
+ *   .35 1.8 .35 .83  översläng, och den är hårdare än den vanliga .34 1.56
+ *   .74 0 .11 .96    in och ut, tung i båda ändar
+ *
+ * Deras Lottie-filer pekar åt samma håll: 48 procent av 10 911 easing-noder
+ * är After Effects standardkurva. Animatörerna har alltså inget eget
+ * kurvbibliotek, och det är ett argument för att hålla antalet nere här också.
+ *
+ * Överslängen får bara röra POSITION och SKALA. Aldrig färg och aldrig
+ * opacitet: en opacitet som svänger förbi sitt slutvärde läser som ett fel i
+ * skärmen, och det är Material 3:s enda auktoritativa regel om översläng.
+ */
+.r-figur,
+:root {
+  /* Register 1: svar på en handling. */
+  --m-blink: 170ms;
+  --m-snabb: 220ms;
+  --m-kort: 320ms;
+  --m-mellan: 460ms;
+  --m-lang: 560ms;
+
+  /* Register 2: figuren gör något. */
+  --m-gest: 900ms;
+  --m-scen: 1600ms;
+  --m-lang-scen: 2400ms;
+
+  /* Uppmätta hos Duolingo, se ovan. */
+  --m-ut: cubic-bezier(.22, 1, .36, 1);
+  --m-studs: cubic-bezier(.35, 1.8, .35, .83);
+  --m-tung: cubic-bezier(.74, 0, .11, .96);
+
+  --m-in: cubic-bezier(.4, 0, 1, 1);
+  --m-mjuk: cubic-bezier(.4, 0, .2, 1);
+  /* Komisk översläng. Bara till m-ogonpopp och m-glad, alltså till det som
+     SKA läsa som ett skämt, och därmed aldrig i märket. */
+  --m-gummi: cubic-bezier(.2, 1.9, .5, 1);
+}
+
+/* ══ 2. RIGGENS GRUND ═══════════════════════════════════════════════════
+ *
+ * Två rader, och de gäller varje rörelse i filen. Origo sätts per del nedan,
+ * och där det inte sätts är det delens egen mitt, vilket är rätt förval för
+ * allt som skalar och fel för allt som roterar.
+ */
+.r-figur [class^='r-'] {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+/* Det som hänger i något: örat i huvudet, huvudet på halsen, tassen i armen.
+   De roterar kring sitt fäste och inte kring sin mitt, och skillnaden är hela
+   skillnaden mellan att vrida på ett öra och att flytta ett öra. */
+.r-figur .r-huvud,
+.r-figur .r-ora-v,
+.r-figur .r-ora-h { transform-origin: 50% 100%; }
+
+/* Kroppen trycks ihop mot MARKEN. Ett origo i mitten hade lyft fötterna lika
+   mycket som hjässan sjunker, alltså hade figuren svävat i sin egen squash. */
+.r-figur .r-bal,
+.r-figur .r-kropp { transform-origin: 50% 100%; }
+
+/* Armar och ben hänger i sitt övre fäste. */
+.r-figur .r-arm-v,
+.r-figur .r-arm-h,
+.r-figur .r-ben-v,
+.r-figur .r-ben-h { transform-origin: 50% 0%; }
+
+/* Figuren ska aldrig kunna ge en vågrät rullningslist när den svänger utanför
+   sin ruta. `overflow: visible` på svg:n är förvalet i SVG2 men inte i alla
+   motorer, och rörelserna nedan går med flit utanför rutan. */
+.r-figur { overflow: visible; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ *  3. FRITT LÄGE. Maskoten, alltid blå.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── m-ankomst ───────────────────────────────────────────────────────────
+ *
+ * Figuren ska komma IN, inte stå där. Ordningen är klassisk och den är hela
+ * poängen:
+ *
+ *   ANSATS      figuren kryper ihop och sjunker, alltså går åt FEL håll,
+ *               under 90 ms. Utan ansats läser starten som en teleportering.
+ *   RÖRELSE     upp och ut, med kurvans tyngd i slutet.
+ *   ÖVERSLÄNG   förbi sitt viloläge och tillbaka. Det är det som ger massa:
+ *               en kropp som stannar exakt på sitt mål väger ingenting.
+ *   EFTERFÖLJD  huvudet slutar 60 ms efter kroppen, öronen 120 ms efter
+ *               huvudet. Delar som stannar samtidigt läser som en enda bit
+ *               plåt, och det är den vanligaste orsaken till att en
+ *               CSS-animation ser billig ut.
+ *
+ * Spelas EN gång och tar slut. WCAG 2.2.2 gäller loopar; en engångsrörelse
+ * utlöst av att sidan visas är inte en loop, och det är dessutom precis det
+ * Duo mest gör.
+ */
+.m-ankomst {
+  animation: m-in-hel var(--m-gest) var(--m-ut) both;
+}
+.m-ankomst .r-kropp {
+  animation: m-in-kropp var(--m-gest) var(--m-ut) both;
+}
+.m-ankomst .r-huvud {
+  animation:
+    m-in-huvud var(--m-gest) var(--m-ut) 90ms both,
+    m-in-huvudvrid 1000ms var(--m-studs) 90ms both;
+}
+.m-ankomst .r-ora-v { animation: m-in-ora 880ms var(--m-studs) 280ms both; }
+.m-ankomst .r-ora-h { animation: m-in-ora 880ms var(--m-studs) 340ms both; }
+/* Skuggan följer HÖJDEN och inte kroppen: den är bred och svag när figuren är
+   nere, smal och tydlig när den är uppe. Utan det ligger skuggan still och
+   avslöjar att figuren inte har någon plats i rummet. */
+.m-ankomst .r-skugga { animation: m-in-skugga var(--m-gest) var(--m-ut) both; }
+/* Ögonen öppnas SIST, när kroppen redan landat. Ett ansikte som anländer
+   färdigt är en bild; ett som slår upp ögonen när det landat är en varelse. */
+.m-ankomst .r-lock-v ellipse,
+.m-ankomst .r-lock-h ellipse { animation: m-in-lock 300ms var(--m-ut) 700ms both; }
+
+@keyframes m-in-hel {
+  0%   { opacity: 0; translate: 0 14px; }
+  35%  { opacity: 1; }
+  100% { opacity: 1; translate: 0 0; }
+}
+@keyframes m-in-kropp {
+  0%   { scale: .82 .82; translate: 0 10px; }
+  /* Ansatsen: hoptryckt och LÄGRE än startläget. */
+  16%  { scale: 1.02 .88; translate: 0 6px; }
+  /* Sträckningen på väg upp. Volymen hålls: blir den bredare blir den lägre. */
+  46%  { scale: .94 1.08; translate: 0 -5px; }
+  74%  { scale: 1.05 .96; translate: 0 1px; }
+  100% { scale: 1 1; translate: 0 0; }
+}
+@keyframes m-in-huvud {
+  0%   { translate: 0 7px; }
+  50%  { translate: 0 -3px; }
+  100% { translate: 0 0; }
+}
+@keyframes m-in-huvudvrid {
+  0%   { rotate: -9deg; }
+  100% { rotate: 0deg; }
+}
+@keyframes m-in-ora {
+  0%   { rotate: -26deg; }
+  60%  { rotate: 7deg; }
+  100% { rotate: 0deg; }
+}
+@keyframes m-in-skugga {
+  0%   { scale: 1.25 1; opacity: .45; }
+  46%  { scale: .8 1; opacity: 1; }
+  100% { scale: 1 1; opacity: 1; }
+}
+@keyframes m-in-lock {
+  0%   { ry: 19.6; }
+  100% { ry: .4; }
+}
+
+/* ── m-blink ─────────────────────────────────────────────────────────────
+ *
+ * Ett livstecken och ingenting mer.
+ *
+ * Locket faller på 60 ms och lyfts på 100 ms. Att ÖPPNINGEN är långsammare än
+ * stängningen är hela skillnaden mellan en blinkning och ett glitch, och det
+ * är också hur ett riktigt ögonlock beter sig.
+ *
+ * Riggen ser till att båda locken finns även i de lägen där figuren bara ritar
+ * det ena, se kompletteraLock() i maskot-rigg.mjs.
+ */
+.m-blink .r-lock-v ellipse { animation: m-blinkning var(--m-blink) var(--m-mjuk) both; }
+.m-blink .r-lock-h ellipse { animation: m-blinkning var(--m-blink) var(--m-mjuk) 12ms both; }
+
+@keyframes m-blinkning {
+  0%       { ry: .4; }
+  37%, 46% { ry: 19.6; }
+  100%     { ry: .4; }
+}
+
+/* ── m-spana ─────────────────────────────────────────────────────────────
+ *
+ * Ägaren, ordagrant: "ögonen rullar".
+ *
+ * Det är figurens största outnyttjade resurs och skälet är figurens egen
+ * konstruktion: ögonvitan är urskuren ur arttecknet och pupillen är beskuren
+ * mot ögonvitan, alltså kan blicken gå ända ut i kanten utan att spilla. Duo
+ * bär nästan hela sitt känsloregister i ögonen, och vår grävling har tre
+ * kanaler där som i dag står helt stilla: pupill, lock och ögonvita.
+ *
+ * Rörelsen är ett varv runt, och den är INTE jämn. En blick som glider i
+ * konstant fart läser som en maskin. Ögat gör sackader: det står stilla, kastar
+ * sig, står stilla igen. Därför hålltider i varje väderstreck och `steps`-lik
+ * hårdhet i förflyttningen mellan dem.
+ *
+ * Huvudet följer med en aning, och EFTER ögonen. Blicken leder alltid.
+ */
+.m-spana .r-pupill-v circle,
+.m-spana .r-pupill-h circle { animation: m-blick 1900ms var(--m-mjuk) both; }
+.m-spana .r-huvud { animation: m-spanahuvud 1900ms var(--m-mjuk) 90ms both; }
+.m-spana .r-ora-v { animation: m-spanaora 1900ms var(--m-mjuk) 150ms both; }
+.m-spana .r-ora-h { animation: m-spanaora 1900ms var(--m-mjuk) 190ms both; }
+
+@keyframes m-blick {
+  0%, 6%     { translate: 0 0; }
+  16%, 30%   { translate: 9px 2px; }
+  40%, 52%   { translate: 4px 7px; }
+  62%, 74%   { translate: -9px 2px; }
+  84%, 92%   { translate: -3px -5px; }
+  100%       { translate: 0 0; }
+}
+@keyframes m-spanahuvud {
+  0%, 6%    { rotate: 0deg; }
+  20%, 30%  { rotate: 5deg; }
+  44%, 52%  { rotate: 2deg; }
+  66%, 74%  { rotate: -6deg; }
+  86%, 92%  { rotate: -2deg; }
+  100%      { rotate: 0deg; }
+}
+@keyframes m-spanaora {
+  0%       { rotate: 0deg; }
+  22%      { rotate: -8deg; }
+  50%      { rotate: 4deg; }
+  74%      { rotate: -6deg; }
+  100%     { rotate: 0deg; }
+}
+
+/* ── m-spetsa ────────────────────────────────────────────────────────────
+ *
+ * Reaktionen vid hovring och fokus. Öronen upp, brynen upp, blicken mot
+ * betraktaren, en aning framåtlutning. Kort nog att hinna färdigt innan
+ * pekaren hunnit vidare, och den STÅR KVAR så länge pekaren är kvar, alltså
+ * `forwards` och inte en rörelse som faller tillbaka mitt i hovringen.
+ */
+.m-spetsa .r-ora-v { animation: m-spetsa-ora-v var(--m-snabb) var(--m-studs) forwards; }
+.m-spetsa .r-ora-h { animation: m-spetsa-ora-h var(--m-snabb) var(--m-studs) 30ms forwards; }
+.m-spetsa .r-bryn-v,
+.m-spetsa .r-bryn-h { animation: m-spetsa-bryn var(--m-snabb) var(--m-ut) 40ms forwards; }
+.m-spetsa .r-huvud { animation: m-spetsa-huvud var(--m-kort) var(--m-studs) forwards; }
+.m-spetsa .r-pupill-v circle,
+.m-spetsa .r-pupill-h circle { animation: m-spetsa-blick var(--m-kort) var(--m-ut) forwards; }
+
+@keyframes m-spetsa-ora-v { to { rotate: -13deg; translate: 0 -2px; } }
+@keyframes m-spetsa-ora-h { to { rotate: 13deg; translate: 0 -2px; } }
+@keyframes m-spetsa-bryn { to { translate: 0 -3.5px; } }
+@keyframes m-spetsa-huvud { to { rotate: -3deg; translate: 0 -2px; } }
+@keyframes m-spetsa-blick { to { translate: 0 -2px; } }
+
+/* ── m-nick ──────────────────────────────────────────────────────────────
+ * Bekräftelse. En gång per handling, aldrig två gånger på samma sidvisning.
+ */
+.m-nick .r-huvud { animation: m-nickning var(--m-kort) var(--m-mjuk) both; }
+.m-nick .r-ora-v,
+.m-nick .r-ora-h { animation: m-nickora 480ms var(--m-studs) 40ms both; }
+
+@keyframes m-nickning {
+  0%   { rotate: 0deg; translate: 0 0; }
+  30%  { rotate: 4deg; translate: 0 2.5px; }
+  100% { rotate: 0deg; translate: 0 0; }
+}
+@keyframes m-nickora {
+  0%   { rotate: 0deg; }
+  40%  { rotate: 9deg; }
+  100% { rotate: 0deg; }
+}
+
+/* ── m-titt ──────────────────────────────────────────────────────────────
+ * Nyfikenhet. Huvudet lutar, ena örat följer med senare, blicken hänger kvar.
+ * Den billigaste rörelsen i katalogen och den som gör mest per millisekund.
+ */
+.m-titt .r-huvud { animation: m-titthuvud 700ms var(--m-studs) both; }
+.m-titt .r-ora-v { animation: m-tittora 840ms var(--m-studs) 70ms both; }
+.m-titt .r-ora-h { animation: m-tittora 840ms var(--m-studs) 110ms both; }
+
+@keyframes m-titthuvud {
+  0%        { rotate: 0deg; }
+  55%, 70%  { rotate: -11deg; }
+  100%      { rotate: 0deg; }
+}
+@keyframes m-tittora {
+  0%        { rotate: 0deg; }
+  50%, 70%  { rotate: 14deg; }
+  100%      { rotate: 0deg; }
+}
+
+/* ── m-vinka ─────────────────────────────────────────────────────────────
+ * Avsked, och 404-sidans rörelse. Tre slag, avtagande, som en riktig vinkning.
+ */
+.m-vinka .r-arm-h { animation: m-vink 900ms var(--m-mjuk) both; }
+.m-vinka .r-tass-h { animation: m-vinktass 900ms var(--m-mjuk) 40ms both; }
+.m-vinka .r-huvud { animation: m-vinkhuvud 900ms var(--m-mjuk) both; }
+
+@keyframes m-vink {
+  0%   { rotate: 0deg; }
+  18%  { rotate: -34deg; }
+  38%  { rotate: -10deg; }
+  56%  { rotate: -30deg; }
+  74%  { rotate: -14deg; }
+  88%  { rotate: -24deg; }
+  100% { rotate: 0deg; }
+}
+@keyframes m-vinktass {
+  0%   { rotate: 0deg; }
+  20%  { rotate: -16deg; }
+  40%  { rotate: 6deg; }
+  60%  { rotate: -12deg; }
+  80%  { rotate: 4deg; }
+  100% { rotate: 0deg; }
+}
+@keyframes m-vinkhuvud {
+  0%   { rotate: 0deg; }
+  30%  { rotate: -4deg; }
+  100% { rotate: 0deg; }
+}
+
+/* ── m-glad ──────────────────────────────────────────────────────────────
+ * Ett hopp med squash och stretch. Volymen hålls genom hela hoppet: bredare
+ * betyder alltid lägre. Det är den enda regeln i squash och stretch som
+ * verkligen är en regel, och den som bryts oftast.
+ */
+.m-glad { animation: m-hopp 1040ms var(--m-mjuk) both; }
+.m-glad .r-bal { animation: m-hoppkropp 1040ms var(--m-mjuk) both; }
+.m-glad .r-huvud { animation: m-hopphuvud 1060ms var(--m-mjuk) 50ms both; }
+.m-glad .r-ora-v { animation: m-hoppora 1120ms var(--m-studs) 90ms both; }
+.m-glad .r-ora-h { animation: m-hoppora 1120ms var(--m-studs) 120ms both; }
+.m-glad .r-skugga { animation: m-hoppskugga 1040ms var(--m-mjuk) both; }
+
+@keyframes m-hopp {
+  0%, 100% { translate: 0 0; }
+  16%      { translate: 0 3px; }
+  46%      { translate: 0 -20px; }
+  76%      { translate: 0 2px; }
+}
+@keyframes m-hoppkropp {
+  0%, 100% { scale: 1 1; }
+  16%      { scale: 1.1 .9; }
+  34%      { scale: .9 1.12; }
+  60%      { scale: .96 1.05; }
+  78%      { scale: 1.12 .88; }
+}
+@keyframes m-hopphuvud {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  20%      { translate: 0 2px; }
+  50%      { translate: 0 -4px; rotate: -3deg; }
+  80%      { translate: 0 3px; rotate: 2deg; }
+}
+@keyframes m-hoppora {
+  0%, 100% { rotate: 0deg; }
+  40%      { rotate: -18deg; }
+  70%      { rotate: 12deg; }
+}
+@keyframes m-hoppskugga {
+  0%, 100% { scale: 1 1; opacity: 1; }
+  46%      { scale: .72 1; opacity: .5; }
+}
+
+/* ── m-ogonpopp ──────────────────────────────────────────────────────────
+ *
+ * Ägarens idé: "ögonen kan poppa ur". FRITT LÄGE ENDAST.
+ *
+ * Aldrig i bedömningsmärket. Rött betyder att en namngiven restaurang har
+ * brister som kvarstår, och utstående ögon gör det påståendet till ett skämt.
+ * På 404 finns ingen verksamhet, och där får den vara precis så tokig som den
+ * är.
+ *
+ * Både ögonvitan och pupillen växer, och pupillen växer MER. Det är det som
+ * gör att ögat läser som utstående och inte som förstorat.
+ */
+.m-ogonpopp .r-vita-v,
+.m-ogonpopp .r-vita-h { animation: m-popp-vita 1060ms var(--m-gummi) both; }
+.m-ogonpopp .r-pupill-v circle,
+.m-ogonpopp .r-pupill-h circle { animation: m-popp-pupill 1060ms var(--m-gummi) 20ms both; }
+.m-ogonpopp .r-huvud { animation: m-popp-huvud 1060ms var(--m-gummi) both; }
+.m-ogonpopp .r-ora-v { animation: m-popp-ora 800ms var(--m-gummi) 60ms both; }
+.m-ogonpopp .r-ora-h { animation: m-popp-ora 800ms var(--m-gummi) 90ms both; }
+.m-ogonpopp .r-bal { animation: m-popp-kropp 1060ms var(--m-gummi) both; }
+
+@keyframes m-popp-vita {
+  0%       { scale: 1 1; }
+  12%      { scale: .84 .84; }
+  40%      { scale: 1.42 1.42; }
+  70%      { scale: .96 .96; }
+  100%     { scale: 1 1; }
+}
+@keyframes m-popp-pupill {
+  0%       { scale: 1 1; }
+  12%      { scale: .8 .8; }
+  40%      { scale: 1.7 1.7; }
+  70%      { scale: .94 .94; }
+  100%     { scale: 1 1; }
+}
+@keyframes m-popp-huvud {
+  0%       { translate: 0 0; scale: 1 1; }
+  12%      { translate: 0 3px; scale: 1.04 .94; }
+  40%      { translate: 0 -5px; scale: .97 1.06; }
+  100%     { translate: 0 0; scale: 1 1; }
+}
+@keyframes m-popp-ora {
+  0%, 100% { rotate: 0deg; }
+  14%      { rotate: 6deg; }
+  44%      { rotate: -24deg; }
+  74%      { rotate: 8deg; }
+}
+@keyframes m-popp-kropp {
+  0%, 100% { scale: 1 1; }
+  12%      { scale: 1.07 .93; }
+  42%      { scale: .95 1.05; }
+}
+
+/* ── m-skaka ─────────────────────────────────────────────────────────────
+ *
+ * Bekymmer. Figuren ryser till och skakar av sig det.
+ *
+ * Avsiktligt LITEN. Det här är rörelsen som ligger närmast ett omdöme om
+ * någon, och den ska aldrig läsa som skadeglädje eller som ett förebrående.
+ * Amplituden är därför två grader och inte tio.
+ */
+.m-skaka .r-huvud { animation: m-rys 700ms var(--m-mjuk) both; }
+.m-skaka .r-ora-v { animation: m-rysora 760ms var(--m-mjuk) 40ms both; }
+.m-skaka .r-ora-h { animation: m-rysora 760ms var(--m-mjuk) 70ms both; }
+.m-skaka .r-bal { animation: m-ryskropp 700ms var(--m-mjuk) both; }
+
+@keyframes m-rys {
+  0%, 100%      { rotate: 0deg; translate: 0 0; }
+  15%           { rotate: 0deg; translate: 0 2px; }
+  35%           { rotate: -4deg; }
+  50%           { rotate: 3.4deg; }
+  65%           { rotate: -2.4deg; }
+  80%           { rotate: 1.2deg; }
+}
+@keyframes m-rysora {
+  0%, 100% { rotate: 0deg; }
+  30%      { rotate: 10deg; }
+  55%      { rotate: -8deg; }
+  78%      { rotate: 4deg; }
+}
+@keyframes m-ryskropp {
+  0%, 100% { scale: 1 1; }
+  18%      { scale: 1.05 .95; }
+  44%      { scale: .98 1.02; }
+}
+
+/* ── m-andas ─────────────────────────────────────────────────────────────
+ *
+ * Viloläget. LOOPAR, och får därför bara stå där figuren är ensam på ytan.
+ *
+ * En stillastående figur är en bild. Ett andetag på fyra sekunder med en
+ * procents skaländring är under tröskeln för medveten varseblivning och över
+ * tröskeln för att figuren ska kännas levande. Duolingos egen regel är att
+ * "Duo mostly stands still", och det här är vad "mostly" betyder.
+ */
+.m-andas .r-bal { animation: m-andning 4200ms ease-in-out infinite; }
+.m-andas .r-huvud { animation: m-andninghuvud 4200ms ease-in-out infinite; }
+
+@keyframes m-andning {
+  0%, 100% { scale: 1 1; }
+  50%      { scale: .992 1.012; }
+}
+@keyframes m-andninghuvud {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -1.1px; }
+}
+
+/* ── m-grav ──────────────────────────────────────────────────────────────
+ *
+ * Grävandet. LOOPAR, och hör bara hemma på en laddyta där figuren ligger
+ * ensam, alltså W3C:s eget undantag från WCAG 2.2.2.
+ *
+ * Grävlingen valdes för att ordet GRÄVA är svenskans etablerade ord för
+ * granskning. Att figuren gräver medan sajten hämtar data är den enda rörelse
+ * i katalogen som betyder samma sak som tjänsten gör.
+ *
+ * Tajmingen är ojämn med flit: nedslaget är snabbt och uppdraget är långsamt,
+ * precis som en spade. En jämn cykel läser som en maskin.
+ */
+.m-grav .r-arm-h { animation: m-gravarm 660ms var(--m-mjuk) infinite; }
+.m-grav .r-arm-v { animation: m-gravarm 840ms var(--m-mjuk) 310ms infinite; }
+.m-grav .r-huvud { animation: m-gravhuvud 660ms var(--m-mjuk) infinite; }
+.m-grav .r-bal { animation: m-gravkropp 660ms var(--m-mjuk) infinite; }
+
+@keyframes m-gravarm {
+  0%   { rotate: -26deg; }
+  /* Nedslaget: en fjärdedel av tiden för hela slaget. */
+  25%  { rotate: 16deg; }
+  /* Hållet i botten. Det är hållet som ger slaget tyngd. */
+  38%  { rotate: 13deg; }
+  100% { rotate: -26deg; }
+}
+@keyframes m-gravhuvud {
+  0%   { rotate: 3deg; translate: 0 0; }
+  25%  { rotate: 8deg; translate: 0 2px; }
+  100% { rotate: 3deg; translate: 0 0; }
+}
+@keyframes m-gravkropp {
+  0%, 100% { scale: 1 1; }
+  25%      { scale: 1.03 .97; }
+}
+
+/* ── m-gang ──────────────────────────────────────────────────────────────
+ *
+ * GÅNGCYKELN. LOOPAR, alltså bara på en laddyta där figuren ligger ensam.
+ *
+ * ── Vad som fanns, och varför det byttes ────────────────────────────────
+ *
+ * Cykeln fanns redan, som åtta färdigritade bildrutor i
+ * site/public/maskot/gang.svg. Filen är 118 553 byte och har aldrig använts på
+ * en enda sida. Den här regeln ersätter den och väger omkring 1,5 kB i en
+ * stilmall som ändå skickas, alltså ungefär en åttiondel.
+ *
+ * Skillnaden är inte bara vikt. Bildrutor KLIPPER mellan åtta lägen, åtta
+ * gånger per cykel, och det är precis vad ögat läser som billigt när antalet
+ * rutor är lågt. En rigg interpolerar mellan samma åtta lägen, alltså ger
+ * samma åtta nycklar sextio bildrutor i sekunden.
+ *
+ * ── Tajmingen är figurens egen, och den är ojämn med flit ───────────────
+ *
+ * Hålltiderna kommer ur GANG i brand/maskot/gravling.mjs och är
+ * 90, 70, 70, 110, 90, 70, 70, 110 ms. Summan är 680 ms. Richard Williams
+ * tabell ger 16 bildrutor vid 24 fps för tecknad gång, alltså 667 ms, så
+ * cykeln ligger på 16,3 rutor och är rätt timad mot den klassiska normen.
+ *
+ * Procentsatserna nedan ÄR de hålltiderna kumulativt:
+ *
+ *   0     13,24   23,53   33,82   50     63,24   73,53   83,82
+ *
+ * Kontaktlägena, alltså 0 och 50, och uppgångarna, alltså 33,82 och 83,82,
+ * ligger därmed kvar längre än passeringarna. En jämn steps(8) håller varje
+ * ruta exakt lika länge, och den jämnheten läser ögat som mekanisk. Det är
+ * hela skillnaden mellan dyrt och billigt, och den kostar noll att få rätt.
+ *
+ * Rutornas roll, ur figurens egen kommentar:
+ *   0 och 4  kontakt, varandras spegling
+ *   1 och 5  nedgång, kroppen LÄGST och mest hoptryckt
+ *   2 och 6  passering
+ *   3 och 7  uppgång, kroppen HÖGST och sträckt
+ *
+ * Huvudet följer kroppen EN RUTA SENARE, alltså 90 ms. Den eftersläpningen är
+ * det som ger figuren tyngd, och den är skriven som en fördröjning i stället
+ * för som en egen kurva.
+ */
+.m-gang .r-kropp { animation: m-gang-kropp 680ms linear infinite; }
+.m-gang .r-bal { animation: m-gang-bal 680ms linear infinite; }
+.m-gang .r-huvud { animation: m-gang-huvud 680ms linear 90ms infinite; }
+.m-gang .r-ben-v { animation: m-gang-ben 680ms linear infinite; }
+.m-gang .r-ben-h { animation: m-gang-ben 680ms linear -340ms infinite; }
+.m-gang .r-fot-v { animation: m-gang-fot 680ms linear infinite; }
+.m-gang .r-fot-h { animation: m-gang-fot 680ms linear -340ms infinite; }
+/* Armarna går i MOTFAS mot benet på samma sida. Diagonal gång är hur en
+   tvåbent figur faktiskt rör sig, och en figur vars arm och ben går åt samma
+   håll läser som en marionett. */
+.m-gang .r-arm-v { animation: m-gang-arm 680ms linear -340ms infinite; }
+.m-gang .r-arm-h { animation: m-gang-arm 680ms linear infinite; }
+.m-gang .r-ora-v { animation: m-gang-ora 680ms linear 150ms infinite; }
+.m-gang .r-ora-h { animation: m-gang-ora 680ms linear 180ms infinite; }
+/* Skuggan är smalast när figuren är högst. Utan den läser gången som att
+   figuren glider fram på en bricka. */
+.m-gang .r-skugga { animation: m-gang-skugga 680ms linear infinite; }
+
+@keyframes m-gang-kropp {
+  0%     { translate: 0 0px;  rotate: -1deg; }
+  13.24% { translate: 0 4px;  rotate: -3.5deg; }
+  23.53% { translate: 0 1px;  rotate: -1.5deg; }
+  33.82% { translate: 0 -3px; rotate: 2deg; }
+  50%    { translate: 0 0px;  rotate: -1deg; }
+  63.24% { translate: 0 4px;  rotate: -3.5deg; }
+  73.53% { translate: 0 1px;  rotate: -1.5deg; }
+  83.82% { translate: 0 -3px; rotate: 2deg; }
+  100%   { translate: 0 0px;  rotate: -1deg; }
+}
+/* Squash och stretch, sex procent, volymbevarande: bredden är alltid 2 minus
+   höjden, alltså krymper den ena precis så mycket som den andra växer. Det är
+   den enda regeln i squash och stretch som verkligen är en regel, och den som
+   bryts oftast. */
+@keyframes m-gang-bal {
+  0%     { scale: 1 1; }
+  13.24% { scale: .94 1.06; }
+  23.53% { scale: .99 1.01; }
+  33.82% { scale: 1.05 .95; }
+  50%    { scale: 1 1; }
+  63.24% { scale: .94 1.06; }
+  73.53% { scale: .99 1.01; }
+  83.82% { scale: 1.05 .95; }
+  100%   { scale: 1 1; }
+}
+@keyframes m-gang-huvud {
+  0%     { translate: 0 -3px; rotate: -1deg; }
+  13.24% { translate: 0 0px;  rotate: 2deg; }
+  23.53% { translate: 0 4px;  rotate: 0deg; }
+  33.82% { translate: 0 1px;  rotate: -3deg; }
+  50%    { translate: 0 -3px; rotate: -1deg; }
+  63.24% { translate: 0 0px;  rotate: 2deg; }
+  73.53% { translate: 0 4px;  rotate: 0deg; }
+  83.82% { translate: 0 1px;  rotate: -3deg; }
+  100%   { translate: 0 -3px; rotate: -1deg; }
+}
+/* Benet svänger kring höften. Amplituden är figurens egen: foten går 17
+   enheter i sidled från en höft som sitter tio enheter ovanför, alltså
+   ungefär sextio grader mellan ytterlägena. */
+@keyframes m-gang-ben {
+  0%     { rotate: 30deg; }
+  13.24% { rotate: 14deg; }
+  23.53% { rotate: -8deg; }
+  33.82% { rotate: -27deg; }
+  50%    { rotate: -30deg; }
+  63.24% { rotate: -14deg; }
+  73.53% { rotate: 8deg; }
+  83.82% { rotate: 27deg; }
+  100%   { rotate: 30deg; }
+}
+/* Foten lyfts i passeringen och läggs platt i kontakten. Utan lyftet skrapar
+   den i marken och gången läser som skidåkning. */
+@keyframes m-gang-fot {
+  0%     { rotate: -7deg; translate: 0 0; }
+  23.53% { rotate: 4deg;  translate: 0 -5px; }
+  50%    { rotate: 6deg;  translate: 0 0; }
+  73.53% { rotate: -4deg; translate: 0 -1px; }
+  100%   { rotate: -7deg; translate: 0 0; }
+}
+@keyframes m-gang-arm {
+  0%   { rotate: -18deg; }
+  25%  { rotate: 4deg; }
+  50%  { rotate: 18deg; }
+  75%  { rotate: 4deg; }
+  100% { rotate: -18deg; }
+}
+@keyframes m-gang-ora {
+  0%   { rotate: 0deg; }
+  20%  { rotate: -7deg; }
+  55%  { rotate: 5deg; }
+  80%  { rotate: -4deg; }
+  100% { rotate: 0deg; }
+}
+@keyframes m-gang-skugga {
+  0%     { scale: 1 1; opacity: 1; }
+  13.24% { scale: 1.06 1; opacity: 1; }
+  33.82% { scale: .88 1; opacity: .78; }
+  50%    { scale: 1 1; opacity: 1; }
+  63.24% { scale: 1.06 1; opacity: 1; }
+  83.82% { scale: .88 1; opacity: .78; }
+  100%   { scale: 1 1; opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ *  4. REKVISITA. Delar som inte finns i figuren.
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Se maskot-rekvisita.mjs för formerna. De ligger dolda tills en rörelse
+ * hämtar fram dem, och de finns bara i det fria läget.
+ */
+
+.r-rekvisita { opacity: 0; }
+
+/* ── m-lupp ──────────────────────────────────────────────────────────────
+ *
+ * Ägaren har tidigare underkänt förstoringsglas som REKVISITA, med rätta: det
+ * är den slitnaste bildbanksklyschan som finns, och en figur som permanent
+ * håller ett förstoringsglas är en kostym.
+ *
+ * Det här är något annat. Luppen plockas fram, används, och läggs undan igen.
+ * Ett förstoringsglas som sitter fast säger "jag är en detektiv". Ett som
+ * plockas fram säger "jag tittar efter", och det är vad tjänsten gör. Därför
+ * är den en RÖRELSE och aldrig en pose, och därför finns den inte i någon
+ * stillbild.
+ *
+ * Och det som gör den värd att bygga: ÖGAT FÖRSTORAS BAKOM GLASET. Utan det
+ * är luppen en pinne med en ring. Med det är det ett skämt figuren gör, och
+ * det är det enda i katalogen som faktiskt kräver att ögat är en egen del.
+ */
+.m-lupp .r-rekvisita-lupp {
+  opacity: 1;
+  animation: m-lupp-fram 2400ms var(--m-mjuk) both;
+}
+.m-lupp .r-arm-h { animation: m-lupp-arm 2400ms var(--m-mjuk) both; }
+.m-lupp .r-huvud { animation: m-lupp-huvud 2400ms var(--m-mjuk) both; }
+/* Ögat bakom glaset. Växer när luppen kommer på plats, krymper när den går. */
+.m-lupp .r-vita-h { animation: m-lupp-oga 2400ms var(--m-mjuk) both; }
+.m-lupp .r-pupill-h circle { animation: m-lupp-pupill 2400ms var(--m-mjuk) both; }
+
+@keyframes m-lupp-fram {
+  0%          { opacity: 0; translate: 6px 26px; rotate: -28deg; scale: .8 .8; }
+  14%         { opacity: 1; }
+  26%         { translate: 0 -2px; rotate: 4deg; scale: 1 1; }
+  /* Svepet. Två pass över ansiktet, och det andra är kortare, som en blick
+     som redan hittat vad den letade efter. */
+  42%         { translate: -7px 0; rotate: -3deg; }
+  58%         { translate: 5px 1px; rotate: 3deg; }
+  70%         { translate: -2px 0; rotate: 0deg; }
+  86%         { opacity: 1; translate: 4px 8px; rotate: -12deg; scale: .92 .92; }
+  100%        { opacity: 0; translate: 8px 28px; rotate: -30deg; scale: .78 .78; }
+}
+@keyframes m-lupp-arm {
+  0%          { rotate: 34deg; }
+  26%, 70%    { rotate: -12deg; }
+  100%        { rotate: 34deg; }
+}
+@keyframes m-lupp-huvud {
+  0%, 100%    { rotate: 0deg; }
+  30%         { rotate: -4deg; }
+  50%         { rotate: 3deg; }
+  70%         { rotate: -2deg; }
+}
+@keyframes m-lupp-oga {
+  0%, 18%     { scale: 1 1; }
+  30%, 74%    { scale: 1.5 1.5; }
+  88%, 100%   { scale: 1 1; }
+}
+@keyframes m-lupp-pupill {
+  0%, 18%     { scale: 1 1; translate: 0 0; }
+  30%         { scale: 1.6 1.6; translate: 0 0; }
+  46%         { scale: 1.6 1.6; translate: -4px 1px; }
+  62%         { scale: 1.6 1.6; translate: 3px 0; }
+  74%         { scale: 1.6 1.6; translate: 0 0; }
+  88%, 100%   { scale: 1 1; translate: 0 0; }
+}
+
+/* ── m-rok ───────────────────────────────────────────────────────────────
+ *
+ * Ägarens idé: "rök kommer ut öron". FRITT LÄGE ENDAST, av samma skäl som
+ * m-ogonpopp: en figur som ryker om öronen bredvid en namngiven restaurangs
+ * underkännande är ett hån, och på 404 är det ett skämt om oss själva.
+ *
+ * Tre puffar per öra med olika fördröjning. Att de INTE går i takt är hela
+ * effekten; två symmetriska rökpuffar läser som en maskin.
+ */
+.m-rok .r-rekvisita-rok { opacity: 1; }
+.m-rok .rok-puff { animation: m-rokpuff 1500ms var(--m-in) infinite; }
+.m-rok .rok-puff:nth-child(2) { animation-delay: 260ms; }
+.m-rok .rok-puff:nth-child(3) { animation-delay: 700ms; }
+.m-rok .rok-puff:nth-child(4) { animation-delay: 130ms; }
+.m-rok .rok-puff:nth-child(5) { animation-delay: 390ms; }
+.m-rok .rok-puff:nth-child(6) { animation-delay: 650ms; }
+.m-rok .r-ora-v { animation: m-rokora 1500ms ease-in-out infinite; }
+.m-rok .r-ora-h { animation: m-rokora 1500ms ease-in-out 130ms infinite; }
+
+@keyframes m-rokpuff {
+  0%   { opacity: 0; translate: 0 0; scale: .3 .3; }
+  18%  { opacity: .85; }
+  100% { opacity: 0; translate: -3px -26px; scale: 1.5 1.5; }
+}
+@keyframes m-rokora {
+  0%, 100% { rotate: 0deg; }
+  20%      { rotate: -5deg; }
+  60%      { rotate: 3deg; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ *  5. BEDÖMNINGSMÄRKET. Prefix mm-.
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Gränsen, och den följer av docs/24 §2:
+ *
+ *   Bara det ENSAMMA STORA märket högst upp på verksamhetssidan får reagera.
+ *   Listornas märken rör sig aldrig. Kommunsidan för Stockholm har 8 511
+ *   rader, och åtta tusen ansikten som rör sig samtidigt är både en
+ *   distraktion och ett prestandaproblem.
+ *
+ * Rörelserna här är alltså inte "samma sak fast mindre". De är en egen, kortare
+ * och mer återhållsam katalog, och den bär bedömningen och inte figuren.
+ */
+
+/* ── mm-ankomst ──────────────────────────────────────────────────────────
+ *
+ * Munnen ritas upp. Den fanns redan som `@keyframes draw` i FaceMark.astro och
+ * hade INGEN konsument: propen `animate` satte en klass som ingen regel läste.
+ * Det är sannolikt en del av domen "animering är sämst": halva rörelsen fanns
+ * i koden och ingenting hände på skärmen.
+ *
+ * `pathLength="1"` sätts av figuren, alltså är banan alltid exakt en enhet lång
+ * oavsett hur munnen ritas om. Det var det som var trasigt förut: ett hårdkodat
+ * streckmönster på 60 mot en båge som är en tredjedel så lång.
+ */
+.mm-ankomst .r-mun path,
+.mm-ankomst .mun {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mm-rita 700ms var(--m-ut) 120ms both;
+}
+.mm-ankomst .r-bryn-v { animation: mm-brynin 460ms var(--m-ut) both; }
+.mm-ankomst .r-bryn-h { animation: mm-brynin 460ms var(--m-ut) 50ms both; }
+
+@keyframes mm-rita { to { stroke-dashoffset: 0; } }
+@keyframes mm-brynin {
+  0%   { translate: 0 -4px; opacity: 0; }
+  40%  { opacity: 1; }
+  100% { translate: 0 0; opacity: 1; }
+}
+
+/* ── mm-bryn ─────────────────────────────────────────────────────────────
+ *
+ * Ägaren, ordagrant: "ögonbrynen går upp o ner på gul".
+ *
+ * GUL BETYDER BRISTER, alltså en anmärkning som är åtgärdad eller under
+ * åtgärd. Ett bryn som lyfts och sänks läser som en fråga, alltså "det här
+ * bör du veta om", och det är exakt rätt betydelse för gult. Samma rörelse på
+ * rött hade läst som en tillsägelse.
+ *
+ * Två lyft, det andra mindre. Ett enda lyft läser som ett ryck.
+ */
+.mm-bryn .r-bryn-v { animation: mm-brynlyft 900ms var(--m-mjuk) both; }
+.mm-bryn .r-bryn-h { animation: mm-brynlyft 900ms var(--m-mjuk) 60ms both; }
+
+@keyframes mm-brynlyft {
+  0%, 8%   { translate: 0 0; }
+  26%      { translate: 0 -5px; }
+  48%      { translate: 0 0; }
+  64%      { translate: 0 -2.6px; }
+  100%     { translate: 0 0; }
+}
+
+/* ── mm-glad ─────────────────────────────────────────────────────────────
+ *
+ * Grönt, alltså inga anmärkningar. Här finns inga hämningar: beröm är det enda
+ * sammanhang där en figur bredvid ett företagsnamn är oantastlig.
+ *
+ * Ögonen smalnar underifrån, vilket är hur ett äkta leende ser ut i ett
+ * ansikte, och munnen växer en aning. Ingen studs och inget hopp: det är ett
+ * register och inte en app-onboarding.
+ */
+.mm-glad .r-lock-v ellipse,
+.mm-glad .r-lock-h ellipse { animation: mm-leende 840ms var(--m-ut) both; }
+.mm-glad .r-mun { animation: mm-munvax 840ms var(--m-studs) both; }
+
+@keyframes mm-leende {
+  0%       { ry: .4; }
+  45%, 62% { ry: 6.2; }
+  100%     { ry: .4; }
+}
+@keyframes mm-munvax {
+  0%       { scale: 1 1; }
+  45%      { scale: 1.1 1.14; }
+  100%     { scale: 1 1; }
+}
+
+/* ── mm-allvar ───────────────────────────────────────────────────────────
+ *
+ * Rött, alltså brister som kvarstår efter kommunens uppföljning. Sajtens
+ * hårdaste besked om en namngiven verksamhet.
+ *
+ * Rörelsen är EN långsam blinkning och ingenting mer. Ingen studs, ingen
+ * skakning, ingen rök. Ett bekymrat ansikte som rycker till är rätt; ett som
+ * gör en show av det är fel, och det är precis den invändning en verksamhet
+ * skulle använda mot oss den dagen de hör av sig.
+ *
+ * Långsam med flit: 240 ms ned och 300 ms upp, alltså dubbelt så långsamt som
+ * maskotens blinkning. Långsamt läser som tungt.
+ */
+.mm-allvar .r-lock-v ellipse,
+.mm-allvar .r-lock-h ellipse { animation: mm-tungblink 900ms var(--m-mjuk) 260ms both; }
+
+@keyframes mm-tungblink {
+  0%, 8%     { ry: .4; }
+  34%, 44%   { ry: 19.6; }
+  78%, 100%  { ry: .4; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ *  6. REDUCERAD RÖRELSE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * tokens.css nollar redan varaktigheterna globalt. Det räcker inte, av två
+ * skäl, och båda är riktiga fel och inte formaliteter.
+ *
+ * 1. En `infinite` animation med varaktigheten 0,01 ms TAR INTE SLUT. Den
+ *    snurrar så fort webbläsaren orkar och håller kompositorn vaken. Därför
+ *    tvingas iterationerna till en.
+ * 2. En nollad animation lämnar delen i sitt SISTA läge, och för en loop är
+ *    det ett godtyckligt läge mitt i rörelsen. Därför nollas de loopande
+ *    rörelsernas egenskaper uttryckligen.
+ *
+ * `animation: none` används INTE, eftersom det tar bort `animationend` och
+ * bryter varje lyssnare som väntar på att en rörelse ska ta slut.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .r-figur,
+  .r-figur * {
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+  }
+
+  /* Loopar går i sitt vilande läge. */
+  .m-andas .r-bal,
+  .m-andas .r-huvud,
+  .m-grav .r-arm-h,
+  .m-grav .r-arm-v,
+  .m-grav .r-huvud,
+  .m-grav .r-bal,
+  .m-rok .r-ora-v,
+  .m-rok .r-ora-h {
+    scale: 1 1;
+    rotate: 0deg;
+    translate: 0 0;
+  }
+
+  /* Rekvisitan visas inte alls. En lupp som blinkar fram och försvinner på en
+     hundradel är sämre än ingen lupp. */
+  .r-rekvisita { opacity: 0 !important; }
+
+  /* Munnen ska stå färdigritad och inte osynlig. */
+  .mm-ankomst .r-mun path,
+  .mm-ankomst .mun { stroke-dashoffset: 0; }
+}
