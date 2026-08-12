@@ -90,15 +90,24 @@ function share(n: number): string | null {
     ))}
   </div>
 
+  {/* Teckenförklaringen var en enda tät rad: prick, fetstilt tal, etikett och
+      procent gånger fyra, sexton textbitar efter varandra som inte gick att
+      läsa i ett svep. Nu är varje post en egen cell i två våningar, talet
+      överst och etiketten under, alltså samma ordning som Nyckeltal.astro och
+      Kommunstapel.astro håller nere i bandet. */}
   <ul class="legend">
     {segments.map((s) => {
       const pct = share(s.n);
       const body = (
         <>
-          <span class="swatch" style={`background:${s.surface}`} aria-hidden="true"></span>
-          <b>{formatNumber(s.n)}</b>
-          <span class="lbl">{s.label}</span>
-          {pct && <span class="pct">{pct}</span>}
+          <span class="varde">
+            <b>{formatNumber(s.n)}</b>
+            {pct && <span class="pct">{pct}</span>}
+          </span>
+          <span class="lbl">
+            <span class="swatch" style={`background:${s.surface}`} aria-hidden="true"></span>
+            {s.label}
+          </span>
         </>
       );
       return (
@@ -130,10 +139,31 @@ function share(n: number): string | null {
     font-weight: 600;
   }
 
+  /* Bandet var 8 px med 4 px radie och läste som en linje snarare än som en
+     stapel. Ägaren: "tunn och hård i kanterna".
+
+     24 px med 8 px radie är inte valt, det är mätt. Ednias könsfördelning och
+     deras regionfördelning ritas båda som ett 24 px högt spår med radie 8 px,
+     segmenten kant i kant utan egen radie och 8 px luft över och under.
+     Uppmätt på ednia.se/hogskola/gu/program/lakarprogrammet-goteborg
+     2026-08-12. Vår egen Andelsstapel.astro, som artiklarna använder, har
+     samma två mått sedan tidigare, så det här är också det som gör
+     fördelningsstapeln till EN form på hela sajten.
+
+     Full radie vore fel vid den här höjden: en 24 px hög stapel med 12 px
+     radie ger ändsegment som läser som tabletter och inte som delar av ett
+     band. Samma resonemang står i Andelsstapel.astro.
+
+     Blocket är fortfarande en RAD och inte ett kort: rubrikrad, band och
+     teckenförklaring går på omkring 110 px, och registret börjar direkt
+     under.
+
+     Områdessidan har en egen kopia av formen, se OmradeHub.astro och skälet
+     där. Ändras måtten här ska de ändras där också. */
   .bar {
     display: flex;
-    height: 8px;
-    border-radius: 4px;
+    height: 24px;
+    border-radius: var(--s-2);
     overflow: hidden;
     margin-top: var(--s-2);
     background: var(--verdict-none);
@@ -141,47 +171,73 @@ function share(n: number): string | null {
 
   .bar > span { display: block; height: 100%; }
 
+  /* auto-fit och inte flex-wrap: posterna ska stå i spalter under varandra
+     och inte packas efter varandra med olika breda mellanrum. 150 px ger fyra
+     spalter i huvudkolumnen och två på en telefon. */
   .legend {
     list-style: none;
     margin: var(--s-2) 0 0;
     padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1) var(--s-4);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--s-3) var(--s-4);
   }
 
   .legend a, .rad {
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--s-1);
+    display: block;
     color: var(--text);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
   }
 
   .legend a:hover { text-decoration: none; }
   .legend a:hover .lbl { color: var(--brand-ink); text-decoration: underline; }
 
-  /* Färgprickens enda uppgift är att koppla posten till sitt segment i
-     bandet. Betydelsen står i texten bredvid, så prickens kontrast bär ingen
-     information och behöver inte klara 3:1. */
-  .swatch {
-    flex-shrink: 0;
-    align-self: center;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
+  /* Talet och andelen delar rad, talet i bläck och andelen tyst efter det.
+     Etiketten står under, alltså inte i motsatt kant. */
+  .varde {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
   }
 
   .legend b {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
     font-weight: 600;
+    letter-spacing: -.015em;
     font-variant-numeric: tabular-nums;
   }
 
-  .lbl { color: var(--text-secondary); }
-
   .pct {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  .lbl {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Färgprickens enda uppgift är att koppla posten till sitt segment i
+     bandet. Betydelsen står i texten bredvid, så prickens kontrast bär ingen
+     information och behöver inte klara 3:1.
+
+     10 px och inte 8. Ednia ger sin motsvarande prick 12 px mot en rad i
+     16 px; vår rad är 13 px, och 10 är samma förhållande. En prick som är
+     mindre än så tappar sin färg vid normalt läsavstånd, vilket är det enda
+     den finns för. */
+  .swatch {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    /* Prickens baslinje ligger annars på textens och den ser då ut att hänga
+       under raden. Samma justering som i Andelsstapel.astro. */
+    transform: translateY(-1px);
   }
 </style>

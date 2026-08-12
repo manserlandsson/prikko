@@ -16,6 +16,7 @@
  * Kommuner utan underlag får ingen ruta, inte en tom sådan.
  */
 import InfoTip from './InfoTip.astro';
+import Kommunstapel from './Kommunstapel.astro';
 import { formatNumber } from '../lib/data';
 import type { FollowUpRecord } from '../lib/kommunprofil';
 
@@ -25,6 +26,32 @@ interface Props {
 }
 
 const { record: r, city } = Astro.props;
+
+/*
+ * Två rader, inte en mätare plus ett rutnät med samma två tal i.
+ *
+ * Avsnittet ritade tidigare en egen stapel, svart och nästan full bredd, och
+ * DÄRUNDER en lista med de två talen mätaren redan handlade om. Talen stod
+ * alltså två gånger, och stapeln var ett annat formspråk än de i avsnittet
+ * ovanför. Nu är det två rader i bandets enda stapelform, skalade mot
+ * helheten så att de går ihop till hela underlaget.
+ */
+const rows = r
+  ? [
+      {
+        label: 'utan kvarstående anmärkning',
+        value: r.resolved,
+        display: formatNumber(r.resolved),
+        andel: `${r.share} %`,
+      },
+      {
+        label: 'där något kvarstod',
+        value: r.remaining,
+        display: formatNumber(r.remaining),
+        andel: `${100 - r.share} %`,
+      },
+    ]
+  : [];
 ---
 
 {r && (
@@ -37,31 +64,24 @@ const { record: r, city } = Astro.props;
       />
     </h2>
 
+    {/* Meningen sätter nämnaren och stannar där. Den sa förut också hur många
+        av dem som var åtgärdade, alltså exakt det talet den första stapeln
+        under den säger, och tredje gången samma tal stod på ytan var i listan
+        som nu är borta. */}
     <p class="answer">
       Kommunen följde upp en anmärkning hos <b>{formatNumber(r.total)}</b> verksamheter.
-      Vid <b>{formatNumber(r.resolved)}</b> av dem fanns inget kvar att anmärka på när
-      inspektören kom tillbaka.
     </p>
 
-    {/* Neutral stapel. Andelen står i klartext bredvid, så stapeln bär ingen
-        egen information — och bedömningens grön, gul och röd betyder något och
-        får inte lånas ut till dekor. */}
-    <div class="meter" role="img" aria-label={`${r.share} procent av ${formatNumber(r.total)} uppföljningar utan kvarstående anmärkning`}>
-      <span style={`width:${r.share}%`}></span>
-    </div>
+    {/* Neutrala staplar. Andelen står i klartext bredvid, så stapeln bär
+        ingen egen information, och bedömningens grön, gul och röd betyder
+        något och får inte lånas ut till dekor. */}
+    <Kommunstapel
+      rows={rows}
+      scale={r.total}
+      label={`Av ${formatNumber(r.total)} uppföljningar i ${city}`}
+    />
 
-    <ul class="split">
-      <li>
-        <b>{formatNumber(r.resolved)}</b>
-        <span>utan kvarstående anmärkning</span>
-      </li>
-      <li>
-        <b>{formatNumber(r.remaining)}</b>
-        <span>där något kvarstod</span>
-      </li>
-    </ul>
-
-    <p class="caveat caption text-secondary">
+    <p class="caveat">
       Talet går inte att ställa mot en annan kommuns: källorna redovisar
       uppföljningen på olika sätt.
       {' '}<a href="/metodik/#jamfor">Varför vi inte rangordnar kommuner</a>.
@@ -91,46 +111,15 @@ const { record: r, city } = Astro.props;
     font-variant-numeric: tabular-nums;
   }
 
-  .meter {
-    display: block;
-    height: 8px;
-    border-radius: 4px;
+  /* Staplarna ritas av Kommunstapel.astro, bandets enda stapelform. Den egna
+     mätaren som stod här var svart och nästan full bredd, alltså ett annat
+     formspråk än staplarna i avsnittet ovanför. Se Kommunstapel.astro. */
+
+  /* Samma småstil som i Kontrollen, Tathet och Uncovered. */
+  .caveat {
     margin-top: var(--s-4);
-    background: var(--hairline);
-    overflow: hidden;
-  }
-
-  .meter > span {
-    display: block;
-    height: 100%;
-    border-radius: 4px;
-    background: var(--text);
-  }
-
-  .split {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--s-3) var(--s-4);
-    margin: var(--s-3) 0 0;
-    padding: 0;
-  }
-
-  .split b {
-    display: block;
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    font-weight: 600;
-    letter-spacing: -.015em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .split span {
-    display: block;
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
-
-  .caveat { margin-top: var(--s-4); }
 </style>

@@ -26,6 +26,7 @@
  *    inte låna det, för då läser besökaren ihop dem.
  */
 import InfoTip from './InfoTip.astro';
+import Nyckeltal from './Nyckeltal.astro';
 import { formatNumber } from '../lib/data';
 import type { Kontrollen } from '../lib/kontrollen';
 
@@ -36,6 +37,11 @@ interface Props {
 
 const { kontrollen: k, city } = Astro.props;
 
+const tal = (k?.figures ?? []).map((f) => ({
+  value: `${formatNumber(f.value)}${f.unit}`,
+  label: f.label,
+  ref: f.median !== null ? `riksmedian ${formatNumber(f.median)}${f.unit}` : undefined,
+}));
 ---
 
 {k && (
@@ -48,23 +54,13 @@ const { kontrollen: k, city } = Astro.props;
       />
     </h2>
 
-    <ul class="figures">
-      {k.figures.map((f) => (
-        <li>
-          <b>{formatNumber(f.value)}{f.unit}</b>
-          <span>{f.label}</span>
-          {f.median !== null && (
-            <span class="ref">riksmedian {formatNumber(f.median)}{f.unit}</span>
-          )}
-        </li>
-      ))}
-    </ul>
+    <Nyckeltal tal={tal} />
 
     {/* Meningen är hela poängen med rutan. Den förvandlar en jämförelse vi
         inte får göra till en förklaring vi får ge, och den står här i stället
         för på metodiksidan därför att det är här läsaren står när frågan
         uppstår. */}
-    <p class="caveat caption text-secondary">
+    <p class="caveat">
       Kommunerna kontrollerar och följer upp olika ofta, så andelen med
       kvarstående brister speglar både hygienen och arbetssättet.
       {' '}<a href="/metodik/#jamfor">Därför rangordnar vi inte kommuner</a>.
@@ -76,7 +72,7 @@ const { kontrollen: k, city } = Astro.props;
         det. Kvar är titeln, utgivaren och Koladas egen attributionssträng.
         Se docs/18_sprakregler.md om varför just den här raden är kvar när
         proveniensen är struken överallt annars. */}
-    <p class="source caption text-secondary">
+    <p class="kalla caption">
       <a href={k.report.url} rel="nofollow">{k.report.title}</a>,
       {' '}{k.report.publisher}. {k.kolada.attribution}.
     </p>
@@ -92,46 +88,22 @@ const { kontrollen: k, city } = Astro.props;
     line-height: var(--lh-h-s);
   }
 
-  /* Samma rutnät som Uncovered och FollowUpRate använder för sina tal, så de
-     tre blocken i bandet läser som samma sorts avsnitt. */
-  .figures {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--s-4);
-    margin: var(--s-4) 0 0;
-    padding: 0;
-  }
+  /* Talen ritas av Nyckeltal.astro, som är bandets enda nyckeltalsform.
+     Rutnätet stod tidigare i fyra filer med fyra nästan lika kopior. */
 
-  .figures b {
-    display: block;
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    font-weight: 600;
-    letter-spacing: -.015em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .figures span {
-    display: block;
+  /* Förbehåll och källa är samma sorts småstil och sätts likadant i varje
+     avsnitt i bandet: 16 px luft, --fs-caption, ingen hårlinje. Linjen över
+     källraden var en av sex likadana linjer på ytan och fick två rader
+     småstil att läsa som en egen sektion. Se KommunHub.astro. */
+  .caveat {
+    margin-top: var(--s-4);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
 
-  /* Referenslinjen, nedtonad. Den är en nämnare och inte ett mål, och ska
-     läsas efter kommunens eget tal, aldrig i stället för det. */
-  .ref {
-    margin-top: var(--s-1);
+  .kalla {
+    margin-top: var(--s-2);
     color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .caveat { margin-top: var(--s-4); }
-
-  .source {
-    margin-top: var(--s-3);
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--hairline);
   }
 </style>

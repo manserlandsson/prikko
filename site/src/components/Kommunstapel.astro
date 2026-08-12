@@ -1,0 +1,182 @@
+---
+/**
+ * Kommunbandets stapel. EN form, använd överallt i "{kommun} i siffror".
+ *
+ * ## Varför den finns vid sidan av Stapel.astro
+ *
+ * Bandet hade två stapelspråk på samma yta. Vanligaste anmärkningarna ritades
+ * med Stapel.astro: 8 px spår i --hairline med grå fyllning i --text-muted.
+ * Uppföljningen ritade sin egen mätare i FollowUpRate.astro: 8 px spår, svart
+ * fyllning, nästan full bredd. Ägarens dom på båda ytorna var "detta ser
+ * katastrof ut", och den ena halvan av felet var just att de inte var samma
+ * sak trots att de gör samma sak.
+ *
+ * Den andra halvan var att den grå stapeln inte syns. Bandet ligger på
+ * --brand-wash (#EBF4FD). Ett spår i --hairline kompositeras där till ungefär
+ * #D8E0E9 och fyllningen i --text-muted är #A1A1A6, alltså två grå som
+ * knappt skiljer sig från varandra eller från botten. Stapeln såg oavsiktlig
+ * ut, som en platshållare.
+ *
+ * Stapel.astro står kvar orörd åt artiklarnas diagram, som ritas på vit
+ * botten och har en annan uppgift. Den här bor på bandet och bara där.
+ *
+ * ## Formen, mätt och inte gissad
+ *
+ * Booli, som är sajtens designriktning, har ett eget ytmärke för statistik:
+ * --color-surface-statistic = --color-sky = #EFF6FF, alltså i praktiken vår
+ * --brand-wash. Deras neutrala betonade yta, den de lägger staplar och block
+ * på, är --color-surface-emphasized-neutral = --color-gray-200 = #F0F0F0 med
+ * 4 px radie, och deras kontrastyta är #1A1A1A. Uppmätt i webbläsaren på
+ * booli.se 2026-08-12.
+ *
+ * Vår översättning: spåret är märkesblått blandat 16 procent i vitt, alltså
+ * exakt samma trappsteg som Andelsstapel.astro redan använder för sitt
+ * ljusaste segment, och fyllningen är --brand. Blått kan inte förväxlas med
+ * en bedömning, eftersom bedömningen är grön, gul och röd och inget annat.
+ *
+ * Höjden är 10 px och inte 8. Åtta var måttet överallt på sajten, och på ett
+ * helt band med sex rader läste det som en linje snarare än som en stapel.
+ * Ednia har ingen rad-med-stapel att mäta mot: deras listor under en
+ * fördelningsstapel är prick, etikett och procent utan stapel. Måttet är
+ * alltså vårt eget, och det är därför det står varför.
+ *
+ * ## Talet står bredvid sin etikett
+ *
+ * Stapel.astro sätter etiketten till vänster och talet i motsatt kant, med
+ * space-between emellan. På bandets bredd blir det fyrahundra pixlar mellan
+ * en etikett och dess eget tal, och ögat kan inte para ihop dem.
+ *
+ * Ednia gör faktiskt BÅDA. Deras könsfördelning skriver "62 % kvinnor" med
+ * talet först och etiketten direkt efter, medan deras regionlista sätter
+ * etiketten till vänster och procenten i motsatt kant, 594 px bort. Det
+ * andra fungerar hos dem därför att raderna är 25 px höga och ligger tätt
+ * staplade med en färgprick som ankare, alltså en rad ögat kan följa.
+ *
+ * Våra rader kan inte det. Varje rad här är två våningar, text över stapel,
+ * med 24 px mellan raderna, och då finns ingen rad att följa med blicken.
+ * Därför står talet först och etiketten direkt efter, åtta pixlar isär, i
+ * samma ordning som Nyckeltal.astro och som fördelningsradens
+ * teckenförklaring. Uppmätt på ednia.se 2026-08-12.
+ *
+ * Talet står alltid i klartext: stapeln är den grova avläsningen, talet den
+ * exakta, och därför är spåret aria-hidden.
+ */
+
+export interface Stapelrad {
+  /** Vad raden heter. Står efter talet. */
+  label: string;
+  /** Det som styr stapelns längd. */
+  value: number;
+  /** Talet som skrivs ut. Utelämnat skrivs value som det är. */
+  display?: string;
+  /** Tyst tillägg efter etiketten, till exempel andelen. */
+  andel?: string;
+}
+
+interface Props {
+  rows: Stapelrad[];
+  /**
+   * Vad full bredd betyder. Utelämnad blir det den största raden, vilket är
+   * det som gör inbördes förhållanden läsbara när varje andel annars är kort.
+   * Sätt den när raderna delar på en helhet och helheten är det man läser.
+   */
+  scale?: number;
+  /** Läsbar sammanfattning av listan för skärmläsare. */
+  label?: string;
+}
+
+const { rows, scale, label } = Astro.props;
+
+// Nollskydd: en tom lista och en lista där allt är noll ger båda division med
+// noll, och en rad med bredd NaN renderas som full bredd i Safari.
+const top = scale ?? Math.max(...rows.map((r) => r.value), 0);
+const bredd = (v: number) => (top > 0 ? (v / top) * 100 : 0);
+---
+
+{rows.length > 0 && (
+  <ul class="kommunstapel" aria-label={label}>
+    {rows.map((r) => (
+      <li>
+        <span class="topp">
+          <b class="tal">{r.display ?? r.value}</b>
+          <span class="etikett">{r.label}</span>
+          {r.andel && <span class="andel">{r.andel}</span>}
+        </span>
+        <span class="spar" aria-hidden="true">
+          <span class="fyll" style={`width:${bredd(r.value)}%`}></span>
+        </span>
+      </li>
+    ))}
+  </ul>
+)}
+
+<style>
+  .kommunstapel {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  /* Luften mellan raderna är 24 px och inte 16. Raden är två våningar hög,
+     tal och etikett över stapeln, och med 16 låg nästa rads tal lika nära
+     föregående stapel som sin egen. */
+  .kommunstapel li + li { margin-top: var(--s-6); }
+
+  /*
+   * Talet, etiketten och andelen ligger intill varandra på en delad baslinje.
+   * Ingen space-between: se komponentens huvudkommentar.
+   *
+   * Block med inline-barn och inte flex. Etiketterna är kommunernas egna
+   * formuleringar och några är hela meningar, "Upprätthållande av kylkedjan
+   * och uppfyllande av temperaturkriterier". I en flexrad är etiketten ett
+   * odelbart barn som hoppar ner på egen rad så fort den inte får plats,
+   * alltså talet ensamt på första raden. Inline bryter den där den ska
+   * brytas, mitt i meningen, och baslinjen delas ändå.
+   */
+  .topp { display: block; }
+
+  .tal {
+    margin-right: var(--s-2);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .etikett {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .andel {
+    margin-left: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Spåret är opakt och inte en genomskinlig hårlinje. En hårlinje tar färg
+     av botten under sig, och bandets botten är redan blå. Se huvudkommentaren.
+     Ytan går att sätta om av den som lägger stapeln på en annan botten. */
+  .spar {
+    display: block;
+    height: 10px;
+    margin-top: var(--s-2);
+    border-radius: var(--r-pill);
+    background: var(--stapel-spar, color-mix(in srgb, var(--brand) 16%, #fff));
+    overflow: hidden;
+  }
+
+  .fyll {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: var(--brand);
+    /* En rad med en handfull avvikelser ska synas som en strimma, inte
+       försvinna. Utan minsta bredd blir listans svans tomma spår. */
+    min-width: 3px;
+  }
+</style>

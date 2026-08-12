@@ -19,7 +19,7 @@
  */
 import { formatNumber } from '../lib/data';
 import type { CommonIssue } from '../lib/kommunprofil';
-import Stapel from './Stapel.astro';
+import Kommunstapel from './Kommunstapel.astro';
 
 interface Props {
   issues: CommonIssue[];
@@ -32,7 +32,7 @@ const { issues, withRemarks, city, limit = 6 } = Astro.props;
 
 // Stapelns längd sätts mot den vanligaste bristen, inte mot 100 %. Annars är
 // varje stapel kort i en välskött kommun och sidan säger ingenting om det
-// inbördes förhållandet, som är det man faktiskt läser här. Stapel.astro gör
+// inbördes förhållandet, som är det man faktiskt läser här. Kommunstapel.astro gör
 // det utan scale-prop, men listan är redan sorterad så den största är shown[0]
 // och det är värt att säga varför den skalan är rätt just här.
 const rows = issues.slice(0, limit).map((i) => ({
@@ -54,13 +54,12 @@ const rows = issues.slice(0, limit).map((i) => ({
       senaste kontroll. Formuleringarna är kommunens.
     </p>
 
-    {/* Stapeln är avläsningshjälp åt siffran som redan står i klartext
-        bredvid. Den bär ingen egen information och är därför neutral i färg
-        (ton="tyst"). Bedömningens grön, gul och röd betyder något och får
-        inte användas för att pigga upp ett stapeldiagram. */}
-    <Stapel
+    {/* Stapeln är avläsningshjälp åt siffran som står i klartext intill den.
+        Den bär ingen egen information och är därför märkesblå och aldrig
+        grön, gul eller röd: de tre färgerna betyder bedömning på den här
+        sajten och får inte användas för att pigga upp ett stapeldiagram. */}
+    <Kommunstapel
       rows={rows}
-      ton="tyst"
       label={`Vanligaste anmärkningarna i ${city}`}
     />
   </section>
@@ -81,6 +80,8 @@ const rows = issues.slice(0, limit).map((i) => ({
     line-height: var(--lh-body-s);
   }
 
-  /* Raderna ritas av Stapel.astro. Spåret var 4 px här och 8 px på
-     rapportsidorna, utan att skillnaden betydde något. */
+  /* Raderna ritas av Kommunstapel.astro, bandets enda stapelform. Här stod
+     tidigare Stapel.astro med ton="tyst", alltså grå fyllning på ett spår i
+     --hairline, och den kombinationen är i praktiken osynlig på bandets blå
+     botten. Se Kommunstapel.astro. */
 </style>

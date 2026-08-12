@@ -6,6 +6,9 @@
  * Inga lånade emoji, inget ikonbibliotek, ingenting avritat från någon annans
  * sajt. Det är en del av att inte se generisk ut.
  *
+ * Formerna ritas i rutnätet och normaliseras sedan optiskt, se OPTIK längre
+ * ner. Rita fritt i 24-rutnätet och mät om faktorn efteråt.
+ *
  * Fem former som INTE går att förväxla med varandra vid 24 pixlar: bestick,
  * kopp, kasse, byggnad, låda. Det är villkoret som styrde varje val. Butiken
  * ritades först som butiksfasad med markis och byttes till kasse, eftersom en
@@ -50,6 +53,44 @@ const PATHS: Record<IkonNyckel, string> = {
   // Övrigt. Låda: tillverkare, grossister, lager, det man inte besöker.
   ovrigt: 'M12 3.2 3.8 7.3v9.4L12 20.8l8.2-4.1V7.3zM3.8 7.3 12 11.4l8.2-4.1M12 11.4v9.4',
 };
+
+/**
+ * Optisk utjämning. Samma rutnät räcker inte, formerna måste också väga lika.
+ *
+ * Ägaren såg raden i filtret som ikoner ur olika uppsättningar, "olika
+ * streckvikt och olika optisk storlek". Streckvikten var densamma i alla sex,
+ * 1,6 px. Storleken var det inte. Mätt med getBBox() i webbläsaren:
+ *
+ *   alla        17,0 × 16,0   mitt (12,0 / 12,5)
+ *   restaurang  13,2 × 18,0   mitt (11,6 / 12,0)
+ *   cafe        18,0 × 12,5   mitt (12,0 / 14,8)
+ *   butik       14,0 × 17,5   mitt (12,0 / 12,3)
+ *   skola       18,0 × 17,6   mitt (12,0 / 12,0)
+ *   ovrigt      16,4 × 17,6   mitt (12,0 / 12,0)
+ *
+ * Skolan var alltså 36 procent bredare än restaurangen och tog 33 procent
+ * större yta, och koppen satt nästan tre pixlar för lågt i rutan. Bredvid
+ * varandra i en rad läses det som olika ikonstorlekar, inte som olika motiv.
+ *
+ * Rättningen är räknad och inte tyckt. Varje form skalas så att roten ur dess
+ * yta blir 16,23, vilket är genomsnittet av de sex, och centreras på (12,12).
+ * Streckvikten delas med samma faktor så att linjen är 1,6 px på skärmen i
+ * alla sex, vilket är hela poängen: skalar man en ikon utan att kompensera
+ * blir den lilla ikonen också den tunnaste.
+ *
+ * Mät om med getBBox() om en form ritas om, och räkna om faktorn. Gissa inte.
+ */
+const OPTIK: Record<IkonNyckel, { skala: number; cx: number; cy: number }> = {
+  alla:       { skala: 0.984, cx: 12,   cy: 12.5 },
+  restaurang: { skala: 1.052, cx: 11.6, cy: 12 },
+  cafe:       { skala: 1.082, cx: 12,   cy: 14.75 },
+  butik:      { skala: 1.037, cx: 12,   cy: 12.25 },
+  skola:      { skala: 0.912, cx: 12,   cy: 12 },
+  ovrigt:     { skala: 0.955, cx: 12,   cy: 12 },
+};
+
+const { skala, cx, cy } = OPTIK[namn];
+const transform = `translate(12 12) scale(${skala}) translate(${-cx} ${-cy})`;
 ---
 
 <svg
@@ -58,11 +99,11 @@ const PATHS: Record<IkonNyckel, string> = {
   viewBox="0 0 24 24"
   fill="none"
   stroke="currentColor"
-  stroke-width="1.6"
+  stroke-width={(1.6 / skala).toFixed(3)}
   stroke-linecap="round"
   stroke-linejoin="round"
   aria-hidden="true"
   focusable="false"
 >
-  <path d={PATHS[namn]} />
+  <path d={PATHS[namn]} transform={transform} />
 </svg>

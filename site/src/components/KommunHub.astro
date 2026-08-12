@@ -547,24 +547,27 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     padding-inline: var(--s-4);
   }
 
-  /* Sektionerna hålls isär av hårlinje och luft, aldrig av en ruta. 32 px
-     inom bandet, mot Boolis 32 och 64. Hårlinjen ligger som padding-top på
-     nästa avsnitt och inte som marginal, så att linjen står mitt i luften. */
-  .djup-inner > :global(* + *) {
-    margin-top: var(--s-8);
-    padding-top: var(--s-8);
-    border-top: 1px solid var(--hairline);
-  }
+  /*
+   * Sektionerna hålls isär av LUFT, aldrig av en ruta och inte längre av en
+   * linje.
+   *
+   * De skildes tidigare av 32 px, en hårlinje och 32 px till. Med fem avsnitt
+   * blev det fyra hårlinjer på en och samma yta, plus en femte över källraden
+   * inuti två av avsnitten, och ägarens dom var att bandet saknade rytm. En
+   * linje mellan två avsnitt säger samma sak som luften mellan dem redan
+   * sagt, och sex likadana linjer säger ingenting alls.
+   *
+   * Kvar är 48 px, alltså mellan Boolis 32 och 64, och rubrikerna som bär
+   * indelningen. Linjerna inuti avsnitten är borttagna i sina egna filer, se
+   * Tathet.astro och Kontrollen.astro.
+   */
+  .djup-inner > :global(* + *) { margin-top: var(--s-12); }
 
-  /* Ingen linje direkt under bandets rubrik. Rubriken tillhör det första
-     avsnittet och ska inte skiljas från det. Grad och vikt kommer från h2 i
-     tokens, alltså 24/600, samma nivå som Booli ger sina kunskapsavsnitt
-     under träfflistan. */
-  .djup-inner > :global(h2 + *) {
-    margin-top: var(--s-6);
-    padding-top: 0;
-    border-top: 0;
-  }
+  /* Bandets rubrik tillhör det första avsnittet och ska inte skiljas från
+     det med samma avstånd som skiljer två avsnitt åt. Grad och vikt kommer
+     från h2 i tokens, alltså 24/600, samma nivå som Booli ger sina
+     kunskapsavsnitt under träfflistan. */
+  .djup-inner > :global(h2 + *) { margin-top: var(--s-6); }
 
   /* ── Sidopanel ────────────────────────────────────────────────────────── */
 

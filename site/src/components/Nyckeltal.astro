@@ -1,0 +1,117 @@
+---
+/**
+ * Kommunbandets nyckeltal. EN form, använd överallt i "{kommun} i siffror".
+ *
+ * ## Varför den finns
+ *
+ * Fyra av bandets fem block ritade var sitt likadana rutnät med var sin
+ * likadana CSS: Tathet, Kontrollen, FollowUpRate och Uncovered hade alla
+ * `repeat(auto-fit, minmax(160px, 1fr))`, tal i --fs-h-s och etikett i
+ * --fs-caption. Fyra kopior som redan hade börjat glida isär i minmax och
+ * i gap. Nu står formen på ett ställe.
+ *
+ * ## Formen, mätt och inte gissad
+ *
+ * Båda referenserna uppmätta i webbläsaren 2026-08-12.
+ *
+ *   Ednia   ednia.se, programsidans nyckeltal: talet 40 px med radhöjd 36,
+ *           vikt 700, spärr −1,4 px (−0,035em), i #222222. Under det en
+ *           mellanrumsruta på exakt 8 px, och därunder etiketten i 14/20,
+ *           vikt 400, i #717171. Avsnittsrubriken ovanför är 22/26/600.
+ *           Talet är alltså nästan dubbelt så stort som sin egen rubrik.
+ *   Stripe  stripe.com: talet 34/35 vikt 300, spärr −0,68 px, etiketten
+ *           16/22,4 DIREKT under med 8 px emellan.
+ *
+ * Det de är ense om, och det som är hela poängen: DET ÄR ÅTTA PIXLAR mellan
+ * ett tal och dess etikett, och talet väger två till tre gånger etiketten.
+ * Här var det fyra pixlar och 1,7 gånger, och det var för lite av båda.
+ *
+ * Vår översättning: talet i --fs-title (32/38) och etiketten i --fs-body-s
+ * (14/20), alltså 2,3 till 1, med 8 px emellan. Vi tar inte Ednias 40: de
+ * visar ETT nyckeltal per avsnitt, kontrollrutan hos oss visar sex bredvid
+ * varandra i en spalt på 760 px.
+ *
+ * Etiketten är i --text-secondary och inte i fullt bläck, precis som Ednias
+ * #717171. Vikten är 600 och inte 700, eftersom 700 inte finns i vår skala.
+ *
+ * ## Varför spalten är 200 px och inte 160
+ *
+ * Etiketterna är olika långa och några är hela meningar: "sysselsatta inom
+ * hotell och restaurang per 10 000 invånare" bredvid "176 sysselsatta". Med
+ * 160 px föll de i olika många rader och raderna bröt ojämnt, vilket var en
+ * av ägarens anmärkningar. Med 200 px och 24 px radluft står talen på en
+ * linje även när etiketten under den ena går i tre rader.
+ */
+
+export interface Tal {
+  /** Redan formaterat, med enhet om det har någon. */
+  value: string;
+  label: string;
+  /** Nedtonad referenslinje, till exempel "riksmedian 118". */
+  ref?: string;
+}
+
+interface Props {
+  tal: Tal[];
+}
+
+const { tal } = Astro.props;
+---
+
+{tal.length > 0 && (
+  <ul class="nyckeltal">
+    {tal.map((t) => (
+      <li>
+        <b class="varde">{t.value}</b>
+        <span class="etikett">{t.label}</span>
+        {t.ref && <span class="ref">{t.ref}</span>}
+      </li>
+    ))}
+  </ul>
+)}
+
+<style>
+  .nyckeltal {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--s-6) var(--s-8);
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  /* Cellen växer inte med sin granne. Utan detta sträcks en cell med en rads
+     etikett ut till höjden hos den med tre, och luften under talet blir olika
+     stor i olika spalter. */
+  .nyckeltal li { align-self: start; }
+
+  .varde {
+    display: block;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    font-weight: 600;
+    letter-spacing: -.022em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Åtta pixlar, inte fyra. Både Ednia och Stripe sätter exakt 8 px mellan
+     ett tal och dess etikett, se huvudkommentaren. */
+  .etikett {
+    display: block;
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Referenslinjen är en nämnare och inte ett mål, och ska läsas efter
+     kommunens eget tal, aldrig i stället för det. */
+  .ref {
+    display: block;
+    margin-top: var(--s-1);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

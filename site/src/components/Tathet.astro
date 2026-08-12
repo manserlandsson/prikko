@@ -19,6 +19,7 @@
  * median över tolv kommuner är inte riket utan vårt urval speglat tillbaka.
  * Hellre ingen referenslinje än en påhittad.
  */
+import Nyckeltal from './Nyckeltal.astro';
 import { formatNumber } from '../lib/data';
 import type { Tathet } from '../lib/tathet';
 
@@ -28,37 +29,47 @@ interface Props {
 }
 
 const { tathet: t, city } = Astro.props;
+
+const tal = t
+  ? [
+      {
+        value: formatNumber(t.perTenThousand),
+        label: 'restauranger och caféer per 10 000 invånare',
+      },
+      ...(t.jobsPer10k !== null
+        ? [
+            {
+              value: formatNumber(t.jobsPer10k),
+              label: 'sysselsatta inom hotell och restaurang per 10 000 invånare',
+              ref:
+                t.jobsMedian !== null
+                  ? `riksmedian ${formatNumber(t.jobsMedian)}`
+                  : undefined,
+            },
+          ]
+        : []),
+    ]
+  : [];
 ---
 
 {t && (
   <section class="tathet" aria-labelledby="tathet">
     <h2 id="tathet">Restaurangtätheten i {city}</h2>
 
-    <ul class="figures">
-      <li>
-        <b>{formatNumber(t.perTenThousand)}</b>
-        <span>restauranger och caféer per 10 000 invånare</span>
-      </li>
-
-      {t.jobsPer10k !== null && (
-        <li>
-          <b>{formatNumber(t.jobsPer10k)}</b>
-          <span>sysselsatta inom hotell och restaurang per 10 000 invånare</span>
-          {t.jobsMedian !== null && (
-            <span class="ref">riksmedian {formatNumber(t.jobsMedian)}</span>
-          )}
-        </li>
-      )}
-    </ul>
+    <Nyckeltal tal={tal} />
 
     {/* Kort citat av en namngiven publikation vi återger ett tal UR, samma
         undantag som kontrollrutan lever på. SCB:s data är CC0 och kräver
         ingen källhänvisning alls, men talet är deras och inte vårt, och då
-        står utgivaren intill det. Se docs/18_sprakregler.md. */}
+        står utgivaren intill det.
+
+        Utgivaren står EN gång. Raden löd "Statistikdatabasen 2024. Källa:
+        SCB.", och Statistikdatabasen ÄR SCB:s databas, så meningen pekade ut
+        avsändaren två gånger på sex ord: en gång i namnet på databasen och en
+        gång i attributionssträngen. Kvar är utgivaren, databasen och året, i
+        den ordningen. Se docs/18_sprakregler.md. */}
     {t.attribution && (
-      <p class="source caption text-secondary">
-        Statistikdatabasen, SCB {t.jobsYear}. {t.attribution}.
-      </p>
+      <p class="kalla caption">SCB:s statistikdatabas {t.jobsYear}.</p>
     )}
   </section>
 )}
@@ -70,42 +81,12 @@ const { tathet: t, city } = Astro.props;
     line-height: var(--lh-h-s);
   }
 
-  /* Samma rutnät som Kontrollen, Uncovered och FollowUpRate, så avsnitten i
-     bandet läser som samma sorts avsnitt. */
-  .figures {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--s-4);
-    margin: var(--s-4) 0 0;
-    padding: 0;
-  }
-
-  .figures b {
-    display: block;
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    font-weight: 600;
-    letter-spacing: -.015em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .figures span {
-    display: block;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  .ref {
-    margin-top: var(--s-1);
+  /* Ingen hårlinje över källraden. Linjen fanns för att skilja småstilen från
+     talen, men i ett band där avsnitten skiljs av luft blev den en av sex
+     likadana linjer och fick en enrads källhänvisning att läsa som en egen
+     sektion. Luft räcker. Se KommunHub.astro. */
+  .kalla {
+    margin-top: var(--s-4);
     color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .source {
-    margin-top: var(--s-3);
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--hairline);
   }
 </style>

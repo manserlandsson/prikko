@@ -207,7 +207,7 @@ const talrad = alla.some((v) => v.count !== undefined);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--s-1);
+    gap: 2px;
     padding-block: var(--s-1) var(--s-3);
     border-bottom: 2px solid transparent;
     /* Etiketten är sajtens vanliga bläck, inte grått.
@@ -226,11 +226,19 @@ const talrad = alla.some((v) => v.count !== undefined);
     border-bottom-color: var(--text-muted);
   }
 
-  /* Aktivt val: understreck OCH mörkare text OCH aria-current. Tre bärare,
-     ingen av dem en färg i sig. Se komponentens huvudkommentar. */
+  /* Aktivt val: understreck OCH halvfet etikett OCH aria-current. Tre bärare,
+     ingen av dem en färg i sig. Se komponentens huvudkommentar.
+
+     Understrecket är märkesblått och inte svart. Ednias rad markerar med
+     #222222, som är deras bläck rakt igenom, uppmätt på ednia.se 2026-08-12.
+     Men sajten har ingen annan svart markering: valt läge är blått i
+     sökpanelen, i kartan och i pagineringen, och en svart list under ett
+     kategorival såg lånad ut bredvid dem. Ägaren: "hör inte ihop med resten
+     av sajtens formspråk". --brand och inte --brand-ink, eftersom det här är
+     en YTA och inte text, se färgnoten i tokens.css. */
   .val[aria-current='page'] {
     color: var(--text);
-    border-bottom-color: var(--text);
+    border-bottom-color: var(--brand);
   }
 
   .val[aria-current='page'] .etikett { font-weight: 600; }
@@ -241,11 +249,17 @@ const talrad = alla.some((v) => v.count !== undefined);
 
   /* Ikonen ritas av Kategoriikon.astro, alltså en annan komponent. Astros
      scopeade selektorer korsar inte komponentgränser, så `svg` måste nås med
-     :global under en rot som DEN HÄR filen renderar. Roten är .ikon. */
+     :global under en rot som DEN HÄR filen renderar. Roten är .ikon.
+
+     Ikonen får luft NEDÅT, etiketten och talet hålls ihop. Raden var förut
+     jämnt fördelad: 4 px mellan ikon och etikett, 4 px mellan etikett och
+     tal, plus 4 px extra under ikonen. Talet satt då lika nära ikonen ovanför
+     som sin egen etikett och läste som en lös rad under valet. Nu 10 px under
+     ikonen, nära Ednias 12, och 2 px mellan etikett och tal. */
   .ikon {
     display: block;
     height: 24px;
-    margin-bottom: var(--s-1);
+    margin-bottom: var(--s-2);
   }
 
   .ikon :global(svg) {
@@ -262,13 +276,18 @@ const talrad = alla.some((v) => v.count !== undefined);
 
   /* `display: block` och `min-height`, inte bara `line-height`: en tom inline-
      span är noll pixlar hög, och det är precis den som ska hålla platsen för
-     ett val utan tal. Se `talrad` i frontmatter. */
+     ett val utan tal. Se `talrad` i frontmatter.
+
+     Talet var 11 px i --text-muted, alltså sajtens minsta grad i dess ljusaste
+     grå, och ägaren läste det som "litet och grått". Det är ett riktigt tal
+     och inte en fotnot: 12 px i --text-secondary, samma grad som etiketten
+     ovanför, så att valet läser som en enhet. */
   .tal {
     display: block;
-    min-height: var(--lh-micro);
-    font-size: var(--fs-micro);
-    line-height: var(--lh-micro);
-    color: var(--text-muted);
+    min-height: var(--lh-eyebrow);
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
   }
 

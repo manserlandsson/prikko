@@ -18,6 +18,7 @@
  * anklagelse mot kommunen som vi inte kan belägga.
  */
 import InfoTip from './InfoTip.astro';
+import Nyckeltal from './Nyckeltal.astro';
 import { formatNumber } from '../lib/data';
 import type { Unseen } from '../lib/kommunprofil';
 
@@ -27,6 +28,20 @@ interface Props {
 }
 
 const { unseen: u, city } = Astro.props;
+
+const tal = [
+  ...(u.never > 0
+    ? [{ value: formatNumber(u.never), label: 'har ingen publicerad kontroll alls' }]
+    : []),
+  ...(u.stale > 0
+    ? [
+        {
+          value: formatNumber(u.stale),
+          label: 'kontrollerades senast för mer än tre år sedan',
+        },
+      ]
+    : []),
+];
 
 /**
  * Under tio är talet trivia, inte en insikt. Jönköping har två verksamheter
@@ -61,22 +76,9 @@ const worthShowing = u.total >= 10;
       kommunen publicerar har ingen kontroll som säger något om läget i dag.
     </p>
 
-    <ul class="split">
-      {u.never > 0 && (
-        <li>
-          <b>{formatNumber(u.never)}</b>
-          <span>har ingen publicerad kontroll alls</span>
-        </li>
-      )}
-      {u.stale > 0 && (
-        <li>
-          <b>{formatNumber(u.stale)}</b>
-          <span>kontrollerades senast för mer än tre år sedan</span>
-        </li>
-      )}
-    </ul>
+    <Nyckeltal tal={tal} />
 
-    <p class="caveat caption text-secondary">
+    <p class="caveat">
       En verksamhet utan kontroll kan också ha upphört utan att strykas ur
       registret.
     </p>
@@ -105,30 +107,14 @@ const worthShowing = u.total >= 10;
     font-variant-numeric: tabular-nums;
   }
 
-  .split {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: var(--s-3) var(--s-4);
-    margin: var(--s-4) 0 0;
-    padding: 0;
-  }
+  /* Talen ritas av Nyckeltal.astro, bandets enda nyckeltalsform. */
 
-  .split b {
-    display: block;
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    font-weight: 600;
-    letter-spacing: -.015em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .split span {
-    display: block;
+  /* Samma småstil som i Kontrollen och Tathet: 16 px luft, --fs-caption,
+     ingen hårlinje. */
+  .caveat {
+    margin-top: var(--s-4);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
-
-  .caveat { margin-top: var(--s-4); }
 </style>
