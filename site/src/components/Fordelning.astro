@@ -1,0 +1,180 @@
+---
+/**
+ * Fördelningsraden: ett band delat i mängder, med talen under.
+ *
+ * ## Varför den finns
+ *
+ * Formen kom till på kommunhubben (KommunOversikt.astro, 2026-08-12) och
+ * godkändes där. Verksamhetssidans panel "Så ser det ut i {kommun}" ritade sin
+ * egen: ett stort procenttal, en 8 px linje och tre täta rader med prick,
+ * fetstilt tal och etikett. Ägarens dom var att den såg ful ut, och den ena
+ * halvan av felet var att den inte var samma sak som hubbens trots att den
+ * visar samma tal om samma kommun.
+ *
+ * Den här filen är formen, en gång. Områdessidan (OmradeHub.astro) och
+ * kommunhubben bär var sin äldre kopia av samma mått; båda kan peka hit när
+ * den som äger dem har vägen fri. Så länge de finns kvar gäller att måtten
+ * ändras på alla tre eller på ingen.
+ *
+ * ## Måtten, mätta och inte gissade
+ *
+ * Bandet är 24 px högt med 8 px radie och segmenten kant i kant. Uppmätt på
+ * Ednias könsfördelning och deras regionfördelning, ednia.se 2026-08-12, och
+ * det är samma två mått som Andelsstapel.astro redan använder i artiklarna.
+ * Full radie vore fel vid den höjden: ändsegmenten läser då som tabletter och
+ * inte som delar av ett band.
+ *
+ * Teckenförklaringen är celler i två våningar, talet överst med andelen tyst
+ * bredvid och etiketten under. En enda tät rad med prick, tal, etikett och
+ * procent gånger fyra går inte att läsa i ett svep. Ordningen, tal först och
+ * etikett sedan, är densamma som Nyckeltal.astro och Kommunstapel.astro håller.
+ *
+ * ## Två regler
+ *
+ * 1. FÄRGEN BÄR BETYDELSE, aldrig dekor. Grönt, gult och rött är bedömningens
+ *    språk på hela sajten och får bara användas när segmenten ÄR bedömningen.
+ *    Färgen väljs därför av den som anropar, inte här.
+ * 2. VARJE MÄNGD STÅR I KLARTEXT. Ett smalt segment går inte att mäta med
+ *    ögat. Bandet är den grova avläsningen, teckenförklaringen den exakta, och
+ *    därför bär bandet sin sammanfattning i aria-label och inget annat.
+ */
+import { formatNumber } from '../lib/data';
+
+export interface Del {
+  /** Vad mängden heter. Står under sitt eget tal. */
+  label: string;
+  /** Antalet. Styr både segmentets bredd och talet som skrivs ut. */
+  n: number;
+  /** Segmentets färg, som CSS-värde. Bärs av anroparen, se regel 1. */
+  surface: string;
+  /** Andelen som den ska skrivas, till exempel "89 %". Utelämnad skrivs ingen. */
+  andel?: string | null;
+}
+
+interface Props {
+  delar: Del[];
+  /** Läsbar sammanfattning av bandet, för den som inte ser det. */
+  label: string;
+  /**
+   * Minsta spaltbredd i teckenförklaringen. Förvalet 150 px ger fyra spalter i
+   * en huvudkolumn och två på en telefon. En smal sidopanel behöver ett mindre
+   * mått för att slippa en spalt per mängd.
+   */
+  min?: string;
+}
+
+const { delar, label, min = '150px' } = Astro.props;
+
+const total = delar.reduce((sum, d) => sum + d.n, 0);
+---
+
+{total > 0 && (
+  <div class="fordelning">
+    <div class="band" role="img" aria-label={label}>
+      {delar.map((d) => d.n > 0 && (
+        <span style={`width:${(d.n / total) * 100}%;background:${d.surface}`}></span>
+      ))}
+    </div>
+
+    <ul class="nyckel" style={`--spaltbredd:${min}`}>
+      {delar.map((d) => (
+        <li>
+          <span class="varde">
+            <b>{formatNumber(d.n)}</b>
+            {d.andel && <span class="pct">{d.andel}</span>}
+          </span>
+          <span class="lbl">
+            <span class="prick" style={`background:${d.surface}`} aria-hidden="true"></span>
+            {d.label}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
+<style>
+  /* Bandet var 8 px med full radie på de flesta ytor och läste som en linje
+     snarare än som en stapel. Ägaren: "tunn och hård i kanterna". Se
+     huvudkommentaren för var 24 och 8 kommer ifrån.
+
+     Spåret är en hårlinje och inte --verdict-none: mängderna som skickas in
+     summerar till helheten, så spåret syns aldrig, och en grå botten i
+     bedömningens ofärg hade påstått en mängd som inte finns. */
+  .band {
+    display: flex;
+    height: 24px;
+    border-radius: var(--s-2);
+    overflow: hidden;
+    margin-top: var(--s-2);
+    background: var(--hairline);
+  }
+
+  .band > span {
+    display: block;
+    height: 100%;
+    /* Ett segment på några tiondelar av en procent ska synas som en strimma
+       och inte försvinna. Utan detta blir 0,6 procent noll pixlar. */
+    min-width: 2px;
+  }
+
+  /* auto-fit och inte flex-wrap: posterna ska stå i spalter under varandra och
+     inte packas efter varandra med olika breda mellanrum. */
+  .nyckel {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--spaltbredd), 1fr));
+    gap: var(--s-3) var(--s-4);
+  }
+
+  /* Talet och andelen delar rad, talet i bläck och andelen tyst efter det.
+     Etiketten står under, alltså inte i motsatt kant: på ett par hundra pixlar
+     kan ögat inte para ihop en etikett med ett tal i andra kanten. */
+  .varde {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+  }
+
+  .nyckel b {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pct {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lbl {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Färgprickens enda uppgift är att koppla posten till sitt segment i bandet.
+     Betydelsen står i texten bredvid, så prickens kontrast bär ingen
+     information och behöver inte klara 3:1.
+
+     10 px och inte 8. Ednia ger sin motsvarande prick 12 px mot en rad i
+     16 px; vår rad är 13 px, och 10 är samma förhållande. */
+  .prick {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    /* Prickens baslinje ligger annars på textens och den ser då ut att hänga
+       under raden. Samma justering som i Andelsstapel.astro. */
+    transform: translateY(-1px);
+  }
+</style>

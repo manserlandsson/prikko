@@ -51,6 +51,8 @@ import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
 import Bilder from '../../components/Bilder.astro';
+import Fordelning from '../../components/Fordelning.astro';
+import Nyckeltal from '../../components/Nyckeltal.astro';
 import Reviews from '../../components/Reviews.astro';
 import ActionPanel from '../../components/ActionPanel.astro';
 import ArtikelBanner from '../../components/ArtikelBanner.astro';
@@ -134,31 +136,37 @@ const recurring = recurringIssues(e);
 const indexable = isIndexable(e);
 
 /**
- * Fördelningen bakom kommunsiffran, som en stapel.
+ * Fördelningen bakom kommunsiffran, som ett band.
  *
  * Samma tal som meningen under redan bär, tecknade som yta så att de går att
- * ta in på en blick. Andelarna räknas på BEDÖMDA, aldrig på totalen — samma
- * nämnare som cleanShare, av samma skäl. Stapeln bär fördelningen inom EN
+ * ta in på en blick. Andelarna räknas på BEDÖMDA, aldrig på totalen, samma
+ * nämnare som cleanShare och av samma skäl. Bandet bär fördelningen inom EN
  * kommun; kommuner emellan jämförs aldrig.
+ *
+ * Färgen sätts här och inte i Fordelning.astro: segmenten ÄR bedömningens tre
+ * nivåer, i ordningen ren, avvikelse, kvarstående brist, och det är det enda
+ * fallet där de tre färgerna får bära ett band. Varje mängd står dessutom i
+ * klartext med sitt eget ord under bandet, så färgen är aldrig ensam
+ * informationsbärare.
+ *
+ * TECKENFÖRKLARINGEN BÄR ANTAL OCH INGEN ANDEL, till skillnad från
+ * kommunhubbens. Där finns inget huvudtal, och andelen måste stå någonstans.
+ * Här ÄR huvudtalet andelen: 89 % står redan i --fs-title strax ovanför, och
+ * eftersom både det och segmenten räknas på bedömda blev den rena mängdens
+ * andel exakt samma tal en gång till, sextio pixlar bort. Ett tal som redan
+ * står på sidan ska inte stå två gånger. Fordelning.astro gör andelen valfri
+ * just för det här fallet.
  */
 const dist = kommunSummary.assessed
   ? (['clean', 'minor', 'major'] as const)
       .map((k) => ({
-        k,
         n: kommunSummary[k],
         label: VERDICT[k].label,
-        share: (kommunSummary[k] / kommunSummary.assessed) * 100,
+        surface: `var(--verdict-${k})`,
       }))
       .filter((d) => d.n > 0)
   : [];
 
-/* Stapeln bar tidigare tre färger och inte ett enda tal. Färgen sa vilken
-   sorts mängd det var, längden sa ungefär hur stor, och exakt hur stor stod
-   ingenstans. Man fick gissa, eller läsa meningen under, som bara upprepade
-   ett av de tre talen i ord. Nyckeln under stapeln är samma form som
-   KommunOversikt redan använder på kommunhubben: prick, tal, ord. Att den
-   säger ordet och inte bara färgen är också det som gör att stapeln inte bär
-   sin uppgift i färg ensam. */
 const distLabel = dist
   .map((d) => `${d.label}: ${formatNumber(d.n)}`)
   .join('. ');
@@ -254,6 +262,60 @@ if (e.verdict !== null && latest) {
 }
 
 const description = `${answer} ${detail}`;
+
+/**
+ * Andra meningen i huvudspalten. Står bara på skärmen, aldrig i metadatan.
+ *
+ * ## Varför den finns
+ *
+ * Google byggde sin egen text i sökresultatet för The Coffice Albano i stället
+ * för att använda vår metabeskrivning, och tog listan i jämförelserutan:
+ * "The Coffice Albano med Pressbyrån 4150206 Albanovägen 12 · 92 m …". Rutan
+ * är åtgärdad var för sig (den bär `data-nosnippet`, se JamforRuta.astro), men
+ * den andra halvan av felet var att sidans egen prosa var EN mening lång.
+ * Bedömningen ritas som ett märke och en etikett, alltså grafik, och
+ * nyckeltalen är tal med etiketter. En läsare ser en hel sida; en
+ * utdragsbyggare ser en rad text och sedan listor.
+ *
+ * Meningen är därför den enda platsen där adressen, kommunen, antalet
+ * kontroller och perioden står i löpande text. Tillsammans med svarsmeningen
+ * blir stycket självbärande: vem, var, vilket besked, hur många kontroller och
+ * sedan när. Det är också precis vad någon som söker på ett restaurangnamn
+ * vill se.
+ *
+ * ## Varför den INTE går in i metabeskrivningen
+ *
+ * `answer` bär både beskrivningen och delningstexten och ligger på omkring 155
+ * tecken, alltså på gränsen för vad Google visar. En mening till hade tryckt ut
+ * slutet av den befintliga. Metadatan är oförändrad.
+ *
+ * ## Vad den får och inte får påstå
+ *
+ * Talet är antalet kontroller kommunen publicerar på ADRESSEN, inte på
+ * företaget: kommunerna registrerar kontrollen på lokalen, och har lokalen
+ * bytt verksamhet ingår föregångarens kontroller. Meningen säger därför
+ * "på {adress}" och aldrig "verksamheten har haft". Samma förbehåll som står i
+ * nyckeltalens tips, se `facts` nedan.
+ *
+ * Ordet "bedömningen" används bara när det FINNS en bedömning. På sidor där
+ * kontrollerna är för gamla för att säga något om nuläget står meningen som ett
+ * rent påstående om vad kommunen publicerat.
+ */
+const plats = e.address ? `på ${e.address}` : 'på adressen';
+
+let grund: string | null = null;
+if (stats.total > 1) {
+  const antal = formatNumber(stats.total);
+  grund =
+    e.verdict !== null
+      ? `Bedömningen vilar på ${antal} kontroller som ${kommun.name} publicerat ${plats} sedan ${stats.oldestYear}.`
+      : `${kommun.name} har publicerat ${antal} kontroller ${plats} sedan ${stats.oldestYear}.`;
+} else if (stats.total === 1) {
+  grund =
+    e.verdict !== null
+      ? `Bedömningen vilar på den enda kontroll ${kommun.name} publicerat ${plats}.`
+      : `${kommun.name} har publicerat en kontroll ${plats}.`;
+}
 
 /**
  * Statistiken räknas på ADRESSEN, inte på företaget.
@@ -452,7 +514,11 @@ const breadcrumbs = {
                   läser som betyg, och det är samma skäl som gör att omdömen
                   inte har stjärnbetyg (se Reviews.astro). */}
               <p class="level">{presentation.label}</p>
-              <p class="answer">{answer}</p>
+              {/* Två meningar i ETT stycke, inte två stycken. Ett utdrag
+                  plockar ett textblock, och stycket är det som ska vara
+                  självbärande: vem, var, vilket besked och hur många
+                  kontroller det vilar på. Se `grund` i skriptdelen. */}
+              <p class="answer">{answer}{grund && <> {grund}</>}</p>
             </div>
             {/* Märket som märke, ute till höger på bedömningsraden. Som
                 piller i rubriken syntes det knappt; som låda under
@@ -614,8 +680,14 @@ const breadcrumbs = {
           />
         </div>
 
+        {/* `data-nosnippet`: panelen är en väg vidare, inte sidans svar.
+            Listan är namn och avstånd till andra ställen, och i ett sökresultat
+            för DEN HÄR verksamheten säger den ingenting. Google byggde ett
+            sådant utdrag för The Coffice Albano, om än ur jämförelserutan, se
+            JamforRuta.astro. Attributet påverkar bara utdraget: sidan
+            indexeras som förut och länkarna räknas som förut. */}
         {neighbours.length > 0 && (
-          <div class="panel">
+          <div class="panel" data-nosnippet>
             <h2 class="panel-title">
               Närliggande
               <InfoTip
@@ -651,37 +723,36 @@ const breadcrumbs = {
           <h2 class="panel-title">Så ser det ut i {kommun.city}</h2>
           {dist.length > 0 && (
             <>
-              {/* Talet först, stapeln under, nyckeln sist. Ordningen är
-                  Stripes: värdet i bläck med sin etikett tyst under sig, och
-                  aldrig tabellsiffror på ett ensamt tal, eftersom de ger
-                  varje siffra nollans bredd och får "89" att glesna. */}
-              <p class="fordelning-tal">
-                <b>{kommunSummary.cleanShare} %</b>
-                <span>
-                  utan anmärkningar av {formatNumber(kommunSummary.assessed)}
-                  {' '}bedömda i {kommun.city}
-                </span>
-              </p>
-              <div class="fordelning" role="img" aria-label={distLabel}>
-                {dist.map((d) => (
-                  <span
-                    style={`flex-basis:${d.share}%;background:var(--verdict-${d.k})`}
-                  ></span>
-                ))}
-              </div>
-              <ul class="fordelning-nyckel">
-                {dist.map((d) => (
-                  <li>
-                    <span
-                      class="prick"
-                      style={`background:var(--verdict-${d.k})`}
-                      aria-hidden="true"
-                    ></span>
-                    <b>{formatNumber(d.n)}</b>
-                    <span class="lbl">{d.label}</span>
-                  </li>
-                ))}
-              </ul>
+              {/* Talet först, bandet under, teckenförklaringen sist.
+
+                  Rutan ritade förut sin egen statistikform: ett tal i --fs-h-s
+                  över en caption, en 8 px linje och tre täta rader med prick,
+                  tal och etikett. Ägaren tyckte den var ful, och den var
+                  dessutom sajtens tredje sätt att teckna samma sak. Nu står
+                  bandet och teckenförklaringen i den form kommunhubben fick
+                  och ägaren godkände, och talet i bandets egen nyckeltalsform.
+
+                  Talet får vara stort här, tvärtemot vad som stod i filen
+                  förut. Skälet till 21 px var att en panel i en aside inte ska
+                  ha något hjältetal, men 21 px över en caption på 13 var
+                  varken tal eller etikett. Nyckeltal.astro håller Ednias och
+                  Stripes förhållande, 32 över 14 med åtta pixlar emellan, och
+                  det läser som ett nyckeltal utan att tävla med sidans egen
+                  rubrik, som står i en annan spalt.
+
+                  Staden står i panelrubriken och därför inte i etiketten. Ett
+                  ortsnamn två gånger på samma tre rader är brus. */}
+              <Nyckeltal
+                tal={[{
+                  value: `${kommunSummary.cleanShare} %`,
+                  label: `utan anmärkningar av ${formatNumber(kommunSummary.assessed)} bedömda`,
+                }]}
+              />
+
+              {/* 118 px och inte förvalets 150: panelen är 300 px bred med
+                  16 px padding, och med 150 hade de tre mängderna fått var sin
+                  spalt under varandra i stället för att stå två och två. */}
+              <Fordelning delar={dist} label={distLabel} min="118px" />
             </>
           )}
           <ul class="kommun-links">
@@ -992,80 +1063,14 @@ const breadcrumbs = {
     border-top: 1px solid var(--hairline);
   }
 
-  /* Panelens huvudtal. Stort nog att läsas först, litet nog att inte tävla
-     med sidans egen rubrik: en panel i en aside har inget hjältetal. */
-  .fordelning-tal {
-    margin-top: var(--s-3);
-  }
-
-  .fordelning-tal b {
-    display: block;
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .fordelning-tal span {
-    display: block;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  /* Fördelningsstapeln: tre andelar av samma helhet på en tunn rad.
-     Springorna mellan segmenten är avsiktliga — tre mängder, inte en
-     tonad yta. */
-  .fordelning {
-    display: flex;
-    gap: 2px;
-    height: 8px;
-    border-radius: var(--r-pill);
-    overflow: hidden;
-    margin-top: var(--s-3);
-  }
-
-  .fordelning span {
-    min-width: 3px;
-  }
-
-  /* Nyckeln, i samma form som KommunOversikt på kommunhubben. Här ligger den
-     i en smal panel och staplas därför lodrätt i stället för att radbrytas. */
-  .fordelning-nyckel {
-    list-style: none;
-    margin: var(--s-3) 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
-  }
-
-  .fordelning-nyckel li {
-    display: flex;
-    align-items: baseline;
-    gap: var(--s-1);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-
-  /* Prickens enda uppgift är att koppla posten till sitt segment i stapeln.
-     Betydelsen står i ord bredvid, så prickens kontrast bär ingen
-     information och behöver inte klara 3:1. */
-  .prick {
-    flex-shrink: 0;
-    align-self: center;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-  }
-
-  .fordelning-nyckel b {
-    font-weight: 600;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .fordelning-nyckel .lbl { color: var(--text-secondary); }
+  /* Statistikrutans form bor i Nyckeltal.astro och Fordelning.astro. Här stod
+     tidigare en egen kopia av båda, alltså sajtens tredje sätt att teckna
+     samma sak. Kvar här är bara luften mellan panelrubriken och talet:
+     komponenterna bär inget eget yttermått, av samma skäl som de inte bär
+     någon ram. */
+  /* :global krävs, eftersom Astros scopeade selektorer inte korsar
+     komponentgränser. */
+  .panel > :global(.nyckeltal) { margin-top: var(--s-1); }
 
   .kommun-links {
     list-style: none;

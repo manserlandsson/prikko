@@ -106,7 +106,28 @@ const setup = {
 >
   <FaceSprite />
 
-  <div class="ark">
+  {/*
+    `data-nosnippet` på arket, alltså på allt rutan innehåller.
+
+    Rutan är stängd och osynlig tills någon öppnar den, men texten står i
+    HTML-filen, och Google plockade den. Sökresultatet för The Coffice Albano
+    visade i augusti 2026 inte vår metabeskrivning utan en ordagrann skärva av
+    just den här listan: "The Coffice Albano med Pressbyrån 4150206
+    Albanovägen 12 · 92 m Restaurang Alba Nova Roslagstullsbacken 21 · 93 m …",
+    alltså rubriken "Jämför {namn} med" följd av de sex förslagen med adress
+    och avstånd. Ett registernummer mitt i ett namn i ett sökresultat ser
+    trasigt ut, och listan säger ändå ingenting om den verksamhet man sökt på.
+
+    Attributet är Googles egen väg och gäller bara utdraget: sidan indexeras
+    som förut, länkarna i listan räknas som förut, och rutan fungerar likadant.
+    Det sitter på div:en och inte på <dialog>, eftersom Google dokumenterar
+    stödet för div, span och section.
+
+    Alternativet vore att rendera förslagen med skript i stället. Det gick
+    bort: förslagen står i HTML just för att rutan ska vara ifylld i samma
+    ögonblick den öppnas, och för att den ska fungera utan JavaScript.
+  */}
+  <div class="ark" data-nosnippet>
     <header class="bar">
       {/* Tillbakaknappen syns bara när en jämförelse står ritad. Den byter
           motpart utan att stänga rutan, alltså utan att man tappar det man
