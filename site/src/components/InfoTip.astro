@@ -58,7 +58,19 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
       popover när en ny öppnas, vilket är rätt för menyer men fel här, och
       auto stängs dessutom av ett klick var som helst vilket krockar med att
       vi öppnar på hover. Vi styr öppning och stängning själva. */}
-  <span class="bubble glass glass-dark" id={id} role="tooltip" popover="manual">{text}</span>
+  {/* `data-nosnippet` för att Google annars skriver sökresultatet ur tipset.
+
+      Verkligt utfall för AG i Stockholm, kontrollerat i Google: utdraget löd
+      "Besökarnas omdömen i. Vad besökare tycker om stället. Det är åsikter,
+      inte kontrollresultat, och de påverkar aldrig hygienbedömningen." Alltså
+      rubriken, knappens bokstav i, och hela den här texten. Ett verktygstips är
+      skrivet för den som redan står på sidan och undrar vad en etikett betyder,
+      och det är precis fel text att möta någon med som ännu inte klickat.
+
+      Attributet rör bara utdraget. Sidan indexeras som förut, länkarna räknas
+      som förut, och texten finns kvar för skärmläsare, som ju är hela skälet
+      till att den ligger i dokumentet och inte i ett attribut. */}
+  <span class="bubble glass glass-dark" id={id} role="tooltip" popover="manual" data-nosnippet>{text}</span>
 </span>
 
 <style>
