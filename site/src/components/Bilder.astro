@@ -80,14 +80,15 @@ const { establishmentId, establishmentName } = Astro.props;
 {/*
   `tom` från början, och en klass i stället för attributet `hidden`.
 
-  Skillnaden är inte kosmetisk. `hidden` är `display: none`, och ett element
-  utan låda korsar aldrig något: IntersectionObserver hade aldrig utlöst och
-  bilderna aldrig hämtats. Klassen fäller i stället ihop avsnittet till noll
-  höjd med `visibility: hidden`, vilket döljer det för både öga och skärmläsare
-  men lämnar kvar en punkt i flödet som går att observera.
+  Klassen tas bort av skriptet när minst en bild kommit hem. Utan den ritas en
+  rubrik med en tom yta under på varje verksamhet som saknar bilder, alltså på
+  nästan alla.
 
-  Klassen tas bort av skriptet när minst en bild kommit hem. Utan den hoppar
-  sidan till på varje verksamhet som saknar bilder, alltså på nästan alla.
+  `visibility: hidden` och inte `display: none`. Ett hopfällt avsnitt behåller
+  då sin plats i flödet, och sidan har en punkt att räkna sin rullning mot
+  medan bilderna är på väg. Det är också det enda som skiljer avsnittet från
+  att blinka fram: höjden går från noll till bandets höjd på ett ställe, inte
+  över en rad element som var för sig dyker upp.
 */}
 <section
   class="bilder tom"
@@ -149,8 +150,7 @@ const { establishmentId, establishmentName } = Astro.props;
    * därför ändå: linjen ritas, och tillsammans med luften omkring blir det en
    * avdelare mitt på sidan som inte delar av något. Alla fyra måste nollas.
    *
-   * `visibility: hidden` och inte `display: none`, se kommentaren vid
-   * markupen: det som inte ritas går inte heller att observera.
+   * `visibility: hidden` och inte `display: none`, se kommentaren vid markupen.
    */
   .bilder.tom {
     visibility: hidden;
@@ -532,41 +532,34 @@ const { establishmentId, establishmentName } = Astro.props;
     }
 
     /*
-     * Hämtas när avsnittet kommer i sikte, inte vid sidladdning.
+     * Hämtas vid sidladdning, INTE när avsnittet kommer i sikte.
      *
-     * Samma skäl som omdömena i Reviews.astro: anropet går till Supabase, som
-     * ligger bakom Cloudflare och sätter en kaka. Den som aldrig rullar ned hit
-     * har inte efterfrågat bilderna och ska inte kosta en tredjepartskontakt.
+     * Här stod en IntersectionObserver på avsnittet, med samma skäl som
+     * omdömena i Reviews.astro har kvar sin: anropet går till Supabase, som
+     * ligger bakom Cloudflare och sätter en kaka, och den som aldrig rullar ned
+     * hit hade inte efterfrågat bilderna.
+     *
+     * Skälet var riktigt. Konstruktionen var det inte, och skillnaden mot
+     * omdömena är avgörande: omdömesavsnittet har en rubrikrad och alltså en
+     * låda, medan det HÄR avsnittet börjar hopfällt på noll pixlars höjd. En
+     * observatör på en måttlös låda är inte ett löfte man kan bygga på.
+     * Foretagsbilder.astro strax ovanför gick i exakt samma fälla och mätte
+     * det: observatören fick aldrig någon återanropning, och bilderna hämtades
+     * inte alls. Ett avsnitt som ska växa fram när det får innehåll kan inte
+     * samtidigt vara det som avgör när innehållet hämtas.
+     *
+     * Kostnaden är dessutom redan tagen. Foretagsuppgifter.astro och
+     * Foretagsbilder.astro ligger båda före det här avsnittet i samma spalt och
+     * frågar Supabase när sidan laddas. Det här är en tredje fråga till samma
+     * värd, inte en ny förbindelse med en ny tredjepart.
      */
-    const load = async () => {
+    (async () => {
       try {
         render(await publishedImages(place));
       } catch {
         /* Avsnittet står kvar dolt. En bild som inte gick att hämta är inget
            besked någon behöver: sidan är hel utan den. */
       }
-    };
-
-    /*
-     * Avsnittet observeras trots att det är hopfällt.
-     *
-     * En yta på noll pixlar ger `intersectionRatio: 0`, men `isIntersecting`
-     * blir ändå sant när punkten passerar rotens kant. Det är just därför det
-     * tomma läget är `visibility: hidden` och inte `display: none`: ett element
-     * som inte ritas har ingen låda alls och korsar aldrig något.
-     */
-    if ('IntersectionObserver' in window) {
-      const io = new IntersectionObserver(
-        (entries) => {
-          if (!entries.some((e) => e.isIntersecting)) return;
-          io.disconnect();
-          void load();
-        },
-        { rootMargin: '400px' },
-      );
-      io.observe(section);
-    } else {
-      void load();
-    }
+    })();
   }
 </script>
