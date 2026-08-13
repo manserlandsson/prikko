@@ -45,56 +45,116 @@
 /*
  * ── Kontrollerna ─────────────────────────────────────────────────────────
  *
- * Formen är Boolis, uppmätt på deras bostadssida och deras kartsök 2026-08-13.
- * Färgen är vår.
+ * Knapparna är GLAS. Ägarens ord, efter att ha sett den första omgången:
+ * "knapparna på kartan som du gjorde blåa är först och främst för blå, och
+ * jag undrar om vi kanske ska köra dom i glas", och "den blåa är för mörk,
+ * det är ej den vi kör, knapparna är också för stora".
  *
- * Vad de gör:
- *   - Knappen är en egen fyrkant, 40 x 40, radie 4, INTE en hopfogad pelare
- *     med hårlinjer emellan. Zoomens två knappar står som två skilda rutor
- *     med 8 px luft.
- *   - Ytan är deras mörkaste bläck (#1A1A1A) med vit ikon, alltså inte deras
- *     märkesorange. En knapp på en karta måste hålla mot både ljus asfalt och
- *     mörk skog, och en accentfärg gör inte det.
- *   - Ikonen är 24 x 24 i en 40 x 40 knapp, ritad på ett 48-rutnät med
- *     4 enheters tjocklek, alltså 2 px vid 24.
- *   - Avståndet till kartans kant är 16 px på smal skärm och 24 från 768 px.
- *     MapLibres eget är 10.
+ * Kartan är den yta där glaset har mest att hämta. Tokens.css skriver att ett
+ * glaslager mot vår egen bakgrund "har nästan ingenting att bryta mot",
+ * eftersom --canvas och --card ligger tre RGB-steg isär. Över en karta finns
+ * det däremot hus, vatten, skog och vägar under lagret, alltså precis det
+ * mättnaden och oskärpan är byggda för att arbeta på.
  *
- * Vad vi gör i stället: samma mått, men ytan är --brand-ink och inte svart.
- * Ägarens ord: "vi har ju mörkblå och inte svart". Vit ikon på --brand-ink
- * (#0063B4) ligger på 6,10:1, alltså dubbla WCAG:s 3:1 för grafik, och det
- * finns gott om utrymme att mörka ned den ytterligare om någon vill. Hovring
- * går till --brand (#007BE0), 4,28:1, som fortfarande klarar 3:1 med marginal.
- * Talen är samma uträkning som länkfärgens i tokens.css.
+ * Receptet är .glass ur tokens.css, del för del. Klassen kan inte sättas
+ * direkt: MapLibre skapar knapparna själv i webbläsaren och vi kommer inte åt
+ * dem utan att skriva JavaScript som klistrar på en klass. Delarna hämtas
+ * därför ur samma tokens, så att en ändring i tokens.css slår igenom här utan
+ * att någon behöver komma ihåg det. Enda avsteget är radien: --r-control och
+ * inte .glass egen --r-card, eftersom det här är kontroller och inte kort.
  *
- * Radien är --r-control och inte Boolis 4: kontrollradien är vår, och den
- * gäller varje knapp på sajten.
+ * ── Varför ikonen är MÖRK och inte vit ───────────────────────────────────
+ *
+ * Frågan är rimlig: ett lager över en karta kan hamna över ljus asfalt eller
+ * över mörk skog, och ingen enda bläckfärg klarar båda. Men det gäller ett
+ * genomskinligt lager, och vårt är det inte. Fyllningen är 82 procent --card,
+ * alltså 82 procent vitt. Ytan har därför ett GOLV men inget tak: hur svart
+ * kartan än är under lagret kan chippet aldrig bli mörkare än
+ * 0,82 x 255 = 209 per kanal, alltså #D1D1D1. Samma tal som tokens.css redan
+ * räknat fram för glaset över sajtens heron, och det är ingen tillfällighet:
+ * gränsen sätts av fyllningen och inte av vad som ligger under.
+ *
+ * Ikonen ligger alltså aldrig på kartan. Den ligger på en yta som rör sig
+ * mellan #D1D1D1 och #FFFFFF, och då är svaret entydigt. Uppmätt över det
+ * spannet:
+ *
+ *   --text (#1D1D1F)              11,02:1 mot #D1D1D1   16,83:1 mot vitt
+ *   --glass-ink-quiet (#56565B)    4,78:1               7,30:1
+ *   --text-secondary (#6E6E73)     3,32:1               5,07:1
+ *   vit                            1,53:1               1,00:1
+ *
+ * Vit ikon är alltså inte ett smaktycke att väga utan 1,53:1, oläsligt i
+ * lagrets mörkaste läge och osynligt i dess ljusaste. Ikonen bär hela
+ * knappens betydelse, så den får sajtens fulla bläck och inte den tysta:
+ * 11,02:1 i värsta fallet, mot WCAG 1.4.11:s 3:1 för grafik.
+ *
+ * Att lagret syns mot en VIT karta bärs inte av fyllningen, som där är vit
+ * mot vitt, utan av kanten, lyftet och glansen. Det är hela poängen med
+ * resonemanget i tokens.css, och kartan är fallet där det får bevisa sig.
+ *
+ * ── Storleken ────────────────────────────────────────────────────────────
+ *
+ * Booli kör 40 x 40. Vi går ned till 32, sajtens egen storlek för en fyrkantig
+ * ikonknapp: kortets bläddring i Karta.astro, dialogernas stängknappar,
+ * sökrutans knapp. Booli är förebild för formen, inte för skalan.
+ *
+ * Träffytan är kvar på 44 px och krymper INTE med chippet. Den bärs av ett
+ * ::after som ligger 6 px utanför knappen åt alla håll, alltså 32 + 6 + 6.
+ * Luften mellan chippen är då 12 px, vilket inte är ett valt tal utan det som
+ * blir över: 32 + 12 = 44, samma som träffytan. Knapparnas träffytor tänder
+ * därmed kant i kant, utan överlapp och utan död remsa emellan, vilket är vad
+ * en tumme behöver på en zoom man trycker flera gånger i rad.
+ *
+ * Ikonen är 18 px i chippet, ritad på Boolis 48-rutnät med 4 enheters
+ * tjocklek. Avståndet till kartans kant är fortfarande 16 px på smal skärm och
+ * 24 från 768 px, mätt till det man SER: hörnets luft är därför 6 px mindre,
+ * eftersom träffytan hänger utanför chippet.
  */
 
-/* Hörnen bär luften. Kontrollerna själva blir marginallösa, så att avståndet
-   till kanten och avståndet mellan grupperna sätts på ETT ställe var. */
+/*
+ * Hörnen bär luften, och det är samma tal överallt: 12 px från kartans kant
+ * till chippet, och 12 px mellan chippen. En rytm och inte två.
+ *
+ * Här stod först Boolis 16 på smal skärm och 24 från 768 px. Ägaren:
+ * "kan du dra ner inside paddingen på kartan, ser skumt ut". Han har rätt.
+ * Boolis kartor är 980 px breda och tål den luften; kommunsidans ruta är 320,
+ * och där åt 24 px i varje hörn upp kartan i stället för att rama in den.
+ *
+ * Talet är hela 12 och inte 12 minus träffytans 6. Träffytan är ett ::after
+ * med `position: absolute`, alltså utanför flödet: den tar ingen plats i
+ * layouten och skjuter inte chippet inåt, den bara blöder utåt. Padding mäter
+ * därför till chippet självt. Ett avdrag här lade chippet 6 px från kanten,
+ * uppmätt i webbläsaren, och det var för tätt.
+ *
+ * Träffytan når då 6 px från kartans kant. Det är innanför rutan, så
+ * `overflow: hidden` på .kartram klipper ingenting.
+ */
 .kartram .maplibregl-ctrl-top-right,
-.kartram .maplibregl-ctrl-top-left,
+.kartram .maplibregl-ctrl-top-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+}
+
+/*
+ * Nederkanten är upphovsradens, och den har ingen träffyta som sticker ut.
+ * Den ligger i HÖRNET. Ägaren, efter att den flyttats in med knapparna:
+ * "copyrighten har skickats in mkt pga att du ändra på knapparna". Raden bär
+ * sin egen luft: MapLibre ger den `padding: 0 5px`, alltså fem pixlar in från
+ * sidan, och det räcker.
+ */
 .kartram .maplibregl-ctrl-bottom-right,
 .kartram .maplibregl-ctrl-bottom-left {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: var(--s-2);
-  padding: var(--s-4);
+  padding: 0;
 }
 
 .kartram .maplibregl-ctrl-top-right,
 .kartram .maplibregl-ctrl-bottom-right { align-items: flex-end; }
-
-.kartram .maplibregl-ctrl-bottom-right,
-.kartram .maplibregl-ctrl-bottom-left { justify-content: flex-end; }
-
-@media (min-width: 768px) {
-  .kartram .maplibregl-ctrl-top-right,
-  .kartram .maplibregl-ctrl-top-left,
-  .kartram .maplibregl-ctrl-bottom-right,
-  .kartram .maplibregl-ctrl-bottom-left { padding: var(--s-6); }
-}
 
 /*
  * `float` måste bort tillsammans med marginalen: MapLibre flyter kontrollerna
@@ -128,60 +188,129 @@
 .kartram .maplibregl-ctrl-group,
 .kartram .maplibregl-ctrl-group:not(:empty) {
   display: grid;
-  gap: var(--s-2);
+  gap: var(--s-3);
   background: none;
   border-radius: 0;
   box-shadow: none;
 }
 
+/*
+ * Chippet. Recept ur tokens.css .glass, del för del, med kontrollradien.
+ *
+ * Fyllningen går via --glass-fill precis som i klassen, så att reservregeln
+ * längst ned bara behöver byta ett värde, och så att hovringen kan flytta
+ * ETT tal i stället för att skriva om ytan.
+ *
+ * Skriv ALDRIG -webkit-backdrop-filter för hand. Se varningen i tokens.css:
+ * byggets optimerare slår ihop de två deklarationerna och behåller bara
+ * prefixvarianten, som Chrome inte känner igen, och kvar blir ett
+ * genomskinligt lager utan oskärpa med kartan läsbar rakt igenom.
+ */
 .kartram .maplibregl-ctrl-group button {
-  width: 40px;
-  height: 40px;
-  border: 0;
+  --glass-fill: color-mix(in srgb, var(--card) 82%, transparent);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--glass-edge);
   border-radius: var(--r-control);
-  background: var(--brand-ink);
+  background: var(--glass-fill);
+  backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
+  box-shadow: var(--glass-lift), inset 0 1px 0 var(--glass-sheen);
   transition: background-color 140ms ease;
 }
 
-/* Hårlinjen som skilde två hopfogade knappar åt. Knapparna står isär nu, och
-   då är linjen en rand mitt i luften. */
-.kartram .maplibregl-ctrl-group button + button { border-top: 0; }
+/*
+ * Träffytan, 44 px, oberoende av chippets 32.
+ *
+ * Ett genomskinligt ::after 6 px utanför knappen åt alla håll. Fingret får
+ * hela ytan, ögat bara chippet. Motsatt väg, att krympa träffytan till
+ * chippet, hade gjort zoomen till en 32-pixlars prick på en telefon.
+ */
+.kartram .maplibregl-ctrl-group button::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
 
-/* `:not(:disabled)` står med av samma skäl som hörnet ovan: bibliotekets egen
-   hovring är `.maplibregl-ctrl button:not(:disabled):hover` och väger tre
-   klassled. Utan pseudoklassen här väger vår lika mycket och förlorar på
-   ordningen, och knappen bleknade till rgba(0,0,0,.05) i stället för att
-   tändas. Uppmätt i webbläsaren, inte gissat. */
-.kartram .maplibregl-ctrl-group button:not(:disabled):hover { background: var(--brand); }
+/* Bibliotekets skarv mellan två hopfogade knappar är en grå hårlinje i
+   `border-top`. Knapparna står isär nu och bär var sin hel kant, så skarven
+   ska bara vara samma kant som de tre andra sidorna. */
+.kartram .maplibregl-ctrl-group button + button { border-top: 1px solid var(--glass-edge); }
 
-/* Nedtryckt går knappen tillbaka till viloläget i stället för bibliotekets
+/*
+ * Hovring rör MATERIALET och inte färgen: fyllningen går från 82 till 90
+ * procent och kanten skärps ett steg. Lagret läser som en yta som kommit
+ * närmare, vilket är vad en hovring betyder, och det är fortfarande glas.
+ *
+ * 90 och inte mer. Tokens.css räknar att det krävs ÖVER 92 procent för att
+ * rädda den tysta grå texten i ett lager, "och då är glaset borta". Vi stannar
+ * alltså före den gränsen med marginal i stället för att tulla på den.
+ *
+ * `:not(:disabled)` står med av samma skäl som hörnet ovan: bibliotekets egen
+ * hovring är `.maplibregl-ctrl button:not(:disabled):hover` och väger tre
+ * klassled. Utan pseudoklassen här väger vår lika mycket och förlorar på
+ * ordningen, och knappen bleknade till rgba(0,0,0,.05) i stället för att
+ * tändas. Uppmätt i webbläsaren, inte gissat.
+ */
+.kartram .maplibregl-ctrl-group button:not(:disabled):hover {
+  --glass-fill: color-mix(in srgb, var(--card) 90%, transparent);
+  background: var(--glass-fill);
+  /* --glass-edge är svart på 10 procent. Det här är samma svarta ett steg
+     starkare, alltså inte en ny färg utan ett läge av den. */
+  border-color: rgba(0, 0, 0, .16);
+}
+
+/* Nedtryckt går chippet tillbaka till viloläget i stället för bibliotekets
    ljusgrå, alltså samma väg tillbaka som hovringen kom. */
-.kartram .maplibregl-ctrl-group button:not(:disabled):active { background: var(--brand-ink); }
+.kartram .maplibregl-ctrl-group button:not(:disabled):active {
+  --glass-fill: color-mix(in srgb, var(--card) 82%, transparent);
+  background: var(--glass-fill);
+  border-color: var(--glass-edge);
+}
 
 /*
  * Avstängd knapp, alltså zoomen vid stilens ytterlägen.
  *
- * MapLibre bleker bara IKONEN till 25 procent, vilket är byggt för en vit
- * knapp med mörk ikon. På vår mörkblå yta blir det en tom blå ruta i stället
- * för en avstängd knapp. Hela knappen tonas därför i stället, och ikonen får
- * tillbaka sin fulla täckning så att nedtoningen blir jämn.
+ * MapLibre bleker bara IKONEN till 25 procent. Ett glaschipp med en nästan
+ * osynlig ikon i läser som en tom ruta och inte som en avstängd knapp. Hela
+ * chippet tonas därför i stället, och ikonen får tillbaka sin fulla täckning
+ * så att nedtoningen blir jämn.
  */
-.kartram .maplibregl-ctrl-group button:disabled { opacity: .4; }
+.kartram .maplibregl-ctrl-group button:disabled { opacity: .45; }
 
 .kartram .maplibregl-ctrl button:disabled .maplibregl-ctrl-icon { opacity: 1; }
+
+/* Ingen backdrop-filter, alltså ogenomskinlig yta. Samma regel och samma skäl
+   som .glass i tokens.css: halvgenomskinligt utan oskärpa är oläsligt, och
+   över en karta är det värre än någon annanstans. Hovringen och nedtryckt
+   står med, annars hade de återinfört genomskinligheten just där. */
+@supports not (backdrop-filter: blur(1px)) {
+  .kartram .maplibregl-ctrl-group button,
+  .kartram .maplibregl-ctrl-group button:not(:disabled):hover,
+  .kartram .maplibregl-ctrl-group button:not(:disabled):active {
+    --glass-fill: var(--card);
+  }
+}
 
 /* MapLibres egen fokusmarkering är en ljusblå glorja i box-shadow. Vår är
    sajtens ring, samma som varje annan knapp får. Radien på första och sista
    knappen sattes av biblioteket för pelarens skull och ska inte gälla här.
    `:focus:focus-visible` står med för att biblioteket upprepar sin glorja med
-   just den väljaren, och den väger lika mycket som ett ensamt `:focus`. */
+   just den väljaren, och den väger lika mycket som ett ensamt `:focus`.
+
+   Skuggan skrivs tillbaka till glasets och inte till `none`. Lyftet och
+   glansen BOR i box-shadow, så en nolla här hade platta till chippet i samma
+   ögonblick som det fick fokus. */
 .kartram .maplibregl-ctrl-group button:focus,
 .kartram .maplibregl-ctrl-group button:focus:focus-visible,
 .kartram .maplibregl-ctrl-group button:focus:first-child,
 .kartram .maplibregl-ctrl-group button:focus:last-child,
 .kartram .maplibregl-ctrl-group button:focus:only-child {
   border-radius: var(--r-control);
-  box-shadow: none;
+  box-shadow: var(--glass-lift), inset 0 1px 0 var(--glass-sheen);
 }
 
 .kartram .maplibregl-ctrl-group button:focus-visible {
@@ -195,27 +324,40 @@
 
 /*
  * Ikonerna. MapLibre ritar dem som background-image på en span inuti knappen,
- * i mörkgrått mot vitt, alltså precis fel väg mot vår blå yta. De byts ut mot
- * vita, ritade på Boolis 48-rutnät med 4 enheters tjocklek.
+ * 29 px stor och i sitt eget mörkgrå. De byts ut mot 18 px i sajtens bläck,
+ * ritade på Boolis 48-rutnät med 4 enheters tjocklek.
+ *
+ * Färgen står som hexvärde inne i adressen och inte som var(--text). En
+ * data-adress är en sträng, inte CSS, och en custom property går inte att
+ * väva in i den. #1D1D1F ÄR --text, och de två måste följas åt: ändras
+ * bläcket i tokens.css ska de fyra raderna här ändras med.
+ *
+ * Att göra det med mask-image i stället, alltså form ur adressen och färg ur
+ * token, är frestande men fel här. Prefixfrågan är densamma som för
+ * backdrop-filter i tokens.css, och utfallet om verktyget inte prefixar är
+ * värre: en solid mörk fyrkant i stället för en ikon. En bakgrundsbild kan
+ * inte gå sönder på det sättet.
  */
 .kartram .maplibregl-ctrl button .maplibregl-ctrl-icon {
-  background-size: 24px 24px;
+  width: 18px;
+  height: 18px;
+  background-size: 18px 18px;
 }
 
 .kartram .maplibregl-ctrl button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%23fff'%3E%3Cpath d='M38 26H26v12h-4V26H10v-4h12V10h4v12h12v4z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%231D1D1F'%3E%3Cpath d='M38 26H26v12h-4V26H10v-4h12V10h4v12h12v4z'/%3E%3C/svg%3E");
 }
 
 .kartram .maplibregl-ctrl button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%23fff'%3E%3Cpath d='M38 26H10v-4h28v4z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%231D1D1F'%3E%3Cpath d='M38 26H10v-4h28v4z'/%3E%3C/svg%3E");
 }
 
 .kartram .maplibregl-ctrl button.maplibregl-ctrl-fullscreen .maplibregl-ctrl-icon {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%23fff'%3E%3Cpath d='M14 28h-4v10h10v-4h-6v-6zm-4-8h4v-6h6v-4H10v10zm24 14h-6v4h10V28h-4v6zm-6-24v4h6v6h4V10H28z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%231D1D1F'%3E%3Cpath d='M14 28h-4v10h10v-4h-6v-6zm-4-8h4v-6h6v-4H10v10zm24 14h-6v4h10V28h-4v6zm-6-24v4h6v6h4V10H28z'/%3E%3C/svg%3E");
 }
 
 .kartram .maplibregl-ctrl button.maplibregl-ctrl-shrink .maplibregl-ctrl-icon {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%23fff'%3E%3Cpath d='M10 32h6v6h4V28H10v4zm6-16h-6v4h10V10h-4v6zm12 22h4v-6h6v-4H28v10zm4-22v-6h-4v10h10v-4h-6z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='%231D1D1F'%3E%3Cpath d='M10 32h6v6h4V28H10v4zm6-16h-6v4h10V10h-4v6zm12 22h4v-6h6v-4H28v10zm4-22v-6h-4v10h10v-4h-6z'/%3E%3C/svg%3E");
 }
 
 /*
@@ -225,25 +367,65 @@
  * varken tonas ned till oläslighet eller färgas i märkesfärg: den ska läsas
  * som en uppgift om kartans ursprung, inte som en länkrad som lockar.
  *
- * Färgen är --text, sajtens mörkaste bläck, och INTE den grå. Botten under
- * raden är MapLibres egen halvgenomskinliga vita, alltså 50 procent vitt över
- * vad kartan nu råkar rita där. Den grå (#6E6E73) mäter 5,08:1 mot rent vitt
- * men sjunker under 4,5:1 så fort en skog eller ett vatten hamnar bakom.
- * Villkoret ska gå att läsa var på kartan det än hamnar. Booli gör samma val
- * och sätter sitt mörkaste bläck på sin rad.
+ * ── Ingen platta ────────────────────────────────────────────────────────
  *
- * Blå är den däremot inte. Länkarna bär textens färg och skiljs ut med
- * understrykning: raden är en uppgift om kartans ursprung, inte en länkrad i
- * märkesfärg som vill bli klickad.
+ * MapLibre lägger en vit halvgenomskinlig botten bakom raden, och i kompakt
+ * läge en helvit. Ägaren: "du har också lagt till en vit bakgrund på
+ * copyrighten, herregud". Den är bibliotekets och inte vår, men den låg kvar
+ * och det spelar ingen roll vems den var. Bort med den. Texten ligger direkt
+ * på kartan.
+ *
+ * Läsbarheten bärs i stället av bläcket och en svag ljusgloria. Vår kartstil
+ * är ljus rakt igenom, och mot varje YTA den målar ligger --text bekvämt över
+ * kravet:
+ *
+ *   kartans botten #F2F1EC  14,88:1     gräs    #D4EABF  13,08:1
+ *   bostadsmark    #EDEBE4  14,11:1     skog    #B9DB9C  10,96:1
+ *   byggnad        #DCD6CC  11,65:1     vatten  #A8D3F0  10,61:1
+ *
+ * Det enda som verkligen kan hamna under raden och sänka den är kartans egen
+ * mörka TEXT, alltså ett ortnamn eller ett vattennamn som råkar löpa förbi
+ * i hörnet: #495E91 ger 2,64:1 och #44423E 1,68:1. Glorian är till för de två
+ * fallen och ingenting annat. Den är vit, tre pixlar mjuk och utan förskjutning,
+ * alltså osynlig över de ljusa ytorna ovan och avgörande i de mörka.
+ *
+ * En platta hade också löst det, men en platta i ett kartöra är en ruta som
+ * skymmer kartan dygnet runt för två fall som inträffar sällan.
+ *
+ * ── Färg och grad ───────────────────────────────────────────────────────
+ *
+ * Färgen är --text och INTE den grå: #6E6E73 tappar mot skog och vatten så
+ * fort plattan är borta. Blå är den inte heller. Länkarna bär textens färg och
+ * skiljs ut med understrykning, för raden är en uppgift om kartans ursprung
+ * och inte en länkrad i märkesfärg som vill bli klickad.
  *
  * Boolis grad är 10/12. Vi lägger oss på micro, sajtens minsta, en pixel
  * större än deras.
  */
-.kartram .maplibregl-ctrl-attrib,
-.kartram .maplibregl-ctrl-attrib.maplibregl-compact {
+/* Väljarna upprepar en klass de ser ut att kunna korta. Skälet är detsamma
+   som i marginalregeln längst upp: bibliotekets stilmall kommer efter vår, och
+   dess egna plattor är `.maplibregl-ctrl.maplibregl-ctrl-attrib` och
+   `.maplibregl-ctrl-attrib.maplibregl-compact`, båda två klassled. Ett kortare
+   `.kartram .maplibregl-ctrl-attrib` väger lika mycket och hade förlorat, och
+   plattan hade suttit kvar just på de kartor som kör compact: false. */
+.kartram .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.kartram .maplibregl-ctrl-attrib.maplibregl-compact,
+.kartram .maplibregl-ctrl-attrib.maplibregl-compact-show {
   font-size: var(--fs-micro);
   line-height: var(--lh-micro);
   color: var(--text);
+  background: none;
+  text-shadow:
+    0 0 3px rgba(255, 255, 255, .95),
+    0 0 6px rgba(255, 255, 255, .75);
+}
+
+/* Hopfällarens knapp är en mörk symbol i en bakgrundsbild, alltså utanför
+   text-shadow. Samma gloria, samma skäl, med filter i stället. */
+.kartram .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button,
+.kartram .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
+  background-color: transparent;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, .95));
 }
 
 .kartram .maplibregl-ctrl-attrib a,
@@ -252,8 +434,8 @@
   text-decoration: underline;
 }
 
-/* Hopfällarens knapp finns bara i kompakt läge. Samma ring som allt annat på
-   sajten i stället för bibliotekets ljusblå glorja. */
+/* Fokusringen på samma knapp: sajtens ring i stället för bibliotekets ljusblå
+   glorja i box-shadow. */
 .kartram .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button:focus {
   box-shadow: none;
 }
