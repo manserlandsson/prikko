@@ -34,12 +34,21 @@ import { FACE_MARKUP, FACE_PLATE, FACE_RING, type FaceKey } from './face';
  * Ansiktet kommer ur lib/face.ts, samma modul som FaceSprite och FaceRef
  * läser, så nålen på kartan är samma tecken som märket i listan.
  *
- * NAL-NIVÅN, och varför den finns. Nålen serialiseras till en data-URI PER
- * NÅL och skickas som bild till kartmotorn. Det rika ansiktet är omkring
- * 8 600 tecken, och en karta med hundratals nålar hade blivit ogenomförbar.
- * Nal-nivån bär plattan, ögonen, brynen och munnen och ingenting annat.
- * Brynen är kvar, och det är hela poängen: de är den enda bäraren som klarar
- * 24 px i gråskala, och en nål på en kartbotten är i den storleksordningen.
+ * NIVÅN ÄR RIK, och nal-nivån som stod här är avställd. Ägaren: "använd samma
+ * för nål, det ska vara inramat rikt hela tiden."
+ *
+ * Invändningen som stod här var att nålen serialiseras till en data-URI och
+ * att det rika ansiktet är omkring 8 600 tecken mot nålnivåns 886. Den
+ * invändningen håller inte, och det är värt att skriva ned varför, eftersom
+ * den ser riktig ut: nålen ritas EN GÅNG PER LÄGE och inte en gång per
+ * verksamhet. Kartan registrerar fyra bilder hos kartmotorn, eller åtta med
+ * den streckade varianten, och varje nål på kartan pekar sedan på en av dem.
+ * Kostnaden är alltså 4 gånger 7 700 tecken i en sträng som byggs i
+ * webbläsaren och aldrig går över tråden, eftersom banorna redan ligger i
+ * bunten. Tusen nålar kostar exakt lika mycket som fyra.
+ *
+ * Det är en annan sak än märket i en LISTA, där varje rad hade betalat.
+ * Den kostnaden bärs av spriten, se FaceSprite.astro.
  *
  * GRADIENTEN ÄR BORTA. Den fanns aldrig av en anledning, och maskotens regel
  * är noll gradienter. Droppen bär numera plattans färg som en platt yta, och
@@ -61,7 +70,7 @@ export function faceSvg(key: FaceKey, streckad = false): string {
   const ansikte =
     `<g clip-path="url(#h)">` +
     `<g transform="translate(50 46) scale(.74) translate(-50 -50)">` +
-    FACE_MARKUP[key].nal +
+    FACE_MARKUP[key].rik +
     `</g></g>`;
 
   return (

@@ -21,24 +21,31 @@
  *
  *     node brand/bygg-face-geometri.mjs
  *
- * ── Tre detaljnivåer ────────────────────────────────────────────────────
- * Att ha flera nivåer är inte en genväg utan hur ikoner byggs. Duolingo offrar
- * kropp, vingar, öron, fötter och en färgnyans i sin app-ikon. Våra nivåer:
+ * ── DETALJNIVÅERNA ÄR AVSTÄLLDA. RIK GÄLLER ÖVERALLT ────────────────────
+ * Ägaren, efter att ha sett märket live: "använd inte den basic grävlingen det
+ * ser inte bra ut". Och sedan, som beslut: "använd samma för nål, det ska vara
+ * inramat rikt hela tiden."
  *
- *   rik    hela ansiktet med pupill, ögonlock, bryn och pälsnyanser.
- *          Över 32 px, där detaljerna bevisligen syns.
- *   enkel  pupillen och de finaste nyanserna borta. 24 till 32 px.
- *   nal    plattan, ögonen, brynen och munnen. Ingenting annat.
- *          Kartnålar, och allt under 24 px.
+ * Det var rätt dom, och den går att se. Nal-nivån ritade huvudet som en rundad
+ * rektangel utan öron och utan nos, banden som två piller och brynen som två
+ * ellipser så tjocka att de läste som ett andra par ögonlock. Den var byggd
+ * för att fyra LÄGEN skulle gå att skilja åt i 16 px, och det gjorde den. Men
+ * den var inte längre samma figur, och en maskot som byter utseende mellan
+ * listan och verksamhetssidan är inte en maskot utan två.
  *
- * Brynen finns kvar i ALLA tre nivåerna, och det är avsiktligt. De är den
- * enda bäraren som klarar 24 px i gråskala, och ett bryn är dessutom en tjock
- * lutande stapel, alltså den formtyp som överlever nedskalning bäst av allt i
- * ett ansikte. Det som dör först är tunna linjer och små ytskillnader.
+ * Nivåerna fanns:
  *
- * Gränsen är en REGEL I KOD och inte en kommentar: komponenten väljer nivå ur
- * `size`, så att ingen anropsplats behöver veta något. Annars renderar någon
- * det rika ansiktet i 16 px, och det är bara en fråga om tid.
+ *   rik    hela ansiktet med pupill, ögonlock, bryn och pälsnyanser
+ *   enkel  ögonvitans modulering, munhålan och örontipparna offrade
+ *   nal    plattan, ögonen, brynen och munnen, ingenting annat
+ *
+ * Ritningarna för `enkel` och `nal` ligger kvar i face-geometri.ts och
+ * genereras fortfarande. De är AVSTÄLLDA, inte borttagna, av samma skäl som
+ * det klassiska märket ligger kvar bakom `MASKOT = false`: den som vill väga
+ * dokumentstorlek mot utseende en gång till ska kunna göra det på en rad i
+ * stället för att gräva i git.
+ *
+ * Priset är mätt och inte gissat, se faceDetalj nedan.
  *
  * ── Tillgänglighet ──────────────────────────────────────────────────────
  * Ansiktet är förstärkning. Betydelsen bärs alltid av texten bredvid, aldrig
@@ -83,36 +90,50 @@ export function faceKey(verdict: VerdictOrNone): FaceKey {
 export const FACE_KEYS: FaceKey[] = ['clean', 'minor', 'major', 'none'];
 
 /**
- * Gränserna mellan detaljnivåerna, i px.
+ * NIVÅVALET, som numera inte väljer.
  *
- * Mätta två gånger, och andra gången ändrade svaret.
+ * Funktionen står kvar och svarar `rik` för varje storlek. Den är kvar av två
+ * skäl och inte av tröghet: den är den enda platsen där frågan "vilket ansikte
+ * ritas här" besvaras, och att riva ut den ur ett fyrtiotal anropsplatser hade
+ * spritt beslutet i stället för att samla det. Ska nivåerna någon gång tillbaka
+ * är det den här funktionen som ändras, och ingenting annat.
  *
- * Första försöket satte gränserna där detaljerna SLUTAR SYNAS: pupillen bär
- * ned till 32 px, och under 24 px gör bara plattan, ögonen, brynen och munnen
- * något. Det gav rik över 32 och enkel mellan 24 och 32.
+ * ── Vad avställningen kostade, mätt och inte gissat ─────────────────────
+ * Byggt före och efter på hela sajten, samma maskin, samma innehåll. Sidorna
+ * är de tre med flest märken, och HTML mäts både rått och gzippat eftersom det
+ * är gzip som faktiskt går över tråden:
  *
- * Sedan mättes dokumentet. Stockholms kommunsida växte 22 procent, och nästan
- * allt kom från FEM märken i 30 px som föll i enkel-spannet: de kostade 34 990
- * tecken tillsammans, alltså 7 000 var, medan hundra märken i 38 px kostade
- * 5 683 totalt eftersom de går via spriten. Fem märken vägde sex gånger så
- * mycket som hundra.
+ *                          FÖRE              EFTER            gzip
+ *   /stockholm/          153 478 B         185 828 B       23 412 → 24 861 B
+ *   /sok/                 44 852 B          77 202 B        8 411 →  9 674 B
+ *   /kedja/ica/          283 328 B         315 678 B       23 782 → 25 254 B
  *
- * Rätt fråga är alltså inte var detaljen slutar synas utan var den slutar vara
- * VÄRD sitt pris. Vid 30 px är skillnaden mellan enkel och nal knappt synlig
- * och kostar 6 100 tecken per märke. Vid 56 px och uppåt syns den, och där
- * står det sällan mer än ett eller två märken på en sida.
+ * Alltså exakt 32 350 byte rått per sida, vilket är precis vad fyra symboler i
+ * rik kostar mot fyra i nal. Kostnaden är KONSTANT och inte proportionell mot
+ * antalet rader: Stockholms hubb har 8 511 verksamheter och betalar samma
+ * 32 kB som en sida med tio. Det är spritens hela poäng, och det är skälet
+ * till att beslutet är billigt.
  *
- *   rik    56 px och uppåt. Verksamhetssidans stora märke, artiklarnas.
- *   enkel  32 till 56 px. Kort och puffar.
- *   nal    under 32 px. Listor, kartnålar, sökförslag, favicon.
+ * Gzippat är påslaget 1,3 till 1,5 kB, alltså 5 till 15 procent. Fyra ansikten
+ * som skiljer sig på ett par tal komprimerar mot varandra.
+ *
+ * Kvar att veta för den som en dag mäter igen: de riktigt dyra märkena var
+ * aldrig spriten utan de INLINADE. Ett inlinat rikt ansikte är omkring 8 600
+ * tecken mot nålens 886, och en tidigare mätning visade fem inlinade märken
+ * kosta 34 990 tecken medan hundra via spriten kostade 5 683. Blir en sida
+ * någon gång dyr igen är åtgärden att gå via spriten, inte att sänka nivån.
  */
-export const FACE_DETALJ_GRANS = { rik: 56, enkel: 32 } as const;
+export const FACE_DETALJ_GRANS = { rik: 0, enkel: 0 } as const;
 
-/** Väljer detaljnivå ur storleken. Anropsplatser ska aldrig göra det själva. */
-export function faceDetalj(size: number): FaceDetalj {
-  if (size >= FACE_DETALJ_GRANS.rik) return 'rik';
-  if (size >= FACE_DETALJ_GRANS.enkel) return 'enkel';
-  return 'nal';
+/**
+ * Ansiktets detaljnivå. Alltid `rik`, se noten ovan.
+ *
+ * `size` står kvar i signaturen med flit. Anropsplatserna skickar den redan,
+ * och den dagen frågan prövas igen ska den prövas här och inte hos den som
+ * råkar rita ett märke.
+ */
+export function faceDetalj(_size: number): FaceDetalj {
+  return 'rik';
 }
 
 /**

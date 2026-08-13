@@ -316,14 +316,20 @@ function faceSvg(verdict: number | undefined): string {
   const key: FaceKey =
     verdict === undefined ? 'none' : (FACE_BY_INDEX[verdict] ?? 'none');
   const c = FACE_RING[key];
-  // Nal-nivån, av samma skäl som på kartan: förslagslistan buntas till
-  // webbläsaren och märket ritas i 20 till 24 px. Det rika ansiktet hade lagt
-  // åtta kilobyte per läge i en fil som laddas på varje sidvisning, för
-  // detaljer som ändå inte syns i den storleken.
+  // RIK-nivån, av samma skäl som på kartan och i listorna: nivåerna är
+  // avställda och märket ska se likadant ut överallt, se lib/face.ts.
+  //
+  // Här stod tidigare nal-nivån med argumentet att förslagslistan buntas till
+  // webbläsaren och att åtta kilobyte per läge var för dyrt i en fil som
+  // laddas på varje sidvisning. Kostnaden finns kvar men den betalas redan:
+  // FACE_MARKUP är ett objekt med tolv strängar och alla tolv följer med i
+  // bunten oavsett vilken av dem den här raden slår upp. Att välja nal sparade
+  // alltså ingenting i det som gick över tråden, bara i den DOM panelen bygger
+  // när den öppnas, och där är åtta rader inte en kostnad.
   return `<svg class="face" viewBox="0 0 100 100" aria-hidden="true" focusable="false">` +
     `<clipPath id="sf-${key}"><rect width="100" height="100" rx="17"/></clipPath>` +
     `<g clip-path="url(#sf-${key})">` +
-    `<rect width="100" height="100" fill="${FACE_PLATE[key]}"/>${FACE_MARKUP[key].nal}</g></svg>`;
+    `<rect width="100" height="100" fill="${FACE_PLATE[key]}"/>${FACE_MARKUP[key].rik}</g></svg>`;
 }
 
 function verdictWord(verdict: number | undefined): string {
