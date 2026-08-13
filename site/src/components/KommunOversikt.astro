@@ -271,10 +271,19 @@ function share(n: number): string | null {
    */
   .legend a .lbl { color: var(--text); }
 
+  /* INGEN understrykning i vila. Ägaren: "dem ska ej vara understrykna, ska
+     bara vara klickbara."
+
+     Bäraren blir i stället färgen, alltså sajtens länkblå, plus att hela
+     cellen är träffyta. Det håller för att posten ÄR en länk i sin helhet och
+     inte en länk inuti löptext: kravet på att färg aldrig får vara ensam
+     bärare gäller när en länk ska gå att skilja från texten omkring den, och
+     här finns ingen text omkring. Understrykningen kommer tillbaka vid
+     hovring och tangentbordsfokus, alltså i de lägen där den svarar på något
+     man gör. */
   .legend a .txt {
-    text-decoration: underline;
-    /* Understrykningen ligger annars i bokstävernas underhäng. Raden är 13 px,
-       och förvalet kryper då för nära. */
+    color: var(--brand);
+    text-decoration: none;
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
   }
@@ -283,8 +292,10 @@ function share(n: number): string | null {
      deras bläck ÄR länkfärgen; hos oss är blått det som säger "aktiv" i
      sökpanelen, i kartan och i pagineringen, och en post som inte svarar på
      pekaren läser som död. */
-  .legend a:hover { text-decoration: none; }
-  .legend a:hover .lbl { color: var(--brand-ink); }
+  .legend a:hover .txt,
+  .legend a:focus-visible .txt { text-decoration: underline; }
+  .legend a:hover .lbl,
+  .legend a:focus-visible .lbl { color: var(--brand-ink); }
 
   /* Talet och andelen delar rad, talet i bläck och andelen tyst efter det.
      Etiketten står under, alltså inte i motsatt kant. */
