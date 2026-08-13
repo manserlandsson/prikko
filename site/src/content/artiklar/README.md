@@ -183,3 +183,15 @@ ljusa, kaklade ytor som en 16 x 16-jämförelse i gråskala läser som lika meda
 motiven inte har något gemensamt. Talet 42,8 ovan gäller alltså de nitton
 bilder som fanns före den 13 augusti. Närmast bland de nya i övrigt är
 vattenglaset mot uteserveringen, på 43,3.
+
+### Artikeln om spårbarhet, den 13 augusti 2026
+
+| Artikel | Bild |
+|---|---|
+| `sparbarhet-varifran-kommer-maten` | Plastade kartonger på pall i en lagergång. Freek Wolsink, Pexels 34221998. |
+
+Beskärningen är gjord med bestämd avsikt och ska inte flyttas tillbaka.
+Originalet har en skylt i vänsterkanten som bär ett läsbart organisationsnamn,
+och bilden är därför beskuren från vänster i stället för centrerat. Det som blir
+kvar är gången med staplarna, vilket är precis vad artikeln handlar om: pallar
+som ser likadana ut och bara går att skilja åt på pappret som följer dem.
