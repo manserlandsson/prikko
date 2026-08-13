@@ -13,6 +13,7 @@
  * här, och listan kan inte visa en rapport som inte finns.
  */
 import Base from '../../layouts/Base.astro';
+import Maskot from '../../components/Maskot.astro';
 import { REPORTS, dataUpdated } from '../../lib/rapporter';
 import { coverage, formatDate, formatNumber } from '../../lib/data';
 import { SITE } from '../../lib/site';
@@ -48,6 +49,17 @@ const jsonLd = {
 >
   <article class="container page">
     <header>
+      {/* `hittat` får sin första yta här, och den är rätt vald och inte bara
+          ledig. Läget betyder "något hittades och det är sidans poäng", och
+          det är ordagrant vad rubriken säger. docs/24 §3 hade det som
+          kandidat för "en sökning som ger många träffar", vilket är en yta som
+          per frekvensregeln aldrig kan få en figur: den ytan är sökresultatet
+          och står på varje sökning som lyckas.
+
+          Listan under rubriken är RAPPORTER och inte verksamheter. Varje
+          rapport räknar på hela beståndet, alltså finns ingen namngiven
+          verksamhet någonstans på sidan. */}
+      <Maskot pose="hittat" size={88} class="avsandare" />
       <p class="eyebrow">Rapporter</p>
       <h1>Vad {formatNumber(total.inspections)} kontroller visar</h1>
       <p class="lede text-secondary">
@@ -82,6 +94,35 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Se om.astro för formen. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  /* Listan börjar med en hårlinje över hela bredden. Den får aldrig dras upp
+     bredvid figuren, eftersom en linje som slutar mitt i ingenting läser som
+     ett fel. */
+  .list { clear: right; }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

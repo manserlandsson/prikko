@@ -10,6 +10,7 @@
  */
 import Base from '../../layouts/Base.astro';
 import AwardSeal from '../../components/AwardSeal.astro';
+import Maskot from '../../components/Maskot.astro';
 import { coverage, formatDate, formatNumber } from '../../lib/data';
 import { SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
@@ -170,6 +171,22 @@ const jsonLd = {
     </section>
 
     <section id="ribban">
+      {/* Figuren står HÄR och inte i sidhuvudet, och båda skälen är hårda.
+          Sidhuvudet följs direkt av märket i 200 px, och två blå figurer i rad
+          läser som ett par och inte som en avsändare och ett emblem. Och det
+          här avsnittet är det enda på sidan där tjänsten förklarar sitt eget
+          resonemang, alltså samma sorts yta som metodikens granskare, samma
+          pose och samma form.
+
+          Ingen verksamhet nämns någonstans på sidan: de namngivna är
+          KOMMUNER, och listorna med verksamheter ligger på egna sidor som
+          inte får någon figur.
+
+          Det som docs/24 §6 lämnar öppet för ägaren är EMBLEMET, alltså den
+          fil en verksamhet laddar ner och sätter i sitt fönster. Den frågan är
+          orörd av det här: emblemet ritas i lib/marke.ts och har ingen
+          grävling. */}
+      <Maskot pose="soker" size={80} class="avsandare" />
       <h2>Varför ribban är olika i olika kommuner</h2>
       <p>
         Utgåvan är en lista per kommun, och ribban räknas fram ur den kommunens
@@ -404,6 +421,24 @@ const jsonLd = {
     border-radius: 0 var(--r-control) var(--r-control) 0;
     font-size: var(--fs-body-s);
     line-height: 21px;
+  }
+
+  /* Flyter till höger om avsnittets text, samma form som metodiksidan. */
+  #ribban :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  /* Rutan med den viktigaste brasklappen står för sig själv. En inramad ruta
+     som viker sig runt en figur läser som ett bildtextfält. */
+  #ribban .callout { clear: right; }
+
+  @media (max-width: 700px) {
+    #ribban :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
   }
 
   .method {

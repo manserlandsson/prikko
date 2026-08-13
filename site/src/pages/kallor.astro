@@ -9,6 +9,7 @@
  */
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { creditLine } from '../lib/artikelbilder';
 import { path } from '../lib/urls';
 import {
@@ -132,6 +133,11 @@ const jsonLd = {
 >
   <article class="container page">
     <header>
+      {/* `soker` och inte `clean`. Läget betyder att figuren letar med blicken
+          bortåt, och den här sidan handlar om var uppgifterna hämtas ifrån.
+          Tabellen längre ned räknar upp KOMMUNER och inte verksamheter, alltså
+          finns ingen bedömning av någon namngiven verksamhet på sidan. */}
+      <Maskot pose="soker" size={88} class="avsandare" />
       <p class="eyebrow">Källor</p>
       <h1>Varifrån datan kommer</h1>
       <p class="lede text-secondary">
@@ -331,6 +337,31 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Se om.astro för formen. Samma regel på varje sida där avsändaren står i
+     sidhuvudets text: flyter höger, faller ovanför på smal skärm. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

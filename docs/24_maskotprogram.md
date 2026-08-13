@@ -86,8 +86,15 @@ bara säger att en sida är tom.
 | **Kvittens efter en handling** | `nojd` + `m-nick` | Byggd, `ratta.astro`. Reservvägen bredvid är ett fel och får ingen figur. |
 | **Avsked** | `clean` + `m-vinka` | Byggd, `sluta-bevaka.astro`. Enda posen med tassen uppe. |
 | **Startsidans hero** | `soker` eller `clean` | Sajten presenterar sig. Ingen enskild verksamhet på skärmen. Inte byggd, se §6. |
-| **Om, metod, kontakt** | `clean` | Sidor där tjänsten talar om sig själv. Metodiken är byggd. |
+| **Metodiken** | `soker` | Tjänsten förklarar sin egen beräkning. Byggd, `metodik.astro`. |
+| **Om** | `clean` | Tjänsten talar om sig själv. Byggd, `om.astro`. |
+| **Källor** | `soker` | Var uppgifterna hämtas. Tabellen räknar KOMMUNER, inte verksamheter. Byggd, `kallor.astro`. |
+| **Webbkartan** | `clean` | Innehållsförteckningen över sajten. Byggd, `webbkarta.astro`. |
+| **Rapporternas index** | `hittat` | Vad hela beståndet visar. `hittat` får sin första yta här. Byggd, `rapporter/index.astro`. |
+| **Utmärkelsens ingång** | `soker` | I avsnittet som förklarar ribban, inte i sidhuvudet. Byggd, `utmarkelser/index.astro`. |
+| **De tre juridiska sidorna** | `clean` | Villkor, integritetspolicy, kakor. Avvägningen i §5d. Byggda. |
 | **Bevakningsmejlets huvud** | `soker` | Ett mejl är inte en offentlig lista. Byggd, se noten nedan. |
+| **Inloggningsmejlets huvud** | `soker` | Brevet nämner ingen verksamhet alls. Byggd, `pipeline/auth_magic_link_email.html`. |
 | **Delningsbilder** | Valfritt | Bara kommun-, kategori- och kedjesidor. Aldrig en enskild verksamhet, av samma skäl som matsnusk. |
 
 **Kartans tomma utsnitt är statiskt, och båda skälen är hårda.** Kartan ligger
@@ -131,6 +138,26 @@ Tekniskt: Gmail rensar bort SVG och Outlook renderar den inte alls, så mejlet
 använder en PNG på en publik adress. Den rasteriseras ur samma figur som allt
 annat av `brand/bygg-appikon.mjs`, eftersom en figur som ritas för hand vid
 sidan av slutar likna produkten.
+
+### Sidhuvudets ruta är samma tal som sidfoten, och den räknades
+
+Inloggningsrutan stod på listan över ytor figuren skulle få, och det är rätt
+ställe att fråga: rutan nämner ingen verksamhet, bedömer ingenting och är den
+enda ytan på sajten där någon frivilligt stannar upp i tjugo sekunder.
+
+Svaret är ändå nej, och skälet står i `layouts/Base.astro` och inte i den här
+filen. **`SignInDialog` ligger i baslayouten**, alltså renderas den som ett
+stängt `<dialog>` på samtliga 16 616 sidor, inklusive de 15 900
+verksamhetssidorna. En figur i den rutan är därför inte en yta, det är hela
+bygget: 16 616 gånger figurens 4 707 B gzippat är **78 MB**.
+
+Det är exakt samma tal som sidfoten och sökpanelen ger, och det är därför den
+här noten står här och inte i en kommentar i rutan: **frågan kommer att ställas
+igen om varje ruta som ligger i layouten**, och svaret är alltid detsamma.
+Ytan är inte fel, mängden är det.
+
+Samma sak gäller omdömesrutan i `Reviews.astro` och jämförelserutan, med ett
+skäl till: båda handlar om en namngiven verksamhet.
 
 ### Frekvensregeln
 
@@ -464,6 +491,46 @@ vars båda kanter rör sig åt olika håll.
 Blinkningen gäller bara vid `clean`. Att låta en verksamhet med brister blinka
 vore att sockra ett underkännande.
 
+## 4e. Skuggan var en ellips som stod skriven som ett piller
+
+Duolingos illustrationsguide kräver att skuggan under en karaktär ritas som en
+**pillerform och aldrig som en ellips**, eftersom en ellips är en cirkel sedd i
+vinkel och därmed antyder ett perspektiv som resten av teckningen inte har. Vår
+figur står i rak vy: kroppen, fötterna och marken har ingen flykt någonstans,
+alltså gäller regeln oss.
+
+Källan i `brand/maskot/gravling.mjs` PÅSTOD redan att skuggan var ett piller.
+Meningen efter påståendet sa samtidigt att banan var ritad genom `mjuk`,
+"alltså utan ett enda rakt parti", och **ett piller består av två raka
+partier**. Påståendet motsade alltså sin egen andra mening, och ingen hade
+någonsin mätt vilken av de två meningarna som var sann.
+
+Mätningen: den gamla banan samplades i 32 punkter längs överkanten och
+jämfördes med både formerna i samma ram, 48 × 12 enheter.
+
+| | Medelavvikelse | Största avvikelse |
+|---|---|---|
+| mot en riktig pillerform | 0,738 enheter | 2,04 vid x 78 |
+| mot en ren ellips | **0,233 enheter** | 0,41 |
+
+Vid 120 px ritruta är en enhet en pixel. Skuggan låg alltså **tre gånger
+närmare ellipsen än pillret den utgav sig för att vara**, och den syns på varje
+förekomst av figuren.
+
+Skuggan är nu en riktig pillerform, `M40 106H76A6 6 0 0 1 76 118H40A6 6 0 0 1
+40 106Z`. Ramen är oförändrad, x 34..82 och y 106..118, alltså radie 6 och två
+raka partier på 36 enheter. Ingenting flyttar sig av rättelsen, bara formen
+mellan kapparna, och båda rörelserna som rör skuggan, `m-in-skugga` och
+`m-hoppskugga`, är transformer och berörs inte.
+
+Ett sidoresultat värt att skriva: en pillerbana är **320 tecken kortare** än
+tolv kubiska segment, alltså blev varje figur i bygget mindre av rättelsen.
+
+**Sensmoralen är den tredje i samma serie**, efter sweep-flaggan i
+`maskot-mun.mjs` och munreserven i §3b: ett påstående i en kommentar är inte en
+mätning. Det som aldrig mäts driver, och det driver tyst, eftersom en kommentar
+som säger rätt sak får ingen att titta efter.
+
 ## 4b. Vad forskningen säger emot oss
 
 Det starkaste motargumentet mot en maskot i vår kategori är inte estetiskt.
@@ -707,6 +774,43 @@ Alltså: en figur kostar mellan tre och nio kilobyte beroende på vad som redan
 står på sidan, och **den dyraste sidan är den tunnaste**. Hela programmet väger
 846 597 B rått och 231 509 B gzippat över bygget, snitt 6 809 B per sida.
 
+### De åtta nya ytorna kostade mindre än någon av de gamla, och skälet är rörelsen
+
+Mätt med samma metod: den byggda sidan utan figur mot exakt samma dokument med
+komponentens markup inklistrad där komponenten skriver den.
+
+| Sida | Rått | Gzip med figur | Gzip utan | Påslag |
+|---|---|---|---|---|
+| `/integritetspolicy/` | 72 885 B | 19 801 B | 14 602 B | **5 199 B** |
+| `/utmarkelser/` | 66 687 B | 17 331 B | 12 140 B | 5 191 B |
+| `/webbkarta/` | 86 281 B | 18 356 B | 13 150 B | 5 206 B |
+| `/kallor/` | 74 713 B | 19 114 B | 13 435 B | 5 679 B |
+| `/om/` | 57 190 B | 15 055 B | 9 091 B | 5 964 B |
+| `/villkor/` | 62 727 B | 16 773 B | 10 668 B | 6 105 B |
+| `/cookies/` | 62 021 B | 16 636 B | 10 523 B | 6 113 B |
+| `/rapporter/` | 59 507 B | 15 422 B | 9 255 B | **6 167 B** |
+
+**Summa 45 624 B gzippat för åtta ytor, snitt 5 703 B.** Alla åtta ligger under
+det gamla snittet 6 809 B och långt under de 9 408 B en tunn sida med rörelse
+kostar, och skälet är att **ingen av de åtta bär rörelse.**
+
+Spannet 5 199 till 6 167 bekräftar dessutom regeln §5c redan slagit fast, nu
+med åtta nya mätpunkter: **den dyraste sidan är den tunnaste.**
+Integritetspolicyn är den största av de åtta och den billigaste att sätta en
+figur på, rapportindexet det minsta och det dyraste. Ju mer text som redan
+finns att komprimera figuren mot, desto mindre kostar den.
+
+Räknat på det gamla snittet hade åtta ytor kostat 54 472 B, alltså är de 45 624
+ett val och inte tur: **de åtta är textsidor och inte händelser, och en
+textsida ska inte betala 2 826 B för en rörelse ingen kommer tillbaka för att
+titta på.** Rörelse hör till det som HÄNDER, alltså en kvittens, ett avsked, en
+sökning som gick i tomma intet. Kontrollerat i bygget: rörelsekatalogen ligger
+på 27 sidor, och ingen av de åtta nya är en av dem.
+
+Skuggans rättelse i §4e drar tillbaka en del av kostnaden. Uppmätt i samma
+bygge, genom att byta tillbaka den gamla banan i sju färdiga dokument: 137 till
+198 B gzippat per figur, snitt 166 B, alltså **7,6 kB över de 47 sidorna**.
+
 ### Katalogen bar sina egna kommentarer ut i varje dokument
 
 Det var en riktig bugg och inte en skönhetsfläck. `maskot-rorelse.css` skrivs in
@@ -739,14 +843,101 @@ eftersom ingen hade anledning att titta på storleken av något som "bara är CS
 
 ### Summan, och svaret på nästa fråga
 
-Figuren står på **34 sidor av 16 611**, alltså 0,2 procent. Listan är framtagen
-genom att söka igenom hela `dist` och inte genom att räkna upp vad någon minns,
-och samma sökning bekräftar två saker: ingen sida bär mer än EN figur, och ingen
-verksamhetssida bär någon.
+Figuren står på **47 sidor av 16 616**, alltså 0,28 procent. Räknat i ett
+färdigt bygge den 13 augusti 2026 genom att söka igenom hela `dist`, inte genom
+att räkna upp vad någon minns. Ingen sida bär mer än EN figur, och ingen
+verksamhetssida bär någon: de 33 sidorna på djup två är 23 artiklar, åtta
+kommunkartor och två kontosidor, och ingenting annat.
 
-Jämförelsen som avgör varje framtida fråga: figuren i sidfoten eller i
-sökpanelen hade betytt 15 916 sidor gånger omkring 6 kB, alltså **närmare
-100 MB gzippat**, och det är svaret nästa gång frågan ställs.
+| Yta | Sidor | Rörelse |
+|---|---|---|
+| Artikelfoten | 23 | ja |
+| Kartans tomma utsnitt | 8 | nej |
+| De tre juridiska sidorna | 3 | nej |
+| Om, källor, webbkartan, rapporterna, utmärkelsen | 5 | nej |
+| 404 | 1 | ja |
+| Metodiken | 1 | nej |
+| Tom notislista, tom granskningskö, konto utan bevakningar | 3 | nej |
+| Tomt sökresultat | 1 | ja |
+| Kvittensen på rättelsen | 1 | ja |
+| Avskedet i sluta-bevaka | 1 | ja |
+
+**Talet 34 i förra genomgången är inte samma sak som 47 minus åtta.**
+Artiklarna gick från 18 till 23 medan det här arbetet pågick, alltså växte
+figurens spridning med fem sidor utan att någon fattade ett beslut om det.
+Artikelfoten är den enda ytan i tabellen som skalar med innehållet, och den är
+därmed den enda som kan glida. Det är värt att veta nästa gång någon läser
+listan och tror att den är statisk.
+
+Därtill två mejlhuvuden, som inte är sidor: bevakningsmejlet och
+inloggningsmejlet. Båda använder samma PNG på samma adress, alltså kostar det
+andra brevet 577 byte markup och noll nya hämtningar.
+
+Jämförelsen som avgör varje framtida fråga: figuren i sidfoten, i sökpanelen
+eller i inloggningsrutan hade betytt 16 616 sidor gånger figurens 4 707 B,
+alltså **78 MB gzippat**, och det är svaret nästa gång frågan ställs. Hela
+programmets fyrtiosju sidor väger tre promille av det talet.
+
+## 5d. De juridiska sidorna, och de fyra ytorna som prövades och föll
+
+Ägaren har sagt "lägg till prikko maskoten överallt". Det är en beställning och
+inte en fråga, alltså är arbetet nedan en genomgång av var "överallt" faktiskt
+går, och inte en prövning av om figuren förtjänar plats.
+
+### Villkor, integritetspolicy och kakor: figuren står där, och motargumentet ska ändå stå skrivet
+
+De tre sidorna har figuren i `clean`, i sidhuvudet, utan rörelse.
+
+*Vad som talar för:* den bärande regeln är orörd. Ingen verksamhet nämns,
+ingenting bedöms, och sidorna är den renaste formen av "tjänsten talar i eget
+namn" som finns i bygget. Tre sidor av 16 616 rör inte frekvensregeln.
+
+*Vad som talar emot, och det ska inte skrivas bort:* GitHubs publika
+designsystem säger "Don't use mascots for serious topics. Money, security,
+sales, enterprise offerings, apologies, politics or crises should have proper
+copywriting, illustration, and visuals." Och Duolingo har ingen Duo på sin
+villkorssida, uppmätt 12 augusti 2026.
+
+*Varför det ändå blev ja:* GitHubs regel handlar om att en maskot inte ska
+BÄRA ett allvarligt budskap, alltså förklara, ursäkta eller sälja. Figuren gör
+ingenting av det här. Den står i sidhuvudet, den har ingen replik, den är i
+neutralt viloläge, och texten under den är ordagrant oförändrad. Skillnaden
+mellan en avsändare på en sida och en figur inuti ett resonemang är densamma
+som skiljer märket från maskoten i §2.
+
+Villkoret är hårt och samma sort som mejlets: **figuren stannar i sidhuvudet.**
+Kommer den någonsin ned bredvid en enskild bestämmelse, en ansvarsbegränsning
+eller ett samtycke är det fel, och då ska den bort. `.meta { clear: right; }`
+på alla tre sidorna finns just för det: datumraden, som är sidans juridiskt
+verksamma uppgift, kan inte hamna i figurens flöde.
+
+### Fyra ytor som prövades och föll, med skälen
+
+**Kedjornas register, `/kedja/`.** Sidan är i sin helhet en tabell över
+namngivna företag. Ingen bedömning finns där, bara antal ställen och kommuner,
+alltså stoppar inte den bärande regeln den. Förbud nummer två gör det:
+maskoten står inte i en lista, och en sida vars enda innehåll ÄR listan är
+samma sak sedd uppifrån. Delningen i §2 säger att listor är märkets yta.
+
+**Artiklarnas index, `/artiklar/`.** Inte byggd, och skälet är inte principiellt:
+artiklarna byggs om av någon annan just nu. Ytan är i sig tillåten, artikelfoten
+bär redan figuren på arton artikelsidor, och den som tar upp frågan igen ska
+läsa den här raden och inte tro att den föll på en regel.
+
+**Jämförelsen, `/jamfor/`.** Sidan finns för att ställa två namngivna
+verksamheters bedömningar bredvid varandra. Att den är tom innan man valt gör
+den inte till ett tomt läge, den är ett formulär före sin ifyllnad.
+Jämförelserutan står redan uppräknad i §2 bland det som aldrig får ha figur.
+
+**Landningssidan för tredjepartsinloggning, `konto/inloggad.astro`.** Den
+enda äkta laddytan i bygget, alltså precis den yta där W3C tillåter en loop och
+där gångcykeln i `maskot/gang.svg` hör hemma. Den föll på att sidans ANDRA
+läge är ett feltillstånd: samma stycke som säger "Ett ögonblick" byts mot
+"Inloggningen gick inte igenom", och §2 punkt 8 förbjuder figuren i
+feltillstånd. En figur som står kvar och ser glad ut när en inloggning
+misslyckats är exakt det Puzakova beskriver i §4b. Sidan visas dessutom i
+några hundra millisekunder och bara för den som loggat in med Google eller
+Apple, alltså skulle sex kilobyte betala för något nästan ingen hinner se.
 
 ## 6. Vad som återstår
 
@@ -780,17 +971,35 @@ sökpanelen hade betytt 15 916 sidor gånger omkring 6 kB, alltså **närmare
   alltså det motsatta hos oss, och det är skälet till att vi redan gjort
   avsteget på 404. Frågan är om hjälpen är ett andra avsteg eller gränsen.
 
-  Byggs inte förrän beslutet är fattat.
+  **Beslutet är nu fattat, och det gick åt andra hållet.** Ägaren har sagt
+  "lägg till prikko maskoten överallt", och hjälpens ingång är en sida där
+  tjänsten talar om sig själv, alltså samma sorts yta som om- och
+  metodiksidan. Duolingoargumentet ovan står kvar som det tyngsta belägget
+  emot, och det ska läsas av den som en dag vill ta bort figuren igen: det
+  faller på att deras frekvens är den motsatta, inte på att det är fel.
 
-- **Skuggans form är inte prövad.** Duolingos illustrationsguide kräver att
-  skuggan under en karaktär är en pillerform och aldrig en ellips, eftersom en
-  ellips antyder ett perspektiv som resten av teckningen inte har. Vår figur har
-  en skugga, `r-skugga` i riggen, och den formen har aldrig ställts mot den
-  regeln. Det är en liten sak som syns på varje förekomst, alltså värd en egen
-  mätning i provarket. Görs inte nu.
-- **Utmärkelsen är ett öppet val, och det är ägarens.** Den är gränsfallet åt
-  andra hållet: en glad grävling bredvid någon som klarat sig är beröm och inte
-  hån, så den bärande regeln stoppar den inte.
+  **Byggd är den ändå inte, och skälet är tillfälligt.** `hjalp.astro` och
+  `kontakt.astro` görs om i sin form just nu, eftersom ägaren kallat dem
+  "otroligt fula, under all kritik". En figur som läggs in mitt i en
+  formändring blir antingen överskriven eller ivägen. Beställningen till den
+  som gör om formen:
+
+  > EN figur på hjälpens ingångssida, `pose="clean"`, `size={88}`, klassen
+  > `avsandare` och samma flytande form som `om.astro` och `kallor.astro`
+  > redan bär. Ingen rörelse. Ingen figur på de enskilda svaren: ett svar man
+  > kommit till för att lösa ett problem är precis Mailchimps förbud, figuren
+  > ger aldrig återkoppling på en uppgift. Kontaktsidan får samma som om-sidan,
+  > `clean` i sidhuvudet, eftersom §2 redan räknar upp kontakt bland de
+  > tillåtna.
+
+- ~~**Skuggans form är inte prövad.**~~ **Mätt och rättad.** Se §4e.
+- **Utmärkelsens EMBLEM är ett öppet val, och det är ägarens.** Frågan gäller
+  filen en verksamhet laddar ner och sätter i sitt fönster, inte
+  utmärkelsens ingångssida: den har nu en figur i avsnittet om ribban, se
+  tabellen i §2. Emblemet ritas i `lib/marke.ts` och har ingen grävling.
+
+  Emblemet är gränsfallet åt andra hållet: en glad grävling bredvid någon som
+  klarat sig är beröm och inte hån, så den bärande regeln stoppar den inte.
 
   *För:* det är den enda ytan där en verksamhet frivilligt sätter upp vårt märke
   i sitt fönster, alltså vår mest spridda yta. En figur är mer minnesvärd än ett

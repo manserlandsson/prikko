@@ -63,6 +63,7 @@
  * tillgängligt som godta.
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { PUBLISHER } from '../lib/site';
 
 const UPDATED = '3 augusti 2026';
@@ -74,6 +75,13 @@ const UPDATED = '3 augusti 2026';
 >
   <article class="container page">
     <header>
+      {/* Se villkor.astro för avvägningen. Den här av de tre sidorna är
+          dessutom den enda som har ett positivt besked att ge, alltså att det
+          inte finns någon ruta att klicka bort, och det är just en sådan sida
+          en avsändare får stå på. Figuren står ändå i `clean` och inte i
+          `nojd`: `nojd` betyder att en HANDLING gick igenom, och besökaren har
+          inte gjort något här. */}
+      <Maskot pose="clean" size={88} class="avsandare" />
       <p class="eyebrow">Kakor och lagring</p>
       <h1>Vad som lagras i din webbläsare</h1>
       <p class="lede text-secondary">
@@ -232,6 +240,32 @@ const UPDATED = '3 augusti 2026';
 </Base>
 
 <style>
+  /* Se om.astro för formen. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .meta { clear: right; }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

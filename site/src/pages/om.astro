@@ -7,6 +7,7 @@
  * att publicera osanning på just den sida vars enda syfte är trovärdighet.
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { SITE, PUBLISHER } from '../lib/site';
 import { absolute } from '../lib/urls';
 import { coverage } from '../lib/db';
@@ -31,6 +32,11 @@ const jsonLd = {
 >
   <article class="container page">
     <header>
+      {/* Maskoten som AVSÄNDARE, vilket är hela hans definition. Om-sidan är
+          den renaste formen av ytan: sajten talar om sig själv, ingen
+          verksamhet nämns och ingenting bedöms. docs/24 §2 räknar redan upp
+          om-sidan bland de tillåtna, den var bara aldrig byggd. */}
+      <Maskot pose="clean" size={88} class="avsandare" />
       <p class="eyebrow">Om</p>
       <h1>Det nationella lagret som aldrig byggdes</h1>
       <p class="lede text-secondary">
@@ -111,6 +117,34 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Figuren flyter till höger om rubriktexten, samma grepp som metodiksidans
+     granskare. Booli sätter sin bild till höger om texten och inte ovanför
+     den, och skälet håller här: rubriken ska vara det första ögat läser.
+     shape-outside gör att raderna följer figurens rundning i stället för en
+     osynlig fyrkant. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

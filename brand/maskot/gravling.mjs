@@ -996,12 +996,36 @@ const UNDER = mjuk([
   [86.0, 100.0], [79.0, 114.0], [54.0, 117.0], [29.0, 114.0], [24.0, 100.0],
 ], 0.9);
 
-/* Skuggan är en pillerform, aldrig en oval: ovaler antyder perspektiv. Ritad
- * genom `mjuk`, alltså utan ett enda rakt parti. Marken är y 116. */
-const SKUGGA = mjuk([
-  [58, 106], [70, 106.4], [79, 108.8], [82, 112], [79, 115.2], [70, 117.6],
-  [58, 118], [46, 117.6], [37, 115.2], [34, 112], [37, 108.8], [46, 106.4],
-], 0.85);
+/* SKUGGAN ÄR EN PILLERFORM, ALDRIG EN OVAL, OCH NU ÄR DEN DET PÅ RIKTIGT.
+ *
+ * Regeln kommer ur Duolingos illustrationsguide: skuggan under en karaktär
+ * ritas som ett piller och aldrig som en ellips, eftersom en ellips är en
+ * cirkel sedd i vinkel och alltså antyder ett perspektiv som resten av
+ * teckningen inte har. Vår figur står i rak vy: kroppen, fötterna och marken
+ * har ingen flykt någonstans.
+ *
+ * Raden ovanför den här stod tidigare som ett PÅSTÅENDE om en bana som var
+ * ritad genom `mjuk`, alltså tolv punkter utan ett enda rakt parti, och ett
+ * piller BESTÅR av två raka partier. Påståendet motsade alltså sin egen
+ * andra mening. Uppmätt genom att sampla den gamla banan i 32 punkter längs
+ * överkanten och jämföra med både formerna i samma ram:
+ *
+ *   medelavvikelse mot en riktig pillerform   0,738 enheter
+ *   medelavvikelse mot en ren ellips          0,233 enheter
+ *   största avvikelse mot pillret             2,04 enheter, vid x 78
+ *   största avvikelse mot ellipsen            0,41 enheter
+ *
+ * Vid 120 px ritruta är en enhet en pixel. Skuggan var alltså en ellips i
+ * allt utom namnet, och tre gånger närmare ellipsen än pillret den utgav sig
+ * för att vara. Det syns på varje förekomst av figuren.
+ *
+ * Ramen är oförändrad, x 34..82 och y 106..118, alltså 48 x 12 med radien 6.
+ * Ingen yta flyttar sig av rättelsen, bara formen mellan kapparna. Marken är
+ * y 116.
+ *
+ * Sensmoralen är samma som sweep-flaggans och munreservens: ett påstående i
+ * en kommentar är inte en mätning, och det som aldrig mäts driver. */
+const SKUGGA = 'M40 106H76A6 6 0 0 1 76 118H40A6 6 0 0 1 40 106Z';
 
 /* ── Lemgenerator ─────────────────────────────────────────────────────── */
 

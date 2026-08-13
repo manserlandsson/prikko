@@ -24,6 +24,7 @@
  *    fråga ett AI-svar behöver kunna besvara ur EN sida (bibeln §6b).
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { coverage, formatDate, formatNumber } from '../lib/data';
 import { dataUpdated } from '../lib/rapporter';
 import { SITE } from '../lib/site';
@@ -88,6 +89,11 @@ const jsonLd = [
 >
   <div class="container page">
     <header>
+      {/* Innehållsförteckningen över sajten är den mest bokstavliga formen av
+          "tjänsten talar om sig själv". Länkarna nedanför går till KOMMUNER,
+          kartor, kategorier och rapporter, aldrig till en enskild verksamhet,
+          alltså finns ingen bedömning på skärmen. */}
+      <Maskot pose="clean" size={88} class="avsandare" />
       <p class="eyebrow">Webbkarta</p>
       <h1>Allt som finns på Prikko</h1>
       <p class="lede text-secondary">{answer}</p>
@@ -143,6 +149,35 @@ const jsonLd = [
 </Base>
 
 <style>
+  /* Se om.astro för formen. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  /* Hopprutan är brickor som bryter rad. Bredvid en flytande figur hade de
+     brutit på fel ställe och sedan hoppat tillbaka under henne, alltså två
+     olika radbrytningar i samma rad brickor. */
+  .jump { clear: right; }
+
   .page {
     padding-block: var(--s-12) var(--s-16);
   }

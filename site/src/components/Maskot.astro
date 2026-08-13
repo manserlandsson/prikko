@@ -30,9 +30,12 @@
  *
  * Mätt i ett färdigt bygge den 12 augusti 2026, 16 611 sidor, inte uppskattat.
  *
- *   Figurens svg          14 864 till 15 635 B rått, 4 944 till 5 147 gzippat
- *                         Spannet är riggen: en figur med rörelse bär en
- *                         namngiven led per del och väger 771 B mer.
+ *   Figurens svg          14 304 till 14 416 B rått, 4 703 till 4 721 gzippat
+ *                         Spannet är de sju lägena. En figur med rörelse bär
+ *                         dessutom en namngiven led per del och väger 771 B
+ *                         mer. Talen sjönk 364 B när skuggan blev en riktig
+ *                         pillerform i stället för tolv kubiska segment, se
+ *                         docs/24 §4e.
  *   Rörelsekatalogen      14 735 B rått, se noten vid KATALOG_UTAN_NOTER
  *
  * DE TALEN ÄR INTE PÅSLAGET. Ett gzippat dokument komprimeras som en helhet,
@@ -47,6 +50,7 @@
  *   /sluta-bevaka/        9 321 B   figur och rörelse, tunn sida
  *   /404                  9 329 B   figur och rörelse, tunn sida
  *   /ratta/               9 408 B   figur och rörelse, tunn sida
+ *   de åtta textsidorna   5 703 B   figuren ensam, snitt, spann 5 199..6 167
  *
  * Alltså: EN figur kostar mellan tre och nio kilobyte beroende på vad som
  * redan står på sidan, och den dyraste sidan är den tunnaste. Det är rimligt
@@ -60,7 +64,7 @@
  * listan är uttömmande, alltså framtagen genom att söka igenom hela dist och
  * inte genom att räkna upp vad någon minns.
  *
- *   Artikelfoten              18 sidor   + rörelse
+ *   Artikelfoten              23 sidor   + rörelse
  *   Kartans tomma utsnitt      8 sidor              bara kommunernas kartor
  *   404                        1 sida    + rörelse
  *   Metodiken                  1 sida
@@ -70,16 +74,34 @@
  *   Kontot utan bevakningar    1 sida
  *   Kvittensen på rättelsen    1 sida    + rörelse
  *   Avskedet i sluta-bevaka    1 sida    + rörelse
+ *   Om                         1 sida
+ *   Källor                     1 sida
+ *   Villkor                    1 sida
+ *   Integritetspolicy          1 sida
+ *   Kakor                      1 sida
+ *   Webbkartan                 1 sida
+ *   Rapporternas index         1 sida
+ *   Utmärkelsens ingång        1 sida
  *                             ────────
- *                             34 sidor av 16 611, alltså 0,2 procent
+ *                             47 sidor av 16 616, alltså 0,28 procent
  *
- * Hela programmet väger 846 597 B rått och 231 509 B gzippat över bygget,
- * snitt 6 809 B per sida. Kontrollerat i samma svep: ingen sida bär mer än EN
- * figur, och ingen verksamhetssida bär någon.
+ * De åtta nedersta tillkom på beställningen "lägg till prikko maskoten
+ * överallt", och de är alla textsidor där tjänsten talar i eget namn. INGEN av
+ * dem bär rörelse, och det är ett val: mätt i bygget kostar de 5 199 till
+ * 6 167 B gzippat styck, summa 45 624 B, mot omkring 9 400 B styck om de hade
+ * burit katalogen också. Rörelse hör till det som HÄNDER, alltså en kvittens,
+ * ett avsked, en sökning som gick i tomma intet. En villkorssida händer inte.
  *
- * Den dagen någon vill lägga figuren i sökpanelen eller i sidfoten är talet
- * 15 916 sidor gånger omkring 6 kB, alltså närmare 100 MB gzippat, och det är
- * svaret.
+ * Kontrollerat i samma svep: ingen sida bär mer än EN figur, och ingen
+ * verksamhetssida bär någon. Artikelfoten är den enda raden i listan som
+ * skalar med innehållet, alltså den enda som kan glida utan att någon beslutat
+ * något: den gick från 18 till 23 sidor under det här arbetet.
+ *
+ * Den dagen någon vill lägga figuren i sökpanelen, i sidfoten eller i
+ * inloggningsrutan är talet 16 616 sidor gånger 4 707 B, alltså 78 MB
+ * gzippat, och det är svaret. Inloggningsrutan är värd sitt eget namn i den
+ * meningen: den SER ut som en yta för en handfull sidor, men SignInDialog
+ * ligger i baslayouten och renderas alltså på alla.
  */
 import { FIGUR_MARKUP } from '../lib/face-geometri';
 import { rigga } from '../lib/maskot-rigg.mjs';

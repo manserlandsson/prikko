@@ -81,6 +81,7 @@
  * att hitta och citera.
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { PUBLISHER } from '../lib/site';
 
 const UPDATED = '3 augusti 2026';
@@ -92,6 +93,10 @@ const UPDATED = '3 augusti 2026';
 >
   <article class="container page">
     <header>
+      {/* Se villkor.astro för avvägningen på de tre juridiska sidorna.
+          `clean`, ingen rörelse, och figuren står i sidhuvudet och aldrig
+          bredvid en enskild bestämmelse. */}
+      <Maskot pose="clean" size={88} class="avsandare" />
       <p class="eyebrow">Integritetspolicy</p>
       <h1>Hur vi hanterar personuppgifter</h1>
       {/* Ingressen inledde med varifrån datan kommer och slutade med en
@@ -507,6 +512,32 @@ const UPDATED = '3 augusti 2026';
 </Base>
 
 <style>
+  /* Se om.astro för formen. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .meta { clear: right; }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);

@@ -42,6 +42,7 @@
  *      försäljning.
  */
 import Base from '../layouts/Base.astro';
+import Maskot from '../components/Maskot.astro';
 import { PUBLISHER, SITE } from '../lib/site';
 
 const UPDATED = '5 augusti 2026';
@@ -53,6 +54,15 @@ const UPDATED = '5 augusti 2026';
 >
   <article class="container page">
     <header>
+      {/* De tre juridiska sidorna, villkor, integritetspolicy och kakor, får
+          figuren i `clean` och ingenting annat. Avvägningen står i docs/24 §5d
+          och kortas här: den bärande regeln är orörd, eftersom ingen
+          verksamhet nämns och ingenting bedöms, och motargumentet är GitHubs
+          "Don't use mascots for serious topics". Det argumentet gäller TONEN i
+          en text och inte figurens närvaro som avsändare, och tonen i texten
+          nedanför är oförändrad: figuren står i sidhuvudet, inte bredvid en
+          klausul, och läget är det neutrala viloläget. Ingen rörelse. */}
+      <Maskot pose="clean" size={88} class="avsandare" />
       <p class="eyebrow">Användarvillkor</p>
       <h1>Villkor för att använda Prikko</h1>
       {/* Ingressen räknade också upp vad de följande rubrikerna handlar om.
@@ -254,6 +264,34 @@ const UPDATED = '5 augusti 2026';
 </Base>
 
 <style>
+  /* Se om.astro för formen. */
+  header :global(.avsandare) {
+    float: right;
+    margin: 0 0 var(--s-3) var(--s-6);
+    shape-outside: circle(50%);
+  }
+
+  @media (max-width: 700px) {
+    header :global(.avsandare) {
+      float: none;
+      margin: 0 0 var(--s-3);
+    }
+  }
+
+  /* Floaten stängs in i sidhuvudet. Rubriktexten är alltid högre än 88 px i
+     dag, alltså syns raden aldrig, och det är precis skälet till att den ska
+     stå: den dag någon kortar en rubrik faller figuren annars ned över
+     avsnittet under utan att något varnar. */
+  header::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  /* Datumraden får aldrig hamna bredvid figuren. Den är sidans juridiskt
+     verksamma uppgift och ska stå på egen rad under rubriktexten. */
+  .meta { clear: right; }
+
   .page {
     max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
