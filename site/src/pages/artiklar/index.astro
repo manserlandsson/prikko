@@ -6,37 +6,74 @@
  * FÖREBILDEN, MÄTT
  * ---------------------------------------------------------------------------
  * booli.se/kunskap och booli.se/kunskap/kategori/nytt-pa-booli, mätta i
- * webbläsaren 2026-08-13 i 1440 och 375 px bredd. Talen nedan är avlästa, inte
- * uppskattade, och de är översatta till våra tokens i stället för kopierade
- * som pixlar.
+ * webbläsaren 2026-08-13 i 1440, 800 och 390 px bredd. Talen nedan är avlästa,
+ * inte uppskattade, och de är översatta till våra tokens i stället för
+ * kopierade som pixlar.
  *
  *   Rutnätet        980 = 620 huvudspalt + 48 glugg + 312 sidopanel.
  *                   Vi har samma proportion redan: verksamhetssidan kör
  *                   minmax(0, 1fr) 300px med --s-12 mellan, alltså 700 + 48
  *                   + 300 i vår 1080-behållare. Ingen ny bredd uppfanns.
- *   Ledartipset     Bild 980 × 312 (3,14:1) i hela behållarens bredd, rubrik
- *                   40/52/600, ingress 18/27 klippt vid fyra rader, sedan
- *                   datum och taggar. I mobil blir bilden 4:3 och rubriken
- *                   32/43.
- *   Listkorten      Bild 620 × 256 (2,42:1), rubrik 32/43,2, ingress 16/24
- *                   klippt vid fyra rader, tre i mobil. 48 px mellan korten.
+ *   Sidhuvudet      Rubrik 48/62,4/600, sedan ALLTID en ingress 18/27 på 707
+ *                   px, sedan bilden. Ingressen finns på båda sidtyperna.
+ *   Ledartipset     Bild 980 × 312 i hela behållarens bredd, rubrik 40/52/600,
+ *                   ingress 18/27 klippt vid fyra rader, sedan datum och
+ *                   taggar.
+ *   Listkorten      Bild 620 × 256, rubrik 32/43,2, ingress 16/24 klippt vid
+ *                   fyra rader. 48 px mellan korten, alltså 534 px per kort.
  *   Korten är inga  Genomskinlig bakgrund, ingen ram, ingen skugga, radie 0,
  *   kort            padding 0. Exakt vad docs/19 redan säger om Boolis
  *                   träffkort, och exakt den lärdom kommunbandet gav i
  *                   27318562: avgränsa med linje och luft, aldrig med en yta.
  *   Taggarna        #F0F0F0, radie 4, padding 4/8, 14/18,9 i vikt 400.
  *                   Datumet 16/21,6 i #767676.
- *   Sidopanelen     Två block, båda RIKTIGA kort: vitt, 1 px #E6E6E6, radie 6,
- *                   padding 16. Blockrubrik 18/24,3/600 med en hårlinje under
- *                   sig, 8 px under rubriken och 16 px till innehållet. Posten
- *                   i listan är miniatyr 100 × 75, 16 px glugg, titel
- *                   16/21,6/600, och posterna skiljs av hårlinjer.
+ *   Sidopanelen     FYRA block, alla RIKTIGA kort: vitt, 1 px #E6E6E6, radie
+ *                   6, padding 16. Blockrubrik 18/24,3/600 med en hårlinje
+ *                   under sig. Posten i listan är miniatyr 100 × 75, 16 px
+ *                   glugg, titel 16/21,6/600, hårlinjer emellan. Panelen är
+ *                   1 700 px lång mot en huvudspalt på 5 500.
  *   I mobil         Sidopanelen faller under HELA artikellistan, den vävs inte
  *                   in. Sidmarginal 16.
  *
  * Kontrasten mellan spalterna är hela poängen och den står redan i docs/19:
  * huvudinnehållet ligger öppet på sidan, sidopanelens block är kort. Det är
  * därför panelen läser som verktyg och listan som innehåll.
+ *
+ * ---------------------------------------------------------------------------
+ * DET MÄTNINGEN OVAN MISSADE FÖRSTA GÅNGEN
+ * ---------------------------------------------------------------------------
+ * Sidan byggdes en gång på talen ovan och blev ändå fel. Ommätt i tre bredder
+ * mot BÅDA deras sidtyper, och tre saker föll ut som inte syns om man bara
+ * mäter 1440.
+ *
+ *   1. Boolis bilder har LÅST HÖJD, inte proportion. Hjältebilden är 312 px
+ *      hög i 1440 och 312 px hög i 800. Kortbilden är 256 px hög i 1440, i 800
+ *      OCH i 390. Bara hjältebilden ändras, och bara på telefon (269).
+ *
+ *      Vi satte aspect-ratio i stället, plus en regel som gav 16:9 under 900.
+ *      Alltså växte varje bild när spalten smalnade, och exakt vid 899 px
+ *      hoppade kortbilden från 217 till 488 px hög. I 800 px fönster blev
+ *      sidan 18 051 px lång mot förebildens 8 842, med ett 768 × 432 foto per
+ *      artikel. Det var där sidan såg ut som ett bildspel. Höjderna är låsta
+ *      nu och proportionen får bli vad spalten gör den till, precis som hos
+ *      dem.
+ *
+ *   2. Kortpitchen var aldrig felet. Deras kategorisida, som är vår sidas
+ *      verkliga motsvarighet, kör 534 px per kort i 1440. Vi låg på 559. Att
+ *      stycka listan i miniatyrrader hade varit att lösa fel problem.
+ *
+ *   3. Rubriktrappan låg ett helt steg för lågt. Booli kör 48/40/32 i 1440 och
+ *      40/32/24 i 390. Vi hade skrivit 40/32/24 och satt det på en 1440-skärm,
+ *      alltså deras TELEFONTRAPPA i en 1048 px bred ram. Kortrubriken blev
+ *      1,41 gånger sin egen ingress där deras är 2,00, och en sida där allt är
+ *      nästan lika stort är precis det som läser som mall och inte som form.
+ *
+ *      Vår sans slutar på 40: 48 är --fs-hero och den bär sajtens enda serif,
+ *      på startsidan, och får inte lånas ut. Trappan blir därför display,
+ *      display, title. Ledaren och h1 hamnar på samma grad, och det är ett
+ *      medvetet val: mellan dem står en 320 px hög bild, och tokens säger
+ *      själva att sajten har TVÅ titelnivåer och inte fem. Ledaren och korten
+ *      landar då på Boolis egna tal, 40/52 och 32/43.
  *
  * ---------------------------------------------------------------------------
  * VARFÖR DET INTE FINNS KATEGORISIDOR
@@ -207,29 +244,20 @@ const jsonLd = {
     <header>
       <p class="eyebrow">Artiklar</p>
       <h1>Så fungerar livsmedelskontrollen</h1>
-      {/* Ingen ingress. Den sade att kontrollrapporterna är offentliga och
-          att vi översätter dem, alltså varifrån innehållet kommer och varför
-          sidan finns. Rubriken och korten under gör hela arbetet. */}
+      {/* Ingressen togs bort en gång och det var fel. Booli har en på båda
+          sina sidtyper, 18/27 på 707 px, och utan den står rubriken ensam
+          ovanpå en bild och sidan börjar utan att säga vad den innehåller.
+          Den här meningen påstår inget som inte står i listan under. */}
+      <p class="deck">
+        Guider och förklaringar om hur en kontroll går till, vad en anmärkning
+        betyder och hur du läser siffrorna vi publicerar.
+      </p>
     </header>
 
     {/* Allt som filtret rör måste ligga inuti samma rot, eftersom regeln är
         skriven som :has() på den. Ledaren ligger med: ett val som gömmer
         listans kort men lämnar kvar ledaren av fel sort vore trasigt. */}
     <div class="kunskap">
-      <fieldset class="filter">
-        <legend class="visually-hidden">Visa en sort</legend>
-        <input class="visually-hidden" type="radio" name="sort" id="sort-alla" checked />
-        <label class="chip" for="sort-alla">Alla <span class="tal">{articles.length}</span></label>
-        {val.map((v) => (
-          <>
-            <input class="visually-hidden" type="radio" name="sort" id={`sort-${v.id}`} />
-            <label class="chip" for={`sort-${v.id}`}>
-              {v.label} <span class="tal">{v.count}</span>
-            </label>
-          </>
-        ))}
-      </fieldset>
-
       {/* Ledaren. Panorama i hela behållarens bredd, som förebildens.
           Villkorad på att det finns en artikel alls: en tom samling är inget
           normalläge, men den ska ge en tunn sida och inte ett femhundrafel. */}
@@ -256,6 +284,25 @@ const jsonLd = {
 
       <div class="layout">
         <section aria-label="Fler artiklar">
+          {/* Filterraden stod först mellan rubriken och hjältebilden, och det
+              var sidans näst mest iögonfallande sak efter fotot: ett fyllt
+              blått piller där förebilden har ord. Den hör till listan och
+              står nu vid listan. Den ligger kvar inuti .kunskap, så :has()
+              når fortfarande både korten och ledaren. */}
+          <fieldset class="filter">
+            <legend class="visually-hidden">Visa en sort</legend>
+            <input class="visually-hidden" type="radio" name="sort" id="sort-alla" checked />
+            <label class="chip" for="sort-alla">Alla <span class="tal">{articles.length}</span></label>
+            {val.map((v) => (
+              <>
+                <input class="visually-hidden" type="radio" name="sort" id={`sort-${v.id}`} />
+                <label class="chip" for={`sort-${v.id}`}>
+                  {v.label} <span class="tal">{v.count}</span>
+                </label>
+              </>
+            ))}
+          </fieldset>
+
           <ul class="lista">
             {rest.map((a, i) => (
               <li class="item" data-sort={a.category}>
@@ -340,6 +387,13 @@ const jsonLd = {
     margin-top: var(--s-2);
   }
 
+  /* Förebildens ingress är 18/27 och full svärta, alltså inte tyst text. Vår
+     brödtextgrad är 17/26 och gör samma arbete; --w-read håller den på 680
+     som all annan brödtext på sajten. */
+  .deck {
+    margin-top: var(--s-4);
+  }
+
   /* ── Filterraden ─────────────────────────────────────────────────────────
      Chipsen är sajtens befintliga form, samma som kategorihubbens: piller,
      hårlinje, vit botten, --fs-caption i vikt 600, och märkesblå fyllning på
@@ -350,7 +404,7 @@ const jsonLd = {
     display: flex;
     flex-wrap: wrap;
     gap: var(--s-2);
-    margin: var(--s-8) 0 0;
+    margin: 0 0 var(--s-6);
     padding: 0;
     border: 0;
   }
@@ -464,45 +518,47 @@ const jsonLd = {
     padding-top: var(--s-12);
   }
 
-  /* Listbildens proportion är mätt, inte ärvd.
+  /* Bildens HÖJD är låst, inte dess proportion. Det är hela skillnaden mot
+   * förra bygget och det är vad förebilden gör.
    *
-   * Sajtens vanliga bildformat är 16:9, och det satt här först. På en 700 px
-   * spalt blir en 16:9-bild 394 px hög, kortet 653 och hela listan 13 400 px:
-   * ett kort per skärm, alltså ett bildspel och inte en lista. Booli kör 620 ×
-   * 256 på sina listkort, alltså 2,42:1, och får två rubriker per skärm. 12/5
-   * är samma proportion avläst i vår bredd. Artikelsidan visar bilden i 16:9
-   * som förut; det här är kortets utsnitt, inte bildens format. */
+   * En proportion växer när spalten smalnar. Kortbilden gick från 292 px hög i
+   * 1440 till 488 i 899, och sidan blev 18 051 px lång i ett 800 px fönster:
+   * ett foto per skärm. Booli mäter 256 px hög kortbild i 1440, i 800 och i
+   * 390, utan undantag. Höjden är alltså konstanten och proportionen är det
+   * som får ge med sig, och då blir ett smalare fönster en TÄTARE sida i
+   * stället för en längre.
+   *
+   * 256 och 320 ligger på fyra respektive fem --s-16, alltså i sajtens egen
+   * skala. Artikelsidan visar bilden i 16:9 som förut; det här är kortets
+   * utsnitt, inte bildens format. */
   .item :global(.photo) {
     display: block;
     width: 100%;
-    height: auto;
-    aspect-ratio: 12 / 5;
+    height: 256px;
     object-fit: cover;
     border-radius: var(--r-card);
     background: var(--card);
   }
 
-  /* Ledarens bild är ett panorama och inte en kortbild. Booli kör 3,14:1 på
-     980 px; 3:1 på våra 1048 är samma sak avläst i vår behållare. Under 900 px
-     är spalten hela skärmen, och där blir en 3:1-remsa en springa: då gäller
-     kortbildens 16:9, precis som förebilden går till en högre proportion i
-     mobil. */
   .lead :global(.photo) {
-    aspect-ratio: 3 / 1;
+    height: 320px;
   }
 
-  /* Tre rubriknivåer på sidan, och de måste vara tre.
+  /* Kortrubriken är --fs-title, alltså 32/43, och det är förebildens eget tal
+   * på just den här rubriken.
    *
-   * Booli kör 48 på sidtiteln, 40 på ledaren och 32 på listkorten, alltså tre
-   * steg. Vår skala har tre nivåer i samma spann och inte fyra: 40, 32, 24.
-   * Första försöket lade sidtiteln och ledaren på var sin 40 och korten på 32,
-   * och då stod två lika stora rubriker ovanpå varandra. Det är precis vad
-   * docs/19 kallar slarv snarare än två nivåer. Nu 40, 32, 24, med samma
-   * mobilsteg som tokens redan gör åt de två översta. */
+   * Här stod 24/32 förut, med motiveringen att sidan behövde tre steg. Talen
+   * sade något annat när de mättes om: 40/32/24 är Boolis MOBILTRAPPA. På
+   * 1440 kör de 48/40/32. Vi hade alltså satt deras telefonsida i en 1048 px
+   * bred ram, och kortrubriken blev bara 1,41 gånger sin ingress mot deras
+   * 2,00. Det är den flackheten man ser innan man ser något annat.
+   *
+   * I mobil gör tokens resten själva: --fs-title blir 27/36 och --fs-display
+   * 32/42, vilket är på pixeln vad Booli kör på 390. */
   .item h2 {
     margin-top: var(--s-4);
-    font-size: var(--fs-h);
-    line-height: var(--lh-h);
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
   }
 
   /* Bilden läggs in en artikel i taget, och luften ovanför rubriken hör till
@@ -514,9 +570,14 @@ const jsonLd = {
     margin-top: 0;
   }
 
+  /* Ledaren delar grad med h1, och det är avsiktligt. Vår sans slutar på 40:
+     48 är --fs-hero och bär sajtens enda serif på startsidan. Mellan de två
+     rubrikerna står en 320 px hög bild och en ingress, alltså skiljer dem en
+     bild och inte ett steg. Tokens säger själva att sajten har två
+     titelnivåer och inte fem. */
   .lead h2 {
-    font-size: var(--fs-title);
-    line-height: var(--lh-title);
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
   }
 
   /* Rubriken är länken. Träffytan görs kortstor med en pseudo-yta i stället
@@ -565,7 +626,14 @@ const jsonLd = {
      Riktiga kort, till skillnad från listan. .card ger vit yta, --r-card och
      hårlinjeringen ur --shadow-sm. Rubriken bär en linje under sig, precis
      som förebildens blockrubrik. */
+  /* Panelen är klistrad, som verksamhetssidans. Utan det stod två block på
+     514 px bredvid en spalt på flera tusen, alltså en tom högersida under
+     nittiofem procent av sidan. Booli slipper problemet genom att ha fyra
+     block och en kortare lista; vi har två block och tjugotre artiklar, och
+     då är det panelen som ska följa med i stället för att ta slut. */
   .side {
+    position: sticky;
+    top: var(--s-4);
     display: flex;
     flex-direction: column;
     gap: var(--s-6);
@@ -637,18 +705,29 @@ const jsonLd = {
 
   /* Panelen faller under HELA listan, den vävs inte in mellan korten. Samma
      sak som förebilden gör, och samma brytpunkt som verksamhetssidan. */
+  /* Panelen faller under HELA listan, den vävs inte in mellan korten. Samma
+     sak som förebilden gör, och samma brytpunkt som verksamhetssidan.
+
+     Bildhöjderna står kvar orörda här. Det var just en regel på den här
+     brytpunkten som gjorde smala fönster värst av alla: panelen försvann och
+     bilderna växte i samma ögonblick. */
   @media (max-width: 900px) {
     .layout {
       grid-template-columns: 1fr;
       gap: var(--s-12);
     }
 
-    /* Full skärmbredd. En 3:1-remsa blir en springa på en telefon och en
-       12/5 nästan lika smal, så båda går till kortformatet 16:9. Förebilden
-       gör samma sak åt samma håll: deras panorama blir 4:3 i mobil. */
-    .item :global(.photo),
+    .side {
+      position: static;
+    }
+  }
+
+  /* Telefonen är den enda bredd där hjältebilden får en egen höjd, precis som
+     hos förebilden: deras 312 blir 269 i 390 px och kortbilden står kvar på
+     256 hela vägen ned. */
+  @media (max-width: 640px) {
     .lead :global(.photo) {
-      aspect-ratio: 16 / 9;
+      height: 272px;
     }
 
     .lede {
