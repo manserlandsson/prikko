@@ -79,6 +79,10 @@ import { hasMark, markRatio } from '../lib/marke';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
+/* Ramen och MapLibres kontroller. Den här filen bar tidigare en egen kopia av
+   ramens fyra rader och sin egen typografi för kontrollerna, alltså exakt den
+   divergens kartram.css finns för att hindra. */
+import '../styles/kartram.css';
 
 interface Props {
   /**
@@ -488,6 +492,9 @@ const LEGEND = [
      Nålen bor i en egen fil och inte i kartbas.ts, eftersom kartbas importerar
      maplibre ur public och därför bara får laddas dynamiskt i webbläsaren. */
   import { faceSvg } from '../lib/kartnal';
+  /* Bara ordlistan. Kartbas laddar MapLibre dynamiskt inuti en funktion, så
+     en statisk import av en vanlig tabell drar inte in biblioteket. */
+  import { KART_SPRAK } from '../lib/kartbas';
   import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
   import { VERDICT } from '../lib/site';
@@ -2100,6 +2107,21 @@ const LEGEND = [
           ? { center: [startVy.lng, startVy.lat] as [number, number], zoom: startVy.zoom }
           : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
         attributionControl: false,
+        /* MapLibres knappar och etiketter på svenska. Se kartbas.ts. */
+        locale: KART_SPRAK,
+        /*
+         * `cooperativeGestures` står MEDVETET INTE här, till skillnad från
+         * sajtens tre andra kartor.
+         *
+         * Den här sidan är en app-yta utan sidskroll: `.page` i karta.astro är
+         * 100dvh med overflow: hidden, och under 900 px ligger kartan fixed
+         * under ett ark. Samarbetande gester lämnar över rullningen till
+         * sidan, och här finns ingen sida att lämna över till. Hjulet hade
+         * slutat zooma utan att något annat hände, och ett finger hade slutat
+         * panorera kartan, alltså det enda den här sidan finns för.
+         *
+         * Regeln är "karta i ett dokument", inte "karta". Se kartbas.ts.
+         */
       });
 
       /*
@@ -3020,12 +3042,8 @@ const LEGEND = [
   }
 
   /*
-   * Rundade hörn, hårfin kant, ingen skugga. Som Airbnbs karta.
-   *
-   * Ägarens ord: "rutan sitter liksom helt fast, är en perfekt fyrkant, fast
-   * med rundade hörn, och inget fluff". Radien är kortradien, kanten bara en
-   * hårlinje så att den ljusa kartan inte flyter ihop med sidan, och ingen
-   * skugga: kartan är en av sidans två halvor, inte ett kort som svävar.
+   * Bara måttet. Ramen själv (kant, radie, yta) och MapLibres kontroller bor i
+   * styles/kartram.css och delas med sajtens tre andra kartor.
    *
    * Höjden är dvh, inte vh, så att mobilens adressrad inte äter ur kartan.
    * Avdraget är sticky-avståndet upptill plus raden med teckenförklaringen
@@ -3033,13 +3051,8 @@ const LEGEND = [
    * stort i förhållande till det som faktiskt ligger ovanför och under.
    */
   .kartram {
-    position: relative;
     height: calc(100dvh - var(--s-8) - 56px);
     min-height: 440px;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    overflow: hidden;
-    background: var(--card);
   }
 
   .duk { position: absolute; inset: 0; }
@@ -3298,12 +3311,9 @@ const LEGEND = [
     line-height: 15px;
   }
 
-  /* MapLibres egna element bär inte Astros scope-attribut. */
-  .kartram :global(.maplibregl-map) {
-    font: 400 var(--fs-caption) / var(--lh-caption) var(--font-sans);
-  }
-
-  .kartram :global(.maplibregl-ctrl-attrib) { font-size: 10px; line-height: 14px; }
+  /* MapLibres typografi och kontroller: styles/kartram.css. De elementen bär
+     inte Astros scope-attribut, och de ska dessutom se likadana ut på sajtens
+     fyra kartor, så de stylas en gång i den delade filen. */
 
   /* ── Mobilarket ───────────────────────────────────────────────────────── */
 

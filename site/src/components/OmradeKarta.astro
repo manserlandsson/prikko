@@ -353,7 +353,7 @@ const omradet = JSON.stringify({
    * där: rutan ska synas, sidan ska vara klar, huvudtråden ska vara ledig, och
    * uppkopplingen ska tåla en halv megabyte.
    */
-  import { KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { KARTA_I_DOKUMENT, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
 
   const root = document.querySelector<HTMLElement>('[data-omradeskarta]');
 
@@ -466,6 +466,9 @@ const omradet = JSON.stringify({
           // lägger sig exakt där stillbildens punkter redan står.
           fitBoundsOptions: { padding: 0, animate: false },
           attributionControl: false,
+          /* Samarbetande gester och MapLibres ord på svenska. Kartan sitter
+             mitt i en sida man rullar, se kartbas.ts. */
+          ...KARTA_I_DOKUMENT,
         });
 
         karta.addControl(new FullscreenControl({ container: root! }), 'top-right');

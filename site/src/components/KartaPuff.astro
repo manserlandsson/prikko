@@ -166,7 +166,7 @@ const href = path(`/${kommun.slug}`, 'karta');
    * storlek) står därför utskrivna med en hänvisning till originalet.
    */
   import { FACE_KEYS, type FaceKey } from '../lib/face';
-  import { faceBitmap, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { faceBitmap, KARTA_I_DOKUMENT, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
 
   const root = document.querySelector<HTMLElement>('[data-kommunkarta]');
@@ -264,6 +264,9 @@ const href = path(`/${kommun.slug}`, 'karta');
           bounds: [[w, s], [e, n]] as [[number, number], [number, number]],
           fitBoundsOptions: { padding: 16, animate: false },
           attributionControl: false,
+          /* Samarbetande gester och MapLibres ord på svenska. Rutan sitter
+             mitt i kommunsidan, som man rullar, se kartbas.ts. */
+          ...KARTA_I_DOKUMENT,
         });
 
         // Helskärm på ramen och inte på duken, så att felraden följer med in.

@@ -144,7 +144,7 @@ const nal = faceSvg(key, derived);
    * modulkommentaren för varför den inte laddas direkt, och lib/kartbas.ts
    * för varför biblioteket laddas som statisk fil utanför paketeraren.
    */
-  import { KARTSTIL, faceBitmap, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { KARTA_I_DOKUMENT, KARTSTIL, faceBitmap, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
   import type { FaceKey } from '../lib/face';
 
   const root = document.querySelector<HTMLElement>('[data-platskarta]');
@@ -182,6 +182,9 @@ const nal = faceSvg(key, derived);
           center: [lng, lat],
           zoom,
           attributionControl: false,
+          /* Samarbetande gester och MapLibres ord på svenska. Kartan sitter
+             mitt i en sida man rullar, se kartbas.ts. */
+          ...KARTA_I_DOKUMENT,
         });
 
         // Helskärm på ramen, inte på duken: felraden och nålen ska följa med
