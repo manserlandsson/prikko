@@ -1,0 +1,242 @@
+---
+/**
+ * Rapport: sköter kedjorna sig bättre än de fristående?
+ *
+ * Talen kommer ur chainSplitReport(), den fasta texten beskriver metoden och
+ * förbehållen.
+ *
+ * Sidans hela poäng är att totalen och kategorierna inte säger samma sak, och
+ * att kategorierna är det riktiga svaret. Ordningen mellan avsnitten är därför
+ * en del av innehållet: totalen först, invändningen mot den direkt efteråt.
+ * Vänder man på dem läser sidan som om totalen vore facit med en fotnot.
+ *
+ * Meningarna om vem som ligger lägre grenar på tecknet i `gap` och räknas fram
+ * per kategori och per kommun. Ingen riktning står skriven i mallen.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+import { formatNumber } from '../../lib/data';
+import { MIN_CHAIN_INSPECTIONS, chainSplitReport, formatShare } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = chainSplitReport();
+
+const jamforbara = r.categories.filter((c) => c.comparable);
+const utanKedjor = r.categories.filter((c) => !c.comparable);
+const kedjanLagre = jamforbara.filter((c) => c.gap < 0);
+const kedjanHogre = jamforbara.filter((c) => c.gap > 0);
+
+/** Kategorin där avståndet är störst till kedjornas fördel. */
+const storst = [...jamforbara].sort((a, b) => a.gap - b.gap)[0];
+/** Kategorin med lägst andel anmärkningar bland de fristående. */
+const skotsammast = [...r.categories].sort((a, b) => a.soloShare - b.soloShare)[0];
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel som i de övriga rapporterna.
+ */
+const scope =
+  `${formatNumber(r.chainPlaces)} av ${formatNumber(r.places)} verksamheter i beståndet bär` +
+  ` namnet på en av de ${r.chains} kedjor vi känner igen. Resten räknas som` +
+  ' fristående, vilket också innebär att en lokal kedja utan post i registret' +
+  ' hamnar där.';
+
+const totalen =
+  Math.abs(r.total.gap) < 1
+    ? `Rakt av är skillnaden ${formatShare(Math.abs(r.total.gap))} procentenheter, alltså` +
+      ' ingen skillnad att tala om.'
+    : `Rakt av ligger ${r.total.gap < 0 ? 'kedjorna' : 'de fristående'}` +
+      ` ${formatShare(Math.abs(r.total.gap))} procentenheter lägre.`;
+
+const mixen =
+  skotsammast && utanKedjor.some((c) => c.id === skotsammast.id)
+    ? `Men de två grupperna innehåller inte samma saker. ${skotsammast.name} är den` +
+      ` kategori där minst andel kontroller ger anmärkning,` +
+      ` ${formatShare(skotsammast.soloShare)} procent, och den drivs i praktiken inte i` +
+      ` kedja: ${formatNumber(skotsammast.chainTotal)} av kategorins` +
+      ` ${formatNumber(skotsammast.chainTotal + skotsammast.soloTotal)} kontroller gäller ett` +
+      ' kedjeställe. Hela den kategorin ligger alltså på de fristående sidan och drar' +
+      ' ner deras total. Frågan går bara att besvara inom en kategori i taget.'
+    : 'Men de två grupperna innehåller inte samma saker, och andelen för hela' +
+      ' beståndet väger därför ihop olika sorters verksamhet. Frågan går bara att' +
+      ' besvara inom en kategori i taget.';
+
+const kategoriSvar =
+  kedjanLagre.length === jamforbara.length
+    ? 'I varje jämförbar kategori ligger kedjorna lägre.'
+    : kedjanHogre.length === jamforbara.length
+      ? 'I varje jämförbar kategori ligger kedjorna högre.'
+      : `Kedjorna ligger lägre i ${kedjanLagre.length} av ${jamforbara.length} jämförbara` +
+        ` kategorier: ${kedjanLagre.map((c) => c.short).join(' och ')}.` +
+        ` Högre ligger de i ${kedjanHogre.map((c) => c.short).join(' och ')}.`;
+
+const storstNot =
+  storst && storst.gap < 0
+    ? `Störst är avståndet i ${storst.short}, där kedjorna ligger` +
+      ` ${formatShare(Math.abs(storst.gap))} procentenheter under de fristående.`
+    : null;
+
+/**
+ * Förklaringen till butiksledet skrivs bara ut när butikerna FAKTISKT är den
+ * kategori där kedjorna ligger mest under. En förklaring till ett mönster som
+ * bytt plats i nästa hämtning är en osann mening.
+ */
+const butiksNot =
+  storst && storst.id === 'butik' && storst.gap < 0
+    ? 'En kedjebutik hämtar sortiment, märkning och rutiner från ett huvudkontor,' +
+      ' och märkning är det område som oftast fälls i en kontroll. Just där gör' +
+      ' den gemensamma pärmen mest nytta.'
+    : null;
+
+const utanKedjorNot =
+  utanKedjor.length > 0
+    ? `${utanKedjor.map((c) => c.short).join(' och ')} saknas i diagrammet: under` +
+      ` ${MIN_CHAIN_INSPECTIONS} kedjekontroller i beståndet.`
+    : null;
+
+/** Egen linjal för de två diagrammen, räknad ur de andelar som faktiskt ritas. */
+const tak = (varden: number[]) => Math.ceil(Math.max(...varden, 1) / 5) * 5;
+const kategoritak = tak(jamforbara.flatMap((c) => [c.chainShare, c.soloShare]));
+const kommuntak = tak(r.cities.flatMap((c) => [c.chainShare, c.soloShare]));
+
+const kommunScope =
+  `Nedan står varje kommun med minst ${MIN_CHAIN_INSPECTIONS} kedjekontroller.` +
+  (r.belowFloor > 0
+    ? ` ${r.belowFloor} av ${r.municipalities} kommuner faller bort på det golvet.`
+    : '');
+
+const kommunSvar =
+  r.chainLower === r.cities.length
+    ? `Kedjorna ligger lägre i samtliga ${r.cities.length} kommuner.`
+    : r.chainLower === 0
+      ? `Kedjorna ligger högre i samtliga ${r.cities.length} kommuner.`
+      : `Kedjorna ligger lägre i ${r.chainLower} av ${r.cities.length} kommuner och högre i` +
+        ` ${r.cities.length - r.chainLower}. Samma sak gäller här som i totalen: en kommun` +
+        ' med många kedjebutiker och få fristående butiker jämför inte riktigt samma' +
+        ' sorts verksamheter.';
+---
+
+<Rapport slug="kedja-eller-fristaende">
+  <section>
+    <h2>Två grupper</h2>
+    <p>{scope}</p>
+
+    <Diagram
+      titel="Andel kontroller med minst en anmärkning"
+      underlag={`${formatNumber(r.total.chainTotal + r.total.soloTotal)} kontroller i tolv kommuner.`}
+    >
+      <Stapel
+        label="Andel kontroller med minst en anmärkning, kedjeställen mot fristående"
+        scale={100}
+        avdelare
+        rows={[
+          {
+            label: 'Kedjeställen',
+            value: r.total.chainShare,
+            display: `${formatShare(r.total.chainShare)} %`,
+            note: `${formatNumber(r.total.chainRemarks)} av ${formatNumber(r.total.chainTotal)} kontroller.`,
+          },
+          {
+            label: 'Fristående',
+            value: r.total.soloShare,
+            display: `${formatShare(r.total.soloShare)} %`,
+            note: `${formatNumber(r.total.soloRemarks)} av ${formatNumber(r.total.soloTotal)} kontroller.`,
+          },
+        ]}
+      />
+    </Diagram>
+
+    <p>{totalen} {mixen}</p>
+  </section>
+
+  <section>
+    <h2>Samma sorts verksamhet mot samma sorts verksamhet</h2>
+    <p>{kategoriSvar} {storstNot}</p>
+
+    <Diagram
+      titel="Kedjeställen och fristående inom varje kategori"
+      underlag={utanKedjorNot ?? undefined}
+    >
+      <Parstapel
+        label="Andel kontroller med minst en anmärkning per kategori, kedjeställen mot fristående"
+        serieA="Kedjeställen"
+        serieB="Fristående"
+        scale={kategoritak}
+        rows={jamforbara.map((c) => ({
+          label: c.name,
+          a: c.chainShare,
+          b: c.soloShare,
+          aDisplay: `${formatShare(c.chainShare)} %`,
+          bDisplay: `${formatShare(c.soloShare)} %`,
+          note: `${formatNumber(c.chainTotal)} kedjekontroller, ${formatNumber(c.soloTotal)} fristående.`,
+        }))}
+      />
+    </Diagram>
+
+    {butiksNot && <p>{butiksNot}</p>}
+  </section>
+
+  <section>
+    <h2>Håller det i varje kommun?</h2>
+    <p>{kommunScope} {kommunSvar}</p>
+
+    <Diagram
+      titel="Kedjeställen och fristående, kommun för kommun"
+      underlag="Andel kontroller med minst en anmärkning. Bokstavsordning."
+    >
+      <Parstapel
+        label="Andel kontroller med minst en anmärkning per kommun, kedjeställen mot fristående"
+        serieA="Kedjeställen"
+        serieB="Fristående"
+        scale={kommuntak}
+        rows={r.cities.map((c) => ({
+          label: c.city,
+          a: c.chainShare,
+          b: c.soloShare,
+          aDisplay: `${formatShare(c.chainShare)} %`,
+          bDisplay: `${formatShare(c.soloShare)} %`,
+          note: `${formatNumber(c.chainTotal)} kedjekontroller, ${formatNumber(c.soloTotal)} fristående.`,
+        }))}
+      />
+    </Diagram>
+
+    <p class="callout">
+      Diagrammet jämför kedjor med fristående inom varje kommun, aldrig kommuner
+      med varandra. Nivåerna skiljer sig åt mellan kommunerna för att de
+      publicerar olika, inte för att maten är renare någonstans.
+      {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
+      jämföra med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Kedja betyder här att namnet matchar vårt register över
+        {' '}<a href={path('kedja')}>kedjor</a>. En lokal kedja med tre ställen
+        under eget namn räknas som fristående.
+      </li>
+      <li>
+        Franchise driver varje ställe i eget bolag. Ett kedjenamn säger alltså
+        inte att en gemensam ägare styr köket, bara att varumärket och ofta
+        rutinerna är gemensamma.
+      </li>
+      <li>
+        Anmärkning betyder minst en avvikelse, inte hur allvarlig den var.
+      </li>
+      <li>
+        Kedjeställen ligger tätare i storstad och i köpcentrum, alltså i lägen
+        som kontrolleras oftare. Var en verksamhet ligger påverkar hur många
+        kontroller den hinner samla på sig.
+      </li>
+      <li>
+        Kontrollerna sträcker sig över flera år. Andelarna är summor över hela
+        perioden, inte en bild av läget just nu.
+      </li>
+    </ul>
+  </section>
+</Rapport>

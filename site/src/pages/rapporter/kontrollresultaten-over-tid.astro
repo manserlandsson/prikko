@@ -1,0 +1,231 @@
+---
+/**
+ * Rapport: blir kontrollresultaten bättre eller sämre?
+ *
+ * Samma princip som de övriga. Talen kommer ur trendReport(), den fasta texten
+ * beskriver metoden och förbehållen.
+ *
+ * Den känsligaste meningen på sidan är den om riktningen. Den är därför inte
+ * skriven som en slutsats utan grenar på tecknet i `change`: faller andelen
+ * står det att den fallit, stiger den står det att den stigit, och står den
+ * still står det det. Serien är dessutom inte en rak linje, och sidan skriver
+ * ut sitt högsta och sitt lägsta år i stället för att låta ändpunkterna
+ * beskriva åtta år.
+ *
+ * Panelavsnittet finns för att en läsare annars med rätta invänder att
+ * beståndet bytt sammansättning under perioden. Det är den enda invändningen
+ * som ensam skulle sänka hela rapporten, så den får inte stå obesvarad i en
+ * fotnot.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
+import { formatNumber } from '../../lib/data';
+import { MIN_PANEL_YEAR, formatShare, trendReport } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = trendReport();
+
+const forsta = r.years[0];
+const sista = r.years[r.years.length - 1];
+const panelForsta = r.panel[0];
+const panelSista = r.panel[r.panel.length - 1];
+
+/**
+ * Skalans ändar, räknade ur serien och avrundade utåt till närmaste femtal.
+ *
+ * Fasta tal hade varit läsbarare men går sönder tyst: en framtida punkt utanför
+ * ramen ritas ovanför eller under grafiken i stället för att skala om den.
+ */
+const varden = [...r.years, ...r.panel].map((y) => y.share);
+const botten = Math.floor(Math.min(...varden) / 5) * 5;
+const taket = Math.ceil(Math.max(...varden) / 5) * 5;
+
+/** Kategorierna når högre än årsserien och behöver en egen linjal. */
+const kategoritak =
+  Math.ceil(
+    Math.max(...r.categories.flatMap((c) => [c.firstShare, c.lastShare]), 1) / 5,
+  ) * 5;
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel som i de övriga rapporterna.
+ */
+const scope =
+  `${formatNumber(r.total)} planerade kontroller mellan ${r.first} och ${r.last}.` +
+  ' Återbesök och kontroller efter en anmälan är utelämnade: hur stor del av' +
+  ' arbetet som är uppföljning skiftar mellan åren, och de två slagen har ett' +
+  ' annat utfall än den planerade kontrollen.';
+
+const riktning =
+  r.change < 0
+    ? `Andelen med anmärkning är ${formatShare(Math.abs(r.change))} procentenheter lägre` +
+      ` ${r.last} än ${r.first}.`
+    : r.change > 0
+      ? `Andelen med anmärkning är ${formatShare(r.change)} procentenheter högre` +
+        ` ${r.last} än ${r.first}.`
+      : `Andelen med anmärkning är densamma ${r.last} som ${r.first}.`;
+
+const kurvan =
+  `Men serien är ingen rak linje. Högst ligger ${r.highest.year} med` +
+  ` ${formatShare(r.highest.share)} procent och lägst ${r.lowest.year} med` +
+  ` ${formatShare(r.lowest.share)}. Ett enskilt år styrs av vilka verksamheter` +
+  ' kommunerna hann med, och den sortens hopp betyder inte att köken ändrade sig' +
+  ' på tolv månader.';
+
+const panelScope =
+  'Kommunerna kommer in i serien när deras publicering börjar, och' +
+  ` ${r.absentFirstYear} av ${r.municipalities} har ingen planerad kontroll alls från` +
+  ` ${r.first}. Faller andelen bara för att beståndet fyllts på med andra` +
+  ' kommuner? Nedan står samma serie räknad enbart på de kommuner som har minst' +
+  ` ${MIN_PANEL_YEAR} planerade kontroller varje år hela perioden:` +
+  ` ${r.panelCities.join(' och ')}. De står för ${formatShare(r.panelShare)} procent` +
+  ' av periodens kontroller.';
+
+const panelSvar =
+  r.panelChange < 0 && r.change < 0
+    ? 'De två serierna följs åt. Med samma kommuner varje år är andelen' +
+      ` ${formatShare(Math.abs(r.panelChange))} procentenheter lägre ${r.last} än` +
+      ` ${r.first}, mot ${formatShare(Math.abs(r.change))} i hela beståndet.` +
+      ' Sammansättningen förklarar alltså inte rörelsen.'
+    : `Med samma kommuner varje år går andelen från ${formatShare(panelForsta.share)}` +
+      ` procent ${r.first} till ${formatShare(panelSista.share)} procent ${r.last}.` +
+      ` I hela beståndet går den från ${formatShare(forsta.share)} till` +
+      ` ${formatShare(sista.share)}.`;
+
+const nedat = r.categories.filter((c) => c.change < 0);
+const uppat = r.categories.filter((c) => c.change > 0);
+
+const kategoriSvar =
+  nedat.length === r.categories.length
+    ? `Varje kategori ligger lägre ${r.last} än ${r.first}.`
+    : uppat.length === r.categories.length
+      ? `Varje kategori ligger högre ${r.last} än ${r.first}.`
+      : `${nedat.length} av ${r.categories.length} kategorier ligger lägre ${r.last} än` +
+        ` ${r.first}. ${uppat.map((c) => c.short).join(' och ')} går åt andra hållet.`;
+
+const storst = [...r.categories].sort((a, b) => a.change - b.change)[0];
+const storstNot =
+  storst && storst.change < 0
+    ? `Störst är rörelsen i ${storst.short}:` +
+      ` ${formatShare(Math.abs(storst.change))} procentenheter.`
+    : null;
+---
+
+<Rapport slug="kontrollresultaten-over-tid">
+  <section>
+    <h2>Andelen med anmärkning, år för år</h2>
+    <p>{scope}</p>
+
+    <Diagram
+      titel="Andel planerade kontroller som gav minst en anmärkning"
+      underlag={`${formatNumber(r.total)} planerade kontroller, ${r.first} till ${r.last}.`}
+    >
+      <Tidslinje
+        label="Andel planerade kontroller med minst en anmärkning, per år"
+        enhet="%"
+        min={botten}
+        max={taket}
+        points={r.years.map((y) => ({
+          label: String(y.year),
+          value: y.share,
+          display: formatShare(y.share),
+        }))}
+      />
+    </Diagram>
+
+    <p>{riktning} {kurvan}</p>
+  </section>
+
+  <section>
+    <h2>Är det bara nya kommuner som tillkommit?</h2>
+    <p>{panelScope}</p>
+
+    <Diagram
+      titel="Hela beståndet mot kommunerna som publicerar hela perioden"
+      underlag={`Andel planerade kontroller med minst en anmärkning, ${r.first} till ${r.last}.`}
+    >
+      <Parstapel
+        label="Andel planerade kontroller med anmärkning per år, hela beståndet mot panelen"
+        serieA="Hela beståndet"
+        serieB={r.panelCities.join(' och ')}
+        scale={taket}
+        rows={r.years.map((y, i) => ({
+          label: String(y.year),
+          a: y.share,
+          b: r.panel[i].share,
+          aDisplay: `${formatShare(y.share)} %`,
+          bDisplay: `${formatShare(r.panel[i].share)} %`,
+          note: `${formatNumber(y.total)} kontroller, varav ${formatNumber(r.panel[i].total)} i panelen.`,
+        }))}
+      />
+    </Diagram>
+
+    <p>{panelSvar}</p>
+  </section>
+
+  <section>
+    <h2>Gäller det alla sorters kök?</h2>
+    <p>
+      Kategorierna nedan är räknade i panelen, alltså på samma kommuner båda
+      åren. {kategoriSvar} {storstNot}
+    </p>
+
+    <Diagram
+      titel={`Kategorierna ${r.first} mot ${r.last}`}
+      underlag="Andel planerade kontroller med minst en anmärkning."
+    >
+      <Parstapel
+        label={`Andel planerade kontroller med anmärkning per kategori, ${r.first} mot ${r.last}`}
+        serieA={String(r.first)}
+        serieB={String(r.last)}
+        scale={kategoritak}
+        rows={r.categories.map((c) => ({
+          label: c.name,
+          a: c.firstShare,
+          b: c.lastShare,
+          aDisplay: `${formatShare(c.firstShare)} %`,
+          bDisplay: `${formatShare(c.lastShare)} %`,
+          note: `${formatNumber(c.firstTotal)} kontroller ${r.first}, ${formatNumber(c.lastTotal)} ${r.last}.`,
+        }))}
+      />
+    </Diagram>
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Andelen mäter hur ofta en kontroll gav minst en anmärkning, inte hur
+        allvarlig den var. En oåtgärdad allergenmärkning och en bruten kylkedja
+        räknas likadant.
+      </li>
+      <li>
+        En lägre andel kan lika gärna betyda att kommunen ändrat vad den
+        kontrollerar eller hur den bedömer som att köken blivit renare. Kurvan
+        visar utfallet, inte orsaken.
+      </li>
+      <li>
+        Kommunerna kommer in i serien när deras publicering börjar, inte när de
+        började kontrollera. Panelen finns för att kunna läsa förändringen utan
+        den effekten.
+      </li>
+      <li>
+        Kommuner som inte anger kontrolltyp får allt räknat som planerad
+        kontroll, eftersom det är fältets grundvärde. De ligger utanför panelen.
+      </li>
+      <li>
+        Serien slutar på det senaste avslutade året. Ett år som pågår ritar
+        alltid en nedgång i sista steget, och den nedgången är kalendern.
+      </li>
+    </ul>
+    <p class="callout">
+      Serien väger ihop tolv kommuner som publicerar olika mycket, och den kan
+      därför inte brytas ner på enskilda kommuner och jämföras.
+      {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
+      jämföra med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+</Rapport>

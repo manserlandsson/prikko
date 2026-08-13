@@ -40,13 +40,17 @@
  * ska skrivas av Måns, inte räknas fram.
  */
 import {
+  categoriesOf,
   establishments,
   legislationArea,
   municipalities,
   sourceFor,
   sourceLimits,
+  TOP_CATEGORIES,
   type Inspection,
+  type TopCategoryId,
 } from './data';
+import { chainIdFor } from './kedjeregister';
 
 // ---------------------------------------------------------------------------
 // Registret
@@ -77,6 +81,39 @@ export interface Report {
  * bredvid den här utan att röra något här.
  */
 export const REPORTS: Report[] = [
+  {
+    slug: 'kontrollresultaten-over-tid',
+    title: 'Blir kontrollresultaten bättre eller sämre?',
+    description:
+      'Prikko har räknat andelen planerade kontroller som gav minst en anmärkning, år för år sedan 2018, och prövat samma serie i de kommuner som publicerar hela perioden.',
+    lede:
+      'Ett enskilt år säger ingenting. Åtta år i rad säger något, om man håller isär utvecklingen från det faktum att fler kommuner tillkommit under tiden.',
+    summary:
+      'Andelen planerade kontroller med anmärkning per år, med samma serie räknad enbart på kommunerna som publicerar hela perioden.',
+    published: '2026-08-12',
+  },
+  {
+    slug: 'kedja-eller-fristaende',
+    title: 'Sköter kedjorna sig bättre än de fristående?',
+    description:
+      'Prikko har delat beståndet i kedjeställen och fristående verksamheter och räknat andelen kontroller med anmärkning för båda, totalt, per kategori och per kommun.',
+    lede:
+      'Frågan låter enkel och totalsumman svarar på den. Svaret blir ett annat så snart man jämför samma sorts verksamhet med samma sorts verksamhet.',
+    summary:
+      'Andelen kontroller med anmärkning hos kedjeställen och fristående verksamheter, räknad inom varje kategori och varje kommun.',
+    published: '2026-08-12',
+  },
+  {
+    slug: 'anmarkningar-over-aret',
+    title: 'Så varierar anmärkningarna över året',
+    description:
+      'Prikko har räknat andelen planerade kontroller med anmärkning för varje månad, och delat upp skillnaden på områdena i livsmedelslagstiftningen.',
+    lede:
+      'Kontrollåret är inte jämnt. Andelen kontroller som ger en anmärkning skiljer sig åt mellan månaderna, och skillnaden ligger inte i alla delar av lagstiftningen.',
+    summary:
+      'Andelen planerade kontroller med anmärkning månad för månad, och vilka lagstiftningsområden som står för skillnaden.',
+    published: '2026-08-12',
+  },
   {
     slug: 'vad-anmarkningarna-galler',
     title: 'Vad anmärkningarna faktiskt gäller',
@@ -157,6 +194,17 @@ export function formatShare(value: number): string {
  */
 export const FIRST_YEAR = 2018;
 
+/**
+ * Sista året som är slut.
+ *
+ * Läses ur klockan och inte ur datan. Hämtningen kan halka efter, men det är
+ * ändå kalendern som avgör vilket år som är färdigt, och ett år som pågår
+ * ritar alltid en brant nedgång i seriens sista steg.
+ */
+export function lastCompleteYear(): number {
+  return new Date().getUTCFullYear() - 1;
+}
+
 export interface YearPoint {
   year: number;
   /**
@@ -211,7 +259,7 @@ export function inspectionsPerYear(slug?: string): YearPoint[] {
     }
   }
 
-  const lastComplete = new Date().getUTCFullYear() - 1;
+  const lastComplete = lastCompleteYear();
   const years = [...total.keys()].filter((y) => y >= FIRST_YEAR && y <= lastComplete);
   if (!years.length) return [];
 
@@ -588,4 +636,680 @@ export function inspectionTypeReport(): InspectionTypeReport {
     municipalities: perMunicipality.size,
   };
   return typeReportCache;
+}
+
+// ---------------------------------------------------------------------------
+// Rapport: kontrollresultaten över tid
+// ---------------------------------------------------------------------------
+
+/**
+ * Minsta antal planerade kontroller ett enskilt år för att en kommun ska
+ * räknas som närvarande i panelen.
+ *
+ * Panelen finns för att svara på den enda invändning som annars sänker hela
+ * serien: andelen kan ha fallit för att beståndet bytt sammansättning, inte
+ * för att utfallet ändrats. Fyra kommuner kommer in först 2024 och nio av tolv
+ * har ingenting alls från seriens första år.
+ *
+ * Golvet måste vara ett antal och inte bara "minst en kontroll". Kristinehamn
+ * har tre kontroller 2018 och sju 2019, alltså en kommun som formellt finns
+ * varje år och vars årsandel kan hoppa trettio procentenheter på ett enda
+ * besök. En sådan rad gör panelen brusigare än serien den ska kontrollera.
+ * Hundra är lågt nog att bara utesluta det som är statistiskt obrukbart.
+ */
+export const MIN_PANEL_YEAR = 100;
+
+export interface TrendYear {
+  year: number;
+  /** Planerade kontroller det året. */
+  total: number;
+  withRemark: number;
+  /** Andel av årets planerade kontroller som gav minst en anmärkning. */
+  share: number;
+}
+
+export interface TrendCategory {
+  id: TopCategoryId;
+  name: string;
+  /** Kort form för uppräkningar i löptext. Se ChainCategoryRow.short. */
+  short: string;
+  firstTotal: number;
+  firstShare: number;
+  lastTotal: number;
+  lastShare: number;
+  /** Sista årets andel minus första årets, i procentenheter. */
+  change: number;
+}
+
+export interface TrendReport {
+  first: number;
+  last: number;
+  /** Hela beståndet, ett värde per år i perioden. */
+  years: TrendYear[];
+  /** Samma serie, räknad enbart på panelkommunerna. */
+  panel: TrendYear[];
+  /** Panelkommunernas städer, i bokstavsordning. */
+  panelCities: string[];
+  /** Panelens andel av periodens planerade kontroller, i procent. */
+  panelShare: number;
+  /** Kommuner utan en enda planerad kontroll seriens första år. */
+  absentFirstYear: number;
+  municipalities: number;
+  /** Sista årets andel minus första årets, hela beståndet. */
+  change: number;
+  panelChange: number;
+  /** Året med högst respektive lägst andel, hela beståndet. */
+  highest: TrendYear;
+  lowest: TrendYear;
+  /** Kategorierna i panelen, första året mot det sista. */
+  categories: TrendCategory[];
+  /** Planerade kontroller i hela perioden. */
+  total: number;
+}
+
+interface YearTally {
+  n: number;
+  r: number;
+}
+
+function emptyTally(): YearTally {
+  return { n: 0, r: 0 };
+}
+
+function bump(map: Map<string, YearTally>, key: string, remark: boolean): void {
+  const bucket = map.get(key) ?? emptyTally();
+  bucket.n += 1;
+  if (remark) bucket.r += 1;
+  map.set(key, bucket);
+}
+
+let trendCache: TrendReport | null = null;
+
+/**
+ * Andelen planerade kontroller med anmärkning, år för år.
+ *
+ * ## Varför bara planerade kontroller
+ *
+ * Blandningen mellan kontrollslagen ändras från år till år: i panelen var 9,8
+ * procent av kontrollerna återbesök 2018 och 26,2 procent 2023. Återbesöket
+ * har ett annat utfall än den planerade kontrollen (se rapporten om de tre
+ * kontrollslagen), så en serie över samtliga kontroller mäter hur kommunerna
+ * lagt upp arbetet lika mycket som vad de fann. Den planerade kontrollen är
+ * det enda kontrollslag som görs av samma skäl varje år.
+ *
+ * En kommun som inte anger kontrolltyp får allt räknat som planerad kontroll,
+ * eftersom 0 är fältets grundvärde. Det gäller tre kommuner med tillsammans
+ * knappt en procent av kontrollerna, och de ligger utanför panelen.
+ *
+ * ## Varför kategorierna räknas i panelen och inte i hela beståndet
+ *
+ * Kategorijämförelsen ställer första året mot det sista, och det är just den
+ * jämförelsen som blir meningslös om nämnaren bytt kommuner däremellan.
+ */
+export function trendReport(): TrendReport {
+  if (trendCache) return trendCache;
+
+  const first = FIRST_YEAR;
+  const last = lastCompleteYear();
+  const years: number[] = [];
+  for (let y = first; y <= last; y += 1) years.push(y);
+
+  const perCity = new Map<
+    string,
+    { city: string; years: Map<string, YearTally>; cats: Map<string, YearTally> }
+  >();
+
+  for (const e of establishments()) {
+    const slug = e.municipality.slug;
+    let city = perCity.get(slug);
+    if (!city) {
+      city = { city: e.municipality.city, years: new Map(), cats: new Map() };
+      perCity.set(slug, city);
+    }
+
+    const category = categoriesOf(e).category;
+
+    for (const i of e.inspections) {
+      if (i.type !== 0) continue;
+      const year = Number(i.date.slice(0, 4));
+      if (year < first || year > last) continue;
+      const remark = i.assessment > 0;
+      bump(city.years, String(year), remark);
+      if (category) bump(city.cats, `${category}|${year}`, remark);
+    }
+  }
+
+  const panelSlugs = [...perCity.entries()]
+    .filter(([, c]) => years.every((y) => (c.years.get(String(y))?.n ?? 0) >= MIN_PANEL_YEAR))
+    .map(([slug]) => slug);
+
+  const series = (slugs: string[] | null): TrendYear[] =>
+    years.map((year) => {
+      let n = 0;
+      let r = 0;
+      for (const [slug, c] of perCity) {
+        if (slugs && !slugs.includes(slug)) continue;
+        const bucket = c.years.get(String(year));
+        if (!bucket) continue;
+        n += bucket.n;
+        r += bucket.r;
+      }
+      return { year, total: n, withRemark: r, share: share(r, n) };
+    });
+
+  const all = series(null);
+  const panel = series(panelSlugs);
+
+  const total = all.reduce((sum, y) => sum + y.total, 0);
+  const panelTotal = panel.reduce((sum, y) => sum + y.total, 0);
+
+  const categories: TrendCategory[] = [];
+  for (const c of TOP_CATEGORIES) {
+    let firstN = 0;
+    let firstR = 0;
+    let lastN = 0;
+    let lastR = 0;
+    for (const slug of panelSlugs) {
+      const city = perCity.get(slug);
+      if (!city) continue;
+      const a = city.cats.get(`${c.id}|${first}`);
+      const b = city.cats.get(`${c.id}|${last}`);
+      if (a) {
+        firstN += a.n;
+        firstR += a.r;
+      }
+      if (b) {
+        lastN += b.n;
+        lastR += b.r;
+      }
+    }
+    // Samma golv som panelen: en kategori som vilar på en handfull kontroller
+    // det ena året kan inte bära en jämförelse mellan två år.
+    if (firstN < MIN_PANEL_YEAR || lastN < MIN_PANEL_YEAR) continue;
+    const firstShare = share(firstR, firstN);
+    const lastShare = share(lastR, lastN);
+    categories.push({
+      id: c.id,
+      name: c.name,
+      short: c.short,
+      firstTotal: firstN,
+      firstShare,
+      lastTotal: lastN,
+      lastShare,
+      change: lastShare - firstShare,
+    });
+  }
+  // Visningsordning, aldrig efter utfall: kategorierna är ingen rangordning.
+  categories.sort(
+    (a, b) =>
+      TOP_CATEGORIES.findIndex((c) => c.id === a.id) -
+      TOP_CATEGORIES.findIndex((c) => c.id === b.id),
+  );
+
+  let absentFirstYear = 0;
+  for (const c of perCity.values()) {
+    if ((c.years.get(String(first))?.n ?? 0) === 0) absentFirstYear += 1;
+  }
+
+  const withData = all.filter((y) => y.total > 0);
+  const highest = withData.reduce((a, b) => (b.share > a.share ? b : a), withData[0]);
+  const lowest = withData.reduce((a, b) => (b.share < a.share ? b : a), withData[0]);
+
+  trendCache = {
+    first,
+    last,
+    years: all,
+    panel,
+    panelCities: panelSlugs
+      .map((slug) => perCity.get(slug)!.city)
+      .sort((a, b) => a.localeCompare(b, 'sv')),
+    panelShare: share(panelTotal, total),
+    absentFirstYear,
+    municipalities: perCity.size,
+    change: all[all.length - 1].share - all[0].share,
+    panelChange: panel[panel.length - 1].share - panel[0].share,
+    highest,
+    lowest,
+    categories,
+    total,
+  };
+  return trendCache;
+}
+
+// ---------------------------------------------------------------------------
+// Rapport: kedja eller fristående
+// ---------------------------------------------------------------------------
+
+/**
+ * Minsta antal kedjekontroller för att en kommun eller en kategori ska få
+ * stå i jämförelsen.
+ *
+ * Sex av tolv kommuner har färre än tjugofem kedjekontroller i beståndet, och
+ * en andel räknad på dem säger ingenting om kedjor. Samma golv används på
+ * kategorierna, vilket stryker skolor och omsorg: tre kontroller i hela
+ * beståndet gäller ett kedjeställe i den kategorin, och skolkök drivs inte
+ * i kedja.
+ */
+export const MIN_CHAIN_INSPECTIONS = 100;
+
+export interface ChainSplit {
+  chainTotal: number;
+  chainRemarks: number;
+  chainShare: number;
+  soloTotal: number;
+  soloRemarks: number;
+  soloShare: number;
+  /** Kedjornas andel minus de fristående, i procentenheter. */
+  gap: number;
+}
+
+export interface ChainCategoryRow extends ChainSplit {
+  id: TopCategoryId;
+  name: string;
+  /**
+   * Kort form för uppräkningar i löptext. "caféer och bagerier och butiker"
+   * är obegripligt; short ger "caféer och butiker". Se TOP_CATEGORIES.
+   */
+  short: string;
+  /**
+   * Har kategorin nog många kedjekontroller för att jämförelsen ska betyda
+   * något? Raderna under golvet ligger kvar i listan i stället för att
+   * försvinna, eftersom det är just frånvaron av kedjor i skolor och omsorg
+   * som förklarar varför totalen ser ut som den gör.
+   */
+  comparable: boolean;
+}
+
+export interface ChainCityRow extends ChainSplit {
+  slug: string;
+  city: string;
+}
+
+export interface ChainSplitReport {
+  /** Kedjor i registret som har minst ett ställe i beståndet. */
+  chains: number;
+  chainPlaces: number;
+  soloPlaces: number;
+  places: number;
+  total: ChainSplit;
+  /** Samtliga kategorier i visningsordning, jämförbara och inte. */
+  categories: ChainCategoryRow[];
+  cities: ChainCityRow[];
+  /** Kommuner som föll bort på golvet. */
+  belowFloor: number;
+  /** Kommuner i jämförelsen där kedjorna ligger lägre. */
+  chainLower: number;
+  municipalities: number;
+}
+
+interface SplitTally {
+  chainTotal: number;
+  chainRemarks: number;
+  soloTotal: number;
+  soloRemarks: number;
+}
+
+function emptySplit(): SplitTally {
+  return { chainTotal: 0, chainRemarks: 0, soloTotal: 0, soloRemarks: 0 };
+}
+
+function finishSplit(t: SplitTally): ChainSplit {
+  const chainShare = share(t.chainRemarks, t.chainTotal);
+  const soloShare = share(t.soloRemarks, t.soloTotal);
+  return {
+    chainTotal: t.chainTotal,
+    chainRemarks: t.chainRemarks,
+    chainShare,
+    soloTotal: t.soloTotal,
+    soloRemarks: t.soloRemarks,
+    soloShare,
+    gap: chainShare - soloShare,
+  };
+}
+
+let chainSplitCache: ChainSplitReport | null = null;
+
+/**
+ * Andelen kontroller med anmärkning hos kedjeställen och fristående.
+ *
+ * ## Vad "kedja" betyder här
+ *
+ * Att namnet matchar en post i kedjeregistret (lib/kedjeregister.ts). Det är
+ * ett register och inte en härledning, av skäl som står utskrivna i
+ * lib/kedjor.ts: de vanligaste namnprefixen i beståndet är "forskolan",
+ * "restaurang" och "cafe", och ingen av dem är en kedja.
+ *
+ * Räkningen använder registret direkt och inte kedjesidornas kvalitetsgrind.
+ * Grinden finns för att en kedja med fem ställen inte bär en egen sida, vilket
+ * är ett publiceringsbeslut. Ett ställe som tillhör en kedja gör det oavsett
+ * om kedjan har en sida.
+ *
+ * ## Varför totalen inte får stå ensam
+ *
+ * De två grupperna innehåller olika saker. Skolköken, som är det skötsammaste
+ * beståndet, är i praktiken helt fristående, och de drar ner de fristående i
+ * totalen. Kategorierna nedan är därför inte en fördjupning utan hela svaret:
+ * det är där samma sorts verksamhet ställs mot samma sorts verksamhet.
+ */
+export function chainSplitReport(): ChainSplitReport {
+  if (chainSplitCache) return chainSplitCache;
+
+  const total = emptySplit();
+  const perCity = new Map<string, { city: string; split: SplitTally }>();
+  const perCategory = new Map<TopCategoryId, SplitTally>();
+  const seenChains = new Set<string>();
+
+  let chainPlaces = 0;
+  let soloPlaces = 0;
+
+  for (const e of establishments()) {
+    const id = chainIdFor(e.name);
+    if (id) {
+      chainPlaces += 1;
+      seenChains.add(id);
+    } else {
+      soloPlaces += 1;
+    }
+
+    const slug = e.municipality.slug;
+    let city = perCity.get(slug);
+    if (!city) {
+      city = { city: e.municipality.city, split: emptySplit() };
+      perCity.set(slug, city);
+    }
+
+    const category = categoriesOf(e).category;
+    let cat: SplitTally | undefined;
+    if (category) {
+      cat = perCategory.get(category);
+      if (!cat) {
+        cat = emptySplit();
+        perCategory.set(category, cat);
+      }
+    }
+
+    for (const i of e.inspections) {
+      const remark = i.assessment > 0;
+      for (const bucket of [total, city.split, cat]) {
+        if (!bucket) continue;
+        if (id) {
+          bucket.chainTotal += 1;
+          if (remark) bucket.chainRemarks += 1;
+        } else {
+          bucket.soloTotal += 1;
+          if (remark) bucket.soloRemarks += 1;
+        }
+      }
+    }
+  }
+
+  const categories: ChainCategoryRow[] = [];
+  for (const c of TOP_CATEGORIES) {
+    const tally = perCategory.get(c.id);
+    if (!tally) continue;
+    categories.push({
+      id: c.id,
+      name: c.name,
+      short: c.short,
+      comparable: tally.chainTotal >= MIN_CHAIN_INSPECTIONS,
+      ...finishSplit(tally),
+    });
+  }
+
+  // Bokstavsordning, aldrig efter utfall. Se samma resonemang i
+  // deviationAreaReport: en tabell sorterad på andelen läses som en
+  // rangordning av kommuner.
+  const cities: ChainCityRow[] = [...perCity.entries()]
+    .filter(([, c]) => c.split.chainTotal >= MIN_CHAIN_INSPECTIONS)
+    .map(([slug, c]) => ({ slug, city: c.city, ...finishSplit(c.split) }))
+    .sort((a, b) => a.city.localeCompare(b.city, 'sv'));
+
+  chainSplitCache = {
+    chains: seenChains.size,
+    chainPlaces,
+    soloPlaces,
+    places: chainPlaces + soloPlaces,
+    total: finishSplit(total),
+    categories,
+    cities,
+    belowFloor: perCity.size - cities.length,
+    chainLower: cities.filter((c) => c.gap < 0).length,
+    municipalities: perCity.size,
+  };
+  return chainSplitCache;
+}
+
+// ---------------------------------------------------------------------------
+// Rapport: anmärkningarna över året
+// ---------------------------------------------------------------------------
+
+/**
+ * Kort form till diagrammets axel, gemener.
+ *
+ * Samma skrivsätt som artikeln om kylkedjan redan använder på en tidslinje
+ * över tolv månader. Två månadsaxlar på samma sajt får inte se ut som två
+ * olika sajter.
+ */
+const MONTH_LABEL = [
+  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
+];
+
+/** Full form till löptext, gemener som svensk sats kräver. */
+const MONTH_NAME = [
+  'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+  'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+];
+
+/**
+ * Minsta antal granskade punkter i toppmånaden för att ett lagstiftningsområde
+ * ska få stå i jämförelsen.
+ *
+ * De fem största områdena klarar det. Resten ligger på under tjugo punkter i
+ * toppmånaden, alltså på en nivå där en enda avvikelse flyttar andelen med
+ * fem procentenheter.
+ */
+export const MIN_AREA_CHECKS = 100;
+
+export interface MonthPoint {
+  /** 1 till 12. */
+  month: number;
+  /** "Jul". */
+  label: string;
+  /** "juli". */
+  name: string;
+  total: number;
+  withRemark: number;
+  share: number;
+}
+
+export interface SeasonArea {
+  letter: string;
+  name: string;
+  explanation: string;
+  /** Granskade punkter i toppmånaden, alltså nämnaren. */
+  peakChecks: number;
+  peakShare: number;
+  restChecks: number;
+  restShare: number;
+  /** Toppmånadens andel minus resten av årets, i procentenheter. */
+  gap: number;
+}
+
+export interface SeasonReport {
+  first: number;
+  last: number;
+  months: MonthPoint[];
+  /** Månaden med högst respektive lägst andel med anmärkning. */
+  peak: MonthPoint;
+  quiet: MonthPoint;
+  /** Månaden med flest respektive färst kontroller. */
+  busiest: MonthPoint;
+  thinnest: MonthPoint;
+  /** Planerade kontroller i perioden, och andelen av dem med anmärkning. */
+  total: number;
+  share: number;
+  /** Områdena, störst först, med både täljare och nämnare. */
+  areas: SeasonArea[];
+  /** Städerna som redovisar även godkända punkter, i bokstavsordning. */
+  areaCities: string[];
+  /** Granskade punkter i underlaget för områdesuppdelningen. */
+  areaChecks: number;
+  /** Områden där toppmånaden ligger högre respektive lägre. */
+  higher: number;
+  lower: number;
+}
+
+let seasonCache: SeasonReport | null = null;
+
+/**
+ * Andelen planerade kontroller med anmärkning, månad för månad.
+ *
+ * ## Varför bara hela år
+ *
+ * Serien pratar om månader och inte om år, så varje månad måste vila på lika
+ * många år. Tas det pågående året med får månaderna fram till hämtningen ett
+ * år extra i nämnaren, och kurvan skulle då rita kalendern i stället för
+ * säsongen. Samma skäl som i inspectionsPerYear, av samma sort.
+ *
+ * ## Varför bara planerade kontroller
+ *
+ * Se trendReport. Återbesöket följer på en tidigare kontroll och ligger därför
+ * i en annan månad än den kontroll som utlöste det, vilket i sig flyttar
+ * anmärkningar mellan månaderna.
+ *
+ * ## Varför områdesuppdelningen bara får två kommuner
+ *
+ * Den frågar hur stor ANDEL av de granskade punkterna i ett område som föll,
+ * och behöver alltså en nämnare: hur många punkter i området som tittades på.
+ * Bara de kommuner som redovisar även de godkända punkterna har en sådan.
+ * Övriga publicerar enbart avvikelserna, och ur dem går det att räkna hur
+ * anmärkningarna fördelar sig men inte hur ofta en punkt föll. Vilka kommuner
+ * det är räknas fram ur datan och står inte i kod.
+ */
+export function seasonReport(): SeasonReport {
+  if (seasonCache) return seasonCache;
+
+  const first = FIRST_YEAR;
+  const last = lastCompleteYear();
+  const inRange = (date: string) => {
+    const year = Number(date.slice(0, 4));
+    return year >= first && year <= last;
+  };
+
+  const perMonth = new Map<number, YearTally>();
+  /** Kommuner som redovisar även de punkter som var utan avvikelse. */
+  const withDenominator = new Map<string, string>();
+
+  for (const e of establishments()) {
+    for (const i of e.inspections) {
+      if (!withDenominator.has(e.municipality.slug)) {
+        for (const a of i.areas) {
+          if (a.status === 'ok') {
+            withDenominator.set(e.municipality.slug, e.municipality.city);
+            break;
+          }
+        }
+      }
+      if (i.type !== 0 || !inRange(i.date)) continue;
+      const month = Number(i.date.slice(5, 7));
+      const bucket = perMonth.get(month) ?? emptyTally();
+      bucket.n += 1;
+      if (i.assessment > 0) bucket.r += 1;
+      perMonth.set(month, bucket);
+    }
+  }
+
+  const months: MonthPoint[] = [];
+  for (let m = 1; m <= 12; m += 1) {
+    const bucket = perMonth.get(m) ?? emptyTally();
+    months.push({
+      month: m,
+      label: MONTH_LABEL[m - 1],
+      name: MONTH_NAME[m - 1],
+      total: bucket.n,
+      withRemark: bucket.r,
+      share: share(bucket.r, bucket.n),
+    });
+  }
+
+  const measured = months.filter((m) => m.total > 0);
+  const peak = measured.reduce((a, b) => (b.share > a.share ? b : a), measured[0]);
+  const quiet = measured.reduce((a, b) => (b.share < a.share ? b : a), measured[0]);
+  const busiest = measured.reduce((a, b) => (b.total > a.total ? b : a), measured[0]);
+  const thinnest = measured.reduce((a, b) => (b.total < a.total ? b : a), measured[0]);
+
+  // Områdesuppdelningen: toppmånaden mot resten av året, per bokstav i
+  // rapporteringspunkten. Se huvudkommentaren om nämnaren.
+  const perArea = new Map<
+    string,
+    { peakN: number; peakR: number; restN: number; restR: number }
+  >();
+  let areaChecks = 0;
+
+  for (const e of establishments()) {
+    if (!withDenominator.has(e.municipality.slug)) continue;
+    for (const i of e.inspections) {
+      if (!inRange(i.date)) continue;
+      const month = Number(i.date.slice(5, 7));
+      for (const a of i.areas) {
+        const letter = (a.code || '').charAt(0).toUpperCase();
+        if (!legislationArea(letter)) continue;
+        const bucket = perArea.get(letter) ?? { peakN: 0, peakR: 0, restN: 0, restR: 0 };
+        const failed = a.status === 'deviation' || a.status === 'persisting';
+        if (month === peak.month) {
+          bucket.peakN += 1;
+          if (failed) bucket.peakR += 1;
+        } else {
+          bucket.restN += 1;
+          if (failed) bucket.restR += 1;
+        }
+        perArea.set(letter, bucket);
+        areaChecks += 1;
+      }
+    }
+  }
+
+  const areas: SeasonArea[] = [];
+  for (const [letter, bucket] of perArea) {
+    if (bucket.peakN < MIN_AREA_CHECKS) continue;
+    const known = legislationArea(letter);
+    if (!known) continue;
+    const peakShare = share(bucket.peakR, bucket.peakN);
+    const restShare = share(bucket.restR, bucket.restN);
+    areas.push({
+      letter,
+      name: known.name,
+      explanation: known.explanation,
+      peakChecks: bucket.peakN,
+      peakShare,
+      restChecks: bucket.restN,
+      restShare,
+      gap: peakShare - restShare,
+    });
+  }
+  // Störst underlag först. Ordningen är en storleksordning och ingen
+  // rangordning av utfall.
+  areas.sort((a, b) => b.peakChecks + b.restChecks - (a.peakChecks + a.restChecks));
+
+  const total = months.reduce((sum, m) => sum + m.total, 0);
+  const remarks = months.reduce((sum, m) => sum + m.withRemark, 0);
+
+  seasonCache = {
+    first,
+    last,
+    months,
+    peak,
+    quiet,
+    busiest,
+    thinnest,
+    total,
+    share: share(remarks, total),
+    areas,
+    areaCities: [...withDenominator.values()].sort((a, b) => a.localeCompare(b, 'sv')),
+    areaChecks,
+    higher: areas.filter((a) => a.gap > 0).length,
+    lower: areas.filter((a) => a.gap < 0).length,
+  };
+  return seasonCache;
 }

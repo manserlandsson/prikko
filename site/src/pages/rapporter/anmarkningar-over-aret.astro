@@ -1,0 +1,204 @@
+---
+/**
+ * Rapport: så varierar anmärkningarna över året.
+ *
+ * Talen kommer ur seasonReport(), den fasta texten beskriver metoden och
+ * förbehållen.
+ *
+ * Ingen månad är namngiven i mallen. Toppmånaden räknas fram, och varje mening
+ * som handlar om den läser `r.peak`. Skriver man ut juli i texten står det juli
+ * kvar den dagen datan säger något annat, och det är precis den sortens fel en
+ * publicerad siffra annars drabbas av.
+ *
+ * Områdesavsnittet är sidans egentliga besked: skillnaden ligger inte jämnt
+ * över lagstiftningen. Den delen kräver en NÄMNARE, alltså hur många punkter i
+ * ett område som granskats, och den finns bara i de kommuner som redovisar även
+ * de godkända punkterna. Vilka de är räknas fram och står inte i kod.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
+import { formatNumber } from '../../lib/data';
+import { MIN_AREA_CHECKS, formatShare, seasonReport } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = seasonReport();
+
+const hogre = r.areas.filter((a) => a.gap > 0);
+const lagre = r.areas.filter((a) => a.gap < 0);
+
+/** Skalans ändar, räknade ur serien och avrundade utåt till närmaste femtal. */
+const varden = r.months.map((m) => m.share);
+const botten = Math.floor(Math.min(...varden) / 5) * 5;
+const taket = Math.ceil(Math.max(...varden) / 5) * 5;
+
+/** Egen linjal för områdesdiagrammet, räknad ur de andelar som faktiskt ritas. */
+const omradetak =
+  Math.ceil(Math.max(...r.areas.flatMap((a) => [a.peakShare, a.restShare]), 1) / 5) * 5;
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel som i de övriga rapporterna.
+ */
+const scope =
+  `${formatNumber(r.total)} planerade kontroller mellan ${r.first} och ${r.last},` +
+  ` fördelade på den månad de gjordes. ${formatShare(r.share)} procent av dem gav minst` +
+  ' en anmärkning.';
+
+const toppen =
+  `Högst ligger ${r.peak.name} med ${formatShare(r.peak.share)} procent, lägst` +
+  ` ${r.quiet.name} med ${formatShare(r.quiet.share)}. Avståndet mellan de två är` +
+  ` ${formatShare(r.peak.share - r.quiet.share)} procentenheter.`;
+
+const volymen =
+  r.peak.month === r.thinnest.month
+    ? `${r.peak.name[0].toUpperCase()}${r.peak.name.slice(1)} är samtidigt årets tunnaste` +
+      ` månad: ${formatNumber(r.thinnest.total)} kontroller mot` +
+      ` ${formatNumber(r.busiest.total)} i ${r.busiest.name}. Semestern syns alltså i båda` +
+      ' talen, både i hur få kontroller som hinns med och i vad de hittar.'
+    : `Flest kontroller görs i ${r.busiest.name}, ${formatNumber(r.busiest.total)} stycken,` +
+      ` och färst i ${r.thinnest.name}, ${formatNumber(r.thinnest.total)}.`;
+
+const omradeScope =
+  'Ligger skillnaden jämnt över lagstiftningen, eller i vissa delar av den?' +
+  ' Frågan kräver att man vet hur många punkter i varje område som granskats och' +
+  ' inte bara hur många som föll, alltså både täljare och nämnare. Den uppgiften' +
+  ` finns i ${r.areaCities.join(' och ')}, som redovisar även de punkter som var utan` +
+  ` avvikelse: ${formatNumber(r.areaChecks)} granskade punkter.`;
+
+const omradeSvar =
+  hogre.length > 0 && lagre.length > 0
+    ? `Nej. ${hogre.length} av ${r.areas.length} områden ligger högre i ${r.peak.name},` +
+      ` ${lagre.length} ligger lägre.`
+    : hogre.length === r.areas.length
+      ? `Samtliga ${r.areas.length} områden ligger högre i ${r.peak.name}.`
+      : `Samtliga ${r.areas.length} områden ligger lägre i ${r.peak.name}.`;
+
+const storst = [...r.areas].sort((a, b) => b.gap - a.gap)[0];
+const minst = [...r.areas].sort((a, b) => a.gap - b.gap)[0];
+
+/**
+ * Områdenas namn skrivs som de står i LEGISLATION_AREAS, aldrig gemenade. En
+ * automatisk gemening ger "haccp", vilket är ett annat ord än HACCP.
+ */
+const storstNot =
+  storst && storst.gap > 0
+    ? `Störst är utslaget i ${storst.name}:` +
+      ` ${formatShare(storst.peakShare)} procent av de granskade punkterna föll i` +
+      ` ${r.peak.name}, mot ${formatShare(storst.restShare)} under resten av året.`
+    : null;
+
+const minstNot =
+  minst && minst.gap < 0
+    ? `${minst.name} går åt andra hållet, ${formatShare(Math.abs(minst.gap))} procentenheter` +
+      ` lägre i ${r.peak.name}.`
+    : null;
+
+/**
+ * Tolkningen skrivs bara ut när mönstret faktiskt ser ut som det gör i dag:
+ * områden som hänger på den dagliga driften uppåt, de som hänger på pärmen
+ * nedåt. Ändras materialet ska meningen försvinna, inte stå kvar och förklara
+ * något annat än det som står i diagrammet.
+ */
+const HYGIEN = 'J';
+const PAPPER = ['B', 'H'];
+const tolkning =
+  hogre.some((a) => a.letter === HYGIEN) &&
+  lagre.length > 0 &&
+  lagre.every((a) => PAPPER.includes(a.letter))
+    ? 'Mönstret följer alltså vad ett område kräver av den dagliga driften. Rengöring,' +
+      ' temperaturer och rutiner sköts av dem som är på plats, och i semestertid är det' +
+      ' oftare vikarier. Märkning och spårbarhet ligger i pärmen och i systemet, och det' +
+      ' ser likadant ut oavsett vem som står i köket.'
+    : null;
+---
+
+<Rapport slug="anmarkningar-over-aret">
+  <section>
+    <h2>Kontrollåret månad för månad</h2>
+    <p>{scope}</p>
+
+    <Diagram
+      titel="Andel planerade kontroller som gav minst en anmärkning"
+      underlag={`${formatNumber(r.total)} planerade kontroller, ${r.first} till ${r.last}, summerade per månad.`}
+    >
+      <Tidslinje
+        label="Andel planerade kontroller med minst en anmärkning, per månad"
+        enhet="%"
+        min={botten}
+        max={taket}
+        points={r.months.map((m) => ({
+          label: m.label,
+          value: m.share,
+          display: formatShare(m.share),
+        }))}
+      />
+    </Diagram>
+
+    <p>{toppen} {volymen}</p>
+  </section>
+
+  <section>
+    <h2>Var i lagstiftningen ligger skillnaden?</h2>
+    <p>{omradeScope}</p>
+    <p>{omradeSvar} {storstNot} {minstNot}</p>
+
+    <Diagram
+      titel={`Granskade punkter som föll, ${r.peak.name} mot resten av året`}
+      underlag={`Områden med minst ${MIN_AREA_CHECKS} granskade punkter i ${r.peak.name}.`}
+    >
+      <Parstapel
+        label={`Andel granskade punkter med avvikelse per lagstiftningsområde, ${r.peak.name} mot resten av året`}
+        serieA={`${r.peak.name[0].toUpperCase()}${r.peak.name.slice(1)}`}
+        serieB="Resten av året"
+        scale={omradetak}
+        rows={r.areas.map((a) => ({
+          label: a.name,
+          a: a.peakShare,
+          b: a.restShare,
+          aDisplay: `${formatShare(a.peakShare)} %`,
+          bDisplay: `${formatShare(a.restShare)} %`,
+          note: `${a.explanation} ${formatNumber(a.peakChecks)} granskade punkter i ${r.peak.name}, ${formatNumber(a.restChecks)} under resten av året.`,
+        }))}
+      />
+    </Diagram>
+
+    {tolkning && <p>{tolkning}</p>}
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Månaderna är summerade över hela perioden, inte ett enskilt år. En
+        månad som ligger högt gör det alltså inte på grund av en enda sommar.
+      </li>
+      <li>
+        Vilka verksamheter som kontrolleras skiftar med säsongen. Ett
+        strandkafé och en glasskiosk finns bara på sommaren, och det räcker för
+        att flytta en månads andel utan att något kök ändrat sig.
+      </li>
+      <li>
+        Återbesök och kontroller efter en anmälan är utelämnade. Ett återbesök
+        ligger i en annan månad än kontrollen som utlöste det och skulle flytta
+        anmärkningar mellan månaderna.
+      </li>
+      <li>
+        Områdesuppdelningen vilar på de kommuner som redovisar även de punkter
+        som var utan avvikelse. Övriga publicerar bara avvikelserna, och ur dem
+        går det att räkna vad anmärkningarna gäller men inte hur ofta en punkt
+        föll.
+      </li>
+      <li>
+        Anmärkning betyder minst en avvikelse, inte hur allvarlig den var.
+      </li>
+    </ul>
+    <p class="callout">
+      Vad anmärkningarna gäller när man räknar dem över hela året står i
+      {' '}<a href={path('rapporter', 'vad-anmarkningarna-galler')}>Vad
+      anmärkningarna faktiskt gäller</a>.
+    </p>
+  </section>
+</Rapport>
