@@ -24,6 +24,46 @@
  * av någon.
  *
  * ---------------------------------------------------------------------------
+ * FORMEN: ETIKETTSPALT TILL VÄNSTER, FRÅGERADER TILL HÖGER
+ * ---------------------------------------------------------------------------
+ * Innehållet stod kvar när formen underkändes. Ägaren om första utkastet:
+ * "Dom är otroligt fula, herregud... under all kritik." Sidan var ren löptext
+ * i en spalt på 680: rubrik, stycke, rubrik, stycke, åtta gånger, med tre
+ * likadana hårlinjer som enda skiljetecken. Åtta frågor efter varandra i en
+ * spalt läser som åtta stycken, och ögat har ingenstans att landa.
+ *
+ * Referenserna mättes i webbläsaren 2026-08-13, i 1280 px bredd.
+ *
+ *   Airbnb   airbnb.se/help. Behållaren 1064. Rubriken 40/56/500. Gruppens
+ *            rubrik 26/30/500 respektive 32/36/500. Toppartiklarna ligger i
+ *            ett rutnät med tre spalter à 344, 24 px luft över och under
+ *            varje cell och en hårlinje mellan raderna. Cellens länk är
+ *            18/24/500 UNDERSTRUKEN i bläck, och under den en tyst
+ *            sammanfattning i 16/24 i #6C6C6C. Alltså: rader skilda av
+ *            hårlinje, aldrig en ruta, och frågan tyngre än sitt svar.
+ *   Ednia    ednia.se/om-oss. Behållaren 1056, och varje avsnitt är ett
+ *            rutnät på 397 + 635 med 24 px emellan: en fet etikett i vänster
+ *            spalt (22/26/600) och brödtexten i höger (16/24). Det är den
+ *            enda delen av den sidan som är värd att ta efter. Dragspelet och
+ *            den inbakade kontakten är det inte.
+ *   Booli    booli.se/om/kontakt ruttar per ärende utan formulär, precis som
+ *            vår kontaktsida. Formspråket står mätt i docs/19: sektioner
+ *            skiljs av en hårlinje och 32 respektive 64 px luft, aldrig av en
+ *            ruta, och huvudinnehåll får aldrig ligga i en låda.
+ *
+ * Vår översättning tar Ednias tvåspalt och Airbnbs rader. Gruppens rubrik står
+ * i en egen vänsterspalt, alltså syns grupperingen som en yta och inte bara
+ * som en textgrad, och frågorna ligger som rader skilda av hårlinjer med 24 px
+ * luft, alltså Airbnbs cellmått. Ingen färgad platta bär grupperingen: bandet
+ * på kommunsidan lärde oss det i commit 27318562, där ljusblått byttes mot
+ * vitt med hårlinje. Linje och luft, som Booli.
+ *
+ * Bredden går från --w-read till --w-wide, och textspalten ÄR --w-read. Sidan
+ * blir alltså inte bredare att läsa, den får en spalt till att bära etiketten.
+ * Etiketten är klistrad (sticky) inom sin grupp, för en grupp är fyra frågor
+ * hög och en tvåordsetikett längst upp i en tom spalt hade läst som ett hål.
+ *
+ * ---------------------------------------------------------------------------
  * INGEN SÖKRUTA, INGEN INNEHÅLLSFÖRTECKNING, INGEN DRAGSPELSLIST
  * ---------------------------------------------------------------------------
  * Sökrutan hos Airbnb och Booli söker i hjälpartiklarna. Vår SiteSearch söker
@@ -32,7 +72,8 @@
  *
  * En innehållsförteckning skulle räkna upp åtta rubriker som står en skärm
  * längre ned, och det är precis vad språkreglerna kallar att skriva ut det som
- * står en rad bort.
+ * står en rad bort. Etikettspalten gör samma jobb utan att upprepa något: den
+ * säger vilken grupp man står i medan man läser den.
  *
  * Dragspel avfärdat efter Ednia: deras fyra vanliga frågor ligger hopfällda
  * längst ned på om-sidan, och den fråga som betyder mest av dem, hur gymnasier
@@ -67,158 +108,250 @@ const kommuner = numeral(coverage().municipalities);
     <header>
       <p class="eyebrow">Hjälp</p>
       <h1>Frågor och svar</h1>
+      {/* Ingressen säger hur sidan är delad, alltså samma sak som
+          etikettspalten säger i sidled. Den ersätter innehållsförteckningen:
+          den beskriver ordningen i stället för att räkna upp rubrikerna. */}
+      <p class="lede text-secondary">
+        Frågorna i två grupper: hur uppgifterna blir till, och vad du kan göra
+        som driver ett ställe.
+      </p>
     </header>
 
-    <section>
-      <h2>Uppgifterna</h2>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Uppgifterna</h2></div>
 
-      <h3 id="bedomningen">Hur räknas bedömningen fram?</h3>
-      <p>
-        Tre nivåer, och det är den senaste kontrollen som avgör. Bedömningen är
-        Prikkos egen slutsats och inget officiellt betyg: Sverige har inget
-        nationellt hygienbetygssystem.
-        {' '}<a href="/metodik/">Hela beräkningen står i metodiken</a>.
-      </p>
+      <div class="rader">
+        <article class="rad" id="bedomningen">
+          <h3>Hur räknas bedömningen fram?</h3>
+          <p>
+            Tre nivåer, och det är den senaste kontrollen som avgör. Bedömningen är
+            Prikkos egen slutsats och inget officiellt betyg: Sverige har inget
+            nationellt hygienbetygssystem.
+            {' '}<a href="/metodik/">Hela beräkningen står i metodiken</a>.
+          </p>
+        </article>
 
-      <h3 id="uppdatering">Hur ofta uppdateras uppgifterna?</h3>
-      <p>
-        Uppgifterna hämtas om regelbundet, och varje verksamhets sida visar
-        datumet för sin senaste hämtning. Att en kontroll har gjorts betyder
-        inte att den syns direkt, eftersom den först ska publiceras av kommunen.
-        {' '}<a href="/kallor/">Täckning och hämtdatum</a>.
-      </p>
+        <article class="rad" id="uppdatering">
+          <h3>Hur ofta uppdateras uppgifterna?</h3>
+          <p>
+            Uppgifterna hämtas om regelbundet, och varje verksamhets sida visar
+            datumet för sin senaste hämtning. Att en kontroll har gjorts betyder
+            inte att den syns direkt, eftersom den först ska publiceras av kommunen.
+            {' '}<a href="/kallor/">Täckning och hämtdatum</a>.
+          </p>
+        </article>
 
-      <h3 id="kommun-saknas">Varför saknas min kommun?</h3>
-      <p>
-        Prikko täcker {kommuner} av 290 kommuner. Sverige har inget nationellt
-        system för publicering av livsmedelskontroller, varje kommun bestämmer
-        själv, och de flesta publicerar ingenting alls. Nya tillkommer
-        efterhand. <a href="/kallor/">Vilka som är med i dag</a>.
-      </p>
-      <p>
-        Arbetar du på en kontrollmyndighet och vill att era kontroller ska
-        finnas här, <a href="/kontakt/">hör av dig</a>.
-      </p>
+        <article class="rad" id="kommun-saknas">
+          <h3>Varför saknas min kommun?</h3>
+          <p>
+            Prikko täcker {kommuner} av 290 kommuner. Sverige har inget nationellt
+            system för publicering av livsmedelskontroller, varje kommun bestämmer
+            själv, och de flesta publicerar ingenting alls. Nya tillkommer
+            efterhand. <a href="/kallor/">Vilka som är med i dag</a>.
+          </p>
+          <p>
+            Arbetar du på en kontrollmyndighet och vill att era kontroller ska
+            finnas här, <a href="/kontakt/">hör av dig</a>.
+          </p>
+        </article>
 
-      <h3 id="anmala">Hur anmäler jag ett ställe?</h3>
-      <p>
-        Klagomål på hygienen i en lokal går till kommunens miljöförvaltning,
-        som är kontrollmyndighet. Prikko tar inte emot anmälningar och skickar
-        inga ärenden åt någon, varken i dag eller senare. Vi är inte en
-        myndighet och företräder ingen.
-      </p>
-      <p>
-        Handlar det i stället om något som står fel här är det
-        {' '}<a href="/ratta/">en rättelse</a> du vill göra, inte en anmälan.
-      </p>
+        <article class="rad" id="anmala">
+          <h3>Hur anmäler jag ett ställe?</h3>
+          <p>
+            Klagomål på hygienen i en lokal går till kommunens miljöförvaltning,
+            som är kontrollmyndighet. Prikko tar inte emot anmälningar och skickar
+            inga ärenden åt någon, varken i dag eller senare. Vi är inte en
+            myndighet och företräder ingen.
+          </p>
+          <p>
+            Handlar det i stället om något som står fel här är det
+            {' '}<a href="/ratta/">en rättelse</a> du vill göra, inte en anmälan.
+          </p>
+        </article>
+      </div>
     </section>
 
-    <section>
-      <h2>Om du driver ett ställe</h2>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Om du driver ett ställe</h2></div>
 
-      <h3 id="fel-uppgift">Det står fel om mitt ställe. Hur rättar jag det?</h3>
-      <p>
-        <a href="/ratta/">Fyll i rättelseformuläret</a>, så går det till
-        redaktionen.
-      </p>
-      <p>
-        Två fall skiljs åt. Har vi återgett en uppgift fel rättar vi den. Är det
-        kommunens egen uppgift som är fel måste den rättas hos kommunen, för det
-        är deras handling vi återger, och ändringen följer med vid nästa
-        hämtning.
-      </p>
+      <div class="rader">
+        <article class="rad" id="fel-uppgift">
+          <h3>Det står fel om mitt ställe. Hur rättar jag det?</h3>
+          <p>
+            <a href="/ratta/">Fyll i rättelseformuläret</a>, så går det till
+            redaktionen.
+          </p>
+          <p>
+            Två fall skiljs åt. Har vi återgett en uppgift fel rättar vi den. Är det
+            kommunens egen uppgift som är fel måste den rättas hos kommunen, för det
+            är deras handling vi återger, och ändringen följer med vid nästa
+            hämtning.
+          </p>
+        </article>
 
-      <h3 id="ta-bort">Kan ni ta bort en anmärkning?</h3>
-      <p>
-        Nej. En kontrollrapport är en allmän handling, och det som står i den
-        försvinner inte för att den som granskats vill det. En sajt där
-        verksamheter plockar bort sina egna anmärkningar är inte värd att läsa.
-        Du kan inte heller betala för att slippa synas.
-      </p>
-      <p>
-        Det du kan göra är att begära rättelse om uppgiften är fel, och att
-        svara på kontrollen. Svaret står kvar bredvid bedömningen så länge
-        kontrollen gör det.
-      </p>
+        <article class="rad" id="ta-bort">
+          <h3>Kan ni ta bort en anmärkning?</h3>
+          <p>
+            Nej. En kontrollrapport är en allmän handling, och det som står i den
+            försvinner inte för att den som granskats vill det. En sajt där
+            verksamheter plockar bort sina egna anmärkningar är inte värd att läsa.
+            Du kan inte heller betala för att slippa synas.
+          </p>
+          <p>
+            Det du kan göra är att begära rättelse om uppgiften är fel, och att
+            svara på kontrollen. Svaret står kvar bredvid bedömningen så länge
+            kontrollen gör det.
+          </p>
+        </article>
 
-      <h3 id="svara">Hur svarar jag på en kontroll?</h3>
-      <p>
-        Skapa ett konto och
-        {' '}<a href="/konto/verksamhet/">ansök om att företräda verksamheten</a>.
-        Rätten att svara uppstår först när redaktionen kontrollerat att du står
-        skriven på bolaget.
-      </p>
-      <p>
-        Svaret granskas innan det publiceras och publiceras sedan ordagrant,
-        bredvid bedömningen. Vi redigerar inte i det och vi går inte i svaromål
-        i samma text.
-      </p>
+        <article class="rad" id="svara">
+          <h3>Hur svarar jag på en kontroll?</h3>
+          <p>
+            Skapa ett konto och
+            {' '}<a href="/konto/verksamhet/">ansök om att företräda verksamheten</a>.
+            Rätten att svara uppstår först när redaktionen kontrollerat att du står
+            skriven på bolaget.
+          </p>
+          <p>
+            Svaret granskas innan det publiceras och publiceras sedan ordagrant,
+            bredvid bedömningen. Vi redigerar inte i det och vi går inte i svaromål
+            i samma text.
+          </p>
+        </article>
 
-      <h3 id="emblem">Hur hämtar jag emblemet?</h3>
-      <p>
-        Verksamheter som klarat sina kontroller över tid får en
-        {' '}<a href="/utmarkelser/">utmärkelse</a>, och den som har en hämtar
-        märket som kod eller bildfil på
-        {' '}<a href="/utmarkelser/emblem/">emblemsidan</a>. Villkoren för att
-        använda det står där. Märket går inte att köpa.
-      </p>
+        <article class="rad" id="emblem">
+          <h3>Hur hämtar jag emblemet?</h3>
+          <p>
+            Verksamheter som klarat sina kontroller över tid får en
+            {' '}<a href="/utmarkelser/">utmärkelse</a>, och den som har en hämtar
+            märket som kod eller bildfil på
+            {' '}<a href="/utmarkelser/emblem/">emblemsidan</a>. Villkoren för att
+            använda det står där. Märket går inte att köpa.
+          </p>
+        </article>
+      </div>
     </section>
 
     {/* Vägen till en människa ligger sist, som hos Airbnb och Booli, och av
         samma skäl: den som fått sitt svar ovanför ska inte behöva skriva.
         Skillnaden mot Airbnb är vad som möter en när man klickar. Deras
         "Kontakta oss" kräver inloggning och visar tolv artiklar till innan
-        någon kanal syns. Vår kontaktsida har varken vägg eller mellansteg. */}
-    <section>
-      <h2>Kontakt</h2>
-      <p>
-        Frågan som inte står här ställer du på mejl.
-        {' '}<a href="/kontakt/">Så når du oss</a>.
-      </p>
+        någon kanal syns. Vår kontaktsida har varken vägg eller mellansteg.
+
+        Airbnb sätter en knapp här. Vi sätter en pilrad, samma form som
+        "Till artiklarna" i ArtikelBanner: en knapp lovar ett formulär, och
+        det som väntar är en sida med adresser. */}
+    <section class="avsnitt">
+      <div class="etikett"><h2>Kontakt</h2></div>
+
+      <div class="rader">
+        <article class="rad">
+          <p>Frågan som inte står här ställer du på mejl.</p>
+          <a class="vidare" href="/kontakt/">
+            Så når du oss
+            <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true" focusable="false">
+              <path
+                d="M1 5h14.4M11.6 1 15.8 5l-4.2 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+            </svg>
+          </a>
+        </article>
+      </div>
     </section>
   </article>
 </Base>
 
 <style>
+  /* Sidan är --w-wide, men BRÖDTEXTEN är --w-read och inte en pixel bredare.
+     Den extra bredden går till etikettspalten, inte till radlängden. */
   .page {
-    max-width: var(--w-read);
+    max-width: var(--w-wide);
     padding-block: var(--s-12) var(--s-16);
   }
 
   h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); max-width: var(--w-read); }
 
-  /* Linjen är gruppens gräns. Sidan har tre nivåer och inte två, och utan
-     något som bryter av läser den som en enda lång lista där bara typsnittet
-     skiljer en gruppindelning från en fråga. */
-  section {
-    margin-top: var(--s-12);
-    padding-top: var(--s-8);
+  /* Ednias mått, omräknade: deras 397 + 635 med 24 emellan på en behållare på
+     1056. Vår textspalt är låst till --w-read och etikettspalten tar det som
+     blir över, alltså omkring 330 av 1048. Luften är --s-8 och inte --s-6,
+     eftersom vår brödtext är 17 px där deras är 16. */
+  .avsnitt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--w-read));
+    gap: var(--s-8);
+    margin-top: var(--s-16);
+  }
+
+  /* Etiketten följer med sin grupp. En grupp är fyra frågor hög, och en
+     tvåordsrubrik längst upp i en annars tom spalt läser som ett hål i
+     sidan i stället för som en gruppindelning. Sidhuvudet är inte klistrat
+     (position: relative i Header.astro), alltså räcker luften här som
+     avstånd till toppen. */
+  .etikett {
+    position: sticky;
+    top: var(--s-8);
+    align-self: start;
+  }
+
+  /* Gruppens rubrik är --fs-title och inte h2:ns vanliga 24. Skälet är samma
+     som stod här före ombyggnaden: 24 mot frågans 21 är tre punkter, alltså
+     ingen skillnad alls på en skärm, och en rubriknivå som inte syns är ingen
+     rubriknivå. Stegen är 40, 32, 21, 17. Airbnb sätter sin gruppubrik på 26
+     respektive 32 där brödtexten är 16. */
+  .etikett h2 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+  }
+
+  /* Raderna: Airbnbs cell. Hårlinje MELLAN posterna, ingen över den första
+     och ingen under den sista, och 24 px luft på ömse sidor om linjen. */
+  .rad { scroll-margin-top: var(--s-6); }
+  .rad + .rad {
+    margin-top: var(--s-6);
+    padding-top: var(--s-6);
     border-top: 1px solid var(--hairline);
   }
 
-  /* Gruppens rubrik är --fs-title och inte den vanliga h2-graden. 24 mot
-     frågans 21 är tre punkter, alltså ingen skillnad alls på en skärm, och en
-     rubriknivå som inte syns är ingen rubriknivå. Stegen blir nu 40, 32, 21,
-     17. Ednias om-sida går från h1 rakt till h3 och har därmed en enda nivå
-     under rubriken; allt väger lika mycket och inget styr ögat. */
-  section h2 {
-    font-size: var(--fs-title);
-    line-height: var(--lh-title);
-    margin-bottom: var(--s-6);
+  .rad h3 { font-size: var(--fs-h-s); line-height: var(--lh-h-s); }
+  .rad h3 + p { margin-top: var(--s-3); }
+  .rad p { line-height: var(--lh-body); }
+  .rad p + p { margin-top: var(--s-4); }
+
+  /* Samma pilrad som ArtikelBanner. Pilen flyttar sig vid hover, inget mer. */
+  .vidare {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
   }
 
-  /* Frågan väger mer än ett stycke och mindre än gruppens rubrik. Avståndet
-     uppåt är större än nedåt, så att en fråga läses ihop med sitt eget svar
-     och inte med svaret ovanför. */
-  section h3 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    margin-top: var(--s-8);
-    margin-bottom: var(--s-3);
+  .vidare svg { transition: transform .15s ease; }
+  .vidare:hover svg { transform: translateX(3px); }
+
+  /* Brytpunkten är räknad, inte vald. Textspalten är låst till 680 och luften
+     är 32, alltså blir etikettspalten fönsterbredden minus 744 inklusive
+     behållarens 16 px kantluft på var sida. "Om du driver ett ställe" i 32 px
+     kräver omkring 250 px för att stå på två rader, alltså krävs ett fönster
+     på 994. Under 1000 lägger sig etiketten ovanför sina rader i stället. */
+  @media (max-width: 1000px) {
+    /* En spalt, men fortfarande högst --w-read. Utan taket rann svaren ut i
+       hela fönstret så fort etikettspalten föll bort, alltså 928 tecken breda
+       rader på en surfplatta, vilket är bredare än sidan någonsin var före
+       ombyggnaden. */
+    .avsnitt {
+      grid-template-columns: minmax(0, var(--w-read));
+      gap: var(--s-6);
+      margin-top: var(--s-12);
+    }
+
+    .etikett { position: static; }
   }
-
-  section h2 + h3 { margin-top: 0; }
-
-  section p { line-height: var(--lh-body); }
-  section p + p { margin-top: var(--s-4); }
 </style>

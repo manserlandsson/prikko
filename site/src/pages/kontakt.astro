@@ -16,6 +16,37 @@
  * inte en sida i den mening regeln menar.
  *
  * ---------------------------------------------------------------------------
+ * FORMEN: SAMMA ETIKETTSPALT SOM /hjalp/
+ * ---------------------------------------------------------------------------
+ * Sidan ruttar på ärende, men gjorde det i löptext, och då syns inte
+ * ruttningen. Ägarens dom på den första formen: "Dom är otroligt fula,
+ * herregud... under all kritik." Felet var att varje ärendes MÅL, alltså
+ * formuläret och adresserna, låg inbakat mitt i en mening, medan det enda som
+ * hade en egen form på sidan var faktarutan längst ned.
+ *
+ * Uppmätt hos referenserna 2026-08-13, i 1280 px bredd:
+ *
+ *   Ednia    ednia.se/om-oss. Varje avsnitt är ett rutnät på 397 + 635 med 24
+ *            px emellan, etiketten fet i vänster spalt och texten i höger. I
+ *            deras kontaktruta står målet ALDRIG i en mening: en tyst etikett
+ *            i 14/20 i #717171 ("Allmänna frågor", "För media") och rakt under
+ *            den adressen som understruken länk i 16/24.
+ *   Airbnb   airbnb.se/help. Deras kontaktblock är rubrik, två rader text och
+ *            en KNAPP. Knappen bär den handling som verkligen finns.
+ *   Booli    booli.se/om/kontakt ruttar på ärende utan formulär, med rubrik,
+ *            text och länk per ärende, och organisationsnumret sist. Samma
+ *            disposition som den här sidan redan hade.
+ *
+ * Sidan lånar därför tre former, alla från sajten själv eller från mätningen:
+ * etikettspalten från /hjalp/, som i sin tur är Ednias tvåspalt; åtta pixlar
+ * mellan en etikett och sitt värde, vilket är Nyckeltal.astro:s mått och
+ * samma som Ednia och Stripe; och .btn-primary, sajtens egen knapp, på det
+ * enda ärende som har ett formulär att gå till.
+ *
+ * Ingen färgad platta bär grupperingen. Kommunbandet lärde oss det i commit
+ * 27318562: linje och luft, som Booli.
+ *
+ * ---------------------------------------------------------------------------
  * VARFÖR INGET FORMULÄR HÄR
  * ---------------------------------------------------------------------------
  * Ett mejlformulär kräver två saker: en mottagare och en backend.
@@ -79,53 +110,84 @@ import { PUBLISHER, SITE } from '../lib/site';
       </p>
     </header>
 
-    <section>
-      <h2>Något står fel</h2>
-      <p>
-        <a href="/ratta/">Rättelseformuläret</a> är den snabbaste vägen. Det
-        ställer de frågor redaktionen ändå behöver ställa och lägger ärendet i
-        kön direkt.
-      </p>
-      <p>
-        Vill du hellre skriva själv går det till
-        {' '}<a href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>.
-        Skriv med vilken verksamhet och vilken kontroll det gäller, annars blir
-        första svaret bara en fråga om det.
-      </p>
+    {/* Rättelser är det enda ärendet med ett formulär att gå till, alltså det
+        enda som får en knapp. Airbnbs kontaktblock gör samma sak, och skälet
+        att inte sätta en knapp på de andra är att en knapp lovar en handling
+        medan en adress är en adress. */}
+    <section class="avsnitt">
+      <div class="etikett"><h2>Något står fel</h2></div>
+
+      <div class="rader">
+        <p>
+          Rättelseformuläret är den snabbaste vägen. Det ställer de frågor
+          redaktionen ändå behöver ställa och lägger ärendet i kön direkt.
+        </p>
+        <div class="handling"><a class="btn-primary" href="/ratta/">Rätta en uppgift</a></div>
+
+        <p class="etikettrad">Vill du hellre skriva själv</p>
+        <a class="adress" href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>
+        <p class="tillagg">
+          Skriv med vilken verksamhet och vilken kontroll det gäller, annars
+          blir första svaret bara en fråga om det.
+        </p>
+      </div>
     </section>
 
-    <section>
-      <h2>Personuppgifter</h2>
-      <p>
-        Registerutdrag, rättelse, radering och invändning:
-        {' '}<a href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>.
-        Vilka rättigheter du har och vad de omfattar står i
-        {' '}<a href="/integritetspolicy/">integritetspolicyn</a>.
-      </p>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Personuppgifter</h2></div>
+
+      <div class="rader">
+        <p>Registerutdrag, rättelse, radering och invändning.</p>
+        <a class="adress" href={`mailto:${PUBLISHER.email}`}>{PUBLISHER.email}</a>
+        <p class="tillagg">
+          Vilka rättigheter du har och vad de omfattar står i
+          {' '}<a href="/integritetspolicy/">integritetspolicyn</a>.
+        </p>
+      </div>
     </section>
 
-    <section>
-      <h2>Om du driver en verksamhet</h2>
-      <p>
-        Ansökan om att företräda en verksamhet, och svar på en kontroll, sker
-        på <a href="/konto/verksamhet/">ditt konto</a> och inte på mejl. Där
-        knyts anspråket till organisationsnumret, vilket ett mejl inte gör.
-      </p>
-      <p>
-        Ska en anmärkning bort
-        {' '}<a href="/hjalp/#ta-bort">står svaret i hjälpen</a>, och det är nej.
-      </p>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Om du driver en verksamhet</h2></div>
+
+      <div class="rader">
+        <p>
+          Ansökan om att företräda en verksamhet, och svar på en kontroll, sker
+          på ditt konto och inte på mejl. Där knyts anspråket till
+          organisationsnumret, vilket ett mejl inte gör.
+        </p>
+        <a class="vidare" href="/konto/verksamhet/">
+          Företräd din verksamhet
+          <svg width="17" height="10" viewBox="0 0 17 10" aria-hidden="true" focusable="false">
+            <path
+              d="M1 5h14.4M11.6 1 15.8 5l-4.2 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </a>
+        <p class="tillagg">
+          Ska en anmärkning bort
+          {' '}<a href="/hjalp/#ta-bort">står svaret i hjälpen</a>, och det är nej.
+        </p>
+      </div>
     </section>
 
-    <section>
-      <h2>Kommuner och kontrollmyndigheter</h2>
-      <p>
-        Arbetar du på en kontrollmyndighet och vill att era kontroller ska
-        finnas här, skriv till
-        {' '}<a href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>.
-        Vi hämtar i första hand från öppna gränssnitt, och i andra hand genom
-        utlämnande enligt offentlighetsprincipen.
-      </p>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Kommuner och kontrollmyndigheter</h2></div>
+
+      <div class="rader">
+        <p>
+          Arbetar du på en kontrollmyndighet och vill att era kontroller ska
+          finnas här, skriv till oss.
+        </p>
+        <a class="adress" href={`mailto:${PUBLISHER.correctionEmail}`}>{PUBLISHER.correctionEmail}</a>
+        <p class="tillagg">
+          Vi hämtar i första hand från öppna gränssnitt, och i andra hand genom
+          utlämnande enligt offentlighetsprincipen.
+        </p>
+      </div>
     </section>
 
     {/* Uppgifterna står också i villkoren, som är den sida 8 § e-handelslagen
@@ -133,36 +195,118 @@ import { PUBLISHER, SITE } from '../lib/site';
         bort: en kontaktsida utan avsändare är själva luckan, och den som söker
         "prikko kontakt" ska inte behöva vidare till villkorssidan för att få
         veta vem hen skriver till. */}
-    <section>
-      <h2>Vem som står bakom</h2>
-      <dl class="facts">
-        <div><dt>Företag</dt><dd>{PUBLISHER.legalName}</dd></div>
-        <div><dt>Organisationsnummer</dt><dd>{PUBLISHER.orgNumber}</dd></div>
-        <div><dt>Momsregistreringsnummer</dt><dd>{PUBLISHER.vatNumber}</dd></div>
-        <div><dt>Webbplats</dt><dd>{SITE.url.replace('https://', '')}</dd></div>
-      </dl>
-      <p class="text-secondary">
-        Prikko är varumärket. {PUBLISHER.legalName} är den juridiska person som
-        står bakom det. <a href="/villkor/">Villkoren</a> säger vad tjänsten
-        ansvarar för.
-      </p>
+    <section class="avsnitt">
+      <div class="etikett"><h2>Vem som står bakom</h2></div>
+
+      <div class="rader">
+        <dl class="facts">
+          <div><dt>Företag</dt><dd>{PUBLISHER.legalName}</dd></div>
+          <div><dt>Organisationsnummer</dt><dd>{PUBLISHER.orgNumber}</dd></div>
+          <div><dt>Momsregistreringsnummer</dt><dd>{PUBLISHER.vatNumber}</dd></div>
+          <div><dt>Webbplats</dt><dd>{SITE.url.replace('https://', '')}</dd></div>
+        </dl>
+        <p class="tillagg">
+          Prikko är varumärket. {PUBLISHER.legalName} är den juridiska person som
+          står bakom det. <a href="/villkor/">Villkoren</a> säger vad tjänsten
+          ansvarar för.
+        </p>
+      </div>
     </section>
   </article>
 </Base>
 
 <style>
+  /* Samma mått som /hjalp/. Sidan är --w-wide och textspalten --w-read: den
+     extra bredden går till etikettspalten, inte till radlängden. */
   .page {
-    max-width: var(--w-read);
+    max-width: var(--w-wide);
     padding-block: var(--s-12) var(--s-16);
   }
 
   h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
-  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
+  .lede { margin-top: var(--s-4); line-height: var(--lh-body); max-width: var(--w-read); }
 
-  section { margin-top: var(--s-12); }
-  section h2 { margin-bottom: var(--s-4); }
-  section p { line-height: var(--lh-body); }
-  section p + p { margin-top: var(--s-4); }
+  .avsnitt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--w-read));
+    gap: var(--s-8);
+    margin-top: var(--s-8);
+    padding-top: var(--s-8);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Första avsnittet skiljs från sidhuvudet av luft och inget annat. En linje
+     direkt under en ingress läser som en understrykning av ingressen. */
+  .avsnitt:first-of-type {
+    margin-top: var(--s-12);
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  /* Ärendets namn, samma grad som gruppens rubrik på /hjalp/. Här står ett
+     ärende per avsnitt, alltså är den inte klistrad: det finns ingenting att
+     följa med nedåt. */
+  .etikett { align-self: start; }
+
+  .etikett h2 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+  }
+
+  .rader p { line-height: var(--lh-body); }
+  .rader p + p { margin-top: var(--s-4); }
+
+  .handling { margin-top: var(--s-4); }
+
+  /* Etikett över mål, Ednias kontaktruta. Åtta pixlar emellan, vilket är
+     Nyckeltal.astro:s mått och samma som både Ednia och Stripe sätter mellan
+     ett tal och dess etikett. */
+  .etikettrad {
+    margin-top: var(--s-8);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Adressen är sidans mål och står på egen rad, aldrig inbakad i en mening.
+     Ingen understrykning: den ligger ensam på sin rad i länkfärg och kan
+     inte förväxlas med brödtext. */
+  .adress {
+    display: inline-block;
+    margin-top: var(--s-2);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+  }
+
+  /* Ligger adressen efter en vanlig mening och inte efter en etikett hör den
+     ihop med meningen, och då är avståndet 12 och inte 8. Etikettregeln måste
+     räkna tre klasser för att vinna över den, eftersom .etikettrad också är
+     ett p och specificiteten annars går åt fel håll. */
+  .rader p + .adress { margin-top: var(--s-3); }
+  .rader .etikettrad + .adress { margin-top: var(--s-2); }
+
+  /* Det som förklarar målet står efter det, i brödtextens grad men tyst. */
+  .tillagg {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Samma pilrad som ArtikelBanner och /hjalp/. */
+  .vidare {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .vidare svg { transition: transform .15s ease; }
+  .vidare:hover svg { transform: translateX(3px); }
 
   .facts {
     display: grid;
@@ -184,5 +328,15 @@ import { PUBLISHER, SITE } from '../lib/site';
   .facts dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
   .facts dd { margin: 0; font-size: var(--fs-body-s); font-weight: 600; }
 
-  .facts + p { margin-top: var(--s-4); font-size: var(--fs-body-s); }
+  /* Samma brytpunkt som /hjalp/, räknad på samma sätt: textspalten 680 plus
+     32 px luft plus behållarens kantluft lämnar för lite åt etiketten under
+     ett fönster på 1000. */
+  @media (max-width: 1000px) {
+    /* En spalt, men fortfarande högst --w-read: utan taket rinner texten ut i
+       hela fönstret så fort etikettspalten faller bort. */
+    .avsnitt {
+      grid-template-columns: minmax(0, var(--w-read));
+      gap: var(--s-4);
+    }
+  }
 </style>
