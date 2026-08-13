@@ -109,7 +109,7 @@ export interface Establishment {
    * av kommunen. Uppsala och Örebro lämnar inga koordinater; deras nålar är
    * geokodade mot OpenStreetMap. Saknas fältet kommer punkten från källan.
    */
-  geoSource?: 'osm';
+  geoSource?: 'osm' | 'lantmateriet';
   /** 'address' = adressens egen punkt. 'approximate' = grannporten. */
   geoPrecision?: 'address' | 'approximate';
   image: StreetImage | null;
