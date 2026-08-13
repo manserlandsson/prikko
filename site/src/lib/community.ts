@@ -899,7 +899,7 @@ export interface PlaceName {
 /**
  * Slår upp verksamheter på id.
  *
- * Omdömestabellen bär inget namn — den lagrar `establishment_id` och
+ * Omdömestabellen bär inget namn. Den lagrar `establishment_id` och
  * kommunens slug, ingenting annat, och ska inte lagra mer. Namnet hämtas
  * därför där det hör hemma: i den redaktionella databasen, med GET och utan
  * inloggning. Vyn publishable_establishments och inte tabellen, av samma skäl
@@ -918,6 +918,73 @@ export async function placeNames(ids: string[]): Promise<Map<string, PlaceName>>
       `publishable_establishments?select=id,name,slug,municipality_slug&id=in.(${encodeURIComponent(list)})`,
     )) ?? [];
   return new Map(rows.map((row) => [row.id, row]));
+}
+
+/** Läget hos ett bevakat ställe: adressen dit, bedömningen och senaste besöket. */
+export interface PlaceState extends PlaceName {
+  /** Kommunens bedömning, eller null när ingen finns. ALDRIG ett besökarbetyg. */
+  verdict: 'clean' | 'minor' | 'major' | null;
+  /** Datum för senaste kontrollen som 'ÅÅÅÅ-MM-DD', eller null. */
+  latest_inspection: string | null;
+}
+
+/**
+ * Läget hos en handfull bevakade verksamheter.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR DET INTE STÅR PÅ BEVAKNINGSRADEN
+ * ---------------------------------------------------------------------------
+ * `community.follows` lagrar namn och kommun vid bevakningstillfället, och det
+ * ska den fortsätta göra: en privat lista ska inte korsa scheman för att kunna
+ * visas. Men en bedömning ÄNDRAS, och en kopia av den i kontodatabasen hade
+ * blivit en andra sanning som ingen uppdaterar. Läget hämtas därför där det
+ * räknas fram, i den redaktionella databasen, vid varje visning.
+ *
+ * TVÅ FRÅGOR OCH INTE EN PER RAD. Vyn bär bedömningen men inte datumet, för
+ * den slår ihop anläggning och bedömning och inte anläggning och kontroll.
+ * Kontrollerna hämtas därför i en egen fråga och nyaste raden per verksamhet
+ * plockas här. Att göra det åt andra hållet, alltså en fråga per bevakning,
+ * hade betytt tjugo anrop för en lista på tjugo rader.
+ *
+ * Faller kontrollfrågan står bedömningen kvar utan datum. Ett halvt besked är
+ * här bättre än inget: bedömningen är det som säger något om stället, datumet
+ * säger bara hur färskt det är.
+ */
+export async function placeStates(ids: string[]): Promise<Map<string, PlaceState>> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return new Map();
+
+  const list = encodeURIComponent(unique.map((id) => `"${id}"`).join(','));
+
+  const places: Array<PlaceName & { verdict: PlaceState['verdict'] }> =
+    (await readPublic(
+      `publishable_establishments?select=id,name,slug,municipality_slug,verdict&id=in.(${list})`,
+    )) ?? [];
+
+  const latest = new Map<string, string>();
+  try {
+    /* Nyast först, och bara den första raden per verksamhet behålls. Taket
+       finns för att en lista med många bevakningar inte ska dra hem hela
+       kontrollhistoriken för var och en; ordningen gör att det som ryker är
+       gamla kontroller och aldrig det senaste datumet. */
+    const rows: Array<{ establishment_id: string; inspected_at: string }> =
+      (await readPublic(
+        `inspections?select=establishment_id,inspected_at&establishment_id=in.(${list})` +
+          '&order=inspected_at.desc&limit=1000',
+      )) ?? [];
+    for (const row of rows) {
+      if (!latest.has(row.establishment_id)) latest.set(row.establishment_id, row.inspected_at);
+    }
+  } catch {
+    /* Utan datum duger bedömningen. */
+  }
+
+  return new Map(
+    places.map((row) => [
+      row.id,
+      { ...row, latest_inspection: latest.get(row.id)?.slice(0, 10) ?? null },
+    ]),
+  );
 }
 
 
@@ -1314,7 +1381,6 @@ async function shrink(file: File): Promise<File> {
      * fångsten ovan. Då finns ingen omritad bild att välja, och metadatan tas
      * bort av granskningen i stället.
      */
-
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
       type: 'image/jpeg',
       lastModified: Date.now(),
