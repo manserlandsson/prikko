@@ -80,8 +80,14 @@
  * hör till sökningen.
  *
  * Kommuner utan kartsida (fyra av tolv saknar koordinater) faller tillbaka på
- * hubben. Fältet `karta` i platsdatan nedan avgör det, byggt ur mapDatasets(),
- * alltså samma källa som kartrutterna själva.
+ * hubben. Fältet `karta` i platsdatan nedan avgör det, och det avgörs med
+ * `utsnitt()`, alltså med exakt det anrop kartsidans getStaticPaths gör.
+ *
+ * Här stod `mapDatasets()` tills nu. De två svarade likadant, men det var en
+ * 404 som väntade: `map-data.ts` är kommunfilernas modul och kartsidan bygger
+ * på rutarkivet, så den dag listorna glider isär hade förslaget lett till en
+ * sida som inte byggs. Samma rättning som gjordes i lib/webbkarta.ts, och av
+ * samma skäl: två oberoende svar på samma fråga är ett fel som väntar.
  *
  * POSITIONEN LÄMNAR ALDRIG WEBBLÄSAREN. Koordinaten läggs i adressens
  * fragment, delen efter #, som per HTTP aldrig skickas med i något anrop, och
@@ -90,8 +96,8 @@
  * /integritetspolicy/.
  */
 import { municipalityPoints } from '../lib/data';
+import { utsnitt } from '../lib/kartrutor';
 import { siteCommands } from '../lib/kommandon';
-import { mapDatasets } from '../lib/map-data';
 import { popularSearches } from '../lib/snabbval';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import type { Suggestion } from '../lib/sokforslag';
@@ -133,13 +139,12 @@ const sections = await siteCommands();
    en kartsida att landa på. Punkten är verksamheternas median eller en
    uppslagen ortskoordinat, se lib/data: den används enbart för att räkna
    avstånd mot besökarens position, aldrig för att rita en nål. */
-const kartaSlugs = new Set(mapDatasets().map((d) => d.municipality.slug));
 const platser = municipalityPoints().map((p) => ({
   slug: p.slug,
   city: p.city,
   lat: p.lat,
   lng: p.lng,
-  karta: kartaSlugs.has(p.slug),
+  karta: utsnitt(p.slug) !== undefined,
 }));
 
 /* `<` maskeras: en artikelrubrik med "</script>" i sig skulle annars stänga
