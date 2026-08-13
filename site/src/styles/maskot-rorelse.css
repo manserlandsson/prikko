@@ -1204,18 +1204,56 @@
  *
  * Rörelserna här är alltså inte "samma sak fast mindre". De är en egen, kortare
  * och mer återhållsam katalog, och den bär bedömningen och inte figuren.
+ *
+ * ══ VARFÖR GRÄNSEN INTE ÄR EN FÖRSIKTIGHET UTAN EN MEKANIK ═══════════════
+ *
+ * Listornas märken pekar med `<use>` på fyra symboler i sidans sprite, se
+ * FaceSprite.astro. Det gör dem billiga och det gör dem STELA, och båda
+ * följer av samma sak. Uppmätt i webbläsaren och inte antaget:
+ *
+ *   En regel som träffar en del INUTI symbolen, till exempel `.lock-hoger`,
+ *   slår igenom på VARENDA instans samtidigt. Provet lade `ry: 19.6` på
+ *   klassen och alla fyra märkena på provsidan blundade i samma bildruta.
+ *   En @keyframes där inne är alltså inte en animation, det är 240 stycken.
+ *
+ *   Det som DÄREMOT går per instans är ÄRVDA egenskaper. En custom property
+ *   satt på `<use>`, eller på något ovanför den, når in i skuggträdet, och
+ *   en geometriegenskap som läser den kan därmed skilja sig mellan instanser.
+ *   Provet hovrade en rad, `--pk-lock` ändrades, och exakt det märket sänkte
+ *   sitt ögonlock med en transition medan grannen stod still.
+ *
+ * Alltså: en HOVRING i en lista är tekniskt möjlig och kostar noll när ingen
+ * hovrar. Den är ändå inte byggd, och skälet är betydelse och inte teknik.
+ * Kanalen räcker bara till ett LÄGE, inte till en gest: ett @keyframes inne i
+ * symbolen animerar alla, så det enda hovringen kan göra är att hålla ett
+ * ögonlock nere så länge pekaren är kvar. Ett märke som blundar mot en
+ * namngiven restaurang med kvarstående brister är en blinkning åt någon som
+ * fått ett underkännande, alltså precis det §1 i docs/24 förbjuder.
+ *
+ * Den neutrala versionen, alltså bryn som lyfts, går inte att skriva i dag:
+ * i symbolen bär bara ögonlocket och munnen en klass. Den dagen brynens grupp
+ * får en klass i brand/maskot/gravling.mjs är hovringen fyra rader, och då är
+ * den värd att pröva. Fram till dess står listorna stilla.
  */
 
 /* ── mm-ankomst ──────────────────────────────────────────────────────────
  *
- * Munnen ritas upp. Den fanns redan som `@keyframes draw` i FaceMark.astro och
- * hade INGEN konsument: propen `animate` satte en klass som ingen regel läste.
- * Det är sannolikt en del av domen "animering är sämst": halva rörelsen fanns
- * i koden och ingenting hände på skärmen.
+ * Munnen ritas upp. Den fanns tidigare som `@keyframes draw` i FaceMark.astro
+ * och hade INGEN konsument: propen `animate` satte en klass som ingen regel
+ * läste. Det är sannolikt en del av domen "animering är sämst": halva rörelsen
+ * fanns i koden och ingenting hände på skärmen. Nu sätter FaceMark klassen
+ * `mm-ankomst` och den här regeln är det som händer.
  *
  * `pathLength="1"` sätts av figuren, alltså är banan alltid exakt en enhet lång
  * oavsett hur munnen ritas om. Det var det som var trasigt förut: ett hårdkodat
  * streckmönster på 60 mot en båge som är en tredjedel så lång.
+ *
+ * BRYNRADERNA NEDAN GÄLLER BARA NÄR ANKOMSTEN STÅR ENSAM. Kaskaden avgör
+ * `animation` som en helhet per element, alltså vinner den regel som står sist
+ * i filen, och looparna står efter. Ett märke som både anländer och lever får
+ * därför sin ankomst i munnen och sin puls i brynen, och det är rätt ordning:
+ * munnen ritas en gång, brynen fortsätter. Ensam, till exempel i provarket,
+ * gör ankomsten fortfarande båda.
  */
 .mm-ankomst .r-mun path,
 .mm-ankomst .mun {
@@ -1233,77 +1271,231 @@
   100% { translate: 0 0; opacity: 1; }
 }
 
-/* ── mm-bryn ─────────────────────────────────────────────────────────────
+/* ══ BLINKNINGEN, SOM ÄR GEMENSAM FÖR ALLA TRE BEDÖMNINGARNA ═════════════
  *
- * Ägaren, ordagrant: "ögonbrynen går upp o ner på gul".
+ * Ägaren: "skulle inte bedömningsgrävlingen märket också va arg och blinka på
+ * loop, det borde ju dock vara annorlunda beroende på vilken bedömning".
  *
- * GUL BETYDER BRISTER, alltså en anmärkning som är åtgärdad eller under
- * åtgärd. Ett bryn som lyfts och sänks läser som en fråga, alltså "det här
- * bör du veta om", och det är exakt rätt betydelse för gult. Samma rörelse på
- * rött hade läst som en tillsägelse.
+ * ── Varför det bara finns EN uppsättning bildrutor för blinkningen ──────
  *
- * Två lyft, det andra mindre. Ett enda lyft läser som ett ryck.
+ * Locket i VILA är olika i varje bedömning, och det är inte en detalj: det ÄR
+ * uttrycket. Uppmätt i figurens markup, alltså inte antaget:
+ *
+ *              vänster lock            höger lock
+ *   clean      cy 33.5  ry 0.4         cy 33.5   ry 0.4      helt öppet
+ *   minor      cy 25.35 ry 18.34       cy 17.7   ry 19.6     hänger
+ *   major      cy 27.9  ry 18.34       cy 24.35  ry 19.6     hänger mer
+ *
+ * Tre viloställningar hade normalt betytt tre uppsättningar bildrutor, och
+ * varenda en hade blivit fel dagen någon ändrar ett uttryck i figuren.
+ *
+ * I stället kommer VILAN ur elementet självt, som två custom properties
+ * FaceMark läser rakt ur markupen och skriver på svg:n. Bildrutorna nedan
+ * känner alltså bara till det SLUTNA läget, och det är samma för alla tre.
+ * Ändras ett uttryck följer blinkningen med utan att någon rör den här filen.
+ *
+ * ── Var det slutna läget kommer ifrån, och varför inte "helt slutet" ────
+ *
+ * lock() i gravling.mjs ritar locket som en ellips med ry = ögats ry gånger
+ * 1,4, och underkanten på nivån `niva`:  kant = o.y − o.ry + 2·o.ry·niva.
+ * Ett helt slutet lock är niva 1, alltså kant vid ögats underkant.
+ *
+ * NIVA 1 ÄR OANVÄNDBART, och det syns direkt i ett prov. Locket är brett,
+ * rx 25,74 mot ögats 13,2, och det ligger inuti arttecknets beskärning i
+ * BANDETS EGEN FÄRG. Vid full slutning fyller det hela bandet och ansiktet
+ * blir en mörk klump utan drag. Figuren själv går aldrig över 0,46, se taket
+ * i ansikte().
+ *
+ * Blinkningen sluter till NIVA 0,66, som är det prövade läget: ögat läser som
+ * slutet, bandet står kvar och draget som bär arten överlever. Talen är
+ * formeln ovan med niva = 0,66:
+ *
+ *   vänster   o.y 50.5  o.ry 13.10  →  kant 54.69  ry 18.34  →  cy 36.35
+ *   höger     o.y 48.5  o.ry 14.00  →  kant 52.98  ry 19.60  →  cy 33.38
+ *
+ * Ritas ögonen om ska de fyra talen räknas om ur samma formel. De är det enda
+ * som är hårdkodat här, och de är hårdkodade därför att de är gemensamma.
+ *
+ * ── Varför bildrutorna ligger tidigt i en lång cykel ────────────────────
+ *
+ * Cykeln är lång och blinkningen upptar dess första tiondel. Resten är ett
+ * enda långt håll i viloläget. Det är samma konstruktion som blinkningen i
+ * FaceMark hade, och skälet står där: det är UPPEHÅLLET som gör att en
+ * upprepning läser som ett andetag i stället för som en tic.
+ *
+ * Och det är samma bildrutor i alla tre, med olika CYKELLÄNGD. Det ger
+ * skillnaden gratis och i rätt riktning:
+ *
+ *   grönt    9 s   ned 288 ms, slutet 126 ms, upp 324 ms
+ *   gult    11 s   ned 352 ms, slutet 154 ms, upp 396 ms
+ *   rött    13 s   ned 416 ms, slutet 182 ms, upp 468 ms
+ *
+ * Rött blinkar alltså 44 procent långsammare och 44 procent mer sällan än
+ * grönt. Långsamt läser som tungt, och det var hela poängen med den gamla
+ * `mm-tungblink`, fast utan en egen uppsättning bildrutor.
+ *
+ * Öppningen är i samtliga fall längre än stängningen. Det är skillnaden
+ * mellan en blinkning och ett glitch, och det är också vad ett riktigt
+ * ögonlock gör. Se noten vid m-blink.
  */
-.mm-bryn .r-bryn-v { animation: mm-brynlyft 900ms var(--m-mjuk) both; }
-.mm-bryn .r-bryn-h { animation: mm-brynlyft 900ms var(--m-mjuk) 60ms both; }
-
-@keyframes mm-brynlyft {
-  0%, 8%   { translate: 0 0; }
-  26%      { translate: 0 -5px; }
-  48%      { translate: 0 0; }
-  64%      { translate: 0 -2.6px; }
-  100%     { translate: 0 0; }
+@keyframes mm-blink-v {
+  0%, 3.2%    { cy: var(--mm-lock-v-cy); ry: var(--mm-lock-v-ry); }
+  6.4%, 7.8%  { cy: 36.35; ry: 18.34; }
+  11.4%, 100% { cy: var(--mm-lock-v-cy); ry: var(--mm-lock-v-ry); }
 }
+@keyframes mm-blink-h {
+  0%, 3.2%    { cy: var(--mm-lock-h-cy); ry: var(--mm-lock-h-ry); }
+  6.4%, 7.8%  { cy: 33.38; ry: 19.6; }
+  11.4%, 100% { cy: var(--mm-lock-h-cy); ry: var(--mm-lock-h-ry); }
+}
+
+/* Fördröjningen på 1,2 s är inte pynt. `mm-ankomst` ritar upp munnen under de
+   första 820 ms, och två rörelser på samma ansikte samtidigt läser som en
+   glitch. Samma resonemang som stod vid den gamla blinkningen i FaceMark.
+
+   De femton millisekundernas skillnad mellan locken är hela asymmetrin. Två
+   ögonlock som faller i exakt samma bildruta läser som en slutare. */
 
 /* ── mm-glad ─────────────────────────────────────────────────────────────
  *
- * Grönt, alltså inga anmärkningar. Här finns inga hämningar: beröm är det enda
- * sammanhang där en figur bredvid ett företagsnamn är oantastlig.
+ * GRÖNT, alltså inga anmärkningar. LUGNT.
  *
- * Ögonen smalnar underifrån, vilket är hur ett äkta leende ser ut i ett
- * ansikte, och munnen växer en aning. Ingen studs och inget hopp: det är ett
- * register och inte en app-onboarding.
+ * Här finns inga hämningar: beröm är det enda sammanhang där en figur bredvid
+ * ett företagsnamn är oantastlig, och det är dessutom det enda läget som har
+ * ett publicerat forskningsresultat för sig, se modulhuvudet.
+ *
+ * Blinkningen, och munnen som växer fem procent i samma andetag. Ett äkta
+ * leende och en blinkning hör ihop i ett riktigt ansikte: kindmuskeln som
+ * breddar munnen är samma muskel som smalnar ögat. Munnen ligger därför en
+ * aning EFTER locken och håller kvar sitt läge när de börjat öppnas.
+ *
+ * Ingen studs och inget hopp. Det är ett register och inte en app-onboarding.
  */
-.mm-glad .r-lock-v ellipse,
-.mm-glad .r-lock-h ellipse { animation: mm-leende 840ms var(--m-ut) both; }
-.mm-glad .r-mun { animation: mm-munvax 840ms var(--m-ut) both; }
+.mm-glad .r-lock-h ellipse { animation: mm-blink-h 9000ms var(--m-mjuk) 1200ms infinite; }
+.mm-glad .r-lock-v ellipse { animation: mm-blink-v 9000ms var(--m-mjuk) 1215ms infinite; }
+.mm-glad .r-mun { animation: mm-munbeat 9000ms var(--m-ut) 1200ms infinite; }
 
-@keyframes mm-leende {
-  0%       { ry: .4; }
-  45%, 62% { ry: 6.2; }
-  100%     { ry: .4; }
+@keyframes mm-munbeat {
+  0%, 4%      { scale: 1 1; }
+  7%, 8.8%    { scale: 1.05 1.06; }
+  13%, 100%   { scale: 1 1; }
 }
-/* Munnen hade en översläng här, alltså växte den förbi sitt eget mål innan den
-   föll tillbaka. Kurvan är borta ur filen, se avsnitt 1, och munnen har i
-   stället fått samma håll som ögonen: den står stor mellan 45 och 62 procent,
-   vilket är exakt de bildrutor ögonen är smala. Leendet blir en pose i stället
-   för en puls. */
-@keyframes mm-munvax {
-  0%       { scale: 1 1; }
-  45%, 62% { scale: 1.08 1.1; }
-  100%     { scale: 1 1; }
+
+/* ── mm-bryn ─────────────────────────────────────────────────────────────
+ *
+ * GULT, alltså brister som är åtgärdade eller under åtgärd. UPPMÄRKSAMT.
+ *
+ * Ägaren, ordagrant: "ögonbrynen går upp o ner på gul". Ett bryn som lyfts och
+ * sänks läser som en fråga, alltså "det här bör du veta om", och det är exakt
+ * rätt betydelse för gult. Samma rörelse på rött hade läst som en tillsägelse.
+ *
+ * ORDNINGEN ÄR HELA LÄSNINGEN: blinkning FÖRST, bryn sedan. Han tittar, och
+ * sedan höjer han på ögonbrynet. Tvärtom hade blivit ett bryn som höjs mot
+ * ingenting. Brynen börjar därför röra sig på 8 procent, alltså när locken
+ * redan är på väg upp.
+ *
+ * Två lyft, det andra mindre. Ett enda lyft läser som ett ryck.
+ *
+ * Amplituden är sänkt från fem enheter till 3,4, och det är mätt och inte
+ * försiktighet. Brynen ligger inuti arttecknets beskärning, och bandets vänstra
+ * kant vid brynets övre höjd ligger på x 61,3 medan brynets inre ände ligger på
+ * 62,16. Vid fem enheters lyft är marginalen mindre än en enhet och brynspetsen
+ * börjar klippas, alltså SER det ut som att brynet krymper i stället för att
+ * lyftas. Vid 3,4 är marginalen dryga två enheter.
+ */
+.mm-bryn .r-lock-h ellipse { animation: mm-blink-h 11000ms var(--m-mjuk) 1200ms infinite; }
+.mm-bryn .r-lock-v ellipse { animation: mm-blink-v 11000ms var(--m-mjuk) 1215ms infinite; }
+.mm-bryn .r-bryn-v { animation: mm-brynlyft 11000ms var(--m-mjuk) 1200ms infinite; }
+.mm-bryn .r-bryn-h { animation: mm-brynlyft 11000ms var(--m-mjuk) 1260ms infinite; }
+
+/* Hållet på 11,4 till 13,6 procent är 242 ms av elva sekunder, alltså över
+   femrutorsgränsen i modulhuvudet. Det är den bildruta ögat läser. */
+@keyframes mm-brynlyft {
+  0%, 8%        { translate: 0 0; }
+  11.4%, 13.6%  { translate: 0 -3.4px; }
+  16%           { translate: 0 0; }
+  17.6%, 18.8%  { translate: 0 -1.7px; }
+  21.6%, 100%   { translate: 0 0; }
 }
 
 /* ── mm-allvar ───────────────────────────────────────────────────────────
  *
- * Rött, alltså brister som kvarstår efter kommunens uppföljning. Sajtens
- * hårdaste besked om en namngiven verksamhet.
+ * RÖTT, alltså brister som kvarstår efter kommunens uppföljning. ALLVARLIGT.
+ * Sajtens hårdaste besked om en namngiven verksamhet.
  *
- * Rörelsen är EN långsam blinkning och ingenting mer. Ingen studs, ingen
- * skakning, ingen rök. Ett bekymrat ansikte som rycker till är rätt; ett som
- * gör en show av det är fel, och det är precis den invändning en verksamhet
- * skulle använda mot oss den dagen de hör av sig.
+ * ── Ägaren bad om "arg", och det här är vad rött får vara i stället ─────
  *
- * Långsam med flit: 240 ms ned och 300 ms upp, alltså dubbelt så långsamt som
- * maskotens blinkning. Långsamt läser som tungt.
+ * En arg maskot bredvid en namngiven restaurangs underkännande är en
+ * myndighetsuppgift förvandlad till ett skämt, och det är precis den kritik
+ * verksamheten skulle använda mot oss den dagen de hör av sig. docs/24 §1:
+ * "Aldrig skadeglatt, aldrig triumferande, aldrig förebrående."
+ *
+ * Skillnaden mellan ARGT och ALLVARLIGT är mätbar i figuren och står i
+ * docs/24 §3b: det är vilken ände av brynet som är låg. Låg INRE ände läser
+ * som ilska. Båda ändarna lika låga läser som tyngd.
+ *
+ * Rörelsen sänker därför brynen RAKT, alltså utan att röra vinkeln, samtidigt
+ * som den långsammaste blinkningen i katalogen går. Ingen skakning, ingen rök,
+ * ingen studs. Ett bekymrat ansikte som rycker till är rätt; ett som gör en
+ * show av det är fel.
+ *
+ * Brynen rör sig SYMMETRISKT och utan fördröjning mellan varandra, till
+ * skillnad från gult. Asymmetri läser som skeptiskt, alltså som en åsikt om
+ * verksamheten. Symmetri läser som tyngd, alltså som ett konstaterande.
+ *
+ * Hållet är 390 ms, den längsta posen i mm-katalogen, och det ska det vara:
+ * hela rörelsen ÄR posen.
  */
-.mm-allvar .r-lock-v ellipse,
-.mm-allvar .r-lock-h ellipse { animation: mm-tungblink 900ms var(--m-mjuk) 260ms both; }
+.mm-allvar .r-lock-h ellipse { animation: mm-blink-h 13000ms var(--m-mjuk) 1200ms infinite; }
+.mm-allvar .r-lock-v ellipse { animation: mm-blink-v 13000ms var(--m-mjuk) 1215ms infinite; }
+.mm-allvar .r-bryn-v,
+.mm-allvar .r-bryn-h { animation: mm-brynsank 13000ms var(--m-mjuk) 1200ms infinite; }
 
-@keyframes mm-tungblink {
-  0%, 8%     { ry: .4; }
-  34%, 44%   { ry: 19.6; }
-  78%, 100%  { ry: .4; }
+@keyframes mm-brynsank {
+  0%, 3%      { translate: 0 0; }
+  5.4%, 8.4%  { translate: 0 2.2px; }
+  12%, 100%   { translate: 0 0; }
+}
+
+/* ── mm-blick ────────────────────────────────────────────────────────────
+ *
+ * Ägaren: "alternativt också att ögonen ska flytta på sig efter musen (iaf på
+ * dator)". Det sista ledet är inte en eftertanke, det är villkoret, och det
+ * står inskrivet i mediefrågan nedan.
+ *
+ * BARA PÅ DET STORA ENSAMMA MÄRKET. En blick som följer pekaren kräver en
+ * beräkning per märke och bildruta, och en kedjesida har 240 märken. Det är
+ * samma gräns som allt annat i det här avsnittet, och skälet är detsamma.
+ *
+ * ── Varför den inte är en animation ─────────────────────────────────────
+ *
+ * Det finns ingen bildrutelista att skriva. Målet är pekarens läge, alltså
+ * något som ändras utanför CSS. Skriptet i FaceMark skriver två tal och den
+ * här regeln läser dem; en transition gör resten. Att lägga rörelsen i en
+ * transition och inte i skriptet är hela skillnaden i kostnad: skriptet rör
+ * sig i pekarens takt, medan mjukheten kostar noll och sköts av webbläsaren.
+ *
+ * 140 ms är valt så att blicken SLÄPAR EFTER en aning. En pupill som sitter
+ * exakt på pekaren läser som en markör; en som hinner ikapp läser som en blick.
+ * Det är samma princip som fördröjningarna i avsnitt 2, alltså efterföljning.
+ *
+ * ── Varför den bara finns med fin pekare ────────────────────────────────
+ *
+ * `(hover: hover) and (pointer: fine)` är mus och styrplatta. På en pekskärm
+ * finns ingen pekare att följa, och en blick som fastnar där fingret senast
+ * råkade vara är sämre än en blick som står stilla. Skriptet frågar samma
+ * fråga en gång och lägger annars aldrig på någon lyssnare, se FaceMark.
+ *
+ * Taken, 3,2 enheter i sidled och 2,2 i höjdled, ligger långt under blickens
+ * tak på nio i modulhuvudet. Skälet är att ögonvitan är liten i det beskurna
+ * märket: går pupillen längre spiller den ut ur vitan.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .mm-blick .r-pupill-v,
+  .mm-blick .r-pupill-h {
+    translate: var(--mm-bx, 0) var(--mm-by, 0);
+    transition: translate 140ms var(--m-mjuk);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1353,4 +1545,17 @@
   /* Munnen ska stå färdigritad och inte osynlig. */
   .mm-ankomst .r-mun path,
   .mm-ankomst .mun { stroke-dashoffset: 0; }
+
+  /* MÄRKETS LOOPAR behöver ingen egen nollställning, och det är med flit.
+     Varenda mm-loop har sitt VILOLÄGE på 100 procent, alltså landar den rätt
+     av sig själv när iterationerna tvingas till en här ovanför. Det är skälet
+     till att ingen av dem slutar mitt i en blinkning. Skriver någon en ny
+     mm-loop vars sista bildruta inte är viloläget måste den läggas till här.
+
+     Blicken är däremot en transition och inte en animation, alltså rör den
+     iterationsregeln inte. Skriptet i FaceMark lägger aldrig på sin lyssnare
+     när reducerad rörelse är påslagen, men inställningen kan ändras efter att
+     sidan lästs in, och då ska pupillerna gå tillbaka till mitten. */
+  .mm-blick .r-pupill-v,
+  .mm-blick .r-pupill-h { translate: 0 0; }
 }

@@ -169,6 +169,18 @@ const dold = alt === '';
  *   utan noter   14 735 B rått
  *   noterna         54 476 B, alltså 79 procent av filen
  *
+ * Talen ovan är från den dagen och de är kvar för att kvoten är poängen.
+ * Filen har sedan dess vuxit med märkets loopar, se avsnitt 5, och står den
+ * 13 augusti 2026 på 81 345 B med noter och 15 851 B utan. Kvoten är
+ * densamma: åttio procent av filen är resonemang.
+ *
+ * DEN HÄR KOMPONENTEN SKRIVER UT HELA KATALOGEN, alltså även `mm-`-reglerna,
+ * som en fri figur aldrig kan använda. Det är 1,1 kB rått på 22 sidor och
+ * lämnas därför, men märkets väg går inte här: FaceMark plockar ut sin egen
+ * del, se lib/marke-rorelse.ts. Skälet är storleksordningen. Maskoten står på
+ * 47 sidor och märket på 15 983, och där betyder varje kilobyte sexton
+ * megabyte.
+ *
  * OCH SÅ HÄR MYCKET GJORDE DET I FÄRDIGA DOKUMENT. Mätt genom att byta
  * tillbaka den avskalade katalogen mot originalet i tre byggda sidor:
  *

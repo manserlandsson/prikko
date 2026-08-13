@@ -13,33 +13,92 @@
  * `round` var förr en vit cirkel med färgad ring, en lättare form för listor,
  * och den skillnaden bärs nu av storleken i stället för av formen.
  *
- * DETALJNIVÅN VÄLJS AV KOMPONENTEN, inte av anropsplatsen. Ett ansikte med
- * pupill och pälsnyanser är meningslöst i 16 px och kostar tio gånger så mycket
- * att skicka. Regeln bor i faceDetalj() och gränserna är mätta, inte valda.
+ * DETALJNIVÅN VÄLJS AV KOMPONENTEN, inte av anropsplatsen, och den väljer
+ * numera alltid `rik`. Nivåerna är avställda: ägaren såg det förenklade
+ * ansiktet live och kallade det "den basic grävlingen", och han hade rätt,
+ * eftersom nal-nivån inte ritade samma ansikte enklare utan ett annat ansikte.
+ * Regeln bor kvar i faceDetalj(), som är den enda platsen där frågan besvaras.
+ * Vad avställningen kostade står mätt i lib/face.ts.
  *
  * Tillgänglighet: ansiktet är förstärkning. Betydelsen bärs alltid av texten
  * bredvid, aldrig av färgen eller minen ensam. Skillnaden mellan de tre
- * bedömningarna sitter i brynens vinkel och munnens båge, och båda är prövade
- * ensamma i 24 px i gråskala.
+ * bedömningarna bärs av MUNNEN, som ensam ska skilja dem åt i 24 px i
+ * gråskala. Brynen bär tonläget och inte beskedet, se docs/24 §3b.
+ *
+ * ══ RÖRELSE ══════════════════════════════════════════════════════════════
+ *
+ * Ägaren: "skulle inte bedömningsgrävlingen märket också va arg och blinka på
+ * loop, det borde ju dock vara annorlunda beroende på vilken bedömning....
+ * alternativt också att ögonen ska flytta på sig efter musen (iaf på dator)."
+ *
+ * Tre props, och samtliga är AVSTÄNGDA i förvalet. Det är inte försiktighet,
+ * det är aritmetik. Uppmätt i bygget den 13 augusti 2026: komponenten ritar
+ * ett märke på 16 159 sidor, och den enda yta som ska röra sig är det stora
+ * ensamma märket högst upp på en verksamhetssida. En sida som inte ber om
+ * rörelse betalar noll för den, och det gäller ända ned till den sista byten
+ * stilmall.
+ *
+ *   animate   munnen ritas upp en gång, `mm-ankomst`.
+ *   liv       en loop som skiljer sig efter bedömning, se katalogen.
+ *   blick     pupillerna följer pekaren, bara med mus eller styrplatta.
+ *
+ * Sätts någon av dem RIGGAS ansiktet, alltså får varje del en namngiven led,
+ * och märkets del av rörelsekatalogen skrivs in i sidan. Båda sakerna sker en
+ * gång per bygge och inte en gång per sida, se lib/marke-rorelse.ts, där också
+ * priset står mätt.
+ *
+ * ── Varför listorna aldrig får någon av dem ─────────────────────────────
+ *
+ * Listornas märken är inte den här komponenten. De är FaceRef, alltså en
+ * `<use>` mot fyra symboler i sidans sprite, och en regel som träffar en del
+ * inuti en symbol slår igenom på varenda instans samtidigt. Det är mätt i
+ * webbläsaren och skrivet i katalogen vid avsnitt 5. En kedjesida har 240
+ * märken, och en blinkning där är inte en animation utan 240 stycken.
  */
 import type { VerdictOrNone } from '../lib/site';
 import { FACE_MARKUP, FACE_PLATE, faceDetalj, faceKey } from '../lib/face';
+import { MARKE_KATALOG, riggatAnsikte } from '../lib/marke-rorelse';
 
 interface Props {
   verdict: VerdictOrNone;
   size?: number;
   variant?: 'box' | 'round';
-  /** Låt munnen ritas upp när märket kommer in. */
+  /**
+   * Låt munnen ritas upp när märket kommer in.
+   *
+   * Propen fanns förut och gjorde INGENTING: den satte en klass som ingen
+   * regel läste, och `@keyframes draw` här i filen hade ingen konsument. Nu
+   * sätter den `mm-ankomst`, som är regeln i katalogen.
+   */
   animate?: boolean;
   /**
-   * Låt märket blinka, med långt uppehåll mellan blinkningarna.
+   * Låt märket leva: en loop som skiljer sig efter bedömning.
    *
-   * Bara för godkända verksamheter. Måste sättas medvetet per användning: en
-   * kommunsida listar hundratals gröna ansikten, och skulle de blinka allihop
-   * vore sidan oläslig. Blinkningen hör hemma på det stora märket högst upp på
-   * en verksamhets sida, där den är ett enskilt tecken och inte ett myller.
+   *   rent               lugnt. Blinkning var nionde sekund, munnen växer
+   *                      fem procent i samma andetag.
+   *   mindre brister     uppmärksamt. Blinkning var elfte sekund, och sedan
+   *                      två brynlyft, alltså "det här bör du veta om".
+   *   kvarstående        allvarligt. Långsammaste blinkningen i katalogen,
+   *                      var trettonde sekund, med brynen rakt sänkta.
+   *   ingen bedömning    ingenting. Ett grått märke betyder att ingen kontroll
+   *                      finns, och det finns inget läge att uttrycka.
+   *
+   * MÅSTE SÄTTAS MEDVETET PER ANVÄNDNING. En kommunsida listar hundratals
+   * ansikten, och skulle de leva allihop vore sidan oläslig. Rörelsen hör hemma
+   * på det stora märket högst upp på en verksamhets sida, där den är ett
+   * enskilt tecken och inte ett myller.
+   *
+   * Loopen stannar när märket rullas ur bild, se skriptet längst ned. Utan
+   * skript loopar den vidare, precis som blinkningen gjorde förut.
    */
-  wink?: boolean;
+  liv?: boolean;
+  /**
+   * Låt pupillerna följa pekaren. Bara med mus eller styrplatta.
+   *
+   * Kostar en lyssnare och en beräkning per bildruta så länge pekaren rör sig,
+   * alltså hör den hemma på ett märke per sida och ingen annanstans.
+   */
+  blick?: boolean;
   /**
    * Tvinga en detaljnivå. Finns för prov och för de få ställen där ytan är
    * större än storleken antyder. Lämna orörd i vanliga fall.
@@ -52,39 +111,70 @@ const {
   size = 56,
   variant = 'box',
   animate = false,
-  wink = false,
+  liv = false,
+  blick = false,
   detalj,
 } = Astro.props;
 
 const key = faceKey(verdict);
 const niva = detalj ?? faceDetalj(size);
-const ansikte = FACE_MARKUP[key][niva];
 
-// Blinkningen är förstärkning av ett gott besked. Att låta en verksamhet med
-// brister blinka vore att sockra ett underkännande.
-/*
- * RÖRELSERNA ÄR IGÅNG IGEN, omritade mot grävlingens egen geometri.
+/**
+ * VILKEN LOOP VARJE BEDÖMNING FÅR, och varför just den.
  *
- * De var pausade en tid, och skälet var att båda var ritade för den gamla
- * figuren och inte överlevde bytet. Ägarens dom var kort och riktig:
- * "animering är sämst, den ser konstigt ut". Vad som var fel och vad som
- * gjordes åt det står vid respektive regel i stilblocket längre ned.
+ * Namnen är katalogens egna och rörelserna är skrivna där. Tabellen står här
+ * eftersom det är HÄR bedömningen är känd, och för att kopplingen mellan ett
+ * myndighetsbeslut och en min ska stå på ett enda ställe.
  *
- * Kort: munnens uppritning hade banans längd som ett hårdkodat tal och löser
- * det nu med pathLength, och blinkningen försökte skala ett lock vars båda
- * kanter rör sig åt olika håll och animerar nu geometrin i stället.
+ * `none` får ingen rörelse, och det är ett beslut och inte en lucka. Grått
+ * betyder att ingen kontroll finns publicerad. Ett ansikte som lever bredvid
+ * ett icke-besked påstår något som inte finns.
  *
- * Går `MASKOT` tillbaka till false i face.ts gäller den gamla ritningen igen.
- * Uppritningen fungerar även då, eftersom pathLength är normaliserad och den
- * gamla munnen också är en strokead bana. Blinkningen gör det INTE: dess
- * värden är grävlingens lockmått. Byter du tillbaka figuren, läs om dem.
+ * `major` heter `mm-allvar` och inte `mm-arg`. Ägaren bad om argt; skillnaden
+ * mellan argt och allvarligt är mätbar i figuren och står i docs/24 §3b, och
+ * hela avvägningen står i katalogen vid rörelsen.
  */
-const animating = animate;
-const winking = wink && verdict === 'clean';
+const PULS = {
+  clean: 'mm-glad',
+  minor: 'mm-bryn',
+  major: 'mm-allvar',
+  none: null,
+} as const;
+
+const puls = liv ? PULS[key] : null;
+const rorelse = animate || blick || puls !== null;
+
+/**
+ * Ansiktet, riggat bara när något ska röra sig.
+ *
+ * Riggen lägger en tom grupp runt varje del, och den yttre gruppen äger
+ * rörelsen medan den inre äger placeringen. Skälet står i maskot-rigg.mjs och
+ * det är inte en detalj: delarna bär redan `transform` som ATTRIBUT, och en
+ * animation som skriver `transform` slår ut placeringen i samma bildruta som
+ * rörelsen börjar.
+ */
+const riggad = rorelse ? riggatAnsikte(key, niva) : null;
+const ansikte = riggad ? riggad.markup : FACE_MARKUP[key][niva];
+
+/**
+ * Ögonlockens viloläge, skickat till stilmallen som två par tal.
+ *
+ * Blinkningens bildrutor känner bara till det SLUTNA läget, som är gemensamt
+ * för alla bedömningar. Viloläget är olika i varje, eftersom det är där
+ * uttrycket sitter, och det läses därför ur markupen i stället för att
+ * hårdkodas tre gånger i en stilmall. Se noten vid mm-blink i katalogen.
+ */
+const vila = puls && riggad
+  ? `--mm-lock-v-cy:${riggad.vila.vcy};--mm-lock-v-ry:${riggad.vila.vry};` +
+    `--mm-lock-h-cy:${riggad.vila.hcy};--mm-lock-h-ry:${riggad.vila.hry}`
+  : undefined;
 ---
 
 <svg
-  class:list={['face', variant, { animate: animating, winking }]}
+  class:list={['face', variant, rorelse && 'r-figur', animate && 'mm-ankomst', puls, blick && 'mm-blick']}
+  style={vila}
+  data-puls={puls ?? undefined}
+  data-blick={blick ? '' : undefined}
   width={size}
   height={size}
   viewBox="0 0 100 100"
@@ -99,12 +189,12 @@ const winking = wink && verdict === 'clean';
 <style>
   /* Ramen rundas med CSS och inte med en clipPath i svg:n, och det är en
      mätt skillnad och ingen stilfråga.
-     
+
      Första versionen la ett <defs><clipPath> i varje märke. På kedjesidan för
      ICA blev det 104 clipPath-block, alltså omkring 18 kB på en enda sida, för
      en form som är identisk i varenda instans. `inset(0 round 17%)` ligger i
      stilmallen en gång och kostar noll per märke.
-     
+
      17 procent är samma radie som viewBoxens rx 17 på 100 enheter, alltså
      exakt samma form. Se FACE_RAM_RADIE i lib/face.ts. */
   .face {
@@ -113,79 +203,109 @@ const winking = wink && verdict === 'clean';
     clip-path: inset(0 round 17%);
   }
 
-  /* Munnen ritas upp när märket kommer in. Diskret: det här är ett register,
-     inte en app-onboarding.
+  /* HÄR LÅG RÖRELSEN FÖRUT, och att den flyttade härifrån är en mätning.
+     Blocket bar `@keyframes draw`, `facemark-wink` och deras regel för
+     reducerad rörelse, alltså 376 byte, och Astro skriver in komponentens
+     stilblock i VARJE sida som ritar ett märke. Det var 376 byte gånger
+     16 159 sidor, och 176 av dem ritar ett märke som aldrig rör sig. De
+     sidorna blev 157 B mindre gzippat, uppmätt på Stockholms hubb. På de
+     övriga är raden inte en besparing utan en flytt: de betalar samma byte
+     en gång till, fast för en rörelse som faktiskt finns.
 
-     ── Varför den var trasig, och vad som ändrades ─────────────────────
-     Uppritningen låg tidigare på `stroke-dasharray: 60`, ett tal taget för
-     det gamla märkets mun. Grävlingens munbåge är ungefär en tredjedel så
-     lång, så streckmönstret var längre än hela banan: munnen låg helt i
-     gapet, hoppade fram på en bråkdel av tiden och stod stilla resten.
-     Ägarens dom var kort och riktig, "animering är sämst, den ser konstigt ut".
-
-     Felet var inte talet utan att det VAR ett tal. En bana som ritas om när
-     figuren ändras kan inte ha sin längd hårdkodad i en stilmall.
-
-     `pathLength="1"` löser det i grunden: banan säger själv att den är en
-     enhet lång, oavsett verklig geometri. Dasharray 1 och offset 1 betyder
-     därmed alltid exakt hela munnen, och kommer aldrig att glida isär igen
-     när bågen ritas om. Attributet sätts av figuren, se brand/maskot/. */
-  @keyframes draw {
-    to { stroke-dashoffset: 0; }
-  }
-
-  /* Blinkningen. Ögonlocket faller över ögat och lyfts igen.
-
-     ── Varför den var trasig ───────────────────────────────────────────
-     Den skalade locket sex gånger i höjd, ett mått taget för det gamla ögat.
-     Grävlingens lock är i sitt öppna läge en nästan platt ellips med ry 0,4
-     som ligger precis ovanför ögat, alltså osynlig. Sex gånger 0,4 är 2,4,
-     och locket rörde sig knappt. Det syntes som ett ryck, inte som en blink.
-
-     ── Varför det inte går att lösa med en skalning ────────────────────
-     Locket i sitt SLUTNA läge är inte det öppna förstorat. Uppmätt i figuren:
-     öppet är cy 33,5 och ry 0,4, slutet är cy 27,78 och ry 19,6. Locket växer
-     alltså både nedåt och uppåt, och ingen transform med fast origo kan flytta
-     en form vars båda kanter rör sig åt olika håll.
-
-     Därför animeras GEOMETRIN i stället, alltså ellipsens egna cy och ry. Båda
-     är animerbara CSS-egenskaper för SVG-geometri i alla nuvarande webbläsare,
-     och värdena är figurens egna mätvärden och inte påhittade tal. Ändras
-     locket i figuren ska de här två talen läsas om ur den.
-
-     ── Tajmingen ──────────────────────────────────────────────────────
-     Cykeln är 8 sekunder och blinkningen upptar de första tio procenten:
-     locket faller på 0,32 s, står nere i 0,12 s och lyfts på 0,32 s. Drygt sju
-     sekunders stillhet följer, och det är uppehållet som gör att upprepningen
-     läser som ett andetag och inte som en tic.
-
-     Fördröjningen på 0,9 s låter munnen ritas klart först. Två animationer på
-     samma ansikte samtidigt läser som en glitch.
-
-     Namnet måste vara unikt. @keyframes är GLOBALA i CSS. Astro scopar
-     selektorer men inte keyframe-namn, och den här hette tidigare `wink`,
-     vilket krockade med sidhuvudets, som numera heter `wordmark-wink`. */
-  .winking :global(.lock-hoger) {
-    animation: facemark-wink 8s cubic-bezier(.4, 0, .2, 1) .9s infinite;
-  }
-
-  @keyframes facemark-wink {
-    0%, 1%      { cy: 33.5; ry: .4; }
-    5%, 6.5%    { cy: 27.78; ry: 19.6; }
-    10.5%, 100% { cy: 33.5; ry: .4; }
-  }
-
-  /* Rörelse kan utlösa yrsel och illamående hos den som har en vestibulär
-     sjukdom. Att respektera inställningen är inte en artighet — den som
-     bett om mindre rörelse har oftast ett medicinskt skäl. */
-  @media (prefers-reduced-motion: reduce) {
-    .animate :global(.mun) {
-      animation: none;
-      stroke-dashoffset: 0;
-    }
-
-    .winking :global(.lock-hoger) {
-      animation: none;
-    }
-  }
+     Rörelsen bor nu i site/src/styles/maskot-rorelse.css, som är katalogen och
+     sanningen, och skrivs in längst ned i den här filen bara när någon prop
+     ber om den. Urvalet sker i lib/marke-rorelse.ts. */
 </style>
+
+{/* Märkets del av rörelsekatalogen, bara när något faktiskt rör sig.
+
+    Samma konstruktion som i Maskot.astro och av samma skäl: ett vanligt
+    `import` av en css-fil hade Astro hissat till varje sida som använder
+    komponenten, oavsett prop, alltså ett stilark på sextontusen sidor för en
+    rörelse som finns på en. Katalogen läses som text och skrivs ut som en rå
+    style-tagg, och Fragment används i stället för ett style-element eftersom
+    Astro kompilerar och scopar riktiga style-taggar och då aldrig skulle nå
+    fram till delarna som riggen har lindat in. */}
+{rorelse && <Fragment set:html={`<style>${MARKE_KATALOG}</style>`} />}
+
+{/* Skriptet gör två saker, och båda är sådant CSS inte kan.
+
+    LOOPEN STANNAR UR BILD. Bildrutorna ligger i geometri, alltså cy och ry på
+    ett ögonlock, och en geometrianimation kan inte kompositeras: den kostar en
+    omräkning av stilen i varje bildruta även när ingen ser den. Märket står
+    högst upp på sidan och rullas förbi på ett par sekunder, alltså är det den
+    absolut vanligaste situationen. Observatören tar bort klassen och rörelsen
+    upphör helt.
+
+    Utan skript loopar märket vidare. Det är samma beteende som blinkningen
+    hade förut och det är ofarligt, bara dyrare.
+
+    BLICKEN. Målet är pekarens läge, alltså något som inte finns i CSS.
+    Skriptet skriver två tal och stilmallen sköter mjukheten med en transition;
+    se noten vid mm-blick. Lyssnaren läggs bara på när det finns en riktig
+    pekare, alltså mus eller styrplatta, och aldrig när någon bett om mindre
+    rörelse. Frågan ställs EN gång och inte per bildruta.
+
+    ── Varför det är is:inline, och varför det är hoptryckt ────────────────
+
+    Ett vanligt Astro-skript HISSAS, alltså buntas till en egen fil och får en
+    script-tagg på varje sida som renderar komponenten. Komponenten renderas på
+    16 159 sidor medan skriptet behövs på 15 983. Verksamhetssidan har redan
+    tolv modulskript, och det här hade blivit det trettonde.
+
+    VALET ÄR INTE SJÄLVKLART OCH TALET SKA STÅ HÄR. Buntat väger skriptet
+    ungefär 500 B gzippat i dokumentet mot en script-tagg på 70, alltså
+    omkring 430 B per sida gånger 15 983, alltså närmare sju megabyte över
+    bygget. Priset är en modulbegäran till på varje verksamhetssida och en
+    värdelös sådan på 176 sidor. Inline valdes för att följa Maskot.astro och
+    för att inte lägga en trettonde begäran på sajtens viktigaste sidtyp.
+    Vill någon vända på det är det den här raden som ändras, och talet ovan
+    är vad man vinner.
+
+    Priset för att ligga inline är att varenda tecken hamnar i dokumentet, och
+    då gäller samma regel som för rörelsekatalogen: RESONEMANGET STANNAR I
+    KÄLLAN. Det som stod som kommentarer inuti skriptet vägde 250 byte gånger
+    15 983 sidor, alltså 2,2 MB gzippat uppmätt i två byggen, och står därför
+    här i stället. Två av dem är värda att flytta med:
+
+      TRÖSKELN 0,2. Märket är 52 px och står högst upp. Ett lägre värde hade
+      låtit rörelsen fortsätta när bara en kant syns, ett högre hade stängt av
+      den medan märket fortfarande står mitt i rutan på en telefon i liggande.
+
+      RIKTNINGEN OCH INTE AVSTÅNDET. `f` normaliserar vektorn och mättar den
+      på 220 px. En pupill som skalar rakt med avståndet står nästan stilla
+      när pekaren är nära, vilket är tvärtemot vad ett öga gör: ögat pekar mot
+      det som är nära och ger upp först när det är långt bort. */}
+{rorelse && (
+  <script is:inline>
+    (() => {
+      const M = document.querySelectorAll('svg.face[data-puls]:not([data-i]),svg.face[data-blick]:not([data-i])');
+      if (!M.length) return;
+      for (const m of M) {
+        m.dataset.i = '1';
+        const p = m.dataset.puls;
+        if (p && 'IntersectionObserver' in window) new IntersectionObserver(
+          (poster) => { for (const o of poster) m.classList.toggle(p, o.isIntersecting); },
+          { threshold: 0.2 }).observe(m);
+      }
+      const B = [...M].filter((m) => m.hasAttribute('data-blick'));
+      if (!B.length || !matchMedia('(hover:hover) and (pointer:fine)').matches
+        || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+      let x = 0, y = 0, koad = 0;
+      const rita = () => {
+        koad = 0;
+        for (const m of B) {
+          const r = m.getBoundingClientRect();
+          const dx = x - r.left - r.width / 2, dy = y - r.top - r.height / 2;
+          const l = Math.hypot(dx, dy) || 1, f = Math.min(1, l / 220) / l;
+          m.style.setProperty('--mm-bx', (dx * f * 3.2).toFixed(2) + 'px');
+          m.style.setProperty('--mm-by', (dy * f * 2.2).toFixed(2) + 'px');
+        }
+      };
+      addEventListener('pointermove', (e) => {
+        x = e.clientX; y = e.clientY;
+        if (!koad) { koad = 1; requestAnimationFrame(rita); }
+      }, { passive: true });
+    })();
+  </script>
+)}
