@@ -42,6 +42,14 @@ Ingen. Kön är tom och allt är pushat, se listan längst ned.
   natt utan mejlnyckel. Kvar är att raden på `/konto/` bär bedömning och
   senaste kontrolldatum och länkar till verksamheten i stället för till en
   sökning. Punkt 7 i rapport 17.
+- **Sidindelning av kunskapsingången.** `/artiklar/` listar samtliga artiklar i
+  ett svep. Vid 23 artiklar är sidan 12 500 px lång, och den växte från 19 till
+  23 under ett arbetspass. Vid ungefär trettio behövs sidindelning. Mönstret
+  finns redan i `[kommun]/sida/[page].astro`, men det är en NY rutt och måste
+  därför klassificeras i `sidtyp()` i `astro.config.mjs`, annars faller den i
+  restgruppen och byggvakten fäller bygget. Kategorisidor är däremot avgjorda
+  och ska inte byggas, skälet står i huvudkommentaren i
+  `src/pages/artiklar/index.astro`.
 - **Mejlkampanjen till 275 kommuner** enligt offentlighetsprincipen.
 
 ---

@@ -1,23 +1,108 @@
 ---
 /**
- * Artiklarnas indexsida.
+ * Kunskapsingången. Sajtens redaktionella hem.
  *
- * Sajtens redaktionella yta har två rum, och skillnaden ska synas: rapporterna
- * räknas fram ur beståndet, artiklarna är skrivna. Den här sidan listar de
- * skrivna. Kortmönstret är JobbSafaris (kategorietikett, rubrik, ingress,
- * lästid) i vårt eget formspråk: hårlinjer, Instrument Sans, inga skuggfält.
+ * ---------------------------------------------------------------------------
+ * FÖREBILDEN, MÄTT
+ * ---------------------------------------------------------------------------
+ * booli.se/kunskap och booli.se/kunskap/kategori/nytt-pa-booli, mätta i
+ * webbläsaren 2026-08-13 i 1440 och 375 px bredd. Talen nedan är avlästa, inte
+ * uppskattade, och de är översatta till våra tokens i stället för kopierade
+ * som pixlar.
  *
- * Kvalitetsgrinden: under MIN_ARTICLES publicerade artiklar bär sidan noindex
- * och hålls ur sitemapen (astro.config.mjs läser samma grind). En indexsida
- * med en ensam artikel är en tunn sida i bibelns §6-mening, och den svagaste
- * länken sänker domänen.
+ *   Rutnätet        980 = 620 huvudspalt + 48 glugg + 312 sidopanel.
+ *                   Vi har samma proportion redan: verksamhetssidan kör
+ *                   minmax(0, 1fr) 300px med --s-12 mellan, alltså 700 + 48
+ *                   + 300 i vår 1080-behållare. Ingen ny bredd uppfanns.
+ *   Ledartipset     Bild 980 × 312 (3,14:1) i hela behållarens bredd, rubrik
+ *                   40/52/600, ingress 18/27 klippt vid fyra rader, sedan
+ *                   datum och taggar. I mobil blir bilden 4:3 och rubriken
+ *                   32/43.
+ *   Listkorten      Bild 620 × 256 (2,42:1), rubrik 32/43,2, ingress 16/24
+ *                   klippt vid fyra rader, tre i mobil. 48 px mellan korten.
+ *   Korten är inga  Genomskinlig bakgrund, ingen ram, ingen skugga, radie 0,
+ *   kort            padding 0. Exakt vad docs/19 redan säger om Boolis
+ *                   träffkort, och exakt den lärdom kommunbandet gav i
+ *                   27318562: avgränsa med linje och luft, aldrig med en yta.
+ *   Taggarna        #F0F0F0, radie 4, padding 4/8, 14/18,9 i vikt 400.
+ *                   Datumet 16/21,6 i #767676.
+ *   Sidopanelen     Två block, båda RIKTIGA kort: vitt, 1 px #E6E6E6, radie 6,
+ *                   padding 16. Blockrubrik 18/24,3/600 med en hårlinje under
+ *                   sig, 8 px under rubriken och 16 px till innehållet. Posten
+ *                   i listan är miniatyr 100 × 75, 16 px glugg, titel
+ *                   16/21,6/600, och posterna skiljs av hårlinjer.
+ *   I mobil         Sidopanelen faller under HELA artikellistan, den vävs inte
+ *                   in. Sidmarginal 16.
+ *
+ * Kontrasten mellan spalterna är hela poängen och den står redan i docs/19:
+ * huvudinnehållet ligger öppet på sidan, sidopanelens block är kort. Det är
+ * därför panelen läser som verktyg och listan som innehåll.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR DET INTE FINNS KATEGORISIDOR
+ * ---------------------------------------------------------------------------
+ * Booli har kategorisidor och vi har inte, och det är ett beslut och inte en
+ * lucka.
+ *
+ * Deras kategorier är ÄMNEN: Bostadsmarknaden, Köpa och sälja bostad, Leva och
+ * bo, Nytt på Booli. Var och en är något en människa faktiskt skriver in i ett
+ * sökfält, och var och en har tiotals artiklar under sig.
+ *
+ * Våra två kategorier är FORMAT: Guide och Förklarat, tolv och sju artiklar.
+ * Ingen söker på "guide" eller "förklarat", och ingen söker på "Prikko guide"
+ * heller. Två sidor vars enda existensberättigande är att sortera nitton
+ * artiklar i två högar är precis den funktion som inte får kosta en sida.
+ * Regeln på sajten är hård och den gäller här: en ny rutt byggs bara om någon
+ * skulle söka på något för att hamna där.
+ *
+ * Sorteringen är ändå värd något för den som står på sidan, och den sker
+ * därför PÅ PLATS. Valen nedan är radioknappar och urvalet görs i CSS med
+ * :has(). Ingen adress, ingen sida, inget skript, ingen sidladdning. Faller
+ * :has() bort visas alla artiklar, vilket är sidans grundläge ändå.
+ *
+ * Den dagen kategorierna blir ämnen i stället för format ("Matförgiftning",
+ * "Så kollar du upp ett ställe") är frågan en annan och ska ställas om. Då
+ * finns det något att söka på.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR RAPPORTERNA SYNS HÄR, OCH VARFÖR DE INTE LIGGER I LISTAN
+ * ---------------------------------------------------------------------------
+ * Booli har ingen motsvarighet till rapporterna. Vi har dem, de är räknade ur
+ * hela beståndet och de är det starkaste vi publicerar. Den som kommit till
+ * sajtens kunskapsdel är exakt den läsare de är skrivna för, och att gömma dem
+ * bakom en länk i foten vore att slänga bort dem.
+ *
+ * Därför står de i sidopanelen, i ett eget block, med sina egna ord. Alltså
+ * INTE som kort i artikellistan. En rapport räknas fram vid varje bygge och
+ * bär Report-schema, en artikel är skriven text och bär Article-schema, och
+ * läsaren ska kunna se på formen vilket som är vilket. Blandade i samma rutnät
+ * med samma kortform hade skillnaden försvunnit, och den skillnaden är hela
+ * skälet till att de är två sidtyper.
+ *
+ * Av samma skäl räknas de inte in i sidans `hasPart`: den listar de artiklar
+ * sidan faktiskt är en samling av. Rapporterna länkas, de påstås inte vara
+ * delar av artikelsamlingen.
+ *
+ * Boolis andra panelblock, "Senaste artiklarna", byggs INTE. Deras huvudspalt
+ * är ett redigerat urval, så en lista med de nyaste tillför något där. Vår
+ * huvudspalt är samtliga artiklar i datumordning, och en panel bredvid med de
+ * fem översta av dem hade varit samma lista två gånger på samma skärm.
+ *
+ * ---------------------------------------------------------------------------
+ * KVALITETSGRINDEN
+ * ---------------------------------------------------------------------------
+ * Under MIN_ARTICLES publicerade artiklar bär sidan noindex och hålls ur
+ * sitemapen (astro.config.mjs läser samma grind). En indexsida med en ensam
+ * artikel är en tunn sida i bibelns §6-mening, och den svagaste länken sänker
+ * domänen.
  */
 import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { MIN_ARTICLES, readingMinutes, sectionReady } from '../../lib/artiklar';
-import { articleImage, CARD_SIZES, CARD_WIDTHS } from '../../lib/artikelbilder';
+import { articleImage, HERO_WIDTHS } from '../../lib/artikelbilder';
 import { formatDate } from '../../lib/data';
+import { REPORTS } from '../../lib/rapporter';
 import { SITE } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
 
@@ -31,20 +116,67 @@ const articles = entries
   }))
   .sort((a, b) => b.published.localeCompare(a.published));
 
-/**
- * Korten på första raden ligger ovanför vikningen och hämtas direkt, resten
- * lat. Tre är rutnätets bredaste rad på en vanlig skärm; på en telefon är det
- * ett kort och två bilder till som hämtas i onödan, vilket är billigare än ett
- * lat LCP-element.
- */
-const EAGER_CARDS = 3;
-
 const ready = sectionReady();
 if (articles.length !== entries.length || (articles.length >= MIN_ARTICLES) !== ready) {
   // Grinden i lib/artiklar.ts läser disk, sidan läser collection. Säger de
   // emot varandra är det ett byggfel, inte något att publicera runt.
   throw new Error('Artikelgrinden och innehållssamlingen är osams. Se lib/artiklar.ts.');
 }
+
+/**
+ * Ledaren är den nyaste artikeln, och den enda som får panoramaformen.
+ *
+ * Artiklarna har egen bild sedan 27318562, så formen kan räkna med en bild.
+ * Skulle en artikel ändå sakna sin, vilket händer under timmarna mellan att
+ * texten läggs in och att bilden hämtas, faller ledaren tillbaka på den nyaste
+ * som HAR en: en panoramaruta är en bild med en rubrik under, och utan bilden
+ * är den bara en större rubrik, alltså en annan sak.
+ */
+const lead = articles.find((a) => a.photo) ?? articles[0];
+const rest = articles.filter((a) => a !== lead);
+
+/**
+ * Valen i filterraden.
+ *
+ * Listan står här och inte härledd ur artiklarna, eftersom CSS är statisk:
+ * regeln som gömmer allt utom en kategori måste skrivas för ett känt id. En
+ * ny kategori i content.config.ts utan ett val här ger därför ett byggfel
+ * nedan i stället för ett tyst trasigt filter.
+ */
+const FILTER = [
+  { id: 'forklarat', label: 'Förklarat' },
+  { id: 'guide', label: 'Guide' },
+] as const;
+
+const okand = articles.find((a) => !FILTER.some((f) => f.label === a.category));
+if (okand) {
+  throw new Error(
+    `Kategorin "${okand.category}" saknar val i filterraden i src/pages/artiklar/index.astro. ` +
+      'Lägg till den i FILTER och i CSS-regeln som hör till, annars går den inte att välja.',
+  );
+}
+
+const val = FILTER.map((f) => ({
+  ...f,
+  count: articles.filter((a) => a.category === f.label).length,
+}));
+
+/**
+ * Bredderna för srcset tas ur HERO_WIDTHS och inte ur CARD_WIDTHS, trots att
+ * det här är kort.
+ *
+ * Skälet är mått och filantal. Korten är nu ~700 px breda i huvudspalten och
+ * 1048 för ledaren, alltså behöver de 1400 för en retinaskärm; CARD_WIDTHS
+ * slutar på 800 och hade skalat upp. Och eftersom artikelsidan redan genererar
+ * exakt 680, 1080 och 1400 av varje bild delar listan filer med den i stället
+ * för att lägga tre nya derivat per artikel. Pages tar 20 000 filer och vi
+ * ligger på 15 500, så det är inte en detalj.
+ */
+const LEAD_SIZES = '(max-width: 900px) 100vw, 1048px';
+const CARD_SIZES = '(max-width: 900px) 100vw, 700px';
+
+/** Korten ovanför vikningen hämtas direkt, resten lat. */
+const EAGER_CARDS = 2;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -80,33 +212,102 @@ const jsonLd = {
           sidan finns. Rubriken och korten under gör hela arbetet. */}
     </header>
 
-    <section aria-label="Alla artiklar">
-      <ul class="grid">
-        {articles.map((a, i) => (
-          <li class:list={['card', !a.photo && 'no-photo']}>
-            {a.photo && (
-              <Image
-                class="photo"
-                src={a.photo.src}
-                alt={a.photo.alt}
-                width={CARD_WIDTHS.at(-1)}
-                widths={CARD_WIDTHS}
-                sizes={CARD_SIZES}
-                loading={i < EAGER_CARDS ? 'eager' : 'lazy'}
-              />
-            )}
-            <div class="body">
-              <p class="eyebrow tag">{a.category}</p>
-              <h2><a href={path('artiklar', a.slug)}>{a.title}</a></h2>
-              <p class="text-secondary summary">{a.lede}</p>
-              <p class="caption text-secondary meta">
-                {formatDate(a.published)} · {a.minutes} min lästid
-              </p>
-            </div>
-          </li>
+    {/* Allt som filtret rör måste ligga inuti samma rot, eftersom regeln är
+        skriven som :has() på den. Ledaren ligger med: ett val som gömmer
+        listans kort men lämnar kvar ledaren av fel sort vore trasigt. */}
+    <div class="kunskap">
+      <fieldset class="filter">
+        <legend class="visually-hidden">Visa en sort</legend>
+        <input class="visually-hidden" type="radio" name="sort" id="sort-alla" checked />
+        <label class="chip" for="sort-alla">Alla <span class="tal">{articles.length}</span></label>
+        {val.map((v) => (
+          <>
+            <input class="visually-hidden" type="radio" name="sort" id={`sort-${v.id}`} />
+            <label class="chip" for={`sort-${v.id}`}>
+              {v.label} <span class="tal">{v.count}</span>
+            </label>
+          </>
         ))}
-      </ul>
-    </section>
+      </fieldset>
+
+      {/* Ledaren. Panorama i hela behållarens bredd, som förebildens.
+          Villkorad på att det finns en artikel alls: en tom samling är inget
+          normalläge, men den ska ge en tunn sida och inte ett femhundrafel. */}
+      {lead && (
+      <article class="item lead" data-sort={lead.category}>
+        {lead.photo && (
+          <Image
+            class="photo"
+            src={lead.photo.src}
+            alt={lead.photo.alt}
+            width={HERO_WIDTHS.at(-1)}
+            widths={HERO_WIDTHS}
+            sizes={LEAD_SIZES}
+            loading="eager"
+          />
+        )}
+        <h2><a href={path('artiklar', lead.slug)}>{lead.title}</a></h2>
+        <p class="lede">{lead.lede}</p>
+        <p class="meta text-secondary">
+          {formatDate(lead.published)} · {lead.category} · {lead.minutes} min lästid
+        </p>
+      </article>
+      )}
+
+      <div class="layout">
+        <section aria-label="Fler artiklar">
+          <ul class="lista">
+            {rest.map((a, i) => (
+              <li class="item" data-sort={a.category}>
+                {a.photo && (
+                  <Image
+                    class="photo"
+                    src={a.photo.src}
+                    alt={a.photo.alt}
+                    width={HERO_WIDTHS.at(-1)}
+                    widths={HERO_WIDTHS}
+                    sizes={CARD_SIZES}
+                    loading={i < EAGER_CARDS ? 'eager' : 'lazy'}
+                  />
+                )}
+                <h2><a href={path('artiklar', a.slug)}>{a.title}</a></h2>
+                <p class="lede">{a.lede}</p>
+                <p class="meta text-secondary">
+                  {formatDate(a.published)} · {a.category} · {a.minutes} min lästid
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <aside class="side">
+          {/* Motsvarigheten till "Vanliga frågor om Booli". Hjälpsidan äger
+              sina egna svar; det här är en ingång till dem och inget mer. */}
+          <section class="card panel">
+            <h2>Frågor och svar</h2>
+            <p>
+              Hur bedömningen räknas fram, hur ofta uppgifterna uppdateras och
+              vad du gör om något står fel.
+            </p>
+            <p class="mer"><a href={path('hjalp')}>Hjälp och vanliga frågor</a></p>
+          </section>
+
+          {/* Blocket Booli inte har. Se huvudkommentaren. */}
+          <section class="card panel">
+            <h2>Rapporterna</h2>
+            <p>Räknade ur hela beståndet vid varje bygge, inte skrivna.</p>
+            <ul class="panellista">
+              {REPORTS.map((r) => (
+                <li>
+                  <h3><a href={path('rapporter', r.slug)}>{r.title}</a></h3>
+                  <p class="caption text-secondary">{formatDate(r.published)}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </div>
 
     {/* Bara länkarna. Raden var först två stycken om skillnaden mellan
         artiklar och rapporter, sedan en källrad om att tal i artiklar är
@@ -139,106 +340,291 @@ const jsonLd = {
     margin-top: var(--s-2);
   }
 
-  section {
+  /* ── Filterraden ─────────────────────────────────────────────────────────
+     Chipsen är sajtens befintliga form, samma som kategorihubbens: piller,
+     hårlinje, vit botten, --fs-caption i vikt 600, och märkesblå fyllning på
+     det valda. Boolis egna taggar är grå fyrkanter, men de är LÄNKAR till
+     kategorisidor. Våra leder ingenstans, de byter läge på plats, och då ska
+     de se ut som sajtens andra val och inte som en importerad knapptyp. */
+  .filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin: var(--s-8) 0 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .chip:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  .chip .tal {
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Valt läge: fyllning OCH textfärg, aldrig färg ensam som betydelse.
+     Radioknappen bär tillståndet för skärmläsare, chipset visar det. */
+  .filter input:checked + .chip {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+
+  /* Radioknappen är visuellt dold, så fokusringen måste flytta till etiketten.
+     Utan det här får den som tabbar sig fram ingen synlig markering alls. */
+  .filter input:focus-visible + .chip {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* Urvalet. En regel per val, och FILTER-kontrollen i frontmatter stoppar
+     bygget om en kategori tillkommer utan att få sin rad här. */
+  .kunskap:has(#sort-forklarat:checked) .item:not([data-sort='Förklarat']) { display: none; }
+  .kunskap:has(#sort-guide:checked) .item:not([data-sort='Guide']) { display: none; }
+
+  /* ── Spalterna ───────────────────────────────────────────────────────────
+     Samma rutnät som verksamhetssidan: huvudspalt, 48 px glugg, 300 px panel.
+     Booli kör 620 + 48 + 312 i sin 980-behållare; vår 1080 ger 700 + 48 + 300,
+     alltså samma förhållande utan en ny bredd. */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--s-12);
+    align-items: start;
     margin-top: var(--s-12);
   }
 
-  .grid {
+  /* ── Korten som inte är kort ─────────────────────────────────────────────
+     Genomskinliga, utan ram och utan skugga, åtskilda av en hårlinje och luft.
+     Det är vad Booli gör, vad docs/19 redan säger om deras träffkort, och vad
+     kommunbandet lärde oss i 27318562: en färgad yta avgränsar sämre än en
+     linje gör. Panelerna till höger ÄR kort, och det är kontrasten dem emellan
+     som gör att panelen läser som verktyg och listan som innehåll. */
+  .lista {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--s-6);
   }
 
-  /* Bild överst, sedan text i en egen kropp: Boolis och Hemnets kortform, och
-     samma uppdelning som KommunKort redan har. Renheten sitter i att kortet
-     har EN yta och EN kant — bilden går ut i kortets ytterkanter i stället för
-     att ligga inramad med luft runt om. */
-  .card {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  .item {
+    position: relative;
   }
 
-  .card :global(.photo) {
+  .lead {
+    margin-top: var(--s-8);
+  }
+
+  .lista .item + .item {
+    margin-top: var(--s-12);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-12);
+  }
+
+  /*
+   * Den gömda posten får inte lämna kvar sin linje.
+   *
+   * Hårlinjen sitter på "varje post som har en post före sig". Gömmer filtret
+   * den översta bär nästa post en linje i luften. :not([hidden]) går inte att
+   * använda, eftersom display: none inte sätter något attribut, och
+   * :first-of-type räknar syskon och inte synliga syskon.
+   *
+   * I stället nollställs hela listan i ett filtrerat läge och linjen sätts om
+   * med syskonväljaren ~, som betyder just "har en post av samma sort före
+   * sig". Det är samma villkor som urvalet ovan, uttryckt en gång till.
+   */
+  .kunskap:has(#sort-forklarat:checked) .lista .item,
+  .kunskap:has(#sort-guide:checked) .lista .item {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .kunskap:has(#sort-forklarat:checked) .lista .item[data-sort='Förklarat'] ~ .item[data-sort='Förklarat'],
+  .kunskap:has(#sort-guide:checked) .lista .item[data-sort='Guide'] ~ .item[data-sort='Guide'] {
+    margin-top: var(--s-12);
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-12);
+  }
+
+  /* Listbildens proportion är mätt, inte ärvd.
+   *
+   * Sajtens vanliga bildformat är 16:9, och det satt här först. På en 700 px
+   * spalt blir en 16:9-bild 394 px hög, kortet 653 och hela listan 13 400 px:
+   * ett kort per skärm, alltså ett bildspel och inte en lista. Booli kör 620 ×
+   * 256 på sina listkort, alltså 2,42:1, och får två rubriker per skärm. 12/5
+   * är samma proportion avläst i vår bredd. Artikelsidan visar bilden i 16:9
+   * som förut; det här är kortets utsnitt, inte bildens format. */
+  .item :global(.photo) {
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 12 / 5;
     object-fit: cover;
+    border-radius: var(--r-card);
     background: var(--card);
   }
 
-  .body {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    padding: var(--s-4) var(--s-6) var(--s-6);
+  /* Ledarens bild är ett panorama och inte en kortbild. Booli kör 3,14:1 på
+     980 px; 3:1 på våra 1048 är samma sak avläst i vår behållare. Under 900 px
+     är spalten hela skärmen, och där blir en 3:1-remsa en springa: då gäller
+     kortbildens 16:9, precis som förebilden går till en högre proportion i
+     mobil. */
+  .lead :global(.photo) {
+    aspect-ratio: 3 / 1;
   }
 
-  /* Utan bild börjar kortet med kategorietiketten, och då behöver kroppen
-     samma luft upptill som den har nedtill. En platshållarruta i bildens
-     ställe vore värre: den läser som en trasig bild, medan ett kort som helt
-     saknar bildfält bara läser som ett textkort. Bilderna läggs in en artikel
-     i taget, så blandningen är ett normaltillstånd och inte ett fel. */
-  .no-photo .body {
-    padding-top: var(--s-6);
+  /* Tre rubriknivåer på sidan, och de måste vara tre.
+   *
+   * Booli kör 48 på sidtiteln, 40 på ledaren och 32 på listkorten, alltså tre
+   * steg. Vår skala har tre nivåer i samma spann och inte fyra: 40, 32, 24.
+   * Första försöket lade sidtiteln och ledaren på var sin 40 och korten på 32,
+   * och då stod två lika stora rubriker ovanpå varandra. Det är precis vad
+   * docs/19 kallar slarv snarare än två nivåer. Nu 40, 32, 24, med samma
+   * mobilsteg som tokens redan gör åt de två översta. */
+  .item h2 {
+    margin-top: var(--s-4);
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
   }
 
-  .tag {
-    color: var(--brand-ink);
+  /* Bilden läggs in en artikel i taget, och luften ovanför rubriken hör till
+     bilden. Står rubriken först i kortet ska den inte bära den. En
+     platshållarruta i bildens ställe vore värre: den läser som en trasig
+     bild, medan ett kort som helt saknar bildfält bara läser som ett
+     textkort. */
+  .item > h2:first-child {
+    margin-top: 0;
   }
 
-  .grid h2 {
-    margin-top: var(--s-2);
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
+  .lead h2 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
   }
 
   /* Rubriken är länken. Träffytan görs kortstor med en pseudo-yta i stället
      för att slå in hela kortet i ett ankare, så att texten förblir markerbar
      och en framtida andralänk i kortet är möjlig. */
-  .grid h2 a {
+  .item h2 a {
     color: var(--text);
   }
 
-  .grid h2 a::after {
+  .item h2 a::after {
     content: '';
     position: absolute;
     inset: 0;
   }
 
-  .grid li {
-    position: relative;
-    transition: box-shadow .18s ease;
-  }
-
-  /* Samma svar på pekaren som kommunkorten ger. Kortet med bild behöver det
-     mest: där ligger rubriken inte längre överst i kortet, och utan skuggan är
-     det bara textfärgen som visar att hela ytan är klickbar. */
-  .grid li:hover {
-    box-shadow: var(--shadow-pop);
-  }
-
-  .grid li:hover h2 a {
+  /* Svaret på pekaren är ett understruket rubriknamn, inte en skugga. Utan
+     kortyta finns ingen ruta att lyfta, och understrykningen är dessutom vad
+     förebilden gör. */
+  .item:hover h2 a {
     color: var(--brand-ink);
+    text-decoration: underline;
   }
 
-  .summary {
+  /* Ingressen är brödtext och lyder under brödtextregeln: aldrig bredare än
+     --w-read. Huvudspalten är 700 och ledarens rad 1048, så båda kapas här.
+     Rubriken får däremot löpa hela spalten, den är ingen brödtext.
+
+     Fyra rader, som förebilden, tre i mobil. Klippet är en form och inte en
+     redigering: hela ingressen står kvar i HTML och på artikelsidan. */
+  .lede {
+    max-width: var(--w-read);
+    margin-top: var(--s-2);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+  }
+
+  .meta {
     margin-top: var(--s-3);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
   }
 
-  .meta {
-    margin-top: auto;
+  /* ── Sidopanelen ─────────────────────────────────────────────────────────
+     Riktiga kort, till skillnad från listan. .card ger vit yta, --r-card och
+     hårlinjeringen ur --shadow-sm. Rubriken bär en linje under sig, precis
+     som förebildens blockrubrik. */
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+  }
+
+  .panel {
+    padding: var(--s-4);
+  }
+
+  .panel h2 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .panel p {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .panel .mer {
+    margin-top: var(--s-3);
+  }
+
+  .panellista {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+  }
+
+  .panellista li + li {
+    margin-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
     padding-top: var(--s-4);
+  }
+
+  .panellista h3 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+  }
+
+  .panellista h3 a {
+    color: var(--text);
+  }
+
+  .panellista h3 a:hover {
+    color: var(--brand-ink);
+  }
+
+  .panellista p {
+    margin-top: var(--s-1);
   }
 
   .about {
     max-width: var(--w-read);
+    margin-top: var(--s-12);
     border-top: 1px solid var(--hairline);
     padding-top: var(--s-6);
     font-size: var(--fs-body-s);
@@ -247,5 +633,26 @@ const jsonLd = {
   .about p {
     line-height: 22px;
     color: var(--text-secondary);
+  }
+
+  /* Panelen faller under HELA listan, den vävs inte in mellan korten. Samma
+     sak som förebilden gör, och samma brytpunkt som verksamhetssidan. */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+      gap: var(--s-12);
+    }
+
+    /* Full skärmbredd. En 3:1-remsa blir en springa på en telefon och en
+       12/5 nästan lika smal, så båda går till kortformatet 16:9. Förebilden
+       gör samma sak åt samma håll: deras panorama blir 4:3 i mobil. */
+    .item :global(.photo),
+    .lead :global(.photo) {
+      aspect-ratio: 16 / 9;
+    }
+
+    .lede {
+      -webkit-line-clamp: 3;
+    }
   }
 </style>
