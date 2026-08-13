@@ -119,6 +119,28 @@ function apply(): void {
      noll och kompensationen nedan gör ingenting. */
   const gap = window.innerWidth - document.documentElement.clientWidth;
 
+  /**
+   * Samma tal, men som CSS-variabel, för allt som ligger FAST i vyporten.
+   *
+   * Paddingen längre ned räddar bara sidans eget flöde. Ett ark med
+   * `position: fixed` eller en <dialog> mäter mot vyporten i stället, och
+   * vyporten växer med listens bredd i samma ögonblick som låset tar bort
+   * listen. Mätt vid 1440 px med klassisk list, menyns panel:
+   *
+   *   före låset   panelen 1425 px bred, kortens vänsterkant på 181,0
+   *   efter låset  panelen 1440 px bred, kortens vänsterkant på 188,5
+   *
+   * Alltså 7,5 px åt höger, kvar så länge menyn står öppen. Det är hoppet
+   * ägaren beskrev: "när jag fäller ut hamburgaremenyn så hoppar den till
+   * lite till höger". Att panelen hinner ritas en gång innan låset läggs på
+   * beror på att <details> skickar sitt toggle-event asynkront.
+   *
+   * Variabeln finns bara medan låset hålls och är noll på telefon. Den som
+   * ligger fast i vyporten läser den och drar av lika mycket, se .panel i
+   * PlacePicker.astro.
+   */
+  document.documentElement.style.setProperty('--lock-gutter', `${gap}px`);
+
   scrollTop = window.scrollY;
   saved = {};
   for (const key of TOUCHED) saved[key] = body.style[key];
@@ -138,6 +160,8 @@ function release(): void {
   const body = document.body;
 
   untrackKeyboard();
+
+  document.documentElement.style.removeProperty('--lock-gutter');
 
   for (const key of TOUCHED) body.style[key] = saved[key] ?? '';
 

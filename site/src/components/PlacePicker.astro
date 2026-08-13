@@ -529,6 +529,22 @@ const LASA = [
        inne. */
     max-height: calc(100dvh - 58px);
 
+    /* Rullningslistens bredd, medan låset håller. Panelen ligger FAST i
+       vyporten och mäter alltså mot den, medan sidan under mäter mot en body
+       som page-lock redan gett samma tal i padding. Utan den här raden blir
+       panelen 15 px bredare än sidan i samma ögonblick som låset tar bort
+       listen, och innehållet, som är centrerat i en container, flyttar sig
+       halva talet åt höger. Mätt vid 1440 px: kortens vänsterkant hoppade
+       från 181,0 till 188,5 och blev kvar där.
+
+       Det bröt dessutom mot det panelen är byggd för, se filhuvudet: dess
+       vänsterkant ska ligga exakt under wordmarken i raden ovanför, och raden
+       ovanför sitter i sidans flöde.
+
+       Variabeln sätts av lib/page-lock.ts och finns bara medan något ark är
+       öppet. Den är noll på telefon, där det inte finns någon list. */
+    padding-right: var(--lock-gutter, 0px);
+
     /* Rutnätet finns bara för att höjden ska gå att animera.
        `grid-template-rows` mellan 0fr och 1fr är den enda vägen till ett
        höjdförlopp som slutar på innehållets EGEN höjd, utan att någon mäter
@@ -547,6 +563,38 @@ const LASA = [
     overflow-y: auto;
     /* Rullar man klart inuti panelen ska sidan bakom inte ta vid. */
     overscroll-behavior: contain;
+
+    /* HÄR SATT SJÄLVA HOPPET, och det är mätt bildruta för bildruta.
+     *
+     * Luckan ovanför animerar höjden från noll. Under hela det förloppet är
+     * .rull alltså LÄGRE än sitt innehåll, och `overflow-y: auto` gör då det
+     * den ska: den ritar en rullningslist. Listen är 15 px bred och äter av
+     * innehållsrutan. I samma ögonblick som luckan når full höjd får
+     * innehållet plats, listen försvinner, rutan blir 15 px bredare och allt
+     * centrerat i den flyttar sig halva talet åt höger.
+     *
+     * Mätt vid 1440 px, som avstånd mellan panelens container och
+     * sidhuvudets, alltså noll när de ligger i linje:
+     *
+     *   under förloppet   .rull har 15 px list, avvikelse -7,5 px
+     *   när menyn satt sig .rull har 0 px list, avvikelse 0
+     *
+     * Hoppet kommer alltså precis när menyn slutar röra sig, vilket är exakt
+     * när ögat vilar på den. Det är ägarens "hoppar till lite till höger",
+     * och det har ingenting med sidans egen rullningslist att göra: det
+     * händer inuti panelen.
+     *
+     * `stable both-edges` reserverar listens plats på BÅDA sidor, alltid,
+     * oavsett om någon list ritas. Bredden slutar därmed bero på om
+     * innehållet råkar få plats just nu. Båda sidor och inte bara höger,
+     * eftersom innehållsrutan då förblir CENTRERAD i panelen, och det är det
+     * som håller panelens container i linje med sidhuvudets. Mätt efteråt:
+     * noll avvikelse i varenda bildruta genom hela förloppet.
+     *
+     * På telefon ritas listen ovanpå innehållet i stället för bredvid, och då
+     * reserverar regeln ingenting alls. Den kostar alltså bara något där det
+     * finns en list som faktiskt tar plats. */
+    scrollbar-gutter: stable both-edges;
   }
 
   .inner {
@@ -911,10 +959,31 @@ const LASA = [
      stilla när den är störst. Det är det som gör att en yta på en halv skärm
      inte känns tung.
 
-     Ett avsteg: vår skala går till .97 och inte .95. Ednias panel börjar vid
-     y=0 och täcker sidhuvudet, alltså skalas den kring skärmens mitt. Vår
-     börjar under raden, och .95 räknat från vår mittpunkt drog kortens
-     vänsterkant synligt inåt från wordmarken ovanför. */
+     ── ETT AVSTEG: INGEN SKALA, UTAN EN FÖRSKJUTNING NEDÅT ──────────────────
+     Här stod `scale(.97)`, och DET var hoppet i sidled ägaren såg två gånger:
+     "när jag fäller ut hamburgaremenyn så hoppar den till lite till höger".
+
+     En skala växer åt alla håll från sin mittpunkt, alltså också i sidled.
+     Mätt bildruta för bildruta genom hela öppningen, med panelens innehåll:
+
+       1440 px    högerkanten sveper 27,7 px åt höger, kortens vänsterkant
+                  15,7 px åt vänster
+        375 px    högerkanten 5,6 px åt höger, vänsterkanten 5,1 px
+
+     Menyknappen står stilla hela tiden. Det som rör sig är innehållet, och
+     det rör sig utåt just där handen nyss släppte knappen. Talen är dessutom
+     desamma på telefon, där det inte finns någon rullningslist alls, vilket
+     var vad som avslöjade att listen aldrig var förklaringen.
+
+     Föregångaren såg samma sak och skrev ned den: skalan sänktes från ednias
+     .95 till .97 för att "kortens vänsterkant drog synligt inåt från
+     wordmarken ovanför". Det halverade sidledsrörelsen i stället för att ta
+     bort den, och kvar blev precis så mycket att det läser som en bugg.
+
+     `translateY` i stället. Åtta pixlar uppifrån och ned, alltså samma mjuka
+     landning och samma riktning som luckan redan växer åt, med exakt noll i
+     sidled. Ett värde som får ändras är talet, aldrig axeln: allt som rör
+     panelen i x-led kommer tillbaka som samma felanmälan. */
   /* ÖVERGÅNG OCH INTE @KEYFRAMES, och det är mätt fram och inte valt.
    *
    * Första versionen la `animation: meny-lucka-in` på `.picker[open] .panel`
@@ -946,7 +1015,7 @@ const LASA = [
 
     .picker[data-mjuk] .inner {
       opacity: 0;
-      transform: scale(.97);
+      transform: translateY(-8px);
       transition:
         opacity 280ms cubic-bezier(.48, .22, .04, 1),
         transform 280ms cubic-bezier(.48, .22, .04, 1);
