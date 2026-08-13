@@ -243,6 +243,28 @@
 html {
   background: var(--canvas);
   -webkit-text-size-adjust: 100%;
+  /*
+   * Rullningslistens plats reserveras alltid, också när det inte finns något
+   * att rulla.
+   *
+   * Utan den här raden hoppar hela sidan i sidled varje gång något låser
+   * rullningen: menyn, inloggningsrutan, jämförelsen, bildförstoringen.
+   * Kedjan är att låset sätter overflow: hidden, att listen då försvinner,
+   * att vyporten växer med listens bredd, och att allt som mäts mot vyporten
+   * flyttar sig med samma tal. Ägaren: "när jag fäller ut hamburgaremenyn så
+   * hoppar den till lite till höger".
+   *
+   * lib/page-lock.ts kompenserar redan med padding på body, och det räcker
+   * inte: padding på body flyttar innehållet i flödet, men ett fast eller
+   * klistrat element mäter fortfarande mot vyporten och följer inte med.
+   * Sidhuvudet är klistrat, alltså syntes felet just där.
+   *
+   * Med reserverad plats är listen alltid lika bred, gapet page-lock räknar
+   * fram blir noll, och ingenting rör sig. Raden ersätter inte kompensationen:
+   * den behövs kvar för webbläsare utan stöd, och för att ett lås kan sättas
+   * på ett element som har egen rullning.
+   */
+  scrollbar-gutter: stable;
 }
 
 body {

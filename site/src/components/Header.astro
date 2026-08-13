@@ -145,9 +145,27 @@ const { search = true } = Astro.props;
      wordmarken. En knapp som byter kant beroende på sida är trasig. */
   .bar :global(.picker) { margin-left: auto; }
 
+  /* `flex: none` och inte bara `display: inline-flex`.
+     ────────────────────────────────────────────────────────────────────────
+     Wordmarken var 97 px bred på startsidan och 81 på alla andra sidor, med
+     samma höjd och samma viewBox. Alltså PRESSAD, inte mindre.
+
+     Skälet är att raden är en flexrad och att ett flexbarn krymper när det
+     blir trångt. Startsidan har inget sökfält i sidhuvudet, alltså finns det
+     plats och märket får sina rätta 159 gånger 59. Varje annan sida har
+     sökfältet, och där tog raden bredden ur det enda barn som gick att pressa.
+     En svg med `width: auto` försvarar sig inte: den har ingen egen bredd att
+     hålla emot med, den bara följer med.
+
+     Det syns tydligast på telefon, där det är trängst. 81 mot 97 är sexton
+     procent smalare, alltså ett annat märke. Ägaren såg det direkt.
+
+     `flex: none` säger att märket varken växer eller krymper. Sökfältet är det
+     som ska ge efter, för det har en egen bredd att ge av. */
   .brand {
     display: inline-flex;
     align-items: center;
+    flex: none;
     color: var(--brand);
   }
 
