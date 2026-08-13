@@ -244,27 +244,25 @@ html {
   background: var(--canvas);
   -webkit-text-size-adjust: 100%;
   /*
-   * Rullningslistens plats reserveras alltid, också när det inte finns något
-   * att rulla.
+   * INGEN `scrollbar-gutter: stable` här. Raden fanns en gång, mot hoppet i
+   * sidled när menyn fälls ut, och den GJORDE hoppet i stället för att ta bort
+   * det. Mätt i webbläsaren vid 801 px med klassisk rullningslist, sidhuvudet
+   * och containern före och efter att menyn öppnats:
    *
-   * Utan den här raden hoppar hela sidan i sidled varje gång något låser
-   * rullningen: menyn, inloggningsrutan, jämförelsen, bildförstoringen.
-   * Kedjan är att låset sätter overflow: hidden, att listen då försvinner,
-   * att vyporten växer med listens bredd, och att allt som mäts mot vyporten
-   * flyttar sig med samma tal. Ägaren: "när jag fäller ut hamburgaremenyn så
-   * hoppar den till lite till höger".
+   *   utan raden    allt står stilla, 0 px på var och en av sidhuvudet, raden,
+   *                 wordmarken, containern, sidfoten och menyknappen
+   *   med raden     menyknappen flyttar sig 15 px och containern tappar 15 px
    *
-   * lib/page-lock.ts kompenserar redan med padding på body, och det räcker
-   * inte: padding på body flyttar innehållet i flödet, men ett fast eller
-   * klistrat element mäter fortfarande mot vyporten och följer inte med.
-   * Sidhuvudet är klistrat, alltså syntes felet just där.
+   * Skälet är att reservationen bara gäller så länge elementet faktiskt
+   * rullar. lib/page-lock.ts sätter `overflow: hidden`, det propagerar till
+   * vyporten, html slutar vara rullbar och rännan faller bort. Låsets
+   * `paddingRight` räknas däremot ut INNAN dess och läggs på ändå, alltså
+   * dras 15 px av från body utan att något gett tillbaka dem.
    *
-   * Med reserverad plats är listen alltid lika bred, gapet page-lock räknar
-   * fram blir noll, och ingenting rör sig. Raden ersätter inte kompensationen:
-   * den behövs kvar för webbläsare utan stöd, och för att ett lås kan sättas
-   * på ett element som har egen rullning.
+   * Kompensationen i page-lock är korrekt ensam. Hoppet ägaren såg satt i
+   * öppningsförloppets `scale()`, se PlacePicker.astro, och fanns även på
+   * telefon där det inte finns någon rullningslist att kompensera för.
    */
-  scrollbar-gutter: stable;
 }
 
 body {

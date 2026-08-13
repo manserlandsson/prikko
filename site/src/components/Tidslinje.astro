@@ -185,11 +185,17 @@ const gid = `tl-${Math.random().toString(36).slice(2, 9)}`;
       {points.map((p) => <li>{p.label}</li>)}
     </ul>
 
-    <p class="intervall">
-      Högst <strong>{hogst.label}</strong>, {skriv(hogst)}. Lägst <strong>{lagst.label}</strong>,
-      {' '}{skriv(lagst)}. Skalan går från {skala(botten)} till {skala(taket)}.
-    </p>
+    {/* Här stod en synlig rad som sa "Högst 2025, 6 942. Lägst 2018, 4 413.
+        Skalan går från 0 till 6 942."
 
+        Den är borta, och skälet är inte att den var ful utan att den var
+        onödig två gånger om. Kurvans ytterpunkter är redan utskrivna med tal
+        vid själva punkterna, alltså står högsta och lägsta värdet i diagrammet
+        och inte bara i det. Och för den som inte ser diagrammet finns listan
+        nedan, som ger varje år och varje värde i stället för bara två.
+
+        Ägaren: "man ser ju på grafen". En rad som beskriver en bild för någon
+        som tittar på bilden är brus. */}
     <ul class="dold">
       {points.map((p) => <li>{p.label}: {p.value === null ? 'ingen uppgift' : skriv(p)}</li>)}
     </ul>
@@ -271,15 +277,6 @@ const gid = `tl-${Math.random().toString(36).slice(2, 9)}`;
   @media (max-width: 480px) {
     .axel li:nth-child(even) { visibility: hidden; }
   }
-
-  .intervall {
-    margin-top: var(--s-3);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  .intervall strong { font-weight: 600; color: var(--text); }
 
   .dold {
     position: absolute;

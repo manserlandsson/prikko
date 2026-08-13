@@ -202,9 +202,21 @@ const nal = faceSvg(key, derived);
             source: 'plats',
             layout: {
               'icon-image': 'nal',
-              // Samma storlek som kartsöksidans nålar, och spetsen på
-              // koordinaten — inte märkets mitt.
-              'icon-size': 0.5,
+              /* 0.74 och inte 0.5, alltså kartvyns VALDA nål och inte dess
+                 vanliga.
+
+                 Måttet 0.5 lånades från kartsöksidan, där nålarna är många och
+                 måste samsas: en nål bland tusen ska inte skrika. Här finns
+                 exakt en nål, och den är sidans ämne. Kartvyn har redan ett
+                 eget mått för just det fallet, lagret `nal-lyft` på 0.74, som
+                 ritar den nål besökaren valt. Verksamhetssidans nål är per
+                 definition vald.
+
+                 Ägaren: "kartnålen på kartan på restaurangsidorna är för
+                 liten, den borde vara en aning större, går nästan inte att
+                 se." Spetsen ligger fortfarande på koordinaten och inte
+                 märkets mitt, alltså pekar den på samma punkt som förut. */
+              'icon-size': 0.74,
               'icon-allow-overlap': true,
               'icon-anchor': 'bottom',
             },

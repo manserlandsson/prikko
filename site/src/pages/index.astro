@@ -76,12 +76,6 @@ import HeroVektor from '../components/HeroVektor.astro';
  * står kvar som ett val, en rad härunder.
  */
 const heroBakgrund: 'ingen' | 'foto' | 'vektor' = 'ingen';
-/* Hero-rubrikens typsnitt: Instrument Serif, systerfonten till sajtens
-   Instrument Sans (samma formgivare). Självhostad via fontsource, precis som
-   sansen — aldrig Google Fonts CDN. Bara latin-subsetet och bara 400 normal:
-   en displayfont som används på en enda rad ska inte kosta mer än så.
-   Uppmätt: 21 kB woff2, med font-display: swap i fontsource-css:en. */
-import '@fontsource/instrument-serif/latin-400.css';
 import Base from '../layouts/Base.astro';
 import KommunKort from '../components/KommunKort.astro';
 import SiteSearch from '../components/SiteSearch.astro';
@@ -572,18 +566,27 @@ const jsonLd = [
     text-align: left;
   }
 
-  /* Rubriken i Instrument Serif — sajtens enda serif, och den används BARA
-     här. En displayfont på en rad gör raden till ett avsändarmärke; på två
-     ställen vore den ett typsnittsbyte. Vikten är 400 (serifen har ingen
-     annan) och graden därför högre än sansens display-token: en lätt serif
-     i 48 px väger ungefär som en halvfet sans i 40. */
+  /* Serifen är borta, en röst på hela sajten.
+     ────────────────────────────────────────────────────────────────────────
+     Rubriken stod i Instrument Serif medan varje annan h1 på sajten står i
+     Instrument Sans. Det var ett medvetet undantag och dokumenterat som ett,
+     men ett undantag på EN sida av 16 616 läser som ett misstag och inte som
+     en avsikt. Ägaren valde en röst.
+
+     Graden går från 48 till `--fs-display`. Serifen sattes i 48 därför att en
+     lätt serif i vikt 400 väger ungefär som en halvfet sans i 40, alltså var
+     talet en kompensation för typsnittet och inte ett eget beslut. Med sansen
+     tillbaka gäller sidmallens egen skala igen, och den är sedan
+     Booli-genomgången satt efter förebildens kvot.
+
+     Importen av `@fontsource/instrument-serif` är borttagen i frontmattern.
+     Den var sidans enda användning, alltså laddade startsidan ett helt
+     typsnitt för en rad. */
   .hero-kort h1 {
     max-width: 24ch;
-    font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-    font-weight: 400;
-    font-size: 48px;
-    line-height: 54px;
-    letter-spacing: -.01em;
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+    letter-spacing: -.02em;
   }
 
   /* En rad, Ratsit-formen: handlingen och objektet, aldrig källan. */

@@ -9,17 +9,23 @@
  * dokument. Med sprite betalas ansiktet en gång per sida och varje rad kostar
  * bara en <use>-rad.
  *
- * ── Varför symbolerna byggs ur NAL-nivån ────────────────────────────────
+ * ── Symbolerna byggs ur RIK-nivån, och det är en ändring ────────────────
  *
- * Märket är numera Prikkos grävling, och ett ansikte med pupill, ögonlock och
- * pälsnyanser är mycket större än två prickar och en båge. Det rika ansiktet
- * hade lagt tiotusentals tecken på varje hubbsida utan att synas, eftersom
- * märkena i en lista står i 24 till 40 px.
+ * De byggdes tidigare ur nal-nivån, alltså platta, ögon, bryn och mun och
+ * ingenting annat, med argumentet att märkena i en lista står i 24 till 40 px
+ * och att pupillen och pälsnyanserna ändå inte syns där.
  *
- * Nal-nivån bär plattan, ögonen, brynen och munnen. Brynen är kvar, och det är
- * hela poängen: de är den enda bäraren som klarar 24 px i gråskala. Det som
- * offras är pupillen och de finaste nyanserna, alltså precis det som ändå inte
- * syns i den storleken.
+ * Argumentet var mätt men ställde fel fråga. Nal-nivån ritade inte samma
+ * ansikte enklare, den ritade ett annat ansikte: rundad rektangel i stället
+ * för huvudkontur, inga öron, ingen nos, banden som piller och brynen som två
+ * ellipser tjocka nog att läsa som ett andra par ögonlock. Ägaren såg det live
+ * och kallade den "den basic grävlingen". En maskot som byter utseende mellan
+ * listan och verksamhetssidan är två maskotar.
+ *
+ * Priset är mätt och det är litet, eftersom SPRITEN ÄR EN KONSTANT: fyra
+ * symboler per dokument oavsett om sidan har tio rader eller 8 511. Bytet
+ * kostar 32 350 byte rått och 1,3 till 1,5 kB gzippat per sida med lista, och
+ * inte en byte mer för den som har flest rader. Talen står i lib/face.ts.
  *
  * Ansiktet kommer ur lib/face.ts. Den här filen har inga egna banor.
  */
@@ -32,13 +38,14 @@ interface Props {
    */
   variant?: 'round' | 'box';
   /**
-   * Detaljnivå. Lämna orörd. Finns för att en sida med ovanligt stora märken
-   * i mängd ska kunna välja upp sig, men den kostar direkt i dokumentstorlek.
+   * Detaljnivå. Lämna orörd. Nivåerna är avställda och `rik` gäller överallt,
+   * se lib/face.ts. Propen står kvar så att en mätning av de gamla nivåerna
+   * går att göra utan att röra komponenten.
    */
   detalj?: 'rik' | 'enkel' | 'nal';
 }
 
-const { detalj = 'nal' } = Astro.props;
+const { detalj = 'rik' } = Astro.props;
 ---
 
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">

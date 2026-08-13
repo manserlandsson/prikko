@@ -191,7 +191,9 @@ const { search = true } = Astro.props;
 
   /* Namnet måste vara unikt. @keyframes är GLOBALA i CSS — Astro scopar
      selektorer men inte keyframe-namn, så en `wink` här och en `wink` i
-     FaceMark.astro skrev över varandra beroende på laddningsordning. */
+     bedömningsmärket skrev en gång över varandra beroende på laddningsordning.
+     Märkets blinkning heter numera `mm-blink-v` och `mm-blink-h` och bor i
+     rörelsekatalogen, alltså kan krocken inte uppstå igen på det hållet. */
   /* Blinkar av sig själv med långt uppehåll, inte vid hover.
      Hela cykeln är 9 sekunder och blinkningen upptar de första 8 procenten
      — ungefär 0,7 sekunder. Resten står ögat stilla. Det ger ett liv i

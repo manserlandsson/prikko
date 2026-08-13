@@ -492,7 +492,14 @@ const breadcrumbs = {
         <section class="statement">
           <p class="eyebrow">Bedömning</p>
           <div class="verdict">
-            <FaceMark verdict={e.verdict} size={52} animate wink />
+            {/* DET ENDA MÄRKET PÅ SAJTEN SOM RÖR SIG.
+
+                `liv` ger en loop som skiljer sig efter bedömning och `blick`
+                låter pupillerna följa pekaren när det finns en mus. Båda är
+                avstängda i förvalet i FaceMark, och skälet är att den
+                komponenten renderas på sextontusen sidor medan den här raden
+                är en. Se rörelsekatalogens avsnitt 5. */}
+            <FaceMark verdict={e.verdict} size={52} animate liv blick />
             <div class="besked">
               {/* ETT märke, inte två.
 
@@ -513,12 +520,27 @@ const breadcrumbs = {
                   har tagit beslutet att stjärnor inte används, eftersom de
                   läser som betyg, och det är samma skäl som gör att omdömen
                   inte har stjärnbetyg (se Reviews.astro). */}
-              <p class="level">{presentation.label}</p>
-              {/* Två meningar i ETT stycke, inte två stycken. Ett utdrag
-                  plockar ett textblock, och stycket är det som ska vara
-                  självbärande: vem, var, vilket besked och hur många
-                  kontroller det vilar på. Se `grund` i skriptdelen. */}
-              <p class="answer">{answer}{grund && <> {grund}</>}</p>
+              <p class="level">
+                {presentation.label}
+                {grund && <InfoTip label="vad bedömningen vilar på" text={grund} />}
+              </p>
+              {/* Grunden flyttad från stycket till ett tips på etiketten.
+
+                  Meningen löd "Bedömningen vilar på 9 kontroller som
+                  Stockholms stad publicerat på Åkeshovs Gårdsväg 11 sedan
+                  2019." Ägaren: "detta kan vara i en i-ikon eller något, det
+                  blir för långt."
+
+                  Den lades dit för att ge Google riktig prosa att bygga sitt
+                  utdrag av, i stället för att låta sökmotorn plocka text ur
+                  jämförelserutan. Priset för flytten är alltså känt: tipsets
+                  text bär `data-nosnippet`, så meningen räknas inte längre som
+                  utdragsmaterial. Uppgiften finns kvar för läsaren, en klick
+                  bort, och den står dessutom kvar i nyckeltalens egna tips.
+
+                  Blir utdraget dåligt igen är rätt åtgärd att korta meningen
+                  och sätta tillbaka den i stycket, inte att ta bort tipset. */}
+              <p class="answer">{answer}</p>
             </div>
             {/* Märket som märke, ute till höger på bedömningsraden. Som
                 piller i rubriken syntes det knappt; som låda under
