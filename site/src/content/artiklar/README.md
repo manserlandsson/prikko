@@ -159,3 +159,27 @@ Tre beskärningar är gjorda med bestämd avsikt och ska inte flyttas tillbaka:
 
 Originalet i full storlek läggs i `brand/` och står i `.gitignore`,
 beskärningen till 1400 x 788 i `src/assets/artiklar/`.
+
+### Fyra artiklar till, den 13 augusti 2026
+
+Bilderna hämtade ur Pexels och beskurna till 1400 x 788 med mozjpeg, kvalitet
+80. Motiven valdes för att inte upprepa de nitton som redan låg inne: inget
+dukat bord, ingen kock i arbete, inget kylrum.
+
+| Artikel | Bild |
+|---|---|
+| `magsjuka-eller-matforgiftning` | Glas vatten på ett träbord. Alexey Demidov, Pexels 12551332. |
+| `smutsig-restaurang-vad-inspektoren-ser` | Gul varningsskylt för halt golv. Miff Ibra, Pexels 32842044. |
+| `registrera-livsmedelsverksamhet` | Kaklad vägg i ett tomt restaurangkök. Ayşenaz Bilgin, Pexels 16035789. |
+| `hur-ofta-stangs-en-restaurang` | Stolar uppallade på borden framför en bardisk. Pavel Danilyuk, Pexels 5858027. |
+
+En beskärning är gjord med avsikt och ska inte flyttas tillbaka: köksbilden är
+beskuren från vänster, eftersom en mikrovågsugn med läsbart fabrikatsnamn står
+i originalets vänsterkant. Övriga tre är centrerade beskärningar av originalet.
+
+Dubbelmätningen gjordes om med samma metod som ovan, nu över 23 bilder. Det
+närmaste paret ligger på 37,9 och är kylrumsbilden mot varningsskylten: två
+ljusa, kaklade ytor som en 16 x 16-jämförelse i gråskala läser som lika medan
+motiven inte har något gemensamt. Talet 42,8 ovan gäller alltså de nitton
+bilder som fanns före den 13 augusti. Närmast bland de nya i övrigt är
+vattenglaset mot uteserveringen, på 43,3.

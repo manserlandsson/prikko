@@ -1,0 +1,180 @@
+---
+title: "Smutsig restaurang: syns det från matsalen?"
+description: "Hanteringen i köket ger fler anmärkningar än något annat, 1 977 av 11 344 granskningar. Där lokalen fick en anmärkning föll den nästan fyra gånger så ofta."
+lede: "Det som fälls oftast i ett kök går inte att se från bordet. Men punkterna inspektören går igenom hänger tätt ihop, och där lokalen är eftersatt är nästan allt annat det också."
+category: "Förklarat"
+published: "2026-08-13"
+image:
+  alt: "Gul hopfällbar varningsskylt för halt golv, uppställd på ett ljust kaklat golv med solljus över."
+  source: "Pexels"
+  credit: "Miff Ibra"
+  creditUrl: "https://www.pexels.com/photo/vibrant-yellow-wet-floor-caution-sign-on-tiled-surface-32842044/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Smuts är två punkter, inte en
+
+Ordet smutsig täcker två helt olika saker i ett protokoll, och kontrollen
+skiljer dem åt.
+
+Den ena är lokalen och utrustningen: golv, väggar, ytor, kylar, skåp och det
+som gått sönder och inte lagats. Den heter J02 och handlar om utformning och
+underhåll. Den andra är hanteringen: hur råvaror och färdig mat hålls isär, hur
+redskap och ytor sköts under passet, hur det städas efteråt. Den heter J03 och
+står för fler anmärkningar än någon annan punkt i materialet.
+
+Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som skriver
+ut varje punkt inspektören tittade på och inte bara dem som gav en anmärkning.
+Det är den enda redovisning som ger både täljare och nämnare.
+
+<Diagram
+  titel="De två punkterna som ligger bakom ordet smutsig"
+  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Avvikelser om hanteringen', value: '1 977' },
+      { label: 'Andel av granskningarna', value: '17,4', unit: '%' },
+      { label: 'Avvikelser om lokal och utrustning', value: '1 349' },
+      { label: 'Andel av granskningarna', value: '15,2', unit: '%' },
+    ]}
+  />
+</Diagram>
+
+Tillsammans står de för en tredjedel av allt som noteras. Av materialets 9 704
+avvikelser gäller 20,4 procent hanteringen och 13,9 procent lokalen, och ingen
+annan punkt kommer i närheten av den första.
+
+## Var de faller
+
+Skillnaden mellan verksamhetstyperna är stor, och den följer hur mycket mat som
+faktiskt tillagas på stället.
+
+<Diagram
+  titel="Andel granskningar av hanteringen som gav avvikelse, per kategori"
+  underlag="Varje stapel har sin egen nämnare, alltså antalet gånger punkten granskades i den kategorin."
+>
+  <Stapel
+    label="Andel av granskningarna av hygien före, under och efter processen som gav en avvikelse"
+    scale={30}
+    avdelare
+    rows={[
+      { label: 'Restauranger', value: 26.2, display: '26,2 %', note: '1 309 avvikelser av 5 005 granskningar' },
+      { label: 'Caféer och bagerier', value: 18.8, display: '18,8 %', note: '186 av 991' },
+      { label: 'Butiker', value: 16.9, display: '16,9 %', note: '214 av 1 268' },
+      { label: 'Skolor och omsorg', value: 6.7, display: '6,7 %', note: '233 av 3 452' },
+      { label: 'Övriga verksamheter', value: 5.8, display: '5,8 %', note: '30 av 514' },
+    ]}
+  />
+</Diagram>
+
+Var fjärde granskning av ett restaurangkök ger alltså en anmärkning på just
+den punkten. I skolköken är det var femtonde. Varför skolköken ligger så lågt
+har vi gått igenom i
+[Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
+
+## Det eftersatta stället är eftersatt i allt
+
+Här ligger det som gör frågan värd att ställa. Vi delade kontrollerna i två
+högar efter hur det gick på lokalpunkten, och tittade sedan på vad resten av
+protokollet sa. Underlaget är de 8 095 kontroller där båda punkterna granskades
+vid samma besök.
+
+<Diagram
+  titel="Utfallet på övriga punkter, beroende på hur lokalen bedömdes"
+  underlag="Samma kontroll, andra punkter. Varje stapel har sin egen nämnare och båda serierna är andelar av granskningarna."
+>
+  <Parstapel
+    serieA="Lokalen fick anmärkning"
+    serieB="Lokalen var utan anmärkning"
+    scale={50}
+    label="Andel granskningar som gav avvikelse, uppdelat på hur lokalpunkten bedömdes vid samma kontroll"
+    rows={[
+      { label: 'Hygien före, under och efter', a: 45.4, b: 11.7, aDisplay: '45,4 %', bDisplay: '11,7 %', note: '549 av 1 209 mot 808 av 6 886' },
+      { label: 'Material i kontakt med livsmedel', a: 26.5, b: 8.8, aDisplay: '26,5 %', bDisplay: '8,8 %', note: '101 av 381 mot 218 av 2 474' },
+      { label: 'Kylkedja och temperatur', a: 23.6, b: 11.9, aDisplay: '23,6 %', bDisplay: '11,9 %', note: '266 av 1 126 mot 749 av 6 278' },
+      { label: 'Personlig hygien', a: 14.9, b: 4.8, aDisplay: '14,9 %', bDisplay: '4,8 %', note: '157 av 1 054 mot 279 av 5 786' },
+      { label: 'Bekämpning av skadedjur', a: 10.4, b: 2.7, aDisplay: '10,4 %', bDisplay: '2,7 %', note: '62 av 596 mot 99 av 3 630' },
+    ]}
+  />
+</Diagram>
+
+Ordningen bryts inte på en enda rad. Där lokalen fick en anmärkning föll
+hanteringen vid nästan varannan kontroll. Där lokalen var utan anmärkning föll
+den vid drygt var nionde. Skadedjursbekämpningen följer samma mönster, och
+personalens hygien också. Även faroanalysen, som är pappersarbete och inte
+städning, faller nästan dubbelt så ofta: 22,4 procent mot 11,9.
+
+Ett kök är alltså sällan eftersatt i en enda sak. Ordningen tycks vara en
+egenskap hos stället snarare än hos punkten, och lokalens skick är den del av
+den ordningen som lämnar spår i det en gäst kan se.
+
+## Vad du faktiskt ser som gäst
+
+Inspektörens lokalpunkt omfattar hela stället. Din utsikt omfattar matsalen,
+toaletten, disken vid kassan och det som råkar synas genom en lucka. Det är en
+del av samma sak, inte hela.
+
+Med det förbehållet är det värt att titta på:
+
+**Slitna ytor som inte går att göra rena.** Kravet är inte att lokalen ska vara
+ny, utan att ytorna ska gå att hålla rena. Trasigt kakel, uppfläkta fogar och
+skadade bänkskivor är precis vad punkten handlar om.
+
+**Toaletten.** Den omfattas av samma krav på rengöring och underhåll som resten
+av lokalen, och den är den enda delen av lokalen en gäst kommer åt på egen hand.
+
+**Det som står framme.** Bröd, smör, sallader och dessert i rumstemperatur är
+kylkedjan, den punkt som faller vid 13,8 procent av granskningarna.
+
+Ett enskilt intryck säger fortfarande ingenting säkert om ett enskilt ställe.
+Mönstret ovan är räknat på tusentals kontroller, och det är på den nivån det
+gäller. Det som säger något om just ditt ställe är historiken.
+
+## Bristerna rättas nästan alltid
+
+Att få en anmärkning på hanteringen är vanligt. Att behålla den är det inte.
+Av de 1 977 avvikelserna stod 139 kvar vid kommunens uppföljning, alltså 7,0
+procent. För lokalpunkten är motsvarande tal 68 av 1 349, alltså 5,0 procent.
+
+Det är också skillnaden mellan de två anmärkningar du ser i en historik. En
+avvikelse som åtgärdats är ett normalt kontrollutfall. En som står kvar efter
+ett återbesök är något annat, och den skillnaden går vi igenom i
+[Vad händer när en restaurang får en anmärkning?](/artiklar/vad-hander-efter-en-anmarkning/)
+
+## Om du sett något
+
+Anmälan går till miljöförvaltningen i kommunen där stället ligger. Du behöver
+ingen paragraf, bara vilket ställe det gäller, vilken dag och tid, och vad du
+såg. Ju mer konkret desto bättre: en kylmonter som kändes ljummen är en
+användbar uppgift, ett allmänt intryck är det inte.
+
+Sådana besök är de som oftast hittar något, och hur mycket oftare står i
+[Vad händer när du anmäler en restaurang?](/artiklar/vad-hander-nar-du-anmaler-en-restaurang/)
+
+Innan du går dit kan du läsa historiken i stället för att gissa.
+[Sök på namnet](/sok/), eller bläddra bland
+[verksamheter med anmärkningar i Linköping](/linkoping/anmarkningar/) eller
+[i Örebro](/orebro/anmarkningar/).
+
+## Vad talen inte säger
+
+Två kommuner bär hela materialet, eftersom de är de enda som redovisar också de
+punkter som var utan anmärkning. Utan den nämnaren går det att räkna hur
+anmärkningarna fördelar sig, men inte hur ofta en punkt faller.
+
+Sambandet mellan lokalen och resten säger inte vilket som orsakar vilket. Ett
+slitet kök gör det svårare att hålla rent, och ett slarvigt kök sliter fortare
+på lokalen. Det som går att belägga är att de följs åt, och att de följs åt
+mycket tätare än man skulle tro.
+
+## Källor
+
+- Livsmedelsverkets kontrollwiki, [Lokaler och utrustning](https://kontrollwiki.livsmedelsverket.se/artikel/343/lokaler-och-utrustning): kraven på utformning och underhåll.
+- Livsmedelsverkets kontrollwiki, [Rengöring](https://kontrollwiki.livsmedelsverket.se/artikel/346/rengoring): kraven på rengöring av lokaler och utrustning.
+- Livsmedelsverkets kontrollwiki, [Grundförutsättningar, allmänna hygienkrav](https://kontrollwiki.livsmedelsverket.se/artikel/340/grundforutsattningar-allmanna-hygienkrav): vad grundförutsättningarna omfattar enligt bilaga II till förordning (EG) nr 852/2004.
+- Talen är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

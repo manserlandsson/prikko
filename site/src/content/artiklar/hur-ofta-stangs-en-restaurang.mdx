@@ -1,0 +1,152 @@
+---
+title: "Hur ofta stängs en restaurang för brister?"
+description: "Under 2024 fattades 118 beslut om stängning eller förbud mot hela verksamheten i hela landet. Så ser vägen dit ut, och så syns den i en historik."
+lede: "En stängd restaurang blir alltid en nyhet, och nyheten läses som att det händer ofta. Räknat på landets samtliga livsmedelsverksamheter är det den mest ovanliga av alla åtgärder kommunen har."
+category: "Förklarat"
+published: "2026-08-13"
+image:
+  alt: "Trästolar uppallade på borden framför en bardisk med tegelvägg och rad av barstolar."
+  source: "Pexels"
+  credit: "Pavel Danilyuk"
+  creditUrl: "https://www.pexels.com/photo/brown-wooden-chairs-on-table-5858027/"
+---
+
+import Andelsstapel from '../../components/Andelsstapel.astro';
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Vad kommunen faktiskt beslutar
+
+En stängning är inte en egen sorts händelse utan sista steget i en skala.
+Livsmedelsverket samlar in besluten från landets kontrollmyndigheter, och för
+2024 ser fördelningen ut så här.
+
+<Diagram
+  titel="Beslut med krav på verksamheten, 2024"
+  underlag="Samtliga kontrollmyndigheter i landet. Antal beslut, inte antal verksamheter."
+  kalla="Livsmedelsverket, rapport L 2025 nr 13, Sveriges livsmedelskontroll 2024."
+>
+  <Stapel
+    label="Antal beslut per beslutstyp under 2024"
+    avdelare
+    rows={[
+      { label: 'Föreläggande om verksamheten', value: 3889, display: '3 889', note: 'Verksamheten ska göra något för att avhjälpa bristen.' },
+      { label: 'Förbud avseende visst livsmedel', value: 520, display: '520' },
+      { label: 'Föreläggande om visst livsmedel', value: 489, display: '489' },
+      { label: 'Förbud mot del av verksamheten', value: 225, display: '225', note: 'Ett moment eller en del av lokalen stoppas, resten får fortsätta.' },
+      { label: 'Stängning eller förbud mot hela verksamheten', value: 118, display: '118' },
+    ]}
+  />
+</Diagram>
+
+118 beslut under ett år, i ett land med 95 324 livsmedelsverksamheter och
+78 181 utförda kontroller. Vid sidan av besluten gjordes fem åtalsanmälningar
+och 251 beslut om sanktionsavgift.
+
+Föreläggandet är alltså det normala. Det innebär att verksamheten ska rätta
+något, ibland vid vite, och det är inte samma sak som att någon stänger.
+
+## Vad som krävs för att komma dit
+
+Kedjan börjar med en avvikelse i en kontrollrapport. Avvikelser är vanliga:
+kontrollmyndigheterna noterade minst en vid 38 procent av de planerade
+kontrollerna 2024. De flesta rättas mellan besöken och är utagerade där.
+
+Går de inte det kommer ett återbesök, och därefter ett beslut med krav. Först
+när kraven inte följs, eller när bristen innebär en fara som inte kan vänta,
+blir förbud mot hela verksamheten aktuellt. Ett sådant beslut kan överklagas av
+den som har kontrollerats.
+
+Hela kedjan från anmärkning till tvång, med de uppmätta tiderna mellan stegen,
+står i
+[Vad händer när en restaurang får en anmärkning?](/artiklar/vad-hander-efter-en-anmarkning/)
+
+## Så syns det i en historik
+
+Ett myndighetsbeslut ingår inte i de kontrolluppgifter kommunerna lämnar ut.
+Det som syns är kontrollen och dess utfall, och där heter den allvarligaste
+nivån brister som kvarstår.
+
+<Diagram
+  titel="Bedömningen av verksamheterna i beståndet"
+  underlag="13 579 av 15 983 verksamheter har underlag nog för en bedömning. Övriga saknar publicerade kontroller eller har bara gamla."
+>
+  <Andelsstapel
+    ton="bedomning"
+    label="Andel av de bedömda verksamheterna per bedömningsnivå"
+    segments={[
+      { label: 'Utan anmärkning', value: 11975, display: '88,2 %' },
+      { label: 'Brister', value: 1229, display: '9,1 %' },
+      { label: 'Brister som kvarstår', value: 375, display: '2,8 %' },
+    ]}
+    note="375 verksamheter ligger på den allvarligaste av de tre nivåerna."
+  />
+</Diagram>
+
+De 375 är den grupp där ett beslut med krav är mest sannolikt, men gruppen är
+inte en lista över ställen som stängts. Ett kvarstående fel kan lika gärna vara
+en märkning som inte rättats som ett kylrum som inte håller.
+
+Hur bedömningen räknas fram, och varför en kontroll utan redovisade
+kontrollpunkter behandlas annorlunda, står i [metodiken](/metodik/).
+
+## Var det ligger avgör mer än man tror
+
+Det här är den obekväma delen. Samma brist leder till helt olika åtgärder
+beroende på vilken myndighet som tittar på den.
+
+<Diagram
+  titel="Två ytterligheter bland landets kontrollmyndigheter, 2024"
+  kalla="Livsmedelsverket, rapport L 2025 nr 13, Sveriges livsmedelskontroll 2024."
+>
+  <FactGrid
+    facts={[
+      { label: 'Göteborg, verksamheter med avvikelse som fick beslut', value: '687 av 777' },
+      { label: 'Myndigheter som inte fattade ett enda beslut', value: '65' },
+      { label: 'Verksamheter med minst en avvikelse hos dessa 65', value: 'nästan 1 400' },
+    ]}
+  />
+</Diagram>
+
+Livsmedelsverket skriver ut det själva i rapporten: 65 kontrollmyndigheter
+noterade tillsammans minst en avvikelse vid nästan 1 400 verksamheter under
+2024 utan att det ledde till ett enda beslut med krav. I andra änden fattade
+Göteborg beslut vid 88 procent av sina.
+
+Det är samma sak som gör att kommunernas siffror inte går att rangordna mot
+varandra, och skälen i sin helhet står i
+[Därför går det inte att jämföra kommuners kontrollsiffror](/artiklar/darfor-gar-kommunernas-siffror-inte-att-jamfora/).
+
+## Vad du kan se själv
+
+En stängning som varit i lokaltidningen syns sällan i kontrollhistoriken som
+just en stängning. Det du kan läsa är vad som noterades, när, och om det stod
+kvar vid nästa besök. Det är också det som säger mest om nuläget.
+
+[Sök på namnet](/sok/), eller bläddra bland verksamheter med anmärkningar i
+[Stockholm](/stockholm/anmarkningar/), [Örebro](/orebro/anmarkningar/) eller
+[Uppsala](/uppsala/anmarkningar/). Hur du läser det du hittar står i
+[Så kollar du upp en restaurang innan du går dit](/artiklar/sa-kollar-du-upp-en-restaurang/).
+
+## Vad talen inte säger
+
+De nationella talen räknar beslut, inte verksamheter. En verksamhet kan ha fått
+flera beslut under samma år, och 118 stängningsbeslut är därför inte exakt 118
+stängda ställen.
+
+Talen omfattar dessutom hela livsmedelskedjan efter primärproduktionen, alltså
+även butiker, industrier och storhushåll. Hur många av de 118 som var
+restauranger går inte att läsa ut.
+
+Bedömningen av beståndet är vår och inte kommunernas. Den räknas om vid varje
+uppdatering och kan ändras när en ny kontroll kommer in. Fördelningen väger
+dessutom ihop tolv kommuner som publicerar olika mycket, och andelen med
+kvarstående brister går därför inte att bryta ner och jämföra kommun för
+kommun.
+
+## Källor
+
+- [Livsmedelsverket, rapport L 2025 nr 13: Sveriges livsmedelskontroll 2024](https://www.livsmedelsverket.se/4ab379/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-13---sveriges-livsmedelskontroll_2024_.pdf): antalet beslut per typ, antalet verksamheter och kontroller, andelen kontroller med avvikelse, uppgifterna om Göteborg och om de 65 myndigheterna.
+- Livsmedelsverkets kontrollwiki, [Åtgärder vid bristande efterlevnad](https://kontrollwiki.livsmedelsverket.se/artikel/301/atgarder-vid-bristande-efterlevnad) och [Administrativa åtgärder](https://kontrollwiki.livsmedelsverket.se/artikel/302/administrativa-atgarder): vilka åtgärder en kontrollmyndighet kan besluta om, och när ett föreläggande förenas med vite.
+- Bedömningen av verksamheterna är räknad ur Prikkos bestånd i augusti 2026. Se [metodiken](/metodik/) och [källor och uppdatering](/kallor/).

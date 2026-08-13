@@ -1,0 +1,200 @@
+---
+title: "Magsjuka eller matförgiftning: så skiljer du dem"
+description: "Symtomen är desamma, ursprunget inte. Det som avgör är vem mer som blev sjuk och hur lång tid det gick från måltiden. Kalendern hjälper också till."
+lede: "Kräkningar och diarré ser likadana ut oavsett var de kommer ifrån. Skillnaden ligger i omständigheterna runt dem, och den avgör om anmälan till kommunen är meningsfull eller om det bara är något som går."
+category: "Guide"
+published: "2026-08-13"
+image:
+  alt: "Ett glas kallt vatten med kondens på utsidan, på ett mörkt träbord bredvid en brödkorg."
+  source: "Pexels"
+  credit: "Alexey Demidov"
+  creditUrl: "https://www.pexels.com/photo/clear-drinking-glass-on-brown-wooden-table-12551332/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
+
+## Frågan ställs alltid i efterhand
+
+Du vaknar klockan tre och kräks. Nästa tanke är restaurangen i går kväll, och
+den tanken är svår att komma ifrån när man ligger på badrumsgolvet.
+
+Symtomen svarar inte på frågan. Kräkningar, diarré, magont och feber ser
+likadana ut oavsett om orsaken är ett virus som gick på förskolan eller
+kyckling som stått framme för länge. Det som skiljer är sådant du redan vet
+utan att ha tänkt på det som bevis.
+
+## Vem mer blev sjuk
+
+Det här är det starkaste enskilda tecknet, och det kostar ingenting att pröva.
+
+Virusmagsjuka smittar direkt mellan människor och gör det mycket lätt. 1177
+beskriver det som skälet till att flera i en familj, på en förskola eller på en
+arbetsplats brukar bli sjuka ungefär samtidigt. Blir din sambo sjuk två dygn
+efter dig, utan att ha varit med på restaurangen, är det inte maten som gjorde
+hen sjuk. Det är du.
+
+Matförgiftning fungerar tvärtom. Den som inte åt av maten blir inte sjuk.
+Mönstret att leta efter är därför sällskapet: blev flera av er som delade
+måltid dåliga inom samma tidsfönster, medan ingen annan hemma blev det, pekar
+allt mot måltiden.
+
+Undantaget är värt att känna till, för det är vanligare än man tror. Norovirus
+är det smittämne som oftast påvisas i de matförgiftningar som rapporteras till
+Livsmedelsverket, och det kommer in i maten via händerna hos någon som lagat
+den. Då är det både ett virus och maten. Gränsen är alltså inte skarp, och det
+är en av anledningarna till att kommunen hellre får en anmälan för mycket än en
+för lite.
+
+## Tiden mellan måltiden och symtomen
+
+Den måltid man misstänker är nästan alltid den senaste, och den är sällan rätt.
+
+Kommer kräkningarna ett par timmar efter maten är ett bakterietoxin den
+troliga förklaringen, och då pekar tiden faktiskt på den måltid du minns.
+Staphylococcus aureus ger symtom efter 2 till 4 timmar enligt Livsmedelsverkets
+egen tabell. Vinterkräksjukan ligger på 0,5 till 2 dygn. Campylobacter har ett
+intervall på 1 till 10 dygn, och inom tio dygn ryms ett tjugotal måltider som
+alla ser lika misstänkta ut.
+
+Läs det baklänges. Ju längre tid som gått, desto mindre säger måltiden du
+råkar minnas, och desto mer väger frågan om vem mer som är sjuk. Hela
+genomgången, smittämne för smittämne, står i
+[Hur lång tid tar det innan matförgiftningen märks?](/artiklar/inkubationstid-matforgiftning/)
+
+## Kalendern hjälper till
+
+Vinterkräksjukan har en säsong. Folkhälsomyndigheten följer calicivirus mellan
+vecka 40 och vecka 20, och 1177 skriver att sjukdomen är mest aktuell mellan
+november och april och att de flesta blir sjuka mellan januari och mars.
+
+<Diagram
+  titel="Vinterkräksjukan säsongen 2024/2025"
+  kalla="Folkhälsomyndigheten, statistik om vinterkräksjuka, och 1177."
+>
+  <FactGrid
+    facts={[
+      { label: 'Rapporterade fall av calicivirus', value: '5 184' },
+      { label: 'Fall per 100 000 invånare', value: '49' },
+      { label: 'Andel norovirus av positiva prover', value: '92', unit: '%' },
+      { label: 'Flest insjuknar', value: 'jan till mar' },
+    ]}
+  />
+</Diagram>
+
+Talen är de anmälda proverna, alltså toppen av något mycket större. De flesta
+som får vinterkräksjuka lämnar aldrig något prov.
+
+De besök kommunen gör efter ett klagomål eller ett tips följer en annan kurva.
+
+<Diagram
+  titel="Kontroller som utlösts av en händelse, per månad"
+  underlag="2 153 händelsestyrda kontroller i de fem kommuner som skriver ut varför besöket gjordes. Samtliga år lagda på varandra."
+>
+  <Tidslinje
+    label="Antal händelsestyrda kontroller per månad, alla år sammanlagda"
+    enhet="kontroller"
+    min={100}
+    max={270}
+    points={[
+      { label: 'jan', value: 157 },
+      { label: 'feb', value: 160 },
+      { label: 'mar', value: 200 },
+      { label: 'apr', value: 231 },
+      { label: 'maj', value: 257 },
+      { label: 'jun', value: 221 },
+      { label: 'jul', value: 196 },
+      { label: 'aug', value: 132 },
+      { label: 'sep', value: 160 },
+      { label: 'okt', value: 161 },
+      { label: 'nov', value: 156 },
+      { label: 'dec', value: 122 },
+    ]}
+  />
+</Diagram>
+
+Kurvan ligger högst i maj och lägst i december, alltså nästan i motfas mot
+vinterkräksjukan. Juli är månaden som avgör läsningen. Då gör samma fem
+kommuner 1 793 planerade kontroller, årets lägsta med god marginal, medan de
+händelsestyrda ligger kvar på 196. I juli är 7,2 procent av alla kontroller
+utlösta av en händelse, mot 2,4 procent i februari. Något annat än
+kontrollplanen driver dem.
+
+Diagrammet räknar besök, inte sjukdomsfall. En anmälan som avskrivs utan besök
+syns inte, och hur snabbt en förvaltning rycker ut beror också på hur många som
+är i tjänst. Men riktningen stämmer med det köken själva har svårast med på
+sommaren: temperaturen. Det har vi räknat på i
+[Kylkedjan brister oftast på sommaren](/artiklar/kylkedjan-brister-oftast-pa-sommaren/).
+
+Kalendern avgör alltså ingenting ensam. Den flyttar sannolikheten, och i
+februari flyttar den den ganska långt.
+
+## Fyra frågor att ställa sig
+
+**Blev någon sjuk som inte åt av maten?** Då talar allt för smitta mellan
+människor och ingenting för måltiden.
+
+**Blev flera i sällskapet sjuka inom samma dygn?** Då är måltiden den enda
+gemensamma nämnaren, och det är den starkaste uppgift en anmälan kan innehålla.
+
+**Hur lång tid gick det?** Några timmar pekar på maten. Flera dygn pekar inte
+åt något håll alls utan fler uppgifter.
+
+**Vilken månad är det?** I februari är ett virus den troligare förklaringen, i
+juli den mindre troliga.
+
+Ingen av frågorna är ett bevis, och de behöver inte vara det. De avgör om det
+är värt att höra av sig till kommunen, och det är en lägre tröskel än att veta.
+
+## Medan du är sjuk
+
+Vården säger samma sak oavsett vilket det var. Det viktiga är vätskan, i små
+klunkar och ofta, och att du stannar hemma i minst ett dygn efter att du senast
+kräktes eller hade diarré. För förskolebarn är rådet två dygn utan symtom och
+att barnet äter som vanligt igen.
+
+Kontakta vården om du inte får behålla någon vätska, om diarrén håller i sig
+längre än en vecka, om det finns blod i kräkning eller avföring, eller vid hög
+feber med frossa. Är du osäker svarar sjuksköterskorna på 1177 dygnet runt.
+
+En sak till, och den är viktigare än den låter: handsprit biter inte på
+calicivirus. Tvål och vatten gör det. Laga inte mat åt andra medan du är sjuk
+eller dygnet efter, och det gäller i högsta grad den som arbetar i ett kök.
+
+## När du tror att det var maten
+
+Anmälan går till miljöförvaltningen i den kommun där stället ligger, inte till
+Livsmedelsverket och inte till polisen. Den behöver inte vara säker för att
+vara värd att skicka. Det förvaltningen behöver är vilket ställe det gäller,
+vilken dag och tid, vad du åt, när symtomen kom och vad fler i sällskapet åt.
+
+Vad som händer sedan, och hur ofta ett sådant besök faktiskt hittar något,
+står i
+[Vad händer när du anmäler en restaurang?](/artiklar/vad-hander-nar-du-anmaler-en-restaurang/)
+Den praktiska ordningen, inklusive vad som är värt att spara, står i
+[Matförgiftning från restaurang](/artiklar/matforgiftning-fran-restaurang/).
+
+Innan eller efter kan du slå upp stället och se vad kontrollen hittat tidigare.
+[Sök på namnet](/sok/), eller börja i kommunen, till exempel
+[Stockholm](/stockholm/), [Uppsala](/uppsala/) eller [Jönköping](/jonkoping/).
+
+## Vad talen inte säger
+
+Uppdelningen mellan magsjuka och matförgiftning är renare i text än i
+verkligheten. Samma virus kan komma både från ett dörrhandtag och från en
+smörgås, och en enskild persons symtom går inte att härleda i efterhand utan
+prov. Det som går att göra är att väga omständigheterna, och de fyra ovan är
+de som väger mest.
+
+Månadskurvan bygger på fem kommuner och domineras av den största av dem. Den
+visar när besöken blev av, inte när folk blev sjuka.
+
+## Källor
+
+- 1177, [Magsjuka, diarré och kräkningar](https://www.1177.se/sjukdomar--besvar/mage-och-tarm/magsjuka-och-krakningar/magsjuka--diarre-och-krakningar/)
+- 1177, [Vinterkräksjuka, calicivirus](https://www.1177.se/sjukdomar--besvar/mage-och-tarm/infektioner-i-mage-och-tarmar/vinterkraksjuka--calicivirus/)
+- Folkhälsomyndigheten, [Vinterkräksjuka, statistik](https://www.folkhalsomyndigheten.se/statistik-och-data/hitta-statistik-och-data/vinterkraksjuka-statistik/): antalet fall, incidensen och andelen norovirus säsongen 2024/2025.
+- Livsmedelsverket, [Matförgiftning](https://www.livsmedelsverket.se/matvanor-halsa--miljo/sjukdomar-allergier-och-halsa/matforgiftning/): vart anmälan ska och vad myndigheten vet om antalet drabbade.
+- Livsmedelsverkets kontrollwiki, [artikel 21: Smittämnen och agens, symtom, inkubationstid och varaktighet](https://kontrollwiki.livsmedelsverket.se/artikel/21/smittamnen-agens-symtom-inkubationstid-och-varaktighet): inkubationstiderna.
+- Månadskurvan är räknad ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
