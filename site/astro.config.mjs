@@ -14,6 +14,7 @@ import {
 } from './src/lib/data.ts';
 import { path } from './src/lib/urls.ts';
 import { articleFiles } from './src/lib/artiklar.ts';
+import { chains } from './src/lib/kedjor.ts';
 import { REPORTS } from './src/lib/rapporter.ts';
 import { editions, standings } from './src/lib/utmarkelser.ts';
 import { noindexPaths } from './src/lib/webbkarta.ts';
@@ -74,6 +75,8 @@ const excluded = noindexPaths();
  *                     webbkartan och startsidan innehåller inga skrivna
  *                     meningar utom rubrikerna; varje tal räknas fram vid
  *                     bygget och ändras när datan gör det.
+ *   Kedjesida         Också en räknad sida, men över en annan mängd än riket:
+ *                     färskaste hämtningen bland kedjans EGNA kommuner.
  *   Fryst sida        Utgåvans `asOf`. Utmärkelserna läser sin egen fil och
  *                     ändras aldrig mer.
  *   Skriven sida      Inget `lastmod` alls. Vi vet inte när texten på /om
@@ -134,6 +137,39 @@ function lastmodIndex() {
       byPath.set(p, dataDate);
     }
     for (const r of REPORTS) byPath.set(path('rapporter', r.slug), dataDate);
+    /* Registret /kedja/ räknar över hela beståndet, precis som rapporterna,
+       och delar därför deras datum. De enskilda kedjesidorna gör det inte, se
+       nedan. */
+    byPath.set(path('kedja'), dataDate);
+  }
+
+  /*
+   * Kedjesidorna.
+   *
+   * Samtliga saknade `lastmod` helt, vilket blev synligt först när sitemapen
+   * delades per sidtyp: `sitemap-kedjor-0.xml` var den enda av tio filer utan
+   * datum i indexet, eftersom ingen av dess URL:er bar något.
+   *
+   * De är räknade sidor av samma slag som rapporterna. Ingen mening på en
+   * kedjesida är skriven: antalsraden, kommuntabellen och de två listorna
+   * räknas alla fram ur beståndet vid bygget, så sidan ändras exakt när datan
+   * gör det.
+   *
+   * Datumet är ändå INTE den färskaste hämtningen i landet, utan den färskaste
+   * bland kedjans egna kommuner. En kedja som bara finns i Linköping ändras
+   * inte för att Stockholm hämtats om, och att skriva det vore samma sorts
+   * obekymrade tidsstämpel som `new Date()` var, bara i mindre skala. Det är
+   * regeln kommunsidorna redan följer, tillämpad på en mängd som råkar spänna
+   * över flera kommuner i stället för en.
+   */
+  for (const c of chains()) {
+    const senast = c.municipalities
+      .map((m) => sourceFor(m.municipality.slug)?.fetchedAt)
+      .filter(Boolean)
+      .sort()
+      .at(-1)
+      ?.slice(0, 10);
+    if (senast) byPath.set(path('kedja', c.id), senast);
   }
 
   /*
