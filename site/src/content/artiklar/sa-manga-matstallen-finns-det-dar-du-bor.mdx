@@ -1,0 +1,193 @@
+---
+title: "Så många ställen att äta på finns det där du bor"
+description: "Borgholm har 248 restauranger och kaféer per 10 000 invånare, Lomma 24. Talet säger ingenting om hygienen, och det är just därför vi får rangordna det."
+lede: "Det finns ett tal på sajten som kommunerna får jämföras på, och det är inte hygienen. Antalet ställen att äta på per invånare skiljer sig tiofalt mellan våra kommuner, och skillnaden går att förklara."
+category: "Förklarat"
+published: "2026-08-12"
+image:
+  alt: "Flygbild över en småstad med genomfartsgata, låga hus i rader och åkrar bakom bebyggelsen."
+  source: "Pexels"
+  credit: "Vladimir Srajber"
+  creditUrl: "https://www.pexels.com/photo/aerial-view-of-hercegovac-village-in-croatia-32543699/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Ett tal som får rangordnas
+
+Prikko rangordnar aldrig kommuner efter kontrollresultat. Skälet står utförligt i
+[Därför går det inte att jämföra kommuners kontrollsiffror](/artiklar/darfor-gar-kommunernas-siffror-inte-att-jamfora/):
+det som skiljer kommunernas siffror åt är hur ofta de kontrollerar och hur mycket
+de lämnar ut, inte hur rent det är i köken.
+
+Täthet är något annat. Att en kommun har många serveringsställen per invånare
+säger ingenting om hygienen någonstans, och därför är det första talet på sajten
+som får ställas upp i ordning.
+
+Räkningen är enkel. Täljaren är antalet restauranger och kaféer i kommunens
+livsmedelsregister, räknade som unika verksamheter. Nämnaren är antalet
+folkbokförda invånare enligt Kolada, mätt 2025.
+
+<Diagram
+  titel="Restauranger och kaféer per 10 000 invånare"
+  underlag="Verksamheter i kommunernas livsmedelsregister, augusti 2026, delat med folkmängden 2025."
+  kalla="Invånarantal: Kolada, nyckeltal N01951, 2025."
+>
+  <Stapel
+    label="Antal restauranger och kaféer per 10 000 invånare, per kommun"
+    scale={250}
+    avdelare
+    rows={[
+      { label: 'Borgholm', value: 248, display: '248', note: '263 ställen, 10 626 invånare' },
+      { label: 'Stockholm', value: 46, display: '46', note: '4 578 ställen, 999 239 invånare' },
+      { label: 'Jönköping', value: 36, display: '36', note: '526 ställen, 148 152 invånare' },
+      { label: 'Karlstad', value: 35, display: '35', note: '343 ställen, 99 007 invånare' },
+      { label: 'Kristinehamn', value: 32, display: '32', note: '75 ställen, 23 590 invånare' },
+      { label: 'Örebro', value: 31, display: '31', note: '495 ställen, 160 687 invånare' },
+      { label: 'Linköping', value: 29, display: '29', note: '495 ställen, 168 714 invånare' },
+      { label: 'Oskarshamn', value: 29, display: '29', note: '78 ställen, 26 762 invånare' },
+      { label: 'Uppsala', value: 28, display: '28', note: '706 ställen, 249 726 invånare' },
+      { label: 'Svenljunga', value: 27, display: '27', note: '29 ställen, 10 616 invånare' },
+      { label: 'Lomma', value: 24, display: '24', note: '60 ställen, 24 677 invånare' },
+    ]}
+  />
+</Diagram>
+
+## Borgholm är inte en storstad
+
+Talet för [Borgholm](/borgholm/) är fem gånger Stockholms och tio gånger Lommas.
+Kommunen har 10 626 invånare och 263 registrerade restauranger och kaféer, vilket
+är ungefär ett ställe per fyrtio invånare.
+
+Det är sant och det är inte konstigt. Öland fylls på under sommaren, och
+verksamheterna finns kvar i registret hela året. Nämnaren räknar de folkbokförda,
+täljaren räknar ställena, och gästerna är tillresta. En turistkommun får därför
+ett högt tal, och talet beskriver utbudet snarare än invånarnas matvanor.
+
+Att flera av Borgholms ställen dessutom bara har öppet några månader om året
+märks i kontrollen. Kommunen har en enda årsarbetskraft för sina 353 registrerade
+anläggningar, mot rikets median på 156 anläggningar per årsarbetskraft.
+
+## Samma bild från andra hållet
+
+SCB räknar sysselsatta inom hotell och restaurang efter arbetsställets läge. Det
+är ett helt oberoende mått: det bygger inte på vårt register, inte på våra
+kategorier och inte på vad kommunen väljer att publicera.
+
+<Diagram
+  titel="Sysselsatta inom hotell och restaurang per 10 000 invånare"
+  underlag="Arbetsställets belägenhet, 2024. Rikets median är räknad över landets samtliga kommuner."
+  kalla="SCB, tabell TAB3204, sysselsatta inom hotell och restaurang, 2024."
+>
+  <Stapel
+    label="Sysselsatta inom hotell och restaurang per 10 000 invånare, per kommun"
+    scale={400}
+    avdelare
+    rows={[
+      { label: 'Stockholm', value: 385, display: '385' },
+      { label: 'Borgholm', value: 378, display: '378' },
+      { label: 'Kristinehamn', value: 285, display: '285' },
+      { label: 'Karlstad', value: 226, display: '226' },
+      { label: 'Höganäs', value: 191, display: '191' },
+      { label: 'Linköping', value: 190, display: '190' },
+      { label: 'Jönköping', value: 181, display: '181' },
+      { label: 'Örebro', value: 177, display: '177' },
+      { label: 'Uppsala', value: 176, display: '176' },
+      { label: 'Oskarshamn', value: 167, display: '167' },
+      { label: 'Rikets median', value: 118, display: '118', note: 'Medianen över landets 290 kommuner.' },
+      { label: 'Lomma', value: 97, display: '97' },
+      { label: 'Svenljunga', value: 44, display: '44' },
+    ]}
+  />
+</Diagram>
+
+De två måtten pekar åt samma håll utan att vara samma sak. Stockholm och
+Borgholm ligger överst i båda, Svenljunga och Lomma underst i båda. Där de
+skiljer sig är i storleksordningen: sysselsättningen i Borgholm ligger i nivå med
+Stockholms, medan antalet ställen per invånare är fem gånger högre. Ett ställe på
+Öland är alltså i typfallet mindre än ett ställe i Stockholm, mätt i antal
+anställda.
+
+Kristinehamn är den andra avvikelsen. Kommunen ligger på 32 ställen per 10 000
+invånare, alltså i mitten av vår lista, men på 285 sysselsatta per 10 000, alltså
+långt över rikets median. Det talar för färre och större arbetsplatser.
+
+## Vad täljaren faktiskt räknar
+
+Två saker behöver skrivas ut, annars läser talen fel.
+
+**Restauranger och kaféer räknas ihop, aldrig var för sig.** Kommunernas källor
+drar gränsen på olika ställen. Stockholm skiljer kafé från restaurang och får
+3 551 respektive 1 116. [Uppsalas](/uppsala/) källa har en enda etikett,
+Restaurang och servering, och lägger stadens alla kaféer i den. Uppsalas
+kafésiffra är därför noll i vårt material, inte för att staden saknar kaféer utan
+för att källan inte skiljer dem åt. Summan är densamma oavsett var gränsen dras,
+och det är summan vi använder. Verksamheter som bär båda etiketterna räknas en
+gång.
+
+**Höganäs saknar tal.** Kommunens källa lägger butik, restaurang och servering i
+samma grupp, så 212 av 310 verksamheter hamnar utanför varje kategori. En täljare
+räknad på det som blir kvar hade blivit missvisande låg, och en nolla hade lästs
+som att kommunen saknar restauranger. Därför visas ingenting alls. SCB:s tal för
+Höganäs står ändå i diagrammet ovan, eftersom det inte beror på våra kategorier.
+
+## Registret är inte samma sak som utbudet
+
+Ett livsmedelsregister innehåller mer än ställen att äta på. Livsmedelsverkets
+sammanställning för 2024 räknar samtliga registrerade anläggningar i varje
+kommun, alltså också butiker, skolkök, grossister, lager och dricksvatten.
+
+<Diagram
+  titel="Anläggningar i kommunens register mot ställen att äta på"
+  underlag="Registrerade anläggningar 2024 enligt Livsmedelsverket, mot restauranger och kaféer i vårt bestånd i augusti 2026."
+  kalla="Anläggningar: Livsmedelsverket, Sveriges livsmedelskontroll 2024 (L 2025 nr 13)."
+>
+  <FactGrid
+    facts={[
+      { label: 'Anläggningar i Stockholms register', value: '9 456' },
+      { label: 'Varav restauranger och kaféer hos oss', value: '4 578' },
+      { label: 'Anläggningar i Borgholms register', value: '353' },
+      { label: 'Varav restauranger och kaféer hos oss', value: '263' },
+    ]}
+  />
+</Diagram>
+
+I Stockholm är knappt hälften av de registrerade anläggningarna ställen att äta
+på. I Borgholm är det tre fjärdedelar. Skillnaden säger något om vad en kommun
+har i sitt register: en storstad har grossister, lager och huvudkontor i en
+omfattning som en ölandskommun inte har.
+
+Talen är inte helt jämförbara, eftersom registret gäller 2024 och vårt bestånd
+gäller augusti 2026, och eftersom en registrerad anläggning kan ha upphört utan
+att avregistreras. Riktningen tål ändå att läsas.
+
+## Var i kommunen ställena ligger
+
+Täthet över en hel kommun döljer att ställena sällan är jämnt utspridda. Där vi
+har områdesgränser går listan att skära på stadsdel direkt på kommunsidan.
+Börja i [Stockholm](/stockholm/), [Uppsala](/uppsala/), [Örebro](/orebro/),
+[Linköping](/linkoping/) eller [Karlstad](/karlstad/), eller titta på
+[kartan](/karta/) över hela beståndet.
+
+Vill du skära på typ av ställe i stället finns kategorierna per kommun, till
+exempel [restauranger i Jönköping](/jonkoping/kategori/restauranger/) och
+[caféer och bagerier i Karlstad](/karlstad/kategori/cafeer-och-bagerier/).
+
+## Vad talet inte säger
+
+Det säger ingenting om hygienen och ingenting om maten. Det säger hur många
+ställen som är registrerade i kommunen delat med hur många som bor där.
+
+Vill du veta hur ofta de kontrolleras finns det uppmätt i
+[Hur ofta kontrolleras en restaurang?](/artiklar/hur-ofta-kontrolleras-en-restaurang/),
+och vilka som klarar sig bäst i
+[Så hittar du de fräscha restaurangerna](/artiklar/sa-hittar-du-de-frascha-restaurangerna/).
+
+## Källor
+
+- Antalet restauranger och kaféer är räknat ur Prikkos bestånd i augusti 2026, som unika verksamheter i kategorierna Restauranger och Caféer och bagerier. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Kolada, nyckeltal N01951, Invånare totalt, 2025. Källa: Kolada.
+- SCB, tabell TAB3204, Sysselsatta 15 till 74 år efter region, kön, näringsgren (SNI 2007) och födelseregion, näringsgren hotell och restauranger, 2024. Källa: SCB.
+- [Livsmedelsverket: Sveriges livsmedelskontroll 2024](https://www.livsmedelsverket.se/4ab379/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-13---sveriges-livsmedelskontroll_2024_.pdf) (rapport L 2025 nr 13): antalet registrerade anläggningar per kommun och medianen anläggningar per årsarbetskraft.

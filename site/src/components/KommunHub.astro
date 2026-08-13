@@ -52,9 +52,9 @@ import {
   type Establishment,
   type Municipality,
 } from '../lib/data';
+import { utsnitt } from '../lib/kartrutor';
 import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
 import { kontrollen } from '../lib/kontrollen';
-import { mapDataset } from '../lib/map-data';
 import { linkedAreas } from '../lib/omraden';
 import { pageUrl } from '../lib/pagination';
 import { hasMovementPage } from '../lib/rorelse';
@@ -172,16 +172,20 @@ const source = sourceFor(kommun.slug);
  * Viktargumentet i Karta.astro gäller: kartprogrammet väger 231 kB brotlat
  * och den här sidan väger 30 kB gzippat med allt inräknat, så MapLibre får
  * aldrig ligga här. Men "bara en textlänk" var ägarens klagomål, och svaret
- * är KartaPuff: en riktig förhandsbild ritad vid bygget ur kartans egen
- * datamängd, som länkar till /karta/. Kartan SYNS på sidan utan att sidan
- * betalar för kartprogrammet.
+ * är KartaPuff: en platshållare i sidladdningen som byts mot den riktiga
+ * kartan först när rutan syns och uppkopplingen tål det. Kartan SYNS på sidan
+ * utan att sidan betalar för kartprogrammet.
  *
  * Puffen står på hela sidserien och inte bara på sida 1. Den som bläddrat
  * till sida 47 av Stockholm har snarare mer nytta av en karta än mindre.
  * På smala skärmar står den FÖRE listan, se ordningsresonemanget i stilarna
  * längst ner.
+ *
+ * Villkoret är `utsnitt`, alltså rutarkivets eget svar på om kommunen har
+ * någon punkt att rita. Det var `mapDataset` medan puffen läste kommunfilen,
+ * och den modulen finns inte längre.
  */
-const karta = mapDataset(kommun.slug);
+const karta = utsnitt(kommun.slug);
 
 /** Kommunens senaste kontroll över huvud taget. Färskhetsbeskedet. */
 const newest = recentlyInspected(kommun.slug, 1)[0];
@@ -322,7 +326,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       </div>
 
       <aside class="side">
-        {karta && <KartaPuff kommun={kommun} data={karta} />}
+        {karta && <KartaPuff kommun={kommun} />}
 
         {recent.length > 0 && (
           <section class="panel">
@@ -526,11 +530,20 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   /* ── Fördjupningsbandet ──────────────────────────────────────────────── */
 
-  /* Kant i kant och tonat. Se markupkommentaren för varför bandet ligger
+  /* Kant i kant, men VIT. Se markupkommentaren för varför bandet ligger
      utanför sidbehållaren. Ingen marginal ovanför: sidans egen nedre luft
-     (--s-12 i .page) är avståndet, och bandet ska börja där sidan slutar. */
+     (--s-12 i .page) är avståndet, och bandet ska börja där sidan slutar.
+
+     Bandet låg på --brand-wash, alltså ljusblått, och ägaren underkände det.
+     Han har rätt av ett skäl som blev synligt först när statistiken gjordes om:
+     staplarna i bandet ritas i --brand mot ett spår som är samma blå tonat mot
+     vitt, och den kontrasten räknar med vit botten. På ljusblått blir spåret
+     nästan osynligt och stapeln simmar. Hårlinjen ovanför skiljer bandet från
+     sidan i stället, vilket är vad Booli gör: sektioner skiljs av linje och
+     luft, aldrig av en färgad ruta. */
   .djup {
-    background: var(--brand-wash);
+    background: var(--card);
+    border-top: 1px solid var(--hairline);
     padding-block: var(--s-12);
     /* Ankaret från översiktsraden ska inte landa med rubriken klistrad mot
        fönstrets överkant. */

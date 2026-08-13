@@ -433,9 +433,25 @@ const talrad = alla.some((v) => v.count !== undefined);
        någonstans är brus. */
     const mus = window.matchMedia('(pointer: fine)');
 
+    /* Hur mycket som måste sticka ut innan raden får rulla alls.
+       ────────────────────────────────────────────────────────────────────
+       Tröskeln stod på 1 px, alltså räckte en enda pixels överskott för att
+       raden skulle bli rullbar och få sina pilar. Det är rätt för områdena i
+       Stockholm, som är femtiotre stycken och rullar långt, och fel för
+       verksamhetstyperna, som är sex och nätt och jämnt inte får plats.
+       Ägaren: "det är inte ens en full skroll". En pil som flyttar raden
+       tolv pixlar och sedan slocknar läser som ett fel, inte som en
+       funktion.
+
+       Åttiofyra pixlar är bredden på det smalaste valet plus dess luft,
+       alltså det minsta som kan vara dolt och ändå vara värt att rulla
+       fram. Under det låter vi hellre raden sluta någon pixel innanför
+       kanten, vilket ingen ser. */
+    const RULLTROSKEL = 84;
+
     const uppdatera = () => {
       const kvar = spar.scrollWidth - spar.clientWidth;
-      const kan = mus.matches && kvar > 1;
+      const kan = mus.matches && kvar > RULLTROSKEL;
       for (const k of knappar) {
         const rikt = Number(k.dataset.rulla);
         k.hidden = !kan || (rikt < 0 ? spar.scrollLeft <= 1 : spar.scrollLeft >= kvar - 1);

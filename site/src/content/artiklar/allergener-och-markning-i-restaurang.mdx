@@ -1,0 +1,241 @@
+---
+title: "Allergener och märkning brister oftare än hygienen"
+description: "Obligatorisk livsmedelsinformation ger avvikelse vid 18,6 procent av granskningarna, mer än någon hygienpunkt. Det är också det enda krav där butikerna faller mest."
+lede: "Den som har en allergi ställer sin fråga i matsalen och får ett svar. Vad kontrollen hittar när den granskar samma sak är sällan lika lugnande, och det är märkningen och inte hygienen som är kontrollens vanligaste anmärkning."
+category: "Förklarat"
+published: "2026-08-12"
+image:
+  alt: "Två personers händer över ett uppslaget menykort på en svart marmorskiva, den ena pekar på en rad i menyn."
+  source: "Pexels"
+  credit: "Thirdman"
+  creditUrl: "https://www.pexels.com/photo/person-pointing-to-a-white-paper-8936888/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Det oväntade i materialet
+
+Frågar man vad en livsmedelsinspektör anmärker på svarar de flesta smuts eller
+skadedjur. Räknat på kontrollerna är svaret ett annat. Den punkt som faller
+oftast av alla stora punkter handlar om vad som står på förpackningen, på
+skylten och i menyn.
+
+Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som är de
+kommuner som skriver ut varje punkt inspektören tittade på och inte bara dem som
+gav en anmärkning. Det är den enda redovisning som ger både täljare och nämnare.
+
+<Diagram
+  titel="Märkningen i siffror"
+  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Avvikelser om information och märkning', value: '1 866' },
+      { label: 'Andel av alla kodade avvikelser', value: '19,2', unit: '%' },
+      { label: 'Obligatorisk livsmedelsinformation', value: '18,6', unit: '%' },
+      { label: 'Hygien före, under och efter', value: '17,4', unit: '%' },
+    ]}
+  />
+</Diagram>
+
+Märkningen står för knappt en femtedel av alla avvikelser, mot två tredjedelar
+för grundförutsättningarna. Men grundförutsättningarna granskas också över fem
+gånger så ofta. Mätt per granskning, alltså per gång punkten faktiskt togs upp,
+ligger märkningen först.
+
+## Punkterna, en i taget
+
+Under allmän livsmedelsinformation ligger sex rapporteringspunkter. Två av dem
+bär nästan hela volymen.
+
+<Diagram
+  titel="Andel granskningar som gav avvikelse, per märkningspunkt"
+  underlag="Samma 14 588 kontroller. Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades."
+>
+  <Stapel
+    label="Andel av granskningarna som gav en avvikelse, per märkningspunkt"
+    scale={30}
+    avdelare
+    rows={[
+      { label: 'Frivillig livsmedelsinformation', value: 28.7, display: '28,7 %', note: '162 avvikelser av 564 granskningar' },
+      { label: 'Näringsdeklaration', value: 25.4, display: '25,4 %', note: '16 av 63' },
+      { label: 'Obligatorisk livsmedelsinformation', value: 18.6, display: '18,6 %', note: '628 av 3 385' },
+      { label: 'Övrig livsmedelsinformation', value: 18.2, display: '18,2 %', note: '575 av 3 153' },
+      { label: 'Allmänna krav och skyldigheter', value: 14.4, display: '14,4 %', note: '296 av 2 053' },
+    ]}
+  />
+</Diagram>
+
+Att den frivilliga informationen faller oftare än den obligatoriska är värt att
+stanna vid. Frivillig information är det verksamheten själv väljer att skriva:
+att något är hemlagat, närodlat, glutenfritt eller nyttigt. Kravet är att det
+som skrivs ska vara sant och gå att styrka. Ingen behöver skriva det, och den
+som ändå gör det tar på sig en bevisbörda.
+
+Samma mönster syns tydligare i de mer specialiserade punkterna, som granskas
+sällan men faller ofta när de granskas.
+
+<Diagram
+  titel="Särskild märkning: sällan granskad, ofta underkänd"
+  underlag="Samma 14 588 kontroller. Talen är små och varje stapel ska läsas tillsammans med sin nämnare."
+>
+  <Stapel
+    label="Andel av granskningarna som gav en avvikelse, för särskild märkning och information"
+    scale={45}
+    avdelare
+    rows={[
+      { label: 'Information om glutenfritt', value: 41.9, display: '41,9 %', note: '31 avvikelser av 74 granskningar' },
+      { label: 'Information om fisk och skaldjur', value: 38.8, display: '38,8 %', note: '33 av 85' },
+      { label: 'Näringspåståenden', value: 33.3, display: '33,3 %', note: '14 av 42' },
+      { label: 'Hälsopåståenden', value: 21.1, display: '21,1 %', note: '20 av 95' },
+      { label: 'Märkning av kosttillskott', value: 15.7, display: '15,7 %', note: '16 av 102' },
+    ]}
+  />
+</Diagram>
+
+Glutenpunkten är den enskilt hårdast drabbade av alla punkter som granskats mer
+än femtio gånger. Kravet är strikt av ett skäl: uppgiften glutenfri är riktad
+till någon som blir sjuk av motsatsen, och den får bara användas när halten
+ligger under en fastställd gräns. Fyra av tio granskningar hittade något som
+inte stämde.
+
+## Butikerna, inte restaurangerna
+
+På nästan varje annan kontrollpunkt är restaurangen den som oftast får en
+anmärkning. Märkningen är undantaget.
+
+<Diagram
+  titel="Obligatorisk livsmedelsinformation, andel granskningar som gav avvikelse"
+  underlag="3 355 av de 3 385 granskningarna, alltså de där verksamhetens kategori går att avgöra."
+>
+  <Stapel
+    label="Andel granskningar av obligatorisk livsmedelsinformation som gav avvikelse, per kategori"
+    scale={30}
+    avdelare
+    rows={[
+      { label: 'Butiker', value: 28.6, display: '28,6 %', note: '293 avvikelser av 1 023 granskningar' },
+      { label: 'Övriga verksamheter', value: 25.9, display: '25,9 %', note: '82 av 317' },
+      { label: 'Caféer och bagerier', value: 14.6, display: '14,6 %', note: '58 av 397' },
+      { label: 'Restauranger', value: 13.8, display: '13,8 %', note: '181 av 1 307' },
+      { label: 'Skolor och omsorg', value: 3.5, display: '3,5 %', note: '11 av 311' },
+    ]}
+  />
+</Diagram>
+
+Butikerna ligger dubbelt så högt som restaurangerna, och grossisterna, lagren
+och tillverkarna ligger strax efter. Det följer av vad kravet gäller. En butik
+säljer tusentals färdigförpackade varor med varsin etikett, och varje etikett är
+en möjlig avvikelse. En restaurang säljer mat på tallrik, där informationen ska
+finnas men får lämnas muntligt om det framgår hur man frågar.
+
+Skolköken ligger på 3,5 procent. De lagar mat i ett kök där personalen känner
+recepten och gästerna, och de säljer ingenting förpackat.
+
+## Vad kravet är för mat som serveras
+
+Fjorton ämnen och produkter ska anges, och de står i bilaga II till EU:s
+matinformationsförordning: spannmål med gluten, kräftdjur, ägg, fisk, jordnötter,
+sojabönor, mjölk, nötter, selleri, senap, sesamfrön, svaveldioxid och sulfiter,
+lupin och blötdjur.
+
+För färdigförpackade livsmedel ska de framgå av ingrediensförteckningen och vara
+framhävda, i praktiken med fetstil eller versaler. För mat som inte är
+färdigförpackad, alltså det mesta som serveras i en matsal eller säljs över disk,
+gäller kravet på informationen men inte på formen. Den får lämnas muntligt, och
+då ska det tydligt framgå av en skylt eller av menyn att gästen kan fråga och vem
+som svarar.
+
+Det är den ordningen som gör den muntliga vägen till den vanliga i en
+restaurang, och som gör att en gäst med allergi behöver ställa frågan i stället
+för att leta i menyn.
+
+För det som säljs förpackat är rådet ett annat. 1177 skriver att man alltid ska
+försöka läsa innehållsförteckningen på alla produkter, eftersom tillverkare
+ibland ändrar innehållet i en vara utan att förpackningen ser annorlunda ut.
+
+## Hur ofta märkningen är den enda anmärkningen
+
+<Diagram
+  titel="Märkningsavvikelser i förhållande till resten av protokollet"
+  underlag="Andel av avvikelserna på respektive punkt som var den enda avvikelsen vid besöket. Skadedjur står med som jämförelse."
+>
+  <Stapel
+    label="Andel av avvikelserna som var den enda avvikelsen vid besöket, per kontrollpunkt"
+    scale={40}
+    avdelare
+    rows={[
+      { label: 'Obligatorisk livsmedelsinformation', value: 36.5, display: '36,5 %', note: '226 av 619 avvikelser stod ensamma' },
+      { label: 'Övrig livsmedelsinformation', value: 32.2, display: '32,2 %', note: '185 av 574' },
+      { label: 'Allmänna krav och skyldigheter', value: 28.4, display: '28,4 %', note: '84 av 296' },
+      { label: 'Bekämpning av skadedjur', value: 21.1, display: '21,1 %', note: '52 av 247' },
+    ]}
+  />
+</Diagram>
+
+Av samtliga 5 541 kontroller som gav minst en avvikelse gällde 707 bara märkning
+och livsmedelsinformation, alltså 12,8 procent. Var åttonde anmärkt kontroll är
+med andra ord ett besök där köket i övrigt var utan anmärkning och det som
+saknades stod på en etikett.
+
+Det spelar roll för hur en kontrollhistorik ska läsas. En rad om märkning säger
+något om ordningen på informationen, inte om ordningen i köket. Vad de olika
+raderna betyder står i
+[Så läser du en hygienkontroll](/artiklar/sa-laser-du-en-hygienkontroll/).
+
+Åt andra hållet gäller att märkningsavvikelser sitter kvar ungefär som andra:
+59 av de 628 avvikelserna om obligatorisk information var kvarstående vid
+uppföljningen, alltså 9,4 procent.
+
+## Om du har en allergi och ska äta ute
+
+Kontrollhistoriken svarar inte på om ett visst ställe klarar din allergi. Det
+den svarar på är om kommunen har haft något att anmärka på i informationen, och
+det är en annan och trubbigare fråga.
+
+Fyra saker är värda att veta.
+
+**Fråga alltid, även när menyn ser tydlig ut.** Informationen får lämnas
+muntligt, och för icke färdigförpackad mat är det den vanliga vägen.
+
+**Fråga om beredningen och inte bara om ingredienserna.** Korskontaminering i
+köket omfattas av hygienkraven och inte av märkningskraven, och den syns aldrig i
+en ingrediensförteckning.
+
+**Läs vad som står om glutenfritt med extra eftertanke.** Av de kontrollpunkter
+som granskas i någon mängd är det den där inspektören oftast hittar något som
+inte stämmer.
+
+**Titta i historiken efter märkningsrader.** Har stället fått upprepade
+anmärkningar om livsmedelsinformation är det ett tecken på att informationen inte
+sköts, och det är just den informationen du kommer att fråga efter.
+
+Verksamheterna finns per kommun i [Stockholm](/stockholm/),
+[Uppsala](/uppsala/), [Örebro](/orebro/) och [Linköping](/linkoping/), och de med
+anmärkningar finns samlade för sig, till exempel i
+[Örebro](/orebro/anmarkningar/). Butikerna, som är den kategori där märkningen
+oftast brister, har egna sidor per kommun: [butiker i Örebro](/orebro/kategori/butiker/)
+och [butiker i Linköping](/linkoping/kategori/butiker/). Enskilda ställen slår du
+upp via [sökningen](/sok/).
+
+## Vad talen inte säger
+
+Uppgifterna kommer från två kommuner, eftersom det bara är två som lämnar ut
+varje granskad punkt. Andelarna är räknade på granskningar och inte på
+verksamheter, och en verksamhet som kontrolleras ofta väger därför tyngre. Att
+ett krav faller ofta i kontrollen säger inte hur många gäster som faktiskt blivit
+sjuka, och den kopplingen går inte att göra ur det här materialet.
+
+Att kommunernas tal inte går att ställa mot varandra har vi skrivit om i
+[Därför går det inte att jämföra kommuners kontrollsiffror](/artiklar/darfor-gar-kommunernas-siffror-inte-att-jamfora/),
+och hela fördelningen av avvikelser över lagstiftningsområden finns i rapporten
+[Vad anmärkningarna gäller](/rapporter/vad-anmarkningarna-galler/).
+
+## Källor
+
+- [Europaparlamentets och rådets förordning (EU) nr 1169/2011 om tillhandahållande av livsmedelsinformation till konsumenterna](https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX%3A32011R1169): bilaga II med de fjorton ämnena och produkterna, artikel 21 om att de ska framhävas, och artikel 44 om livsmedel som inte är färdigförpackade.
+- [Livsmedelsverket: Allergi och överkänslighet](https://www.livsmedelsverket.se/matvanor-halsa--miljo/sjukdomar-allergier-och-halsa/allergi-och-overkanslighet): vilka ämnen som omfattas och hur informationen ska lämnas.
+- [1177: Matallergi](https://www.1177.se/sjukdomar--besvar/allergier-och-overkanslighet/matallergi/): symtom, vanliga matallergier och rådet att alltid läsa innehållsförteckningen eftersom tillverkare ibland ändrar innehållet.
+- [Livsmedelsverket: Sveriges livsmedelskontroll 2024](https://www.livsmedelsverket.se/4ab379/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-13---sveriges-livsmedelskontroll_2024_.pdf) (rapport L 2025 nr 13).
+- Andelarna per punkt, per kategori och per kontroll är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

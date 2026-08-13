@@ -1,0 +1,251 @@
+---
+title: "Personalen är det inspektören sällan anmärker på"
+description: "Personlig hygien ger avvikelse vid 6,4 procent av granskningarna, utbildning vid 5,4. Ändå är dålig hygien hos personalen den vanligaste orsaken bakom matförgiftningar."
+lede: "Två av kontrollens punkter handlar om människorna i köket i stället för om lokalen och maten. Båda ligger nära botten av listan över vad som brister. Livsmedelsverkets utbrottsstatistik pekar åt precis motsatt håll, och båda sakerna kan vara sanna samtidigt."
+category: "Förklarat"
+published: "2026-08-12"
+image:
+  alt: "Händer som tvålas in under rinnande vatten i en rostfri diskho."
+  source: "Pexels"
+  credit: "RDNE Stock project"
+  creditUrl: "https://www.pexels.com/photo/a-person-washing-hands-6004119/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import Stapel from '../../components/Stapel.astro';
+
+## Två punkter om människor
+
+Av de nio punkterna under grundförutsättningar och hygien handlar sju om lokalen,
+utrustningen, maten eller djuren. Två handlar om personalen: J04, personlig
+hygien, och J05, utbildning i hygien och arbetsmetoder.
+
+Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som skriver
+ut varje punkt inspektören tittade på och inte bara dem som gav en anmärkning.
+
+<Diagram
+  titel="Personalpunkterna i siffror"
+  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Personlig hygien, andel av granskningarna', value: '6,4', unit: '%' },
+      { label: 'Utbildning, andel av granskningarna', value: '5,4', unit: '%' },
+      { label: 'Avvikelser om personlig hygien', value: '567' },
+      { label: 'Avvikelser om utbildning', value: '275' },
+    ]}
+  />
+</Diagram>
+
+Personlig hygien granskades 8 897 gånger och gav avvikelse 567 gånger.
+Utbildningspunkten granskades 5 066 gånger och gav avvikelse 275 gånger. Bland de
+nio hygienpunkterna ligger de på sjunde och åttonde plats. Bara skadedjur
+brister mer sällan, vilket vi har skrivit om i
+[Råttor och kackerlackor: den ovanligaste anmärkningen](/artiklar/skadedjur-ar-den-ovanligaste-anmarkningen/).
+
+## Utbrottsstatistiken säger tvärtom
+
+Livsmedelsverket sammanställer varje år de matförgiftningar som rapporterats in
+från kommunerna. För 2024 rapporterades 381 utbrott, och i 86 av rapporterna
+angavs vad som bidrog till att människor blev sjuka.
+
+<Diagram
+  titel="Bidragande faktorer till rapporterade matförgiftningar 2024"
+  underlag="Antal rapporter där faktorn angavs. Faktorer angavs i 86 av rapporterna, och en rapport kan ange flera."
+  kalla="Livsmedelsverket, Rapporterade misstänkta matförgiftningar 2024 (L 2025 nr 11), tabell 3."
+>
+  <Stapel
+    label="Antal rapporter per bidragande faktor, 2024"
+    scale={30}
+    avdelare
+    rows={[
+      { label: 'Dålig hygien hos personalen', value: 28, display: '28' },
+      { label: 'Hög kylförvaringstemperatur', value: 20, display: '20' },
+      { label: 'Brister i nedkylning', value: 14, display: '14' },
+      { label: 'En kontaminerad ingrediens', value: 13, display: '13' },
+      { label: 'För låg varmhållningstemperatur', value: 12, display: '12' },
+      { label: 'Brister i värmebehandling', value: 11, display: '11' },
+      { label: 'Fel i förvaring gällande tid eller temperatur', value: 11, display: '11' },
+      { label: 'Korskontaminering', value: 10, display: '10' },
+    ]}
+  />
+</Diagram>
+
+Dålig hygien hos personalen är den vanligaste angivna faktorn, och den ligger
+före alla temperaturfaktorer. Utöver de åtta i diagrammet finns en restpost,
+annan faktor, med 32 rapporter.
+
+Det är samma personal sedd genom två olika linser. Det kontrollen näst mest
+sällan har något att anmärka på är det som oftast pekas ut när någon faktiskt
+blivit sjuk.
+
+## Varför båda kan stämma
+
+Motsägelsen är skenbar, och förklaringen ligger i vad de två mätningarna
+faktiskt tittar på.
+
+Kontrollen är ett stickprov på en förmiddag. Den ser om det finns arbetskläder,
+om håret är uppsatt, om det finns tvål och handdukar vid handtvättstället och om
+smycken används vid hantering av oförpackad mat. Den ser inte om någon i
+personalen är magsjuk, och den ser inte vad som hände i lördags.
+
+Utbrottsutredningen börjar i andra änden. Den utgår från människor som blivit
+sjuka och letar bakåt efter orsaken, och den orsaken är ofta en person som
+arbetade trots symtom. Livsmedelsverket beskriver varför det är så allvarligt:
+smittämnena minskar gradvis efter att de akuta symtomen försvunnit, och det kan
+ta veckor innan de är borta.
+
+Ett kök kan alltså vara utan anmärkning vid varje kontroll och ändå orsaka ett
+utbrott, eftersom det avgörande momentet är ett beslut som fattas hemma på
+morgonen och inte något som syns i en lokal.
+
+## När punkten faller är resten också fel
+
+Det finns ändå något i materialet som gör personalpunkterna användbara att läsa,
+och det är vad de kommer tillsammans med.
+
+<Diagram
+  titel="Hur ensamma avvikelserna står"
+  underlag="Andel av avvikelserna på respektive punkt som var den enda avvikelsen vid besöket. Samma 14 588 kontroller."
+>
+  <Stapel
+    label="Andel av avvikelserna som var den enda avvikelsen vid besöket, per kontrollpunkt"
+    scale={40}
+    avdelare
+    rows={[
+      { label: 'Kylkedja och temperatur', value: 37.0, display: '37,0 %', note: '533 av 1 441 avvikelser stod ensamma' },
+      { label: 'Hygien före, under och efter', value: 34.4, display: '34,4 %', note: '657 av 1 911' },
+      { label: 'Personlig hygien', value: 22.8, display: '22,8 %', note: '129 av 566' },
+      { label: 'Bekämpning av skadedjur', value: 21.1, display: '21,1 %', note: '52 av 247' },
+      { label: 'Utbildning i hygien', value: 11.6, display: '11,6 %', note: '32 av 275' },
+    ]}
+  />
+</Diagram>
+
+<Diagram
+  titel="Övriga avvikelser vid samma kontroll"
+  underlag="Genomsnittligt antal andra avvikelser vid kontroller där punkten granskades, uppdelat på om punkten gav avvikelse eller inte."
+>
+  <Parstapel
+    serieA="När punkten gav avvikelse"
+    serieB="När punkten var utan anmärkning"
+    scale={2.5}
+    label="Genomsnittligt antal övriga avvikelser vid samma kontroll, per kontrollpunkt"
+    rows={[
+      { label: 'Utbildning i hygien', a: 2.03, b: 0.54, aDisplay: '2,03', bDisplay: '0,54', note: '275 mot 4 789 kontroller' },
+      { label: 'Personlig hygien', a: 1.69, b: 0.66, aDisplay: '1,69', bDisplay: '0,66', note: '566 mot 8 322 kontroller' },
+      { label: 'Bekämpning av skadedjur', a: 1.74, b: 0.68, aDisplay: '1,74', bDisplay: '0,68', note: '247 mot 5 071 kontroller' },
+      { label: 'Kylkedja och temperatur', a: 1.21, b: 0.53, aDisplay: '1,21', bDisplay: '0,53', note: '1 441 mot 9 034 kontroller' },
+    ]}
+  />
+</Diagram>
+
+Utbildningspunkten är den av hygienpunkterna som allra mest sällan står ensam.
+Nio av tio gånger den faller finns minst en annan avvikelse i samma protokoll,
+och i genomsnitt finns två. Var punkten utan anmärkning låg snittet på 0,54.
+Skillnaden är nästan fyrfaldig.
+
+Det är begripligt. Utbildning är inte en detalj i lokalen utan en fråga om
+huruvida de som arbetar där vet vad de ska göra, och ett kök där ingen fått lära
+sig rutinerna brister sällan bara på en punkt. En rad om utbildning i en
+kontrollhistorik är därför värd mer uppmärksamhet än dess låga frekvens antyder.
+
+Talen i det här avsnittet är räknade per kontroll och inte per granskad punkt,
+eftersom frågan gäller vad som stod i samma protokoll.
+
+## Vilka kök som får dem
+
+<Diagram
+  titel="Andel granskningar som gav avvikelse, per kategori"
+  underlag="8 781 respektive 5 024 granskningar, alltså de där verksamhetens kategori går att avgöra."
+>
+  <Parstapel
+    serieA="Personlig hygien"
+    serieB="Utbildning i hygien"
+    scale={10}
+    label="Andel granskningar som gav avvikelse på personlig hygien och på utbildning, per kategori"
+    rows={[
+      { label: 'Restauranger', a: 8.4, b: 7.4, aDisplay: '8,4 %', bDisplay: '7,4 %', note: '329 av 3 909 respektive 123 av 1 673' },
+      { label: 'Butiker', a: 8.3, b: 3.0, aDisplay: '8,3 %', bDisplay: '3,0 %', note: '59 av 712 respektive 14 av 464' },
+      { label: 'Caféer och bagerier', a: 7.6, b: 5.2, aDisplay: '7,6 %', bDisplay: '5,2 %', note: '61 av 807 respektive 20 av 385' },
+      { label: 'Övriga verksamheter', a: 5.6, b: 1.3, aDisplay: '5,6 %', bDisplay: '1,3 %', note: '15 av 269 respektive 3 av 231' },
+      { label: 'Skolor och omsorg', a: 3.0, b: 5.0, aDisplay: '3,0 %', bDisplay: '5,0 %', note: '93 av 3 084 respektive 114 av 2 271' },
+    ]}
+  />
+</Diagram>
+
+Skolköken är det som sticker ut. På personlig hygien ligger de på 3,0 procent mot
+restaurangernas 8,4, alltså den vanliga ordningen där kommunala kök klarar sig
+klart bäst. På utbildning krymper avståndet till nästan ingenting: 5,0 mot 7,4.
+
+Skolköken är alltså den enda kategorin där utbildningspunkten faller oftare än
+den personliga hygienen. Vi kan inte läsa orsaken ur kontrollerna. Det som går
+att konstatera är att den punkt som handlar om dokumenterad kunskap beter sig
+annorlunda än den som handlar om vad inspektören ser i köket, och att skolköken
+inte har samma försprång på den. Övriga jämförelser mellan skolkök och
+restaurangkök står i
+[Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
+
+## Bristerna rättas snabbt
+
+Personlig hygien är den punkt som är lättast att bli av med när den väl noterats.
+Av de 567 avvikelserna var 9 kvarstående vid kommunens uppföljning, alltså 1,6
+procent. För utbildningspunkten var 13 av 275 kvarstående, 4,7 procent.
+
+Jämförelsen är skadedjur, där 9,3 procent av avvikelserna stod kvar. Ett smycke
+tas av och en handduk hängs upp samma dag. En utbildningsinsats tar längre tid,
+och ett skadedjursangrepp sitter i byggnaden.
+
+## Vad lagen kräver
+
+**Personlig hygien.** Den som arbetar där livsmedel hanteras ska iaktta god
+personlig renlighet och bära lämpliga och rena arbetskläder, vid behov
+skyddskläder. Kravet står i hygienförordningens bilaga II, kapitel VIII.
+
+**Sjukdom.** Den som bär på en sjukdom som kan överföras via livsmedel, eller har
+till exempel infekterade sår eller diarré, får inte hantera livsmedel eller
+vistas där livsmedel hanteras om det finns risk för direkt eller indirekt
+kontaminering. Verksamheten ska ha en ordning för att den som insjuknar anmäler
+det.
+
+**Utbildning.** Personalen ska övervakas och instrueras eller utbildas i
+livsmedelshygien på ett sätt som är anpassat till arbetsuppgiften. Kravet står i
+kapitel XII i samma bilaga. Det finns ingen föreskriven kurs och inget intyg som
+lagen kräver, och det är en av anledningarna till att punkten ser olika ut i
+olika verksamheter.
+
+Kravet på utbildning hänger ihop med faroanalysen, eftersom rutiner som ingen
+känner till inte följs. Hur den delen ser ut i kontrollen står i
+[Egenkontroll och HACCP](/artiklar/egenkontroll-och-haccp-i-koket/).
+
+## Vad du kan se som gäst
+
+Nästan ingenting, och det är värt att säga rakt ut. En magsjuk kock syns inte
+från matsalen, och det är den faktor som oftast pekas ut när ett utbrott utreds.
+
+Det som ändå går att göra är att läsa historiken rätt. En verksamhet med
+upprepade anmärkningar om personlig hygien eller utbildning har oftast fått
+sällskap av andra brister vid samma besök, och det är helheten som säger något.
+Så läser du protokollet:
+[Så läser du en hygienkontroll](/artiklar/sa-laser-du-en-hygienkontroll/).
+
+Blev du sjuk efter ett restaurangbesök går anmälan till kommunen där stället
+ligger, och den kan utlösa en händelsestyrd kontroll. Hela den kedjan står i
+[Matförgiftning från restaurang](/artiklar/matforgiftning-fran-restaurang/) och i
+[Vad händer när du anmäler en restaurang?](/artiklar/vad-hander-nar-du-anmaler-en-restaurang/)
+
+Verksamheterna finns per kommun i [Stockholm](/stockholm/),
+[Örebro](/orebro/) och [Linköping](/linkoping/), och de med anmärkningar samlade
+för sig i till exempel [Linköping](/linkoping/anmarkningar/). Enskilda ställen
+slår du upp via [sökningen](/sok/).
+
+## Källor
+
+- [Europaparlamentets och rådets förordning (EG) nr 852/2004 om livsmedelshygien](https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX%3A32004R0852): bilaga II kapitel VIII om personlig hygien och sjukdom, och kapitel XII om utbildning.
+- [Livsmedelsverkets kontrollwiki: Personlig hygien](https://kontrollwiki.livsmedelsverket.se/artikel/345/personlig-hygien): kraven på renlighet, arbetskläder och hantering vid sjukdom.
+- [Livsmedelsverkets kontrollwiki: Utbildning](https://kontrollwiki.livsmedelsverket.se/artikel/347/utbildning): kravet på instruktion och övervakning anpassad till arbetsuppgiften.
+- [Livsmedelsverket: Vilka regler gäller för arbetskläder, smycken och smitta i en livsmedelsverksamhet?](https://fragor.livsmedelsverket.se/org/livsmedelsverket/d/hygien-klader-och-smitta-i-en-livsmedelsverksamhet/): att smittämnen minskar gradvis efter att symtomen upphört.
+- [Livsmedelsverket, rapport L 2025 nr 11: Rapporterade misstänkta matförgiftningar 2024](https://www.livsmedelsverket.se/4a4e07/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-11---rapporterade-misstankta-matforgiftningar-2024.pdf): 381 utbrott 2024, och tabell 3 med de bidragande faktorerna.
+- Andelarna per punkt, per kategori och per kontroll är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).

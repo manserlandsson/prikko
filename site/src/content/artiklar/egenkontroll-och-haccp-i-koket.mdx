@@ -1,0 +1,267 @@
+---
+title: "Egenkontroll och HACCP: mallen är inte faroanalysen"
+description: "Faroanalysen ger avvikelse vid 14,9 procent av granskningarna. Den faller oftast i de minsta köken, och nästan aldrig hos grossisterna. Här är vad kravet är."
+lede: "Egenkontroll låter som en pärm. Kravet i lagen handlar om något annat: att verksamheten har tänkt igenom vad som kan gå fel i sitt eget kök och kan visa hur det hålls efter. Vi har räknat på hur ofta den punkten faller, och hos vilka."
+category: "Guide"
+published: "2026-08-12"
+image:
+  alt: "Händer med engångshandskar vid en vit skärbräda med tre knivar, en röd paprika och en vitlök."
+  source: "Pexels"
+  credit: "Mikhail Nilov"
+  creditUrl: "https://www.pexels.com/photo/close-up-shot-of-kitchen-knives-on-white-chopping-board-8093920/"
+---
+
+import Diagram from '../../components/Diagram.astro';
+import FactGrid from '../../components/FactGrid.astro';
+import Stapel from '../../components/Stapel.astro';
+import Tidslinje from '../../components/Tidslinje.astro';
+
+## Ordet egenkontroll står inte i lagen
+
+Den som söker efter en mall för egenkontroll letar efter något som EU-rätten
+inte har något namn på. Hygienförordningen kräver att den som driver en
+livsmedelsverksamhet ska införa och tillämpa förfaranden som grundas på
+HACCP-principerna, och att grundförutsättningarna ska vara på plats innan dess.
+Egenkontroll är det svenska samlingsordet för båda delarna.
+
+Skillnaden mellan dem är hela poängen. Grundförutsättningarna är det som ska
+fungera i varje kök oavsett vad som lagas: rengöring, underhåll, skadedjur,
+personlig hygien, vattenkvalitet, temperaturer. HACCP-delen är det som är
+verksamhetens eget. Den utgår från de råvaror och moment som finns på just det
+stället, och den går inte att hämta färdig någon annanstans.
+
+Det är den andra delen kontrollen mäter som rapporteringspunkt K01, faroanalys
+och kritiska styrpunkter. Talen nedan är räknade på 14 588 kontroller i
+Linköping och Örebro, de två kommuner som skriver ut varje punkt inspektören
+tittade på och inte bara dem som gav en anmärkning.
+
+<Diagram
+  titel="Faroanalysen i siffror"
+  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+>
+  <FactGrid
+    facts={[
+      { label: 'Gånger punkten granskats', value: '4 672' },
+      { label: 'Gånger den gav avvikelse', value: '698' },
+      { label: 'Andel av granskningarna', value: '14,9', unit: '%' },
+      { label: 'Plats bland de tio största punkterna', value: 'Femte' },
+    ]}
+  />
+</Diagram>
+
+## Hela HACCP-området, punkt för punkt
+
+Under HACCP-baserade förfaranden ligger fler punkter än faroanalysen, men
+faroanalysen är den som granskas i praktiken. De övriga tas upp när
+verksamheten hanterar något som kräver det, och de vilar därför på små tal.
+
+<Diagram
+  titel="Andel granskningar som gav avvikelse, per HACCP-punkt"
+  underlag="Samma 14 588 kontroller. Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades."
+>
+  <Stapel
+    label="Andel av granskningarna som gav en avvikelse, per HACCP-punkt"
+    scale={30}
+    avdelare
+    rows={[
+      { label: 'Mikrobiologiska kriterier', value: 24.5, display: '24,5 %', note: '13 avvikelser av 53 granskningar' },
+      { label: 'Främmande ämnen', value: 20.7, display: '20,7 %', note: '12 av 58' },
+      { label: 'Faroanalys och kritiska styrpunkter', value: 14.9, display: '14,9 %', note: '698 av 4 672' },
+      { label: 'Allergena kriterier', value: 8.0, display: '8,0 %', note: '21 av 262' },
+    ]}
+  />
+</Diagram>
+
+Området som helhet ligger på 14,7 procent, alltså 744 avvikelser av 5 051
+granskningar. Bland de fem lagstiftningsområden som granskas i någon mängd är
+det bara märkning och livsmedelsinformation som ligger högre, och
+grundförutsättningarna ligger under. Ordningen mellan områdena har vi gått
+igenom i
+[Hur en livsmedelskontroll går till](/artiklar/hur-en-livsmedelskontroll-gar-till/).
+
+## Kaféet faller oftare än grossisten
+
+Här ligger fyndet. På nästan varje annan kontrollpunkt är restaurangen den som
+oftast får en anmärkning och skolköket den som klarar sig bäst. På faroanalysen
+ser ordningen annorlunda ut.
+
+<Diagram
+  titel="Andel granskningar av faroanalysen som gav avvikelse, per kategori"
+  underlag="4 656 av de 4 672 granskningarna, alltså de där verksamhetens kategori går att avgöra."
+>
+  <Stapel
+    label="Andel granskningar av faroanalysen som gav avvikelse, per kategori"
+    scale={25}
+    avdelare
+    rows={[
+      { label: 'Caféer och bagerier', value: 23.3, display: '23,3 %', note: '63 avvikelser av 270 granskningar' },
+      { label: 'Butiker', value: 19.0, display: '19,0 %', note: '51 av 268' },
+      { label: 'Restauranger', value: 16.8, display: '16,8 %', note: '340 av 2 028' },
+      { label: 'Skolor och omsorg', value: 11.8, display: '11,8 %', note: '229 av 1 934' },
+      { label: 'Övriga verksamheter', value: 8.3, display: '8,3 %', note: '13 av 156' },
+    ]}
+  />
+</Diagram>
+
+Kaféerna ligger högst och grossisterna, lagren och tillverkarna lägst, trots att
+det är de senare som har de mest omfattande dokumentationskraven. Skillnaden är
+nästan tre gånger. Den understa stapeln vilar på 156 granskningar och ska läsas
+med det i minnet.
+
+Vi kan inte läsa orsaken ur kontrollerna, bara konstatera vad som skiljer de två
+ändarna åt i övrigt. En tillverkare har oftast någon vars arbete är
+kvalitetssäkring. Ett kafé med tre anställda har samma krav på skriven
+faroanalys som ett storkök, och ingen som har det som uppgift. Kravet skalar
+inte med verksamhetens storlek, och det är antagligen därför utfallet gör det.
+
+Att den brist som handlar om papper faller hos de minsta stämmer också med hur
+skolköken ser ut. De ligger lågt här som på nästan alla punkter, men avståndet
+till restaurangerna är mindre än vanligt, och kommunala kök har både mallar och
+kostchefer. Hela den jämförelsen står i
+[Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
+
+## Den kommer ofta ensam
+
+En avvikelse på faroanalysen betyder sällan att köket i övrigt är underkänt.
+
+<Diagram
+  titel="Hur ofta punkten är den enda avvikelsen vid besöket"
+  underlag="Andel av avvikelserna på respektive punkt som stod ensamma i protokollet. Samma 14 588 kontroller."
+>
+  <Stapel
+    label="Andel av avvikelserna som var den enda avvikelsen vid besöket, per kontrollpunkt"
+    scale={40}
+    avdelare
+    rows={[
+      { label: 'Kylkedja och temperatur', value: 37.0, display: '37,0 %', note: '533 av 1 441 avvikelser stod ensamma' },
+      { label: 'Faroanalys och kritiska styrpunkter', value: 36.0, display: '36,0 %', note: '247 av 686' },
+      { label: 'Hygien före, under och efter', value: 34.4, display: '34,4 %', note: '657 av 1 911' },
+      { label: 'Bekämpning av skadedjur', value: 21.1, display: '21,1 %', note: '52 av 247' },
+      { label: 'Utbildning i hygien', value: 11.6, display: '11,6 %', note: '32 av 275' },
+    ]}
+  />
+</Diagram>
+
+Drygt en tredjedel av faroanalysavvikelserna är den enda anmärkningen vid
+besöket, ungefär som för kylkedjan och för hygienen i hanteringen. Det skiljer
+den från skadedjur och utbildning, som båda är ovanligare att få och som nästan
+alltid kommer i sällskap. Räknat i antal låg de kontroller där faroanalysen gav
+avvikelse på 1,27 andra avvikelser i genomsnitt, mot 0,53 när punkten var utan
+anmärkning.
+
+En rad om faroanalysen i en kontrollhistorik ska alltså inte läsas som ett
+underbetyg på köket. Den ska läsas som det den är: ett krav på dokumentation som
+inte var uppfyllt den dagen.
+
+Talen i det här avsnittet är räknade per kontroll och inte per granskad punkt,
+eftersom frågan gäller vad som stod i samma protokoll. Andelarna skiljer sig
+därför något från dem i diagrammen ovan.
+
+## Den återkommer hos dem som fått den
+
+Av de 455 verksamheter i Linköping och Örebro som någon gång fått en
+faroanalysavvikelse har 153 fått den mer än en gång. Räknat bland dem vars
+faroanalys granskats minst tre gånger fick 147 av 757 en avvikelse vid minst två
+av tillfällena, alltså 19,4 procent.
+
+Det är den enskilt mest användbara upplysningen för den som driver ett ställe.
+Punkten rättas inte genom att en pärm sätts i hyllan, för då kommer samma
+anmärkning tillbaka nästa gång. Den rättas genom att de moment som är kritiska i
+det egna köket faktiskt följs upp, och genom att uppföljningen syns.
+
+## Nivån ligger stilla
+
+<Diagram
+  titel="Andel granskningar av faroanalysen som gav avvikelse, per år"
+  underlag="Samma kontroller, uppdelade på kontrollens år. Kurvan börjar på 8 procent för att formen ska synas."
+>
+  <Tidslinje
+    label="Andel granskningar av faroanalysen som gav avvikelse, per år"
+    enhet="%"
+    min={8}
+    max={21}
+    points={[
+      { label: '2018', value: 17.0, display: '17,0' },
+      { label: '2019', value: 13.2, display: '13,2' },
+      { label: '2020', value: 10.6, display: '10,6' },
+      { label: '2021', value: 13.4, display: '13,4' },
+      { label: '2022', value: 18.1, display: '18,1' },
+      { label: '2023', value: 19.1, display: '19,1' },
+      { label: '2024', value: 14.4, display: '14,4' },
+      { label: '2025', value: 12.7, display: '12,7' },
+    ]}
+  />
+</Diagram>
+
+Åren rör sig mellan 10,6 och 19,1 procent utan riktning. De tidigaste åren vilar
+på få granskningar, 235 stycken för 2018 mot 703 för 2024, och ett litet underlag
+rör sig mer. Det som går att säga är att kravet inte har blivit lättare att
+uppfylla med åren.
+
+## Vad som ska finnas, enligt Livsmedelsverket
+
+HACCP bygger på sju principer. De två första är arbetet, resten är formen.
+
+**Faroanalysen.** Vilka biologiska, kemiska och fysikaliska faror som kan
+uppstå i just den här verksamheten, och vilka av dem som är betydande.
+
+**De kritiska styrpunkterna.** De moment där en fara går att styra och där
+kontroll är nödvändig för att maten ska bli säker. Nedkylning efter tillagning
+är det vanligaste exemplet i ett kök.
+
+**Gränsvärdena.** Vad som skiljer godtagbart från icke godtagbart i varje sådan
+punkt, oftast en temperatur och en tid.
+
+**Övervakningen.** Hur och hur ofta det mäts, och av vem.
+
+**Korrigerande åtgärder.** Vad som ska göras när ett gränsvärde överskrids,
+bestämt i förväg och inte i stunden.
+
+**Verifiering.** Kontroll av att systemet fungerar, alltså att mätningarna görs
+och att de betyder något.
+
+**Dokumentation och journaler.** Anpassade till verksamhetens art och storlek.
+Det är den princip som blir synlig vid en kontroll, och den enda som en mall kan
+hjälpa till med.
+
+En liten verksamhet får hålla systemet enkelt. Livsmedelsverket är uttrycklig
+med att kraven ska stå i proportion till verksamheten, och en nedskriven rutin
+på en sida kan räcka. Det som inte går att förenkla bort är att analysen ska
+gälla det egna köket.
+
+## Vad kontrollen faktiskt frågar efter
+
+Ur punkterna ovan följer ganska direkt vad inspektören ber om. Finns en
+faroanalys, och stämmer den med det som lagas? Är de kritiska momenten
+identifierade och styrda? Görs mätningarna, och finns de nedskrivna? Vad hände
+sist ett gränsvärde överskreds?
+
+Är svaret på den sista frågan att det aldrig har hänt är det oftast övervakningen
+och inte köket som brister. En verksamhet som mäter på riktigt hittar avvikelser
+ibland, och att de finns dokumenterade är ett tecken på att systemet används.
+
+Vad som händer när en punkt faller står i
+[Vad händer när en restaurang får en anmärkning?](/artiklar/vad-hander-efter-en-anmarkning/),
+och hur inspektörens besök är upplagt i
+[Hur en livsmedelskontroll går till](/artiklar/hur-en-livsmedelskontroll-gar-till/).
+
+## Slå upp en verksamhet
+
+Faroanalysen syns i kontrollhistoriken under sitt eget namn hos de kommuner som
+publicerar enskilda kontrollpunkter. [Sök fram stället](/sok/), eller bläddra
+bland verksamheter med anmärkningar i
+[Linköping](/linkoping/anmarkningar/), [Örebro](/orebro/anmarkningar/) eller
+[Stockholm](/stockholm/anmarkningar/). Kategorierna finns per kommun, till
+exempel [caféer och bagerier](/orebro/kategori/cafeer-och-bagerier/) och
+[restauranger](/orebro/kategori/restauranger/) i Örebro.
+
+Hur avvikelserna fördelar sig över alla lagstiftningsområden och alla kommuner
+står i rapporten [Vad anmärkningarna gäller](/rapporter/vad-anmarkningarna-galler/).
+
+## Källor
+
+- [Europaparlamentets och rådets förordning (EG) nr 852/2004 om livsmedelshygien](https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX%3A32004R0852): artikel 5 om förfaranden grundade på HACCP-principerna, och kravet på att systemet ska stå i proportion till verksamhetens art och storlek.
+- [Livsmedelsverkets kontrollwiki: HACCP](https://kontrollwiki.livsmedelsverket.se/artikel/476/haccp): de sju principerna, förhållandet mellan grundförutsättningar och HACCP, och vad som krävs av en liten verksamhet.
+- [Livsmedelsverkets kontrollwiki: K, HACCP-baserade förfaranden](https://kontrollwiki.livsmedelsverket.se/artikel/247/k-haccp-baserade-forfaranden-och-mikrobiologiska-kriterier): rapporteringspunkterna under området, där K01 är faroanalys och kritiska styrpunkter.
+- [Livsmedelsverket: Sveriges livsmedelskontroll 2024](https://www.livsmedelsverket.se/4ab379/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-13---sveriges-livsmedelskontroll_2024_.pdf) (rapport L 2025 nr 13).
+- Andelarna per punkt, per kategori och per år, samt de samtidiga avvikelserna, är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
