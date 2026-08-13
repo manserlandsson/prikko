@@ -41,6 +41,41 @@ import { Image } from 'astro:assets';
  * fotot är samma fil som kommunkortets, redan betald och redan i repo.
  */
 import heroPhoto from '../assets/hero-restaurang.jpg';
+import HeroVektor from '../components/HeroVektor.astro';
+
+/**
+ * ══ VÄLJ HERONS BAKGRUND ══════════════════════════════════════════════════
+ * Byt värdet på raden härunder. Det är hela bytet.
+ *
+ *   'ingen'  ger vit hero med två kort. Boolis egen form, uppmätt nedan.
+ *   'foto'   ger Linköpingsbilden, kant i kant.
+ *   'vektor' ger HeroVektor.astro: platt märkesblått fält med Prikkos egna
+ *            bedömningsansikten och mat, byggd av bedömningsfärgerna.
+ *
+ * Alla tre ligger kvar i repot. Fotot är LCP-elementet när det är valt;
+ * vektorn är inline-SVG och laddar ingenting alls.
+ *
+ * ── Varför 'ingen' är förvalet ───────────────────────────────────────────
+ * Uppmätt på booli.se 2026-08-13, i webbläsaren och inte ur minnet, i 1280
+ * och 375 px bredd:
+ *
+ *   Heron är 1280×648 och HELT VIT. Ingen bild, inget färgfält, ingen
+ *   toning. Sidbehållaren är 980 och innehåller två kort sida vid sida:
+ *   söktkortet 560×552 till vänster och påståendekortet 380×270 till höger,
+ *   med 40 px mellan sig. Båda korten är vita, 1 px #E6E6E6, radie 6 och
+ *   skugga 0 2px 8px rgba(0,0,0,.05). Påståendet är 40/52/600. I mobil
+ *   (375) blir bandet 676 högt, sökkortet 343 brett med 16 px marginal, och
+ *   påståendekortet tas bort helt.
+ *
+ * Vår hero var ett mättat märkesblått fält kant i kant med en tecknad
+ * illustration och ett kort med skuggan 0 24px 60px rgba(0,0,0,.22). Den
+ * skuggan har 7,5 gånger Boolis spridning och 4,4 gånger dess alfa. Det var
+ * sajtens största enskilda avvikelse från förebilden, och det första man ser.
+ *
+ * Vektorn är ägarens egen beställning från 7 augusti och raderas inte. Den
+ * står kvar som ett val, en rad härunder.
+ */
+const heroBakgrund: 'ingen' | 'foto' | 'vektor' = 'ingen';
 /* Hero-rubrikens typsnitt: Instrument Serif, systerfonten till sajtens
    Instrument Sans (samma formgivare). Självhostad via fontsource, precis som
    sansen — aldrig Google Fonts CDN. Bara latin-subsetet och bara 400 normal:
@@ -243,26 +278,61 @@ const jsonLd = [
   <div class="hero">
     {/* Fotot är LCP-elementet och laddas därför eager med hög prioritet.
         Tom alt: bilden är stämning, inte information, och en skärmläsare
-        ska gå direkt på rubriken. */}
-    <Image
-      class="hero-foto"
-      src={heroPhoto}
-      alt=""
-      widths={[800, 1400]}
-      sizes="100vw"
-      loading="eager"
-      fetchpriority="high"
-    />
-    <div class="hero-kort">
-      <h1>Hur rent är det där du&nbsp;äter?</h1>
-      <p class="under">
-        Sök bland {formatNumber(total.establishments)} restauranger, caféer och butiker.
-      </p>
+        ska gå direkt på rubriken. Vektorn är aria-hidden av samma skäl.
+        Vilken av dem som visas styrs av heroBakgrund i frontmattern. */}
+    {heroBakgrund === 'foto' && (
+      <Image
+        class="hero-foto"
+        src={heroPhoto}
+        alt=""
+        widths={[800, 1400]}
+        sizes="100vw"
+        loading="eager"
+        fetchpriority="high"
+      />
+    )}
+    {heroBakgrund === 'vektor' && <HeroVektor />}
 
-      <div class="hero-sok">
-        <SiteSearch size="hero" />
+    {/* Två kort sida vid sida, Boolis uppmätta form: verktyget till vänster
+        och påståendet till höger. Deras påstående är ett säljargument
+        ("Sveriges största utbud"); vårt är tre tal, för en tjänst som
+        återger myndighetsbeslut säger vad den har, inte hur bra den är. */}
+    <div class="hero-rad">
+      <div class="hero-kort">
+        <h1>Hur rent är det där du&nbsp;äter?</h1>
+        {/* Talet stod här förut ("Sök bland 15 983 ..."). Det står nu i
+            faktakortet bredvid, och samma siffra två gånger i samma hero är
+            en upprepning, inte en förstärkning. Raden bär handlingen och
+            objektet, Ratsit-formen, precis som förut. */}
+        <p class="under">
+          Sök bland restauranger, caféer, skolkök och butiker.
+        </p>
+
+        <div class="hero-sok">
+          <SiteSearch size="hero" />
+        </div>
+
       </div>
 
+      {/* aria-hidden vore fel här: talen är innehåll, inte dekor. Kortet
+          döljs i mobil med display: none, precis som Boolis eget, och då
+          försvinner det ur uppläsningen på samma villkor som hos dem. */}
+      <aside class="hero-fakta">
+        <dl>
+          <div>
+            <dt>Verksamheter</dt>
+            <dd>{formatNumber(total.establishments)}</dd>
+          </div>
+          <div>
+            <dt>Kontroller</dt>
+            <dd>{formatNumber(total.inspections)}</dd>
+          </div>
+          <div>
+            <dt>Kommuner</dt>
+            <dd>{formatNumber(total.municipalities)}</dd>
+          </div>
+        </dl>
+      </aside>
     </div>
   </div>
 
@@ -371,8 +441,16 @@ const jsonLd = [
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 520px;
+    /* Ingen min-height. Boolis band är 648 px och det är korten som sätter
+       måttet: deras sökkort är 552 högt plus 48 px luft över och under. Ett
+       låst minimum gav oss i stället 250 px tom vit yta över och under två
+       kort på 270, alltså ett band som såg ofärdigt ut. Luften är --s-16
+       (64) och höjden blir det korten behöver. */
     padding: var(--s-16) var(--s-4);
+    /* Vit, inte tonad. Boolis hero är 648 px rent vitt: ingen bild, inget
+       färgfält, ingen toning. Ligger ett foto eller vektorn i heron står
+       den här regeln kvar under dem och syns inte. */
+    background: var(--card);
     /*
      * INGEN overflow: hidden här.
      *
@@ -396,17 +474,85 @@ const jsonLd = [
     object-position: 50% 55%;
   }
 
-  /* Kortet. Boolis kort är vita, knappt rundade och bär en mjuk, stor
-     skugga — det är skuggan, inte en kant, som lyfter dem från fotot.
-     Padding i deras klass: rejäl. Maxbredden är fältets 600 plus luft. */
+  /*
+   * Raden. Boolis 980 delas 560 + 40 + 380; vår behållare är --w-wide (1080)
+   * och påståendekortet behåller deras 380, så sökkortet får resten.
+   */
+  .hero-rad {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: var(--s-8);
+    align-items: stretch;
+    width: 100%;
+    max-width: var(--w-wide);
+  }
+
+  /*
+   * Kortet. Uppmätt hos Booli: vitt, 1 px #E6E6E6, radie 6, och skuggan
+   * 0 2px 8px rgba(0,0,0,.05). Det är en KANT som avgränsar deras kort, inte
+   * en skugga. Vår --shadow-sm är exakt det greppet (1 px ring plus
+   * 0 1px 2px), och vår radie är --r-card, ett taget beslut i docs/19.
+   *
+   * Här stod tidigare 0 24px 60px rgba(0,0,0,.22). Den behövdes för att
+   * lyfta kortet från ett mättat blått fält, och när fältet är vitt blir
+   * samma skugga en grå fläck under kortet. Boolis kraftigaste skugga på
+   * hela sajten är 8 px spridning vid 5 procent.
+   */
   .hero-kort {
     position: relative;
-    width: 100%;
-    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     padding: var(--s-12) var(--s-8);
     background: var(--card);
     border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Ligger ett foto eller vektorn bakom kortet behövs lyftet igen: mot en
+     bild räcker inte en hårlinje. Regeln kostar ingenting när bakgrunden är
+     vit, för då finns varken .hero-foto eller .hero-vektor i sidan. */
+  .hero:has(.hero-foto) .hero-kort,
+  .hero:has(.hero-vektor) .hero-kort {
     box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 24px 60px rgba(0, 0, 0, .22);
+  }
+
+  /*
+   * Påståendekortet. Boolis är 380×270 med 24 px padding och bär ett
+   * säljargument i 40/52/600. Vårt bär tre tal i stället: en tjänst som
+   * återger myndighetsbeslut ska säga vad den har, inte hur bra den är.
+   * Talen är --fs-title, alltså uppslagssidans grad, för de SLÅS upp.
+   */
+  .hero-fakta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--s-6);
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hero-fakta dl {
+    display: grid;
+    gap: var(--s-6);
+    margin: 0;
+  }
+
+  .hero-fakta dt {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .hero-fakta dd {
+    margin: 0;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
   }
 
   /*
@@ -417,9 +563,13 @@ const jsonLd = [
    * Vänsterkanten sicksackade och listan såg trasig ut. En panel som fälls
    * ut ur ett fält ska aldrig ärva sidans textjustering.
    */
+  /* Vänsterställt, inte centrerat. Boolis sökkort är vänsterställt rakt
+     igenom: flikar, fält, kryssruta, knapp. Centrerad text fungerade när
+     kortet stod ensamt mitt i ett foto; med ett kort bredvid sig blir en
+     centrerad spalt en tredje kant att läsa efter. */
   .hero-kort > h1,
   .hero-kort > .under {
-    text-align: center;
+    text-align: left;
   }
 
   /* Rubriken i Instrument Serif — sajtens enda serif, och den används BARA
@@ -428,7 +578,6 @@ const jsonLd = [
      annan) och graden därför högre än sansens display-token: en lätt serif
      i 48 px väger ungefär som en halvfet sans i 40. */
   .hero-kort h1 {
-    margin-inline: auto;
     max-width: 24ch;
     font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
     font-weight: 400;
@@ -440,20 +589,19 @@ const jsonLd = [
   /* En rad, Ratsit-formen: handlingen och objektet, aldrig källan. */
   .under {
     margin-top: var(--s-3);
-    margin-inline: auto;
     max-width: 52ch;
     font-size: var(--fs-body);
     line-height: var(--lh-body);
     color: var(--text-secondary);
   }
 
-  /* Fältet centreras här; måtten bor i SiteSearchs hero-läge. */
+  /* Fältet går kant i kant i kortet, som Boolis: deras fält är 510 brett i
+     ett kort på 560, alltså kortets bredd minus paddingen. Måtten bor i
+     SiteSearchs hero-läge. */
   .hero-sok {
     position: relative;
-    max-width: 600px;
-    margin: var(--s-6) auto 0;
+    margin-top: var(--s-6);
   }
-  .hero-sok :global(.site-search) { margin-inline: auto; }
 
   .chip {
     display: inline-flex;
@@ -632,6 +780,16 @@ const jsonLd = [
 
   @media (max-width: 900px) {
     .artiklar { grid-template-columns: 1fr; }
+
+    /*
+     * Påståendekortet tas BORT, inte staplas under. Booli gör exakt det:
+     * uppmätt i 375 px är deras påståendekort display: none och bandet
+     * innehåller bara sökkortet, 343 brett med 16 px marginal. Ett kort
+     * som läggs under sökfältet skjuter kommunraden under vikningen utan
+     * att bära något som besökaren kom hit för.
+     */
+    .hero-rad { grid-template-columns: minmax(0, 1fr); }
+    .hero-fakta { display: none; }
   }
 
   /* Tre spalter går ned till en, aldrig till två: två spalter lämnar det
@@ -647,6 +805,12 @@ const jsonLd = [
        runt kortet är hela skillnaden mot en vit sida. */
     .hero { min-height: 0; padding: var(--s-8) var(--s-3); }
     .hero-kort { padding: var(--s-8) var(--s-4); }
+
+    /* Vektorvarianten behöver toppluft, fotot gör det inte. Ett foto tål att
+       vara en remsa runt kortet; en teckning gör det inte, den behöver ett
+       eget band att stå i. Regeln kostar ingenting när fotot är valt, för då
+       finns .hero-vektor inte i sidan. */
+    .hero:has(.hero-vektor) { padding-top: 140px; }
 
     /* Serifen tål mer grad än sansen gjorde, men frågan ska fortfarande
        rymmas på två rader i den smala spalten. */

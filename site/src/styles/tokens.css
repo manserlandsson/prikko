@@ -152,7 +152,12 @@
 
      Mätt mot booli.se, som kör 48/32/24/18/16/14/12 och inget däremellan.
      Vi har färre nivåer och behåller vår 17-pixlars brödtext, men tar deras
-     två regler rakt av: rubriker har radhöjd omkring 1,2 och brödtext 1,5.
+     två regler rakt av: rubriker har radhöjd 1,30 vid 40 px och uppåt och
+     1,35 därunder, brödtext 1,5.
+
+     Här stod tidigare "omkring 1,2" om rubrikerna. Det var fel och det satt
+     kvar i tokens i månader medan docs/19_formsystem.md hade rätt värde hela
+     tiden. Kontrollmätt igen på booli.se 2026-08-13 innan det ändrades.
 
      Två titelnivåer, inte fem. Skillnaden mellan dem är sidans ärende:
      --fs-display bär en sida man LÄSER (artikel, metod, villkor),
@@ -164,13 +169,31 @@
   --fs-micro: 11px;    --lh-micro: 15px;
   --fs-eyebrow: 12px;  --lh-eyebrow: 16px;
   --fs-caption: 13px;  --lh-caption: 18px;
-  --fs-body-s: 14px;   --lh-body-s: 20px;
+  /* 14/24 och inte 14/20. Uppmätt på booli.se 2026-08-13: den grad som
+     dominerar VARJE sidtyp hos dem är 14/24/400, med 27 till 250 förekomster
+     per sida. Hos oss dominerar samma grad lika tydligt, 50 till 109 per
+     sida, men låg på radhöjd 20.
+
+     docs/19_formsystem.md hade redan skrivit ner deras värde rätt i sin
+     tabell ("Metatext 14/24/400"); det var implementationen som satte 20 och
+     ingen gick tillbaka. Fyra pixlar per rad på sajtens vanligaste textstil
+     är en av de starkaste anledningarna till att våra sidor läste tätare och
+     billigare än förlagans. Se docs/27_booli_genomgang.md punkt 3. */
+  --fs-body-s: 14px;   --lh-body-s: 24px;
   --fs-body: 17px;     --lh-body: 26px;
-  --fs-h-xs: 17px;     --lh-h-xs: 22px;
-  --fs-h-s: 21px;      --lh-h-s: 25px;
-  --fs-h: 24px;        --lh-h: 28px;
-  --fs-title: 32px;    --lh-title: 38px;
-  --fs-display: 40px;  --lh-display: 46px;
+  /* Rubrikernas radhöjd följer Boolis kvot, 1,30 vid 40 px och uppåt och
+     1,35 därunder. Uppmätt hos dem 2026-08-13: 48/62,4. 40/52. 32/43,2.
+     24/32,4. 18/24,3. 16/21,6. Utan undantag, på varje sidtyp.
+
+     Våra värden låg på 1,13 till 1,19. Kommentaren härovan påstod tidigare
+     att Booli kör "omkring 1,2", vilket var fel; docs/19_formsystem.md hade
+     rätt hela tiden och implementationen följde kommentaren i stället för
+     bibeln. Se docs/27_booli_genomgang.md punkt 4. */
+  --fs-h-xs: 17px;     --lh-h-xs: 23px;
+  --fs-h-s: 21px;      --lh-h-s: 28px;
+  --fs-h: 24px;        --lh-h: 32px;
+  --fs-title: 32px;    --lh-title: 43px;
+  --fs-display: 40px;  --lh-display: 52px;
 
   /* Startsidans hero. Sajtens enda serif och sajtens enda plats för den,
      därför en egen nivå och inte ett steg i skalan. Värdet bor här så att
@@ -203,9 +226,13 @@
    still hela vägen ned. Sidmallar ska inte ha egna h1-brytpunkter längre. */
 @media (max-width: 640px) {
   :root {
+    /* Samma kvot i mobil. Booli behåller sin: deras 48 blir 40/52 och deras
+       24 blir 20/26, alltså 1,30 hela vägen ned. --lh-hero står kvar på 41:
+       den bär Instrument Serif i vikt 400, och en displayserif sätts tight
+       med avsikt. Den är redan ett dokumenterat undantag i docs/19. */
     --fs-hero: 36px;     --lh-hero: 41px;
-    --fs-display: 32px;  --lh-display: 38px;
-    --fs-title: 27px;    --lh-title: 32px;
+    --fs-display: 32px;  --lh-display: 42px;
+    --fs-title: 27px;    --lh-title: 36px;
   }
 }
 

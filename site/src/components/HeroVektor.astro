@@ -1,0 +1,295 @@
+---
+/**
+ * Startsidans hero som VEKTOR, alternativ till fotot.
+ *
+ * ── Vad den bygger på ────────────────────────────────────────────────────
+ * Öppnat i webbläsaren 2026-08-07, inte hämtat ur minnet: deliveroo.co.uk,
+ * thefork.se, wolt.com, yelp.com och stripe.com. Fyra av fem löser exakt vår
+ * uppgift, alltså en hjältebild med ett vitt kort mitt i, och de gör det på
+ * samma sätt:
+ *
+ *  - Wolt: heron är EN platt märkesfärg kant i kant. Ingen bild alls. Fältet
+ *    är lugnt, kortet är hjälten. Det är därför deras sida ser dyr ut.
+ *  - Deliveroo: platt turkos plan, vitt kort i mitten, och motivet i två
+ *    KLUMPAR vid vänster och höger kant, kraftigt beskurna av ramen. Mitten
+ *    är avsiktligt tom yta.
+ *  - TheFork: ett rundat grönt fält, en enda enorm maträtt som skärs av
+ *    högerkanten, resten platt grönt.
+ *  - Stripe: en enda diagonal gest från ett hörn, resten nästan vitt.
+ *
+ * Slutsatsen är samma i alla fyra: FÅ motiv, ENORMT skalade, beskurna av
+ * kanten, och en platt mitt där kortet ska stå. Det motsatta, alltså många
+ * små ikoner jämnt utspridda, är det som läser som mall.
+ *
+ * ── Bärande idé ──────────────────────────────────────────────────────────
+ * Maten är byggd av bedömningen. Varje matdetalj färgas av en av sajtens
+ * tre bedömningsfärger plus mässingen: grönt är sallad, gult är ost och
+ * tamago, rött är tomat och tonfisk, mässing är bröd och tortilla. Det finns
+ * alltså inte en enda färg i bilden som inte redan betyder något på sajten,
+ * och den som tittar länge ser varför.
+ *
+ * Teckningsspråket är hämtat ur märket, inte ur en ikonuppsättning: vita
+ * konturer på märkesblått, precis som ansiktets vita ögon och mun på den
+ * blå rutan. Vitlinjerna mellan hamburgarens lager är samma grepp som gör
+ * pappersklipp läsbara, och de går i två tjocklekar (7 för silhuetter, 3 för
+ * detaljer) så att bilden har en rytm och inte en enda jämntjock kontur.
+ *
+ * Djup kommer ur överlapp, storlek och ett golv, aldrig ur skuggor, oskärpa
+ * eller toningar. Enda toningen i hela bilden är den som ligger i
+ * bedömningsmärket självt, och den är Måns egen geometri.
+ *
+ * ── Varför bara två ansikten ─────────────────────────────────────────────
+ * Grönt stort till vänster, gult mindre till höger. Rött saknas med flit:
+ * en hjältebild ska visa vad tjänsten är, inte leda med ett underkännande.
+ * Booli visar inte en dålig bostad högst upp. Vill du ha rött också står
+ * raden nedan i högerklungan, utkommenterad.
+ *
+ * ── Färger ───────────────────────────────────────────────────────────────
+ * Varenda fyllning och kontur går via en klass som pekar på en token i
+ * tokens.css. Ingen hexkod står i märkningen. Byter paletten byter bilden.
+ *
+ * Ingen extern hämtning, ingen JavaScript, inga bilder. Ren inline-SVG.
+ */
+import FaceMark from './FaceMark.astro';
+---
+
+<div class="hero-vektor" aria-hidden="true">
+  {/* Golvet. En rak kant med svag lutning, alltså en disk att ställa maten
+      på. Rak linje, inte en våg: en våg hade gjort bilden gullig. */}
+  <div class="hv-golv"></div>
+
+  {/* ── Vänster klunga: hamburgare, taco, grönt märke ──────────────────
+      Hamburgaren går ut genom sin egen vänsterkant (x < 0 i viewBox) och
+      beskärs alltså av ramen, precis som Deliveroos påse. */}
+  <svg class="hv-klunga hv-vanster" viewBox="0 0 460 560" fill="none" focusable="false">
+    {/* Överbrödet. Kupolen är bredare än den är hög — en halvcirkel hade
+        gjort hamburgaren till en ikon. */}
+    <path class="f-brass k" d="M-40 322C-40 202 34 150 140 150C246 150 320 202 320 322Z" />
+    {/* Sesam. Fyllda korn, inte streck: streck läste som repor i brödet.
+        Fem korn i oregelbunden ställning, för fyra i kvadrat blir mönster. */}
+    <g class="f-card">
+      <ellipse cx="52" cy="250" rx="10" ry="5.5" transform="rotate(-22 52 250)" />
+      <ellipse cx="140" cy="206" rx="10" ry="5.5" transform="rotate(6 140 206)" />
+      <ellipse cx="228" cy="248" rx="10" ry="5.5" transform="rotate(26 228 248)" />
+      <ellipse cx="96" cy="292" rx="9" ry="5" transform="rotate(-10 96 292)" />
+      <ellipse cx="196" cy="294" rx="9" ry="5" transform="rotate(16 196 294)" />
+    </g>
+
+    {/* Tomaten. En sammanhängande skiva med tre kärnor, inte tre cirklar
+        med ringar i: ringarna läste som måltavlor och som ögon. */}
+    <path class="f-major k" d="M-40 348H318a30 30 0 0 1 0 58H-40Z" />
+    <g class="f-card">
+      <ellipse cx="44" cy="378" rx="8" ry="12" transform="rotate(-14 44 378)" />
+      <ellipse cx="150" cy="374" rx="8" ry="12" transform="rotate(10 150 374)" />
+      <ellipse cx="252" cy="380" rx="7" ry="11" transform="rotate(-6 252 380)" />
+    </g>
+
+    {/* Salladen. Bara UNDERkanten är skallopad, och skalloperna är olika
+        breda: bladet sticker ut under brödet och hänger ned över tomaten,
+        det är så en hamburgare ser ut. Vågor på båda kanterna hade läst
+        som gräs. Ritas EFTER tomaten, annars döljs bukterna. */}
+    <path
+      class="f-clean k"
+      d="M-40 310H338V340Q312 372 282 342Q250 376 220 344Q188 376 156 344Q124 376 92 344Q58 376 26 342Q-6 372 -40 348Z"
+    />
+
+    {/* Biffen */}
+    <path class="f-ink k" d="M-40 420H294a32 32 0 0 1 0 64H-40Z" />
+
+    {/* Osten. Ritas EFTER biffen så att den smälter NER över den. Färre
+        och bredare lober än salladens, och olika djupa: lika djupa dropp
+        är det säkraste sättet att avslöja att en form är genererad. */}
+    <path
+      class="f-minor k"
+      d="M-40 386H304V412Q278 470 250 418Q220 452 192 414Q160 464 130 416Q98 446 70 412Q38 468 8 418Q-16 442 -40 414Z"
+    />
+
+    {/* Underbrödet */}
+    <path class="f-brass k" d="M-40 484H294v16a46 46 0 0 1-46 46H-40Z" />
+
+    {/* Tacon, framför till höger.
+        Det som avgör om formen läser som taco eller som skål är ÖVERKANTEN
+        på den främre tortillan. Två varianter har provats och underkänts:
+        en rak rand (blev en skål) och en taggig sallad över en rak rand
+        (blev en skål med granar i). En tortilla är VIKT, alltså hänger den
+        främre flikens överkant ned i mitten. Den svackan, plus de två
+        uppåtpekande spetsarna i ändarna, är hela igenkänningen. Hela
+        stycket lutar dessutom tolv grader: en taco som står blickstilla
+        rakt fram läser som ett diagram. */}
+    <g transform="rotate(-12 346 470)">
+      {/* Bakre flikens kant, en grund båge uppåt. */}
+      <path class="f-brass k" d="M246 394Q346 330 446 394L424 402Q346 348 268 402Z" />
+      {/* Fyllningen. Mjuk och osymmetrisk, inte en jämn kupol. Går ned till
+          470 så att den främre fliken täcker underkanten — annars lyser
+          blått igenom i svackan. */}
+      <path
+        class="f-clean k"
+        d="M250 410C254 370 288 350 326 360C352 338 396 346 412 376C434 382 446 398 442 410V470H250Z"
+      />
+      <g class="f-major">
+        <rect x="284" y="386" width="26" height="26" rx="6" transform="rotate(-18 297 399)" />
+        <rect x="390" y="392" width="22" height="22" rx="5" transform="rotate(26 401 403)" />
+      </g>
+      <g class="f-minor">
+        <rect x="320" y="374" width="34" height="10" rx="5" transform="rotate(-16 337 379)" />
+        <rect x="356" y="386" width="28" height="10" rx="5" transform="rotate(20 370 391)" />
+      </g>
+      {/* Främre fliken. Svackan i överkanten och de två uppåtpekande
+          spetsarna är hela igenkänningen; den är dessutom bredare än hög. */}
+      <path class="f-brass k" d="M228 388Q346 462 464 388C466 468 414 516 346 516C278 516 226 468 228 388Z" />
+      <path class="k-t" d="M250 410Q346 474 442 410" />
+    </g>
+
+    {/* Bedömningsmärket. Ritas ALDRIG för hand här — det är komponenten,
+        alltså exakt Måns geometri, inte en tolkning av den. */}
+    <g transform="translate(16 432)">
+      <FaceMark verdict="clean" size={120} variant="box" />
+    </g>
+  </svg>
+
+  {/* ── Höger klunga: pizzabit, sushi, gult märke ───────────────────────
+      Pizzabiten lutar ut genom högerkanten. Skorpan hamnar utanför ramen,
+      spetsen pekar in mot kortet: TheForks grepp, en enda stor rätt som
+      ramen får skära av. */}
+  <svg class="hv-klunga hv-hoger" viewBox="0 0 460 560" fill="none" focusable="false">
+    <g transform="translate(152 36) rotate(24 150 250)">
+      <path class="f-minor k" d="M150 480 10 110C86 30 214 30 290 110Z" />
+      <path class="f-brass k" d="M10 110C86 30 214 30 290 110l-16 38C204 76 96 76 26 148Z" />
+      <g class="f-major k-m">
+        <circle cx="150" cy="200" r="27" />
+        <circle cx="92" cy="288" r="23" />
+        <circle cx="200" cy="296" r="21" />
+        <circle cx="148" cy="382" r="17" />
+      </g>
+      {/* Basilika. Två blad, olika stora och olika vridna: ett par lika
+          blad läser som en dekal. */}
+      <ellipse class="f-clean" cx="212" cy="212" rx="18" ry="10" transform="rotate(-28 212 212)" />
+      <ellipse class="f-clean" cx="96" cy="196" rx="13" ry="8" transform="rotate(34 96 196)" />
+    </g>
+
+    {/* Tallriken och sushin, framför pizzan och nere vid diskkanten.
+        Riset är den tonade blå ytan, inte vitt: vitt ris mot ett vitt kort
+        hade tappat sin form helt. */}
+    <ellipse class="f-wash k" cx="172" cy="506" rx="176" ry="46" />
+    <ellipse class="f-clean" cx="292" cy="492" rx="22" ry="14" />
+
+    {/* Bakre biten (tamago, gult), något mindre och förskjuten. */}
+    <g transform="translate(132 -20) scale(.9)">
+      <path class="f-wash k" d="M30 448h130a36 36 0 0 1 0 72H30a36 36 0 0 1 0-72Z" />
+      <path class="f-minor k-m" d="M22 428h146a28 28 0 0 1-12 28H34a28 28 0 0 1-12-28Z" />
+      <path class="f-ink" d="M82 428h30v92H82Z" />
+    </g>
+    {/* Främre biten (tonfisk, rött). */}
+    <path class="f-wash k" d="M30 448h130a36 36 0 0 1 0 72H30a36 36 0 0 1 0-72Z" />
+    <path class="f-major k-m" d="M22 428h146a28 28 0 0 1-12 28H34a28 28 0 0 1-12-28Z" />
+    <path class="f-ink" d="M82 428h30v92H82Z" />
+
+    <g transform="translate(318 410)">
+      <FaceMark verdict="minor" size={112} variant="round" />
+    </g>
+    {/* Vill Måns ha alla tre nivåerna i heron: ta bort kommentaren härunder.
+    <g transform="translate(384 286)"><FaceMark verdict="major" size={76} variant="round" /></g>
+    */}
+  </svg>
+</div>
+
+<style>
+  /*
+   * Fältet. Wolts grepp: EN platt märkesfärg kant i kant. Ingen toning,
+   * ingen textur, inget mönster. Överdelen lämnas medvetet tom — det är den
+   * tomma ytan som gör att kortet läser som hjälte.
+   *
+   * overflow: hidden ligger HÄR och inte på .hero. Sidmallen förklarar
+   * varför: .hero får aldrig klippa, för då hamnar sökpanelen under
+   * kommunkorten. Det här lagret klipper bara sina egna barn.
+   */
+  .hero-vektor {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--brand);
+  }
+
+  /* Disken. Rak kant med svag lutning, i den mörkare blån. Det är det enda
+     som skapar rum i bilden, och det räcker: en horisont gör mer för djupet
+     än varje skugga man kan lägga till. */
+  .hv-golv {
+    position: absolute;
+    inset: auto 0 0;
+    height: 24%;
+    background: var(--brand-ink);
+    clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 100%);
+  }
+
+  /* Klungorna hänger i var sin kant och står med foten på diskkanten.
+     Höjden styrs, inte bredden: motivet ska behålla sin proportion mot
+     heron oavsett hur bred skärmen är, och det är höjden heron har som är
+     låst. clamp håller dem läsbara från 360 px till 2560 px. */
+  .hv-klunga {
+    position: absolute;
+    height: clamp(215px, 68%, 430px);
+    width: auto;
+  }
+
+  .hv-vanster {
+    left: 0;
+    bottom: 18%;
+  }
+
+  /* Något mindre och något högre än den vänstra: disken lutar, och två
+     lika stora klungor på samma höjd hade läst som en symmetrisk bård. */
+  .hv-hoger {
+    right: 0;
+    bottom: 21.5%;
+    height: clamp(190px, 61%, 385px);
+  }
+
+  /* ── Färg ──────────────────────────────────────────────────────────────
+     Varje fyllning är en token. Står det en hexkod här är det ett fel. */
+  .f-brass { fill: var(--distinction); }
+  .f-clean { fill: var(--verdict-clean); }
+  .f-minor { fill: var(--verdict-minor); }
+  .f-major { fill: var(--verdict-major); }
+  .f-ink   { fill: var(--text); }
+  .f-wash  { fill: var(--brand-wash); }
+  .f-card  { fill: var(--card); }
+
+  /* Konturen är vit, som ansiktets ögon och mun på den blå rutan. Tre
+     tjocklekar med var sin uppgift: silhuett, mellanting, detalj. En enda
+     jämntjock kontur är det säkraste sättet att få en teckning att se
+     maskinell ut. */
+  .k, .k-m, .k-t {
+    stroke: var(--card);
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .k   { stroke-width: 7; }
+  .k-m { stroke-width: 5; }
+  .k-t { stroke-width: 3; fill: none; }
+
+  /*
+   * Mobil. Här går det inte att gömma sig: kortet är 336 px brett i en
+   * 360 px vy, och det finns ingen sidled kvar. Deliveroos app-sida gör det
+   * enda som fungerar — flyttar hela motivet till ett BAND ovanför kortet.
+   * Klungorna hänger då i var sin övre kant, och kortet lägger sig över
+   * bandets nederkant så att överlappet finns kvar. Sidmallen ger heron
+   * toppluft för bandet.
+   */
+  @media (max-width: 680px) {
+    /* Disken försvinner. Kortets överkant ÄR ytan som maten står på här,
+       och en extra horisont bakom ett kort som täcker hela bredden hade
+       bara blivit en rand utan uppgift. */
+    .hv-golv { display: none; }
+
+    .hv-klunga {
+      bottom: auto;
+      top: 4px;
+      height: 148px;
+    }
+
+    .hv-hoger {
+      top: 16px;
+      height: 134px;
+    }
+  }
+</style>
