@@ -985,6 +985,16 @@ anrop per sidvisning, och inga 16 000 anrop per bygge.
   fanns. Per kommun vid 30 meter är Stockholm högst och Karlstad lägst.
   `matt_bildtackning.py` har kvar den gamla gränsen och underskattar därför
   täckningen; den är inte längre den mätning man ska gå på.
+
+  **Rättelse 2026-08-13: läs 49,2 procent i stället för 63,0.** Talen ovan kom
+  ur ett urval som var proportionellt mot beståndet, och beståndet är till två
+  tredjedelar Stockholm. 63,0 procent var alltså i praktiken Stockholms tal och
+  inte rikets. Med ett stratifierat urval, 60 verksamheter ur var och en av de
+  åtta kommuner som har koordinater, och vägt tillbaka mot varje kommuns
+  verkliga storlek, är rikssiffran vid 30 meter och ±45° **49,2 procent**,
+  alltså omkring 4 330 sidor. Spannet per kommun är 58,3 procent i Stockholm
+  ned till 5,0 i Karlstad. Täckningen har inte fallit; mätningen har blivit
+  ärlig. Se docs/28_gatubilder.md del C och `matt_troskel.py --per-kommun`.
 - **Vilken VERSION av CC BY-SA Mapillary-bilder ligger under.** Villkoren
   (mapillary.com/terms, avsnitt 3, kontrollerat 2026-08-05) säger ordagrant
   "subject to the Creative Commons Share Alike (CC BY-SA) license" och nämner ingen

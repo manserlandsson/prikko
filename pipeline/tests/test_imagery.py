@@ -299,12 +299,101 @@ class TestLagring(unittest.TestCase):
 
     def test_okonfigurerad_lagring_ar_none_inte_halvfardig(self):
         self.assertIsNone(imagestore.from_env({"R2_BUCKET": "prikko-bilder"}))
+        self.assertIsNone(imagestore.r2_from_env({"R2_BUCKET": "prikko-bilder"}))
         self.assertIn("R2_ACCOUNT_ID", imagestore.missing_settings({"R2_BUCKET": "b"}))
         self.assertEqual(
             imagestore.missing_settings(
                 {name: "x" for name in imagestore.REQUIRED}
             ),
             [],
+        )
+
+    def test_r2_valjs_fore_supabase_nar_bada_finns(self):
+        """Ordningen är en rangordning och inte en slump.
+
+        Supabase finns för att kunna köra innan R2 är uppsatt. Den dagen
+        ägaren skapar R2-nycklarna ska nästa körning byta lagring av sig
+        själv, utan att någon behöver komma ihåg en flagga. Faller det här
+        testet fortsätter bilderna tyst att skrivas till den trängre
+        lagringen med trafiktak.
+        """
+        bada = {
+            **{name: "x" for name in imagestore.REQUIRED},
+            "SUPABASE_URL": "https://p.supabase.co",
+            "SUPABASE_SERVICE_KEY": "hemlig",
+        }
+        self.assertIsInstance(imagestore.from_env(bada), imagestore.R2Store)
+
+    def test_supabase_valjs_nar_r2_saknas(self):
+        env = {"SUPABASE_URL": "https://p.supabase.co/", "SUPABASE_SERVICE_KEY": "hemlig"}
+        store = imagestore.from_env(env)
+        self.assertIsInstance(store, imagestore.SupabaseStore)
+        self.assertEqual(store.bucket, imagestore.SUPABASE_BUCKET)
+        self.assertEqual(
+            store.public_base_url,
+            "https://p.supabase.co/storage/v1/object/public/prikko-bilder",
+        )
+
+    def test_supabase_utan_nyckel_ar_none(self):
+        self.assertIsNone(
+            imagestore.supabase_from_env({"SUPABASE_URL": "https://p.supabase.co"})
+        )
+        self.assertIsNone(
+            imagestore.supabase_from_env({"SUPABASE_SERVICE_KEY": "hemlig"})
+        )
+
+    def test_supabase_skriver_med_upsert_och_ger_publik_url(self):
+        """En omkörning ska skriva över samma objekt, inte svara 409.
+
+        Nyckeln är deterministisk (se object_key), så utan `x-upsert` hade
+        varje körning efter den första fallit på varje bild som redan fanns.
+        """
+        sedda: dict = {}
+
+        class FalskSvar:
+            def read(self):
+                return b""
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+        def falsk_urlopen(request, timeout=60):
+            sedda["url"] = request.full_url
+            sedda["method"] = request.get_method()
+            sedda["headers"] = {k.lower(): v for k, v in request.header_items()}
+            sedda["data"] = request.data
+            return FalskSvar()
+
+        riktig = imagestore.urllib.request.urlopen
+        imagestore.urllib.request.urlopen = falsk_urlopen
+        try:
+            store = imagestore.SupabaseStore(
+                url="https://p.supabase.co", service_key="hemlig", bucket="gatubilder"
+            )
+            url = store.put("gatubilder/linkoping/a b.webp", b"bytes", "image/webp")
+        finally:
+            imagestore.urllib.request.urlopen = riktig
+
+        self.assertEqual(sedda["method"], "POST")
+        self.assertEqual(
+            sedda["url"],
+            "https://p.supabase.co/storage/v1/object/gatubilder/"
+            "gatubilder/linkoping/a%20b.webp",
+        )
+        self.assertEqual(sedda["headers"]["x-upsert"], "true")
+        # `apikey` är det huvud Storage faktiskt läser. Med bara Authorization
+        # svarar tjänsten 400 "Invalid Compact JWS", eftersom projektets nyckel
+        # är av den nya sorten och inte en JWT. Se kommentaren i put().
+        self.assertEqual(sedda["headers"]["apikey"], "hemlig")
+        self.assertEqual(sedda["headers"]["authorization"], "Bearer hemlig")
+        self.assertEqual(sedda["data"], b"bytes")
+        self.assertEqual(
+            url,
+            "https://p.supabase.co/storage/v1/object/public/gatubilder/"
+            "gatubilder/linkoping/a%20b.webp",
         )
 
 

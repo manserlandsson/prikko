@@ -8,9 +8,14 @@
     python3 pipeline/hamta_gatubilder.py --fil site/src/data/linkoping.json \
         --antal 20 --lokal ~/prikko-bilder --bas-url http://localhost:8788/bilder
 
-    # skarpt, mot Supabase och R2
+    # skarpt, mot Supabase
     set -a && . ~/.prikko-env && set +a
     python3 pipeline/hamta_gatubilder.py --kommun 0580 --antal 500
+
+    # Raden ovan sätter INTE MAPILLARY_TOKEN: värdet innehåller lodstreck och
+    # sönderdelas av skalet. Skriptet läser därför site/.env som reserv, se
+    # mapillary_token(). Sätt citattecken runt värdet i ~/.prikko-env så
+    # försvinner även varningarna om "command not found".
 
     # saknas R2-variablerna i miljön mellanlagras bilderna i ~/prikko-bilder
     # och URL:erna skrivs mot https://bilder.prikko.se — sätt upp bucketen
@@ -72,7 +77,8 @@ STAGING_BASE_URL = "https://bilder.prikko.se"
 
 STAGING_BANNER = f"""\
 --------------------------------------------------------------------------------
-R2 är inte konfigurerat i ~/.prikko-env, så bilderna mellanlagras lokalt:
+Varken R2 eller Supabase är konfigurerat i ~/.prikko-env, så bilderna
+mellanlagras lokalt:
 
     filer:            {STAGING_DIR}
     URL som lagras:   {STAGING_BASE_URL}/gatubilder/...
@@ -106,6 +112,41 @@ Nästa körning med variablerna satta skriver direkt till R2.
 def public_facing(types: Iterable[str]) -> bool:
     joined = " ".join(types or []).lower()
     return any(word in joined for word in PUBLIC_FACING)
+
+
+#: site/.env, reservkällan för Mapillary-token. Se mapillary_token.
+ENV_FILE = Path(__file__).resolve().parent.parent / "site" / ".env"
+
+
+def mapillary_token() -> str:
+    """Token ur miljön, annars ur site/.env.
+
+    DEN TYSTA BUGGEN DET HÄR FINNS FÖR:
+
+    Docstringen överst säger `set -a && . ~/.prikko-env && set +a`, och den
+    raden fungerar inte för just den här variabeln. Mapillarys token har formen
+    `MLY|<id>|<hemlighet>`, och lodstrecken är rörtecken för skalet. Utan
+    citattecken runt värdet delar zsh raden i tre kommandon, skriver
+    "command not found" om två av dem och sätter variabeln till ingenting.
+
+    Utfallet var värre än ett fel: skriptet fortsatte, föll tillbaka på enbart
+    Panoramax, och hämtade alltså bilder för de få procent av verksamheterna som
+    Panoramax täcker inom trettio meter i stället för de 49,2 procent Mapillary
+    täcker. Mätt 2026-08-13 på fyrtio verksamheter i Linköping: noll bilder med
+    den sönderdelade tokenen, tjugo med den hela.
+
+    Att läsa site/.env som reserv gör felet ofarligt oavsett hur miljön är
+    satt. Samma väg in som matt_bildtackning.py redan använder.
+    """
+    value = os.environ.get("MAPILLARY_TOKEN", "").strip()
+    if value:
+        return value
+    if not ENV_FILE.exists():
+        return ""
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith("MAPILLARY_TOKEN="):
+            return line.split("=", 1)[1].strip()
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -227,13 +268,27 @@ def build_store(args) -> tuple[Optional[object], bool]:
 
     store = imagestore.from_env()
     if store is None:
-        # Inte ett fel utan ett läge: ägaren har inte satt upp R2-hinken än.
+        # Inte ett fel utan ett läge: ingen lagring alls är konfigurerad.
         # Hämtningen ska inte behöva vänta på det, så vi mellanlagrar lokalt
         # mot den adress bucketen ska få. Se STAGING_BANNER.
         print(STAGING_BANNER, file=sys.stderr)
         return imagestore.LocalStore(
             directory=STAGING_DIR, public_base_url=STAGING_BASE_URL
         ), True
+
+    # Vilken lagring som valdes är inte en detalj: URL:en hamnar i databasen
+    # och i datafilerna, och den som kör ska veta vilken adress bilderna får
+    # innan några tusen rader skrivs. Se imagestore.from_env för ordningen.
+    if isinstance(store, imagestore.SupabaseStore):
+        print(
+            "Lagring: Supabase Storage, hinken "
+            f"{store.bucket}. R2 saknas i miljön ("
+            + ", ".join(imagestore.missing_settings())
+            + ").\nR2 är fortfarande målet, se pipeline/prikko/imagestore.py. "
+            "Flytten dit är en\nkopiering plus en SQL-sats, eftersom nycklarna "
+            "är desamma i båda lagringarna.",
+            file=sys.stderr,
+        )
     return store, False
 
 
@@ -250,7 +305,11 @@ def upload_staged() -> int:
     store = imagestore.from_env()
     if store is None:
         missing = ", ".join(imagestore.missing_settings())
-        raise SystemExit(f"--ladda-upp kräver R2 i miljön. Saknas: {missing}.")
+        raise SystemExit(
+            "--ladda-upp kräver en konfigurerad lagring i miljön. Antingen "
+            "SUPABASE_URL och\nSUPABASE_SERVICE_KEY, eller R2, där dessa "
+            f"saknas: {missing}."
+        )
     files = sorted(p for p in STAGING_DIR.rglob("*") if p.is_file())
     if not files:
         print(f"Ingenting att ladda upp i {STAGING_DIR}.", file=sys.stderr)
@@ -309,7 +368,7 @@ def main() -> int:
             "gör och tänker ladda upp direkt efteråt: lägg till --mellanlagra."
         )
 
-    token = os.environ.get("MAPILLARY_TOKEN", "").strip()
+    token = mapillary_token()
     if not token:
         print(
             "MAPILLARY_TOKEN saknas — bara Panoramax används, och den är mätt till\n"

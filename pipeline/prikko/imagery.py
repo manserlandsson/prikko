@@ -87,6 +87,23 @@ USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se)"
 #:
 #: Syftet är "aha, det är DEN restaurangen". Mot det syftet är en ungefärlig
 #: bild inte en halv bild utan ett fel, för besökaren tror att hen sett stället.
+#:
+#: RÄTTELSE 2026-08-13, och den rör bara talen ovan, inte gränsen.
+#:
+#: Urvalet bakom siffrorna var proportionellt mot beståndet, och beståndet är
+#: till två tredjedelar Stockholm. 63,0 procent vid 30 meter var alltså i
+#: praktiken Stockholms tal och inte rikets. Med ett stratifierat urval, 60
+#: verksamheter ur var och en av de åtta kommuner som har koordinater, och vägt
+#: tillbaka mot varje kommuns verkliga storlek:
+#:
+#:     rikssiffran vid 30 m och ±45°: 49,2 %, alltså omkring 4 330 sidor
+#:
+#: Per kommun spänner det från 58,3 procent i Stockholm till 5,0 i Karlstad.
+#: Täckningen har inte fallit; mätningen har blivit ärlig. Kör om den med
+#: `python3 pipeline/matt_troskel.py 60 --per-kommun`. Se docs/28_gatubilder.md.
+#:
+#: Gränsen står kvar på 30 meter. Den valdes av vad som visar rätt hus och inte
+#: av vad täckningen råkade bli, och det skälet är oberört av rättelsen.
 MAX_DISTANCE_M = 30
 
 #: Hur mycket kamerariktningen får avvika från bäringen kamera → verksamhet.
@@ -646,10 +663,15 @@ def find_candidate(
     """Bästa gatubild för en punkt: Mapillary först, Panoramax som reserv.
 
     Ordningen är beslutad av ägaren efter mätningen med egen token 2026-08-04.
-    Mapillary bär funktionen (42 procent inom 60 m mot urvalet, jämnt över
-    kommunerna). Panoramax är marginell totalt men vinner lokalt — Uppsala låg
-    på 26,9 procent inom 60 m — och den kostar ingenting och kräver ingen
-    token. Den tillfrågas därför bara när Mapillary inte gav något.
+    Mapillary bär funktionen: 49,2 procent inom 30 m, vägt mot beståndet
+    2026-08-13. Panoramax är marginell totalt men vinner lokalt, Uppsala låg på
+    26,9 procent inom 60 m, och den kostar ingenting och kräver ingen token. Den
+    tillfrågas därför bara när Mapillary inte gav något.
+
+    HÄR STOD "jämnt över kommunerna", OCH DET VAR FEL. Den stratifierade
+    mätningen 2026-08-13 visar ett spann från 58,3 procent i Stockholm till 5,0
+    i Karlstad, alltså mer än tio gånger. Täckningen är en lokalfråga och får
+    inte utlovas jämnt över landet. Se docs/28_gatubilder.md del C3.
 
     Båda källorna går genom samma grindar: avstånd, kamerariktning mot
     verksamheten, ingen 360-utvikning, och för Panoramax dessutom licensen

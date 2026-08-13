@@ -35,7 +35,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from matt_bildtackning import USER_AGENT, token, urval  # noqa: E402
+from matt_bildtackning import (  # noqa: E402
+    USER_AGENT,
+    token,
+    urval,
+    urval_per_kommun,
+    vikter,
+)
 from prikko.imagery import (  # noqa: E402
     MAX_BEARING_OFF_DEG,
     MAX_DISTANCE_M,
@@ -115,17 +121,26 @@ def kandidater(rad: dict) -> list[dict]:
 
 
 def main() -> int:
-    antal = int(sys.argv[1]) if len(sys.argv) > 1 else 400
+    argument = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flaggor = {a for a in sys.argv[1:] if a.startswith("--")}
+    antal = int(argument[0]) if argument else 400
     access_token = token()
     if not access_token:
         print("MAPILLARY_TOKEN saknas. Ligger i site/.env.", file=sys.stderr)
         return 1
 
-    rader = urval(antal)
+    # Med --per-kommun betyder talet hur många rader varje kommun bidrar med,
+    # inte hur många rader urvalet har totalt. Se urval_per_kommun.
+    stratifierat = "--per-kommun" in flaggor
+    rader = urval_per_kommun(antal) if stratifierat else urval(antal)
     if not rader:
         print("Inga rader. Kör export_supabase.py först.", file=sys.stderr)
         return 1
-    print(f"Urval: {len(rader)} publikvända verksamheter med koordinat.\n")
+    if stratifierat:
+        print(f"Urval: {len(rader)} rader, högst {antal} per kommun.")
+        print("Rikssiffran vägs mot beståndet, se sista tabellen.\n")
+    else:
+        print(f"Urval: {len(rader)} publikvända verksamheter med koordinat.\n")
 
     # traff[(troskel, riktning)] = antal verksamheter med minst en bild som
     # klarar båda kraven plus dagsljus och icke-360.
@@ -212,9 +227,22 @@ def main() -> int:
               f"störst {max(avstand_vald):5.1f} m")
 
     print(f"\n=== Per kommun vid {MAX_DISTANCE_M} m och ±{MAX_BEARING_OFF_DEG}°, alltså skarpt läge ===")
+    storlek = vikter()
     for kommun, (hit, n) in sorted(per_kommun.items(), key=lambda x: -x[1][1]):
         if n:
-            print(f"  {kommun:16s} {hit:4d}/{n:<4d} {100 * hit / n:5.1f} %")
+            print(f"  {kommun:16s} {hit:4d}/{n:<4d} {100 * hit / n:5.1f} %"
+                  f"   bestånd {storlek.get(kommun, 0):5d}")
+
+    # Ett stratifierat urval ger inte rikssiffran rakt av: Svenljunga och
+    # Stockholm väger lika tungt i det, men inte i beståndet. Varje kommuns
+    # uppmätta andel skalas därför med sin verkliga storlek. Kommuner utan
+    # koordinat har noll i beståndet och faller ur summan av sig själva.
+    vagt = sum(storlek.get(k, 0) * hit / n for k, (hit, n) in per_kommun.items() if n)
+    bas = sum(storlek.get(k, 0) for k, (_, n) in per_kommun.items() if n)
+    if bas:
+        print(f"\n=== Viktad rikssiffra vid {MAX_DISTANCE_M} m och ±{MAX_BEARING_OFF_DEG}° ===")
+        print(f"  {100 * vagt / bas:.1f} % av {bas} publikvända verksamheter med koordinat")
+        print(f"  alltså ungefär {round(vagt)} sidor som får en gatubild")
     return 0
 
 

@@ -117,6 +117,39 @@ def urval(limit: int) -> list[dict]:
     return rows[:limit]
 
 
+def urval_per_kommun(per_kommun: int) -> list[dict]:
+    """Lika många per kommun, i stället för proportionellt mot beståndet.
+
+    Det vanliga urvalet är proportionellt, och Stockholm är 65 procent av de
+    publikvända verksamheterna med koordinat. Ett urval om 400 ger därför fem
+    rader i Oskarshamn och noll säkerhet om dem. Frågan "räcker Mapillary i
+    en mindre ort" går alltså inte att besvara med det urvalet, och det är
+    precis den frågan som avgör om en andra källa behövs.
+
+    Här tas i stället högst `per_kommun` rader ur varje kommun. Talen per
+    kommun blir jämförbara med varandra, och rikssiffran räknas om mot
+    beståndet efteråt i stället för att läsas rakt av. Se `vikter`.
+    """
+    alla = urval(10**9)
+    per: dict[str, list[dict]] = defaultdict(list)
+    for rad in alla:
+        per[rad["kommun"]].append(rad)
+    ut: list[dict] = []
+    for kommun in sorted(per):
+        ut.extend(per[kommun][:per_kommun])
+    return ut
+
+
+def vikter() -> dict[str, int]:
+    """Hur många publikvända verksamheter med koordinat varje kommun har.
+
+    Används för att räkna om ett stratifierat urval till en rikssiffra: varje
+    kommuns uppmätta andel vägs med sin verkliga storlek. Utan det blir
+    Svenljunga lika tungt som Stockholm.
+    """
+    return Counter(rad["kommun"] for rad in urval(10**9))
+
+
 def narmaste_mapillary(rad: dict, access_token: str) -> float | None:
     params = urllib.parse.urlencode({
         "access_token": access_token,

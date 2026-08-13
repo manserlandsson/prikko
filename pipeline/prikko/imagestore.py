@@ -234,6 +234,111 @@ class R2Store:
 
 
 # ---------------------------------------------------------------------------
+# Supabase Storage
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SupabaseStore:
+    """Objektlagring i Supabase, för att kunna köra innan R2 finns.
+
+    VARFÖR DEN HÄR FINNS, trots att texten överst säger R2:
+
+    R2 kräver fem värden som bara ägaren kan skapa, och de har inte skapats.
+    Så länge de saknas står hela gatubildsvägen still, och den står still på en
+    klickväg och inte på ett tekniskt problem. Supabases service-nyckel finns
+    däremot redan i ~/.prikko-env och projektet lagrar redan bilder där, i
+    hinken `verksamhetsbilder`. Alltså finns det en lagring som fungerar i dag,
+    och en pipeline som fungerar i dag är värd mer än en som väntar på ett
+    konto. Gatubilderna får en EGEN hink, se SUPABASE_BUCKET.
+
+    R2 är fortfarande målet och den ordningen är oförändrad: `from_env` väljer
+    R2 så snart variablerna finns. Skälet står överst, och det är
+    trafiktaket. Supabases gratisnivå ger 5 GB utgående i månaden, och en sajt
+    som lever på söktrafik ska inte ha ett tak på sina bilder.
+
+    FLYTTEN SENARE ÄR EN SQL-SATS, och det är med avsikt. Objektnyckeln är
+    densamma i båda lagringarna (se imagery.object_key), så när R2 finns
+    kopieras objekten rakt av och URL:erna i public.images rättas med ett
+    enda `replace` över bas-adressen. Ingen bild behöver hämtas om, och
+    ingen verksamhet tappar sin bild på vägen.
+
+    Skrivningen sker med `x-upsert: true`, så att en omkörning skriver över
+    samma objekt i stället för att svara 409. Samma egenskap som gör nyckeln
+    deterministisk: en pipeline man vågar köra om.
+    """
+
+    url: str
+    service_key: str
+    bucket: str
+
+    @property
+    def public_base_url(self) -> str:
+        return f"{self.url.rstrip('/')}/storage/v1/object/public/{self.bucket}"
+
+    def put(self, key: str, data: bytes, content_type: str) -> str:
+        endpoint = (
+            f"{self.url.rstrip('/')}/storage/v1/object/"
+            f"{self.bucket}/{_quote_key(key)}"
+        )
+        request = urllib.request.Request(
+            endpoint,
+            data=data,
+            method="POST",
+            headers={
+                # BÅDA huvudena, och `apikey` är det som faktiskt bär.
+                #
+                # Projektets service-nyckel är av den nya sorten, `sb_secret_…`,
+                # och den är ingen JWT. Storage försöker tolka ett Bearer-värde
+                # som en signerad token och svarar annars 400 med "Invalid
+                # Compact JWS", vilket läser som ett fel i nyckeln i stället
+                # för i huvudet. Mätt mot projektet 2026-08-13: enbart `apikey`
+                # ger 200, enbart `Authorization` ger 400.
+                #
+                # `Authorization` står ändå kvar, dels för att en gammal
+                # JWT-nyckel ska fungera om någon byter tillbaka, dels för att
+                # det är formen resten av pipelinen använder mot PostgREST.
+                "apikey": self.service_key,
+                "Authorization": f"Bearer {self.service_key}",
+                "Content-Type": content_type,
+                "x-upsert": "true",
+                # Nyckeln är deterministisk men innehållet kan bytas av en
+                # omkörning, så ett år är för långt för `immutable`. En dag
+                # räcker: bilderna byts sällan och sidan byggs om varje natt.
+                "Cache-Control": "public, max-age=86400",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                response.read()
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:400]
+            raise StorageError(f"Supabase PUT {key} → {exc.code}: {detail}") from exc
+        except OSError as exc:
+            raise StorageError(f"Supabase PUT {key} → {exc}") from exc
+
+        return f"{self.public_base_url}/{_quote_key(key)}"
+
+
+#: Hinken gatubilderna hamnar i.
+#:
+#: Egen hink och inte `verksamhetsbilder`, som bär besökarnas och ägarnas
+#: publicerade bilder. Skälet är detsamma som docs/13 del C6b ger för att hålla
+#: `community` och `public` isär: en redaktionell bild pipelinen hämtat och en
+#: bild en människa skickat in är inte samma sorts uppgift, och en gemensam
+#: hink gör dem omöjliga att skilja åt när något ska tas bort. Dessutom har
+#: hinkarna olika livslängd: den här kan tömmas och fyllas om av en omkörning,
+#: den andra aldrig.
+#:
+#: Namnet är R2-hinkens namn med avsikt, trots att hinken ligger i Supabase.
+#: Då är objektets hela sökväg efter bas-adressen densamma i båda lagringarna,
+#: och flytten till R2 blir en ren kopiering plus ett `replace` över
+#: bas-adressen i public.images.url. Ett annat namn här hade gjort varje
+#: sökväg olika och flytten till en översättningstabell.
+SUPABASE_BUCKET = "prikko-bilder"
+
+
+# ---------------------------------------------------------------------------
 # Lokal katalog
 # ---------------------------------------------------------------------------
 
@@ -277,7 +382,7 @@ def missing_settings(env: Optional[dict] = None) -> list[str]:
     return [name for name in REQUIRED if not (source.get(name) or "").strip()]
 
 
-def from_env(env: Optional[dict] = None) -> Optional[R2Store]:
+def r2_from_env(env: Optional[dict] = None) -> Optional[R2Store]:
     """R2-lagringen ur miljön, eller None om den inte är konfigurerad.
 
     Returnerar hellre None än en halvt ifylld lagring. Anroparen ska säga till
@@ -293,3 +398,38 @@ def from_env(env: Optional[dict] = None) -> Optional[R2Store]:
         secret_key=source["R2_SECRET_ACCESS_KEY"].strip(),
         public_base_url=source["R2_PUBLIC_BASE_URL"].strip(),
     )
+
+
+def supabase_from_env(env: Optional[dict] = None) -> Optional[SupabaseStore]:
+    """Supabase-lagringen ur miljön, eller None.
+
+    Service-nyckeln går förbi radsäkerheten och bor bara i ~/.prikko-env.
+    Samma nyckel som resten av pipelinen redan använder; inget nytt konto och
+    ingen ny klickväg.
+    """
+    source = os.environ if env is None else env
+    url = (source.get("SUPABASE_URL") or "").strip()
+    key = (source.get("SUPABASE_SERVICE_KEY") or "").strip()
+    if not url or not key:
+        return None
+    return SupabaseStore(
+        url=url,
+        service_key=key,
+        bucket=(source.get("GATUBILDER_BUCKET") or SUPABASE_BUCKET).strip(),
+    )
+
+
+def from_env(env: Optional[dict] = None) -> Optional[Store]:
+    """Bästa tillgängliga lagring, eller None när ingen är konfigurerad.
+
+    Ordningen är en rangordning och inte en slump. R2 först: 10 GB lagring och
+    ingen avgift alls för utgående trafik, vilket är den enda egenskap som
+    verkligen betyder något för en sajt som lever på söktrafik. Supabase sedan:
+    trängre på båda punkter, men konfigurerad i dag, medan R2 väntar på fem
+    värden bara ägaren kan skapa.
+
+    Att välja Supabase när R2 saknas är alltså inte att ge upp R2. Det är att
+    inte låta hela bildvägen stå still på en klickväg. Flytten är en kopiering
+    plus en SQL-sats, se SupabaseStore.
+    """
+    return r2_from_env(env) or supabase_from_env(env)
