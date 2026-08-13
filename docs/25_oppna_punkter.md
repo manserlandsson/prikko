@@ -20,6 +20,7 @@ Senast genomgången: 2026-08-12.
 | Utgivningsbevis | 3 000 kr. Skjuts upp tills vidare. | Uppskjuten |
 | GitHub Actions | Pushar startar fortfarande inga körningar. Kolla fliken. | Din åtgärd |
 | Migadu | Mejlen är inte färdigflyttad. | Din åtgärd |
+| Resend-nyckel | `RESEND_API_KEY` som GitHub-hemlighet. Bevakningarna fyller kontot varje natt utan den; nyckeln lägger bara till mejlet. Ingen kodändring behövs, nattjobbet väljer gren själv. | Din åtgärd |
 
 ---
 
@@ -31,16 +32,16 @@ Ingen. Kön är tom och allt är pushat, se listan längst ned.
 
 ## Kvar att ta tag i, ingen på det än
 
-- **Områdeskartan är sista andra datavägen.** `OmradeKarta.astro` läser
-  fortfarande `map-data.ts` för sin byggtidsbild och sin GeoJSON-källa. Först
-  när den bytt till rutarkivet kan `map-data.ts`, `pages/kartdata/`, propen
-  `data` på KartaPuff och `mapDataset`-anropet i `KommunHub.astro` tas bort.
-  Steg 7 i `23_rikskartan.md`.
 - **Kontroller per år.** En linje över tid saknas som form. Statistikagenten
   frågade om den ska byggas och fick aldrig svar.
 - **Företagsverifiering.** Du nedprioriterade den uttryckligen: att allt
   fungerar och ser ut som Booli går före.
-- **Bevakningslistan.** Vad en bevakning faktiskt gör är fortfarande obestämt.
+- **Bevakningslistan på kontot visar bara namn och stad.** Vad en bevakning ÄR
+  är avgjort, se `17_produktfunktioner.md`, avsnittet "Vad en bevakning gör":
+  en lista på kontot, med mejlet som tillägg. Notiserna skrivs numera varje
+  natt utan mejlnyckel. Kvar är att raden på `/konto/` bär bedömning och
+  senaste kontrolldatum och länkar till verksamheten i stället för till en
+  sökning. Punkt 7 i rapport 17.
 - **Mejlkampanjen till 275 kommuner** enligt offentlighetsprincipen.
 
 ---

@@ -658,12 +658,11 @@ Varje steg ska kunna pushas ensamt utan att sajten går sönder.
    `lib/kartrutor.ts`. Att zoomen räknas på ETT ställe är hela poängen: varje
    sidmall som gissar en zoom gissar olika.
 6. ~~**Sökningen** pekas om.~~ KLAR. Se "Sökningen" ovan.
-7. **Städningen.** DELVIS. `KartaPuff` läser numera arkivet och ingenting ur
-   `map-data.ts`. Kvar står `OmradeKarta`, som läser `data.body` för sin
-   byggtidsbild och sin egen GeoJSON-källa. Först när den bytt kan
-   `map-data.ts` och `pages/kartdata/[file].json.ts` tas bort, och
-   `KartaPuff`-propen `data` och `mapDataset`-anropet i `KommunHub.astro` med
-   dem. Se "Vad som är kvar" nedan.
+7. ~~**Städningen.**~~ KLAR. `OmradeKarta` läser rutarkivet, och därmed finns
+   ingen läsare kvar av kommunfilerna. Borttagna: `src/lib/map-data.ts`,
+   `src/pages/kartdata/[file].json.ts`, `KartaPuff`-propen `data`,
+   `mapDataset`-anropet i `KommunHub.astro` och det i `OmradeHub.astro`, samt
+   `/kartdata/*`-regeln i `public/_headers`. Sajten har EN kartdatakälla.
 
 ## Kategorifiltret, och varför det finns i rutorna
 
@@ -701,16 +700,31 @@ där det syns.
 
 ## Vad som är kvar
 
-- **`OmradeKarta.astro` läser fortfarande `map-data.ts`.** Den ritar en
-  byggtidsbild ur `data.body` och väcker sedan MapLibre mot en egen
-  GeoJSON-källa med gränsen som ett lager ovanpå. Lösningen är godkänd och rivs
-  inte, men den är den sista andra datavägen. Bytet är inte en radering utan ett
-  eget arbete: nedtoningen av det som ligger utanför gränsen bygger på att varje
-  punkt prövas mot polygonen vid bygget, och med rutor sker prövningen i
-  klienten mot det som råkar ligga i de laddade rutorna.
-- **`map-data.ts` och `pages/kartdata/[file].json.ts`** kan tas bort först
-  därefter, tillsammans med `KartaPuff`-propen `data` och `mapDataset`-anropet i
-  `KommunHub.astro`.
+- ~~**`OmradeKarta.astro` läser fortfarande `map-data.ts`.**~~ KLAR, och de två
+  halvorna löstes var för sig.
+
+  **Stillbilden** ritar fortfarande varje punkt löst, men läser
+  `establishments()` i stället för `data.body`, alltså de rader rutarkivet
+  självt byggs av, ett steg tidigare i samma kedja. Det är databasen och inte
+  en andra dataväg tillbaka.
+
+  **Den levande kartan** läser rutorna. Nedtoningen prövas därmed i klienten,
+  precis som anteckningen här förutsåg, men inte med en kopierad strålmetod:
+  MapLibres `within` prövar punkten mot samma ringar i ett LAGERFILTER, alltså
+  i arbetartråden när rutan packas upp. Ringarna skickas som en MultiPolygon
+  med en polygon per ytterring och hålen på var och en, vilket är
+  `containsPoint` uttryckt i GeoJSON. Samma objekt ritar gränsen och avgör vad
+  som ligger innanför, så de två kan inte säga emot varandra. Formen
+  `[...outer, ...inner]` som stod där förut läste allt utom första ringen som
+  hål, vilket är fel för Torvinge industriområde i Linköping och dess elva
+  ytterringar.
+
+  Priset står utskrivet i komponenten: rutorna är klustrade upp till z13 och de
+  53 områdena öppnar mellan z11,2 och z18,5, så merparten av punkterna ligger i
+  bubblor vid första anblicken. Bubblorna tonas ned och delas innanför och
+  utanför på samma sätt som nålarna, så bilden säger samma sak, och en bubbla
+  prövas på sin tyngdpunkt. Vinsten är att besökaren hämtar sitt utsnitt i
+  stället för hela kommunen, alltså några kilobyte mot Stockholms 106.
 - **Kortens form i den delade vyn.** Mätningen av Booli ovan säger en spalt med
   640 × 172; vi kör två spalter med textkort. Valet är motiverat, men
   kortformen som sådan är formgivningsarbete och ligger utanför den här planen.

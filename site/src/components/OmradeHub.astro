@@ -18,7 +18,6 @@ import OmradeKarta from './OmradeKarta.astro';
 import Pagination from './Pagination.astro';
 import { formatNumber, type Establishment, type Municipality } from '../lib/data';
 import { kartfragment, utsnitt } from '../lib/kartrutor';
-import { mapDataset } from '../lib/map-data';
 import {
   areaBounds,
   areaPreposition,
@@ -59,21 +58,21 @@ const platsen = `${prep} ${area.name}`;
 const share = slice.assessed ? Math.round((slice.clean / slice.assessed) * 100) : 0;
 const kommunen = municipalityCleanShare(kommun.slug);
 
-/** Kartan. Finns bara där kommunen har koordinater, alltså överallt där ett
- *  område alls kan ha en sida. */
-const karta = mapDataset(kommun.slug);
-
 /**
- * Vägen vidare in i den delade vyn, på områdets utsnitt.
+ * Kartan, och vägen vidare in i den delade vyn på områdets utsnitt.
  *
- * Villkoret är kartsidans eget, alltså `utsnitt`: en länk till en kartsida som
- * inte byggs är en 404, och de fyra kommuner som inte lämnar koordinater har
- * ingen. I praktiken har varje kommun med en områdessida också en kartsida,
- * men det är en följd och inte en garanti, och en följd är inget att länka på.
+ * Ett enda anrop avgör båda, och det är kartsidans eget: en länk till en
+ * kartsida som inte byggs är en 404, och de fyra kommuner som inte lämnar
+ * koordinater har ingen. I praktiken har varje kommun med en områdessida också
+ * en kartsida, men det är en följd och inte en garanti, och en följd är inget
+ * att länka på.
+ *
+ * Rutan hämtade tidigare sitt villkor ur `mapDataset`, alltså ur en annan
+ * modul än den länken bredvid frågade. Två svar på samma fråga blir förr eller
+ * senare två olika svar.
  */
-const kartlank = utsnitt(kommun.slug)
-  ? path(kommunBase, 'karta') + kartfragment(areaBounds(area))
-  : null;
+const karta = utsnitt(kommun.slug);
+const kartlank = karta ? path(kommunBase, 'karta') + kartfragment(areaBounds(area)) : null;
 
 /*
  * Fördelningen som stapel och antal, i kommunhubbens egen form: en tunn rad
@@ -277,7 +276,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
         {karta && (
           <div class="karta">
-            <OmradeKarta kommun={kommun} area={area} data={karta} count={total} />
+            <OmradeKarta kommun={kommun} area={area} count={total} />
             {/* Attributionen står här OCH i kartans hörn, av samma skäl som i
                 Karta.astro: kravet är att den syns, och ett kontrollelement
                 som kan fällas ihop är ingen garanti. */}

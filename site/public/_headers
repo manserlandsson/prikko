@@ -5,15 +5,16 @@
 #
 # ## Astro-rutter kan inte sätta huvuden i ett statiskt bygge
 #
-# `src/pages/kartrutor/[file].pmtiles.ts` returnerar ett `Response` med
+# `src/pages/kartrutor/[file].bin.ts` returnerar ett `Response` med
 # `Cache-Control: public, max-age=31536000, immutable`. I ett statiskt bygge
 # skrivs bara KROPPEN till en fil. Huvudena kastas, och det syns inte någonstans
 # i byggloggen.
 #
-# Samma sak gäller `/sok-index/` och `/kartdata/`, som båda dokumenterar samma
-# avsikt i sina moduler och båda har levererats med `max-age=0` sedan de
+# Samma sak gällde `/sok-index/` och `/kartdata/`, som båda dokumenterade samma
+# avsikt i sina moduler och båda hade levererats med `max-age=0` sedan de
 # skrevs. Adresserna är innehållsbaserade: byts innehållet byts filnamnet, så
-# ett år är inte en optimering utan vad adressen redan lovar.
+# ett år är inte en optimering utan vad adressen redan lovar. `/kartdata/` finns
+# inte längre, se nedan.
 #
 # ## Men huvudena räckte INTE, och det är den viktigaste raden i filen
 #
@@ -44,9 +45,13 @@
 # rättningen; se `lib/kartrutor.ts`. Reglerna nedan står kvar för att de är
 # rätt, inte för att de räckte.
 #
-# `/sok-index/` och `/kartdata/` är fortfarande DYNAMIC av samma skäl. De
-# hämtas en gång och fungerar, alltså kostar det svarstid och inte en trasig
-# sida, men samma byte av ändelse skulle hjälpa dem också.
+# `/sok-index/` är fortfarande DYNAMIC av samma skäl. Den hämtas en gång och
+# fungerar, alltså kostar det svarstid och inte en trasig sida, men samma byte
+# av ändelse skulle hjälpa den också.
+#
+# `/kartdata/` stod här bredvid och är borta ur bygget. Kommunernas punktfiler
+# var kartans andra datakälla, och när områdeskartan bytte till rutarkivet fanns
+# ingen läsare kvar. Regeln under är därför borttagen och inte bara oanvänd.
 #
 # KONTROLLERA EFTER UTRULLNING. Ett bygge kan inte se det här felet, eftersom
 # det uppstår i värdens beteende och inte i filen. Kör:
@@ -63,7 +68,4 @@
   Accept-Ranges: bytes
 
 /sok-index/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/kartdata/*
   Cache-Control: public, max-age=31536000, immutable

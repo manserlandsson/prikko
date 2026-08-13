@@ -21,7 +21,8 @@
  * Överlappet var inte kosmetiskt: rutan var en ANDRA kartimplementation mot en
  * ANDRA datakälla. `map-data.ts` levererade kommunfilen hit medan
  * `kartrutor.ts` levererade rutarkivet till kartvyn, alltså två vägar till
- * samma sanning som kunde glida isär utan att något sa ifrån.
+ * samma sanning som kunde glida isär utan att något sa ifrån. Kommunfilernas
+ * modul är sedan dess borttagen ur sajten; rutarkivet är den enda kvar.
  *
  * ## Vad som står här i stället
  *
@@ -75,22 +76,11 @@
  */
 import { formatNumber, type Municipality } from '../lib/data';
 import { tileSet, utsnitt } from '../lib/kartrutor';
-import type { MapDataset } from '../lib/map-data';
 import { path } from '../lib/urls';
 import '../styles/kartram.css';
 
 interface Props {
   kommun: Municipality;
-  /**
-   * Kommunens punktfil ur `map-data.ts`.
-   *
-   * ANVÄNDS INTE LÄNGRE och ligger kvar bara för att anroparen skickar den.
-   * Både utsnittet och talen läses numera ur rutarkivet, alltså ur kartans egen
-   * källa. Nästa gång KommunHub.astro ändå ska ändras ska propen och
-   * `mapDataset`-anropet där bort; då kan `map-data.ts` och
-   * `pages/kartdata/[file].json.ts` följa med, så snart OmradeKarta bytt källa.
-   */
-  data?: MapDataset;
 }
 
 const { kommun } = Astro.props;
@@ -568,9 +558,11 @@ const href = path(`/${kommun.slug}`, 'karta');
       }
     }
 
-    // Knappen är en länk till kartvyn och behöver ingen lyssnare. Referensen
-    // finns för att platshållaren ska kunna nås av stilarna vid uppvaknandet.
-    void knapp;
+    // Knappen är en länk till kartvyn och behöver varken lyssnare eller
+    // referens. Här stod `void knapp;` med en förklaring till en variabel som
+    // aldrig deklarerades, alltså ett ReferenceError sist i modulen. Det
+    // syntes inte i kartan, eftersom observatören redan var registrerad på
+    // raden ovanför, men konsolen bar ett fel på varje kommunsida.
   }
 </script>
 

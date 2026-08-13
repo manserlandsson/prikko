@@ -31,21 +31,54 @@
  * en telefon med dålig uppkoppling får stillbilden och knappen och betalar
  * noll extra byte.
  *
- * Punkterna hämtas ur kommunens egen kartdatafil, alltså samma oföränderliga
- * fil som kommunhubben och kartsöksidan redan använder. Ingen ny datamängd,
- * och för den som redan sett kommunsidan ligger den i cachen.
+ * ## Var punkterna kommer ifrån
+ *
+ * Rutarkivet, alltså `punkter-<hash>.bin`, samma fil som kommunhubbens ruta
+ * och den delade vyn läser. Här låg tidigare kommunens egen punktfil ur
+ * `map-data.ts`, och den var sajtens SISTA andra dataväg: två pipelines mot
+ * samma sanning, som kunde glida isär utan att något sa ifrån. Med den borta
+ * försvinner `map-data.ts` och `pages/kartdata/[file].json.ts` helt, se steg 7
+ * i docs/23_rikskartan.md.
+ *
+ * Bytet kostar en sak och ger en.
+ *
+ * Kostnaden är att rutorna är KLUSTRADE upp till zoom 13, och de femtiotre
+ * områdena öppnar mellan z11,2 och z18,5. På de flesta av dem ligger alltså
+ * merparten av punkterna i bubblor vid första anblicken, i stället för som
+ * lösa prickar. Bubblorna tonas ned på samma sätt som nålarna och innanför och
+ * utanför skiljs likadant, så bilden säger samma sak; att i stället gömma dem
+ * hade lämnat en tom karta på varje område i innerstaden.
+ *
+ * Vinsten är att webbläsaren hämtar sitt UTSNITT och inte hela kommunen.
+ * Stockholms punktfil vägde 106 kB brotlad innan en enda prick kunde ritas,
+ * och ett områdesutsnitt är några kilobyte.
+ *
+ * Stillbilden ritas fortfarande vid bygget, och den ritar varje punkt löst.
+ * Den läser `establishments()`, alltså precis de rader rutarkivet självt
+ * byggs av, ett steg tidigare i samma kedja. Det är inte en andra dataväg
+ * tillbaka: det är databasen, och rutorna är det enda som härleds ur den.
  *
  * ## Var gränsen delas
  *
  * Vilken punkt som ligger innanför avgörs på TVÅ ställen: här vid bygget för
  * stillbilden, och i webbläsaren för den levande kartan. De måste svara
  * likadant, annars hoppar prickarna färg i samma sekund som kartbladen kommer.
- * Byggsidan använder containsPoint i lib/omraden.ts; klientsidan har samma
- * strålmetod inlagd nedan, eftersom modulen inte följer med till webbläsaren.
+ *
+ * Byggsidan använder `containsPoint` i lib/omraden.ts. Klientsidan bar en egen
+ * kopia av strålmetoden, eftersom modulen inte följer med till webbläsaren.
+ * Kopian är borta: MapLibres `within` prövar punkten mot samma ringar i ett
+ * lagerfilter, alltså i arbetartråden när rutan packas upp. En kopierad
+ * algoritm mindre är en sanning mindre att hålla synkroniserad.
+ *
+ * Ringarna skickas som en MultiPolygon med EN polygon per ytterring och hålen
+ * på var och en. Det är `containsPoint` uttryckt i GeoJSON: innanför någon
+ * ytterring och inte i något hål. Formen `[...outer, ...inner]` som stod här
+ * förut betyder något annat i GeoJSON, nämligen att allt utom den första
+ * ringen är ett hål, och den läser fel för Torvinge industriområde i
+ * Linköping, som har elva ytterringar.
  */
-import type { Municipality } from '../lib/data';
-import { formatNumber } from '../lib/data';
-import type { MapDataset } from '../lib/map-data';
+import { establishments, formatNumber, type Municipality } from '../lib/data';
+import { MAP_VERDICTS, tileSet } from '../lib/kartrutor';
 import { areaBounds, containsPoint, type Area } from '../lib/omraden';
 import { path } from '../lib/urls';
 import '../styles/kartram.css';
@@ -53,12 +86,11 @@ import '../styles/kartram.css';
 interface Props {
   kommun: Municipality;
   area: Area;
-  data: MapDataset;
   /** Antal verksamheter i området. Bara för den alternativa texten. */
   count: number;
 }
 
-const { kommun, area, data, count } = Astro.props;
+const { kommun, area, count } = Astro.props;
 
 /** Stillbildens låda. Ramen är bredare än hög, som en kartvy ska vara. */
 const W = 640;
@@ -134,15 +166,10 @@ const outline = [...area.outer, ...area.inner]
   .join('');
 
 /*
- * Punkterna packas upp ur kommunens kartdatafil: deltakodade heltal i
- * hundratusendels grad, se formatavsnittet i map-data.ts.
- */
-const raw = JSON.parse(data.body) as { x: number[]; y: number[]; v: string };
-
-/*
  * En bana per bedömning plus en för allt utanför gränsen. "M123 45h0" med
  * rund linjeände är en punkt för en tiondel av markupen, samma grepp som
- * KartaPuff använder för att få plats med 8 511 punkter i en sida på 30 kB.
+ * KartaPuff en gång använde för att få plats med 8 511 punkter i en sida på
+ * 30 kB.
  */
 /*
  * Punkterna utanför gränsen behåller sin BEDÖMNINGSFÄRG och tonas ned med
@@ -157,24 +184,24 @@ const raw = JSON.parse(data.body) as { x: number[]; y: number[]; v: string };
 const inne: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
 const ute: Record<string, string[]> = { '3': [], '0': [], '1': [], '2': [] };
 
-let lng = 0;
-let lat = 0;
-for (let i = 0; i < raw.x.length; i += 1) {
-  lng += raw.x[i];
-  lat += raw.y[i];
-  const lon = lng / 1e5;
-  const la = lat / 1e5;
+for (const e of establishments(kommun.slug)) {
+  if (e.lat === null || e.lng === null) continue;
+  const lon = e.lng;
+  const la = e.lat;
 
   const x = (lon - west) * kx * scale;
   const y = (north - la) * scale;
-  // Utanför fönstret ritas ingenting. Det ÄR beskärningen, och den görs här
-  // så att punkter i andra änden av kommunen inte blir stora tal i markupen
-  // utan att någon får se dem.
+  // Utanför fönstret ritas ingenting. Det ÄR beskärningen, och den görs före
+  // punkt-i-polygon så att punkter i andra änden av kommunen varken kostar
+  // ett polygontest eller blir stora tal i markupen utan att någon får se dem.
   if (x < -4 || x > W + 4 || y < -4 || y > H + 4) continue;
 
+  const raw = e.verdict ? MAP_VERDICTS.indexOf(e.verdict) : 3;
+  const v = String(raw < 0 ? 3 : raw);
+
   const dot = `M${Math.round(x)} ${Math.round(y)}h0`;
-  if (containsPoint(area, lon, la)) inne[raw.v[i]]?.push(dot);
-  else ute[raw.v[i]]?.push(dot);
+  if (containsPoint(area, lon, la)) inne[v]?.push(dot);
+  else ute[v]?.push(dot);
 }
 
 const FARG: Record<string, string> = {
@@ -194,19 +221,31 @@ const LAGER = [
 
 const label = `Karta över ${area.name} i ${kommun.city} med ${formatNumber(count)} verksamheter`;
 
-/* Ringarna skickas till webbläsaren för att ritas som lager och för att
-   avgöra vad som ligger innanför. Fem decimaler räcker till en meter och är
-   samma precision som pipelinen lagrar. */
-const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
+/** Rutarkivet. Adressen bär innehållets hash, se lib/kartrutor.ts. */
+const rutor = tileSet();
+
+/*
+ * Gränsen som GeoJSON, och den formen är inte godtycklig. Se filhuvudet: en
+ * polygon per ytterring, med hålen på var och en, är `containsPoint` uttryckt
+ * i GeoJSON. Samma objekt ritar gränsen OCH avgör vad som ligger innanför, så
+ * de två kan inte säga emot varandra.
+ *
+ * Fem decimaler räcker till en meter och är samma precision som pipelinen
+ * lagrar.
+ */
+const omradet = JSON.stringify({
+  type: 'MultiPolygon',
+  coordinates: area.outer.map((ring) => [ring, ...area.inner]),
+});
 ---
 
 <figure class="omradeskarta">
   <div
     class="kartram"
     data-omradeskarta
-    data-src={data.url}
+    data-url={rutor.url}
     data-bounds={[west, south, east, north].join(',')}
-    data-rings={rings}
+    data-omrade={omradet}
     data-label={label}
   >
     <div class="still" data-still>
@@ -324,6 +363,8 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
     const knapp = root.querySelector<HTMLButtonElement>('[data-aktivera]')!;
     const fel = root.querySelector<HTMLElement>('[data-fel]')!;
 
+    const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     /* Bedömningens ytfärger. Samma värden som tokens.css, skrivna som tal av
        samma skäl som i Karta.astro och KartaPuff: MapLibre målar i WebGL och
        kan inte läsa en CSS-variabel. */
@@ -331,24 +372,21 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
     /** --brand i tokens.css. Ändras den där ändras den här. */
     const BRAND = '#007BE0';
 
-    type Ringar = { outer: number[][][]; inner: number[][][] };
-    const ringar: Ringar = JSON.parse(root.dataset.rings!);
+    /** Gränsen. Ritas som lager OCH används som filter, se filhuvudet. */
+    const OMRADET = JSON.parse(root.dataset.omrade!);
 
-    /** Strålmetoden. Samma test som lib/omraden.ts gör vid bygget. */
-    function iRing(x: number, y: number, ring: number[][]): boolean {
-      let inne = false;
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-        const [xi, yi] = ring[i];
-        const [xj, yj] = ring[j];
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inne = !inne;
-      }
-      return inne;
-    }
-
-    function iOmradet(x: number, y: number): boolean {
-      if (!ringar.outer.some((r) => iRing(x, y, r))) return false;
-      return !ringar.inner.some((r) => iRing(x, y, r));
-    }
+    /*
+     * De fyra villkoren som lagren nedan sätts ihop av.
+     *
+     * `within` är MapLibres eget punkt-i-polygon och får bara stå i ett
+     * FILTER, aldrig i en målningsegenskap. Det är därför nedtoningen är två
+     * lager per sak i stället för ett lager med ett uttryck för opaciteten:
+     * varje synlig grupp är sitt eget lager med sitt eget filter.
+     */
+    const BUBBLA: any = ['has', 'point_count'];
+    const NAL: any = ['!', ['has', 'point_count']];
+    const INNE: any = ['within', OMRADET];
+    const UTE: any = ['!', ['within', OMRADET]];
 
     let startad = false;
 
@@ -359,13 +397,9 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
 
       try {
         laddaMaplibreCss();
-        const [maplibre, raw] = await Promise.all([
+        const [maplibre, pmtiles] = await Promise.all([
           laddaMaplibre(),
-          fetch(root!.dataset.src!).then((r) => r.json()) as Promise<{
-            x: number[];
-            y: number[];
-            v: string;
-          }>,
+          import('pmtiles'),
         ]);
 
         /* Byter namn på MapLibres Map: den skuggar annars JavaScripts inbyggda
@@ -377,27 +411,50 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
           FullscreenControl,
         } = maplibre;
 
-        const inne: GeoJSON.Feature[][] = [[], [], [], []];
-        const uteHinkar: GeoJSON.Feature[][] = [[], [], [], []];
-        let lng = 0;
-        let lat = 0;
-        for (let i = 0; i < raw.x.length; i += 1) {
-          lng += raw.x[i];
-          lat += raw.y[i];
-          const lon = lng / 1e5;
-          const la = lat / 1e5;
-          const v = Number(raw.v[i]);
-          const f: GeoJSON.Feature = {
-            type: 'Feature',
-            properties: { v },
-            geometry: { type: 'Point', coordinates: [lon, la] },
+        /*
+         * Räckviddskällan, med reserv för en värd som struntar i Range.
+         *
+         * Samma funktion och samma skäl som i Karta.astro och KartaPuff, se den
+         * långa anteckningen där: Cloudflares kant besvarar `Range` ur sin
+         * cache, och en fil utanför cachen strömmas rakt igenom med 200 och
+         * hela kroppen. PMTiles hittar då ingen ruta, och kartan blir tom utan
+         * ett ord i konsolen. Behåller vi kroppen vi ändå fick kostar felet
+         * bandbredd i stället för en tom karta.
+         */
+        function rutkalla(url: string) {
+          let hel: Promise<ArrayBuffer> | null = null;
+
+          return {
+            getKey: () => url,
+            async getBytes(offset: number, length: number) {
+              if (hel) {
+                const buf = await hel;
+                return { data: buf.slice(offset, offset + length) };
+              }
+
+              const svar = await fetch(url, {
+                headers: { Range: `bytes=${offset}-${offset + length - 1}` },
+              });
+              if (!svar.ok) throw new Error('rutarkivet svarade ' + svar.status);
+
+              if (svar.status === 200) {
+                const buf = await svar.arrayBuffer();
+                hel = Promise.resolve(buf);
+                return { data: buf.slice(offset, offset + length) };
+              }
+
+              return { data: await svar.arrayBuffer() };
+            },
           };
-          if (iOmradet(lon, la)) inne[v]?.push(f);
-          else uteHinkar[v]?.push(f);
         }
-        // Grått, grönt, gult, rött. En anmärkning ska inte hamna under mängden.
-        const innePunkter = [...inne[3], ...inne[0], ...inne[1], ...inne[2]];
-        const utePunkter = [...uteHinkar[3], ...uteHinkar[0], ...uteHinkar[1], ...uteHinkar[2]];
+
+        const arkiv = root!.dataset.url!;
+        if (!(window as any).__prikkoPmtiles) {
+          const protokoll = new pmtiles.Protocol();
+          protokoll.add(new pmtiles.PMTiles(rutkalla(arkiv) as any));
+          maplibre.addProtocol('pmtiles', protokoll.tile);
+          (window as any).__prikkoPmtiles = true;
+        }
 
         const b = root!.dataset.bounds!.split(',').map(Number);
 
@@ -416,18 +473,16 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
         karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
 
         karta.on('load', () => {
+          karta.addSource('verksamheter', {
+            type: 'vector',
+            url: 'pmtiles://' + arkiv,
+          });
+
           /* Gränsen först, så att den ligger UNDER punkterna. Den är en
              markering av var man är, inte sidans motiv. */
           karta.addSource('omrade', {
             type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'Polygon',
-                coordinates: [...ringar.outer, ...ringar.inner],
-              },
-            },
+            data: { type: 'Feature', properties: {}, geometry: OMRADET },
           });
           karta.addLayer({
             id: 'omrade-yta',
@@ -442,48 +497,117 @@ const rings = JSON.stringify({ outer: area.outer, inner: area.inner });
             paint: { 'line-color': BRAND, 'line-width': 2, 'line-opacity': 0.75 },
           });
 
-          /* Det som ligger utanför gränsen. Nedtonat, aldrig dolt: gränsen
-             betyder ingenting om det inte finns något på andra sidan den.
+          /*
+           * Lagren, i par: allt utanför gränsen först, sedan områdets egna.
+           *
+           * Nedtoningen sker med STORLEK och OPACITET, aldrig med färg. Se
+           * anteckningen vid stillbilden: grått betyder "ingen bedömning"
+           * överallt annars på sajten och får inte låna en andra betydelse här.
+           *
+           * Bubblorna bär ANTAL och aldrig bedömning, samma regel som på
+           * kartsidan: en klusterfärg efter andel anmärkningar vore en
+           * värmekarta över vilka kvarter som sköter sig sämst. Talen är
+           * Karta.astros, oförändrade.
+           *
+           * En bubbla prövas mot gränsen på sin egen punkt, alltså på klustrets
+           * tyngdpunkt. En bubbla som spänner över gränsen hamnar därmed på den
+           * sida tyngdpunkten ligger. Det är en approximation och den står
+           * utskriven här, men den upphör i samma stund man zoomar in förbi
+           * z13, där rutorna är oklustrade och varje punkt prövas för sig.
+           *
+           * Ingen skuggcirkel under bubblorna, till skillnad från KartaPuff:
+           * de nedtonade bubblorna är genomskinliga, och en suddig skugga som
+           * lyser igenom läser som smuts i stället för som djup.
+           */
+          const bubbelYta = {
+            'circle-color': BRAND,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#fff',
+            'circle-radius': ['step', ['get', 'point_count'], 13, 25, 15, 100, 18, 500, 22],
+            'circle-radius-transition': { duration: reducerad ? 0 : 250 },
+          };
 
-             Nedtoningen sker med STORLEK och OPACITET, inte med färg. Se
-             anteckningen vid stillbilden: grått betyder "ingen bedömning"
-             överallt annars på sajten och får inte låna en andra betydelse
-             här. */
-          karta.addSource('ute', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: utePunkter },
-          });
+          const bubbelText = {
+            'text-field': ['get', 'point_count_abbreviated'],
+            // Stilens egna kakelfonter, och fet: vit normalvikt på mättat
+            // blått blir grumlig. Se Karta.astro.
+            'text-font': ['Noto Sans Bold'],
+            'text-size': ['step', ['get', 'point_count'], 12, 100, 13, 500, 14],
+            'text-allow-overlap': true,
+            'text-ignore-placement': true,
+          };
+
+          const nalFarg = ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]];
+
           karta.addLayer({
-            id: 'ute',
+            id: 'ute-nalar',
             type: 'circle',
-            source: 'ute',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', NAL, UTE],
             paint: {
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 3.5, 17, 5],
-              'circle-color': ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]],
+              'circle-color': nalFarg,
               'circle-opacity': 0.5,
               'circle-stroke-width': 1,
               'circle-stroke-color': '#fff',
               'circle-stroke-opacity': 0.5,
             },
-          });
+          } as any);
 
-          karta.addSource('inne', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: innePunkter },
-          });
           karta.addLayer({
-            id: 'inne',
+            id: 'ute-bubblor',
             type: 'circle',
-            source: 'inne',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', BUBBLA, UTE],
+            paint: { ...bubbelYta, 'circle-opacity': 0.4, 'circle-stroke-opacity': 0.4 },
+          } as any);
+
+          karta.addLayer({
+            id: 'ute-antal',
+            type: 'symbol',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', BUBBLA, UTE],
+            layout: bubbelText,
+            paint: { 'text-color': '#fff', 'text-opacity': 0.7 },
+          } as any);
+
+          karta.addLayer({
+            id: 'inne-nalar',
+            type: 'circle',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', NAL, INNE],
             paint: {
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5, 17, 8],
-              'circle-color': ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]],
+              'circle-color': nalFarg,
               // Vit kontur av samma skäl som nålen har den: utan kant drunknar
               // en gul punkt i en gul gata.
               'circle-stroke-width': 1,
               'circle-stroke-color': '#fff',
             },
-          });
+          } as any);
+
+          karta.addLayer({
+            id: 'inne-bubblor',
+            type: 'circle',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', BUBBLA, INNE],
+            paint: bubbelYta,
+          } as any);
+
+          karta.addLayer({
+            id: 'inne-antal',
+            type: 'symbol',
+            source: 'verksamheter',
+            'source-layer': 'punkter',
+            filter: ['all', BUBBLA, INNE],
+            layout: bubbelText,
+            paint: { 'text-color': '#fff' },
+          } as any);
 
           karta.getCanvas().setAttribute('aria-label', root!.dataset.label!);
           duk.removeAttribute('aria-hidden');
