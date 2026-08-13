@@ -1,0 +1,219 @@
+---
+/**
+ * Rapport: hur många kontroller ligger bakom ett omdöme?
+ *
+ * Talen kommer ur historyDepthReport(), den fasta texten beskriver metoden och
+ * förbehållen.
+ *
+ * Det här är den enda rapporten där utfallet ÄR en publiceringsartefakt, och
+ * där det är hela poängen. Sidan får därför aldrig formuleras som ett påstående
+ * om hur ofta kommunerna kontrollerar. Den handlar om vad som går att läsa
+ * efteråt, och varje mening ska gå att läsa så. Se huvudkommentaren till
+ * historyDepthReport i lib/rapporter.ts.
+ *
+ * Meningen om kommunerna där kravet aldrig kan uppfyllas räknas fram och skrivs
+ * ut. Den får inte strykas för att den är obekväm: en lista över vilka
+ * verksamheter som når ett krav är oärlig om den inte säger var kravet är
+ * omöjligt från början.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import Diagram from '../../components/Diagram.astro';
+import Stapel from '../../components/Stapel.astro';
+import { formatNumber } from '../../lib/data';
+import { formatShare, historyDepthReport } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = historyDepthReport();
+
+/**
+ * Kommuner där kravet formellt går att nå men i praktiken nästan ingen gör
+ * det. Räknas fram och skrivs inte in: den kommun det gäller kan byta plats
+ * med nästa hämtning, och en utpekad kommun i mallen vore då en osann mening.
+ */
+const nastanBlockerade = r.cities.filter((c) => c.reachable && c.deep <= 1);
+/** Kommuner där större delen av beståndet vilar på högst en kontroll. */
+const tunna = r.cities.filter((c) => c.thinShare >= 50);
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel som i de övriga rapporterna.
+ */
+const scope =
+  `Beståndet innehåller ${formatNumber(r.places)} verksamheter och` +
+  ` ${formatNumber(r.inspections)} kontroller. Talen fördelar sig långt ifrån jämnt:` +
+  ` ${formatNumber(r.thin)} verksamheter, alltså ${formatShare(r.thinShare)} procent, har` +
+  ' högst en publicerad kontroll bakom sig.';
+
+const nollan =
+  r.none > 0
+    ? `${formatNumber(r.none)} av dem har ingen alls. De finns i kommunens register men` +
+      ' saknar publicerad kontroll, och de kan därför inte få något omdöme över huvud' +
+      ' taget.'
+    : null;
+
+const medianen =
+  `Medianverksamheten har ${r.median} publicerade kontroller. Den djupaste historiken i` +
+  ` beståndet är ${formatNumber(r.deepest)} kontroller på ett enda ställe, vilket säger` +
+  ' mer om hur den kommunen lämnar ut än om just det stället.';
+
+const djupet =
+  `${formatNumber(r.deep)} verksamheter, ${formatShare(r.deepShare)} procent, har minst` +
+  ` ${r.depth} kontroller. Det är den ribba sajten kräver för att tala om en historik` +
+  ' i stället om ett enskilt besök.';
+
+const blockeradeNot = (() => {
+  if (r.blocked.length === 0) return null;
+  const namn = r.blocked.map((c) => c.city);
+  const lista =
+    namn.length > 1
+      ? `${namn.slice(0, -1).join(', ')} och ${namn[namn.length - 1]}`
+      : namn[0];
+  return (
+    `I ${lista} har ingen enda verksamhet så många som ${r.depth} publicerade` +
+    ' kontroller. Kravet kan alltså aldrig uppfyllas där, och utfallet är noll' +
+    ' av utlämnandeskäl och inte för att köken skulle vara sämre eller bättre.'
+  );
+})();
+
+/**
+ * Ental och flertal grenar, och det är inte petighet. Kommunen som ligger
+ * närmast gränsen har i skrivande stund en enda verksamhet över den, och
+ * "1 verksamheter" är en mening ingen svensk redaktör släpper igenom. Talet
+ * räknas fram vid varje bygge och kan bli vilket som helst.
+ */
+const antalStallen = (n: number) =>
+  n === 1 ? 'en enda verksamhet' : `${formatNumber(n)} verksamheter`;
+
+const nastanNot =
+  nastanBlockerade.length > 0
+    ? ` I ${nastanBlockerade.map((c) => c.city).join(' och ')} finns kravet formellt inom` +
+      ` räckhåll, men det uppfylls av ${nastanBlockerade
+        .map((c) => antalStallen(c.deep))
+        .join(' respektive ')}. I praktiken är utfallet detsamma.`
+    : '';
+
+const tunnaNot =
+  tunna.length > 0
+    ? `I ${tunna.length} av ${r.municipalities} kommuner vilar minst hälften av beståndet` +
+      ' på högst en kontroll.'
+    : '';
+
+/** Egen linjal för fördelningen, räknad ur de andelar som faktiskt ritas. */
+const tak = Math.ceil(Math.max(...r.buckets.map((b) => b.share), 1) / 5) * 5;
+---
+
+<Rapport slug="hur-mycket-historik-finns-det">
+  <section>
+    <h2>Ett omdöme är precis så bra som historiken bakom det</h2>
+    <p>
+      En verksamhet som klarat en kontroll utan anmärkning ser oklanderlig ut.
+      Har den bara kontrollerats en gång är det ett besked om ett besök, inte om
+      ett kök. Skillnaden mellan de två avgörs av hur många kontroller kommunen
+      lämnar ut, och den siffran varierar mer än något annat i beståndet.
+    </p>
+    <p>{scope} {nollan}</p>
+
+    <Diagram
+      titel="Antal publicerade kontroller per verksamhet"
+      underlag={`Samtliga ${formatNumber(r.places)} verksamheter i beståndet.`}
+    >
+      <Stapel
+        label="Andel av verksamheterna efter antal publicerade kontroller"
+        scale={tak}
+        avdelare
+        rows={r.buckets.map((b) => ({
+          label: b.label,
+          value: b.share,
+          display: `${formatShare(b.share)} %`,
+          note: `${formatNumber(b.places)} verksamheter.`,
+        }))}
+      />
+    </Diagram>
+
+    <p>{medianen}</p>
+  </section>
+
+  <section>
+    {/* Talet läses ur HISTORY_DEPTH och skrivs aldrig ut för hand. En rubrik
+        som säger tre medan koden kräver fyra är precis den osanning en räknad
+        sida finns för att undvika. */}
+    <h2>Ribban på {r.depth} kontroller</h2>
+    <p>{djupet}</p>
+    <p>
+      Skälet till att ribban behövs är att den ensamma kontrollen annars blir
+      ett betyg. En verksamhet med en enda ren kontroll och en verksamhet med
+      tolv rena kontroller får samma bedömning av sin senaste kontroll, medan
+      bara den ena har visat något över tid.
+    </p>
+    {blockeradeNot && <p>{blockeradeNot}{nastanNot}</p>}
+  </section>
+
+  <section>
+    <h2>Djupet, kommun för kommun</h2>
+    <p>
+      Tabellen står i bokstavsordning. {tunnaNot}
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kommun</th>
+          <th class="num">Verksamheter</th>
+          <th class="num">Högst en kontroll</th>
+          <th class="num">Minst {r.depth}</th>
+          <th class="num">Djupast</th>
+        </tr>
+      </thead>
+      <tbody>
+        {r.cities.map((c) => (
+          <tr>
+            <td><a href={path(c.slug)}>{c.city}</a></td>
+            <td class="num">{formatNumber(c.places)}</td>
+            <td class="num">{formatShare(c.thinShare)} %</td>
+            <td class="num">{formatShare(c.deepShare)} %</td>
+            <td class="num">{formatNumber(c.deepest)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <p class="callout">
+      Tabellen är ingen rangordning. En kommun med djup historik lämnar ut mer,
+      den kontrollerar inte bättre. Flera av kommunerna lämnar bara ut den
+      senaste kontrollen per verksamhet, och då blir varje tal i raden en
+      egenskap hos utlämnandet.
+      {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
+      jämföra med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        En publicerad kontroll är inte samma sak som en utförd kontroll. Vi
+        räknar det som lämnats ut, och kommunerna lämnar ut olika långt bakåt.
+      </li>
+      <li>
+        En verksamhet utan publicerad kontroll är inte okontrollerad. Den kan
+        vara nyregistrerad, nyligen överlåten eller ligga utanför det spann
+        kommunen publicerar.
+      </li>
+      <li>
+        Djupet säger ingenting om utfallet. En historik på tolv kontroller kan
+        vara ren eller full av anmärkningar, och den här rapporten skiljer inte
+        på dem.
+      </li>
+      <li>
+        Ribban på {r.depth} kontroller är sajtens egen och står i
+        {' '}<a href={path('metodik')}>metodiken</a>. Den är ett publiceringsbeslut,
+        inte ett lagkrav.
+      </li>
+      <li>
+        Talen räknas om vid varje bygge. En kommun som börjar lämna ut äldre
+        kontroller flyttar hela sin rad, utan att ett enda kök har ändrats.
+      </li>
+    </ul>
+  </section>
+</Rapport>

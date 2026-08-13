@@ -1,0 +1,306 @@
+---
+/**
+ * Rapport: butiken och skolköket får anmärkning för olika saker.
+ *
+ * Talen kommer ur categoryAreaReport(), den fasta texten beskriver metoden och
+ * förbehållen.
+ *
+ * Sidan finns för att rapporten om vad anmärkningarna gäller svarar för hela
+ * beståndet på en gång, och det svaret döljer att de fem kategorierna faller på
+ * olika delar av samma lagstiftning. Ordningen mellan avsnitten bär den
+ * poängen: fördelningen först, prövningen av den direkt efteråt.
+ *
+ * Den känsligaste meningen på sidan är den om att ordningen är densamma i varje
+ * kommun. Den är därför inte skriven som en slutsats utan räknas fram, och
+ * kommunerna som saknar underlag för prövningen räknas varken som stöd eller
+ * som motexempel. En föregångare strök en rapport av precis det skälet, se
+ * huvudkommentaren till categoryAreaReport i lib/rapporter.ts.
+ */
+import Rapport from '../../layouts/Rapport.astro';
+import Andelsstapel from '../../components/Andelsstapel.astro';
+import Diagram from '../../components/Diagram.astro';
+import Parstapel from '../../components/Parstapel.astro';
+import { formatNumber } from '../../lib/data';
+import { categoryAreaReport, formatShare, type AreaShare } from '../../lib/rapporter';
+import { path } from '../../lib/urls';
+
+const r = categoryAreaReport();
+
+/** Kategorier där hygienen är det största området, och de där den inte är det. */
+const hygienStorst = r.profiles.filter((p) => p.largest.letter === 'J');
+const annatStorst = r.profiles.filter((p) => p.largest.letter !== 'J');
+
+/**
+ * Löptext med räknade tal byggs som sträng, aldrig splitsad i JSX. En
+ * radbrytning mitt i en mening blir ett blanksteg före nästa skiljetecken i
+ * utfallet. Samma regel som i de övriga rapporterna.
+ */
+const scope =
+  `${formatNumber(r.coded)} avvikelser i beståndet bär både en rapporteringspunkt och en` +
+  ` verksamhet vi kan placera i en kategori. De kommer från ${r.coding.length} av` +
+  ` ${r.municipalities} kommuner: ${r.coding.join(', ')}. Övriga publicerar avvikelsen` +
+  ' utan att ange vilken punkt i lagstiftningen den gällde, och de kan därför inte' +
+  ' bidra till den här räkningen alls.';
+
+const spannet =
+  r.mostHygiene && r.leastHygiene
+    ? `Avståndet är stort. Bland ${r.mostHygiene.short} gäller` +
+      ` ${formatShare(r.mostHygiene.hygiene)} procent av avvikelserna hygien, bland` +
+      ` ${r.leastHygiene.short} ${formatShare(r.leastHygiene.hygiene)} procent. Samma` +
+      ' lagstiftning, samma sorts kontroll, och nästan omvänt utfall.'
+    : null;
+
+const storstNot =
+  annatStorst.length === 0
+    ? 'Hygienen är det största området i varje kategori.'
+    : `Hygienen är det största området i ${hygienStorst.length} av ${r.profiles.length}` +
+      ` kategorier. I ${annatStorst.map((p) => p.short).join(' och ')} är det i stället` +
+      ` ${annatStorst.map((p) => p.largest.name.toLowerCase()).join(' och ')}.`;
+
+/** Egen linjal, räknad ur de andelar som faktiskt ritas. */
+const tak =
+  Math.ceil(Math.max(...r.profiles.flatMap((p) => [p.hygiene, p.information]), 1) / 10) * 10;
+
+/**
+ * Segmenten till en kategoris band: de fyra största områdena var för sig,
+ * resten som en klump. Utan klumpen får bandet en svans av områden på under en
+ * procent, och teckenförklaringen blir längre än diagrammet.
+ */
+const segments = (areas: AreaShare[], coded: number) => {
+  const top = areas.slice(0, 4);
+  const rest = areas.slice(4);
+  const restCount = rest.reduce((sum, a) => sum + a.count, 0);
+  return [
+    ...top.map((a) => ({
+      label: a.name,
+      value: a.count,
+      display: `${formatShare(a.share)} %`,
+    })),
+    ...(restCount > 0
+      ? [
+          {
+            label: 'Övriga områden',
+            value: restCount,
+            display: `${formatShare((restCount / coded) * 100)} %`,
+          },
+        ]
+      : []),
+  ];
+};
+
+const provningen =
+  r.testable.length === 0
+    ? 'Ingen kommun har nog underlag för att pröva ordningen kategori för kategori.'
+    : r.holds === r.testable.length
+      ? `Ja. I samtliga ${r.testable.length} kommuner som har nog underlag för prövningen` +
+        ` ligger ${r.mostHygiene.short} högst på hygienandel och ${r.leastHygiene.short}` +
+        ' lägst, alltså i samma ordning som i totalen ovan.'
+      : `Inte överallt. Ordningen från totalen återkommer i ${r.holds} av` +
+        ` ${r.testable.length} kommuner som har nog underlag för prövningen:` +
+        ` ${r.testable.filter((c) => c.holds).map((c) => c.city).join(' och ')}.`;
+
+const tunnaNot =
+  r.tooThin > 0
+    ? ` ${r.tooThin} av de kodande kommunerna har för få kodade avvikelser för att` +
+      ' prövas, och räknas varken som stöd eller som motexempel.'
+    : '';
+
+const nivaNot =
+  'Nivåerna skiljer sig åt mellan kommunerna, och det ska de. En kommun som skriver' +
+  ' flera rader per kontroll får en annan fördelning än en som skriver en. Det som' +
+  ' prövas här är ordningen mellan kategorierna inom varje kommun, aldrig kommunerna' +
+  ' mot varandra.';
+
+/**
+ * Nämnaren som tabellen nedan faktiskt vilar på, alltså de två områden som
+ * ritas och inget annat. `rateChecks` i rapporten räknar samtliga granskade
+ * punkter i de kommunerna, och att skriva ut det talet här hade lovat en
+ * tabell som är bredare än den är.
+ */
+const andelPunkter = r.rates.reduce(
+  (sum, c) => sum + c.hygieneChecks + c.informationChecks,
+  0,
+);
+
+const andelScope =
+  r.rates.length > 0
+    ? 'Fördelningen ovan säger vad avvikelserna handlar om, inte hur ofta något faller.' +
+      ' För det behövs en nämnare: hur många punkter i området som granskades. Bara' +
+      ` ${r.rateCities.join(' och ')} redovisar även de punkter som var utan avvikelse,` +
+      ` och tabellen nedan vilar på ${formatNumber(andelPunkter)} granskade punkter i de` +
+      ' två områdena.'
+    : null;
+
+const andelSvar = (() => {
+  if (!r.rates.length) return null;
+  const hygienVarst = [...r.rates].sort((a, b) => b.hygieneShare - a.hygieneShare)[0];
+  const markningVarst = [...r.rates].sort(
+    (a, b) => b.informationShare - a.informationShare,
+  )[0];
+  if (hygienVarst.id === markningVarst.id) {
+    return `${hygienVarst.name} faller oftast på båda punkterna.`;
+  }
+  return (
+    `Hygienpunkten faller oftast hos ${hygienVarst.short},` +
+    ` ${formatShare(hygienVarst.hygieneShare)} procent av granskningarna. Märkningen` +
+    ` faller oftast hos ${markningVarst.short}, ${formatShare(markningVarst.informationShare)}` +
+    ' procent. Det är alltså inte samma sorts ställe som ligger illa till på de två.'
+  );
+})();
+---
+
+<Rapport slug="olika-stallen-olika-brister">
+  <section>
+    <h2>Samma lagstiftning, olika brister</h2>
+    <p>
+      En kontrollrapport säger att verksamheten fick en avvikelse. Den säger
+      inte vad den gällde. Kommunen kodar däremot varje avvikelse mot ett område
+      i livsmedelslagstiftningen, och när koderna delas på vilken sorts
+      verksamhet de gäller framträder fem olika mönster.
+    </p>
+    <p>{scope}</p>
+
+    <Diagram
+      titel="Hygien och märkning, andel av kategorins avvikelser"
+      underlag="Båda serierna är andelar av samma sak: kategorins egna kodade avvikelser. De summerar inte till hundra, eftersom övriga områden ligger utanför diagrammet."
+    >
+      <Parstapel
+        label="Andel av kategorins kodade avvikelser som gäller hygien respektive livsmedelsinformation"
+        serieA="Hygien"
+        serieB="Livsmedelsinformation"
+        scale={tak}
+        rows={r.profiles.map((p) => ({
+          label: p.name,
+          a: p.hygiene,
+          b: p.information,
+          aDisplay: `${formatShare(p.hygiene)} %`,
+          bDisplay: `${formatShare(p.information)} %`,
+          note: `${formatNumber(p.coded)} kodade avvikelser.`,
+        }))}
+      />
+    </Diagram>
+
+    <p>{spannet} {storstNot}</p>
+  </section>
+
+  <section>
+    <h2>Vad varje sorts ställe faller på</h2>
+    <p>
+      Hela fördelningen, kategori för kategori. De fyra största områdena står
+      var för sig, resten som en klump.
+    </p>
+
+    {r.profiles.map((p) => (
+      <Diagram
+        titel={p.name}
+        underlag={`${formatNumber(p.coded)} kodade avvikelser.`}
+      >
+        <Andelsstapel
+          label={`Kodade avvikelser i kategorin ${p.name}, fördelade på lagstiftningsområde`}
+          segments={segments(p.areas, p.coded)}
+        />
+      </Diagram>
+    ))}
+  </section>
+
+  <section>
+    <h2>Håller det i varje kommun som anger koden?</h2>
+    <p>{provningen}{tunnaNot}</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kommun</th>
+          {r.profiles.map((p) => <th class="num">{p.short}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {r.testable.map((c) => (
+          <tr>
+            <td><a href={path(c.slug)}>{c.city}</a></td>
+            {r.profiles.map((p) => {
+              const row = c.rows.find((x) => x.id === p.id);
+              return <td class="num">{row ? `${formatShare(row.hygiene)} %` : '–'}</td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <p class="callout">
+      Tabellen visar andelen av kommunens kodade avvikelser som gäller hygien,
+      per kategori. {nivaNot}
+      {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
+      jämföra med varandra står på metodiksidan</a>.
+    </p>
+  </section>
+
+  {r.rates.length > 0 && (
+    <section>
+      <h2>Hur ofta faller punkten?</h2>
+      <p>{andelScope}</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Kategori</th>
+            <th class="num">Hygien</th>
+            <th class="num">Märkning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.rates.map((c) => (
+            <tr>
+              <td>{c.name}</td>
+              <td class="num">{formatShare(c.hygieneShare)} %</td>
+              <td class="num">{formatShare(c.informationShare)} %</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p>{andelSvar}</p>
+
+      <p class="callout">
+        Talen är andelar av de granskade punkterna i respektive område, alltså
+        inte andelar av alla kontroller och inte jämförbara med fördelningen
+        längre upp. De vilar dessutom på {r.rateCities.length} kommuner av
+        {' '}{r.municipalities}, vilket är för få för att tala om riket.
+      </p>
+    </section>
+  )}
+
+  <section>
+    <h2>Vad räkningen inte säger</h2>
+    <ul class="plain">
+      <li>
+        Fördelningen räknar en AVVIKELSERAD, inte en kontroll och inte en
+        verksamhet. En kontroll med tre anmärkningar bidrar med tre rader.
+      </li>
+      <li>
+        Kommuner som publicerar avvikelsen utan rapporteringspunkt saknas helt.
+        Det gäller också en kommun som redovisar högst en avvikelserad per
+        kontroll, vilket gör varje nämnare byggd på avvikelserader obrukbar där.
+      </li>
+      <li>
+        Ett område är inte ett allvarlighetsmått. En saknad
+        innehållsförteckning och en bruten kylkedja ligger i olika områden, men
+        räknas likadant här.
+      </li>
+      <li>
+        Kategorierna kommer ur kommunens egen beskrivning av verksamheten.
+        Samma ord betyder olika saker i olika kommuner, och sorteringen är vår.
+      </li>
+      <li>
+        Kontrollerna sträcker sig över flera år. Andelarna är summor över hela
+        perioden, inte en bild av läget just nu.
+      </li>
+      <li>
+        Vad anmärkningarna gäller i hela beståndet, utan uppdelning på
+        verksamhetstyp, står i
+        {' '}<a href={path('rapporter', 'vad-anmarkningarna-galler')}>rapporten om
+        vad anmärkningarna faktiskt gäller</a>.
+      </li>
+    </ul>
+  </section>
+</Rapport>

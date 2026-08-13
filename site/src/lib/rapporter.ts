@@ -42,6 +42,7 @@
 import {
   categoriesOf,
   establishments,
+  HISTORY_DEPTH,
   legislationArea,
   municipalities,
   sourceFor,
@@ -81,6 +82,28 @@ export interface Report {
  * bredvid den här utan att röra något här.
  */
 export const REPORTS: Report[] = [
+  {
+    slug: 'olika-stallen-olika-brister',
+    title: 'Butiken och skolköket får anmärkning för olika saker',
+    description:
+      'Prikko har delat de kodade avvikelserna på vilken sorts verksamhet de gäller. Skolköken faller nästan bara på hygien, butikerna lika ofta på märkning, och mönstret ser likadant ut i varje kommun som anger koden.',
+    lede:
+      'En anmärkning säger inget om vad som var fel. Delar man avvikelserna på vilken sorts ställe de gäller visar det sig att fem sorters verksamhet faller på fem olika saker.',
+    summary:
+      'Kodade avvikelser fördelade på lagstiftningsområde och verksamhetstyp, med samma uppdelning prövad i varje kommun som publicerar koden.',
+    published: '2026-08-13',
+  },
+  {
+    slug: 'hur-mycket-historik-finns-det',
+    title: 'Hur många kontroller ligger bakom ett omdöme?',
+    description:
+      'Prikko har räknat hur djup kontrollhistoriken är för varje verksamhet i beståndet. En stor del vilar på högst en enda kontroll, och djupet avgörs av kommunen och inte av verksamheten.',
+    lede:
+      'Ett omdöme är precis så bra som historiken bakom det. Den historiken är olika djup, och skillnaden ligger i vad kommunen lämnar ut snarare än i hur ofta den kontrollerar.',
+    summary:
+      'Antalet publicerade kontroller per verksamhet, och vad det betyder för vilka omdömen som går att sätta i varje kommun.',
+    published: '2026-08-13',
+  },
   {
     slug: 'kontrollresultaten-over-tid',
     title: 'Blir kontrollresultaten bättre eller sämre?',
@@ -1312,4 +1335,543 @@ export function seasonReport(): SeasonReport {
     lower: areas.filter((a) => a.gap < 0).length,
   };
   return seasonCache;
+}
+
+// ---------------------------------------------------------------------------
+// Rapport: olika ställen faller på olika saker
+// ---------------------------------------------------------------------------
+
+/**
+ * Minsta antal kodade avvikelser för att en kategori ska få stå i en kommuns
+ * rad i robusthetsprövningen.
+ *
+ * Samma sorts golv som MIN_CHAIN_INSPECTIONS och av samma skäl: en kategori
+ * som vilar på ett fåtal avvikelser i en kommun kan visa vilken fördelning som
+ * helst, och den raden skulle inte pröva mönstret utan bara bruset.
+ */
+export const MIN_CATEGORY_DEVIATIONS = 100;
+
+export interface AreaShare {
+  letter: string;
+  name: string;
+  explanation: string;
+  count: number;
+  /** Andel av kategorins kodade avvikelser, i procent. */
+  share: number;
+}
+
+export interface CategoryProfile {
+  id: TopCategoryId;
+  name: string;
+  short: string;
+  /** Kodade avvikelserader i kategorin. Rapportens nämnare per rad. */
+  coded: number;
+  /** Områdena i fallande ordning. */
+  areas: AreaShare[];
+  /** Största området i kategorin. */
+  largest: AreaShare;
+  /** Andelen av kategorins avvikelser som ligger i hygienområdet J. */
+  hygiene: number;
+  /** Detsamma för livsmedelsinformation, område B. */
+  information: number;
+}
+
+export interface CategoryAreaCityRow {
+  id: TopCategoryId;
+  name: string;
+  short: string;
+  coded: number;
+  hygiene: number;
+  information: number;
+}
+
+export interface CategoryAreaCity {
+  slug: string;
+  city: string;
+  coded: number;
+  /** Kategorierna med nog underlag, fallande på hygienandel. */
+  rows: CategoryAreaCityRow[];
+  /**
+   * Ligger samma kategori högst respektive lägst på hygienandel här som i
+   * totalen? Prövningen är hela skälet till att rapporten går att skriva.
+   */
+  holds: boolean;
+}
+
+export interface CategoryRate {
+  id: TopCategoryId;
+  name: string;
+  short: string;
+  /** Granskade punkter i hygienområdet, alltså nämnaren. */
+  hygieneChecks: number;
+  hygieneShare: number;
+  informationChecks: number;
+  informationShare: number;
+}
+
+export interface CategoryAreaReport {
+  /** Kodade avvikelser som gick att lägga i en kategori. */
+  coded: number;
+  profiles: CategoryProfile[];
+  /** Kategorin med högst respektive lägst hygienandel. */
+  mostHygiene: CategoryProfile;
+  leastHygiene: CategoryProfile;
+  /** Kommunerna som anger rapporteringspunkten, i bokstavsordning. */
+  coding: string[];
+  cities: CategoryAreaCity[];
+  /**
+   * Kommunerna där mönstret GÅR att pröva, alltså de med minst tre kategorier
+   * över golvet. En kommun med sextio kodade avvikelser kan varken bekräfta
+   * eller motsäga en ordning, och att räkna den som ett motexempel vore lika
+   * fel som att räkna den som ett stöd.
+   */
+  testable: CategoryAreaCity[];
+  /** Av de prövbara: i hur många håller mönstret? */
+  holds: number;
+  /** Kommuner som anger koden men har för tunt underlag för prövningen. */
+  tooThin: number;
+  municipalities: number;
+  /** Andelsdelen ovan, men med nämnare. Kräver redovisade godkända punkter. */
+  rates: CategoryRate[];
+  rateCities: string[];
+  rateChecks: number;
+}
+
+/** Bokstaven för hygien respektive livsmedelsinformation. */
+const HYGIENE = 'J';
+const INFORMATION = 'B';
+
+let categoryAreaCache: CategoryAreaReport | null = null;
+
+/**
+ * Avvikelserna delade på lagstiftningsområde OCH verksamhetstyp.
+ *
+ * ## Vad frågan är, och varför den inte är samma som den äldre rapporten
+ *
+ * `deviationAreaReport` svarar på vad anmärkningarna gäller i hela beståndet.
+ * Den här svarar på om svaret är detsamma för alla sorters ställen, och det är
+ * det inte. Ett skolkök och en livsmedelsbutik granskas mot samma lagstiftning
+ * men faller på olika delar av den.
+ *
+ * ## Varför den här rapporten går att skriva när den om kvarstående inte gjorde
+ *
+ * En föregångare strök en rapport om vad som kvarstår per avvikelseområde,
+ * eftersom mönstret vände mellan de enda två kommuner som hade underlaget. En
+ * sammanvägd siffra hade då varit sann och samtidigt en ren publiceringsartefakt.
+ * Lärdomen gäller här också, och därför prövas mönstret innan det påstås: varje
+ * kommun som anger koden får en egen rad, och sidan skriver ut i hur många av
+ * dem ordningen är densamma som i totalen. Håller den inte, står det.
+ *
+ * ## Vad som räknas
+ *
+ * En AVVIKELSERAD, inte en kontroll och inte en verksamhet. Fördelningen svarar
+ * på vad avvikelserna handlar om, inte på hur ofta något faller. Kommuner som
+ * publicerar avvikelsen utan rapporteringspunkt faller därför helt ur, vilket
+ * också är skälet till att Uppsala inte påverkar talen: kommunen publicerar som
+ * mest en avvikelserad per kontroll och anger ingen kod på den.
+ *
+ * Andelsdelen längst ned är den enda som har en nämnare, och den kräver att
+ * kommunen redovisar även de punkter som var utan avvikelse. Vilka kommuner det
+ * är räknas fram ur datan och står inte i kod.
+ */
+export function categoryAreaReport(): CategoryAreaReport {
+  if (categoryAreaCache) return categoryAreaCache;
+
+  /** Kodade avvikelser per kategori och område. */
+  const perCategory = new Map<TopCategoryId, Map<string, number>>();
+  /** Detsamma, men per kommun. */
+  const perCity = new Map<
+    string,
+    { city: string; cats: Map<TopCategoryId, Map<string, number>> }
+  >();
+  /** Kommuner som redovisar även de punkter som var utan avvikelse. */
+  const withDenominator = new Map<string, string>();
+  /** Granskade punkter per kategori och område, i de kommunerna. */
+  const rateTally = new Map<TopCategoryId, Map<string, YearTally>>();
+
+  for (const e of establishments()) {
+    for (const i of e.inspections) {
+      if (withDenominator.has(e.municipality.slug)) break;
+      for (const a of i.areas) {
+        if (a.status === 'ok') {
+          withDenominator.set(e.municipality.slug, e.municipality.city);
+          break;
+        }
+      }
+    }
+  }
+
+  let coded = 0;
+
+  for (const e of establishments()) {
+    const category = categoriesOf(e).category;
+    if (!category) continue;
+
+    const slug = e.municipality.slug;
+    let city = perCity.get(slug);
+    if (!city) {
+      city = { city: e.municipality.city, cats: new Map() };
+      perCity.set(slug, city);
+    }
+
+    const hasDenominator = withDenominator.has(slug);
+
+    for (const i of e.inspections) {
+      for (const a of i.areas) {
+        const letter = (a.code || '').charAt(0).toUpperCase();
+        if (!legislationArea(letter)) continue;
+        const failed = a.status === 'deviation' || a.status === 'persisting';
+
+        // Andelsdelen: varje granskad punkt räknas, oavsett utfall.
+        if (hasDenominator) {
+          let byArea = rateTally.get(category);
+          if (!byArea) {
+            byArea = new Map();
+            rateTally.set(category, byArea);
+          }
+          const bucket = byArea.get(letter) ?? emptyTally();
+          bucket.n += 1;
+          if (failed) bucket.r += 1;
+          byArea.set(letter, bucket);
+        }
+
+        if (!failed) continue;
+
+        coded += 1;
+
+        let byArea = perCategory.get(category);
+        if (!byArea) {
+          byArea = new Map();
+          perCategory.set(category, byArea);
+        }
+        byArea.set(letter, (byArea.get(letter) ?? 0) + 1);
+
+        let cityAreas = city.cats.get(category);
+        if (!cityAreas) {
+          cityAreas = new Map();
+          city.cats.set(category, cityAreas);
+        }
+        cityAreas.set(letter, (cityAreas.get(letter) ?? 0) + 1);
+      }
+    }
+  }
+
+  const toShares = (counts: Map<string, number>): AreaShare[] => {
+    const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    const rows: AreaShare[] = [];
+    for (const [letter, count] of counts) {
+      const known = legislationArea(letter);
+      if (!known) continue;
+      rows.push({
+        letter,
+        name: known.name,
+        explanation: known.explanation,
+        count,
+        share: share(count, total),
+      });
+    }
+    rows.sort((a, b) => b.count - a.count || a.letter.localeCompare(b.letter));
+    return rows;
+  };
+
+  const shareOf = (counts: Map<string, number>, letter: string): number => {
+    const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    return share(counts.get(letter) ?? 0, total);
+  };
+
+  // Visningsordning, aldrig efter utfall. Kategorierna är ingen rangordning.
+  const profiles: CategoryProfile[] = [];
+  for (const c of TOP_CATEGORIES) {
+    const counts = perCategory.get(c.id);
+    if (!counts) continue;
+    const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    if (total < MIN_CATEGORY_DEVIATIONS) continue;
+    const areas = toShares(counts);
+    profiles.push({
+      id: c.id,
+      name: c.name,
+      short: c.short,
+      coded: total,
+      areas,
+      largest: areas[0],
+      hygiene: shareOf(counts, HYGIENE),
+      information: shareOf(counts, INFORMATION),
+    });
+  }
+
+  const byHygiene = [...profiles].sort((a, b) => b.hygiene - a.hygiene);
+  const mostHygiene = byHygiene[0];
+  const leastHygiene = byHygiene[byHygiene.length - 1];
+
+  const cities: CategoryAreaCity[] = [];
+  for (const [slug, c] of perCity) {
+    const rows: CategoryAreaCityRow[] = [];
+    let cityCoded = 0;
+    for (const top of TOP_CATEGORIES) {
+      const counts = c.cats.get(top.id);
+      if (!counts) continue;
+      const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+      cityCoded += total;
+      if (total < MIN_CATEGORY_DEVIATIONS) continue;
+      rows.push({
+        id: top.id,
+        name: top.name,
+        short: top.short,
+        coded: total,
+        hygiene: shareOf(counts, HYGIENE),
+        information: shareOf(counts, INFORMATION),
+      });
+    }
+    if (!cityCoded) continue;
+    rows.sort((a, b) => b.hygiene - a.hygiene);
+    cities.push({
+      slug,
+      city: c.city,
+      coded: cityCoded,
+      rows,
+      /* Prövningen: samma kategori högst och lägst på hygienandel som i
+         totalen. Två rader räcker inte för att pröva en ordning, och en
+         kommun som inte når dit räknas därför inte som ett stöd. */
+      holds:
+        rows.length >= 3 &&
+        rows[0].id === mostHygiene?.id &&
+        rows[rows.length - 1].id === leastHygiene?.id,
+    });
+  }
+  // Bokstavsordning, aldrig efter utfall. Se deviationAreaReport.
+  cities.sort((a, b) => a.city.localeCompare(b.city, 'sv'));
+
+  const rates: CategoryRate[] = [];
+  let rateChecks = 0;
+  for (const c of TOP_CATEGORIES) {
+    const byArea = rateTally.get(c.id);
+    if (!byArea) continue;
+    const hygiene = byArea.get(HYGIENE) ?? emptyTally();
+    const information = byArea.get(INFORMATION) ?? emptyTally();
+    for (const bucket of byArea.values()) rateChecks += bucket.n;
+    if (hygiene.n < MIN_AREA_CHECKS || information.n < MIN_AREA_CHECKS) continue;
+    rates.push({
+      id: c.id,
+      name: c.name,
+      short: c.short,
+      hygieneChecks: hygiene.n,
+      hygieneShare: share(hygiene.r, hygiene.n),
+      informationChecks: information.n,
+      informationShare: share(information.r, information.n),
+    });
+  }
+
+  const testable = cities.filter((c) => c.rows.length >= 3);
+
+  categoryAreaCache = {
+    coded,
+    profiles,
+    mostHygiene,
+    leastHygiene,
+    coding: cities.map((c) => c.city),
+    cities,
+    testable,
+    holds: testable.filter((c) => c.holds).length,
+    tooThin: cities.length - testable.length,
+    municipalities: municipalities().length,
+    rates,
+    rateCities: [...withDenominator.values()].sort((a, b) => a.localeCompare(b, 'sv')),
+    rateChecks,
+  };
+  return categoryAreaCache;
+}
+
+// ---------------------------------------------------------------------------
+// Rapport: hur mycket historik finns det
+// ---------------------------------------------------------------------------
+
+export interface DepthBucket {
+  /** Antal kontroller. Sista hinken samlar allt från och med sitt eget tal. */
+  count: number;
+  label: string;
+  /** Är hinken den öppna sista? */
+  open: boolean;
+  places: number;
+  share: number;
+}
+
+export interface DepthCity {
+  slug: string;
+  city: string;
+  places: number;
+  inspections: number;
+  /** Flest publicerade kontroller på ett enda ställe i kommunen. */
+  deepest: number;
+  /** Verksamheter med högst en kontroll, och andelen av kommunens bestånd. */
+  thin: number;
+  thinShare: number;
+  /** Verksamheter med minst HISTORY_DEPTH kontroller. */
+  deep: number;
+  deepShare: number;
+  /**
+   * Kan kravet på HISTORY_DEPTH kontroller uppfyllas här över huvud taget?
+   *
+   * Falskt betyder att INGEN verksamhet i kommunen har så många publicerade
+   * kontroller, alltså att utfallet är omöjligt av utlämnandeskäl och inte ett
+   * omdöme om kommunens kök.
+   */
+  reachable: boolean;
+}
+
+export interface HistoryDepthReport {
+  places: number;
+  inspections: number;
+  buckets: DepthBucket[];
+  /** Verksamheter utan en enda publicerad kontroll. */
+  none: number;
+  noneShare: number;
+  /** Verksamheter med exakt en. */
+  single: number;
+  /** Högst en kontroll, alltså none plus single. */
+  thin: number;
+  thinShare: number;
+  /** Minst HISTORY_DEPTH kontroller. */
+  deep: number;
+  deepShare: number;
+  /** Medianen, alltså antalet kontroller bakom mittersta verksamheten. */
+  median: number;
+  /** Flest publicerade kontroller på ett enda ställe i hela beståndet. */
+  deepest: number;
+  cities: DepthCity[];
+  /** Kommuner där HISTORY_DEPTH aldrig kan uppnås. */
+  blocked: DepthCity[];
+  municipalities: number;
+  /** Kravet självt, så att sidan aldrig skriver ut en egen trea. */
+  depth: number;
+}
+
+/**
+ * Sista hinken i fördelningen samlar allt från och med sitt tal.
+ *
+ * Utan tak får diagrammet en svans på över hundra rader, eftersom det djupaste
+ * stället i beståndet har fler kontroller än det finns rader att rita. Sex är
+ * valt för att de fem första hinkarna är de som avgör vilket omdöme en
+ * verksamhet kan få, och allt därefter är rikligt underlag.
+ */
+export const DEPTH_CAP = 6;
+
+let depthCache: HistoryDepthReport | null = null;
+
+/**
+ * Hur djup kontrollhistoriken är, per verksamhet och per kommun.
+ *
+ * ## Varför rapporten handlar om publiceringen och inte om köken
+ *
+ * Det här är den enda rapporten där utfallet ÄR en publiceringsartefakt, och
+ * där det är hela poängen. En verksamhet med en enda publicerad kontroll har
+ * inte kontrollerats en gång; kommunen har lämnat ut en. Rapporten säger alltså
+ * ingenting om hur ofta någon tittar, bara vad som går att läsa efteråt.
+ *
+ * Skillnaden mot den strukna rapporten om kvarstående avvikelser är just den:
+ * där hade en sammanvägd siffra påstått något om verksamheterna medan den
+ * mätte kommunernas rapportering. Här är kommunernas rapportering ämnet.
+ *
+ * ## Varför tabellen inte är en rangordning
+ *
+ * En kommun med djup historik lämnar ut mer, inte kontrollerar bättre. Raderna
+ * står i bokstavsordning av samma skäl som i de övriga rapporterna.
+ */
+export function historyDepthReport(): HistoryDepthReport {
+  if (depthCache) return depthCache;
+
+  const counts: number[] = [];
+  const perCity = new Map<
+    string,
+    { city: string; places: number; inspections: number; deepest: number; thin: number; deep: number }
+  >();
+
+  for (const e of establishments()) {
+    const n = e.inspections.length;
+    counts.push(n);
+
+    const slug = e.municipality.slug;
+    const bucket = perCity.get(slug) ?? {
+      city: e.municipality.city,
+      places: 0,
+      inspections: 0,
+      deepest: 0,
+      thin: 0,
+      deep: 0,
+    };
+    bucket.places += 1;
+    bucket.inspections += n;
+    if (n > bucket.deepest) bucket.deepest = n;
+    if (n <= 1) bucket.thin += 1;
+    if (n >= HISTORY_DEPTH) bucket.deep += 1;
+    perCity.set(slug, bucket);
+  }
+
+  const places = counts.length;
+  const inspections = counts.reduce((sum, n) => sum + n, 0);
+
+  const tally = new Map<number, number>();
+  for (const n of counts) {
+    const key = Math.min(n, DEPTH_CAP);
+    tally.set(key, (tally.get(key) ?? 0) + 1);
+  }
+
+  const buckets: DepthBucket[] = [];
+  for (let n = 0; n <= DEPTH_CAP; n += 1) {
+    const open = n === DEPTH_CAP;
+    const found = tally.get(n) ?? 0;
+    buckets.push({
+      count: n,
+      open,
+      label: open
+        ? `${n} eller fler`
+        : n === 1
+          ? '1 kontroll'
+          : `${n} kontroller`,
+      places: found,
+      share: share(found, places),
+    });
+  }
+
+  const sorted = [...counts].sort((a, b) => a - b);
+  const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+
+  const none = tally.get(0) ?? 0;
+  const single = tally.get(1) ?? 0;
+  const deep = counts.filter((n) => n >= HISTORY_DEPTH).length;
+
+  const cities: DepthCity[] = [...perCity.entries()]
+    .map(([slug, b]) => ({
+      slug,
+      city: b.city,
+      places: b.places,
+      inspections: b.inspections,
+      deepest: b.deepest,
+      thin: b.thin,
+      thinShare: share(b.thin, b.places),
+      deep: b.deep,
+      deepShare: share(b.deep, b.places),
+      reachable: b.deepest >= HISTORY_DEPTH,
+    }))
+    // Bokstavsordning, aldrig efter djup. Se huvudkommentaren.
+    .sort((a, b) => a.city.localeCompare(b.city, 'sv'));
+
+  depthCache = {
+    places,
+    inspections,
+    buckets,
+    none,
+    noneShare: share(none, places),
+    single,
+    thin: none + single,
+    thinShare: share(none + single, places),
+    deep,
+    deepShare: share(deep, places),
+    median,
+    deepest: sorted.length ? sorted[sorted.length - 1] : 0,
+    cities,
+    blocked: cities.filter((c) => !c.reachable),
+    municipalities: perCity.size,
+    depth: HISTORY_DEPTH,
+  };
+  return depthCache;
 }
