@@ -30,7 +30,9 @@
  * koordinater får alltså inga områdessidor, vilket är samma svar som kartan ger
  * för samma kommuner.
  */
+import { topCategory, type TopCategory, type TopCategoryId } from './categories';
 import {
+  categoriesOf,
   establishments,
   municipalities,
   municipalityListing,
@@ -338,6 +340,123 @@ export function areaSlice(slug: string, areaSlug: string): AreaSlice | undefined
  */
 export function areaListing(slug: string, areaSlug: string): Establishment[] {
   return index(slug).members.get(areaSlug) ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Området skuret på kategori
+// ---------------------------------------------------------------------------
+
+/**
+ * Minsta antal verksamheter för att ett kategorisnitt av ett område ska få en
+ * egen sida.
+ *
+ * Samma tal som MIN_SUB_PAGE i data.ts, och av exakt samma skäl: snittet ligger
+ * ett steg längre in än områdessidan och konkurrerar med sin egen förälder om
+ * samma sökning. Det måste därför bära mer än de 25 som räcker för att området
+ * självt ska få en adress.
+ *
+ * Mätt i dagens bestånd faller det ut så här, med `ovrigt` uteslutet av skäl
+ * som står i AREA_CATEGORIES:
+ *
+ *     tröskel 25    34 snitt
+ *     tröskel 50    21 snitt
+ *
+ * De tretton som skiljer ligger alla mellan 26 och 44 verksamheter. Om Search
+ * Console visar klick på dem är 25 rätt tal, men det beslutet ska fattas på
+ * mätning och inte här. Samma undantagsform som docs/26 §5 ger Stockholm.
+ */
+export const MIN_AREA_CATEGORY_PAGE = 50;
+
+/**
+ * Kategorierna som får ett snitt per område, i visningsordning.
+ *
+ * FYRA AV FEM. `ovrigt` saknas, och frånvaron är mätt och inte antagen.
+ * Efterfrågemätningen i docs/30 prövade grossist- och lagerledet mot åtta
+ * stadsdelar: `grossist [område]` kompletteras i en av åtta, och de träffar
+ * `lager [område]` ger är samtliga klädeskedjan Lager 157. Ordet matchar alltså
+ * medan avsikten är en annan bransch, vilket är precis fällan docs/26 §4.1
+ * beskriver för `fräsch`, som utan `restaurang` bredvid sig betyder sallad.
+ *
+ * De fyra som står kvar är alla belagda: `restauranger`, `caféer`, `mataffär`
+ * och `förskolor` plus stadsdelsnamn kompletteras samtliga. Butiksledet ska
+ * läsas med en reservation som står i AreaCategoryHub: efterfrågan finns under
+ * ordet mataffär, inte under ordet butiker.
+ */
+export const AREA_CATEGORIES: readonly TopCategoryId[] = [
+  'restaurang',
+  'cafe',
+  'butik',
+  'skola',
+];
+
+export interface AreaCategorySlice extends SliceVerdicts {
+  category: TopCategory;
+  count: number;
+  /** Har snittet en egen sida? */
+  linked: boolean;
+}
+
+/** Medlemmarna per `områdesslug/kategori`, byggd en gång per kommun. */
+const areaCategoryIndexes = new Map<string, Map<string, Establishment[]>>();
+
+function areaCategoryIndex(slug: string): Map<string, Establishment[]> {
+  const cached = areaCategoryIndexes.get(slug);
+  if (cached) return cached;
+
+  const members = new Map<string, Establishment[]>();
+  for (const s of linkedAreas(slug)) {
+    for (const e of areaListing(slug, s.area.slug)) {
+      // En verksamhet kan höra hemma i flera toppkategorier, och gör det i
+      // 1,4 procent av fallen. Den räknas då i båda, precis som på
+      // kategorisidorna: `categories` är filtret, `category` är etiketten.
+      for (const id of categoriesOf(e).categories) {
+        const key = `${s.area.slug}/${id}`;
+        const bucket = members.get(key);
+        if (bucket) bucket.push(e);
+        else members.set(key, [e]);
+      }
+    }
+  }
+
+  areaCategoryIndexes.set(slug, members);
+  return members;
+}
+
+/**
+ * Områdets kategorisnitt, i visningsordning.
+ *
+ * Ett snitt utan medlemmar utelämnas helt. Ett snitt under gränsen står kvar
+ * med sitt tal men utan länk, samma regel som kategorisidorna följer: hellre en
+ * siffra som stämmer än en sida som inte förtjänar sin URL.
+ */
+export function areaCategories(slug: string, areaSlug: string): AreaCategorySlice[] {
+  const members = areaCategoryIndex(slug);
+  const ut: AreaCategorySlice[] = [];
+  for (const id of AREA_CATEGORIES) {
+    const items = members.get(`${areaSlug}/${id}`) ?? [];
+    if (items.length === 0) continue;
+    ut.push({
+      category: topCategory(id),
+      count: items.length,
+      linked: items.length >= MIN_AREA_CATEGORY_PAGE,
+      ...verdictCounts(items),
+    });
+  }
+  return ut;
+}
+
+/**
+ * Verksamheterna i ett kategorisnitt, i hubbens bokstavsordning.
+ *
+ * Listan är delad med registret och får varken sorteras eller muteras av
+ * anroparen, samma villkor som areaListing.
+ */
+export function areaCategoryListing(
+  slug: string,
+  areaSlug: string,
+  category: TopCategoryId,
+): Establishment[] {
+  return areaCategoryIndex(slug).get(`${areaSlug}/${category}`) ?? [];
 }
 
 /** Området en verksamhet ligger i, eller null. */

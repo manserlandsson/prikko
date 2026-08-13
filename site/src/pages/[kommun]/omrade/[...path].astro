@@ -1,23 +1,39 @@
 ---
 /**
- * Områdessidorna: /[kommun]/omrade/[omrade][/sida/[n]].
+ * Områdessidorna: /[kommun]/omrade/[omrade][/[kategori]][/sida/[n]].
  *
- * En routefil för båda formerna, av samma skäl som kategorisidorna har det:
- * två filer som beskriver samma serie glider isär, och vi räknar ut sidorna
+ * En routefil för alla fyra formerna, av samma skäl som kategorisidorna har
+ * det: filer som beskriver samma serie glider isär, och vi räknar ut sidorna
  * själva med slicePage i stället för att använda Astros paginate(), som lägger
  * sida 1 på seriens rotparameter.
  *
- * Ett område som inte förtjänar en URL får ingen. Se MIN_AREA_PAGE i
- * lib/omraden.ts, och resonemanget om gränskällan i pipeline/omraden.py.
+ * VARFÖR KATEGORISNITTET FINNS. `restauranger södermalm` kompletteras av
+ * Google, liksom samma led för sjutton andra stadsdelar, och det gör även
+ * `caféer`, `mataffär` och `förskolor` plus stadsdelsnamn. Mätningen står i
+ * docs/30. Områdessidan ensam svarar inte på den frågan: Södermalm har 1 197
+ * verksamheter varav 607 restauranger, så den som söker restauranger får en
+ * lista där hälften är förskolor, grossister och butiker.
+ *
+ * Varken område eller kategori som inte förtjänar en URL får någon. Se
+ * MIN_AREA_PAGE och MIN_AREA_CATEGORY_PAGE i lib/omraden.ts, och resonemanget
+ * om gränskällan i pipeline/omraden.py.
  */
 import OmradeHub from '../../../components/OmradeHub.astro';
+import { type TopCategoryId } from '../../../lib/categories';
 import { municipalities, type Municipality } from '../../../lib/data';
-import { areaListing, areaSlice, linkedAreas } from '../../../lib/omraden';
+import {
+  areaCategories,
+  areaCategoryListing,
+  areaListing,
+  areaSlice,
+  linkedAreas,
+} from '../../../lib/omraden';
 import { slicePage, tailPages } from '../../../lib/pagination';
 
 interface PathProps {
   kommun: Municipality;
   areaSlug: string;
+  categoryId: TopCategoryId | null;
   n: number;
 }
 
@@ -27,30 +43,49 @@ export async function getStaticPaths() {
   for (const kommun of municipalities()) {
     for (const slice of linkedAreas(kommun.slug)) {
       const base = slice.area.slug;
-      const push = (path: string, n: number) => {
+      const push = (path: string, categoryId: TopCategoryId | null, n: number) => {
         paths.push({
           params: { kommun: kommun.slug, path },
-          props: { kommun, areaSlug: slice.area.slug, n },
+          props: { kommun, areaSlug: slice.area.slug, categoryId, n },
         });
       };
-      push(base, 1);
-      for (const n of tailPages(slice.count)) push(`${base}/sida/${n}`, n);
+
+      push(base, null, 1);
+      for (const n of tailPages(slice.count)) push(`${base}/sida/${n}`, null, n);
+
+      // Ett kategorisnitt är alltid en delmängd av sitt område, och gränsen är
+      // den högre av de två. Området kan därför aldrig sakna sida när snittet
+      // har en.
+      for (const cat of areaCategories(kommun.slug, slice.area.slug)) {
+        if (!cat.linked) continue;
+        const catBase = `${base}/${cat.category.slug}`;
+        push(catBase, cat.category.id, 1);
+        for (const n of tailPages(cat.count)) push(`${catBase}/sida/${n}`, cat.category.id, n);
+      }
     }
   }
 
   return paths;
 }
 
-const { kommun, areaSlug, n } = Astro.props as PathProps;
+const { kommun, areaSlug, categoryId, n } = Astro.props as PathProps;
 
 // linkedAreas har redan garanterat att området finns; uppslaget kan inte missa.
 const slice = areaSlice(kommun.slug, areaSlug)!;
-const page = slicePage(areaListing(kommun.slug, areaSlug), n);
+const kategorier = areaCategories(kommun.slug, areaSlug);
+const kategori = categoryId ? kategorier.find((c) => c.category.id === categoryId)! : null;
+
+const page = slicePage(
+  categoryId ? areaCategoryListing(kommun.slug, areaSlug, categoryId) : areaListing(kommun.slug, areaSlug),
+  n,
+);
 ---
 
 <OmradeHub
   kommun={kommun}
   slice={slice}
+  kategori={kategori}
+  kategorier={kategorier}
   items={page.items}
   currentPage={page.currentPage}
   lastPage={page.lastPage}

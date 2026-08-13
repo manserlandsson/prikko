@@ -1,10 +1,21 @@
 ---
 /**
- * Områdessidan: stadsdelen som egen adress.
+ * Områdessidan: stadsdelen som egen adress, hel eller skuren på kategori.
  *
  * Sidan svarar på fyra saker och ingenting mer. Vilka ställen finns här, hur
  * ser det ut mot kommunen i stort, var i området ligger de, och vad finns
  * intill. Allt annat hör hemma på kommunhubben eller på verksamhetssidan.
+ *
+ * KATEGORISNITTET är samma sida med en smalare mängd, inte en egen mall. Det
+ * är avsiktligt: `restauranger södermalm` och "allt på Södermalm" är två
+ * sökningar men en och samma sorts svar, och två mallar för samma svar glider
+ * isär. Vad snittet ändrar är rubriken, talen och listan. Vad det inte ändrar
+ * är formen.
+ *
+ * Talen måste läsas ur RÄTT mängd. `slice` räknar hela området och `kategori`
+ * räknar snittet, och en sida som blandar dem påstår att 607 restauranger på
+ * Södermalm har områdets fördelning. Därför `vy` nedan: allt som är ett tal på
+ * sidan hämtas därifrån och aldrig från `slice` direkt.
  *
  * Formen är kommunhubbens och kategorisidans: hårlinje och luft, inga ramar i
  * huvudkolumnen, ingen ingress som beskriver vad sidan innehåller. Kartan är
@@ -14,6 +25,7 @@
 import Base from '../layouts/Base.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import Filterrad from './Filterrad.astro';
+import Kategorival from './Kategorival.astro';
 import OmradeKarta from './OmradeKarta.astro';
 import Pagination from './Pagination.astro';
 import { formatNumber, type Establishment, type Municipality } from '../lib/data';
@@ -24,6 +36,7 @@ import {
   linkedAreas,
   municipalityCleanShare,
   nearbyAreas,
+  type AreaCategorySlice,
   type AreaSlice,
 } from '../lib/omraden';
 import { pageUrl } from '../lib/pagination';
@@ -33,6 +46,10 @@ import { absolute, path } from '../lib/urls';
 interface Props {
   kommun: Municipality;
   slice: AreaSlice;
+  /** Kategorisnittet sidan visar, eller null för hela området. */
+  kategori?: AreaCategorySlice | null;
+  /** Områdets alla kategorier, för filterraden. */
+  kategorier?: AreaCategorySlice[];
   items: Establishment[];
   currentPage: number;
   lastPage: number;
@@ -40,22 +57,59 @@ interface Props {
   total: number;
 }
 
-const { kommun, slice, items, currentPage, lastPage, start, total } = Astro.props;
+const {
+  kommun,
+  slice,
+  kategori = null,
+  kategorier = [],
+  items,
+  currentPage,
+  lastPage,
+  start,
+  total,
+} = Astro.props;
 
 const city = kommun.city;
 const area = slice.area;
 const kommunBase = `/${kommun.slug}`;
-const base = `${kommunBase}/omrade/${area.slug}`;
+const omradeBase = `${kommunBase}/omrade/${area.slug}`;
+const base = kategori ? `${omradeBase}/${kategori.category.slug}` : omradeBase;
 
 const prep = areaPreposition(area.name);
 const platsen = `${prep} ${area.name}`;
+
+/**
+ * Mängden sidans tal räknar. Se modulhuvudet.
+ *
+ * `total` kommer redan från routen och är snittets antal när ett snitt visas,
+ * men fördelningen och jämförelsen måste hämta sina tal ur samma mängd, annars
+ * beskriver bandet ett område medan rubriken beskriver en kategori.
+ */
+const vy = kategori ?? slice;
+
+/*
+ * Vad sidan handlar om, i löptext.
+ *
+ * Kategoriordet står i PLURAL och gemener eftersom det ska kunna stå mitt i en
+ * mening: "607 restauranger på Södermalm". `plural` är fältet som bär den
+ * formen, se TOP_CATEGORIES i lib/categories.ts.
+ *
+ * En reservation som hör hit och inte får tappas bort: butiksledets efterfrågan
+ * är belagd under ordet MATAFFÄR, inte under ordet butiker. `butiker
+ * södermalm` kompletteras med kläder, vintage och second hand, alltså en annan
+ * bransch. Vi skriver ändå "butiker", för det är vad mängden ÄR, och en rubrik
+ * som säger mataffärer om en lista som rymmer kiosker och apotek vore fel om
+ * sitt eget innehåll. Kategorins `blurb` står under rubriken och säger
+ * "Mataffärer, kiosker, hälsokost och apotek", vilket är där ordet hör hemma.
+ */
+const saken = kategori ? kategori.category.plural : 'verksamheter';
 
 /*
  * Andelen räknas på BEDÖMDA och aldrig på totalen, samma regel som gäller
  * överallt annars på sajten. Med totalen som nämnare hade ett område där
  * kommunen kontrollerat lite sett sämre ut än ett där den kontrollerat mycket.
  */
-const share = slice.assessed ? Math.round((slice.clean / slice.assessed) * 100) : 0;
+const share = vy.assessed ? Math.round((vy.clean / vy.assessed) * 100) : 0;
 const kommunen = municipalityCleanShare(kommun.slug);
 
 /**
@@ -70,8 +124,14 @@ const kommunen = municipalityCleanShare(kommun.slug);
  * Rutan hämtade tidigare sitt villkor ur `mapDataset`, alltså ur en annan
  * modul än den länken bredvid frågade. Två svar på samma fråga blir förr eller
  * senare två olika svar.
+ *
+ * KARTAN STÅR BARA PÅ HELA OMRÅDETS SIDA. Områdeskartan ritar områdets alla
+ * verksamheter och går inte att skära på kategori utan att kartlagret byggs om
+ * per snitt. En karta som visar 1 197 punkter under en rubrik som säger 607
+ * restauranger påstår något som inte stämmer, och det är en dyrare sorts fel
+ * än en sida utan karta.
  */
-const karta = utsnitt(kommun.slug);
+const karta = kategori === null && utsnitt(kommun.slug);
 const kartlank = karta ? path(kommunBase, 'karta') + kartfragment(areaBounds(area)) : null;
 
 /*
@@ -103,12 +163,12 @@ const kartlank = karta ? path(kommunBase, 'karta') + kartfragment(areaBounds(are
  * inte förr.
  */
 const segments = [
-  { n: slice.clean, label: VERDICT.clean.label, surface: 'var(--verdict-clean)' },
-  { n: slice.minor, label: VERDICT.minor.label, surface: 'var(--verdict-minor)' },
-  { n: slice.major, label: VERDICT.major.label, surface: 'var(--verdict-major)' },
+  { n: vy.clean, label: VERDICT.clean.label, surface: 'var(--verdict-clean)' },
+  { n: vy.minor, label: VERDICT.minor.label, surface: 'var(--verdict-minor)' },
+  { n: vy.major, label: VERDICT.major.label, surface: 'var(--verdict-major)' },
   // "Ingen bedömning" är inte en nivå och får aldrig läsas som en mild
   // variant av de andra. Därför grått, och därför sist.
-  { n: total - slice.assessed, label: 'Ingen bedömning', surface: 'var(--verdict-none)' },
+  { n: total - vy.assessed, label: 'Ingen bedömning', surface: 'var(--verdict-none)' },
 ].filter((s) => s.n > 0);
 
 const barLabel = segments.map((s) => `${s.label}: ${formatNumber(s.n)}`).join('. ');
@@ -126,11 +186,11 @@ function share100(n: number): string | null {
  * måste vara en mening, och den enda rad ett AI-svar sannolikt citerar.
  */
 const answer =
-  slice.assessed > 0
-    ? `${formatNumber(total)} verksamheter ${platsen}. ${formatNumber(slice.clean)} av de ` +
-      `${formatNumber(slice.assessed)} vi kan bedöma fick inga anmärkningar vid sin senaste ` +
-      `hygienkontroll, ${formatNumber(slice.minor + slice.major)} fick anmärkningar.`
-    : `${formatNumber(total)} verksamheter ${platsen}. Ingen av dem har en kontroll som går att bedöma.`;
+  vy.assessed > 0
+    ? `${formatNumber(total)} ${saken} ${platsen}. ${formatNumber(vy.clean)} av de ` +
+      `${formatNumber(vy.assessed)} vi kan bedöma fick inga anmärkningar vid sin senaste ` +
+      `hygienkontroll, ${formatNumber(vy.minor + vy.major)} fick anmärkningar.`
+    : `${formatNumber(total)} ${saken} ${platsen}. Ingen av dem har en kontroll som går att bedöma.`;
 
 const grannar = currentPage === 1 ? nearbyAreas(kommun.slug, area.slug) : [];
 
@@ -149,34 +209,65 @@ const grannar = currentPage === 1 ? nearbyAreas(kommun.slug, area.slug) : [];
  */
 const omraden = currentPage === 1 ? linkedAreas(kommun.slug) : [];
 
+/*
+ * Rubriken bär KATEGORIN OCH PLATSEN, i den ordningen, och aldrig ordet betyg.
+ *
+ * Ordningen är sökningens egen: folk skriver `restauranger södermalm`, inte
+ * `södermalm restauranger`. Ordet hygienkontroller står kvar först på hela
+ * områdets sida, där mängden inte har något bättre namn, men ett snitt HAR ett
+ * namn och ska bära det.
+ *
+ * `högst betyg` finns i svansen på nästan varje mätt fras och står ändå inte
+ * här. Det är Googles stjärnbetyg i läsarens huvud och vi har inga stjärnor.
+ * Regeln är docs/26 §8 punkt 5 och docs/29 §7, och den gäller även när
+ * frasen bevisligen har volym.
+ */
+const rubrik = kategori
+  ? `${kategori.category.name} ${platsen}`
+  : `Hygienkontroller ${platsen}`;
+
 const title =
   currentPage === 1
-    ? `Hygienkontroller ${platsen}, ${city}`
-    : `Hygienkontroller ${platsen}, ${city}, sida ${currentPage} av ${lastPage}`;
+    ? `${rubrik}, ${city}`
+    : `${rubrik}, ${city}, sida ${currentPage} av ${lastPage}`;
 
 const description =
   currentPage === 1
     ? answer
     : `Verksamhet ${formatNumber(start)}–${formatNumber(start + items.length - 1)} av ` +
-      `${formatNumber(total)} ${platsen} i ${city}, i bokstavsordning. Sida ${currentPage} av ${lastPage}.`;
+      `${formatNumber(total)} ${saken} ${platsen} i ${city}, i bokstavsordning. ` +
+      `Sida ${currentPage} av ${lastPage}.`;
 
-const crumbs = [
-  { '@type': 'ListItem', position: 1, name: 'Prikko', item: absolute() },
-  { '@type': 'ListItem', position: 2, name: kommun.name, item: absolute(kommunBase) },
-  ...(currentPage === 1
-    ? [{ '@type': 'ListItem', position: 3, name: area.name }]
-    : [
-        { '@type': 'ListItem', position: 3, name: area.name, item: absolute(base) },
-        { '@type': 'ListItem', position: 4, name: `Sida ${currentPage}` },
-      ]),
+/*
+ * Brödsmulan får ett steg till när ett snitt visas, så att området alltid går
+ * att nå uppåt. Sista posten bär aldrig `item`: den är sidan man står på.
+ */
+const stigen: Array<{ name: string; item?: string }> = [
+  { name: 'Prikko', item: absolute() },
+  { name: kommun.name, item: absolute(kommunBase) },
+  { name: area.name, item: kategori || currentPage > 1 ? absolute(omradeBase) : undefined },
 ];
+if (kategori) {
+  stigen.push({
+    name: kategori.category.name,
+    item: currentPage > 1 ? absolute(base) : undefined,
+  });
+}
+if (currentPage > 1) stigen.push({ name: `Sida ${currentPage}` });
+
+const crumbs = stigen.map((c, i) => ({
+  '@type': 'ListItem',
+  position: i + 1,
+  name: c.name,
+  ...(c.item ? { item: c.item } : {}),
+}));
 
 const jsonLd = [
   { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs },
   {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: `Verksamheter ${platsen}, ${city}`,
+    name: `${kategori ? kategori.category.name : 'Verksamheter'} ${platsen}, ${city}`,
     numberOfItems: total,
     // Bara sidans egna poster, med sin riktiga position i hela listan.
     itemListElement: items.slice(0, 25).map((e, i) => ({
@@ -198,10 +289,16 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
       <a href={path(kommunBase)}>{city}</a>
-      {currentPage > 1 && (
+      {(kategori || currentPage > 1) && (
         <>
           <span aria-hidden="true">›</span>
-          <a href={path(base)}>{area.name}</a>
+          <a href={path(omradeBase)}>{area.name}</a>
+        </>
+      )}
+      {kategori && currentPage > 1 && (
+        <>
+          <span aria-hidden="true">›</span>
+          <a href={path(base)}>{kategori.category.name}</a>
         </>
       )}
     </nav>
@@ -209,18 +306,52 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     <header class="head">
       <p class="eyebrow">{kommun.name}</p>
       <h1>
-        Hygienkontroller {platsen}
+        {rubrik}
         {currentPage > 1 && <span class="text-secondary">, sida {currentPage}</span>}
       </h1>
+      {/* Kategorins egen förklaring, ordagrant ur TOP_CATEGORIES. Den bär de
+          ord efterfrågan faktiskt använder, alltså mataffär och förskola, och
+          den finns redan skriven. Se resonemanget vid `saken` ovan. */}
+      {kategori && <p class="blurb">{kategori.category.blurb}</p>}
       {/* Omfånget som tal, inte som mening. Samma form som kedjesidans rad
           under namnet. */}
       <p class="omfang">
-        {formatNumber(total)} verksamheter
+        {formatNumber(total)} {saken}
         {currentPage > 1 && (
           <> · {formatNumber(start)}–{formatNumber(start + items.length - 1)}, sida {currentPage} av {lastPage}</>
         )}
       </p>
     </header>
+
+    {/* Kategorivalet. Ett rutnät och inte filterraden, av samma skäl som på
+        kommunhubben: fyra val är ett fast och känt antal som aldrig rullar.
+        Ett snitt under gränsen står kvar med sin siffra men utan länk, precis
+        som kategorierna gör där. Visas bara på sida 1: den som bläddrat till
+        sida 4 har redan valt. */}
+    {currentPage === 1 && kategorier.length > 1 && (
+      <section class="filter" aria-labelledby="omradets-kategorier">
+        <h2 id="omradets-kategorier" class="eyebrow">Verksamheter efter typ {platsen}</h2>
+        <Kategorival
+          label={`Verksamheter efter typ ${platsen}`}
+          items={[
+            {
+              href: kategori ? path(omradeBase) : undefined,
+              label: 'Alla',
+              count: slice.count,
+              ikon: 'alla' as const,
+              current: kategori === null,
+            },
+            ...kategorier.map((c) => ({
+              href: c.linked ? path(omradeBase, c.category.slug) : undefined,
+              label: c.category.name,
+              count: c.count,
+              ikon: c.category.id,
+              current: c.category.id === kategori?.category.id,
+            })),
+          ]}
+        />
+      </section>
+    )}
 
     {/* Områdesväljaren. Riktiga länkar till de områdessidor som redan finns,
         alltså en genväg och inte en ersättning: adresserna är sidor för att de
@@ -230,6 +361,10 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         label={`Områden i ${city}`}
         lead={{ href: path(kommunBase), label: `Hela ${city}`, count: undefined }}
         items={omraden.map((o) => ({
+          /* Grannområdet nås alltid på sin egen rot, aldrig på det snitt man
+             råkar stå i. Ett `restauranger`-led som följde med till Gamla stan
+             hade lett till en sida som inte byggs där snittet ligger under
+             gränsen, alltså till en 404. */
           href: path(kommunBase, 'omrade', o.area.slug),
           label: o.area.name,
           count: o.count,
@@ -241,7 +376,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     {currentPage === 1 && (
       <>
         <section class="fordelning" aria-labelledby="fordelning-rubrik">
-          <h2 id="fordelning-rubrik" class="eyebrow">Bedömning {platsen}</h2>
+          <h2 id="fordelning-rubrik" class="eyebrow">Bedömning, {saken} {platsen}</h2>
 
           <div class="bar" role="img" aria-label={barLabel}>
             {segments.map((s) => (
@@ -310,7 +445,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
     <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
-    <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter ${platsen}`} />
+    <Pagination base={base} current={currentPage} last={lastPage} label={`${saken} ${platsen}`} />
 
     <footer class="foot">
       {grannar.length > 0 && (
@@ -328,7 +463,9 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         </nav>
       )}
       <p>
-        <a href={path(kommunBase)}>Se alla verksamheter i {city}</a>
+        {kategori
+          ? <a href={path(omradeBase)}>Se alla verksamheter {platsen}</a>
+          : <a href={path(kommunBase)}>Se alla verksamheter i {city}</a>}
       </p>
     </footer>
   </div>
@@ -359,6 +496,18 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   }
 
   .head h1 span { font-weight: 400; }
+
+  .blurb {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Kategorivalet står mellan rubriken och bedömningen, som filterraden. */
+  .filter { margin-top: var(--s-6); }
+
+  .filter h2 { margin-bottom: var(--s-2); }
 
   .omfang {
     margin-top: var(--s-2);
