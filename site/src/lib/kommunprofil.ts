@@ -122,6 +122,20 @@ export interface Unseen {
   register: number;
 }
 
+/**
+ * Minsta antal utan aktuell kontroll för att avsnittet ska ritas.
+ *
+ * Under tio är talet trivia, inte en insikt. Jönköping har två verksamheter
+ * utan kontroll av 1 120, och en egen rubrik för dem säger mer om att vi ville
+ * fylla sidan än om Jönköping.
+ *
+ * Talet bor här och inte i Uncovered.astro, trots att det är den filen som
+ * ritar avsnittet. Fördelningsraden på hubben länkar till avsnittet, och en
+ * länk till ett avsnitt som inte ritats är ett ankare som inte leder någonstans.
+ * Villkoret måste därför kunna ställas på båda ställena ur samma tal.
+ */
+export const MIN_UNSEEN_SECTION = 10;
+
 const unseens = new Map<string, Unseen>();
 
 /**

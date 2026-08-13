@@ -53,7 +53,13 @@ import {
   type Municipality,
 } from '../lib/data';
 import { utsnitt } from '../lib/kartrutor';
-import { followUpRecord, kommunProfil, recentlyInspected, unseen } from '../lib/kommunprofil';
+import {
+  MIN_UNSEEN_SECTION,
+  followUpRecord,
+  kommunProfil,
+  recentlyInspected,
+  unseen,
+} from '../lib/kommunprofil';
 import { kontrollen } from '../lib/kontrollen';
 import { linkedAreas } from '../lib/omraden';
 import { pageUrl } from '../lib/pagination';
@@ -153,6 +159,21 @@ const profil = currentPage === 1 ? kommunProfil(kommun.slug) : null;
 
 /** Fördjupningen efter listan finns bara när minst en insikt har underlag. */
 const hasDjup = Boolean(profil || record || control || unassessed || density);
+
+/**
+ * Fördelningsradens grå post pekar hit, alltså till det avsnitt som förklarar
+ * vad grått är: hur många som aldrig kontrollerats och hur många vars kontroll
+ * är för gammal. `unseen()` räknar samma mängd som posten, verksamheter utan
+ * bedömning, så ankaret leder till en uppdelning av exakt det talet man klickat
+ * på.
+ *
+ * Villkoret är avsnittets eget. Uncovered.astro ritar ingenting under
+ * MIN_UNSEEN_SECTION, och en post som länkar till ett avsnitt som inte finns
+ * skickar besökaren till sidans slut utan besked. Är unassessed satt är också
+ * hasDjup sant, alltså står bandet på sidan.
+ */
+const unseenAnchor =
+  unassessed && unassessed.total >= MIN_UNSEEN_SECTION ? '#utan-kontroll' : undefined;
 
 /**
  * "Senast kontrollerade" bara på sida 1. Panelen "Om uppgifterna" står på
@@ -269,6 +290,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
             <KommunOversikt
               counts={counts}
               remarksHref={remarks > 0 ? path(base, 'anmarkningar') : undefined}
+              unseenHref={unseenAnchor}
               statsHref={hasDjup ? '#om-kontrollen' : undefined}
               city={city}
             />

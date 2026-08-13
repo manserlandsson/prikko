@@ -20,7 +20,7 @@
 import InfoTip from './InfoTip.astro';
 import Nyckeltal from './Nyckeltal.astro';
 import { formatNumber } from '../lib/data';
-import type { Unseen } from '../lib/kommunprofil';
+import { MIN_UNSEEN_SECTION, type Unseen } from '../lib/kommunprofil';
 
 interface Props {
   unseen: Unseen;
@@ -43,12 +43,8 @@ const tal = [
     : []),
 ];
 
-/**
- * Under tio är talet trivia, inte en insikt. Jönköping har två verksamheter
- * utan kontroll av 1 120, och en egen rubrik för dem säger mer om att vi ville
- * fylla sidan än om Jönköping.
- */
-const worthShowing = u.total >= 10;
+/** Villkoret bor i lib/kommunprofil.ts, se skälet vid konstanten. */
+const worthShowing = u.total >= MIN_UNSEEN_SECTION;
 ---
 
 {worthShowing && (
@@ -86,6 +82,11 @@ const worthShowing = u.total >= 10;
 )}
 
 <style>
+  /* Avsnittet är ett ankarmål: fördelningsradens grå post länkar hit. Samma
+     luft som .djup ger sitt eget ankare i KommunHub.astro, så att rubriken
+     inte klistras mot fönstrets överkant när man kommer fram. */
+  .uncovered { scroll-margin-top: var(--s-6); }
+
   /* Ingen ruta, se CommonIssues.astro och docs/19_formsystem.md. */
   .uncovered h2 {
     display: flex;

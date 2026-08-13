@@ -590,7 +590,7 @@ const breadcrumbs = {
              jämför, hos någon som just läst ett besked. */
           <p class="jamfor-rad">
             <a class="jamfor-knapp" data-jamfor href={compareHref(kommun.slug, e.slug)}>
-              {JAMFOR_NYHET_SYNS && <span class="jamfor-nytt">Nytt</span>}
+              {JAMFOR_NYHET_SYNS && <span class="jamfor-nytt">Nytt!</span>}
               Jämför med ett annat ställe
             </a>
           </p>
@@ -947,9 +947,22 @@ const breadcrumbs = {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       column-gap: var(--s-4);
-      row-gap: var(--s-4);
-      align-items: center;
+      row-gap: var(--s-3);
+      /* `start` och inte `center`.
+
+         Mätt vid 375 px: beskedet är 112 px högt och märket 52, och med
+         `center` hamnade märket 31 px under textens överkant, alltså svävande
+         mitt i stycket i stället för bredvid rubriken det hör till.
+         Skrivbordsläget några rader upp gör tvärtom, `flex-start` plus två
+         pixlars nudge, och de två lägena ska inte säga emot varandra.
+         Ägaren: "ser ful ut på mobil, dåligt alignad typ." */
+      align-items: start;
     }
+
+    /* Nudgen som gör att märkets optiska mitt möter rubrikens, samma två
+       pixlar som skrivbordsläget. Regeln ovanför gäller båda, men den ligger
+       före mediefrågan och skulle annars slås ut av `align-items` här. */
+    .verdict > :global(.face) { margin-top: 2px; }
 
     .verdict > :global(.utmarkelse) { grid-column: 2; }
   }
@@ -1061,17 +1074,22 @@ const breadcrumbs = {
 
   /* Brandblå och aldrig grönt, gult eller rött. De tre färgerna är
      bedömningens och skulle läsas som ett omdöme om verksamheten. */
+  /* Boolis form, uppmätt på deras egen nyhetsruta: fyrkantig etikett med
+     liten radie och utropstecken, inte ett piller. Ett piller läser som ett
+     antal, alltså som en notissiffra, medan en fyrkant läser som en stämpel.
+     Ägaren: "vår nytt knapp ska vara Nytt! och sitta mer clean." */
   .jamfor-nytt {
     background: var(--brand);
     color: #fff;
-    border-radius: var(--r-pill);
-    padding: 2px 7px;
+    border-radius: 4px;
+    padding: 1px 6px;
     /* --fs-micro ÄR 11 px. Ett rått värde med reservtoken hade sagt att
        skalan saknar graden, och nästa gång skalan justeras hade etiketten
        blivit kvar. Se docs/19_formsystem.md. */
     font-size: var(--fs-micro);
-    line-height: 1.4;
-    letter-spacing: .01em;
+    line-height: 1.5;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 
   .jamfor-knapp:hover {

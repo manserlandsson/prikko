@@ -30,8 +30,6 @@
  * docs/18_sprakregler.md.
  */
 import Base from '../../layouts/Base.astro';
-import FaceRef from '../../components/FaceRef.astro';
-import FaceSprite from '../../components/FaceSprite.astro';
 import OwnerReply from '../../components/OwnerReply.astro';
 import {
   AREA_STATUS_INK,
@@ -111,7 +109,6 @@ function groundText(r: (typeof rows)[number]): string {
   jsonLd={jsonLd}
   dataUpdated={fetched}
 >
-  <FaceSprite />
 
   <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">
@@ -143,8 +140,18 @@ function groundText(r: (typeof rows)[number]): string {
         const i = r.inspection;
         return (
           <li>
+            {/* Inget märke per rad.
+
+                Varje rad i den här listan är per definition en verksamhet med
+                kvarstående brister, alltså ritade 36 pixlars rött märke exakt
+                samma sak på rad efter rad. Ett tecken som aldrig varierar bär
+                ingen information, det är en punktlista med extra steg. Ägaren
+                såg det direkt: samma ikon som den ovanför.
+
+                Färgen finns kvar där den betyder något, alltså i sidhuvudets
+                besked och i varje raddel som säger VAD som brister. Den som
+                vill se märket ser det på verksamhetssidan, dit namnet leder. */}
             <div class="row-head">
-              <FaceRef verdict="major" size={36} />
               <div class="row-title">
                 <a class="name" href={path(kommun.slug, e.slug)}>{e.name}</a>
                 <span class="meta text-secondary">

@@ -18,20 +18,67 @@
  * Färgerna är bedömningens egna och betyder här precis vad de betyder
  * överallt annars. Varje segment bär sin etikett i text: färg ensam är
  * aldrig ett budskap.
+ *
+ * ## Vilka poster som är klickbara, och varför inte alla fyra
+ *
+ * Ägaren: "på dom här brister som kvarstår, inga anmärkningar, etc dom ska
+ * vara klickbara." Tre av fyra är det nu. Den fjärde är det inte, och skälet
+ * är att den inte HAR något att leda till.
+ *
+ * BRISTER och BRISTER SOM KVARSTÅR leder båda till /[kommun]/anmarkningar.
+ * Samma adress för två poster ser fel ut tills man ser vad sidan är:
+ * `municipalityRemarks()` i data.ts tar allt som är bedömt och inte rent,
+ * alltså de två posterna TILLSAMMANS och exakt dem. Sidans egen svarsmening
+ * skriver ut båda talen, listan sorterar kvarstående först, och varje rad bär
+ * sin nivå i klartext. Det finns alltså ingen bättre adress för någon av dem,
+ * och en sida per nivå vore två nya rutter per kommun för en sökning ingen gör.
+ *
+ * MATSNUSK är INTE svaret för "brister som kvarstår", hur nära det än låter.
+ * Den listan har tre krav till (bevisat konsumentnära avvikelse, kontroll
+ * högst tolv månader gammal, kommunen över radgränsen), och det syns i talen:
+ * Stockholm har 156 kvarstående men 64 matsnuskrader, och i tio av tolv
+ * kommuner finns sidan inte alls. En post som säger 156 får inte leda till 64.
+ * Sidan länkas i stället från anmärkningssidans fot, där läsaren redan står
+ * bland de kvarstående.
+ *
+ * INGEN BEDÖMNING leder till avsnittet som förklarar just det talet,
+ * "Utan aktuell kontroll", längre ner på samma sida. `unseen()` räknar samma
+ * mängd som posten (verdict === null) och delar den i aldrig kontrollerade och
+ * för länge sedan kontrollerade. Det är den enda plats på sajten som säger vad
+ * grått betyder, och att komma dit är hela nyttan av att klicka.
+ *
+ * INGA ANMÄRKNINGAR har ingen länk. Ingen söker på "verksamheter utan
+ * anmärkning i Stockholm" som en egen sida, så en sida får inte byggas
+ * (funktioner kostar aldrig en sida), och ett filter på plats kan inte bära
+ * den heller: registret under raden är sidindelat i hundra rader åt gången,
+ * och Stockholms rena mängd är 6 497 verksamheter på sextiofem sidor. Ett
+ * filter som döljer rader på sidan man står på hade visat sjuttiosex av
+ * 6 497 och kallat det svaret. Samma skäl som gör kategorifiltret till länkar
+ * och inte kryssrutor, se KommunHub.astro. Posten står alltså kvar som tal och
+ * etikett, och mängden den räknar är registret man redan tittar på.
  */
 import { formatNumber } from '../lib/data';
 import { VERDICT } from '../lib/site';
 
 interface Props {
   counts: { clean: number; minor: number; major: number; none: number };
-  /** Länkmål för raden "Brister", när kommunen har några. */
+  /**
+   * Anmärkningssidan. Bär BÅDE "Brister" och "Brister som kvarstår", se
+   * huvudkommentaren. Utelämnad när kommunen inte har några.
+   */
   remarksHref?: string;
+  /**
+   * Ankare till avsnittet "Utan aktuell kontroll". Utelämnat när avsnittet
+   * inte ritas: ett ankare till något som inte finns leder ingenstans, och
+   * besökaren märker det först efter att ha klickat.
+   */
+  unseenHref?: string;
   /** Ankare till fördjupningen längre ner på sidan, när den finns. */
   statsHref?: string;
   city: string;
 }
 
-const { counts, remarksHref, statsHref, city } = Astro.props;
+const { counts, remarksHref, unseenHref, statsHref, city } = Astro.props;
 
 const total = counts.clean + counts.minor + counts.major + counts.none;
 
@@ -41,18 +88,21 @@ const segments = [
     n: counts.clean,
     label: VERDICT.clean.label,
     surface: 'var(--verdict-clean)',
+    href: undefined as string | undefined,
   },
   {
     key: 'minor',
     n: counts.minor,
     label: VERDICT.minor.label,
     surface: 'var(--verdict-minor)',
+    href: remarksHref,
   },
   {
     key: 'major',
     n: counts.major,
     label: VERDICT.major.label,
     surface: 'var(--verdict-major)',
+    href: remarksHref,
   },
   {
     key: 'none',
@@ -61,6 +111,7 @@ const segments = [
     // variant av de andra. Därför grått, och därför sist.
     label: 'Ingen bedömning',
     surface: 'var(--verdict-none)',
+    href: unseenHref,
   },
 ];
 
@@ -104,16 +155,20 @@ function share(n: number): string | null {
             <b>{formatNumber(s.n)}</b>
             {pct && <span class="pct">{pct}</span>}
           </span>
+          {/* Etiketten ligger i en egen span inuti .lbl, och det är inte en
+              extra låda för sakens skull: understrykningen som märker ut en
+              klickbar post ritas på texten, och en understrykning på .lbl hade
+              dragit linjen under färgpricken också. */}
           <span class="lbl">
             <span class="swatch" style={`background:${s.surface}`} aria-hidden="true"></span>
-            {s.label}
+            <span class="txt">{s.label}</span>
           </span>
         </>
       );
       return (
         <li>
-          {s.key === 'minor' && remarksHref && s.n > 0 ? (
-            <a href={remarksHref}>{body}</a>
+          {s.href && s.n > 0 ? (
+            <a href={s.href}>{body}</a>
           ) : (
             <span class="rad">{body}</span>
           )}
@@ -188,8 +243,48 @@ function share(n: number): string | null {
     color: var(--text);
   }
 
+  /*
+   * Att posten går att klicka på ska synas UTAN att man pekar på den.
+   *
+   * Den var en länk vars enda tecken var en understrykning vid hovring, alltså
+   * osynlig för den som inte redan gissat, och helt osynlig på telefon. Ägaren:
+   * "dom ska vara klickbara". Det räcker inte att de ÄR det.
+   *
+   * Formen är Boolis, uppmätt på booli.se 2026-08-13. De märker klickbar data
+   * på exakt ett sätt: understrykning i vila, i bläck, aldrig i accentfärg.
+   * "Se Boolis värdering" på objektsidan är 14/600 understruken i #1A1A1A,
+   * föreningens lägenhetsrader är 14/400 understrukna i samma bläck, och
+   * artikellänken mitt i brödtexten likaså. Accenten (#FF610D) förekommer en
+   * till fyra gånger på en hel sida och bär aldrig en länk i ett datablock.
+   * Deras enda ramade varianter är knappar och flikar, alltså kontroller.
+   *
+   * Därför: understruken etikett i vila och ingenting mer. Ingen ram, ingen
+   * platta, ingen pil. Fyra inramade poster på rad hade läst som en knapprad
+   * mitt i en sida som annars är lugn, och det är precis vad raden inte får bli.
+   *
+   * Understrykningen sitter på ETIKETTEN och inte på talet. Talet är
+   * uppgiften, och en understruken siffra läser som en rättelse. Hela cellen
+   * är ändå träffyta, eftersom länken är blocket.
+   *
+   * Etiketten går samtidigt från --text-secondary till fullt bläck. Grått plus
+   * understrykning läser som en fotnot; en länk ska väga som text.
+   */
+  .legend a .lbl { color: var(--text); }
+
+  .legend a .txt {
+    text-decoration: underline;
+    /* Understrykningen ligger annars i bokstävernas underhäng. Raden är 13 px,
+       och förvalet kryper då för nära. */
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Hovring bär färgen, i sajtens länkblå. Booli byter inte färg alls, men
+     deras bläck ÄR länkfärgen; hos oss är blått det som säger "aktiv" i
+     sökpanelen, i kartan och i pagineringen, och en post som inte svarar på
+     pekaren läser som död. */
   .legend a:hover { text-decoration: none; }
-  .legend a:hover .lbl { color: var(--brand-ink); text-decoration: underline; }
+  .legend a:hover .lbl { color: var(--brand-ink); }
 
   /* Talet och andelen delar rad, talet i bläck och andelen tyst efter det.
      Etiketten står under, alltså inte i motsatt kant. */

@@ -92,6 +92,15 @@ const kartlank = karta ? path(kommunBase, 'karta') + kartfragment(areaBounds(are
  * Färgerna är bedömningens egna och betyder här vad de betyder överallt
  * annars. Varje segment bär sin etikett i text: färg ensam är aldrig ett
  * budskap.
+ *
+ * INGEN POST ÄR KLICKBAR HÄR, till skillnad från kommunhubbens rad. Det är
+ * inte en lucka. Hubbens poster leder till /[kommun]/anmarkningar och till
+ * kommunens eget avsnitt om vad kontrollen inte nått, och båda räknar HELA
+ * kommunen. Talen i det här bandet räknar stadsdelen. En post som säger 74 och
+ * leder till en sida som säger 774 är en sämre länk än ingen länk, och en
+ * anmärkningssida per område vore en ny rutt per stadsdel för en sökning ingen
+ * gör. Kommer det någon gång ett områdesurval att peka på hör länkarna hit,
+ * inte förr.
  */
 const segments = [
   { n: slice.clean, label: VERDICT.clean.label, surface: 'var(--verdict-clean)' },
