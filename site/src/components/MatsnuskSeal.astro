@@ -1,37 +1,70 @@
 ---
 /**
- * Matsnuskmärkets ikon. PLATSHÅLLARE tills Måns ritning landar.
+ * Matsnuskmärket, som det ser ut på sajten.
  *
- * Ritningen görs i ett eget spår: samma stil som utmärkelsens märke men utan
- * krans och i rött. Tills den finns ritas sajtens befintliga röda märke
- * (FaceMark, round), så att inget här behöver gissas om formen.
+ * Ritningen bor i `brand/matsnuskmarke.mjs`, som också skriver provarket den
+ * valdes på. Där står vad som tittades på innan något ritades, vilka fem
+ * uppställningar som föll och varför. Här står bara hur den serveras.
  *
- * ## Gränssnittet ritningen ska levereras mot
+ * ## Inbakad SVG, till skillnad från utmärkelsen
  *
- * Samma väg som den positiva utmärkelsen (se lib/marke.ts och
- * scripts/importera-marke.mjs), men utan årtal, för märket är levande och
- * inte en fryst utgåva:
+ * AwardSeal är en `<img>` mot en fil, eftersom utmärkelsens ritning är 10 kB
+ * och står på 1 541 verksamhetssidor som alla kan dela samma cachade fil, och
+ * eftersom det är samma URL verksamheten laddar ner.
  *
- * 1. Originalet läggs i brand/ och importeras till en genererad modul
- *    `src/marks/matsnusk.ts` med `{ viewBox, source }`, där source bär
- *    currentColor. En modul och inte en .svg, av samma byggskäl som marke.ts.
- * 2. Färgen sätts vid rendering till #EB0000, alltså --verdict-major-ink,
- *    inte --verdict-major: märket kan stå intill text och behöver 4,5:1.
- * 3. Bara internt bruk. Till skillnad från utmärkelsen finns ingen
- *    nedladdningsbar fil och ingen markDocument-motsvarighet: ett levande
- *    märke som lämnar sajten kan inte tas tillbaka, och det får aldrig
- *    kunna ljuga om nuläget.
+ * Här gäller motsatsen på båda punkterna. Ritningen är 1,8 kB, och den finns
+ * INGEN fil av: ett levande märke som lämnar sajten kan inte tas tillbaka och
+ * skulle kunna ljuga om nuläget den dag bristerna är åtgärdade. Alltså finns
+ * ingenting att peka en `<img>` mot, och inbakad kostar den en förfrågan
+ * mindre.
  *
- * När modulen finns byts FaceMark nedan mot ritningen. Props behålls.
+ * ## Färgen sätts här och inte i ritningen
+ *
+ * Källan bär `currentColor` och sammanhanget sätter `--verdict-major-ink`,
+ * alltså #EB0000 och inte #FF0000. Skälet är kontrast: märket står intill text
+ * och behöver 4,5:1, och den ljusa röda ligger strax under 4:1.
+ *
+ * ## Höjden räknas inte fram, och det är skillnaden mot AwardSeal
+ *
+ * AwardSeal måste skriva ut en höjd, eftersom en `<img>` inte har någon
+ * storlek förrän filen landat och layouten annars hoppar. En inbakad SVG med
+ * viewBox har sin proportion i dokumentet från början, alltså finns inget hopp
+ * att förebygga. Bara bredden sätts, och den kan därför skrivas över i en
+ * mediefråga utan att en uträknad höjd säger emot.
+ *
+ * Bredden går genom en EGENSKAP och inte som `style="width:…"`, och det är
+ * inte en stilfråga. En inline-deklaration slår varje regel i ett stilark,
+ * alltså hade mediefrågan i MatsnuskNote som krymper sigillet under 640 px
+ * aldrig fått effekt. AwardSeal slipper problemet av en slump: `<img>` bär
+ * bredden som ATTRIBUT, och attribut förlorar mot CSS.
  */
-import FaceMark from './FaceMark.astro';
+import { source } from '../marks/matsnusk';
 
 interface Props {
-  /** Bredd och höjd i pixlar. Platshållaren är kvadratisk. */
-  size?: number;
+  /** Bredd i pixlar. Höjden faller ur ritningens proportion. */
+  width?: number;
 }
 
-const { size = 56 } = Astro.props;
+const { width = 132 } = Astro.props;
 ---
 
-<FaceMark verdict="major" size={size} variant="round" />
+<span class="snusk-seal" style={`--seal-w:${width}px`} set:html={source} />
+
+<style>
+  .snusk-seal {
+    flex: none;
+    display: block;
+    color: var(--verdict-major-ink);
+    width: var(--seal-w);
+    /* Bredden får krympa på smala skärmar, proportionen aldrig. */
+    max-width: 100%;
+  }
+
+  /* `:global` krävs: ritningen kommer in med `set:html` och bär därför inte
+     Astros scope-attribut. */
+  .snusk-seal :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

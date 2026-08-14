@@ -1,6 +1,8 @@
 /**
  * NYTT ÅR, NYTT MÄRKE. Så här gör du.
  *
+ * (Skriptet importerar också matsnuskmärket. Se avsnittet längst ned.)
+ *
  *   1. Rita om märket med det nya årtalet. Utgå från förra årets fil i brand/.
  *      Årtalet måste vara konverterat till kurvor, alltså INTE en textruta.
  *      Skriptet vägrar filen annars.
@@ -38,6 +40,21 @@
  *
  * `width` och `height` tas bort och bara `viewBox` står kvar, så att märket
  * skalar med sin behållare i stället för att slåss med den.
+ *
+ * ## Matsnuskmärket går samma väg, med `matsnusk` i stället för ett årtal
+ *
+ *     node scripts/importera-marke.mjs ../brand/prikko-matsnuskmarke.svg matsnusk
+ *
+ * Skriptet skriver då `src/marks/matsnusk.ts` utan `year`. Att det är samma
+ * skript och inte ett andra är hela poängen: de två märkena måste hållas till
+ * SAMMA garantier, alltså exakt en färg som kan bytas mot currentColor, ingen
+ * `<text>` som renderar olika på en främmande maskin, och en viewBox som
+ * skalar. Ett eget skript hade varit hundra rader som glider isär.
+ *
+ * Skillnaden ligger inte här utan i vad som händer sedan: utmärkelsen serveras
+ * som en nedladdningsbar fil (se lib/marke.ts), matsnuskmärket gör det aldrig.
+ * Ett LEVANDE märke som lämnar sajten kan inte tas tillbaka, och det skulle
+ * kunna ljuga om nuläget den dag bristerna är åtgärdade.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -47,14 +64,16 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, '..', 'src', 'marks');
 
-const [sourceArg, yearArg] = process.argv.slice(2);
-if (!sourceArg || !yearArg) {
-  throw new Error('Kör: node scripts/importera-marke.mjs <källa.svg> <år>');
+const [sourceArg, malArg] = process.argv.slice(2);
+if (!sourceArg || !malArg) {
+  throw new Error('Kör: node scripts/importera-marke.mjs <källa.svg> <år|matsnusk>');
 }
 
-const year = Number(yearArg);
-if (!Number.isInteger(year) || year < 2020 || year > 2100) {
-  throw new Error(`Orimligt årtal: ${yearArg}`);
+/** Matsnuskmärket är levande och har därför inget årtal. Se filhuvudet. */
+const levande = malArg === 'matsnusk';
+const year = levande ? null : Number(malArg);
+if (!levande && (!Number.isInteger(year) || year < 2020 || year > 2100)) {
+  throw new Error(`Orimligt årtal: ${malArg}`);
 }
 
 const source = resolve(process.cwd(), sourceArg);
@@ -99,7 +118,29 @@ let out = optimised.replace(new RegExp(colors[0], 'gi'), 'currentColor');
 if (!/viewBox="[^"]+"/.test(out)) {
   throw new Error('Ritningen saknar viewBox och kan inte skala.');
 }
-out = out.replace(/\s(width|height)="[^"]*"/g, '');
+
+/*
+ * Bara ROTTAGGENS width och height, inte allas.
+ *
+ * Raden var en global ersättning och tog `width` och `height` var den än stod.
+ * Det gick obemärkt förbi utmärkelsen därför att svgo råkar skriva om dess
+ * enda rektangel till en bana, alltså fanns inga attribut kvar att förstöra.
+ * Matsnuskmärket ÄR två rektanglar, och de kom ut som `<rect x="3.5" y="3.5"
+ * stroke-width="7"/>`, alltså utan storlek och osynliga i bygget.
+ *
+ * Sensmoralen är samma som skuggan i maskotprogrammet §4e: det som aldrig
+ * mäts driver, och ett steg som råkar ha rätt på en fil har inte rätt.
+ *
+ * Utmärkelsen är omgenererad med rättelsen och växte 138 byte, alltså de
+ * `width` och `height` svgo sätter på tre `<mask>`. Att det renderar likadant
+ * är MÄTT och inte antaget: de två filerna ritades i 900 px och jämfördes
+ * pixel för pixel, 0 av 1 508 400 delpixlar skiljer. Skälet är att maskernas
+ * banor ligger innanför både det gamla förvalet, 120 procent av ytan, och den
+ * nya uttryckliga rutan.
+ */
+out = out.replace(/^(<svg\b[^>]*?)\s*>/, (_, tagg) =>
+  tagg.replace(/\s(width|height)="[^"]*"/g, '') + '>',
+);
 
 if (out.includes('<text')) {
   throw new Error(
@@ -127,24 +168,33 @@ if (out.includes('<text')) {
  * Måns original ligger kvar orört i brand/. Filen här är kompilatet.
  */
 mkdirSync(OUT, { recursive: true });
-const target = join(OUT, `utmarkelse-${year}.ts`);
+const target = join(OUT, levande ? 'matsnusk.ts' : `utmarkelse-${year}.ts`);
 const viewBox = out.match(/viewBox="([^"]+)"/)[1];
+
+const huvud = levande
+  ? ` * Matsnuskmärket. GENERERAD FIL, redigera den inte för hand.\n` +
+    ` *\n` +
+    ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
+    ` * Ritningen och skälen bakom varje mått står i brand/matsnuskmarke.mjs.\n` +
+    ` * Färgen är utbytt mot currentColor och sätts av MatsnuskSeal.astro.\n` +
+    ` *\n` +
+    ` * INGET ÅRTAL, till skillnad från utmärkelsen, och det är avsiktligt:\n` +
+    ` * märket är levande och försvinner i samma bygge som raden gör det.\n`
+  : ` * Utmärkelsemärket ${year}. GENERERAD FIL, redigera den inte för hand.\n` +
+    ` *\n` +
+    ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
+    ` * Färgen är utbytt mot currentColor, se lib/marke.ts för varför.\n`;
 
 writeFileSync(
   target,
-  `/**\n` +
-    ` * Utmärkelsemärket ${year}. GENERERAD FIL, redigera den inte för hand.\n` +
-    ` *\n` +
-    ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
-    ` * Färgen är utbytt mot currentColor, se lib/marke.ts för varför.\n` +
-    ` */\n` +
-    `export const year = ${year};\n` +
+  `/**\n${huvud} */\n` +
+    (levande ? '' : `export const year = ${year};\n`) +
     `export const viewBox = '${viewBox}';\n` +
     `export const source =\n  ${JSON.stringify(out.trim())};\n`,
 );
 
 console.log(
-  `${year}: ${(raw.length / 1024).toFixed(1)} kB in, ${(out.length / 1024).toFixed(1)} kB ut, ` +
+  `${malArg}: ${(raw.length / 1024).toFixed(1)} kB in, ${(out.length / 1024).toFixed(1)} kB ut, ` +
     `färgen ${colors[0]} utbytt mot currentColor.`,
 );
 console.log(`Skrev ${target}`);

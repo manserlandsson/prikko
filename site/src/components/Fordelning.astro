@@ -61,16 +61,27 @@ interface Props {
    * mått för att slippa en spalt per mängd.
    */
   min?: string;
+  /**
+   * Kompakt läge för en smal sidopanel.
+   *
+   * Bandet 24 px är rätt i en huvudkolumn och för tjockt i en panel på 268 px,
+   * där det tillsammans med ett stort tal och etiketter som radbryter gör
+   * rutan klumpig. Ägaren: "ser så stort och klumpigt ut nu." Bandet går ned
+   * till 12 px och luften med det, medan formen är oförändrad: samma radie i
+   * förhållande till höjden, samma segment kant i kant, samma
+   * teckenförklaring.
+   */
+  kompakt?: boolean;
 }
 
-const { delar, label, min = '150px' } = Astro.props;
+const { delar, label, min = '150px', kompakt = false } = Astro.props;
 
 const total = delar.reduce((sum, d) => sum + d.n, 0);
 ---
 
 {total > 0 && (
   <div class="fordelning">
-    <div class="band" role="img" aria-label={label}>
+    <div class:list={["band", { kompakt }]} role="img" aria-label={label}>
       {delar.map((d) => d.n > 0 && (
         <span style={`width:${(d.n / total) * 100}%;background:${d.surface}`}></span>
       ))}
@@ -101,6 +112,10 @@ const total = delar.reduce((sum, d) => sum + d.n, 0);
      Spåret är en hårlinje och inte --verdict-none: mängderna som skickas in
      summerar till helheten, så spåret syns aldrig, och en grå botten i
      bedömningens ofärg hade påstått en mängd som inte finns. */
+  /* Kompakt: halva höjden och halva radien, alltså samma form i mindre skala.
+     Se propen `kompakt` ovan för varför. */
+  .band.kompakt { height: 12px; border-radius: var(--s-1); }
+
   .band {
     display: flex;
     height: 24px;

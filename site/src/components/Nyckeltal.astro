@@ -53,13 +53,27 @@ export interface Tal {
 
 interface Props {
   tal: Tal[];
+  /**
+   * Kompakt läge för en smal sidopanel.
+   *
+   * Talet står i --fs-h i stället för --fs-title. Skälet är mätt och inte
+   * tyckt: panelen är 300 px bred med 16 px padding, alltså 268 px innehåll,
+   * och 32 px över en etikett som måste radbrytas två gånger läser som ett
+   * hjältetal i en yta som inte är sidans hjälte. Ägaren: "ser så stort och
+   * klumpigt ut nu."
+   *
+   * Förhållandet mellan tal och etikett behålls, det är det Ednia och Stripe
+   * har gemensamt och det som gör att ett nyckeltal läser som ett nyckeltal.
+   * Det är graden som sänks, inte formen som byts.
+   */
+  kompakt?: boolean;
 }
 
-const { tal } = Astro.props;
+const { tal, kompakt = false } = Astro.props;
 ---
 
 {tal.length > 0 && (
-  <ul class="nyckeltal">
+  <ul class:list={["nyckeltal", { kompakt }]}>
     {tal.map((t) => (
       <li>
         <b class="varde">{t.value}</b>
@@ -71,6 +85,14 @@ const { tal } = Astro.props;
 )}
 
 <style>
+  /* Kompakt: talet ett steg ned och luften därefter. Se propen ovan. */
+  .nyckeltal.kompakt { margin-top: var(--s-3); gap: var(--s-4); }
+
+  .nyckeltal.kompakt .varde {
+    font-size: var(--fs-h);
+    line-height: var(--lh-h);
+  }
+
   .nyckeltal {
     list-style: none;
     display: grid;

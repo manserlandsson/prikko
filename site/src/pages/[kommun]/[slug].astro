@@ -545,9 +545,24 @@ const breadcrumbs = {
             {/* Märket som märke, ute till höger på bedömningsraden. Som
                 piller i rubriken syntes det knappt; som låda under
                 nyckeltalen låg det i vägen. Här har det plats att vara ett
-                sigill utan att skjuta ned något. */}
+                sigill utan att skjuta ned något.
+
+                DE TVÅ SIGILLEN DELAR DEN HÄR PLATSEN, och det går för att de
+                aldrig kan gälla samtidigt: utmärkelsen kräver ren historik och
+                matsnusk kräver kvarstående brister. Ingen rad kan alltså bära
+                båda, och ingen av dem behöver veta om den andra. */}
             <AwardNote establishment={e} />
+            <MatsnuskNote establishment={e} />
           </div>
+          {/* Grunden för matsnuskmärket, direkt under det sigill den hör till.
+              Ett sigill utan förklaring intill är en anklagelse utan grund, och
+              det är hela skälet till att märket inte fick flytta upp ensamt.
+              Utmärkelsen behöver ingen motsvarighet: dess sigill bär sitt eget
+              årtal och länkar till en utgåvesida som förklarar ribban.
+
+              Före metodiklänken, som är generisk. Den här meningen gäller det
+              här stället. */}
+          <MatsnuskNote establishment={e} visa="grund" />
           <p class="method caption">
             <a href="/metodik/">Så sätts bedömningen</a>
           </p>
@@ -596,12 +611,18 @@ const breadcrumbs = {
           </p>
         )}
 
-        {/* Utmärkelsen stod här som ett eget fält och är flyttad upp till
-            bedömningsraden, se AwardNote.astro. Matsnusk står kvar: den är
-            inget erkännande utan ett påstående om kvarstående brister, och
-            den behöver sin plats i berättelsen. De två kan aldrig gälla
-            samtidigt. */}
-        <MatsnuskNote establishment={e} />
+        {/* Här stod BÅDA märkena en gång, som var sitt inramade fält.
+            Utmärkelsen flyttade upp till bedömningsraden först, se
+            AwardNote.astro, och matsnusk lämnades kvar med skälet att den är
+            ett påstående och inte ett erkännande och därför behöver sin plats
+            i berättelsen.
+
+            Det höll inte. Ägaren: "det ska ju vara som ett märke som
+            utmärkelsen, eller?". Ett påstående som får ett eget avsnitt med
+            rubrik långt ned på sidan väger TYNGRE än ett erkännande som står
+            som ett sigill vid beskedet, inte lättare, och att behandla den
+            hårdare av de två mer omständligt är fel ordning. Båda står nu på
+            bedömningsraden, och grunden står under den. */}
 
         {latestInspection && latestInspection.areas.length > 0 && (
           <ControlBreakdown
@@ -765,6 +786,7 @@ const breadcrumbs = {
                   Staden står i panelrubriken och därför inte i etiketten. Ett
                   ortsnamn två gånger på samma tre rader är brus. */}
               <Nyckeltal
+                kompakt
                 tal={[{
                   value: `${kommunSummary.cleanShare} %`,
                   label: `utan anmärkningar av ${formatNumber(kommunSummary.assessed)} bedömda`,
@@ -774,7 +796,7 @@ const breadcrumbs = {
               {/* 118 px och inte förvalets 150: panelen är 300 px bred med
                   16 px padding, och med 150 hade de tre mängderna fått var sin
                   spalt under varandra i stället för att stå två och två. */}
-              <Fordelning delar={dist} label={distLabel} min="118px" />
+              <Fordelning delar={dist} label={distLabel} min="118px" kompakt />
             </>
           )}
           <ul class="kommun-links">
@@ -964,7 +986,10 @@ const breadcrumbs = {
        före mediefrågan och skulle annars slås ut av `align-items` här. */
     .verdict > :global(.face) { margin-top: 2px; }
 
-    .verdict > :global(.utmarkelse) { grid-column: 2; }
+    /* Båda sigillen, av samma skäl. De står aldrig samtidigt, men regeln ska
+       inte behöva veta vilket av dem som råkade renderas. */
+    .verdict > :global(.utmarkelse),
+    .verdict > :global(.snusk-lank) { grid-column: 2; }
   }
 
   .level {
