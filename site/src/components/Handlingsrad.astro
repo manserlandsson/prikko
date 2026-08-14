@@ -65,8 +65,21 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } = Astr
 
 {/* En rot och inte två syskon: sidmallen lägger komponenten som ett led i
     en flexrad bredvid rubriken, och en lös kvittensrad hade blivit ett eget
-    led i den raden i stället för att stå under knapparna. */}
-<div class="handlingar">
+    led i den raden i stället för att stå under knapparna.
+
+    `data-nosnippet` på hela raden, och det är en rättelse ur ett verkligt
+    sökresultat. Google byggde 2026-08-14 utdraget för
+    /orebro/folkets-bar-bistro/ som "Folkets Bar & Bistro. Restaurang ·
+    Nygatan 19 · Örebro. Följ Dela ... Folkets Bar & Bistro fick anmärkningar
+    vid den senaste hygienkontrollen den ...". Vår metabeskrivning kom med,
+    men FÖRE den stod knapparnas etiketter.
+
+    "Följ Dela" är två knappnamn. De säger ingenting om verksamheten och de
+    står i sökresultatet i stället för meningar som gör det. Samma skäl som
+    redan gäller för jämförelsearket och för sidopanelen: en väg vidare är
+    inte sidans svar. Attributet påverkar bara utdraget, aldrig
+    indexeringen. */}
+<div class="handlingar" data-nosnippet>
 <div
   class="handlingsrad"
   id="actions"
