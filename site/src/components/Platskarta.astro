@@ -42,6 +42,22 @@
  *
  * Inga externa anrop görs härifrån. Inga nycklar heller.
  *
+ * ## Varför nålen inte går att klicka på
+ *
+ * Områdeskartan fick klickbara nålar och bubblor efter ägarens "det är ju
+ * bara prickar man inte kan klicka på?". Frågan gäller inte här, och det är
+ * ingen lucka.
+ *
+ * Kartan har EN nål, och den är verksamheten vars sida man redan står på. Ett
+ * klick kan bara leda till samma adress igen. En markör som byter till hand
+ * och sedan laddar om sidan är sämre än en markör som inte lovar något, och
+ * det finns ingen annan punkt här att leda till: rutan har ingen punktkälla,
+ * bara ett GeoJSON med en enda koordinat, se lagret `nal` nedan.
+ *
+ * Den som vill se vad som ligger runt omkring har vägen dit i områdes- och
+ * kartsöksidorna. Kartan här svarar på var stället ligger, ingenting annat,
+ * och den frågan har inget nästa steg inuti sig.
+ *
  * ## Härledda koordinater
  *
  * Uppsala och Örebro lämnar inga koordinater; deras punkter är geokodade ur

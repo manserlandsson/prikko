@@ -333,6 +333,18 @@ plockas direkt utan att någon läser hela dokumentet.
 
 **Ligger på kartans agent:**
 
+- **Områdeskartans utsida är rättad, se docs/32.** Ägaren jämförde
+  områdessidan med Booli: "på booli har dom gjort såhär med kartan, det är
+  liksom mörkt runt om kring också". Uppmätt hos dem 2026-08-14, på
+  `booli.se/sok/till-salu?areaIds=115349`: `maskLayer` med `fill-color`
+  `#878787`, `fill-opacity` 0,6 och en maskkälla som är världen med området
+  som hål. Samma konstruktion och samma tal ligger nu i `OmradeKarta.astro`.
+  Det är en punkt till där Booli har rätt och vi hade fel, och den fanns inte
+  i listan ovan eftersom områdessidan saknar Booli-motsvarighet och därför
+  aldrig mättes mot dem.
+- **Frågan "varför har vi olika kartor?" är besvarad i docs/32.** Fyra
+  kartkomponenter på sammanlagt 3 159 rader kod, vad de delar, vad de
+  duplicerar och vad som borde slås ihop.
 - **Punkt 2, kartvyns gråa.** 61 procent av textelementen i kartvyn är gråa,
   sajtens högsta värde. Bärarna är `SPAN.k-typ.text-secondary` och
   `SPAN.k-meta`, 60 element vardera i träfflistan. Booli har ingen

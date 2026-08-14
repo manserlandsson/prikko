@@ -431,23 +431,39 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 <a href={kartlank}>Öppna {area.name} i hela kartan</a>
               </p>
             )}
-            {/* Kartdatat är alltid OSM. GRÄNSEN är det inte: den kommer ur
-                OSM där någon kartlagt stadsdelarna och ur SCB:s RegSO i
-                övriga kommuner, se docs/30 §11. Raden måste därför säga
-                vilket. En gräns som står under fel upphov är en uppgift utan
-                källa, och det är samma fel som ett tal utan angiven källa.
+            {/*
+              Här stod en fritextrad med kartans och gränsens upphov.
 
-                Kravet är ODbL för OSM-ytorna. RegSO är CC0 och kräver
-                ingenting, men står ändå av samma skäl. */}
-            <p class="attribution text-muted">
-              Kartdata <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
-              kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
-              {area.source === 'regso' ? (
-                <> Områdesgräns från <a href="https://www.scb.se/vara-tjanster/oppna-data/oppna-geodata/regso/" rel="noopener noreferrer" target="_blank">SCB, RegSO 2025</a>, CC0.</>
-              ) : (
-                <> Områdesgränsen kommer ur samma källa.</>
-              )}
-            </p>
+              Ägaren: "Kartdata och områdesgräns © OpenStreetMap, kakel från
+              OpenFreeMap. i fritext under ... det behövs ju inte".
+
+              Raden är inte borttagen för att han tyckte så, utan för att
+              villkoret som en gång motiverade den nu är uppfyllt. Attribution
+              är ett licensvillkor, ODbL för OSM-ytorna, och den försvinner
+              inte för att den är i vägen.
+
+              Villkoret var kontrollen i kartans hörn. Den skapades med
+              `compact: true`, alltså en upphovsrad som kan fällas ihop, och en
+              hopfälld attribution garanterar ingenting. Det är samma
+              resonemang som Karta.astro för sin egen del skrivit ned, och där
+              slutar det med att raden FÅR tas bort när kontrollen är utfälld.
+
+              Två saker gjordes därför i OmradeKarta.astro i samma ändring:
+              kontrollen kör `compact: false` och står utfälld i alla lägen,
+              och stillbilden bär en egen rad i samma hörn för den som aldrig
+              får en levande karta. Attributionen syns alltså i båda
+              tillstånden, och den här raden var den tredje.
+
+              Uppgiften om KÄLLAN följer med dit och är inte tappad. Kartdatat
+              är alltid OSM genom kakelleverantören och skrivs av MapLibre
+              själv ur stilens TileJSON. Gränsen är OSM i en del kommuner och
+              SCB:s RegSO i andra, och OmradeKarta hämtar namnet ur datafilen
+              med `areaSource` i stället för att skriva av det. En gräns på den
+              här sajten säger alltid var den kommer ifrån.
+
+              Sätts `compact` tillbaka till true måste en synlig rad tillbaka
+              hit i samma ändring.
+            */}
           </div>
         )}
       </>
@@ -630,19 +646,14 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   .karta { margin-top: var(--s-6); }
 
-  /* Vidarelänken står mellan kartan och attributionen: den hör till kartan,
-     och upphovsraden är alltid det sista under en karta. */
+  /* Vidarelänken är nu det enda som står under kartan, och den hör till
+     kartan. Upphovsraden som låg sist bor i kartans eget hörn, se
+     markupkommentaren ovan. */
   .vidare {
     margin-top: var(--s-3);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
-  }
-
-  .attribution {
-    margin-top: var(--s-2);
-    font-size: var(--fs-micro);
-    line-height: var(--lh-micro);
   }
 
   .foot {

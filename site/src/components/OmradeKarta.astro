@@ -21,6 +21,28 @@
  *    där allt utanför är tomt ser ut som ett fel, och gränsen betyder
  *    ingenting om det inte finns något på andra sidan den.
  *
+ * ## Masken, och varför den inte bryter mot färgregeln
+ *
+ * Utanför gränsen ligger ett mörkt skikt över UNDERLAGSKARTAN. Området läses
+ * då direkt, utan att ögat först måste följa en tunn linje runt hela ytan.
+ * Greppet är Boolis, uppmätt och inte gissat, se `masken` nedan för talen.
+ *
+ * Det här ser ut att krocka med regeln längre ned, att nedtoning sker med
+ * storlek och opacitet och ALDRIG med färg eftersom grått betyder "ingen
+ * bedömning" överallt annars på sajten. Det gör det inte, och skillnaden är
+ * hela poängen:
+ *
+ * - Regeln gäller **bedömningsmärkena**. En nål, en prick eller en bubbla
+ *   bär en bedömning, och den betydelsen får aldrig lånas ut till en färg
+ *   som betyder något annat.
+ * - Masken rör **ingen enda nål**. Den ligger under varje punktlager och
+ *   mörknar gator, vatten och kvarter. En grön restaurang tvärs över gatan
+ *   är fortfarande grön, bara ställd på mörkare mark.
+ *
+ * Riv alltså inte ut masken med hänvisning till färgregeln. Rör den däremot
+ * ett punktlager är det färgregeln som gäller, och då är det masken som är
+ * fel byggd.
+ *
  * ## Vikten
  *
  * Villkoren för uppvaknandet är ordagrant KartaPuffs, och skälen står där i
@@ -79,8 +101,7 @@
  */
 import { establishments, formatNumber, type Municipality } from '../lib/data';
 import { MAP_VERDICTS, tileSet } from '../lib/kartrutor';
-import { areaBounds, containsPoint, type Area } from '../lib/omraden';
-import { path } from '../lib/urls';
+import { areaBounds, areaSource, containsPoint, type Area, type AreaSourceId } from '../lib/omraden';
 import '../styles/kartram.css';
 
 interface Props {
@@ -151,19 +172,39 @@ function px(lon: number, lat: number): [number, number] {
   return [(lon - west) * kx * scale, (north - lat) * scale];
 }
 
-/* Områdets kontur som SVG-bana. Ytterringar och hål i samma bana, så att
+/** Ringar till SVG-bana, en delbana per ring. */
+function bana(ringar: number[][][]): string {
+  return ringar
+    .map(
+      (ring) =>
+        ring
+          .map(([lon, lat], i) => {
+            const [x, y] = px(lon, lat);
+            return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+          })
+          .join('') + 'Z',
+    )
+    .join('');
+}
+
+/* Områdets kontur. Ytterringar och hål i samma bana, så att
    `fill-rule: evenodd` gör hålen till hål. */
-const outline = [...area.outer, ...area.inner]
-  .map(
-    (ring) =>
-      ring
-        .map(([lon, lat], i) => {
-          const [x, y] = px(lon, lat);
-          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
-        })
-        .join('') + 'Z',
-  )
-  .join('');
+const outline = bana([...area.outer, ...area.inner]);
+
+/*
+ * Stillbildens mask: hela ramen som delbana, områdets ytterringar som
+ * ytterligare delbanor, och `fill-rule: evenodd` som gör dem till hål.
+ *
+ * Samma sak som `masken` längre ned gör i den levande kartan, i SVG i stället
+ * för i ett kartlager, och av samma skäl: utan den här hoppar utseendet i
+ * samma sekund som kartbladen kommer.
+ *
+ * Evenodd bär elva ytterringar lika bra som en. En punkt utanför alla ringar
+ * ligger i EN delbana, alltså udda, alltså fylld. En punkt innanför en ring
+ * ligger i två, alltså jämnt, alltså ofylld. Det är Torvinge industriområde i
+ * Linköping som ställer det kravet; se filhuvudet.
+ */
+const mask = `M0 0H${W}V${H}H0Z` + bana(area.outer);
 
 /*
  * En bana per bedömning plus en för allt utanför gränsen. "M123 45h0" med
@@ -237,20 +278,111 @@ const omradet = JSON.stringify({
   type: 'MultiPolygon',
   coordinates: area.outer.map((ring) => [ring, ...area.inner]),
 });
+
+/*
+ * Masken: en polygon som täcker världen med områdets ytterringar som HÅL.
+ *
+ * Formen är GeoJSON:s egen och kräver ingen omskrivning. Första ringen i en
+ * Polygon är ytterkonturen, alla följande är hål. Ytterkonturen är därför
+ * hela jordklotet och hålen är områdets ytterringar, en per ring.
+ *
+ * ## Uppmätt hos Booli, inte gissat
+ *
+ * booli.se/sok/till-salu?areaIds=115349 (Vasastan), avläst i webbläsaren
+ * 2026-08-14 ur kartans egen stil. De kör MapLibre precis som vi, och deras
+ * `maskLayer` lyder ordagrant:
+ *
+ *     fill-color          #878787
+ *     fill-opacity        0,6
+ *     fill-outline-color  #505050
+ *
+ * Deras `maskSource` är en Polygon vars första ring är
+ * [180,90] [-180,90] [-180,-90] [180,-90] [180,90] och vars andra ring är
+ * området, 82 punkter. Alltså exakt konstruktionen här.
+ *
+ * Talen går att flytta rakt över, för underlaget är detsamma. Boolis mark är
+ * rgb(244,238,231) och vår är #F2F1EC, alltså rgb(242,241,236), en skillnad
+ * på högst fem steg per kanal. Sammansatt landar deras utsida på
+ * rgb(179,176,173) och vår på rgb(178,177,175). Nedtoningen är därmed
+ * densamma som förebildens, inte en tolkning av den.
+ *
+ * Stillbilden har inga kartblad och ligger därför på vitt i stället för på
+ * marken. Samma två tal ger där rgb(183,183,183), alltså fem steg ljusare än
+ * den levande kartan. Två procent av skalan är under vad ögat hinner se i
+ * bytet, och det är skälet till att stillbilden får samma värden och inte
+ * egna.
+ *
+ * ±90 grader latitud går inte att projicera i Mercator, men geojson-vt
+ * klipper varje ring till rutan innan projektionen och klämmer y till [0,1].
+ * Booli skickar samma ring och den ritas.
+ *
+ * ## Hål i själva området
+ *
+ * Ett hål i ett område ligger UTANFÖR området och ska alltså tonas ned, inte
+ * lysa. Det sker av sig självt här: bara `area.outer` blir hål i masken, och
+ * `area.inner` lämnas orörd, alltså täckt.
+ *
+ * Räknat över datan 2026-08-14, efter att RegSO kommit in: 158 områden i tio
+ * kommunfiler, varav NOLL har en enda inre ring. Konstruktionen är alltså rätt
+ * utan att någonsin ha prövats mot verkligheten, och den dagen ett område får
+ * ett hål behöver ingenting här ändras. Det är skälet till att det inte står
+ * någon handskriven specialhantering här.
+ */
+const masken = JSON.stringify({
+  type: 'Polygon',
+  coordinates: [
+    [[180, 90], [-180, 90], [-180, -90], [180, -90], [180, 90]],
+    ...area.outer,
+  ],
+});
+
+/**
+ * Gränsens upphov, som en färdig sträng.
+ *
+ * Skrivs EN gång och används på två ställen: i stillbildens hörn och som
+ * `attribution` på kartans gränskälla, alltså inne i MapLibres egen
+ * upphovsrad. Två formuleringar av samma uppgift hade förr eller senare blivit
+ * två olika uppgifter, och den ena hade då stått fel.
+ *
+ * Kartdatat är alltid OpenStreetMap genom kakelleverantören, och den delen
+ * skriver MapLibre själv ur stilens TileJSON. GRÄNSEN är inte alltid det: den
+ * kommer ur OSM där någon kartlagt stadsdelarna och ur SCB:s RegSO i övriga
+ * kommuner. Namnet på källan hämtas därför ur datafilen och skrivs inte av,
+ * se `areaSource` i lib/omraden.ts. Adressen till licensen är det enda som
+ * står här, eftersom den inte finns i filen.
+ *
+ * Kravet är ODbL för OSM-ytorna. RegSO är CC0 och kräver ingenting, men står
+ * ändå: en gräns på den här sajten säger alltid var den kommer ifrån.
+ */
+const KALLANK: Record<AreaSourceId, string> = {
+  osm: 'https://www.openstreetmap.org/copyright',
+  regso: 'https://www.scb.se/vara-tjanster/oppna-data/oppna-geodata/regso/',
+};
+
+const kalla = areaSource(kommun.slug, area);
+const gransUpphov = kalla
+  ? `Områdesgräns <a href="${KALLANK[area.source]}" target="_blank" rel="noopener noreferrer">${kalla.attribution}</a>`
+  : null;
 ---
 
-<figure class="omradeskarta">
+<div class="omradeskarta">
   <div
     class="kartram"
     data-omradeskarta
     data-url={rutor.url}
     data-bounds={[west, south, east, north].join(',')}
     data-omrade={omradet}
+    data-mask={masken}
+    data-keys={JSON.stringify(rutor.keys)}
+    data-upphov={gransUpphov ?? undefined}
     data-label={label}
   >
     <div class="still" data-still>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
-        <path d={outline} class="yta" fill-rule="evenodd" />
+        {/* Masken först, alltså under punkterna, precis som lagerordningen i
+            den levande kartan. Se `mask` i frontmatter. */}
+        <path d={mask} class="mask" fill-rule="evenodd" />
+        <path d={outline} class="kant" fill-rule="evenodd" />
         {LAGER.map((l) => l.d && (
           <path
             d={l.d}
@@ -262,6 +394,26 @@ const omradet = JSON.stringify({
           />
         ))}
       </svg>
+
+      {/*
+        Stillbildens upphovsrad.
+
+        Den syns bara innan kartan vaknat, och det är precis då den behövs:
+        stillbilden ritar en områdesgräns och hade annars ingen attribution
+        alls. Den som får saveData, en sämre uppkoppling än 4g eller ett fel
+        vid uppvaknandet ser BARA den här bilden, och attribution är ett
+        licensvillkor och inte en artighet.
+
+        Ingen rad om kartblad: stillbilden har inga. Den ritar en gräns och
+        våra egna punkter mot ett tomt papper, och en rad som tackar
+        OpenFreeMap för kakel som inte finns i bilden vore fel om sig själv.
+
+        Raden försvinner när kartan vaknar, och MapLibres egen upphovsrad tar
+        över i samma hörn med samma mening i sig. De två står alltså aldrig
+        samtidigt.
+      */}
+      {gransUpphov && <p class="upphov" set:html={gransUpphov} />}
+
       <button type="button" class="knapp" data-aktivera>Visa kartan</button>
     </div>
 
@@ -269,11 +421,20 @@ const omradet = JSON.stringify({
 
     <p class="fel" data-fel hidden role="alert">Kartan gick inte att ladda.</p>
   </div>
+</div>
 
-  <figcaption>
-    <a href={path(`/${kommun.slug}`, 'karta')}>Sök på kartan över {kommun.city}</a>
-  </figcaption>
-</figure>
+{/*
+  Här stod en figcaption med "Sök på kartan över <stad>".
+
+  Ägaren: "'Sök på kartan över Stockholm' det behövs ju inte". Han har rätt,
+  och skälet är att raden stod tio pixlar ovanför "Öppna <område> i hela
+  kartan" i OmradeHub.astro. Två länkar till samma karta, den ena med
+  områdets utsnitt i fragmentet och den andra utan. Den som var kvar är den
+  som tar med sig var man står.
+
+  Med bildtexten borta har <figure> inget kvar att göra, så elementet är en
+  vanlig div.
+*/}
 
 <style>
   .omradeskarta { margin: 0; }
@@ -299,22 +460,84 @@ const omradet = JSON.stringify({
     height: 100%;
   }
 
-  /* Ytan är tonad och kanten tydlig. Gränsen ska läsa som en markering ovanpå
-     en karta, inte som en figur på ett papper: fyllningen får därför vara
-     nästan omärklig och det är LINJEN som bär. */
-  .yta {
-    fill: color-mix(in srgb, var(--brand) 10%, transparent);
+  /*
+   * Masken. Samma två tal som kartlagret, se `masken` i frontmatter, och de
+   * två MÅSTE följas åt: står de olika hoppar utsidan när kartan vaknar.
+   *
+   * Skrivna som hexvärde och inte som token av samma skäl som FARG och BRAND
+   * i skriptet nedan. Det finns ingen neutral i tokens.css som ligger här, och
+   * en ny token för ett värde som bara kartan använder hade lagt sajtens
+   * gråskala en nivå djupare för ingenting.
+   */
+  .mask {
+    fill: #878787;
+    fill-opacity: 0.6;
+  }
+
+  /*
+   * Gränsen är en LINJE och inte en fylld figur.
+   *
+   * Här låg tidigare en fyllning på tio procent märkesblått innanför gränsen.
+   * Den föll när masken kom: en tonad insida OCH en mörknad utsida säger
+   * samma sak två gånger, och den svagare av de två gjorde det genom att
+   * lägga blått över den mark våra gröna, gula och röda punkter står på.
+   * Boolis insida är kartan i normal ljusstyrka, utan påläggning, och det är
+   * masken som bär läsningen.
+   *
+   * Booli ritar sin egen kant grå streckad (#505050, 1 px, 10/2). Vår är kvar
+   * i märkesblått: masken säger var området ungefär är, linjen säger var det
+   * exakt slutar, och den precisionen är vår egen och får synas som vår.
+   */
+  .kant {
+    fill: none;
     stroke: var(--brand);
     stroke-width: 2;
     stroke-linejoin: round;
     stroke-opacity: 0.75;
   }
 
+  /* Upphovsraden i stillbildens hörn, på MapLibres plats. Måtten och färgen
+     är upphovsradens i kartram.css, inklusive glorian: kartan är ljus, men
+     stillbildens gräns kan ligga över en mörknad utsida. */
+  .upphov {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-end: 0;
+    margin: 0;
+    padding: 0 5px;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--text);
+    text-shadow:
+      0 0 3px rgba(255, 255, 255, .95),
+      0 0 6px rgba(255, 255, 255, .75);
+  }
+
+  /* `:global` krävs och är inte slarv. Länken kommer ur `set:html`, alltså ur
+     en sträng, och Astro hänger sitt scope-attribut bara på element som står i
+     mallen. Utan global väljare föll regeln bort och länken ritades i
+     sajtens blå utan understrykning, uppmätt i bygget. Upphovsraden ska läsa
+     som en uppgift om kartans ursprung och inte som en länk som vill bli
+     klickad, precis som MapLibres egen rad i kartram.css. */
+  .upphov :global(a) {
+    color: inherit;
+    text-decoration: underline;
+  }
+
   /* Duken ligger under stillbilden tills kartan är målad, så att bytet inte
      blinkar. Samma ordning som KartaPuff. */
   .duk { opacity: 0; }
   .kartram.live .duk { opacity: 1; }
-  .kartram.live .still { opacity: 0; pointer-events: none; }
+
+  /* `visibility: hidden` och inte bara opacitet. Stillbilden bär en knapp och
+     en länk, och ett genomskinligt element ligger kvar i tabbordningen. Det
+     gav en fokusring mitt på den levande kartan och krockade dessutom med
+     `aria-hidden`, som skriptet sätter på samma element. */
+  .kartram.live .still {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 
   .knapp {
     position: absolute;
@@ -339,12 +562,6 @@ const omradet = JSON.stringify({
     font-size: var(--fs-caption);
     color: var(--text-secondary);
   }
-
-  figcaption {
-    margin-top: var(--s-2);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
 </style>
 
 <script>
@@ -354,6 +571,7 @@ const omradet = JSON.stringify({
    * uppkopplingen ska tåla en halv megabyte.
    */
   import { KARTA_I_DOKUMENT, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { slugify } from '../lib/slug';
 
   const root = document.querySelector<HTMLElement>('[data-omradeskarta]');
 
@@ -371,9 +589,21 @@ const omradet = JSON.stringify({
     const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
     /** --brand i tokens.css. Ändras den där ändras den här. */
     const BRAND = '#007BE0';
+    /** Maskens grå och dess täckning. Samma två tal som `.mask` i stilblocket
+     *  ovan, uppmätta hos Booli. Ändras det ena ändras det andra, annars
+     *  hoppar utsidan när kartan vaknar. */
+    const MASKGRA = '#878787';
+    const MASKTACKNING = 0.6;
+
+    /** Kommunernas slugar i den ordning `m` i rutorna pekar på dem. Rutorna är
+     *  rikets, så en nål i det här utsnittet kan tillhöra grannkommunen, och
+     *  länken måste då peka dit. Samma uppslagning som KartaPuff. */
+    const KOMMUNER: string[] = JSON.parse(root.dataset.keys!);
 
     /** Gränsen. Ritas som lager OCH används som filter, se filhuvudet. */
     const OMRADET = JSON.parse(root.dataset.omrade!);
+    /** Världen med området som hål, se `masken` i frontmatter. */
+    const MASKEN = JSON.parse(root.dataset.mask!);
 
     /*
      * De fyra villkoren som lagren nedan sätts ihop av.
@@ -473,7 +703,24 @@ const omradet = JSON.stringify({
 
         karta.addControl(new FullscreenControl({ container: root! }), 'top-right');
         karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
-        karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
+        /*
+         * `compact: false`, alltså upphovsraden utfälld i alla lägen och utan
+         * knapp att fälla ihop den med.
+         *
+         * Det här är samma beslut som Karta.astro rad 429 och framåt, och
+         * villkoret där gäller ordagrant här: fritextraden under kartan fick
+         * tas bort NÄR kontrollen inte längre kan fällas ihop, aldrig förr.
+         * Attribution till OpenStreetMap är ett licensvillkor.
+         *
+         * Kartan är sidbred, alltså 760 px vid --w-page och omkring 358 på en
+         * telefon i 390. Utfälld raden ryms i båda; KartaPuffs `compact: true`
+         * är motiverad med att den rutan är 328 px, och det måttet finns inte
+         * här.
+         *
+         * Ändra ALDRIG tillbaka till true utan att samtidigt sätta tillbaka en
+         * synlig upphovsrad under kartan.
+         */
+        karta.addControl(new AttributionControl({ compact: false }), 'bottom-right');
 
         karta.on('load', () => {
           karta.addSource('verksamheter', {
@@ -481,18 +728,36 @@ const omradet = JSON.stringify({
             url: 'pmtiles://' + arkiv,
           });
 
-          /* Gränsen först, så att den ligger UNDER punkterna. Den är en
-             markering av var man är, inte sidans motiv. */
+          /*
+           * Masken och gränsen först, så att båda ligger UNDER punkterna.
+           *
+           * Ordningen är hela skälet till att masken inte bryter mot
+           * färgregeln, se filhuvudet: den mörknar kartbladen och når aldrig
+           * en nål, en prick eller en bubbla.
+           *
+           * Attributionen sitter på källan och inte i en textrad: gränsen
+           * kommer ur OpenStreetMap och MapLibre väver in strängen i
+           * upphovsraden bredvid kakelleverantörens egen. Masken är härledd ur
+           * samma gräns och bär den därför inte en gång till.
+           */
           karta.addSource('omrade', {
             type: 'geojson',
             data: { type: 'Feature', properties: {}, geometry: OMRADET },
+            attribution: root!.dataset.upphov,
+          } as any);
+          karta.addSource('omrade-mask', {
+            type: 'geojson',
+            data: { type: 'Feature', properties: {}, geometry: MASKEN },
           });
           karta.addLayer({
-            id: 'omrade-yta',
+            id: 'omrade-mask',
             type: 'fill',
-            source: 'omrade',
-            paint: { 'fill-color': BRAND, 'fill-opacity': 0.08 },
+            source: 'omrade-mask',
+            paint: { 'fill-color': MASKGRA, 'fill-opacity': MASKTACKNING },
           });
+          /* Ingen fylld yta innanför gränsen. Skälet står vid `.kant` i
+             stilblocket: masken bär läsningen, och en tonad insida ovanpå den
+             hade lagt blått över den mark punkterna står på. */
           karta.addLayer({
             id: 'omrade-kant',
             type: 'line',
@@ -611,6 +876,138 @@ const omradet = JSON.stringify({
             layout: bubbelText,
             paint: { 'text-color': '#fff' },
           } as any);
+
+          /*
+           * ── Kartan går att peta på ──────────────────────────────────────
+           *
+           * Ägaren: "vad är denna karta, det är ju bara prickar man inte kan
+           * klicka på?". Han hade rätt. Rutan var en BILD av en karta: den
+           * ritade nålar och bubblor som ser klickbara ut överallt annars på
+           * sajten, och svarade inte på ett enda klick.
+           *
+           * Två utvägar fanns, och den ena föll direkt. Att göra rutan
+           * avsiktligt orörlig och bara leda vidare till den delade vyn hade
+           * krävt att den slutade se ut som en karta, alltså tillbaka till den
+           * ritade kontur ägaren redan underkänt en gång, se filhuvudet. Kvar
+           * står den enda ärliga: det som ser klickbart ut ÄR klickbart.
+           *
+           * En nål leder till verksamhetens sida. En bubbla delar sig.
+           *
+           * ## Även utanför gränsen
+           *
+           * Nedtoningen betyder SAMMANHANG och inte avstängt. En nedtonad nål
+           * är en riktig verksamhet med en riktig sida, och en karta där halva
+           * ytan tyst ignorerar klick är trasig på ett sätt ingen kan se.
+           *
+           * ## Varför inget nålkort
+           *
+           * Den delade vyn öppnar ett kort vid nålen. Det kortet är byggt av
+           * bläddring mellan verksamheter på samma adress, filtrerade träffar
+           * och en lista som markeras i takt, alltså av allt det som gör
+           * kartsöksidan till en egen sida. Att bygga om det här vore att lägga
+           * den delade vyn på områdessidan, en gång till och sämre. Ett klick
+           * går därför direkt dit man ändå var på väg.
+           *
+           * Mönstret är KartaPuffs, rad 416 till 475, och avvikelserna är två:
+           * lagren heter `inne-*` och `ute-*` och finns i par, och luften kring
+           * kameran är 56 som i den delade vyn i stället för KartaPuffs 32,
+           * eftersom den här rutan är sidbred och inte 328 px.
+           */
+
+          /** Två punkter närmare varandra än så räknas som samma adress. Samma
+           *  tal som lib/kartrutor.ts använder när rutorna byggs. */
+          const SAMMA_PLATS = 3e-5;
+          /** Zoomen där en adressstapel är uppdelad i enskilda nålar. */
+          const STAPELZOOM = 18;
+
+          const NALLAGER = ['inne-nalar', 'ute-nalar'];
+          const BUBBELLAGER = ['inne-bubblor', 'ute-bubblor'];
+
+          /*
+           * Bubblan delar sig.
+           *
+           * `ez` och `bx` bakas in i varje bubbla vid bygget, se
+           * lib/kartrutor.ts: en vektorrutekälla har ingen
+           * `getClusterExpansionZoom` att fråga, så svaret följer med i rutan.
+           * Kameran läggs på LÖVENS utbredning, dock minst expansionszoomen.
+           * Utbredningen delar bubblan hela vägen ned till nålar i ett svep när
+           * det går, och `Math.max` är garantin mot en bubbla som inte släpper.
+           *
+           * Ligger alla löv på samma adress finns ingen zoom som delar dem.
+           * Kameran går då in till den zoom där nålarna finns och lämnar resten
+           * till den delade vyn, precis som i kommunhubbens ruta. En bubbla blir
+           * därmed aldrig en återvändsgränd.
+           */
+          function delaBubbla(f: any) {
+            const bx = String(f.properties.bx ?? '').split(',').map(Number);
+            const expansion = Number(f.properties.ez);
+
+            if (bx.length !== 4 || bx.some((v) => !Number.isFinite(v))) {
+              karta.easeTo({
+                center: f.geometry.coordinates,
+                zoom: karta.getZoom() + 2,
+                duration: reducerad ? 0 : 400,
+              });
+              return;
+            }
+
+            const [vast, syd, ost, nord] = bx;
+
+            if (ost - vast < SAMMA_PLATS && nord - syd < SAMMA_PLATS) {
+              karta.easeTo({
+                center: f.geometry.coordinates,
+                zoom: STAPELZOOM,
+                duration: reducerad ? 0 : 500,
+              });
+              return;
+            }
+
+            const luft = Math.min(
+              56,
+              Math.floor(Math.min(root!.clientWidth, root!.clientHeight) / 4),
+            );
+            const kamera = karta.cameraForBounds([[vast, syd], [ost, nord]], { padding: luft });
+
+            karta.easeTo({
+              center: kamera ? kamera.center : f.geometry.coordinates,
+              zoom: Math.max(kamera ? kamera.zoom : 0, Number.isFinite(expansion) ? expansion : 0),
+              duration: reducerad ? 0 : 500,
+            });
+          }
+
+          for (const lager of BUBBELLAGER) {
+            karta.on('click', lager, (ev: any) => {
+              /* Frågan ställs om mot BÅDA bubbellagren i stället för att lita
+                 på `ev.features`. Två bubblor kan överlappa vid gränsen, och
+                 den som ligger överst är den man tryckte på. */
+              const f = karta.queryRenderedFeatures(ev.point, { layers: BUBBELLAGER })[0];
+              if (f) delaBubbla(f);
+            });
+          }
+
+          /*
+           * Ett klick på en nål går till verksamheten.
+           *
+           * Slugen härleds ur namnet och följer med i rutan bara när
+           * härledningen inte stämmer; bygget jämför alltid mot den slug
+           * pipelinen satte, se lib/slug.ts.
+           */
+          for (const lager of NALLAGER) {
+            karta.on('click', lager, (ev: any) => {
+              const p = ev.features?.[0]?.properties;
+              if (!p) return;
+              const kommunSlug = KOMMUNER[p.m] ?? KOMMUNER[0];
+              const slug = p.s ?? slugify(String(p.nm));
+              location.href = `/${kommunSlug}/${slug}/`;
+            });
+          }
+
+          /* Pekaren säger vad som går att trycka på innan man provar. Utan den
+             är kartan lika stum som förut för den som bara för musen över den. */
+          for (const lager of [...NALLAGER, ...BUBBELLAGER]) {
+            karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
+            karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
+          }
 
           karta.getCanvas().setAttribute('aria-label', root!.dataset.label!);
           duk.removeAttribute('aria-hidden');
