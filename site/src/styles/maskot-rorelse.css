@@ -1356,6 +1356,22 @@
    De femton millisekundernas skillnad mellan locken är hela asymmetrin. Två
    ögonlock som faller i exakt samma bildruta läser som en slutare. */
 
+/* EN TAKT FÖR ALLA TRE BEDÖMNINGAR, 5000 ms.
+   ────────────────────────────────────────────────────────────────────────
+   Cyklerna var 9000, 11000 och 13000 ms, alltså grönt oftast och rött mest
+   sällan, med tanken att en långsammare takt läser som allvarligare. Ägaren
+   ville ha samma takt för alla tre och tätare: "kör grön gul, röd på samma
+   blinkningstid" och "borde den inte blinka oftare? liksom den ska vara
+   levande."
+
+   Fem sekunder är dessutom det människan gör. Blinkfrekvensen i vila ligger
+   kring var fjärde till sjätte sekund, och ett ansikte som blinkar var nionde
+   läser som stelt snarare än som lugnt.
+
+   Skillnaden mellan bedömningarna ligger kvar där den hör hemma: i vad som
+   rör sig. Grönt låter munnen växa i samma andetag, gult lyfter brynen, rött
+   sänker dem rakt och symmetriskt. Takten var aldrig den bäraren. */
+
 /* ── mm-glad ─────────────────────────────────────────────────────────────
  *
  * GRÖNT, alltså inga anmärkningar. LUGNT.
@@ -1371,9 +1387,9 @@
  *
  * Ingen studs och inget hopp. Det är ett register och inte en app-onboarding.
  */
-.mm-glad .r-lock-h ellipse { animation: mm-blink-h 9000ms var(--m-mjuk) 1200ms infinite; }
-.mm-glad .r-lock-v ellipse { animation: mm-blink-v 9000ms var(--m-mjuk) 1215ms infinite; }
-.mm-glad .r-mun { animation: mm-munbeat 9000ms var(--m-ut) 1200ms infinite; }
+.mm-glad .r-lock-h ellipse { animation: mm-blink-h 5000ms var(--m-mjuk) 1200ms infinite; }
+.mm-glad .r-lock-v ellipse { animation: mm-blink-v 5000ms var(--m-mjuk) 1215ms infinite; }
+.mm-glad .r-mun { animation: mm-munbeat 5000ms var(--m-ut) 1200ms infinite; }
 
 @keyframes mm-munbeat {
   0%, 4%      { scale: 1 1; }
@@ -1403,10 +1419,10 @@
  * börjar klippas, alltså SER det ut som att brynet krymper i stället för att
  * lyftas. Vid 3,4 är marginalen dryga två enheter.
  */
-.mm-bryn .r-lock-h ellipse { animation: mm-blink-h 11000ms var(--m-mjuk) 1200ms infinite; }
-.mm-bryn .r-lock-v ellipse { animation: mm-blink-v 11000ms var(--m-mjuk) 1215ms infinite; }
-.mm-bryn .r-bryn-v { animation: mm-brynlyft 11000ms var(--m-mjuk) 1200ms infinite; }
-.mm-bryn .r-bryn-h { animation: mm-brynlyft 11000ms var(--m-mjuk) 1260ms infinite; }
+.mm-bryn .r-lock-h ellipse { animation: mm-blink-h 5000ms var(--m-mjuk) 1200ms infinite; }
+.mm-bryn .r-lock-v ellipse { animation: mm-blink-v 5000ms var(--m-mjuk) 1215ms infinite; }
+.mm-bryn .r-bryn-v { animation: mm-brynlyft 5000ms var(--m-mjuk) 1200ms infinite; }
+.mm-bryn .r-bryn-h { animation: mm-brynlyft 5000ms var(--m-mjuk) 1260ms infinite; }
 
 /* Hållet på 11,4 till 13,6 procent är 242 ms av elva sekunder, alltså över
    femrutorsgränsen i modulhuvudet. Det är den bildruta ögat läser. */
@@ -1446,10 +1462,10 @@
  * Hållet är 390 ms, den längsta posen i mm-katalogen, och det ska det vara:
  * hela rörelsen ÄR posen.
  */
-.mm-allvar .r-lock-h ellipse { animation: mm-blink-h 13000ms var(--m-mjuk) 1200ms infinite; }
-.mm-allvar .r-lock-v ellipse { animation: mm-blink-v 13000ms var(--m-mjuk) 1215ms infinite; }
+.mm-allvar .r-lock-h ellipse { animation: mm-blink-h 5000ms var(--m-mjuk) 1200ms infinite; }
+.mm-allvar .r-lock-v ellipse { animation: mm-blink-v 5000ms var(--m-mjuk) 1215ms infinite; }
 .mm-allvar .r-bryn-v,
-.mm-allvar .r-bryn-h { animation: mm-brynsank 13000ms var(--m-mjuk) 1200ms infinite; }
+.mm-allvar .r-bryn-h { animation: mm-brynsank 5000ms var(--m-mjuk) 1200ms infinite; }
 
 @keyframes mm-brynsank {
   0%, 3%      { translate: 0 0; }
