@@ -41,6 +41,7 @@ import KommunOversikt from './KommunOversikt.astro';
 import Kontrollen from './Kontrollen.astro';
 import Kontrolltakt from './Kontrolltakt.astro';
 import Pagination from './Pagination.astro';
+import RenHistorik from './RenHistorik.astro';
 import Tathet from './Tathet.astro';
 import Uncovered from './Uncovered.astro';
 import {
@@ -55,7 +56,10 @@ import {
 } from '../lib/data';
 import { utsnitt } from '../lib/kartrutor';
 import {
+  MIN_CLEAN_RECORD_SECTION,
   MIN_UNSEEN_SECTION,
+  cleanRecord,
+  cleanRecordTotal,
   followUpRecord,
   kommunProfil,
   recentlyInspected,
@@ -187,6 +191,31 @@ const unseenAnchor =
  */
 const recent = currentPage === 1 ? recentlyInspected(kommun.slug, 5) : [];
 const source = sourceFor(kommun.slug);
+
+/**
+ * Ren historik i kommunen, sida 1.
+ *
+ * Sidan öppnar med "verksamheter i bokstavsordning", och den som söker de
+ * skötsamma fick börja på A. `restauranger [stad] högst betyg` kompletteras
+ * för varje prövad stad, omprövat till 8 av 8 i docs/31 §5.1, och fyra
+ * dokument har bett om att kvaliteten ska synas. Registret sorteras ändå
+ * aldrig om, skälen står i cleanRecord i lib/kommunprofil.ts.
+ *
+ * Två villkor, inte ett. `distinctionPossible` är källans gräns: i Höganäs,
+ * Karlstad, Lomma och Oskarshamn lämnas aldrig tre kontroller ut, alltså kan
+ * ingen verksamhet där nå märkningen. MIN_CLEAN_RECORD_SECTION är avsnittets
+ * egen gräns: Kristinehamn och Svenljunga har en verksamhet var, och en enda
+ * rad under rubriken hade lästs som att kommunen har ett enda skötsamt kök.
+ *
+ * Villkoren ställs här och inte i komponenten, av samma skäl som
+ * MIN_UNSEEN_SECTION ovan: en sida som länkar till eller räknar med ett
+ * avsnitt måste kunna ställa villkoret ur samma tal som ritar det.
+ */
+const cleanTotal = currentPage === 1 ? cleanRecordTotal(kommun.slug) : 0;
+const clean =
+  limits.distinctionPossible && cleanTotal >= MIN_CLEAN_RECORD_SECTION
+    ? cleanRecord(kommun.slug, 6)
+    : [];
 
 /*
  * Kartan, om kommunen har koordinater.
@@ -349,6 +378,20 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
               }))}
             />
           </section>
+        )}
+
+        {/* Ovanför registret och under filtren. Ordningen är avsiktlig: den
+            som vet vilken typ eller stadsdel hen vill ha väljer den först, och
+            inslaget svarar sedan på nästa fråga, alltså vilka i mängden som är
+            skötsamma. Under registret hade det legat efter hundra rader och
+            aldrig setts. */}
+        {clean.length > 0 && (
+          <RenHistorik
+            items={clean}
+            total={cleanTotal}
+            kommunSlug={kommun.slug}
+            city={city}
+          />
         )}
 
         <EstablishmentList items={items} kommunSlug={kommun.slug} />

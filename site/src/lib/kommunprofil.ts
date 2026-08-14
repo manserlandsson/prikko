@@ -287,3 +287,72 @@ export function recentlyInspected(slug: string, limit = 5): Establishment[] {
   recents.set(key, built);
   return built;
 }
+
+/**
+ * Minsta antal med ren historik för att inslaget på hubben ska ritas.
+ *
+ * Talet är sex och inte ett, av ett skäl som är mätt. Kristinehamn och
+ * Svenljunga har en verksamhet var med ren historik, och ett avsnitt med en
+ * enda rad under rubriken "Ren historik i Kristinehamn" läser som att kommunen
+ * har ett enda skötsamt kök. Den slutsatsen vore fel: ribban är tre kontroller
+ * utan anmärkning, och Kristinehamns källa lämnar sällan ut tre. Sex rader är
+ * samma resonemang som MIN_UNSEEN_SECTION ovan, alltså att ett tal under en
+ * viss storlek är trivia och inte en insikt.
+ */
+export const MIN_CLEAN_RECORD_SECTION = 6;
+
+const cleanRecords = new Map<string, Establishment[]>();
+
+/**
+ * Verksamheterna i kommunen som bär märkningen ”ren historik”, nyast först.
+ *
+ * ## Varför det är ett eget inslag och inte en omsortering av registret
+ *
+ * `restauranger [stad] högst betyg` kompletteras för varje prövad stad, på
+ * riket, kommunen, stadsdelen och i närhetsformen. Fyra dokument har bett om
+ * att kvaliteten ska synas i ordningen: docs/26 §9 punkt 2, docs/29 §7 punkt 1,
+ * docs/30 §10 punkt 3 och docs/31 §6.1.
+ *
+ * Registret sorteras ändå aldrig om, av två skäl. Det första står i
+ * municipalityListing i data.ts: ordningen måste vara oberoende av
+ * bedömningen, annars flyttar en enda ändrad kontroll hundratals rader mellan
+ * sidor vid varje datauppdatering. Det andra är tyngre och står ingen
+ * annanstans: en lista som sorteras bäst först har en sista sida som är sämst
+ * först. Sida 85 av Stockholm hade blivit en värstinglista med 85 sidors
+ * anlopp, och en värstinglista publicerar vi aldrig.
+ *
+ * Ett avgränsat inslag ovanför registret har ingen sista sida.
+ *
+ * ## Varför datum och ingenting annat
+ *
+ * Alla som visas har passerat exakt samma ribba, HISTORY_DEPTH kontroller utan
+ * anmärkning. Ordningen mellan dem är därför inte en rangordning utan ett
+ * urval, och regeln är den docs/17 punkt 4 redan skrev för ”Nyss
+ * kontrollerade”: sorterat på datum och ingenting annat. Sorterat eller
+ * filtrerat på utfall hade det varit en skampåle med omvänt tecken.
+ *
+ * Att inslaget byter innehåll vid varje datauppdatering är avsikten och inte
+ * en biverkning, av samma skäl som recentlyInspected ovan.
+ */
+export function cleanRecord(slug: string, limit = 6): Establishment[] {
+  const key = `${slug}:${limit}`;
+  const cached = cleanRecords.get(key);
+  if (cached) return cached;
+
+  const built = establishments(slug)
+    .filter((e) => e.distinction && latestInspectionDate(e))
+    .sort(
+      (a, b) =>
+        latestInspectionDate(b)!.localeCompare(latestInspectionDate(a)!) ||
+        a.slug.localeCompare(b.slug, 'sv'),
+    )
+    .slice(0, limit);
+
+  cleanRecords.set(key, built);
+  return built;
+}
+
+/** Hela antalet med ren historik i kommunen, alltså inte bara de som visas. */
+export function cleanRecordTotal(slug: string): number {
+  return establishments(slug).filter((e) => e.distinction).length;
+}

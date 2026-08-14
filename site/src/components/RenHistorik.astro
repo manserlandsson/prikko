@@ -1,0 +1,196 @@
+---
+/**
+ * Ren historik i kommunen, ett avgränsat inslag ovanför registret.
+ *
+ * ## Vad det svarar på
+ *
+ * `restauranger [stad] högst betyg` kompletteras för varje stad som prövats,
+ * och formen finns på varje kornighet vi har: riket, kommunen, stadsdelen och
+ * närhetsformen. Omprövad 2026-08-14 till 8 av 8, se docs/31 §5.1. Fyra
+ * dokument har bett om att kvaliteten ska gå att se utan att man öppnar
+ * femtonhundra verksamhetssidor: docs/26 §9 punkt 2, docs/29 §7 punkt 1,
+ * docs/30 §10 punkt 3 och docs/31 §6.1.
+ *
+ * Kommunsidan svarade inte på det. Den öppnar med "verksamheter i
+ * bokstavsordning", och den som söker de skötsamma fick börja på A.
+ *
+ * ## Varför ett inslag och inte en omsorterad lista
+ *
+ * Registret sorteras aldrig om. Skälen står i cleanRecord i lib/kommunprofil.ts
+ * och upprepas inte här, men det tyngre av dem är värt att stå på två ställen:
+ * en lista som sorteras bäst först har en sista sida som är sämst först, och en
+ * värstinglista publicerar vi aldrig. Ett inslag har ingen sista sida.
+ *
+ * ## Varför det inte är en rangordning
+ *
+ * Alla som visas har passerat exakt samma ribba. Ordningen mellan dem är
+ * senast kontrollerad först och ingenting annat, samma regel som docs/17
+ * punkt 4 skrev för "Nyss kontrollerade". Det är därför ett urval och inte en
+ * lista över kommunens sex bästa kök.
+ *
+ * ## Varför avsnittet ibland inte finns
+ *
+ * Två villkor ställs av anropande sida, båda av samma skäl. I fyra kommuner är
+ * märkningen onåbar därför att källan aldrig lämnar ut tre kontroller
+ * (Höganäs, Karlstad, Lomma, Oskarshamn), och i två till finns en enda
+ * verksamhet som når den. Ett tomt eller ettradigt avsnitt hade lästs som att
+ * kommunen saknar rena kök, och den slutsatsen vore fel: den mäter kommunens
+ * utlämning, inte dess kök. Samma hazard som docs/29 §5 räknade fram för
+ * kedjesidorna.
+ *
+ * ## Formen
+ *
+ * Radformen är sidopanelens "Senast kontrollerade" med FaceMark i 30, alltså
+ * sajtens befintliga språk för en kort lista. Två spalter på dator eftersom
+ * inslaget står i huvudkolumnen och en spalt på 760 px med sex korta rader
+ * hade blivit en pelare med luft bredvid.
+ *
+ * Ingen ram, ingen platta, ingen skugga. Hårlinje över avsnittet och mellan
+ * raderna, alltså samma sätt som Booli skiljer sektioner, mätt i
+ * docs/27_booli_genomgang.md.
+ */
+import FaceMark from './FaceMark.astro';
+import { formatDate, formatNumber, latestInspectionDate, type Establishment } from '../lib/data';
+import { DISTINCTION } from '../lib/site';
+import { path } from '../lib/urls';
+
+interface Props {
+  /** De som visas, redan sorterade på datum av cleanRecord. */
+  items: Establishment[];
+  /** Hela antalet i kommunen, alltså inte bara de som visas. */
+  total: number;
+  kommunSlug: string;
+  city: string;
+}
+
+const { items, total, kommunSlug, city } = Astro.props;
+---
+
+<section class="renhistorik" aria-labelledby="ren-historik">
+  <h2 id="ren-historik">Ren historik i {city}</h2>
+
+  {/* Talet före listan, inte efter. Sex rader av 1 084 är ett urval, och en
+      läsare som inte får veta nämnaren tror att sex är alla. */}
+  <p class="lede text-secondary">
+    {formatNumber(total)} verksamheter i {city} var utan anmärkning vid sina tre
+    senaste kontroller. Här är de som kontrollerades senast.
+  </p>
+
+  <ul class="lista">
+    {items.map((e) => (
+      <li>
+        <a href={path(kommunSlug, e.slug)}>
+          <FaceMark verdict={e.verdict} size={30} variant="round" />
+          <span class="info">
+            <b>{e.name}</b>
+            <span class="text-secondary">
+              {[e.address, `kontrollerad ${formatDate(latestInspectionDate(e)!)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </span>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  {/* Ribban utskriven, inte underförstådd. Utan den raden är "ren historik"
+      ett omdöme vi hittat på, med den är det ett räknat villkor läsaren kan
+      pröva. Länken går till metodiken och aldrig till utgåvesidan: utmärkelsen
+      är en HÖGRE ribba med ett årtal, och de två får aldrig blandas ihop, se
+      huvudet i lib/utmarkelser.ts. */}
+  <p class="ribba">
+    {DISTINCTION.label}, inom samma treårsfönster som avgör bedömningen.{' '}
+    <a href="/metodik/#utmarkelsen">Så räknas ren historik</a>.
+  </p>
+</section>
+
+<style>
+  /* Hårlinje över, inte runt. Avsnittet är en avdelning i huvudkolumnen och
+     inte ett kort, och sidan har inga inramade block. */
+  .renhistorik {
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-5);
+  }
+
+  /* Samma grad som "Verksamheter efter typ" och "Verksamheter efter område"
+     bredvid. En rubrik i huvudkolumnen får inte väga mindre än sidopanelens,
+     annars läser sidan som att panelen är viktigare än innehållet. */
+  .renhistorik h2 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .lede {
+    margin-top: var(--s-2);
+    max-width: var(--w-read);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Två spalter. Raderna är korta och en enda spalt över hela huvudkolumnen
+     hade gett sex rader med en handflata tomt till höger om varje. */
+  .lista {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .lista a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    color: var(--text);
+  }
+
+  .lista a:hover { text-decoration: none; }
+  .lista a:hover b { color: var(--brand-ink); }
+
+  /* Hårlinjen mellan raderna sitter på posten och inte på syskonväljaren:
+     i ett rutnät med två spalter är rad ett och två grannar i markupen men
+     står bredvid varandra på skärmen, och `li + li` hade ritat en linje över
+     högerspaltens första rad och ingen över vänsterspaltens. */
+  .lista li { border-bottom: 1px solid var(--hairline); }
+
+  .info { min-width: 0; }
+
+  .info b {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info span {
+    display: block;
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ribba {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  /* En spalt när huvudkolumnen är smal. Två spalter med ett ansikte på 30 px
+     och ett namn bredvid ryms inte under 640, namnet klipps efter tre
+     bokstäver. */
+  @media (max-width: 640px) {
+    .lista { grid-template-columns: 1fr; }
+  }
+</style>
