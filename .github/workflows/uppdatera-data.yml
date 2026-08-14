@@ -43,8 +43,29 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Tre kommuner svarar inte på GitHubs löpare, och det är inget vi kan
+      # koda oss ur.
+      #
+      # Örebro, Höganäs och Lomma ligger alla på samma webbhotell
+      # (185.84.52.x). Uppmätt 2026-08-14: från Sverige svarar alla tre med
+      # 200 på under 0,3 sekunder, även med vår egen robot-user-agent. Från
+      # löparen tar anslutningen timeout efter 120 sekunder, tre försök i rad.
+      # Löparen står i Azure westus3, alltså i USA. Det ser ut som spärr mot
+      # utländska eller moln-IP och inte som ett fel hos oss.
+      #
+      # Felmeddelandet ledde dessutom fel i tolv nätter: Python provar AAAA
+      # först, löparen saknar IPv6-väg, och `create_connection` rapporterar
+      # FÖRSTA felet av alla adresser. Det blev "Network is unreachable" från
+      # IPv6-försöket, medan de 120 sekunderna gick åt till IPv4 som tog
+      # timeout. IPv6 var alltså aldrig problemet.
+      #
+      # De tre får därför varna i stället för att fälla körningen, medan alla
+      # andra kommuner fortfarande fäller den rött. En tyst grön natt vore
+      # värre än ett mejl. Vill vi ha dem varje natt behövs en löpare i
+      # Sverige eller en proxy, och det är ett beslut och inte en rättelse.
       - name: Hämta
         if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
+        continue-on-error: ${{ contains(fromJSON('["orebro", "hoganas", "lomma"]'), matrix.kommun) }}
         run: |
           python3 pipeline/fetch_${{ matrix.kommun }}.py \
             --out data/${{ matrix.kommun }}.json
@@ -88,14 +109,27 @@ jobs:
             echo "Inga datafiler att ladda — avbryter."
             exit 1
           fi
-          # FÖRE inläsningen, aldrig efter. Steget jämför nattens utlämning
-          # med föregående körning för att se vad som tillkommit och
-          # försvunnit. Körs det efter load_supabase.py jämförs utlämningen
-          # med sig själv och svaret blir alltid noll. Skriptet vägrar och
-          # säger till om ordningen kastas om, men ordningen ska ändå vara
-          # rätt här.
-          python3 pipeline/rorelse.py registrera "${files[@]}"
+          # Rörelsen skrivs i TVÅ steg, ett på var sin sida om inläsningen, och
+          # det är inte en omväg utan det enda som fungerar.
+          #
+          # Jämförelsen måste ske FÖRE inläsningen. Den ställer nattens
+          # utlämning mot föregående körnings, och körs den efteråt jämförs
+          # utlämningen med sig själv: noll nya och noll borta, varje natt,
+          # tyst. Skriptet vägrar om ordningen kastas om.
+          #
+          # Men sviterna för de NYA verksamheterna kan inte skrivas då.
+          # establishment_spells.establishment_id pekar med en främmande nyckel
+          # på establishments.id, och en ny verksamhet har ingen sådan rad
+          # förrän load_supabase.py har kört. Nattjobbet föll på exakt det i
+          # tolv nätter i rad: 409 23503, "Key (establishment_id) is not
+          # present in table". Sex av nio kommuner tappades varje natt.
+          #
+          # Jämförelsen körs alltså först och lägger sviterna åt sidan,
+          # inläsningen skapar raderna, och sviterna skrivs sist.
+          python3 pipeline/rorelse.py registrera "${files[@]}" \
+            --sviter-till data/uppskjutna-sviter.json
           python3 pipeline/load_supabase.py "${files[@]}"
+          python3 pipeline/rorelse.py sviter data/uppskjutna-sviter.json
 
       - name: Exportera ögonblicksbild till bygget
         env:
@@ -120,14 +154,18 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           PRIKKO_MAIL_FROM: ${{ vars.PRIKKO_MAIL_FROM }}
         run: |
-          # Utan nyckel görs en torrkörning i stället för att steget faller.
-          # Loggen visar då exakt vad som skulle gått iväg, vilket är rätt
-          # läge både innan nyckeln finns och när den råkat tas bort.
+          # `--notiser` i BÅDA grenarna, och det är rättelsen.
+          #
+          # Listan på kontot är vad en bevakning är; mejlet är påminnelsen om
+          # den. Utan nyckel kördes tidigare en ren torrkörning, alltså skrevs
+          # inte heller listan, och en bevakning gjorde ingenting alls förrän
+          # ägaren lagt in RESEND_API_KEY. Nu fylls kontot varje natt och
+          # mejlet slås på den dag nyckeln finns.
           if [ -z "$RESEND_API_KEY" ]; then
-            echo "::warning title=Notiser torrkörda::RESEND_API_KEY saknas i GitHub-hemligheterna. Inga mejl skickas."
-            python3 pipeline/notify.py
+            echo "::warning title=Notiser utan mejl::RESEND_API_KEY saknas i GitHub-hemligheterna. Kontots lista fylls, inga mejl skickas."
+            python3 pipeline/notify.py --notiser
           else
-            python3 pipeline/notify.py --skicka
+            python3 pipeline/notify.py --notiser --skicka
           fi
 
       - name: Sammanfatta förändringen

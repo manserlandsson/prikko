@@ -42,6 +42,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -125,7 +126,28 @@ class Supabase:
 # Registrering
 # ---------------------------------------------------------------------------
 
-def register(path: Path, client: Supabase) -> None:
+def register(path: Path, client: Supabase, deferred: Optional[list] = None) -> None:
+    """Jämför en utlämning mot förra körningen och logga rörelsen.
+
+    ## Varför `deferred` finns
+
+    Registreringen MÅSTE köras före `load_supabase.py`, annars jämförs
+    utlämningen med sig själv och svaret blir noll nya i all evighet. Det står
+    utskrivet nedan och skriptet vägrar om ordningen kastas om.
+
+    Men `establishment_spells.establishment_id` pekar med en främmande nyckel
+    på `establishments.id`, och en verksamhet som är NY har ingen rad där
+    förrän inläsningen har körts. Sviten för en ny verksamhet går alltså inte
+    att skriva vid den tidpunkt den räknas fram. Nattjobbet föll på just det
+    varje natt i tolv nätter: `POST establishment_spells → 409 23503, Key
+    (establishment_id)=(...) is not present in table`.
+
+    De två kraven går inte att uppfylla i samma steg, och därför delas skrivet.
+    Får funktionen en lista i `deferred` samlas sviterna där i stället för att
+    skrivas, och `skriv_sviter()` lägger in dem efter inläsningen. Allt annat
+    skrivs som förut: avslutade sviter pekar på rader som redan finns, och
+    utlämningsraden har ingen sådan koppling alls.
+    """
     payload = json.loads(path.read_text(encoding="utf-8"))
     municipality = payload["municipality"]
     code = municipality["code"]
@@ -275,7 +297,10 @@ def register(path: Path, client: Supabase) -> None:
         )
 
     if spells:
-        client.insert("establishment_spells", spells)
+        if deferred is None:
+            client.insert("establishment_spells", spells)
+        else:
+            deferred.extend(spells)
 
     closed = 0
     for departure in delivery.departed:
@@ -343,6 +368,38 @@ def register(path: Path, client: Supabase) -> None:
         f"{renumbered} id-byten, {closed} sviter avslutade",
         file=sys.stderr,
     )
+
+
+def skriv_sviter(path: Path, client: Supabase) -> None:
+    """Lägg in de uppskjutna sviterna, efter att inläsningen har körts.
+
+    Andra halvan av delningen som `register()` förklarar. Filen skrivs av
+    `registrera --sviter-till` och läses här; den innehåller färdiga rader och
+    ingen logik, så ingenting räknas om och ingenting kan glida isär mellan de
+    två stegen.
+
+    Filen tas bort när raderna är inne. Ligger den kvar betyder det att steget
+    inte kom fram, och nästa körning ska inte skriva gårdagens sviter en gång
+    till.
+    """
+    if not path.exists():
+        print(f"{path} finns inte, inga uppskjutna sviter att skriva.", file=sys.stderr)
+        return
+
+    spells = json.loads(path.read_text(encoding="utf-8"))
+    if not spells:
+        print("Inga uppskjutna sviter.", file=sys.stderr)
+        path.unlink()
+        return
+
+    # Hundra åt gången, samma styckning som registreringen använder för sina
+    # frågor. PostgREST tar större poster, men ett fel på rad 4 000 av 9 000
+    # säger mindre än ett fel på rad 40 av 100.
+    for start in range(0, len(spells), 100):
+        client.insert("establishment_spells", spells[start : start + 100])
+
+    print(f"{len(spells)} uppskjutna sviter skrivna.", file=sys.stderr)
+    path.unlink()
 
 
 # ---------------------------------------------------------------------------
@@ -417,6 +474,20 @@ def main() -> None:
 
     reg = sub.add_parser("registrera", help="jämför en utlämning mot förra körningen")
     reg.add_argument("files", nargs="+", type=Path)
+    reg.add_argument(
+        "--sviter-till",
+        type=Path,
+        metavar="FIL",
+        help=(
+            "skriv inte de nya sviterna nu, lägg dem i FIL. Kör "
+            "'rorelse.py sviter FIL' efter load_supabase.py. Krävs i nattjobbet: "
+            "en ny verksamhet har ingen rad i establishments förrän inläsningen "
+            "har körts, och den främmande nyckeln fäller skrivningen."
+        ),
+    )
+
+    sv = sub.add_parser("sviter", help="skriv de uppskjutna sviterna efter inläsningen")
+    sv.add_argument("file", type=Path)
 
     exp = sub.add_parser("exportera", help="skriv sajtens datafiler")
     exp.add_argument("--out", type=Path, default=Path("site/src/data/rorelse"))
@@ -434,17 +505,36 @@ def main() -> None:
     client = Supabase(url, key)
 
     if args.command == "registrera":
+        deferred: Optional[list] = [] if args.sviter_till else None
         failed = []
         for path in args.files:
             try:
-                register(path, client)
+                register(path, client, deferred)
             except SystemExit:
                 raise
             except Exception as exc:
                 failed.append(path)
                 print(f"\nFEL vid {path}: {exc}", file=sys.stderr)
+
+        # Skrivs ÄVEN om någon fil fallerade. De kommuner som gick igenom har
+        # fått sin utlämningsrad, och deras sviter hör ihop med den. Att kasta
+        # dem för att en annan kommuns webbplats låg nere vore att förlora
+        # rörelse vi faktiskt har observerat.
+        if deferred is not None:
+            args.sviter_till.parent.mkdir(parents=True, exist_ok=True)
+            args.sviter_till.write_text(
+                json.dumps(deferred, ensure_ascii=False), encoding="utf-8"
+            )
+            print(
+                f"\n{len(deferred)} sviter uppskjutna till {args.sviter_till}.\n"
+                f"Kör 'rorelse.py sviter {args.sviter_till}' EFTER load_supabase.py.",
+                file=sys.stderr,
+            )
+
         if failed:
             sys.exit(f"\n{len(failed)} av {len(args.files)} filer misslyckades.")
+    elif args.command == "sviter":
+        skriv_sviter(args.file, client)
     else:
         export(client, args.out)
 

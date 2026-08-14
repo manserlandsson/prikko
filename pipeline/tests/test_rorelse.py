@@ -13,6 +13,7 @@ test, eftersom de alla ser ut som en fungerande sida:
 Körs utan beroenden:  python3 pipeline/tests/test_rorelse.py
 """
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -403,6 +404,72 @@ class Normalisering(unittest.TestCase):
     def test_tomt_varde(self):
         self.assertEqual(normalise_name(None), "")
         self.assertEqual(normalise_address(""), "")
+
+
+# ---------------------------------------------------------------------------
+# 5. Uppskjutna sviter
+# ---------------------------------------------------------------------------
+
+class UppskjutnaSviter(unittest.TestCase):
+    """Sviten för en NY verksamhet kan inte skrivas när den räknas fram.
+
+    `establishment_spells.establishment_id` pekar med en främmande nyckel på
+    `establishments.id`, och den raden finns inte förrän `load_supabase.py`
+    har kört. Jämförelsen måste ändå ske före inläsningen, annars jämförs
+    utlämningen med sig själv. Nattjobbet föll på den motsättningen i tolv
+    nätter: sex av nio kommuner tappades varje natt på 409 23503.
+
+    Testerna nedan prövar delningen, alltså att sviterna verkligen läggs åt
+    sidan i stället för att skrivas, och att andra halvan skriver dem och
+    städar upp efter sig.
+    """
+
+    def setUp(self):
+        import importlib.util
+        import tempfile
+
+        spec = importlib.util.spec_from_file_location(
+            "rorelse_cli", Path(__file__).resolve().parents[1] / "rorelse.py"
+        )
+        self.cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.cli)
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def test_sviterna_skrivs_i_hundratal_och_filen_tas_bort(self):
+        skrivna = []
+
+        class FalskKlient:
+            def insert(self, table, rows):
+                skrivna.append((table, len(rows)))
+
+        fil = self.tmp / "uppskjutna.json"
+        rader = [{"establishment_id": f"F-{i}"} for i in range(250)]
+        fil.write_text(json.dumps(rader), encoding="utf-8")
+
+        self.cli.skriv_sviter(fil, FalskKlient())
+
+        self.assertEqual(skrivna, [("establishment_spells", 100)] * 2
+                         + [("establishment_spells", 50)])
+        # Ligger filen kvar skrivs gårdagens sviter en gång till i natt.
+        self.assertFalse(fil.exists())
+
+    def test_en_fil_som_inte_finns_ar_inget_fel(self):
+        """Steget körs varje natt, även de nätter ingenting rörde sig."""
+        class Exploderar:
+            def insert(self, table, rows):
+                raise AssertionError("skulle inte ha skrivit något")
+
+        self.cli.skriv_sviter(self.tmp / "finns-inte.json", Exploderar())
+
+    def test_tom_lista_skriver_ingenting_men_stadar(self):
+        class Exploderar:
+            def insert(self, table, rows):
+                raise AssertionError("skulle inte ha skrivit något")
+
+        fil = self.tmp / "tom.json"
+        fil.write_text("[]", encoding="utf-8")
+        self.cli.skriv_sviter(fil, Exploderar())
+        self.assertFalse(fil.exists())
 
 
 if __name__ == "__main__":

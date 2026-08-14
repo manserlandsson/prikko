@@ -6,8 +6,9 @@ där kommunen registrerat en ny kontroll med anmärkningar, och mejlar dem som
 tryckt Följ.
 
     set -a && . ~/.prikko-env && set +a
-    python3 pipeline/notify.py                     # torrkörning, skickar inget
-    python3 pipeline/notify.py --skicka            # på riktigt
+    python3 pipeline/notify.py                     # torrkörning, rör ingenting
+    python3 pipeline/notify.py --notiser           # skriver kontots lista
+    python3 pipeline/notify.py --notiser --skicka  # listan och mejlen
     python3 pipeline/notify.py --jamfor-med HEAD~5 # mot en äldre ögonblicksbild
 
 TORRKÖRNING ÄR FÖRVALET. Ett skript som mejlar riktiga människor ska inte göra
@@ -15,20 +16,28 @@ det för att någon råkade köra det. `--skicka` är det enda som släpper ivä
 något, och nattjobbet skriver ut flaggan uttryckligen.
 
 ---------------------------------------------------------------------------
-TVÅ UTFALL, INTE ETT
+TVÅ UTFALL, INTE ETT, OCH TVÅ FLAGGOR
 ---------------------------------------------------------------------------
 Körningen lämnar två spår, och de är olika saker:
 
-  community.notices        notisen i gränssnittet, alltså klockan på kontot.
-                           Skrivs FÖRE utskicket och oberoende av det.
+  community.notices        notisen i gränssnittet, alltså klockan på kontot
+                           och listan på /konto/notiser/. Kräver `--notiser`.
   community.notifications  kvittot på att ett mejl faktiskt gått iväg. Skrivs
                            EFTER varje lyckat utskick, och är det som håller
-                           Resend-kvoten och dubblettspärren.
+                           Resend-kvoten och dubblettspärren. Kräver `--skicka`.
 
-Ordningen och åtskillnaden är avsiktlig. En notis i webbläsaren kostar
-ingenting, så den ska inte utebli för att mejltaket är fullt eller för att
-adressen är obekräftad. Se write_notices() och kommentaren över
-community.notices i pipeline/schema_community.sql.
+Att de har VAR SIN FLAGGA är en rättelse och inte en bekvämlighet. Notiserna
+låg tidigare bakom `--skicka`, alltså bakom RESEND_API_KEY, och nyckeln är inte
+inlagd. Följden var att en bevakning inte gjorde någonting alls: nattjobbet såg
+att hemligheten saknades, körde torrt, och då skrevs inte heller den lista på
+kontot som inte har med mejl att göra. Klockan i sidhuvudet stod på noll medan
+22 bevakningar låg i databasen.
+
+Listan är alltså vad en bevakning ÄR, och mejlet är ett tillägg ovanpå den. Se
+docs/17_produktfunktioner.md, avsnittet om vad en bevakning gör.
+
+`--skicka` innebär `--notiser`. Ett mejl om något som inte står på kontot vore
+ett besked man inte kan gå tillbaka till.
 
 ---------------------------------------------------------------------------
 VAD MAN FÅR MEJL OM, OCH VARFÖR DET INTE GÅR ATT STÄLLA IN
@@ -657,14 +666,18 @@ def write_notices(db: Supabase, per_user: dict[str, list[dict]]) -> None:
     print(f"{len(rows)} notis(er) skrivna till kontot.", file=sys.stderr)
 
 
-def run(db: Supabase, out_dir: Path, compare_with: str, send: bool) -> int:
+def run(db: Supabase, out_dir: Path, compare_with: str, send: bool, notices: bool) -> int:
     per_user = collect(db, out_dir, compare_with)
     if not per_user:
         return 0
 
-    # Torrkörningen skriver ingenting alls, inte heller notiser. `--skicka` är
-    # den enda flaggan som får röra vare sig inkorgar eller databasen.
-    if send:
+    # Notiserna först, och de hänger INTE på utskicket.
+    #
+    # Listan på kontot är vad en bevakning är; mejlet är påminnelsen om den.
+    # Skrivningen låg tidigare bakom `send`, alltså bakom en Resend-nyckel som
+    # inte finns, och då gjorde en bevakning ingenting alls. Torrkörningen utan
+    # flaggor rör fortfarande varken databasen eller någon inkorg.
+    if notices:
         write_notices(db, per_user)
 
     left = budget(db) if send else len(per_user)
@@ -757,13 +770,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Notiser till den som bevakar en verksamhet.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Utan --skicka görs en torrkörning som bara skriver ut vad som "
-               "skulle gått iväg.",
+        epilog="Utan flaggor görs en torrkörning som bara skriver ut vad som "
+               "skulle hänt. --notiser skriver kontots lista, --skicka mejlar.",
     )
     parser.add_argument("--data", type=Path, default=Path("site/src/data"),
                         help="katalogen med dagens ögonblicksbilder")
     parser.add_argument("--jamfor-med", default="HEAD",
                         help="git-referens eller katalog med gårdagens ögonblicksbilder")
+    parser.add_argument("--notiser", action="store_true",
+                        help="skriv notiserna till kontot; kräver ingen mejlnyckel")
     parser.add_argument("--skicka", action="store_true",
                         help="skicka på riktigt; utan flaggan skickas ingenting")
     args = parser.parse_args()
@@ -776,7 +791,15 @@ def main() -> int:
         return 2
 
     try:
-        return run(Supabase(url, key), args.data, args.jamfor_med, args.skicka)
+        # `--skicka` innebär `--notiser`. Ett mejl om något som inte står på
+        # kontot vore ett besked man inte kan gå tillbaka till.
+        return run(
+            Supabase(url, key),
+            args.data,
+            args.jamfor_med,
+            args.skicka,
+            args.notiser or args.skicka,
+        )
     except NotifyError as exc:
         print(f"Fel: {exc}", file=sys.stderr)
         return 1
