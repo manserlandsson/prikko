@@ -9,21 +9,28 @@
  *
  * ## Var gränserna kommer ifrån
  *
- * OpenStreetMap, och bara därifrån. Resonemanget i sin helhet står i
- * pipeline/omraden.py, som hämtar dem. Kortaste versionen: det är den enda
- * källan som ger både en riktig gräns och ett namn folk söker på. SCB:s RegSO
- * har gränserna men kallar Södermalm för sju olika församlingar, `district` i
- * databasen är tom i alla 15 921 rader, och kommunernas egna indelningar kostar
- * tolv integrationer.
+ * Två källor, och resonemanget i sin helhet står i pipeline/omraden.py som
+ * hämtar dem. Kortaste versionen: OpenStreetMap där den har en polygon, SCB:s
+ * RegSO där OSM är tom OCH namnet håller. `district` i databasen är tom i alla
+ * 15 921 rader och är därmed ingen källa, och kommunernas egna indelningar
+ * kostar tolv integrationer.
+ *
+ * RegSO kom till i andra hand och efter en mätning, docs/30 §11. Den delar
+ * Södermalm i sju församlingar och Luthagen i fem väderstreck, men kallar
+ * Vällingby för Vällingby och Råslätt för Råslätt. Två mekaniska prov skiljer
+ * de två fallen åt: namnet får inte bära bindestreck, väderstreck eller
+ * administrativa ord, och ytan får inte röra vid någon OSM-polygon i kommunen.
+ * Det andra provet är det som håller innerstaden hos OSM utan en handplockad
+ * rad, eftersom det är just där OSM har full täckning.
  *
  * ## Ingen gräns, ingen sida
  *
- * OSM har namnen överallt men polygonerna bara i Stockholm. En punkt kan inte
- * säga var ett område slutar, och att rita en cirkel runt punkten och kalla den
+ * Namnen finns överallt men polygonerna gör det inte. En punkt kan inte säga
+ * var ett område slutar, och att rita en cirkel runt punkten och kalla den
  * Södermalm vore att publicera en gräns vi hittat på. Modulen läser därför bara
  * polygonfiler. Saknas filen för en kommun finns inga områdessidor där, och det
- * är rätt utfall: sidtypen växer av sig själv när OSM kartläggs vidare, utan
- * att någon rad här behöver ändras.
+ * är rätt utfall: sidtypen växer av sig själv när källorna växer, utan att
+ * någon rad här behöver ändras.
  *
  * Detsamma gäller koordinaterna. En verksamhet utan koordinat kan inte placeras
  * i ett område och räknas inte i något. Kommuner vars källa inte lämnar
@@ -43,13 +50,24 @@ import {
 /** En ring är en sluten lista av [longitud, latitud]. */
 type Ring = number[][];
 
+export type AreaSourceId = 'osm' | 'regso';
+
+export interface AreaSource {
+  name: string;
+  licence: string;
+  attribution: string;
+  fetchedAt: string;
+}
+
 export interface Area {
-  /** Områdets namn hos OSM, oredigerat. "Södermalm", "Gamla stan". */
+  /** Områdets namn hos källan, oredigerat. "Södermalm", "Vällingby". */
   name: string;
   /** URL-segment, härlett ur namnet i pipelinen. */
   slug: string;
-  /** OSM-objektet, för spårbarhet tillbaka till källan. */
-  osm: string;
+  /** Vilken källa som ritat ytan. Avgör vad som står under kartan. */
+  source: AreaSourceId;
+  /** Objektet hos källan, för spårbarhet. "relation/398021" eller "0680R022". */
+  ref: string;
   /** Ytans storlek i kvadratgrader. Rangordnar bara, mäter aldrig. */
   size: number;
   outer: Ring[];
@@ -58,7 +76,7 @@ export interface Area {
 
 interface AreaFile {
   municipality: { code: string; slug: string };
-  source: { name: string; licence: string; attribution: string; fetchedAt: string };
+  sources: Partial<Record<AreaSourceId, AreaSource>>;
   areas: Area[];
 }
 
@@ -76,15 +94,17 @@ interface AreaFile {
  * tolv rader vinner ingen av de sökningarna. Gränsen får därför inte vara
  * lägre än kategorisidornas.
  *
- * Mätt i dagens bestånd faller den ut så här i Stockholm, som är enda kommunen
- * med polygoner:
+ * Mätt i dagens bestånd, med RegSO inne enligt docs/30 §11:
  *
- *     tröskel 15    36 områden
- *     tröskel 25    30 områden
- *     tröskel 50    19 områden
+ *     tröskel 15    91 områden i 7 kommuner
+ *     tröskel 25    64 områden i 6 kommuner
+ *     tröskel 50    30 områden i 2 kommuner
  *
- * Skillnaden mellan 15 och 25 är sex områden som alla ligger mellan 19 och 24
- * verksamheter, alltså precis den storlek där en lista slutar vara en lista.
+ * De 27 som skiljer 15 från 25 ligger mellan 15 och 24 verksamheter, alltså
+ * precis den storlek där en lista slutar vara en lista. Att sänka till 15 hade
+ * dessutom gett Örebro fem sidor och det är ingen anledning: Örebro har noll
+ * områden över 25 för att bara 645 av 1 233 verksamheter har koordinat, och det
+ * öppnas av bättre koordinater och inte av en lägre ribba.
  */
 export const MIN_AREA_PAGE = 25;
 
@@ -146,9 +166,16 @@ for (const module of Object.values(files)) {
   }
 }
 
-/** Attributionen som måste stå där en gräns visas. ODbL kräver den. */
-export function areaSource(slug: string): AreaFile['source'] | undefined {
-  return areaFiles.get(slug)?.source;
+/**
+ * Attributionen som måste stå där gränsen visas.
+ *
+ * Kravet kommer ur ODbL för OSM-ytorna. RegSO är CC0 och kräver ingenting, men
+ * källan skrivs ut ändå: en gräns på den här sajten säger alltid var den kommer
+ * ifrån, och en läsare som ser två kommuner med olika kartläggning ska kunna se
+ * varför.
+ */
+export function areaSource(slug: string, area: Area): AreaSource | undefined {
+  return areaFiles.get(slug)?.sources?.[area.source];
 }
 
 // ---------------------------------------------------------------------------

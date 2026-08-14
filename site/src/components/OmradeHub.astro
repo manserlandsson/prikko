@@ -421,9 +421,6 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         {karta && (
           <div class="karta">
             <OmradeKarta kommun={kommun} area={area} count={total} />
-            {/* Attributionen står här OCH i kartans hörn, av samma skäl som i
-                Karta.astro: kravet är att den syns, och ett kontrollelement
-                som kan fällas ihop är ingen garanti. */}
             {/* Vidare in i den delade vyn, på områdets eget utsnitt.
                 Områdeskartan visar var stället ligger; den delade vyn kan
                 sökas, filtreras och läsas rad för rad. Fragmentet räknas av
@@ -434,9 +431,22 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 <a href={kartlank}>Öppna {area.name} i hela kartan</a>
               </p>
             )}
+            {/* Kartdatat är alltid OSM. GRÄNSEN är det inte: den kommer ur
+                OSM där någon kartlagt stadsdelarna och ur SCB:s RegSO i
+                övriga kommuner, se docs/30 §11. Raden måste därför säga
+                vilket. En gräns som står under fel upphov är en uppgift utan
+                källa, och det är samma fel som ett tal utan angiven källa.
+
+                Kravet är ODbL för OSM-ytorna. RegSO är CC0 och kräver
+                ingenting, men står ändå av samma skäl. */}
             <p class="attribution text-muted">
-              Kartdata och områdesgräns <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
+              Kartdata <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">© OpenStreetMap</a>,
               kakel från <a href="https://openfreemap.org" rel="noopener noreferrer" target="_blank">OpenFreeMap</a>.
+              {area.source === 'regso' ? (
+                <> Områdesgräns från <a href="https://www.scb.se/vara-tjanster/oppna-data/oppna-geodata/regso/" rel="noopener noreferrer" target="_blank">SCB, RegSO 2025</a>, CC0.</>
+              ) : (
+                <> Områdesgränsen kommer ur samma källa.</>
+              )}
             </p>
           </div>
         )}

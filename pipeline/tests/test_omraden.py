@@ -13,6 +13,11 @@ Fyra fel är värda egna test, eftersom alla fyra ger en sida som SER hel ut:
 4. Ett hål som tappats bort. Djurgårdsbrunnsviken ligger inne i Djurgården och
    ska inte räknas som land.
 
+RegSO tar två prov till, och båda har sin egen klass nedan. Namnprovet skiljer
+Vällingby från "Västra Flogsta", och rörprovet hindrar SCB:s Mariatorget från
+att äta upp OSM:s Södermalm. Faller något av dem tyst blir följden en sida under
+ett namn ingen söker eller ett tal som krympt utan att någon rört sidan.
+
 Körs utan beroenden:  python3 pipeline/tests/test_omraden.py
 """
 
@@ -23,13 +28,39 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from omraden import (  # noqa: E402
+    merge,
+    regso_name_holds,
+    regso_rings,
     ring_area,
     rings_from_relation,
     rings_from_way,
     round_ring,
     slugify,
+    touches,
     wanted,
 )
+
+
+def yta(namn, hörn, hål=None, källa="osm"):
+    """Ett områdesobjekt av samma form som fetch och fetch_regso lämnar."""
+    ring = [list(p) for p in hörn]
+    if ring[0] != ring[-1]:
+        ring.append(list(ring[0]))
+    hålen = []
+    for h in hål or []:
+        r = [list(p) for p in h]
+        if r[0] != r[-1]:
+            r.append(list(r[0]))
+        hålen.append(r)
+    return {
+        "name": namn,
+        "slug": slugify(namn),
+        "source": källa,
+        "ref": "",
+        "size": ring_area(ring),
+        "outer": [ring],
+        "inner": hålen,
+    }
 
 
 def way(points, closed=True):
@@ -203,6 +234,155 @@ class Slug(unittest.TestCase):
 
     def test_tomt_namn_far_reservslug(self):
         self.assertEqual(slugify("///"), "namnlos")
+
+
+class RegsoNamn(unittest.TestCase):
+    """Namnprovet. Varje rad här är ett namn som faktiskt finns i RegSO 2025."""
+
+    def test_bara_namnet_haller(self):
+        for namn, stad in (
+            ("Vällingby", "Stockholm"),
+            ("Tensta", "Stockholm"),
+            ("Råslätt", "Jönköping"),
+            ("Gränna", "Jönköping"),
+            ("Våxnäs", "Karlstad"),
+            ("Ryd", "Linköping"),
+            ("Vivalla", "Örebro"),
+        ):
+            self.assertTrue(regso_name_holds(namn, stad), namn)
+
+    def test_bindestreck_ar_scb_s_hopslagning(self):
+        """Ingen säger Rosta-Örnsro. `restauranger rosta örnsro` ger noll förslag."""
+        for namn in ("Rosta-Örnsro", "Vasastaden-Hunneberg", "Marieberg-Mosås",
+                     "Kvarnberget-Sommarro-Marieberg", "Skäggetorp-Tornby",
+                     "Klara-Jacob"):
+            self.assertFalse(regso_name_holds(namn, "Örebro"), namn)
+
+    def test_vaderstreck_delar_en_plats_som_ingen_delar(self):
+        """Flogsta kompletteras. Västra Flogsta svarar med noll förslag."""
+        for namn in ("Västra Flogsta", "Norra Sävja", "Sydöstra Luthagen",
+                     "Mellersta Sala backe", "Kronoparken norra"):
+            self.assertFalse(regso_name_holds(namn, "Uppsala"), namn)
+
+    def test_administrativa_ord_gor_staden_till_ett_omrade(self):
+        self.assertFalse(regso_name_holds("Örebro city", "Örebro"))
+        self.assertFalse(regso_name_holds("Huskvarna centrum", "Jönköping"))
+        self.assertFalse(regso_name_holds("Valkebo omland", "Linköping"))
+        self.assertFalse(regso_name_holds("Bromma kyrka", "Stockholm"))
+
+    def test_kommunens_stad_ar_inte_ett_omrade_i_sig(self):
+        """"Uppsala centrum" faller på båda halvorna, och ska göra det."""
+        self.assertFalse(regso_name_holds("Uppsala centrum", "Uppsala"))
+        self.assertFalse(regso_name_holds("Uppsala västra omland", "Uppsala"))
+
+    def test_stadens_namn_i_ett_annat_ord_racknas_inte(self):
+        """Karlstads landsbygd faller på `landsbygd`, inte på genitivformen."""
+        self.assertTrue(regso_name_holds("Karlstadsvägen", "Karlstad"))
+
+
+class RegsoGeometri(unittest.TestCase):
+    """GeoJSON till samma ringar som Overpass-grenen lämnar."""
+
+    def test_polygon_med_hal(self):
+        outer, inner = regso_rings(
+            {
+                "type": "Polygon",
+                "coordinates": [
+                    [[0, 0], [0, 4], [4, 4], [4, 0], [0, 0]],
+                    [[1, 1], [1, 2], [2, 2], [2, 1], [1, 1]],
+                ],
+            }
+        )
+        self.assertEqual(len(outer), 1)
+        self.assertEqual(len(inner), 1)
+
+    def test_multipolygon_ger_flera_ytterringar(self):
+        outer, inner = regso_rings(
+            {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]],
+                    [[[5, 5], [5, 6], [6, 6], [6, 5], [5, 5]]],
+                ],
+            }
+        )
+        self.assertEqual(len(outer), 2)
+        self.assertEqual(inner, [])
+
+
+class Rorprovet(unittest.TestCase):
+    """Två källor som ritar samma trakt ritar den olika. Se modulens huvud."""
+
+    RUTA = [(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (4.0, 0.0)]
+
+    def test_ytor_som_ligger_isar_ror_inte(self):
+        self.assertFalse(
+            touches(yta("A", self.RUTA), yta("B", [(9.0, 9.0), (9.0, 10.0), (10.0, 10.0), (10.0, 9.0)]))
+        )
+
+    def test_yta_helt_inuti_en_annan_ror(self):
+        """SCB:s Mariatorget ligger inne i OSM:s Södermalm. Inget hörn korsar."""
+        inre = yta("Mariatorget", [(1.0, 1.0), (1.0, 2.0), (2.0, 2.0), (2.0, 1.0)])
+        self.assertTrue(touches(inre, yta("Södermalm", self.RUTA)))
+        self.assertTrue(touches(yta("Södermalm", self.RUTA), inre))
+
+    def test_ytor_som_overlappar_pa_kanten_ror(self):
+        self.assertTrue(
+            touches(yta("A", self.RUTA), yta("B", [(3.0, 1.0), (3.0, 2.0), (6.0, 2.0), (6.0, 1.0)]))
+        )
+
+    def test_kors_utan_att_ett_enda_horn_hamnar_inuti(self):
+        """Två avlånga ytor i kors. Utan kantprovet ser de ut att ligga isär."""
+        lodrat = yta("A", [(1.0, -1.0), (1.0, 5.0), (2.0, 5.0), (2.0, -1.0)])
+        vagrat = yta("B", [(-1.0, 1.0), (5.0, 1.0), (5.0, 2.0), (-1.0, 2.0)])
+        self.assertTrue(touches(lodrat, vagrat))
+
+    def test_yta_i_ett_hal_ror_inte(self):
+        """Djurgårdsbrunnsviken är inte land, och något som ligger i den rör inget."""
+        med_hal = yta("A", self.RUTA, hål=[[(1.0, 1.0), (1.0, 3.0), (3.0, 3.0), (3.0, 1.0)]])
+        i_halet = yta("B", [(1.5, 1.5), (1.5, 2.5), (2.5, 2.5), (2.5, 1.5)])
+        self.assertFalse(touches(med_hal, i_halet))
+
+
+class Sammanslagning(unittest.TestCase):
+    """OSM först, RegSO bara där den varken rör en OSM-yta eller tar dess namn."""
+
+    OSM = [yta("Södermalm", [(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (4.0, 0.0)])]
+
+    def test_regso_som_ror_faller_helt(self):
+        blandat = merge(
+            self.OSM,
+            [yta("Mariatorget", [(1.0, 1.0), (1.0, 2.0), (2.0, 2.0), (2.0, 1.0)], källa="regso")],
+        )
+        self.assertEqual([a["name"] for a in blandat], ["Södermalm"])
+
+    def test_regso_langre_bort_kommer_med(self):
+        blandat = merge(
+            self.OSM,
+            [yta("Vällingby", [(9.0, 9.0), (9.0, 10.0), (10.0, 10.0), (10.0, 9.0)], källa="regso")],
+        )
+        self.assertEqual(sorted(a["slug"] for a in blandat), ["sodermalm", "vallingby"])
+        self.assertEqual(
+            {a["name"]: a["source"] for a in blandat},
+            {"Södermalm": "osm", "Vällingby": "regso"},
+        )
+
+    def test_samma_namn_kan_inte_ge_tva_urler(self):
+        """Ett namn, en URL. OSM-ytan står kvar och RegSO:s namne faller."""
+        blandat = merge(
+            self.OSM,
+            [yta("Södermalm", [(9.0, 9.0), (9.0, 10.0), (10.0, 10.0), (10.0, 9.0)], källa="regso")],
+        )
+        self.assertEqual(len(blandat), 1)
+        self.assertEqual(blandat[0]["source"], "osm")
+
+    def test_utan_osm_kommer_allt_regso_med(self):
+        """Uppsala, Örebro och Jönköping har noll OSM-polygoner. Inget att röra."""
+        regso = [
+            yta("Gränna", [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)], källa="regso"),
+            yta("Råslätt", [(5.0, 5.0), (5.0, 6.0), (6.0, 6.0), (6.0, 5.0)], källa="regso"),
+        ]
+        self.assertEqual(len(merge([], regso)), 2)
 
 
 class Ytstorlek(unittest.TestCase):
