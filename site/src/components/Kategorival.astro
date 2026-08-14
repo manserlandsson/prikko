@@ -1,0 +1,272 @@
+---
+/**
+ * Verksamhetstyperna på kommunsidan. Ett rutnät, inte en rullrad.
+ *
+ * ## Varför den finns, alltså vad som var fel
+ *
+ * Typerna och stadsdelarna delade Filterrad.astro, och det var felet. De två
+ * är inte samma problem. Typerna är sex stycken, ett fast och känt antal som
+ * är exakt detsamma i varje kommun. Stadsdelarna är trettio i Stockholm och
+ * varierar per kommun. En rullrad är rätt för det andra fallet och fel för
+ * det första, och mätningen säger varför.
+ *
+ * Uppmätt i webbläsaren 2026-08-14 på /stockholm/, spårets clientWidth mot
+ * dess scrollWidth:
+ *
+ *   fönster   huvudspalt   typernas bredd   överskott
+ *   1440      696          546              0
+ *   1024      640          546              0
+ *    768      736          546              0
+ *    375      343          498            155
+ *
+ * Raden rullade alltså ALDRIG på dator. Den låg vänsterställd i ett spår som
+ * var 94 till 190 pixlar bredare än innehållet, med en död lucka till höger,
+ * och den bar samma form som stadsdelsraden strax under, som rullar på
+ * riktigt. Två olika saker såg likadana ut, och den ena ljög. På telefon var
+ * det värre: 155 pixlar låg utanför kanten, alltså "Övrigt" och halva "Skolor
+ * och omsorg", och där döljer komponenten sina rullknappar med flit. Det som
+ * fattades var alltså inte en pil, utan att raden fick bryta.
+ *
+ * ## Varför sex i bredd inte går, räknat
+ *
+ * Etiketterna är uppmätta till 31, 76, 111, 41, 106 och 36 pixlar. Sex
+ * spalter i en huvudspalt på 696 med 24 px luft ger 96 px per cell, och den
+ * bredaste etiketten är 111. Sex i bredd är alltså inte en smaksak utan
+ * omöjligt utan avhuggning. Tre spalter ger 216 px per cell, vilket rymmer
+ * varje etikett på en rad med marginal, och sex poster i tre spalter blir två
+ * jämna våningar utan luckor. På telefon blir det två spalter, 163 px per
+ * cell, och 111 ryms fortfarande.
+ *
+ * ## Formen, och vad referenserna faktiskt gör
+ *
+ * Uppmätt i webbläsaren 2026-08-14, inte skrivet ur minnet.
+ *
+ * BOOLI, /sok/slutpriser. Närmaste motsvarigheten till vårt fall: tre val med
+ * antal i en spalt på 640. Rutnät med lika breda spalter, `grid-cols-3`, inte
+ * en rullrad. Etikett 14/24 i vikt 400 i vila och 600 aktiv, antal 12/16 i
+ * `#767676`, alltså alltid mindre och ljusare än etiketten. Markering: 2 px
+ * baslinje som byter från `#e6e6e6` till accentfärgen. Inga ikoner.
+ *
+ * BOOLI, startsidan. Bostadstyperna ligger i ett 3×2-rutnät som bryter rad
+ * och aldrig rullar. Men varje post är en inramad `<label>` runt en
+ * `<input type=checkbox>`, alltså ett formulär, och det är precis vad vår rad
+ * inte får se ut som. Formen tas inte med. De döljer dessutom hela rutnätet
+ * under 768 px, vilket vi inte gör: en funktion som försvinner på telefon är
+ * ingen funktion.
+ *
+ * HITTA.SE. Piller med kant och radie, 14/22 i vikt 600, utan antal, och
+ * raden rullar under 848 px. Alltså en pillervägg, som ägaren redan
+ * underkänt, plus rullningen vi just tagit bort. Inget att hämta.
+ *
+ * EDNIA. Ikon 24 över etikett 12/16, markering är färgskifte plus 2 px
+ * understreck, ingen viktändring. Raden rullar på riktigt: 29 kategorier,
+ * 3 347 px innehåll i ett 1 280 px spår. Det är rätt form för en LÅNG lista,
+ * alltså för stadsdelarna, och den ligger kvar i Filterrad.astro.
+ *
+ * Vi tar alltså Boolis rutnät och dess typografi, Ednias ikoner och
+ * understreck, och ingen av pillren.
+ *
+ * Ikon till vänster, etikett och tal staplade till höger. Inga rutor, ingen
+ * ram, ingen fyllning, ingen radie. Booli skiljer avsnitt med hårlinje och
+ * luft och aldrig med en färgad ruta, och deras klickbara data bär
+ * understrykning och inte kant. Se docs/19_formsystem.md.
+ *
+ * Booli lägger antalet till HÖGER om etiketten med 8 px mellanrum. Vi staplar
+ * det under, och det är mätt och inte tyckt: på telefon är cellen 163 px, och
+ * ikon 24 plus luft 12 plus etikett 111 plus luft 8 plus tal 30 är 185. Inline
+ * spricker alltså på telefon medan staplat landar på 147. Ett mått som håller
+ * hela vägen är bättre än två layouter.
+ *
+ * Formen är samtidigt sidans egen: fördelningsraden rakt ovanför
+ * (KommunOversikt.astro) är ett rutnät av celler med tal och etikett, byggt
+ * på samma sätt. Skillnaden dem emellan är att den bär färgprickar och den
+ * här bär våra ikoner.
+ *
+ * ## Vad rutnätet ÄR
+ *
+ * Riktiga länkar till riktiga adresser, precis som förut. Sajten kör inget
+ * JavaScript i normalfallet, och registret under är sidindelat i hundra rader,
+ * så en kryssruta hade bara filtrerat den sida man råkar stå på. Utan
+ * JavaScript fungerar varenda val och tabb når varenda val. Här finns inget
+ * skript alls, till skillnad från rullraden: ett rutnät som ryms behöver
+ * varken piltangenter eller rullknappar.
+ *
+ * En typ utan egen sida tonas ned i stället för att döljas. Siffran är sann
+ * och är svaret; det är bara adressen som inte förtjänar att finnas.
+ *
+ * ## Aktivt val
+ *
+ * Understreck, halvfet etikett och `aria-current="page"`. Tre bärare, ingen
+ * av dem en färg i sig, av samma tillgänglighetsskäl som gör att
+ * bedömningsmärkena bär både min, färg och textetikett.
+ *
+ * Vikten är en riktig bärare här. I rullraden var den det inte: `.etikett`
+ * stod på 600 i grundläget OCH på 600 i det aktiva, så av de tre bärarna
+ * fanns i praktiken två. Grundläget är 400 och det aktiva 600.
+ *
+ * Understrecket är märkesblått och inte svart, av samma skäl som i
+ * Filterrad.astro: valt läge är blått i sökpanelen, i kartan och i
+ * pagineringen, och en svart list bredvid dem ser lånad ut.
+ */
+import Kategoriikon from './Kategoriikon.astro';
+import { formatNumber } from '../lib/data';
+import type { IkonNyckel } from '../lib/ikoner';
+
+export interface Typval {
+  /** Adressen valet leder till. Utelämnad betyder ett val utan egen sida. */
+  href?: string;
+  label: string;
+  count: number;
+  ikon: IkonNyckel;
+  /** Är det här sidan man står på? */
+  current?: boolean;
+}
+
+interface Props {
+  items: Typval[];
+  /** Läses upp som navigeringens namn. */
+  label: string;
+}
+
+const { items, label } = Astro.props;
+---
+
+<nav class="kategorival" aria-label={label}>
+  {items.map((val) => {
+    const inner = (
+      <>
+        <span class="ikon"><Kategoriikon namn={val.ikon} /></span>
+        <span class="etikett">{val.label}</span>
+        <span class="tal">{formatNumber(val.count)}</span>
+      </>
+    );
+    return val.href ? (
+      <a class="val" href={val.href} aria-current={val.current ? 'page' : undefined}>
+        {inner}
+      </a>
+    ) : (
+      <span class="val av">{inner}</span>
+    );
+  })}
+</nav>
+
+<style>
+  /*
+   * Tre spalter, och de är räknade och inte satta på känsla. Se
+   * huvudkommentaren: bredaste etiketten är 111 px, sex spalter ger 96 och
+   * tre ger 216.
+   *
+   * `repeat(3, 1fr)` och inte `auto-fit` med `minmax`: auto-fit hade gett
+   * fyra spalter i en huvudspalt på 696, alltså fyra poster på första raden
+   * och två på andra. Sex poster har bara tre snygga uppdelningar, och två av
+   * dem ryms inte.
+   */
+  .kategorival {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-4) var(--s-6);
+  }
+
+  /*
+   * Cellen. Ikonen i egen spalt över två rader, etiketten och talet under
+   * varandra i den andra. `align-items: center` mitt för de två raderna
+   * tillsammans, så att ikonen väger mot hela posten och inte mot etiketten.
+   */
+  .val {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: var(--s-3);
+    /* Etiketten är sajtens vanliga bläck. Talet under är tyst, se .tal. */
+    color: var(--text);
+    min-width: 0;
+  }
+
+  .val:hover { text-decoration: none; }
+
+  /* Ikonen ritas av Kategoriikon.astro, alltså en annan komponent. Astros
+     scopeade selektorer korsar inte komponentgränser, så `svg` måste nås med
+     :global under en rot som DEN HÄR filen renderar. Roten är .ikon.
+
+     Ikonerna är utjämnade optiskt i Kategoriikon.astro, mätt med getBBox, så
+     att alla sex väger lika i raden. Ändra inte storleken här utan att läsa
+     OPTIK-noten där. */
+  .ikon {
+    grid-row: 1 / span 2;
+    display: block;
+    height: 24px;
+  }
+
+  .ikon :global(svg) {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+
+  /*
+   * Etiketten. 14/24 i vikt 400, alltså Boolis flikmått, se huvudkommentaren.
+   *
+   * Understrecket ritas med `text-decoration` och inte med `border-bottom`,
+   * och det är inte samma sak. En underkant sitter längst ner i radlådan,
+   * alltså sex pixlar under bokstäverna och tätt intill talet under, och
+   * läser då lika gärna som en avdelare mellan etikett och tal som en
+   * markering av etiketten. Textdekorationen sitter på texten och är exakt så
+   * bred som ordet. Samma mekanism som fördelningsradens länkar,
+   * se KommunOversikt.astro.
+   */
+  .etikett {
+    grid-column: 2;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 400;
+    text-decoration: none;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+
+  .val:hover .etikett {
+    text-decoration: underline;
+    text-decoration-color: var(--text-muted);
+  }
+
+  /* Aktivt val: understreck OCH halvfet OCH aria-current. */
+  .val[aria-current='page'] .etikett {
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: var(--brand);
+  }
+
+  .tal {
+    grid-column: 2;
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Utan egen sida. Ingen hovring, ingen pekare, inget understreck. Nedtonad
+     och aldrig dold: siffran är sann och är svaret, det är bara adressen som
+     inte förtjänar att finnas. */
+  .val.av { color: var(--text-muted); }
+  .val.av .tal { color: var(--text-muted); }
+  .val.av:hover .etikett { text-decoration: none; }
+
+  /*
+   * Två spalter på telefon. Tre hade gett 98 px per cell och brutit
+   * "Caféer och bagerier" på tre rader.
+   *
+   * Luften krymper med, och det är mätt. I 343 px huvudspalt ger 16 px
+   * spaltluft och 12 px ikonluft en textspalt på 127,5, och den längsta
+   * etiketten är 127. En halv pixels marginal är ingen marginal. 12 och 8 ger
+   * 133,5, alltså sex pixlar att andas på.
+   *
+   * Etiketten får bryta rad om den ändå inte ryms. Rutnätet jämnar ut
+   * radhöjden själv, så det blir en högre våning och inget avhugget ord.
+   * Etikettgraden krymper INTE här: docs/19_formsystem.md, bara de två
+   * översta graderna gör det.
+   */
+  @media (max-width: 560px) {
+    .kategorival { grid-template-columns: repeat(2, 1fr); gap: var(--s-4) var(--s-3); }
+    .val { column-gap: var(--s-2); }
+  }
+</style>

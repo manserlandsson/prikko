@@ -281,8 +281,14 @@ function share(n: number): string | null {
      här finns ingen text omkring. Understrykningen kommer tillbaka vid
      hovring och tangentbordsfokus, alltså i de lägen där den svarar på något
      man gör. */
+  /* Varken blå eller understruken. Ägaren: "ta bort att det är blått och att
+     det blir understruket på hover."
+
+     Kvar som bärare är att hela cellen är träffyta och att pekaren byter form,
+     plus att etiketten mörknar vid hovring och fokus. Posten står i en rad där
+     varje syskon är en länk till samma sorts sida, alltså finns ingen text
+     omkring den som den behöver skilja sig från. */
   .legend a .txt {
-    color: var(--brand);
     text-decoration: none;
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
@@ -292,8 +298,6 @@ function share(n: number): string | null {
      deras bläck ÄR länkfärgen; hos oss är blått det som säger "aktiv" i
      sökpanelen, i kartan och i pagineringen, och en post som inte svarar på
      pekaren läser som död. */
-  .legend a:hover .txt,
-  .legend a:focus-visible .txt { text-decoration: underline; }
   .legend a:hover .lbl,
   .legend a:focus-visible .lbl { color: var(--brand-ink); }
 

@@ -33,6 +33,7 @@ import CommonIssues from './CommonIssues.astro';
 import EstablishmentList from './EstablishmentList.astro';
 import FaceMark from './FaceMark.astro';
 import Filterrad from './Filterrad.astro';
+import Kategorival from './Kategorival.astro';
 import FollowUpRate from './FollowUpRate.astro';
 import KartaPuff from './KartaPuff.astro';
 import KommunBanner from './KommunBanner.astro';
@@ -307,18 +308,26 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
         {categories && (
           <section class="filter" aria-labelledby="kategorier">
             <h2 id="kategorier">Verksamheter efter typ</h2>
-            <Filterrad
+            {/* Ett rutnät och inte filterraden. De sex typerna är ett fast och
+                känt antal som är detsamma i varje kommun, och mätt i
+                webbläsaren rullade raden aldrig på dator: 546 px innehåll i
+                ett spår på 640 till 736. Se Kategorival.astro för hela
+                mätningen. Stadsdelarna nedanför är det motsatta fallet och
+                behåller rullraden. */}
+            <Kategorival
               label={`Verksamheter efter typ i ${city}`}
-              lead={{ href: path(base), label: 'Alla', count: total, ikon: 'alla', current: true }}
-              items={categories.shown.map(({ category, count, linked }) => ({
-                // Utan länk: kategorin finns och siffran är sann, men en
-                // kategori med en handfull verksamheter förtjänar ingen egen
-                // URL. Filterrad tonar ner den i stället för att dölja den.
-                href: linked ? path(base, 'kategori', category.slug) : undefined,
-                label: category.name,
-                count,
-                ikon: category.id,
-              }))}
+              items={[
+                { href: path(base), label: 'Alla', count: total, ikon: 'alla' as const, current: true },
+                ...categories.shown.map(({ category, count, linked }) => ({
+                  // Utan länk: kategorin finns och siffran är sann, men en
+                  // kategori med en handfull verksamheter förtjänar ingen egen
+                  // URL. Kategorival tonar ner den i stället för att dölja den.
+                  href: linked ? path(base, 'kategori', category.slug) : undefined,
+                  label: category.name,
+                  count,
+                  ikon: category.id,
+                })),
+              ]}
             />
           </section>
         )}
@@ -528,18 +537,27 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
      minst lika mycket som sidopanelens rubriker. Den låg på --fs-body-s och
      blev mindre än "Senast kontrollerade" bredvid, alltså läste sidan som
      att panelen var viktigare än innehållet. Samma nivå som .panel-title. */
+  /* Fullt bläck, inte grått. En rubrik är en rubrik: står den i sekundär grå
+     läser den som en etikett över en kontroll, alltså som formulärtext, och
+     inte som en avdelning på sidan. Ägaren: "texten Verksamheter efter område
+     är också i fel färg, den är typ grå vilket rubriker ej ska vara." */
   .filter h2 {
     font-size: var(--fs-h-xs);
     line-height: var(--lh-h-xs);
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text);
   }
 
-  /* Luften mellan rubriken och raden. Allt annat om filterraden bor i
-     Filterrad.astro. Måtten, rullningen, tangentbordet och markeringen av
-     aktivt val ska stå på ETT ställe, eftersom samma rad används här och på
-     områdessidan. */
+  /* Luften mellan rubriken och innehållet. Allt annat bor i komponenterna:
+     Filterrad.astro för stadsdelarnas rullrad, som också används på
+     områdessidan, och Kategorival.astro för typernas rutnät. Måtten,
+     tangentbordet och markeringen av aktivt val ska stå på ETT ställe.
+
+     Rutnätet får mer luft än raden. Raden bär hårlinjer över och under och är
+     ett eget band, alltså skiljer den ut sig själv. Rutnätet är öppet på
+     sidan och behöver avståndet i stället. */
   .filter :global(.filterrad) { margin-top: var(--s-3); }
+  .filter :global(.kategorival) { margin-top: var(--s-4); }
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {

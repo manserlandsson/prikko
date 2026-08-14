@@ -2,6 +2,27 @@
 /**
  * Filterraden. En vågrät rad val i stället för en pillervägg.
  *
+ * ## Vad den är till för, efter delningen
+ *
+ * Raden är till för LÅNGA och VARIERANDE listor, alltså i praktiken för
+ * stadsdelarna. Den bar tidigare två fall: kommunens sex verksamhetstyper och
+ * dess upp till trettio stadsdelar. Det var ett fel, och mätningen visade
+ * varför: sex typer är 546 px innehåll i ett spår på 640 till 736, alltså
+ * rullade den raden aldrig på dator, medan Stockholms trettio stadsdelar är
+ * 2 639 px i samma spår och rullar på riktigt. Två olika problem såg likadana
+ * ut, och det ena var en rullrad som inte rullade.
+ *
+ * Typerna ligger nu i Kategorival.astro, som är ett rutnät utan skript. Hela
+ * mätningen står där.
+ *
+ * Ett läge per fall i EN komponent var alternativet, och det valdes bort. Det
+ * som skiljer fallen är allt: rutnät mot rullspår, med skript mot utan,
+ * ikonspår mot inget, radbrytning mot `nowrap`. Kvar som gemensamt är bara
+ * hur ett aktivt val märks ut, och det är tre rader CSS. En komponent med två
+ * lägen hade varit den här filen en gång till med `if` runt varannan rad.
+ * Regeln om aktivt val står i stället skriven i båda filerna, eftersom den är
+ * ett tillgänglighetskrav och inte en implementationsdetalj.
+ *
  * ## Varför den finns
  *
  * Kommunhubbens två filteravsnitt låg som chips som radbröt. Stockholm har 30
@@ -23,10 +44,10 @@
  * och `overscroll-behavior` sätts BARA under `pointer: fine`, alltså aldrig
  * på telefon, där den annars kan äta sidans lodräta rullning.
  *
- * Måtten är översatta till våra tokens, inte kopierade i pixlar, och ikonerna
- * är våra egna (se Kategoriikon.astro). Ednias filterknapp längst till höger
- * följer inte med: den öppnar deras filterark, och en knapp som inte gör
- * något är sämre än ingen knapp.
+ * Måtten är översatta till våra tokens och inte kopierade i pixlar. Ednias
+ * filterknapp längst till höger följer inte med: den öppnar deras filterark,
+ * och en knapp som inte gör något är sämre än ingen knapp. Deras ikoner
+ * följer inte heller med, se `Ingen bild` nedan.
  *
  * ## Vad raden ÄR
  *
@@ -42,9 +63,7 @@
  * tillgänglighetsskäl som gör att bedömningsmärkena alltid bär både min,
  * färg och textetikett.
  */
-import Kategoriikon from './Kategoriikon.astro';
 import { formatNumber } from '../lib/data';
-import type { IkonNyckel } from '../lib/ikoner';
 
 export interface FilterVal {
   /** Adressen valet leder till. Utelämnad betyder ett val utan egen sida. */
@@ -52,8 +71,6 @@ export interface FilterVal {
   label: string;
   /** Talet under etiketten. Utelämnat ger en rad utan tal. */
   count?: number;
-  /** Ikonnyckel. Utelämnad ger en rad utan ikoner, se `Props.ikoner`. */
-  ikon?: IkonNyckel;
   /** Är det här sidan man står på? */
   current?: boolean;
 }
@@ -72,16 +89,17 @@ interface Props {
 const { items, lead, label } = Astro.props;
 
 /*
- * Ikonspåret reserveras för hela raden eller för ingen av dem.
+ * Ingen bild, och det är ett beslut och inte något som fattas.
  *
- * Kategorierna har naturliga symboler. Områdena har det inte: Södermalm,
- * Gamla stan och Hägerstensåsen är ortnamn, och 30 påhittade ikoner hade
- * varit 30 påståenden om platser vi inte kan stå för. Raden är alltså samma
- * komponent i båda fallen, med samma rullning, samma tangentbord och samma
- * markering av aktivt val, men bara kategorierna får bild.
+ * Raden bär ortnamn. Södermalm, Gamla stan och Hägerstensåsen har inga
+ * symboler, och trettio påhittade ikoner hade varit trettio påståenden om
+ * platser vi inte kan stå för. Kategorierna HAR naturliga symboler, och de
+ * ligger numera i Kategorival.astro, som ritar dem.
+ *
+ * Raden hade tidigare ett valfritt ikonspår för just det fallet. Det är
+ * borttaget med kategorierna: en gren som ingen anropare tar är inte
+ * flexibilitet, den är en fälla för nästa läsare.
  */
-const ikoner = Boolean(lead?.ikon) || items.some((i) => Boolean(i.ikon));
-
 const alla = lead ? [lead, ...items] : items;
 
 /*
@@ -111,11 +129,6 @@ const talrad = alla.some((v) => v.count !== undefined);
       {alla.map((val, i) => {
         const inner = (
           <>
-            {ikoner && (
-              <span class="ikon">
-                {val.ikon ? <Kategoriikon namn={val.ikon} /> : null}
-              </span>
-            )}
             <span class="etikett">{val.label}</span>
             {talrad && (
               <span class="tal">{val.count === undefined ? '' : formatNumber(val.count)}</span>
@@ -247,27 +260,6 @@ const talrad = alla.some((v) => v.count !== undefined);
   .val.av { color: var(--text-muted); }
   .val.av:hover { border-bottom-color: transparent; color: var(--text-muted); }
 
-  /* Ikonen ritas av Kategoriikon.astro, alltså en annan komponent. Astros
-     scopeade selektorer korsar inte komponentgränser, så `svg` måste nås med
-     :global under en rot som DEN HÄR filen renderar. Roten är .ikon.
-
-     Ikonen får luft NEDÅT, etiketten och talet hålls ihop. Raden var förut
-     jämnt fördelad: 4 px mellan ikon och etikett, 4 px mellan etikett och
-     tal, plus 4 px extra under ikonen. Talet satt då lika nära ikonen ovanför
-     som sin egen etikett och läste som en lös rad under valet. Nu 10 px under
-     ikonen, nära Ednias 12, och 2 px mellan etikett och tal. */
-  .ikon {
-    display: block;
-    height: 24px;
-    margin-bottom: var(--s-2);
-  }
-
-  .ikon :global(svg) {
-    display: block;
-    width: 24px;
-    height: 24px;
-  }
-
   .etikett {
     font-size: var(--fs-eyebrow);
     line-height: var(--lh-eyebrow);
@@ -391,9 +383,6 @@ const talrad = alla.some((v) => v.count !== undefined);
        håller dem dolda på pekskärm ändå; det här gäller den smala
        skrivbordsrutan, där pekdonet är en mus. */
     .rulla { display: none; }
-    .ikon,
-    .ikon :global(svg) { height: 20px; }
-    .ikon :global(svg) { width: 20px; }
   }
 </style>
 
@@ -436,12 +425,11 @@ const talrad = alla.some((v) => v.count !== undefined);
     /* Hur mycket som måste sticka ut innan raden får rulla alls.
        ────────────────────────────────────────────────────────────────────
        Tröskeln stod på 1 px, alltså räckte en enda pixels överskott för att
-       raden skulle bli rullbar och få sina pilar. Det är rätt för områdena i
-       Stockholm, som är femtiotre stycken och rullar långt, och fel för
-       verksamhetstyperna, som är sex och nätt och jämnt inte får plats.
-       Ägaren: "det är inte ens en full skroll". En pil som flyttar raden
-       tolv pixlar och sedan slocknar läser som ett fel, inte som en
-       funktion.
+       raden skulle bli rullbar och få sina pilar. Det är rätt för Stockholms
+       trettio områden, som rullar 1 943 px, och fel för en kommun vars
+       områden nätt och jämnt inte får plats. Ägaren: "det är inte ens en full
+       skroll". En pil som flyttar raden tolv pixlar och sedan slocknar läser
+       som ett fel, inte som en funktion.
 
        Åttiofyra pixlar är bredden på det smalaste valet plus dess luft,
        alltså det minsta som kan vara dolt och ändå vara värt att rulla
