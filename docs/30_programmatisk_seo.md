@@ -621,11 +621,17 @@ negativt belägg än en luddig träff.
 | `restauranger marieberg mosås` | nej, noll förslag |
 | `restauranger norra sävja` | nej, noll förslag |
 | `restauranger västra flogsta` | nej, noll förslag |
+| `restauranger mellersta luthagen` | nej, noll förslag |
 | `restauranger sydöstra luthagen` | nej, noll förslag |
 | `restauranger västra gottsunda` | nej, noll förslag |
 | `restauranger klara jacob` | nej, noll förslag |
+| `restauranger skäggetorp tornby` | nej, svarar med hela Skäggetorp |
+| `restauranger kvarnberget sommarro marieberg` | nej, svarar med Kvarnholmen |
+| `restauranger tingvallastaden haga` | nej, svarar med Hagastaden i Stockholm |
 | `restauranger kronoparken centrala` | nej, svarar med hela Kronoparken |
+| `restauranger kronoparken norra` | nej, svarar med hela Kronoparken |
 | `restauranger huskvarna centrum` | nej, svarar med hela Huskvarna |
+| `restauranger jönköping centrum väster` | nej, svarar med Väster respektive Centrum |
 | `restauranger örebro city` | nej, svarar med Örebro centralt |
 | `restauranger uppsala centrum` | **ja**, och det är kommunsidans fråga |
 
@@ -693,17 +699,18 @@ Nämnaren är 34, alltså varje sida som byggs och inga andra.
 
 | Utfall | Antal |
 |---|---:|
-| `restauranger [namn]` kompletteras | 26 av 34 |
-| Håller på ett andra kategoriord i stället | 6 |
+| `restauranger [namn]` kompletteras | 28 av 34 |
+| Varav en träff med fel avsikt, se Bro nedan | 1 |
+| Faller på restaurangledet men håller på `pizzeria` | 5 |
 | **Belagda sammanlagt** | **32 av 34** |
 
-De sex som behövde ett andra ord är Vinsta (`pizzeria vinsta`, `lunch vinsta`),
+De fem som behövde ett andra ord är Vinsta (`pizzeria vinsta`, `lunch vinsta`),
 Rågsved (`pizzeria rågsved`), Hässelby Strand (`pizzeria hässelby strand`),
-Bankeryd (`pizzeria bankeryd`), Norrahammar (`pizzeria norrahammar`,
-`matställen norrahammar`) och Hässelby Gård. Mönstret är läsbart: i ytterstaden
-och i småorterna skriver folk `pizzeria` där de skriver `restauranger` i
-innerstaden, och för Bankeryd och Norrahammar svarar slutpunkten med
-`matställen` och `mat` i stället för vårt ord.
+Bankeryd (`pizzeria bankeryd`) och Norrahammar (`pizzeria norrahammar`,
+`matställen norrahammar`). Mönstret är läsbart: i ytterstaden och i småorterna
+skriver folk `pizzeria` där de skriver `restauranger` i innerstaden, och för
+Bankeryd och Norrahammar svarar slutpunkten med `matställen` och `mat` i stället
+för vårt ord.
 
 **De två som inte håller ska stå namngivna.**
 
