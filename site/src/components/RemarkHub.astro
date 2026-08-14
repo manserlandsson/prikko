@@ -261,17 +261,28 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   .rank {
     width: 28px;
     font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     font-variant-numeric: tabular-nums;
     text-align: right;
     flex-shrink: 0;
   }
 
+  /* Radens två textrader bar prosans radhöjd, 26 px, för att ingen av dem satte
+     någon egen och `body` ärver ned. Det är fel grad på fel plats: 26 px är
+     avvägt för 17 px löpande text, och här bär det ett 14 px namn (kvot 1,86)
+     och en 13 px metarad (kvot 2,00). Raden blev 76 px hög varav 52 px enbart
+     radavstånd, och det är vad ägaren såg.
+
+     Varje grad får nu sin egen radhöjd ur skalan, 14/24 och 13/18. Inga nya tal
+     uppfunna: 24 är Boolis uppmätta metatextvärde och 18 är vår egen
+     bildtextrad. Raden går från 76 till 66 px. */
   .body { flex: 1; min-width: 0; }
-  .body b { display: block; font-size: var(--fs-body-s); font-weight: 600; }
-  .meta { display: block; font-size: var(--fs-caption); }
+  .body b { display: block; font-size: var(--fs-body-s); line-height: var(--lh-body-s); font-weight: 600; }
+  .meta { display: block; font-size: var(--fs-caption); line-height: var(--lh-caption); }
 
   .verdict {
     font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     font-weight: 600;
     text-align: right;
     flex-shrink: 0;

@@ -1,5 +1,5 @@
 // @ts-check
-import { globSync, readFileSync } from 'node:fs';
+import { globSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
@@ -417,10 +417,40 @@ function nestingGuard() {
   };
 }
 
+/**
+ * Innehållskatalogen, för kapplöpningsprovet nedan.
+ *
+ * Räknas ut ur filens egen plats och inte ur `process.cwd()`. Konfigurationen
+ * buntas aldrig, till skillnad från `src/lib/artiklar.ts`, så här är
+ * `import.meta.url` både stabilare och sannare.
+ */
+const INNEHALL = fileURLToPath(new URL('src/content/', import.meta.url));
+
 function sitemapGuard() {
+  /*
+   * Byggets starttid, till för att skilja en kapplöpning från ett fel.
+   *
+   * Astro läser innehållssamlingen EN gång, till `.astro/data-store.json`, och
+   * det som står där avgör vilka artikelsidor `getStaticPaths` bygger. Men
+   * `articleFiles()` i src/lib/artiklar.ts läser filsystemet direkt, varje
+   * gång den anropas, eftersom den också måste fungera i den här filen där
+   * astro:content inte finns. Skrivs en artikel medan bygget pågår ser
+   * webbkartan den och sitemapen inte, och vakten nedan larmar om en död länk
+   * som i själva verket är en tidsfråga.
+   *
+   * Det har hänt i skarpt läge mer än en gång, och felmeddelandet pekade då åt
+   * fel håll: det bad om en rättelse i webbkarta.ts när det som behövdes var
+   * ett omtag. Vakten fäller fortfarande bygget, för en halv sitemap får inte
+   * publiceras, men den säger numera VILKET av de två felen det är.
+   */
+  let startadVid = 0;
+
   return {
     name: 'prikko:sitemap-guard',
     hooks: {
+      'astro:build:start': () => {
+        startadVid = Date.now();
+      },
       'astro:build:done': ({ dir, logger }) => {
         const out = fileURLToPath(dir);
 
@@ -477,11 +507,41 @@ function sitemapGuard() {
         }
 
         if (dangling.size > 0) {
+          /*
+           * Kapplöpningsprovet. Ett innehållsfilnamn blir sin slug, och
+           * slugen blir sin sökväg, så en fil som rörts efter byggstart går
+           * att para ihop med den döda länken den orsakade. Bara filer som
+           * FAKTISKT motsvarar en dinglande länk räknas: en artikel som
+           * skrivits om under bygget utan att byta namn ändrar ingenting för
+           * sitemapen och ska inte ursäkta ett verkligt fel.
+           */
+          const rorda = globSync('**/*.{md,mdx}', { cwd: INNEHALL })
+            .filter((f) => statSync(`${INNEHALL}${f}`).mtimeMs > startadVid)
+            .map((f) => f.replace(/\.mdx?$/, '').split('/').pop());
+          const kapplopning = [...dangling].filter((p) =>
+            rorda.includes(p.split('/').filter(Boolean).pop()),
+          );
+
+          if (kapplopning.length === dangling.size) {
+            throw new Error(
+              `${dangling.size} länkar på /webbkarta/ saknas i XML-sitemapen, och ` +
+                'samtliga hör till innehållsfiler som skrevs MEDAN bygget pågick.\n\n' +
+                '  Det här är en kapplöpning och inte ett fel i koden. Astro låste ' +
+                'sin\n  innehållslista vid byggstart; webbkartan läser filsystemet ' +
+                'levande.\n  Kör om bygget utan att skriva i src/content/ under tiden.\n\n' +
+                `  Rörda under bygget: ${kapplopning.slice(0, 5).join(', ')}`,
+            );
+          }
+
           throw new Error(
             `${dangling.size} länkar på /webbkarta/ saknas i XML-sitemapen. ` +
               'Antingen byggs sidan inte längre, eller så har den fallit under ' +
               'sin kvalitetsgrind och ska utelämnas i src/lib/webbkarta.ts. ' +
-              `Först: ${[...dangling].slice(0, 5).join(', ')}`,
+              `Först: ${[...dangling].filter((p) => !kapplopning.includes(p)).slice(0, 5).join(', ')}` +
+              (kapplopning.length > 0
+                ? `. Utöver dem skrevs ${kapplopning.length} innehållsfiler under bygget, ` +
+                  'vilket är en kapplöpning och något annat: kör om bygget efteråt.'
+                : ''),
           );
         }
 
@@ -541,5 +601,39 @@ export default defineConfig({
     // Snabb navigering hub → spoke utan att skicka onödig JS i förväg.
     prefetchAll: false,
     defaultStrategy: 'hover',
+  },
+
+  vite: {
+    server: {
+      watch: {
+        /*
+         * Bevakaren ska inte titta i byggutdata.
+         *
+         * Vite ignorerar `dist/` av sig självt, men vi bygger regelbundet till
+         * egna kataloger vid sidan om: parallella arbetsträd får `--outDir
+         * dist-<namn>` så att de inte skriver över varandra. Var och en av dem
+         * innehåller runt 16 600 filer, och bevakaren tog dem alla.
+         *
+         * Uppmätt när två sådana kataloger låg kvar: dev-servern startade på
+         * 104 sekunder i stället för sekunder, loggen bestod uteslutande av
+         * `[watch] dist-.../index.html`, och Vites modulhämtning gav upp efter
+         * 60 sekunder så att varje sida svarade "Error" utan att någonsin
+         * rendera. Ingen kod var trasig; bevakaren åt maskinen.
+         */
+        ignored: [
+          /*
+           * Standardmönstren måste räknas upp igen. `server.watch` skickas rakt
+           * in i chokidar, och `ignored` ERSÄTTER Vites egen lista i stället
+           * för att läggas till den. Utan de tre första raderna börjar
+           * bevakaren titta i node_modules och .git, alltså samma problem en
+           * gång till fast värre.
+           */
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/dist/**',
+          '**/dist-*/**',
+        ],
+      },
+    },
   },
 });
