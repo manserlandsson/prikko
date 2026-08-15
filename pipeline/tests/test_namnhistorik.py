@@ -45,7 +45,7 @@ class Namnbyte(unittest.TestCase):
     def test_bytt_namn_upptacks(self):
         """Samma id, nytt namn: lokalen har sannolikt bytt verksamhet."""
         client = FakeClient({"F-0180-abc": "Pizzeria Roma"})
-        changes = record_names(
+        changes, _ = record_names(
             client, "0180", [est("F-0180-abc", "Dersch")], "2026-08-03T03:17:00Z"
         )
         self.assertEqual(changes, [("F-0180-abc", "Pizzeria Roma", "Dersch")])
@@ -53,7 +53,7 @@ class Namnbyte(unittest.TestCase):
     def test_oforandrat_namn_ar_inget_byte(self):
         client = FakeClient({"F-0180-abc": "Dersch"})
         self.assertEqual(
-            record_names(client, "0180", [est("F-0180-abc", "Dersch")], None), []
+            record_names(client, "0180", [est("F-0180-abc", "Dersch")], None)[0], []
         )
 
     def test_okant_id_ar_ny_anlaggning_inte_ett_byte(self):
@@ -64,19 +64,17 @@ class Namnbyte(unittest.TestCase):
         """
         client = FakeClient({})
         self.assertEqual(
-            record_names(client, "0180", [est("F-0180-ny", "Nyöppnat")], None), []
+            record_names(client, "0180", [est("F-0180-ny", "Nyöppnat")], None)[0], []
         )
 
     def test_loggen_skrivs_aven_utan_byte(self):
         """`last_seen_at` ska betyda senast sedd, alltså skrivas varje natt."""
         client = FakeClient({"F-0180-abc": "Dersch"})
-        record_names(client, "0180", [est("F-0180-abc", "Dersch")], "2026-08-03T03:17:00Z")
-
-        table, rows, on_conflict = client.upserts[0]
-        self.assertEqual(table, "establishment_names")
-        self.assertEqual(on_conflict, "establishment_id,name")
+        _, rader = record_names(
+            client, "0180", [est("F-0180-abc", "Dersch")], "2026-08-03T03:17:00Z"
+        )
         self.assertEqual(
-            rows,
+            rader,
             [
                 {
                     "establishment_id": "F-0180-abc",
@@ -86,6 +84,19 @@ class Namnbyte(unittest.TestCase):
             ],
         )
 
+    def test_funktionen_skriver_ingenting_sjalv(self):
+        """Skrivningen ligger hos anroparen, EFTER upserten av establishments.
+
+        Den främmande nyckeln på establishment_names.establishment_id kräver
+        att anläggningen finns. Skrev funktionen här, medan den fortfarande
+        måste anropas före upserten för att se det gamla namnet, föll varje ny
+        anläggning på 409 23503 och tog sex av tio kommuner med sig. Provet
+        finns för att ingen ska flytta tillbaka skrivningen hit.
+        """
+        client = FakeClient({})
+        record_names(client, "0180", [est("F-0180-ny", "Nyöppnat")], None)
+        self.assertEqual(client.upserts, [])
+
     def test_first_seen_at_skickas_aldrig_med(self):
         """Skickas den med skriver upserten över den vid varje körning.
 
@@ -93,8 +104,8 @@ class Namnbyte(unittest.TestCase):
         frågan den finns för: sedan när har lokalen burit det här namnet.
         """
         client = FakeClient({})
-        record_names(client, "0180", [est("F-0180-abc", "Dersch")], None)
-        for row in client.upserts[0][1]:
+        _, rader = record_names(client, "0180", [est("F-0180-abc", "Dersch")], None)
+        for row in rader:
             self.assertNotIn("first_seen_at", row)
 
     def test_lasningen_filtreras_pa_kommun(self):

@@ -384,8 +384,8 @@ def record_names(
     municipality_code: str,
     establishments: list,
     fetched_at: str | None,
-) -> list:
-    """Skriv namnhistorik per anläggning och larma när ett namn bytts.
+) -> tuple[list, list]:
+    """Hitta namnbyten och förbered namnhistoriken. Skriver den INTE.
 
     Kommunernas kontroller hänger på ANLÄGGNINGEN, alltså lokalen, inte på
     företaget. Tar en ny restaurang över en adress ärver den föregångarens hela
@@ -395,10 +395,26 @@ def record_names(
     Ett byte går ändå att se över tid, eftersom vi kör mot samma anläggnings-id
     varje natt: byter NAMNET på ett id har verksamheten sannolikt bytt.
 
-    Måste anropas FÖRE upserten av establishments. Efteråt är det gamla namnet
-    överskrivet och jämförelsen har inget att jämföra mot.
+    ## Varför funktionen inte skriver, trots namnet
 
-    Returnerar de upptäckta bytena som (id, gammalt namn, nytt namn).
+    Två krav drar åt var sitt håll och de går inte att uppfylla i samma steg.
+
+    Jämförelsen måste ske FÖRE upserten av `establishments`. Efteråt är det
+    gamla namnet överskrivet och bytet osynligt.
+
+    Men `establishment_names.establishment_id` pekar med en främmande nyckel på
+    `establishments.id`, och en NY anläggning har ingen sådan rad förrän
+    upserten har körts. Skrivningen föll därför på `409 23503, Key
+    (establishment_id) is not present in table "establishments"`, och sex av
+    tio kommuner tappades i varje körning. Felet var maskerat i tolv nätter
+    bakom rörelsesteget, som föll på exakt samma sätt en tabell tidigare och
+    dödade körningen innan den hann hit.
+
+    Funktionen räknar alltså fram raderna och lämnar tillbaka dem. Anroparen
+    skriver dem efter upserten. Samma delning som `rorelse.py` gör för
+    `establishment_spells`, av samma skäl.
+
+    Returnerar (byten, namnrader). Byten är (id, gammalt namn, nytt namn).
     """
     known = {
         row["id"]: row["name"]
@@ -420,18 +436,14 @@ def record_names(
     # sedd", och `first_seen_at` sätts av kolumnens default bara vid insert.
     # Skickas first_seen_at med i nyttolasten skriver PostgREST över den vid
     # varje körning och hela poängen med tabellen går förlorad.
-    client.upsert(
-        "establishment_names",
-        [
-            {
-                "establishment_id": e["id"],
-                "name": e["name"],
-                "last_seen_at": fetched_at,
-            }
-            for e in establishments
-        ],
-        on_conflict="establishment_id,name",
-    )
+    namnrader = [
+        {
+            "establishment_id": e["id"],
+            "name": e["name"],
+            "last_seen_at": fetched_at,
+        }
+        for e in establishments
+    ]
 
     if changes:
         print(
@@ -449,7 +461,7 @@ def record_names(
                 f"i {municipality_code} har bytt namn sedan förra körningen."
             )
 
-    return changes
+    return changes, namnrader
 
 
 def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
@@ -519,11 +531,16 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
             row["geo_precision"] = e.get("geoPrecision")
         establishment_rows.append(row)
 
-    # FÖRE upserten: efteråt är det gamla namnet borta och bytet osynligt.
+    # JÄMFÖRELSEN före upserten, SKRIVNINGEN efter. Se record_names för varför
+    # de två inte kan ske i samma steg: gamla namnet är borta efter upserten,
+    # men den främmande nyckeln kräver att anläggningen finns före skrivningen.
     # Tabellen kom till i en senare migrering, så en databas som inte fått den
     # ska varna och ladda vidare i stället för att fälla hela nattkörningen.
+    namnrader: list = []
     if client.has_column("establishment_names", "name"):
-        record_names(client, municipality["code"], establishments, source.get("fetchedAt"))
+        _, namnrader = record_names(
+            client, municipality["code"], establishments, source.get("fetchedAt")
+        )
     else:
         print(
             "  VARNING: tabellen establishment_names saknas. Namnbyten kan inte\n"
@@ -534,6 +551,12 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
 
     client.upsert("establishments", establishment_rows, on_conflict="id")
     print(f"  anläggningar skrivna", file=sys.stderr)
+
+    # Namnhistoriken, nu när raderna den pekar på finns.
+    if namnrader:
+        client.upsert(
+            "establishment_names", namnrader, on_conflict="establishment_id,name"
+        )
 
     # EFTER upserten: allt i utlämningen står nu som aktivt, och det som inte
     # står där är det som kommunen slutat lämna ut.
