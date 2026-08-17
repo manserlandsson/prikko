@@ -216,7 +216,37 @@ jobs:
             echo "Inga förändringar i datan."
           else
             git commit -m "Uppdatera data $(date -u +%Y-%m-%d)"
-            git push
+
+            # Ombasering före push, och det är ingen försiktighetsåtgärd.
+            #
+            # Körningen tar omkring 50 minuter från utcheckning till push, och
+            # utcheckningen är från när den STARTADE. Varje incheckning som
+            # sker under tiden gör bottens push till en icke snabbspolning.
+            # Då faller nattjobbet på sista raden med allt redan gjort: tolv
+            # kommuner hämtade, Supabase skrivet, ögonblicksbilden exporterad
+            # och commiten byggd. Allt kastas för att någon annan hann före.
+            #
+            # Uppmätt 2026-08-17: sex commits landade på main under körningen,
+            # push avvisades med "fetch first", och nattens data gick förlorad
+            # efter 50 minuters arbete.
+            #
+            # Botten rör bara site/src/data, en katalog ingen människa
+            # redigerar för hand, så en ombasering ovanpå main är konfliktfri
+            # i praktiken. Blir den det ändå ska steget falla rött i stället
+            # för att tvinga fram något: --force här hade tyst raderat den
+            # andres arbete.
+            for forsok in 1 2 3; do
+              if git push; then
+                echo "Datan är incheckad."
+                break
+              fi
+              if [ "$forsok" = 3 ]; then
+                echo "Push avvisad tre gånger i rad. Ger upp."
+                exit 1
+              fi
+              echo "Push avvisad, main har rört sig. Ombaserar och försöker igen."
+              git pull --rebase origin main
+            done
           fi
 
       # SIST, och det är hela poängen med steget.
