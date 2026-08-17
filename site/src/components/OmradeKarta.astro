@@ -576,6 +576,7 @@ const gransUpphov = kalla
     laddaMaplibre,
     laddaMaplibreCss,
     registreraRutprotokoll,
+    TILE_LAYER,
     vakna,
   } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
@@ -780,7 +781,7 @@ const gransUpphov = kalla
             id: 'ute-nalar',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', NAL, UTE],
             paint: {
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 3.5, 17, 5],
@@ -796,7 +797,7 @@ const gransUpphov = kalla
             id: 'ute-bubblor',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', BUBBLA, UTE],
             paint: { ...bubbelYta, 'circle-opacity': 0.4, 'circle-stroke-opacity': 0.4 },
           } as any);
@@ -805,7 +806,7 @@ const gransUpphov = kalla
             id: 'ute-antal',
             type: 'symbol',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', BUBBLA, UTE],
             layout: bubbelText,
             paint: { 'text-color': '#fff', 'text-opacity': 0.7 },
@@ -815,7 +816,7 @@ const gransUpphov = kalla
             id: 'inne-nalar',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', NAL, INNE],
             paint: {
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5, 17, 8],
@@ -831,7 +832,7 @@ const gransUpphov = kalla
             id: 'inne-bubblor',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', BUBBLA, INNE],
             paint: bubbelYta,
           } as any);
@@ -840,7 +841,7 @@ const gransUpphov = kalla
             id: 'inne-antal',
             type: 'symbol',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['all', BUBBLA, INNE],
             layout: bubbelText,
             paint: { 'text-color': '#fff' },

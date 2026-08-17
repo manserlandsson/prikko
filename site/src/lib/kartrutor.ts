@@ -48,6 +48,7 @@ import Supercluster from 'supercluster';
 import vtpbf from 'vt-pbf';
 import { TOP_CATEGORIES } from './categories';
 import { categoriesOf, establishments, latestInspectionDate, municipalities } from './data';
+import { TILE_LAYER } from './kartbas';
 import { writePMTiles } from './pmtiles';
 import { slugify } from './slug';
 
@@ -57,8 +58,16 @@ export const MAP_VERDICTS = ['clean', 'minor', 'major'] as const;
 /** Nollpunkt för `dt`. Före första kontrollen i beståndet, och rund. */
 export const MAP_EPOCH = '2020-01-01';
 
-/** Lagrets namn i rutorna. Måste stämma med `source-layer` i kartans lager. */
-export const TILE_LAYER = 'punkter';
+/**
+ * Lagrets namn i rutorna. Måste stämma med `source-layer` i kartans lager.
+ *
+ * Definitionen bor i lib/kartbas.ts och återexporteras här, för att den här
+ * filen inte går att importera från ett <script>: den drar in node:crypto,
+ * supercluster, vt-pbf och hela datalagret. Motiveringen står i sin helhet
+ * där. Skriv alltså inte tillbaka ett eget värde här, och skriv aldrig
+ * strängen för hand i ett kartlager.
+ */
+export { TILE_LAYER };
 
 /**
  * Djupaste nivån som faktiskt genereras. Mätt: z15 kostar 2,27 MB och z16

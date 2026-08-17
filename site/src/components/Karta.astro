@@ -494,7 +494,7 @@ const LEGEND = [
   import { faceSvg } from '../lib/kartnal';
   /* Ordlistan och rutarkivets källa. Kartbas laddar MapLibre dynamiskt inuti
      en funktion, så en statisk import härifrån drar inte in biblioteket. */
-  import { KART_SPRAK, registreraRutprotokoll } from '../lib/kartbas';
+  import { KART_SPRAK, registreraRutprotokoll, TILE_LAYER } from '../lib/kartbas';
   import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
   import { VERDICT } from '../lib/site';
@@ -681,7 +681,7 @@ const LEGEND = [
        */
       const sedda = new Map<number, Punkt>();
       const features = karta.querySourceFeatures('verksamheter', {
-        sourceLayer: 'punkter',
+        sourceLayer: TILE_LAYER,
         filter: ['!', ['has', 'point_count']],
       });
 
@@ -2143,7 +2143,7 @@ const LEGEND = [
           id: 'kluster-skugga',
           type: 'circle',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: ['has', 'point_count'],
           paint: {
             'circle-color': '#000',
@@ -2158,7 +2158,7 @@ const LEGEND = [
           id: 'kluster',
           type: 'circle',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: ['has', 'point_count'],
           paint: {
             'circle-color': '#007BE0',
@@ -2187,7 +2187,7 @@ const LEGEND = [
           id: 'kluster-antal',
           type: 'symbol',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: ['has', 'point_count'],
           layout: {
             'text-field': ['get', 'point_count_abbreviated'],
@@ -2215,7 +2215,7 @@ const LEGEND = [
                 id: 'nalar',
                 type: 'symbol',
                 source: 'verksamheter',
-                'source-layer': 'punkter',
+                'source-layer': TILE_LAYER,
                 filter: ['!', ['has', 'point_count']],
                 layout: {
                   'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
@@ -2229,7 +2229,7 @@ const LEGEND = [
                 id: 'nalar',
                 type: 'circle',
                 source: 'verksamheter',
-                'source-layer': 'punkter',
+                'source-layer': TILE_LAYER,
                 filter: ['!', ['has', 'point_count']],
                 paint: {
                   'circle-radius': 7,
@@ -2275,7 +2275,7 @@ const LEGEND = [
           id: 'stapel-ring',
           type: 'circle',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: BRICKA,
           paint: {
             'circle-color': '#007BE0',
@@ -2290,7 +2290,7 @@ const LEGEND = [
           id: 'stapel-antal',
           type: 'symbol',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: BRICKA,
           layout: {
             'text-field': ['to-string', ['get', 'n']],
@@ -2308,7 +2308,7 @@ const LEGEND = [
           id: 'nal-lyft',
           type: 'symbol',
           source: 'verksamheter',
-          'source-layer': 'punkter',
+          'source-layer': TILE_LAYER,
           filter: ['==', ['get', 'i'], -1],
           layout: {
             'icon-image': ['match', ['get', 'v'], 0, 'face-clean', 1, 'face-minor', 2, 'face-major', 'face-none'],
@@ -2377,7 +2377,7 @@ const LEGEND = [
           const sedda = new Set<string>();
           let summa = 0;
           for (const f of karta.querySourceFeatures('verksamheter', {
-            sourceLayer: 'punkter',
+            sourceLayer: TILE_LAYER,
             filter: ['has', 'point_count'],
           })) {
             const [lng, lat] = f.geometry.coordinates;

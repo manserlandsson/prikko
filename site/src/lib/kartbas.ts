@@ -61,6 +61,23 @@ export { faceSvg, PIN_W, PIN_H };
  */
 export const KARTSTIL = '/kartstil/prikko.json';
 
+/**
+ * Rutarkivets lager, alltså `source-layer` i varje kartlager som läser
+ * punkterna.
+ *
+ * Namnet bor HÄR fastän det är lib/kartrutor.ts som skriver lagret, och den
+ * ordningen är inte godtycklig: värdet behövs i WEBBLÄSAREN av alla fyra
+ * kartorna, och kartrutor.ts importerar node:crypto, supercluster, vt-pbf och
+ * hela datalagret. En statisk import därifrån in i ett <script> hade dragit
+ * bygget in i besökarens paket. Kartbas har inga sådana beroenden, så
+ * beroendet går åt det hållet i stället: kartrutor.ts läser namnet härifrån.
+ *
+ * Konstanten fanns och ingen pekade på den. Strängen 'punkter' stod
+ * handskriven på tjugo ställen i de fyra kartorna, alltså tjugo tillfällen att
+ * stava fel på ett namn som bara syns som en tom karta när det är fel.
+ */
+export const TILE_LAYER = 'punkter';
+
 const MAPLIBRE_URL = '/maplibre/maplibre-gl.mjs';
 const MAPLIBRE_CSS = '/maplibre/maplibre-gl.css';
 

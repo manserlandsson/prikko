@@ -174,6 +174,7 @@ const href = path(`/${kommun.slug}`, 'karta');
     laddaMaplibre,
     laddaMaplibreCss,
     registreraRutprotokoll,
+    TILE_LAYER,
     vakna,
   } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
@@ -281,7 +282,7 @@ const href = path(`/${kommun.slug}`, 'karta');
             id: 'kluster-skugga',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['has', 'point_count'],
             paint: {
               'circle-color': '#000',
@@ -296,7 +297,7 @@ const href = path(`/${kommun.slug}`, 'karta');
             id: 'kluster',
             type: 'circle',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['has', 'point_count'],
             paint: {
               'circle-color': '#007BE0',
@@ -311,7 +312,7 @@ const href = path(`/${kommun.slug}`, 'karta');
             id: 'kluster-antal',
             type: 'symbol',
             source: 'verksamheter',
-            'source-layer': 'punkter',
+            'source-layer': TILE_LAYER,
             filter: ['has', 'point_count'],
             layout: {
               'text-field': ['get', 'point_count_abbreviated'],
@@ -331,7 +332,7 @@ const href = path(`/${kommun.slug}`, 'karta');
                   id: 'nalar',
                   type: 'symbol',
                   source: 'verksamheter',
-                  'source-layer': 'punkter',
+                  'source-layer': TILE_LAYER,
                   filter: ['!', ['has', 'point_count']],
                   layout: {
                     'icon-image': [
@@ -351,7 +352,7 @@ const href = path(`/${kommun.slug}`, 'karta');
                   id: 'nalar',
                   type: 'circle',
                   source: 'verksamheter',
-                  'source-layer': 'punkter',
+                  'source-layer': TILE_LAYER,
                   filter: ['!', ['has', 'point_count']],
                   paint: {
                     'circle-radius': 7,
