@@ -195,3 +195,24 @@ jobs:
             git commit -m "Uppdatera data $(date -u +%Y-%m-%d)"
             git push
           fi
+
+      # SIST, och det är hela poängen med steget.
+      #
+      # En kommun vars kontrollpunkter rasar behåller gårdagens fil i stället
+      # för att skrivas över, se report_collapse i pipeline/export_supabase.py.
+      # Förr avbröt exporten i stället hela körningen, och 2026-08-17 höll den
+      # därmed elva friska kommuners färska data borta i tolv dagar för att
+      # Lomma bytt sidformat.
+      #
+      # Men en kommun som fryser tyst fryser för alltid. Därför faller
+      # körningen här, EFTER att datan är incheckad: sajten får sitt, och
+      # mejlet kommer ändå.
+      - name: Fäll körningen om någon kommun frös
+        run: |
+          if [ -s data/rasade-kommuner.txt ]; then
+            echo "Dessa kommuner behöll gårdagens data: $(cat data/rasade-kommuner.txt)"
+            echo "Övriga kommuner är incheckade. Börja felsökningen i kommunens"
+            echo "hämtare, den upptäcker oftast själv att sidformatet ändrats."
+            exit 1
+          fi
+          echo "Ingen kommun frös."

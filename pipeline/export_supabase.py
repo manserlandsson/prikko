@@ -146,7 +146,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         by_municipality[e["municipality_code"]].append(e)
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    collapsed = 0
+    rasade: list = []
 
     for m in municipalities:
         records = []
@@ -236,19 +236,73 @@ def export(client: Supabase, out_dir: Path) -> None:
         }
 
         path = out_dir / f"{m['slug']}.json"
-        losses = collapse(path, records)
+
+        # Provet FÖRE skrivningen, och det är rättelsen. Skrevs filen först
+        # låg den rasade utgåvan på disken, och enda sättet att skydda den var
+        # att stoppa hela exporten. Nu behålls gårdagens fil för just den
+        # kommunen och de övriga elva går vidare.
+        if collapse(path, records):
+            rasade.append(m["slug"])
+            print(
+                f"  {path.name} LÄMNAS ORÖRD, gårdagens utgåva behålls",
+                file=sys.stderr,
+            )
+            continue
+
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"  {path}  {len(records)} verksamheter", file=sys.stderr)
-        collapsed += losses
 
-    if collapsed:
-        sys.exit(
-            f"\nAVBRYTER: {collapsed} kommuner tappade nästan hela sin\n"
-            "kontrollhistorik i den här exporten. Filerna är skrivna men får\n"
-            "INTE checkas in. Ett fel uppströms är långt troligare än att en\n"
-            "kommun slutat publicera. Se pipeline/load_supabase.py, upsert().\n"
-            "Är fallet verkligt: kör om med --tillat-ras."
-        )
+    if rasade:
+        report_collapse(rasade, out_dir)
+
+
+#: Filen som talar om för nattjobbet att något rasade. Skrivs av
+#: `report_collapse` och läses av ett sista steg i arbetsflödet, EFTER
+#: incheckningen.
+RAS_MARKOR = "rasade-kommuner.txt"
+
+
+def report_collapse(rasade: list, out_dir: Path) -> None:
+    """En rasad kommun ska stoppa sin egen fil, inte hela nattens data.
+
+    ## Varför exporten inte längre avbryter
+
+    Grinden avbröt förr hela körningen. Skälet var riktigt: en kommun vars
+    kontrollpunkter försvinner beror långt oftare på ett fel uppströms än på
+    att kommunen slutat publicera, och att checka in det raderar sidans
+    egentliga innehåll.
+
+    Men priset var för högt. 2026-08-17 bytte Lomma sidformat, hämtaren läste
+    noll av sextio poster, och grinden höll därmed ELVA friska kommuners
+    färska data borta från sajten. Beståndet stod på tolv dagar gammal data
+    för att en kommun av tolv var trasig.
+
+    Nu behålls gårdagens fil för den rasade kommunen och de övriga skrivs som
+    vanligt. Kommunen fryser alltså på sin senaste hela utgåva i stället för
+    att raderas, vilket är precis det grinden fanns för.
+
+    ## Varför körningen ändå ska bli röd
+
+    En kommun som fryser tyst fryser för alltid. Kommentaren vid
+    MIN_POINTS_KEPT säger det redan om ett annat tal: ingen läser en rad som
+    ser likadan ut varje natt. Därför skrivs en markörfil som ett sista steg i
+    arbetsflödet läser EFTER incheckningen. Datan kommer fram, körningen blir
+    röd, och mejlet kommer.
+    """
+    lista = ", ".join(rasade)
+    print(
+        f"\nVARNING: {len(rasade)} kommuner tappade nästan hela sin\n"
+        f"kontrollhistorik: {lista}.\n"
+        "Deras filer är OFÖRÄNDRADE, alltså gårdagens utgåva. Övriga kommuner\n"
+        "är skrivna som vanligt och checkas in.\n"
+        "Ett fel uppströms är långt troligare än att en kommun slutat\n"
+        "publicera. Börja i kommunens hämtare, den upptäcker oftast själv att\n"
+        "sidformatet ändrats. Är fallet verkligt: kör om med --tillat-ras.",
+        file=sys.stderr,
+    )
+    if os.environ.get("GITHUB_ACTIONS"):
+        print(f"::warning title=Kommun frusen::{lista} behöll gårdagens data.")
+    (out_dir.parent / RAS_MARKOR).write_text(lista + "\n", encoding="utf-8")
 
 
 def count_points(records: list) -> int:
