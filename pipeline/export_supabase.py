@@ -185,7 +185,17 @@ def export(client: Supabase, out_dir: Path) -> None:
                     "distinction": assessment.get("distinction", False),
                     "reason": assessment.get("reason", "no_inspections"),
                     "modelVersion": assessment.get("model_version", 3),
-                    "uncertain": False,
+                    # Läses ur databasen, inte hårdkodad. Fältet stod på False
+                    # för allihop, vilket gjorde exporten till en tystare
+                    # källa än hämtaren: fetch_lomma.py räknar fram flaggan
+                    # och skrev den i filen, sedan skrev exporten över den
+                    # med false vid nästa nattkörning. Ett fall i beståndet
+                    # i dag, "Bjärreds krog", 1 av 15 983.
+                    #
+                    # Reservvärdet gäller en databas som ännu inte fått
+                    # kolumnen. Det är samma påstående som förut, men nu bara
+                    # när vi verkligen inte har något att läsa.
+                    "uncertain": assessment.get("uncertain", False),
                     "inspections": [
                         {
                             "id": i["id"],

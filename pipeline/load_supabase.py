@@ -606,6 +606,20 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
         client.upsert("control_areas", area_rows, on_conflict="id")
         print(f"  {len(area_rows)} kontrollområden skrivna", file=sys.stderr)
 
+    # Osäkerhetsflaggan skickas bara när kolumnen finns. Schemat körs för hand
+    # i SQL Editor, och PostgREST svarar 400 på en okänd kolumn: hela portionen
+    # på 1 000 bedömningar hade fallit, inte bara det fält som saknar plats.
+    # Samma skäl som geo_source ovan.
+    flaggar_osakerhet = client.has_column("assessments", "uncertain")
+    osakra = sum(1 for e in establishments if e.get("uncertain"))
+    if not flaggar_osakerhet and osakra:
+        print(
+            f"  VARNING: assessments saknar kolumnen uncertain. {osakra} bedömningar\n"
+            "  vilar på en ofullständig områdeslista och skrivs ändå som om de vore\n"
+            "  fullständiga. Kör om pipeline/schema.sql i Supabase SQL Editor.",
+            file=sys.stderr,
+        )
+
     assessment_rows = [
         {
             "establishment_id": e["id"],
@@ -613,6 +627,10 @@ def load(path: Path, client: Supabase, geo_only: bool = False) -> None:
             "distinction": e.get("distinction", False),
             "reason": e.get("reason", "no_inspections"),
             "model_version": e.get("modelVersion", 2),
+            # Saknas fältet i filen är underlaget läst utan rest. Det är ett
+            # påstående vi vågar göra: adaptrarna sätter flaggan när de INTE
+            # kan läsa, inte när de kan.
+            **({"uncertain": e.get("uncertain", False)} if flaggar_osakerhet else {}),
         }
         for e in establishments
     ]

@@ -309,11 +309,34 @@ create table if not exists assessments (
     reason              text not null,   -- 'assessed' | 'stale_inspections' | 'no_inspections'
     model_version       integer not null,
     based_on            text[] not null default '{}',
+
+    -- Underlaget bedömningen vilar på är känt ofullständigt. Omdömet står
+    -- kvar, men adaptern kunde inte läsa hela avvikelsetexten, så listan över
+    -- kontrollområden saknar minst en post. Ett fall i drift: "Bjärreds krog"
+    -- i Lomma, där kommunen lämnat kvar frasen "inga avvikelser" hopskriven
+    -- med nästa område. Färgen är ändå entydig, alltså behålls gult.
+    --
+    -- Räknas bara över de kontroller bedömningen FAKTISKT vilar på, se
+    -- fetch_lomma.py. Räknat över hela historiken hade flaggan dykt upp på
+    -- sidor där tolkningen inte påverkat något.
+    --
+    -- Falskt betyder läst utan rest, aldrig "vet inte". Källor där det inte
+    -- kan inträffa skriver false rakt av.
+    uncertain           boolean not null default false,
+
     computed_at         timestamptz not null default now(),
 
     constraint distinction_requires_clean
         check (not distinction or verdict = 'clean')
 );
+
+-- Efterhandsmigrering, av samma skäl som på establishments ovan: tabellen
+-- fanns innan kolumnen, och `create table if not exists` rör inte en tabell
+-- som redan finns. Utan den här raden skriver load_supabase.py flaggan i
+-- tomma intet och exporten läser tillbaka false för 1 av 15 983 verksamheter
+-- som vi vet bättre om.
+alter table assessments
+    add column if not exists uncertain boolean not null default false;
 
 create index if not exists assessments_verdict_idx
     on assessments (verdict) where verdict is not null;
