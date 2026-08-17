@@ -13,12 +13,27 @@ Räknat 2026-08-02: 157 poster, 154 distinkta namn. (R6 räknade 156 i juli.
 Sidorna redigeras för hand och beståndet rör sig; siffrorna här är
 uträknade, inte hämtade ur en tidigare rapport.)
 
-Posterna ligger som brödtext, grupperade under en rubrik per färg:
+Posterna ligger som brödtext under EN rubrik per sida, och färgen står sist i
+namnraden:
 
-    <h2>Grön prick vid senaste inspektion</h2>
-    <p><strong>Bayside</strong></p>
+    <h2>Lista restauranger och caféer</h2>
+    <p><strong>Bayside (grön prick)</strong></p>
     <p>Senaste inspektion: 2026-06-01</p>
     <p>Avvikelser: svårstädad lokal, temperatur</p>
+
+Fram till augusti 2026 grupperade kommunen i stället posterna under en rubrik
+per färg (`<h2>Grön prick vid senaste inspektion</h2>`) och lät namnraden bära
+bara namnet. Omläggningen syns första gången i nattkörningen 2026-08-11, och
+inläsaren vägrade rätt: räkningen mot antalet "Senaste inspektion" i
+innehållet fångade att 60 poster fanns men 0 kunde läsas. Beståndet är
+oförändrat över bytet: 157 poster, 143 gröna, 12 gula, 2 röda, samma tre
+odaterade poster och samma trasiga datum. Det är sidans form som ändrats, inte
+kommunens kontroller.
+
+Namnet måste befrias från färgparentesen innan `local_id` hashar det.
+Behåller vi "(grön prick)" i namnet byter samtliga 153 verksamheter både id
+och slug nästa natt, alla sidor byter URL, och historiken i databasen tappar
+sin ägare.
 
 ## Vad källan är, och inte är
 
@@ -97,8 +112,8 @@ PAGES = {
 # 2026-08-02), inte gissade. Antal inom parentes.
 # ---------------------------------------------------------------------------
 
-#: Färgrubrik → vår skala. Rubrikerna heter "Grön prick vid senaste
-#: inspektion" och så vidare; färgordet plockas ut och slås upp här.
+#: Färgord → vår skala. Färgen står i namnraden som "(grön prick)"; ordet
+#: plockas ut och slås upp här.
 #:
 #: Grönt är BASNIVÅN, inte ett löfte om noll avvikelser: kommunens egen
 #: definition är "inga eller ett fåtal avvikelser som inte leder till en extra
@@ -187,10 +202,11 @@ AREA_MAP = {
     "utforming av lokal": "Utformning av lokal",         #  1
 }
 
-#: Rubrikerna som bär färgen, till exempel "Grön prick vid senaste
-#: inspektion". Ordet "prick" krävs för att skilja dem från sidans övriga
-#: rubriker ("Symbolernas betydelse", "Kontakt").
-COLOUR_HEADING = re.compile(r"^(grön|gul|röd)\s+prick\b", re.I)
+#: Färgen sist i namnraden: "Alnarp 9 (grön prick)". Ordet "prick" krävs för
+#: att parentesen inte ska förväxlas med en del av firmanamnet, och slutankaret
+#: för att den ska sitta där kommunen sätter den. Räknat 2026-08-17 står den
+#: sist i samtliga 157 poster, utan ett tecken efter.
+NAME_COLOUR = re.compile(r"\(\s*(grön|gul|röd)\s+prick\s*\)\s*$", re.I)
 
 #: Posternas tre rader. Kommunen skriver oftast "Senaste inspektion:" men en
 #: post har "Senaste inspektionen:" utan mellanslag efter kolon.
@@ -314,28 +330,16 @@ def check_legend(markup: str) -> None:
 def parse_page(markup: str) -> list:
     """Plocka ut alla poster på en sida.
 
-    Rubriken avgör färgen, posten ligger i tre på varandra följande rader.
+    Posten ligger i tre på varandra följande rader och namnraden bär färgen.
     Antalet poster stäms av mot antalet "Senaste inspektion" i innehållet:
-    hamnar en post utanför en färgrubrik ska den räknas, inte tappas tyst.
+    faller en post ur läsningen ska den räknas, inte tappas tyst. Det var den
+    räkningen som fångade formatbytet i augusti 2026 i stället för att låta 60
+    restauranger publiceras utan omdöme.
     """
     content = _content(markup)
     expected = len(re.findall(r"Senaste inspektion", content))
 
-    listings = []
-    parts = re.split(r"<h2[^>]*>(.*?)</h2>", content, flags=re.S)
-    # parts[0] är texten före första rubriken, därefter (rubrik, innehåll).
-    for index in range(1, len(parts), 2):
-        heading = " ".join(re.sub(r"<[^>]+>", "", parts[index]).split())
-        colour = COLOUR_HEADING.match(heading)
-        if not colour:
-            continue
-
-        name = colour.group(1).casefold()
-        if name not in COLOUR_ASSESSMENT:
-            raise UnknownSourceValue(f"Okänd färgrubrik {heading!r}")
-
-        listings += _parse_section(parts[index + 1], name)
-
+    listings = _parse_listings(content)
     if len(listings) != expected:
         raise UnknownSourceValue(
             f"Sidan har {expected} poster men {len(listings)} kunde läsas — "
@@ -344,7 +348,7 @@ def parse_page(markup: str) -> list:
     return listings
 
 
-def _parse_section(fragment: str, colour: str) -> list:
+def _parse_listings(fragment: str) -> list:
     lines = _lines(fragment)
     listings = []
 
@@ -361,6 +365,17 @@ def _parse_section(fragment: str, colour: str) -> list:
         while back >= 0 and not lines[back]:
             back -= 1
         name = lines[back] if back >= 0 else ""
+
+        # Färgen ÄR omdömet i Lomma. Saknas parentesen vet vi inte vad posten
+        # säger, och då ska ingenting publiceras om den. Spärren fångar också
+        # det motsatta felet: hittar bakåtsökningen sidans rubrik i stället för
+        # ett namn bär den ingen färg, och posten smiter inte igenom som en
+        # verksamhet vid namn "Lista restauranger och caféer".
+        marked = NAME_COLOUR.search(name)
+        if not marked:
+            raise UnknownSourceValue(f"Posten {name!r} saknar färg i namnraden")
+        colour = marked.group(1).casefold()
+        name = name[: marked.start()].strip()
 
         deviations = ""
         forward = index + 1

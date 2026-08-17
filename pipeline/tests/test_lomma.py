@@ -1,7 +1,14 @@
 """Tester för Lomma-adaptern.
 
-Fixturerna är verklig markup från lomma.se 2026-08-02, klippt ur de fyra
-sidorna utan att städas.  Kör:  python3 pipeline/tests/test_lomma.py
+Fixturerna är verklig markup från lomma.se, klippt ur de fyra sidorna utan att
+städas.  Kör:  python3 pipeline/tests/test_lomma.py
+
+Sidorna lades om i augusti 2026: färgen flyttade från en rubrik per färg
+(`<h2>Grön prick vid senaste inspektion</h2>`) in i namnraden
+("Bayside (grön prick)"), och varje sida fick en enda rubrik. Fixturerna nedan
+är hämtade 2026-08-17, efter omläggningen. `OLD_FORMAT_SECTION` bevarar den
+gamla formen så att den form vi INTE längre läser står kvar som ett krav på
+att stoppa körningen i stället för att tolka tyst.
 """
 
 import sys
@@ -50,73 +57,102 @@ LEGEND = (
     "förbud</p>"
 )
 
-# Verklig markup ur restaurangerochcafeer.1220.html. Innehåller de tre
+# Verklig markup ur restaurangerochcafeer.1220.html. Innehåller de fyra
 # formerna posterna faktiskt förekommer i: ett <strong> som börjar med en
-# radbrytning, ett som sväljer radbrytningarna efter namnet, och ett stycke
-# som bär både slutet på en post och början på nästa.
+# radbrytning, ett som sväljer radbrytningarna efter namnet, ett stycke som bär
+# både slutet på en post och början på nästa, och ett namn med ett blanksteg
+# kvar efter färgparentesen ("Dykeriet (grön prick) ").
 GREEN_SECTION = (
-    '<h2 class="subheading" id="h-Gronprickvidsenasteinspektion">Grön prick vid '
-    "senaste inspektion</h2>"
-    '<p class="normal"><strong><br>Alnarp 9</strong></p>'
+    '<h2 class="subheading" id="h-Listarestaurangerochcafeer">Lista restauranger '
+    "och caféer</h2>"
+    '<p class="normal"><strong><br>Alnarp 9 (grön prick)</strong></p>'
     '<p class="normal">Senaste inspektion: 2026-02-18</p>'
     '<p class="normal">Avvikelser: svårstädad lokal, livsmedelsinformation, '
-    "tempratur<br><br><strong>Alnarps agroecology farm</strong></p>"
+    "tempratur<br><br><strong>Alnarps agroecology farm (grön prick)</strong></p>"
     '<p class="normal">Senaste inspektion: 2026-05-21</p>'
     '<p class="normal">Avvikelser: Inga avvikelser<br></p>'
-    '<p class="normal"><strong>Centralens café<br><br></strong>Senaste inspektion: '
-    "2023-09-21</p>"
-    '<p class="normal">Avvikelser: inga avvikelser<br><br><strong>Cocos Hut</strong></p>'
+    '<p class="normal"><strong>Centralens café (grön prick)<br><br></strong>'
+    "Senaste inspektion: 2023-09-21</p>"
+    '<p class="normal">Avvikelser: inga avvikelser<br><br>'
+    "<strong>Cocos Hut (grön prick)</strong></p>"
     '<p class="normal">Senaste inspektion: 2025-02-20</p>'
-    '<p class="normal">Avvikelser: rengöring, personlig hygien</p>'
+    '<p class="normal">Avvikelser: rengöring, personlig hygien<br><br>'
+    "<strong>Dykeriet (grön prick) </strong></p>"
+    '<p class="normal">Senaste inspektion: 2025-06-17</p>'
+    '<p class="normal">Avvikelser: separering alergener, temperatur</p>'
 )
 
 # Verklig markup ur samma sida. Första posten bär kommunens hopskrivna
 # avvikelsetext.
 YELLOW_SECTION = (
-    '<h2 class="subheading" id="h-Gulprickvidsenasteinspektion">Gul prick vid '
-    "senaste inspektion</h2>"
-    '<p class="normal"><strong>Bjärreds krog </strong></p>'
+    '<h2 class="subheading" id="h-Listarestaurangerochcafeer">Lista restauranger '
+    "och caféer</h2>"
+    '<p class="normal"><strong>Bjärreds krog (gul prick)</strong></p>'
     '<p class="normal">Senaste inspektion: 2025-12-09</p>'
     '<p class="normal">Avvikelser: inga avvikelserseparering avfall, svårstädad '
     "lokal, förvaring</p>"
-    '<p class="normal"><strong>Nyströms på Örestads Golfklubb</strong></p>'
+    '<p class="normal"><strong>Nyströms på Örestads Golfklubb (gul prick)</strong></p>'
     '<p class="normal">Senaste inspektion: 2025-10-28</p>'
     '<p class="normal">Avvikelser: Rengöring och svårstädad lokal</p>'
 )
 
 # Verklig markup ur ovrigaverksamheter.1222.html.
 RED_SECTION = (
-    '<h2 class="subheading" id="h-Rodprickvidsenasteinspektion">Röd prick vid '
-    "senaste inspektion</h2>"
-    '<p class="normal"><strong>Oriental Fresh</strong></p>'
+    '<h2 class="subheading" id="h-Listaovrigaverksamheter">Lista övriga '
+    "verksamheter</h2>"
+    '<p class="normal"><strong>Oriental Fresh (röd prick)</strong></p>'
     '<p class="normal">Senaste inspektion: 2025-09-03</p>'
     '<p class="normal">Avvikelser: märkning</p>'
 )
 
-# Verklig markup ur ovrigaverksamheter.1222.html: två poster i rad som står
-# under en färgrubrik men saknar både datum och avvikelsetext.
+# Verklig markup ur ovrigaverksamheter.1222.html: två poster i rad som saknar
+# både datum och avvikelsetext. Tredje posten bär ett namn som SJÄLVT slutar på
+# en parentes, vilket är hela skälet till att färgparentesen läses ankrad sist.
 UNDATED_SECTION = (
-    '<h2 class="subheading" id="h-Gronprickvidsenasteinspektion">Grön prick vid '
-    "senaste inspektion</h2>"
-    '<p class="normal"><br><strong>Kraftkällan</strong></p>'
+    '<h2 class="subheading" id="h-Listaovrigaverksamheter">Lista övriga '
+    "verksamheter</h2>"
+    '<p class="normal"><br><strong>Kraftkällan (grön prick)</strong></p>'
     '<p class="normal">Senaste inspektion:</p>'
-    '<p class="normal">Avvikelser: <br><br><strong>KRAN Vinhandel</strong></p>'
+    '<p class="normal">Avvikelser: <br><br><strong>KRAN Vinhandel (grön prick)'
+    "</strong></p>"
     '<p class="normal">Senaste inspektion:</p>'
-    '<p class="normal">Avvikelser: <br><br><strong>Kronans apotek (Bjärred)</strong></p>'
+    '<p class="normal">Avvikelser: <br><br><strong>Kronans apotek (Bjärred) '
+    "(grön prick)</strong></p>"
     '<p class="normal">Senaste inspektion: 2025-12-10</p>'
     '<p class="normal">Avvikelser: inga</p>'
 )
 
-# Verklig markup ur butiker.1219.html: dagen är inte utskriven.
+# Verklig markup ur butiker.1219.html: dagen är inte utskriven, och båda
+# posterna heter Italianissimo där den ena bär en egen parentes.
 BROKEN_DATE_SECTION = (
-    '<h2 class="subheading" id="h-Gronprickvidsenasteinspektion">Grön prick vid '
-    "senaste inspektion</h2>"
-    '<p class="normal"><strong>Italianissimo</strong></p>'
+    '<h2 class="subheading" id="h-Listabutiker">Lista butiker</h2>'
+    '<p class="normal"><strong>Italianissimo (grön prick)</strong></p>'
     '<p class="normal">Senaste inspektion: 2025-11-?</p>'
     '<p class="normal">Avvikelser: personlig hygien, temperatur<br><br>'
-    "<strong>Italianissimo (webbutik)</strong></p>"
+    "<strong>Italianissimo (webbutik) (grön prick)</strong></p>"
     '<p class="normal">Senaste inspektion: 2021-04-08</p>'
     '<p class="normal">Avvikelser: personlig hygie, livsmedelsinformation</p>'
+)
+
+# Verklig markup ur ovrigaverksamheter.1222.html: kommunen skriver rubriken i
+# bestämd form och utan blanksteg efter kolon på en enda post.
+DEFINITE_FORM_SECTION = (
+    '<h2 class="subheading" id="h-Listaovrigaverksamheter">Lista övriga '
+    "verksamheter</h2>"
+    '<p class="normal"><strong>The Spice Tree (grön prick)</strong><br></p>'
+    '<p class="normal">Senaste inspektionen:2026-02-24</p>'
+    '<p class="normal">Avvikelser: rengöring</p>'
+)
+
+# Formen sidorna hade FÖRE augusti 2026: en rubrik per färg, och namnraden
+# bar bara namnet. Läses den vidare får varje post ett omdöme ur en rubrik som
+# inte längre finns, så den ska stoppa körningen.
+OLD_FORMAT_SECTION = (
+    '<h2 class="subheading" id="h-Gronprickvidsenasteinspektion">Grön prick vid '
+    "senaste inspektion</h2>"
+    '<p class="normal"><strong><br>Alnarp 9</strong></p>'
+    '<p class="normal">Senaste inspektion: 2026-02-18</p>'
+    '<p class="normal">Avvikelser: svårstädad lokal</p>'
 )
 
 FOOTER = '<h2 class="subheading">Sidans innehåll</h2><p>Senaste inspektion: 1999-01-01</p>'
@@ -157,21 +193,61 @@ class Legend(unittest.TestCase):
 
 
 class ParsePage(unittest.TestCase):
-    def test_all_three_colours_are_read(self):
+    def test_all_three_colours_are_read_from_the_name_line(self):
         found = parse_page(page(GREEN_SECTION, YELLOW_SECTION, RED_SECTION))
         self.assertEqual([l.colour for l in found],
-                         ["grön"] * 4 + ["gul"] * 2 + ["röd"])
+                         ["grön"] * 5 + ["gul"] * 2 + ["röd"])
 
     def test_names_survive_the_hand_written_markup(self):
         found = parse_page(page(GREEN_SECTION))
         self.assertEqual(
             [l.name for l in found],
-            ["Alnarp 9", "Alnarps agroecology farm", "Centralens café", "Cocos Hut"],
+            ["Alnarp 9", "Alnarps agroecology farm", "Centralens café",
+             "Cocos Hut", "Dykeriet"],
         )
 
+    def test_the_colour_is_stripped_out_of_the_published_name(self):
+        # Färgparentesen är ren metadata. Följer den med in i namnet hamnar
+        # den i rubriken, i slugen och i hashen som är verksamhetens identitet.
+        for row in parse_page(page(GREEN_SECTION, YELLOW_SECTION, RED_SECTION)):
+            self.assertNotIn("prick", row.name.casefold(), row.name)
+            self.assertFalse(row.name.endswith(")"), row.name)
+
+    def test_the_format_change_did_not_move_a_single_establishment(self):
+        # Hela poängen: namnet efter tvätt ska hasha likadant som det gjorde
+        # när det stod utan färgparentes. Gör det inte det byter alla 153
+        # verksamheter URL nästa natt och historiken tappar sin ägare.
+        found = parse_page(page(GREEN_SECTION))
+        self.assertEqual(local_id(found[0].name), local_id("Alnarp 9"))
+        self.assertEqual(local_id(found[3].name), local_id("Cocos Hut"))
+
+    def test_a_name_that_ends_in_its_own_parenthesis_keeps_it(self):
+        # "Kronans apotek (Bjärred) (grön prick)" och "Italianissimo
+        # (webbutik) (grön prick)". Bara den sista parentesen är färgen, och
+        # klipper vi bort båda blir två butiker plötsligt samma verksamhet.
+        found = parse_page(page(UNDATED_SECTION, BROKEN_DATE_SECTION))
+        names = [l.name for l in found]
+        self.assertIn("Kronans apotek (Bjärred)", names)
+        self.assertIn("Italianissimo (webbutik)", names)
+        self.assertIn("Italianissimo", names)
+        self.assertNotEqual(local_id("Italianissimo"),
+                            local_id("Italianissimo (webbutik)"))
+
+    def test_a_trailing_space_after_the_colour_is_tolerated(self):
+        # Kommunen skriver "<strong>Dykeriet (grön prick) </strong>".
+        found = parse_page(page(GREEN_SECTION))
+        self.assertEqual(found[4].name, "Dykeriet")
+        self.assertEqual(found[4].colour, "grön")
+
+    def test_the_heading_in_the_definite_form_still_reads_as_a_date(self):
+        # En post har "Senaste inspektionen:2026-02-24", utan blanksteg.
+        found = parse_page(page(DEFINITE_FORM_SECTION))
+        self.assertEqual([(l.name, l.inspected_at) for l in found],
+                         [("The Spice Tree", "2026-02-24")])
+
     def test_a_paragraph_carrying_two_posts_is_split(self):
-        # "Avvikelser: … <br><br><strong>Cocos Hut</strong>" bär slutet på en
-        # post och början på nästa i samma stycke.
+        # "Avvikelser: … <br><br><strong>Cocos Hut (grön prick)</strong>" bär
+        # slutet på en post och början på nästa i samma stycke.
         found = parse_page(page(GREEN_SECTION))
         self.assertEqual(found[0].deviations,
                          "svårstädad lokal, livsmedelsinformation, tempratur")
@@ -182,14 +258,43 @@ class ParsePage(unittest.TestCase):
         # form. Läses den med blir beståndet fel utan att någon märker det.
         self.assertEqual(len(parse_page(page(RED_SECTION))), 1)
 
-    def test_a_post_outside_a_colour_heading_stops_the_run(self):
-        # Tappas färgrubriken finns inget omdöme att hämta, och en tyst
-        # bortfallen post är precis vad kontrollräkningen ska fånga.
-        stray = page(GREEN_SECTION).replace(
-            "Grön prick vid senaste inspektion", "Senast kontrollerade"
-        )
+    def test_the_old_colour_heading_format_stops_the_run(self):
+        # Formen sidorna hade före augusti 2026. Skulle kommunen lägga tillbaka
+        # den ska körningen stoppa, inte publicera 157 poster utan färg.
+        with self.assertRaises(UnknownSourceValue) as caught:
+            parse_page(page(OLD_FORMAT_SECTION))
+        self.assertIn("saknar färg", str(caught.exception))
+
+    def test_a_post_whose_name_lost_its_colour_stops_the_run(self):
+        # Färgen ÄR omdömet. Utan den vet vi inte om posten är ren eller röd,
+        # och en post som tyst faller bort är precis vad räkningen ska fånga.
+        stray = page(GREEN_SECTION).replace("Cocos Hut (grön prick)", "Cocos Hut")
         with self.assertRaises(UnknownSourceValue):
             parse_page(stray)
+
+    def test_the_page_heading_is_never_mistaken_for_an_establishment(self):
+        # Tappar en post sin namnrad hittar bakåtsökningen sidans rubrik. Den
+        # bär ingen färg, så den ska stoppa körningen i stället för att bli en
+        # verksamhet vid namn "Lista butiker".
+        headless = (
+            '<h2 class="subheading">Lista butiker</h2>'
+            '<p class="normal">Senaste inspektion: 2026-06-22</p>'
+            '<p class="normal">Avvikelser: inga avvikelser</p>'
+        )
+        with self.assertRaises(UnknownSourceValue):
+            parse_page(page(headless))
+
+    def test_a_dropped_post_is_counted_not_silently_lost(self):
+        # Räkningen mot antalet "Senaste inspektion" är spärren som fångade
+        # formatbytet: 60 poster fanns, 0 kunde läsas. Den fångar också det
+        # som färgspärren inte ser, nämligen en datumrad som slutat matcha.
+        # Här har kolonet efter "Senaste inspektion" fallit bort.
+        limping = page(GREEN_SECTION).replace(
+            "Senaste inspektion: 2025-02-20", "Senaste inspektion 2025-02-20"
+        )
+        with self.assertRaises(UnknownSourceValue) as caught:
+            parse_page(limping)
+        self.assertIn("formatet har ändrats", str(caught.exception))
 
 
 class Identity(unittest.TestCase):
