@@ -439,6 +439,9 @@ class UppskjutnaSviter(unittest.TestCase):
         skrivna = []
 
         class FalskKlient:
+            def select_all(self, table, query):
+                return []
+
             def insert(self, table, rows):
                 skrivna.append((table, len(rows)))
 
@@ -463,12 +466,43 @@ class UppskjutnaSviter(unittest.TestCase):
 
     def test_tom_lista_skriver_ingenting_men_stadar(self):
         class Exploderar:
+            def select_all(self, table, query):
+                return []
+
             def insert(self, table, rows):
                 raise AssertionError("skulle inte ha skrivit något")
 
         fil = self.tmp / "tom.json"
         fil.write_text("[]", encoding="utf-8")
         self.cli.skriv_sviter(fil, Exploderar())
+        self.assertFalse(fil.exists())
+
+    def test_en_redan_oppen_svit_hoppas_over_i_stallet_for_att_falla(self):
+        """En omkörning ska inte falla på spärren mot dubbla öppna sviter.
+
+        `establishment_spells_open_idx` tillåter högst en öppen svit per id.
+        Går en natt sönder mellan registreringen och skrivningen räknas samma
+        rader fram igen nästa gång och stöter på sviten som redan finns.
+        Steget föll då på 409 23505 och tog hela nattens data med sig, vilket
+        hände 2026-08-15. En svit som redan är öppen ÄR redan registrerad.
+        """
+        skrivna = []
+
+        class FalskKlient:
+            def select_all(self, table, query):
+                return [{"establishment_id": "F-1"}]
+
+            def insert(self, table, rows):
+                skrivna.extend(rows)
+
+        fil = self.tmp / "delvis.json"
+        fil.write_text(
+            json.dumps([{"establishment_id": "F-1"}, {"establishment_id": "F-2"}]),
+            encoding="utf-8",
+        )
+        self.cli.skriv_sviter(fil, FalskKlient())
+
+        self.assertEqual(skrivna, [{"establishment_id": "F-2"}])
         self.assertFalse(fil.exists())
 
 

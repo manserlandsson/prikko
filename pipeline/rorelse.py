@@ -392,13 +392,49 @@ def skriv_sviter(path: Path, client: Supabase) -> None:
         path.unlink()
         return
 
+    """
+    Rader som redan har en pågående svit hoppas över.
+
+    `establishment_spells_open_idx` tillåter högst en öppen svit per id, och
+    schemat förklarar varför: utan spärren kan en avbruten körning lägga en
+    andra öppen svit på samma rad och dubblera verksamheten på sidan.
+
+    Men samma spärr gör att en OMKÖRNING faller. Går en natt sönder mellan
+    registreringen och den här skrivningen, som hände 2026-08-14, så räknas
+    samma rader fram igen nästa gång och stöter på sviten som redan finns.
+    Steget föll då på 409 23505 och tog hela nattens data med sig.
+
+    En svit som redan är öppen ÄR redan registrerad. Att skriva den igen är
+    ingenting att göra, inte ett fel. Filtret gör steget idempotent, vilket det
+    måste vara eftersom det per konstruktion kan köras om.
+    """
+    öppna = set()
+    ids = [rad["establishment_id"] for rad in spells]
+    for start in range(0, len(ids), 100):
+        chunk = ids[start : start + 100]
+        joined = ",".join(f'"{i}"' for i in chunk)
+        öppna.update(
+            rad["establishment_id"]
+            for rad in client.select_all(
+                "establishment_spells",
+                f"select=establishment_id&gone_at=is.null&establishment_id=in.({joined})",
+            )
+        )
+
+    nya = [rad for rad in spells if rad["establishment_id"] not in öppna]
+    if len(nya) < len(spells):
+        print(
+            f"{len(spells) - len(nya)} sviter fanns redan öppna och hoppas över.",
+            file=sys.stderr,
+        )
+
     # Hundra åt gången, samma styckning som registreringen använder för sina
     # frågor. PostgREST tar större poster, men ett fel på rad 4 000 av 9 000
     # säger mindre än ett fel på rad 40 av 100.
-    for start in range(0, len(spells), 100):
-        client.insert("establishment_spells", spells[start : start + 100])
+    for start in range(0, len(nya), 100):
+        client.insert("establishment_spells", nya[start : start + 100])
 
-    print(f"{len(spells)} uppskjutna sviter skrivna.", file=sys.stderr)
+    print(f"{len(nya)} uppskjutna sviter skrivna.", file=sys.stderr)
     path.unlink()
 
 
