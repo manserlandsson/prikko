@@ -42,12 +42,52 @@ from prikko.text import dedupe_slugs, slugify  # noqa: E402
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 POLITE_DELAY_S = 0.6
+ATTEMPTS = 3
+#: Väntan mellan omförsöken. Längre än POLITE_DELAY_S med avsikt: en tjänst som
+#: just svarat "Unable to complete operation" ska få mer än sex tiondelar på
+#: sig, och 5 + 15 sekunder är försumbart mot stegets 45 minuter.
+RETRY_WAITS_S = (5, 15)
+
+
+class ServiceUnavailable(Exception):
+    """ArcGIS svarade, men med ett fel i stället för med lagret."""
 
 
 def get(url: str) -> dict:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return json.loads(response.read().decode("utf-8"))
+    """Hämta ett lager med omförsök.
+
+    Tjänsten svarar sporadiskt HTTP 200 med en felkropp i stället för poster:
+
+        {'code': 400, 'extendedCode': -2147467261,
+         'message': 'Unable to complete operation.', 'details': []}
+
+    Uppmätt över nattkörningarna 2026-08-10 till 2026-08-17 föll den tre
+    nätter av åtta (08-11, 08-16 och 08-17), varje gång på lager 10 som är det
+    största med 525 poster, och varje gång inom två sekunder från stegets
+    start. Samma fråga svarar 200 med alla 525 poster på under 0,4 sekunder när
+    den ställs om för hand, och de fem övriga nätterna gick igenom orört.
+
+    Felet är alltså kommunens och övergående. Det som gör det värt kod är att
+    det inte är sällsynt: 37 procent av nätterna fällde hela incheckningen av
+    tolv kommuners data på ett lager som svarar korrekt en sekund senare. Ett
+    omförsök är rätt svar, en tyst lucka i beståndet är det inte.
+    """
+    for attempt in range(ATTEMPTS):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=120) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if "error" in payload:
+                raise ServiceUnavailable(payload["error"])
+            return payload
+        except (urllib.error.URLError, TimeoutError, OSError,
+                ServiceUnavailable) as exc:
+            if attempt == ATTEMPTS - 1:
+                raise
+            wait = RETRY_WAITS_S[attempt]
+            print(f"  ! {type(exc).__name__}, försöker igen om {wait}s", file=sys.stderr)
+            time.sleep(wait)
+    return {}
 
 
 def collect() -> list:
@@ -56,14 +96,12 @@ def collect() -> list:
     for layer, category in LAYERS.items():
         try:
             payload = get(query_url(layer))
-        except (urllib.error.URLError, TimeoutError) as exc:
+        except (urllib.error.URLError, TimeoutError, OSError,
+                ServiceUnavailable) as exc:
             # Ett tappat lager är en tyst lucka i beståndet. Avbryt hellre.
             raise SystemExit(f"Lager {layer} ({category}) gick inte att hämta: {exc}")
         finally:
             time.sleep(POLITE_DELAY_S)
-
-        if "error" in payload:
-            raise SystemExit(f"Lager {layer}: {payload['error']}")
 
         features = payload.get("features") or []
         if payload.get("exceededTransferLimit"):
