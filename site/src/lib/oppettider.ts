@@ -28,20 +28,52 @@
 /** Ett spann i minuter från midnatt. Slutet kan passera 1440, alltså natten över. */
 export type Span = [number, number];
 
+/**
+ * Ett dygns öppettider som en rad: "660-1320", eller "660-840,1020-1320" för
+ * två pass, eller tom sträng för stängt. Talen är minuter från midnatt.
+ *
+ * Raden är formen i FILEN och inte i koden. Datafilerna skrivs med indent=1,
+ * och ett veckoschema av nästlade listor blev femtio rader per verksamhet:
+ * 2 788 verksamheter hade lagt drygt 100 000 rader i site/src/data och gjort
+ * varje framtida diff oläsbar. Se pipeline/prikko/oppettider.py.
+ */
+export type DayText = string;
+
 export interface Hours {
   /** OSM-uttrycket ordagrant. Visas aldrig, men gör en felrapport möjlig. */
   raw: string;
-  /** Sju poster, måndag först. Tom lista betyder stängt hela dagen. */
-  week: Span[][];
+  /** Sju poster, måndag först. Tom sträng betyder stängt hela dagen. */
+  week: DayText[];
   /**
    * Vad som gäller på helgdag. `null` när uttrycket inte säger något, och då
-   * gäller veckodagen som vanligt. Tom lista betyder stängt.
+   * gäller veckodagen som vanligt. Tom sträng betyder stängt.
    */
-  ph: Span[] | null;
+  ph: DayText | null;
   /** OSM-objektet uppgiften kommer ur, t.ex. "node/1234". */
   osm: string;
   /** ISO-datum då vi hämtade den. */
   checkedAt: string;
+}
+
+/**
+ * Packa upp en dygnsrad till spann.
+ *
+ * Ogiltiga tal ger ett tomt dygn i stället för NaN. Datan skrivs av vår egen
+ * pipeline och ska aldrig vara trasig, men den läses i webbläsaren där ett
+ * NaN inte syns som ett fel utan som ett besked: "Öppnar NaN:NaN" är sämre än
+ * ingen rad alls.
+ */
+export function spansOf(text: DayText | null | undefined): Span[] {
+  if (!text) return [];
+  const out: Span[] = [];
+  for (const part of text.split(',')) {
+    const [a, b] = part.split('-');
+    const start = Number(a);
+    const end = Number(b);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    out.push([start, end]);
+  }
+  return out;
 }
 
 export const DAY_NAMES = [
@@ -202,8 +234,8 @@ export function formatClock(minutes: number): string {
 
 /** Spannen som gäller ett visst datum, med helgdagsregeln inräknad. */
 function spansOn(hours: Hours, year: number, month: number, day: number): Span[] {
-  if (hours.ph !== null && isPublicHoliday(year, month, day)) return hours.ph;
-  return hours.week[weekdayUTC(year, month, day)] ?? [];
+  if (hours.ph !== null && isPublicHoliday(year, month, day)) return spansOf(hours.ph);
+  return spansOf(hours.week[weekdayUTC(year, month, day)]);
 }
 
 /** Datumet n dygn efter det angivna. */
@@ -293,7 +325,7 @@ export interface DayRow {
 /** Sju rader, måndag först. */
 export function weekRows(hours: Hours): DayRow[] {
   return DAY_NAMES.map((name, i) => {
-    const spans = hours.week[i] ?? [];
+    const spans = spansOf(hours.week[i]);
     if (spans.length === 0) return { name, text: '', closed: true };
     return { name, text: formatSpans(spans), closed: false };
   });

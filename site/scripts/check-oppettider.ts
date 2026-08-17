@@ -17,6 +17,7 @@ import {
   formatSpans,
   isPublicHoliday,
   localNow,
+  spansOf,
   status,
   weekRows,
   type Hours,
@@ -40,24 +41,21 @@ function nu(ar: number, manad: number, dag: number, klocka: string): LocalNow {
   return { year: ar, month: manad, day: dag, weekday, minutes: h * 60 + m };
 }
 
-function hours(week: number[][][], ph: number[][] | null = null): Hours {
-  return {
-    raw: 'prov',
-    week: week as Hours['week'],
-    ph: ph as Hours['ph'],
-    osm: 'node/1',
-    checkedAt: '2026-08-18',
-  };
+/* Veckan skrivs som pipelinen skriver den: en rad per dygn, minuter från
+   midnatt, tom sträng för stängt. Proven ska köra mot exakt den form som
+   ligger i site/src/data och inte mot en bekvämare. */
+function hours(week: string[], ph: string | null = null): Hours {
+  return { raw: 'prov', week, ph, osm: 'node/1', checkedAt: '2026-08-18' };
 }
 
-const STANGD: number[][] = [];
+const STANGD = '';
 /* Måndag till fredag 11:00-22:00, helgen stängd. 2026-08-17 är en måndag. */
 const vardagar = hours([
-  [[660, 1320]],
-  [[660, 1320]],
-  [[660, 1320]],
-  [[660, 1320]],
-  [[660, 1320]],
+  '660-1320',
+  '660-1320',
+  '660-1320',
+  '660-1320',
+  '660-1320',
   STANGD,
   STANGD,
 ]);
@@ -124,8 +122,8 @@ const nattklubb = hours([
   STANGD,
   STANGD,
   STANGD,
-  [[1080, 1560]],
-  [[1080, 1560]],
+  '1080-1560',
+  '1080-1560',
   STANGD,
 ]);
 
@@ -150,11 +148,11 @@ lika(
 // --- Två pass på samma dag --------------------------------------------------
 
 const lunchOchKvall = hours([
-  [[660, 840], [1020, 1320]],
-  [[660, 840], [1020, 1320]],
-  [[660, 840], [1020, 1320]],
-  [[660, 840], [1020, 1320]],
-  [[660, 840], [1020, 1320]],
+  '660-840,1020-1320',
+  '660-840,1020-1320',
+  '660-840,1020-1320',
+  '660-840,1020-1320',
+  '660-840,1020-1320',
   STANGD,
   STANGD,
 ]);
@@ -173,7 +171,7 @@ lika(
 
 // --- Dygnet runt ------------------------------------------------------------
 
-const dygnetRunt = hours(Array.from({ length: 7 }, () => [[0, 1440]]));
+const dygnetRunt = hours(Array.from({ length: 7 }, () => '0-1440'));
 
 lika(
   'dygnet runt varnar aldrig för stängning',
@@ -183,18 +181,7 @@ lika(
 
 // --- Röda dagar -------------------------------------------------------------
 
-const medHelgdag = hours(
-  [
-    [[660, 1320]],
-    [[660, 1320]],
-    [[660, 1320]],
-    [[660, 1320]],
-    [[660, 1320]],
-    [[660, 1320]],
-    [[660, 1320]],
-  ],
-  [],
-);
+const medHelgdag = hours(Array.from({ length: 7 }, () => '660-1320'), '');
 
 lika(
   'juldagen är stängd trots att veckoschemat säger öppet',
@@ -212,7 +199,7 @@ lika(
 
 /* Öppet bara på måndagar, och klockan är 23:00 på en måndag. Sju dygn fram är
    samma veckodag, och "Öppnar måndag" hade lästs som i kväll. */
-const baraMandag = hours([[[660, 1320]], STANGD, STANGD, STANGD, STANGD, STANGD, STANGD]);
+const baraMandag = hours(['660-1320', STANGD, STANGD, STANGD, STANGD, STANGD, STANGD]);
 lika(
   'samma veckodag en vecka fram skrivs som nästa',
   status(baraMandag, nu(2026, 8, 17, '23:00')),
@@ -236,6 +223,12 @@ lika('en vanlig tisdag är inte röd', isPublicHoliday(2026, 8, 18), false);
 lika('påskdagen 2027 är röd', isPublicHoliday(2027, 3, 28), true);
 
 // --- Presentation -----------------------------------------------------------
+
+lika('en dygnsrad packas upp till spann', spansOf('660-840,1020-1320'), [[660, 840], [1020, 1320]]);
+lika('tom rad betyder stängt', spansOf(''), []);
+/* En trasig rad ger ett tomt dygn och aldrig NaN. "Öppnar NaN:NaN" hade sett
+   ut som ett besked. */
+lika('trasig rad ger tomt dygn', spansOf('x-y'), []);
 
 lika('spann sätts med halvt fyrkantsstreck', formatSpans([[660, 1320]]), '11:00–22:00');
 lika(

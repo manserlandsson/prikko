@@ -123,8 +123,21 @@ def fetch_pois(code: str, refresh: bool) -> List[dict]:
     area = 3600000000 + relations[0]["id"]
 
     payload = overpass(overpass_query(area))
+    elements = payload.get("elements") or []
+    # NOLL MATPUNKTER ÄR INTE ETT UTFALL, DET ÄR ETT FEL.
+    # Ingen svensk kommun saknar restauranger och butiker i OSM; Svenljunga,
+    # den minsta vi har, ger dryga trettio. Ett tomt svar betyder att
+    # områdesuppslaget inte gick fram, och Overpass svarar då 200 med en tom
+    # lista i stället för ett fel. Skrev vi den till disk hade nästa körning
+    # läst den ur cachen och tyst tagit bort öppettiderna i hela kommunen.
+    if not elements:
+        raise SystemExit(
+            f"Overpass gav noll matpunkter för kommun {code}. Det är ett fel och "
+            f"inte ett utfall: områdesuppslaget gick sannolikt inte fram. "
+            f"Kör om kommunen ensam."
+        )
     path.write_text(json.dumps(payload), encoding="utf-8")
-    return payload["elements"]
+    return elements
 
 
 def classify_via_node(pairs: List[tuple]) -> List[List[str]]:
@@ -232,15 +245,22 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
             }
 
     if write:
-        payload = insert_after(
-            payload,
-            "source",
-            "openingHours",
-            {
-                **PROVENANCE,
-                "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            },
-        )
+        # Licensblocket skrivs bara när filen faktiskt bär en öppettid. En
+        # ODbL-klausul i en fil utan en enda öppettid är ett påstående om data
+        # som inte finns, och i fyra av tolv kommuner är det just läget: de
+        # saknar koordinater helt och kan därför inte paras alls.
+        if stats["written"]:
+            payload = insert_after(
+                payload,
+                "source",
+                "openingHours",
+                {
+                    **PROVENANCE,
+                    "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                },
+            )
+        else:
+            payload.pop("openingHours", None)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
     denominator = len(consumer)

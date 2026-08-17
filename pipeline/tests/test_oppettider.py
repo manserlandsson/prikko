@@ -62,6 +62,24 @@ class Namn(unittest.TestCase):
     def test_ensamt_kort_ord_parar_aldrig(self):
         self.assertFalse(names_agree(("ost",), ("ost", "boden")))
 
+    def test_ensamt_ord_maste_vara_huvudordet_i_bada(self):
+        # Verkliga fel ur Stockholm. Ordet är ett ortnamn respektive ett
+        # gatunamn som båda namnen bär för att de ligger på samma plats, och
+        # det är inte det som namnger stället.
+        self.assertFalse(names_agree(name_tokens("Livs Södermalm"), name_tokens("ICA Kvantum Södermalm")))
+        self.assertFalse(
+            names_agree(name_tokens("United Spaces Götgatsbacken"), name_tokens("Götgatsbacken"))
+        )
+
+    def test_verksamhetsordet_hoppas_over_nar_huvudordet_soks(self):
+        # "Café Gateau" heter Gateau. Ordet "café" står först och säger inget.
+        self.assertTrue(names_agree(name_tokens("Café Gateau"), name_tokens("Gateau")))
+
+    def test_kedja_med_butiksnummer_parar_pa_kedjenamnet(self):
+        # Kommunens register skriver "Pressbyrån 4450170", skylten "Pressbyrån".
+        # Adressen är det som skiljer butikerna åt, och radien bär den.
+        self.assertTrue(names_agree(name_tokens("Pressbyrån 4450170"), name_tokens("Pressbyrån")))
+
     def test_svenska_tecken_far_samma_form(self):
         self.assertEqual(name_tokens("Kött & Bröd"), name_tokens("Kott och Brod"))
 
@@ -173,45 +191,73 @@ class Hopparning(unittest.TestCase):
 class Tolkning(unittest.TestCase):
     def test_enkelt_veckoschema(self):
         h = compile_hours("Mo-Fr 11:00-22:00")
-        self.assertEqual(h["week"][0], [[660, 1320]])
-        self.assertEqual(h["week"][5], [])  # lördag stängd
+        self.assertEqual(h["week"][0], "660-1320")
+        self.assertEqual(h["week"][5], "")  # lördag stängd
 
     def test_tva_pass_pa_samma_dag(self):
         h = compile_hours("Mo-Fr 11:00-14:00,17:00-22:00")
-        self.assertEqual(h["week"][0], [[660, 840], [1020, 1320]])
+        self.assertEqual(h["week"][0], "660-840,1020-1320")
 
     def test_over_midnatt_passerar_1440(self):
         h = compile_hours("Fr-Sa 18:00-02:00")
-        self.assertEqual(h["week"][4], [[1080, 1560]])
+        self.assertEqual(h["week"][4], "1080-1560")
 
     def test_dygnet_runt(self):
         h = compile_hours("24/7")
-        self.assertEqual(h["week"][3], [[0, 1440]])
+        self.assertEqual(h["week"][3], "0-1440")
 
     def test_senare_regel_skriver_over_tidigare(self):
         # opening_hours egen semantik: onsdagen blir kortare, inte två pass.
         h = compile_hours("Mo-Su 11:00-22:00; We 11:00-15:00")
-        self.assertEqual(h["week"][2], [[660, 900]])
-        self.assertEqual(h["week"][1], [[660, 1320]])
+        self.assertEqual(h["week"][2], "660-900")
+        self.assertEqual(h["week"][1], "660-1320")
 
     def test_stangd_dag(self):
         h = compile_hours("Mo-Sa 10:00-18:00; Su off")
-        self.assertEqual(h["week"][6], [])
+        self.assertEqual(h["week"][6], "")
 
     def test_veckoskiftet_viker_runt(self):
         h = compile_hours("Fr-Mo 12:00-20:00")
-        self.assertEqual(h["week"][4], [[720, 1200]])  # fredag
-        self.assertEqual(h["week"][6], [[720, 1200]])  # söndag
-        self.assertEqual(h["week"][0], [[720, 1200]])  # måndag
-        self.assertEqual(h["week"][1], [])  # tisdag
+        self.assertEqual(h["week"][4], "720-1200")  # fredag
+        self.assertEqual(h["week"][6], "720-1200")  # söndag
+        self.assertEqual(h["week"][0], "720-1200")  # måndag
+        self.assertEqual(h["week"][1], "")  # tisdag
 
     def test_helgdag_stangd(self):
         h = compile_hours("Mo-Su 11:00-22:00; PH off")
-        self.assertEqual(h["ph"], [])
+        self.assertEqual(h["ph"], "")
 
     def test_helgdag_med_egen_tid(self):
         h = compile_hours("Mo-Su 11:00-22:00; PH 12:00-16:00")
-        self.assertEqual(h["ph"], [[720, 960]])
+        self.assertEqual(h["ph"], "720-960")
+
+    def test_komma_som_regelavskiljare(self):
+        # 758 av våra 3 913 uttryck skriver reglerna med komma i stället för
+        # semikolon. Utan den här formen faller 19,4 procent av datan bort.
+        h = compile_hours("Mo-Fr 11:00-21:00, Sa-Su 12:00-21:00")
+        self.assertEqual(h["week"][0], "660-1260")
+        self.assertEqual(h["week"][5], "720-1260")
+
+    def test_dagslista_med_komma(self):
+        h = compile_hours("Mo-Fr 11:00-21:00; Sa,Su 12:00-21:00")
+        self.assertEqual(h["week"][5], "720-1260")
+        self.assertEqual(h["week"][6], "720-1260")
+
+    def test_helgdag_ihop_med_veckodagar(self):
+        h = compile_hours("Mo-Fr 08:00-17:00; Sa-Su,PH off")
+        self.assertEqual(h["week"][5], "")
+        self.assertEqual(h["ph"], "")
+
+    def test_utan_dagdel_gäller_alla_dagar(self):
+        # 76 uttryck skriver bara ett spann. Det betyder varje dag.
+        h = compile_hours("07:00-22:00")
+        self.assertEqual(h["week"][0], "420-1320")
+        self.assertEqual(h["week"][6], "420-1320")
+
+    def test_timmar_over_24_ar_natten_efter(self):
+        # "16:00-25:00" står i vår data och betyder klockan ett på natten.
+        h = compile_hours("Fr 16:00-25:00")
+        self.assertEqual(h["week"][4], "960-1500")
 
     def test_utan_helgdagsregel_ar_ph_none(self):
         self.assertIsNone(compile_hours("Mo-Fr 09:00-17:00")["ph"])
@@ -231,6 +277,14 @@ class UtanforDelmangden(unittest.TestCase):
 
     def test_ordningstal_pa_veckodag(self):
         self.assertIsNone(parse_opening_hours("Mo[1] 10:00-12:00"))
+
+    def test_oppet_slut(self):
+        # "17:00+" säger när det öppnar men inte när det stänger. En sådan
+        # rad går inte att svara "öppet nu" med.
+        self.assertIsNone(parse_opening_hours("Tu-Sa 17:00+"))
+
+    def test_sasong(self):
+        self.assertIsNone(parse_opening_hours("May 13-Sep 06"))
 
     def test_kommentar(self):
         self.assertIsNone(parse_opening_hours('Mo-Fr 10:00-18:00; Sa "efter överenskommelse"'))

@@ -71,7 +71,7 @@
  * vilken. På skärmen löses konflikten genom att det här avsnittet döljs; i
  * strukturerad data finns ingen motsvarande väg.
  */
-import { formatSpans, weekRows, type Hours } from '../lib/oppettider';
+import { formatSpans, spansOf, weekRows, type Hours } from '../lib/oppettider';
 import { formatDate } from '../lib/data';
 
 interface Props {
@@ -124,9 +124,9 @@ const nagotOppet = rows.some((r) => !r.closed);
       veckan som heter "Helgdag". */}
   {hours.ph !== null && (
     <p class="helgdag text-secondary">
-      {hours.ph.length === 0
+      {hours.ph === ''
         ? 'Stängt på röda dagar.'
-        : `Röda dagar ${formatSpans(hours.ph)}.`}
+        : `Röda dagar ${formatSpans(spansOf(hours.ph))}.`}
     </p>
   )}
 
@@ -178,7 +178,7 @@ const nagotOppet = rows.some((r) => !r.closed);
 {/* Schemat som data för skriptet ovan. Ett application/json-block och inte
     ett dataattribut: uttrycket har hakparenteser och citattecken, och som
     attribut hade det blivit en rad escapade tecken ingen kan läsa i källan. */}
-<script type="application/json" data-oppet-data set:html={JSON.stringify(hours)} is:inline />
+<script type="application/json" data-oppet-data is:inline set:html={JSON.stringify(hours)}></script>
 
 <style>
   .oppettider {

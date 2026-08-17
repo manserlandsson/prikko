@@ -312,17 +312,38 @@ class PoiIndex:
 MIN_SOLO_TOKEN = 4
 
 
+def head(tokens: Tuple[str, ...]) -> Optional[str]:
+    """Det första ordet som inte är en verksamhetsform.
+
+    "Café Gateau" har huvudordet "gateau" och inte "cafe". Verksamhetsordet
+    står först i hälften av alla svenska restaurangnamn och säger ingenting om
+    vilket ställe det är.
+    """
+    for token in tokens:
+        if token not in _GENERIC:
+            return token
+    return tokens[0] if tokens else None
+
+
 def names_agree(ours: Tuple[str, ...], theirs: Tuple[str, ...]) -> bool:
     """Är det här samma ställe, räknat på namnet?
 
     Lika ordmängd, eller den ena en hel delmängd av den andra. Delmängden
     behövs åt båda håll: kommunens register skriver ofta ut mer än skylten
-    ("Sushi Yama Gallerian" mot "Sushi Yama"), och ibland mindre ("Rossi" mot
-    "Pizzeria Rossi").
+    ("Sushi Yama Gallerian" mot "Sushi Yama"), och ibland mindre ("Café
+    Gateau" mot "Gateau").
 
-    Ett ENSAMT gemensamt ord räcker bara när ordet självt bär något. "Rossi"
-    inuti "Pizzeria Rossi" är stället; "Pizzeria" inuti "Pizzeria Milano" är
-    verksamhetsformen och parar ihop halva gatan.
+    ETT ENSAMT GEMENSAMT ORD ÄR DET SVAGASTE BELÄGG VI GODTAR, och det
+    godtas bara när ordet är HUVUDORDET i båda namnen. Kravet kom ur en
+    granskning av de 465 hopparningar som vilade på ett enda ord: de som var
+    fel vilade genomgående på ett ORTNAMN eller ett GATUNAMN som båda namnen
+    råkade bära för att de ligger på samma plats. "Livs Södermalm" parades med
+    "ICA Kvantum Södermalm" 62 meter bort, och "United Spaces Götgatsbacken"
+    med "Götgatsbacken" 85 meter bort. I båda fallen är ordet sist i det ena
+    namnet och alltså inte det som namnger stället.
+
+    Priset är känt: några riktiga par faller också, till exempel "Dramaten
+    Restaurangen/ Frippe" mot "Frippe". Det är rätt riktning att fela åt.
     """
     if not ours or not theirs:
         return False
@@ -335,7 +356,9 @@ def names_agree(ours: Tuple[str, ...], theirs: Tuple[str, ...]) -> bool:
     if len(smaller) >= 2:
         return True
     word = next(iter(smaller))
-    return word not in _GENERIC and len(word) >= MIN_SOLO_TOKEN
+    if word in _GENERIC or len(word) < MIN_SOLO_TOKEN:
+        return False
+    return head(ours) == word and head(theirs) == word
 
 
 @dataclass(frozen=True)
@@ -389,82 +412,113 @@ def pair(
 # opening_hours: vilken delmängd vi stöder
 # ---------------------------------------------------------------------------
 
-#: `opening_hours` är ett eget litet språk med regler för helgdagar,
-#: veckonummer, månadsintervall, soluppgång och kommentarer. Vi stöder den
-#: delmängd som faktiskt förekommer i vår data, och INGENTING annat: ett
-#: uttryck vi inte förstår helt kastas, och verksamheten får ingen öppettid.
+#: `opening_hours` är ett eget litet språk. Vi stöder den delmängd som faktiskt
+#: förekommer i vår data, och INGENTING annat: ett uttryck vi inte förstår
+#: HELT kastas, och verksamheten får ingen öppettid alls.
 #:
 #: Delmängden, i BNF-liknande form:
 #:
-#:     uttryck   := regel (";" regel)*
-#:     regel     := "24/7" | "off" | "closed"
-#:                | dagar? tider ("off" | "closed")?
-#:     dagar     := dagspec ("," dagspec)*
-#:     dagspec   := dag | dag "-" dag | "PH"
-#:     dag       := Mo Tu We Th Fr Sa Su
-#:     tider     := tid "-" tid ("," tid "-" tid)*
-#:     tid       := HH:MM
+#:     uttryck   := block (";" block)*
+#:     block     := "24/7" | "off" | "closed" | del ("," del)*
+#:     del       := dagar | dagar? tider | dagar? ("off" | "closed")
+#:     dagar     := dagspec ("-" dagspec)?  ("PH" räknas som dagspec)
+#:     dag       := Mo | Tu | We | Th | Fr | Sa | Su
+#:     tider     := tid "-" tid
+#:     tid       := H+:MM, där timmen får gå till 47 (se _TIME)
 #:
-#: Allt annat, alltså veckonummer, datumintervall, "sunrise", "Mo[1]",
-#: kommentarer inom citattecken och "open"/"unknown", faller utanför.
+#: KOMMATECKNET BETYDER TRE SAKER, och alla tre förekommer i vår data:
+#:
+#:     Sa,Su 12:00-21:00                  en dagslista
+#:     Mo-Fr 11:00-14:00,17:00-22:00      två pass samma dag
+#:     Mo-Fr 11:00-21:00, Sa-Su 12:00-21:00   två regler
+#:
+#: Mätt över de 3 913 uttryck vi hämtat 2026-08-18: 758 av dem, alltså 19,4
+#: procent, använder kommatecknet som regelavskiljare. En tolkare som bara
+#: delar på semikolon lämnar 399 uttryck (10,2 procent) utanför delmängden;
+#: med kommatecknet och de bara tidsspannen inräknade är det 121 (3,1 procent),
+#: och de som återstår är öppna slut, säsonger och kommentarer som inte GÅR
+#: att stödja utan att gissa.
+#:
+#: Delarna klassas därför på vad de INNEHÅLLER och inte på vilket tecken som
+#: står före: en del med dagar och tider börjar en ny regel, en del med bara
+#: dagar samlas till nästa regel, och en del med bara tider är ännu ett pass i
+#: den föregående.
+#:
+#: Allt annat faller utanför: veckonummer ("week 28-32"), datumintervall
+#: ("Apr-Sep", "Jun 06-Aug 20"), öppet slut ("17:00+"), soluppgång, "Mo[1]",
+#: kommentarer inom citattecken, och "open"/"unknown".
 
 _DAYS = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
 _DAY_INDEX = {d: i for i, d in enumerate(_DAYS)}
 
-_TIME = re.compile(r"^([01]?\d|2[0-4]):([0-5]\d)$")
+#: Timmen får gå till 47. `16:00-24:00` och `16:00-25:00` står båda i vår data
+#: och betyder midnatt respektive klockan ett på natten. Att stanna vid 24
+#: hade kastat de senare utan att vinna något.
+_TIME = re.compile(r"^(\d{1,2}):([0-5]\d)$")
+_MAX_HOUR = 47
+
+#: En tidsdel, alltså "11:00-22:00". Ankrad: "17:00+" och "17:00" ensamt är
+#: öppna slut och ska falla utanför.
+_TIME_SPAN = re.compile(r"^\d{1,2}:[0-5]\d\s*-\s*\d{1,2}:[0-5]\d$")
+
+#: En dagdel, alltså "Mo", "Mo-Fr" eller "PH".
+_DAY_SPEC = re.compile(r"^(?:PH|Mo|Tu|We|Th|Fr|Sa|Su)(?:\s*-\s*(?:Mo|Tu|We|Th|Fr|Sa|Su))?$")
 
 
-def _parse_days(spec: str) -> Optional[List[int]]:
-    days: List[int] = []
-    for part in spec.split(","):
-        part = part.strip()
-        if not part:
-            return None
-        if "-" in part:
-            a, _, b = part.partition("-")
-            a, b = a.strip(), b.strip()
-            if a not in _DAY_INDEX or b not in _DAY_INDEX:
-                return None
-            start, end = _DAY_INDEX[a], _DAY_INDEX[b]
-            # Mo-Su går framåt, Fr-Mo viker runt veckoskiftet.
-            i = start
-            while True:
-                days.append(i)
-                if i == end:
-                    break
-                i = (i + 1) % 7
-        else:
-            if part not in _DAY_INDEX:
-                return None
-            days.append(_DAY_INDEX[part])
-    return sorted(set(days))
+def _parse_day_spec(spec: str) -> Optional[Tuple[List[int], bool]]:
+    """Veckodagarna i en dagdel, plus om den gäller helgdagar."""
+    spec = spec.strip()
+    if not _DAY_SPEC.match(spec):
+        return None
+    if spec == "PH":
+        return [], True
+    if "-" in spec:
+        a, _, b = spec.partition("-")
+        start, end = _DAY_INDEX[a.strip()], _DAY_INDEX[b.strip()]
+        days = []
+        i = start
+        # Mo-Su går rakt fram, Fr-Mo viker runt veckoskiftet.
+        while True:
+            days.append(i)
+            if i == end:
+                break
+            i = (i + 1) % 7
+        return days, False
+    return [_DAY_INDEX[spec]], False
 
 
-def _parse_times(spec: str) -> Optional[List[Tuple[int, int]]]:
-    """Minuter från midnatt. Slut före start betyder över midnatt och skrivs
-    som ett spann som passerar 1440, vilket utvärderaren i webbläsaren delar."""
-    spans: List[Tuple[int, int]] = []
-    for part in spec.split(","):
-        part = part.strip()
-        a, _, b = part.partition("-")
-        ma, mb = _TIME.match(a.strip()), _TIME.match(b.strip())
-        if not ma or not mb:
-            return None
-        start = int(ma.group(1)) * 60 + int(ma.group(2))
-        end = int(mb.group(1)) * 60 + int(mb.group(2))
-        if end <= start:
-            end += 24 * 60  # över midnatt
-        if end - start > 24 * 60:
-            return None
-        spans.append((start, end))
-    return spans
+def _parse_time_span(spec: str) -> Optional[Tuple[int, int]]:
+    """Ett spann i minuter från midnatt.
+
+    Slut före eller lika med start betyder över midnatt, och spannet skrivs då
+    som ett tal som passerar 1440. Utvärderaren i webbläsaren delar den formen
+    och behöver därför inte känna till regeln.
+    """
+    a, _, b = spec.partition("-")
+    ma, mb = _TIME.match(a.strip()), _TIME.match(b.strip())
+    if not ma or not mb:
+        return None
+    if int(ma.group(1)) > _MAX_HOUR or int(mb.group(1)) > _MAX_HOUR:
+        return None
+    start = int(ma.group(1)) * 60 + int(ma.group(2))
+    end = int(mb.group(1)) * 60 + int(mb.group(2))
+    if end <= start:
+        end += 24 * 60
+    if end - start > 24 * 60 or start >= 24 * 60:
+        return None
+    return start, end
 
 
 @dataclass(frozen=True)
 class Rule:
-    """En regel: vilka veckodagar, vilka tidsspann, och om den stänger."""
+    """En regel: vilka veckodagar, vilka tidsspann, och om den stänger.
 
-    days: Tuple[int, ...]  # tom tuple = alla dagar
+    Tom `days` OCH `public_holiday` falskt betyder alla veckodagar. `days` och
+    `public_holiday` kan gälla samtidigt: "Sa-Su,PH off" stänger lördag,
+    söndag och röda dagar i en och samma regel.
+    """
+
+    days: Tuple[int, ...]
     spans: Tuple[Tuple[int, int], ...]
     closed: bool
     public_holiday: bool
@@ -482,11 +536,12 @@ def parse_opening_hours(raw: str) -> Optional[List[Rule]]:
         return None
 
     rules: List[Rule] = []
-    for chunk in text.split(";"):
-        chunk = chunk.strip()
-        if not chunk:
+
+    for block in text.split(";"):
+        block = block.strip()
+        if not block:
             continue
-        lowered = chunk.lower()
+        lowered = block.lower()
         if lowered == "24/7":
             rules.append(Rule((), ((0, 24 * 60),), False, False))
             continue
@@ -494,56 +549,114 @@ def parse_opening_hours(raw: str) -> Optional[List[Rule]]:
             rules.append(Rule((), (), True, False))
             continue
 
-        closed = False
-        for suffix in (" off", " closed"):
-            if lowered.endswith(suffix):
-                closed = True
-                chunk = chunk[: -len(suffix)].strip()
-                break
+        # Dagar som setts men ännu inte fått någon tid. "Sa,Su 12:00-21:00"
+        # lämnar Sa här tills Su kommer med sitt spann.
+        pending_days: List[int] = []
+        pending_ph = False
+        # Vilken regel ett ensamt tidsspann ska läggas till.
+        last: Optional[int] = None
 
-        # Dagdelen är allt fram till första tecknet som ser ut som en tid.
-        match = re.search(r"\d{1,2}:\d{2}", chunk)
-        if match:
-            day_spec = chunk[: match.start()].strip()
-            time_spec = chunk[match.start() :].strip()
-        else:
-            day_spec, time_spec = chunk.strip(), ""
-
-        public_holiday = False
-        if day_spec:
-            # PH står ensamt eller först. Vi stöder "PH off" och "PH 12:00-16:00".
-            tokens = day_spec.replace(",", " ").split()
-            if tokens and tokens[0] == "PH":
-                public_holiday = True
-                day_spec = " ".join(tokens[1:]).strip().strip(",")
-
-        days: List[int] = []
-        if day_spec:
-            parsed = _parse_days(day_spec)
-            if parsed is None:
+        for part in block.split(","):
+            part = part.strip()
+            if not part:
                 return None
-            days = parsed
 
-        if closed and not time_spec:
-            rules.append(Rule(tuple(days), (), True, public_holiday))
-            continue
+            closed = False
+            for suffix in (" off", " closed"):
+                if part.lower().endswith(suffix):
+                    closed = True
+                    part = part[: -len(suffix)].strip()
+                    break
+            if not closed and part.lower() in ("off", "closed"):
+                closed = True
+                part = ""
 
-        if not time_spec:
+            # Dela i dagdel och tidsdel vid första klockslaget.
+            hit = re.search(r"\d{1,2}:\d{2}", part)
+            if hit:
+                day_spec = part[: hit.start()].strip()
+                time_spec = part[hit.start():].strip()
+            else:
+                day_spec, time_spec = part, ""
+
+            days: List[int] = []
+            ph = False
+            if day_spec:
+                parsed = _parse_day_spec(day_spec)
+                if parsed is None:
+                    return None
+                days, ph = parsed
+
+            # Bara dagar, ingen tid och ingen stängning: samla till nästa del.
+            if day_spec and not time_spec and not closed:
+                pending_days.extend(days)
+                pending_ph = pending_ph or ph
+                continue
+
+            # Bara en tid, ingen dagdel: ännu ett pass i föregående regel.
+            # Står den FÖRST i blocket finns ingen föregående, och då är det
+            # ett uttryck utan dagdel alls: "07:00-22:00" betyder alla dagar.
+            # Formen står på 76 av våra 3 913 uttryck.
+            if not day_spec and time_spec and not closed and last is not None:
+                if not _TIME_SPAN.match(time_spec):
+                    return None
+                span = _parse_time_span(time_spec)
+                if span is None:
+                    return None
+                previous = rules[last]
+                rules[last] = Rule(
+                    previous.days,
+                    previous.spans + (span,),
+                    previous.closed,
+                    previous.public_holiday,
+                )
+                continue
+
+            all_days = sorted(set(pending_days + days))
+            all_ph = pending_ph or ph
+            pending_days, pending_ph = [], False
+
+            if closed:
+                rules.append(Rule(tuple(all_days), (), True, all_ph))
+                last = len(rules) - 1
+                continue
+
+            if not time_spec or not _TIME_SPAN.match(time_spec):
+                return None
+            span = _parse_time_span(time_spec)
+            if span is None:
+                return None
+            rules.append(Rule(tuple(all_days), (span,), False, all_ph))
+            last = len(rules) - 1
+
+        # Dagar utan tid sist i ett block är ett halvt uttryck.
+        if pending_days or pending_ph:
             return None
-        spans = _parse_times(time_spec)
-        if spans is None:
-            return None
-        rules.append(Rule(tuple(days), tuple(spans), closed, public_holiday))
 
     return rules or None
+
+
+def _spans_text(spans: List[List[int]]) -> str:
+    """Spann som en rad: "540-1320" eller "660-840,1020-1320"."""
+    return ",".join(f"{a}-{b}" for a, b in spans)
 
 
 def compile_hours(raw: str) -> Optional[dict]:
     """Den form sajten läser: veckoschema plus helgdagsregel.
 
-    `week` har sju poster, måndag först, var och en en lista av spann i
-    minuter från midnatt. Ett spann som går över midnatt slutar efter 1440.
-    `ph` är None när uttrycket inte säger något om helgdagar.
+    `week` har sju poster, måndag först. Varje post är en RAD och inte en
+    lista av listor: "540-1320", eller "660-840,1020-1320" för två pass, eller
+    tom sträng för stängt. Talen är minuter från midnatt, och ett spann som går
+    över midnatt slutar efter 1440.
+
+    Formen är vald för filen och inte för koden. Med indent=1, som resten av
+    datafilerna skrivs med, blev ett veckoschema av nästlade listor 50 rader
+    per verksamhet: 2 788 verksamheter hade lagt drygt 100 000 rader i
+    site/src/data och gjort varje framtida diff oläsbar. Som rader blir det
+    nio. Uppackningen är en split i lib/oppettider.ts.
+
+    `ph` är None när uttrycket inte säger något om helgdagar, och tom sträng
+    när det säger stängt.
     """
     rules = parse_opening_hours(raw)
     if rules is None:
@@ -553,16 +666,26 @@ def compile_hours(raw: str) -> Optional[dict]:
     ph: Optional[List[List[int]]] = None
 
     for rule in rules:
+        spans = [] if rule.closed else [[a, b] for a, b in rule.spans]
         if rule.public_holiday:
-            ph = [] if rule.closed else [[a, b] for a, b in rule.spans]
-            continue
-        days = rule.days if rule.days else tuple(range(7))
+            ph = spans
+        # En regel utan veckodagar OCH utan PH gäller hela veckan. En regel med
+        # PH och inga veckodagar gäller bara helgdagar.
+        if rule.days:
+            days = rule.days
+        elif rule.public_holiday:
+            days = ()
+        else:
+            days = tuple(range(7))
         for day in days:
             # Senare regel skriver över tidigare för samma dag. Det är
             # opening_hours egen semantik: "Mo-Su 11:00-22:00; We 11:00-15:00"
             # betyder att onsdagen är kortare, inte att den har två pass.
-            week[day] = [] if rule.closed else [[a, b] for a, b in rule.spans]
+            week[day] = list(spans)
 
     if all(not day for day in week) and ph is None:
         return None
-    return {"week": week, "ph": ph}
+    return {
+        "week": [_spans_text(day) for day in week],
+        "ph": None if ph is None else _spans_text(ph),
+    }
