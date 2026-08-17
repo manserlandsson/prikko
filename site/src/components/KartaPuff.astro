@@ -166,7 +166,14 @@ const href = path(`/${kommun.slug}`, 'karta');
    * storlek) står därför utskrivna med en hänvisning till originalet.
    */
   import { FACE_KEYS, type FaceKey } from '../lib/face';
-  import { faceBitmap, KARTA_I_DOKUMENT, KARTSTIL, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import {
+    faceBitmap,
+    KARTA_I_DOKUMENT,
+    KARTSTIL,
+    laddaMaplibre,
+    laddaMaplibreCss,
+    registreraRutprotokoll,
+  } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
 
   const root = document.querySelector<HTMLElement>('[data-kommunkarta]');
@@ -211,50 +218,13 @@ const href = path(`/${kommun.slug}`, 'karta');
           FullscreenControl,
         } = maplibre;
 
-        /*
-         * Räckviddskällan, med reserv för en värd som struntar i Range.
-         *
-         * Samma funktion och samma skäl som i Karta.astro, se den långa
-         * anteckningen där: Cloudflares kant besvarar `Range` ur sin cache, och
-         * en fil utanför cachen strömmas rakt igenom med 200 och hela kroppen.
-         * PMTiles hittar då ingen ruta, och kartan blir tom utan ett ord i
-         * konsolen. Behåller vi kroppen vi ändå fick kostar felet bandbredd i
-         * stället för en tom karta.
-         */
-        function rutkalla(url: string) {
-          let hel: Promise<ArrayBuffer> | null = null;
-
-          return {
-            getKey: () => url,
-            async getBytes(offset: number, length: number) {
-              if (hel) {
-                const buf = await hel;
-                return { data: buf.slice(offset, offset + length) };
-              }
-
-              const svar = await fetch(url, {
-                headers: { Range: `bytes=${offset}-${offset + length - 1}` },
-              });
-              if (!svar.ok) throw new Error('rutarkivet svarade ' + svar.status);
-
-              if (svar.status === 200) {
-                const buf = await svar.arrayBuffer();
-                hel = Promise.resolve(buf);
-                return { data: buf.slice(offset, offset + length) };
-              }
-
-              return { data: await svar.arrayBuffer() };
-            },
-          };
-        }
-
+        /* Räckviddskällan och protokollet, båda ur lib/kartbas.ts. Här stod
+           förut en egen kopia av `rutkalla`, identisk med Karta.astros och
+           OmradeKartas: 35 rader kod med sextio raders motivering, i tre
+           exemplar. Motiveringen står kvar i kartbas.ts, där den gäller alla
+           tre på en gång. */
         const arkiv = root!.dataset.url!;
-        if (!(window as any).__prikkoPmtiles) {
-          const protokoll = new pmtiles.Protocol();
-          protokoll.add(new pmtiles.PMTiles(rutkalla(arkiv) as any));
-          maplibre.addProtocol('pmtiles', protokoll.tile);
-          (window as any).__prikkoPmtiles = true;
-        }
+        registreraRutprotokoll(maplibre, pmtiles, arkiv);
 
         const [w, s, e, n] = root!.dataset.bounds!.split(',').map(Number);
 

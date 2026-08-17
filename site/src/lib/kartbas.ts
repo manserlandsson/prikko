@@ -159,6 +159,92 @@ export function laddaMaplibre(): Promise<any> {
   return import(/* @vite-ignore */ MAPLIBRE_URL);
 }
 
+/**
+ * Källan som läser rutarkivet, MED RESERV FÖR EN VÄRD SOM STRUNTAR I RANGE.
+ *
+ * Funktionen bor HÄR och inte i en komponent, och det är hela poängen med
+ * den här flytten. Den låg i tre identiska exemplar, ett i Karta.astro, ett i
+ * KartaPuff.astro och ett i OmradeKarta.astro, alltså 105 rader kod som gick
+ * sönder på tre ställen och lagades på ett. Kopiera inte tillbaka den.
+ *
+ * ## Vad reserven är till för
+ *
+ * Det här kostade en tom karta i produktion 2026-08-08. Måns:
+ * "inga restauranger på kartvyn". Kartbladen ritades, teckenförklaringen hade
+ * rätt tal, och det fanns noll nålar.
+ *
+ * Orsaken låg inte i arkivet utan i värdens beteende. Cloudflare Pages
+ * besvarar räckviddsförfrågningar ur sin EDGE-CACHE, och filen låg utanför
+ * den: ett statiskt Astro-bygge kastar de huvuden en rutt sätter, så vårt
+ * `max-age=31536000, immutable` nådde aldrig fram och Pages standard
+ * `max-age=0, must-revalidate` gällde i stället. Varje förfrågan blev DYNAMIC,
+ * och en DYNAMIC-förfrågan svarar 200 med HELA filen även när man bett om
+ * 128 byte. PMTiles hittar då ingen ruta, och kartan blir tom utan ett ord i
+ * konsolen.
+ *
+ * `public/_headers` rättar orsaken. Den här källan ser till att samma fel
+ * aldrig mer kan TÖMMA kartan: går räckvidd inte att lita på behålls kroppen
+ * vi ändå fick och allt vidare läses ur den. Priset blir en hämtning av hela
+ * arkivet, alltså bandbredd, i stället för en karta utan punkter.
+ *
+ * Ett bygge kan inte fånga det här. Felet finns i värden, inte i filen. Se
+ * scripts/kontrollera-rackvidd.mjs, som frågar den PUBLICERADE filen.
+ *
+ * Funktionen är ren och rör ingen DOM, vilket är skälet till att den kunde
+ * flyttas hit utan att någon karta märkte det.
+ */
+export function rutkalla(url: string) {
+  let hel: Promise<ArrayBuffer> | null = null;
+
+  return {
+    getKey: () => url,
+    async getBytes(offset: number, length: number) {
+      if (hel) {
+        const buf = await hel;
+        return { data: buf.slice(offset, offset + length) };
+      }
+
+      const svar = await fetch(url, {
+        headers: { Range: `bytes=${offset}-${offset + length - 1}` },
+      });
+      if (!svar.ok) throw new Error('rutarkivet svarade ' + svar.status);
+
+      /*
+       * 206 är det vi bad om. 200 betyder att värden struntade i räckvidden
+       * och skickade allt: behåll det i stället för att kasta bort en megabyte
+       * och läs vidare ur minnet.
+       */
+      if (svar.status === 200) {
+        const buf = await svar.arrayBuffer();
+        hel = Promise.resolve(buf);
+        return { data: buf.slice(offset, offset + length) };
+      }
+
+      return { data: await svar.arrayBuffer() };
+    },
+  };
+}
+
+/**
+ * Lär MapLibre läsa `pmtiles://`, en gång per sida.
+ *
+ * Grinden på `window` är inte försiktighet utan ett krav: kommunhubbens puff
+ * och den delade vyn kan båda ligga på samma dokument, och MapLibre kastar om
+ * samma protokollnamn registreras två gånger. Den som hinner först registrerar
+ * arkivet; alla tre läser samma fil, så det spelar ingen roll vem det blir.
+ *
+ * `maplibre` och `pmtiles` skickas in i stället för att importeras. MapLibre
+ * kommer från /maplibre/ som statiska filer, se modulkommentaren, och en
+ * statisk import härifrån hade dragit in hela kartmotorn i modulgrafen.
+ */
+export function registreraRutprotokoll(maplibre: any, pmtiles: any, url: string): void {
+  if ((window as any).__prikkoPmtiles) return;
+  const protokoll = new pmtiles.Protocol();
+  protokoll.add(new pmtiles.PMTiles(rutkalla(url) as any));
+  maplibre.addProtocol('pmtiles', protokoll.tile);
+  (window as any).__prikkoPmtiles = true;
+}
+
 /** Nålen som bitmapp, för MapLibres addImage. Symbol-lager kan inte rita
  *  SVG direkt, så droppen rasteriseras via en canvas. `streckad` följer med
  *  till faceSvg, så att en härledd koordinat behåller sin konvention även
