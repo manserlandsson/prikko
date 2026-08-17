@@ -40,6 +40,7 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
+import Oppettider from '../../components/Oppettider.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
@@ -655,6 +656,21 @@ const breadcrumbs = {
             city={kommun.city}
           />
         )}
+
+        {/* Öppettiderna står direkt under kartan, och det är ingen slump.
+
+            De två avsnitten svarar på samma sorts fråga, var ligger det och
+            när är det öppet, och båda är HÄRLEDDA av oss ur OpenStreetMap i
+            stället för hämtade ur kommunens register. De hör alltså ihop både
+            för läsaren och i fråga om vad de är.
+
+            Ovanför kontrollberättelsen får de inte stå: en öppettid som
+            hamnar mellan bedömningen och vad kontrollen visade läses som en
+            del av beskedet, och den kommer inte från kommunen.
+
+            Avsnittet finns inte alls på de sidor där vi saknar tider, och det
+            är de allra flesta. Se docs/33_oppettider.md för nämnaren. */}
+        {e.hours && <Oppettider hours={e.hours} name={e.name} />}
 
         {/*
           Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.

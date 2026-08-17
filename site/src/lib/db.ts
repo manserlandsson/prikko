@@ -13,6 +13,10 @@
  * Se pipeline/schema.sql för måltabellerna.
  */
 
+import type { Hours } from './oppettider';
+
+export type { Hours };
+
 export type Verdict = 'clean' | 'minor' | 'major';
 export type MissingReason = 'no_inspections' | 'stale_inspections';
 export type AreaStatus = 'ok' | 'fixed' | 'deviation' | 'persisting';
@@ -112,6 +116,16 @@ export interface Establishment {
   geoSource?: 'osm' | 'lantmateriet';
   /** 'address' = adressens egen punkt. 'approximate' = grannporten. */
   geoPrecision?: 'address' | 'approximate';
+  /**
+   * Öppettider ur OpenStreetMap, satt bara när pipelinen kunde para ihop
+   * verksamheten med ett OSM-objekt på BÅDE namn och närhet. Uppgiften är
+   * alltså aldrig kommunens, och den är inte heller vanlig: se
+   * docs/33_oppettider.md för täckningen per kommun.
+   *
+   * Fältet är valfritt och ska förbli valfritt. Sajten visar öppettider där
+   * de finns och ingenting alls där de saknas. Se lib/oppettider.ts.
+   */
+  hours?: Hours;
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;

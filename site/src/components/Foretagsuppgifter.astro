@@ -476,6 +476,17 @@ const DAGAR = [
       paintState(hours, exceptions);
       (document.getElementById('foretaget-oppet') as HTMLDivElement).hidden = false;
       något = true;
+
+      /* VERKSAMHETENS EGNA TIDER SLÅR OPENSTREETMAPS.
+         Sidan har ett andra öppettidsavsnitt högre upp, hämtat ur OSM och
+         skrivet i bygget, se Oppettider.astro. Det står där för att OSM är
+         den enda källa vi har på de allra flesta sidor. Har verksamheten
+         själv skickat in sina tider och redaktionen släppt fram dem är OSM:s
+         version i bästa fall överflödig och i värsta fall motstridig, och två
+         veckoscheman med olika klockslag på samma sida är sämre än ett.
+         Avsnittet döljs alltså här, i det enda ögonblick vi vet att en bättre
+         källa finns. */
+      document.querySelector<HTMLElement>('[data-oppettider-osm]')?.setAttribute('hidden', '');
     }
 
     const list = document.getElementById('foretaget-kontakt') as HTMLUListElement;

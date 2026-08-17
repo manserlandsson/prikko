@@ -1,0 +1,274 @@
+---
+/**
+ * Öppettider ur OpenStreetMap, och tillståndet "öppet nu".
+ *
+ * ## SIDAN HAR TVÅ ÖPPETTIDSKÄLLOR, OCH DEN HÄR ÄR DEN SVAGARE
+ *
+ * Foretagsuppgifter.astro visar de tider VERKSAMHETEN SJÄLV skickat in och
+ * redaktionen släppt fram. De är förstahandsuppgifter och slår alltid det som
+ * står här: när det avsnittet får en vecka att rita döljer det det här, se
+ * kommentaren där. Två veckoscheman med olika klockslag på samma sida är
+ * sämre än ett.
+ *
+ * Den här komponenten finns ändå, och skälet är nämnaren. Företagsytan kräver
+ * att någon på stället loggar in och skickar in, och OSM kräver ingenting av
+ * dem. Det är alltså den här som faktiskt står på sidorna.
+ *
+ * Modulerna är åtskilda med flit: lib/foretag.ts äger den insända formen
+ * (`{ mon: { from, to } }` plus avvikande datum), lib/oppettider.ts äger
+ * OSM-formen (minuter från midnatt plus helgdagsregel). De ser lika ut på
+ * skärmen och är olika data med olika villkor, och att slå ihop dem hade
+ * gjort det svårare att se vilken källa en uppgift kommer ur.
+ *
+ * ## Varför avsnittet inte finns när vi saknar tider
+ *
+ * Ingen rad, ingen rubrik, ingenting. Sajten skriver aldrig ut att den inte
+ * vet en sak: en tom ruta med "Öppettider saknas" är en rad som ser ut som
+ * ett besked, och den skulle stå på tio tusen sidor.
+ *
+ * Nämnaren är mätt och står i docs/33_oppettider.md. Läs den innan du bygger
+ * något som förutsätter att uppgiften är vanlig.
+ *
+ * ## Varför tillståndet fylls i av webbläsaren
+ *
+ * Sidan är statisk och kan ligga i en cache i timmar. "Öppet nu" skrivet vid
+ * bygget hade varit osant större delen av dygnet, och det är den sortens fel
+ * som ingen läsare kan upptäcka. Veckoschemat står därför i HTML-filen, där
+ * det hör hemma: det ändras inte under dagen, det är citerbart, och det är
+ * vad ett sökresultat ska kunna plocka. Pillen fylls i när sidan öppnas.
+ *
+ * Utan JavaScript syns schemat men ingen pille. Det är rätt ordning: vi
+ * påstår hellre ingenting än fel sak.
+ *
+ * ## Varför pillen aldrig är grön
+ *
+ * Grönt är bedömningens språk på den här sajten. `docs/17` stoppade en grön
+ * "öppet nu"-pille redan i rapport 15, och domen står: en grön pille bredvid
+ * ett verksamhetsnamn läses som hygien, inte som klockslag, och den här sidan
+ * har redan ett grönt märke som betyder något helt annat. Öppet är
+ * märkesbläck, stänger snart är bärnsten, stängt är dämpat grått.
+ *
+ * ## Varför källan står utskriven
+ *
+ * Uppgiften är OpenStreetMaps, inte kommunens, och den kan vara flera år
+ * gammal. ODbL kräver dessutom attribution där uppgiften visas. Raden under
+ * schemat bär källan, datumet vi hämtade den och en länk till objektet, så
+ * att den som ser ett fel kan rätta det vid källan i stället för hos oss.
+ *
+ * ## Varför tiderna INTE går in i JSON-LD
+ *
+ * Samma dom som `geo` fick i [slug].astro, av två skäl som var för sig räcker.
+ *
+ * `openingHoursSpecification` har ingen flagga för "härledd ur en annan
+ * källa". Ett schema som ser identiskt ut för en tid verksamheten själv
+ * uppgett och en tid vi läst i OSM saknar förbehållet exakt där maskinen
+ * läser, och det är JSON-LD en sökmotor eller en språkmodell hämtar.
+ *
+ * Och Foretagsuppgifter.astro skriver redan en nod med SAMMA `@id` när
+ * verksamhetens egna tider kommit hem. Två noder med samma id slås ihop av
+ * den som läser dem. Låg OSM:s tider i den byggda noden skulle de alltså
+ * blandas med förstahandsuppgifterna utan att någon kan se vilken som är
+ * vilken. På skärmen löses konflikten genom att det här avsnittet döljs; i
+ * strukturerad data finns ingen motsvarande väg.
+ */
+import { formatSpans, weekRows, type Hours } from '../lib/oppettider';
+import { formatDate } from '../lib/data';
+
+interface Props {
+  hours: Hours;
+  name: string;
+}
+
+const { hours, name } = Astro.props;
+const rows = weekRows(hours);
+
+/* Länken till OSM-objektet. `hours.osm` är "node/123" eller "way/123", vilket
+   är precis den form openstreetmap.org tar i sin adress. */
+const osmUrl = `https://www.openstreetmap.org/${hours.osm}`;
+
+/* Ett veckoschema där alla sju dagarna är stängda är inget schema. Pipelinen
+   ska aldrig skriva ett sådant, men komponenten ritar hellre ingenting än en
+   lista med sju "Stängt". */
+const nagotOppet = rows.some((r) => !r.closed);
+---
+
+{nagotOppet && (
+<section class="oppettider" data-oppettider-osm aria-label={`Öppettider för ${name}`}>
+  <div class="huvud">
+    <h2>Öppettider</h2>
+    {/* Tom tills skriptet fyllt i. `hidden` och inte bara tom text: en tom
+        pille med kant och padding hade blivit en synlig lucka på de sidor
+        där JavaScript inte kör. */}
+    <p class="pille" data-oppet-pille hidden>
+      <span class="prick" aria-hidden="true"></span>
+      <span class="lage" data-oppet-lage></span>
+      <span class="tillagg text-secondary" data-oppet-tillagg></span>
+    </p>
+  </div>
+
+  {/* Sju rader, måndag först, och inte hopslagna till "Mån–Fre". Den
+      hopslagna formen är kortare men tvingar läsaren att räkna sig fram till
+      i dag, och i dag är det enda man kommer hit för. Skriptet märker ut
+      dagens rad; utan skript står alla sju likvärdiga och läses ändå rätt. */}
+  <ul class="dagar" data-oppet-dagar>
+    {rows.map((rad, i) => (
+      <li class:list={['dag', rad.closed && 'stangd']} data-dag={i}>
+        <span class="namn">{rad.name}</span>
+        <span class="tid">{rad.closed ? 'Stängt' : rad.text}</span>
+      </li>
+    ))}
+  </ul>
+
+  {/* Helgdagsregeln står som en egen rad och inte som en åttonde veckodag.
+      Den gäller tretton dagar om året och hade i listan lästs som en dag i
+      veckan som heter "Helgdag". */}
+  {hours.ph !== null && (
+    <p class="helgdag text-secondary">
+      {hours.ph.length === 0
+        ? 'Stängt på röda dagar.'
+        : `Röda dagar ${formatSpans(hours.ph)}.`}
+    </p>
+  )}
+
+  <p class="kalla caption text-muted">
+    Öppettiden kommer från <a href={osmUrl} rel="nofollow noopener" target="_blank">OpenStreetMap</a>,
+    hämtad {formatDate(hours.checkedAt)}. Den är inte kommunens uppgift och kan
+    vara inaktuell. © OpenStreetMap contributors, ODbL.
+  </p>
+</section>
+)}
+
+<script>
+  /**
+   * Fyller i pillen och märker ut dagens rad.
+   *
+   * All logik ligger i lib/oppettider.ts, som är samma modul proven kör mot.
+   * Här finns bara avläsningen av det som redan står i HTML.
+   */
+  import { localNow, status, type Hours } from '../lib/oppettider';
+
+  const sektion = document.querySelector<HTMLElement>('.oppettider');
+  const data = document.querySelector<HTMLScriptElement>('[data-oppet-data]');
+
+  if (sektion && data) {
+    const hours = JSON.parse(data.textContent || '{}') as Hours;
+    const nu = localNow();
+
+    // Dagens rad först, den syns även om pillen skulle falla.
+    const rad = sektion.querySelector<HTMLElement>(`[data-dag="${nu.weekday}"]`);
+    if (rad) {
+      rad.classList.add('idag');
+      rad.setAttribute('aria-current', 'date');
+    }
+
+    const pille = sektion.querySelector<HTMLElement>('[data-oppet-pille]');
+    const lage = sektion.querySelector<HTMLElement>('[data-oppet-lage]');
+    const tillagg = sektion.querySelector<HTMLElement>('[data-oppet-tillagg]');
+
+    if (pille && lage && tillagg) {
+      const s = status(hours, nu);
+      pille.dataset.lage = s.state;
+      lage.textContent = s.label;
+      tillagg.textContent = s.detail;
+      pille.hidden = false;
+    }
+  }
+</script>
+
+{/* Schemat som data för skriptet ovan. Ett application/json-block och inte
+    ett dataattribut: uttrycket har hakparenteser och citattecken, och som
+    attribut hade det blivit en rad escapade tecken ingen kan läsa i källan. */}
+<script type="application/json" data-oppet-data set:html={JSON.stringify(hours)} is:inline />
+
+<style>
+  .oppettider {
+    padding-top: var(--s-6);
+    margin-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .huvud {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-3);
+  }
+
+  h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+    letter-spacing: -.02em;
+  }
+
+  /* Pillen. Kant och bakgrund i samma ton som läget, aldrig fylld: en fylld
+     pille väger lika tungt som bedömningsmärket längre upp på sidan, och en
+     öppettid är inte ett besked av den digniteten. */
+  .pille {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .prick {
+    align-self: center;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: currentColor;
+  }
+
+  /* ÖPPET ÄR MÄRKESBLÅTT OCH ALDRIG GRÖNT. Se modulkommentaren. */
+  .pille[data-lage='open'] { color: var(--brand-ink); }
+  /* Bärnsten och inte gult: --verdict-minor är bedömningens gula och ligger
+     dessutom på 1,5:1 mot vitt. Den här tonen är egen och läsbar. */
+  .pille[data-lage='closing'] { color: #B26B00; }
+  .pille[data-lage='closed'] { color: var(--ink-quiet); }
+
+  .tillagg {
+    font-weight: 400;
+  }
+
+  .dagar {
+    margin-top: var(--s-4);
+    max-width: 26rem;
+  }
+
+  .dag {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-4);
+    padding: 6px 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .namn { color: var(--text-secondary); }
+
+  .tid { font-variant-numeric: tabular-nums; }
+
+  .stangd .tid { color: var(--text-muted); }
+
+  /* Dagens rad. Halvfet på båda spalterna och inget band: ett bakgrundsband
+     hade gjort listan randig och dragit blicken till formen i stället för
+     till raden. */
+  .idag .namn,
+  .idag .tid {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .helgdag {
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .kalla {
+    margin-top: var(--s-3);
+    max-width: 34rem;
+  }
+</style>
