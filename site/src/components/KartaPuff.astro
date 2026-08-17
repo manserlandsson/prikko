@@ -169,6 +169,8 @@ const href = path(`/${kommun.slug}`, 'karta');
   import { FACE_KEYS, type FaceKey } from '../lib/face';
   import {
     faceBitmap,
+    KART_BRAND,
+    KART_FARG,
     KARTA_I_DOKUMENT,
     KARTSTIL,
     laddaMaplibre,
@@ -192,10 +194,6 @@ const href = path(`/${kommun.slug}`, 'karta');
      *  rikets, så en nål i den här rutan kan i princip tillhöra grannkommunen,
      *  och länken måste då peka dit. */
     const KOMMUNER: string[] = JSON.parse(root.dataset.keys!);
-
-    /** Bedömningens ytfärger, samma tal som tokens.css och Karta.astro.
-     *  MapLibre målar i WebGL och kan inte läsa en CSS-variabel. */
-    const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
 
     let startad = false;
 
@@ -300,7 +298,7 @@ const href = path(`/${kommun.slug}`, 'karta');
             'source-layer': TILE_LAYER,
             filter: ['has', 'point_count'],
             paint: {
-              'circle-color': '#007BE0',
+              'circle-color': KART_BRAND,
               'circle-stroke-width': 1.5,
               'circle-stroke-color': '#fff',
               'circle-radius': ['step', ['get', 'point_count'], 13, 25, 15, 100, 18, 500, 22],
@@ -360,10 +358,10 @@ const href = path(`/${kommun.slug}`, 'karta');
                     'circle-stroke-color': '#fff',
                     'circle-color': [
                       'match', ['get', 'v'],
-                      0, FARG[0],
-                      1, FARG[1],
-                      2, FARG[2],
-                      FARG[3],
+                      0, KART_FARG[0],
+                      1, KART_FARG[1],
+                      2, KART_FARG[2],
+                      KART_FARG[3],
                     ],
                   },
                 },

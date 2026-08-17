@@ -78,6 +78,30 @@ export const KARTSTIL = '/kartstil/prikko.json';
  */
 export const TILE_LAYER = 'punkter';
 
+/**
+ * Bedömningens fyra ytfärger, i den ordning `v` i rutorna använder dem:
+ * 0 inga anmärkningar, 1 brister, 2 brister som kvarstår, 3 ingen bedömning.
+ *
+ * Samma tal som `--verdict-*` i styles/tokens.css. De står som hexvärden och
+ * inte som token därför att MapLibre målar i WebGL och inte kan läsa en
+ * CSS-variabel. Ändras tokens.css ändras de här.
+ *
+ * De stod i tre komponenter med var sin kommentar som sa just det, alltså tre
+ * löften om att hålla samma fyra tal synkroniserade för hand. Nu är det ett.
+ *
+ * Färgerna gäller NÅLAR och PRICKAR, aldrig kluster: en klusterfärg efter
+ * andel anmärkningar vore en värmekarta över vilka kvarter som sköter sig
+ * sämst. Kluster bär antal och målas i KART_BRAND.
+ *
+ * De är inte heller textfärger. Som text på vitt är gult i praktiken oläsligt
+ * och grått nästan osynligt; för text finns `--verdict-*-ink` i tokens.css.
+ */
+export const KART_FARG: string[] = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
+
+/** `--brand` i tokens.css, alltså klustrens och "du är här"-ringens blå.
+ *  Skriven som tal av samma skäl som KART_FARG: WebGL läser ingen variabel. */
+export const KART_BRAND = '#007BE0';
+
 const MAPLIBRE_URL = '/maplibre/maplibre-gl.mjs';
 const MAPLIBRE_CSS = '/maplibre/maplibre-gl.css';
 

@@ -492,9 +492,17 @@ const LEGEND = [
      Nålen bor i en egen fil och inte i kartbas.ts, eftersom kartbas importerar
      maplibre ur public och därför bara får laddas dynamiskt i webbläsaren. */
   import { faceSvg } from '../lib/kartnal';
-  /* Ordlistan och rutarkivets källa. Kartbas laddar MapLibre dynamiskt inuti
-     en funktion, så en statisk import härifrån drar inte in biblioteket. */
-  import { KART_SPRAK, registreraRutprotokoll, TILE_LAYER } from '../lib/kartbas';
+  /* Ordlistan, färgerna, lagernamnet och rutarkivets källa. Kartbas laddar
+     MapLibre dynamiskt inuti en funktion, så en statisk import härifrån drar
+     inte in biblioteket. Färgerna stod här som egna kopior, med samma tal och
+     samma kommentar som KartaPuff och OmradeKarta bar var sin av. */
+  import {
+    KART_BRAND,
+    KART_FARG,
+    KART_SPRAK,
+    registreraRutprotokoll,
+    TILE_LAYER,
+  } from '../lib/kartbas';
   import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
   import { VERDICT } from '../lib/site';
@@ -504,7 +512,6 @@ const LEGEND = [
 
   /** Etiketter per bedömningssiffra i datafilen. */
   const LABEL = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label, 'Ingen bedömning'];
-  const COLOR = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
   const FACE_BY_V: FaceKey[] = ['clean', 'minor', 'major', 'none'];
 
   interface Punkt {
@@ -1179,7 +1186,7 @@ const LEGEND = [
     /*
      * Textfärgen för bedömningen är INTE nålens färg.
      *
-     * COLOR är märkesfärgerna, valda för att synas som fyllda ytor mot en
+     * KART_FARG är märkesfärgerna, valda för att synas som fyllda ytor mot en
      * karta. Som text på vitt är gult (#FECB00) i praktiken oläsligt och grått
      * (#C7C7CC) nästan osynligt. Sajten har redan mörkare varianter avsedda
      * för text i tokens.css, och det är de som ska användas här.
@@ -1893,10 +1900,10 @@ const LEGEND = [
           // Ytan är svag och ringen tydlig: cirkeln säger "ungefär här", och
           // ungefär är sant, eftersom koordinaten är avrundad till 110 meter.
           'circle-radius': 9,
-          'circle-color': '#007BE0',
+          'circle-color': KART_BRAND,
           'circle-opacity': 0.25,
           'circle-stroke-width': 3,
-          'circle-stroke-color': '#007BE0',
+          'circle-stroke-color': KART_BRAND,
         },
       });
     }
@@ -2161,7 +2168,7 @@ const LEGEND = [
           'source-layer': TILE_LAYER,
           filter: ['has', 'point_count'],
           paint: {
-            'circle-color': '#007BE0',
+            'circle-color': KART_BRAND,
             'circle-opacity': 1,
             'circle-stroke-width': 1.5,
             'circle-stroke-color': '#fff',
@@ -2235,7 +2242,7 @@ const LEGEND = [
                   'circle-radius': 7,
                   'circle-stroke-width': 2,
                   'circle-stroke-color': '#fff',
-                  'circle-color': ['match', ['get', 'v'], 0, COLOR[0], 1, COLOR[1], 2, COLOR[2], COLOR[3]],
+                  'circle-color': ['match', ['get', 'v'], 0, KART_FARG[0], 1, KART_FARG[1], 2, KART_FARG[2], KART_FARG[3]],
                 },
               },
         );
@@ -2278,7 +2285,7 @@ const LEGEND = [
           'source-layer': TILE_LAYER,
           filter: BRICKA,
           paint: {
-            'circle-color': '#007BE0',
+            'circle-color': KART_BRAND,
             'circle-radius': 8,
             'circle-stroke-width': 1.5,
             'circle-stroke-color': '#fff',

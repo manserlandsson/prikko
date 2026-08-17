@@ -464,8 +464,9 @@ const gransUpphov = kalla
    * Masken. Samma två tal som kartlagret, se `masken` i frontmatter, och de
    * två MÅSTE följas åt: står de olika hoppar utsidan när kartan vaknar.
    *
-   * Skrivna som hexvärde och inte som token av samma skäl som FARG och BRAND
-   * i skriptet nedan. Det finns ingen neutral i tokens.css som ligger här, och
+   * Skrivna som hexvärde och inte som token av samma skäl som KART_FARG och
+   * KART_BRAND i lib/kartbas.ts: MapLibre målar i WebGL och kan inte läsa en
+   * CSS-variabel. Det finns ingen neutral i tokens.css som ligger här, och
    * en ny token för ett värde som bara kartan använder hade lagt sajtens
    * gråskala en nivå djupare för ingenting.
    */
@@ -571,6 +572,8 @@ const gransUpphov = kalla
    * uppkopplingen ska tåla en halv megabyte.
    */
   import {
+    KART_BRAND,
+    KART_FARG,
     KARTA_I_DOKUMENT,
     KARTSTIL,
     laddaMaplibre,
@@ -591,12 +594,9 @@ const gransUpphov = kalla
 
     const reducerad = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    /* Bedömningens ytfärger. Samma värden som tokens.css, skrivna som tal av
-       samma skäl som i Karta.astro och KartaPuff: MapLibre målar i WebGL och
-       kan inte läsa en CSS-variabel. */
-    const FARG = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
-    /** --brand i tokens.css. Ändras den där ändras den här. */
-    const BRAND = '#007BE0';
+    /* Bedömningens ytfärger och märkesblått kommer ur lib/kartbas.ts. Här
+       stod egna kopior av samma sex tal, med en kommentar som lovade att de
+       skulle hållas lika med tokens.css för hand. */
     /** Maskens grå och dess täckning. Samma två tal som `.mask` i stilblocket
      *  ovan, uppmätta hos Booli. Ändras det ena ändras det andra, annars
      *  hoppar utsidan när kartan vaknar. */
@@ -732,7 +732,7 @@ const gransUpphov = kalla
             id: 'omrade-kant',
             type: 'line',
             source: 'omrade',
-            paint: { 'line-color': BRAND, 'line-width': 2, 'line-opacity': 0.75 },
+            paint: { 'line-color': KART_BRAND, 'line-width': 2, 'line-opacity': 0.75 },
           });
 
           /*
@@ -758,7 +758,7 @@ const gransUpphov = kalla
            * lyser igenom läser som smuts i stället för som djup.
            */
           const bubbelYta = {
-            'circle-color': BRAND,
+            'circle-color': KART_BRAND,
             'circle-stroke-width': 1.5,
             'circle-stroke-color': '#fff',
             'circle-radius': ['step', ['get', 'point_count'], 13, 25, 15, 100, 18, 500, 22],
@@ -775,7 +775,7 @@ const gransUpphov = kalla
             'text-ignore-placement': true,
           };
 
-          const nalFarg = ['match', ['get', 'v'], 0, FARG[0], 1, FARG[1], 2, FARG[2], FARG[3]];
+          const nalFarg = ['match', ['get', 'v'], 0, KART_FARG[0], 1, KART_FARG[1], 2, KART_FARG[2], KART_FARG[3]];
 
           karta.addLayer({
             id: 'ute-nalar',
