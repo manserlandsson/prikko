@@ -137,8 +137,11 @@ _LEGAL = {
     "&",
 }
 
-#: Ord som beskriver verksamhetsformen snarare än stället. De stryks bara när
-#: något annat blir kvar, se `name_tokens`.
+#: Ord som beskriver verksamhetsformen snarare än stället. De STRYKS ALDRIG ur
+#: namnet — "Pizzeria Rossi" och "Pizzeria Milano" skiljs åt av det andra
+#: ordet, och stryker vi det första blir jämförelsen bara svagare. Listan
+#: används i stället för att avgöra om ett ensamt gemensamt ord räcker som
+#: belägg, se `names_agree`.
 _GENERIC = {
     "pizzeria",
     "pizza",
@@ -177,13 +180,15 @@ def fold(raw: str) -> str:
 def name_tokens(raw: str) -> Tuple[str, ...]:
     """Ordmängden ett namn jämförs på.
 
-    Bolagsformer stryks alltid. Verksamhetsord stryks bara när något annat
-    blir kvar: "Pizzeria" ensamt är fortfarande stället, "Pizzeria Rossi" är
-    "rossi". Siffror behålls — "Pizzeria 2" och "Pizzeria 4" är olika ställen.
+    Bolagsformer stryks: "Pizzeria Rossi AB" i kommunens register är
+    "Pizzeria Rossi" på skylten. Allt annat behålls, siffror inbegripna, för
+    "Pizzeria 2" och "Pizzeria 4" är olika ställen på samma gata.
     """
-    words = [w for w in fold(raw).split() if w and w not in _LEGAL]
-    stripped = [w for w in words if w not in _GENERIC]
-    return tuple(stripped or words)
+    seen = []
+    for word in fold(raw).split():
+        if word and word not in _LEGAL and word not in seen:
+            seen.append(word)
+    return tuple(seen)
 
 
 # ---------------------------------------------------------------------------
@@ -302,16 +307,22 @@ class PoiIndex:
         return found
 
 
+#: Kortaste ensamma ord som får bära en hopparning på egen hand. Tre bokstäver
+#: eller färre är i praktiken alltid ett allmänord: "ost", "bar", "kok", "vin".
+MIN_SOLO_TOKEN = 4
+
+
 def names_agree(ours: Tuple[str, ...], theirs: Tuple[str, ...]) -> bool:
     """Är det här samma ställe, räknat på namnet?
 
     Lika ordmängd, eller den ena en hel delmängd av den andra. Delmängden
     behövs åt båda håll: kommunens register skriver ofta ut mer än skylten
     ("Sushi Yama Gallerian" mot "Sushi Yama"), och ibland mindre ("Rossi" mot
-    "Pizzeria Rossi", där verksamhetsordet redan strukits ur den ena).
+    "Pizzeria Rossi").
 
-    En delmängd på ett enda vanligt ord är för svagt och godtas inte: kravet
-    är att den mindre mängden bär minst två ord, eller att mängderna är lika.
+    Ett ENSAMT gemensamt ord räcker bara när ordet självt bär något. "Rossi"
+    inuti "Pizzeria Rossi" är stället; "Pizzeria" inuti "Pizzeria Milano" är
+    verksamhetsformen och parar ihop halva gatan.
     """
     if not ours or not theirs:
         return False
@@ -321,7 +332,10 @@ def names_agree(ours: Tuple[str, ...], theirs: Tuple[str, ...]) -> bool:
     smaller, larger = (a, b) if len(a) <= len(b) else (b, a)
     if not smaller <= larger:
         return False
-    return len(smaller) >= 2
+    if len(smaller) >= 2:
+        return True
+    word = next(iter(smaller))
+    return word not in _GENERIC and len(word) >= MIN_SOLO_TOKEN
 
 
 @dataclass(frozen=True)
