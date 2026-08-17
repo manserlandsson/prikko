@@ -43,26 +43,49 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Tre kommuner svarar inte på GitHubs löpare, och det är inget vi kan
+      # Tre kommuner når GitHubs löpare bara ibland, och det är inget vi kan
       # koda oss ur.
       #
-      # Örebro, Höganäs och Lomma ligger alla på samma webbhotell
-      # (185.84.52.x). Uppmätt 2026-08-14: från Sverige svarar alla tre med
-      # 200 på under 0,3 sekunder, även med vår egen robot-user-agent. Från
-      # löparen tar anslutningen timeout efter 120 sekunder, tre försök i rad.
-      # Löparen står i Azure westus3, alltså i USA. Det ser ut som spärr mot
-      # utländska eller moln-IP och inte som ett fel hos oss.
+      # www.orebro.se (185.84.52.243), www.hoganas.se (185.84.52.249) och
+      # lomma.se (185.84.52.48) ligger på samma webbhotell och har alla en
+      # AAAA-adress i 2a05:a140::/32. Från Sverige svarar alla tre med 200 på
+      # under 0,4 sekunder, även med vår egen robot-user-agent. Från löparen,
+      # som står i Azure westus3, hänger anslutningen i 120 sekunder och dör
+      # sedan, tre försök i rad.
       #
-      # Felmeddelandet ledde dessutom fel i tolv nätter: Python provar AAAA
-      # först, löparen saknar IPv6-väg, och `create_connection` rapporterar
-      # FÖRSTA felet av alla adresser. Det blev "Network is unreachable" från
-      # IPv6-försöket, medan de 120 sekunderna gick åt till IPv4 som tog
-      # timeout. IPv6 var alltså aldrig problemet.
+      # Felmeddelandet "Network is unreachable" pekade fel i tolv nätter.
+      # Löparen saknar IPv6-väg, så AAAA-försöket faller ögonblickligen med
+      # ENETUNREACH, medan de 120 sekunderna gick åt till IPv4 som tog timeout.
+      # `socket.create_connection` behåller BARA det sista felet av alla
+      # adresser (se kommentaren "raise only the last error" i CPython), och
+      # eftersom IPv6 provas sist är det den ögonblickliga miss som syns medan
+      # den långsamma IPv4-timeouten göms. IPv6 var alltså aldrig problemet.
+      #
+      # Att en IPv4-anslutning hänger i 120 sekunder i stället för att nekas är
+      # vad en brandvägg som SLÄNGER paket ser ut som, och därav gissningen
+      # 2026-08-14 att de tre spärrat utländska eller moln-IP. Den gissningen
+      # skrevs ned som en slutsats, och det var fel: spärr är permanent, det
+      # här är det inte. Utfallet natt för natt, läst ur loggarna eftersom
+      # continue-on-error skriver om stegets resultat till "success":
+      #
+      #   08-14 21:22 manuell    Höganäs 310 poster, Örebro föll på ett
+      #                          kodfel, Lomma unreachable
+      #   08-15 00:37 manuell    Örebro 1233, Höganäs 310, Lomma unreachable
+      #   08-15 03:52 schemalagd Örebro 1233, Höganäs och Lomma unreachable
+      #   08-16 03:58 schemalagd alla tre unreachable
+      #   08-17 04:00 schemalagd alla tre unreachable
+      #
+      # Örebro och Höganäs kom alltså igenom två gånger var från samma
+      # löparflotta, Lomma inte en enda gång på sex försök. Det är ett
+      # ostadigt nät eller en tröskel hos webbhotellet, inte en stängd dörr.
       #
       # De tre får därför varna i stället för att fälla körningen, medan alla
       # andra kommuner fortfarande fäller den rött. En tyst grön natt vore
       # värre än ett mejl. Vill vi ha dem varje natt behövs en löpare i
       # Sverige eller en proxy, och det är ett beslut och inte en rättelse.
+      #
+      # Lärdomen är värd att stå kvar: en gissning som skrivs ned som en
+      # slutsats blir svårare att motbevisa för varje natt den får stå.
       - name: Hämta
         if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
         continue-on-error: ${{ contains(fromJSON('["orebro", "hoganas", "lomma"]'), matrix.kommun) }}
@@ -207,10 +230,16 @@ jobs:
       # Men en kommun som fryser tyst fryser för alltid. Därför faller
       # körningen här, EFTER att datan är incheckad: sajten får sitt, och
       # mejlet kommer ändå.
+      #
+      # Sökvägen är site/src/ och inte data/. report_collapse skriver markören
+      # bredvid utkatalogen, alltså `--out site/src/data` upp ett steg. Steget
+      # läste data/rasade-kommuner.txt, en fil som aldrig skrivs, så villkoret
+      # var alltid falskt och en frusen kommun hade passerat tyst. Det är
+      # precis det tysta frysandet steget finns för att förhindra.
       - name: Fäll körningen om någon kommun frös
         run: |
-          if [ -s data/rasade-kommuner.txt ]; then
-            echo "Dessa kommuner behöll gårdagens data: $(cat data/rasade-kommuner.txt)"
+          if [ -s site/src/rasade-kommuner.txt ]; then
+            echo "Dessa kommuner behöll gårdagens data: $(cat site/src/rasade-kommuner.txt)"
             echo "Övriga kommuner är incheckade. Börja felsökningen i kommunens"
             echo "hämtare, den upptäcker oftast själv att sidformatet ändrats."
             exit 1
