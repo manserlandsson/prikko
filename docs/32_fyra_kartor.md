@@ -81,6 +81,12 @@ sidtyp.
 
 ## Vad de redan delar
 
+Tabellen nedan är läget FÖRE städningen 2026-08-18. Efter den bär
+`lib/kartbas.ts` sex exporter till, nämligen `TILE_LAYER`, `KART_FARG`,
+`KART_BRAND`, `rutkalla`, `registreraRutprotokoll` och `vakna`, och
+`Karta.astro` läser fem av dem i stället för en. Se "Lågrisk: gjort" längre
+ned.
+
 `lib/kartbas.ts` bär sju exporter:
 
 | Export | Karta | KartaPuff | OmradeKarta | Platskarta |
@@ -184,24 +190,82 @@ en karta i fyra skepnader.
 - **Upphovsraden.** `OmradeKarta` kör `compact: false` som `Karta`, och
   fritextraden under kartan är borta.
 
-### Lågrisk, kan tas av vem som helst
+### Lågrisk: gjort 2026-08-18
 
-1. **Flytta `rutkalla()` och protokollregistreringen till `lib/kartbas.ts`.**
-   En funktion, tre anropsplatser, identisk kod. Omfattning: en halvdag,
-   ungefär 105 rader kod bort ur komponenterna. Risken är låg eftersom
-   funktionen är ren och inte rör DOM.
-2. **Flytta uppvakningsvillkoren till `lib/kartbas.ts`.** Något i stil med
-   `vakna(element, start)`. Tre kopior blir en, och Platskartans divergens
-   blir omöjlig att göra om av misstag. Omfattning: en halvdag, ungefär 90
-   rader. **Detta lagar samtidigt punkt 3 ovan**, och det är den enda posten i
-   listan som rättar ett verkligt fel för en besökare och inte bara städar.
-3. **Peka på `TILE_LAYER` i stället för att skriva `'punkter'`.** Tjugo
-   ställen, mekaniskt. Omfattning: en timme.
-4. **Flytta de fyra bedömningsfärgerna och `BRAND` till `lib/kartbas.ts`.**
-   De står i dag i tre komponenter med en kommentar var som säger att de är
-   samma tal som `tokens.css`. Omfattning: en timme.
+Alla fyra posterna är genomförda, en commit var. Vad som faktiskt hände, och
+vad de kostade mätt i stället för uppskattat:
 
-Punkt 1 till 4 tar bort ungefär 250 rader kod utan att en enda pixel ändras.
+1. **`rutkalla()` och protokollregistreringen ligger i `lib/kartbas.ts`.**
+   Tre identiska kopior blev en `rutkalla(url)` och en
+   `registreraRutprotokoll(maplibre, pmtiles, url)`. Karta.astros kopia bar
+   dessutom en `helaFilen`-hjälpare som deklarerades och aldrig anropades; den
+   var död kod och är inte återskapad.
+2. **Uppvakningsvillkoren ligger i `lib/kartbas.ts` som `vakna(el, start)`.**
+   TVÅ kopior blev en, inte tre. Returvärdet är `false` när
+   uppkopplingsgrinden sa nej, vilket är den enda skillnaden mellan de två:
+   områdeskartans knapp är en utlösare och göms när kartan ändå kommer, medan
+   kommunhubbens är en länk och alltid står kvar.
+
+   **Platskartan rördes inte**, och punkt 3 under "Vad som är duplicerat" står
+   alltså kvar oläst. Att lägga grinden där ÄNDRAR beteende för en besökare
+   med `saveData`, vilket är hela poängen med posten men samtidigt inte en
+   städning, och filens uppvaknande låg hos en annan session. Den som tar
+   posten tar den för sig.
+3. **Kartlagren pekar på `TILE_LAYER`.** Alla tjugo ställena. Definitionen
+   flyttade från `lib/kartrutor.ts` till `lib/kartbas.ts` och återexporteras
+   därifrån. Riktningen är ett krav och inte smak: värdet behövs i
+   webbläsaren av alla fyra kartorna, och `kartrutor.ts` drar in `node:crypto`,
+   supercluster, vt-pbf och hela datalagret.
+4. **`KART_FARG` och `KART_BRAND` ligger i `lib/kartbas.ts`.** Sex tal ur tre
+   komponenter. `OmradeKarta`:s frontmatter behåller sin egen `FARG`, som är
+   något annat: en tabell med `var(--verdict-*)` för stillbildens SVG, där en
+   CSS-variabel tvärtom är rätt svar.
+
+**Vad det gav, uppmätt med samma metod som tabellen överst.** Kodrader, alltså
+varken blanka eller prosa:
+
+| Fil | Före | Efter | Skillnad |
+|---|---:|---:|---:|
+| `Karta.astro` | 1 973 | 1 946 | −27 |
+| `KartaPuff.astro` | 410 | 366 | −44 |
+| `OmradeKarta.astro` | 539 | 491 | −48 |
+| `lib/kartbas.ts` | 49 | 115 | +66 |
+| **Netto** | | | **−53** |
+
+Uppskattningen "ungefär 250 rader" var för hög, och skälet är värt att skriva
+ned: den räknade den flyttade PROSAN som borttagen. Motiveringarna försvann
+inte, de bor på ett ställe i stället för tre, och råa radantal går därför bara
+ned med 196 i komponenterna mot 211 tillagda i `kartbas.ts`. Det som faktiskt
+vanns är att sextio raders resonemang om Cloudflares kant nu står EN gång.
+
+**Vad det kostade i vikt, och varför det inte är gratis.** Uppmätt brotlat i
+bygget, per sida och per paket:
+
+| Paket | Före | Efter |
+|---|---:|---:|
+| `kartbas.<hash>.js`, delad | 1 110 B | 1 661 B |
+| `Karta.astro`-skriptet | 7 075 B | 6 842 B |
+| `KartaPuff.astro`-skriptet | 1 975 B | 1 529 B |
+| `OmradeKarta.astro`-skriptet | 2 054 B | 1 601 B |
+| `Platskarta.astro`-skriptet | 682 B | 683 B |
+
+Sidpaketen krymper med 1 132 B tillsammans och den delade filen växer med
+551 B. Summerat över allt JavaScript i bygget är det 1 494 B mindre.
+
+Men den delade filen laddas av ALLA fyra, och verksamhetssidan använder
+varken `rutkalla` eller `vakna`. Ett ensamt besök på en verksamhetssida
+hämtar därför 551 B mer brotlat än förut, och verksamhetssidan är sajtens
+vanligaste. Ett besök som rör sig mellan kommunhubb, verksamhetssida och
+kartsida hämtar i stället mindre, eftersom `kartbas` är en delad fil som
+hämtas en gång.
+
+Vill man ha båda hållen finns en väg, och den har husets egen förebild:
+`lib/kartnal.ts` bröts en gång ur `kartbas.ts` med precis det här skälet
+utskrivet. `rutkalla`, `registreraRutprotokoll` och `vakna` hör till de TRE
+kartor som läser rutarkivet, inte till alla fyra, och en `lib/kartarkiv.ts`
+hade lämnat verksamhetssidan orörd. Det är en fil till och ett beslut, inte
+en städning, och det är därför det står här som en mätning och inte som en
+gjord sak.
 
 ### Kräver ägarens beslut
 
