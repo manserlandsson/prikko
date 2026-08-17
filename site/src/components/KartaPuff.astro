@@ -55,7 +55,8 @@
  * rutor utsnittet kräver, och ett utzoomat kommunutsnitt är några kilobyte.
  *
  * Uppvaknandet är villkorat på tre saker, och alla tre måste hålla. Villkoren
- * är oförändrade och skälen står kvar ordagrant:
+ * är oförändrade och bor numera i `vakna` i lib/kartbas.ts, tillsammans med
+ * skälen; de står kvar ordagrant:
  *
  * 1. **Efter `load`, sedan i en tomgångslucka.** Sidan är helt klar innan
  *    första kartbyten hämtas. LCP mäts på det som redan står där, rutan byter
@@ -173,6 +174,7 @@ const href = path(`/${kommun.slug}`, 'karta');
     laddaMaplibre,
     laddaMaplibreCss,
     registreraRutprotokoll,
+    vakna,
   } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
 
@@ -460,76 +462,17 @@ const href = path(`/${kommun.slug}`, 'karta');
 
     // ── Uppvaknandet ─────────────────────────────────────────────────────
 
-    /**
-     * Tål uppkopplingen en karta?
+    /*
+     * Villkoren bor i lib/kartbas.ts: uppkopplingen ska tåla det, rutan ska
+     * synas, sidan ska vara klar, huvudtråden ska vara ledig. Skälen står där,
+     * ordagrant som de stod här. Här låg 72 rader som OmradeKarta.astro bar en
+     * ordagrann kopia av.
      *
-     * Villkoren är hårda och inte mjuka, och det är hela svaret på frågan om
-     * den som kommer från Google på en telefon med dålig uppkoppling. Var och
-     * en av dem stoppar uppvaknandet HELT; besökaren får platshållaren och
-     * knappen och betalar noll extra byte.
-     *
-     * `saveData` är besökarens uttryckliga önskan och väger tyngst.
-     * `effectiveType` är webbläsarens egen mätning av verklig genomströmning
-     * och rundtid, inte en gissning ur radiotypen. `prefers-reduced-data` är
-     * samma önskan uttryckt i systemet i stället för i webbläsaren.
-     *
-     * Signalen finns bara i Chromium. I Safari och Firefox är `connection`
-     * odefinierad, och då vaknar kartan: sidan är redan färdigladdad, och
-     * alternativet vore att aldrig ge kartan till någon på de webbläsarna.
+     * Returvärdet används inte här. Knappen göms INTE i förväg: den är en
+     * riktig länk till kartvyn och inte en utlösare, alltså är den nyttig ända
+     * tills kartan ritat och platshållaren tonar bort av sig själv.
      */
-    function uppkopplingenTal(): boolean {
-      const c = (navigator as any).connection;
-      if (c) {
-        if (c.saveData) return false;
-        if (c.effectiveType && c.effectiveType !== '4g') return false;
-      }
-      return !window.matchMedia('(prefers-reduced-data: reduce)').matches;
-    }
-
-    if (uppkopplingenTal()) {
-      /*
-       * Ordningen är: rutan syns, sidan är klar, huvudtråden är ledig.
-       *
-       * IntersectionObserver först, så att den som landar på sida 47 av
-       * Stockholm och aldrig rullar upp till sidopanelen slipper hämtningen.
-       * `load` sedan, så att kartbladen aldrig konkurrerar med sidans egna
-       * resurser. Tomgångsluckan sist, så att MapLibres halva megabyte tolkas
-       * när ingen väntar på svar. Timeouten på tre sekunder är ryggraden: en
-       * sida som aldrig blir riktigt tom i huvudtråden ska ändå få sin karta.
-       *
-       * requestIdleCallback saknas i äldre Safari, därav reservutgången.
-       *
-       * Knappen göms INTE i förväg. Den är numera en riktig länk till kartvyn
-       * och inte en utlösare, alltså är den nyttig ända tills kartan ritat och
-       * platshållaren tonar bort av sig själv.
-       */
-      const nar = (fn: () => void) => {
-        const idle = (window as any).requestIdleCallback;
-        if (idle) idle(fn, { timeout: 3000 });
-        else setTimeout(fn, 200);
-      };
-
-      const efterLoad = (fn: () => void) => {
-        if (document.readyState === 'complete') nar(fn);
-        else window.addEventListener('load', () => nar(fn), { once: true });
-      };
-
-      if ('IntersectionObserver' in window) {
-        const obs = new IntersectionObserver(
-          (poster) => {
-            if (!poster.some((p) => p.isIntersecting)) return;
-            obs.disconnect();
-            efterLoad(start);
-          },
-          // Marginalen gör att kartan hinner vakna precis innan rutan når vyn
-          // i stället för precis efter.
-          { rootMargin: '200px' },
-        );
-        obs.observe(root);
-      } else {
-        efterLoad(start);
-      }
-    }
+    vakna(root, start);
 
     // Knappen är en länk till kartvyn och behöver varken lyssnare eller
     // referens. Här stod `void knapp;` med en förklaring till en variabel som

@@ -245,6 +245,90 @@ export function registreraRutprotokoll(maplibre: any, pmtiles: any, url: string)
   (window as any).__prikkoPmtiles = true;
 }
 
+/**
+ * Tål uppkopplingen en karta?
+ *
+ * Villkoren är hårda och inte mjuka, och det är hela svaret på frågan om den
+ * som kommer från Google på en telefon med dålig uppkoppling. Var och en av
+ * dem stoppar uppvaknandet HELT; besökaren får platshållaren och betalar noll
+ * extra byte av MapLibres 231 kB brotlade.
+ *
+ * `saveData` är besökarens uttryckliga önskan och väger tyngst.
+ * `effectiveType` är webbläsarens egen mätning av verklig genomströmning och
+ * rundtid, inte en gissning ur radiotypen. `prefers-reduced-data` är samma
+ * önskan uttryckt i systemet i stället för i webbläsaren.
+ *
+ * Signalen finns bara i Chromium. I Safari och Firefox är `connection`
+ * odefinierad, och då vaknar kartan: sidan är redan färdigladdad, och
+ * alternativet vore att aldrig ge kartan till någon på de webbläsarna.
+ */
+function uppkopplingenTal(): boolean {
+  const c = (navigator as any).connection;
+  if (c) {
+    if (c.saveData) return false;
+    if (c.effectiveType && c.effectiveType !== '4g') return false;
+  }
+  return !window.matchMedia('(prefers-reduced-data: reduce)').matches;
+}
+
+/**
+ * Uppvaknandet för en kartruta som ligger i ett sidflöde man rullar.
+ *
+ * Villkoren bor HÄR och inte i komponenterna. De låg i två ordagrant lika
+ * kopior, en i KartaPuff.astro och en i OmradeKarta.astro, och en kopia av en
+ * sanning divergerar alltid: sajtens fjärde karta, verksamhetssidans
+ * platskarta, har redan glidit ifrån och saknar uppkopplingsgrinden helt.
+ * Kopiera inte tillbaka villkoren, importera dem.
+ *
+ * Ordningen är: uppkopplingen ska tåla det, rutan ska synas, sidan ska vara
+ * klar, huvudtråden ska vara ledig.
+ *
+ * IntersectionObserver först, så att den som landar på sida 47 av Stockholm
+ * och aldrig rullar ner slipper hämtningen. `load` sedan, så att kartbladen
+ * aldrig konkurrerar med sidans egna resurser. Tomgångsluckan sist, så att
+ * MapLibres halva megabyte tolkas när ingen väntar på svar. Timeouten på tre
+ * sekunder är ryggraden: en sida som aldrig blir riktigt tom i huvudtråden ska
+ * ändå få sin karta.
+ *
+ * `requestIdleCallback` saknas i äldre Safari, därav reservutgången.
+ * Marginalen på 200 px gör att kartan hinner vakna precis innan rutan når vyn
+ * i stället för precis efter.
+ *
+ * Returnerar `false` när uppkopplingen sa nej och ingenting alls armerades.
+ * Den som har en knapp att gömma när kartan ändå kommer av sig själv gömmer
+ * den på ett `true`.
+ */
+export function vakna(element: Element, start: () => void): boolean {
+  if (!uppkopplingenTal()) return false;
+
+  const nar = (fn: () => void) => {
+    const idle = (window as any).requestIdleCallback;
+    if (idle) idle(fn, { timeout: 3000 });
+    else setTimeout(fn, 200);
+  };
+
+  const efterLoad = (fn: () => void) => {
+    if (document.readyState === 'complete') nar(fn);
+    else window.addEventListener('load', () => nar(fn), { once: true });
+  };
+
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver(
+      (poster) => {
+        if (!poster.some((p) => p.isIntersecting)) return;
+        obs.disconnect();
+        efterLoad(start);
+      },
+      { rootMargin: '200px' },
+    );
+    obs.observe(element);
+  } else {
+    efterLoad(start);
+  }
+
+  return true;
+}
+
 /** Nålen som bitmapp, för MapLibres addImage. Symbol-lager kan inte rita
  *  SVG direkt, så droppen rasteriseras via en canvas. `streckad` följer med
  *  till faceSvg, så att en härledd koordinat behåller sin konvention även

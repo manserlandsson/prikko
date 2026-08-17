@@ -45,8 +45,8 @@
  *
  * ## Vikten
  *
- * Villkoren för uppvaknandet är ordagrant KartaPuffs, och skälen står där i
- * sin helhet: MapLibre väger 231 kB brotlat och får aldrig ligga i
+ * Villkoren för uppvaknandet är `vakna` i lib/kartbas.ts, och skälen står där
+ * i sin helhet: MapLibre väger 231 kB brotlat och får aldrig ligga i
  * sidladdningen. Kartan vaknar när rutan syns, efter `load`, i en
  * tomgångslucka, och den vaknar inte alls vid `saveData`, vid uppkoppling
  * sämre än 4g eller vid `prefers-reduced-data`. Den som kommer från Google på
@@ -566,7 +566,7 @@ const gransUpphov = kalla
 
 <script>
   /**
-   * Uppvaknandet. Villkoren är KartaPuffs, ordagrant, och resonemanget står
+   * Uppvaknandet. Villkoren är `vakna` i lib/kartbas.ts, och resonemanget står
    * där: rutan ska synas, sidan ska vara klar, huvudtråden ska vara ledig, och
    * uppkopplingen ska tåla en halv megabyte.
    */
@@ -576,6 +576,7 @@ const gransUpphov = kalla
     laddaMaplibre,
     laddaMaplibreCss,
     registreraRutprotokoll,
+    vakna,
   } from '../lib/kartbas';
   import { slugify } from '../lib/slug';
 
@@ -992,43 +993,15 @@ const gransUpphov = kalla
 
     knapp.addEventListener('click', start);
 
-    /** Tål uppkopplingen en karta? Se KartaPuff för varför villkoren är hårda. */
-    function uppkopplingenTal(): boolean {
-      const c = (navigator as any).connection;
-      if (c) {
-        if (c.saveData) return false;
-        if (c.effectiveType && c.effectiveType !== '4g') return false;
-      }
-      return !window.matchMedia('(prefers-reduced-data: reduce)').matches;
-    }
-
-    if (uppkopplingenTal()) {
-      knapp.hidden = true;
-
-      const nar = (fn: () => void) => {
-        const idle = (window as any).requestIdleCallback;
-        if (idle) idle(fn, { timeout: 3000 });
-        else setTimeout(fn, 200);
-      };
-
-      const efterLoad = (fn: () => void) => {
-        if (document.readyState === 'complete') nar(fn);
-        else window.addEventListener('load', () => nar(fn), { once: true });
-      };
-
-      if ('IntersectionObserver' in window) {
-        const obs = new IntersectionObserver(
-          (poster) => {
-            if (!poster.some((p) => p.isIntersecting)) return;
-            obs.disconnect();
-            efterLoad(start);
-          },
-          { rootMargin: '200px' },
-        );
-        obs.observe(root);
-      } else {
-        efterLoad(start);
-      }
-    }
+    /*
+     * Villkoren bor i lib/kartbas.ts, och skälen står där. Här låg en
+     * ordagrann kopia av KartaPuffs 36 rader.
+     *
+     * Returvärdet används, till skillnad från i KartaPuff: knappen är en
+     * utlösare och inte en länk, och den ska bara stå kvar för den som
+     * uppkopplingsgrinden stoppade. Kommer kartan ändå av sig själv är knappen
+     * ett löfte om något som redan är på väg.
+     */
+    if (vakna(root, start)) knapp.hidden = true;
   }
 </script>
