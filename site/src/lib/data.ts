@@ -406,6 +406,207 @@ export function formatDistance(metres: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Bäst i närheten
+// ---------------------------------------------------------------------------
+
+/**
+ * Radien för "Bäst i närheten", i meter.
+ *
+ * nearby() har ingen radie alls, och behöver ingen: den sorterar på avstånd, så
+ * den närmaste är den närmaste hur långt bort den än är. En lista som sorterar
+ * på något ANNAT än avstånd måste ha en, annars kan den kröna ett ställe åtta
+ * kilometer bort och kalla det närhet.
+ *
+ * 500 meter, och talet är mätt över hela beståndet 2026-08-18. Andel av de
+ * 13 616 verksamheter som har en koordinat och som får minst en ren granne:
+ *
+ *   radie   minst en   minst tre
+ *   500 m   97,0 %     92,7 %
+ *   750 m   98,1 %     95,7 %
+ *  1000 m   98,5 %     96,8 %
+ *  1500 m   98,9 %     97,7 %
+ *
+ * Att gå från 500 till 1 500 meter köper 1,9 procentenheter och tredubblar den
+ * yta läsaren ska tro på som "i närheten". 500 meter är dessutom ett tal som
+ * går att skriva ut på sidan och som en läsare kan pröva mot verkligheten,
+ * vilket "gångavstånd" inte är.
+ */
+export const BEST_NEARBY_M = 500;
+
+export interface BestNearby extends Establishment {
+  metres: number;
+  /** Antal kontroller bakom bedömningen. Det första ordningen avgörs på. */
+  controls: number;
+}
+
+/**
+ * Register över de RENA verksamheterna per kommun, med det ordningen avgörs på
+ * förkonverterat.
+ *
+ * Eget register i stället för ett filter inne i svepet, av samma skäl som
+ * nearbyIndex finns: funktionen körs en gång per verksamhetssida. Registret är
+ * mindre än nearbyIndex på varje sida, eftersom bara ett av de tre utfallen
+ * kommer in: 11 966 av 16 047 verksamheter är rena, och Stockholms 8 520 blir
+ * omkring 6 400 kandidater i stället för 8 520.
+ *
+ * `controls` ligger i registret och inte bakom ett anrop per kandidat, av samma
+ * skäl som radianerna gör det: ordningen avgörs på talet en gång per granne per
+ * sida, och i Stockholm är det 6 400 kandidater gånger 8 520 sidor.
+ */
+interface CleanIndex {
+  items: Establishment[];
+  lat: Float64Array;
+  lng: Float64Array;
+  cosLat: Float64Array;
+  controls: Int32Array;
+}
+
+const cleanIndexes = new Map<string, CleanIndex>();
+
+function cleanIndex(slug: string): CleanIndex {
+  const cached = cleanIndexes.get(slug);
+  if (cached) return cached;
+
+  const items: Establishment[] = [];
+  const lat: number[] = [];
+  const lng: number[] = [];
+  const cosLat: number[] = [];
+  const controls: number[] = [];
+
+  for (const o of establishments(slug)) {
+    if (o.lat === null || o.lng === null || o.verdict !== 'clean') continue;
+    const rad = (o.lat * Math.PI) / 180;
+    items.push(o);
+    lat.push(rad);
+    lng.push((o.lng * Math.PI) / 180);
+    cosLat.push(Math.cos(rad));
+    controls.push(o.inspections.length);
+  }
+
+  const index: CleanIndex = {
+    items,
+    lat: Float64Array.from(lat),
+    lng: Float64Array.from(lng),
+    cosLat: Float64Array.from(cosLat),
+    controls: Int32Array.from(controls),
+  };
+  cleanIndexes.set(slug, index);
+  return index;
+}
+
+/**
+ * De bästa inom BEST_NEARBY_M meter. Systerlista till nearby(), aldrig ersätta.
+ *
+ * ## Vad som får stå i listan, och varför den är tillåten
+ *
+ * Prikko rangordnar aldrig kommuner på kontrollresultat och publicerar aldrig
+ * en lista över de sämsta. Den regeln är inte en tröskel som den här listan
+ * kryper under, den är en regel om RIKTNING: en namngiven verksamhet får aldrig
+ * framställas som något att undvika.
+ *
+ * Därför innehåller listan bara `clean`, alltså de som fick inga anmärkningar
+ * vid sin senaste kontroll. Den är inte en topplista med en botten. Den har
+ * ingen ordningsvändning, ingen "visa de sämsta", och den ska aldrig få en:
+ * vänder man ordningen får man de sämsta AV DE RENA, vilket är en rangordning
+ * av oskyldiga och är precis lika förbjudet.
+ *
+ * Att verksamheten man står på inte är med är ingen utsaga om den. Den står med
+ * sitt eget besked högst upp på sidan, och listan handlar per definition om
+ * andra ställen, precis som nearby() redan gör.
+ *
+ * ## Ordningen, och varför den inte är godtycklig
+ *
+ * Alla i listan har samma bedömning. Utan en uttalad regel hade ordningen
+ * avgjorts av registrets ordning, alltså av vilken ordning kommunen råkade
+ * lämna sin fil i, och det hade varit en rangordning vi inte kan försvara.
+ *
+ * Två nycklar, i tur och ordning:
+ *
+ *  1. FLEST KONTROLLER FÖRST. En ren bedömning som vilar på 26 kontroller är
+ *     bättre belagd än en som vilar på 1, och det är den enda skillnaden mellan
+ *     två rena bedömningar som vi faktiskt har täckning för.
+ *  2. NÄRMAST FÖRST vid lika många. Då är listan åter en närhetslista.
+ *
+ * TVÅ OCH INTE TRE. "Färskast kontroll" prövades som mellanliggande nyckel och
+ * togs bort igen, av två skäl som båda håller. Det första är att den knappt
+ * skiljer något: en `clean`-bedömning kan aldrig vila på en kontroll äldre än
+ * tre år, eftersom modellen slutar bedöma vid den gränsen och verksamheten då
+ * faller ur listan helt. Alla i listan ligger alltså redan inom samma treårs-
+ * fönster. Det andra är att raden på sidan bär antal kontroller och avstånd,
+ * alltså exakt de två nycklarna. En tredje nyckel hade avgjort ordningen på
+ * något läsaren inte kan se på raden, och en ordning som inte går att läsa ut
+ * ur sidan är en ordning läsaren inte kan pröva.
+ *
+ * Regeln står dessutom utskriven, i tipset på panelrubriken i
+ * [kommun]/[slug].astro.
+ *
+ * Insättningen flyttar bara element som är STRIKT sämre, precis som nearby().
+ * Det bevarar registrets ordning när alla tre nycklarna är lika, alltså är
+ * utfallet stabilt mellan bygg så länge datan är densamma.
+ */
+export function bestNearby(
+  e: Establishment,
+  limit = 4,
+  radius = BEST_NEARBY_M,
+): BestNearby[] {
+  if (e.lat === null || e.lng === null) return [];
+
+  const index = cleanIndex(e.municipality.slug);
+
+  // Haversine mot jordens medelradie, samma formel och samma avrundning till
+  // hela meter som nearby(), så att ett avstånd som visas i båda listorna är
+  // exakt samma tal på båda ställena.
+  const R = 6371000;
+  const lat = (e.lat * Math.PI) / 180;
+  const lng = (e.lng * Math.PI) / 180;
+  const cosLat = Math.cos(lat);
+
+  const bestIndex = new Int32Array(limit).fill(-1);
+  const bestMetres = new Float64Array(limit).fill(Infinity);
+
+  /** Är a strikt bättre än b enligt de två nycklarna? b = -1 är en ledig plats. */
+  const battre = (ai: number, am: number, bi: number, bm: number): boolean => {
+    if (bi < 0) return true;
+    if (index.controls[ai] !== index.controls[bi]) {
+      return index.controls[ai] > index.controls[bi];
+    }
+    return am < bm;
+  };
+
+  for (let i = 0; i < index.items.length; i += 1) {
+    if (index.items[i].id === e.id) continue;
+
+    const sinLat = Math.sin((index.lat[i] - lat) / 2);
+    const sinLng = Math.sin((index.lng[i] - lng) / 2);
+    const h = sinLat * sinLat + cosLat * index.cosLat[i] * sinLng * sinLng;
+    const metres = Math.round(2 * R * Math.asin(Math.sqrt(h)));
+
+    if (metres >= radius) continue;
+    if (!battre(i, metres, bestIndex[limit - 1], bestMetres[limit - 1])) continue;
+
+    let slot = limit - 1;
+    while (slot > 0 && battre(i, metres, bestIndex[slot - 1], bestMetres[slot - 1])) {
+      bestIndex[slot] = bestIndex[slot - 1];
+      bestMetres[slot] = bestMetres[slot - 1];
+      slot -= 1;
+    }
+    bestIndex[slot] = i;
+    bestMetres[slot] = metres;
+  }
+
+  const result: BestNearby[] = [];
+  for (let k = 0; k < limit; k += 1) {
+    if (bestIndex[k] < 0) continue;
+    result.push({
+      ...index.items[bestIndex[k]],
+      metres: bestMetres[k],
+      controls: index.controls[bestIndex[k]],
+    });
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Formatering
 // ---------------------------------------------------------------------------
 

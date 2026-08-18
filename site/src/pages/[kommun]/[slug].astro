@@ -65,6 +65,8 @@ import ArtikelBanner from '../../components/ArtikelBanner.astro';
 import Handlingsrad from '../../components/Handlingsrad.astro';
 import Kontrolldatum from '../../components/Kontrolldatum.astro';
 import {
+  BEST_NEARBY_M,
+  bestNearby,
   categoriesOf,
   establishments,
   followUp,
@@ -126,6 +128,63 @@ const hasCoords = e.lat !== null && e.lng !== null;
  */
 const compareWith = compareSuggestions(e, neighbours);
 const compareMetres = Object.fromEntries(neighbours.map((n) => [n.slug, n.metres]));
+
+/**
+ * De bästa inom 500 meter, som EGEN lista bredvid den som sorterar på avstånd.
+ *
+ * De två listorna svarar på två frågor och ska därför inte vara en. "Vad
+ * ligger närmast" och "var är det bäst" ger olika svar på 12 632 av de 13 210
+ * sidor som har minst en ren granne inom radien, alltså på 95,6 procent av
+ * dem. Räknat i bygget 2026-08-18 genom att räkna rubrikerna i utgåvan.
+ *
+ * Att den andra listan finns har också ett belagt sökskäl: `restauranger
+ * [stad] högst betyg` är den enda frasform som mätts till 8 av 8, se docs/30
+ * §5.1 och docs/29 §7. Ordet "betyg" får aldrig stå i en rubrik hos oss, av
+ * skälet som står i docs/26 §8 punkt 5, men efterfrågan bakom det är den bäst
+ * belagda vi har och den besvaras här, på den sida man redan står på. Ingen ny
+ * URL: filtaket fäller bygget vid 19 500 filer och vi ligger på 17 000.
+ *
+ * Regeln som gör listan tillåten står i lib/data.ts vid bestNearby(): den
+ * innehåller bara verksamheter UTAN anmärkningar, den går inte att vända, och
+ * någon motsvarande lista över de sämsta finns inte och ska inte finnas.
+ *
+ * Blocket uteblir helt på sidor utan koordinat. En radie kan inte gälla en
+ * verksamhet utan punkt, och en tom lista med rubrik vore ett påstående om att
+ * det inte finns något bra i närheten. Ingen rubrik alls är det sanna.
+ *
+ * 2 431 av 16 047 verksamheter saknar koordinat. Fyra kommuner publicerar
+ * ingen adress alls att geokoda och står därför på noll, se docs/33 §10.1:
+ * Borgholm 406, Höganäs 316, Lomma 153 och Svenljunga 99, alltså 974 sidor.
+ * Resten är OSM:s luckor i Uppsala 868, Örebro 588 och Oskarshamn 1.
+ *
+ * Utfallet i utgåvan, räknat på rubrikerna i bygget 2026-08-18:
+ *
+ *   13 616 sidor bär "Nära dig", alltså exakt de som har en koordinat.
+ *   12 632 bär också "Bäst i närheten", 92,8 procent av dem.
+ *      406 har en koordinat men ingen ren granne inom 500 meter.
+ *      578 tappar blocket för att det säger samma sak som listan ovanför.
+ */
+const bastaAlla = bestNearby(e);
+
+/**
+ * Och blocket uteblir också när det säger EXAKT samma sak som listan ovanför.
+ *
+ * På glesa sidor är de fyra närmaste ofta just de fyra rena, och då blir andra
+ * panelen samma fyra namn i annan ordning, direkt under den första. En läsare
+ * läser det som att sidan är trasig, inte som två svar på två frågor.
+ *
+ * Villkoret är hårt satt: blocket faller bara när mängderna är IDENTISKA, inte
+ * när de överlappar. Överlapp är normalt och ska synas, eftersom ett ställe som
+ * både ligger närmast och är bäst belagt förtjänar att stå på båda ställena.
+ * Med det villkoret faller blocket på 578 sidor. Hade regeln i stället varit
+ * "bästlistan ryms i närlistan" hade den fällt fler, och den hade fällt fel:
+ * en bästlista med tre namn ur en närlista med fyra är ett annat svar.
+ */
+const naraSlugs = new Set(neighbours.map((n) => n.slug));
+const basta =
+  bastaAlla.length === naraSlugs.size && bastaAlla.every((n) => naraSlugs.has(n.slug))
+    ? []
+    : bastaAlla;
 
 /**
  * Kommunen som jämförelsepunkt.
@@ -913,10 +972,14 @@ const breadcrumbs = {
         {neighbours.length > 0 && (
           <div class="panel" data-nosnippet>
             <h2 class="panel-title">
-              Närliggande
+              {/* "Nära dig" och inte längre "Närliggande". Panelen har fått en
+                  systerpanel under sig, och två rubriker som båda är adjektiv
+                  om närhet går inte att skilja åt på en blick. Nu säger den ena
+                  vad den sorterar på och den andra vad den väljer ut. */}
+              Nära dig
               <InfoTip
-                label="närliggande"
-                text="Verksamheter med registrerad kontroll inom gångavstånd, sorterade efter avstånd."
+                label="nära dig"
+                text="De fyra närmaste verksamheterna med en bedömning, sorterade efter avstånd. Alla bedömningar förekommer i listan, eftersom den svarar på vad som ligger närmast och ingenting annat."
               />
             </h2>
             <ul class="near">
@@ -940,6 +1003,50 @@ const breadcrumbs = {
             <p class="near-foot caption">
               <a data-jamfor href={compareHref(kommun.slug, e.slug)}>Jämför med ett annat ställe</a>
             </p>
+          </div>
+        )}
+
+        {/* Systerlistan, sorterad på bedömning i stället för på avstånd.
+
+            `data-nosnippet` av samma skäl som panelen ovanför, och här väger
+            det tyngre: ett sökutdrag för DEN HÄR verksamheten som består av
+            fyra ANDRA verksamheters namn under rubriken "Bäst i närheten"
+            hade läst som att den man sökte på inte är bland dem.
+
+            Underraden bär antalet kontroller och avståndet, alltså BÅDA
+            nycklarna ordningen avgörs på och inga andra. En läsare som undrar
+            varför ett ställe 496 meter bort står före ett på 140 läser svaret
+            rakt ur raden. Bedömningen står inte i text eftersom den är
+            densamma för alla fyra, och märket säger den redan.
+
+            Att listan har två nycklar och inte tre är ett beslut med ett mätt
+            skäl, se bestNearby i lib/data.ts. */}
+        {basta.length > 0 && (
+          <div class="panel" data-nosnippet>
+            <h2 class="panel-title">
+              Bäst i närheten
+              <InfoTip
+                label="bäst i närheten"
+                text={`Verksamheter inom ${BEST_NEARBY_M} meter som fick inga anmärkningar vid sin senaste kontroll. Flest kontroller bakom bedömningen står först, och vid lika många den närmaste. Båda talen står på varje rad, så ordningen går att pröva. Listan visar bara de utan anmärkningar, och vi publicerar aldrig den omvända.`}
+              />
+            </h2>
+            <ul class="near">
+              {basta.map((n) => (
+                <li>
+                  <a href={path(kommun.slug, n.slug)}>
+                    <FaceMark verdict={n.verdict} size={30} variant="round" />
+                    <span class="near-info">
+                      <b>{n.name}</b>
+                      <span class="text-muted">
+                        {n.controls === 1
+                          ? '1 kontroll'
+                          : `${formatNumber(n.controls)} kontroller`} · {formatDistance(n.metres)}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
