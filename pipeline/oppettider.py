@@ -244,7 +244,16 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
             if contact:
                 stats["contact"] += 1
                 if write:
-                    establishment["contact"] = {**contact, "checkedAt": today}
+                    # `osm` och `checkedAt` kostar två rader per verksamhet,
+                    # alltså dryga 6 500 i alla tolv filerna. De betalar sig:
+                    # utan objektets id finns ingen "Rätta"-länk, och då är
+                    # den enda vägen för den som ser ett fel att mejla oss om
+                    # en uppgift vi inte äger.
+                    establishment["contact"] = {
+                        **contact,
+                        "osm": result.poi.ref,
+                        "checkedAt": today,
+                    }
             elif write:
                 establishment.pop("contact", None)
         elif write:
