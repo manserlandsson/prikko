@@ -67,6 +67,30 @@ const newest = awardsFor(e.municipality.slug, e.slug)[0];
   /* Under 640 px står sigillet under beskedet i stället för bredvid, se
      sidmallen, och då får det inte ta halva bredden. */
   @media (max-width: 640px) {
-    .utmarkelse :global(.seal) { width: 104px; height: auto; }
+    .utmarkelse {
+      /* Bredden står som variabel därför att rättningen nedan räknas ur
+         just det talet. */
+      --marke-b: 104px;
+
+      /* RITNINGENS EGEN TOMMA MARGINAL DRAS BORT, annars läser den som indrag.
+         ──────────────────────────────────────────────────────────────────
+         Sidmallen ställer sigillet på huvudkolumnens vänsterlinje, men en
+         ruta som börjar på linjen är inte samma sak som en ritning som gör
+         det. Utmärkelsens viewBox är 0 0 507 236 och bläcket ligger mellan
+         35,5 och 471,5, mätt två vägar på den serverade filen: `getBBox` gav
+         35,71 och en räkning av genomskinliga pixelkolumner vid 2x gav 35,5.
+         Alltså 7,0 procent tom marginal på var sida, och vid 104 px bredd
+         7,3 px. Utan rättningen började kransens yttersta blad på 91,3 px
+         medan kolumnen börjar på 16 respektive 84.
+
+         Matsnuskmärket får ingen motsvarande rättning, och det är inget
+         förbiseende: dess yttre ram är ritad på x 3,5 med 7 enheters
+         streckbredd, alltså når bläcket ut till 0 av 248. Se MatsnuskNote.
+
+         En ny årsritning måste mätas om. Talet gäller 2026 års ritning. */
+      margin-left: calc(var(--marke-b) * -35.5 / 507);
+    }
+
+    .utmarkelse :global(.seal) { width: var(--marke-b); height: auto; }
   }
 </style>

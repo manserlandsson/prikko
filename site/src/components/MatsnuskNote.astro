@@ -147,7 +147,15 @@ const titel = 'Brister i livsmedelshanteringen kvarstod vid kommunens uppföljni
 
   /* Under 640 px står sigillet under beskedet i stället för bredvid, se
      sidmallen, och då får det inte ta halva bredden. Samma tal som
-     utmärkelsen, eftersom de delar plats. */
+     utmärkelsen, eftersom de delar plats.
+
+     INGEN OPTISK RÄTTNING HÄR, till skillnad från AwardNote, och det är mätt
+     och inte glömt. Utmärkelsens ritning bär 35,5 av 507 viewBox-enheter tom
+     marginal på var sida och måste dras 7,3 px åt vänster för att möta
+     kolumnens linje. Den här ritningens yttre ram är satt på x 3,5 med 7
+     enheters streckbredd, alltså går bläcket ut till 0 och 248 av 248, och
+     rutan möter linjen av sig själv. Provades ändå med utmärkelsens tal, och
+     då hamnade ramen 7 px UTANFÖR kolumnen. */
   @media (max-width: 640px) {
     .snusk-lank :global(.snusk-seal) { width: 104px; height: auto; }
   }

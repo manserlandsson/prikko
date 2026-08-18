@@ -1004,8 +1004,15 @@ const breadcrumbs = {
   /* På telefon får sigillet inte konkurrera med beskedet om bredden, och det
      ska ned på egen rad. Ett `flex-wrap` gör fel sak här: beskedet är brett
      nog att kräva egen rad, så ansiktet blir ensamt kvar på den första.
-     Rutnätet håller ihop ansiktet och beskedet och lägger sigillet under
-     texten, i linje med den och inte med ansiktet.
+     Rutnätet håller ihop ansiktet och beskedet och lägger sigillet under.
+
+     ATT DET MÅSTE BRYTA är mätt, inte antaget. Står sigillet kvar till höger
+     blir det kvar till textspalten 390 - 2 * 16 - 52 ansikte - 2 * 16 mellanrum
+     - 104 märke = 170 px, och vid 320 px bara 100. Rubriken "Inga
+     anmärkningar" vill vara 231,5 px och dess längsta obrytbara del mäter
+     154 px, alltså skulle rubriken svämma över spalten med 54 px vid 320.
+     Ett märke som krymper till 50 px för att få plats är ingen utväg: kransen
+     bär ett årtal som ska gå att läsa.
 
      `:global` krävs på sigillet: det är en komponentrot, och Astros scopeade
      selektorer korsar inte komponentgränser. */
@@ -1031,10 +1038,35 @@ const breadcrumbs = {
        före mediefrågan och skulle annars slås ut av `align-items` här. */
     .verdict > :global(.face) { margin-top: 2px; }
 
-    /* Båda sigillen, av samma skäl. De står aldrig samtidigt, men regeln ska
-       inte behöva veta vilket av dem som råkade renderas. */
+    /* Sigillet på huvudkolumnens vänsterlinje, alltså 16 px, och inte i
+       textspalten på 84.
+       ────────────────────────────────────────────────────────────────────
+       Det stod i spalt 2 med skälet att det hör ihop med beskedet och inte
+       med ansiktet. Uppmätt vid 390 px blev följden att märkets ruta började
+       på 84 medan allt annat i kolumnen börjar på 16: etiketten "Bedömning",
+       ansiktet, "Så sätts bedömningen" och varje rubrik längre ned. Kvar blev
+       ett 104 px brett märke med 84 px vitt till vänster och 186 px till
+       höger, alltså ett element som inte mötte någon linje alls. Ägaren:
+       "utmärkelse ser fult ut på mobil, ligger liksom centrerat under, ser
+       helt out of place ut."
+
+       Över hela raden och inte i spalt 1: ansiktets spalt är 52 px och
+       märket 104, och en spalt får inte breddas av det som lagts under den.
+
+       `justify-self: start` för att rutan ska hugga om ritningen. `display:
+       block` i ett rutnät sträcker sig annars över hela raden, uppmätt till
+       290 px vid 390 px skärm, och för utmärkelsen blev då 186 px tom yta
+       klickbar och tog besökaren till utgåvesidan.
+
+       Ritningens egen tomma marginal rättas där ritningen bor, alltså i
+       AwardNote respektive MatsnuskNote, eftersom talet skiljer sig mellan
+       de två. Båda sigillen tas ändå av samma regel här: de står aldrig
+       samtidigt, och regeln ska inte behöva veta vilket som råkade renderas. */
     .verdict > :global(.utmarkelse),
-    .verdict > :global(.snusk-lank) { grid-column: 2; }
+    .verdict > :global(.snusk-lank) {
+      grid-column: 1 / -1;
+      justify-self: start;
+    }
   }
 
   .level {
