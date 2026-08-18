@@ -106,6 +106,12 @@ Två saker räddar matchningen:
   uppgifter är dock inte fritt öppna på samma sätt som de värdefulla datamängderna
   (ej verifierat i detalj, se osäkerheter nedan). Detta är en tråd att dra i, inte
   ett löst problem.
+  **Tråden är dragen 2026-08-18, se `35_scb_foretagsregistret.md`.**
+  Arbetsställeregistret är avgiftsfritt sedan 26 juni 2025 och bär
+  `BesöksAdress`, kommunkod,
+  femsiffrig SNI och en statusvariabel med värdet `9 Är ej längre verksam`. Det
+  ligger dock INTE i de värdefulla datamängderna, vilkas lista är helt på
+  organisationsnivå, utan bakom certifikat som kräver godkända användarvillkor.
 - **Koordinaten.** Vi har lat/lng på 13 544 rader. En kandidat från registret kan
   rangordnas på geografiskt avstånd, inte bara på stränglikhet i adressen.
 
@@ -190,10 +196,16 @@ härleda orgnr) i en och samma gratis källa.
   SNI-avdelning, alltså `I-55-56` med hotellen inbakade. Den enda kommunvisa
   tabellen med arbetsställen är `TAB5854`, som räknar arbetsställen inom
   verksamhetsområden vart femte år och senast avser 2020.
-- Konsekvens för produkten: **täckningsgrad går inte att räkna.** Vårt register mot
-  SCB:s arbetsställen i SNI 56, per kommun, kräver uppgifter som bara finns i
-  Företagsregistrets uttagstjänst, som är en betaltjänst. Ett tal räknat mot
-  läns- eller riksnivå vore inte täckning, det vore en gissning med decimaler.
+- Konsekvens för produkten: **täckningsgrad går inte att räkna ur
+  statistikdatabasen.** Vårt register mot SCB:s arbetsställen i SNI 56, per
+  kommun, kräver uppgifter som bara finns i Företagsregistrets uttagstjänst. Ett
+  tal räknat mot läns- eller riksnivå vore inte täckning, det vore en gissning
+  med decimaler.
+- **Rättelse 2026-08-18: uttagstjänsten är inte längre en betaltjänst.**
+  Förordningsändringen som trädde i kraft 26 juni 2025 tog bort avgiften, och
+  arbetsställe-API:et bär kommunkod och femsiffrig SNI. Täckningsgraden går
+  alltså att räkna den dagen certifikatet finns. Villkoren, den saknade
+  nyckeln och tidplanen står i `35_scb_foretagsregistret.md`.
 - Det som DÄRIMOT finns per kommun för alla 290, årligen och gratis, är
   sysselsättningen per näringsgren, se D3.
 

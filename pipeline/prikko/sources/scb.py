@@ -21,6 +21,12 @@ SNI-avdelning, alltså I-55-56 med hotellen inbakade. Den täckningsgrad man
 gärna vill räkna, vårt register mot SCB:s arbetsställen i SNI 56, går
 följaktligen inte att räkna på öppna data.
 
+Det gäller STATISTIKDATABASEN, som är den här modulens källa, och inte SCB
+i stort. SCB:s allmänna företagsregister har ett arbetsställeregister med
+kommunkod, femsiffrig SNI och besöksadress, avgiftsfritt sedan 26 juni 2025
+men bakom certifikat och godkända användarvillkor. Det är en annan tjänst
+med en annan dörr, och den är utredd i docs/35_scb_foretagsregistret.md.
+
 Det som DÄRIMOT finns per kommun, för alla 290, årligen och med full
 täckning, är sysselsättningen per näringsgren. Den är hämtad ur register och
 inte ur en enkät, och den är den enda öppna uppgiften som säger hur stor
