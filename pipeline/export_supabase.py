@@ -147,6 +147,21 @@ def filradering(path: Path) -> dict:
     return {e["id"]: e for e in payload.get("establishments", []) if e.get("id")}
 
 
+def fillicens(path: Path) -> dict | None:
+    """ODbL-blocket ur föregående export, om filen bar öppettider.
+
+    Skrivs av pipeline/oppettider.py och hör ihop med `hours` på raderna. Utan
+    det här försvann attributionen i samma nattkörning som tiderna, vilket är
+    ett licensbrott och inte bara en saknad rad.
+    """
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("openingHours")
+    except ValueError:
+        return None
+
+
 def export(client: Supabase, out_dir: Path) -> None:
     print("Hämtar från Supabase", file=sys.stderr)
 
@@ -202,7 +217,9 @@ def export(client: Supabase, out_dir: Path) -> None:
         records = []
         # Koordinater och öppettider bor i FILEN, inte i databasen. Se
         # `filradering` för varför, och varför det inte är en nödlösning.
-        tidigare = filradering(out_dir / f"{m['slug']}.json")
+        sokvag = out_dir / f"{m['slug']}.json"
+        tidigare = filradering(sokvag)
+        forra_licens = fillicens(sokvag)
 
         for e in by_municipality.get(m["code"], []):
             assessment = by_assessment.get(e["id"], {})
@@ -298,12 +315,27 @@ def export(client: Supabase, out_dir: Path) -> None:
         # Öppettiderna hakas på efter att posterna är byggda, och inte som ett
         # fält i literalen ovan, eftersom de flesta rader saknar dem: ett
         # `"hours": None` på 13 000 rader hade lagt 13 000 rader i varje diff.
+        antal_tider = 0
         for rad in records:
             forra = tidigare.get(rad["id"], {})
             if forra.get("hours"):
                 rad["hours"] = forra["hours"]
+                antal_tider += 1
 
-        path = out_dir / f"{m['slug']}.json"
+        # ODbL-blocket följer med när, och bara när, filen faktiskt bär en
+        # öppettid. Samma regel som pipeline/oppettider.py skriver den efter:
+        # en licensklausul i en fil utan en enda öppettid är ett påstående om
+        # data som inte finns. Det står EFTER `source` i filen, och ordningen
+        # byggs här i stället för att flyttas efteråt.
+        if antal_tider and forra_licens:
+            payload = {
+                "municipality": payload["municipality"],
+                "source": payload["source"],
+                "openingHours": forra_licens,
+                "establishments": records,
+            }
+
+        path = sokvag
 
         # Provet FÖRE skrivningen, och det är rättelsen. Skrevs filen först
         # låg den rasade utgåvan på disken, och enda sättet att skydda den var
