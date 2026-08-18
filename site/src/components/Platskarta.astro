@@ -70,7 +70,14 @@ import type { VerdictOrNone } from '../lib/site';
 import { faceKey } from '../lib/face';
 import { faceSvg } from '../lib/kartbas';
 import kartstil from '../../public/kartstil/prikko.json';
+import Nalikon from './Nalikon.astro';
 import '../styles/kartram.css';
+/* Knappformen kommer ur konto.css och ritas inte om här. `.btn-ghost` som
+   stod i markeringen efter commit d93befcc finns bara scopeat inuti
+   Handlingsrad.astro, alltså träffade klassen ingenting och länken renderades
+   som ren brödtext. `.btn-quiet` är samma knapp i global form, och `.btn-tight`
+   är dess radvariant på --h-control, uppmätt hos Booli till 40 px. */
+import '../styles/konto.css';
 
 interface Props {
   lat: number;
@@ -172,13 +179,20 @@ const nal = faceSvg(key, derived);
    * länken är sann på ett sätt en Google-länk inte hade varit.
    */}
   <p class="vagbeskrivning">
-    <a class="btn-ghost med-ikon" href={`geo:${lat},${lng}?q=${encodeURIComponent(sokterm)}`}>
-      <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
-        <path
-          d="M10 2.6c-2.6 0-4.7 2.1-4.7 4.7 0 3.4 4.7 10.1 4.7 10.1s4.7-6.7 4.7-10.1c0-2.6-2.1-4.7-4.7-4.7Z"
-          stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
-        <circle cx="10" cy="7.3" r="1.8" stroke="currentColor" stroke-width="1.5"></circle>
-      </svg>
+    <a class="btn-quiet btn-tight vag-knapp" href={`geo:${lat},${lng}?q=${encodeURIComponent(sokterm)}`}>
+      {/* Nålen ligger i Nalikon.astro och inte här.
+       *
+       * Två skäl. Ritningen kommer att behövas fler gånger, och en ikon som
+       * bor inuti den komponent som råkade behöva den först blir kopierad
+       * nästa gång; det är precis vad som hände pennan innan PlacePicker
+       * hämtade Reviews egen. Och storleken måste sättas: svg:n som stod här
+       * saknade width och height, och uppmätt i bygget 2026-08-18 ritades den
+       * därför 125,4 × 125,4 px i en knapp som är 20 px hög.
+       *
+       * Det är en ANNAN nål än den på kartan ovanför. Märkets nål bor i
+       * lib/kartnal.ts, bär ansiktet i bedömningens färg och ritas bara på
+       * kartor. Skillnaden och skälet står i Nalikon.astro. */}
+      <Nalikon class="ikon" size={18} />
       <span>Vägbeskrivning</span>
     </a>
     <a
@@ -403,15 +417,65 @@ const nal = faceSvg(key, derived);
     white-space: nowrap;
   }
 
-  /* Vägbeskrivningen står under adressen och inte som en knapp i kartan.
-     I kartan hade den tävlat med zoom och fullskärm om samma hörn, och den
-     hör dessutom till adressen: man läser var stället ligger och vill sedan
-     ta sig dit. */
+  /* VÄGBESKRIVNINGEN STANNAR UNDER KARTAN, OCH DET ÄR ETT MÄTT BESLUT.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren skickade Ednias objektsida som förlaga: deras knapp ligger som en
+     vit pille inuti kartan, nere till höger. Uppmätt på
+     ednia.se/gymnasium/anna-whitlocks-gymnasium 2026-08-18:
+
+       pille        139,9 × 33 px, vit botten, 1 px kant #DDD, radie 12 px,
+                    innermått 4/11/6, text 14/21 halvfet, gap 8 px till ikonen
+       läge         position: absolute, 12 px från både höger och nederkant
+       karta        700 × 349,5 px på skrivbord, kvoten 657/328
+       ikonen       gående figur, 10,5 × 14 px
+       hörnen       expandera uppe till höger, Apples upphov nere till
+                    VÄNSTER, pillen nere till höger, alltså ett föremål per
+                    hörn och inget som krockar
+
+     Han skrev "men idk", alltså är det ett beslut på mätning. Det blir nej,
+     av tre skäl som inte är smak:
+
+     1. HANS PILLE ÄR EN LÄNK, VÅR ÄR TVÅ. Ednias knapp går till
+        maps.google.com och fungerar överallt. Vår går till `geo:`, som är rätt
+        val (se kommentaren vid länken) men som inte gör någonting alls på en
+        dator. Därför står "Öppna i karta" bredvid, och det är den som bär
+        skrivbordet. Flyttar den ena in i hörnet blir kartans mest framträdande
+        plats en knapp som är död på halva trafiken, och räddningen bredvid
+        den blir en ensam liten länk under adressen.
+
+     2. HÖRNET ÄR INTE LEDIGT HOS OSS. Ednia har ett föremål per hörn. Vår
+        karta har helskärm PLUS zoomstapel uppe till höger och MapLibres
+        upphov nere till höger. Upphovet hade fått flytta till nedre vänster,
+        vilket i sig är görligt, men platshållarens knapp "Utforska kartan"
+        står centrerad mot underkanten: uppmätt i 390 px är kartan 358 px bred
+        och knappen omkring 140, alltså 109–249, medan en pille i höger hörn
+        med samma bredd tar 206–346. De överlappar med 43 px så länge kartan
+        inte vaknat.
+
+     3. DEN HÖR TILL ADRESSEN. Man läser var stället ligger och vill sedan ta
+        sig dit. Kartan ovanför svarar redan på var; raden här svarar på hur.
+
+     Ändras något av de tre, till exempel om `geo:` byts mot en länk som
+     fungerar på dator, ska beslutet räknas om och inte ärvas. */
   .vagbeskrivning {
     display: flex;
     align-items: center;
     gap: var(--s-4);
     margin-top: var(--s-3);
+  }
+
+  /* `.btn-quiet` saknar gap, eftersom den nästan alltid bär enbart text.
+     Samma tillägg som Reviews.astro gör för sin penna. */
+  .vag-knapp {
+    gap: var(--s-2);
+  }
+
+  /* Ikonmåttet är ett glyfmått och inte en textgrad, alltså inget som hör
+     hemma i typskalan. `flex: none` så att nålen inte kan krympas av en lång
+     etikett; det var inte problemet här, men avsaknaden av mått var det, se
+     Nalikon.astro. */
+  .vag-knapp :global(.ikon) {
+    flex: none;
   }
 
   .karttjanst {

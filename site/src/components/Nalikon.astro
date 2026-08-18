@@ -1,0 +1,80 @@
+---
+/**
+ * Kartnålen SOM GRÄNSSNITTSIKON.
+ *
+ * ## DEN HÄR ÄR INTE MÄRKETS NÅL, OCH DE TVÅ FÅR ALDRIG BYTA PLATS
+ *
+ * lib/kartnal.ts ritar sajtens riktiga nål: droppe med märkets ansikte i
+ * bedömningens färg, vit kontur, mjuk skugga. Den hör hemma PÅ KARTOR, där en
+ * nål pekar ut en verklig koordinat, och den är ett tecken med betydelse:
+ * färgen säger vad kontrollen kom fram till.
+ *
+ * Den här nålen är en ikon i ett gränssnitt. Den står i knappar och rader och
+ * betyder "plats" på samma sätt som pennan betyder "skriv" och vågen betyder
+ * "jämför". Den har inget ansikte, ingen färg och ingen bedömning i sig, och
+ * den ska aldrig ritas på en karta. Sätter någon märkets nål i en knapp blir
+ * knappen ett påstående om hygien; sätter någon den här på en karta tappar
+ * kartan sitt enda färgspråk.
+ *
+ * ## Måtten, och varför just de
+ *
+ * Ritningen följer sajtens ikonbestånd. Uppmätt i site/src/components 2026-08-18
+ * är den vanligaste rutan `0 0 20 20` med 19 förekomster, och de vanligaste
+ * linjetjocklekarna 1,6 (14), 1,8 (10) och 1,5 (9). Pennan i Reviews.astro står
+ * på 20-rutan med 1,5, och vågen bor som AreaIcon.astro:s E. Nålen står därför
+ * på 20-rutan med 1,5.
+ *
+ * Den förra ritningen (commit d93befcc) hade rätt linje och fel form. Ägaren:
+ * "bara hitta en bättre design, tycker den är för fet till skillnad från våra
+ * andra som te pennan eller vågen." Tre tal skiljer:
+ *
+ *   HUVUDET ÄR SMALARE. Radien var 4,7 och är 4,2, alltså 8,4 av rutans 20 i
+ *   stället för 9,4. Formens bredd genom höjd gick från 0,635 till 0,575.
+ *   Pennan mäter 11,8 × 11,8 i samma ruta och läses smal för att den är en
+ *   avlång stapel; en nål som är nästan lika bred som hög läses som en klump.
+ *
+ *   SPETSEN ÄR LÄNGRE. Sidorna lämnar huvudet vid dess bredaste punkt, alltså
+ *   på cirkelns vågräta diameter (y 7,5), och löper 10,4 enheter ned till
+ *   spetsen på y 17,9. Förut vek de av 0,2 enheter ovanför diametern, vilket
+ *   gav en tvär övergång mellan huvud och spets och en silhuett som var en
+ *   cirkel med en stump under.
+ *
+ *   MITTEN ÄR EN FYLLD PRICK OCH INTE EN RING. Ringen var r 1,8 med 1,5 px
+ *   linje, alltså 17 kvadratenheter bläck och 1,4 enheters luft mellan de två
+ *   konturerna. Pricken är r 1,5 fylld, alltså 7 enheter bläck och 1,95
+ *   enheters luft. Mer luft inuti OCH mindre bläck, vilket var precis det som
+ *   gjorde att nålen vägde tyngre än pennan bredvid.
+ *
+ * ## Storleken sätts alltid av anroparen
+ *
+ * Ikonen som satt inuti Platskarta.astro saknade både width och height, och en
+ * inline-svg utan mått faller tillbaka på webbläsarens 300 × 150. Uppmätt i
+ * bygget 2026-08-18 ritades nålen därför 125,4 × 125,4 px i en knapp som är
+ * 20 px hög. Måttet är därför ett obligatoriskt värde med förval, aldrig något
+ * som lämnas åt arvet.
+ */
+interface Props {
+  /** Sidmått i px. 18 är sajtens knappikon, se Reviews.astro. */
+  size?: number;
+  class?: string;
+}
+
+const { size = 18, class: klass } = Astro.props;
+---
+
+<svg
+  class={klass}
+  width={size}
+  height={size}
+  viewBox="0 0 20 20"
+  fill="none"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path
+    d="M10 3.3a4.2 4.2 0 0 0-4.2 4.2c0 3.7 4.2 10.4 4.2 10.4s4.2-6.7 4.2-10.4A4.2 4.2 0 0 0 10 3.3Z"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linejoin="round"></path>
+  <circle cx="10" cy="7.5" r="1.5" fill="currentColor"></circle>
+</svg>
