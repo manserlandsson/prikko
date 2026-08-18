@@ -44,6 +44,36 @@ där. Se prikko/imagestore.py.
 Skriptet är IDEMPOTENT. Objektnyckeln är deterministisk, så en omkörning
 skriver över samma objekt i stället för att lägga ett till, och verksamheter
 som redan har en bild hoppas över om man inte säger `--skriv-over`.
+
+TVÅ VÄGAR TILL SAMMA HINK, OCH BARA DEN ANDRA BEHÖVER OSM
+
+Ovanstående är OSM-vägen. `--namnspar` är den andra: Wikidata-objektet letas
+upp på VÅRT namn och VÅR koordinat, utan Overpass, utan hopparning och utan
+att någon skrivit in en `wikidata`-tagg. Nämnaren blir därmed alla 16 047 och
+inte de 9 995 konsumentvända, för Wikidata har skolan, kyrkan och
+äldreboendet som OSM inte kartlägger som matpunkter.
+
+Priset är att ingen människa längre intygat att objektet ÄR stället, så
+beviset byggs i fyra grindar i prikko/wikidatanamn.py. Utfall 2026-08-19:
+
+    verksamheter                                             16 047
+    varav med en koordinat som får prövas                    13 379
+    objekt med samma namn, tillåten klass, inom 150 meter        254
+    varav redan har en Commons-bild via OSM-vägen                 15
+    varav med en fritt licensierad fil av rätt format            234
+    varav bilden också FÖRESTÄLLER stället                       183
+
+    bilder sammanlagt efter båda vägarna                         210
+
+    python3 pipeline/hamta_commonsbilder.py --namnspar --matt site/src/data/*.json
+
+En verksamhet som redan har en `wikimedia`-bild hoppas över av namnspåret.
+OSM-vägens bild är utpekad av en människa i OSM OCH en i Wikidata, alltså
+belagd två gånger, medan namnspårets bara är belagd på namnet.
+
+Se docs/39_fler_bilder.md för hela mätningen, och för det spår som mättes och
+INTE byggdes: Commons geosökning ger 49 305 geotaggade filer i våra områden
+och fäller på motivet och inte på närheten.
 """
 
 from __future__ import annotations

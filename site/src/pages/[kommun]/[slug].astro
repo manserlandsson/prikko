@@ -945,9 +945,14 @@ const breadcrumbs = {
             villkor i samma mall och en gren i varje rad av den.
 
             Bilden är fortfarande EN per verksamhet: fältet `image` är samma
-            fält, och 27 av 9 995 sidor bär en Commons-bild. Se
+            fält, och 210 av 16 047 sidor bär en Commons-bild. Se
             pipeline/hamta_commonsbilder.py för varför den får gå före en
-            gatubild när båda finns. */}
+            gatubild när båda finns.
+
+            Nämnaren är alla 16 047 och inte de 9 995 konsumentvända, för 183
+            av de 210 kommer ur Wikidata på namn och koordinat i stället för
+            ur en OSM-tagg, och den vägen når skolan, kyrkan och
+            äldreboendet också. Se docs/39_fler_bilder.md. */}
         <div class="panel">
           {e.image && (e.image.source === 'wikimedia'
             ? <Commonsbild image={e.image} name={e.name} />

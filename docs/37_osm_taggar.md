@@ -303,6 +303,11 @@ behövs:
 ### 5.4 Svaret till ägaren, i tal
 
 **Ja, det finns bilder, och de är fritt licensierade. Det är 27 av 9 995.**
+
+> **2026-08-19: talet är nu 210 av 16 047.** De 27 nedan är de som
+> hittas via OSM-taggen `wikidata`, och den vägen står kvar oförändrad.
+> 183 till hittas genom att Wikidata frågas på namn och koordinat utan
+> att gå via OSM. Se `docs/39_fler_bilder.md`.
 Alla 27 ligger i Stockholm utom Ryds Herrgård i Linköping, och de är
 genomgående de gamla krogarna: Den Gyldene Freden, Operakällaren, Riche,
 Ekstedt, Sturehof, Pelikan, Mäster Anders.
