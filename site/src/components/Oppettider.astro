@@ -48,12 +48,21 @@
  * har redan ett grönt märke som betyder något helt annat. Öppet är
  * märkesbläck, stänger snart är bärnsten, stängt är dämpat grått.
  *
- * ## Varför källan står utskriven
+ * ## Varför källan står, och varför brasklappen inte gör det
  *
- * Uppgiften är OpenStreetMaps, inte kommunens, och den kan vara flera år
- * gammal. ODbL kräver dessutom attribution där uppgiften visas. Raden under
- * schemat bär källan, datumet vi hämtade den och en länk till objektet, så
- * att den som ser ett fel kan rätta det vid källan i stället för hos oss.
+ * ODbL kräver attribution där uppgiften visas, så ordet OpenStreetMap står
+ * kvar under schemat. Resten flyttade in i tipset: hämtdatumet och hela
+ * licensklausulen.
+ *
+ * Raden sa förut också att uppgiften inte är kommunens och kan vara
+ * inaktuell. Den meningen är borta, och det är ett medvetet val. En brasklapp
+ * bredvid varje uppgift lär läsaren att misstro sidan, och den lär ut fel
+ * sak: kommunens kontrolluppgifter, som är sidans egentliga innehåll, står
+ * utan brasklapp en bit ovanför.
+ *
+ * Länken heter "Rätta" och inte "Se på OpenStreetMap", eftersom det är det
+ * enda man rimligen vill göra därifrån: den som ser ett fel ska rätta det vid
+ * källan i stället för att mejla oss.
  *
  * ## Varför tiderna INTE går in i JSON-LD
  *
@@ -73,6 +82,7 @@
  */
 import { formatSpans, spansOf, weekRows, type Hours } from '../lib/oppettider';
 import { formatDate } from '../lib/data';
+import InfoTip from './InfoTip.astro';
 
 interface Props {
   hours: Hours;
@@ -130,10 +140,29 @@ const nagotOppet = rows.some((r) => !r.closed);
     </p>
   )}
 
+  {/* Attributionen i en i-knapp, inte som en brödtext.
+
+      ODbL kräver att upphovet syns där uppgiften visas, men inte att det tar
+      fyra rader. Andra som bygger på OpenStreetMap skriver en kort rad eller
+      ett tecken, och vår gamla text sa dessutom tre saker till: att uppgiften
+      inte är kommunens, att den kan vara inaktuell, och när vi hämtade den.
+      Ägaren: "sluta förklara att dom kan va felaktiga, har sett andra som
+      använder open street map och dom skriver ej sådär mkt".
+
+      Han har rätt i sak. En brasklapp bredvid varje uppgift lär läsaren att
+      misstro sidan, och den lär ut fel sak: kommunens kontrolluppgifter, som
+      är sidans egentliga innehåll, står utan brasklapp bredvid.
+
+      Kvar i det synliga: källan, som är kravet. Datumet och hela klausulen
+      ligger i tipset, en klick bort, tillsammans med länken till objektet så
+      att den som ser ett fel kan rätta det vid källan. */}
   <p class="kalla caption text-muted">
-    Öppettiden kommer från <a href={osmUrl} rel="nofollow noopener" target="_blank">OpenStreetMap</a>,
-    hämtad {formatDate(hours.checkedAt)}. Den är inte kommunens uppgift och kan
-    vara inaktuell. © OpenStreetMap contributors, ODbL.
+    OpenStreetMap
+    <InfoTip
+      label="Om öppettiden"
+      text={`Uppgiften kommer från OpenStreetMap, hämtad ${formatDate(hours.checkedAt)}. Den redigeras av frivilliga och rättas där. © OpenStreetMap contributors, ODbL 1.0.`}
+    />
+    <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta</a>
   </p>
 </section>
 )}
@@ -267,8 +296,13 @@ const nagotOppet = rows.some((r) => !r.closed);
     line-height: var(--lh-body-s);
   }
 
+  /* Raden är nu tre korta led i stället för fyra rader prosa, så den ska
+     ligga som en rad och inte som ett stycke. `max-width` fyllde en funktion
+     när texten radbröt och fyller ingen längre. */
   .kalla {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
     margin-top: var(--s-3);
-    max-width: 34rem;
   }
 </style>
