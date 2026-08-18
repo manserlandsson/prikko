@@ -1,5 +1,5 @@
 """Hopparning av våra verksamheter mot OpenStreetMaps matpunkter, och
-normalisering av `opening_hours`.
+normalisering av `opening_hours`, telefon och webbplats.
 
 Modulen är ren: den känner till namn, koordinater och taggar, inte var datan
 kommer ifrån och inte var den ska skrivas. Nätet och filerna ligger i
@@ -27,7 +27,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 # ---------------------------------------------------------------------------
@@ -205,6 +205,207 @@ def metres(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Kontaktuppgifter ur samma taggar
+# ---------------------------------------------------------------------------
+#
+# Overpass-frågan ovan hämtar HELA taggmängden (`out center tags`), och gjorde
+# så redan när bara `opening_hours` plockades ut. Telefon och webbplats kostar
+# alltså inga nya anrop, bara att sluta slänga fälten.
+#
+# Mätt 2026-08-18 över de 3 927 verksamheter som fick en belagd hopparning:
+# 2 002 bär ett telefonnummer och 2 374 en webbplats. Se docs/37_osm_taggar.md
+# för hela frekvenstabellen och för de fält som mättes och valdes bort.
+
+#: OSM skriver samma uppgift under två namn. `contact:`-formen är den nyare,
+#: den bara `phone`/`website` den äldre, och båda är levande i vår data: 1 055
+#: hopparade bär `contact:phone` och 948 bär `phone`. Att läsa bara den ena
+#: hade kastat ungefär halva skörden. Ordningen nedan är godtycklig i sak;
+#: ingen punkt i uttaget bär två OLIKA nummer under de två nycklarna.
+_PHONE_KEYS = ("phone", "contact:phone", "contact:mobile")
+_WEBSITE_KEYS = ("website", "contact:website", "url")
+
+#: Ett svenskt nummer i internationell form. 1 998 av de 2 002 numren (99,8 %)
+#: står redan så i uttaget, med eller utan mellanslag. Resten kastas hellre än
+#: repareras: ett nummer vi gissat fram ringer någon annan.
+_PHONE_E164 = re.compile(r"^\+46[\d\s\-/().]{6,20}$")
+
+#: En webbadress vi vågar länka till. 2 138 av 2 374 är https och 232 http;
+#: fyra är trasiga (`www.subway.se`, `Japanskatorget.com`, `htttp://heylucie.se`)
+#: och kastas. Att sätta dit ett schema själv hade varit en gissning om
+#: huruvida värden svarar på https, och fyra fall är inte värda den risken.
+_WEBSITE_URL = re.compile(r"^https?://[^\s<>\"]+$")
+
+
+def _first_value(raw: str) -> str:
+    """Första värdet i en OSM-lista.
+
+    Semikolon skiljer likvärdiga alternativ i OSM. Fyra av 2 002 nummer är
+    listor, och för dem är det första numret husets nummer. Att visa båda
+    hade krävt en andra rad på 0,2 procent av sidorna.
+    """
+    return raw.split(";")[0].strip()
+
+
+def phone_of(tags: Dict[str, str]) -> Optional[str]:
+    """Verksamhetens telefonnummer, eller None."""
+    for key in _PHONE_KEYS:
+        value = tags.get(key)
+        if not value:
+            continue
+        candidate = _first_value(value)
+        if _PHONE_E164.match(candidate):
+            # Mellanslagen i uttaget följer inget mönster: "+46 8 551 228 12"
+            # och "+468551228 12" är samma nummer. Vi lagrar bara siffrorna,
+            # så att `tel:`-länken blir densamma oavsett hur någon skrivit den.
+            return "+" + re.sub(r"\D", "", candidate)
+    return None
+
+
+def website_of(tags: Dict[str, str]) -> Optional[str]:
+    """Verksamhetens webbplats, eller None."""
+    for key in _WEBSITE_KEYS:
+        value = tags.get(key)
+        if not value:
+            continue
+        candidate = _first_value(value)
+        if _WEBSITE_URL.match(candidate):
+            return candidate
+    return None
+
+
+_EMAIL_KEYS = ("email", "contact:email")
+
+#: Avsiktligt slapp. Vi skickar inga brev till adressen, vi gör en
+#: `mailto:`-länk av den, och den enda skada en trasig adress gör är att
+#: mottagarens e-postprogram öppnas tomt. Kravet är att det ÄR en adress och
+#: inte en URL eller en fritext, vilket är det som faktiskt förekommer fel.
+_EMAIL = re.compile(r"^[^@\s<>]+@[^@\s<>]+\.[a-zA-Z]{2,}$")
+
+
+def email_of(tags: Dict[str, str]) -> Optional[str]:
+    """Verksamhetens e-postadress, eller None."""
+    for key in _EMAIL_KEYS:
+        value = tags.get(key)
+        if not value:
+            continue
+        candidate = _first_value(value)
+        if _EMAIL.match(candidate):
+            return candidate.lower()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Egenskaper: uteservering, avhämtning, tillgänglighet och de andra
+# ---------------------------------------------------------------------------
+#
+# INGEN TÄCKNINGSGRÄNS STYR VAD SOM VISAS. Ägaren, ordagrant: "har vi datan
+# bara på få så är det fortfarande bättre? kan vi visa telefonnummer på 10 av
+# 10000 så är det värt det." Han har rätt, och skälet är att en VISNING inte
+# har någon nedsida: den som får uppgiften blir hjälpt, den som inte får den
+# ser ingenting alls och är precis lika illa ute som förut.
+#
+# Tröskeln i docs/33 §7, som fällde öppettidsfiltret vid 65 av 712, gäller
+# fortfarande men bara tre saker, och inget av dem finns här:
+#
+#   FILTER OCH SORTERING, där låg täckning DÖLJER. Nio av tio försvinner ur
+#   listan och ingen ser att de försvann.
+#   TAL SOM PÅSTÅR FULLSTÄNDIGHET. "12 av 190 har uteservering" är falskt när
+#   vi bara känner till 12 av dem vi råkar ha data för.
+#   LISTOR OCH TOPPAR. En rangordning över ett fält vi känner till för fem
+#   procent rangordnar vår datalucka och inte verkligheten.
+#
+# Alltså: allt nedan skrivs ut när det finns, hur sällsynt det än är. Saknas
+# det står ingenting, aldrig en rad som säger att vi inte vet.
+
+#: Ja-eller-nej-egenskaper, med OSM-nyckeln som vi läser dem ur. Värdet
+#: skrivs ordagrant vidare, för "limited" (rullstol delvis) och "only"
+#: (endast avhämtning) är egna besked och inte avrundningar av ja.
+_YESNO_FACTS = (
+    ("outdoor", "outdoor_seating"),
+    ("takeaway", "takeaway"),
+    ("delivery", "delivery"),
+    ("wheelchair", "wheelchair"),
+    ("toilets", "toilets"),
+    ("smoking", "smoking"),
+    ("reservation", "reservation"),
+    ("wifi", "internet_access"),
+)
+
+#: Värden vi känner igen i ovanstående. Allt annat kastas: `outdoor_seating`
+#: har en svans av `sidewalk`, `rooftop` och `terrace` (22 fall av 883), och
+#: `smoking` bär till och med ett "Nein". De är riktiga uppgifter men de
+#: kräver var sin översättning, och en oöversatt kod i gränssnittet är sämre
+#: än ingen rad alls.
+_YESNO_VALUES = {"yes", "no", "limited", "only", "outside", "wlan", "terminal", "isolated"}
+
+#: Kosthållning. Bara det som ERBJUDS skrivs. `diet:vegan=no` på ett
+#: stekhus är trivia, medan `yes` svarar på en fråga någon faktiskt ställer.
+#: Det är ett val om presentation och inte om täckning: raden finns eller
+#: finns inte, den påstår aldrig något om dem vi inget vet om.
+_DIET_KEYS = {
+    "diet:vegetarian": "vegetarian",
+    "diet:vegan": "vegan",
+    "diet:gluten_free": "gluten_free",
+    "diet:halal": "halal",
+    "diet:kosher": "kosher",
+    "diet:lactose_free": "lactose_free",
+}
+
+#: Betalsätt. OSM delar upp korten i visa, mastercard, credit_cards,
+#: debit_cards och contactless; för den som står i dörren är det ett enda
+#: besked, alltså "kort".
+_CARD_KEYS = (
+    "payment:cards",
+    "payment:credit_cards",
+    "payment:debit_cards",
+    "payment:visa",
+    "payment:mastercard",
+    "payment:contactless",
+)
+
+
+def facts_of(tags: Dict[str, str]) -> Dict[str, str]:
+    """Egenskaperna vi kan skriva ut, som en platt ordbok.
+
+    Platt och inte nästlad, av samma skäl som veckoschemat är en rad: filerna
+    skrivs med indent=1 och varje nivå kostar en rad per verksamhet och fält.
+    """
+    facts: Dict[str, str] = {}
+
+    cuisine = tags.get("cuisine")
+    if cuisine:
+        # OSM skriver flera kök med semikolon ("kebab;pizza", 14 fall).
+        # Kommatecken är vad en svensk läser som uppräkning.
+        parts = [p.strip() for p in cuisine.split(";") if p.strip()]
+        if parts:
+            facts["cuisine"] = ",".join(parts[:3])
+
+    for name, key in _YESNO_FACTS:
+        value = (tags.get(key) or "").strip().lower()
+        if value in _YESNO_VALUES:
+            facts[name] = value
+
+    diet = [
+        namn
+        for key, namn in _DIET_KEYS.items()
+        if (tags.get(key) or "").strip().lower() in ("yes", "only")
+    ]
+    if diet:
+        facts["diet"] = ",".join(diet)
+
+    payment = []
+    if any((tags.get(k) or "").strip().lower() == "yes" for k in _CARD_KEYS):
+        payment.append("cards")
+    cash = (tags.get("payment:cash") or "").strip().lower()
+    if cash in ("yes", "no"):
+        payment.append("cash" if cash == "yes" else "nocash")
+    if payment:
+        facts["payment"] = ",".join(payment)
+
+    return facts
+
+
+# ---------------------------------------------------------------------------
 # Hopparning
 # ---------------------------------------------------------------------------
 
@@ -237,6 +438,16 @@ class Poi:
     lat: float
     lng: float
     opening_hours: Optional[str]
+    #: Sist och med standardvärde, så att den som bara bryr sig om öppettider
+    #: kan bygga en Poi som förut. Proven gör det.
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    #: `facts` är en ordbok i en frozen dataclass, alltså ohashbar. Det går
+    #: bra här och bara här: en Poi läggs aldrig i en mängd och jämförs
+    #: aldrig i sin helhet. Tvetydighetsprövningen i `pair` samlar `poi.ref`
+    #: och `poi.opening_hours`, som båda är strängar.
+    facts: Dict[str, str] = field(default_factory=dict)
 
     @property
     def ref(self) -> str:
@@ -244,10 +455,14 @@ class Poi:
 
 
 def pois_from_overpass(elements: Iterable[dict]) -> List[Poi]:
-    """Plocka namn, läge och öppettid ur Overpass-svaret.
+    """Plocka namn, läge, öppettid, telefon och webbplats ur Overpass-svaret.
 
     Namnlösa objekt kastas direkt: de kan aldrig paras på namn, och att bära
     dem vidare skulle bara göra tvetydighetsprövningen dyrare.
+
+    Övriga taggar kastas fortfarande, och det är ett val och inte en
+    förbiseelse: docs/37_osm_taggar.md mäter var och en av dem mot vår egen
+    nämnare och säger vilka som inte bär.
     """
     out: List[Poi] = []
     for element in elements:
@@ -267,6 +482,10 @@ def pois_from_overpass(elements: Iterable[dict]) -> List[Poi]:
                 lat=float(lat),
                 lng=float(lng),
                 opening_hours=tags.get("opening_hours") or None,
+                phone=phone_of(tags),
+                website=website_of(tags),
+                email=email_of(tags),
+                facts=facts_of(tags),
             )
         )
     return out

@@ -210,6 +210,7 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
         # ligga tio meter från ett café ska aldrig ärva caféets öppettid.
         if id(establishment) not in consumer_ids:
             establishment.pop("hours", None)
+            establishment.pop("contact", None)
             continue
 
         result = pair(
@@ -220,6 +221,34 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
             approximate=establishment.get("geoPrecision") == "approximate",
         )
         stats[result.reason] += 1
+
+        # KONTAKTUPPGIFTERNA HÄNGER PÅ HOPPARNINGEN, INTE PÅ ÖPPETTIDEN.
+        # `matched_without_hours` betyder att vi VET vilket OSM-objekt det är
+        # men att objektet saknar `opening_hours`. Det är 1 097 verksamheter
+        # utöver de 2 830 med tider, och deras telefonnummer är precis lika
+        # belagda. Skrev vi kontakten bara på MATCHED hade en fjärdedel av
+        # skörden fallit bort av ett skäl som inte har med telefon att göra.
+        if result.poi is not None and result.reason in (MATCHED, MISS_NO_HOURS):
+            contact = {}
+            for key, value in (
+                ("phone", result.poi.phone),
+                ("website", result.poi.website),
+                ("email", result.poi.email),
+            ):
+                if value:
+                    contact[key] = value
+                    stats[f"contact_{key}"] += 1
+            contact.update(result.poi.facts)
+            for key in result.poi.facts:
+                stats[f"fact_{key}"] += 1
+            if contact:
+                stats["contact"] += 1
+                if write:
+                    establishment["contact"] = {**contact, "checkedAt": today}
+            elif write:
+                establishment.pop("contact", None)
+        elif write:
+            establishment.pop("contact", None)
 
         if result.reason != MATCHED or result.poi is None:
             establishment.pop("hours", None)
@@ -245,22 +274,34 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
             }
 
     if write:
-        # Licensblocket skrivs bara när filen faktiskt bär en öppettid. En
-        # ODbL-klausul i en fil utan en enda öppettid är ett påstående om data
-        # som inte finns, och i fyra av tolv kommuner är det just läget: de
-        # saknar koordinater helt och kan därför inte paras alls.
-        if stats["written"]:
+        # Licensblocket skrivs bara när filen faktiskt bär en uppgift ur OSM.
+        # En ODbL-klausul i en fil utan en enda sådan uppgift är ett påstående
+        # om data som inte finns, och i fyra av tolv kommuner är det just
+        # läget: de saknar koordinater helt och kan därför inte paras alls.
+        #
+        # Blocket hette `openingHours` när öppettiden var det enda vi tog ur
+        # OSM. Nu bär filen även telefon och webbplats ur samma uttag och
+        # under samma licens, så det heter `openstreetmap` och räknar upp vad
+        # det täcker. Ingen kod läser blocket, det är ett licensspår i filen.
+        if stats["written"] or stats["contact"]:
+            covers = []
+            if stats["written"]:
+                covers.append("hours")
+            if stats["contact"]:
+                covers.append("contact")
             payload = insert_after(
                 payload,
                 "source",
-                "openingHours",
+                "openstreetmap",
                 {
                     **PROVENANCE,
+                    "covers": covers,
                     "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 },
             )
         else:
-            payload.pop("openingHours", None)
+            payload.pop("openstreetmap", None)
+        payload.pop("openingHours", None)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
     denominator = len(consumer)
@@ -281,6 +322,19 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
     ):
         if stats[reason]:
             print(f"    {reason}: {stats[reason]}", file=sys.stderr)
+
+    # Kontaktuppgifterna har en ANNAN nämnare än öppettiderna, och den är
+    # större: de hänger på hopparningen och inte på att OSM råkar ha en
+    # öppettid. Skrivs de ut mot samma nämnare ser de sämre ut än de är.
+    if stats["contact"]:
+        print(
+            f"  {stats['contact']} av {denominator} fick kontaktuppgift "
+            f"({stats['contact'] / denominator:.1%})",
+            file=sys.stderr,
+        )
+        for key in sorted(k for k in stats if k.startswith(("contact_", "fact_"))):
+            print(f"    {key}: {stats[key]}", file=sys.stderr)
+
     stats["consumer"] = denominator
     stats["total"] = len(establishments)
     return stats
@@ -320,6 +374,13 @@ def main() -> None:
         f"av {total['total']} rader totalt.",
         file=sys.stderr,
     )
+    print(
+        f"{total['contact']} av {consumer} ({total['contact'] / consumer:.1%}) "
+        f"fick minst en kontaktuppgift eller egenskap:",
+        file=sys.stderr,
+    )
+    for key in sorted(k for k in total if k.startswith(("contact_", "fact_"))):
+        print(f"  {key:22s} {total[key]:5d}  {total[key] / consumer:6.1%}", file=sys.stderr)
 
 
 if __name__ == "__main__":
