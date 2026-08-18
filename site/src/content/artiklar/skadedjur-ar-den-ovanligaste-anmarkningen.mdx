@@ -1,6 +1,6 @@
 ---
 title: "Råttor och kackerlackor: den ovanligaste anmärkningen"
-description: "Skadedjur ger avvikelse vid 4,6 procent av granskningarna, lägst av alla hygienpunkter. Men den sitter hårdast av dem alla, och den kommer sällan ensam."
+description: "Skadedjur är den hygienpunkt som ger avvikelse mest sällan av alla. Men den sitter hårdast av dem, och den kommer sällan ensam."
 lede: "Det är skadedjuren som hamnar i rubrikerna, och det är rimligt. Räknat på kontrollerna är de samtidigt det inspektören anmärker på mest sällan, och det som är svårast att bli av med när det väl står i protokollet."
 category: "Förklarat"
 published: "2026-08-12"
@@ -15,57 +15,75 @@ import Diagram from '../../components/Diagram.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import Parstapel from '../../components/Parstapel.astro';
 import Stapel from '../../components/Stapel.astro';
+import {
+  andel,
+  andelsrad,
+  andelsrader,
+  antalOrd,
+  basmening,
+  hygienpunkter,
+  kategoriandel,
+  kategorimening,
+  kategoriradar,
+  kommunlista,
+  nummer,
+  ordningstal,
+  ovrigaUtan,
+  ovrigaVid,
+  parrad,
+  plats,
+  punkt,
+  punktBas,
+  tvaDecimaler,
+} from '../../lib/punktstatistik';
 
 ## Punkten heter J06
 
 I kommunens protokoll finns ingen rad som heter råttor. Det som finns är
-rapporteringspunkt J06, bekämpning av skadedjur, en av åtta punkter under
-rubriken grundförutsättningar och hygien. Under den ryms allt från en mus i ett
-förråd till flugor över ett pass och otäta dörrar mot en bakgata.
+rapporteringspunkt J06, bekämpning av skadedjur, en av de
+{antalOrd(hygienpunkter().length)} punkterna under rubriken grundförutsättningar
+och hygien. Under den ryms allt från en mus i ett förråd till flugor över ett
+pass och otäta dörrar mot en bakgata.
 
-Punkten redovisas inte av alla kommuner. Linköping och Örebro skriver ut varje
+Punkten redovisas inte av alla kommuner. {kommunlista()} skriver ut varje
 kontrollpunkt inspektören tittade på, också de som var utan anmärkning, och det
-är den enda sortens redovisning som ger både täljare och nämnare. Talen nedan är
-räknade på 14 588 kontroller därifrån.
+är den enda sortens redovisning som ger både täljare och nämnare. Det är
+{antalOrd(punktBas().kommuner.length)} av beståndets
+{antalOrd(punktBas().kommunerTotalt)} kommuner, och Stockholm publicerar bara
+lagstiftningsområdet och faller ur helt. Talen nedan är räknade på
+{nummer(punktBas().kontroller)} kontroller därifrån.
 
 <Diagram
   titel="Skadedjur i siffror"
-  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+  underlag={basmening()}
 >
   <FactGrid
     facts={[
-      { label: 'Gånger punkten granskats', value: '5 320' },
-      { label: 'Gånger den gav avvikelse', value: '247' },
-      { label: 'Andel av granskningarna', value: '4,6', unit: '%' },
-      { label: 'Plats bland åtta hygienpunkter', value: 'Sist' },
+      { label: 'Gånger punkten granskats', value: punkt('J06').granskad.toLocaleString('sv-SE') },
+      { label: 'Gånger den gav avvikelse', value: punkt('J06').avvikelse.toLocaleString('sv-SE') },
+      { label: 'Andel av granskningarna', value: andelsrad('J06').display.replace(' %', ''), unit: '%' },
+      { label: `Plats bland de ${antalOrd(hygienpunkter().length)} hygienpunkterna`, value: ordningstal(plats('J06', hygienpunkter()), true) },
     ]}
   />
 </Diagram>
 
-## Den ovanligaste av åtta
+## Den ovanligaste hygienpunkten
 
-Det finns åtta hygienpunkter, och skadedjur är den som ger avvikelse mest
-sällan. Punkterna som ligger högst handlar i stället om hur maten hanteras, hur
-lokalen är byggd och underhållen, och om temperaturen.
+Det finns {antalOrd(hygienpunkter().length)} hygienpunkter, och skadedjur är den
+som ger avvikelse mest sällan. Punkterna som ligger högst handlar i stället om
+hur maten hanteras, hur lokalen är byggd och underhållen, och om temperaturen.
+Vattenförsörjningen är den som granskas mest sällan av dem alla,
+{nummer(punkt('J07').granskad)} gånger, och den stapeln rör sig därför mycket.
 
 <Diagram
   titel="Andel granskningar som gav avvikelse, per hygienpunkt"
-  underlag="Samma 14 588 kontroller. Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades."
+  underlag={basmening('Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades.')}
 >
   <Stapel
     label="Andel av granskningarna som gav en avvikelse, per hygienpunkt"
     scale={20}
     avdelare
-    rows={[
-      { label: 'Hygien före, under och efter processen', value: 17.4, display: '17,4 %', note: '1 977 avvikelser av 11 344 granskningar' },
-      { label: 'Utformning och underhåll av lokaler', value: 15.2, display: '15,2 %', note: '1 349 av 8 895' },
-      { label: 'Kylkedja och temperatur', value: 13.8, display: '13,8 %', note: '1 457 av 10 521' },
-      { label: 'Material i kontakt med livsmedel', value: 11.0, display: '11,0 %', note: '396 av 3 598' },
-      { label: 'Allmänna krav på livsmedelssäkerhet', value: 7.0, display: '7,0 %', note: '144 av 2 051' },
-      { label: 'Personlig hygien', value: 6.4, display: '6,4 %', note: '567 av 8 897' },
-      { label: 'Utbildning i hygien och arbetsmetoder', value: 5.4, display: '5,4 %', note: '275 av 5 066' },
-      { label: 'Bekämpning av skadedjur', value: 4.6, display: '4,6 %', note: '247 av 5 320' },
-    ]}
+    rows={andelsrader(hygienpunkter())}
   />
 </Diagram>
 
@@ -82,7 +100,7 @@ uppföljningen byter skadedjuren plats i listan, från sist till först.
 
 <Diagram
   titel="Hur ofta punkten brister, och hur ofta bristen kvarstår"
-  underlag="Andel av granskningarna som gav avvikelse, mot andel av avvikelserna som stod kvar vid kommunens uppföljning. Samma 14 588 kontroller."
+  underlag={basmening('Andel av granskningarna som gav avvikelse, mot andel av avvikelserna som stod kvar vid kommunens uppföljning.')}
 >
   <Parstapel
     serieA="Gav avvikelse"
@@ -90,12 +108,12 @@ uppföljningen byter skadedjuren plats i listan, från sist till först.
     scale={20}
     label="Andel granskningar som gav avvikelse, och andel av avvikelserna som kvarstod"
     rows={[
-      { label: 'Bekämpning av skadedjur', a: 4.6, b: 9.3, aDisplay: '4,6 %', bDisplay: '9,3 %', note: '247 avvikelser, 23 kvarstod' },
-      { label: 'Hygien före, under och efter', a: 17.4, b: 7.0, aDisplay: '17,4 %', bDisplay: '7,0 %', note: '1 977 avvikelser, 139 kvarstod' },
-      { label: 'Utformning och underhåll', a: 15.2, b: 5.0, aDisplay: '15,2 %', bDisplay: '5,0 %', note: '1 349 avvikelser, 68 kvarstod' },
-      { label: 'Kylkedja och temperatur', a: 13.8, b: 3.8, aDisplay: '13,8 %', bDisplay: '3,8 %', note: '1 457 avvikelser, 55 kvarstod' },
-      { label: 'Personlig hygien', a: 6.4, b: 1.6, aDisplay: '6,4 %', bDisplay: '1,6 %', note: '567 avvikelser, 9 kvarstod' },
-      { label: 'Material i kontakt med livsmedel', a: 11.0, b: 1.0, aDisplay: '11,0 %', bDisplay: '1,0 %', note: '396 avvikelser, 4 kvarstod' },
+      parrad('J06', 'Bekämpning av skadedjur'),
+      parrad('J03', 'Hygien före, under och efter'),
+      parrad('J02', 'Utformning och underhåll'),
+      parrad('J08', 'Kylkedja och temperatur'),
+      parrad('J04', 'Personlig hygien'),
+      parrad('J09', 'Material i kontakt med livsmedel'),
     ]}
   />
 </Diagram>
@@ -117,21 +135,23 @@ utan vad den kommer tillsammans med.
 
 <Diagram
   titel="Övriga avvikelser vid samma kontroll"
-  underlag="Genomsnittligt antal andra avvikelser vid kontroller där skadedjurspunkten granskades. Samma 14 588 kontroller."
+  underlag={basmening('Genomsnittligt antal andra avvikelser vid kontroller där skadedjurspunkten granskades.')}
 >
   <Stapel
     label="Genomsnittligt antal övriga avvikelser vid samma kontroll"
     scale={2}
     avdelare
     rows={[
-      { label: 'Skadedjurspunkten gav avvikelse', value: 1.74, display: '1,74', note: '247 kontroller' },
-      { label: 'Skadedjurspunkten var utan anmärkning', value: 0.68, display: '0,68', note: '5 071 kontroller' },
+      { label: 'Skadedjurspunkten gav avvikelse', value: ovrigaVid('J06'), display: tvaDecimaler(ovrigaVid('J06')), note: `${nummer(punkt('J06').ovrigaNarAntal)} kontroller` },
+      { label: 'Skadedjurspunkten var utan anmärkning', value: ovrigaUtan('J06'), display: tvaDecimaler(ovrigaUtan('J06')), note: `${nummer(punkt('J06').ovrigaUtanAntal)} kontroller` },
     ]}
   />
 </Diagram>
 
-Av de 247 skadedjursavvikelserna stod 195 tillsammans med minst en annan
-avvikelse vid samma besök, alltså 78,9 procent. Bara 52 stod ensamma.
+Av de {nummer(punkt('J06').avvikelse)} skadedjursavvikelserna stod
+{nummer(punkt('J06').avvikelse - punkt('J06').ensam)} tillsammans med minst en annan
+avvikelse vid samma besök, alltså {andel(punkt('J06').avvikelse - punkt('J06').ensam, punkt('J06').avvikelse).replace(' %', ' procent')}.
+Bara {nummer(punkt('J06').ensam)} stod ensamma.
 
 Det hänger ihop med vad kraven faktiskt gäller. Livsmedelsverket pekar på otäta
 dörrar och fönster, avfall som djuren kommer åt och överfyllda förråd där saker
@@ -146,25 +166,20 @@ tillsammans med resten av protokollet, inte som en enskild olycka.
 
 <Diagram
   titel="Andel granskningar som gav skadedjursavvikelse, per kategori"
-  underlag="5 295 av de 5 320 granskningarna, alltså de där verksamhetens kategori går att avgöra."
+  underlag={basmening(kategorimening('J06'))}
 >
   <Stapel
     label="Andel granskningar av skadedjurspunkten som gav avvikelse, per kategori"
     scale={10}
     avdelare
-    rows={[
-      { label: 'Restauranger', value: 7.1, display: '7,1 %', note: '143 avvikelser av 2 004 granskningar' },
-      { label: 'Butiker', value: 6.1, display: '6,1 %', note: '41 av 673' },
-      { label: 'Övriga verksamheter', value: 3.9, display: '3,9 %', note: '14 av 362' },
-      { label: 'Caféer och bagerier', value: 3.0, display: '3,0 %', note: '13 av 438' },
-      { label: 'Skolor och omsorg', value: 2.0, display: '2,0 %', note: '36 av 1 818' },
-    ]}
+    rows={kategoriradar('J06')}
   />
 </Diagram>
 
-Restaurangerna ligger högst och skolköken lägst, med drygt tre gånger så stor
-andel i den ena änden som i den andra. Mönstret är detsamma som på nästan alla
-andra punkter, vilket vi har gått igenom i
+Restaurangerna ligger högst, på
+{kategoriandel('J06', 'restaurang').replace(' %', ' procent')}, och skolköken
+lägst, på {kategoriandel('J06', 'skola').replace(' %', ' procent')}. Mönstret är detsamma som på
+nästan alla andra punkter, vilket vi har gått igenom i
 [Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
 
 Att restaurangerna sticker ut har begripliga skäl. Ett kök som lagar mat kvällar
@@ -232,4 +247,4 @@ hur man väger en enstaka anmärkning mot en historik i
 - [Livsmedelsverkets kontrollwiki: Skadedjursbekämpning](https://kontrollwiki.livsmedelsverket.se/artikel/348/skadedjursbekampning): definitionen av skadedjur, kraven på lokal och rutiner, förfarandet vid fynd och de frågor kontrollen utgår från.
 - [Livsmedelsverkets kontrollwiki: J, grundförutsättningar och hygien](https://kontrollwiki.livsmedelsverket.se/artikel/246/j-grundforutsattningar-hygien): de nio rapporteringspunkterna J01 till J09, där J06 är bekämpning av skadedjur.
 - [Europaparlamentets och rådets förordning (EG) nr 852/2004 om livsmedelshygien](https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX%3A32004R0852): bilaga II, kapitel I punkt 2c om lokalernas utformning, kapitel II punkt 1d om öppna dörrar och fönster, och kapitel IX punkt 4 om förfaranden vid fynd.
-- Andelarna per kontrollpunkt, kvarstående avvikelser, samtidiga avvikelser och kategorier är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Andelarna per kontrollpunkt, kvarstående avvikelser, samtidiga avvikelser och kategorier räknas ur Prikkos bestånd vid varje bygge och ändras när nya kontroller kommer in. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
