@@ -303,6 +303,9 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     const bubble = wrap.querySelector<HTMLElement>('.bubble');
     if (!dot || !bubble || !('showPopover' in bubble)) continue;
 
+    /* Skriptet talar om för stilarket att det kör, se `is-styrd` där. */
+    bubble.classList.add('is-styrd');
+
     /* Tillståndet LÄSES ur webbläsaren, det förs aldrig vid sidan om.
      *
      * Förut fanns en egen flagga `open` som sattes i show och hide, och den
@@ -316,9 +319,6 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
      * `toggle` går vid VARJE växling oavsett vem som orsakade den, och där
      * hör också placeringen hemma: den behövs en gång per öppning, och nu
      * gäller det även den öppning knappen gör deklarativt. */
-    /* Skriptet talar om för stilarket att det kör, se `is-styrd` där. */
-    bubble.classList.add('is-styrd');
-
     let open = false;
     bubble.addEventListener('toggle', () => {
       open = bubble.matches(':popover-open');
