@@ -54,10 +54,29 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
   >
     i
   </button>
-  {/* `popover="manual"` och inte "auto": auto stänger varje annan öppen
-      popover när en ny öppnas, vilket är rätt för menyer men fel här, och
-      auto stängs dessutom av ett klick var som helst vilket krockar med att
-      vi öppnar på hover. Vi styr öppning och stängning själva. */}
+  {/* `popover="auto"` och inte "manual", och bytet är en felrättning.
+
+      Med "manual" får bubblan varken light dismiss eller stängsignal. Uppmätt
+      i mobilvy 390 px på /stockholm/ag/ 2026-08-18: bubblan öppnad, ett tryck
+      långt utanför den, fortfarande `:popover-open`. Escape med bubblan öppen,
+      fortfarande `:popover-open`. Filen påstod tvärtom att Escape stängde
+      den; det gällde aldrig för en manuell popover.
+
+      På dator märktes det inte, eftersom pekaren lämnar knappen och
+      `pointerleave` stänger. På telefon finns ingen pekare som lämnar och
+      ingen Escape, alltså blev varje öppnad bubbla stående. Ägaren: "på
+      mobil, alla i-ikoner jag kan typ inte klicka ner dom, dom fastnar".
+
+      "auto" ger tre saker vi behöver och som annars måste skrivas för hand:
+      ett tryck utanför stänger, Escape stänger, och en ny bubbla stänger den
+      förra så att sidan aldrig bär två samtidigt. Knappen bär `popovertarget`
+      och räknas därför som bubblans anropare, alltså stänger ett nytt tryck på
+      ikonen bubblan i stället för att stänga och öppna den igen.
+
+      Invändningen som stod här, att auto stänger varje annan öppen popover,
+      gäller fortfarande men är rätt för just den här komponenten. Sajten har
+      dessutom bara en popover till, tidslinjens ruta, och de två står aldrig
+      på samma yta. */}
   {/* `data-nosnippet` för att Google annars skriver sökresultatet ur tipset.
 
       Verkligt utfall för AG i Stockholm, kontrollerat i Google: utdraget löd
@@ -70,7 +89,7 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
       Attributet rör bara utdraget. Sidan indexeras som förut, länkarna räknas
       som förut, och texten finns kvar för skärmläsare, som ju är hela skälet
       till att den ligger i dokumentet och inte i ett attribut. */}
-  <span class="bubble glass glass-dark" id={id} role="tooltip" popover="manual" data-nosnippet>{text}</span>
+  <span class="bubble glass glass-dark" id={id} role="tooltip" popover="auto" data-nosnippet>{text}</span>
 </span>
 
 <style>
@@ -126,8 +145,17 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
      Ett genomskinligt ::after utanför pricken, samma grepp som kartknapparna,
      se kartram.css. Men i TVÅ steg, och det är räknat:
 
-       mus      4 px utanför, alltså 24 px, WCAG 2.5.8:s krav
-       finger  14 px utanför, alltså 44 px, --h-tap
+       mus      5 px utanför, alltså 24 px, WCAG 2.5.8:s krav
+       finger  15 px utanför, alltså 44 px, --h-tap
+
+     Talen var 4 och 14 och gav 22 respektive 42, alltså under båda golven.
+     Uppmätt i mobilvy 390 px 2026-08-18: `getComputedStyle(.dot, '::after')`
+     rapporterade 42 x 42 px, och `elementFromPoint` gav pricken tillbaka ut
+     till 20,5 px från mitten men inte längre. Felet är att `inset` på ett
+     absolut placerat barn räknas från förälderns PADDINGRUTA och inte från
+     hennes yttermått. Pricken är 16 px med `box-sizing: border-box` och bär
+     en hårlinje på 1 px, alltså är paddingrutan 14 px, och 14 + 2 * 14 blev
+     42. Ett steg till på varje sida ger 14 + 2 * 15 = 44.
 
      Skälet till att musen inte får 44 är att pricken står inuti löpande text
      med rader omkring 28 px isär. En osynlig 44-cirkel hade nått ner i talet
@@ -136,12 +164,12 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
   .dot::after {
     content: '';
     position: absolute;
-    inset: -4px;
+    inset: -5px;
     border-radius: 50%;
   }
 
   @media (pointer: coarse) {
-    .dot::after { inset: -14px; }
+    .dot::after { inset: -15px; }
   }
 
   .dot:hover,
@@ -254,32 +282,59 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     const bubble = wrap.querySelector<HTMLElement>('.bubble');
     if (!dot || !bubble || !('showPopover' in bubble)) continue;
 
+    /* Tillståndet LÄSES ur webbläsaren, det förs aldrig vid sidan om.
+     *
+     * Förut fanns en egen flagga `open` som sattes i show och hide, och den
+     * kunde inte hålla jämna steg med de vägar webbläsaren öppnar och stänger
+     * på egen hand: knappens popovertarget, ett tryck utanför och Escape.
+     * Uppmätt i mobilvy 390 px 2026-08-18 blev följden att flaggan sade
+     * stängd medan bubblan syntes, och nästa `showPopover()` på en redan
+     * öppen popover kastar InvalidStateError. Undantaget slog ut resten av
+     * hanteraren, och ikonen slutade svara.
+     *
+     * `toggle` går vid VARJE växling oavsett vem som orsakade den, och där
+     * hör också placeringen hemma: den behövs en gång per öppning, och nu
+     * gäller det även den öppning knappen gör deklarativt. */
     let open = false;
-    const show = () => {
-      if (open) return;
-      bubble.showPopover();
-      place(dot, bubble);
-      open = true;
-    };
-    const hide = () => {
-      if (!open) return;
-      bubble.hidePopover();
-      open = false;
-    };
-
-    wrap.addEventListener('pointerenter', show);
-    wrap.addEventListener('pointerleave', hide);
-    dot.addEventListener('focus', show);
-    dot.addEventListener('blur', hide);
-
-    /* Knappen bär popovertarget, så webbläsaren växlar bubblan vid klick av
-       sig själv. På pekskärm är det den enda vägen in, och där finns ingen
-       pointerleave att stänga med, så Escape och nästa tryck utanför får
-       göra jobbet. */
-    dot.addEventListener('click', () => {
+    bubble.addEventListener('toggle', () => {
       open = bubble.matches(':popover-open');
       if (open) place(dot, bubble);
     });
+
+    /* Vakterna finns för att show och hide anropas från flera håll och kan
+       möta en bubbla som redan står i det läge anropet ber om. Båda metoderna
+       kastar i det läget i stället för att göra ingenting. */
+    const show = () => {
+      if (bubble.matches(':popover-open')) return;
+      bubble.showPopover();
+      place(dot, bubble);
+    };
+    const hide = () => {
+      if (bubble.matches(':popover-open')) bubble.hidePopover();
+    };
+
+    /* Hovring är musens fråga och bara musens.
+     *
+     * En pekskärm skickar pointerenter och pointerleave runt varje tryck, och
+     * de kom före klicket. Ett tryck blev därmed öppna, stäng, växla, alltså
+     * tre lägesbyten på en beröring, och vilket läge bubblan hamnade i berodde
+     * på i vilken ordning webbläsaren råkade skicka dem. Med `pointerType`
+     * som grind gör ett tryck exakt en sak: knappen växlar bubblan. */
+    wrap.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'mouse') show();
+    });
+    wrap.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse') hide();
+    });
+
+    /* Fokus öppnar bara när fokus SYNS, alltså vid tangentbord. Ett tryck på
+       en knapp ger den fokus i de flesta webbläsare men inte `:focus-visible`,
+       och utan den skillnaden öppnade fokus bubblan strax innan knappens eget
+       klick växlade den, alltså stängde den igen. */
+    dot.addEventListener('focus', () => {
+      if (dot.matches(':focus-visible')) show();
+    });
+    dot.addEventListener('blur', hide);
 
     document.addEventListener('scroll', () => open && place(dot, bubble), { passive: true });
     window.addEventListener('resize', hide);
