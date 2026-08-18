@@ -387,5 +387,28 @@ class Ursprunget(unittest.TestCase):
         self.assertIsNone(geolicens(self.dir / "finns-inte.json"))
 
 
+class Filfalten(unittest.TestCase):
+    """Fälten som bara bor i filen måste räknas upp i exporten.
+
+    Fyra gånger på fyra dygn har ett sådant fält raderats av nästa
+    nattkörning: kontrollpunkterna, koordinaterna, öppettiderna och contact.
+    Exporten bygger varje post ur databasen, så allt utan kolumn där
+    försvinner tyst.
+
+    Provet läser listan ur källan i stället för att skriva av den, så att det
+    fäller när någon lägger till ett fält i pipelinen utan att lägga till det
+    här.
+    """
+
+    def test_listan_tacker_de_kanda_falten(self):
+        kalla = (Path(__file__).resolve().parents[1] / "export_supabase.py").read_text(
+            encoding="utf-8"
+        )
+        rad = [r for r in kalla.splitlines() if r.strip().startswith("FILFALT = ")]
+        self.assertEqual(len(rad), 1, "FILFALT ska finnas en gång i exporten")
+        for namn in ("hours", "contact", "stop", "parking"):
+            self.assertIn(f'"{namn}"', rad[0], f"{namn} saknas i FILFALT")
+
+
 if __name__ == "__main__":
     unittest.main()

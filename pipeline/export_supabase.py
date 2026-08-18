@@ -358,15 +358,32 @@ def export(client: Supabase, out_dir: Path) -> None:
                 }
             )
 
-        # Öppettiderna hakas på efter att posterna är byggda, och inte som ett
-        # fält i literalen nedan, eftersom de flesta rader saknar dem: ett
-        # `"hours": None` på 13 000 rader hade lagt 13 000 rader i varje diff.
+        # Fälten som bara bor i FILEN hakas på efter att posterna är byggda,
+        # och inte som fält i literalen nedan, eftersom de flesta rader saknar
+        # dem: ett `"hours": None` på 13 000 rader hade lagt 13 000 rader i
+        # varje diff.
+        #
+        # LISTAN MÅSTE VÄXA NÄR ETT NYTT SÅDANT FÄLT TILLKOMMER, och det är
+        # ingen artighet. Samma fel har inträffat fyra gånger på fyra dygn:
+        # kontrollpunkterna, koordinaterna, öppettiderna och senast contact,
+        # som fanns på 3 274 rader och hade raderats i nästa nattkörning.
+        # Exporten bygger varje post från grunden ur databasen, så allt utan
+        # kolumn där försvinner tyst, och ingenting klagar eftersom en rad utan
+        # telefonnummer är fullt publicerbar.
+        #
+        # Uppmätt 2026-08-18: stop 12 870, parking 10 606, contact 3 274,
+        # hours 2 747. Inget av dem har en motpart i Supabase.
+        FILFALT = ("hours", "contact", "stop", "parking")
+
         antal_tider = 0
+        bevarade = {namn: 0 for namn in FILFALT}
         for rad in records:
             forra = tidigare.get(rad["id"], {})
-            if forra.get("hours"):
-                rad["hours"] = forra["hours"]
-                antal_tider += 1
+            for namn in FILFALT:
+                if forra.get(namn):
+                    rad[namn] = forra[namn]
+                    bevarade[namn] += 1
+        antal_tider = bevarade["hours"]
 
         payload = {
             "municipality": {
