@@ -14,6 +14,22 @@ image:
 import Diagram from '../../components/Diagram.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import Stapel from '../../components/Stapel.astro';
+import {
+  andelsrad,
+  andelsrader,
+  antalOrd,
+  basmening,
+  kommunlista,
+  kvarstodsfakta,
+  nummer,
+  omrade,
+  omradesrader,
+  ordningstal,
+  plats,
+  punktBas,
+  storaPunkter,
+  STOR_PUNKT_GRANS,
+} from '../../lib/punktstatistik';
 
 ## Besöket är oanmält, och det är meningen
 
@@ -39,70 +55,64 @@ noteras som utan avvikelse eller med avvikelse. Antalet punkter som tas upp
 varierar med verksamheten och med besökets syfte, men indelningen är densamma
 över hela landet.
 
-Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som är de
-kommuner som skriver ut varje punkt inspektören tittade på och inte bara dem som
-gav en anmärkning. Det är den enda redovisning som ger både täljare och nämnare.
+Talen nedan är räknade på {nummer(punktBas().kontroller)} kontroller i
+{kommunlista()}. Det är de {antalOrd(punktBas().kommuner.length)} av beståndets
+{antalOrd(punktBas().kommunerTotalt)} kommuner som skriver ut varje punkt
+inspektören tittade på och inte bara dem som gav en anmärkning, alltså den enda
+redovisning som ger både täljare och nämnare. Stockholm publicerar bara
+lagstiftningsområdet och faller därför ur helt.
 
 <Diagram
   titel="Andel granskningar som gav avvikelse, per område"
-  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+  underlag={basmening()}
 >
   <Stapel
     label="Andel av granskningarna som gav en avvikelse, per övergripande område"
     scale={20}
     avdelare
-    rows={[
-      { label: 'Livsmedelsinformation och märkning', value: 18.2, display: '18,2 %', note: '1 745 avvikelser av 9 608 granskningar' },
-      { label: 'HACCP och riskhantering', value: 14.7, display: '14,7 %', note: '744 av 5 051' },
-      { label: 'Grundförutsättningar och hygien', value: 11.5, display: '11,5 %', note: '6 432 av 56 050' },
-      { label: 'Spårbarhet', value: 8.0, display: '8,0 %', note: '392 av 4 900' },
-      { label: 'Administrativa krav', value: 1.2, display: '1,2 %', note: '114 av 9 230' },
-    ]}
+    rows={omradesrader([
+      ['B', 'Livsmedelsinformation och märkning'],
+      ['K', 'HACCP och riskhantering'],
+      ['J', 'Grundförutsättningar och hygien'],
+      ['H', 'Spårbarhet'],
+      ['A', 'Administrativa krav'],
+    ])}
   />
 </Diagram>
 
 Det är inte den ordning de flesta hade gissat. Märkning och information om
 livsmedel brister oftare än hygienen, och faroanalysen brister oftare än
 kylkedjan. Hygienen är det största området sett till antal granskningar, med
-56 050 av dem, men mätt per granskning ligger den i mitten.
+{nummer(omrade('J').granskad)} av dem, men mätt per granskning ligger den i
+mitten.
 
 ## De tio punkter som faller oftast
 
 <Diagram
   titel="De enskilda kontrollpunkter som oftast ger avvikelse"
-  underlag="Punkter som granskats minst 1 000 gånger i Linköping och Örebro. Varje punkt har sin egen nämnare."
+  underlag={basmening(`Punkter som granskats minst ${nummer(STOR_PUNKT_GRANS)} gånger. Varje punkt har sin egen nämnare.`)}
 >
   <Stapel
     label="Andel av granskningarna som gav en avvikelse, per kontrollpunkt"
     scale={20}
     avdelare
-    rows={[
-      { label: 'Obligatorisk livsmedelsinformation', value: 18.6, display: '18,6 %', note: '628 avvikelser av 3 385 granskningar' },
-      { label: 'Övrig livsmedelsinformation', value: 18.2, display: '18,2 %', note: '575 av 3 153' },
-      { label: 'Hygien före, under och efter processen', value: 17.4, display: '17,4 %', note: '1 977 av 11 344' },
-      { label: 'Utformning och underhåll av lokaler', value: 15.2, display: '15,2 %', note: '1 349 av 8 895' },
-      { label: 'Faroanalys och kritiska styrpunkter', value: 14.9, display: '14,9 %', note: '698 av 4 672' },
-      { label: 'Allmänna krav och skyldigheter', value: 14.4, display: '14,4 %', note: '296 av 2 053' },
-      { label: 'Kylkedja och temperatur', value: 13.8, display: '13,8 %', note: '1 457 av 10 521' },
-      { label: 'Material i kontakt med livsmedel', value: 11.0, display: '11,0 %', note: '396 av 3 598' },
-      { label: 'Spårbarhet', value: 6.8, display: '6,8 %', note: '313 av 4 632' },
-      { label: 'Personlig hygien', value: 6.4, display: '6,4 %', note: '567 av 8 897' },
-    ]}
+    rows={andelsrader(storaPunkter().slice(0, 10))}
   />
 </Diagram>
 
-Två av de tre översta handlar om vad som står på förpackningar, skyltar och
-menyer, alltså om allergener, ingredienser och ursprung. Det är arbete som görs
-vid ett skrivbord och inte vid spisen, och det är antagligen därför det halkar
-efter.
+Högst upp ligger det som står på förpackningar, skyltar och menyer, alltså
+allergener, ingredienser och ursprung. Det är arbete som görs vid ett skrivbord
+och inte vid spisen, och det är antagligen därför det halkar efter.
 
-Faroanalysen på femte plats är samma sak i en annan form. Kravet är inte att man
+Faroanalysen på {ordningstal(plats('K01', storaPunkter()))} plats är samma sak i
+en annan form. Kravet är inte att man
 har en pärm, utan att verksamheten har identifierat sina egna kritiska moment och
 kan visa att de följs upp. En mall som hämtats någon annanstans och aldrig
 anpassats efter det egna köket är precis vad den punkten fångar.
 
 I andra änden finns registreringen. Att anläggningen är registrerad hos kommunen
-brister i 1,0 procent av granskningarna, alltså nästan aldrig. Det är den enda
+brister i {andelsrad('A01').display.replace(' %', ' procent')} av
+granskningarna, alltså nästan aldrig. Det är den enda
 punkten som är avklarad innan verksamheten öppnar.
 
 ## Vad som händer när en punkt faller
@@ -119,16 +129,9 @@ tillbaka, och där skiljer sig punkterna åt betydligt.
 
 <Diagram
   titel="Hur ofta en avvikelse fortfarande stod kvar vid uppföljningen"
-  underlag="Andel av avvikelserna på respektive hygienpunkt som var kvarstående. Samma 14 588 kontroller."
+  underlag={basmening('Andel av avvikelserna på respektive hygienpunkt som var kvarstående.')}
 >
-  <FactGrid
-    facts={[
-      { label: 'Bekämpning av skadedjur', value: '9,3', unit: '%' },
-      { label: 'Hygien före, under och efter', value: '7,0', unit: '%' },
-      { label: 'Utformning och underhåll', value: '5,0', unit: '%' },
-      { label: 'Kylkedja och temperatur', value: '3,8', unit: '%' },
-    ]}
-  />
+  <FactGrid facts={kvarstodsfakta(['J06', 'J03', 'J02', 'J08'])} />
 </Diagram>
 
 Skadedjur är den avvikelse som oftast överlever uppföljningen, och samtidigt den
@@ -181,4 +184,4 @@ kommunens handling, tar vi emot rättelser på [rättelsesidan](/ratta/).
 - [Livsmedelsverkets kontrollwiki: HACCP](https://kontrollwiki.livsmedelsverket.se/artikel/476/haccp): de sju principerna, inklusive kravet på dokumentation och journaler.
 - [Livsmedelsverket: Sveriges livsmedelskontroll 2024](https://www.livsmedelsverket.se/4ab379/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-13---sveriges-livsmedelskontroll_2024_.pdf) (rapport L 2025 nr 13).
 - Livsmedelslagen (2006:804): kontrollmyndighetens verktyg, från föreläggande till förbud.
-- Andelarna per område och per kontrollpunkt är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Andelarna per område och per kontrollpunkt räknas ur Prikkos bestånd vid varje bygge och ändras när nya kontroller kommer in. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
