@@ -404,6 +404,20 @@ sidtyp där den var 14/20, och rubrikerna ligger nu på 32/43, 40/52, 24/32,
 Före mätningen ommättes booli.se, se avsnittet överst: deras chips är 40 i
 dag och inte 46, och deras sidhuvud är 64.
 
+**Kontrollmätt i bygget efteråt**, kommunsidan i 1280: sidhuvudets rad 64,
+sökfältet 50, sökknappen 44. Textfärgen `#A1A1A6` finns inte längre bland
+sidans textelement; före mätningen bar den 25. Kvar under träffytegolvet står
+tre saker, alla utanför den här omgångens ytor:
+
+| Vad | Fil | Höjd |
+|---|---|---|
+| Kartpuffens knapp | `Platskarta.astro` | 34 |
+| "Stockholm i siffror" | `KommunOversikt.astro` | 18 |
+| Kartans egna kontroller | kartkomponenterna | varierar |
+
+Skärmbilder före och efter togs i 1200 och 390 px av startsidan,
+kommunsidan, verksamhetssidan, artikelindexet, artikeln och kartvyn.
+
 Resten står kvar i listan och tas nästa omgång.
 
 # Vem tar vad härnäst
