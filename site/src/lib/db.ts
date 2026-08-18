@@ -70,18 +70,45 @@ export interface StreetImage {
    * Cloudflare R2. Se pipeline/prikko/imagery.py.
    */
   url: string;
-  /** Bildens id hos källan, för länken tillbaka dit. */
+  /**
+   * Bildens id hos källan, för länken tillbaka dit.
+   *
+   * För `wikimedia` är det filens namn på Commons, "Den Gyldene Freden
+   * 2013a.jpg", och det är den strängen filsidans adress byggs av. Se
+   * Commonsbild.astro.
+   */
   id: string;
-  /** ISO-datum, YYYY-MM-DD, eller null. */
+  /**
+   * ISO-datum, YYYY-MM-DD, eller null.
+   *
+   * Null är vanligt för `wikimedia`: Commons datumfält är fritext och står i
+   * former som "2009", "1959-09" och "mellan 1912 och 1920". Bara ett fullt
+   * datum skrivs hit, för `images.captured_at` är en `date`. ÅRTALET som visas
+   * under bilden kommer därför inte härifrån utan ur `attribution`, se nedan.
+   */
   capturedAt: string | null;
   /**
    * Var bilden kommer ifrån. Styr attributionen, som skiljer sig åt: Mapillarys
-   * villkor kräver deras logotyp och en länk, inte bara en textrad.
+   * villkor kräver deras logotyp och en länk, inte bara en textrad, medan en
+   * Commons-bild kräver fotografens namn, licensnamnet och en länk till
+   * filsidan. Fältet är alltså inte en upplysning utan det som avgör vilken
+   * komponent som får rita bilden.
    */
   source?: 'mapillary' | 'panoramax' | 'owner' | 'own' | 'wikimedia';
-  /** SPDX-beteckning, t.ex. "CC-BY-SA-4.0". */
+  /**
+   * SPDX-beteckning, t.ex. "CC-BY-SA-4.0". För `wikimedia` läst ur Commons
+   * eget maskinvärde `extmetadata.License` och aldrig ur texten för
+   * människor. "PD" betyder public domain, som inte är en licens.
+   */
   licence?: string | null;
-  /** Färdig attributionstext, t.ex. "Mapillary, CC BY-SA 4.0". */
+  /**
+   * Färdig attributionstext, t.ex. "Mapillary, CC BY-SA 4.0" eller
+   * "Foto: Holger.Ellgaard, 2013".
+   *
+   * Byggd i pipelinen och skriven ut ordagrant av mallen. Attributionen är ett
+   * licensvillkor, och den ska följa bilden genom databasen i stället för att
+   * sättas ihop på nytt av varje mall som råkar visa den.
+   */
   attribution?: string | null;
 }
 
