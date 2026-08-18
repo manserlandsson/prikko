@@ -290,11 +290,16 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
      hängde 8 px för lågt i raden, men bara på de sidor som laddade konto.css.
      Det var därför snedheten syntes på verksamhetssidan och inte på
      startsidan. Namnet måste vara unikt så länge konto.css är globalt. */
+  /* Höjden är 50 och inte 40. Uppmätt på booli.se 2026-08-18:
+     `.bui-input-search` är 50 px i både 1280 och 390, alltså samma fält på
+     telefonen som på skärmen. Vårt låg på 40 i sidhuvudet och 36 på telefon,
+     och 36 är under träffytegolvet på just den yta där bara fingret finns.
+     Se --h-field i tokens.css. */
   .search-field {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    height: 40px;
+    height: var(--h-field);
     padding: 3px 3px 3px var(--s-4);
     background: var(--card);
     border: 1px solid var(--hairline);
@@ -302,7 +307,10 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     box-shadow: var(--shadow-sm);
   }
 
-  .search-field:hover { border-color: var(--text-muted); }
+  /* Hovringens kant tas ur --tone-quiet och inte ur textens grå. En ram är
+     grafik, och sedan de tre gråa slogs ihop 2026-08-18 är --text-muted
+     samma mörka bläck som brödtextens tysta rad. Se tokens.css. */
+  .search-field:hover { border-color: var(--tone-quiet); }
   .search-field:focus-within { border-color: var(--brand); }
 
   /* Ringen ligger på pillret, inte på input-elementet: ett textfält matchar
@@ -328,13 +336,16 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   .search-field input:focus { outline: none; }
   .search-field input::placeholder { color: var(--text-muted); }
 
+  /* Knappen är 44 och inte 32. Fältet är 50 med 3 px luft runt om, alltså är
+     44 exakt vad som ryms, och det är samma tal som träffytegolvet. Ingen
+     ::after behövs därför här. Se --h-tap i tokens.css. */
   .go {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: var(--h-tap);
+    height: var(--h-tap);
     padding: 0;
     border: 0;
     border-radius: var(--r-pill);
@@ -353,6 +364,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
      [hidden]-regeln måste stå: en display-regel på klassen slår annars ut
      attributet, och märket ska kunna släckas på pekskärm. */
   .palette-hint {
+    position: relative;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -362,6 +374,19 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     background: none;
     color: var(--text-secondary);
     cursor: pointer;
+  }
+
+  /* Träffytan, 44 px, oberoende av märkets 22.
+     Rutorna är 22 px höga och ska förbli det: de är en avbild av två
+     tangenter och växer man dem läser de som knappar. Ett genomskinligt
+     ::after 11 px över och under ger fingret hela ytan medan ögat bara ser
+     märket. Samma grepp som kartknapparna, se kartram.css. Bara lodrätt:
+     vågrätt gränsar märket till inmatningsfältet, och en yta som hänger ut
+     åt sidan hade stulit klick från det. */
+  .palette-hint::after {
+    content: '';
+    position: absolute;
+    inset: -11px 0;
   }
 
   .palette-hint[hidden] { display: none; }
@@ -381,13 +406,20 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   }
 
   .palette-hint:hover { color: var(--text); }
-  .palette-hint:hover kbd { border-color: var(--text-muted); }
+  .palette-hint:hover kbd { border-color: var(--tone-quiet); }
 
   /* ── Hero-läget: startsidans stora fält ─────────────────────────────────
      Bara mått. 600 px brett, 56 px högt, brödtextens 17 px och en 44 px
-     knapp. Skuggan är ett snäpp djupare än sidhuvudets: fältet är sidans
-     främsta handling och ska lyfta en aning från botten, inte flyta ihop
-     med korten under. Fortfarande inga nya färger. */
+     knapp.
+
+     SKUGGAN ÄR SAMMA SOM ALLA ANDRAS. Den var `0 1px 2px rgba(0,0,0,.05),
+     0 6px 20px rgba(0,0,0,.06)`, alltså 20 px spridning. Boolis kraftigaste
+     skugga på hela sajten är 8 px vid 5 procent, och deras sökfält har
+     ingen skugga alls utan en 1 px kant i #F0F0F0, uppmätt 2026-08-18.
+     Motiveringen som stod här, att fältet ska lyfta en aning mer än korten
+     under, höll så länge heron var ett mättat blått band; sedan heron blev
+     vit ligger fältet på samma vita som korten och lyftet blev en avvikelse
+     utan ärende. Se docs/27_booli_genomgang.md punkt 5. */
   .site-search.is-hero {
     max-width: 600px;
   }
@@ -395,7 +427,6 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   .site-search.is-hero .search-field {
     height: 56px;
     padding: 6px 6px 6px var(--s-6);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 6px 20px rgba(0, 0, 0, .06);
   }
 
   .site-search.is-hero .search-field input { font-size: var(--fs-body); }
@@ -568,7 +599,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 
   .chip:hover {
     text-decoration: none;
-    border-color: var(--text-muted);
+    border-color: var(--tone-quiet);
   }
 
   /* Listan är det enda som rullar. Chipsen, beskedet och tipsraden står
@@ -748,12 +779,14 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       position: static;
     }
 
-    /* Fältet ska väga mindre på en telefon, där det delar en 58 px rad med
-       wordmarken och menyn. Höjden och knappen krymper, inte texten.
-       36 px är fortfarande en bekväm träffyta, och knappen på 30 px sitter
-       kvar mitt i pillret med samma 3 px luft runt om. */
-    .search-field { height: 36px; }
-    .search-field .go { width: 30px; height: 30px; }
+    /* Fältet krymper INTE längre på telefon.
+       ──────────────────────────────────────────────────────────────────────
+       Här stod 36 px, med motiveringen att fältet ska väga mindre i en 58 px
+       rad och att 36 är "en bekväm träffyta". Det andra är fel: 36 ligger
+       under WCAG 2.5.5:s och Apples 44, och det är på telefonen kravet
+       gäller, eftersom det bara finns ett finger där. Booli gör tvärtom och
+       håller sina 50 px hela vägen ned, uppmätt i 390×844 2026-08-18. Raden
+       är 64 px sedan samma mätning och rymmer fältet med 7 px luft. */
 
     /* 16px är ett GOLV, inte ett val. Safari på iOS zoomar in hela sidan när
        ett fält med mindre än 16 px text får fokus, och zoomar aldrig ut igen.
@@ -777,14 +810,15 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     .site-search.is-hero { position: relative; }
     .site-search.is-hero .panel { left: 0; right: 0; }
 
-    /* Något lägre än sidhuvudets 40 vore för lätt här: fältet är ensamt på
-       raden och sidans huvudhandling. 52 ger samma proportioner som 56 på
-       desktop, och knappen 40 sitter kvar med 6 px luft. */
+    /* Hero-fältet står kvar över sidhuvudets: det är ensamt på raden och
+       sidans huvudhandling. 56 på desktop, 54 här, och knappen 44 sitter
+       kvar mitt i pillret med 5 px luft. Talet var 52 med en 40 px knapp,
+       alltså en knapp under träffytegolvet på den skärm där bara fingret
+       finns. Se --h-tap i tokens.css. */
     .site-search.is-hero .search-field {
-      height: 52px;
-      padding-left: var(--s-4);
+      height: 54px;
+      padding: 5px 5px 5px var(--s-4);
     }
-    .site-search.is-hero .go { width: 40px; height: 40px; }
 
     /* Herotexten ner till golvet på mobil. 17 px (--fs-body) är för grovt i
        en smal spalt, men 16 är ett GOLV och inte ett val: under det zoomar

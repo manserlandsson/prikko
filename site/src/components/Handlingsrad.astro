@@ -167,6 +167,10 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } = Astr
     gap: var(--s-2);
   }
 
+    /* Höjden är satt och inte räknad ur padding, exakt som .btn-primary i
+       tokens.css. 11 plus 11 plus en 14/1-rad blev 36 utan ikon och 42 med,
+       alltså två olika knappar i samma rad och båda under träffytegolvet.
+       Se --h-tap i tokens.css. */
   .btn-ghost {
     display: inline-flex;
     align-items: center;
@@ -176,7 +180,8 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } = Astr
     color: var(--text);
     border: 1px solid var(--hairline);
     border-radius: var(--r-pill);
-    padding: 11px 22px;
+    height: var(--h-tap);
+    padding-inline: 22px;
     font: 600 var(--fs-body-s)/1 var(--font-sans);
     cursor: pointer;
     white-space: nowrap;

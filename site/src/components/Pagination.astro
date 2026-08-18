@@ -94,13 +94,18 @@ const numbers = pageNumbers(current, last);
   .step { order: 1; }
   .step + .numbers + .step { order: 3; }
 
+  /* 44 och inte 40. Sidnumren står tätt intill varandra och är den kontroll
+     som oftast trycks fel på en telefon. Talet var 40, alltså under
+     träffytegolvet; se --h-tap i tokens.css. Rutan växer i stället för att
+     bära ett ::after, eftersom posterna ligger vägg i vägg och osynliga ytor
+     då hade lagt sig över grannen. */
   .pager a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--s-1);
-    min-width: 40px;
-    height: 40px;
+    min-width: var(--h-tap);
+    height: var(--h-tap);
     padding-inline: var(--s-3);
     border-radius: var(--r-control);
     font-size: var(--fs-body-s);

@@ -102,12 +102,16 @@ const { search = true } = Astro.props;
 
   /* position: relative — på små skärmar ankras sökpanelen till hela raden i
      stället för till fältet, som då börjar för långt in på skärmen. */
+  /* Raden är 64 px och inte 58. Uppmätt på booli.se 2026-08-18: deras
+     `nav.h-16` är 64 px i både 1280 och 390, och den höjden är dessutom det
+     som får ett 50 px sökfält att sitta i en rad med 7 px luft över och
+     under. Se --h-bar och --h-field i tokens.css. */
   .bar {
     position: relative;
     display: flex;
     align-items: center;
     gap: var(--s-6);
-    height: 58px;
+    height: var(--h-bar);
   }
 
   /* Sökfältet ska ligga i RADENS mitt, inte i mitten av det som blir över.
@@ -163,10 +167,22 @@ const { search = true } = Astro.props;
      `flex: none` säger att märket varken växer eller krymper. Sökfältet är det
      som ska ge efter, för det har en egen bredd att ge av. */
   .brand {
+    position: relative;
     display: inline-flex;
     align-items: center;
     flex: none;
     color: var(--brand);
+  }
+
+  /* Träffytan, 44 px, oberoende av wordmarkens 36. Länken till startsidan är
+     sajtens mest tryckta, och den ska inte kräva att man träffar en 36 px
+     hög rad. Ett genomskinligt ::after 4 px över och under, samma grepp som
+     kartknapparna, se kartram.css. Bara lodrätt: vågrätt är märket 159 px
+     brett och behöver ingenting. */
+  .brand::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
   }
 
   .brand:hover {

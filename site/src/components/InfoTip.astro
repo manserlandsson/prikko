@@ -94,6 +94,7 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
    * och raden hoppar aldrig.
    */
   .dot {
+    position: relative;
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -112,6 +113,35 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     align-items: center;
     justify-content: center;
     transition: color .12s ease, border-color .12s ease;
+  }
+
+  /* Träffytan, 44 px, oberoende av prickens 16.
+     ────────────────────────────────────────────────────────────────────────
+     Pricken är sajtens minsta kontroll och satt precis intill en rubrik.
+     16 px ligger under WCAG 2.5.8:s 24 och långt under de 44 som är rimlig
+     träffyta på telefon; uppmätt i bygget 2026-08-18 fanns fyra till sex
+     sådana prickar per sida. Att växa själva cirkeln var aldrig svaret,
+     den ska läsa som en ikon i en rad text.
+
+     Ett genomskinligt ::after utanför pricken, samma grepp som kartknapparna,
+     se kartram.css. Men i TVÅ steg, och det är räknat:
+
+       mus      4 px utanför, alltså 24 px, WCAG 2.5.8:s krav
+       finger  14 px utanför, alltså 44 px, --h-tap
+
+     Skälet till att musen inte får 44 är att pricken står inuti löpande text
+     med rader omkring 28 px isär. En osynlig 44-cirkel hade nått ner i talet
+     under och fällt ut bubblan när pekaren egentligen låg på siffran.
+     `pointer: coarse` har ingen hovring att stjäla, och där är 44 gratis. */
+  .dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+  }
+
+  @media (pointer: coarse) {
+    .dot::after { inset: -14px; }
   }
 
   .dot:hover,

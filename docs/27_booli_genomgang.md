@@ -6,6 +6,30 @@ Booli i ett svep. Ytor har gjorts om en och en när han klagat på dem, och det
 är därför sajten känns lappad i stället för gjord. Det här dokumentet är den
 genomgången.
 
+## Ommätt 2026-08-18
+
+Booli har flyttat sig sedan den 13, så talen nedan är inte längre sanna rakt
+av. Ommätt i webbläsaren på deras sidor i 1280×900 och 390×844, samma mätkod
+på båda bredderna:
+
+| Deras kontroll | 13 aug | 18 aug |
+|---|---|---|
+| Sökfältet `.bui-input-search` | 50 | **50**, radie 4, kant 1 px `#F0F0F0`, ingen skugga |
+| Sidhuvudets rad `nav.h-16` | ej mätt | **64**, båda bredderna |
+| Filterknapp och sorteringsväljare | 46 | **40**, radie 4, kant 1 px `#CCCCCC`, text 14/24 |
+| `select` på startsidan | 48 | **48**, åtta stycken |
+| Områdeschippet i filterraden | ej mätt | **26,9** |
+| Runda sparknappen i kortet | ej mätt | **32** |
+| Paginering, "Nästa sida" | ej mätt | **48** |
+
+Alltså: **påståendet "kontroller är 44 till 50 px höga" står inte längre.**
+Deras knappmått är 40 i dag, och de har kontroller på 27 och 32. Golvet på
+44 px som gäller hos oss är WCAG 2.5.5 och Apples riktlinje, inte Boolis
+praxis, och det ska stå skrivet så i stället för att lånas ur förlagan.
+
+Textfärgerna står däremot kvar: `#1A1A1A` bär 415 element på startsidan mot
+`#767676`:s 1, och på sökresultatet 448 mot 43. En grå, och den bär lite.
+
 ## Hur talen är framtagna
 
 Uppmätt i webbläsaren 2026-08-13, aldrig ur minnet. Chrome via Playwright,
@@ -55,7 +79,8 @@ Det som slår en när man mäter dem är hur få värden de har.
 - **Vikt 600 på varenda rubrik.** Inget annat värde förekom.
 - **Bredder: 980 sidbehållare, 688 listspalt, 620 brödtext.**
 - **Kontroller är 44 till 50 px höga.** Sökfältet 50, knappen 48, chipsen 46,
-  väljaren 48.
+  väljaren 48. **Överspelat, se ommätningen överst:** den 18 augusti ligger
+  deras knapp på 40 och deras chip på 27, och sidhuvudsraden är 64.
 - **Hårlinjer: 9 till 37 per sida.** Sektioner skiljs av linje och luft.
 
 ---
@@ -87,7 +112,31 @@ döljs under 900 px precis som Boolis. Vektorn är ägarens egen beställning
 från 7 augusti och är INTE raderad: den ligger kvar som `HeroVektor.astro`
 och väljs med en rad i `index.astro` (`heroBakgrund`), tillsammans med fotot.
 
-## 2. Grå text bär för mycket, och vi har tre gråa där Booli har en
+## 2. Grå text bär för mycket, och vi har tre gråa där Booli har en (HALVT RÄTTAD)
+
+**Gjort 2026-08-18: tre nivåer blev en.** `--ink-faint` (#A1A1A6) är borta som
+textfärg. Den låg på 2,6:1 mot vitt, alltså under WCAG för både brödtext och
+stor text, och bar 8 element på verksamhetssidan och 25 på kommunsidan, mätt i
+bygget samma dag. `--text-muted` pekar nu på `--ink-quiet` (#6E6E73, 5,4:1),
+alltså samma grå som `--text-secondary`. Hierarkin under bläcket bärs av
+storlek och vikt, exakt som glaslagret redan slagit fast.
+
+Den ljusa grå är kvar under namnet `--tone-quiet`, men BARA som yta: en
+stapel, en prick, en ram. Tre ställen pekades om dit (`Stapel.astro`,
+`Parstapel.astro`, `kedja.css`), plus hovringens ramar i `SiteSearch.astro`,
+`PlacePicker.astro`, `Filterrad.astro` och `Kategorival.astro`. Skriv aldrig
+`color: var(--tone-quiet)`.
+
+Namnen `--text-muted` och klassen `.text-muted` står kvar och pekar på samma
+värde som `--text-secondary`. Klassen finns i 53 filer, och att byta namn i
+alla på en gång är en ändring i ordval och inte i form.
+
+**Kvar: kartvyns 61 procent.** Bärarna är `SPAN.k-typ.text-secondary` och
+`SPAN.k-meta` i `Karta.astro`, alltså en kartkomponent, och de ägs av en
+annan agent. Sammanslagningen ovan gör tonen läsbar men ändrar inte ANDELEN
+gråa element, och det är andelen som är felet där.
+
+## 2b. Andelen grå, oförändrad
 
 **Mätt**, andel textelement i grå mot totalt antal textelement:
 
@@ -110,12 +159,9 @@ delen av skillnaden är listlängd, inte smak. Den rena jämförelsen är sidor
 UTAN långa listor, och där är skillnaden 29 mot 1 och 30 mot 5, alltså en
 faktor på fem till trettio.
 
-**Grundfelet är dock inte andelen utan antalet nivåer.** Booli har EN grå,
-`#767676`. Vi har tre: `--ink-quiet` `#6E6E73`, `--ink-faint` `#A1A1A6` och
-`--glass-ink-quiet` `#56565B`. `docs/19_formsystem.md` flaggar redan detta
-som "värd att ifrågasätta när någon ändå går igenom färgerna". Den som gör
-det bör börja med `--ink-faint`: den bär 7 till 56 element per sida och
-ligger på 2,6:1 mot vitt, alltså under WCAG för brödtext.
+**Grundfelet var inte andelen utan antalet nivåer, och det är rättat**, se
+punkt 2 ovan. Kvar av den här punkten är alltså bara andelen, som fortfarande
+är fem till trettio gånger Boolis på sidor utan långa listor.
 
 **Största enskilda bärare:** `SPAN.antal` på startsidan (20 element, alltså
 kommunkortens "verksamheter"), `SPAN.meta.text-secondary` på kommun- och
@@ -173,24 +219,58 @@ undantag i `docs/19_formsystem.md` och står kvar på 1,13.
 4. sökfältet `0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.06)`
 
 Boolis kraftigaste skugga på HELA sajten är 8 px spridning vid 5 procent.
-Punkt 3 är rättad i och med heron. Kvar är sökfältets 20 px vid 6 procent
-(`SiteSearch.astro`) och glaslyftets 34 px vid 14 procent (`.glass` i
-`tokens.css`). Glaset är ett taget beslut för svävande lager och ska inte
-skäras utan ägaren, men sökfältets lyft har ingen sådan motivering.
+Punkt 3 är rättad i och med heron.
 
-## 6. Kontrollerna är för låga, och några under träffytekravet
+**Punkt 3 i listan ovan, hero-sökfältets `0 6px 20px` vid 6 procent, är
+rättad 2026-08-18.** Fältet bär `--shadow-sm` som allt annat. Motiveringen
+som stod i filen, att fältet ska lyfta mer än korten under, höll så länge
+heron var ett mättat blått band; sedan heron blev vit ligger fältet på samma
+vita som korten. Boolis eget sökfält har ingen skugga alls, utan en 1 px kant
+i `#F0F0F0`, uppmätt 2026-08-18.
 
-**Mätt.** Booli: sökfältet 50, knappen 48, chipsen 46, väljaren 48. På
-startsidan var åtta av kontrollerna 48 px.
+Kvar är glaslyftets 34 px vid 14 procent (`.glass` i `tokens.css`). Glaset är
+ett taget beslut för svävande lager och ska inte skäras utan ägaren.
 
-Prikko, per sida: 36 px (fyra stycken, sidhuvudets), 32, 29, 22, 40, 52.
-Alltså **22 och 29 px kontroller**, vilket inte finns i Boolis värld och
-ligger under WCAG 2.5.8:s 24 px respektive under den 44 px som är rimlig
-träffyta på telefon.
+## 6. Kontrollerna är för låga, och några under träffytekravet (RÄTTAD)
 
-Kontrollerna bor i delade komponenter (`SiteSearch.astro`, `Filterrad.astro`,
-`Header.astro`) där andra agenter arbetar just nu. Skrivs upp, rättas inte
-här.
+**Ommätt 2026-08-18.** Booli: sökfältet 50, sidhuvudets rad 64, knappen 40,
+`select` 48. Se avsnittet överst: deras 46 px chips är 40 i dag, och de har
+själva kontroller på 27 och 32. Golvet på 44 px är alltså VÅRT, ur WCAG 2.5.5
+och Apples riktlinje, inte lånat ur förlagan.
+
+**Prikko före, mätt i bygget 2026-08-18:** sidhuvudets rad 58, sökfältet 40 i
+sidhuvudet och 36 på telefon, hero-fältet 56 och 52, sökknappen 32 och 30,
+genvägsmärket 22, informationspricken **16**, menyknappen 36, knapparna 42,
+jämförknappen 34,5, pagineringen 40, kategorivalet 40. Filterradens val
+mättes till **52** och var alltså aldrig 32; det talet gällde chipsen som
+commit `a5dbfb47` redan tagit bort.
+
+Informationspricken på 16 px var sajtens grövsta brott: under WCAG 2.5.8:s
+24 px, och det fanns fyra till sex per sida.
+
+**Gjort.** Skalan bor nu i `tokens.css` som fyra tal och inte i tolv filer:
+
+| Token | Värde | Varifrån |
+|---|---|---|
+| `--h-bar` | 64 | Boolis `nav.h-16`, båda bredderna |
+| `--h-field` | 50 | Boolis `.bui-input-search`, båda bredderna |
+| `--h-control` | 40 | Boolis filterknapp och sorteringsväljare |
+| `--h-tap` | 44 | WCAG 2.5.5, inte Booli |
+
+Rättade ytor: sidhuvudets rad till `--h-bar`; sökfältet till `--h-field` i
+båda bredderna, alltså slut på 36 px på telefon; sökknappen och `.btn-primary`,
+`.btn-ghost`, `.btn-quiet` och pagineringen till `--h-tap`; `.btn-tight` och
+jämförknappen till `--h-control` med `::after`; genvägsmärket, menyknappen,
+kategorivalet och informationspricken behåller sitt utseende och bär
+träffytan i ett `::after`, receptet ur `kartram.css`.
+
+Informationspricken får 24 px för mus och 44 för finger, och det är räknat:
+pricken står inuti löpande text med rader 28 px isär, och en osynlig
+44-cirkel hade fällt ut bubblan när pekaren låg på talet under.
+`pointer: coarse` har ingen hovring att stjäla.
+
+**Kvar:** kartpuffens knapp på 34 px (`Platskarta.astro`) och kartans egna
+kontroller. De ägs av kartans agent.
 
 ## 7. Vi skiljer sektioner med rutor där Booli skiljer med linje och luft
 
@@ -212,11 +292,17 @@ en 1 px `#E6E6E6` och 32 respektive 64 px luft. Aldrig av en ruta"), men det
 
 **Detta är ett MÖNSTER och inte ett enskilt fall.** Commit `27318562` tog
 bort kommunsidans ljusblå fördjupningsband för att staplarna ritas i
-märkesblått mot ett spår som räknar med vit botten. Samma konstruktion finns
-kvar på ett ställe till: `ArtikelBanner.astro` lägger ett band på
-`--brand-wash` och ställer sedan ett VITT kort på det, kontrast 1,11:1. Det
-är "en ruta i rutan", alltså precis det bibeln förbjuder. Artikelsektionen
-ägs av en annan agent just nu; punkten är deras att ta.
+märkesblått mot ett spår som räknar med vit botten. Samma konstruktion fanns
+kvar på ett ställe till: `ArtikelBanner.astro` la ett band på `--brand-wash`
+och ställde sedan ett VITT kort på det, kontrast 1,11:1.
+
+**Rättad 2026-08-18.** Bandet har vit botten, en 1 px hårlinje över sig och
+64 px luft på var sida om linjen, 32 under 900 px. Kortet avgränsas av ringen
+i `--shadow-sm`, alltså samma grepp som kommunkorten. Komponenten används
+bara på verksamhetssidan.
+
+Kvar av punkt 7 är hårlinjeräkningen som helhet: startsidan, kategorisidan
+och sökresultatet skiljer fortfarande sektioner med för lite linje och luft.
 
 ## 8. Filterradens rulltröskel
 
@@ -288,13 +374,14 @@ Skrivna med tal så att de kan rättas av den som står i filen.
 
 | Yta | Fil | Avvikelse i tal |
 |---|---|---|
-| Sökfältet | `SiteSearch.astro` | radie 999 mot Boolis 4; skugga `0 6px 20px` mot deras `0 2px 8px`; höjd 42 mot deras 50 |
-| Artikelbandet | `ArtikelBanner.astro` | vitt kort på `--brand-wash`, kontrast 1,11:1, en ruta i en ruta |
-| Filterraden | `Filterrad.astro` | chips 32 px höga mot Boolis 46 |
-| Kartans träfflista | kartvyns komponenter | 61 % av textelementen gråa, sajtens högsta |
-| Sidhuvudet | `Header.astro` | kontroller på 36 px mot Boolis 48 |
+| Sökfältet | `SiteSearch.astro` | radie 999 mot Boolis 4. Höjd och skugga rättade 2026-08-18 |
+| Artikelbandet | `ArtikelBanner.astro` | rättad 2026-08-18 |
+| Filterraden | `Filterrad.astro` | ingen avvikelse kvar: valen mättes till 52 px 2026-08-18, och chipsen på 32 togs bort av commit `a5dbfb47` |
+| Kartans träfflista | kartvyns komponenter | 61 % av textelementen gråa, sajtens högsta. Öppen |
+| Kartpuffen | `Platskarta.astro` | knappen 34 px mot träffytegolvets 44. Öppen |
+| Sidhuvudet | `Header.astro` | rättad 2026-08-18, raden är 64 px |
 
-# Vad som rättades i den här omgången
+# Vad som rättades i omgång ett (2026-08-13)
 
 1. Heron, punkt 1.
 2. `--lh-body-s` 20 till 24, punkt 3.
@@ -304,6 +391,19 @@ Kontrollmätt i bygget efteråt: den dominerande textgraden är 14/24 på varje
 sidtyp där den var 14/20, och rubrikerna ligger nu på 32/43, 40/52, 24/32,
 21/28 och 17/23, alltså Boolis kvot. Startsidans serif står kvar på 48/54.
 
+# Vad som rättades i omgång två (2026-08-18)
+
+1. **Punkt 7, artikelbandet.** Vit botten med hårlinje och luft i stället för
+   ett vitt kort på `--brand-wash`.
+2. **Punkt 2, gråskalan.** Tre textgråa blev en. `--ink-faint` lever vidare
+   som ytton `--tone-quiet` och aldrig som text.
+3. **Punkt 6, kontrollhöjderna, och punkt 5, sökfältets skugga.** Fyra
+   höjdtokens i `tokens.css` och 44 px träffyta överallt utom i
+   kartkomponenterna.
+
+Före mätningen ommättes booli.se, se avsnittet överst: deras chips är 40 i
+dag och inte 46, och deras sidhuvud är 64.
+
 Resten står kvar i listan och tas nästa omgång.
 
 # Vem tar vad härnäst
@@ -311,25 +411,10 @@ Resten står kvar i listan och tas nästa omgång.
 Punkterna ovan sorterade efter vems yta de ligger på, så att nästa omgång kan
 plockas direkt utan att någon läser hela dokumentet.
 
-**Ligger på artikelsektionens agent:**
+**Punkterna 5, 6 och 7 är tagna 2026-08-18**, se "Vad som rättades i omgång
+två" ovan. Det som stod här om artikelbandet, kontrollhöjderna och
+sökfältets skugga är gjort.
 
-- **Punkt 7, ArtikelBanner.** `ArtikelBanner.astro` rad 145 lägger bandet på
-  `--brand-wash` och rad 172 och framåt ställer ett VITT kort på det.
-  Kontrasten är 1,11:1. Det är samma konstruktion som commit `27318562` tog
-  bort från kommunsidan, alltså en ruta i en ruta, och bibeln säger hårlinje
-  och luft i stället. Rättas till vit botten med hårlinje över.
-
-**Ligger på agenten i sök- och filterytorna:**
-
-- **Punkt 6, kontrollhöjder.** `SiteSearch.astro` har fältet på 42 px där
-  Boolis är 50. `Filterrad.astro` har chips på 32 px där Boolis är 46.
-  `Header.astro` har kontroller på 36 px där Boolis kör 48. Två kontroller
-  ligger på 22 och 29 px, alltså under WCAG 2.5.8:s 24 px och långt under
-  44 px träffyta på telefon.
-- **Punkt 5, sökfältets skugga.** `SiteSearch.astro` kör `0 6px 20px` vid
-  6 procent. Boolis kraftigaste skugga på hela sajten är `0 2px 8px` vid
-  5 procent. Glaslyftet i `tokens.css` rörs INTE utan ägaren; det är ett taget
-  beslut för svävande lager.
 
 **Ligger på kartans agent:**
 

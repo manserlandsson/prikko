@@ -96,11 +96,13 @@ const jsonLd = {
      eftersom teckenförklaring och sidfot alltid låg kvar under och gav sidan
      en svans. Sidfoten är därför avstängd här via Base-propen footer.
 
-     58px är sidhuvudets höjd plus dess hårlinje, satt i Header.astro. */
+     Höjden under sidhuvudet är --h-bar plus dess hårlinje. */
   .page {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - 59px);
+    /* Sidhuvudets rad plus dess hårlinje. Raden är en token sedan
+       2026-08-18, se --h-bar i tokens.css; talet stod förr som 59. */
+    height: calc(100dvh - var(--h-bar) - 1px);
     padding-block: var(--s-4) var(--s-4);
     max-width: var(--w-full);
   }

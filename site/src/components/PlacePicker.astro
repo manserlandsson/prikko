@@ -172,7 +172,7 @@ const LASA = [
     {/* Klockan. Dold tills skriptet vet att det finns något oläst.
 
         SYNS BARA NÄR DET FINNS EN OLÄST NOTIS. Förlagan är Booking, som har
-        klockan framme jämt, men de har ett sidhuvud att ta av. Vårt är 58 px
+        klockan framme jämt, men de har ett sidhuvud att ta av. Vårt är 64 px
         och bär redan wordmark, sökfält och avatar; en tredje ikon som alltid
         står där och för det mesta inte betyder något är brus.
 
@@ -394,9 +394,14 @@ const LASA = [
      texten "Kommun" bredvid ikonen; när texten togs bort behöll den sin
      padding-inline och blev en oval. Nu samma tal på båda ledder.
 
-     Cirkeln får vara tom. Den markerar att ikonen är något man trycker på och
-     ger en träffyta på 36 px, ungefär gränsen för en fingertopp. En fylld yta
-     hade vägt lika tungt som wordmarken i andra änden av raden. */
+     Cirkeln får vara tom. Den markerar att ikonen är något man trycker på.
+     En fylld yta hade vägt lika tungt som wordmarken i andra änden av raden.
+
+     Här stod att 36 px är "ungefär gränsen för en fingertopp". Det är fel:
+     WCAG 2.5.5 och Apples egen riktlinje säger 44, och det här är sajtens
+     enda meny och står längst ut vid skärmkanten på en telefon. Cirkeln
+     ritas fortfarande 36 för att inte väga över wordmarken; träffytan bärs
+     av ett genomskinligt ::after längre ned. Se --h-tap i tokens.css. */
   .trigger {
     display: inline-flex;
     align-items: center;
@@ -417,7 +422,7 @@ const LASA = [
 
   /* Inloggad blir knappen ett piller med hamburgaren och avataren bredvid
      varandra, som hos Airbnb. Utloggad är den en tom cirkel. Bredden får växa,
-     höjden aldrig: sidhuvudet är 58 px och en knapp som ändrar höjd skulle
+     höjden aldrig: sidhuvudet är --h-bar högt och en knapp som ändrar höjd skulle
      flytta wordmarken och sökfältet när man loggar in. */
   .picker[data-signed-in] .trigger {
     width: auto;
@@ -428,7 +433,17 @@ const LASA = [
 
   .trigger:hover {
     background: var(--canvas);
-    border-color: var(--text-muted);
+    border-color: var(--tone-quiet);
+  }
+
+  /* Träffytan, 44 px, oberoende av cirkelns 36. Ett genomskinligt ::after
+     4 px utanför åt alla håll, samma grepp som kartknapparna i kartram.css.
+     Inloggad är knappen ett bredare piller och då hänger ytan lika mycket
+     utanför det. */
+  .trigger::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
   }
 
   /* Safari ritar en egen triangel på summary. */
@@ -455,7 +470,7 @@ const LASA = [
 
   .picker[open] .trigger {
     background: var(--canvas);
-    border-color: var(--text-muted);
+    border-color: var(--tone-quiet);
   }
 
   .picker[data-stanger] .trigger {
@@ -513,12 +528,13 @@ const LASA = [
 
   /* ── PANELEN ───────────────────────────────────────────────────────────── */
 
-  /* 58 px är sidhuvudsradens höjd, satt i Header.astro. Panelen börjar där
+  /* --h-bar är sidhuvudsradens höjd, satt i tokens.css och använd i
+     Header.astro. Panelen börjar där
      raden slutar, alltså under wordmarken och sökfältet, som båda blir kvar
      synliga och användbara. Se filhuvudet för varför den inte täcker raden. */
   .panel {
     position: fixed;
-    top: 58px;
+    top: var(--h-bar);
     left: 0;
     right: 0;
     z-index: 1;
@@ -527,7 +543,7 @@ const LASA = [
     /* Sista utvägen på en låg skärm i liggande läge. dvh och inte vh: på iOS
        är vh den utfällda adressfältets höjd, alltså fel varje gång fältet är
        inne. */
-    max-height: calc(100dvh - 58px);
+    max-height: calc(100dvh - var(--h-bar));
 
     /* Rullningslistens bredd, medan låset håller. Panelen ligger FAST i
        vyporten och mäter alltså mot den, medan sidan under mäter mot en body
@@ -606,7 +622,7 @@ const LASA = [
      Svag: sidan ska läsa som nedtonad, inte som bortsläckt. */
   .scrim {
     position: fixed;
-    top: 58px;
+    top: var(--h-bar);
     left: 0;
     right: 0;
     bottom: 0;

@@ -146,6 +146,9 @@
   margin-top: var(--s-6);
 }
 
+/* Höjden är satt och inte räknad ur padding, exakt som .btn-primary i
+   tokens.css: 11 plus 11 plus en 14/1-rad gav 36 utan ikon och 42 med, alltså
+   två olika knappar i samma rad och båda under träffytegolvet. Se --h-tap. */
 .btn-quiet {
   display: inline-flex;
   align-items: center;
@@ -154,7 +157,8 @@
   color: var(--text);
   border: 1px solid var(--hairline);
   border-radius: var(--r-pill);
-  padding: 11px 22px;
+  height: var(--h-tap);
+  padding-inline: 22px;
   font: 600 var(--fs-body-s)/1 var(--font-sans);
   cursor: pointer;
 }
@@ -162,10 +166,21 @@
 .btn-quiet:hover { background: var(--canvas); text-decoration: none; }
 
 /* Radens knapp. Samma knapp, mindre yta: den hör till en rad i en lista och
-   ska inte väga lika mycket som sidans egen åtgärd. */
+   ska inte väga lika mycket som sidans egen åtgärd.
+
+   Höjden är --h-control, alltså Boolis knappmått, uppmätt hos dem till 40 px
+   2026-08-18. Träffytan bärs av ett ::after och är 44, se --h-tap. */
 .btn-tight {
-  padding: 7px 14px;
+  position: relative;
+  height: var(--h-control);
+  padding-inline: 14px;
   font-size: var(--fs-caption);
+}
+
+.btn-tight::after {
+  content: '';
+  position: absolute;
+  inset: -2px 0;
 }
 
 button[disabled], .btn-primary[disabled], .btn-quiet[disabled] {

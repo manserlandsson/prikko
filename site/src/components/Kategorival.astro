@@ -173,6 +173,7 @@ const { items, label } = Astro.props;
    * tillsammans, så att ikonen väger mot hela posten och inte mot etiketten.
    */
   .val {
+    position: relative;
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
@@ -180,6 +181,19 @@ const { items, label } = Astro.props;
     /* Etiketten är sajtens vanliga bläck. Talet under är tyst, se .tal. */
     color: var(--text);
     min-width: 0;
+  }
+
+  /* Träffytan, 44 px, oberoende av cellens 40.
+     Cellen är 40 hög av innehållet: ikonen 24, etiketten 14/24 och talet
+     12/16. Uppmätt i bygget 2026-08-18. Att växa raden hade spätt ut
+     rutnätet, alltså hänger träffytan 2 px utanför i stället, med ett
+     genomskinligt ::after. Samma grepp som kartknapparna, se kartram.css.
+     Bara lodrätt: spaltluften är 24 px och en yta som hänger ut åt sidorna
+     hade mötts på mitten mellan två grannar. */
+  .val::after {
+    content: '';
+    position: absolute;
+    inset: -2px 0;
   }
 
   .val:hover { text-decoration: none; }
@@ -226,7 +240,7 @@ const { items, label } = Astro.props;
 
   .val:hover .etikett {
     text-decoration: underline;
-    text-decoration-color: var(--text-muted);
+    text-decoration-color: var(--tone-quiet);
   }
 
   /* Aktivt val: understreck OCH halvfet OCH aria-current. */

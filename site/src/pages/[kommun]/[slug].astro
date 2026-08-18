@@ -1101,16 +1101,28 @@ const breadcrumbs = {
      egen åtgärd — bedömningen ovanför är det man kom för. */
   .jamfor-rad { margin: var(--s-4) 0 0; }
 
+  /* Måtten följer .btn-tight i konto.css, alltså radens knapp: --h-control
+     högt, med träffytan buren av ett ::after på --h-tap. Höjden var räknad
+     ur padding och landade på 34,5 px, uppmätt i bygget 2026-08-18, alltså
+     under träffytegolvet. */
   .jamfor-knapp {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
+    height: var(--h-control);
     background: transparent;
     color: var(--text);
     border: 1px solid var(--hairline);
     border-radius: var(--r-pill);
-    padding: 7px 16px;
+    padding-inline: 16px;
     font: 600 var(--fs-caption)/1 var(--font-sans);
+  }
+
+  .jamfor-knapp::after {
+    content: '';
+    position: absolute;
+    inset: -2px 0;
   }
 
   /* Brandblå och aldrig grönt, gult eller rött. De tre färgerna är
