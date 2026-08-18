@@ -28,6 +28,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
+from typing import Optional
 
 PAGE = 1000
 
@@ -97,8 +98,11 @@ class Supabase:
             print(f"    {table}: {len(rows)}…", file=sys.stderr, end="\r")
 
 
-def harledda(path: Path) -> dict:
-    """Koordinater som FILEN har och databasen saknar.
+def filradering(path: Path) -> dict:
+    """Föregående exports rader, per id.
+
+    Två uppgifter bor i FILEN och inte i databasen, och båda raderades av
+    exporten innan det här fanns.
 
     ## Varför de bor i filen och inte i databasen
 
@@ -122,9 +126,17 @@ def harledda(path: Path) -> dict:
     hemvist är alltså inte en nödlösning, det är den ordning ansökan bygger
     på. Se docs/34_ny_ansokan_lantmateriet.md.
 
+    ÖPPETTIDERNA är det andra fallet, och det gick sönder på samma dag.
+    `pipeline/oppettider.py` parar ihop våra verksamheter med OpenStreetMap och
+    skriver ett veckoschema per rad. 2 748 rader fick en 2026-08-18, och
+    nattkörningen samma dygn skrev bort samtliga. Databasen har ingen kolumn
+    för dem, och det ska den inte ha heller: uppgiften är ODbL-licensierad och
+    hör till filen, precis som koordinaterna.
+
     Bara rader där databasen saknar koordinat får sin gamla tillbaka. Har
     kommunen börjat publicera en egen vinner den alltid, så en riktig
-    uppdatering kan aldrig blockeras av en gammal gissning.
+    uppdatering kan aldrig blockeras av en gammal gissning. Öppettiden har
+    ingen motpart i databasen alls och följer därför alltid med.
     """
     if not path.exists():
         return {}
@@ -132,11 +144,7 @@ def harledda(path: Path) -> dict:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except ValueError:
         return {}
-    return {
-        e["id"]: (e["lat"], e["lng"])
-        for e in payload.get("establishments", [])
-        if e.get("id") and e.get("lat") is not None and e.get("lng") is not None
-    }
+    return {e["id"]: e for e in payload.get("establishments", []) if e.get("id")}
 
 
 def export(client: Supabase, out_dir: Path) -> None:
@@ -192,16 +200,19 @@ def export(client: Supabase, out_dir: Path) -> None:
 
     for m in municipalities:
         records = []
-        # Härledda koordinater bor i FILEN, inte i databasen. Se `harledda`.
-        tidigare = harledda(out_dir / f"{m['slug']}.json")
+        # Koordinater och öppettider bor i FILEN, inte i databasen. Se
+        # `filradering` för varför, och varför det inte är en nödlösning.
+        tidigare = filradering(out_dir / f"{m['slug']}.json")
 
         for e in by_municipality.get(m["code"], []):
             assessment = by_assessment.get(e["id"], {})
             image = (by_image.get(e["id"]) or [None])[0]
 
+            forra = tidigare.get(e["id"], {})
+
             lat, lng = e.get("lat"), e.get("lng")
             if lat is None and lng is None:
-                lat, lng = tidigare.get(e["id"], (None, None))
+                lat, lng = forra.get("lat"), forra.get("lng")
 
             records.append(
                 {
@@ -284,14 +295,27 @@ def export(client: Supabase, out_dir: Path) -> None:
             "establishments": records,
         }
 
+        # Öppettiderna hakas på efter att posterna är byggda, och inte som ett
+        # fält i literalen ovan, eftersom de flesta rader saknar dem: ett
+        # `"hours": None` på 13 000 rader hade lagt 13 000 rader i varje diff.
+        for rad in records:
+            forra = tidigare.get(rad["id"], {})
+            if forra.get("hours"):
+                rad["hours"] = forra["hours"]
+
         path = out_dir / f"{m['slug']}.json"
 
         # Provet FÖRE skrivningen, och det är rättelsen. Skrevs filen först
         # låg den rasade utgåvan på disken, och enda sättet att skydda den var
         # att stoppa hela exporten. Nu behålls gårdagens fil för just den
         # kommunen och de övriga elva går vidare.
-        if collapse(path, records):
-            rasade.append(m["slug"])
+        #
+        # Två grindar, samma verkan. Kontrollpunkterna är vad en anmärkning
+        # gällde, koordinaterna är kartnålen. Båda kan försvinna tyst, och en
+        # kommun vars fil rasar i endera avseendet ska behålla gårdagens.
+        orsak = collapse(path, records) or coordinate_collapse(path, records)
+        if orsak:
+            rasade.append((m["slug"], orsak))
             print(
                 f"  {path.name} LÄMNAS ORÖRD, gårdagens utgåva behålls",
                 file=sys.stderr,
@@ -313,6 +337,8 @@ RAS_MARKOR = "rasade-kommuner.txt"
 
 def report_collapse(rasade: list, out_dir: Path) -> None:
     """En rasad kommun ska stoppa sin egen fil, inte hela nattens data.
+
+    `rasade` är par av kommunens slug och skälet grinden gav.
 
     ## Varför exporten inte längre avbryter
 
@@ -338,24 +364,53 @@ def report_collapse(rasade: list, out_dir: Path) -> None:
     arbetsflödet läser EFTER incheckningen. Datan kommer fram, körningen blir
     röd, och mejlet kommer.
     """
-    lista = ", ".join(rasade)
+    lista = ", ".join(slug for slug, _ in rasade)
     print(
-        f"\nVARNING: {len(rasade)} kommuner tappade nästan hela sin\n"
-        f"kontrollhistorik: {lista}.\n"
-        "Deras filer är OFÖRÄNDRADE, alltså gårdagens utgåva. Övriga kommuner\n"
+        f"\nVARNING: {len(rasade)} kommuner rasade:\n"
+        + "".join(f"  {slug}: {orsak}\n" for slug, orsak in rasade)
+        + "Deras filer är OFÖRÄNDRADE, alltså gårdagens utgåva. Övriga kommuner\n"
         "är skrivna som vanligt och checkas in.\n"
         "Ett fel uppströms är långt troligare än att en kommun slutat\n"
         "publicera. Börja i kommunens hämtare, den upptäcker oftast själv att\n"
-        "sidformatet ändrats. Är fallet verkligt: kör om med --tillat-ras.",
+        "sidformatet ändrats. Gäller det kartnålarna: börja i stället i\n"
+        "`harledda` här i filen och i pipeline/geocode.py.\n"
+        "Är fallet verkligt: kör om med --tillat-ras.",
         file=sys.stderr,
     )
     if os.environ.get("GITHUB_ACTIONS"):
         print(f"::warning title=Kommun frusen::{lista} behöll gårdagens data.")
-    (out_dir.parent / RAS_MARKOR).write_text(lista + "\n", encoding="utf-8")
+    (out_dir.parent / RAS_MARKOR).write_text(
+        "".join(f"{slug}: {orsak}\n" for slug, orsak in rasade), encoding="utf-8"
+    )
 
 
 def count_points(records: list) -> int:
     return sum(len(i["areas"]) for e in records for i in e["inspections"])
+
+
+def count_coordinates(records: list) -> int:
+    """Hur många verksamheter som har en kartnål.
+
+    Båda talen krävs. Ett ensamt lat är ingen plats, och sajten ritar ingen
+    nål för det.
+    """
+    return sum(
+        1 for e in records if e.get("lat") is not None and e.get("lng") is not None
+    )
+
+
+def _tidigare(path: Path) -> Optional[list]:
+    """Föregående exports ögonblicksbild, eller None när den inte går att läsa.
+
+    Grindarna jämför mot filen som redan ligger på disken, för det är den
+    nattkörningen ersätter.
+    """
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text("utf-8"))["establishments"]
+    except (ValueError, KeyError):
+        return None
 
 
 #: Så stor andel av gårdagens kontrollpunkter måste finnas kvar i dagens
@@ -369,29 +424,84 @@ def count_points(records: list) -> int:
 #: tiden. Ingen läser en rad som ser likadan ut varje natt.
 MIN_POINTS_KEPT = 0.5
 
+#: Så stor andel av gårdagens kartnålar måste finnas kvar, OCH hur många nålar
+#: som minst måste ha försvunnit för att grinden ska bry sig. Båda villkoren
+#: krävs, och de gör olika arbete: kvoten fångar de stora kommunerna, golvet
+#: hindrar de små från att fälla körningen på vanligt bortfall.
+#:
+#: ## Varför koordinaterna behöver en egen grind
+#:
+#: En verksamhet utan koordinat är fullt publicerbar hos oss. Den saknar bara
+#: sin kartnål, så ingenting i bygget klagar. Nattkörningen 2026-08-17 tog
+#: Örebro från 645 nålar till 0 och Uppsala från 966 till 6, och det checkades
+#: in utan att något stannade upp. Se `harledda` för orsaken.
+#:
+#: ## Varför just 0,9 och 10
+#:
+#: Uppmätt ur de nattliga exporterna i git-historiken, varje kommun som hade
+#: koordinater, kvoten dagens nålar genom gårdagens:
+#:
+#:   normal rörelse   0,996 till 1,003   sämsta natten Jönköping 1 123 → 1 119
+#:   verkliga ras     0,000, 0,006 och 0,048
+#:
+#: Mellan 0,048 och 0,996 finns ingenting alls, så tröskeln kan läggas var som
+#: helst däremellan. 0,9 väljs för att den ligger tjugofem gånger utanför det
+#: brus som faktiskt mätts och ändå fäller ett tapp på en tiondel. Att ta
+#: kontrollpunkternas 0,5 hade betytt att Uppsala tyst får tappa 483 nålar.
+#:
+#: Golvet finns för de små kommunerna. Svenljunga får omkring 25 nålar, och
+#: där ger tre nedlagda verksamheter kvoten 0,88, alltså under tröskeln utan
+#: att något är fel. Största normala tapp som mätts i absoluta tal är tolv
+#: nålar (Stockholm 8 511 → 8 499, kvot 0,999), och det skyddas redan av
+#: kvoten. Tio räcker därför som golv: under det talet är rörelsen alltid det
+#: normala bortfallet, ett par nålar för nedlagda verksamheter.
+MIN_COORDINATES_KEPT = 0.9
+MIN_COORDINATES_LOST = 10
+
 ALLOW_COLLAPSE = False
 
 
-def collapse(path: Path, records: list) -> int:
-    """Har kommunen tappat nästan alla sina kontrollpunkter sedan i går?
-
-    Jämförelsen sker mot filen som redan ligger på disken, alltså föregående
-    exports ögonblicksbild, för det är den nattkörningen ersätter.
-    """
-    if ALLOW_COLLAPSE or not path.exists():
-        return 0
-    try:
-        before = count_points(json.loads(path.read_text("utf-8"))["establishments"])
-    except (ValueError, KeyError):
-        return 0
+def collapse(path: Path, records: list) -> Optional[str]:
+    """Har kommunen tappat nästan alla sina kontrollpunkter sedan i går?"""
+    if ALLOW_COLLAPSE:
+        return None
+    before_records = _tidigare(path)
+    if before_records is None:
+        return None
+    before = count_points(before_records)
     after = count_points(records)
     if before and after < before * MIN_POINTS_KEPT:
-        print(
-            f"  ! {path.name}: {before} kontrollpunkter blev {after}",
-            file=sys.stderr,
-        )
-        return 1
-    return 0
+        orsak = f"{before} kontrollpunkter blev {after}"
+        print(f"  ! {path.name}: {orsak}", file=sys.stderr)
+        return orsak
+    return None
+
+
+def coordinate_collapse(path: Path, records: list) -> Optional[str]:
+    """Har kommunen tappat sina kartnålar sedan i går?
+
+    Samma form och samma återhållsamhet som `collapse`: jämförelsen sker mot
+    filen på disken, och små rörelser får passera. Se MIN_COORDINATES_KEPT
+    för de mätta talen bakom tröskeln.
+
+    En kommun som aldrig haft några nålar kan inte tappa några, så noll i går
+    fäller aldrig. Det är avsiktligt: de fyra kommuner som saknar koordinater
+    helt ska inte fälla varenda natt fram till att de blivit geokodade.
+    """
+    if ALLOW_COLLAPSE:
+        return None
+    before_records = _tidigare(path)
+    if before_records is None:
+        return None
+    before = count_coordinates(before_records)
+    after = count_coordinates(records)
+    if before - after < MIN_COORDINATES_LOST:
+        return None
+    if after < before * MIN_COORDINATES_KEPT:
+        orsak = f"{before} kartnålar blev {after}"
+        print(f"  ! {path.name}: {orsak}", file=sys.stderr)
+        return orsak
+    return None
 
 
 def main() -> None:

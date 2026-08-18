@@ -251,8 +251,9 @@ jobs:
 
       # SIST, och det är hela poängen med steget.
       #
-      # En kommun vars kontrollpunkter rasar behåller gårdagens fil i stället
-      # för att skrivas över, se report_collapse i pipeline/export_supabase.py.
+      # En kommun vars kontrollpunkter eller kartnålar rasar behåller gårdagens
+      # fil i stället för att skrivas över, se report_collapse i
+      # pipeline/export_supabase.py.
       # Förr avbröt exporten i stället hela körningen, och 2026-08-17 höll den
       # därmed elva friska kommuners färska data borta i tolv dagar för att
       # Lomma bytt sidformat.
@@ -269,9 +270,12 @@ jobs:
       - name: Fäll körningen om någon kommun frös
         run: |
           if [ -s site/src/rasade-kommuner.txt ]; then
-            echo "Dessa kommuner behöll gårdagens data: $(cat site/src/rasade-kommuner.txt)"
-            echo "Övriga kommuner är incheckade. Börja felsökningen i kommunens"
-            echo "hämtare, den upptäcker oftast själv att sidformatet ändrats."
+            echo "Dessa kommuner behöll gårdagens data, med skälet grinden gav:"
+            cat site/src/rasade-kommuner.txt
+            echo "Övriga kommuner är incheckade. Gäller det kontrollpunkter:"
+            echo "börja i kommunens hämtare, den upptäcker oftast själv att"
+            echo "sidformatet ändrats. Gäller det kartnålar: börja i harledda"
+            echo "i pipeline/export_supabase.py och i pipeline/geocode.py."
             exit 1
           fi
           echo "Ingen kommun frös."
