@@ -43,6 +43,7 @@ import Platskarta from '../../components/Platskarta.astro';
 import TaMigHit from '../../components/TaMigHit.astro';
 import Oppettider from '../../components/Oppettider.astro';
 import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
+import Sidupphov from '../../components/Sidupphov.astro';
 import { harNagot } from '../../lib/kontakt';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
@@ -830,14 +831,17 @@ const breadcrumbs = {
             Avsnittet ritas så snart vi har en koordinat, för knappen behöver
             inget mer än så. Hållplats- och parkeringsraderna finns bara på de
             sidor där uttaget gav något, och aldrig som en rad om att vi inte
-            vet. */}
+            vet.
+
+            `checkedAt` skickas inte längre hit. Datumet för närhetsuttaget
+            hörde till avsnittets egen upphovsruta, och attributionen ligger
+            numera i källfoten längst ned; det är Sidupphov som får fältet. */}
         {hasCoords && (
           <TaMigHit
             lat={e.lat!}
             lng={e.lng!}
             stop={e.stop}
             parking={e.parking}
-            checkedAt={e.narhetCheckedAt}
           />
         )}
 
@@ -903,14 +907,6 @@ const breadcrumbs = {
           municipalitySlug={kommun.slug}
         />
 
-        {/* En rad, inte sex: när uppgifterna senast hämtades. Källa och
-            metodik är fullständiga på /kallor och /metodik, länkade i
-            sidfoten på varje sida. Resonemanget står i git-historiken. */}
-        <footer class="source">
-          <p class="caption text-muted">
-            Uppdaterat {formatDate(source.fetchedAt.slice(0, 10))}.
-          </p>
-        </footer>
       </main>
 
       <aside class="side">
@@ -1110,6 +1106,39 @@ const breadcrumbs = {
         </div>
       </aside>
     </div>
+
+    {/* KÄLLFOTEN, OCH VARFÖR DEN LIGGER UTANFÖR SPALTERNA
+        ───────────────────────────────────────────────────────────────────────
+        Två rader: när kommunens uppgifter senast hämtades, och vilka fält på
+        sidan som kommer ur OpenStreetMap. Källa och metodik är fullständiga på
+        /kallor och /metodik, länkade i sidfoten på varje sida.
+
+        Foten stod tidigare SIST I HUVUDKOLUMNEN. Den flyttade ut hit när
+        upphovet blev ett per sida i stället för ett per avsnitt, och skälet är
+        mätt: i 390 px kollapsar spalterna till en enda, och huvudkolumnen tar
+        slut på y 3 356 medan kontaktkortet ur OpenStreetMap börjar på y 3 404.
+        En källfot inne i huvudkolumnen hade alltså stått 48 px OVANFÖR en av
+        de uppgifter den redovisar, med ytterligare 1 400 px panel under sig.
+
+        Utanför `.layout` ligger den efter BÅDA spalterna i båda lägena, vilket
+        är vad en fotnot om hela sidan ska göra. Samma skäl som bandet nedanför
+        har för att ligga här: det som gäller hela sidan börjar där de två
+        spalterna tar slut. */}
+    <footer class="source">
+      <p class="caption text-muted">
+        Uppdaterat {formatDate(source.fetchedAt.slice(0, 10))}.
+      </p>
+      <Sidupphov
+        hours={e.hours}
+        contact={e.contact}
+        stop={e.stop}
+        parking={e.parking}
+        geoSource={e.geoSource}
+        lat={e.lat}
+        lng={e.lng}
+        narhetCheckedAt={e.narhetCheckedAt}
+      />
+    </footer>
 
     {/* Längst ned, efter allt man kom för. Bandet ligger utanför .layout och
         kan därför aldrig skjuta ned bedömningen eller kontrollhistoriken; det
@@ -1330,6 +1359,19 @@ const breadcrumbs = {
 
   .method {
     margin-top: var(--s-3);
+  }
+
+  /* Foten ligger numera utanför `.layout` och får därför inte längre sin luft
+     och sin hårlinje ur `.main > * + *`. Måtten är samma som den regeln ger,
+     så avståndet till innehållet ovanför är oförändrat.
+
+     Ingen hårlinje däremot. Inne i huvudkolumnen skilde linjen foten från
+     föregående sektion, som ligger öppet på sidan. Här skulle samma linje
+     löpa tvärs under sidopanelens kort och läsas som en ram runt dem, och
+     luften ensam räcker: nästa sak nedanför är artikelbandet, som bär sin
+     egen yta. */
+  .source {
+    margin-top: var(--s-8);
   }
 
   .source p {

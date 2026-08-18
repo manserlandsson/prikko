@@ -1,0 +1,287 @@
+---
+/**
+ * EN attribution för hela sidan, i stället för en per avsnitt.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VAD SOM VAR FEL, MED TAL
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Verksamhetssidan bar TRE upphovsknappar för EN källa. Uppmätt i bygget
+ * 2026-08-18 på /stockholm/ica-supermarket-vanadis/, en sida som har både
+ * öppettider, kontaktkort, hållplats och parkering:
+ *
+ *   `<details class="upphov">`   3 stycken
+ *   summary aria-label           "Källa och licens för avstånden",
+ *                                "Källa och licens för öppettiden",
+ *                                "Källa och licens för uppgifterna"
+ *   lägen i 1 200 px             y 464, y 2 491, y 2 898
+ *   lägen i 390 px               y 2 631, y 3 038, y 3 588
+ *
+ * Sidan bar dessutom 10 InfoTip-prickar som förklarar tal och etiketter. Ögat
+ * skiljer inte en licensknapp från en förklaringsknapp: båda är samma 16 px
+ * cirkel med samma bokstav. Tretton (i) på en sida, varav tre säger samma sak
+ * om samma källa.
+ *
+ * Ägaren om kontaktkortets knapp, ordagrant: "i-ikonen på bra att veta,
+ * liksom hela den boxen där vi även har mejl sitter liksom helt ensamt...
+ * måste vi ens ha det?"
+ *
+ * Han har rätt i vad han ser. En ensam (i) utan text bredvid en uppgift läser
+ * som att sidan är osäker på uppgiften, inte som att den redovisar var den
+ * kommer ifrån. Tre sådana på samma sida läser som tre förbehåll.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR ATTRIBUTIONEN INTE TAS BORT, OCH VARFÖR EN RÄCKER
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ODbL 4.3 är ett LICENSVILLKOR och inte en artighet. Men villkoret hänger på
+ * "the Produced Work": notisen ska vara "reasonably calculated to make any
+ * Person that uses, views, accesses, interacts with, or is otherwise exposed
+ * to the Produced Work aware that Content was obtained from the Database".
+ *
+ * Det producerade verket är SIDAN, inte avsnittet. Ett verk, en notis. Formen
+ * är inte föreskriven, och ingenting i licensen kräver en notis per block.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR EN RAD MED TEXT OCH INTE EN SAMLAD (i)-KNAPP
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Tre former stod mot varandra: en rad längst ned, en enda (i) som samlar
+ * källorna, eller kartans egen attributionskontroll. Raden vann på fyra skäl,
+ * och alla fyra är mätta eller citerbara:
+ *
+ *   1. En (i) är en kontroll som lovar en förklaring på begäran. Det var just
+ *      det ägaren reagerade på: en ikon utan text bredvid en uppgift säger
+ *      "det finns ett förbehåll här". Längst ned på sidan finns ingen uppgift
+ *      att stå bredvid, alltså finns inget för en (i) att förklara heller.
+ *
+ *   2. Träffytan höll inte. Uppmätt i bygget 2026-08-18 rapporterade
+ *      `getComputedStyle(summary, '::after')` 42 x 42 px på alla tre
+ *      knapparna, inte de 44 filerna påstod. Felet är detsamma som
+ *      InfoTip.astro redan skrivit ned: `inset` på ett absolut placerat barn
+ *      räknas från förälderns PADDINGRUTA, och en 16 px cirkel med
+ *      `box-sizing: border-box` och 1 px hårlinje har en paddingruta på 14.
+ *      14 + 2 * 14 = 42. En rad text har ingen träffyta att räkna, och dess
+ *      två länkar är vanliga länkar i löpande text.
+ *
+ *   3. Texten syns alltid. En notis bakom en utfällning är svagare mot ODbL
+ *      4.3 än en notis som står där, och OSM-stiftelsens riktlinjer accepterar
+ *      hopfällning som ett undantag för trånga ytor, inte som förstahandsval.
+ *      Sidans underkant är inte en trång yta.
+ *
+ *   4. Tre kopior av samma trettio rader CSS, ett `<details>` per avsnitt och
+ *      ett skript för Escape och klick utanför försvinner. Kartans kontroll
+ *      är den enda utfällningen kvar på sidan, och den ägs av kartbiblioteket.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR ORDET FÅR STÅ HÄR, TROTS ÄGARENS REGEL
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Ägarens stående regel, ordagrant: "skriv inte ut openstreetmap, den ska
+ * ligga i I-ikonen, HA INGET SÅNT där."
+ *
+ * Ordet "där" bär hela regeln. Det som stoppades var en källrad INTILL varje
+ * uppgift: "OpenStreetMap ⓘ Rätta" under veckoschemat, en till under
+ * kontaktkortet, en till under avstånden. En brasklapp bredvid varje uppgift
+ * lär läsaren att misstro sidan, och den lär ut fel sak: kommunens
+ * kontrolluppgifter, som är sidans egentliga innehåll, står utan brasklapp.
+ *
+ * En rad längst ned i sidans källfot är något annat. Den står inte bredvid
+ * någon uppgift, den kommenterar ingen enskild rad, och den läses som det den
+ * är: en fotnot om var sidan hämtat sitt material. Raden ligger dessutom i
+ * SAMMA fot som "Uppdaterat", alltså intill den enda mening sidan redan har om
+ * sina källor.
+ *
+ * Ska det rivas upp är rätt åtgärd att flytta ordet in i en (i) HÄR NERE, inte
+ * att sprida ut attributionen i innehållet igen.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * KARTAN ÄR ETT SÄRFALL OCH RÖRS INTE
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * MapLibres `AttributionControl` i Platskarta.astro står kvar precis som den
+ * är, `compact: false` på `bottom-right`. Den gäller något annat än den här
+ * raden:
+ *
+ *   Kontrollen talar om KAKELLEVERANTÖREN och kartdatan bakom bilden, alltså
+ *   OpenFreeMap och den OSM-data de renderar. Raden här gäller de fält VI
+ *   själva hämtat ur Overpass och skrivit in i datafilerna.
+ *
+ *   Kontrollen laddas och ritas av kartbiblioteket ur stilfilens egna
+ *   `attribution`-fält. Att ta bort den vore att bryta mot OpenFreeMaps och
+ *   OSM:s villkor, och den ska aldrig plockas bort för att den här raden
+ *   finns.
+ *
+ * Kartnålens LÄGE är däremot vårt, på de sidor där kommunen inte lämnar någon
+ * koordinat och pipelinen geokodat adressen mot OSM. Det är en härledning ur
+ * databasen och räknas därför upp i raden nedan, se `geoSource`.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WIKIMEDIA COMMONS RÖRS INTE HELLER
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Commonsbild.astro bär sin egen attribution vid bilden och ska fortsätta
+ * göra det. CC BY-SA är ett annat avtal med en annan upphovsperson PER BILD,
+ * och det avtalet kräver fotografens namn där verket visas. Den attributionen
+ * går inte att slå ihop med den här raden, eftersom den inte handlar om
+ * sidan utan om ett enskilt verk på den. Samma sak gäller Mapillary-logotypen
+ * i StreetPhoto.astro.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR RADEN RÄKNAR UPP FÄLTEN
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * "Delar av sidan kommer från OpenStreetMap" hade varit kortare och sämre.
+ * Sidans egentliga innehåll är kommunens kontrolluppgifter, och en läsare som
+ * inte får veta VILKA fält som är någon annans kan lika gärna tro att
+ * bedömningen är det. Uppräkningen följer exakt de avsnitt som faktiskt
+ * ritats på just den här sidan, se `poster` nedan.
+ *
+ * Ett känt undantag, och det är litet: Foretagsuppgifter.astro döljer i
+ * webbläsaren de OSM-avsnitt där verksamheten själv skickat in samma uppgift.
+ * Raden skrivs vid bygget och kan inte veta det. Följden är att den på en
+ * sådan sida räknar upp ett fält som just då inte visas, alltså attribuerar
+ * mer än vad som står. Att attribuera för mycket är ofarligt; att attribuera
+ * för lite är ett licensbrott, och kostnaden för att undvika det förra hade
+ * varit att bygga om meningen i webbläsaren.
+ */
+import { formatDate } from '../lib/data';
+import { weekRows, type Hours } from '../lib/oppettider';
+import { harNagot, type Contact } from '../lib/kontakt';
+import { packaUppHallplats, packaUppParkeringar } from '../lib/narhet';
+
+interface Props {
+  hours?: Hours;
+  contact?: Contact;
+  stop?: string;
+  parking?: string;
+  /** Satt bara när koordinaten är härledd ur adressen i stället för lämnad av kommunen. */
+  geoSource?: 'osm' | 'lantmateriet';
+  lat: number | null;
+  lng: number | null;
+  /** Datum för närhetsuttaget, ur filens `narhet`-block. */
+  narhetCheckedAt?: string;
+}
+
+const { hours, contact, stop, parking, geoSource, lat, lng, narhetCheckedAt } = Astro.props;
+
+/* Villkoren är komponenternas EGNA, inte en kopia av dem.
+ *
+ * Oppettider.astro ritar ingenting när alla sju dagarna är stängda, och
+ * Kontaktuppgifter.astro ingenting när `harNagot` är falskt. Raden måste
+ * ställa exakt samma frågor, annars räknar den upp ett avsnitt som inte finns
+ * på sidan. Därför anropas samma funktioner ur samma moduler i stället för att
+ * villkoren skrivs av. */
+const harTider = !!hours && weekRows(hours).some((r) => !r.closed);
+const harKontakt = !!contact && harNagot(contact);
+const hallplats = packaUppHallplats(stop);
+const parkeringar = packaUppParkeringar(parking);
+const harKoordinat = lat !== null && lng !== null;
+const harNal = geoSource === 'osm' && harKoordinat;
+
+/* Uppräkningen, i sidans egen ordning uppifrån och ned: kartnålen, hållplats
+   och parkering, öppettiderna, och sist kontaktkortet som står i spalten.
+   "Kontaktkortet" och inte "telefon, webbplats och e-post": kortet bär även
+   Bra att veta, och ett kortnamn som täcker hela rutan är både kortare och
+   mer sant än en uppräkning som glömmer halva den. */
+const poster = [
+  harNal && 'kartnålens läge',
+  hallplats && 'hållplatsen',
+  parkeringar && 'parkeringarna',
+  harTider && 'öppettiderna',
+  harKontakt && 'kontaktkortet',
+].filter((x): x is string => typeof x === 'string');
+
+/* Äldsta datumet av dem som faktiskt räknas upp, inte det färskaste.
+ *
+ * De tre uttagen har var sitt datum: `hours.checkedAt`, `contact.checkedAt`
+ * och filens `narhet.checkedAt`. I dagens data är alla tre 2026-08-18, men de
+ * skrivs av olika steg i pipelinen och kan glida isär. Det äldsta är det enda
+ * tal som aldrig lovar mer färskhet än sidan har. */
+const datum = [
+  harTider ? hours!.checkedAt : null,
+  harKontakt ? contact!.checkedAt : null,
+  (hallplats || parkeringar) && narhetCheckedAt ? narhetCheckedAt : null,
+]
+  .filter((d): d is string => typeof d === 'string')
+  .sort()[0];
+
+/* Länken går till OSM-OBJEKTET när sidan har ett, annars till kartan vid
+   koordinaten. Öppettider och kontakt kommer ur samma hopparning och bär
+   därför samma id; kontrollerat mot alla datafiler 2026-08-18: 2 522 sidor
+   bär båda fälten och på 0 av dem skiljer sig `hours.osm` från `contact.osm`.
+   Hållplats och parkering är däremot ett antal och en omgivning, inte en post,
+   och för dem är kvarteret vid zoom 17 rätt mål. */
+const osmId = hours?.osm ?? contact?.osm;
+const osmUrl = osmId
+  ? `https://www.openstreetmap.org/${osmId}`
+  : `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
+
+/* Meningens första led byggs som en STRÄNG och inte som en rad JSX-uttryck.
+   Ett uttryck per post hade ärvt radbrytningarnas blanksteg och gett samma
+   synliga fel som TaMigHit.astro en gång fick: "OpenStreetMap , hämtade". */
+const lista =
+  poster.length === 1
+    ? poster[0]
+    : `${poster.slice(0, -1).join(', ')} och ${poster[poster.length - 1]}`;
+const inledning = `${lista.charAt(0).toUpperCase()}${lista.slice(1)} kommer från `;
+const efter = datum ? `, ODbL 1.0, hämtat ${formatDate(datum)}. ` : ', ODbL 1.0. ';
+---
+
+{poster.length > 0 && (
+  /* `data-nosnippet` följer med hit från de tre rutor raden ersätter, och
+     skälet är detsamma: utan attributet plockar Google sökresultatets utdrag
+     ur den prosa som ligger närmast, och en licensrad är det sämsta tänkbara
+     första mötet med sidan. Attributet rör bara utdraget. Texten står kvar i
+     dokumentet och läses av skärmläsare och av den som rullar hit, vilket är
+     hela poängen med att den ligger i HTML och inte i ett attribut.
+
+     HELA MENINGEN STÅR PÅ EN RAD I KÄLLAN, OCH DET ÄR ETT KRAV.
+
+     Astro bevarar radbrytningen mellan ett `</a>` och nästa uttryck som ett
+     blanksteg. Med länken och `{efter}` på var sin rad blev utfallet i bygget
+     2026-08-18 det synliga felet "© OpenStreetMap contributors , ODbL 1.0",
+     alltså ett mellanslag före kommatecknet. Samma sorts fel som TaMigHit.astro
+     en gång fick och skrev ned. Länkarna och skiljetecknen måste därför stå
+     tätt intill varandra i källan, hur lång raden än blir.
+
+     Två länkar och inte en:
+
+       /copyright är OSM:s egen upphovssida, den som licensen och stiftelsens
+       riktlinjer pekar på. Den fanns tidigare ingenstans på sidan; de tre
+       rutorna länkade till objektet och aldrig till licensen.
+
+       "Rätta uppgiften" går till objektet, eftersom det är det enda man
+       rimligen vill göra därifrån: den som ser ett fel ska rätta det vid
+       källan i stället för att mejla oss om något vi inte äger. */
+  <p class="sidupphov caption text-muted" data-nosnippet data-sidupphov>{inledning}<a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener" target="_blank">© OpenStreetMap contributors</a>{efter}<a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta uppgiften</a></p>
+)}
+
+<style>
+  /* Raden bär `caption text-muted` ur tokens och har därför redan sin storlek
+     och sin färg. Kvar här är måttet och länkarna.
+
+     `max-width` i tecken och inte i pixlar: raden är den enda löptext som
+     ligger över HELA sidbredden, alltså 1 128 px i 1 200 px vyport, och en
+     fotnot över nittio tecken per rad är inte läsbar. 68ch bryter den till två
+     rader på dator och lämnar mobilen orörd, där bredden ändå styr. */
+  .sidupphov {
+    margin-top: var(--s-2);
+    max-width: 68ch;
+  }
+
+  /* Länkarna ärver radens dämpade färg och markeras med understrykning i
+     stället för med egen färg. En fotnot ska inte bära två blå länkar som
+     drar blicken från det man kom för; understrykningen räcker för att de ska
+     läsas som länkar, och hovringen ger märkesfärgen. */
+  .sidupphov a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .sidupphov a:hover,
+  .sidupphov a:focus-visible {
+    color: var(--brand);
+  }
+</style>
