@@ -141,6 +141,21 @@ export interface Establishment {
    * och ingenting alls där den saknas. Se lib/kontakt.ts.
    */
   contact?: Contact;
+  /**
+   * Närmaste hållplats, packad som "Stadshuset|bus|80": namn, trafikslag och
+   * avstånd FÅGELVÄGEN i hela tiotal meter. Namnet kan vara tomt.
+   *
+   * En sträng och inte ett objekt, av samma skäl som veckoschemat i `hours`
+   * är en rad: datafilerna skrivs med indent=1, och tre nycklar gånger nio
+   * tusen verksamheter hade lagt 27 000 rader i site/src/data. Uppackningen
+   * är en `split` i lib/narhet.ts.
+   *
+   * Valfritt, och ska förbli valfritt. Sajten visar raden där den finns och
+   * ingenting alls där den saknas. Se docs/38_ta_mig_hit.md.
+   */
+  stop?: string;
+  /** Parkeringar inom 200 m, packat som "3|40": antal och avstånd till den närmaste. */
+  parking?: string;
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;
@@ -150,12 +165,24 @@ export interface Establishment {
   inspections: Inspection[];
   /** Fylls i av lagret, så anropare alltid vet vilken kommun posten hör till. */
   municipality: Municipality;
+  /**
+   * Datumet OSM-uttaget bakom `stop` och `parking` hämtades, ISO.
+   *
+   * Fylls i av lagret ur filens `narhet`-block och står ALDRIG på raden i
+   * datafilen. Det är samma datum för hela uttaget, och nio tusen kopior av
+   * det hade varit nio tusen rader utan innehåll. Att `hours.checkedAt` och
+   * `contact.checkedAt` upprepas per verksamhet är ett arv och inte en
+   * förebild.
+   */
+  narhetCheckedAt?: string;
 }
 
 interface Dataset {
   municipality: Municipality;
   source: { url: string; fetchedAt: string };
-  establishments: Omit<Establishment, 'municipality'>[];
+  /** Skrivs av pipeline/narhet.py, bara när filen faktiskt bär en sådan uppgift. */
+  narhet?: { checkedAt: string };
+  establishments: Omit<Establishment, 'municipality' | 'narhetCheckedAt'>[];
 }
 
 /**
@@ -185,7 +212,11 @@ export function sourceFor(slug: string) {
 }
 
 function withMunicipality(d: Dataset): Establishment[] {
-  return d.establishments.map((e) => ({ ...e, municipality: d.municipality }));
+  return d.establishments.map((e) => ({
+    ...e,
+    municipality: d.municipality,
+    narhetCheckedAt: d.narhet?.checkedAt,
+  }));
 }
 
 /**

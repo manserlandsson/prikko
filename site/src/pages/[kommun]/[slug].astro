@@ -40,6 +40,7 @@ import FaceMark from '../../components/FaceMark.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
+import TaMigHit from '../../components/TaMigHit.astro';
 import Oppettider from '../../components/Oppettider.astro';
 import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
 import { harNagot } from '../../lib/kontakt';
@@ -672,6 +673,31 @@ const breadcrumbs = {
             geoSource={e.geoSource}
             address={e.address}
             city={kommun.city}
+          />
+        )}
+
+        {/* "Ta dig hit" mellan kartan och öppettiderna, och ordningen är ett
+            påstående: kartan svarar på VAR, det här avsnittet på HUR jag tar
+            mig dit, öppettiderna på NÄR jag kan komma. Alla tre är dessutom
+            härledda av oss ur OpenStreetMap i stället för hämtade ur kommunens
+            register, så de hör ihop både för läsaren och i fråga om vad de är.
+
+            Knappen "Beräkna restid" står här och inte i kartans nedre högra
+            hörn som hos Ednia, eftersom det hörnet redan bär MapLibres
+            upphovsrad. Vad som krävs för att flytta in den står i
+            TaMigHit.astro och i docs/38_ta_mig_hit.md §7.
+
+            Avsnittet ritas så snart vi har en koordinat, för knappen behöver
+            inget mer än så. Hållplats- och parkeringsraderna finns bara på de
+            sidor där uttaget gav något, och aldrig som en rad om att vi inte
+            vet. */}
+        {hasCoords && (
+          <TaMigHit
+            lat={e.lat!}
+            lng={e.lng!}
+            stop={e.stop}
+            parking={e.parking}
+            checkedAt={e.narhetCheckedAt}
           />
         )}
 

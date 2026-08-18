@@ -1,0 +1,435 @@
+---
+/**
+ * "Ta dig hit": knappen som räknar restiden, hållplatsen och parkeringarna.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VAD "BERÄKNA RESTID" ÄR, OCH VAD DEN INTE ÄR
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Ägaren skickade Ednias karta som förlaga: en vit pille nere till höger med
+ * en gående figur och texten "Beräkna restid". Frågan var vad den GÖR, och
+ * svaret avgjorde hela bygget.
+ *
+ * Uppmätt på ednia.se/gymnasium/vrg-campus-viktor-rydberg 2026-08-18. Knappen
+ * är detta, ordagrant ur deras DOM:
+ *
+ *     <a target="_blank" class="btn-small absolute z-10 bottom-12 right-12"
+ *        href="https://maps.google.com/?daddr=59.34581250000001,18.04981250000002">
+ *
+ * DE RÄKNAR ALLTSÅ INGENTING. Ingen restid står på deras sida, ingen tjänst
+ * anropas, ingen position efterfrågas. Det är en länk ut, och det är Google
+ * som räknar när man kommit fram. "Beräkna restid" är ett LÖFTE OM VAD SOM
+ * HÄNDER EFTER KLICKET, inte en uppgift på sidan.
+ *
+ * Följden för oss står i docs/38_ta_mig_hit.md §3: av tre möjliga vägar valdes
+ * samma som Ednias, och de två andra föll på mätta skäl. En ruttjänst i
+ * webbläsaren kräver nyckel, samtycke och en tjänst vars villkor tillåter att
+ * vi lagrar svaret, och vi lagrar allt eftersom sajten är statisk. Det stoppade
+ * oss redan en gång med Google.
+ *
+ * ── Varför länken går till Google och inte till `geo:` ────────────────────
+ *
+ * Platskarta.astro har en `geo:`-länk, och det är rätt val DÄR: `geo:` lämnar
+ * valet av kartapp till telefonen i stället för att välja åt användaren.
+ *
+ * Men `geo:` gör INGENTING PÅ EN DATOR, och den här knappen bär ett löfte om
+ * en beräkning. En knapp som säger "Beräkna restid" och sedan inte gör något
+ * alls hos halva trafiken är sämre än ingen knapp. Alltså en https-länk som
+ * fungerar överallt, precis som Ednias.
+ *
+ * Att länka dit är inte att använda ett API. Vi anropar ingenting, vi får
+ * inget svar, och vi lagrar inget svar. Det är just lagringen som fällde
+ * Google för oss förut, och den frågan uppstår inte i en `<a href>`.
+ *
+ * ── Var pillen sitter ─────────────────────────────────────────────────────
+ *
+ * Hos Ednia ligger den INUTI kartan, nere till höger, med ett föremål per
+ * hörn. Hos oss är det hörnet upptaget av MapLibres upphovsrad, och uppe till
+ * höger sitter helskärm och zoom; se Karta.astro, OmradeKarta.astro och
+ * Platskarta.astro, som alla tre lägger `AttributionControl` på
+ * `bottom-right`.
+ *
+ * Pillen ligger därför i det här avsnittet, direkt under kartan, och inte i
+ * kartans hörn. Ska den in i hörnet krävs två ändringar i Platskarta.astro,
+ * som ägs av en annan agent: upphovsraden flyttar till `bottom-left` som hos
+ * Ednia, och platshållarknappen "Utforska kartan" måste lämna underkantens
+ * mitt, eftersom den uppmätt i 390 px överlappar en högerställd pille med
+ * 43 px så länge kartan inte vaknat. Se docs/38 §7.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * TALEN ÄR FÅGELVÄGEN, OCH DET STÅR PÅ SIDAN
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Åttio meter fågelvägen kan vara fyrahundra runt ett kvarter. Förbehållet
+ * står i klartext under raderna och är inte en detalj som får trimmas bort
+ * för att raden blir kortare utan den. Gångavstånd hade krävt en ruttmotor
+ * över hela Sverige vid varje bygge; se docs/38 §5.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * INGEN TÄCKNINGSTRÖSKEL STYR VAD SOM VISAS
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Ägaren, ordagrant: "har vi datan bara på få så är det fortfarande bättre?
+ * kan vi visa telefonnummer på 10 av 10000 så är det värt det."
+ *
+ * Samma dom här. En VISNING har ingen nedsida: den som får uppgiften blir
+ * hjälpt, den som inte får den ser ingenting alls. Tröskeln i docs/33 §7, som
+ * fällde öppettidsfiltret vid 65 av 712, gäller FILTER, SORTERING och TAL SOM
+ * PÅSTÅR FULLSTÄNDIGHET, och inget av det finns här.
+ *
+ * SAKNAS UPPGIFTEN VISAS INGENTING. Ingen rad, ingen rubrik, aldrig en text
+ * som säger att vi inte vet. "0 parkeringar inom 200 m" skrivs aldrig ut: det
+ * hade varit ett påstående om att det inte finns några, och det vi vet är att
+ * OpenStreetMap inte kartlagt några.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * KÄLLAN LIGGER I (i)-KNAPPEN
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Ägaren, ordagrant: "skriv inte ut openstreetmap, den ska ligga i I-ikonen,
+ * HA INGET SÅNT där."
+ *
+ * Formen är MapLibres kompakta attributionskontroll, alltså den som varje
+ * karta på sajten redan bär: ikonen syns, texten ligger en klick bort. ODbL
+ * kräver att upphovet är rimligt synligt där uppgiften visas, inte att det tar
+ * en rad under varje avsnitt. Knappen är en `<details>` och inte InfoTip.astro
+ * av samma skäl som i Kontaktuppgifter.astro: rutan innehåller en LÄNK, och
+ * InfoTips bubbla är text. Utseendet är InfoTips, ned till 16 px-cirkeln.
+ */
+import { formatDate } from '../lib/data';
+import {
+  avstandIOrd,
+  hallplatsIOrd,
+  packaUppHallplats,
+  packaUppParkeringar,
+  parkeringarIOrd,
+} from '../lib/narhet';
+
+interface Props {
+  lat: number;
+  lng: number;
+  /** Packad hållplats ur datafilen. Se lib/narhet.ts. */
+  stop?: string;
+  /** Packade parkeringar ur datafilen. */
+  parking?: string;
+  /** Datum för OSM-uttaget, ur filens `narhet`-block. */
+  checkedAt?: string;
+}
+
+const { lat, lng, stop, parking, checkedAt } = Astro.props;
+
+const hallplats = packaUppHallplats(stop);
+const parkeringar = packaUppParkeringar(parking);
+
+/*
+ * Google Maps URL-form, den dokumenterade `api=1`-varianten och inte Ednias
+ * äldre `?daddr=`. Båda fungerar; den här är den som är dokumenterad och
+ * lovad framåt. Ingen startpunkt anges, alltså fyller Google i besökarens
+ * egen, precis som hos Ednia. Inget färdsätt tvingas heller: den gående
+ * figuren i ikonen är förlagans, men den som ska ta bilen ska inte behöva
+ * byta tillbaka.
+ */
+const restidUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+/*
+ * "Rätta"-länken går till KARTAN vid koordinaten och inte till ett enskilt
+ * OSM-objekt, till skillnad från Kontaktuppgifter.astros länk. Skälet är att
+ * avsnittet handlar om omgivningen och inte om ett objekt: parkeringsraden är
+ * ett antal, inte en post. Zoom 17 visar kvarteret med hållplatsen och
+ * parkeringarna i bild.
+ */
+const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
+---
+
+<section class="tadighit" aria-labelledby="tadighit-rubrik">
+  <h2 id="tadighit-rubrik">Ta dig hit</h2>
+
+  <a class="restid" href={restidUrl} rel="nofollow noopener" target="_blank">
+    {/* Den gående figuren är förlagans ikon, ritad om i vår streckvikt.
+        Den bor här och inte i en delad ikonfil eftersom den används på ett
+        enda ställe; behövs den på ett andra ska den flytta ut, se resonemanget
+        i Platskarta.astro om nålen som blev kopierad. */}
+    <svg
+      class="ikon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="13" cy="4" r="1.8" fill="currentColor" stroke="none" />
+      <path d="M9.5 21l2-5.5-2.2-2.1.9-4.9" />
+      <path d="M10.2 8.5l3.4-1 2 3.2 2.6.9" />
+      <path d="M11.5 15.5l3 2 1.2 3.5" />
+      <path d="M10.2 8.5L7 10.4 5.8 13" />
+    </svg>
+    <span>Beräkna restid</span>
+  </a>
+
+  {(hallplats || parkeringar) && (
+    <dl class="rader">
+      {hallplats && (
+        <div class="rad">
+          <dt>
+            <svg
+              class="glyf"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="4.5" y="3.5" width="15" height="13" rx="2.5" />
+              <path d="M4.5 9.5h15M8 20l1.5-3.5M16 20l-1.5-3.5" />
+              <circle cx="8.5" cy="13" r="1" fill="currentColor" stroke="none" />
+              <circle cx="15.5" cy="13" r="1" fill="currentColor" stroke="none" />
+            </svg>
+            <span class="sr">Närmaste hållplats</span>
+          </dt>
+          <dd>
+            {hallplatsIOrd(hallplats)}
+            <span class="tal">{avstandIOrd(hallplats.meter)}</span>
+          </dd>
+        </div>
+      )}
+
+      {parkeringar && (
+        <div class="rad">
+          <dt>
+            <svg
+              class="glyf"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3.5" y="3.5" width="17" height="17" rx="4" />
+              <path d="M10 16.5v-9h3a2.6 2.6 0 010 5.2h-3" />
+            </svg>
+            <span class="sr">Parkering</span>
+          </dt>
+          <dd>
+            {parkeringarIOrd(parkeringar)}
+            <span class="tal">närmast {avstandIOrd(parkeringar.narmast)}</span>
+          </dd>
+        </div>
+      )}
+    </dl>
+  )}
+
+  {(hallplats || parkeringar) && (
+    <p class="forbehall">
+      {/* ORDET FÅGELVÄGEN ÄR INTE UTSMYCKNING. Utan det påstår raden ett
+          gångavstånd vi inte har räknat, och läsaren har inget sätt att
+          upptäcka skillnaden förrän hon står vid ett stängsel. */}
+      Avstånden är fågelvägen, inte gångväg.
+      <details class="upphov">
+        <summary aria-label="Källa och licens för avstånden">i</summary>
+        {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
+            attributet plockar Google sökresultatets utdrag ur den prosa som
+            ligger närmast, och en licensklausul är det sämsta tänkbara första
+            mötet med sidan. Texten finns kvar i dokumentet. */}
+        <div class="ruta glass glass-dark" data-nosnippet>
+          <p>
+            Hållplatser och parkeringar kommer från OpenStreetMap
+            {checkedAt && <>, hämtade {formatDate(checkedAt)}</>}. De redigeras
+            av frivilliga och rättas där.
+          </p>
+          <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
+          <a href={osmUrl} rel="nofollow noopener" target="_blank">Se platsen i OpenStreetMap</a>
+        </div>
+      </details>
+    </p>
+  )}
+</section>
+
+<style>
+  .tadighit h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  /* Pillen är Ednias, uppmätt 2026-08-18 på deras objektsida:
+
+       mått      139,9 × 33 px, alltså 33 px hög
+       botten    vit, 1 px kant, radie 12 px
+       innermått 4 px över, 11 px vid sidorna, 6 px under
+       text      14/21 halvfet, 8 px gap till ikonen
+       ikonen    gående figur, 10,5 × 14 px
+
+     Två avsteg, båda för att den ligger UNDER kartan hos oss och inte i
+     kartans hörn: radien är vår `--r-pill` i stället för 12 px, eftersom en
+     pille som inte ligger mot en kartbild ska läsas som en knapp och inte som
+     ett kort, och ikonen är 18 px i vår streckvikt i stället för 10,5 × 14. */
+  .restid {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: var(--h-control);
+    padding: 0 var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font: 600 var(--fs-body-s) / var(--lh-body-s) var(--font-sans);
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .restid:hover {
+    border-color: var(--brand);
+    color: var(--brand-ink);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .restid .ikon {
+    flex: none;
+  }
+
+  .rader {
+    margin: var(--s-4) 0 0;
+  }
+
+  .rad {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+  }
+
+  .rad + .rad {
+    margin-top: var(--s-2);
+  }
+
+  dt {
+    flex: none;
+    /* Glyfen är ett bildmått och inte en textgrad. `translateY` lyfter den
+       till radens baslinje, som `align-items: baseline` inte kan ge en svg. */
+    transform: translateY(2px);
+    color: var(--text-muted);
+  }
+
+  .glyf {
+    display: block;
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Talet dämpat och namnet i brödtextens färg. Man läser "Busshållplats
+     Stadshuset" först och avståndet sedan, inte tvärtom. */
+  .tal {
+    color: var(--text-secondary);
+  }
+
+  .tal::before {
+    content: '·';
+    margin: 0 0.4em;
+    color: var(--text-muted);
+  }
+
+  .forbehall {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
+
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Allt nedan är Kontaktuppgifter.astros upphovsknapp, som i sin tur är
+     Oppettider.astros. Den står här och inte i en delad komponent av samma
+     skäl som där: de tre avsnitten kan visas var för sig och behöver var sin
+     knapp, och en fjärde fil för trettio rader CSS kostar mer i letande än
+     den sparar i rader. */
+  .upphov {
+    position: relative;
+    display: inline-flex;
+  }
+
+  summary {
+    position: relative;
+    list-style: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-sans);
+    cursor: help;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.12s ease, border-color 0.12s ease;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary::after {
+    content: '';
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+  }
+
+  summary:hover,
+  summary:focus-visible {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  .ruta {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 5;
+    width: max-content;
+    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 400;
+  }
+
+  .licens {
+    margin-top: 4px;
+  }
+
+  .ruta a {
+    display: inline-block;
+    margin-top: 6px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>
