@@ -30,7 +30,8 @@ from export_supabase import (  # noqa: E402
     MIN_COORDINATES_LOST,
     coordinate_collapse,
     count_coordinates,
-    harledda,
+    fillicens,
+    filradering,
 )
 
 
@@ -43,33 +44,33 @@ def fil(dir: Path, verksamheter: list) -> Path:
     return path
 
 
-class Harledda(unittest.TestCase):
+class Filradering(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
 
-    def test_koordinater_ur_filen_lases(self):
+    def test_raden_ur_filen_lases_pa_sitt_id(self):
         path = fil(self.dir, [{"id": "F-1", "lat": 59.27, "lng": 15.21}])
-        self.assertEqual(harledda(path), {"F-1": (59.27, 15.21)})
+        self.assertEqual(filradering(path)["F-1"]["lat"], 59.27)
 
-    def test_rader_utan_koordinat_utelamnas(self):
-        """En rad utan koordinat har ingenting att bevara."""
-        path = fil(self.dir, [{"id": "F-1", "lat": None, "lng": None}])
-        self.assertEqual(harledda(path), {})
+    def test_oppettiden_foljer_med(self):
+        """Databasen har ingen kolumn för dem, så filen är enda hemvisten."""
+        path = fil(self.dir, [{"id": "F-1", "hours": {"raw": "Mo-Su 09:00-18:00"}}])
+        self.assertEqual(filradering(path)["F-1"]["hours"]["raw"], "Mo-Su 09:00-18:00")
 
-    def test_halv_koordinat_utelamnas(self):
-        """En nål behöver båda talen. Ett ensamt lat är ingen plats."""
-        path = fil(self.dir, [{"id": "F-1", "lat": 59.27, "lng": None}])
-        self.assertEqual(harledda(path), {})
+    def test_rad_utan_id_utelamnas(self):
+        """Utan id finns ingen att para tillbaka mot."""
+        path = fil(self.dir, [{"lat": 59.27, "lng": 15.21}])
+        self.assertEqual(filradering(path), {})
 
     def test_ingen_fil_ger_tom_karta(self):
         """Första exporten mot en ny kommun har ingenting att läsa."""
-        self.assertEqual(harledda(self.dir / "finns-inte.json"), {})
+        self.assertEqual(filradering(self.dir / "finns-inte.json"), {})
 
     def test_trasig_fil_ger_tom_karta_i_stallet_for_krasch(self):
         """En halvskriven fil får inte fälla hela exporten."""
         path = self.dir / "orebro.json"
         path.write_text('{"establishments": [', encoding="utf-8")
-        self.assertEqual(harledda(path), {})
+        self.assertEqual(filradering(path), {})
 
     def test_nollon_ar_en_giltig_koordinat(self):
         """Noll är en plats i Guineabukten, inte ett saknat värde.
@@ -78,7 +79,34 @@ class Harledda(unittest.TestCase):
         fel syns först när någon råkar ligga på nollmeridianen.
         """
         path = fil(self.dir, [{"id": "F-1", "lat": 0, "lng": 0}])
-        self.assertEqual(harledda(path), {"F-1": (0, 0)})
+        self.assertEqual(filradering(path)["F-1"]["lat"], 0)
+
+
+class Licensblocket(unittest.TestCase):
+    """ODbL-attributionen försvann i samma körning som öppettiderna.
+
+    Att tappa tiderna är en saknad funktion. Att tappa attributionen medan
+    tiderna ligger kvar vore ett licensbrott, så blocket måste följa med
+    filen och inte räknas fram på nytt.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+
+    def test_blocket_lases_ur_filen(self):
+        path = self.dir / "orebro.json"
+        path.write_text(
+            json.dumps({"openingHours": {"licence": "ODbL 1.0"}, "establishments": []}),
+            encoding="utf-8",
+        )
+        self.assertEqual(fillicens(path), {"licence": "ODbL 1.0"})
+
+    def test_fil_utan_block_ger_none(self):
+        path = fil(self.dir, [{"id": "F-1"}])
+        self.assertIsNone(fillicens(path))
+
+    def test_ingen_fil_ger_none(self):
+        self.assertIsNone(fillicens(self.dir / "finns-inte.json"))
 
 
 def grindfil(dir: Path, med_koordinat: int, utan: int = 0) -> Path:
