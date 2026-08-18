@@ -61,7 +61,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from oppettider import KONSUMENT, classify_via_node, fetch_pois  # noqa: E402
-from prikko import commons, imagestore  # noqa: E402
+from prikko import commons, imagestore, wikidatanamn  # noqa: E402
 from prikko.oppettider import (  # noqa: E402
     MATCHED,
     MISS_NO_HOURS,
@@ -221,6 +221,189 @@ def candidates(path: Path, refresh: bool) -> tuple[dict, str, list, dict]:
     return payload, slug, consumer, qid_by_row
 
 
+def namnkandidater(path: Path) -> tuple[dict, str, list]:
+    """Namnspårets kandidater: verksamheten och det objekt den ÄR.
+
+    NÄMNAREN ÄR EN ANNAN ÄN OVAN, och det är ett medvetet val. `candidates`
+    räknar bara de konsumentvända, för OSM kartlägger inte ett tillagningskök
+    på en skola och en matpunkt som inte finns i OSM kan inte paras. Wikidata
+    har däremot skolan, kyrkan och äldreboendet, och en bild av skolhuset på
+    skolköketssidan är en riktig bild av det stället. Mätt 2026-08-19 är 101
+    av de 193 träffarna på den här vägen skolor, förskolor, kyrkor och
+    omsorgsboenden, alltså mer än hälften av vinsten.
+
+    Ingen Overpass-fråga alls här. Objektet hittas på VÅR koordinat och VÅRT
+    namn, så OSM behövs inte, och de kommuner där hopparningen är mager
+    behandlas likadant som Stockholm.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    slug = payload["municipality"]["slug"]
+    establishments = payload["establishments"]
+
+    box = wikidatanamn.bounding_box(
+        (e.get("lat"), e.get("lng")) for e in establishments
+    )
+    if box is None:
+        # Borgholm, Höganäs, Lomma och Svenljunga: 974 verksamheter utan en
+        # enda koordinat. Utan koordinat finns ingen spärr att pröva mot, och
+        # en bild vi inte kan pröva är en bild vi inte visar.
+        return payload, slug, []
+
+    index = wikidatanamn.Index(wikidatanamn.objects_in_box(box))
+
+    par = []
+    for establishment in establishments:
+        lat, lng = establishment.get("lat"), establishment.get("lng")
+        if lat is None or lng is None:
+            continue
+        if establishment.get("geoPrecision") == "approximate":
+            # Gatunivå. Koordinaten kan ligga hos grannporten, och då säger
+            # 150-metersspärren ingenting. 237 av 16 047 rader.
+            continue
+        traff = wikidatanamn.pair(index, establishment.get("name"), lat, lng)
+        if traff is not None:
+            par.append((establishment, traff))
+    return payload, slug, par
+
+
+def skriv_raden(establishment: dict, stored, db: Optional[Supabase]) -> None:
+    """Bilden i datafilens rad OCH i databasen.
+
+    BÅDA, och det är inte ett bälte med hängslen. Filen är det bygget läser i
+    dag. Databasen är det nattens export_supabase.py bygger om filen ur, och
+    den känner bara till `image` genom tabellen `images`. Skrevs bara filen
+    vore bilderna borta vid nästa nattkörning, precis som öppettiderna en gång
+    blev.
+    """
+    establishment["image"] = {
+        "url": stored.url,
+        "id": stored.source_id,
+        "capturedAt": stored.captured_at,
+        "source": stored.source,
+        "licence": stored.licence,
+        "attribution": stored.attribution,
+    }
+    if db is not None:
+        db.replace_image(
+            establishment["id"],
+            {
+                "establishment_id": establishment["id"],
+                "url": stored.url,
+                "source": stored.source,
+                "source_id": stored.source_id,
+                "licence": stored.licence,
+                "attribution": stored.attribution,
+                "captured_at": stored.captured_at,
+                "position": 0,
+            },
+        )
+
+
+def process_namnspar(path: Path, args, store, db: Optional[Supabase]) -> dict:
+    """Namnspåret: fyra grindar, se prikko/wikidatanamn.py.
+
+    Grind 1 och 2, namnlikheten och objektets slag, ligger i `pair` ovan.
+    Grind 3 och 4, licensen och motivet, kan bara prövas när filen är uppslagen
+    och görs därför här. Ordningen är inte fri: `commons.lookup` är anropet som
+    kostar, och det ska ske en gång per kandidat och aldrig en gång per grind.
+    """
+    payload, slug, par = namnkandidater(path)
+    name = payload["municipality"]["name"]
+
+    tally = {
+        "consumer": len(payload["establishments"]),
+        "wikidata": len(par),
+        "p18": 0,
+        "inom": 0,
+        "skrivna": 0,
+        "hoppade": 0,
+        "fel": 0,
+    }
+
+    changed = False
+    for establishment, traff in sorted(par, key=lambda p: p[0]["id"]):
+        existing = establishment.get("image") or {}
+        if existing and existing.get("source") not in REPLACEABLE:
+            tally["hoppade"] += 1
+            continue
+        if existing.get("source") == "wikimedia" and not args.skriv_over:
+            # OSM-vägens bild står kvar. Den är utpekad av en människa i OSM
+            # OCH av en människa i Wikidata, alltså belagd två gånger, medan
+            # den här bara är belagd på namnet.
+            tally["hoppade"] += 1
+            continue
+
+        try:
+            found = commons.lookup(traff.objekt.bild)
+        except Exception as exc:  # noqa: BLE001
+            tally["fel"] += 1
+            print(f"  ! {establishment['name']}: {exc}", file=sys.stderr)
+            time.sleep(2)
+            continue
+
+        if found is None:
+            # Grind 3: filen finns inte, är av fel format, eller bär en licens
+            # som inte står i commons.FREE_LICENCES.
+            print(
+                f"    licens eller format: {establishment['name']} → "
+                f"{traff.objekt.bild}",
+                file=sys.stderr,
+            )
+            continue
+        tally["p18"] += 1
+
+        if not wikidatanamn.depicts(
+            establishment["name"], found.title, found.description
+        ):
+            # Grind 4. Objektet heter rätt men BILDEN föreställer något annat:
+            # kyrkan intill, torget utanför, gallerian omkring.
+            print(
+                f"    motivet: {establishment['name']} → {found.title}",
+                file=sys.stderr,
+            )
+            continue
+        tally["inom"] += 1
+
+        if args.matt:
+            print(
+                f"    {establishment['name']} → {found.title} "
+                f"({traff.metres:.0f} m, {traff.objekt.qid})",
+                file=sys.stderr,
+            )
+            continue
+
+        try:
+            stored = commons.store_image(store, slug, establishment["id"], found)
+        except Exception as exc:  # noqa: BLE001
+            tally["fel"] += 1
+            print(f"  ! {establishment['name']}: {exc}", file=sys.stderr)
+            time.sleep(2)
+            continue
+
+        skriv_raden(establishment, stored, db)
+        changed = True
+        tally["skrivna"] += 1
+        print(
+            f"    {establishment['name']} · {stored.attribution} · {stored.licence}",
+            file=sys.stderr,
+        )
+        time.sleep(args.paus)
+
+    if changed and not args.matt:
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+        print(f"  skrev {path}", file=sys.stderr)
+
+    print(
+        f"{name}: {tally['wikidata']} objekt på namn och avstånd, "
+        f"{tally['p18']} med en fri fil, {tally['inom']} där motivet är stället, "
+        f"{tally['skrivna']} bilder, av {tally['consumer']} verksamheter",
+        file=sys.stderr,
+    )
+    return tally
+
+
 def process(path: Path, args, store, db: Optional[Supabase]) -> dict:
     payload, slug, consumer, qid_by_row = candidates(path, args.refresh)
     name = payload["municipality"]["name"]
@@ -353,6 +536,14 @@ def main() -> int:
     parser.add_argument("--lokal", help="skriv till en katalog i stället för till lagringen")
     parser.add_argument("--bas-url", dest="bas_url", help="publik bas-URL för --lokal")
     parser.add_argument(
+        "--namnspar",
+        action="store_true",
+        help=(
+            "leta objektet på namn och koordinat i Wikidata i stället för via "
+            "OSM-taggen. Se prikko/wikidatanamn.py"
+        ),
+    )
+    parser.add_argument(
         "--skriv-over",
         dest="skriv_over",
         action="store_true",
@@ -377,19 +568,31 @@ def main() -> int:
                 file=sys.stderr,
             )
 
+    kor = process_namnspar if args.namnspar else process
     total = {k: 0 for k in ("consumer", "wikidata", "p18", "inom", "skrivna", "hoppade", "fel")}
     for path in args.files:
-        for key, value in process(path, args, store, db).items():
+        for key, value in kor(path, args, store, db).items():
             total[key] += value
 
-    print(
-        f"\nSAMMANLAGT av {total['consumer']} konsumentvända: "
-        f"{total['wikidata']} bär wikidata, {total['p18']} har en P18, "
-        f"{total['inom']} klarar spärren på {commons.MAX_DISTANCE_M:.0f} meter.\n"
-        f"{total['skrivna']} bilder hämtade, {total['hoppade']} redan på plats, "
-        f"{total['fel']} fel.",
-        file=sys.stderr,
-    )
+    if args.namnspar:
+        print(
+            f"\nSAMMANLAGT av {total['consumer']} verksamheter: "
+            f"{total['wikidata']} har ett Wikidata-objekt med samma namn inom "
+            f"{wikidatanamn.MAX_DISTANCE_M:.0f} meter,\n{total['p18']} av dem bär en "
+            f"fritt licensierad fil, och {total['inom']} av dem föreställer stället.\n"
+            f"{total['skrivna']} bilder hämtade, {total['hoppade']} redan på plats, "
+            f"{total['fel']} fel.",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"\nSAMMANLAGT av {total['consumer']} konsumentvända: "
+            f"{total['wikidata']} bär wikidata, {total['p18']} har en P18, "
+            f"{total['inom']} klarar spärren på {commons.MAX_DISTANCE_M:.0f} meter.\n"
+            f"{total['skrivna']} bilder hämtade, {total['hoppade']} redan på plats, "
+            f"{total['fel']} fel.",
+            file=sys.stderr,
+        )
     return 1 if total["fel"] else 0
 
 
