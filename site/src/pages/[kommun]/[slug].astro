@@ -41,6 +41,7 @@ import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
 import Oppettider from '../../components/Oppettider.astro';
+import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
@@ -687,6 +688,18 @@ const breadcrumbs = {
             Avsnittet finns inte alls på de sidor där vi saknar tider, och det
             är de allra flesta. Se docs/33_oppettider.md för nämnaren. */}
         {e.hours && <Oppettider hours={e.hours} name={e.name} />}
+
+        {/* Kontakt och egenskaper, ur SAMMA OSM-uttag som öppettiderna och
+            därför direkt efter dem.
+
+            Avsnittet står på FLER sidor än öppettiderna, inte färre: 3 274 av
+            9 995 konsumentvända mot 2 747. Skälet är att uppgifterna hänger
+            på hopparningen och inte på att OSM råkar ha en `opening_hours`.
+            De 1 097 verksamheter vi vet vilket OSM-objekt de är men som
+            saknar tider har lika belagda telefonnummer.
+
+            Se docs/37_osm_taggar.md för nämnaren per kommun. */}
+        {e.contact && <Kontaktuppgifter contact={e.contact} name={e.name} />}
 
         {/*
           Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.

@@ -14,6 +14,7 @@
  */
 
 import type { Hours } from './oppettider';
+import type { Contact } from './kontakt';
 
 export type { Hours };
 
@@ -126,6 +127,20 @@ export interface Establishment {
    * de finns och ingenting alls där de saknas. Se lib/oppettider.ts.
    */
   hours?: Hours;
+  /**
+   * Telefon, webbplats, e-post och egenskaper ur SAMMA OSM-uttag som `hours`,
+   * och satt på samma villkor: verksamheten måste vara hopparad med ett
+   * OSM-objekt på BÅDE namn och närhet.
+   *
+   * Fältet står på FLER verksamheter än `hours`, inte färre. Öppettiden
+   * kräver dessutom att OSM-objektet bär en `opening_hours` som vi kan tolka
+   * helt; kontakten kräver bara hopparningen. 3 274 av 9 995 konsumentvända
+   * mot 2 747. Se docs/37_osm_taggar.md.
+   *
+   * Valfritt, och ska förbli valfritt. Sajten visar uppgiften där den finns
+   * och ingenting alls där den saknas. Se lib/kontakt.ts.
+   */
+  contact?: Contact;
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;

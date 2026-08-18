@@ -501,15 +501,32 @@ const DAGAR = [
 
     const list = document.getElementById('foretaget-kontakt') as HTMLUListElement;
 
+    /* VERKSAMHETENS EGNA KONTAKTUPPGIFTER SLÅR OPENSTREETMAPS.
+       Samma dom som öppettiderna fick ovan, och av samma skäl: sidan har ett
+       andra kontaktavsnitt högre upp, hämtat ur OSM och skrivet i bygget, se
+       Kontaktuppgifter.astro. Två olika telefonnummer på samma sida är sämre
+       än ett, och det insända är förstahandsuppgiften.
+
+       Döljningen sker per FÄLT och inte per avsnitt. Har någon skickat in ett
+       telefonnummer men ingen webbplats ska OSM:s webbplats stå kvar: den är
+       fortfarande den enda vi har, och att dölja den hade tagit bort en
+       riktig uppgift som svar på att en annan uppgift kom in. */
+    const doljOsm = (falt: string) =>
+      document
+        .querySelector<HTMLElement>(`[data-kontakt-osm] [data-falt="${falt}"]`)
+        ?.setAttribute('hidden', '');
+
     if (facts.phone) {
       const number = document.createElement('b');
       number.textContent = facts.phone;
       list.append(row(PHONE, 'Telefon', number));
+      doljOsm('phone');
       något = true;
     }
 
     if (facts.website) {
       list.append(row(GLOBE, 'Webbplats', link(facts.website, host(facts.website))));
+      doljOsm('globe');
       något = true;
     }
 
