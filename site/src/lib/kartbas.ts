@@ -58,6 +58,36 @@ export { faceSvg, PIN_W, PIN_H };
  *
  * Att den ligger hos oss betyder också att kartans utseende inte kan ändras
  * av någon annan mellan två besök.
+ *
+ * ## Kartbildens upphovsrad kommer härifrån, och den kommer sent
+ *
+ * Stilen har en enda källa, `openmaptiles`, och den bär ingen egen
+ * `attribution`. Strängen hämtas i stället ur OpenFreeMaps TileJSON på
+ * tiles.openfreemap.org/planet: 239 tecken HTML som blir de 50 tecken
+ * MapLibre skriver ut, "OpenFreeMap © OpenMapTiles Data from OpenStreetMap".
+ *
+ * MapLibre räknar bara upphov för källor vars tileManager är märkt `used`,
+ * och `used` sätts av `Style.update()`, som körs ur `Map._render()`, alltså
+ * på en ANIMATIONSBILDRUTA. En flik som inte målar får inga bildrutor, och då
+ * står `used === undefined` hur länge man än väntar.
+ *
+ * Uppmätt i det byggda utfallet 2026-08-18, en karta, samma flik: kontrollen
+ * tillagd vid 45 ms, stilen laddad vid 1 515 ms, TileJSON:en framme vid
+ * 2 818 ms med sina 239 tecken redan lagda på källan, första bildrutan vid
+ * 11 482 ms eftersom fliken låg i bakgrunden fram till dess, upphovsraden
+ * fylld vid 11 482 ms. Alltså 8 664 ms med strängen tillgänglig och rutan
+ * tom, och sedan fylld i samma millisekund som första bildrutan.
+ *
+ * Läser man DOM:en före den bildrutan står det `maplibregl-attrib-empty` och
+ * `innerText === ''`, vilket ser ut som ett licensfel men är en mätning gjord
+ * i en flik som aldrig målade. Ingen besökare kan hamna där: samma bildruta
+ * som ritar kartbilden fyller raden, så det finns ingen bildruta där OSM:s
+ * data syns utan sitt upphov.
+ *
+ * Skriv därför INTE en egen `attribution` på källan i scripts/kartstil.mjs
+ * för att laga det. `loadTileJson` låter stilens fält vinna över TileJSON:ens,
+ * så en handskriven rad tystar leverantörens och glider isär från den första
+ * gången OpenFreeMap ändrar sin.
  */
 export const KARTSTIL = '/kartstil/prikko.json';
 
