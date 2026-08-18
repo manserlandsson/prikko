@@ -97,6 +97,48 @@ class Supabase:
             print(f"    {table}: {len(rows)}…", file=sys.stderr, end="\r")
 
 
+def harledda(path: Path) -> dict:
+    """Koordinater som FILEN har och databasen saknar.
+
+    ## Varför de bor i filen och inte i databasen
+
+    Kommunerna publicerar inte alla koordinater. Örebro publicerar inga alls
+    och Uppsala nästan inga, så `pipeline/geocode.py` räknar fram dem ur
+    adressen och märker var och en med `geoSource`. Uppmätt 2026-08-18: 1 611
+    sådana finns, alla i Uppsala och Örebro.
+
+    De ligger bara i de incheckade filerna. I Supabase har nio rader ett
+    `geo_source`, alltså inte de 1 611. Exporten läser databasen, och skrev
+    därför tillbaka filerna utan koordinater: nattkörningen 2026-08-17 tog
+    Örebro från 645 till 0 och Uppsala från 966 till 6. Kartnålarna försvann
+    från sajten utan att något bygge klagade, eftersom en verksamhet utan
+    koordinat är fullt publicerbar.
+
+    Att i stället skriva in dem i Supabase vore den uppenbara lösningen och
+    den är fel. Lantmäteriet avslog 2026-08-17 vår begäran om
+    belägenhetsadresser enbart på grunden att lagringen sker hos Supabase, som
+    inte omfattas av adekvansbeslutet. Byter vi geokodningskälla till
+    Lantmäteriet ska härledda koordinater ALDRIG nå den databasen. Filen som
+    hemvist är alltså inte en nödlösning, det är den ordning ansökan bygger
+    på. Se docs/34_ny_ansokan_lantmateriet.md.
+
+    Bara rader där databasen saknar koordinat får sin gamla tillbaka. Har
+    kommunen börjat publicera en egen vinner den alltid, så en riktig
+    uppdatering kan aldrig blockeras av en gammal gissning.
+    """
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return {
+        e["id"]: (e["lat"], e["lng"])
+        for e in payload.get("establishments", [])
+        if e.get("id") and e.get("lat") is not None and e.get("lng") is not None
+    }
+
+
 def export(client: Supabase, out_dir: Path) -> None:
     print("Hämtar från Supabase", file=sys.stderr)
 
@@ -150,9 +192,16 @@ def export(client: Supabase, out_dir: Path) -> None:
 
     for m in municipalities:
         records = []
+        # Härledda koordinater bor i FILEN, inte i databasen. Se `harledda`.
+        tidigare = harledda(out_dir / f"{m['slug']}.json")
+
         for e in by_municipality.get(m["code"], []):
             assessment = by_assessment.get(e["id"], {})
             image = (by_image.get(e["id"]) or [None])[0]
+
+            lat, lng = e.get("lat"), e.get("lng")
+            if lat is None and lng is None:
+                lat, lng = tidigare.get(e["id"], (None, None))
 
             records.append(
                 {
@@ -161,8 +210,8 @@ def export(client: Supabase, out_dir: Path) -> None:
                     "name": e["name"],
                     "address": e.get("street_address"),
                     "types": e.get("types") or [],
-                    "lat": _round(e.get("lat")),
-                    "lng": _round(e.get("lng")),
+                    "lat": _round(lat),
+                    "lng": _round(lng),
                     # `url` pekar på VÅR kopia, aldrig på källans adress.
                     # Mapillarys miniatyr-URL:er är signerade och går ut; en
                     # sådan i databasen är en bild som slutar visas utan att
