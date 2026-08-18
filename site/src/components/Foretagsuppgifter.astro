@@ -535,6 +535,17 @@ const DAGAR = [
       något = true;
     }
 
+    /* Blev OSM-kortet tomt av döljningen ovan försvinner hela kortet.
+       Fallet uppstår när verksamheten skickat in precis de fält vi hade ur
+       OSM och OSM inte gav några egenskaper: kvar står då en vit ruta i
+       sidopanelen med en rubrik, en (i)-knapp och ingen uppgift. Sajten
+       visar ingenting hellre än en tom ruta, se Kontaktuppgifter.astro. */
+    const osmKort = document.querySelector<HTMLElement>('[data-kontakt-panel]');
+    if (osmKort && !osmKort.querySelector('.fakta') &&
+        !osmKort.querySelector('[data-falt]:not([hidden])')) {
+      osmKort.hidden = true;
+    }
+
     if (!något) return;
 
     section.hidden = false;

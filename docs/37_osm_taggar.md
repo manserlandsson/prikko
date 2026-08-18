@@ -32,6 +32,10 @@ anrop, inga nya sidor.
    en fotograferad bild med FRI licens, curerad per objekt och spärrad mot
    avstånd. Ingen av dem kommer ur `image`-taggen, som är ett spår som inte
    bär. §5.
+5. **Uppgifterna står som ett kort överst i högerspalten, inte i
+   huvudkolumnen.** Spalten är "det man gör", huvudkolumnen är
+   kontrollberättelsen, och ett telefonnummer är inte en del av bedömningen.
+   "Öppet nu" flyttar däremot INTE dit, och skälet är mätt. §7.1.
 
 ---
 
@@ -317,11 +321,23 @@ Två förbehåll som hör till svaret och inte ska döljas:
    som kräver att upphovsmannen anges "på det sätt som är rimligt för
    mediet".
 
-**Nästa steg, när bilderna byggs:** de 27 filnamnen ligger uträknade, och
-mätskriptet som räknar fram dem står i §8. Det som återstår är ett val mellan
-att spegla filerna hos oss eller länka till Commons, och det valet är inte
-mitt att ta: att spegla kostar 27 filer av taket i `docs/25` och gör oss till
-utgivare, att länka lägger en begäran till en tredje part i varje sidvisning.
+**Nästa steg, när bilderna byggs.** Urvalet är helt bestämt av regler som
+redan finns i koden, så det behöver ingen ny lista att underhålla:
+
+1. Para verksamheten som vanligt, `pipeline/prikko/oppettider.py`.
+2. Läs `wikidata` ur OSM-taggarna. 33 hopparade bär den. Läs ALDRIG
+   `brand:wikidata`, som står på 762 och är kedjans objekt.
+3. Hämta P18 och P625 ur Wikidata. Faller P18 bort finns ingen bild.
+4. Kasta den om P625 ligger mer än 150 meter från OSM-punkten, eller saknas.
+   Det är spärren i tabellen ovan, och den fäller tre av trettio.
+5. Hämta licens och upphovsman ur Commons `extmetadata`
+   (`LicenseShortName`, `Artist`, `LicenseUrl`) för den fil som blir kvar.
+
+Det som återstår därefter är ett val som inte är mitt att ta: att spegla
+filerna hos oss kostar 27 filer av taket i `docs/25` och gör oss till
+utgivare, att länka till Commons lägger en begäran till en tredje part i varje
+sidvisning. Bildtexten måste bära upphovsman, licensnamn och årtal, se
+förbehållen ovan.
 
 ### 5.5 Panoramax
 
@@ -374,21 +390,74 @@ Samma dom som `docs/33` §6.1 redan tagit.
 
 ## 7. Hur det visas
 
-### 7.1 Var, och i vilken form
+### 7.1 Var kortet står
 
-Ett eget avsnitt, `site/src/components/Kontaktuppgifter.astro`, direkt under
-öppettiderna. De två kommer ur samma uttag och samma licens och hör ihop både
-för läsaren och i fråga om vad de är. Ovanför kontrollberättelsen får de inte
-stå, av samma skäl som `docs/33` §6.1 ger.
+**Överst i den klibbiga högerspalten, före "Något som inte stämmer?".**
+`site/src/components/Kontaktuppgifter.astro`, i ett `.panel` som sidmallen
+ritar, alltså samma vita ruta med samma radie och skugga som spaltens andra
+kort.
 
-Överst tre rader med ikon som är HANDLINGAR: telefon, webbplats, e-post.
-Under dem egenskaperna som en definitionslista. Uppdelningen är inte kosmetisk:
-de tre översta är länkar man klickar, resten är påståenden man läser.
+Kortet stod först under öppettiderna i huvudkolumnen, och det var fel.
+Högerspalten är "det man gör" och huvudkolumnen är kontrollberättelsen.
+Telefon, webbplats och e-post är saker man AGERAR på och inte delar av
+bedömningen, alltså hör de hemma i spalten och inte inklämda i berättelsen.
+Samma indelning som booli har, se sidmallens egen kommentar.
+
+**"Öppet nu" flyttar INTE hit, och det är viktigt.** Det står vid
+verksamhetens namn, dit det flyttades efter att ha mätts till 2 333 px från
+rubriken i sitt förra läge. Två skäl att det stannar där:
+
+1. På mobil kollapsar högerspalten till BOTTEN, efter hela huvudkolumnen. Ett
+   klockslag där hamnar längre bort från rubriken än det låg innan det
+   flyttades, alltså tillbaka till samma fel.
+2. "Öppet nu" svarar på "kan jag gå dit nu", vilket avgörs i samma ögonblick
+   som man läser namnet. Kontakten svarar på "hur når jag dem", vilket är
+   nästa steg. Det är därför kontakten tål att stå längre ned och klockslaget
+   inte gör det.
+
+### 7.1.1 Formen i kortet
+
+Överst kontaktlänkarna med ikon, som är HANDLINGAR: telefon, webbplats,
+e-post. Under dem egenskaperna som en definitionslista med etiketten till
+vänster och beskedet till höger. Uppdelningen är inte kosmetisk: de översta är
+länkar man klickar, resten är påståenden man läser.
+
+Panelen är 300 px bred och lämnar 268 px innanför sin padding. Etikettspalten
+framför länkarna ströks därför: den hade tagit drygt hundra av dem och lämnat
+för lite åt "info@opizzicato.se". Etiketten står i stället i `aria-label`, och
+ikonen bär den för seende.
 
 **Egenskaperna är en lista och inte chips.** Ett chip kan bara säga att något
 FINNS, och nästan hälften av beskeden är ett nej eller ett delvis: "Inte
 tillgängligt", "Delvis tillgängligt", "Endast avhämtning". Som chip hade de
 antingen fallit bort eller lästs som sin motsats av den som skummar.
+
+### 7.1.2 Rubriken lovar aldrig mer än raderna håller
+
+Rubriken över länkarna härleds ur vad som faktiskt står där. Bär kortet EN
+länk heter rubriken det fältets eget namn; bär det två eller tre heter den
+"Kontakt", som täcker dem utan att peka ut något.
+
+Skälet är mätt. Av de 3 274 korten bär **705 exakt en länk**, fördelat på 495
+webbplats, 206 telefon och 4 e-post. "Kontakt" över en ensam webbplatsrad hade
+alltså på femhundra sidor antytt ett telefonnummer vi inte har, och läsaren som
+kom för att ringa hade letat efter något som inte finns.
+
+Egenskaperna får en egen rubrik, **"Bra att veta"**. "Kontakt" över raden
+"Uteservering: Ja" är fel ord, och kortet kan dessutom bära egenskaper utan en
+enda länk: 674 av de 3 274 gör det, och där är "Bra att veta" kortets enda
+rubrik.
+
+### 7.1.3 Kortet finns inte när det skulle bli tomt
+
+Villkoret i sidmallen är dubbelt. `contact` finns på 3 274 sidor, men ett kort
+utan en enda utskrivbar rad hade ändå blivit en tom vit ruta i spalten, så
+`harNagot()` avgör.
+
+Och en gång till i webbläsaren: har verksamheten själv skickat in precis de
+fält vi hade ur OSM, och OSM inte gav några egenskaper, döljer
+`Foretagsuppgifter.astro` hela kortet i stället för att lämna kvar en ruta med
+en rubrik och en (i)-knapp.
 
 ### 7.2 Vad som aldrig avrundas
 

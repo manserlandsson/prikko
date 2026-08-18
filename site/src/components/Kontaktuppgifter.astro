@@ -2,6 +2,28 @@
 /**
  * Telefon, webbplats, e-post och egenskaper ur OpenStreetMap.
  *
+ * ## VAR KORTET STÅR, OCH VARFÖR INTE I HUVUDKOLUMNEN
+ *
+ * Överst i den klibbiga högerspalten, före "Något som inte stämmer?".
+ *
+ * Högerspalten är "det man gör" och huvudkolumnen är kontrollberättelsen.
+ * Telefon, webbplats och e-post är saker man AGERAR på och inte delar av
+ * bedömningen, så de hör hemma i spalten och inte inklämda i berättelsen.
+ * Samma indelning som booli har, se sidmallens kommentar i [slug].astro.
+ *
+ * ## VARFÖR "ÖPPET NU" INTE FÅR FLYTTA HIT
+ *
+ * Det står vid verksamhetens namn och ska stanna där. Två skäl:
+ *
+ *   På mobil kollapsar högerspalten till BOTTEN, efter hela huvudkolumnen.
+ *   Ett "öppet nu" där hamnar längre bort från rubriken än det låg innan det
+ *   flyttades upp, alltså tillbaka till samma fel som mättes till 2 333 px.
+ *
+ *   "Öppet nu" svarar på "kan jag gå dit nu", vilket avgörs i samma ögonblick
+ *   som man läser namnet. Kontaktuppgifterna svarar på "hur når jag dem",
+ *   vilket är nästa steg. Det är därför de tål att stå längre ned och
+ *   klockslaget inte gör det.
+ *
  * ## VARFÖR AVSNITTET FINNS
  *
  * Overpass-frågan i pipeline/prikko/oppettider.py hämtade HELA taggmängden
@@ -68,7 +90,7 @@
  * slås ihop av den som läser dem, alltså hade OSM:s nummer blandats med
  * förstahandsuppgifter utan att någon kan se vilket som är vilket.
  */
-import { egenskaper, harNagot, kontaktLankar, type Contact } from '../lib/kontakt';
+import { egenskaper, harNagot, kontaktLankar, kontaktRubrik, type Contact } from '../lib/kontakt';
 import { formatDate } from '../lib/data';
 
 interface Props {
@@ -80,6 +102,11 @@ const { contact, name } = Astro.props;
 
 const lankar = kontaktLankar(contact);
 const rader = egenskaper(contact);
+
+/* Rubriken lovar aldrig mer än raderna håller: står bara en webbplats där
+   heter den "Webbplats" och inte "Kontakt". Se kontaktRubrik i lib/kontakt.ts
+   för varför det inte är ett hörnfall. */
+const rubrik = kontaktRubrik(lankar);
 
 /* Länken till OSM-objektet. `contact.osm` är "node/123" eller "way/123",
    vilket är precis den form openstreetmap.org tar i sin adress. */
@@ -98,7 +125,7 @@ const IKONER: Record<string, string> = {
 
 {harNagot(contact) && (
 <section class="kontakt" data-kontakt-osm aria-label={`Kontakt och egenskaper för ${name}`}>
-  <h2>Kontakt</h2>
+  {rubrik && <h2 class="rubrik">{rubrik}</h2>}
 
   {lankar.length > 0 && (
     <ul class="lankar">
@@ -117,13 +144,19 @@ const IKONER: Record<string, string> = {
               stroke-linejoin="round"
             />
           </svg>
-          <span class="etikett text-secondary">{l.label}</span>
           {/* `rel="nofollow"` på webbplatsen: länken är hämtad ur en öppen
               databas som vem som helst kan skriva i, och den ska aldrig gå att
               använda för att bygga länkkraft genom oss. Telefon och e-post är
-              inga webbadresser och behöver ingen. */}
+              inga webbadresser och behöver ingen.
+
+              Etiketten står i `aria-label` och inte som synlig text. Kortet är
+              268 px brett innanför sin padding, och en etikettspalt hade
+              lämnat drygt hundra pixlar åt "info@opizzicato.se". Ikonen säger
+              vad raden är för seende, aria-label för den som lyssnar, och
+              rubriken ovanför säger det en tredje gång när raden står ensam. */}
           <a
             href={l.href}
+            aria-label={`${l.label}: ${l.text}`}
             rel={l.kind === 'globe' ? 'nofollow noopener' : undefined}
             target={l.kind === 'globe' ? '_blank' : undefined}
           >{l.text}</a>
@@ -131,6 +164,13 @@ const IKONER: Record<string, string> = {
       ))}
     </ul>
   )}
+
+  {/* Egenskaperna får en egen rubrik och inte kontaktrubriken. "Kontakt" över
+      en rad som säger "Uteservering: Ja" är fel ord, och kortet kan dessutom
+      bära egenskaper UTAN en enda kontaktlänk. Mätt ur de skrivna
+      datafilerna: av de 3 274 korten bär 2 600 minst en länk och 674 bara
+      egenskaper. På de 674 är "Bra att veta" kortets enda rubrik. */}
+  {rader.length > 0 && <h2 class="rubrik">Bra att veta</h2>}
 
   {rader.length > 0 && (
     /* Definitionslista och inte en rad chips. Ett chip kan bara säga att
@@ -172,31 +212,49 @@ const IKONER: Record<string, string> = {
 )}
 
 <style>
+  /* Kortet är sidopanelens `.panel`, alltså ritas ram, radie och skugga av
+     sidmallen. Här bor bara innehållet. Panelen är 300 px bred och lämnar
+     268 px innanför sin padding, vilket är måttet allt nedan är satt efter. */
   .kontakt {
-    margin-top: var(--s-6);
+    display: block;
   }
 
-  h2 {
-    font: var(--h3);
+  /* Samma panelrubriknivå som ActionPanel.astro och kommunhubben. Regeln står
+     här och inte i sidmallen eftersom Astros scopeade selektorer inte korsar
+     komponentgränser, exakt samma skäl som ActionPanel skriver ut. */
+  .rubrik {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
     margin: 0 0 var(--s-3);
   }
 
+  /* "Bra att veta" står efter länklistan och behöver luft ovanför sig. Den
+     första rubriken i kortet gör det inte: där är luften panelens padding. */
+  .rubrik ~ .rubrik {
+    margin-top: var(--s-4);
+  }
+
   /* Kontaktraderna är HANDLINGAR: ringa, öppna, skriva. De står överst och
-     får ikon, eftersom en ikon är det som gör att ögat hittar telefonnumret
-     utan att läsa etiketten. Egenskaperna nedanför är påståenden och får
-     ingen, för femton ikoner i en spalt slutar vara igenkänning och blir
+     får ikon, eftersom ikonen är det som gör att ögat hittar telefonnumret
+     utan att läsa en etikett. Egenskaperna nedanför är påståenden och får
+     ingen, för tio ikoner i en spalt slutar vara igenkänning och blir
      mönster. */
   .lankar {
     list-style: none;
-    margin: 0 0 var(--s-4);
+    margin: 0;
     padding: 0;
     display: grid;
     gap: var(--s-2);
   }
 
+  /* Två spalter och inte tre. Etikettspalten ströks när kortet flyttade till
+     sidopanelen: av 268 px hade den tagit drygt hundra, och kvar åt en
+     e-postadress blev mindre än den behöver. Etiketten finns kvar i
+     `aria-label` på länken. */
   .lankar li {
     display: grid;
-    grid-template-columns: 20px 6.5rem 1fr;
+    grid-template-columns: 18px 1fr;
     align-items: center;
     gap: var(--s-2);
     min-height: 24px;
@@ -210,21 +268,18 @@ const IKONER: Record<string, string> = {
   }
 
   .lankar svg {
-    width: 17px;
-    height: 17px;
+    width: 16px;
+    height: 16px;
     color: var(--text-secondary);
-  }
-
-  .etikett {
-    font-size: var(--fs-caption);
   }
 
   .lankar a {
     color: var(--text-primary);
     text-decoration: none;
+    font-size: var(--fs-body-s);
     /* Långa värdnamn och e-postadresser måste få brytas, annars ger de vågrät
-       rullning på 390 px. `anywhere` och inte `break-all`: den senare bryter
-       även när det finns plats. */
+       rullning i en 268 px bred spalt. `anywhere` och inte `break-all`: den
+       senare bryter även när det finns plats. */
     overflow-wrap: anywhere;
   }
 
@@ -235,9 +290,11 @@ const IKONER: Record<string, string> = {
     text-underline-offset: 2px;
   }
 
-  /* Egenskaperna. Samma tre spalter som ovan, med den tomma ikonspalten kvar,
-     så att etiketterna står i lodrät linje med kontaktraderna. Hade de börjat
-     längst till vänster hade avsnittet sett ut som två avsnitt. */
+  /* Egenskaperna: etiketten till vänster, beskedet till höger. Det är den
+     form en faktaruta i en smal spalt tar, och den som söker en enskild
+     uppgift läser etikettspalten lodrätt utan att beskeden är i vägen.
+     `1fr auto` och inte två lika spalter: "Kosthållning" är elva tecken och
+     "Ja" är två, och lika spalter hade lämnat ett tomrum mitt i kortet. */
   .fakta {
     margin: 0;
     display: grid;
@@ -246,37 +303,22 @@ const IKONER: Record<string, string> = {
 
   .rad {
     display: grid;
-    grid-template-columns: 20px 6.5rem 1fr;
+    grid-template-columns: 1fr auto;
     align-items: baseline;
     gap: var(--s-2);
   }
 
   dt {
-    grid-column: 2;
     font-size: var(--fs-caption);
   }
 
   dd {
     margin: 0;
-  }
-
-  /* Under 380 px blir tre spalter en spalt med två tecken i. Etiketten
-     hoppar då upp över värdet i stället för att stå bredvid det. */
-  @media (max-width: 380px) {
-    .lankar li,
-    .rad {
-      grid-template-columns: 20px 1fr;
-    }
-
-    .etikett,
-    dt {
-      grid-column: 2;
-    }
-
-    .lankar a,
-    dd {
-      grid-column: 2;
-    }
+    font-size: var(--fs-body-s);
+    text-align: right;
+    /* "Vegetariskt och veganskt" är tjugotre tecken och får brytas hellre än
+       att trycka ut etiketten. */
+    overflow-wrap: anywhere;
   }
 
   /* Allt nedan är Oppettider.astros upphovsknapp, ordagrant. Den står här och
@@ -327,7 +369,12 @@ const IKONER: Record<string, string> = {
     left: 0;
     z-index: 5;
     width: max-content;
-    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
+    /* 17rem och inte Oppettider.astros 19: den rutan fälls ut i huvudkolumnen
+       som är 700 px bred, den här i en panel med 268 px innanför sin padding.
+       272 px håller rutan innanför kortets kant i stället för att låta den
+       sticka ut i marginalen. Det andra ledet är kvar och gäller mobilen, där
+       panelen är hela spaltbredden. */
+    max-width: min(17rem, calc(100vw - 2 * var(--s-4)));
     padding: 10px 12px;
     border-radius: 9px;
     font-size: var(--fs-caption);

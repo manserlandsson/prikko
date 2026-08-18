@@ -368,8 +368,31 @@ export function egenskaper(contact: Contact): Rad[] {
   return rader;
 }
 
-/** Har vi något alls att skriva ut? Styr om avsnittet finns på sidan. */
+/** Har vi något alls att skriva ut? Styr om kortet finns på sidan. */
 export function harNagot(contact: Contact | null | undefined): boolean {
   if (!contact) return false;
   return kontaktLankar(contact).length > 0 || egenskaper(contact).length > 0;
+}
+
+/**
+ * Rubriken över kontaktlänkarna, härledd ur vad vi FAKTISKT har.
+ *
+ * En rubrik får aldrig lova mer än raderna under den håller. "Kontakt" över
+ * en ensam webbplatsrad antyder att det finns ett telefonnummer att ringa,
+ * och läsaren som kom hit för att ringa hittar det inte och tror att hen
+ * missat något.
+ *
+ * Alltså: står bara ett fält där heter rubriken det fältet. Står två eller
+ * tre är "Kontakt" det enda ord som täcker dem utan att räkna upp dem, och då
+ * lovar det inte heller något särskilt.
+ *
+ * Talen bakom, mätt ur de skrivna datafilerna: 705 av de 3 274 korten bär
+ * exakt EN länk, och de fördelar sig 495 webbplats, 206 telefon och 4 e-post.
+ * Fallet med enbart webbplats är alltså inget hörnfall utan femhundra sidor
+ * där rubriken "Kontakt" hade lovat ett telefonnummer vi inte har.
+ */
+export function kontaktRubrik(lankar: KontaktLank[]): string | null {
+  if (lankar.length === 0) return null;
+  if (lankar.length === 1) return lankar[0].label;
+  return 'Kontakt';
 }

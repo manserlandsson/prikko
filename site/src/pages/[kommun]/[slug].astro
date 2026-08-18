@@ -42,6 +42,7 @@ import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
 import Oppettider from '../../components/Oppettider.astro';
 import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
+import { harNagot } from '../../lib/kontakt';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
@@ -689,18 +690,6 @@ const breadcrumbs = {
             är de allra flesta. Se docs/33_oppettider.md för nämnaren. */}
         {e.hours && <Oppettider hours={e.hours} name={e.name} />}
 
-        {/* Kontakt och egenskaper, ur SAMMA OSM-uttag som öppettiderna och
-            därför direkt efter dem.
-
-            Avsnittet står på FLER sidor än öppettiderna, inte färre: 3 274 av
-            9 995 konsumentvända mot 2 747. Skälet är att uppgifterna hänger
-            på hopparningen och inte på att OSM råkar ha en `opening_hours`.
-            De 1 097 verksamheter vi vet vilket OSM-objekt de är men som
-            saknar tider har lika belagda telefonnummer.
-
-            Se docs/37_osm_taggar.md för nämnaren per kommun. */}
-        {e.contact && <Kontaktuppgifter contact={e.contact} name={e.name} />}
-
         {/*
           Verksamhetens egna uppgifter står EFTER hela kontrollberättelsen.
 
@@ -759,6 +748,31 @@ const breadcrumbs = {
       </main>
 
       <aside class="side">
+        {/* Kontaktkortet ÖVERST i spalten, före "Något som inte stämmer?".
+
+            Högerspalten är "det man gör" och huvudkolumnen är
+            kontrollberättelsen. Telefon, webbplats och e-post är saker man
+            agerar på och inte delar av bedömningen, alltså hör de hemma här
+            och inte inklämda i berättelsen. Kortet stod först under
+            öppettiderna i huvudkolumnen, och det var fel av just det skälet.
+
+            "ÖPPET NU" FLYTTAR INTE HIT, och det är viktigt. Det står vid
+            verksamhetens namn efter att ha mätts till 2 333 px från rubriken
+            i sitt förra läge. På mobil kollapsar den här spalten till BOTTEN,
+            efter hela huvudkolumnen, så ett klockslag här hade hamnat längre
+            bort än det låg innan det flyttades. Och "öppet nu" avgör om man
+            går dit över huvud taget, vilket är ett beslut man fattar när man
+            läser namnet; kontakten är nästa steg.
+
+            Villkoret är dubbelt med flit. `e.contact` finns på 3 274 sidor,
+            men ett kort utan en enda utskrivbar rad hade ändå blivit en tom
+            vit ruta i spalten, och `harNagot` är det som utesluter det. */}
+        {e.contact && harNagot(e.contact) && (
+          <div class="panel" data-kontakt-panel>
+            <Kontaktuppgifter contact={e.contact} name={e.name} />
+          </div>
+        )}
+
         <div class="panel">
           {e.image && <StreetPhoto image={e.image} name={e.name} />}
           <ActionPanel
