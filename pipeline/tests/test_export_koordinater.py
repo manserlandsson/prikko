@@ -31,7 +31,9 @@ from export_supabase import (  # noqa: E402
     coordinate_collapse,
     count_coordinates,
     fillicens,
+    export,
     filradering,
+    geolicens,
 )
 
 
@@ -221,6 +223,168 @@ class Kartnalsgrinden(unittest.TestCase):
         self.assertLess(MIN_COORDINATES_KEPT, 0.996)
         self.assertGreater(MIN_COORDINATES_LOST, 3)
         self.assertLessEqual(MIN_COORDINATES_LOST, 25)
+
+
+class FalskSupabase:
+    """Databasen som exporten läser, med precis de rader ett prov behöver.
+
+    Databasen känner inte till härledda koordinater: nio rader av 130 000 har
+    ett geo_source. Den här stubben speglar det, och lämnar lat och lng tomma
+    så att provet gäller just det som gick sönder.
+    """
+
+    def __init__(self, verksamheter: list) -> None:
+        self.tabeller = {
+            "municipalities": [
+                {
+                    "code": "1880",
+                    "name": "Örebro kommun",
+                    "city": "Örebro",
+                    "slug": "orebro",
+                    "source_type": "reverse_engineered",
+                    "source_url": "https://example.invalid",
+                    "last_fetched_at": "2026-08-18",
+                }
+            ],
+            "establishments": verksamheter,
+            "assessments": [],
+            "inspections": [],
+            "control_areas": [],
+            "images": [],
+        }
+
+    def all_rows(self, table: str, select: str = "*", order: str = "id") -> list:
+        return self.tabeller[table]
+
+
+def rad(id: str, **extra) -> dict:
+    return {
+        "id": id,
+        "municipality_code": "1880",
+        "slug": id.lower(),
+        "name": id,
+        "street_address": "Kungsgatan 1",
+        "types": [],
+        "lat": None,
+        "lng": None,
+        **extra,
+    }
+
+
+class Ursprunget(unittest.TestCase):
+    """Koordinatens ursprung ska överleva exporten, inte bara dess tal.
+
+    `geoSource` är det enda som skiljer en härledd koordinat från en kommunen
+    själv publicerat, och sajten fattar tre beslut på fältet:
+    Platskarta.astro skriver ut OpenStreetMaps attribution, [slug].astro
+    utelämnar schema.org-fältet `geo` för härledda koordinater, och
+    kartrutor.ts märker rutan som härledd. `geoPrecision` styr om
+    pipeline/oppettider.py får lita på nålen.
+
+    Exporten tog bara lat och lng. Uppmätt 2026-08-18 stod därför 1 610
+    härledda koordinater kvar på sajten utan sitt ursprung, 644 i Örebro och
+    966 i Uppsala, och ODbL-attributionen försvann från varje karta som visade
+    dem.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.path = self.dir / "orebro.json"
+
+    def skriv_gardagens(self, verksamheter: list, geocoding=True) -> None:
+        payload = {
+            "municipality": {"code": "1880", "name": "Örebro kommun",
+                             "city": "Örebro", "slug": "orebro"},
+            "source": {"url": "", "fetchedAt": ""},
+            "establishments": verksamheter,
+        }
+        if geocoding:
+            payload["geocoding"] = {
+                "method": "derived",
+                "source": "OpenStreetMap via Overpass API",
+                "licence": "ODbL 1.0",
+                "attribution": "© OpenStreetMap contributors",
+            }
+        self.path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    def exportera(self, verksamheter: list) -> dict:
+        export(FalskSupabase(verksamheter), self.dir)
+        return json.loads(self.path.read_text(encoding="utf-8"))
+
+    def test_geosource_och_geoprecision_foljer_med_koordinaten(self):
+        self.skriv_gardagens(
+            [{"id": "F-1", "lat": 59.27, "lng": 15.21,
+              "geoSource": "osm", "geoPrecision": "approximate"}]
+        )
+        ny = self.exportera([rad("F-1")])["establishments"][0]
+        self.assertEqual(ny["lat"], 59.27)
+        self.assertEqual(ny["geoSource"], "osm")
+        self.assertEqual(ny["geoPrecision"], "approximate")
+
+    def test_ursprunget_star_direkt_efter_lng(self):
+        """Samma plats som pipeline/geocode.py ger dem.
+
+        Nyckelordningen ligger i filen. Hamnar fälten någon annanstans skriver
+        de två vägarna olika filer, och varje bytt väg ger en diff utan en
+        enda faktisk ändring.
+        """
+        self.skriv_gardagens(
+            [{"id": "F-1", "lat": 59.27, "lng": 15.21, "geoSource": "osm",
+              "geoPrecision": "address"}]
+        )
+        nycklar = list(self.exportera([rad("F-1")])["establishments"][0])
+        self.assertEqual(
+            nycklar[nycklar.index("lng"): nycklar.index("lng") + 3],
+            ["lng", "geoSource", "geoPrecision"],
+        )
+
+    def test_kommunens_egen_koordinat_far_inget_ursprung(self):
+        """Börjar kommunen publicera egna koordinater vinner de alltid.
+
+        En koordinat ur databasen är kommunens och ska aldrig bära ett
+        geoSource från en gammal gissning.
+        """
+        self.skriv_gardagens(
+            [{"id": "F-1", "lat": 59.27, "lng": 15.21, "geoSource": "osm",
+              "geoPrecision": "approximate"}]
+        )
+        ny = self.exportera([rad("F-1", lat=59.5, lng=15.5)])["establishments"][0]
+        self.assertEqual(ny["lat"], 59.5)
+        self.assertNotIn("geoSource", ny)
+        self.assertNotIn("geoPrecision", ny)
+
+    def test_licensblocket_foljer_med(self):
+        """ODbL kräver attribution där koordinaten visas."""
+        self.skriv_gardagens([{"id": "F-1", "lat": 59.27, "lng": 15.21,
+                               "geoSource": "osm", "geoPrecision": "address"}])
+        payload = self.exportera([rad("F-1")])
+        self.assertEqual(payload["geocoding"]["licence"], "ODbL 1.0")
+        self.assertEqual(list(payload)[:3], ["municipality", "source", "geocoding"])
+
+    def test_licensblocket_utelamnas_utan_harledda_nalar(self):
+        """En licensklausul utan en enda härledd nål påstår något som inte finns."""
+        self.skriv_gardagens([{"id": "F-1", "lat": 59.27, "lng": 15.21,
+                               "geoSource": "osm"}])
+        payload = self.exportera([rad("F-1", lat=59.5, lng=15.5)])
+        self.assertNotIn("geocoding", payload)
+
+    def test_koordinat_utan_ursprung_ger_inga_tomma_falt(self):
+        """Kommunens egen koordinat som råkat hamna i filen har inget ursprung.
+
+        Ett `"geoSource": null` på varje rad hade lagt tusentals rader i varje
+        diff utan att säga något.
+        """
+        self.skriv_gardagens([{"id": "F-1", "lat": 59.27, "lng": 15.21}],
+                             geocoding=False)
+        ny = self.exportera([rad("F-1")])["establishments"][0]
+        self.assertEqual(ny["lat"], 59.27)
+        self.assertNotIn("geoSource", ny)
+
+    def test_geolicens_klarar_fil_som_saknar_blocket(self):
+        self.skriv_gardagens([{"id": "F-1", "lat": 59.27, "lng": 15.21}],
+                             geocoding=False)
+        self.assertIsNone(geolicens(self.path))
+        self.assertIsNone(geolicens(self.dir / "finns-inte.json"))
 
 
 if __name__ == "__main__":

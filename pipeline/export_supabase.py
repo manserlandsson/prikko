@@ -162,6 +162,22 @@ def fillicens(path: Path) -> dict | None:
         return None
 
 
+def geolicens(path: Path) -> dict | None:
+    """`geocoding`-blocket ur föregående export, om filen bar härledda nålar.
+
+    Skrivs av pipeline/geocode.py och säger vilken adresskälla koordinaterna
+    räknats fram ur, med licens och attribution. Både OpenStreetMap (ODbL) och
+    Lantmäteriet (CC BY 4.0) kräver den där koordinaten visas, så blocket är
+    ett villkor för att få rita nålen, inte en upplysning vid sidan av.
+    """
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("geocoding")
+    except ValueError:
+        return None
+
+
 def export(client: Supabase, out_dir: Path) -> None:
     print("Hämtar från Supabase", file=sys.stderr)
 
@@ -220,6 +236,8 @@ def export(client: Supabase, out_dir: Path) -> None:
         sokvag = out_dir / f"{m['slug']}.json"
         tidigare = filradering(sokvag)
         forra_licens = fillicens(sokvag)
+        forra_geolicens = geolicens(sokvag)
+        antal_harledda = 0
 
         for e in by_municipality.get(m["code"], []):
             assessment = by_assessment.get(e["id"], {})
@@ -227,9 +245,20 @@ def export(client: Supabase, out_dir: Path) -> None:
 
             forra = tidigare.get(e["id"], {})
 
+            # Ursprunget hör ihop med koordinaten och återställs bara när
+            # koordinaten gör det. Har kommunen börjat publicera en egen ska
+            # den aldrig bära ett geoSource från en gammal gissning.
+            harlett = {}
             lat, lng = e.get("lat"), e.get("lng")
             if lat is None and lng is None:
                 lat, lng = forra.get("lat"), forra.get("lng")
+                if lat is not None and lng is not None:
+                    harlett = {
+                        nyckel: forra[nyckel]
+                        for nyckel in ("geoSource", "geoPrecision")
+                        if forra.get(nyckel) is not None
+                    }
+                    antal_harledda += 1
 
             records.append(
                 {
@@ -240,6 +269,9 @@ def export(client: Supabase, out_dir: Path) -> None:
                     "types": e.get("types") or [],
                     "lat": _round(lat),
                     "lng": _round(lng),
+                    # Direkt efter lng, samma plats som pipeline/geocode.py
+                    # ger dem, så att de två vägarna skriver samma fil.
+                    **harlett,
                     # `url` pekar på VÅR kopia, aldrig på källans adress.
                     # Mapillarys miniatyr-URL:er är signerade och går ut; en
                     # sådan i databasen är en bild som slutar visas utan att
@@ -297,6 +329,16 @@ def export(client: Supabase, out_dir: Path) -> None:
                 }
             )
 
+        # Öppettiderna hakas på efter att posterna är byggda, och inte som ett
+        # fält i literalen nedan, eftersom de flesta rader saknar dem: ett
+        # `"hours": None` på 13 000 rader hade lagt 13 000 rader i varje diff.
+        antal_tider = 0
+        for rad in records:
+            forra = tidigare.get(rad["id"], {})
+            if forra.get("hours"):
+                rad["hours"] = forra["hours"]
+                antal_tider += 1
+
         payload = {
             "municipality": {
                 "code": m["code"],
@@ -312,26 +354,25 @@ def export(client: Supabase, out_dir: Path) -> None:
             "establishments": records,
         }
 
-        # Öppettiderna hakas på efter att posterna är byggda, och inte som ett
-        # fält i literalen ovan, eftersom de flesta rader saknar dem: ett
-        # `"hours": None` på 13 000 rader hade lagt 13 000 rader i varje diff.
-        antal_tider = 0
-        for rad in records:
-            forra = tidigare.get(rad["id"], {})
-            if forra.get("hours"):
-                rad["hours"] = forra["hours"]
-                antal_tider += 1
-
-        # ODbL-blocket följer med när, och bara när, filen faktiskt bär en
-        # öppettid. Samma regel som pipeline/oppettider.py skriver den efter:
-        # en licensklausul i en fil utan en enda öppettid är ett påstående om
-        # data som inte finns. Det står EFTER `source` i filen, och ordningen
-        # byggs här i stället för att flyttas efteråt.
-        if antal_tider and forra_licens:
+        # Licensblocken följer med när, och bara när, filen faktiskt bär den
+        # data de handlar om. Samma regel som pipeline/oppettider.py och
+        # pipeline/geocode.py skriver dem efter: en licensklausul i en fil utan
+        # en enda rad av det slaget är ett påstående om data som inte finns.
+        #
+        # Båda står EFTER `source`, och ordningen är den pipelinen skapar dem
+        # i. geocode.py måste ha kört innan oppettider.py kan para ihop
+        # någonting, så `openingHours` är det yngre blocket och hamnar överst.
+        # Ordningen byggs här i stället för att flyttas efteråt.
+        if (antal_tider and forra_licens) or (antal_harledda and forra_geolicens):
             payload = {
                 "municipality": payload["municipality"],
                 "source": payload["source"],
-                "openingHours": forra_licens,
+                **({"openingHours": forra_licens} if antal_tider and forra_licens else {}),
+                **(
+                    {"geocoding": forra_geolicens}
+                    if antal_harledda and forra_geolicens
+                    else {}
+                ),
                 "establishments": records,
             }
 
@@ -417,7 +458,17 @@ def report_collapse(rasade: list, out_dir: Path) -> None:
 
 
 def count_points(records: list) -> int:
-    return sum(len(i["areas"]) for e in records for i in e["inspections"])
+    """Kontrollpunkterna i en ögonblicksbild.
+
+    Fälten hämtas med `.get`, för den ena av de två anropsplatserna är en fil
+    på disken som kan vara halvskriven. Ett saknat fält ska ge noll punkter
+    och därmed ingen jämförelse, inte en KeyError som fäller hela exporten.
+    """
+    return sum(
+        len(i.get("areas") or [])
+        for e in records
+        for i in (e.get("inspections") or [])
+    )
 
 
 def count_coordinates(records: list) -> int:
