@@ -426,6 +426,84 @@ function nestingGuard() {
  */
 const INNEHALL = fileURLToPath(new URL('src/content/', import.meta.url));
 
+/**
+ * Filtaket hos Cloudflare Pages, mätt vid varje bygge.
+ *
+ * ## Varför grinden finns
+ *
+ * Pages tar 20 000 filer per utgåva. Passeras taket avvisas hela utgåvan, och
+ * det upptäcks först i deploysteget, alltså efter tio minuters bygge och utan
+ * att något i vår egen kod sagt ifrån. Sajten står då kvar på gårdagens
+ * utgåva medan allt ser grönt ut hos oss.
+ *
+ * Taket är dessutom vår hårdaste begränsning på tillväxt, hårdare än datan
+ * och hårdare än mallarna. `docs/30_programmatisk_seo.md` §3 räknade ut att
+ * ett nationellt bestånd är omkring 96 000 filer, alltså nästan fem gånger
+ * det gratisplanen tar. Se den paragrafen innan någon planerar en ny sidtyp.
+ *
+ * ## De två talen
+ *
+ * Bygget låg på 16 934 filer 2026-08-18. En kommun i Stockholms storlek är
+ * omkring 8 500 sidor, en liten kommun några hundra.
+ *
+ * VARNING vid 18 000 ger drygt tusen filers förvarning, alltså tid att välja
+ * mellan att flytta till Workers och att skjuta upp en sidtyp.
+ *
+ * FEL vid 19 500 stoppar bygget medan det fortfarande finns 500 filers
+ * marginal. Att fälla här är hårdare än att låta Cloudflare avvisa utgåvan,
+ * och det är meningen: ett rött bygge går att läsa, en avvisad utgåva ser ut
+ * som att ingenting hände.
+ *
+ * Workers Static Assets tar 100 000 filer på den betalda planen, 5 dollar i
+ * månaden. Den dagen taket flyttas ska talen här flyttas med.
+ */
+const FILTAK_VARNING = 18_000;
+const FILTAK_FEL = 19_500;
+
+function filtaksgrind() {
+  return {
+    name: 'prikko:filtak',
+    hooks: {
+      'astro:build:done': ({ dir, logger }) => {
+        const out = fileURLToPath(dir);
+        const filer = globSync('**/*', { cwd: out, withFileTypes: true }).filter((d) =>
+          d.isFile(),
+        ).length;
+
+        const kvar = FILTAK_FEL - filer;
+
+        if (filer >= FILTAK_FEL) {
+          throw new Error(
+            `${filer} filer i utgåvan. Cloudflare Pages tar 20 000 och grinden\n` +
+              `  fäller vid ${FILTAK_FEL} för att lämna marginal.\n\n` +
+              '  Antingen flyttar sajten till Workers Static Assets, som tar\n' +
+              '  100 000 filer på den betalda planen, eller så tas en sidtyp\n' +
+              '  bort. Se docs/30_programmatisk_seo.md §3 och docs/adr/0001.',
+          );
+        }
+
+        if (filer >= FILTAK_VARNING) {
+          logger.warn(
+            `${filer} filer i utgåvan, ${kvar} kvar till grinden vid ${FILTAK_FEL}. ` +
+              'Dags att bestämma om sajten ska flytta till Workers.',
+          );
+          if (process.env.GITHUB_ACTIONS) {
+            console.log(
+              `::warning title=Filtaket närmar sig::${filer} filer, ${kvar} kvar ` +
+                `till ${FILTAK_FEL}. Cloudflare Pages tar 20 000.`,
+            );
+          }
+          return;
+        }
+
+        logger.info(
+          `${filer} filer i utgåvan, ${FILTAK_FEL - filer} kvar till taket.`,
+        );
+      },
+    },
+  };
+}
+
 function sitemapGuard() {
   /*
    * Byggets starttid, till för att skilja en kapplöpning från ett fel.
@@ -580,6 +658,7 @@ export default defineConfig({
       chunks: sitemapChunks,
     }),
     sitemapGuard(),
+    filtaksgrind(),
     nestingGuard(),
     /* Vaktar de fyra regler som gör att arken inte hoppar på telefon.
        Grinden bor i scripts/inloggningsgrind.mjs och förklarar sig själv. */
