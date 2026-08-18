@@ -85,6 +85,11 @@ interface Props {
 
 const { lat, lng, name, verdict, geoSource, address, city } = Astro.props;
 
+/* Namnet först i söktermen, adressen efter. Kartappen visar det som en
+   etikett på nålen, och "Vesuvio, Sveavägen 12" säger mer än adressen
+   ensam när man redan står på gatan och letar efter skylten. */
+const sokterm = [name, address, city].filter(Boolean).join(', ');
+
 const derived = geoSource === 'osm';
 const key = faceKey(verdict);
 
@@ -150,6 +155,38 @@ const nal = faceSvg(key, derived);
         Platsen är beräknad ur adressen och kan ligga några tiotal meter fel.
       </span>
     )}
+  </p>
+
+  {/* Vägbeskrivning, och den öppnar telefonens EGEN karta.
+   *
+   * `geo:`-schemat är det som Android och iOS båda förstår och som lämnar
+   * valet av app till telefonen. En länk rakt till Google Maps hade valt åt
+   * användaren, och en till Apple Maps hade varit fel på varannan telefon.
+   *
+   * Adressen följer med som `q` så att appen visar ett namn i stället för ett
+   * koordinatpar, men koordinaten står först: den är vår, exakt, och fungerar
+   * även när adressen är stavad på ett sätt appens sökning inte känner igen.
+   *
+   * På dator gör `geo:` ofta ingenting alls, och därför står länken till
+   * OpenStreetMap bredvid. Den är dessutom källan vi själva bygger på, så den
+   * länken är sann på ett sätt en Google-länk inte hade varit.
+   */}
+  <p class="vagbeskrivning">
+    <a class="btn-ghost med-ikon" href={`geo:${lat},${lng}?q=${encodeURIComponent(sokterm)}`}>
+      <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+        <path
+          d="M10 2.6c-2.6 0-4.7 2.1-4.7 4.7 0 3.4 4.7 10.1 4.7 10.1s4.7-6.7 4.7-10.1c0-2.6-2.1-4.7-4.7-4.7Z"
+          stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <circle cx="10" cy="7.3" r="1.8" stroke="currentColor" stroke-width="1.5"></circle>
+      </svg>
+      <span>Vägbeskrivning</span>
+    </a>
+    <a
+      class="karttjanst"
+      href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`}
+      rel="nofollow noopener"
+      target="_blank"
+    >Öppna i karta</a>
   </p>
 </section>
 
@@ -364,6 +401,22 @@ const nal = faceSvg(key, derived);
     line-height: var(--lh-caption);
     color: var(--text-secondary);
     white-space: nowrap;
+  }
+
+  /* Vägbeskrivningen står under adressen och inte som en knapp i kartan.
+     I kartan hade den tävlat med zoom och fullskärm om samma hörn, och den
+     hör dessutom till adressen: man läser var stället ligger och vill sedan
+     ta sig dit. */
+  .vagbeskrivning {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    margin-top: var(--s-3);
+  }
+
+  .karttjanst {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
   }
 
   .adress {
