@@ -1,6 +1,6 @@
 ---
 title: "Smutsig restaurang: syns det från matsalen?"
-description: "Hanteringen i köket ger fler anmärkningar än något annat, 1 977 av 11 344 granskningar. Där lokalen fick en anmärkning föll den nästan fyra gånger så ofta."
+description: "Hanteringen i köket ger fler anmärkningar än någon annan kontrollpunkt, och den syns inte från matsalen. Där lokalen fick en anmärkning föll den flera gånger så ofta."
 lede: "Det som fälls oftast i ett kök går inte att se från bordet. Men punkterna inspektören går igenom hänger tätt ihop, och där lokalen är eftersatt är nästan allt annat det också."
 category: "Förklarat"
 published: "2026-08-13"
@@ -15,6 +15,22 @@ import Diagram from '../../components/Diagram.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import Parstapel from '../../components/Parstapel.astro';
 import Stapel from '../../components/Stapel.astro';
+import {
+  andel,
+  andelsrad,
+  antalOrd,
+  avvikelserTotalt,
+  basmening,
+  beroende,
+  beroenderad,
+  kategoriandel,
+  kategorimening,
+  kategoriradar,
+  kommunlista,
+  nummer,
+  punkt,
+  punktBas,
+} from '../../lib/punktstatistik';
 
 ## Smuts är två punkter, inte en
 
@@ -27,27 +43,32 @@ underhåll. Den andra är hanteringen: hur råvaror och färdig mat hålls isär
 redskap och ytor sköts under passet, hur det städas efteråt. Den heter J03 och
 står för fler anmärkningar än någon annan punkt i materialet.
 
-Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som skriver
-ut varje punkt inspektören tittade på och inte bara dem som gav en anmärkning.
-Det är den enda redovisning som ger både täljare och nämnare.
+Talen nedan är räknade på {nummer(punktBas().kontroller)} kontroller i
+{kommunlista()}, de {antalOrd(punktBas().kommuner.length)} av beståndets
+{antalOrd(punktBas().kommunerTotalt)} kommuner som skriver ut varje punkt
+inspektören tittade på och inte bara dem som gav en anmärkning. Det är den enda
+redovisning som ger både täljare och nämnare, och den är därför liten:
+Stockholm publicerar bara lagstiftningsområdet och faller ur helt.
 
 <Diagram
   titel="De två punkterna som ligger bakom ordet smutsig"
-  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+  underlag={basmening()}
 >
   <FactGrid
     facts={[
-      { label: 'Avvikelser om hanteringen', value: '1 977' },
-      { label: 'Andel av granskningarna', value: '17,4', unit: '%' },
-      { label: 'Avvikelser om lokal och utrustning', value: '1 349' },
-      { label: 'Andel av granskningarna', value: '15,2', unit: '%' },
+      { label: 'Avvikelser om hanteringen', value: nummer(punkt('J03').avvikelse) },
+      { label: 'Andel av granskningarna', value: andelsrad('J03').display.replace(' %', ''), unit: '%' },
+      { label: 'Avvikelser om lokal och utrustning', value: nummer(punkt('J02').avvikelse) },
+      { label: 'Andel av granskningarna', value: andelsrad('J02').display.replace(' %', ''), unit: '%' },
     ]}
   />
 </Diagram>
 
-Tillsammans står de för en tredjedel av allt som noteras. Av materialets 9 704
-avvikelser gäller 20,4 procent hanteringen och 13,9 procent lokalen, och ingen
-annan punkt kommer i närheten av den första.
+Tillsammans står de för {andel(punkt('J03').avvikelse + punkt('J02').avvikelse, avvikelserTotalt()).replace(' %', ' procent')}
+av allt som noteras. Av materialets {nummer(avvikelserTotalt())} avvikelser
+gäller {andel(punkt('J03').avvikelse, avvikelserTotalt()).replace(' %', ' procent')} hanteringen
+och {andel(punkt('J02').avvikelse, avvikelserTotalt()).replace(' %', ' procent')} lokalen,
+och ingen annan punkt kommer i närheten av den första.
 
 ## Var de faller
 
@@ -56,24 +77,20 @@ faktiskt tillagas på stället.
 
 <Diagram
   titel="Andel granskningar av hanteringen som gav avvikelse, per kategori"
-  underlag="Varje stapel har sin egen nämnare, alltså antalet gånger punkten granskades i den kategorin."
+  underlag={basmening(`${kategorimening('J03')} Varje stapel har sin egen nämnare, alltså antalet gånger punkten granskades i den kategorin.`)}
 >
   <Stapel
     label="Andel av granskningarna av hygien före, under och efter processen som gav en avvikelse"
     scale={30}
     avdelare
-    rows={[
-      { label: 'Restauranger', value: 26.2, display: '26,2 %', note: '1 309 avvikelser av 5 005 granskningar' },
-      { label: 'Caféer och bagerier', value: 18.8, display: '18,8 %', note: '186 av 991' },
-      { label: 'Butiker', value: 16.9, display: '16,9 %', note: '214 av 1 268' },
-      { label: 'Skolor och omsorg', value: 6.7, display: '6,7 %', note: '233 av 3 452' },
-      { label: 'Övriga verksamheter', value: 5.8, display: '5,8 %', note: '30 av 514' },
-    ]}
+    rows={kategoriradar('J03')}
   />
 </Diagram>
 
-Var fjärde granskning av ett restaurangkök ger alltså en anmärkning på just
-den punkten. I skolköken är det var femtonde. Varför skolköken ligger så lågt
+Restaurangköken ligger högst, med en anmärkning på just den punkten vid
+{kategoriandel('J03', 'restaurang').replace(' %', ' procent')} av granskningarna.
+Skolköken ligger lägst, på
+{kategoriandel('J03', 'skola').replace(' %', ' procent')}. Varför skolköken ligger så lågt
 har vi gått igenom i
 [Skolköken är de renaste köken](/artiklar/skolmaten-ar-den-renaste-maten/).
 
@@ -81,12 +98,13 @@ har vi gått igenom i
 
 Här ligger det som gör frågan värd att ställa. Vi delade kontrollerna i två
 högar efter hur det gick på lokalpunkten, och tittade sedan på vad resten av
-protokollet sa. Underlaget är de 8 095 kontroller där båda punkterna granskades
-vid samma besök.
+protokollet sa. Varje rad räknas på de kontroller där båda punkterna granskades
+vid samma besök, {nummer(beroende('J03', 'J02').granskade)} stycken för
+hanteringens del och färre för de punkter som granskas mer sällan.
 
 <Diagram
   titel="Utfallet på övriga punkter, beroende på hur lokalen bedömdes"
-  underlag="Samma kontroll, andra punkter. Varje stapel har sin egen nämnare och båda serierna är andelar av granskningarna."
+  underlag={basmening('Samma kontroll, andra punkter. Varje rad har sin egen nämnare och båda serierna är andelar av granskningarna.')}
 >
   <Parstapel
     serieA="Lokalen fick anmärkning"
@@ -94,20 +112,24 @@ vid samma besök.
     scale={50}
     label="Andel granskningar som gav avvikelse, uppdelat på hur lokalpunkten bedömdes vid samma kontroll"
     rows={[
-      { label: 'Hygien före, under och efter', a: 45.4, b: 11.7, aDisplay: '45,4 %', bDisplay: '11,7 %', note: '549 av 1 209 mot 808 av 6 886' },
-      { label: 'Material i kontakt med livsmedel', a: 26.5, b: 8.8, aDisplay: '26,5 %', bDisplay: '8,8 %', note: '101 av 381 mot 218 av 2 474' },
-      { label: 'Kylkedja och temperatur', a: 23.6, b: 11.9, aDisplay: '23,6 %', bDisplay: '11,9 %', note: '266 av 1 126 mot 749 av 6 278' },
-      { label: 'Personlig hygien', a: 14.9, b: 4.8, aDisplay: '14,9 %', bDisplay: '4,8 %', note: '157 av 1 054 mot 279 av 5 786' },
-      { label: 'Bekämpning av skadedjur', a: 10.4, b: 2.7, aDisplay: '10,4 %', bDisplay: '2,7 %', note: '62 av 596 mot 99 av 3 630' },
+      beroenderad('J03', 'J02', 'Hygien före, under och efter'),
+      beroenderad('J09', 'J02', 'Material i kontakt med livsmedel'),
+      beroenderad('J08', 'J02', 'Kylkedja och temperatur'),
+      beroenderad('J04', 'J02', 'Personlig hygien'),
+      beroenderad('J06', 'J02', 'Bekämpning av skadedjur'),
     ]}
   />
 </Diagram>
 
 Ordningen bryts inte på en enda rad. Där lokalen fick en anmärkning föll
-hanteringen vid nästan varannan kontroll. Där lokalen var utan anmärkning föll
-den vid drygt var nionde. Skadedjursbekämpningen följer samma mönster, och
-personalens hygien också. Även faroanalysen, som är pappersarbete och inte
-städning, faller nästan dubbelt så ofta: 22,4 procent mot 11,9.
+hanteringen vid {beroenderad('J03', 'J02').aDisplay.replace(' %', ' procent')} av
+granskningarna, mot
+{beroenderad('J03', 'J02').bDisplay.replace(' %', ' procent')} där lokalen var
+utan anmärkning.
+Skadedjursbekämpningen följer samma mönster, och personalens hygien också. Även
+faroanalysen, som är pappersarbete och inte städning, faller klart oftare:
+{beroenderad('K01', 'J02').aDisplay.replace(' %', ' procent')} mot
+{beroenderad('K01', 'J02').bDisplay.replace(' %', ' procent')}.
 
 Ett kök är alltså sällan eftersatt i en enda sak. Ordningen tycks vara en
 egenskap hos stället snarare än hos punkten, och lokalens skick är den del av
@@ -129,7 +151,8 @@ skadade bänkskivor är precis vad punkten handlar om.
 av lokalen, och den är den enda delen av lokalen en gäst kommer åt på egen hand.
 
 **Det som står framme.** Bröd, smör, sallader och dessert i rumstemperatur är
-kylkedjan, den punkt som faller vid 13,8 procent av granskningarna.
+kylkedjan, den punkt som faller vid
+{andelsrad('J08').display.replace(' %', ' procent')} av granskningarna.
 
 Ett enskilt intryck säger fortfarande ingenting säkert om ett enskilt ställe.
 Mönstret ovan är räknat på tusentals kontroller, och det är på den nivån det
@@ -138,8 +161,12 @@ gäller. Det som säger något om just ditt ställe är historiken.
 ## Bristerna rättas nästan alltid
 
 Att få en anmärkning på hanteringen är vanligt. Att behålla den är det inte.
-Av de 1 977 avvikelserna stod 139 kvar vid kommunens uppföljning, alltså 7,0
-procent. För lokalpunkten är motsvarande tal 68 av 1 349, alltså 5,0 procent.
+Av de {nummer(punkt('J03').avvikelse)} avvikelserna stod
+{nummer(punkt('J03').kvarstod)} kvar vid kommunens uppföljning, alltså
+{andel(punkt('J03').kvarstod, punkt('J03').avvikelse).replace(' %', ' procent')}.
+För lokalpunkten är motsvarande tal {nummer(punkt('J02').kvarstod)} av
+{nummer(punkt('J02').avvikelse)}, alltså
+{andel(punkt('J02').kvarstod, punkt('J02').avvikelse).replace(' %', ' procent')}.
 
 Det är också skillnaden mellan de två anmärkningar du ser i en historik. En
 avvikelse som åtgärdats är ett normalt kontrollutfall. En som står kvar efter
@@ -163,9 +190,11 @@ Innan du går dit kan du läsa historiken i stället för att gissa.
 
 ## Vad talen inte säger
 
-Två kommuner bär hela materialet, eftersom de är de enda som redovisar också de
-punkter som var utan anmärkning. Utan den nämnaren går det att räkna hur
-anmärkningarna fördelar sig, men inte hur ofta en punkt faller.
+{kommunlista()} bär hela materialet, eftersom de är de enda av beståndets
+{antalOrd(punktBas().kommunerTotalt)} kommuner som redovisar också de punkter som
+var utan anmärkning. Utan den nämnaren går det att räkna hur anmärkningarna
+fördelar sig, men inte hur ofta en punkt faller, och därför faller Stockholm ur
+helt här.
 
 Sambandet mellan lokalen och resten säger inte vilket som orsakar vilket. Ett
 slitet kök gör det svårare att hålla rent, och ett slarvigt kök sliter fortare
@@ -177,4 +206,4 @@ mycket tätare än man skulle tro.
 - Livsmedelsverkets kontrollwiki, [Lokaler och utrustning](https://kontrollwiki.livsmedelsverket.se/artikel/343/lokaler-och-utrustning): kraven på utformning och underhåll.
 - Livsmedelsverkets kontrollwiki, [Rengöring](https://kontrollwiki.livsmedelsverket.se/artikel/346/rengoring): kraven på rengöring av lokaler och utrustning.
 - Livsmedelsverkets kontrollwiki, [Grundförutsättningar, allmänna hygienkrav](https://kontrollwiki.livsmedelsverket.se/artikel/340/grundforutsattningar-allmanna-hygienkrav): vad grundförutsättningarna omfattar enligt bilaga II till förordning (EG) nr 852/2004.
-- Talen är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Talen räknas ur Prikkos bestånd vid varje bygge och ändras när nya kontroller kommer in. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
