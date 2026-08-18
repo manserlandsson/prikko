@@ -1,0 +1,349 @@
+---
+/**
+ * Telefon, webbplats, e-post och egenskaper ur OpenStreetMap.
+ *
+ * ## VARFÖR AVSNITTET FINNS
+ *
+ * Overpass-frågan i pipeline/prikko/oppettider.py hämtade HELA taggmängden
+ * redan när bara öppettiden plockades ut. Uppgifterna har alltså alltid legat
+ * i svaret, och vi slängde dem. De kostar inga nya anrop, bara att sluta
+ * kasta fälten.
+ *
+ * Skörden är större än öppettidernas: 3 274 av 9 995 konsumentvända
+ * verksamheter (32,8 procent) får minst ett fält här, mot 2 747 som får en
+ * öppettid. Skälet är att kontakten hänger på HOPPARNINGEN och inte på att
+ * OSM råkar ha en `opening_hours`. Se docs/37_osm_taggar.md för nämnaren per
+ * kommun och för hela frekvenstabellen.
+ *
+ * ## INGEN TÄCKNINGSGRÄNS STYR VAD SOM VISAS
+ *
+ * Ägaren, ordagrant: "har vi datan bara på få så är det fortfarande bättre?
+ * kan vi visa telefonnummer på 10 av 10000 så är det värt det."
+ *
+ * Han har rätt. En VISNING har ingen nedsida: den som får uppgiften blir
+ * hjälpt, den som inte får den ser ingenting alls och är precis lika illa ute
+ * som innan. Tröskeln i docs/33 §7, som fällde öppettidsfiltret vid 65 av
+ * 712, gäller filter, fullständighetstal och rangordningar, och inget av det
+ * finns här. Skälet står utskrivet i lib/kontakt.ts.
+ *
+ * Bordsbokning står på 30 verksamheter av 9 995. Raden finns ändå, och det är
+ * med flit.
+ *
+ * ## SAKNAS UPPGIFTEN VISAS INGENTING
+ *
+ * Ingen rad, ingen rubrik, ingenting. Samma dom som öppettiderna redan lyder
+ * under: en tom ruta med "Telefonnummer saknas" är en rad som ser ut som ett
+ * besked, och den hade stått på nästan sju tusen sidor.
+ *
+ * ## VARFÖR KÄLLAN INTE STÅR UTSKRIVEN
+ *
+ * Ägaren, ordagrant: "skriv inte ut openstreetmap, den ska ligga i I-ikonen,
+ * HA INGET SÅNT där."
+ *
+ * Formen är MapLibres kompakta attributionskontroll, som varje karta på
+ * sajten redan bär: ikonen syns, texten ligger en klick bort. ODbL kräver att
+ * upphovet är rimligt synligt där uppgiften visas, inte att det tar en rad
+ * under varje avsnitt, och en (i) intill uppgiften är den form kartbranschen
+ * använder mot precis samma licens.
+ *
+ * Knappen är en `<details>` och inte InfoTip.astro, av ett enda skäl: rutan
+ * innehåller en LÄNK, och InfoTips bubbla är text. Utseendet är InfoTips,
+ * ned till 16 px-cirkeln och hårlinjen, så att de två läses som samma sorts
+ * kontroll. Samma val som Oppettider.astro redan gjort för samma text.
+ *
+ * ## VERKSAMHETENS EGNA UPPGIFTER SLÅR OSM:s
+ *
+ * Foretagsuppgifter.astro visar telefon och webbplats som verksamheten SJÄLV
+ * skickat in och redaktionen släppt fram. Det är förstahandsuppgifter, och
+ * när de kommer hem döljer de motsvarande rad här. Döljningen sker per FÄLT
+ * och inte per avsnitt: har någon skickat in ett telefonnummer men ingen
+ * webbplats ska OSM:s webbplats stå kvar. Se koden där.
+ *
+ * ## VARFÖR INGET AV DET HÄR GÅR IN I JSON-LD
+ *
+ * Samma dom som öppettiderna fick, se Oppettider.astro, och den gäller ord
+ * för ord här. `telephone` och `sameAs` har ingen flagga för "härledd ur en
+ * annan källa", och Foretagsuppgifter.astro skriver redan en nod med samma
+ * `@id` när verksamhetens egna uppgifter kommit hem. Två noder med samma id
+ * slås ihop av den som läser dem, alltså hade OSM:s nummer blandats med
+ * förstahandsuppgifter utan att någon kan se vilket som är vilket.
+ */
+import { egenskaper, harNagot, kontaktLankar, type Contact } from '../lib/kontakt';
+import { formatDate } from '../lib/data';
+
+interface Props {
+  contact: Contact;
+  name: string;
+}
+
+const { contact, name } = Astro.props;
+
+const lankar = kontaktLankar(contact);
+const rader = egenskaper(contact);
+
+/* Länken till OSM-objektet. `contact.osm` är "node/123" eller "way/123",
+   vilket är precis den form openstreetmap.org tar i sin adress. */
+const osmUrl = `https://www.openstreetmap.org/${contact.osm}`;
+
+/* Ikonerna. Samma streckvikt som resten av sajten, och `currentColor` så att
+   de följer radens färg utan en egen regel. */
+const IKONER: Record<string, string> = {
+  phone:
+    'M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .57 3.6 1 1 0 0 1-.25 1z',
+  globe:
+    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 0c2.5 2.4 3.7 5.4 3.7 9s-1.2 6.6-3.7 9c-2.5-2.4-3.7-5.4-3.7-9s1.2-6.6 3.7-9zM3.5 9h17M3.5 15h17',
+  mail: 'M3 6.5h18v11H3zM3 7l9 6 9-6',
+};
+---
+
+{harNagot(contact) && (
+<section class="kontakt" data-kontakt-osm aria-label={`Kontakt och egenskaper för ${name}`}>
+  <h2>Kontakt</h2>
+
+  {lankar.length > 0 && (
+    <ul class="lankar">
+      {lankar.map((l) => (
+        /* `data-falt` är kroken Foretagsuppgifter.astro döljer raden med när
+           verksamheten själv skickat in samma uppgift. */
+        <li data-falt={l.kind}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            {/* `phone` är en fylld form, de två andra är streck. Därav de två
+                uppsättningarna attribut i stället för en. */}
+            <path
+              d={IKONER[l.kind]}
+              fill={l.kind === 'phone' ? 'currentColor' : 'none'}
+              stroke={l.kind === 'phone' ? 'none' : 'currentColor'}
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="etikett text-secondary">{l.label}</span>
+          {/* `rel="nofollow"` på webbplatsen: länken är hämtad ur en öppen
+              databas som vem som helst kan skriva i, och den ska aldrig gå att
+              använda för att bygga länkkraft genom oss. Telefon och e-post är
+              inga webbadresser och behöver ingen. */}
+          <a
+            href={l.href}
+            rel={l.kind === 'globe' ? 'nofollow noopener' : undefined}
+            target={l.kind === 'globe' ? '_blank' : undefined}
+          >{l.text}</a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {rader.length > 0 && (
+    /* Definitionslista och inte en rad chips. Ett chip kan bara säga att
+       något FINNS, och nästan hälften av de här beskeden är ett nej eller ett
+       delvis: "Inte tillgängligt", "Delvis tillgängligt", "Endast
+       avhämtning". Som chip hade de antingen fallit bort eller lästs som sin
+       motsats av den som skummar. */
+    <dl class="fakta">
+      {rader.map((rad) => (
+        <div class="rad">
+          <dt class="text-secondary">{rad.label}</dt>
+          <dd>{rad.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )}
+
+  {/* Upphovet. Se modulkommentaren för varför ingenting står bredvid knappen
+      och varför det ändå räcker mot ODbL. Formen är Oppettider.astros, ned
+      till klassnamnen, eftersom det är samma källa och samma text. */}
+  <details class="upphov">
+    <summary aria-label="Källa och licens för uppgifterna">i</summary>
+    {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
+        attributet skriver Google sökresultatets utdrag ur den text som ligger
+        närmast och råkar vara prosa, och en licensklausul är det sämsta
+        tänkbara första mötet med sidan. Attributet rör bara utdraget. Texten
+        finns kvar i dokumentet, vilket är hela poängen: den ska gå att läsa
+        utan att något skript kört. */}
+    <div class="ruta glass glass-dark" data-nosnippet>
+      <p>
+        Uppgifterna kommer från OpenStreetMap, hämtade {formatDate(contact.checkedAt)}.
+        De redigeras av frivilliga och rättas där.
+      </p>
+      <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
+      <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta uppgiften</a>
+    </div>
+  </details>
+</section>
+)}
+
+<style>
+  .kontakt {
+    margin-top: var(--s-6);
+  }
+
+  h2 {
+    font: var(--h3);
+    margin: 0 0 var(--s-3);
+  }
+
+  /* Kontaktraderna är HANDLINGAR: ringa, öppna, skriva. De står överst och
+     får ikon, eftersom en ikon är det som gör att ögat hittar telefonnumret
+     utan att läsa etiketten. Egenskaperna nedanför är påståenden och får
+     ingen, för femton ikoner i en spalt slutar vara igenkänning och blir
+     mönster. */
+  .lankar {
+    list-style: none;
+    margin: 0 0 var(--s-4);
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+  }
+
+  .lankar li {
+    display: grid;
+    grid-template-columns: 20px 6.5rem 1fr;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 24px;
+  }
+
+  /* Raden som Foretagsuppgifter.astro dolt när verksamheten skickat in samma
+     uppgift. Regeln behövs eftersom `display: grid` ovan annars slår ut det
+     `hidden` självt gör, precis som i Foretagsuppgifter.astro. */
+  .lankar li[hidden] {
+    display: none;
+  }
+
+  .lankar svg {
+    width: 17px;
+    height: 17px;
+    color: var(--text-secondary);
+  }
+
+  .etikett {
+    font-size: var(--fs-caption);
+  }
+
+  .lankar a {
+    color: var(--text-primary);
+    text-decoration: none;
+    /* Långa värdnamn och e-postadresser måste få brytas, annars ger de vågrät
+       rullning på 390 px. `anywhere` och inte `break-all`: den senare bryter
+       även när det finns plats. */
+    overflow-wrap: anywhere;
+  }
+
+  .lankar a:hover,
+  .lankar a:focus-visible {
+    color: var(--brand);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Egenskaperna. Samma tre spalter som ovan, med den tomma ikonspalten kvar,
+     så att etiketterna står i lodrät linje med kontaktraderna. Hade de börjat
+     längst till vänster hade avsnittet sett ut som två avsnitt. */
+  .fakta {
+    margin: 0;
+    display: grid;
+    gap: var(--s-2);
+  }
+
+  .rad {
+    display: grid;
+    grid-template-columns: 20px 6.5rem 1fr;
+    align-items: baseline;
+    gap: var(--s-2);
+  }
+
+  dt {
+    grid-column: 2;
+    font-size: var(--fs-caption);
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  /* Under 380 px blir tre spalter en spalt med två tecken i. Etiketten
+     hoppar då upp över värdet i stället för att stå bredvid det. */
+  @media (max-width: 380px) {
+    .lankar li,
+    .rad {
+      grid-template-columns: 20px 1fr;
+    }
+
+    .etikett,
+    dt {
+      grid-column: 2;
+    }
+
+    .lankar a,
+    dd {
+      grid-column: 2;
+    }
+  }
+
+  /* Allt nedan är Oppettider.astros upphovsknapp, ordagrant. Den står här och
+     inte i en delad komponent för att de två avsnitten kan visas var för sig
+     och behöver var sin knapp, och för att en tredje fil för trettio rader
+     CSS hade kostat mer i letande än den sparar i rader. */
+  .upphov {
+    position: relative;
+    display: inline-flex;
+    margin-top: var(--s-3);
+  }
+
+  summary {
+    position: relative;
+    list-style: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-sans);
+    cursor: help;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .12s ease, border-color .12s ease;
+  }
+
+  summary::-webkit-details-marker { display: none; }
+
+  summary::after {
+    content: '';
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+  }
+
+  summary:hover,
+  summary:focus-visible {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  .ruta {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 5;
+    width: max-content;
+    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 400;
+  }
+
+  .licens {
+    margin-top: 4px;
+  }
+
+  .ruta a {
+    display: inline-block;
+    margin-top: 6px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>
