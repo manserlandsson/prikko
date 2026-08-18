@@ -54,10 +54,37 @@
  * DET HÄR ÄR INTE EN GLÖMD ATTRIBUTION. ODbL 4.3 kräver ett upphov som är
  * "reasonably calculated to make any Person that uses, views, accesses,
  * interacts with, or is otherwise exposed to the Produced Work aware that
- * Content was obtained from the Database", och OSM-stiftelsens egna
- * attributionsriktlinjer pekar ut den här formen ordagrant: är upphovet
- * hopfällt ska läsaren ändå kunna hitta licensuppgiften om hen letar, "for
- * example from an '(i)' button in the corner of the map".
+ * Content was obtained from the Database". Formen är alltså inte föreskriven;
+ * kravet är att den som möter uppgiften ska kunna se varifrån den kommer.
+ *
+ * OSM-stiftelsens attributionsriktlinjer namnger just den här kontrollen:
+ * är upphovet hopfällt ska läsaren ändå kunna hitta licensuppgiften om hen
+ * letar, "for example from an '(i)' button in the corner of the map". Och var
+ * ärlig om var gränsen går, så att nästa läsare inte tror att texten är
+ * granskad och godkänd ord för ord: riktlinjerna beskriver hopfällningen som
+ * något som sker EFTER en första visning, med en stängkryss, en kartrörelse
+ * eller fem sekunder som utlösare. Vi visar aldrig raden först.
+ *
+ * Fyra saker gör att den här knappen ändå bär kravet, och de ska stå kvar
+ * allihop:
+ *
+ *   Knappen syns alltid, står omedelbart intill den uppgift den gäller, och
+ *   når licensen på ett klick. Alternativet riktlinjerna vänder sig mot är en
+ *   attribution som bara finns i sidkällan eller i en meny på en annan sida.
+ *
+ *   Den fungerar utan JavaScript och med tangentbord, alltså finns ingen
+ *   besökare som saknar vägen dit.
+ *
+ *   Träffytan är 44 px, inte knappens 16. En licensknapp som är svår att
+ *   träffa är en licensknapp som inte håller.
+ *
+ *   Formen är den hela kartbranschen levererar mot samma licens, MapLibres
+ *   och Mapbox kompakta attributionskontroll, och den finns redan på den här
+ *   sajten.
+ *
+ * Beslutet är ägarens och är taget med licenstexten framme. Ska det rivas upp
+ * är rätt åtgärd att sätta tillbaka ordet OpenStreetMap bredvid knappen, inte
+ * att flytta upphovet någon annanstans.
  *
  * Formen finns dessutom redan på sajten. KartaPuff.astro rad 249 skapar
  * MapLibres attributionskontroll med `compact: true`, alltså exakt det här: en
@@ -341,6 +368,10 @@ const nagotOppet = rows.some((r) => !r.closed);
     background: var(--card);
     color: var(--text-secondary);
     font: 600 10px/1 var(--font-sans);
+    /* `help` och inte `pointer`, samma som InfoTips prick. De två är samma
+       sorts kontroll för läsaren: en liten (i) som förklarar något bredvid
+       sig. Länken inne i rutan får webbläsarens egen hand, eftersom `a`
+       sätter `cursor: pointer` själv. */
     cursor: help;
     display: flex;
     align-items: center;
