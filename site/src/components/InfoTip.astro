@@ -213,9 +213,27 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
   }
 
   /* En popover är display: none tills den öppnas, så ingen egen döljning
-     behövs. Toningen sker när den redan är öppen. */
+     behövs. Utan skript är det den här regeln som gäller, och då syns bubblan
+     så fort knappen öppnar den. */
   .bubble:popover-open {
     opacity: 1;
+  }
+
+  /* Med skript hålls den osynlig tills den fått koordinater.
+     ────────────────────────────────────────────────────────────────────────
+     Knappen öppnar bubblan deklarativt, och `toggle` som bär placeringen är
+     en KÖAD händelse. Mätt på ett riktigt tryck i mobilvy 390 px: återanropet
+     före målningen låg på 4 890,8 ms och toggle på 4 904,2, alltså 13,4 ms
+     senare. Bubblan hann därmed målas en ruta med `left` osatt och sin ruta
+     på x = 0, vilket syns som ett hopp från skärmkanten vid varje tryck.
+
+     `is-styrd` sätts av skriptet vid start och `is-placed` av place(). Utan
+     skript sätts ingen av dem, och regeln ovan gäller som förut. Toningen på
+     120 ms blir dessutom verklig först nu: en popover går från display: none
+     rakt till synlig, och ett övergångsvärde som byts i samma andetag som
+     display gör ingenting alls. */
+  .bubble.is-styrd:not(.is-placed) {
+    opacity: 0;
   }
 
   /* Pilen hämtar samma --glass-fill som bubblan, alltså även den solida
@@ -275,6 +293,9 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
     // Pilen följer knappen och inte bubblans mitt, som kan ha flyttats av
     // kanten ovan. Utan detta pekar pilen bredvid symbolen den hör till.
     bubble.style.setProperty('--arrow', `${centre - left}px`);
+
+    // Nu, och först nu, får den synas. Se `is-placed` i stilarket.
+    bubble.classList.add('is-placed');
   }
 
   for (const wrap of document.querySelectorAll<HTMLElement>('[data-tip]')) {
@@ -295,10 +316,14 @@ const id = `tip-${Math.random().toString(36).slice(2, 9)}`;
      * `toggle` går vid VARJE växling oavsett vem som orsakade den, och där
      * hör också placeringen hemma: den behövs en gång per öppning, och nu
      * gäller det även den öppning knappen gör deklarativt. */
+    /* Skriptet talar om för stilarket att det kör, se `is-styrd` där. */
+    bubble.classList.add('is-styrd');
+
     let open = false;
     bubble.addEventListener('toggle', () => {
       open = bubble.matches(':popover-open');
       if (open) place(dot, bubble);
+      else bubble.classList.remove('is-placed');
     });
 
     /* Vakterna finns för att show och hide anropas från flera håll och kan
