@@ -44,66 +44,23 @@
  * ligga i en cache i timmar. Utan JavaScript syns schemat men ingen pille. Det
  * är rätt ordning: vi påstår hellre ingenting än fel sak.
  *
- * ## Varför upphovet ligger i en i-knapp och inget står bredvid den
+ * ## Upphovet står INTE här längre, och det är inte en glömska
  *
- * Raden löd "OpenStreetMap ⓘ Rätta". Ägaren: "skriv inte ut openstreetmap, den
- * ska ligga i I-ikonen, HA INGET SÅNT där". Kvar i det synliga är alltså bara
- * knappen; källan, hämtdatumet, licensraden och länken till objektet ligger i
- * rutan den fäller ut.
+ * Avsnittet bar en egen (i)-knapp som fällde ut källa, hämtdatum, licensrad
+ * och en länk till OSM-objektet. Den är borttagen. Attributionen finns kvar
+ * och står i Sidupphov.astro, EN gång för hela sidan, i källfoten längst ned.
  *
- * DET HÄR ÄR INTE EN GLÖMD ATTRIBUTION. ODbL 4.3 kräver ett upphov som är
- * "reasonably calculated to make any Person that uses, views, accesses,
- * interacts with, or is otherwise exposed to the Produced Work aware that
- * Content was obtained from the Database". Formen är alltså inte föreskriven;
- * kravet är att den som möter uppgiften ska kunna se varifrån den kommer.
+ * Skälet med tal: sidan bar tre sådana knappar för en enda källa, uppmätt i
+ * bygget 2026-08-18 på /stockholm/ica-supermarket-vanadis/ till y 464, 2 491
+ * och 2 898 i 1 200 px. Ägaren om den i kontaktkortet: "i-ikonen på bra att
+ * veta ... sitter liksom helt ensamt ... måste vi ens ha det?" ODbL 4.3
+ * hänger på "the Produced Work", alltså på sidan och inte på avsnittet, så
+ * ett verk kräver en notis. Hela resonemanget, inklusive varför ordet
+ * OpenStreetMap får stå i foten men inte här, ligger i Sidupphov.astro.
  *
- * OSM-stiftelsens attributionsriktlinjer namnger just den här kontrollen:
- * är upphovet hopfällt ska läsaren ändå kunna hitta licensuppgiften om hen
- * letar, "for example from an '(i)' button in the corner of the map". Och var
- * ärlig om var gränsen går, så att nästa läsare inte tror att texten är
- * granskad och godkänd ord för ord: riktlinjerna beskriver hopfällningen som
- * något som sker EFTER en första visning, med en stängkryss, en kartrörelse
- * eller fem sekunder som utlösare. Vi visar aldrig raden först.
- *
- * Fyra saker gör att den här knappen ändå bär kravet, och de ska stå kvar
- * allihop:
- *
- *   Knappen syns alltid, står omedelbart intill den uppgift den gäller, och
- *   når licensen på ett klick. Alternativet riktlinjerna vänder sig mot är en
- *   attribution som bara finns i sidkällan eller i en meny på en annan sida.
- *
- *   Den fungerar utan JavaScript och med tangentbord, alltså finns ingen
- *   besökare som saknar vägen dit.
- *
- *   Träffytan är 44 px, inte knappens 16. En licensknapp som är svår att
- *   träffa är en licensknapp som inte håller.
- *
- *   Formen är den hela kartbranschen levererar mot samma licens, MapLibres
- *   och Mapbox kompakta attributionskontroll, och den finns redan på den här
- *   sajten.
- *
- * Beslutet är ägarens och är taget med licenstexten framme. Ska det rivas upp
- * är rätt åtgärd att sätta tillbaka ordet OpenStreetMap bredvid knappen, inte
- * att flytta upphovet någon annanstans.
- *
- * Formen finns dessutom redan på sajten. KartaPuff.astro rad 249 skapar
- * MapLibres attributionskontroll med `compact: true`, alltså exakt det här: en
- * i-knapp som fäller ut upphovet. Karta.astro och OmradeKarta.astro kör
- * `compact: false` och ska fortsätta göra det, och den skillnaden är inte
- * inkonsekvens utan mått: de två är sidbreda kartor där den utfällda raden
- * ryms, KartaPuffs ruta är 328 px där den inte gör det. Här är ytan en rad
- * under ett veckoschema, och en fyra ord lång källrad var det ägaren såg.
- *
- * Två saker gör att knappen håller där en ren hovringsbubbla inte hade gjort
- * det, och båda måste stå kvar:
- *
- *   Den är ett `<details>` och inte ett verktygstips. Rutan stannar öppen, så
- *   länken till OSM-objektet går att klicka på med mus. Ett tips som stängs av
- *   `pointerleave`, som InfoTip.astro gör, kan inte bära en länk alls.
- *
- *   Den kräver ingen JavaScript. `<details>` fälls ut av webbläsaren själv,
- *   alltså är upphovet ett klick bort även på en sida där inget skript kört.
- *   Skriptet nedan lägger bara till Escape och klick utanför.
+ * LÄGG ALDRIG TILLBAKA EN KNAPP HÄR. Blir raden i foten otillräcklig är rätt
+ * åtgärd att göra den tydligare där den står, inte att sprida ut upphovet i
+ * innehållet igen.
  *
  * Brasklappen som en gång stod i raden är borta och kommer inte tillbaka. En
  * varning bredvid varje uppgift lär läsaren att misstro sidan, och den lär ut
@@ -127,7 +84,6 @@
  * strukturerad data finns ingen motsvarande väg.
  */
 import { formatSpans, spansOf, weekRows, type Hours } from '../lib/oppettider';
-import { formatDate } from '../lib/data';
 
 interface Props {
   hours: Hours;
@@ -136,10 +92,6 @@ interface Props {
 
 const { hours, name } = Astro.props;
 const rows = weekRows(hours);
-
-/* Länken till OSM-objektet. `hours.osm` är "node/123" eller "way/123", vilket
-   är precis den form openstreetmap.org tar i sin adress. */
-const osmUrl = `https://www.openstreetmap.org/${hours.osm}`;
 
 /* Ett veckoschema där alla sju dagarna är stängda är inget schema. Pipelinen
    ska aldrig skriva ett sådant, men komponenten ritar hellre ingenting än en
@@ -175,28 +127,8 @@ const nagotOppet = rows.some((r) => !r.closed);
     </p>
   )}
 
-  {/* Upphovet. Se modulkommentaren för varför ingenting står bredvid knappen
-      och varför det ändå räcker mot ODbL. */}
-  <details class="upphov" data-upphov>
-    <summary aria-label="Källa och licens för öppettiden">i</summary>
-    {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
-        attributet skriver Google sökresultatets utdrag ur den text som ligger
-        närmast och råkar vara prosa, och en licensklausul är det sämsta
-        tänkbara första mötet med sidan. Attributet rör bara utdraget. Texten
-        finns kvar i dokumentet, vilket är hela poängen: den ska gå att läsa
-        utan att något skript kört. */}
-    <div class="ruta glass glass-dark" data-nosnippet>
-      <p>
-        Uppgiften kommer från OpenStreetMap, hämtad {formatDate(hours.checkedAt)}.
-        Den redigeras av frivilliga och rättas där.
-      </p>
-      <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
-      {/* Länken heter "Rätta" och inte "Se på OpenStreetMap", eftersom det är
-          det enda man rimligen vill göra därifrån: den som ser ett fel ska
-          rätta det vid källan i stället för att mejla oss. */}
-      <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta uppgiften</a>
-    </div>
-  </details>
+  {/* Ingen upphovsknapp här. Sidans enda attribution står i Sidupphov.astro,
+      i källfoten längst ned. Se modulkommentaren. */}
 </section>
 )}
 
@@ -238,23 +170,10 @@ const nagotOppet = rows.some((r) => !r.closed);
     }
   }
 
-  /* Upphovsrutan stängs av Escape och av ett klick utanför.
-     `<details>` gör varken det ena eller det andra av sig själv, och en ruta
-     man bara kan stänga genom att hitta tillbaka till en 16 px stor knapp är
-     en ruta som blir stående. Utfällningen sker fortfarande utan skript. */
-  const upphov = document.querySelector<HTMLDetailsElement>('[data-upphov]');
-
-  if (upphov) {
-    document.addEventListener('click', (e) => {
-      if (upphov.open && !upphov.contains(e.target as Node)) upphov.open = false;
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && upphov.open) {
-        upphov.open = false;
-        upphov.querySelector('summary')?.focus();
-      }
-    });
-  }
+  /* Här stod hanterarna som stängde upphovsrutan med Escape och med ett klick
+     utanför. Rutan finns inte längre, och med den försvann både `document`-
+     hanterarna och skälet till att ha dem. Sidans attribution är numera en rad
+     text i källfoten, som varken öppnas eller stängs. */
 </script>
 
 {/* Schemat som data för skriptet ovan. Ett application/json-block och inte
@@ -346,97 +265,12 @@ const nagotOppet = rows.some((r) => !r.closed);
     line-height: var(--lh-body-s);
   }
 
-  /* ── Upphovet ────────────────────────────────────────────────────────── */
+  /* Här bodde upphovsknappen: `.upphov`, `summary` med sin 16 px cirkel,
+     träffytan och den utfällda `.ruta`. Ett trettiotal rader, kopierade
+     ordagrant till Kontaktuppgifter.astro och därifrån till TaMigHit.astro.
+     Alla tre är borta i samma svep, och därmed också de två fel kopiorna bar:
+     tre kontroller för en källa, och en träffyta som uppmätt i bygget
+     2026-08-18 var 42 x 42 px och inte de 44 kommentaren påstod. Se
+     Sidupphov.astro. */
 
-  .upphov {
-    position: relative;
-    display: inline-flex;
-    margin-top: var(--s-3);
-  }
-
-  /* Knappen är InfoTips prick, samma 16 px cirkel med hårlinje och samma
-     bokstav, så att de två läses som samma sorts kontroll. Triangeln som
-     `<summary>` annars ritar tas bort i båda formerna: `list-style` för
-     Firefox och Chrome, `::-webkit-details-marker` för Safari. */
-  summary {
-    position: relative;
-    list-style: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid var(--hairline);
-    background: var(--card);
-    color: var(--text-secondary);
-    font: 600 10px/1 var(--font-sans);
-    /* `help` och inte `pointer`, samma som InfoTips prick. De två är samma
-       sorts kontroll för läsaren: en liten (i) som förklarar något bredvid
-       sig. Länken inne i rutan får webbläsarens egen hand, eftersom `a`
-       sätter `cursor: pointer` själv. */
-    cursor: help;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color .12s ease, border-color .12s ease;
-  }
-
-  summary::-webkit-details-marker { display: none; }
-
-  /* Träffytan, 44 px i alla lägen.
-     ────────────────────────────────────────────────────────────────────────
-     InfoTip.astro ger sin prick 24 px för mus och 44 för finger, och skälet
-     står där: den pricken sitter inuti löpande text med rader omkring 28 px
-     isär, och en osynlig 44-cirkel hade nått ner i raden under. Villkoret
-     gäller inte här. Knappen står ensam sist i ett avsnitt, med 12 px till
-     helgdagsraden ovanför och avsnittets hela 32 px luft nedanför, alltså
-     finns 44 px att ta utan att någon annan kontroll nås. Den är dessutom
-     numera det ENDA som syns av upphovet, och en 16 px stor licensknapp är
-     inte en knapp någon hittar. */
-  summary::after {
-    content: '';
-    position: absolute;
-    inset: -14px;
-    border-radius: 50%;
-  }
-
-  summary:hover,
-  summary:focus-visible {
-    border-color: var(--brand);
-    color: var(--brand);
-  }
-
-  /* Rutan är ett svävande lager och bär därför sajtens glasyta, samma som
-     InfoTips bubbla: .glass för oskärpa, kant och lyft, .glass-dark för den
-     mörka fyllningen. Absolut placerad, så att en utfällning inte skjuter ned
-     resten av sidan.
-
-     Nedåt och inte uppåt: uppåt hade rutan lagt sig över det veckoschema den
-     handlar om. Nedanför ligger nästa avsnitts luft.
-
-     Bredden är `max-content` med tak, och taket räknar bort sidans två
-     kantmarginaler så att rutan aldrig kan sticka ut ur vyporten på 390 px. */
-  .ruta {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 5;
-    width: max-content;
-    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
-    padding: 10px 12px;
-    border-radius: 9px;
-    font-size: var(--fs-caption);
-    line-height: 17px;
-    font-weight: 400;
-  }
-
-  .licens {
-    margin-top: 4px;
-  }
-
-  .ruta a {
-    display: inline-block;
-    margin-top: 6px;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
 </style>

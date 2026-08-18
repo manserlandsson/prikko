@@ -57,21 +57,27 @@
  * under: en tom ruta med "Telefonnummer saknas" är en rad som ser ut som ett
  * besked, och den hade stått på nästan sju tusen sidor.
  *
- * ## VARFÖR KÄLLAN INTE STÅR UTSKRIVEN
+ * ## UPPHOVET STÅR INTE I KORTET LÄNGRE
  *
- * Ägaren, ordagrant: "skriv inte ut openstreetmap, den ska ligga i I-ikonen,
- * HA INGET SÅNT där."
+ * Kortet bar en egen (i)-knapp sist, under Bra att veta. Den är borttagen.
+ * Attributionen finns kvar och står i Sidupphov.astro, EN gång för hela
+ * sidan, i källfoten längst ned.
  *
- * Formen är MapLibres kompakta attributionskontroll, som varje karta på
- * sajten redan bär: ikonen syns, texten ligger en klick bort. ODbL kräver att
- * upphovet är rimligt synligt där uppgiften visas, inte att det tar en rad
- * under varje avsnitt, och en (i) intill uppgiften är den form kartbranschen
- * använder mot precis samma licens.
+ * Det var den här knappen ägaren såg. Ordagrant: "i-ikonen på bra att veta,
+ * liksom hela den boxen där vi även har mejl sitter liksom helt ensamt...
+ * måste vi ens ha det?"
  *
- * Knappen är en `<details>` och inte InfoTip.astro, av ett enda skäl: rutan
- * innehåller en LÄNK, och InfoTips bubbla är text. Utseendet är InfoTips,
- * ned till 16 px-cirkeln och hårlinjen, så att de två läses som samma sorts
- * kontroll. Samma val som Oppettider.astro redan gjort för samma text.
+ * Han hade rätt i vad han såg. Kortet är 300 px brett och 202 px högt uppmätt
+ * i 390 px 2026-08-18, och sist i det satt en 16 px cirkel utan text bredvid
+ * sig. En ensam (i) utan etikett läser som ett förbehåll om uppgiften ovanför,
+ * inte som en redovisning av var den kommer ifrån.
+ *
+ * Svaret är inte att stryka attributionen, för ODbL 4.3 är ett licensvillkor.
+ * Svaret är att villkoret hänger på "the Produced Work", alltså på sidan och
+ * inte på kortet: ett verk, en notis. Hela resonemanget ligger i
+ * Sidupphov.astro.
+ *
+ * LÄGG ALDRIG TILLBAKA EN KNAPP HÄR.
  *
  * ## VERKSAMHETENS EGNA UPPGIFTER SLÅR OSM:s
  *
@@ -91,7 +97,6 @@
  * förstahandsuppgifter utan att någon kan se vilket som är vilket.
  */
 import { egenskaper, harNagot, kontaktLankar, kontaktRubrik, type Contact } from '../lib/kontakt';
-import { formatDate } from '../lib/data';
 
 interface Props {
   contact: Contact;
@@ -107,10 +112,6 @@ const rader = egenskaper(contact);
    heter den "Webbplats" och inte "Kontakt". Se kontaktRubrik i lib/kontakt.ts
    för varför det inte är ett hörnfall. */
 const rubrik = kontaktRubrik(lankar);
-
-/* Länken till OSM-objektet. `contact.osm` är "node/123" eller "way/123",
-   vilket är precis den form openstreetmap.org tar i sin adress. */
-const osmUrl = `https://www.openstreetmap.org/${contact.osm}`;
 
 /* Ikonerna. Samma streckvikt som resten av sajten, och `currentColor` så att
    de följer radens färg utan en egen regel. */
@@ -188,26 +189,9 @@ const IKONER: Record<string, string> = {
     </dl>
   )}
 
-  {/* Upphovet. Se modulkommentaren för varför ingenting står bredvid knappen
-      och varför det ändå räcker mot ODbL. Formen är Oppettider.astros, ned
-      till klassnamnen, eftersom det är samma källa och samma text. */}
-  <details class="upphov">
-    <summary aria-label="Källa och licens för uppgifterna">i</summary>
-    {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
-        attributet skriver Google sökresultatets utdrag ur den text som ligger
-        närmast och råkar vara prosa, och en licensklausul är det sämsta
-        tänkbara första mötet med sidan. Attributet rör bara utdraget. Texten
-        finns kvar i dokumentet, vilket är hela poängen: den ska gå att läsa
-        utan att något skript kört. */}
-    <div class="ruta glass glass-dark" data-nosnippet>
-      <p>
-        Uppgifterna kommer från OpenStreetMap, hämtade {formatDate(contact.checkedAt)}.
-        De redigeras av frivilliga och rättas där.
-      </p>
-      <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
-      <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta uppgiften</a>
-    </div>
-  </details>
+  {/* Ingen upphovsknapp här. Det var den här knappen ägaren såg sitta ensam
+      under Bra att veta. Sidans enda attribution står i Sidupphov.astro, i
+      källfoten längst ned. Se modulkommentaren. */}
 </section>
 )}
 
@@ -321,76 +305,10 @@ const IKONER: Record<string, string> = {
     overflow-wrap: anywhere;
   }
 
-  /* Allt nedan är Oppettider.astros upphovsknapp, ordagrant. Den står här och
-     inte i en delad komponent för att de två avsnitten kan visas var för sig
-     och behöver var sin knapp, och för att en tredje fil för trettio rader
-     CSS hade kostat mer i letande än den sparar i rader. */
-  .upphov {
-    position: relative;
-    display: inline-flex;
-    margin-top: var(--s-3);
-  }
+  /* Här bodde upphovsknappen, en ordagrann kopia av Oppettider.astros
+     `.upphov`, `summary` och `.ruta`. Kopian var själva symptomet: samma
+     trettio rader i tre filer, för att varje avsnitt bar sin egen attribution.
+     Med en attribution per sida finns ingenting kvar att kopiera. Se
+     Sidupphov.astro. */
 
-  summary {
-    position: relative;
-    list-style: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid var(--hairline);
-    background: var(--card);
-    color: var(--text-secondary);
-    font: 600 10px/1 var(--font-sans);
-    cursor: help;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color .12s ease, border-color .12s ease;
-  }
-
-  summary::-webkit-details-marker { display: none; }
-
-  summary::after {
-    content: '';
-    position: absolute;
-    inset: -14px;
-    border-radius: 50%;
-  }
-
-  summary:hover,
-  summary:focus-visible {
-    border-color: var(--brand);
-    color: var(--brand);
-  }
-
-  .ruta {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 5;
-    width: max-content;
-    /* 17rem och inte Oppettider.astros 19: den rutan fälls ut i huvudkolumnen
-       som är 700 px bred, den här i en panel med 268 px innanför sin padding.
-       272 px håller rutan innanför kortets kant i stället för att låta den
-       sticka ut i marginalen. Det andra ledet är kvar och gäller mobilen, där
-       panelen är hela spaltbredden. */
-    max-width: min(17rem, calc(100vw - 2 * var(--s-4)));
-    padding: 10px 12px;
-    border-radius: 9px;
-    font-size: var(--fs-caption);
-    line-height: 17px;
-    font-weight: 400;
-  }
-
-  .licens {
-    margin-top: 4px;
-  }
-
-  .ruta a {
-    display: inline-block;
-    margin-top: 6px;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
 </style>

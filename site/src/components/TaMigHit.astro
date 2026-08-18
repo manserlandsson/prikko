@@ -83,20 +83,26 @@
  * OpenStreetMap inte kartlagt några.
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * KÄLLAN LIGGER I (i)-KNAPPEN
+ * KÄLLAN LIGGER I SIDANS FOT, INTE I AVSNITTET
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Ägaren, ordagrant: "skriv inte ut openstreetmap, den ska ligga i I-ikonen,
- * HA INGET SÅNT där."
+ * Avsnittet bar en egen (i)-knapp efter "Avstånden är fågelvägen, inte
+ * gångväg". Den är borttagen. Attributionen finns kvar och står i
+ * Sidupphov.astro, EN gång för hela sidan, i källfoten längst ned.
  *
- * Formen är MapLibres kompakta attributionskontroll, alltså den som varje
- * karta på sajten redan bär: ikonen syns, texten ligger en klick bort. ODbL
- * kräver att upphovet är rimligt synligt där uppgiften visas, inte att det tar
- * en rad under varje avsnitt. Knappen är en `<details>` och inte InfoTip.astro
- * av samma skäl som i Kontaktuppgifter.astro: rutan innehåller en LÄNK, och
- * InfoTips bubbla är text. Utseendet är InfoTips, ned till 16 px-cirkeln.
+ * Sidan bar tre sådana knappar för en enda källa, uppmätt i bygget 2026-08-18
+ * på /stockholm/ica-supermarket-vanadis/ till y 464, 2 491 och 2 898 i
+ * 1 200 px. ODbL 4.3 hänger på "the Produced Work", alltså på sidan och inte
+ * på avsnittet: ett verk, en notis. Hela resonemanget ligger i
+ * Sidupphov.astro, och det gäller även varför kartans egen attributionsrad
+ * står kvar orörd. Den talar om kakelleverantören och kartdatan bakom bilden,
+ * inte om de fält vi själva hämtat ur Overpass.
+ *
+ * FÖRBEHÅLLET STÅR KVAR. "Avstånden är fågelvägen, inte gångväg" är ingen
+ * attribution utan ett mått, och det försvinner aldrig till någon fot.
+ *
+ * LÄGG ALDRIG TILLBAKA EN KNAPP HÄR.
  */
-import { formatDate } from '../lib/data';
 import {
   avstandIOrd,
   hallplatsIOrd,
@@ -112,11 +118,13 @@ interface Props {
   stop?: string;
   /** Packade parkeringar ur datafilen. */
   parking?: string;
-  /** Datum för OSM-uttaget, ur filens `narhet`-block. */
-  checkedAt?: string;
 }
 
-const { lat, lng, stop, parking, checkedAt } = Astro.props;
+/* `checkedAt` är borta ur gränssnittet. Datumet för närhetsuttaget hörde till
+   upphovsrutan, och den ligger numera i Sidupphov.astro, som får fältet direkt
+   ur sidmallen. En prop som ingen läser är en prop som förr eller senare
+   skrivs ut på fel ställe. */
+const { lat, lng, stop, parking } = Astro.props;
 
 const hallplats = packaUppHallplats(stop);
 const parkeringar = packaUppParkeringar(parking);
@@ -145,14 +153,8 @@ const restidUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${l
  */
 const appleUrl = `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=w`;
 
-/*
- * "Rätta"-länken går till KARTAN vid koordinaten och inte till ett enskilt
- * OSM-objekt, till skillnad från Kontaktuppgifter.astros länk. Skälet är att
- * avsnittet handlar om omgivningen och inte om ett objekt: parkeringsraden är
- * ett antal, inte en post. Zoom 17 visar kvarteret med hållplatsen och
- * parkeringarna i bild.
- */
-const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
+/* "Rätta"-länken bodde här och bor nu i Sidupphov.astro, som väljer mellan
+   OSM-objektet och kartan vid koordinaten efter vad sidan faktiskt visar. */
 ---
 
 <section class="tadighit" aria-labelledby="tadighit-rubrik">
@@ -245,39 +247,18 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
   )}
 
   {(hallplats || parkeringar) && (
-    <div class="forbehall">
-      {/* RUTAN ÄR EN `div` OCH INTE ETT `p`, och det är en felrättning.
+    /* RADEN ÄR ETT `p` IGEN.
 
-          `<details>` är flödesinnehåll och får inte stå i ett `<p>`;
-          webbläsaren stänger då stycket åt en före taggen. Uppmätt i bygget
-          2026-08-18 blev följden att (i)-knappen hamnade som ett SYSKON efter
-          stycket i stället för i det, alltså på egen rad under texten, och
-          `display: flex` på stycket kunde inte hjälpa eftersom knappen inte
-          längre låg där.
+       Den var en `div` så länge den bar en (i)-knapp: `<details>` är
+       flödesinnehåll och får inte stå i ett `<p>`, och webbläsaren stängde då
+       stycket åt oss före taggen, vilket i bygget 2026-08-18 slängde ned
+       knappen på egen rad. Utan knappen är raden ren text och ett stycke är
+       rätt element för den.
 
-          ORDET FÅGELVÄGEN ÄR INTE UTSMYCKNING. Utan det påstår raden ett
-          gångavstånd vi inte har räknat, och läsaren har inget sätt att
-          upptäcka skillnaden förrän hon står vid ett stängsel. */}
-      <span>Avstånden är fågelvägen, inte gångväg.</span>
-      <details class="upphov">
-        <summary aria-label="Källa och licens för avstånden">i</summary>
-        {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
-            attributet plockar Google sökresultatets utdrag ur den prosa som
-            ligger närmast, och en licensklausul är det sämsta tänkbara första
-            mötet med sidan. Texten finns kvar i dokumentet. */}
-        <div class="ruta glass glass-dark" data-nosnippet>
-          {/* Datumledet byggs som en STRÄNG och inte som ett `<>`-fragment i
-              markeringen. Ett fragment på egen rad ärver radbrytningens
-              blanksteg, och uppmätt i bygget 2026-08-18 blev följden det
-              synliga felet "OpenStreetMap , hämtade 18 augusti". */}
-          <p>{`Hållplatser och parkeringar kommer från OpenStreetMap${
-            checkedAt ? `, hämtade ${formatDate(checkedAt)}` : ''
-          }. De redigeras av frivilliga och rättas där.`}</p>
-          <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
-          <a href={osmUrl} rel="nofollow noopener" target="_blank">Se platsen i OpenStreetMap</a>
-        </div>
-      </details>
-    </div>
+       ORDET FÅGELVÄGEN ÄR INTE UTSMYCKNING. Utan det påstår raden ett
+       gångavstånd vi inte har räknat, och läsaren har inget sätt att upptäcka
+       skillnaden förrän hon står vid ett stängsel. */
+    <p class="forbehall">Avstånden är fågelvägen, inte gångväg.</p>
   )}
 </section>
 
@@ -367,10 +348,11 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
     color: var(--text-muted);
   }
 
+  /* Raden var en flexrad så länge den bar en (i)-knapp bredvid texten.
+     Knappen är borta, och kvar är ett stycke text som ska bete sig som ett
+     stycke text: bryter över två rader i 390 px utan att `align-items`
+     mitt-ställer något. */
   .forbehall {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
     margin-top: var(--s-3);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
@@ -388,75 +370,9 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
     border: 0;
   }
 
-  /* Allt nedan är Kontaktuppgifter.astros upphovsknapp, som i sin tur är
-     Oppettider.astros. Den står här och inte i en delad komponent av samma
-     skäl som där: de tre avsnitten kan visas var för sig och behöver var sin
-     knapp, och en fjärde fil för trettio rader CSS kostar mer i letande än
-     den sparar i rader. */
-  .upphov {
-    position: relative;
-    display: inline-flex;
-  }
+  /* Här bodde upphovsknappen, tredje kopian av samma trettio rader. Se
+     Sidupphov.astro för varför alla tre är borta och vad som ersatte dem. */
 
-  summary {
-    position: relative;
-    list-style: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid var(--hairline);
-    background: var(--card);
-    color: var(--text-secondary);
-    font: 600 10px/1 var(--font-sans);
-    cursor: help;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.12s ease, border-color 0.12s ease;
-  }
-
-  summary::-webkit-details-marker {
-    display: none;
-  }
-
-  summary::after {
-    content: '';
-    position: absolute;
-    inset: -14px;
-    border-radius: 50%;
-  }
-
-  summary:hover,
-  summary:focus-visible {
-    border-color: var(--brand);
-    color: var(--brand);
-  }
-
-  .ruta {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 5;
-    width: max-content;
-    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
-    padding: 10px 12px;
-    border-radius: 9px;
-    font-size: var(--fs-caption);
-    line-height: 17px;
-    font-weight: 400;
-  }
-
-  .licens {
-    margin-top: 4px;
-  }
-
-  .ruta a {
-    display: inline-block;
-    margin-top: 6px;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
 </style>
 
 <script>
