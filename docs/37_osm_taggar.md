@@ -316,10 +316,10 @@ Två förbehåll som hör till svaret och inte ska döljas:
    vilseledande. En bild från 1915 utan årtal är ett påstående om hur det ser
    ut i dag.
 2. **Attributionen är inte frivillig.** CC BY och CC BY-SA kräver upphovsman,
-   licensnamn och länk vid bilden. Det är strängare än ODbL-raden för
-   öppettiden, och det kan inte lösas med enbart en (i)-knapp för de licenser
-   som kräver att upphovsmannen anges "på det sätt som är rimligt för
-   mediet".
+   licensnamn och länk VID BILDEN. Det är strängare än ODbL, vars notis knyts
+   till hela det producerade verket och därför ryms i sidans källfot: en
+   licens som kräver att upphovsmannen anges "på det sätt som är rimligt för
+   mediet" kan inte täckas av en rad som talar om sidan.
 
 **Byggt 2026-08-18.** Urvalet är helt bestämt av regler som redan finns i
 koden, så det behöver ingen lista att underhålla. `pipeline/prikko/commons.py`
@@ -356,13 +356,17 @@ Pillow saknas, vilket är rätt för gatubilderna och fel här, så `commons.cap
 vägrar lagra i stället. Vi hämtar dessutom Commons egen miniatyr och inte
 originalet: den bär noll EXIF-taggar redan när den kommer.
 
-**Bildtextens form, och varför den bryter mot i-knappsregeln.** Ägaren har
-sagt att källan ska ligga i (i)-ikonen och att inget sådant ska stå utskrivet.
-Den regeln följs för öppettiden och kontakten och bryts här. Skälet är
-licensen: ODbL kräver att upphovet är rimligt synligt där uppgiften visas, och
-en (i) intill uppgiften är den form kartbranschen använder mot precis den
-licensen. CC BY och CC BY-SA är avtal med varje enskild fotograf, och 23 av de
+**Bildtextens form, och varför den står kvar vid bilden.** Ägaren har sagt att
+källan inte ska stå utskriven ute i innehållet. Den regeln följs för
+öppettiden, kontakten och närområdet, vars enda attribution numera är en rad i
+sidans källfot, se § 7.4. Här bryts den, och skälet är licensen: OSM-data lyder
+under ODbL, som knyter sin notis till hela det producerade verket, medan CC BY
+och CC BY-SA är avtal med varje enskild FOTOGRAF om ett enskilt verk. 23 av de
 27 bilderna bär `AttributionRequired = true` i Commons egna metadata.
+
+En bild kan alltså inte täckas av sidans fot, hur väl den foten än är skriven:
+foten säger var sidans uppgifter kommer ifrån, och CC BY-SA vill veta vem som
+tog just den här bilden.
 
 CC BY-SA 4.0 avsnitt 3(a)(2) säger att villkoren får uppfyllas "in any
 reasonable manner based on the medium, means, and context", och nämner att en
@@ -518,7 +522,7 @@ utan en enda utskrivbar rad hade ändå blivit en tom vit ruta i spalten, så
 Och en gång till i webbläsaren: har verksamheten själv skickat in precis de
 fält vi hade ur OSM, och OSM inte gav några egenskaper, döljer
 `Foretagsuppgifter.astro` hela kortet i stället för att lämna kvar en ruta med
-en rubrik och en (i)-knapp.
+bara en rubrik i.
 
 ### 7.2 Vad som aldrig avrundas
 
@@ -546,21 +550,34 @@ Webbplatsen visas som värdnamn utan `www.`, samma grepp som
 adressen är hämtad ur en öppen databas som vem som helst kan skriva i, och den
 ska aldrig gå att använda för att bygga länkkraft genom oss.
 
-### 7.4 Källan ligger i (i)-knappen och står inte utskriven
+### 7.4 Källan ligger i sidans fot, en gång för hela sidan
 
-Ägaren, ordagrant: "skriv inte ut openstreetmap, den ska ligga i I-ikonen, HA
-INGET SÅNT där."
+Kortet har ingen egen (i)-knapp. Attributionen står i `Sidupphov.astro`, i
+källfoten längst ned, och räknar upp exakt de OSM-fält sidan visar.
 
-Formen är MapLibres kompakta attributionskontroll, som varje karta på sajten
-redan bär: ikonen syns, texten ligger en klick bort. **ODbL kräver att
-upphovet är rimligt synligt där uppgiften visas, inte att det tar en rad under
-varje avsnitt**, och en (i) intill uppgiften är den form kartbranschen använder
-mot precis samma licens.
+**Historik, så att ingen bygger tillbaka den.** Kortet bar först en utskriven
+källrad, sedan en (i)-knapp när ägaren sade "skriv inte ut openstreetmap, den
+ska ligga i I-ikonen, HA INGET SÅNT där". Knappen föll på nästa granskning:
+"i-ikonen på bra att veta, liksom hela den boxen där vi även har mejl sitter
+liksom helt ensamt... måste vi ens ha det?"
 
-Knappen är en `<details>` och inte `InfoTip.astro`, av ett enda skäl: rutan
-innehåller en LÄNK, och InfoTips bubbla är text. Utseendet är InfoTips, ned
-till 16 px-cirkeln och hårlinjen. Länken heter "Rätta uppgiften", eftersom det
-är det enda man rimligen vill göra därifrån.
+Båda invändningarna gäller samma sak, att attributionen står INTILL uppgiften.
+**ODbL 4.3 kräver inte det.** Villkoret gäller "the Produced Work", alltså
+sidan, och en notis per sida räcker. Sidan bar tre knappar för en källa,
+uppmätt i bygget 2026-08-18 till y 464, 2 491 och 2 898 i 1 200 px.
+
+Knapparna bar dessutom ett mätfel: träffytan var 42 x 42 px och inte de 44 som
+stod i kommentarerna, eftersom `inset` räknas från förälderns paddingruta och
+en 16 px cirkel med hårlinje ger 14 + 2 * 14. En rad text har ingen träffyta.
+
+Raden bär två länkar. `openstreetmap.org/copyright` är OSM:s upphovssida, som
+tidigare inte fanns någonstans på sajten, och "Rätta uppgiften" går till
+objektet.
+
+**Commons-bilden och kartan är särfall och står kvar.** CC BY-SA är ett annat
+avtal med en annan upphovsperson per bild och kräver namnet vid bilden, se
+§ 5.2 och `Commonsbild.astro`. MapLibres attributionskontroll gäller
+kakelleverantören och kartdatan bakom bilden och laddas av kartbiblioteket.
 
 ### 7.5 Verksamhetens egna uppgifter slår OSM:s
 
@@ -699,6 +716,7 @@ kommun.
    `contact:facebook` (54) och `website:menu` (50) är mätta och byggbara. De
    är inte bortvalda på täckning, se §6, utan bara inte beställda.
 3. **Kör om uttagen med jämna mellanrum.** OSM ändras. `checkedAt` står på
-   varje post och i (i)-knappen, så en gammal uppgift är åtminstone märkt.
+   varje post och skrivs ut i sidans källfot, se § 7.4, så en gammal uppgift är
+   åtminstone märkt.
 4. **Rör inte tröskeln i §6 utan att läsa hela stycket.** Den gäller filter,
    fullständighetstal och rangordningar. Den gäller inte en visning.

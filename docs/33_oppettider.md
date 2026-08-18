@@ -324,17 +324,38 @@ står. Grönt är bedömningens språk på den här sajten. En grön pille bredv
 verksamhetsnamn läses som hygien och inte som klockslag, och sidan bär redan ett
 grönt märke som betyder något helt annat.
 
-### 6.4 Källan står utskriven
+### 6.4 Källan står i sidans fot, en gång för hela sidan
 
-Under schemat, ordagrant på sidan:
+Avsnittet har ingen egen källrad och ingen egen (i)-knapp. Attributionen står i
+`Sidupphov.astro`, i källfoten längst ned på verksamhetssidan, och räknar upp
+exakt de OSM-fält sidan visar.
 
-> Öppettiden kommer från OpenStreetMap, hämtad 17 augusti 2026. Den är inte
-> kommunens uppgift och kan vara inaktuell. © OpenStreetMap contributors, ODbL.
+Ordagrant på sidan, när alla fälten finns:
 
-Tre saker på en rad, och alla tre behövs. ODbL kräver attribution där uppgiften
-visas. Läsaren behöver veta att uppgiften inte är kommunens, eftersom allt annat
-på sidan är det. Och länken går till OSM-objektet, så att den som ser ett fel kan
-rätta det vid källan i stället för att skriva till oss om något vi inte äger.
+> Kartnålens läge, hållplatsen, parkeringarna, öppettiderna och kontaktkortet
+> kommer från © OpenStreetMap contributors, ODbL 1.0, hämtat 18 augusti 2026.
+> Rätta uppgiften
+
+**Skälet är ODbL 4.3.** Villkoret gäller "the Produced Work", alltså sidan, och
+föreskriver ingen notis per block. Sidan bar tre sådana notiser för en enda
+källa, uppmätt i bygget 2026-08-18 till y 464, 2 491 och 2 898 i 1 200 px, och
+ägaren såg det: "i-ikonen på bra att veta ... sitter liksom helt ensamt ...
+måste vi ens ha det?"
+
+Två länkar i raden och inte en. `openstreetmap.org/copyright` är OSM:s egen
+upphovssida, den licensen och stiftelsens riktlinjer pekar på, och den fanns
+tidigare ingenstans på sajten. "Rätta uppgiften" går till objektet, så att den
+som ser ett fel rättar det vid källan i stället för att skriva till oss om
+något vi inte äger.
+
+Ordet OpenStreetMap står i foten och aldrig ute i innehållet. Ägarens regel,
+"skriv inte ut openstreetmap, den ska ligga i I-ikonen, HA INGET SÅNT där",
+gällde källraden INTILL varje uppgift. En fotnot längst ned kommenterar ingen
+enskild rad.
+
+**Kartans egen upphovsrad rörs inte.** MapLibres `AttributionControl` i
+`Platskarta.astro` gäller kakelleverantören och kartdatan bakom bilden, alltså
+något annat än de fält vi hämtat ur Overpass, och den laddas av kartbiblioteket.
 
 ### 6.5 Verksamhetens egna tider slår OSM:s
 
