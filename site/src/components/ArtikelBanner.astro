@@ -1,6 +1,6 @@
 ---
 /**
- * Artikelbandet: en tonad yta med ett utvalt artikelkort.
+ * Artikelbandet: en egen sektion med ett utvalt artikelkort.
  *
  * ## Förlagan
  *
@@ -10,13 +10,13 @@
  * ligger i deras vanliga 980, vänsterspalten är omkring 300 px och kortet
  * fyller resten med bilden till vänster i kortet och texten till höger.
  *
- * Vår yta är `--brand-wash`, alltså märkesblåan blandad 8 procent i vitt.
- * Ingen ny färg uppfanns för det här bandet, och ingen ska uppfinnas: tonen
- * är räknad mot både kortet ovanpå och texten inuti, se tokens.css.
- *
- * Bandet är rundat i stället för att gå ut i fönstret. Det ligger mitt inne i
- * en sida med sidobehållare, och en yta som spränger behållaren mitt i ett
- * dokument läser som ett fel snarare än som en sektion.
+ * Spalternas proportion är hämtad därifrån. YTAN är det inte, och det är ett
+ * medvetet avsteg. Deras beige band går ut i hela fönstret och bär kortet
+ * ensamt; vårt låg i en sidobehållare, alltså som en rundad ruta MED en ruta
+ * i, och kontrasten mellan de två ytorna mättes till 1,11:1. Det är den
+ * konstruktion commit 27318562 tog bort från kommunsidan och som bibeln
+ * förbjuder. Sektionen skiljs därför av hårlinje och luft i stället, se
+ * .artikelband längre ned.
  *
  * ## Grinden
  *
@@ -134,15 +134,26 @@ const STORLEKAR = '(max-width: 760px) 100vw, 300px';
 )}
 
 <style>
+  /* Sektionen skiljs av en hårlinje och luft, aldrig av en ruta.
+     ────────────────────────────────────────────────────────────────────────
+     Bandet låg på --brand-wash med ett VITT kort ovanpå. Uppmätt kontrast
+     mellan de två ytorna: 1,11:1, alltså en kant som i praktiken inte syns,
+     och konstruktionen var en ruta i en ruta. Det är samma sak som commit
+     27318562 tog bort från kommunsidan, och bibeln (docs/19_formsystem.md)
+     föreskriver i stället en 1 px hårlinje med 32 respektive 64 px luft.
+
+     64 px på var sida om linjen, alltså det större av bibelns två tal,
+     eftersom detta är en NY sektion och inte ett stycke inom en. Uppmätt hos
+     booli.se 2026-08-18 ligger deras minsta avstånd mellan två h2 på 153 px,
+     så 128 plus rubrikens egen höjd är fortfarande under förlagans. */
   .artikelband {
     display: grid;
     grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
     gap: var(--s-8);
     align-items: center;
     margin-top: var(--s-16);
-    padding: var(--s-8);
-    border-radius: var(--r-card);
-    background: var(--brand-wash);
+    padding-top: var(--s-16);
+    border-top: 1px solid var(--hairline);
   }
 
   .pitch h2 {
@@ -169,9 +180,10 @@ const STORLEKAR = '(max-width: 760px) 100vw, 300px';
   .alla:hover svg { transform: translateX(3px); }
   .alla svg { transition: transform .15s ease; }
 
-  /* Kortet är vitt mot den tonade ytan. Kontrasten är 1,11:1, alltså precis
-     nog för att kortet ska läsa som ett kort utan att bandet blir en ruta i
-     rutan. Skuggringen gör resten. */
+  /* Kortet är vitt mot sidans egen botten och avgränsas av ringen i
+     --shadow-sm, alltså exakt samma grepp som kommunkorten. Se noten vid
+     --shadow-sm i tokens.css: ringen finns just för att ett vitt kort på en
+     nästan vit sida annars försvinner. */
   .kort {
     display: grid;
     grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
@@ -255,7 +267,11 @@ const STORLEKAR = '(max-width: 760px) 100vw, 300px';
     .artikelband {
       grid-template-columns: 1fr;
       gap: var(--s-6);
-      padding: var(--s-6);
+      /* Luften krymper med spalten. 32 px är bibelns mindre av de två talen
+         och det som gäller på en telefon, där 64 plus 64 hade blivit en
+         skärmhöjd tomt innan kortet syns. */
+      margin-top: var(--s-8);
+      padding-top: var(--s-8);
     }
   }
 
