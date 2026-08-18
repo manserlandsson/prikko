@@ -359,20 +359,22 @@ def export(client: Supabase, out_dir: Path) -> None:
         # pipeline/geocode.py skriver dem efter: en licensklausul i en fil utan
         # en enda rad av det slaget är ett påstående om data som inte finns.
         #
-        # Båda står EFTER `source`, och ordningen är den pipelinen skapar dem
-        # i. geocode.py måste ha kört innan oppettider.py kan para ihop
-        # någonting, så `openingHours` är det yngre blocket och hamnar överst.
-        # Ordningen byggs här i stället för att flyttas efteråt.
+        # Båda står EFTER `source`, och `geocoding` först. Det är ordningen de
+        # incheckade filerna faktiskt har: båda skripten skjuter in sitt block
+        # direkt efter `source`, och geocode.py körs sist av de två eftersom
+        # oppettider.py behöver koordinaterna det sätter. Skrev exporten dem i
+        # motsatt ordning hade varje nattkörning kastat om två rader i tolv
+        # filer utan att något ändrats.
         if (antal_tider and forra_licens) or (antal_harledda and forra_geolicens):
             payload = {
                 "municipality": payload["municipality"],
                 "source": payload["source"],
-                **({"openingHours": forra_licens} if antal_tider and forra_licens else {}),
                 **(
                     {"geocoding": forra_geolicens}
                     if antal_harledda and forra_geolicens
                     else {}
                 ),
+                **({"openingHours": forra_licens} if antal_tider and forra_licens else {}),
                 "establishments": records,
             }
 
