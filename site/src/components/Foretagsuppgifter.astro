@@ -485,8 +485,18 @@ const DAGAR = [
          version i bästa fall överflödig och i värsta fall motstridig, och två
          veckoscheman med olika klockslag på samma sida är sämre än ett.
          Avsnittet döljs alltså här, i det enda ögonblick vi vet att en bättre
-         källa finns. */
-      document.querySelector<HTMLElement>('[data-oppettider-osm]')?.setAttribute('hidden', '');
+         källa finns.
+
+         TVÅ element och inte ett, därav querySelectorAll. Tillståndet "öppet
+         nu" flyttade upp till en rad under verksamhetens namn och bär samma
+         attribut, se OppetPille.astro. Utan att båda döljs hade sidan visat
+         ett läge räknat ur OSM högst upp och verksamhetens egna klockslag
+         längre ned, alltså exakt den motstridighet stycket ovan finns för att
+         förhindra. Läget vi visar i stället är det som paintState skriver ur
+         förstahandsuppgifterna. */
+      document
+        .querySelectorAll<HTMLElement>('[data-oppettider-osm]')
+        .forEach((el) => el.setAttribute('hidden', ''));
     }
 
     const list = document.getElementById('foretaget-kontakt') as HTMLUListElement;

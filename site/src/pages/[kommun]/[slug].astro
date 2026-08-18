@@ -41,6 +41,7 @@ import FactGrid from '../../components/FactGrid.astro';
 import InfoTip from '../../components/InfoTip.astro';
 import Platskarta from '../../components/Platskarta.astro';
 import Oppettider from '../../components/Oppettider.astro';
+import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
@@ -469,6 +470,21 @@ const breadcrumbs = {
             <> · <a href={path(kommun.slug, 'omrade', omrade.slug)}>{omrade.name}</a></>
           )}
         </p>
+
+        {/* "Öppet nu" i ögonhöjd, en rad under namnet.
+
+            Den satt förut i rubriken på öppettidsavsnittet, som ligger under
+            kartan: uppmätt i 1 200 px på den här sidan 2 460 px ned i
+            dokumentet mot rubrikens 127. Ägaren: "borde inte öppet nu/stängt
+            nu, sitta typ längre upp vid namnet eller någon och sen hela stor
+            widgeten där nere där den är nu." Veckoschemat står kvar.
+
+            Två saker som gör att raden inte kostar något på de sidor som
+            saknar tider: villkoret `e.hours` gör att elementet inte finns
+            alls på 13 305 av 16 047 sidor, och på de övriga står det tomt och
+            `hidden` tills skriptet fyllt i det. Tillståndet får aldrig skrivas
+            vid bygget, se OppetPille.astro. */}
+        {e.hours && <OppetPille hours={e.hours} />}
       </header>
 
       {/* Raden bär det som gäller stället i sin helhet; omdömesknappen bor i

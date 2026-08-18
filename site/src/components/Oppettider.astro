@@ -1,6 +1,6 @@
 ---
 /**
- * Öppettider ur OpenStreetMap, och tillståndet "öppet nu".
+ * Öppettider ur OpenStreetMap.
  *
  * ## SIDAN HAR TVÅ ÖPPETTIDSKÄLLOR, OCH DEN HÄR ÄR DEN SVAGARE
  *
@@ -24,45 +24,64 @@
  *
  * Ingen rad, ingen rubrik, ingenting. Sajten skriver aldrig ut att den inte
  * vet en sak: en tom ruta med "Öppettider saknas" är en rad som ser ut som
- * ett besked, och den skulle stå på tio tusen sidor.
+ * ett besked, och den skulle stå på tio tusen sidor. Uppmätt 2026-08-18 har
+ * 2 742 av 16 047 verksamheter tider, alltså 17,1 procent.
  *
  * Nämnaren är mätt och står i docs/33_oppettider.md. Läs den innan du bygger
  * något som förutsätter att uppgiften är vanlig.
  *
- * ## Varför tillståndet fylls i av webbläsaren
+ * ## Varför "öppet nu" INTE står här
  *
- * Sidan är statisk och kan ligga i en cache i timmar. "Öppet nu" skrivet vid
- * bygget hade varit osant större delen av dygnet, och det är den sortens fel
- * som ingen läsare kan upptäcka. Veckoschemat står därför i HTML-filen, där
- * det hör hemma: det ändras inte under dagen, det är citerbart, och det är
- * vad ett sökresultat ska kunna plocka. Pillen fylls i när sidan öppnas.
+ * Tillståndet bor numera i OppetPille.astro, en rad under verksamhetens namn.
+ * Skälet med mätta tal står i den filen. Skriptet nedan står kvar HÄR, och det
+ * är avsiktligt: schemat är datan, pillen är en avläsning av den, och
+ * avläsningen ska ligga där datan ligger. Skriptet letar därför upp pillen i
+ * dokumentet i stället för i den här sektionen.
  *
- * Utan JavaScript syns schemat men ingen pille. Det är rätt ordning: vi
- * påstår hellre ingenting än fel sak.
+ * Veckoschemat renderas i filen, där det hör hemma: det ändras inte under
+ * dagen, det är citerbart, och det är vad ett sökresultat ska kunna plocka.
+ * Tillståndet fylls i när sidan öppnas, eftersom sajten är statisk och kan
+ * ligga i en cache i timmar. Utan JavaScript syns schemat men ingen pille. Det
+ * är rätt ordning: vi påstår hellre ingenting än fel sak.
  *
- * ## Varför pillen aldrig är grön
+ * ## Varför upphovet ligger i en i-knapp och inget står bredvid den
  *
- * Grönt är bedömningens språk på den här sajten. `docs/17` stoppade en grön
- * "öppet nu"-pille redan i rapport 15, och domen står: en grön pille bredvid
- * ett verksamhetsnamn läses som hygien, inte som klockslag, och den här sidan
- * har redan ett grönt märke som betyder något helt annat. Öppet är
- * märkesbläck, stänger snart är bärnsten, stängt är dämpat grått.
+ * Raden löd "OpenStreetMap ⓘ Rätta". Ägaren: "skriv inte ut openstreetmap, den
+ * ska ligga i I-ikonen, HA INGET SÅNT där". Kvar i det synliga är alltså bara
+ * knappen; källan, hämtdatumet, licensraden och länken till objektet ligger i
+ * rutan den fäller ut.
  *
- * ## Varför källan står, och varför brasklappen inte gör det
+ * DET HÄR ÄR INTE EN GLÖMD ATTRIBUTION. ODbL 4.3 kräver ett upphov som är
+ * "reasonably calculated to make any Person that uses, views, accesses,
+ * interacts with, or is otherwise exposed to the Produced Work aware that
+ * Content was obtained from the Database", och OSM-stiftelsens egna
+ * attributionsriktlinjer pekar ut den här formen ordagrant: är upphovet
+ * hopfällt ska läsaren ändå kunna hitta licensuppgiften om hen letar, "for
+ * example from an '(i)' button in the corner of the map".
  *
- * ODbL kräver attribution där uppgiften visas, så ordet OpenStreetMap står
- * kvar under schemat. Resten flyttade in i tipset: hämtdatumet och hela
- * licensklausulen.
+ * Formen finns dessutom redan på sajten. KartaPuff.astro rad 249 skapar
+ * MapLibres attributionskontroll med `compact: true`, alltså exakt det här: en
+ * i-knapp som fäller ut upphovet. Karta.astro och OmradeKarta.astro kör
+ * `compact: false` och ska fortsätta göra det, och den skillnaden är inte
+ * inkonsekvens utan mått: de två är sidbreda kartor där den utfällda raden
+ * ryms, KartaPuffs ruta är 328 px där den inte gör det. Här är ytan en rad
+ * under ett veckoschema, och en fyra ord lång källrad var det ägaren såg.
  *
- * Raden sa förut också att uppgiften inte är kommunens och kan vara
- * inaktuell. Den meningen är borta, och det är ett medvetet val. En brasklapp
- * bredvid varje uppgift lär läsaren att misstro sidan, och den lär ut fel
- * sak: kommunens kontrolluppgifter, som är sidans egentliga innehåll, står
+ * Två saker gör att knappen håller där en ren hovringsbubbla inte hade gjort
+ * det, och båda måste stå kvar:
+ *
+ *   Den är ett `<details>` och inte ett verktygstips. Rutan stannar öppen, så
+ *   länken till OSM-objektet går att klicka på med mus. Ett tips som stängs av
+ *   `pointerleave`, som InfoTip.astro gör, kan inte bära en länk alls.
+ *
+ *   Den kräver ingen JavaScript. `<details>` fälls ut av webbläsaren själv,
+ *   alltså är upphovet ett klick bort även på en sida där inget skript kört.
+ *   Skriptet nedan lägger bara till Escape och klick utanför.
+ *
+ * Brasklappen som en gång stod i raden är borta och kommer inte tillbaka. En
+ * varning bredvid varje uppgift lär läsaren att misstro sidan, och den lär ut
+ * fel sak: kommunens kontrolluppgifter, som är sidans egentliga innehåll, står
  * utan brasklapp en bit ovanför.
- *
- * Länken heter "Rätta" och inte "Se på OpenStreetMap", eftersom det är det
- * enda man rimligen vill göra därifrån: den som ser ett fel ska rätta det vid
- * källan i stället för att mejla oss.
  *
  * ## Varför tiderna INTE går in i JSON-LD
  *
@@ -82,7 +101,6 @@
  */
 import { formatSpans, spansOf, weekRows, type Hours } from '../lib/oppettider';
 import { formatDate } from '../lib/data';
-import InfoTip from './InfoTip.astro';
 
 interface Props {
   hours: Hours;
@@ -104,17 +122,7 @@ const nagotOppet = rows.some((r) => !r.closed);
 
 {nagotOppet && (
 <section class="oppettider" data-oppettider-osm aria-label={`Öppettider för ${name}`}>
-  <div class="huvud">
-    <h2>Öppettider</h2>
-    {/* Tom tills skriptet fyllt i. `hidden` och inte bara tom text: en tom
-        pille med kant och padding hade blivit en synlig lucka på de sidor
-        där JavaScript inte kör. */}
-    <p class="pille" data-oppet-pille hidden>
-      <span class="prick" aria-hidden="true"></span>
-      <span class="lage" data-oppet-lage></span>
-      <span class="tillagg text-secondary" data-oppet-tillagg></span>
-    </p>
-  </div>
+  <h2>Öppettider</h2>
 
   {/* Sju rader, måndag först, och inte hopslagna till "Mån–Fre". Den
       hopslagna formen är kortare men tvingar läsaren att räkna sig fram till
@@ -140,36 +148,34 @@ const nagotOppet = rows.some((r) => !r.closed);
     </p>
   )}
 
-  {/* Attributionen i en i-knapp, inte som en brödtext.
-
-      ODbL kräver att upphovet syns där uppgiften visas, men inte att det tar
-      fyra rader. Andra som bygger på OpenStreetMap skriver en kort rad eller
-      ett tecken, och vår gamla text sa dessutom tre saker till: att uppgiften
-      inte är kommunens, att den kan vara inaktuell, och när vi hämtade den.
-      Ägaren: "sluta förklara att dom kan va felaktiga, har sett andra som
-      använder open street map och dom skriver ej sådär mkt".
-
-      Han har rätt i sak. En brasklapp bredvid varje uppgift lär läsaren att
-      misstro sidan, och den lär ut fel sak: kommunens kontrolluppgifter, som
-      är sidans egentliga innehåll, står utan brasklapp bredvid.
-
-      Kvar i det synliga: källan, som är kravet. Datumet och hela klausulen
-      ligger i tipset, en klick bort, tillsammans med länken till objektet så
-      att den som ser ett fel kan rätta det vid källan. */}
-  <p class="kalla caption text-muted">
-    OpenStreetMap
-    <InfoTip
-      label="Om öppettiden"
-      text={`Uppgiften kommer från OpenStreetMap, hämtad ${formatDate(hours.checkedAt)}. Den redigeras av frivilliga och rättas där. © OpenStreetMap contributors, ODbL 1.0.`}
-    />
-    <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta</a>
-  </p>
+  {/* Upphovet. Se modulkommentaren för varför ingenting står bredvid knappen
+      och varför det ändå räcker mot ODbL. */}
+  <details class="upphov" data-upphov>
+    <summary aria-label="Källa och licens för öppettiden">i</summary>
+    {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
+        attributet skriver Google sökresultatets utdrag ur den text som ligger
+        närmast och råkar vara prosa, och en licensklausul är det sämsta
+        tänkbara första mötet med sidan. Attributet rör bara utdraget. Texten
+        finns kvar i dokumentet, vilket är hela poängen: den ska gå att läsa
+        utan att något skript kört. */}
+    <div class="ruta glass glass-dark" data-nosnippet>
+      <p>
+        Uppgiften kommer från OpenStreetMap, hämtad {formatDate(hours.checkedAt)}.
+        Den redigeras av frivilliga och rättas där.
+      </p>
+      <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
+      {/* Länken heter "Rätta" och inte "Se på OpenStreetMap", eftersom det är
+          det enda man rimligen vill göra därifrån: den som ser ett fel ska
+          rätta det vid källan i stället för att mejla oss. */}
+      <a href={osmUrl} rel="nofollow noopener" target="_blank">Rätta uppgiften</a>
+    </div>
+  </details>
 </section>
 )}
 
 <script>
   /**
-   * Fyller i pillen och märker ut dagens rad.
+   * Fyller i pillen under namnet och märker ut dagens rad.
    *
    * All logik ligger i lib/oppettider.ts, som är samma modul proven kör mot.
    * Här finns bara avläsningen av det som redan står i HTML.
@@ -190,9 +196,11 @@ const nagotOppet = rows.some((r) => !r.closed);
       rad.setAttribute('aria-current', 'date');
     }
 
-    const pille = sektion.querySelector<HTMLElement>('[data-oppet-pille]');
-    const lage = sektion.querySelector<HTMLElement>('[data-oppet-lage]');
-    const tillagg = sektion.querySelector<HTMLElement>('[data-oppet-tillagg]');
+    /* Pillen står numera i sidhuvudet och inte i sektionen, se
+       OppetPille.astro. Sökningen går därför mot dokumentet. */
+    const pille = document.querySelector<HTMLElement>('[data-oppet-pille]');
+    const lage = pille?.querySelector<HTMLElement>('[data-oppet-lage]');
+    const tillagg = pille?.querySelector<HTMLElement>('[data-oppet-tillagg]');
 
     if (pille && lage && tillagg) {
       const s = status(hours, nu);
@@ -201,6 +209,24 @@ const nagotOppet = rows.some((r) => !r.closed);
       tillagg.textContent = s.detail;
       pille.hidden = false;
     }
+  }
+
+  /* Upphovsrutan stängs av Escape och av ett klick utanför.
+     `<details>` gör varken det ena eller det andra av sig själv, och en ruta
+     man bara kan stänga genom att hitta tillbaka till en 16 px stor knapp är
+     en ruta som blir stående. Utfällningen sker fortfarande utan skript. */
+  const upphov = document.querySelector<HTMLDetailsElement>('[data-upphov]');
+
+  if (upphov) {
+    document.addEventListener('click', (e) => {
+      if (upphov.open && !upphov.contains(e.target as Node)) upphov.open = false;
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && upphov.open) {
+        upphov.open = false;
+        upphov.querySelector('summary')?.focus();
+      }
+    });
   }
 </script>
 
@@ -216,13 +242,6 @@ const nagotOppet = rows.some((r) => !r.closed);
     border-top: 1px solid var(--hairline);
   }
 
-  .huvud {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--s-2) var(--s-3);
-  }
-
   h2 {
     font-size: var(--fs-h-s);
     line-height: var(--lh-h-s);
@@ -230,46 +249,50 @@ const nagotOppet = rows.some((r) => !r.closed);
     letter-spacing: -.02em;
   }
 
-  /* Pillen. Kant och bakgrund i samma ton som läget, aldrig fylld: en fylld
-     pille väger lika tungt som bedömningsmärket längre upp på sidan, och en
-     öppettid är inte ett besked av den digniteten. */
-  .pille {
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--s-2);
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    font-weight: 600;
-  }
+  /* Listan börjar där rubriken börjar.
 
-  .prick {
-    align-self: center;
-    width: 7px;
-    height: 7px;
-    border-radius: var(--r-pill);
-    background: currentColor;
-  }
-
-  /* ÖPPET ÄR MÄRKESBLÅTT OCH ALDRIG GRÖNT. Se modulkommentaren. */
-  .pille[data-lage='open'] { color: var(--brand-ink); }
-  /* Bärnsten och inte gult: --verdict-minor är bedömningens gula och ligger
-     dessutom på 1,5:1 mot vitt. Den här tonen är egen och läsbar. */
-  .pille[data-lage='closing'] { color: #B26B00; }
-  .pille[data-lage='closed'] { color: var(--ink-quiet); }
-
-  .tillagg {
-    font-weight: 400;
-  }
-
+     Webbläsarens `ul` bär `padding-inline-start: 40px` för punkterna, och
+     sajtens återställning tar bort punkten men inte indraget. Uppmätt
+     2026-08-18 i 1 200 px låg sektionens vänsterkant på x 76 och "Måndag" på
+     x 116, alltså fyrtio pixlar in, medan rubriken "Öppettider" och raden
+     under låg i kant. Ett schema som är indraget mot allt annat i sitt eget
+     avsnitt är en av de tre sakerna ägaren såg. */
   .dagar {
     margin-top: var(--s-4);
-    max-width: 26rem;
+    padding-inline-start: 0;
   }
 
+  /* TVÅ SPALTER PÅ FAST BREDD, INTE `space-between`.
+     ────────────────────────────────────────────────────────────────────────
+     Raderna var flexrader med `justify-content: space-between` i en lista på
+     26 rem. Ägaren: "formatteringen på öppettiderna ser också lite konstig ut,
+     alignmentet, även på mobilen." Tre fel, alla uppmätta 2026-08-18. Det
+     tredje, listans fyrtio pixlars indrag, är rättat på `.dagar` ovanför:
+
+       Tiderna började på olika x. Listan var 416 px bred, och med tiderna
+       högerställda mot dess kant startade "07:00–23:00" på 333,5 px medan
+       "Stängt" startade på 373. Halvstrecket i klockslagen vandrade alltså
+       fyrtio pixlar i sidled mellan två rader i samma tabell.
+
+       Avståndet mellan dag och tid var olika på varje rad, eftersom
+       dagnamnen mäter 45,0 till 53,0 px. På 390 px, där listan fyller sina
+       358, blev gapet omkring 230 px brett och raden föll isär i två.
+
+     Nu ligger dagnamnet i en spalt på fast bredd och tiden vänsterställd
+     direkt efter den, alltså samma x på alla sju raderna. 5,5 rem är 88 px
+     och lämnar 33 px luft efter det längsta namnet ("Måndag", 53,0 px vid
+     400 och omkring 54,6 vid 600 som dagens rad står i). Spalt två är `auto`,
+     så listan blir precis så bred som det bredaste klockslaget kräver, och
+     `justify-content: start` håller den vänsterställd i stället för utspänd.
+
+     `font-variant-numeric: tabular-nums` på tiden stod redan här och behövs
+     fortfarande: utan den är ettan smalare än nollan i Instrument Sans, och
+     då står inte 07:00 och 11:30 i linje ens inom samma spalt. */
   .dag {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--s-4);
+    display: grid;
+    grid-template-columns: 5.5rem auto;
+    justify-content: start;
+    column-gap: var(--s-4);
     padding: 6px 0;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
@@ -296,13 +319,93 @@ const nagotOppet = rows.some((r) => !r.closed);
     line-height: var(--lh-body-s);
   }
 
-  /* Raden är nu tre korta led i stället för fyra rader prosa, så den ska
-     ligga som en rad och inte som ett stycke. `max-width` fyllde en funktion
-     när texten radbröt och fyller ingen längre. */
-  .kalla {
+  /* ── Upphovet ────────────────────────────────────────────────────────── */
+
+  .upphov {
+    position: relative;
+    display: inline-flex;
+    margin-top: var(--s-3);
+  }
+
+  /* Knappen är InfoTips prick, samma 16 px cirkel med hårlinje och samma
+     bokstav, så att de två läses som samma sorts kontroll. Triangeln som
+     `<summary>` annars ritar tas bort i båda formerna: `list-style` för
+     Firefox och Chrome, `::-webkit-details-marker` för Safari. */
+  summary {
+    position: relative;
+    list-style: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-sans);
+    cursor: help;
     display: flex;
     align-items: center;
-    gap: var(--s-2);
-    margin-top: var(--s-3);
+    justify-content: center;
+    transition: color .12s ease, border-color .12s ease;
+  }
+
+  summary::-webkit-details-marker { display: none; }
+
+  /* Träffytan, 44 px i alla lägen.
+     ────────────────────────────────────────────────────────────────────────
+     InfoTip.astro ger sin prick 24 px för mus och 44 för finger, och skälet
+     står där: den pricken sitter inuti löpande text med rader omkring 28 px
+     isär, och en osynlig 44-cirkel hade nått ner i raden under. Villkoret
+     gäller inte här. Knappen står ensam sist i ett avsnitt, med 12 px till
+     helgdagsraden ovanför och avsnittets hela 32 px luft nedanför, alltså
+     finns 44 px att ta utan att någon annan kontroll nås. Den är dessutom
+     numera det ENDA som syns av upphovet, och en 16 px stor licensknapp är
+     inte en knapp någon hittar. */
+  summary::after {
+    content: '';
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+  }
+
+  summary:hover,
+  summary:focus-visible {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  /* Rutan är ett svävande lager och bär därför sajtens glasyta, samma som
+     InfoTips bubbla: .glass för oskärpa, kant och lyft, .glass-dark för den
+     mörka fyllningen. Absolut placerad, så att en utfällning inte skjuter ned
+     resten av sidan.
+
+     Nedåt och inte uppåt: uppåt hade rutan lagt sig över det veckoschema den
+     handlar om. Nedanför ligger nästa avsnitts luft.
+
+     Bredden är `max-content` med tak, och taket räknar bort sidans två
+     kantmarginaler så att rutan aldrig kan sticka ut ur vyporten på 390 px. */
+  .ruta {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 5;
+    width: max-content;
+    max-width: min(19rem, calc(100vw - 2 * var(--s-4)));
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: var(--fs-caption);
+    line-height: 17px;
+    font-weight: 400;
+  }
+
+  .licens {
+    margin-top: 4px;
+  }
+
+  .ruta a {
+    display: inline-block;
+    margin-top: 6px;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 </style>

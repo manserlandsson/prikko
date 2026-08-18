@@ -1,0 +1,121 @@
+---
+/**
+ * "Öppet nu" i ögonhöjd, direkt under verksamhetens namn.
+ *
+ * ## Varför tillståndet lämnade öppettidsavsnittet
+ *
+ * Pillen satt i rubriken på Oppettider.astro, och det avsnittet ligger under
+ * kartan. Uppmätt 2026-08-18 i 1 200 px på /stockholm/ica-supermarket-vanadis/
+ * låg rubriken (h1) 127 px ned i dokumentet och pillen 2 460 px, alltså
+ * 2 333 px isär, eller nästan tre skärmhöjder. Ägaren: "borde inte öppet
+ * nu/stängt nu, sitta typ längre upp vid namnet eller någon och sen hela stor
+ * widgeten där nere där den är nu."
+ *
+ * Bara TILLSTÅNDET flyttar. Veckoschemat står kvar där det stod, av samma skäl
+ * som skrev dit det: det hör ihop med kartan, det är härlett ur OpenStreetMap,
+ * och det får inte hamna mellan bedömningen och vad kontrollen visade.
+ *
+ * ## Varför pillen står på egen rad och inte i metaraden
+ *
+ * Metaraden under namnet lyder "Butik · Vanadisvägen 12B · Stockholm ·
+ * Vasastaden" och är 174 px ned i dokumentet. Att haka på tillståndet där var
+ * det första förslaget, och det föll på tilläggets längd: `status()` i
+ * lib/oppettider.ts kan svara "Öppnar nästa onsdag 11:00", alltså 25 tecken
+ * utöver "Stängt nu". Metaraden bryter redan till två rader i 390 px, och med
+ * tillägget blev det tre rader som bröt på olika ställen beroende på
+ * klockslag. En egen rad kostar EN rad, alltid samma, och den raden finns bara
+ * på de sidor som har tider.
+ *
+ * ## Varför den är tom i den byggda filen
+ *
+ * Tillståndet räknas i webbläsaren, aldrig vid bygget. Sajten är statisk och en
+ * HTML-fil kan ligga i en cache i timmar; "Öppet nu" skrivet vid bygget hade
+ * varit osant större delen av dygnet. Se lib/oppettider.ts punkt 1.
+ *
+ * Följden är att elementet står tomt OCH `hidden` i filen, och fylls i av
+ * skriptet i Oppettider.astro när sidan öppnas. `hidden` och inte bara tom
+ * text: raden ligger nu högst upp på sidan, där en tom rad med radhöjd hade
+ * synts som en lucka mellan namnet och bedömningen.
+ *
+ * `[hidden]`-regeln i stilarna nedan måste stå kvar. En `display`-regel skriven
+ * av oss slår ut webbläsarens egen `[hidden] { display: none }`, och pillen
+ * hade då stått som en tom rad på var femte sida.
+ *
+ * ## Varför den aldrig är grön
+ *
+ * Grönt är bedömningens språk på den här sajten. `docs/17` stoppade en grön
+ * "öppet nu"-pille redan i rapport 15, och domen väger tyngre här än där den
+ * skrevs: pillen står numera en rad under namnet och några rader ovanför det
+ * gröna märket, alltså exakt den sammanblandning domen handlade om. Öppet är
+ * märkesbläck, stänger snart är bärnsten, stängt är dämpat grått.
+ *
+ * ## Varför den bär `data-oppettider-osm`
+ *
+ * Verksamhetens egna tider slår OpenStreetMaps. Foretagsuppgifter.astro döljer
+ * OSM-avsnittet i det ögonblick redaktionen släppt fram förstahandsuppgifter,
+ * och pillen är samma uppgift ur samma källa. Attributet gör att den döljs i
+ * samma svep; utan det hade sidan visat ett tillstånd räknat ur OSM en rad
+ * under namnet och verksamhetens egna tider längre ned.
+ */
+import { weekRows, type Hours } from '../lib/oppettider';
+
+interface Props {
+  hours: Hours;
+}
+
+const { hours } = Astro.props;
+
+/* Samma villkor som Oppettider.astro: ett veckoschema där alla sju dagarna är
+   stängda är inget schema, och då ska ingen pille finnas att fylla heller. */
+const nagotOppet = weekRows(hours).some((r) => !r.closed);
+---
+
+{nagotOppet && (
+  <p class="oppet-pille" data-oppettider-osm data-oppet-pille hidden>
+    <span class="prick" aria-hidden="true"></span>
+    <span class="lage" data-oppet-lage></span>
+    <span class="tillagg text-secondary" data-oppet-tillagg></span>
+  </p>
+)}
+
+<style>
+  /* Pillen. Kant och bakgrund saknas med flit, alltså ingen fylld form: en
+     fylld pille en rad under namnet väger lika tungt som bedömningsmärket
+     strax under, och en öppettid är inte ett besked av den digniteten. */
+  .oppet-pille {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  /* Måste stå EFTER display-regeln ovan. Webbläsarens `[hidden] { display:
+     none }` ligger i dess egen ursprungsnivå och förlorar mot varje regel vi
+     skriver själva, oavsett specificitet. Utan den här raden syns en tom rad
+     med 24 px radhöjd mellan namnet och bedömningen på 2 742 sidor. */
+  .oppet-pille[hidden] {
+    display: none;
+  }
+
+  .prick {
+    align-self: center;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: currentColor;
+  }
+
+  /* ÖPPET ÄR MÄRKESBLÅTT OCH ALDRIG GRÖNT. Se modulkommentaren. */
+  .oppet-pille[data-lage='open'] { color: var(--brand-ink); }
+  /* Bärnsten och inte gult: --verdict-minor är bedömningens gula och ligger
+     dessutom på 1,5:1 mot vitt. Den här tonen är egen och läsbar. */
+  .oppet-pille[data-lage='closing'] { color: #B26B00; }
+  .oppet-pille[data-lage='closed'] { color: var(--ink-quiet); }
+
+  .tillagg {
+    font-weight: 400;
+  }
+</style>
