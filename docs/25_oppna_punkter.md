@@ -17,6 +17,7 @@ Senast genomgången: 2026-08-12.
 | Ordmärket | Variant C sätter ansiktet före ordet och är enda vägen till centralitet. Variant A lämnar formen orörd. `brand/ordmarke-forslag.html`. | Ditt val |
 | R2-nycklar | Behövs för gatubilderna. Läggs i `~/.prikko-env`. | Din åtgärd |
 | Geotorget | `GEOTORGET_USERNAME=maga0001` plus lösenord i `~/.prikko-env` när den juridiska granskningen landat. | Din åtgärd |
+| SCB:s företagsregister | Ett mejl till `scbforetag@scb.se` för att få certifikat till arbetsställe-API:et, plus två frågor som avgör om funktionen alls går att bygga. Färdig lydelse i `35_scb_foretagsregistret.md` avsnitt 6. Villkoren måste godkännas av en namngiven person, så en agent kan inte göra det. | Din åtgärd |
 | Utgivningsbevis | 3 000 kr. Skjuts upp tills vidare. | Uppskjuten |
 | GitHub Actions | Pushar startar fortfarande inga körningar. Kolla fliken. | Din åtgärd |
 | Migadu | Mejlen är inte färdigflyttad. | Din åtgärd |
@@ -36,6 +37,14 @@ Ingen. Kön är tom och allt är pushat, se listan längst ned.
   frågade om den ska byggas och fick aldrig svar.
 - **Företagsverifiering.** Du nedprioriterade den uttryckligen: att allt
   fungerar och ser ut som Booli går före.
+- **Noten om nedlagda verksamheter.** Utredd och avgjord i
+  `35_scb_foretagsregistret.md`, men inte byggd, och den ska inte byggas förrän
+  två saker landat: certifikatet från SCB, och det nya API:et som ersätter det
+  nuvarande i september 2026. Designen är låst: en not på sidan när SCB säger
+  att arbetsstället inte längre är verksamt, aldrig avpublicering, och
+  ingenting alls när SCB bara saknar stället. Talen som motiverar den: 2 501 av
+  16 047 publicerade verksamheter saknar kontroll nyare än två år, och
+  kommunerna har själva avpublicerat 59 rader någonsin.
 - **Bevakningslistan på kontot visar bara namn och stad.** Vad en bevakning ÄR
   är avgjort, se `17_produktfunktioner.md`, avsnittet "Vad en bevakning gör":
   en lista på kontot, med mejlet som tillägg. Notiserna skrivs numera varje
