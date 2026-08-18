@@ -127,31 +127,49 @@ def overpass(query: str, tries: int = 6) -> dict:
     raise SystemExit(f"Overpass gav inget svar: {last}")
 
 
-def fetch_extract(code: str) -> list:
-    """Hämta kommunens adresspunkter. En fråga, inte en per adress."""
+def fetch_extract(code: str) -> tuple:
+    """Hämta kommunens adresspunkter och dess omslutande rektangel.
+
+    En fråga, inte en per adress. Rektangeln följer med i samma hämtning
+    eftersom kommungränsen ändå slås upp för att avgränsa adressfrågan, och
+    den blir kommunens rimlighetsram. Se `build_index`.
+
+    Uttag hämtade före rektangeln fanns saknar den i filen. Då returneras
+    None, och ramen får komma från MUNICIPALITIES i stället. Att kasta de
+    cachade uttagen hade tvingat fram två hämtningar av 5,5 MB utan att en
+    enda koordinat blivit bättre.
+    """
     EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
     path = EXTRACT_DIR / f"osm_addresses_{code}.json"
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))["elements"]
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        return stored["elements"], stored.get("bbox")
 
     print(f"  hämtar adresspunkter för kommun {code} från Overpass", file=sys.stderr)
     # Kommungränsen slås upp på SCB-koden i stället för på namnet: namn ändras,
     # koden gör det inte. admin_level 7 är kommun i Sverige.
     boundary = overpass(
-        f'[out:json][timeout:180];relation["ref:scb"="{code}"]["admin_level"="7"];out ids;'
+        f'[out:json][timeout:180];relation["ref:scb"="{code}"]["admin_level"="7"];out ids bb;'
     )
     relations = boundary.get("elements") or []
     if len(relations) != 1:
         raise SystemExit(f"Hittade {len(relations)} kommungränser för {code}, väntade en.")
     area = 3600000000 + relations[0]["id"]
+    edges = relations[0].get("bounds") or {}
+    bbox = (
+        [edges["minlon"], edges["minlat"], edges["maxlon"], edges["maxlat"]]
+        if edges
+        else None
+    )
 
     payload = overpass(
         f'[out:json][timeout:600];'
         f'(node["addr:housenumber"](area:{area});way["addr:housenumber"](area:{area}););'
         f"out center tags;"
     )
+    payload["bbox"] = bbox
     path.write_text(json.dumps(payload), encoding="utf-8")
-    return payload["elements"]
+    return payload["elements"], bbox
 
 
 def load_cache() -> dict:
@@ -276,16 +294,39 @@ def build_index(code: str, source: str, refresh: bool):
         # Kommunens egen utsträckning ur uttaget slår en handskriven radie.
         return index, lantmateriet.bounds_from_stac(code, metadata["bbox"])
 
-    municipality = MUNICIPALITIES.get(code)
-    if municipality is None:
-        raise SystemExit(
-            f"Ingen mittpunkt definierad för kommun {code}; se prikko/geocode.py"
-        )
     if refresh:
         stale = EXTRACT_DIR / f"osm_addresses_{code}.json"
         if stale.exists():
             stale.unlink()
-    index = AddressIndex.from_overpass(fetch_extract(code))
+    elements, bbox = fetch_extract(code)
+    index = AddressIndex.from_overpass(elements)
+
+    # Ramen som träffarna prövas mot. Kommungränsens omslutande rektangel
+    # kommer ur samma hämtning som adresserna och beskriver kommunens
+    # faktiska utsträckning, så den slår en handskriven mittpunkt med radie
+    # satt på höft. Samma resonemang som lantmateriet.bounds_from_stac, och
+    # samma funktion gör arbetet.
+    #
+    # MUNICIPALITIES går före när den har kommunen. Uppsalas och Örebros
+    # 1 611 koordinater är satta mot just de ramarna, och en ny ram hade
+    # kunnat släppa in eller kasta träffar som redan är publicerade. En
+    # ändring av vilka nålar som finns ska vara ett beslut, inte en bieffekt
+    # av att uttaget hämtats om.
+    municipality = MUNICIPALITIES.get(code)
+    if municipality is None:
+        if bbox is None:
+            raise SystemExit(
+                f"Kommun {code} har varken en mittpunkt i prikko/geocode.py eller en\n"
+                f"kommungräns i uttaget. Hämta om uttaget:\n"
+                f"    rm {EXTRACT_DIR / f'osm_addresses_{code}.json'}"
+            )
+        municipality = lantmateriet.bounds_from_stac(code, bbox)
+        print(
+            f"  ram ur kommungränsen: {municipality.radius_km} km från "
+            f"{municipality.lat}, {municipality.lng}",
+            file=sys.stderr,
+        )
+
     print(
         f"  OSM: {index.points} adresspunkter på {index.streets} gator",
         file=sys.stderr,
@@ -358,15 +399,24 @@ def process(path: Path, entries: dict, refresh: bool, requested: str) -> Counter
         set_after(establishment, "geoSource", "geoPrecision", cached["precision"])
         stats[f"precision:{cached['precision']}"] += 1
 
-    payload = insert_after(
-        payload,
-        "source",
-        "geocoding",
-        {
-            **PROVENANCE[source],
-            "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        },
-    )
+    # Licensblocket skrivs bara när filen faktiskt bär en härledd koordinat.
+    # En ODbL-klausul i en fil utan en enda nål är ett påstående om data som
+    # inte finns, och i fyra av tolv kommuner är det just läget: Borgholm,
+    # Höganäs, Lomma och Svenljunga publicerar ingen gatuadress, så noll av
+    # deras 439 adressrader går att slå upp. Samma regel som
+    # pipeline/oppettider.py skriver sitt block efter.
+    if stats[MATCHED]:
+        payload = insert_after(
+            payload,
+            "source",
+            "geocoding",
+            {
+                **PROVENANCE[source],
+                "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            },
+        )
+    else:
+        payload.pop("geocoding", None)
     # indent=1 och ingen avslutande radbrytning — samma form som fetch_*.py
     # skriver, så att diffen visar koordinaterna och inget annat.
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from prikko.lantmateriet import bounds_from_stac  # noqa: E402
 from prikko.geocode import (  # noqa: E402
     MATCHED,
     MISS_AMBIGUOUS,
@@ -188,6 +189,51 @@ class TestVerify(unittest.TestCase):
         # Uppsala domkyrka till Örebro slott, ~200 km fågelvägen.
         metres = haversine_m(59.8578, 17.6337, 59.2741, 15.2130)
         self.assertTrue(150_000 < metres < 250_000, metres)
+
+
+class RamUrKommungransen(unittest.TestCase):
+    """Kommuner utan handskriven mittpunkt får sin ram ur kommungränsen.
+
+    MUNICIPALITIES är en undantagslista med två poster, och den ska inte
+    växa. Kommungränsens omslutande rektangel kommer i samma Overpass-hämtning
+    som adresserna och beskriver kommunens faktiska utsträckning, i stället
+    för att vara satt på höft. Se build_index i pipeline/geocode.py.
+    """
+
+    #: Uppmätt 2026-08-18 ur OSM-relationernas bounds, [väst, syd, öst, nord].
+    BBOX = {
+        "0885": [16.5039243, 56.5906657, 17.5197713, 57.4944500],
+        "1284": [12.1174567, 56.1158751, 12.7724600, 56.4773657],
+        "1465": [12.8075364, 57.1455497, 13.2891486, 57.6760852],
+    }
+
+    def test_ramen_tacker_kommunens_horn(self):
+        """Radien måste nå rektangelns hörn, annars kastas riktiga adresser."""
+        for code, bbox in self.BBOX.items():
+            with self.subTest(code=code):
+                ram = bounds_from_stac(code, bbox)
+                west, south, east, north = bbox
+                for lat, lng in ((south, west), (south, east), (north, west), (north, east)):
+                    avstand = haversine_m(ram.lat, ram.lng, lat, lng) / 1000
+                    self.assertLessEqual(avstand, ram.radius_km)
+
+    def test_ramen_ar_inte_hur_vid_som_helst(self):
+        """En ram som täcker halva Sverige fångar inga grova fel.
+
+        Borgholm är den vidaste av de tre eftersom Öland är nio mil långt, och
+        60,8 km är den uppmätta radien där. Höganäs 30,5 och Svenljunga 34,8.
+        """
+        self.assertLess(bounds_from_stac("0885", self.BBOX["0885"]).radius_km, 65)
+        self.assertLess(bounds_from_stac("1284", self.BBOX["1284"]).radius_km, 35)
+        self.assertLess(bounds_from_stac("1465", self.BBOX["1465"]).radius_km, 40)
+
+    def test_ramen_avvisar_en_traff_i_en_annan_del_av_landet(self):
+        """Samma spärr som de handskrivna mittpunkterna ger."""
+        borgholm = bounds_from_stac("0885", self.BBOX["0885"])
+        self.assertEqual(
+            verify(Match(59.8586, 17.6389, PRECISION_ADDRESS), borgholm),
+            "outside_municipality",
+        )
 
 
 if __name__ == "__main__":

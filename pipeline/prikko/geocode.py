@@ -101,8 +101,19 @@ class Municipality:
 
 
 # Mittpunkter från kommunernas centralorter. Radien är satt med marginal över
-# kommunens faktiska utsträckning — den ska fånga grova fel, inte trimma bort
+# kommunens faktiska utsträckning: den ska fånga grova fel, inte trimma bort
 # en gård i utkanten. Uppsala kommun sträcker sig cirka fem mil norrut.
+#
+# Tabellen är en UNDANTAGSLISTA och ska inte växa. En kommun utan post här får
+# sin ram ur kommungränsens omslutande rektangel, som kommer i samma
+# Overpass-hämtning som adresserna och beskriver kommunens faktiska
+# utsträckning i stället för att vara satt på höft. Se build_index i
+# pipeline/geocode.py och bounds_from_stac i lantmateriet.py.
+#
+# De två som står kvar gör det för att deras 1 611 koordinater är satta mot
+# just de här ramarna. En ny ram kunde ha släppt in eller kastat träffar som
+# redan är publicerade, och en ändring av vilka nålar som finns ska vara ett
+# beslut och inte en bieffekt.
 MUNICIPALITIES: Dict[str, Municipality] = {
     "0380": Municipality("0380", 59.858, 17.645, 55.0),
     "1880": Municipality("1880", 59.275, 15.213, 45.0),
