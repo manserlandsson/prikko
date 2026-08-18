@@ -132,6 +132,20 @@ const parkeringar = packaUppParkeringar(parking);
 const restidUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
 /*
+ * Apple Kartor på Apple, Google Maps på allt annat.
+ *
+ * Ägarens besked: "vägbeskrivning ska antingen vara i apple maps eller google
+ * maps, inget annat". Google står i href och gäller därför utan JavaScript, i
+ * sökmotorns ögon och på allt som inte är Apple; skriptet nedan byter adress
+ * på Apple-plattformar.
+ *
+ * `dirflg=w` betyder gång, vilket matchar knappens gående figur och Ednias
+ * förlaga. Bara koordinaten skickas med, precis som i Google-adressen: den är
+ * vår och exakt, medan ett namn kan tolkas om av karttjänstens sökning.
+ */
+const appleUrl = `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=w`;
+
+/*
  * "Rätta"-länken går till KARTAN vid koordinaten och inte till ett enskilt
  * OSM-objekt, till skillnad från Kontaktuppgifter.astros länk. Skälet är att
  * avsnittet handlar om omgivningen och inte om ett objekt: parkeringsraden är
@@ -144,7 +158,7 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
 <section class="tadighit" aria-labelledby="tadighit-rubrik">
   <h2 id="tadighit-rubrik">Ta dig hit</h2>
 
-  <a class="restid" href={restidUrl} rel="nofollow noopener" target="_blank">
+  <a class="restid" data-restid data-apple={appleUrl} href={restidUrl} rel="nofollow noopener" target="_blank">
     {/* Den gående figuren är förlagans ikon, ritad om i vår streckvikt.
         Den bor här och inte i en delad ikonfil eftersom den används på ett
         enda ställe; behövs den på ett andra ska den flytta ut, se resonemanget
@@ -444,3 +458,24 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
     text-underline-offset: 2px;
   }
 </style>
+
+<script>
+  /*
+   * Bytet sker på `href` och inte vid klicket, så att långklick och "öppna i
+   * ny flik" ger samma mål som ett vanligt klick.
+   *
+   * `maxTouchPoints` skiljer iPad från Mac: sedan iPadOS 13 säger iPaden att
+   * den är en Mac i user agent, och en Mac har noll pekpunkter.
+   */
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-restid]')) {
+    const apple = /iPhone|iPad|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      || /Mac/.test(navigator.userAgent);
+    if (apple && a.dataset.apple) {
+      a.href = a.dataset.apple;
+      // Apple Kartor tar över skärmen på telefon; en ny flik lämnar en tom
+      // sida kvar bakom appen.
+      a.removeAttribute('target');
+    }
+  }
+</script>
