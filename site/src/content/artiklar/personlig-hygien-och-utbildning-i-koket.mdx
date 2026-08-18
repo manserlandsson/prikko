@@ -1,6 +1,6 @@
 ---
 title: "Personalen är det inspektören sällan anmärker på"
-description: "Personlig hygien ger avvikelse vid 6,4 procent av granskningarna, utbildning vid 5,4. Ändå är dålig hygien hos personalen den vanligaste orsaken bakom matförgiftningar."
+description: "Personlig hygien och utbildning hör till de punkter som brister mest sällan. Ändå är dålig hygien hos personalen den vanligaste orsaken bakom matförgiftningar."
 lede: "Två av kontrollens punkter handlar om människorna i köket i stället för om lokalen och maten. Båda ligger nära botten av listan över vad som brister. Livsmedelsverkets utbrottsstatistik pekar åt precis motsatt håll, och båda sakerna kan vara sanna samtidigt."
 category: "Förklarat"
 published: "2026-08-12"
@@ -15,33 +15,61 @@ import Diagram from '../../components/Diagram.astro';
 import FactGrid from '../../components/FactGrid.astro';
 import Parstapel from '../../components/Parstapel.astro';
 import Stapel from '../../components/Stapel.astro';
+import {
+  andel,
+  andelsrad,
+  antalOrd,
+  basmening,
+  ensamrader,
+  hygienpunkter,
+  kategoriandel,
+  kategoripar,
+  kommunlista,
+  nummer,
+  ordningstal,
+  ovrigaUtan,
+  ovrigaVid,
+  ovrigarader,
+  plats,
+  punkt,
+  punktBas,
+  tvaDecimaler,
+} from '../../lib/punktstatistik';
 
 ## Två punkter om människor
 
-Av de nio punkterna under grundförutsättningar och hygien handlar sju om lokalen,
-utrustningen, maten eller djuren. Två handlar om personalen: J04, personlig
-hygien, och J05, utbildning i hygien och arbetsmetoder.
+Av de {antalOrd(hygienpunkter().length)} punkterna under grundförutsättningar och
+hygien handlar {antalOrd(hygienpunkter().length - 2)} om lokalen, utrustningen,
+maten eller djuren. Två handlar om personalen: J04, personlig hygien, och J05,
+utbildning i hygien och arbetsmetoder.
 
-Talen nedan är räknade på 14 588 kontroller i Linköping och Örebro, som skriver
-ut varje punkt inspektören tittade på och inte bara dem som gav en anmärkning.
+Talen nedan är räknade på {nummer(punktBas().kontroller)} kontroller i
+{kommunlista()}, de {antalOrd(punktBas().kommuner.length)} av beståndets
+{antalOrd(punktBas().kommunerTotalt)} kommuner som skriver ut varje punkt
+inspektören tittade på och inte bara dem som gav en anmärkning. Stockholm
+publicerar bara lagstiftningsområdet och faller ur helt.
 
 <Diagram
   titel="Personalpunkterna i siffror"
-  underlag="14 588 kontroller med redovisade kontrollpunkter i Linköping och Örebro, augusti 2026."
+  underlag={basmening()}
 >
   <FactGrid
     facts={[
-      { label: 'Personlig hygien, andel av granskningarna', value: '6,4', unit: '%' },
-      { label: 'Utbildning, andel av granskningarna', value: '5,4', unit: '%' },
-      { label: 'Avvikelser om personlig hygien', value: '567' },
-      { label: 'Avvikelser om utbildning', value: '275' },
+      { label: 'Personlig hygien, andel av granskningarna', value: andelsrad('J04').display.replace(' %', ''), unit: '%' },
+      { label: 'Utbildning, andel av granskningarna', value: andelsrad('J05').display.replace(' %', ''), unit: '%' },
+      { label: 'Avvikelser om personlig hygien', value: nummer(punkt('J04').avvikelse) },
+      { label: 'Avvikelser om utbildning', value: nummer(punkt('J05').avvikelse) },
     ]}
   />
 </Diagram>
 
-Personlig hygien granskades 8 897 gånger och gav avvikelse 567 gånger.
-Utbildningspunkten granskades 5 066 gånger och gav avvikelse 275 gånger. Bland de
-nio hygienpunkterna ligger de på sjunde och åttonde plats. Bara skadedjur
+Personlig hygien granskades {nummer(punkt('J04').granskad)} gånger och gav
+avvikelse {nummer(punkt('J04').avvikelse)} gånger. Utbildningspunkten granskades
+{nummer(punkt('J05').granskad)} gånger och gav avvikelse
+{nummer(punkt('J05').avvikelse)} gånger. Bland de
+{antalOrd(hygienpunkter().length)} hygienpunkterna ligger de på
+{ordningstal(plats('J04', hygienpunkter()))} och
+{ordningstal(plats('J05', hygienpunkter()))} plats. Bara skadedjur
 brister mer sällan, vilket vi har skrivit om i
 [Råttor och kackerlackor: den ovanligaste anmärkningen](/artiklar/skadedjur-ar-den-ovanligaste-anmarkningen/).
 
@@ -108,44 +136,34 @@ och det är vad de kommer tillsammans med.
 
 <Diagram
   titel="Hur ensamma avvikelserna står"
-  underlag="Andel av avvikelserna på respektive punkt som var den enda avvikelsen vid besöket. Samma 14 588 kontroller."
+  underlag={basmening('Andel av avvikelserna på respektive punkt som var den enda avvikelsen vid besöket.')}
 >
   <Stapel
     label="Andel av avvikelserna som var den enda avvikelsen vid besöket, per kontrollpunkt"
     scale={40}
     avdelare
-    rows={[
-      { label: 'Kylkedja och temperatur', value: 37.0, display: '37,0 %', note: '533 av 1 441 avvikelser stod ensamma' },
-      { label: 'Hygien före, under och efter', value: 34.4, display: '34,4 %', note: '657 av 1 911' },
-      { label: 'Personlig hygien', value: 22.8, display: '22,8 %', note: '129 av 566' },
-      { label: 'Bekämpning av skadedjur', value: 21.1, display: '21,1 %', note: '52 av 247' },
-      { label: 'Utbildning i hygien', value: 11.6, display: '11,6 %', note: '32 av 275' },
-    ]}
+    rows={ensamrader(['J08', 'J03', 'J04', 'J06', 'J05'])}
   />
 </Diagram>
 
 <Diagram
   titel="Övriga avvikelser vid samma kontroll"
-  underlag="Genomsnittligt antal andra avvikelser vid kontroller där punkten granskades, uppdelat på om punkten gav avvikelse eller inte."
+  underlag={basmening('Genomsnittligt antal andra avvikelser vid kontroller där punkten granskades, uppdelat på om punkten gav avvikelse eller inte.')}
 >
   <Parstapel
     serieA="När punkten gav avvikelse"
     serieB="När punkten var utan anmärkning"
     scale={2.5}
     label="Genomsnittligt antal övriga avvikelser vid samma kontroll, per kontrollpunkt"
-    rows={[
-      { label: 'Utbildning i hygien', a: 2.03, b: 0.54, aDisplay: '2,03', bDisplay: '0,54', note: '275 mot 4 789 kontroller' },
-      { label: 'Personlig hygien', a: 1.69, b: 0.66, aDisplay: '1,69', bDisplay: '0,66', note: '566 mot 8 322 kontroller' },
-      { label: 'Bekämpning av skadedjur', a: 1.74, b: 0.68, aDisplay: '1,74', bDisplay: '0,68', note: '247 mot 5 071 kontroller' },
-      { label: 'Kylkedja och temperatur', a: 1.21, b: 0.53, aDisplay: '1,21', bDisplay: '0,53', note: '1 441 mot 9 034 kontroller' },
-    ]}
+    rows={ovrigarader(['J05', 'J04', 'J06', 'J08'])}
   />
 </Diagram>
 
 Utbildningspunkten är den av hygienpunkterna som allra mest sällan står ensam.
-Nio av tio gånger den faller finns minst en annan avvikelse i samma protokoll,
-och i genomsnitt finns två. Var punkten utan anmärkning låg snittet på 0,54.
-Skillnaden är nästan fyrfaldig.
+Vid {andel(punkt('J05').avvikelse - punkt('J05').ensam, punkt('J05').avvikelse).replace(' %', ' procent')}
+av de gånger den faller finns minst en annan avvikelse i samma protokoll, och i
+genomsnitt finns {tvaDecimaler(ovrigaVid('J05'))}. Var punkten utan anmärkning
+låg snittet på {tvaDecimaler(ovrigaUtan('J05'))}.
 
 Det är begripligt. Utbildning är inte en detalj i lokalen utan en fråga om
 huruvida de som arbetar där vet vad de ska göra, och ett kök där ingen fått lära
@@ -159,26 +177,23 @@ eftersom frågan gäller vad som stod i samma protokoll.
 
 <Diagram
   titel="Andel granskningar som gav avvikelse, per kategori"
-  underlag="8 781 respektive 5 024 granskningar, alltså de där verksamhetens kategori går att avgöra."
+  underlag={basmening('Varje stapel har sin egen nämnare, alltså antalet gånger just den punkten granskades i den kategorin. Verksamheter vars kategori inte går att avgöra räknas inte.')}
 >
   <Parstapel
     serieA="Personlig hygien"
     serieB="Utbildning i hygien"
     scale={10}
     label="Andel granskningar som gav avvikelse på personlig hygien och på utbildning, per kategori"
-    rows={[
-      { label: 'Restauranger', a: 8.4, b: 7.4, aDisplay: '8,4 %', bDisplay: '7,4 %', note: '329 av 3 909 respektive 123 av 1 673' },
-      { label: 'Butiker', a: 8.3, b: 3.0, aDisplay: '8,3 %', bDisplay: '3,0 %', note: '59 av 712 respektive 14 av 464' },
-      { label: 'Caféer och bagerier', a: 7.6, b: 5.2, aDisplay: '7,6 %', bDisplay: '5,2 %', note: '61 av 807 respektive 20 av 385' },
-      { label: 'Övriga verksamheter', a: 5.6, b: 1.3, aDisplay: '5,6 %', bDisplay: '1,3 %', note: '15 av 269 respektive 3 av 231' },
-      { label: 'Skolor och omsorg', a: 3.0, b: 5.0, aDisplay: '3,0 %', bDisplay: '5,0 %', note: '93 av 3 084 respektive 114 av 2 271' },
-    ]}
+    rows={kategoripar('J04', 'J05')}
   />
 </Diagram>
 
-Skolköken är det som sticker ut. På personlig hygien ligger de på 3,0 procent mot
-restaurangernas 8,4, alltså den vanliga ordningen där kommunala kök klarar sig
-klart bäst. På utbildning krymper avståndet till nästan ingenting: 5,0 mot 7,4.
+Skolköken är det som sticker ut. På personlig hygien ligger de på
+{kategoriandel('J04', 'skola').replace(' %', ' procent')} mot restaurangernas
+{kategoriandel('J04', 'restaurang').replace(' %', ' procent')}, alltså den
+vanliga ordningen där kommunala kök klarar sig klart bäst. På utbildning krymper
+avståndet: {kategoriandel('J05', 'skola').replace(' %', ' procent')} mot
+{kategoriandel('J05', 'restaurang').replace(' %', ' procent')}.
 
 Skolköken är alltså den enda kategorin där utbildningspunkten faller oftare än
 den personliga hygienen. Vi kan inte läsa orsaken ur kontrollerna. Det som går
@@ -191,10 +206,16 @@ restaurangkök står i
 ## Bristerna rättas snabbt
 
 Personlig hygien är den punkt som är lättast att bli av med när den väl noterats.
-Av de 567 avvikelserna var 9 kvarstående vid kommunens uppföljning, alltså 1,6
-procent. För utbildningspunkten var 13 av 275 kvarstående, 4,7 procent.
+Av de {nummer(punkt('J04').avvikelse)} avvikelserna var
+{nummer(punkt('J04').kvarstod)} kvarstående vid kommunens uppföljning, alltså
+{andel(punkt('J04').kvarstod, punkt('J04').avvikelse).replace(' %', ' procent')}.
+För utbildningspunkten var {nummer(punkt('J05').kvarstod)} av
+{nummer(punkt('J05').avvikelse)} kvarstående,
+{andel(punkt('J05').kvarstod, punkt('J05').avvikelse).replace(' %', ' procent')}.
 
-Jämförelsen är skadedjur, där 9,3 procent av avvikelserna stod kvar. Ett smycke
+Jämförelsen är skadedjur, där
+{andel(punkt('J06').kvarstod, punkt('J06').avvikelse).replace(' %', ' procent')}
+av avvikelserna stod kvar. Ett smycke
 tas av och en handduk hängs upp samma dag. En utbildningsinsats tar längre tid,
 och ett skadedjursangrepp sitter i byggnaden.
 
@@ -248,4 +269,4 @@ slår du upp via [sökningen](/sok/).
 - [Livsmedelsverkets kontrollwiki: Utbildning](https://kontrollwiki.livsmedelsverket.se/artikel/347/utbildning): kravet på instruktion och övervakning anpassad till arbetsuppgiften.
 - [Livsmedelsverket: Vilka regler gäller för arbetskläder, smycken och smitta i en livsmedelsverksamhet?](https://fragor.livsmedelsverket.se/org/livsmedelsverket/d/hygien-klader-och-smitta-i-en-livsmedelsverksamhet/): att smittämnen minskar gradvis efter att symtomen upphört.
 - [Livsmedelsverket, rapport L 2025 nr 11: Rapporterade misstänkta matförgiftningar 2024](https://www.livsmedelsverket.se/4a4e07/globalassets/publikationsdatabas/rapporter/2025/l-2025-nr-11---rapporterade-misstankta-matforgiftningar-2024.pdf): 381 utbrott 2024, och tabell 3 med de bidragande faktorerna.
-- Andelarna per punkt, per kategori och per kontroll är räknade ur Prikkos bestånd i augusti 2026. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
+- Andelarna per punkt, per kategori och per kontroll räknas ur Prikkos bestånd vid varje bygge och ändras när nya kontroller kommer in. Se [källor och uppdatering](/kallor/) och [metodiken](/metodik/).
