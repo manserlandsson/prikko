@@ -170,7 +170,9 @@ const bredd = (v: number) => (top > 0 ? (v / top) * 100 : 0);
   }
 
   .fyllning.a, .prick.a { background: var(--brand); }
-  .fyllning.b, .prick.b { background: var(--text-muted); }
+  /* Ytton, inte textfärg. Se --tone-quiet i tokens.css: den ljusa grå är
+     kvar för grafik, medan textens grå slogs ihop till en 2026-08-18. */
+  .fyllning.b, .prick.b { background: var(--tone-quiet); }
 
   .tal {
     flex-shrink: 0;

@@ -158,7 +158,9 @@ const bredd = (v: number) => (top > 0 ? (v / top) * 100 : 0);
   }
 
   .ton-brand .fyllning { background: var(--brand); }
-  .ton-tyst .fyllning { background: var(--text-muted); }
+  /* Ytton, inte textfärg. Se --tone-quiet i tokens.css: den ljusa grå är
+     kvar för grafik, medan textens grå slogs ihop till en 2026-08-18. */
+  .ton-tyst .fyllning { background: var(--tone-quiet); }
 
   .not {
     display: block;

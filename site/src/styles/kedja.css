@@ -253,7 +253,10 @@
   height: 100%;
   margin-left: auto;
   border-radius: var(--r-pill);
-  background: var(--text-muted);
+  /* Ytton och inte textfärg. --text-muted var samma ljusa grå fram till
+     sammanslagningen 2026-08-18 och är nu sajtens enda grå bläck; en stapel
+     ska inte bli lika mörk som texten bredvid. Se --tone-quiet i tokens.css. */
+  background: var(--tone-quiet);
   min-width: 2px;
 }
 

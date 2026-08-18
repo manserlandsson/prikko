@@ -35,15 +35,41 @@
 
   /* Text */
   --text: #1D1D1F;
-  /* --text-secondary och --text-muted skrivs om inne i ett glaslager, se
-     .glass längre ned. --ink-quiet och --ink-faint gör det aldrig: de finns
-     för de få ställen som ligger på en ogenomskinlig yta inne i ett lager
-     och därför ska ha sajtens vanliga grå. Peka på dem bara när du vet att
-     ytan under är solid. */
+  /* EN grå för text. Inte tre.
+     ────────────────────────────────────────────────────────────────────────
+     Uppmätt på booli.se 2026-08-18: de har en enda grå, #767676, och den bär
+     1 element av 87 på startsidan, 6 av 113 på objektsidan och 43 av 491 på
+     sökresultatet. Sajten hade tre nivåer i stället: --ink-quiet #6E6E73,
+     --ink-faint #A1A1A6 och --glass-ink-quiet #56565B.
+
+     Den mellersta är borta som TEXTFÄRG. #A1A1A6 ligger på 2,6:1 mot vitt
+     och klarar alltså varken WCAG:s 4,5 för brödtext eller 3:1 för stor
+     text, och den bar 8 element på verksamhetssidan och 25 på kommunsidan.
+     Uppmätt i bygget 2026-08-18. --ink-quiet ligger på 5,4:1 och tar över.
+
+     Hierarkin under bläcket bärs därmed av storlek och vikt och inte av en
+     tredje ton. Det är samma slutsats som glaslagret redan drog, se
+     --glass-ink-quiet längre ned: "Inne i lagret finns därför två nivåer,
+     inte tre."
+
+     --text-secondary och --text-muted skrivs om inne i ett glaslager, se
+     .glass längre ned. --ink-quiet gör det aldrig: den finns för de få
+     ställen som ligger på en ogenomskinlig yta inne i ett lager och därför
+     ska ha sajtens vanliga grå. Peka på den bara när du vet att ytan under
+     är solid.
+
+     De två namnen står kvar och pekar på samma värde. Klassen .text-muted
+     finns i 53 filer, och att byta namn i alla på en gång är en ändring i
+     ordval och inte i form; sammanslagningen är gjord här, där färgen bor. */
   --ink-quiet: #6E6E73;
-  --ink-faint: #A1A1A6;
   --text-secondary: var(--ink-quiet);
-  --text-muted: var(--ink-faint);
+  --text-muted: var(--ink-quiet);
+
+  /* Den ljusa grå som var --ink-faint. Den är kvar, men BARA som yta och
+     aldrig som text: en stapel, en prick eller en ram är grafik, och 2,6:1
+     mot vitt är fullt läsbart som ett fält bredvid ett märkesblått. Skriv
+     aldrig color: var(--tone-quiet). */
+  --tone-quiet: #A1A1A6;
   --hairline: rgba(0, 0, 0, .08);
 
   /* Bedömningsnivåer. Tre steg, speglar källdatan (Sambruk assessment 0/1/2).
@@ -89,6 +115,37 @@
   --r-pill: 999px;
   --r-chip: 20px;              /* betygschip/ansiktsmärke */
 
+  /* Kontrollhöjder. FYRA värden, inga andra.
+     ────────────────────────────────────────────────────────────────────────
+     Uppmätt på booli.se 2026-08-18, samma mätkod i 1280×900 och 390×844:
+
+       sidhuvudets rad   64 px (`nav.h-16`, båda bredderna)
+       sökfältet         50 px (`.bui-input-search`, båda bredderna)
+       knapp och väljare 40 px filterknapp och sorteringsväljare,
+                         48 px `select` på startsidan, 40 px knapparna på
+                         objektsidan
+
+     Talen har rört sig sedan docs/27 skrevs 2026-08-13: filterraden mättes
+     då till 46 och ligger nu på 40. Vi tar 40, alltså det som faktiskt står
+     där i dag.
+
+     Vår sida låg på 58 px rad, 40 px fält i sidhuvudet och 36 på telefon,
+     och en lång svans därunder: 42 för knapparna, 34 för kartpuffen, 32 för
+     sökknappen, 22 för genvägsmärket och 16 för informationspricken.
+     Uppmätt i bygget 2026-08-18.
+
+     --h-tap är INTE hämtad från Booli. Deras runda sparknapp ligger på 32
+     och deras områdeschip på 27. 44 är WCAG 2.5.5 och Apples eget golv, och
+     det är vårt krav och inte deras. Sitter en kontroll under 44 av
+     formskäl, som ett 40 px chip, ska den bära ett genomskinligt ::after
+     utanför sig i stället för att växa. Receptet står i kartram.css vid
+     `.kartram .maplibregl-ctrl-group button::after` och ska återanvändas
+     därifrån, inte uppfinnas per komponent. */
+  --h-bar: 64px;               /* sidhuvudets rad */
+  --h-field: 50px;             /* sökfältet */
+  --h-control: 40px;           /* knapp, väljare, chip */
+  --h-tap: 44px;               /* golv för träffyta, aldrig lägre */
+
   /* Skuggor (sparsamt — annars hairline + luft).
 
      Första stoppet är ingen skugga utan en RING: en 1 px hårlinje ritad som
@@ -130,7 +187,8 @@
      den mörkaste fläck en 24-pixlars oskärpa kan ge rgb(14,18,10), i
      Karlstads bild, i praktiken svart. En yta på 82 procent vitt över svart
      kompositeras till #D1D1D1, och mot den ligger --text-secondary (#6E6E73)
-     på 3,32:1 och --text-muted (#A1A1A6) på 1,68:1. Båda under WCAG:s 4,5.
+     på 3,32:1 och den dåvarande --text-muted (#A1A1A6) på 1,68:1. Båda under
+     WCAG:s 4,5.
 
      Lösningen är inte mer opacitet. Det hade krävt över 92 procent för att
      rädda --text-secondary, och då är glaset borta. Lösningen är bläcket:
@@ -397,15 +455,20 @@ img, svg { max-width: 100%; height: auto; }
   .glass-dark { --glass-fill: var(--text); }
 }
 
+/* Sajtens knapp. Höjden är satt och inte räknad ur padding: den var 42 px,
+   alltså två pixlar under träffytegolvet, för att 12 plus 12 plus en 14/1-rad
+   råkade bli 38 och ikonen sköt upp den till 42. En knapp som byter höjd med
+   sitt innehåll kan inte lova en träffyta. Se --h-tap i tokens ovan. */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  height: var(--h-tap);
   background: var(--brand);
   color: #fff;
   border: 0;
   border-radius: var(--r-pill);
-  padding: 12px 22px;
+  padding-inline: 22px;
   font: 600 var(--fs-body-s)/1 var(--font-sans);
   cursor: pointer;
 }
