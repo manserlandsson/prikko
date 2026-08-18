@@ -28,10 +28,10 @@ anrop, inga nya sidor.
 3. **Ingen täckningsgräns styr vad som visas.** Det var min feltolkning, och
    ägaren rättade den: "har vi datan bara på få så är det fortfarande bättre?
    kan vi visa telefonnummer på 10 av 10000 så är det värt det." §6.
-4. **Bilder finns, och svaret jag gav förut var fel.** 27 verksamheter kan få
+4. **Bilder finns, och svaret jag gav förut var fel.** 27 verksamheter HAR nu
    en fotograferad bild med FRI licens, curerad per objekt och spärrad mot
    avstånd. Ingen av dem kommer ur `image`-taggen, som är ett spår som inte
-   bär. §5.
+   bär. Bilderna ligger hos oss och kostar noll filer av taket. §5.
 5. **Uppgifterna står som ett kort överst i högerspalten, inte i
    huvudkolumnen.** Spalten är "det man gör", huvudkolumnen är
    kontrollberättelsen, och ett telefonnummer är inte en del av bedömningen.
@@ -321,8 +321,9 @@ Två förbehåll som hör till svaret och inte ska döljas:
    som kräver att upphovsmannen anges "på det sätt som är rimligt för
    mediet".
 
-**Nästa steg, när bilderna byggs.** Urvalet är helt bestämt av regler som
-redan finns i koden, så det behöver ingen ny lista att underhålla:
+**Byggt 2026-08-18.** Urvalet är helt bestämt av regler som redan finns i
+koden, så det behöver ingen lista att underhålla. `pipeline/prikko/commons.py`
+och `pipeline/hamta_commonsbilder.py`:
 
 1. Para verksamheten som vanligt, `pipeline/prikko/oppettider.py`.
 2. Läs `wikidata` ur OSM-taggarna. 33 hopparade bär den. Läs ALDRIG
@@ -330,14 +331,74 @@ redan finns i koden, så det behöver ingen ny lista att underhålla:
 3. Hämta P18 och P625 ur Wikidata. Faller P18 bort finns ingen bild.
 4. Kasta den om P625 ligger mer än 150 meter från OSM-punkten, eller saknas.
    Det är spärren i tabellen ovan, och den fäller tre av trettio.
-5. Hämta licens och upphovsman ur Commons `extmetadata`
-   (`LicenseShortName`, `Artist`, `LicenseUrl`) för den fil som blir kvar.
+5. Hämta licens och upphovsman ur Commons `extmetadata` för den fil som blir
+   kvar. Licensen läses ur `License`, alltså Commons EGEN maskinkod, och inte
+   ur `LicenseShortName`, som är en text för människor och finns i flera
+   stavningar. Listan över fria licenser är en TILLÅTELSELISTA: en okänd kod
+   betyder ingen bild, aldrig "förmodligen fri".
 
-Det som återstår därefter är ett val som inte är mitt att ta: att spegla
-filerna hos oss kostar 27 filer av taket i `docs/25` och gör oss till
-utgivare, att länka till Commons lägger en begäran till en tredje part i varje
-sidvisning. Bildtexten måste bära upphovsman, licensnamn och årtal, se
-förbehållen ovan.
+### 5.4.1 De två val som stod öppna, och hur de föll
+
+**Spegla eller länka.** Bilderna ligger hos oss. Att peka på
+`upload.wikimedia.org` för 27 bilder är att lägga vår last på en stiftelses
+infrastruktur, och en adress som ändras ger en trasig bild utan att något
+bygge klagar. Frågan om vad speglingen kostar av filtaket i `docs/25` hade ett
+felaktigt antagande i sig: **den kostar noll filer.** Bilderna ligger i
+objektlagringen, samma väg som gatubilderna, och en bild där är ingen fil i
+utgåvan. Bygget mätte 17 000 filer med de 27 bilderna på plats, alltså 2 500
+kvar till grinden vid 19 500. De 27 väger 4,09 MB tillsammans, i snitt 151 kB,
+omskrivna till WebP i 1 024 bildpunkters bredd.
+
+Omskrivningen är inte en förbättring utan ett villkor. Commons originalfiler
+bär fotografens EXIF, inklusive GPS, och den ska inte flytta till vår publika
+hink. `prepare` i `imagery.py` returnerar originalbytesen oförändrade när
+Pillow saknas, vilket är rätt för gatubilderna och fel här, så `commons.capture`
+vägrar lagra i stället. Vi hämtar dessutom Commons egen miniatyr och inte
+originalet: den bär noll EXIF-taggar redan när den kommer.
+
+**Bildtextens form, och varför den bryter mot i-knappsregeln.** Ägaren har
+sagt att källan ska ligga i (i)-ikonen och att inget sådant ska stå utskrivet.
+Den regeln följs för öppettiden och kontakten och bryts här. Skälet är
+licensen: ODbL kräver att upphovet är rimligt synligt där uppgiften visas, och
+en (i) intill uppgiften är den form kartbranschen använder mot precis den
+licensen. CC BY och CC BY-SA är avtal med varje enskild fotograf, och 23 av de
+27 bilderna bär `AttributionRequired = true` i Commons egna metadata.
+
+CC BY-SA 4.0 avsnitt 3(a)(2) säger att villkoren får uppfyllas "in any
+reasonable manner based on the medium, means, and context", och nämner att en
+länk till en resurs med uppgifterna kan räcka. En (i)-knapp skulle alltså
+formellt kunna duga. **Vår tolkning är strängare**, och den står utskriven i
+`site/src/components/Commonsbild.astro`: rimligt prövas mot mediet, och för en
+liten bild i en spalt är en synlig bildtext den vedertagna formen och den
+Commons själv rekommenderar sina återanvändare.
+
+Bildtexten är två rader:
+
+```
+Foto: Holger.Ellgaard, 2013
+Wikimedia Commons · CC BY-SA 3.0 · nedskalad
+```
+
+Den övre är den mänskliga uppgiften, den undre licensmaskineriet.
+"Wikimedia Commons" länkar till filsidan, som är URI:n avsnitt 3(a)(1)(A)(v)
+ber om; filsidan och inte bildfilen, för filsidan bär originalet, licensen,
+fotografen och hela historiken. "nedskalad" är ändringsangivelsen enligt
+3(a)(1)(B), och den gör dessutom länken meningsfull: den som vill ha
+originalet vet nu att det finns ett och var. I panelens 268 px blir det två
+rader om 15 px, alltså 32 px totalt och ingen radbrytning mitt i ett
+fotografnamn.
+
+**En form och inte två, trots att fyra av 27 är public domain och inte kräver
+någonting.** De får samma bildtext, av två skäl som inte är juridiska. Årtalet
+är ett ÄRLIGHETSkrav och inte ett licenskrav, och tre av de fyra public
+domain-bilderna är just de historiska: Wirströms 1959, Blå porten 1912 till
+1920, Rosendals värdshus 1966. Och Commons vet vem som tog dem, Lennart af
+Petersens och Ingemar Gram; att stryka en fotograf ur bildtexten för att vi
+juridiskt får hade gjort de fyra sidorna till de enda utan proveniens.
+
+Årtalet skrivs som ett spann när källan anger ett spann. Commons säger "mellan
+1912 och 1920" om Blå porten, och att avrunda det till 1912 vore en precision
+vi inte har.
 
 ### 5.5 Panoramax
 
@@ -581,7 +642,7 @@ till att en kommun sticker ut i en enskild kolumn.
 
 ## 9. Hur det körs om
 
-Ingen ny körning och inget nytt skript. Samma kommandon som `docs/33` §9:
+Samma kommandon som `docs/33` §9 för öppettider och kontakt:
 
 ```
 python3 pipeline/oppettider.py --matt site/src/data/*.json   # mäter, skriver inget
@@ -592,15 +653,35 @@ python3 pipeline/oppettider.py --refresh site/src/data/*.json  # hämtar OSM på
 Körningen skriver ut kontakttäckningen per kommun och sammanlagt, med
 nämnaren utsatt, precis som den redan gör för öppettiderna.
 
+Bilderna har ett eget skript, eftersom de kostar anrop till två tjänster till
+och bara berör 27 rader. Det läser samma uttag och gör samma hopparning:
+
+```
+python3 pipeline/hamta_commonsbilder.py --matt site/src/data/*.json   # mäter
+set -a && . ~/.prikko-env && set +a
+python3 pipeline/hamta_commonsbilder.py site/src/data/*.json          # hämtar
+```
+
+Körningen skriver ut hur många som bär `wikidata`, hur många som har en P18
+och hur många som klarar spärren, och den NAMNGER var och en som spärras och
+varför. Det är den enda gången någon får se att spärren gör sitt jobb.
+
+Skriptet är idempotent: objektnyckeln är deterministisk och rader som redan
+har en bild hoppas över. Det skriver BÅDE i datafilen och i tabellen `images`,
+för `export_supabase.py` bygger om filen ur databasen varje natt och känner
+bara till `image` genom den tabellen.
+
 Proven:
 
 ```
-python3 pipeline/tests/test_oppettider.py     # 70 prov, varav 20 nya
+python3 pipeline/tests/test_oppettider.py     # 75 prov, varav 25 nya
+python3 pipeline/tests/test_commons.py        # 38 prov
 node site/scripts/check-oppettider.ts         # 38 prov med inskickad klocka
 ```
 
-De 20 nya proven bygger på verkliga värden ur våra egna uttag, inklusive de
-fyra trasiga webbadresserna och telefonfältet som innehåller en URL.
+De nya proven bygger på verkliga värden ur våra egna uttag, inklusive de fyra
+trasiga webbadresserna, telefonfältet som innehåller en URL, de tre bilder
+spärren fäller och den dolda dubblett Commons `Artist`-fält bär för Blå porten.
 
 **Noll matpunkter är fortfarande ett fel och inte ett utfall.** Regeln i
 `docs/33` §9 är oförändrad och blir viktigare nu: ett tomt svar som skrevs
@@ -611,9 +692,9 @@ kommun.
 
 ## 10. Vad som återstår
 
-1. **Bilderna.** 27 fritt licensierade bilder ligger uträknade, se §5.
-   Det som återstår är valet mellan att spegla dem hos oss och att länka till
-   Commons, plus en bildtext som bär upphovsman, licens och årtal.
+1. **Bilderna är byggda**, se §5.4. Det som återstår för dem är att köra om
+   skriptet när Wikidata får fler P18 eller när fler verksamheter får en
+   `wikidata`-tagg i OSM. Ingen bild byts av sig själv.
 2. **Sociala medier och matsedel.** `contact:instagram` (73),
    `contact:facebook` (54) och `website:menu` (50) är mätta och byggbara. De
    är inte bortvalda på täckning, se §6, utan bara inte beställda.
