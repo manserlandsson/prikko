@@ -219,6 +219,61 @@ const jsonLd = {
       </p>
     </section>
 
+    {/* OSM-avsnittet, och varför det finns.
+
+        Verksamhetssidan bär en rad i sin källfot som säger vilka fält som
+        kommer ur OpenStreetMap, se Sidupphov.astro. Den raden är
+        attributionen ODbL 4.3 kräver, och den ryms inte med hela
+        redovisningen: vilka fält, hur många sidor, vilken licens och vad
+        kartbilden är för något. Den här sidan bär det, och sidfoten på varje
+        sida länkar hit. Foten på verksamhetssidan får INTE en tredje länk för
+        det: den bär redan två, till licensen och till objektet, och en fotnot
+        med tre länkar slutar läsas som en fotnot.
+
+        Talen räknas inte fram här utan står som mätta tal från 2026-08-18. De
+        ändras när uttaget körs om, och då ska de skrivas om. Ett tal som
+        räknas ur `establishments()` vid varje bygge hade varit finare, men
+        `hours`, `contact`, `stop` och `parking` är valfria fält på 16 047
+        poster och en sådan räkning kostar en genomgång av hela datamängden
+        för fyra siffror i en text. */}
+    <section id="openstreetmap">
+      <h2>Öppettider, kontakt och kartan</h2>
+      <p>
+        Några uppgifter på en verksamhetssida kommer inte från kommunen utan
+        från{' '}
+        <a href="https://www.openstreetmap.org/copyright" rel="nofollow">
+          OpenStreetMap</a>, en öppen databas som frivilliga skriver. De är
+        märkta med källan i en rad längst ned på sidan, och det är fem saker:
+        öppettiderna, kontaktkortet med telefon, webbplats, e-post och Bra att
+        veta, närmaste hållplats, antalet parkeringar i närheten, och på
+        kartan nålens läge när kommunen inte lämnat någon koordinat.
+      </p>
+      <p>
+        Uppgifterna finns långt ifrån överallt, mätt den 18 augusti 2026: en
+        öppettid på 2 747 av 16 047 verksamheter, ett kontaktkort på 3 274, en
+        hållplats på 12 870, en parkering på 10 606 och en beräknad nål på
+        1 631. Saknas uppgiften skriver vi ingenting alls i stället för att
+        skriva att vi inte vet.
+      </p>
+      <p>
+        Databasen ligger under{' '}
+        <a href="https://opendatacommons.org/licenses/odbl/" rel="nofollow">
+          ODbL 1.0</a>, som kräver att källan anges där uppgifterna visas.
+        Ser du ett fel är det bästa du kan göra att rätta det i
+        OpenStreetMap; länken finns i raden längst ned på verksamhetssidan, och
+        rättelsen når då alla som använder databasen och inte bara oss.
+      </p>
+      <p>
+        Kartbilden är en annan sak än uppgifterna ovan. Rutorna kommer från{' '}
+        <a href="https://openfreemap.org" rel="nofollow">OpenFreeMap</a> och är
+        ritade ur{' '}
+        <a href="https://www.openmaptiles.org/" rel="nofollow">OpenMapTiles</a>
+        {' '}data, som i sin tur kommer ur OpenStreetMap. Det upphovet står i
+        kartans eget hörn, ritat av kartprogrammet självt, och det ska stå kvar
+        där även på sidor som inte visar en enda annan OSM-uppgift.
+      </p>
+    </section>
+
     <section id="gatubilder">
       <h2>Gatubilderna</h2>
       <p>
