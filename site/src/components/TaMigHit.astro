@@ -231,11 +231,20 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
   )}
 
   {(hallplats || parkeringar) && (
-    <p class="forbehall">
-      {/* ORDET FÅGELVÄGEN ÄR INTE UTSMYCKNING. Utan det påstår raden ett
+    <div class="forbehall">
+      {/* RUTAN ÄR EN `div` OCH INTE ETT `p`, och det är en felrättning.
+
+          `<details>` är flödesinnehåll och får inte stå i ett `<p>`;
+          webbläsaren stänger då stycket åt en före taggen. Uppmätt i bygget
+          2026-08-18 blev följden att (i)-knappen hamnade som ett SYSKON efter
+          stycket i stället för i det, alltså på egen rad under texten, och
+          `display: flex` på stycket kunde inte hjälpa eftersom knappen inte
+          längre låg där.
+
+          ORDET FÅGELVÄGEN ÄR INTE UTSMYCKNING. Utan det påstår raden ett
           gångavstånd vi inte har räknat, och läsaren har inget sätt att
           upptäcka skillnaden förrän hon står vid ett stängsel. */}
-      Avstånden är fågelvägen, inte gångväg.
+      <span>Avstånden är fågelvägen, inte gångväg.</span>
       <details class="upphov">
         <summary aria-label="Källa och licens för avstånden">i</summary>
         {/* `data-nosnippet` av samma skäl som InfoTip.astro bär det: utan
@@ -243,16 +252,18 @@ const osmUrl = `https://www.openstreetmap.org/#map=17/${lat}/${lng}`;
             ligger närmast, och en licensklausul är det sämsta tänkbara första
             mötet med sidan. Texten finns kvar i dokumentet. */}
         <div class="ruta glass glass-dark" data-nosnippet>
-          <p>
-            Hållplatser och parkeringar kommer från OpenStreetMap
-            {checkedAt && <>, hämtade {formatDate(checkedAt)}</>}. De redigeras
-            av frivilliga och rättas där.
-          </p>
+          {/* Datumledet byggs som en STRÄNG och inte som ett `<>`-fragment i
+              markeringen. Ett fragment på egen rad ärver radbrytningens
+              blanksteg, och uppmätt i bygget 2026-08-18 blev följden det
+              synliga felet "OpenStreetMap , hämtade 18 augusti". */}
+          <p>{`Hållplatser och parkeringar kommer från OpenStreetMap${
+            checkedAt ? `, hämtade ${formatDate(checkedAt)}` : ''
+          }. De redigeras av frivilliga och rättas där.`}</p>
           <p class="licens">© OpenStreetMap contributors, ODbL 1.0.</p>
           <a href={osmUrl} rel="nofollow noopener" target="_blank">Se platsen i OpenStreetMap</a>
         </div>
       </details>
-    </p>
+    </div>
   )}
 </section>
 
