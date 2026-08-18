@@ -294,6 +294,37 @@ def email_of(tags: Dict[str, str]) -> Optional[str]:
     return None
 
 
+#: Ett Wikidata-objekt: Q följt av en siffra som inte är noll, sedan siffror.
+#: Formen prövas och gissas aldrig. Ett värde som inte har den här formen är
+#: inte ett objekt vi kan slå upp, och att skicka det till Wikidata ändå ger
+#: antingen ingenting eller fel objekt.
+_QID = re.compile(r"^Q[1-9][0-9]*$")
+
+#: NYCKELN ÄR `wikidata` OCH FÅR ALDRIG BLI `brand:wikidata`.
+#:
+#: Mätt 2026-08-18 på de 3 927 hopparade: `wikidata` står på 33 och pekar på
+#: STÄLLET, `brand:wikidata` står på 762 och pekar på KEDJAN. Läser man den
+#: andra får 762 verksamheter en bild av kedjans logotyp eller av ett helt
+#: annat ställe i landet, och felet ser rätt ut hela vägen: id:t finns,
+#: objektet finns, bilden finns. Se docs/37_osm_taggar.md §5.3.
+#:
+#: Det är därför nyckeln står ensam i en konstant i stället för i en tupel
+#: som `_PHONE_KEYS`. En tupel bjuder in nästa läsare att lägga till en till.
+_WIKIDATA_KEY = "wikidata"
+
+
+def wikidata_of(tags: Dict[str, str]) -> Optional[str]:
+    """OSM-objektets Wikidata-id, eller None.
+
+    Bär bilderna. Wikidata-objektet har en P18, alltså den bild Wikidata
+    utsett att föreställa just det objektet, och en P625, alltså objektets
+    egen koordinat. Den andra är spärren mot den första: se
+    pipeline/prikko/commons.py.
+    """
+    value = (tags.get(_WIKIDATA_KEY) or "").strip()
+    return value if _QID.match(value) else None
+
+
 # ---------------------------------------------------------------------------
 # Egenskaper: uteservering, avhämtning, tillgänglighet och de andra
 # ---------------------------------------------------------------------------
@@ -448,6 +479,10 @@ class Poi:
     #: aldrig i sin helhet. Tvetydighetsprövningen i `pair` samlar `poi.ref`
     #: och `poi.opening_hours`, som båda är strängar.
     facts: Dict[str, str] = field(default_factory=dict)
+    #: Wikidata-objektet för STÄLLET, aldrig för kedjan. 33 av de 3 927
+    #: hopparade bär ett. Se `wikidata_of` för varför skillnaden är hela
+    #: skillnaden, och prikko/commons.py för vad det används till.
+    wikidata: Optional[str] = None
 
     @property
     def ref(self) -> str:
@@ -455,7 +490,7 @@ class Poi:
 
 
 def pois_from_overpass(elements: Iterable[dict]) -> List[Poi]:
-    """Plocka namn, läge, öppettid, telefon och webbplats ur Overpass-svaret.
+    """Plocka namn, läge, öppettid, kontakt och wikidata-id ur Overpass-svaret.
 
     Namnlösa objekt kastas direkt: de kan aldrig paras på namn, och att bära
     dem vidare skulle bara göra tvetydighetsprövningen dyrare.
@@ -486,6 +521,7 @@ def pois_from_overpass(elements: Iterable[dict]) -> List[Poi]:
                 website=website_of(tags),
                 email=email_of(tags),
                 facts=facts_of(tags),
+                wikidata=wikidata_of(tags),
             )
         )
     return out

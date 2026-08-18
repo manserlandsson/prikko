@@ -33,6 +33,7 @@ from prikko.oppettider import (  # noqa: E402
     phone_of,
     pois_from_overpass,
     website_of,
+    wikidata_of,
 )
 
 
@@ -400,6 +401,35 @@ class Egenskaper(unittest.TestCase):
         self.assertEqual(facts_of({"name": "Rossi", "amenity": "restaurant"}), {})
 
 
+class Wikidataid(unittest.TestCase):
+    """Det farligaste provet i filen, för felet ser rätt ut.
+
+    `brand:wikidata` står på 762 av de 3 927 hopparade och `wikidata` på 33.
+    Läses den förra får 762 verksamheter kedjans bild i stället för sin egen,
+    och ingenting i kedjan därefter kan upptäcka det: id:t finns, objektet
+    finns, bilden finns. Se docs/37_osm_taggar.md §5.3.
+    """
+
+    def test_stallets_id_lases(self):
+        self.assertEqual(wikidata_of({"wikidata": "Q1145843"}), "Q1145843")
+
+    def test_kedjans_id_lases_aldrig(self):
+        self.assertIsNone(wikidata_of({"brand:wikidata": "Q177054"}))
+
+    def test_kedjans_id_bredvid_stallets_stor_inte(self):
+        tags = {"wikidata": "Q1145843", "brand:wikidata": "Q177054"}
+        self.assertEqual(wikidata_of(tags), "Q1145843")
+
+    def test_fel_form_kastas(self):
+        # Ett värde som inte är ett objekt-id ska aldrig skickas till
+        # Wikidata. Svaret blir antingen tomt eller ett annat objekt.
+        for value in ("Q0", "P18", "1145843", "q1145843", "Q1145843;Q2", ""):
+            self.assertIsNone(wikidata_of({"wikidata": value}), value)
+
+    def test_utan_tagg(self):
+        self.assertIsNone(wikidata_of({"name": "Riche"}))
+
+
 class Uttag(unittest.TestCase):
     def test_taggarna_foljer_med_ur_overpass(self):
         # Overpass-frågan hämtade HELA taggmängden redan innan, se
@@ -418,6 +448,8 @@ class Uttag(unittest.TestCase):
                         "email": "info@allegrine.se",
                         "opening_hours": "Mo-Th 11:30-23:00",
                         "outdoor_seating": "yes",
+                        "wikidata": "Q1145843",
+                        "brand:wikidata": "Q177054",
                     },
                 }
             ]
@@ -426,6 +458,7 @@ class Uttag(unittest.TestCase):
         self.assertEqual(poi.website, "https://allegrine.se")
         self.assertEqual(poi.email, "info@allegrine.se")
         self.assertEqual(poi.facts["outdoor"], "yes")
+        self.assertEqual(poi.wikidata, "Q1145843")
 
 
 if __name__ == "__main__":
