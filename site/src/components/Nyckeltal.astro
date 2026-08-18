@@ -86,11 +86,21 @@ const { tal, kompakt = false } = Astro.props;
 
 <style>
   /* Kompakt: talet ett steg ned och luften därefter. Se propen ovan. */
+  /* Kompakt: 21 px och inte 24.
+   *
+   * Panelen i sidospalten är 268 px innehåll bred. 24 px över en 13 px
+   * bildtext var rätt förhållande men fel absolut storlek i den bredden: talet
+   * plus etiketten plus bandet plus tre förklaringsrader gjorde rutan till
+   * sidans tyngsta block, trots att den bara är sammanhang. Ägaren: "för stort
+   * allting, den va mer clean förut".
+   *
+   * 21 över 13 håller samma förhållande som Ednia och Stripe använder, det
+   * läser fortfarande som ett nyckeltal, och det tävlar inte längre med
+   * bedömningen i huvudkolumnen. */
   .nyckeltal.kompakt { margin-top: var(--s-3); gap: var(--s-4); }
-
   .nyckeltal.kompakt .varde {
-    font-size: var(--fs-h);
-    line-height: var(--lh-h);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
   }
 
   .nyckeltal {

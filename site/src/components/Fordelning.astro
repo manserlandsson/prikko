@@ -87,7 +87,7 @@ const total = delar.reduce((sum, d) => sum + d.n, 0);
       ))}
     </div>
 
-    <ul class="nyckel" style={`--spaltbredd:${min}`}>
+    <ul class:list={["nyckel", { kompakt }]} style={`--spaltbredd:${min}`}>
       {delar.map((d) => (
         <li>
           <span class="varde">
@@ -151,6 +151,46 @@ const total = delar.reduce((sum, d) => sum + d.n, 0);
     display: flex;
     align-items: baseline;
     gap: var(--s-2);
+  }
+
+  /* Kompakt teckenförklaring: EN rad per post i stället för två.
+   *
+   * I sidopanelen är spalten 300 px bred med 16 px padding, alltså 268 px
+   * innehåll. Rutnätet med `minmax(118px, 1fr)` gav två spalter à 126 px, och
+   * i den bredden radbryter "Inga anmärkningar" och "Brister som kvarstår".
+   * Tre poster blev därmed sex rader, med ett 17 px tal över varje. Ägaren:
+   * "för stort allting, den va mer clean förut".
+   *
+   * Formen här är en teckenförklaring och inte tre nyckeltal. Prick, tal och
+   * etikett på samma rad läser som en förklaring till bandet ovanför, vilket
+   * är vad den ÄR. Talet går till metatextgraden och behåller tabular-nums, så
+   * att 6 485, 606 och 157 står högerställda i samma kolumn och går att
+   * jämföra med ögat.
+   *
+   * Sex rader blir tre, och den stora ytan i panelen blir bandet och
+   * procenttalet, alltså det man kom för. */
+  .nyckel.kompakt {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+  }
+
+  .nyckel.kompakt li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: var(--s-3);
+  }
+
+  /* Talet först i källan men prick och etikett först i raden. Ordningen i
+     markupen styr uppläsningen och ska förbli tal före etikett. */
+  .nyckel.kompakt .varde { order: 2; }
+  .nyckel.kompakt .lbl { order: 1; }
+
+  .nyckel.kompakt b {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
   }
 
   .nyckel b {

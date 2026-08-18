@@ -164,22 +164,38 @@ const nal = faceSvg(key, derived);
     )}
   </p>
 
-  {/* Vägbeskrivning, och den öppnar telefonens EGEN karta.
+  {/* Vägbeskrivning till Apple Kartor eller Google Maps, och ingenting annat.
    *
-   * `geo:`-schemat är det som Android och iOS båda förstår och som lämnar
-   * valet av app till telefonen. En länk rakt till Google Maps hade valt åt
-   * användaren, och en till Apple Maps hade varit fel på varannan telefon.
+   * Här stod först en `geo:`-länk, som lämnar valet av app till telefonen.
+   * Den var teoretiskt snyggare och praktiskt sämre: `geo:` gör oftast
+   * ingenting alls på dator, så knappen var död för hälften av besöken, och
+   * på telefon öppnar den vilken app som helst som registrerat schemat.
+   * Ägarens besked: "vägbeskrivning ska antingen vara i apple maps eller
+   * google maps, inget annat".
    *
-   * Adressen följer med som `q` så att appen visar ett namn i stället för ett
-   * koordinatpar, men koordinaten står först: den är vår, exakt, och fungerar
-   * även när adressen är stavad på ett sätt appens sökning inte känner igen.
+   * Google Maps står i href och är därför det som gäller utan JavaScript, i
+   * sökmotorns ögon och på allt som inte är Apple. Adressen fungerar överallt,
+   * länken öppnar appen när den finns och webben annars.
    *
-   * På dator gör `geo:` ofta ingenting alls, och därför står länken till
-   * OpenStreetMap bredvid. Den är dessutom källan vi själva bygger på, så den
-   * länken är sann på ett sätt en Google-länk inte hade varit.
+   * Skriptet byter till Apple Kartor på Apple-plattformar. Det sker i
+   * webbläsaren och inte vid bygget, eftersom sidan är statisk och samma HTML
+   * går till alla. Byten sker på `href`, alltså före klicket, så att långklick
+   * och "öppna i ny flik" ger samma mål som ett vanligt klick.
+   *
+   * Koordinaten står först i båda fallen. Den är vår och exakt, och fungerar
+   * även när adressen är stavad på ett sätt karttjänstens sökning inte känner
+   * igen. Namnet följer med som etikett så att nålen får ett namn i stället
+   * för ett koordinatpar.
    */}
   <p class="vagbeskrivning">
-    <a class="btn-quiet btn-tight vag-knapp" href={`geo:${lat},${lng}?q=${encodeURIComponent(sokterm)}`}>
+    <a
+      class="btn-quiet btn-tight vag-knapp"
+      data-vag
+      data-apple={`https://maps.apple.com/?daddr=${lat},${lng}&q=${encodeURIComponent(name)}&dirflg=w`}
+      href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+      rel="noopener"
+      target="_blank"
+    >
       {/* Nålen ligger i Nalikon.astro och inte här.
        *
        * Två skäl. Ritningen kommer att behövas fler gånger, och en ikon som
@@ -195,13 +211,28 @@ const nal = faceSvg(key, derived);
       <Nalikon class="ikon" size={18} />
       <span>Vägbeskrivning</span>
     </a>
-    <a
-      class="karttjanst"
-      href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}`}
-      rel="nofollow noopener"
-      target="_blank"
-    >Öppna i karta</a>
   </p>
+
+  <script>
+    /*
+     * Apple Kartor på Apple, Google Maps på allt annat.
+     *
+     * `maxTouchPoints` skiljer iPad från Mac: sedan iPadOS 13 säger iPaden att
+     * den är en Mac i user agent, och en Mac har noll pekpunkter. Utan det
+     * hade iPad fått Google Maps trots att Apple Kartor finns installerad.
+     */
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('a[data-vag]')) {
+      const apple = /iPhone|iPad|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        || /Mac/.test(navigator.userAgent);
+      if (apple && a.dataset.apple) {
+        a.href = a.dataset.apple;
+        // Apple Kartor öppnas i samma flik på telefon; en ny flik lämnar en
+        // tom sida kvar bakom appen.
+        a.removeAttribute('target');
+      }
+    }
+  </script>
 </section>
 
 <script>
@@ -435,13 +466,12 @@ const nal = faceSvg(key, derived);
      Han skrev "men idk", alltså är det ett beslut på mätning. Det blir nej,
      av tre skäl som inte är smak:
 
-     1. HANS PILLE ÄR EN LÄNK, VÅR ÄR TVÅ. Ednias knapp går till
-        maps.google.com och fungerar överallt. Vår går till `geo:`, som är rätt
-        val (se kommentaren vid länken) men som inte gör någonting alls på en
-        dator. Därför står "Öppna i karta" bredvid, och det är den som bär
-        skrivbordet. Flyttar den ena in i hörnet blir kartans mest framträdande
-        plats en knapp som är död på halva trafiken, och räddningen bredvid
-        den blir en ensam liten länk under adressen.
+     1. SKÄLET SOM FÖLL. Här stod att hans pille är en länk och vår två,
+        eftersom `geo:` inte gör någonting på dator och "Öppna i karta" fick
+        bära skrivbordet. Det stämmer inte längre: länken går nu till Google
+        Maps med Apple Kartor som byte i webbläsaren, alltså EN länk som
+        fungerar överallt, och den andra är borttagen. Skälet räknas därför
+        inte, precis som slutraden här nedanför föreskrev.
 
      2. HÖRNET ÄR INTE LEDIGT HOS OSS. Ednia har ett föremål per hörn. Vår
         karta har helskärm PLUS zoomstapel uppe till höger och MapLibres
@@ -455,8 +485,9 @@ const nal = faceSvg(key, derived);
      3. DEN HÖR TILL ADRESSEN. Man läser var stället ligger och vill sedan ta
         sig dit. Kartan ovanför svarar redan på var; raden här svarar på hur.
 
-     Ändras något av de tre, till exempel om `geo:` byts mot en länk som
-     fungerar på dator, ska beslutet räknas om och inte ärvas. */
+     Beslutet står alltså kvar på två skäl av tre, och de två är de som
+     handlar om vår sida och inte om vår länk. Faller något av dem ska
+     beslutet räknas om och inte ärvas. */
   .vagbeskrivning {
     display: flex;
     align-items: center;
@@ -476,11 +507,6 @@ const nal = faceSvg(key, derived);
      Nalikon.astro. */
   .vag-knapp :global(.ikon) {
     flex: none;
-  }
-
-  .karttjanst {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
   }
 
   .adress {
