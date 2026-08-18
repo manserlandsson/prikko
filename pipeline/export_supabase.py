@@ -15,6 +15,35 @@ appen — läser däremot databasen i realtid, där den hör hemma.
     python3 pipeline/export_supabase.py --out site/src/data
 
 Skriver en fil per kommun, samma format som fetch_*.py producerar.
+
+FÄLT SOM BOR I FILEN OCH INTE I DATABASEN
+-----------------------------------------
+"Databasen är sanningen" gäller allt kommunen lämnar ut. Det gäller INTE det
+vi räknar fram själva ur någon annans licensierade data. Sådant har ingen
+kolumn i Supabase, och en del av det får aldrig få en: Lantmäteriet avslog
+2026-08-17 vår begäran enbart på grunden att lagringen sker där. Se
+`filradering` och docs/34_ny_ansokan_lantmateriet.md.
+
+Exporten bygger varje post från grunden. Ett fält den inte uttryckligen bär
+över raderas alltså tyst nästa natt, och det har hänt tre gånger på två
+dygn. Här är hela listan på fält som bara finns i filen:
+
+    lat, lng                    härledda ur adressen, pipeline/geocode.py
+    geoSource, geoPrecision     koordinatens ursprung och noggrannhet
+    geocoding                   filens licens och attribution för nålarna
+    hours                       veckoschema, pipeline/oppettider.py
+    openingHours                filens licens och attribution för tiderna
+
+Alla fem bärs över i dag, och kartnålarna har dessutom en grind, se
+`coordinate_collapse`. Någon grind per fält byggs inte: raderingen är alltid
+samma fel, och grinden fångar bara det fält som råkar ha en.
+
+Provet som gäller framåt är i stället en regel. Skriver ett skript i
+site/src/data ett fält som inte har en kolumn i Supabase, så måste det fältet
+läggas till här i samma ändring. Två skript gör det: pipeline/geocode.py och
+pipeline/oppettider.py. Ett tredje som gör det utan att röra den här filen
+raderar sitt eget arbete inom ett dygn, och ingenting klagar, eftersom en
+verksamhet utan de här fälten är fullt publicerbar.
 """
 
 from __future__ import annotations
