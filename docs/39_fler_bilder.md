@@ -24,9 +24,10 @@ skälet står i §4.
    Ingen har längre intygat att objektet ÄR stället, så beviset byggs i koden:
    namnen ska vara lika ordmängder, objektets slag ska stå i en
    tillåtelselista, licensen ska vara fri, och verksamhetens namn ska stå i
-   filnamnet eller i filens beskrivning. Grindarna fäller 71 av 254
-   kandidater, och varje grind fäller ett eget slags fel med ett verkligt
-   exempel bakom sig. §3.2.
+   filnamnet eller i filens beskrivning. 254 kandidater klarar de två första
+   grindarna, 15 av dem har redan en bild via OSM-vägen, och av de 239 som slås
+   upp faller 56 på licensen eller på motivet. Varje grind fäller ett eget
+   slags fel med ett verkligt exempel bakom sig. §3.2.
 3. **Commons geosökning bär inte, och det är inte närheten som fäller den.**
    Det finns 49 305 geotaggade Commons-filer i våra områden och 43 295 av dem
    ligger inom 150 meter av någon verksamhet. Namnkravet skalar ned det till
