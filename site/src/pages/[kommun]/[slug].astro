@@ -48,6 +48,7 @@ import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
+import Commonsbild from '../../components/Commonsbild.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
 import MatsnuskNote from '../../components/MatsnuskNote.astro';
@@ -67,6 +68,8 @@ import {
   categoriesOf,
   establishments,
   followUp,
+  isRemark,
+  mergedAreas,
   municipalities,
   sourceFor,
   formatDate,
@@ -313,14 +316,83 @@ if (stats.total > 1) {
   const antal = formatNumber(stats.total);
   grund =
     e.verdict !== null
-      ? `Bedömningen vilar på ${antal} kontroller som ${kommun.name} publicerat ${plats} sedan ${stats.oldestYear}.`
-      : `${kommun.name} har publicerat ${antal} kontroller ${plats} sedan ${stats.oldestYear}.`;
+      ? `Bedömningen vilar på ${antal} kontroller som kommunen publicerat ${plats} sedan ${stats.oldestYear}.`
+      : `Kommunen har publicerat ${antal} kontroller ${plats} sedan ${stats.oldestYear}.`;
 } else if (stats.total === 1) {
   grund =
     e.verdict !== null
-      ? `Bedömningen vilar på den enda kontroll ${kommun.name} publicerat ${plats}.`
-      : `${kommun.name} har publicerat en kontroll ${plats}.`;
+      ? 'Bedömningen vilar på den enda kontroll kommunen publicerat ' + plats + '.'
+      : `Kommunen har publicerat en kontroll ${plats}.`;
 }
+
+/**
+ * "Vad betyder det här?" vid bedömningen, och SANT FÖR JUST DEN HÄR SIDAN.
+ *
+ * Besökaren möter "Inga anmärkningar" eller "Brister" och har hittills bara
+ * haft en väg till vad det vilar på: länken till metodiken, som skickar iväg
+ * hen från sidan hen kom för. Länken står kvar för den som vill läsa hela
+ * modellen, men den är inte längre det enda svaret. Förklaringen sker där man
+ * står, i det tips som redan satt på etiketten.
+ *
+ * TEXTEN GRENAR PER UTFALL, av samma skäl som `answer` och `detail` gör det
+ * några rader upp. En generisk mening hade varit osann på de flesta sidor:
+ *
+ *  - 3 345 av 16 047 sidor bär granskade områden på den senaste kontrollen,
+ *    alltså 20,8 procent. Där kan vi säga vad kommunen faktiskt tittade på.
+ *    På 11 137 sidor finns en kontroll men inga områden, och där är svaret att
+ *    kommunen publicerar utfallet och inte omfattningen. Det är också ett svar,
+ *    och det är dessutom en upplysning om källan.
+ *  - 1 565 sidor saknar helt en publicerad kontroll att beskriva.
+ *  - 11 966 sidor är rena, 1 219 har brister, 373 har brister som kvarstår
+ *    och 2 489 saknar bedömning. De fyra behöver olika meningar om HUR
+ *    bedömningen satts, eftersom modellen gör olika saker i de fyra fallen.
+ *    Se levels[] på metodiksidan, som speglar grading.py.
+ *
+ * Områdena räknas genom mergedAreas och isRemark, alltså samma två funktioner
+ * som avsnittet "Vad kontrollen visade" längre ned använder. Talen i tipset
+ * och talen i avsnittet får aldrig skilja sig åt, och Örebro bokför en del
+ * punkter två gånger vid samma besök.
+ *
+ * Kommunens namn står EN gång i tipset. Det är därför `grund` ovan säger
+ * "kommunen" och inte namnet: omfattningsmeningen kommer först och namnger
+ * den, och `grund` kan aldrig stå utan omfattning, eftersom den kräver minst
+ * en kontroll och omfattningen då alltid finns.
+ */
+const granskade = latestInspection ? mergedAreas(latestInspection.areas) : [];
+const avvikelser = granskade.filter(isRemark).length;
+const omradesord = granskade.length === 1 ? 'granskat område' : 'granskade områden';
+
+let omfattning: string;
+if (!latestInspection) {
+  omfattning = `${kommun.name} har inte publicerat någon kontroll ${plats}.`;
+} else if (granskade.length === 0) {
+  omfattning =
+    `${kommun.name} publicerar utfallet av kontrollen den ` +
+    `${formatDate(latestInspection.date)}, men inte vilka områden som granskades.`;
+} else if (avvikelser === 0) {
+  omfattning =
+    `Vid kontrollen den ${formatDate(latestInspection.date)} redovisar ` +
+    `${kommun.name} ${granskade.length} ${omradesord} utan en enda avvikelse.`;
+} else {
+  omfattning =
+    `Vid kontrollen den ${formatDate(latestInspection.date)} redovisar ` +
+    `${kommun.name} ${granskade.length} ${omradesord}, varav ${avvikelser} med avvikelse.`;
+}
+
+/* Hur nivån satts. Formuleringarna speglar metodiksidans levels[], som i sin
+   tur speglar pipeline/prikko/grading.py. Ändras modellen ändras båda. */
+const regel =
+  e.verdict === 'clean'
+    ? 'Vi bedömer alltid den senaste kontrollen och aldrig ett snitt, så en anmärkning som åtgärdats drar inte ned beskedet.'
+    : e.verdict === 'minor'
+      ? 'Vi bedömer alltid den senaste kontrollen och aldrig ett snitt. Nivån skärps först när kommunen kallar bristerna allvarliga eller när de står kvar vid en uppföljning.'
+      : e.verdict === 'major'
+        ? 'Nivån läses ur mönstret och inte ur kommunens ordval: antingen kallade kommunen bristerna allvarliga, eller så stod de kvar vid ett återbesök.'
+        : missingReason(e) === 'stale_inspections'
+          ? 'Vi sätter ingen bedömning när den senaste kontrollen är äldre än tre år. Det betyder aldrig att hygienen är dålig.'
+          : 'Utan publicerad kontroll sätter vi ingen bedömning. Det betyder aldrig att hygienen är dålig.';
+
+const bedomningTips = [omfattning, regel, grund].filter(Boolean).join(' ');
 
 /**
  * Statistiken räknas på ADRESSEN, inte på företaget.
@@ -542,21 +614,30 @@ const breadcrumbs = {
                   inte har stjärnbetyg (se Reviews.astro). */}
               <p class="level">
                 {presentation.label}
-                {grund && <InfoTip label="vad bedömningen vilar på" text={grund} />}
+                <InfoTip label="den här bedömningen" text={bedomningTips} />
               </p>
-              {/* Grunden flyttad från stycket till ett tips på etiketten.
+              {/* Grunden flyttad från stycket till ett tips på etiketten, och
+                  tipset är sedan utvidgat till hela svaret på "vad betyder det
+                  här?". Se `bedomningTips` ovan för grenarna och talen.
 
-                  Meningen löd "Bedömningen vilar på 9 kontroller som
+                  Meningen löd en gång "Bedömningen vilar på 9 kontroller som
                   Stockholms stad publicerat på Åkeshovs Gårdsväg 11 sedan
-                  2019." Ägaren: "detta kan vara i en i-ikon eller något, det
-                  blir för långt."
+                  2019." och stod i stycket. Ägaren: "detta kan vara i en
+                  i-ikon eller något, det blir för långt."
 
-                  Den lades dit för att ge Google riktig prosa att bygga sitt
-                  utdrag av, i stället för att låta sökmotorn plocka text ur
-                  jämförelserutan. Priset för flytten är alltså känt: tipsets
+                  Den låg i stycket för att ge Google riktig prosa att bygga
+                  sitt utdrag av, i stället för att låta sökmotorn plocka text
+                  ur jämförelserutan. Priset för flytten är alltså känt: tipsets
                   text bär `data-nosnippet`, så meningen räknas inte längre som
-                  utdragsmaterial. Uppgiften finns kvar för läsaren, en klick
-                  bort, och den står dessutom kvar i nyckeltalens egna tips.
+                  utdragsmaterial. Det är rätt pris här: ett verktygstips är
+                  skrivet för den som redan står på sidan, se InfoTip.astro, och
+                  ett sökutdrag byggt ur en förklaring av metoden är precis fel
+                  text att möta någon med som ännu inte klickat.
+
+                  Tipset renderas nu på ALLA sidor och inte bara där `grund`
+                  finns. På de 1 565 sidor som saknar publicerad kontroll är
+                  frågan "vad betyder det här?" som mest berättigad, eftersom
+                  beskedet där är att vi avstår från att bedöma.
 
                   Blir utdraget dåligt igen är rätt åtgärd att korta meningen
                   och sätta tillbaka den i stycket, inte att ta bort tipset. */}
@@ -799,8 +880,23 @@ const breadcrumbs = {
           </div>
         )}
 
+        {/* Två bildkomponenter och inte en, för attributionskravet skiljer
+            dem åt.
+
+            En gatubild ur Mapillary kräver DERAS logotyp intill bilden, se
+            StreetPhoto. En Commons-bild kräver fotografens namn, licensnamnet
+            och en länk till filsidan, vilket är ett annat krav och en annan
+            form. Att låta en komponent bära båda hade betytt två uppsättningar
+            villkor i samma mall och en gren i varje rad av den.
+
+            Bilden är fortfarande EN per verksamhet: fältet `image` är samma
+            fält, och 27 av 9 995 sidor bär en Commons-bild. Se
+            pipeline/hamta_commonsbilder.py för varför den får gå före en
+            gatubild när båda finns. */}
         <div class="panel">
-          {e.image && <StreetPhoto image={e.image} name={e.name} />}
+          {e.image && (e.image.source === 'wikimedia'
+            ? <Commonsbild image={e.image} name={e.name} />
+            : <StreetPhoto image={e.image} name={e.name} />)}
           <ActionPanel
             establishmentId={e.id}
             establishmentName={e.name}
