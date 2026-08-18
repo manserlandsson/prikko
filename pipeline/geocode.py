@@ -29,6 +29,38 @@ officiella adressregister och är fullständigt där OSM är ojämn, så ordning
 Båda kräver attribution där koordinaten visas, och sidan ska kunna säga
 vilken av dem en enskild nål kommer ur. Därför bär varje verksamhet sitt
 `geoSource`, och datafilens `geocoding` bär källans licens och attribution.
+
+VILKA KOMMUNER SOM GÅR ATT GEOKODA
+----------------------------------
+Bara de som publicerar en GATUADRESS. Uppmätt 2026-08-18 över samtliga
+adressrader i site/src/data, kolumnen "med husnummer" räknad med
+parse_address:
+
+    kommun       verksamheter   adressrader   med husnummer   nål
+    Örebro           1 233         1 233          1 233        645
+    Uppsala          1 854         1 525          1 525        986
+    Borgholm           406           251              0          0
+    Höganäs            316           156              0          0
+    Svenljunga          99            32              0          0
+    Lomma              153             0              0          0
+
+Borgholm, Höganäs och Svenljunga publicerar en ORT och inget mer: 22, 13 och
+11 distinkta ortnamn på 439 rader, och inte en enda av de 439 innehåller så
+mycket som en siffra. Lomma publicerar varken ort eller adress; kommunens
+fyra listsidor lästes om 2026-08-18 och bär namn, färg, datum och avvikelser,
+inget annat. Den enda gatuadressen på sidorna är kommunens egen
+besöksadress i sidfoten.
+
+En ortmittpunkt vore inte ett närmevärde utan en gissning. Färjestaden och
+Byxelkrok är kilometer breda, och en nål i ortens mitt är fel adress för
+nästan varje verksamhet. Samma linje som saknat husnummer följer, se
+parse_address: utan nummer finns ingen punkt att peka på.
+
+Det som skulle öppna de fyra är att kommunen börjar lämna ut adressen. Ingen
+adresskälla i världen hjälper mot en post som bara säger "Böda". För
+Svenljunga gäller dessutom att OSM inte har en enda adresspunkt i hela
+kommunen (uppmätt via Overpass 2026-08-18: noll noder och noll vägar med
+addr:housenumber), så även med adresser hade Lantmäteriet krävts.
 """
 
 from __future__ import annotations

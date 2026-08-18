@@ -47,6 +47,16 @@ Adressen saknas helt, så `pipeline/geocode.py` har inget att gå på heller.
 Lomma får därför inga kartnålar. Det är ingen anledning att utelämna
 verksamheterna: namn, datum, omdöme och avvikelseområden finns.
 
+Frågan om adressen finns hos kommunen men missas av oss ställdes och
+besvarades 2026-08-18: samtliga fyra listsidor hämtades om och genomsöktes.
+De 157 posterna står som `<p class="normal">` med namn och färg i fetstil,
+följt av "Senaste inspektion: <datum>" och "Avvikelser: <fritext>". Det finns
+ingen adressrad, ingen detaljsida att följa och inget attribut med en adress
+i. Den enda gatuadressen på någon av sidorna är kommunens egen besöksadress
+Järnvägsgatan 7 i sidfoten, som står på varje sida på lomma.se. Inläsaren
+missar alltså ingenting, och Lomma får kartnålar först den dag kommunen
+börjar publicera adressen. Se docs/33_oppettider.md §10.
+
 ## Färgen är omdömet, texten är detaljen
 
 Kommunens egen läsanvisning står överst på varje sida:

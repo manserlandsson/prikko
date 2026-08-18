@@ -21,10 +21,13 @@ har öppettider på sin sida. Inget filter, inga nya sidor, ingen JSON-LD.
 2. **Täckningen är 27,6 procent av den nämnaren, och den är extremt ojämn.**
    Linköping 40,8 procent, Stockholm 36,5, Kristinehamn 5,9, och fyra kommuner
    på exakt noll. §3.
-3. **De fyra nollorna beror inte på OSM utan på oss.** Borgholm, Höganäs, Lomma
-   och Svenljunga har 649 konsumentvända verksamheter UTAN KOORDINAT. De kan
-   inte paras mot någonting alls, oavsett hur bra OSM är där. Deras OSM-uttag
-   innehåller 106 matpunkter med öppettider som vi alltså inte kan nå. §3.2.
+3. **De fyra nollorna beror inte på OSM utan på kommunerna.** Borgholm,
+   Höganäs, Lomma och Svenljunga har 649 konsumentvända verksamheter UTAN
+   KOORDINAT. De kan inte paras mot någonting alls, oavsett hur bra OSM är
+   där. Deras OSM-uttag innehåller 106 matpunkter med öppettider som vi alltså
+   inte kan nå. §3.2. Punkten stod först som "utan oss" och det var fel:
+   geokodningen prövades 2026-08-18 och ingen av de fyra publicerar en
+   gatuadress att geokoda. §10.1.
 4. **Ett filter på "öppet nu" byggdes inte, och skälet är mätt.** På en
    kommunsida i Jönköping skulle ett sådant filter ha en känd tid för 65 av
    712 ställen. Det som ser ut som "här är de öppna" hade i själva verket varit
@@ -438,10 +441,38 @@ node site/scripts/check-oppettider.ts         # 38 prov med inskickad klocka
 
 ## 10. Vad som återstår
 
-1. **Geokoda Borgholm, Höganäs, Lomma och Svenljunga.** 649 konsumentvända rader
-   utan koordinat, plus 377 i Uppsala och 249 i Örebro. Det är den enskilt
-   största åtgärden, den ligger i `pipeline/geocode.py` som redan finns, och den
-   fyller fyra nollor i tabellen i §3 utan att en rad öppettidskod ändras.
+1. ~~**Geokoda Borgholm, Höganäs, Lomma och Svenljunga.**~~ **Går inte, och
+   skälet är mätt.** Punkten stod här som den enskilt största åtgärden.
+   Försöket gjordes 2026-08-18 och gav noll nya nålar i alla fyra, eftersom
+   ingen av dem publicerar en gatuadress:
+
+   | kommun | verksamheter | adressrader | varav med husnummer | distinkta orter |
+   |---|---:|---:|---:|---:|
+   | Borgholm | 406 | 251 | **0** | 22 |
+   | Höganäs | 316 | 156 | **0** | 13 |
+   | Svenljunga | 99 | 32 | **0** | 11 |
+   | Lomma | 153 | **0** | 0 | 0 |
+
+   De tre översta publicerar en ORT och inget mer, och inte en av de 439
+   raderna innehåller så mycket som en siffra. Lomma publicerar varken ort
+   eller adress: kommunens fyra listsidor lästes om samma dag och bär namn,
+   färg, datum och avvikelser. Den enda gatuadressen på sidorna är kommunens
+   egen besöksadress i sidfoten. Inläsarna missar alltså ingenting.
+
+   En ortmittpunkt vore ingen lösning utan en gissning. Färjestaden och
+   Byxelkrok är kilometer breda, och en nål i ortens mitt är fel adress för
+   nästan varje verksamhet. Hopparningen i §4 kräver dessutom hundra meter,
+   så en ortnål hade inte gett en enda riktig öppettid utan bara felaktiga.
+
+   Det som öppnar de fyra är att kommunen börjar lämna ut adressen, ingenting
+   annat. Se `pipeline/geocode.py` och `pipeline/prikko/sources/lomma.py`.
+
+   Uppsala och Örebro geokodades däremot om samma dag och steg från 966 till
+   986 respektive tillbaka till 645. Kvar utan nål står 868 i Uppsala och 588
+   i Örebro, och det är OSM:s luckor: 242 gatunamn och 296 husnummer saknas i
+   Uppsalas uttag, 328 och 259 i Örebros. Lantmäteriets register hade täckt
+   dem, och den ansökan avslogs 2026-08-17. Se
+   docs/34_ny_ansokan_lantmateriet.md.
 2. **Kör om uttagen med jämna mellanrum.** OSM ändras. `checkedAt` står på varje
    post och på sidan, så en gammal uppgift är åtminstone märkt som gammal.
 3. **Filtret, men först när täckningen bär det.** §7 säger vad talet ska vara.
