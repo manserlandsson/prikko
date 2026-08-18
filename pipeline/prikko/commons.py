@@ -322,6 +322,15 @@ class CommonsImage:
     #: inte. Se `credit_line` för varför vi ändå namnger fotografen när svaret
     #: är nej.
     attribution_required: bool
+    #: Filens beskrivning på Commons som ren text, eller None.
+    #:
+    #: Visas ALDRIG. Fältet finns för att `wikidatanamn.depicts` ska kunna
+    #: pröva om verksamhetens namn står i den, och det är en grind som annars
+    #: hade kostat ett eget anrop per fil. `extmetadata` bär den redan.
+    #: Bildtexten byggs fortfarande av `credit_line` och ingenting annat: en
+    #: beskrivning på Commons är någon annans mening, ibland på fyra språk,
+    #: och den hör inte hemma under en bild i en sidopanel.
+    description: Optional[str] = None
 
 
 def plain_text(raw: Optional[str]) -> Optional[str]:
@@ -478,6 +487,7 @@ def lookup(title: str, width: int = TARGET_WIDTH) -> Optional[CommonsImage]:
         year=year_text(date_field, canonical),
         captured_at=captured_date(date_field),
         attribution_required=(field("AttributionRequired") or "").strip().lower() == "true",
+        description=plain_text(field("ImageDescription")),
     )
 
 
@@ -607,6 +617,25 @@ def capture(
     if found is None:
         return None
 
+    return store_image(store, municipality_slug, establishment_id, found)
+
+
+def store_image(
+    store,
+    municipality_slug: str,
+    establishment_id: str,
+    found: CommonsImage,
+) -> StoredImage:
+    """Hämta, skala om och lagra en fil som redan klarat alla spärrar.
+
+    Bruten ur `capture` och inte kopierad ur den, för det finns nu två vägar
+    till en Commons-fil och bara en väg får finnas till hinken. `capture` är
+    OSM-vägen: `wikidata`-taggen pekar ut objektet. `hamta_commonsbilder.py`
+    med `--namnspar` är den andra: objektet hittas på namn och koordinat, och
+    den vägen har fler spärrar som måste prövas MELLAN uppslaget och
+    lagringen, se prikko/wikidatanamn.py. Den kan alltså inte anropa
+    `capture`, men den ska lagra på precis samma sätt.
+    """
     if not _pillow_available():
         # Se modulens docstring. Utan Pillow lagras originalbytesen med sin
         # EXIF, och det gör vi inte med någon annans fil.
