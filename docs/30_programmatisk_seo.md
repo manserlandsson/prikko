@@ -764,3 +764,333 @@ motsäger sin egen `noindex`, och samtliga 36 nya adresser hamnade i gruppen
    varje kommun där den finns, och en OSM-polygon som kommer till i morgon
    knuffar automatiskt bort RegSO-ytan den rör.
 4. **Örebro får ingen sida av välvilja.** §11.5.
+
+---
+
+## 12. Kvalitetsledet får en egen sidtyp
+
+**Datum:** 2026-08-20, samma metod som resten av dokumentet.
+**Beställning:** bygg sidtypen som svarar på `restauranger [stad] högst betyg`,
+den enda frasform som mätts till 8 av 8.
+**Utfall:** frasen håller, men den bär färre sidor än den ser ut att bära. Fem
+sidor byggda för sex filer, sju kommun- och kategoripar nollställda, och skälet
+till nollorna är utlämnande och inte hygien.
+
+### 12.1 Slutsatsen först
+
+Fyra saker, i fallande ordning av hur mycket de betyder.
+
+1. **Frasen håller, till skillnad från docs/26:s ortsspår i §8.** Mätt om på
+   samtliga tolv kommuner kompletteras `restauranger [stad] högst betyg` för
+   **8 av 12**. Docs/26 mätte åtta städer och fick åtta; nämnaren var alltså
+   inte hela vårt bestånd, och det talet är nu utskrivet.
+2. **Efterfrågan finns på två kategorier och inga andra.** Restaurang och café.
+   Snabbmat 0 av 6, mataffär 0 av 6, förskolor 0 av 3, butiker 0 av 3.
+3. **Begränsningen är inte efterfrågan utan kommunens publiceringsdjup.** Sju av
+   de tolv kommunerna kan inte bära en topplista, och i tre av dem beror det på
+   att källan publicerar **högst en kontroll per verksamhet**. Karlstads 154
+   rena restauranger är exakt lika välbelagda allihop. §12.5.
+4. **Efterfrågan på BOTTEN är mätt och byggs ändå aldrig.** `sämsta
+   restaurangerna i [stad]` kompletteras för 3 av 4 prövade städer. Det är en
+   mätt trafikmöjlighet vi lämnar, och skälet står i §12.7.
+
+**128 frågor i två omgångar**, 92 i den första och 36 i den andra. 74
+kompletteras. Matcharen självtestades mot docs/29:s kända utfall före varje
+körning, precis som §2.1 kräver.
+
+### 12.2 Frasen, mätt om på alla tolv
+
+Nämnaren är 12, alltså varje kommun vi har och inga andra.
+
+| Kommun | `restauranger [stad] högst betyg` | Svansen i förslaget |
+|---|---|---|
+| Stockholm | **ja** | `högst betyg elegant` |
+| Uppsala | **ja** | `högst betyg öppet nu` |
+| Linköping | **ja** | `högst betyg elegant` |
+| Örebro | **ja** | `högst betyg öppet nu` |
+| Jönköping | **ja** | `högst betyg öppet nu` |
+| Karlstad | **ja** | `högst betyg elegant` |
+| Borgholm | **ja** | `bästa restaurang borgholm högst betyg` |
+| Lomma | **ja** | `restaurang lomma högst betyg` |
+| Kristinehamn | nej | faller till `restauranger kristinehamn kungsgatan` |
+| Oskarshamn | nej | faller till `restauranger oskarshamn öppettider` |
+| Höganäs | nej | faller till `höganäs bästa restaurang` |
+| Svenljunga | nej | faller till `restauranger i svenljunga` |
+
+De fyra som föll prövades med två andra formuleringar var, alltså samma
+motprov som §11.6 gjorde med `pizzeria`. **1 av 8 kompletteras**, `bästa
+restaurang svenljunga`, och tre av de åtta svarar med noll förslag. Nollan är
+alltså ortens och inte formuleringens.
+
+### 12.3 Kategoriledet
+
+Sex kategoriord gånger de sex största städerna. Nämnaren är 6 per rad.
+
+| Kategoriord | Kompletteras | Anmärkning |
+|---|---|---|
+| `caféer [stad] högst betyg` | **6 av 6** | svarar genomgående `cafe [stad] högst betyg` |
+| `bagerier [stad] högst betyg` | 5 av 6 | Linköping svarar med noll förslag |
+| `pizzeria [stad] högst betyg` | 5 av 6 | Karlstad faller till `pizza karlstad högst betyg` |
+| `snabbmat [stad] högst betyg` | **0 av 6** | faller till `mat [stad] högst betyg` eller till `snabbmat i [stad]` |
+| `mataffär [stad] högst betyg` | **0 av 6** | fyra av sex svarar med noll förslag |
+| `förskolor` och `butiker [stad] högst betyg` | **0 av 6** | fem av sex svarar med noll förslag |
+
+Caféledet prövades dessutom i de sex minsta kommunerna: **0 av 6**, fyra med
+noll förslag. Café är alltså en storstadsfråga, och det spelar ingen roll för
+bygget eftersom ingen av de sex små bär en sida på datan heller.
+
+Två slutsatser följer, och båda är byggbeslut:
+
+- **Bara restaurang och café får en sida.** Butiks- och skolledet är
+  nollställda, och övrigtkategorin nollställdes redan i §6.3.
+- **Snabbmat är ingen kategori hos oss ändå**, men värt att notera: frasen
+  finns utan ortsnamn (`snabbmat högst betyg` kompletteras) och försvinner
+  när orten läggs till. Det är samma mönster som §7.2 fann för skadedjur.
+
+### 12.4 Formen, och vad rubriken inte får heta
+
+| Fras | Kompletteras | Vad det betyder |
+|---|---|---|
+| `[stad] högst betyg`, utan kategoriord | 11 av 12 | svansen är **restaurangens** i tio av elva |
+| `restaurang högst betyg` utan ortsnamn | 6 av 6 | bekräftar docs/29 §7 |
+| `bästa restaurangerna i [stad]` | 6 av 6 | svansen är ofta `högst betyg` |
+| `restauranger [stad] bäst betyg` | 6 av 6 | faller tillbaka på `högst betyg`, alltså samma fråga |
+| `restauranger [stad] högst rating` | **0 av 6** | ordet är `betyg` och inget annat |
+| `bäst i [stad]` | 6 av 6 | svansen är `pizza`, `mat`, `kebab`, alltså kategorins |
+| `bäst livsmedelskontroll [stad]` | **0 av 4** | samtliga fyra svarar med noll förslag |
+| `restauranger [stad] utan anmärkning` | **0 av 4** | vår egen vokabulär söker ingen på |
+
+Tre beslut ur tabellen.
+
+**Ingen kategorilös sida.** `[stad] högst betyg` ser ut som en egen fras och är
+det inte: svansen är restaurangens, alltså samma fråga som kategorisidan
+besvarar. En hubbsida hade konkurrerat med sitt eget barn om samma sökning.
+Samma svar för `bäst i [stad]`, vars svans är pizza och kebab.
+
+**Rubriken heter fortfarande inte `högst betyg`.** Femte dokumentet i rad. Att
+`högst rating` ger 0 av 6 medan `högst betyg` ger 8 av 12 visar hur exakt ordet
+sitter, och det ändrar ingenting: ordet betyder Googles stjärnor i läsarens
+huvud och vi har inga stjärnor.
+
+**Vår egen vokabulär bär ingen trafik.** `utan anmärkning` och
+`livsmedelskontroll` ger 0 av 8, sex av dem med noll förslag. Sidan måste alltså
+möta läsaren i hens ord i rubrik och text, och förklara våra ord på sidan. Det
+är precis vad avsnittet "Vad bäst betyder här" gör.
+
+### 12.5 Datat, och varför sju par inte bär en sida
+
+Kravet är **fläckfritt register**: varje publicerad kontroll utan anmärkning.
+Inte `clean`, som bara betyder att den SENASTE kontrollen saknade anmärkning.
+Skillnaden är inte en teknikalitet: 2 984 av Stockholms 3 559 restauranger är
+`clean` och bara 972 är fläckfria. Att rangordna `clean`-verksamheter på antal
+kontroller hade lagt en verksamhet med tolv anmärkningar och en ren
+sistekontroll överst på en sida som utger sig för att visa de bästa.
+
+Räknat på beståndet 2026-08-20:
+
+| Kommun | Kategori | I kategorin | Rena | Fläckfria | Minst 3 | Rader | Ribba | Grupper | Sida |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Stockholm | restaurang | 3 559 | 2 984 | 972 | 454 | 37 | 8 | 5 | **ja** |
+| Stockholm | café | 1 116 | 930 | 396 | 172 | 33 | 5 | 5 | **ja** |
+| Linköping | restaurang | 391 | 340 | 65 | 35 | 35 | 3 | 10 | **ja** |
+| Linköping | café | 115 | 98 | 31 | 18 | 18 | 3 | 6 | **ja** |
+| Uppsala | restaurang | 717 | 563 | 207 | 27 | 27 | 3 | 3 | **ja** |
+| Jönköping | restaurang | 407 | 397 | 287 | 64 | — | — | — | nej |
+| Örebro | restaurang | 361 | 198 | 41 | 8 | 8 | 3 | 4 | nej |
+| Karlstad | restaurang | 232 | 154 | 154 | 0 | — | — | — | nej |
+| Borgholm | restaurang | 244 | 185 | 172 | 2 | 2 | 3 | 2 | nej |
+| Jönköping | café | 117 | 117 | 90 | 8 | 8 | 3 | 1 | nej |
+| Örebro | café | 134 | 85 | 31 | 7 | 7 | 3 | 1 | nej |
+| Karlstad | café | 118 | 83 | 83 | 0 | — | — | — | nej |
+| Oskarshamn | restaurang | 64 | 48 | 48 | 0 | — | — | — | nej |
+| Lomma | restaurang | 60 | 19 | 19 | 0 | — | — | — | nej |
+| Kristinehamn | restaurang | 48 | 26 | 15 | 0 | — | — | — | nej |
+| Svenljunga | restaurang | 18 | 5 | 4 | 0 | — | — | — | nej |
+| Höganäs och Uppsala | café | 0 | 0 | 0 | 0 | — | — | — | nej |
+
+Reglerna som ger kolumnen längst till höger, och alla fyra är mekaniska:
+
+1. **Minst 3 fläckfria kontroller.** Talet är `HISTORY_DEPTH` i data.ts, alltså
+   hur många kontroller modellen väger in, och samma ribba som märkningen "ren
+   historik" kräver. Ingen ny siffra.
+2. **Hela grupper uppifrån, tak 50 rader.** En grupp som inte får plats tas
+   inte in halv. Raderna inom en grupp har identiskt underlag, och att visa 50
+   av 64 vore att välja ut 50 på bokstavsordning och kalla dem de bästa.
+3. **Minst 10 rader**, samma tal och samma skäl som `MIN_LAST_PAGE` i
+   pagination.ts: tio är punkten där en sida slutar vara ett utsnitt.
+4. **Minst två grupper.** En lista där varje rad visar samma tal har ingen
+   ordning att redovisa. Villkoret ändrar i dag **inget** utfall, vilket är
+   mätt: ingen kommun faller på enbart det. Det står kvar för att det är
+   villkoret som gör sidans egen rubrikmening sann.
+
+De tre största nollorna förtjänar var sin mening, för de ser ut som våra fel
+och är källans:
+
+- **Karlstad, Lomma och Oskarshamn publicerar HÖGST EN kontroll per
+  verksamhet.** 154, 19 och 48 rena restauranger är då exakt lika välbelagda
+  allihop, och ingen kan nå tre. Det är samma utlämnandegräns som §4 beskriver
+  för kontrollpunkter.
+- **Jönköping publicerar högst tre.** 64 fläckfria restauranger har alla exakt
+  tre. Det är en enda grupp på 64, alltså över taket och utan ordning.
+- **Örebro publicerar högst tio och har ändå bara 8 fläckfria restauranger av
+  198 rena.** Där är det inte djupet som fäller utan att anmärkningar
+  förekommer i historiken.
+
+En högre ribba hade inte hjälpt någon av dem, och en lägre hade gett listor där
+varje rad visar samma tal. Spåret öppnas av bättre källdata, precis som §5.3
+fann för underkategorierna, och inte av en flyttad tröskel.
+
+### 12.6 Underkategori som egen topplista: mätt, och blockerat av källan
+
+`bästa bageriet i [stad]` kompletteras 3 av 3 och `bästa pizzerian i [stad]`
+2 av 3. Efterfrågan finns alltså ett steg längre in också.
+
+Den byggs inte, och skälet är §5.3:s: **underkategorierna finns inte i alla
+kommuner.** `bageri` har sida bara i Stockholm och `pizzeria` bara i Jönköping
+och Örebro, eftersom källorna använder olika grovetiketter och `categories.ts`
+med rätta vägrar gissa. En topplista per underkategori hade funnits i två
+kommuner av tolv, alltså samma utlämnandegräns som fällde kontrollpunktsaxeln.
+
+### 12.7 Botten är mätt, och byggs aldrig
+
+`sämsta restaurangerna i [stad]` kompletteras för **3 av 4** prövade städer, med
+`sämsta restaurangen i [stad]` som förslag i alla tre. Bara Stockholm faller,
+och där svarar slutpunkten `dåliga restauranger stockholm`.
+
+Det är alltså en mätt efterfrågan vi lämnar med öppna ögon, och det ska stå här
+just därför. Regeln i `bestNearby` är en regel om RIKTNING och inte en tröskel:
+en namngiven verksamhet får aldrig framställas som något att undvika. En vänd
+lista är dessutom förbjuden två gånger om, eftersom den ger de sämsta av de
+fläckfria, vilket är en rangordning av oskyldiga.
+
+Det här är också svaret på varför sidan inte kan ha en sista sida. Med
+sidindelning hade den sista sidan blivit en värstinglista utan att någon
+bestämt det. Taket på 50 rader är därför inte bara en fråga om längd.
+
+### 12.8 Vad som byggdes
+
+`/[kommun]/utan-anmarkning/[kategori]/`. Fem adresser:
+
+| Adress | Rader | Ribba |
+|---|---:|---:|
+| `/stockholm/utan-anmarkning/restauranger/` | 37 | 8 |
+| `/stockholm/utan-anmarkning/cafeer-och-bagerier/` | 33 | 5 |
+| `/linkoping/utan-anmarkning/restauranger/` | 35 | 3 |
+| `/linkoping/utan-anmarkning/cafeer-och-bagerier/` | 18 | 3 |
+| `/uppsala/utan-anmarkning/restauranger/` | 27 | 3 |
+
+Ordningen är `bestNearby`s två nycklar med den ena bytt, eftersom en kommunsida
+inte har någon läsare att mäta avstånd från: **flest kontroller först, vid lika
+många den som kontrollerades senast**, och båda talen står på varje rad.
+Raderna grupperas på antal kontroller och numreras aldrig, av samma skäl som
+utmärkelserna: gruppen är rangordningen.
+
+Sidan bär fyra saker som en lista med tio namn inte har: beskedet om vad talet
+betyder, tratten från kategorin ned till listan, ribban bredvid kommunens eget
+publiceringstak, och vägen vidare till kategorisidan, kommunhubben och
+metodiken.
+
+**Ribban står bredvid kommunens tak med avsikt.** Ribban ensam läses som ett
+betyg på kommunen, och det är den uppenbara felläsningen: en hög ribba betyder
+att kommunen publicerar djup historik och kontrollerar ofta, aldrig att köken
+är renare. Samma varning som `utmarkelser.ts` skriver ut. Vi rangordnar aldrig
+kommuner mot varandra, och sidan säger det rakt ut.
+
+### 12.9 Kostnaden
+
+| | Antal |
+|---|---:|
+| Nya sidor | **5** |
+| Ny sitemapfil, `sitemap-basta-0.xml` | 1 |
+| **Kostnad** | **6 filer** |
+| Bygget efter | 17 009 filer |
+| Marginal till grinden vid 19 500 | 2 491 |
+
+Kostnaden är sex filer och inte åtta. Bygget stod på 17 001 när arbetet
+började, och två av de åtta som tillkommit är andra ändringar som landade i
+trädet under tiden. Sidtypens egen kostnad är räknad och inte subtraherad:
+fem sidor och en sitemapfil.
+
+Sex filer för en fras som kompletteras i 8 av 12 kommuner. Till jämförelse
+kostade områdessidorna i §11 trettiosex filer, och de svarar på längre svansar.
+Det här är den billigaste sidtypen vi byggt, mätt i filer per belagd fras.
+
+Länkvägarna in är tre: webbkartan, kommunens kategorisida och systerlistan i
+foten på den andra topplistan i samma kommun. **Fem kategorisidor av 256 bär
+länken**, alltså exakt en per topplista.
+
+### 12.10 Ett fel som gick igenom bygget, och grinden som nu fäller det
+
+URL-ledet hette `basta` i första bygget. Sitemapen fick då **7 sidor i gruppen
+i stället för 5**, och de två extra var verksamhetssidor: det finns en
+restaurang som heter **Basta** i både Stockholm och Örebro.
+
+Verksamheternas sluggar delar namnrymd med kommunens listsidor, `/stockholm/
+vesuvio/` ligger på samma nivå som `/stockholm/kategori/`. `/stockholm/basta/`
+blev alltså både en restaurangsida och förälder till vår topplista, och
+`sidtyp()` klassade restaurangen som topplista. **Bygget gick igenom.** Ingen
+grind hade något att säga, eftersom ingen URL saknades och ingen motsade sin
+egen `noindex`.
+
+Två saker gjordes:
+
+1. Ledet heter `utan-anmarkning`, alltså två ord och samma ord som rubriken.
+2. `lib/basta.ts` fäller bygget om någon verksamhet får just den sluggen, och
+   `sidtyp()` kräver tre segment för att svara `basta`.
+
+**Ett andra fel av samma sort, hittat i samma bygge.** Villkoret om vilka
+kategorier som får en sida låg bara i `bastaSidor()`, som bygger adresserna,
+medan kategorisidan frågade `bastaSnitt()` rakt av för den kategori den råkade
+visa. De två svarade då olika: Örebros övrigtkategori passerar datavillkoren
+och fick en länk till `/orebro/utan-anmarkning/ovrigt/`, en adress som aldrig
+byggs. **Tio av femton länkar i utgåvan pekade på en 404.**
+
+Ingen grind sade något, och det är den läsbara delen: `sitemap-guard` läser
+sitemapen, `noindex` och webbkartan, alltså tre påståenden om vilka sidor som
+finns. Den läser inte varje `<a href>` i utfallet. En intern länk till en sida
+som inte byggs är i dag osynlig för varje grind vi har.
+
+Rättningen är att villkoret flyttade in i `bastaSnitt()` självt, så att en
+anropare inte kan gå runt det ens av misstag. Efter rättningen bär fem
+kategorisidor länken, och samtliga fem adresser finns.
+
+Lärdomen är generell och gäller varje framtida led under en kommun: **ett
+enordigt URL-led under `/[kommun]/` kan alltid krocka med ett verksamhetsnamn**,
+och krocken syns inte i någon grind som finns i dag. `kategori`, `omrade`,
+`karta`, `sida`, `anmarkningar`, `matsnusk` och `nytt-och-borta` är fria i dag
+och är det av tur, inte av kontroll.
+
+### 12.11 Vad som INTE ska göras
+
+1. **Bygg ingen kategorilös hubbsida.** §12.4. `[stad] högst betyg` är
+   restaurangfrågan och `bäst i [stad]` är kategorifrågan.
+2. **Bygg ingen sida för snabbmat, mataffär, butiker eller förskolor.** §12.3.
+   Noll av sex på varje led.
+3. **Sänk inte de fyra trösklarna för att få fler sidor.** §12.5. Örebro hade
+   fått en sida på tröskel 7 rader, och det är inte skälet att flytta något.
+4. **Skriv aldrig `högst betyg` i en rubrik.** Femte dokumentet i rad.
+5. **Publicera aldrig botten**, hur väl belagd `sämsta restaurangerna i [stad]`
+   än är. §12.7.
+6. **Ge aldrig sidan sidindelning.** §12.7. Sista sidan blir en värstinglista
+   utan att någon bestämt det.
+7. **Lägg aldrig ett enordigt led under `/[kommun]/` utan att pröva det mot
+   verksamheternas sluggar.** §12.10.
+8. **Låt aldrig villkoret för vad som får finnas bo hos anroparen.** §12.10.
+   Modulen som bygger adresserna ska vara den enda som vet.
+
+### 12.12 Nästa steg
+
+1. **Mät i Search Console innan taket 50 rörs.** Fem sidor är få, och frågan om
+   Örebro och Jönköping ska in avgörs av om de fem får klick, inte av magkänsla.
+   Samma svar som §6.2 gav om tröskeln 25.
+2. **Kommuner som publicerar en enda kontroll per verksamhet är värda ett brev.**
+   Karlstad, Lomma och Oskarshamn stänger inte bara den här sidtypen utan också
+   märkningen ren historik och utmärkelsen. Det är den enskilt billigaste
+   datainsatsen på listan, och den är en fråga till kommunen och ingen kodfråga.
+3. **Underkategorierna öppnas av bättre kategoridata**, inte av en ny sidtyp.
+   §12.6 och §5.3.
+4. **En grind som läser interna länkar saknas.** §12.10. Två fel i den här
+   ändringen gick igenom bygget, och båda hade fällts av en grind som kräver
+   att varje `<a href>` i utfallet pekar på en fil som finns. Den är billig,
+   den läser utgåvan som redan ligger på disk, och den hör hemma bredvid
+   `sitemap-guard`.
