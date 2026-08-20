@@ -35,6 +35,30 @@
  * sämre än ingen rubrik alls.
  *
  * ---------------------------------------------------------------------------
+ * FRÅGAN OM EN UPPMANING I DET TOMMA LÄGET, OCH SVARET NEJ
+ * ---------------------------------------------------------------------------
+ * Prövat 2026-08-20: skulle avsnittet stå kvar när det är tomt och i stället
+ * bära en rad som ber om ett foto? Tre mätta skäl säger nej.
+ *
+ * ETT. Räkningen. Uppmätt i community samma dag: 11 publicerade bilder,
+ * fördelade på 5 verksamheter. Sajten har 16 047 verksamhetssidor, alltså
+ * skulle uppmaningen stå på 16 042 av dem och bilderna på 5. En yta som är
+ * tom i 99,97 procent av fallen är inte ett avsnitt, den är en annons.
+ *
+ * TVÅ. Det finns ingen egen väg in att peka på. En bild lämnas genom
+ * omdömesrutan och ingen annanstans, se Reviews.astro, alltså skulle raden
+ * här behöva öppna exakt samma ruta som knappen i avsnittet under. Två skyltar
+ * till samma dörr, med några hundra pixlar emellan.
+ *
+ * TRE. Ordningen. Det här avsnittet står FÖRE "Besökarnas omdömen" på sidan,
+ * så uppmaningen hade kommit före det avsnitt som äger handlingen.
+ *
+ * Felet var aldrig att det tomma läget saknade en uppmaning. Felet var att
+ * knappen som redan finns inte sa ordet bild, och det är rättat i Reviews.astro
+ * 2026-08-20. Byt den här bedömningen först när räkningen ovan ser annorlunda
+ * ut, alltså när bilder kommer in från konton som inte är ägarens egna.
+ *
+ * ---------------------------------------------------------------------------
  * TELEFONEN: ETT BAND, INTE EN TRAVE
  * ---------------------------------------------------------------------------
  * Rutnätet föll ihop till en spalt på telefon. Tre bilder blev tre rutor på

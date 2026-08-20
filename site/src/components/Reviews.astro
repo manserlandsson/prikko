@@ -104,6 +104,36 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     {/* Dold i HTML och avslöjad av skriptet, som också visar den för den som
         är UTLOGGAD: inloggningen är ett steg på vägen när man trycker, aldrig
         något som visas i stället för handlingen. Se start() längre ned. */}
+
+    {/* ETIKETTEN NÄMNER BILDEN, OCH DET ÄR EN FELRÄTTNING.
+        ────────────────────────────────────────────────────────────────────
+        Här stod "Skriv omdöme". Rutan tar emot en bild utan en rad text sedan
+        ägaren tog bort kravet, se submit-hanteraren längre ned, men ordet bild
+        stod ingenstans utanför rutan. Den som bara ville lämna ett foto hade
+        alltså ingen skylt att gå efter, och etiketten bytte till "Lägg till
+        bild" först EFTER ett skrivet omdöme, alltså efter att man redan hittat
+        in på ett annat ärende.
+
+        Uppmätt i community 2026-08-20: 11 bilder, på 5 verksamheter, från
+        2 konton, samtliga inskickade under ett och samma dygn den 7 augusti
+        och ingen sedan dess. De två kontona är ägarens eget och en bekants.
+        Noll bilder från någon som inte fått länken av honom. Kedjan från ruta
+        till publicerad bild bär alltså, det var ingången som inte sa vart den
+        ledde.
+
+        Måttet, uppmätt i webbläsaren på /linkoping/247-punkten/ 2026-08-20:
+        knappen är 238 px bred med den här texten, mot 168 px med den gamla.
+        Raden är 358 px vid 390 px skärm, alltså en rad och 120 px till godo.
+        Rubrikraden bryter dessutom redan i dag vid 390, eftersom h2:ns 236 px
+        plus den gamla knappens 168 px är mer än 358, så knappen står på egen
+        rad både före och efter. Sidans marginal är 16 px per sida, alltså
+        288 px rad vid 320 px skärm, och 238 håller med 50 px till godo.
+        Det uttömmande alternativet "Skriv omdöme eller lägg till bild" mättes
+        till 277 px och håller det inte: 11 px kvar vid 320 px.
+
+        Pennan står kvar. Den märker det av de två ärendena som bär text, och
+        ordet bild i etiketten bär det andra. En andra ikon i samma knapp hade
+        gjort en väg in till två. */}
     <button type="button" class="btn-quiet skriv" id="review-open" hidden>
       <svg class="ikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
         <path
@@ -117,7 +147,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           stroke-width="1.5"
           stroke-linecap="round"></path>
       </svg>
-      Skriv omdöme
+      Lämna omdöme eller bild
     </button>
   </div>
 
@@ -157,7 +187,13 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
 <dialog class="write-dialog" id="review-dialog" aria-labelledby="review-dialog-title">
   <div class="sheet">
     <header class="bar">
-      <h2 class="bar-title" id="review-dialog-title">Skriv ett omdöme</h2>
+      {/* Rubriken säger samma sak som knappen man tryckte på. Stod här
+          "Skriv ett omdöme", alltså gömde rutan bilden igen i samma ögonblick
+          som den öppnades, och stycket under var det första som avslöjade att
+          ett foto räcker. Uppmätt vid 390 px: rubrikens plats i raden är
+          278 px bred oavsett vilken av texterna som står där, alltså ryms den
+          nya på en rad. Bildläget behåller sin egen rubrik, se photoOnly(). */}
+      <h2 class="bar-title" id="review-dialog-title">Lämna ett omdöme eller en bild</h2>
       <button type="button" class="icon" data-close aria-label="Stäng">
         <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -378,7 +414,8 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
   /* Knappen bär .btn-quiet från konto.css, som saknar gap eftersom den nästan
      alltid är enbart text. Ikonmåttet är ett glyfmått och hör inte hemma i
      typskalan. Pennan är samma ritning som resten av sajtens ikoner: 20-ruta,
-     1,5 px streck, och den märker verbet "skriv". */
+     1,5 px streck. Den märkte verbet "skriv" så länge knappen hette så; nu
+     märker den omdömet, och ordet bild i etiketten bär det andra ärendet. */
   .skriv {
     gap: var(--s-2);
   }
@@ -1175,7 +1212,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       if (!existing) {
         mine.hidden = true;
         open.hidden = false;
-        setOpenLabel('Skriv omdöme');
+        setOpenLabel('Lämna omdöme eller bild');
         return false;
       }
 
@@ -1196,7 +1233,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     }
 
     /**
-     * Det någon bad om när de tryckte på "Skriv ett omdöme".
+     * Det någon bad om när de tryckte på "Lämna omdöme eller bild".
      *
      * Anropas både av knappen i avsnittet och av knappen i sidopanelen, via
      * review-dialog.ts. Båda har redan sett till att man är inloggad.
@@ -1264,7 +1301,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
     function photoOnly(on: boolean) {
       fields.hidden = on;
       legalReview.hidden = on;
-      title.textContent = on ? 'Lägg till en bild' : 'Skriv ett omdöme';
+      title.textContent = on ? 'Lägg till en bild' : 'Lämna ett omdöme eller en bild';
       about.textContent = '';
       const name = document.createElement('b');
       name.textContent = place.name;
@@ -1551,7 +1588,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
                till en knapp utan kvittens, och till knappens ursprungstext. */
             mine.hidden = true;
             open.hidden = false;
-            setOpenLabel('Skriv omdöme');
+            setOpenLabel('Lämna omdöme eller bild');
             photoOnly(false);
           }
         })();
