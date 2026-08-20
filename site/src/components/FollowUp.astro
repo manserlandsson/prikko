@@ -1,6 +1,6 @@
 ---
 /**
- * Ledde uppföljningen till åtgärd?
+ * Vad uppföljningen visade
  *
  * Sidans enda framåtblickande besked. Allt annat på en verksamhetssida svarar
  * på "vad hittade kommunen", och det är ett ögonblick. Det här svarar på vad
@@ -18,8 +18,64 @@
  * kommunen satt en bedömning på återbesöket, och då står den. Läsaren drar
  * slutsatsen.
  *
- * Visas bara när det finns ett utfall. En verksamhet utan uppföljning får
- * ingen tom rubrik som antyder att vi letat och hittat något.
+ * ---------------------------------------------------------------------------
+ * RUBRIKEN ÄR ETT PÅSTÅENDE, INTE EN FRÅGA
+ * ---------------------------------------------------------------------------
+ * Här stod "Ledde uppföljningen till åtgärd?". Räknat på verksamhetssidan
+ * 2026-08-20, i den ordning de står: Vad kontrollen visade, Ledde
+ * uppföljningen till åtgärd?, Återkommande brister, Kontrollhistorik, Karta,
+ * Ta dig hit, Om verksamheten, Bilder från verksamheten, Bilder, Besökarnas
+ * omdömen, Nära dig, Bäst i närheten, Så ser det ut i kommunen, Läs mer om
+ * livsmedelskontrollen. Fjorton rubriker, och den här var den enda frågan av
+ * dem. Sidopanelens "Något som inte stämmer?" är också en fråga men är en
+ * uppmaning till läsaren och ingen innehållsrubrik.
+ *
+ * "Vad uppföljningen visade" har samma form som "Vad kontrollen visade", som
+ * står direkt ovanför, och de två är sidans berättelse i två led: vad hittades
+ * och vad hände sedan. Rubriken påstår fortfarande inget utfall. VAD den visade
+ * står i meningen under, och där står det med kommunens namn på.
+ *
+ * ---------------------------------------------------------------------------
+ * VISAS BARA NÄR DET FINNS ETT UTFALL, OCH VARFÖR DET FÅR VARA SÅ
+ * ---------------------------------------------------------------------------
+ * En verksamhet utan uppföljning får ingen tom rubrik som antyder att vi letat
+ * och hittat något.
+ *
+ * Uppmätt 2026-08-20, dels genom att räkna blocket i bygget, dels genom att
+ * köra followUp() över site/src/data. Båda ger samma tal.
+ *
+ *   4 863 av 16 047 verksamhetssidor ritar blocket, alltså 30,3 procent.
+ *   Linköping 726 av 1 246, Örebro 497 av 1 233, Stockholm 3 043 av 8 520,
+ *   Uppsala 585 av 1 854, Borgholm 12 av 406. Sju kommuner får noll.
+ *
+ * Ägaren: den som sett blocket på ett ställe undrar varför det saknas på
+ * nästa. Det är sant, och svaret får ändå inte bli ett tomt block som säger
+ * att ingen uppföljning skett. Frånvaron i vår data är nämligen mätbart
+ * INTE frånvaro i verkligheten:
+ *
+ *   9 148 sidor (57,0 procent) har ingen kontroll alls märkt som återbesök.
+ *   Men Höganäs, Lomma och Oskarshamn märker inte en enda av sina 704
+ *   kontroller som återbesök: allt de publicerar är typ 0. Där är tystnaden
+ *   kommunens sätt att rapportera och säger ingenting om de 708 ställena.
+ *
+ *   2 036 sidor (12,7 procent) HAR en eller flera kontroller märkta som
+ *   återbesök och får ändå inget block. Där vore "ingen uppföljning har
+ *   skett" ett rakt felaktigt påstående, och sidan säger dessutom emot sig
+ *   själv: nyckeltalet Återbesök står redan uppe på sidan med ett tal över
+ *   noll. Jönköping har 304 sådana verksamheter och noll block, och för 199
+ *   av dem beror det på att kontrollen FÖRE inte publicerar några
+ *   kontrollpunkter alls, alltså finns ingen brist att följa upp i datan.
+ *   Karlstads 219 faller allihop på att återbesöket är den äldsta kontroll
+ *   registret innehåller, alltså saknas det som skulle följas upp.
+ *
+ * Slutsatsen: blocket står kvar som det är, och tystnaden får inte fyllas.
+ * Det felet är redan gjort en gång i det här projektet, se followUp() i
+ * data.ts om Stockholms 3 495 återbesök utan kontrollpunkter.
+ *
+ * Det som DÄREMOT åtgärdats är den enda punkt där sidan säger emot sig själv:
+ * de 2 036 sidor som visar ett återbesökstal över noll utan att visa något
+ * utfall. Där säger nyckeltalets (i) numera varför, se facts i
+ * pages/[kommun]/[slug].astro. Ingen ny yta, ingen påstådd frånvaro.
  */
 import InfoTip from './InfoTip.astro';
 import {
@@ -101,10 +157,10 @@ if (f && f.explicit) {
   <section class="followup">
     <div class="head">
       <h2>
-        Ledde uppföljningen till åtgärd?
+        Vad uppföljningen visade
         <InfoTip
           label="uppföljningen"
-          text="Två kontroller på den här adressen, med veckor emellan: en som noterade brister och en uppföljning. Utfallet är kommunens egen anteckning, inte vår slutsats. Att kontrollerna ligger nära i tid är skälet till att beskedet går att lita på — det handlar om samma verksamhet, till skillnad från jämförelser över flera år."
+          text="Två kontroller på den här adressen, med veckor emellan: en som noterade brister och en uppföljning. Utfallet är kommunens egen anteckning, inte vår slutsats. Att kontrollerna ligger nära i tid är skälet till att beskedet går att lita på. Det handlar om samma verksamhet, till skillnad från jämförelser över flera år."
         />
       </h2>
     </div>
