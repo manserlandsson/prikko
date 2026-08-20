@@ -14,6 +14,7 @@ import {
 } from './src/lib/data.ts';
 import { path } from './src/lib/urls.ts';
 import { articleFiles } from './src/lib/artiklar.ts';
+import { BASTA_SEGMENT } from './src/lib/basta.ts';
 import { chains } from './src/lib/kedjor.ts';
 import { REPORTS } from './src/lib/rapporter.ts';
 import { editions, standings } from './src/lib/utmarkelser.ts';
@@ -272,6 +273,19 @@ function sidtyp(pathname) {
         return 'kategorier';
       case 'omrade':
         return 'omraden';
+      /* Topplistorna, `restauranger [stad] högst betyg`. Egen grupp och inte
+         hos kategorierna: de rankar på en annan fråga och ska gå att skilja åt
+         i Search Console. Se lib/basta.ts.
+
+         LÄNGDVILLKORET ÄR INTE ÖVERFLÖDIGT. Verksamheternas sluggar delar
+         namnrymd med kommunens listsidor, så `/[kommun]/[led]/` med två segment
+         är alltid en verksamhet och aldrig en listsida. Ledet hette en gång
+         `basta`, och då fanns två restauranger som heter Basta vars sidor tyst
+         hamnade i den här gruppen i stället för bland verksamheterna. Ledet är
+         bytt och lib/basta.ts fäller bygget om en verksamhet får det ändå, men
+         raden här kostar ingenting och gör klassificeringen sann av sig själv. */
+      case BASTA_SEGMENT:
+        return segments.length > 2 ? 'basta' : 'verksamheter';
       case 'karta':
         return 'kartor';
       /* Kommunens övriga listsidor. Sidindelningen, anmärkningslistan,
@@ -315,6 +329,7 @@ const SITEMAP_GROUPS = [
   'kommuner',
   'kategorier',
   'omraden',
+  'basta',
   'kartor',
   'kedjor',
   'artiklar',

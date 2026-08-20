@@ -1,0 +1,501 @@
+---
+/**
+ * Sidan som svarar på `restauranger [stad] högst betyg`.
+ *
+ * Varför sidtypen finns, vad som får stå på den och varför ordningen ser ut som
+ * den gör står i lib/basta.ts. Här ligger bara formen.
+ *
+ * FORMEN ÄR OMRÅDESSIDANS: hårlinje och luft, inga ramar i huvudkolumnen, ingen
+ * ingress som beskriver vad sidan innehåller. Två saker skiljer.
+ *
+ * Det första är att sidan bär en FÖRKLARANDE mening högt upp, vilket docs/18
+ * annars förbjuder. Den står här för att den är sidans hela poäng: läsaren kom
+ * hit på ordet betyg och menade stjärnor, och vi har inga stjärnor. Säger sidan
+ * inte det direkt är den bara ännu en topplista utan källa. Meningen är alltså
+ * inte en beskrivning av sidan utan ett besked om vad talet betyder.
+ *
+ * Det andra är att listan är GRUPPERAD och onumrerad, som utmärkelsernas. Se
+ * AwardList.astro och lib/utmarkelser.ts: gruppen är rangordningen, och inom
+ * gruppen finns ingen skillnad att redovisa.
+ *
+ * INGEN KARTA. Sidan handlar om vem som har bäst belagt register, inte om var
+ * något ligger, och de två frågorna har var sin sida. Kommunkartan ligger ett
+ * klick bort i foten.
+ *
+ * INGEN SIDINDELNING. Taket i lib/basta.ts håller listan under 50 rader, och en
+ * topplista med en sida två har slutat vara ett urval.
+ */
+import Base from '../layouts/Base.astro';
+import FaceRef from './FaceRef.astro';
+import FaceSprite from './FaceSprite.astro';
+import InfoTip from './InfoTip.astro';
+import { BASTA_SEGMENT, kommunensTak, type BastaSnitt } from '../lib/basta';
+import { formatDate, formatNumber } from '../lib/data';
+import { absolute, path } from '../lib/urls';
+
+interface Props {
+  snitt: BastaSnitt;
+  /** Kommunens övriga snitt, för raden längst ned. Aldrig det man står på. */
+  syskon: BastaSnitt[];
+}
+
+const { snitt, syskon } = Astro.props;
+
+const kommun = snitt.kommun;
+const city = kommun.city;
+const kommunBase = `/${kommun.slug}`;
+
+/* Kategoriordet i plural och gemener, så att det kan stå mitt i en mening.
+   Samma fält och samma skäl som OmradeHub, se TOP_CATEGORIES i lib/categories.ts. */
+const saken = snitt.category.plural;
+
+/*
+ * Rubriken bär KATEGORIN OCH PLATSEN och sedan vad listan är, i den ordningen.
+ *
+ * Ordningen är sökningens egen: folk skriver `restauranger stockholm`, inte
+ * `stockholm restauranger`. Ordet betyg står inte här och får aldrig göra det,
+ * hur väl belagt det än är i svansen. Regeln är docs/26 §8 punkt 5 och docs/30
+ * §9 punkt 7, och det här är fjärde dokumentet i rad som skriver ned den.
+ *
+ * "Utan anmärkning" och inte "bäst": det är vad raderna FAKTISKT har gemensamt,
+ * och en rubrik som lovar mer än listan håller är fel om sitt eget innehåll.
+ */
+const rubrik = `${snitt.category.name} i ${city} utan anmärkning`;
+
+/*
+ * Svarsmeningen. Syns som sidans meta-beskrivning och är den enda rad ett
+ * AI-svar sannolikt citerar, så den måste bära hela påståendet med sina tal.
+ */
+const answer =
+  `${formatNumber(snitt.antal)} ${saken} i ${city} har minst ` +
+  `${formatNumber(snitt.ribba)} publicerade hygienkontroller och inte en enda ` +
+  `anmärkning i någon av dem. Talet kommer ur kommunens kontroller, inte ur ` +
+  `gästernas omdömen.`;
+
+const tak = kommunensTak(kommun.slug);
+
+/*
+ * Tratten, som tal och inte som mening.
+ *
+ * Fyra steg från kategorin ned till sidan, alla räknade ur samma mängd som
+ * rubriken beskriver. Steget som bär mest är det tredje: i Stockholm är 2 984
+ * av 3 559 restauranger rena vid senaste kontrollen men bara 454 fläckfria
+ * genom hela registret, och utan det talet läser sidan som om "utan anmärkning"
+ * vore vanligt.
+ */
+const tratt = [
+  { n: snitt.iKategorin, label: `${saken} i ${city}` },
+  { n: snitt.rena, label: 'utan anmärkning vid senaste kontrollen' },
+  { n: snitt.flackfria, label: 'utan anmärkning vid varje publicerad kontroll' },
+  { n: snitt.antal, label: `av dem med minst ${formatNumber(snitt.ribba)} kontroller` },
+];
+
+const title = `${rubrik} · ${formatNumber(snitt.antal)} ${saken}`;
+
+const stigen = [
+  { name: 'Prikko', item: absolute() },
+  { name: kommun.name, item: absolute(kommunBase) },
+  { name: snitt.category.name, item: absolute(kommunBase, 'kategori', snitt.category.slug) },
+  { name: 'Utan anmärkning' },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: stigen.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      ...(c.item ? { item: c.item } : {}),
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: rubrik,
+    numberOfItems: snitt.antal,
+    /* Positionen räknas över hela listan och inte inom gruppen, annars börjar
+       varje grupp om på 1 och listan påstår fyra förstaplatser. Att ordningen
+       finns i strukturerad data motsäger inte att raderna är onumrerade på
+       sidan: ItemList kräver en position, och den är sidans läsordning. */
+    itemListElement: snitt.grupper
+      .flatMap((g) => g.rader)
+      .map((r, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: absolute(kommunBase, r.slug),
+        name: r.name,
+      })),
+  },
+];
+---
+
+<Base title={title} description={answer} jsonLd={jsonLd}>
+  <FaceSprite />
+
+  <div class="container page">
+    <nav class="crumbs" aria-label="Brödsmulor">
+      <a href="/">Prikko</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(kommunBase)}>{city}</a>
+      <span aria-hidden="true">›</span>
+      <a href={path(kommunBase, 'kategori', snitt.category.slug)}>{snitt.category.name}</a>
+    </nav>
+
+    <header class="head">
+      <p class="eyebrow">{kommun.name}</p>
+      <h1>{rubrik}</h1>
+      <p class="omfang">
+        {formatNumber(snitt.antal)} {saken} · minst {formatNumber(snitt.ribba)} kontroller
+      </p>
+    </header>
+
+    {/* Beskedet om vad talet betyder.
+
+        Det här är sidans viktigaste stycke och det enda på sajten som får
+        förklara i stället för att visa. Läsaren kom hit på ordet betyg och
+        menade Googles stjärnor. Står det inte här att vi inte har stjärnor är
+        sidan en topplista utan uppgiven källa, alltså exakt det vi finns till
+        för att vara ett alternativ till. */}
+    <section class="besked" aria-labelledby="vad-betyg-betyder">
+      <h2 id="vad-betyg-betyder">Vad ”bäst” betyder här</h2>
+      <p>
+        Prikko har inga stjärnor och inga recensioner. Talet vid varje namn är
+        antalet hygienkontroller {kommun.name} har publicerat för stället, och
+        varenda en av dem saknar anmärkning. Det säger ingenting om maten,
+        servicen eller priset, och allt om hur väl belagt det är att köket
+        sköts.
+      </p>
+      <p>
+        <a href={path('metodik')}>Så gör vi bedömningen</a>
+      </p>
+    </section>
+
+    <section class="tratt" aria-labelledby="tratt-rubrik">
+      <h2 id="tratt-rubrik" class="eyebrow">Från kategorin till listan</h2>
+      <ul>
+        {tratt.map((t) => (
+          <li>
+            <b>{formatNumber(t.n)}</b>
+            <span class="lbl">{t.label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    {/* Ribban och kommunens tak, sida vid sida.
+
+        Talen står tillsammans med avsikt. Ribban ensam läses som ett betyg på
+        kommunen, och det är den uppenbara felläsningen: en hög ribba betyder
+        att kommunen publicerar djup historik och kontrollerar ofta, aldrig att
+        köken är renare. Samma varning som lib/utmarkelser.ts skriver ut, och av
+        samma skäl står den på sidan och inte bara i koden. */}
+    <dl class="ribba">
+      <div>
+        <dt>Ribban på den här sidan</dt>
+        <dd><b>{formatNumber(snitt.ribba)}</b> kontroller utan anmärkning</dd>
+      </div>
+      <div>
+        <dt>Djupast i listan</dt>
+        <dd><b>{formatNumber(snitt.djupast)}</b> kontroller utan anmärkning</dd>
+      </div>
+      <div>
+        <dt>Djupast som {kommun.name} publicerar</dt>
+        <dd><b>{formatNumber(tak)}</b> kontroller på en verksamhet</dd>
+      </div>
+    </dl>
+    <p class="forbehall">
+      Ribban går inte att jämföra mellan kommuner. Den följer hur djup historik
+      källan lämnar ut och hur ofta kommunen kontrollerar, inte hur rena köken
+      är. {kommun.name} publicerar som mest {formatNumber(tak)} kontroller på en
+      verksamhet, och ingen kan visa fler än så.
+    </p>
+
+    <section class="listan" aria-labelledby="listan-rubrik">
+      <h2 id="listan-rubrik">
+        {rubrik}
+        <InfoTip
+          label="ordningen i listan"
+          text={`Flest kontroller först, och vid lika många den som kontrollerades senast. Båda talen står på varje rad, så ordningen går att pröva. Inom en grupp finns ingen inbördes ordning: underlaget är identiskt och raderna står i bokstavsordning. Listan visar bara de utan anmärkningar, och vi publicerar aldrig den omvända.`}
+        />
+      </h2>
+
+      {snitt.grupper.map((g) => (
+        <div class="grupp">
+          <h3 class="grupp-titel">
+            {formatNumber(g.kontroller)} kontroller utan anmärkning
+            <span class="antal text-secondary">{formatNumber(g.rader.length)} st</span>
+          </h3>
+          <ul>
+            {g.rader.map((r) => (
+              <li>
+                <a href={path(kommunBase, r.slug)}>
+                  <FaceRef verdict="clean" size={34} />
+                  <span class="info">
+                    <b>{r.name}</b>
+                    {/* Adressen skiljer två ställen med samma namn åt. Saknar
+                        kommunen adress blir raden namn och datum, aldrig en
+                        hängande skiljepunkt. Se EstablishmentList.astro. */}
+                    <span class="meta text-secondary">
+                      {[r.address, `senast kontrollerad ${formatDate(r.senast)}`]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+
+    <footer class="foot">
+      {syskon.length > 0 && (
+        <nav aria-label={`Fler listor i ${city}`}>
+          <p class="text-secondary">Fler listor i {city}</p>
+          <ul class="others">
+            {syskon.map((s) => (
+              <li>
+                <a href={path(kommunBase, BASTA_SEGMENT, s.category.slug)}>
+                  {s.category.name} utan anmärkning{' '}
+                  <span class="text-muted">{formatNumber(s.antal)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      <p>
+        <a href={path(kommunBase, 'kategori', snitt.category.slug)}>
+          Se alla {formatNumber(snitt.iKategorin)} {saken} i {city}
+        </a>
+      </p>
+      <p>
+        <a href={path(kommunBase)}>Hygienkontroller i {city}</a>
+      </p>
+    </footer>
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-block: var(--s-8) var(--s-12);
+    max-width: var(--w-page);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+    font-size: var(--fs-body-s);
+    color: var(--text-muted);
+    margin-bottom: var(--s-4);
+  }
+
+  .crumbs a { color: var(--text-secondary); }
+
+  .head h1 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    margin-top: var(--s-1);
+  }
+
+  .omfang {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Beskedet är sidans enda inramade block i huvudkolumnen, och det är avsikten:
+     det är inte en av flera lika delar utan förutsättningen för att läsa de
+     andra. Ramen är hårlinjens och bakgrunden en aning av varumärkesfärgen,
+     samma tonläge som listradens markering vid pekning. */
+  .besked {
+    margin-top: var(--s-6);
+    padding: var(--s-4) var(--s-5);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--brand) 3%, transparent);
+  }
+
+  .besked h2 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+  }
+
+  .besked p {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .besked p:last-child {
+    font-weight: 600;
+  }
+
+  .tratt { margin-top: var(--s-6); }
+
+  /* Samma tvåvåningsform som fördelningsbandets teckenförklaring på
+     områdessidan: talet överst, etiketten under. En tät rad med fyra tal och
+     fyra långa etiketter går inte att läsa i ett svep. */
+  .tratt ul {
+    list-style: none;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: var(--s-3) var(--s-4);
+  }
+
+  .tratt b {
+    display: block;
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    letter-spacing: -.015em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tratt .lbl {
+    display: block;
+    color: var(--text-secondary);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Tre tal under var sin etikett, utan ram. Raden är sammanhang, inte ett
+     resultat som behöver inramning. Samma form som jämförelseraden på
+     områdessidan. */
+  .ribba {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-4) var(--s-8);
+    margin: var(--s-6) 0 0;
+  }
+
+  .ribba div { margin: 0; }
+
+  .ribba dt {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .ribba dd {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .ribba b {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .forbehall {
+    margin-top: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+    max-width: 62ch;
+  }
+
+  .listan { margin-top: var(--s-8); }
+
+  .listan h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+  }
+
+  .grupp { margin-top: var(--s-6); }
+
+  .grupp-titel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2) var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .antal {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Raderna är inga kort, av samma skäl som EstablishmentList.astro skriver
+     ned: Booli har genomskinlig bakgrund, ingen ram och en hårlinje per rad. */
+  .grupp ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .grupp li + li { border-top: 1px solid var(--hairline); }
+
+  .grupp li a {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3);
+    margin-inline: calc(var(--s-3) * -1);
+    color: var(--text);
+  }
+
+  .grupp li a:hover {
+    text-decoration: none;
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
+    border-radius: var(--r-control);
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .info b {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+  }
+
+  .meta {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .foot {
+    margin-top: var(--s-8);
+    padding-top: var(--s-6);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .foot p {
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .others {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    list-style: none;
+    margin: var(--s-2) 0 var(--s-6);
+    padding: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .others .text-muted { font-variant-numeric: tabular-nums; }
+</style>

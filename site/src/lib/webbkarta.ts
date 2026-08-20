@@ -39,6 +39,7 @@ import {
 import { articleFiles, sectionReady } from './artiklar';
 import { utsnitt } from './kartrutor';
 import { hasMatsnuskPage } from './matsnusk';
+import { BASTA_SEGMENT, bastaForKommun } from './basta';
 import { linkedAreas } from './omraden';
 import { hasMovementPage, hasNationalPage, movement } from './rorelse';
 import { REPORTS } from './rapporter';
@@ -248,6 +249,19 @@ function kommunLinks(m: Municipality): MapLink[] {
       href: path(m.slug, 'kategori', slice.category.slug),
       label: slice.category.name,
       count: slice.count,
+    });
+  }
+
+  // Topplistorna. `bastaForKommun` är samma anrop som getStaticPaths i
+  // pages/[kommun]/utan-anmarkning/[kategori].astro bygger sidor ur, alltså exakt de
+  // kommuner och kategorier där kommunens register är djupt nog för att skilja
+  // någon från någon annan. De flesta kommuner lägger ingenting här, och skälet
+  // står i lib/basta.ts: det handlar om vad källan publicerar, inte om köken.
+  for (const snitt of bastaForKommun(m.slug)) {
+    links.push({
+      href: path(m.slug, BASTA_SEGMENT, snitt.category.slug),
+      label: `${snitt.category.name} utan anmärkning`,
+      count: snitt.antal,
     });
   }
 

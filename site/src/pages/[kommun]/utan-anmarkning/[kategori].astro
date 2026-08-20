@@ -1,0 +1,42 @@
+---
+/**
+ * /[kommun]/utan-anmarkning/[kategori]/
+ *
+ * En form och en enda, till skillnad från kategori- och områdessidorna som
+ * samlar fyra former i en `[...path]`-fil. Här finns ingen sidindelning att
+ * fånga: taket i lib/basta.ts håller listan under 50 rader, och en topplista
+ * med en sida två har slutat vara ett urval.
+ *
+ * Vilka kommuner och kategorier som får en sida avgörs helt av `bastaSidor()`.
+ * Samma anrop läser lib/webbkarta.ts och KategoriHub, så de tre inte kan komma
+ * fram till olika svar om vilka adresser som finns.
+ *
+ * Sidtypen är registrerad som `basta` i sidtyp() i astro.config.mjs. Utan den
+ * raden hade samtliga adresser fallit i sitemapens restgrupp och byggrinden
+ * hade fällt bygget, med flit.
+ *
+ * URL-ledet står som `BASTA_SEGMENT` i lib/basta.ts och skrivs inte av här.
+ * Ledet hette en gång `basta` och krockade med två verksamheter som heter just
+ * Basta; skälet till bytet står i den konstanten.
+ */
+import BastaHub from '../../../components/BastaHub.astro';
+import { bastaForKommun, bastaSidor, type BastaSnitt } from '../../../lib/basta';
+
+export async function getStaticPaths() {
+  return bastaSidor().map((snitt) => ({
+    params: { kommun: snitt.kommun.slug, kategori: snitt.category.slug },
+    props: { snitt },
+  }));
+}
+
+const { snitt } = Astro.props as { snitt: BastaSnitt };
+
+/* Kommunens övriga listor, aldrig den man står på. Länkarna byggs ur samma
+   funktion som avgör vilka sidor som finns, så raden kan inte peka på en
+   adress som inte byggs. */
+const syskon = bastaForKommun(snitt.kommun.slug).filter(
+  (s) => s.category.id !== snitt.category.id,
+);
+---
+
+<BastaHub snitt={snitt} syskon={syskon} />
