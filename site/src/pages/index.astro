@@ -960,10 +960,13 @@ const jsonLd = [
      * gör och vem som säger det. Att dölja det på telefon vore att ta bort
      * identiteten på den skärm där de flesta ser sidan.
      *
-     * Priset är känt: bandet växer från 511 till omkring 900 px, alltså en
-     * hel telefonskärm. Boolis eget band ligger på 677,6 av 844, alltså är
-     * ett band som fyller vyporten förlagans normalläge och inte en
-     * avvikelse.
+     * Priset är mätt i bygget i 390x844 och det är inte litet: bandet blir
+     * 987 px mot Boolis 677,6, alltså 117 procent av vyporten mot deras 80.
+     * Det som ligger OVANFÖR vikningen är ändå rätt saker, och det är det
+     * som avgör: matbandet slutar på 204, sökkortet går från 204 till 585,
+     * och skalkortets överkant på 617 skymtar precis. Besökaren ser alltså
+     * hela sökningen och att sidan fortsätter, och skalan möter hen på
+     * första skrollningen.
      */
     .hero-rad { grid-template-columns: minmax(0, 1fr); }
   }
@@ -987,6 +990,14 @@ const jsonLd = [
        eget band att stå i. Regeln kostar ingenting när fotot är valt, för då
        finns .hero-vektor inte i sidan. */
     .hero:has(.hero-vektor) { padding-top: 140px; }
+
+    /* Figuren går från 104 till 88 på telefon. Samma resonemang som på
+       skrivbordet, fast mot ett smalare kort: kortet är 366 px brett med
+       24 px padding, alltså 318 px innermått, och 88 är knappt en fjärdedel
+       av det. 104 hade tagit 33 procent, alltså mer än på skrivbordet, och
+       en figur får inte VÄXA i förhållande till ytan när ytan krymper.
+       Måttet är dessutom det hjälpsidan redan bär, se docs/24 par. 6. */
+    .hero-skala :global(.hero-maskot) { width: 88px; height: 88px; }
 
     /* INGEN egen h1-grad här längre.
        Raden satte 36/41, alltså serifens gamla mobilmått, kvarglömt när
