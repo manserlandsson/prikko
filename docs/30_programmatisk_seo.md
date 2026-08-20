@@ -1003,13 +1003,13 @@ kommuner mot varandra, och sidan säger det rakt ut.
 | Nya sidor | **5** |
 | Ny sitemapfil, `sitemap-basta-0.xml` | 1 |
 | **Kostnad** | **6 filer** |
-| Bygget efter | 17 009 filer |
-| Marginal till grinden vid 19 500 | 2 491 |
+| Bygget efter | 17 007 filer |
+| Marginal till grinden vid 19 500 | 2 493 |
 
-Kostnaden är sex filer och inte åtta. Bygget stod på 17 001 när arbetet
-började, och två av de åtta som tillkommit är andra ändringar som landade i
-trädet under tiden. Sidtypens egen kostnad är räknad och inte subtraherad:
-fem sidor och en sitemapfil.
+Bygget stod på 17 001 när arbetet började, alltså sex fler efteråt. Det
+absoluta talet rör sig med annat arbete i trädet och mättes till både 17 007 och
+17 009 under dagen; **delten gör det inte**, eftersom sidtypen lägger till exakt
+fem sidor och en sitemapfil. Talet i tabellen är det sista gröna bygget.
 
 Sex filer för en fras som kompletteras i 8 av 12 kommuner. Till jämförelse
 kostade områdessidorna i §11 trettiosex filer, och de svarar på längre svansar.
