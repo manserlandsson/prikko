@@ -244,6 +244,45 @@ import FaceMark from './FaceMark.astro';
     height: clamp(190px, 61%, 385px);
   }
 
+  /*
+   * KLUNGORNA TAS BORT UNDER 1280 PX, OCH TRÖSKELN ÄR RÄKNAD PÅ MÄRKET.
+   *
+   * Bilden ritades 7 augusti mot en hero med ETT centrerat kort. Sedan
+   * Booli-genomgången bär heron i stället en rad på --w-wide, alltså 1080 px,
+   * och då är den enda ytan klungorna kan synas på gluggen bredvid raden:
+   *
+   *   synlig glugg per sida = (100vw − 1080) / 2
+   *
+   *   1200 px vy    60 px glugg
+   *   1280 px vy   100 px glugg
+   *   1440 px vy   180 px glugg
+   *
+   * Klungans bredd följer höjden: bandet är 511 px högt i 1280, klungan
+   * 68 procent av det, alltså 347, och viewBoxen 460×560 ger bredden
+   * 347 × 460/560 = 285 px.
+   *
+   * DET SOM AVGÖR ÄR BEDÖMNINGSMÄRKET, inte hamburgaren. Märket ligger på
+   * x 16 till 136 av viewBoxens 460, alltså på 3,5 till 29,6 procent av
+   * klungan, alltså 10 till 84 px in från vänsterkanten. Ett halvt märke i
+   * kanten är värre än inget märke, för det är sajtens tecken.
+   *
+   *   1280 px vy   84 < 100   märket får plats, 16 px till godo
+   *   1200 px vy   84 > 60    märket kapas mitt itu
+   *
+   * Under 1280 blir bandet därför platt märkesblått. Det är Wolts grepp, som
+   * noten överst i den här filen redan pekar ut som skälet till att deras
+   * sida ser dyr ut, och det är ett bättre utfall än en lodrät remsa grönt,
+   * rött och gult i kanten.
+   *
+   * Diskkanten går med dem. Den finns för att maten ska stå på något, och en
+   * horisont utan något som står på den är en rand utan uppgift. Samma skäl
+   * som får den att försvinna i mobilläget längre ned.
+   */
+  @media (max-width: 1279px) and (min-width: 681px) {
+    .hv-klunga,
+    .hv-golv { display: none; }
+  }
+
   /* ── Färg ──────────────────────────────────────────────────────────────
      Varje fyllning är en token. Står det en hexkod här är det ett fel. */
   .f-brass { fill: var(--distinction); }
