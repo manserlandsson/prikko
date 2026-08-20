@@ -25,6 +25,7 @@ import {
   type Municipality,
   type SubCategorySlice,
 } from '../lib/data';
+import { BASTA_SEGMENT, bastaSnitt } from '../lib/basta';
 import { utsnitt } from '../lib/kartrutor';
 import { pageUrl } from '../lib/pagination';
 import { SITE } from '../lib/site';
@@ -138,6 +139,23 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 const showFilters = currentPage === 1;
 const linkedSubs = subs.filter((s) => s.linked);
 const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slice.category.id);
+
+/*
+ * Topplistan för den här kategorin, när den finns.
+ *
+ * Kategorisidan är kommunens fullständiga register i bokstavsordning och svarar
+ * inte på `restauranger [stad] högst betyg`, som är den enda frasform som mätts
+ * till 8 av 8. Den frågan har en egen sida sedan docs/30 §12, och det här är
+ * länken dit. Utan den vore sidan bara nåbar ur webbkartan.
+ *
+ * Bara på sida 1 och bara på toppkategorin: listan är kategorins och inte
+ * underkategorins, och en länk som lovar de bästa konditorierna men levererar
+ * hela kaféklassen är värre än ingen länk. Samma regel som kartlänken ovan.
+ *
+ * `bastaSnitt` är samma anrop som getStaticPaths bygger sidorna ur, så länken
+ * kan inte peka på en adress som inte finns.
+ */
+const basta = currentPage === 1 && !sub ? bastaSnitt(kommun.slug, slice.category.id) : null;
 ---
 
 <Base title={title} description={description} jsonLd={jsonLd} prev={prev} next={next}>
@@ -193,6 +211,14 @@ const linkedSiblings = siblings.filter((s) => s.linked && s.category.id !== slic
       {kartlank && (
         <p class="kartlank">
           <a href={kartlank}>Visa {slice.category.plural} i {city} på karta</a>
+        </p>
+      )}
+
+      {basta && (
+        <p class="kartlank">
+          <a href={path(kommunBase, BASTA_SEGMENT, slice.category.slug)}>
+            {formatNumber(basta.antal)} {slice.category.plural} i {city} utan en enda anmärkning
+          </a>
         </p>
       )}
     </header>
