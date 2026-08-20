@@ -28,12 +28,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from export_supabase import (  # noqa: E402
     MIN_COORDINATES_KEPT,
     MIN_COORDINATES_LOST,
+    FILBLOCK,
+    FILFALT,
+    behall_block,
     coordinate_collapse,
     count_coordinates,
-    fillicens,
     export,
+    filblock,
     filradering,
-    geolicens,
 )
 
 
@@ -95,20 +97,62 @@ class Licensblocket(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
 
-    def test_blocket_lases_ur_filen(self):
+    def test_blocken_lases_ur_filen(self):
         path = self.dir / "orebro.json"
         path.write_text(
-            json.dumps({"openingHours": {"licence": "ODbL 1.0"}, "establishments": []}),
+            json.dumps(
+                {
+                    "openstreetmap": {"licence": "ODbL 1.0", "covers": ["hours"]},
+                    "narhet": {"licence": "ODbL 1.0", "covers": ["stop"]},
+                    "establishments": [],
+                }
+            ),
             encoding="utf-8",
         )
-        self.assertEqual(fillicens(path), {"licence": "ODbL 1.0"})
+        self.assertEqual(
+            filblock(path),
+            {
+                "narhet": {"licence": "ODbL 1.0", "covers": ["stop"]},
+                "openstreetmap": {"licence": "ODbL 1.0", "covers": ["hours"]},
+            },
+        )
 
-    def test_fil_utan_block_ger_none(self):
+    def test_blocken_kommer_i_filbloc_ordning(self):
+        """Ordningen är den de incheckade filerna har. Kastas den om skriver
+        varje nattkörning om tre rader i åtta filer utan att något ändrats."""
+        path = self.dir / "orebro.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "geocoding": {"licence": "ODbL 1.0"},
+                    "openstreetmap": {"licence": "ODbL 1.0"},
+                    "narhet": {"licence": "ODbL 1.0"},
+                    "establishments": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(list(filblock(path)), list(FILBLOCK))
+
+    def test_fil_utan_block_ger_tomt(self):
         path = fil(self.dir, [{"id": "F-1"}])
-        self.assertIsNone(fillicens(path))
+        self.assertEqual(filblock(path), {})
 
-    def test_ingen_fil_ger_none(self):
-        self.assertIsNone(fillicens(self.dir / "finns-inte.json"))
+    def test_ingen_fil_ger_tomt(self):
+        self.assertEqual(filblock(self.dir / "finns-inte.json"), {})
+
+    def test_block_behalls_bara_nar_filen_bar_uppgiften(self):
+        """En ODbL-klausul i en fil utan en enda rad av det slaget är ett
+        påstående om data som inte finns."""
+        narhet = {"licence": "ODbL 1.0", "covers": ["stop", "parking"]}
+        self.assertTrue(behall_block(narhet, {"stop": 12870, "parking": 0}, 0))
+        self.assertFalse(behall_block(narhet, {"stop": 0, "parking": 0}, 0))
+
+    def test_geocoding_hanger_pa_de_harledda_nalarna(self):
+        """Blocket saknar `covers` och räknas därför på nålarna."""
+        geo = {"licence": "ODbL 1.0"}
+        self.assertTrue(behall_block(geo, {}, 1611))
+        self.assertFalse(behall_block(geo, {}, 0))
 
 
 def grindfil(dir: Path, med_koordinat: int, utan: int = 0) -> Path:
@@ -380,34 +424,105 @@ class Ursprunget(unittest.TestCase):
         self.assertEqual(ny["lat"], 59.27)
         self.assertNotIn("geoSource", ny)
 
-    def test_geolicens_klarar_fil_som_saknar_blocket(self):
+    def test_filblock_klarar_fil_som_saknar_blocket(self):
         self.skriv_gardagens([{"id": "F-1", "lat": 59.27, "lng": 15.21}],
                              geocoding=False)
-        self.assertIsNone(geolicens(self.path))
-        self.assertIsNone(geolicens(self.dir / "finns-inte.json"))
+        self.assertEqual(filblock(self.path), {})
+        self.assertEqual(filblock(self.dir / "finns-inte.json"), {})
+
+
+#: Nycklar exporten själv bygger på varje verksamhetsrad, ur databasen.
+#: Allt ANNAT som står i de incheckade filerna bor bara där och måste stå i
+#: FILFALT för att överleva nästa nattkörning.
+EXPORTENS_EGNA = {
+    "id",
+    "slug",
+    "name",
+    "address",
+    "types",
+    "lat",
+    "lng",
+    "geoSource",
+    "geoPrecision",
+    "image",
+    "verdict",
+    "distinction",
+    "reason",
+    "modelVersion",
+    "uncertain",
+    "inspections",
+}
+
+#: Nycklar exporten själv bygger på filens toppnivå.
+EXPORTENS_EGNA_BLOCK = {"municipality", "source", "establishments"}
 
 
 class Filfalten(unittest.TestCase):
-    """Fälten som bara bor i filen måste räknas upp i exporten.
+    """Det som bara bor i filen måste räknas upp i exporten.
 
     Fyra gånger på fyra dygn har ett sådant fält raderats av nästa
     nattkörning: kontrollpunkterna, koordinaterna, öppettiderna och contact.
     Exporten bygger varje post ur databasen, så allt utan kolumn där
     försvinner tyst.
 
-    Provet läser listan ur källan i stället för att skriva av den, så att det
-    fäller när någon lägger till ett fält i pipelinen utan att lägga till det
-    här.
+    Den femte gången gällde toppnivån i stället för raderna, och slank därför
+    förbi det här provet i sin gamla form: 2026-08-18 bytte `openingHours`
+    namn till `openstreetmap` och `narhet` tillkom, utan att exporten rördes.
+    Nästa lyckade nattkörning hade tagit bort båda blocken ur de åtta filer
+    som bär dem, alltså ODbL-attributionen för 2 747 öppettider, 3 274
+    kontaktuppgifter, 12 870 hållplatser och 10 606 parkeringar.
+
+    Provet ställer därför exporten mot de INCHECKADE filerna i stället för mot
+    en avskriven lista. Lägger någon till ett fält eller ett block i pipelinen
+    utan att lägga till det här, faller det här provet nästa gång filerna
+    checkas in.
     """
 
-    def test_listan_tacker_de_kanda_falten(self):
-        kalla = (Path(__file__).resolve().parents[1] / "export_supabase.py").read_text(
-            encoding="utf-8"
+    DATA = Path(__file__).resolve().parents[2] / "site" / "src" / "data"
+
+    def _filer(self):
+        filer = sorted(self.DATA.glob("*.json"))
+        self.assertTrue(filer, f"hittade inga datafiler i {self.DATA}")
+        return filer
+
+    def test_varje_falt_i_filerna_ar_kant(self):
+        kanda = EXPORTENS_EGNA | set(FILFALT)
+        okanda = {}
+        for path in self._filer():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rad in payload["establishments"]:
+                for namn in rad.keys() - kanda:
+                    okanda.setdefault(namn, path.name)
+        self.assertEqual(
+            okanda,
+            {},
+            f"fält utan plats i FILFALT, de raderas av nästa nattkörning: {okanda}",
         )
-        rad = [r for r in kalla.splitlines() if r.strip().startswith("FILFALT = ")]
-        self.assertEqual(len(rad), 1, "FILFALT ska finnas en gång i exporten")
-        for namn in ("hours", "contact", "stop", "parking"):
-            self.assertIn(f'"{namn}"', rad[0], f"{namn} saknas i FILFALT")
+
+    def test_varje_toppnivablock_i_filerna_ar_kant(self):
+        kanda = EXPORTENS_EGNA_BLOCK | set(FILBLOCK)
+        okanda = {}
+        for path in self._filer():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for namn in payload.keys() - kanda:
+                okanda.setdefault(namn, path.name)
+        self.assertEqual(
+            okanda,
+            {},
+            f"block utan plats i FILBLOCK, de raderas av nästa nattkörning: {okanda}",
+        )
+
+    def test_blockordningen_ar_filernas(self):
+        """FILBLOCK måste stå i samma ordning som de incheckade filerna, annars
+        kastar varje nattkörning om raderna utan att något ändrats."""
+        for path in self._filer():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            iFilen = [namn for namn in payload if namn in FILBLOCK]
+            self.assertEqual(
+                iFilen,
+                [namn for namn in FILBLOCK if namn in iFilen],
+                f"{path.name} bär blocken i en annan ordning än FILBLOCK",
+            )
 
 
 if __name__ == "__main__":

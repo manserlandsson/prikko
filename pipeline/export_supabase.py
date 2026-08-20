@@ -25,25 +25,41 @@ kolumn i Supabase, och en del av det får aldrig få en: Lantmäteriet avslog
 `filradering` och docs/34_ny_ansokan_lantmateriet.md.
 
 Exporten bygger varje post från grunden. Ett fält den inte uttryckligen bär
-över raderas alltså tyst nästa natt, och det har hänt tre gånger på två
-dygn. Här är hela listan på fält som bara finns i filen:
+över raderas alltså tyst nästa natt, och det har hänt fem gånger på fem dygn.
+Här är hela listan på det som bara finns i filen:
+
+På raderna, se `FILFALT`:
 
     lat, lng                    härledda ur adressen, pipeline/geocode.py
     geoSource, geoPrecision     koordinatens ursprung och noggrannhet
-    geocoding                   filens licens och attribution för nålarna
     hours                       veckoschema, pipeline/oppettider.py
-    openingHours                filens licens och attribution för tiderna
+    contact                     telefon och webbplats, samma uttag
+    stop, parking               närmaste hållplats och parkering,
+                                pipeline/narhet.py
 
-Alla fem bärs över i dag, och kartnålarna har dessutom en grind, se
+På filens toppnivå, se `FILBLOCK`, ett licensblock per källa:
+
+    narhet                      täcker stop och parking
+    openstreetmap               täcker hours och contact
+    geocoding                   täcker de härledda kartnålarna
+
+Allt detta bärs över i dag, och kartnålarna har dessutom en grind, se
 `coordinate_collapse`. Någon grind per fält byggs inte: raderingen är alltid
 samma fel, och grinden fångar bara det fält som råkar ha en.
 
 Provet som gäller framåt är i stället en regel. Skriver ett skript i
-site/src/data ett fält som inte har en kolumn i Supabase, så måste det fältet
-läggas till här i samma ändring. Två skript gör det: pipeline/geocode.py och
-pipeline/oppettider.py. Ett tredje som gör det utan att röra den här filen
-raderar sitt eget arbete inom ett dygn, och ingenting klagar, eftersom en
-verksamhet utan de här fälten är fullt publicerbar.
+site/src/data ett fält eller ett block som inte har en kolumn i Supabase, så
+måste det läggas till här i samma ändring. Tre skript gör det:
+pipeline/geocode.py, pipeline/oppettider.py och pipeline/narhet.py. Ett
+fjärde som gör det utan att röra den här filen raderar sitt eget arbete inom
+ett dygn, och ingenting klagar, eftersom en verksamhet utan de här fälten är
+fullt publicerbar.
+
+Regeln räcker inte av sig själv, för den har brutits fyra gånger. Den senaste
+var 2026-08-18, då `openingHours` bytte namn till `openstreetmap` och `narhet`
+tillkom utan att den här filen rördes. Provet i
+pipeline/tests/test_export_koordinater.py läser därför FILFALT och FILBLOCK
+ur källan och ställer dem mot vad de incheckade filerna faktiskt bär.
 """
 
 from __future__ import annotations
@@ -176,35 +192,78 @@ def filradering(path: Path) -> dict:
     return {e["id"]: e for e in payload.get("establishments", []) if e.get("id")}
 
 
-def fillicens(path: Path) -> dict | None:
-    """ODbL-blocket ur föregående export, om filen bar öppettider.
+#: Licensblock på filens toppnivå som INTE har någon motsvarighet i Supabase,
+#: i den ordning de incheckade filerna faktiskt bär dem.
+#:
+#: Ordningen är mätt och inte vald. Blocken skrivs med `insert_after(payload,
+#: "source", ...)`, alltså hamnar det SIST inskjutna närmast `source`, och
+#: skripten körs geocode, oppettider, narhet. Skriver exporten dem i någon
+#: annan ordning kastar varje nattkörning om tre rader i åtta filer utan att
+#: något ändrats.
+#:
+#:     narhet          stop och parking, pipeline/narhet.py
+#:     openstreetmap   hours och contact, pipeline/oppettider.py
+#:     geocoding       de härledda kartnålarna, pipeline/geocode.py
+#:
+#: LISTAN MÅSTE VÄXA NÄR ETT NYTT BLOCK TILLKOMMER, precis som FILFALT nedan.
+#: Blocket `openstreetmap` hette `openingHours` fram till 2026-08-18, då
+#: filen började bära telefon och webbplats ur samma uttag. Exporten läste
+#: kvar på det gamla namnet och kände inte till `narhet` alls, så nästa
+#: lyckade nattkörning hade tagit bort båda blocken ur alla åtta filer som
+#: bär dem: jonkoping, karlstad, kristinehamn, linkoping, orebro, oskarshamn,
+#: stockholm och uppsala. Raderna hade behållit sina 2 747 öppettider, 3 274
+#: kontaktuppgifter, 12 870 hållplatser och 10 606 parkeringar, men utan den
+#: ODbL-attribution som är villkoret för att få visa dem. Det är ett
+#: licensbrott och inte en saknad rad.
+FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 
-    Skrivs av pipeline/oppettider.py och hör ihop med `hours` på raderna. Utan
-    det här försvann attributionen i samma nattkörning som tiderna, vilket är
-    ett licensbrott och inte bara en saknad rad.
+#: Fält på verksamhetsraderna som bara bor i FILEN.
+#:
+#: LISTAN MÅSTE VÄXA NÄR ETT NYTT SÅDANT FÄLT TILLKOMMER, och det är ingen
+#: artighet. Samma fel har inträffat fyra gånger på fyra dygn:
+#: kontrollpunkterna, koordinaterna, öppettiderna och senast contact, som
+#: fanns på 3 274 rader och hade raderats i nästa nattkörning. Exporten bygger
+#: varje post från grunden ur databasen, så allt utan kolumn där försvinner
+#: tyst, och ingenting klagar eftersom en rad utan telefonnummer är fullt
+#: publicerbar.
+#:
+#: Uppmätt 2026-08-20: stop 12 870, parking 10 606, contact 3 274, hours
+#: 2 747. Inget av dem har en motpart i Supabase.
+FILFALT = ("hours", "contact", "stop", "parking")
+
+
+def filblock(path: Path) -> dict:
+    """Licensblocken ur föregående export.
+
+    Blocken säger vilken källa uppgifterna är hämtade ur, med licens och
+    attribution. Både OpenStreetMap (ODbL) och Lantmäteriet (CC BY 4.0) kräver
+    den där uppgiften visas, så ett block är ett villkor för att få rita nålen
+    eller skriva ut öppettiden, inte en upplysning vid sidan av.
     """
     if not path.exists():
-        return None
+        return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8")).get("openingHours")
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except ValueError:
-        return None
+        return {}
+    return {namn: payload[namn] for namn in FILBLOCK if payload.get(namn)}
 
 
-def geolicens(path: Path) -> dict | None:
-    """`geocoding`-blocket ur föregående export, om filen bar härledda nålar.
+def behall_block(block: dict, bevarade: dict, antal_harledda: int) -> bool:
+    """Bär filen fortfarande den data blocket handlar om?
 
-    Skrivs av pipeline/geocode.py och säger vilken adresskälla koordinaterna
-    räknats fram ur, med licens och attribution. Både OpenStreetMap (ODbL) och
-    Lantmäteriet (CC BY 4.0) kräver den där koordinaten visas, så blocket är
-    ett villkor för att få rita nålen, inte en upplysning vid sidan av.
+    Samma regel som pipeline/narhet.py och pipeline/oppettider.py skriver
+    blocken efter: en licensklausul i en fil utan en enda rad av det slaget är
+    ett påstående om data som inte finns.
+
+    Blocken säger själva vad de täcker i `covers`, så villkoret behöver inte
+    kunna deras namn. Ett block utan `covers` är `geocoding`, som hänger på de
+    härledda kartnålarna i stället för på ett fält.
     """
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8")).get("geocoding")
-    except ValueError:
-        return None
+    tacker = block.get("covers")
+    if tacker is None:
+        return bool(antal_harledda)
+    return any(bevarade.get(falt) for falt in tacker)
 
 
 def export(client: Supabase, out_dir: Path) -> None:
@@ -264,8 +323,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         # `filradering` för varför, och varför det inte är en nödlösning.
         sokvag = out_dir / f"{m['slug']}.json"
         tidigare = filradering(sokvag)
-        forra_licens = fillicens(sokvag)
-        forra_geolicens = geolicens(sokvag)
+        forra_block = filblock(sokvag)
         antal_harledda = 0
 
         for e in by_municipality.get(m["code"], []):
@@ -288,6 +346,22 @@ def export(client: Supabase, out_dir: Path) -> None:
                         if forra.get(nyckel) is not None
                     }
                     antal_harledda += 1
+            elif e.get("geo_source"):
+                # De allra flesta härledda nålarna bor bara i filen, men SJU
+                # rader bär ett `geo_source` i Supabase, sex av dem i Uppsala.
+                # För dem har databasen både koordinaten och dess ursprung, och
+                # då ska ursprunget läsas därifrån. Utan den här grenen skrev
+                # exporten ut nålen men tappade märkningen om att den är
+                # framräknad, alltså precis det `geoSource` finns för att säga.
+                harlett = {
+                    "geoSource": e["geo_source"],
+                    **(
+                        {"geoPrecision": e["geo_precision"]}
+                        if e.get("geo_precision")
+                        else {}
+                    ),
+                }
+                antal_harledda += 1
 
             records.append(
                 {
@@ -359,23 +433,9 @@ def export(client: Supabase, out_dir: Path) -> None:
             )
 
         # Fälten som bara bor i FILEN hakas på efter att posterna är byggda,
-        # och inte som fält i literalen nedan, eftersom de flesta rader saknar
+        # och inte som fält i literalen ovan, eftersom de flesta rader saknar
         # dem: ett `"hours": None` på 13 000 rader hade lagt 13 000 rader i
-        # varje diff.
-        #
-        # LISTAN MÅSTE VÄXA NÄR ETT NYTT SÅDANT FÄLT TILLKOMMER, och det är
-        # ingen artighet. Samma fel har inträffat fyra gånger på fyra dygn:
-        # kontrollpunkterna, koordinaterna, öppettiderna och senast contact,
-        # som fanns på 3 274 rader och hade raderats i nästa nattkörning.
-        # Exporten bygger varje post från grunden ur databasen, så allt utan
-        # kolumn där försvinner tyst, och ingenting klagar eftersom en rad utan
-        # telefonnummer är fullt publicerbar.
-        #
-        # Uppmätt 2026-08-18: stop 12 870, parking 10 606, contact 3 274,
-        # hours 2 747. Inget av dem har en motpart i Supabase.
-        FILFALT = ("hours", "contact", "stop", "parking")
-
-        antal_tider = 0
+        # varje diff. Se FILFALT.
         bevarade = {namn: 0 for namn in FILFALT}
         for rad in records:
             forra = tidigare.get(rad["id"], {})
@@ -383,7 +443,16 @@ def export(client: Supabase, out_dir: Path) -> None:
                 if forra.get(namn):
                     rad[namn] = forra[namn]
                     bevarade[namn] += 1
-        antal_tider = bevarade["hours"]
+
+        # Licensblocken följer med när, och bara när, filen faktiskt bär den
+        # data de handlar om. De står EFTER `source` och i FILBLOCK:s ordning,
+        # som är den ordning de incheckade filerna har.
+        block = {
+            namn: forra_block[namn]
+            for namn in FILBLOCK
+            if namn in forra_block
+            and behall_block(forra_block[namn], bevarade, antal_harledda)
+        }
 
         payload = {
             "municipality": {
@@ -397,32 +466,9 @@ def export(client: Supabase, out_dir: Path) -> None:
                 "url": m.get("source_url") or "",
                 "fetchedAt": m.get("last_fetched_at") or "",
             },
+            **block,
             "establishments": records,
         }
-
-        # Licensblocken följer med när, och bara när, filen faktiskt bär den
-        # data de handlar om. Samma regel som pipeline/oppettider.py och
-        # pipeline/geocode.py skriver dem efter: en licensklausul i en fil utan
-        # en enda rad av det slaget är ett påstående om data som inte finns.
-        #
-        # Båda står EFTER `source`, och `geocoding` först. Det är ordningen de
-        # incheckade filerna faktiskt har: båda skripten skjuter in sitt block
-        # direkt efter `source`, och geocode.py körs sist av de två eftersom
-        # oppettider.py behöver koordinaterna det sätter. Skrev exporten dem i
-        # motsatt ordning hade varje nattkörning kastat om två rader i tolv
-        # filer utan att något ändrats.
-        if (antal_tider and forra_licens) or (antal_harledda and forra_geolicens):
-            payload = {
-                "municipality": payload["municipality"],
-                "source": payload["source"],
-                **(
-                    {"geocoding": forra_geolicens}
-                    if antal_harledda and forra_geolicens
-                    else {}
-                ),
-                **({"openingHours": forra_licens} if antal_tider and forra_licens else {}),
-                "establishments": records,
-            }
 
         path = sokvag
 
