@@ -246,6 +246,22 @@ function flackfri(e: Establishment): boolean {
  * kontroll per verksamhet blir det villkoret som fäller, inte taket.
  */
 export function bastaSnitt(slug: string, categoryId: TopCategoryId): BastaSnitt | null {
+  /*
+   * Efterfrågan prövas HÄR och inte hos anroparen.
+   *
+   * Filtret låg först bara i bastaSidor(), som bygger sidorna, medan
+   * KategoriHub frågade bastaSnitt() rakt av för den kategori den råkade visa.
+   * De två svarade då olika: Örebros övrigtkategori passerar datavillkoren och
+   * fick en länk till /orebro/utan-anmarkning/ovrigt/, en adress som aldrig
+   * byggs. Tio av femton länkar i utgåvan pekade på en 404 av det skälet, och
+   * ingen grind sade något: sitemapgrinden läser sitemapen, noindex och
+   * webbkartan, inte varje <a href> i utfallet.
+   *
+   * Modulen är därför den enda som vet vad som får finnas, och en anropare kan
+   * inte gå runt den ens av misstag.
+   */
+  if (!BASTA_KATEGORIER.includes(categoryId)) return null;
+
   const alla = establishments(slug);
   const kommun = alla[0]?.municipality;
   if (!kommun) return null;
