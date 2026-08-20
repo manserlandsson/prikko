@@ -166,7 +166,8 @@ const compareMetres = Object.fromEntries(neighbours.map((n) => [n.slug, n.metres
  *      406 har en koordinat men ingen ren granne inom 500 meter.
  *      578 tappar blocket för att det säger samma sak som listan ovanför.
  */
-const bastaAlla = bestNearby(e);
+const bastaResultat = bestNearby(e);
+const bastaAlla = bastaResultat.items;
 
 /**
  * Och blocket uteblir också när det säger EXAKT samma sak som listan ovanför.
@@ -241,11 +242,14 @@ const distLabel = dist
   .join('. ');
 
 /**
- * Ledde uppföljningen till åtgärd?
+ * Vad uppföljningen visade
  *
  * Sidans starkaste besked, och det enda som säger något om vad som HÄNDE efter
  * en anmärkning. Null för de flesta verksamheter, och då står ingenting. Se
  * followUp() i data.ts.
+ *
+ * Uppmätt 2026-08-20: 4 863 av 16 047 verksamhetssidor får ett utfall.
+ * Talet används en gång till, i nyckeltalet Återbesök längre ned.
  */
 const uppfoljning = followUp(e);
 
@@ -475,8 +479,28 @@ const facts = [
   { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
     color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
     tip: 'Andel av kontrollerna på adressen där inga avvikelser noterades.' },
+  /* Tipset får en andra mening på de sidor där talet är över noll men blocket
+     "Vad uppföljningen visade" inte ritas. Utan den säger sidan emot sig
+     själv: den räknar upp återbesök och redovisar sedan inget utfall. Ägaren
+     har rätt i att den som sett blocket en gång undrar var det tog vägen.
+
+     Uppmätt 2026-08-20 över site/src/data: 2 036 av 16 047 verksamhetssidor.
+     Fyra skäl, och de överlappar: kontrollen före publiceras utan de punkter
+     som granskades (914), mer än 180 dagar mellan de två (822), ingen
+     kontroll före finns i registret (550), kontrollen före hade punkter men
+     ingen avvikelse att följa upp (97). Jönköping står för 304 av sidorna och
+     Karlstad för 219. Samtliga fyra skäl handlar om vad kommunen publicerar,
+     inget om vad som hänt i lokalen.
+
+     Meningen är därför skriven så att den är sann i alla fyra fallen och
+     påstår varken ett utfall eller en utebliven uppföljning. Den säger bara
+     att de två kontrollerna inte går att para ihop. Se FollowUp.astro för
+     hela räkningen och för varför blocket inte får fyllas med en brasklapp. */
   { label: 'Återbesök', value: String(stats.followUps),
-    tip: 'Uppföljande kontroller som gjorts för att se om tidigare avvikelser åtgärdats.' },
+    tip: 'Uppföljande kontroller som gjorts för att se om tidigare avvikelser åtgärdats.'
+      + (stats.followUps > 0 && uppfoljning === null
+        ? ' Vad de ledde till står inte på sidan. Utfallet visas bara när ett återbesök går att ställa mot en kontroll strax före som noterade något att följa upp, och de två går inte att para ihop här. Det säger ingenting om hur återbesöket gick.'
+        : '') },
   { label: 'Äldsta kontroll', value: stats.oldestYear ?? '–',
     tip: 'Året för den äldsta kontroll kommunen publicerar på adressen. Det är inte nödvändigtvis året verksamheten startade. Kommunerna publicerar bara ett begränsat antal år bakåt, och historiken följer lokalen.' },
 ];
@@ -1076,6 +1100,25 @@ const breadcrumbs = {
                 text={`Verksamheter inom ${BEST_NEARBY_M} meter som fick inga anmärkningar vid sin senaste kontroll. Flest kontroller bakom bedömningen står först, och vid lika många den närmaste. Båda talen står på varje rad, så ordningen går att pröva. Listan visar bara de utan anmärkningar, och vi publicerar aldrig den omvända.`}
               />
             </h2>
+
+            {/* Nämnaren FÖRE listan, av samma skäl som på kommunsidan: fyra
+                rader ur en mängd på medianvis 39 är ett urval, och en läsare
+                som inte får veta nämnaren tror att fyra är alla. Ordagrant
+                samma hållning som leden i RenHistorik.astro.
+
+                Meningen är ett tal om KVARTERET och inte om verksamheten
+                sidan handlar om. Den är varken räknad i det eller ställd mot
+                det, och den lyder likadant på varje sida i samma kvarter
+                oavsett vilken bedömning sidan bär. Det är skillnaden mellan
+                den här meningen och en jämförelse mot grannarnas median, som
+                inte får byggas: en sådan hade behövt utebli på sidorna under
+                medianen, och då blir frånvaron själva omdömet. */}
+            <p class="near-lede caption text-secondary">
+              {bastaResultat.total === 1
+                ? `En verksamhet inom ${BEST_NEARBY_M} meter fick inga anmärkningar vid sin senaste kontroll.`
+                : `${formatNumber(bastaResultat.total)} verksamheter inom ${BEST_NEARBY_M} meter fick inga anmärkningar vid sin senaste kontroll.`}
+            </p>
+
             <ul class="near">
               {basta.map((n) => (
                 <li>
@@ -1456,6 +1499,13 @@ const breadcrumbs = {
   }
 
   /* Knapparna i panelen bor i ActionPanel.astro tillsammans med sin logik. */
+
+  /* Nämnaren står mellan rubriken och listan. Rubriken bär redan 12 px under
+     sig, så meningen får bara luft NEDÅT, annars hade den flutit mitt emellan
+     de två i stället för att höra till listan den räknar. */
+  .near-lede {
+    margin: 0 0 var(--s-3);
+  }
 
   .near {
     list-style: none;

@@ -488,6 +488,25 @@ export interface BestNearby extends Establishment {
   controls: number;
 }
 
+export interface BestNearbyResult {
+  /** De som får plats i listan, högst `limit` stycken. */
+  items: BestNearby[];
+  /**
+   * HELA antalet rena inom radien, alltså listans nämnare.
+   *
+   * Listan visar fyra namn ur en mängd som medianvis är 39 stycken, mätt över
+   * de 13 210 sidor som har minst en ren granne inom 500 meter (tionde
+   * percentilen 5, största 506). Utan nämnaren tror läsaren att fyra är alla,
+   * vilket är exakt felet RenHistorik.astro redan skriver ut på kommunsidan:
+   * "Sex rader av 1 084 är ett urval".
+   *
+   * Talet är ett tal om OMRÅDET och aldrig om verksamheten sidan handlar om.
+   * Den är varken räknad i det eller ställd mot det, och nämnaren är därför
+   * identisk för varje sida i samma kvarter oavsett vilken bedömning den bär.
+   */
+  total: number;
+}
+
 /**
  * Register över de RENA verksamheterna per kommun, med det ordningen avgörs på
  * förkonverterat.
@@ -592,13 +611,21 @@ function cleanIndex(slug: string): CleanIndex {
  * Insättningen flyttar bara element som är STRIKT sämre, precis som nearby().
  * Det bevarar registrets ordning när alla tre nycklarna är lika, alltså är
  * utfallet stabilt mellan bygg så länge datan är densamma.
+ *
+ * ## Varför nämnaren följer med ut
+ *
+ * `total` räknas i SAMMA svep och kostar därför ingenting: avståndet är redan
+ * uträknat för varje kandidat, och räkningen är ett steg på den rad som ändå
+ * avgör om kandidaten ligger inom radien. Ett andra anrop hade i Stockholm
+ * betytt 6 400 kandidater gånger 8 520 sidor en gång till, vilket är precis
+ * det arbete registret ovan finns för att slippa.
  */
 export function bestNearby(
   e: Establishment,
   limit = 4,
   radius = BEST_NEARBY_M,
-): BestNearby[] {
-  if (e.lat === null || e.lng === null) return [];
+): BestNearbyResult {
+  if (e.lat === null || e.lng === null) return { items: [], total: 0 };
 
   const index = cleanIndex(e.municipality.slug);
 
@@ -622,6 +649,9 @@ export function bestNearby(
     return am < bm;
   };
 
+  /** Nämnaren. Räknas på exakt de kandidater som passerar radievillkoret. */
+  let total = 0;
+
   for (let i = 0; i < index.items.length; i += 1) {
     if (index.items[i].id === e.id) continue;
 
@@ -631,6 +661,7 @@ export function bestNearby(
     const metres = Math.round(2 * R * Math.asin(Math.sqrt(h)));
 
     if (metres >= radius) continue;
+    total += 1;
     if (!battre(i, metres, bestIndex[limit - 1], bestMetres[limit - 1])) continue;
 
     let slot = limit - 1;
@@ -643,16 +674,16 @@ export function bestNearby(
     bestMetres[slot] = metres;
   }
 
-  const result: BestNearby[] = [];
+  const items: BestNearby[] = [];
   for (let k = 0; k < limit; k += 1) {
     if (bestIndex[k] < 0) continue;
-    result.push({
+    items.push({
       ...index.items[bestIndex[k]],
       metres: bestMetres[k],
       controls: index.controls[bestIndex[k]],
     });
   }
-  return result;
+  return { items, total };
 }
 
 // ---------------------------------------------------------------------------
@@ -867,13 +898,13 @@ export interface FollowUp {
 }
 
 /**
- * Ledde uppföljningen till åtgärd?
+ * Vad uppföljningen visade
  *
  * Det här är den enda insikt sajten kan bygga som varken summerar över tid
  * eller över kommungränser. Den handlar om TVÅ KONKRETA KONTROLLER på samma
  * adress, några veckor isär: kommunen påpekade något, kom tillbaka, och
  * antecknade vad den då såg. Ett ägarbyte hinner i praktiken inte ske i det
- * fönstret, och även om det gjorde det är påståendet fortfarande sant — det
+ * fönstret, och även om det gjorde det är påståendet fortfarande sant. Det
  * säger vad kommunen antecknade vid ett besök, inte vem som drev stället.
  *
  * Två former, i fallande styrka:
@@ -921,10 +952,10 @@ export function followUp(e: Establishment): FollowUp | null {
      * Kravet på kontrolltyp hör hit trots att uppmärkningen står på egna ben.
      * Uppsala sätter "Kvarstår" även på planerade kontroller, och då betyder
      * det att bristen levt kvar sedan ett tidigare besök som kan ligga år
-     * tillbaka. Det är ett annat påstående än det här blocket gör — det ärver
-     * anläggningsproblemet, eftersom "sedan förra gången" kan spänna över ett
-     * ägarbyte — och rubriken "Ledde uppföljningen till åtgärd?" hade dessutom
-     * varit falsk på en kontroll som ingen följt upp något med.
+     * tillbaka. Det är ett annat påstående än det här blocket gör, eftersom
+     * det ärver anläggningsproblemet: "sedan förra gången" kan spänna över ett
+     * ägarbyte. Rubriken "Vad uppföljningen visade" hade dessutom varit falsk
+     * på en kontroll som ingen följt upp något med.
      */
     if (visit.type === 1 && (fixed > 0 || persisting > 0)) {
       return { visit, before, raised, fixed, persisting, explicit: true, days };
