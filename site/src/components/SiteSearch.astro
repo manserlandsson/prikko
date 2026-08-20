@@ -290,11 +290,14 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
      hängde 8 px för lågt i raden, men bara på de sidor som laddade konto.css.
      Det var därför snedheten syntes på verksamhetssidan och inte på
      startsidan. Namnet måste vara unikt så länge konto.css är globalt. */
-  /* Höjden är 50 och inte 40. Uppmätt på booli.se 2026-08-18:
-     `.bui-input-search` är 50 px i både 1280 och 390, alltså samma fält på
-     telefonen som på skärmen. Vårt låg på 40 i sidhuvudet och 36 på telefon,
-     och 36 är under träffytegolvet på just den yta där bara fingret finns.
-     Se --h-field i tokens.css. */
+  /* Höjden bor i --h-field och är 44 sedan 2026-08-20. Talet stod på 50 i två
+     dagar, hämtat ur en mätning på booli.se som fortfarande stämmer men som
+     gällde ett fält i en annan omgivning: Boolis 50 px fält står ensamt på
+     egen rad och är 510 till 640 px brett, medan vårt delar sidhuvudets rad
+     och är 380 px på dator och 201 på telefon. Samma höjd på ett fält som är
+     hälften så långt ger en helt annan form. Hela räkningen står vid
+     --h-field i tokens.css. Under 44 får fältet aldrig gå: det är sin egen
+     träffyta på en pekskärm. */
   .search-field {
     display: flex;
     align-items: center;
@@ -336,22 +339,41 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   .search-field input:focus { outline: none; }
   .search-field input::placeholder { color: var(--text-muted); }
 
-  /* Knappen är 44 och inte 32. Fältet är 50 med 3 px luft runt om, alltså är
-     44 exakt vad som ryms, och det är samma tal som träffytegolvet. Ingen
-     ::after behövs därför här. Se --h-tap i tokens.css. */
+  /* Knappen är 38 för ögat och 44 för fingret.
+     ────────────────────────────────────────────────────────────────────────
+     Den var 44 rakt av, vilket rymdes så länge fältet var 50 med 3 px luft.
+     Med fältet på 44 ryms 38, och 38 är dessutom bättre av ett skäl som inte
+     har med plats att göra: en fylld cirkel som tog 88 procent av fältets
+     höjd var det tyngsta i hela sidhuvudet, och Boolis eget sökfält har ingen
+     knapp alls i sig.
+
+     Träffytan bärs av ett genomskinligt ::after, exakt som .palette-hint
+     några rader ned och som kartknapparna i kartram.css. 38 plus 3 px åt
+     varje håll är 44 i båda riktningar, och ytan stannar innanför pillrets
+     kant. Se --h-tap i tokens.css. */
   .go {
+    position: relative;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--h-tap);
-    height: var(--h-tap);
+    width: 38px;
+    height: 38px;
     padding: 0;
     border: 0;
     border-radius: var(--r-pill);
     background: var(--brand);
     color: #fff;
     cursor: pointer;
+  }
+
+  /* Träffytan, 44 px, oberoende av knappens 38. Bara här och inte i hero,
+     där knappen redan ÄR 44 och ett ::after hade lagt 6 px död yta ovanpå
+     inmatningsfältet. */
+  .go::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
   }
 
   .go:hover { background: var(--brand-ink); }
@@ -432,6 +454,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   .site-search.is-hero .search-field input { font-size: var(--fs-body); }
 
   .site-search.is-hero .go { width: 44px; height: 44px; }
+  .site-search.is-hero .go::after { content: none; }
   .site-search.is-hero .go svg { width: 19px; height: 19px; }
 
   /* ── Panelen ────────────────────────────────────────────────────────────
@@ -784,9 +807,11 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
        Här stod 36 px, med motiveringen att fältet ska väga mindre i en 58 px
        rad och att 36 är "en bekväm träffyta". Det andra är fel: 36 ligger
        under WCAG 2.5.5:s och Apples 44, och det är på telefonen kravet
-       gäller, eftersom det bara finns ett finger där. Booli gör tvärtom och
-       håller sina 50 px hela vägen ned, uppmätt i 390×844 2026-08-18. Raden
-       är 64 px sedan samma mätning och rymmer fältet med 7 px luft. */
+       gäller, eftersom det bara finns ett finger där. Booli håller sitt eget
+       mått hela vägen ned, uppmätt i 390×844, och gör alltså inte fältet
+       lättare på telefonen. Vårt är 44 i båda bredderna sedan 2026-08-20,
+       alltså precis på träffytegolvet, och raden på 64 px rymmer det med
+       10 px luft. */
 
     /* 16px är ett GOLV, inte ett val. Safari på iOS zoomar in hela sidan när
        ett fält med mindre än 16 px text får fokus, och zoomar aldrig ut igen.

@@ -142,7 +142,39 @@
      `.kartram .maplibregl-ctrl-group button::after` och ska återanvändas
      därifrån, inte uppfinnas per komponent. */
   --h-bar: 64px;               /* sidhuvudets rad */
-  --h-field: 50px;             /* sökfältet */
+
+  /* --h-field är 44 och inte 50, och rättelsen gäller BARA sidhuvudets fält.
+     Ommätt 2026-08-20.
+
+     Boolis 50 stämmer fortfarande. `.bui-input-search` mäter 50 px i både
+     1280 och 390, med 4 px radie, grå fyllning och ingen skugga. Felet var
+     inte talet utan att det flyttades in i en rad det aldrig stod i. Boolis
+     nav är 64 px och innehåller INGET sökfält: på deras söksida börjar fältet
+     på 130 px, alltså under raden, och Hemnets sidhuvud är 56 px och likaså
+     tomt. Deras 50 px fält står ensamt på egen rad och är 510 px brett på
+     startsidan och 640 på söksidan, alltså 10,2 och 12,8 gånger sin höjd.
+
+     Vårt fält delar raden med wordmarken och menyn och är därför 380 px på
+     dator och 201 px på telefon. Med höjden 50 blev det 7,6 och 4,0 gånger
+     sin höjd, alltså en betydligt tjockare form av samma tal, och det är den
+     ägaren såg: "är inte sökrutan lite för tjock ... på längden bra men på
+     höjden lite för lång". Till det kommer att vårt fält är ett piller med
+     999 px radie och inte en 4 px ruta, och att det bär en fylld knapp som
+     med 44 px tog 88 procent av fältets höjd. Boolis fält har ingen knapp.
+
+     44 och inte något annat tal: det är --h-tap, alltså det lägsta ett
+     textfält får vara på en pekskärm, och fältet är sin egen träffyta. Under
+     44 får det inte gå, och över 44 finns inget skäl att lägga sig när det
+     som fältet står bredvid i raden är 36 px högt. Raden har därmed tre
+     höjder i stället för fyra: 36 för wordmark och meny, 44 för fältet och
+     dess knapp, 64 för raden. Luften över och under fältet går från 7 till
+     10 px.
+
+     Rör inte hero-fältet härifrån. Det sätter sin egen höjd i SiteSearch,
+     56 på dator och 54 på telefon, för där står fältet ensamt på raden precis
+     som Boolis och tål sin längd. Uppmätt: --h-field används på exakt ett
+     ställe i hela kodbasen, `.search-field` i SiteSearch.astro. */
+  --h-field: 44px;             /* sökfältet i sidhuvudet */
   --h-control: 40px;           /* knapp, väljare, chip */
   --h-tap: 44px;               /* golv för träffyta, aldrig lägre */
 

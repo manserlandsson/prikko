@@ -102,10 +102,12 @@ const { search = true } = Astro.props;
 
   /* position: relative — på små skärmar ankras sökpanelen till hela raden i
      stället för till fältet, som då börjar för långt in på skärmen. */
-  /* Raden är 64 px och inte 58. Uppmätt på booli.se 2026-08-18: deras
-     `nav.h-16` är 64 px i både 1280 och 390, och den höjden är dessutom det
-     som får ett 50 px sökfält att sitta i en rad med 7 px luft över och
-     under. Se --h-bar och --h-field i tokens.css. */
+  /* Raden är 64 px och inte 58. Uppmätt på booli.se 2026-08-18 och kontrollerad
+     igen 2026-08-20: deras `nav.h-16` är 64 px i både 1280 och 390. Deras rad
+     är däremot TOM på sökfält, både på start- och söksidan, så 64 säger inget
+     om vad ett fält i raden får väga. Sedan 2026-08-20 är fältet 44 px och
+     sitter med 10 px luft över och under. Se --h-bar och --h-field i
+     tokens.css. */
   .bar {
     position: relative;
     display: flex;

@@ -253,7 +253,7 @@ Informationspricken på 16 px var sajtens grövsta brott: under WCAG 2.5.8:s
 | Token | Värde | Varifrån |
 |---|---|---|
 | `--h-bar` | 64 | Boolis `nav.h-16`, båda bredderna |
-| `--h-field` | 50 | Boolis `.bui-input-search`, båda bredderna |
+| `--h-field` | 44 | Se rättelsen nedan. Var 50 i två dagar. |
 | `--h-control` | 40 | Boolis filterknapp och sorteringsväljare |
 | `--h-tap` | 44 | WCAG 2.5.5, inte Booli |
 
@@ -271,6 +271,44 @@ pricken står inuti löpande text med rader 28 px isär, och en osynlig
 
 **Kvar:** kartpuffens knapp på 34 px (`Platskarta.astro`) och kartans egna
 kontroller. De ägs av kartans agent.
+
+### Rättelse 2026-08-20: `--h-field` går från 50 till 44
+
+Ägaren: "är inte sökrutan lite för tjock? känns typ som den blivit tjockare
+neråt. så liksom på längden bra men på höjden lite för lång."
+
+Mätningen ovan stämmer fortfarande. Boolis `.bui-input-search` är 50 px i både
+1280 och 390. Felet var att talet flyttades in i en omgivning det aldrig stod
+i, och det som skiljer är LÄNGDEN, inte höjden:
+
+| | höjd | bredd | bredd/höjd |
+|---|---|---|---|
+| Booli, startsidan 1280 | 50 | 510 | 10,2 |
+| Booli, söksidan 1280 | 50 | 640 | 12,8 |
+| Booli, 390 | 50 | 324 | 6,5 |
+| Prikko, sidhuvudet 1280 | 50 | 380 | 7,6 |
+| Prikko, sidhuvudet 390 | 50 | 201 | 4,0 |
+
+Booli har dessutom **inget sökfält i sidhuvudet**. Deras `nav` är 64 px och
+tom; på söksidan börjar fältet först vid 130 px, alltså under raden. Hemnets
+sidhuvud är 56 px och likaså tomt. De som faktiskt lägger ett fält i raden
+ligger lägre i förhållande till sin rad: hitta.se 52 i en rad på 74, Yelp 48 i
+ett tvåradigt sidhuvud på 131. Google gick inte att mäta, deras söksida
+svarade med en robotkontroll.
+
+Två saker till som gör samma tal tyngre hos oss: vårt fält är ett piller med
+999 px radie där Boolis är en 4 px ruta, och vårt bär en fylld knapp som med
+44 px tog 88 procent av fältets höjd. Boolis fält har ingen knapp alls.
+
+Vad som ändrats: `--h-field` 50 till 44 och sökknappen 44 till 38 med ett
+`::after` som håller träffytan på 44, receptet ur `kartram.css`. 44 är
+`--h-tap`, alltså det lägsta ett textfält får vara på en pekskärm, och fältet
+är sin egen träffyta. Sidhuvudets rad har därmed tre höjder i stället för
+fyra: 36 för wordmark och meny, 44 för fältet och dess knapp, 64 för raden.
+Luften över och under fältet går från 7 till 10 px.
+
+Hero-fältet är orört. Det står ensamt på raden precis som Boolis och behåller
+56 på dator och 54 på telefon, med en 44 px knapp.
 
 ## 7. Vi skiljer sektioner med rutor där Booli skiljer med linje och luft
 
