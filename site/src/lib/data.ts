@@ -288,6 +288,55 @@ export function statistics(e: Establishment): Stats {
 }
 
 /**
+ * Hur många kontroller i följd, räknat från den senaste och bakåt, som inte
+ * fick en enda anmärkning. Noll när den senaste kontrollen har en.
+ *
+ * ## Varför talet finns bredvid andelen och inte i stället för den
+ *
+ * `cleanShare` kan inte skilja på en ren bedömning som vilar på mycket och en
+ * som vilar på lite. 6 636 av de 16 047 sidorna visar "100 %", och 3 406 av
+ * dem, alltså mer än hälften, vilar på EN ENDA publicerad kontroll. Samma tal
+ * står på en verksamhet med tjugo rena kontroller bakom sig. Raden i följd
+ * skiljer dem åt.
+ *
+ * Åt andra hållet döljer andelen det motsatta. 3 375 sidor har en rad på minst
+ * två rena i följd utan att nå 100 %, för att det ligger en gammal anmärkning
+ * längst ned i historiken. Wirströms Pub i Stockholm är en av dem: åtta rena i
+ * rad sedan 2018, och en enda avvikelse dessförinnan drar talet till 89 %.
+ * Ingen siffra på sidan bar den upplysningen förut.
+ *
+ * ## Räckvidd, mätt 2026-08-20 över hela beståndet
+ *
+ *   rad >= 2   6 605 sidor   41,2 %
+ *   rad >= 3   3 848 sidor   24,0 %
+ *   rad >= 5   1 420 sidor    8,8 %
+ *
+ * Sidmallen visar raden bara när den är minst två OCH kortare än historiken,
+ * alltså på 3 375 sidor (21,0 %). På de 3 230 sidor där hela historiken är ren
+ * säger raden exakt samma sak som "Kontroller" och "100 %" redan säger några
+ * centimeter bort, och ett tal som redan står på sidan ska inte stå två gånger.
+ *
+ * ## Vad talet INTE får bli
+ *
+ * Det är ett tal om DEN HÄR adressen och aldrig en jämförelse. Det får inte
+ * rangordnas mot andra, det får inte vändas till en rad anmärkningar i följd,
+ * och frånvaron av raden är ingen utsaga: 62 procent av sidorna saknar den,
+ * de flesta för att kommunen bara publicerat en eller två kontroller.
+ *
+ * Återbesök räknas med. De ÄR kontroller, kommunen bedömer dem på samma
+ * tresteg, och att räkna bort dem hade tappat 1 131 sidor (6 605 mot 5 474)
+ * utan att göra påståendet sannare.
+ */
+export function cleanStreak(e: Establishment): number {
+  let n = 0;
+  for (const i of e.inspections) {
+    if (i.assessment !== 0) break;
+    n += 1;
+  }
+  return n;
+}
+
+/**
  * Kandidatregister per kommun: verksamheter som alls kan bli en granne, med
  * koordinaterna förkonverterade till radianer.
  *

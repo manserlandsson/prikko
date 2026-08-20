@@ -69,6 +69,7 @@ import {
   BEST_NEARBY_M,
   bestNearby,
   categoriesOf,
+  cleanStreak,
   establishments,
   followUp,
   isRemark,
@@ -481,6 +482,41 @@ const facts = [
 ];
 
 /**
+ * Raden rena kontroller i följd, som en mening under nyckeltalen.
+ *
+ * ## Varför en mening och inte ett femte nyckeltal
+ *
+ * Nyckeltalsraden har fyra platser och de är tagna. Ett femte tal hade dessutom
+ * stått bredvid "Utan anmärkning" och sagt nästan samma sak med andra siffror,
+ * vilket är precis vad två tal bredvid varandra inte får göra. Meningen står
+ * under raden och KVALIFICERAR andelen i stället för att tävla med den, samma
+ * grepp som ribban under listan i RenHistorik.astro.
+ *
+ * ## Varför den bara står ibland
+ *
+ * Två villkor, och båda har ett mätt skäl.
+ *
+ * MINST TVÅ. En rad på en enda kontroll är inte en rad. "Den senaste
+ * kontrollen var utan anmärkning" står dessutom redan som svarsmening högst
+ * upp på sidan.
+ *
+ * KORTARE ÄN HISTORIKEN. Är hela historiken ren säger meningen samma sak som
+ * "Kontroller: 9" och "Utan anmärkning: 100 %" redan säger tio centimeter
+ * ovanför. Det gäller 3 230 sidor.
+ *
+ * Kvar blir 3 375 av 16 047 sidor, alltså 21,0 procent, och det är exakt de
+ * sidor där ingen befintlig siffra bär upplysningen: en rad rena kontroller som
+ * andelen döljer för att det ligger en gammal anmärkning längst ned. Se
+ * cleanStreak() i lib/data.ts för hela mätningen.
+ *
+ * Nämnaren står utskriven i meningen och är aldrig underförstådd. "De 8
+ * senaste" utan "av 9" hade låtit läsaren gissa hur djup historiken är, och
+ * djupet är kommunens publiceringsfönster och inte verksamhetens ålder.
+ */
+const renRad = cleanStreak(e);
+const visaRenRad = renRad >= 2 && renRad < stats.total;
+
+/**
  * Kommunens egen utsaga om ägarbyte, när den finns. Återges attribuerad, aldrig
  * som vår slutsats. Se OWNERSHIP_POLICY i data.ts.
  */
@@ -740,6 +776,15 @@ const breadcrumbs = {
         {/* Nyckelfakta i öppen rad direkt under beskedet, som Boolis
             Boarea · Rum · Byggår under priset. Förbehållen bor i tipsen. */}
         <FactGrid facts={facts} />
+
+        {/* Raden i följd, direkt under den andel den kvalificerar. Se
+            `renRad` ovan för villkoren och för de 3 375 sidorna. */}
+        {visaRenRad && (
+          <p class="ren-rad caption text-secondary">
+            De {formatNumber(renRad)} senaste av {formatNumber(stats.total)} kontrollerna
+            {' '}{plats} var utan anmärkning.
+          </p>
+        )}
 
         {/* Jämförelsen står vid nyckeltalen och inte i handlingsraden.
             Handlingsraden är låst vid två knappar av dokumenterade skäl, se
@@ -1444,6 +1489,34 @@ const breadcrumbs = {
   }
 
   .near-info span { font-size: var(--fs-micro); line-height: var(--lh-micro); }
+
+  /* Meningen om raden i följd hänger på nyckeltalen och inte fritt under dem:
+     8 px, alltså samma avstånd som Nyckeltal.astro sätter mellan ett tal och
+     dess etikett. Med sidans vanliga sektionsluft hade den lästs som ett eget
+     stycke i stället för som en fotnot till andelen den kvalificerar.
+
+     Hårlinjen och padding-top ur `.main > * + *` nollas därför här. Regeln
+     skiljer SEKTIONER åt, och meningen är ingen sektion utan en fotnot till
+     den rad den hänger under. Med linjen kvar hade den sett ut som ett eget
+     avsnitt med en enda mening i. */
+  .ren-rad {
+    margin-top: var(--s-2);
+    padding-top: 0;
+    border-top: 0;
+    max-width: var(--w-read);
+  }
+
+  /* Mer luft när nyckeltalen bryter i två rader. Uppmätt vid 390 px: "Äldsta
+     kontroll 2018" står ensamt på andra raden, och med 8 px läste meningen
+     som bildtext till just det talet i stället för som en fotnot till hela
+     raden. FactGrid sätter 12 px mellan sina cellrader, så 16 px är det
+     minsta som gör meningen till något annat än ytterligare en cellrad.
+
+     640 px och inte ett eget mått: det är sidans befintliga brytpunkt strax
+     ovanför, och radbrytningen i FactGrid börjar långt före den. */
+  @media (max-width: 640px) {
+    .ren-rad { margin-top: var(--s-4); }
+  }
 
   /* Stilla knapp under nyckeltalen. Formen är btn-quiet ur konto.css, men
      klassen kan inte lånas rakt av: den bor i ett stilark den här sidan inte
