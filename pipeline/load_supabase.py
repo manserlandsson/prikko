@@ -42,6 +42,7 @@ from typing import Iterable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from prikko.dates import clamp_future_inspections, log_clamped  # noqa: E402
+from prikko.sidbrytning import med_unik_ordning  # noqa: E402
 
 BATCH = 500
 
@@ -168,15 +169,28 @@ class Supabase:
                 prefer="resolution=merge-duplicates,return=minimal",
             )
 
-    def select_all(self, table: str, query: str) -> list:
+    def select_all(self, table: str, query: str, unik: str = "id") -> list:
         """Hämta samtliga rader för en fråga, sidvis.
 
         PostgREST returnerar högst 1 000 rader per svar. Utan sidbrytning
         hade en namnjämförelse i Stockholm tyst tappat 7 500 av 8 511
         anläggningar och därmed missat exakt de byten den finns för.
+
+        Sidbrytningen sorteras på en unik nyckel, och det är inte en
+        prydnad. Utan `order` är radordningen odefinierad mellan de nio
+        anropen Stockholm kräver, och en läsning som tappar en löpa rader
+        får `reconcile_slugs` att sluta låsa just dem. Nattkörningen
+        2026-08-19 föll på det med 23505 mot
+        establishments_municipality_code_slug_key. Se
+        pipeline/prikko/sidbrytning.py för hela mätningen.
+
+        `unik` är den nyckeln. Den är `id` i de flesta tabeller, men
+        municipalities har `code` och assessments har `establishment_id`,
+        och de saknar `id` helt.
         """
         rows: list = []
         page = 1000
+        query = med_unik_ordning(query, unik)
         while True:
             start = len(rows)
             data = self._request(

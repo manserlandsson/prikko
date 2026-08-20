@@ -59,6 +59,7 @@ from prikko.rorelse import (  # noqa: E402
     _days,
     reconcile,
 )
+from prikko.sidbrytning import med_unik_ordning  # noqa: E402
 
 # Spärren mot att avpublicera ett stort bortfall bor i load_supabase. Rörelsen
 # måste dra samma gräns, annars säger sidan att fyrahundra verksamheter är
@@ -102,9 +103,20 @@ class Supabase:
             detail = exc.read().decode("utf-8", "replace")[:500]
             raise SupabaseError(f"{method} {path} → {exc.code}: {detail}") from exc
 
-    def select_all(self, table: str, query: str) -> list:
-        """Hämta samtliga rader, sidvis. PostgREST stannar vid 1 000."""
+    def select_all(self, table: str, query: str, unik: str = "id") -> list:
+        """Hämta samtliga rader, sidvis. PostgREST stannar vid 1 000.
+
+        Sorteringen på en unik nyckel gör sidbrytningen entydig. Utan den är
+        radordningen odefinierad mellan anropen och listan blir tyst
+        ofullständig, vilket fällde inläsningen 2026-08-19. Se
+        pipeline/prikko/sidbrytning.py.
+
+        Flera anropare sorterar redan på `observed_at`, där tusentals rader
+        delar värde. Den ordningen behålls och får den unika nyckeln lagd
+        sist, som avgörare inom grupperna.
+        """
         rows: list = []
+        query = med_unik_ordning(query, unik)
         while True:
             data = self._request("GET", f"{table}?{query}&limit={PAGE}&offset={len(rows)}")
             chunk = json.loads(data.decode("utf-8"))
@@ -176,7 +188,7 @@ def register(path: Path, client: Supabase, deferred: Optional[list] = None) -> N
     # Har inläsningen redan körts mot den här filen står jämförelsen mot sig
     # själv. Det ger noll nya och noll borta i all evighet, tyst.
     loaded = client.select_all(
-        "municipalities", f"select=last_fetched_at&code=eq.{quoted}"
+        "municipalities", f"select=last_fetched_at&code=eq.{quoted}", unik="code"
     )
     if loaded and loaded[0].get("last_fetched_at") == observed_at:
         sys.exit(
@@ -208,6 +220,7 @@ def register(path: Path, client: Supabase, deferred: Optional[list] = None) -> N
         for row in client.select_all(
             "assessments",
             "select=establishment_id,reason&reason=eq.no_inspections",
+            unik="establishment_id",
         )
     }
 
@@ -450,11 +463,19 @@ def export(client: Supabase, out_dir: Path) -> None:
     inte i exporten sajten bygger på: utan namnet här hade sidan som säger att
     den är borta inte kunnat nämna den vid namn.
     """
-    events = client.select_all("roster_events", "select=*&order=observed_on.desc")
+    # roster_events är en VY och har ingen primärnyckel. Den blir entydig
+    # först på de tre kolumnerna tillsammans.
+    events = client.select_all(
+        "roster_events",
+        "select=*&order=observed_on.desc",
+        unik="establishment_id,kind,observed_on",
+    )
     deliveries = client.select_all(
         "roster_deliveries", "select=municipality_code,observed_at,kind&order=observed_at"
     )
-    municipalities = client.select_all("municipalities", "select=code,slug,name,city&order=code")
+    municipalities = client.select_all(
+        "municipalities", "select=code,slug,name,city&order=code", unik="code"
+    )
 
     runs = defaultdict(list)
     for row in deliveries:
