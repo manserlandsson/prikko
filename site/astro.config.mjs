@@ -399,6 +399,79 @@ const sitemapChunks = Object.fromEntries(
  * åtgärd att lista den filen som undantag här, med skälet skrivet, inte att ta
  * bort vakten.
  */
+/**
+ * Varje intern länk ska peka på en sida som finns.
+ *
+ * ## Varför grinden behövs
+ *
+ * De grindar vi redan har läser PÅSTÅENDEN om vilka sidor som finns:
+ * sitemapen, `noindex` och webbkartan. Ingen läser vad sidorna faktiskt
+ * länkar till. Två fel gick därför rakt igenom ett grönt bygge samma dag,
+ * 2026-08-20, båda i den nya topplistesidtypen:
+ *
+ *   1. Kategorivillkoret låg i sidgeneratorn men inte i modulen kommunsidan
+ *      frågade, så TIO AV FEMTON länkar pekade på 404.
+ *   2. Ledet hette först `basta`, och det finns en restaurang som heter Basta
+ *      i både Stockholm och Örebro. Deras sidor klassades tyst som topplistor.
+ *
+ * Båda hade fällts här. Grinden är billig: den läser utgåvan som redan ligger
+ * på disk och slår upp varje länk i en mängd över byggda sidor.
+ *
+ * ## Vad som prövas, och vad som inte gör det
+ *
+ * Bara rotrelativa sökvägar som slutar med snedstreck, alltså den form
+ * `lib/urls.ts` alltid producerar. Filer (/sitemap-index.xml), ankare
+ * (#kommuner), frågesträngar, yttre adresser, `mailto:` och `tel:` faller bort
+ * utan att behöva räknas upp. Samma avgränsning som webbkartekontrollen i
+ * sitemapGuard redan gör, av samma skäl: en grind som försöker pröva allt blir
+ * en grind full av undantag.
+ */
+function lankgrind() {
+  return {
+    name: 'prikko:lankar',
+    hooks: {
+      'astro:build:done': ({ dir, logger }) => {
+        const out = fileURLToPath(dir);
+
+        const sidor = new Set();
+        for (const file of globSync('**/index.html', { cwd: out })) {
+          sidor.add(`/${file.replace(/index\.html$/, '')}`);
+        }
+
+        const trasiga = new Map();
+        for (const file of globSync('**/*.html', { cwd: out })) {
+          const html = readFileSync(`${out}${file}`, 'utf8');
+          for (const match of html.matchAll(/href="(\/[^"#?]*\/)"/g)) {
+            if (sidor.has(match[1])) continue;
+            const frans = `/${file.replace(/index\.html$/, '')}`;
+            if (!trasiga.has(match[1])) trasiga.set(match[1], new Set());
+            trasiga.get(match[1]).add(frans);
+          }
+        }
+
+        if (trasiga.size > 0) {
+          const rader = [...trasiga.entries()]
+            .slice(0, 5)
+            .map(([mal, franOrter]) => {
+              const antal = franOrter.size;
+              const forsta = [...franOrter][0];
+              return `    ${mal}  länkas från ${antal} sidor, t.ex. ${forsta}`;
+            });
+          throw new Error(
+            `${trasiga.size} interna länkar pekar på sidor som inte byggts.\n\n` +
+              rader.join('\n') +
+              '\n\n  Antingen bygger sidan inte längre, eller så räknar länken\n' +
+              '  fram en adress med ett annat villkor än sidgeneratorn. Det\n' +
+              '  andra var felet 2026-08-20, se prikko:lankar i astro.config.mjs.',
+          );
+        }
+
+        logger.info(`inga döda interna länkar bland ${sidor.size} byggda sidor.`);
+      },
+    },
+  };
+}
+
 function nestingGuard() {
   return {
     name: 'prikko:nesting-guard',
@@ -675,6 +748,7 @@ export default defineConfig({
     sitemapGuard(),
     filtaksgrind(),
     nestingGuard(),
+    lankgrind(),
     /* Vaktar de fyra regler som gör att arken inte hoppar på telefon.
        Grinden bor i scripts/inloggningsgrind.mjs och förklarar sig själv. */
     inloggningsgrind(),
