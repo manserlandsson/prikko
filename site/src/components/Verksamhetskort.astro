@@ -1,0 +1,147 @@
+---
+/**
+ * Startsidans verksamhetskort.
+ *
+ * ══ VARFÖR KORTET INTE BÄR ETT FOTO ═════════════════════════════════════
+ *
+ * Förlagan är Airbnbs startsida, och det som gör den bra är att varje kort är
+ * ett fotografi av ett riktigt ställe. Den formen går inte att låna, och det
+ * är räknat och inte tyckt.
+ *
+ *   210 av 16 047 verksamheter bär en bild.        1,3 procent.
+ *   Sex kommuner av tolv har noll.                 borgholm, hoganas,
+ *                                                  kristinehamn, lomma,
+ *                                                  oskarshamn, svenljunga
+ *   Samtliga 210 kommer ur Wikimedia Commons.      noll mapillary, noll egna
+ *
+ * Ett rutnät i deras form hade alltså blivit 98,7 procent tomma rutor. Men
+ * det är inte ens huvudskälet. Licensen är det.
+ *
+ * 187 av de 210 bär en CC-licens som kräver att fotografen namnges där bilden
+ * visas, och Commonsbild.astro har redan avgjort hur vi uppfyller det: en
+ * SYNLIG bildtext, aldrig en (i)-knapp. Den filen har också avgjort att även
+ * de 20 public domain-bilderna får bildtext, eftersom årtalet är ett
+ * ärlighetskrav: Grand Hotel är fotograferat 2013 och Rosenlunds Herrgård
+ * 2019, och en bild utan årtal är ett påstående om hur det ser ut i dag.
+ *
+ * Ett kort på 250 pixlar kan inte bära "Foto: Balazs Szanto, 2013, CC BY-SA
+ * 2.0" utan att bildtexten blir kortets största textmassa. Alltså bär inget
+ * kort på startsidan ett foto, och det är ett beslut och inte en lucka.
+ *
+ * Vinsten är att kortet får EN form i stället för två. Det som ägaren
+ * varnade för, att ansiktsrutan skulle läsa som en platshållare för ett
+ * foto som saknas, kan inte inträffa när inget kort någonstans har ett foto.
+ *
+ * ══ VAD KORTET ÄR I STÄLLET ═════════════════════════════════════════════
+ *
+ * Bedömningsmärket, sajtens eget tecken, som kortets enda färg. Allt annat
+ * på kortet är svart, grått och vitt. Ett rutnät av åtta kort blir därmed
+ * åtta färgprickar på vit botten, och det går att läsa på en blick utan att
+ * något skriker.
+ *
+ * MÄRKET FÅR STÅ HÄR. Regeln i docs/24_maskotprogram.md §2 lyder att
+ * MASKOTEN aldrig får stå bredvid en bedömning av en namngiven verksamhet,
+ * och samma stycke pekar uttryckligen ut bedömningsmärket som det som ska
+ * stå där i stället: "Där står bedömningsmärket, som är ett neutralt tecken
+ * och inte en karaktär." Tabellen i samma paragraf sätter märkets plats till
+ * "Listor, kartnålar, sökträffar, verksamhetssidan" och dess antal per sida
+ * till "Tusentals". Kortet är en listpost i rutnätsform.
+ *
+ * FaceRef och inte FaceMark: åtta märken per grupp och sex grupper är 48
+ * märken på sidan, och sprite-varianten ritar dem som `<use>` mot fyra
+ * symboler. Ingen av rörelseflaggorna sätts, av samma skäl som listorna
+ * aldrig får dem, se FaceMark.astro.
+ *
+ * BETYDELSEN SITTER ALDRIG I FÄRGEN. Etiketten står i klartext under namnet,
+ * precis som i EstablishmentList.astro, och munnen skiljer de tre nivåerna åt
+ * i gråskala. Samma krav som tokens.css ställer på --verdict-minor-ink.
+ *
+ * ══ HOVRING ═════════════════════════════════════════════════════════════
+ *
+ * Bara understrykning av namnet. Uppmätt på airbnb.se 2026-08-21: deras kort
+ * har INGEN hovringseffekt alls. Varje ättling till kortets länk svarade
+ * `transition-duration: 0s`, `transform: none` och `box-shadow: none`, och
+ * bilden hade ingen övergång. Ett kort som lyfter och skuggar på hovring är
+ * inte förlagans grepp utan mallens.
+ */
+import FaceRef from './FaceRef.astro';
+import {
+  formatDate,
+  isIndexable,
+  latestInspectionDate,
+  missingReason,
+  type Establishment,
+} from '../lib/data';
+import { MISSING, VERDICT } from '../lib/site';
+import { path } from '../lib/urls';
+
+interface Props {
+  e: Establishment;
+}
+
+const { e } = Astro.props;
+
+const date = latestInspectionDate(e);
+const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
+---
+
+<a
+  class="kort"
+  href={path(e.municipality.slug, e.slug)}
+  rel={isIndexable(e) ? undefined : 'nofollow'}
+>
+  <FaceRef verdict={e.verdict} size={44} />
+  <span class="namn">{e.name}</span>
+  <span class="dom" style={`color: ${dom.colorVar}`}>{dom.label}</span>
+  <span class="ort text-secondary">
+    {[e.municipality.city, date && formatDate(date)].filter(Boolean).join(' · ')}
+  </span>
+</a>
+
+<style>
+  /* Kortet är en vit ruta med ring, alltså sajtens .card, men klassen sätts
+     här i stället för i markupen: kortet är en länk, och .card bär ingen
+     länktypografi. Ringen kommer ur --shadow-sm, som sedan --canvas gick
+     till nästan vitt är det enda som avgränsar ett kort från sidan. */
+  .kort {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-1);
+    height: 100%;
+    padding: var(--s-4);
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* Märket har sin egen luft under sig och inte via rutans gap: gapet är 4 px
+     och håller de tre textraderna tätt ihop, medan märket ska stå av från
+     dem. 12 px är --s-3. */
+  .kort :global(.face) { margin-bottom: var(--s-3); }
+
+  /* Namnet är sajtens vanligaste grad, 14/24, i halvfet. Två rader och sedan
+     avhugget: en verksamhet heter ibland "Stiftelsen Konung Oscar I:s Minne",
+     och ett kort som växer efter sitt längsta namn spräcker rutnätets rader. */
+  .namn {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .dom,
+  .ort {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+
+  /* Hovringen, hela kortets enda. Se filhuvudet. */
+  .kort:hover { text-decoration: none; }
+  .kort:hover .namn { text-decoration: underline; }
+</style>

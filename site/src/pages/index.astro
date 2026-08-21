@@ -2,93 +2,103 @@
 /**
  * Startsidan.
  *
- * Ledstjärna: booli.se, ägarens uttryckliga förebild ("den är SÅ clean"),
- * studerad i webbläsaren 2026-08-05, inte ur minnet. Det som gör deras
- * startsida ren: ett verkligt foto kant i kant, allt läsbart på vita kort
- * ovanpå fotot, ETT accentbruk (deras orange finns i logotypen, en asterisk
- * och en aktiv flik — ingen annanstans), grå fältytor utan ram, och nästan
- * ingenting under vikningen som pockar. Samma slutsats som mätningen mot
- * TheFork, Airbnb, hitta.se och brittiska FSA: startsidan ÄR produkten,
- * ingen av referenserna förklarar sig ovanför vikningen.
+ * ══ VAD SOM ÄR BORTA, OCH VARFÖR ════════════════════════════════════════
  *
- * Strukturen, uppifrån: hero (rubrik och sökfält), kommunerna störst
- * först, länkkolumnerna per verksamhetstyp, artiklarna. Sedan slut. Sidan
- * säger ingenting om varifrån datan kommer; det gör sidfoten och källsidan.
- * Sökfältet ligger HÄR och inte i sidhuvudet: Base får headerSearch={false},
- * och fältet är samma komponent i sitt hero-läge. En sida får aldrig två
- * sökfält: dubbleringen var det som fick den gamla heron att kännas tom.
+ * Rubriken och hjälten. Ägaren om det förra försöket: "homepagen är
+ * katastrof, skrota" och "helheten, den ser AI-genererad ut". Domen gällde
+ * FORMEN och inte utförandet, och han har rätt: rubrik över sökfält över
+ * förklarande block är mönstret varje genererad landningssida har.
  *
- * Varje sektion är lånad där den löser vår uppgift, inte för att kopiera:
- *  - länkkolumnerna (JobbSafari) för att kommun- och kategorisidorna är de
- *    sidtyper som bär trafiken (~90 % i SEO-mätningen mot brittiska FSA) och
- *    behöver intern länkkraft,
- *  - artikelkorten (JobbSafari) för att det redaktionella rummet nu finns
- *    under /artiklar/ men saknade ingång från startsidan.
+ * Förlagorna gör inte så, och det är uppmätt i webbläsaren 2026-08-21, inte
+ * skrivet ur minnet. Skärmbilderna ligger i research/forlagor/.
  *
- * Inga påhittade siffror: allt räknas ur faktisk data.
+ *   airbnb.se   `h1` är 1×1 pixel och lyder "Airbnbs hemsida", alltså bara
+ *               för skärmläsare. Ingen hjälte, ingen värdetext, ingen
+ *               förklaring av tjänsten. Body-bakgrunden är ren vit.
+ *               Sidhuvud, kategorirad, sökfält, och sedan kort direkt.
+ *   ednia.se    ingen `h1` alls. Sökfält i sidhuvudet, ikonrad under, och
+ *               sedan kort direkt.
+ *
+ * Vår `h1` gör därför samma sak: den finns för sökmotorn och för
+ * skärmläsaren, och den syns inte. `.visually-hidden` i tokens.css finns
+ * redan uttryckligen "för SEO-korrekta men visuellt dolda rubriker".
+ *
+ * Tre block är också borta: "Välj kommun", "Utforska efter typ av
+ * verksamhet" och "Så fungerar kontrollen". Ägaren: både Airbnb och Ednia
+ * visar RESULTAT på startsidan, inte navigering och inte förklaring. Våra
+ * tre var två navigeringsblock och en förklaring, alltså noll resultat, och
+ * det var sannolikt lika mycket av AI-känslan som rubriken var.
+ *
+ * ══ VAD SIDAN ÄR I STÄLLET ══════════════════════════════════════════════
+ *
+ *   1. Sidhuvudet bär sökfältet. Base får inte längre headerSearch={false}.
+ *      Det är den enda platsen båda förlagorna har det.
+ *   2. Kategorifiltret, sex val, direkt under sidhuvudet. Ednias plats.
+ *   3. Senast kontrollerade. Tolv verksamheter, filtrerade på plats.
+ *   4. Kommunerna.
+ *   5. Artiklarna, sist.
+ *   6. Länkkolumnerna, längst ned mot sidfoten.
+ *
+ * Ordningen är ägarens: korten är verksamheter, artiklarna hör inte hemma
+ * högt upp, länkkolumnerna hör inte hemma på plats två.
+ *
+ * ══ VARFÖR JUST "SENAST KONTROLLERADE" ══════════════════════════════════
+ *
+ * Det är den enda raden vars innehåll garanterat är färskt varje dag, och
+ * alltså den enda som visar att sajten lever. Nämnaren är 68 958 kontroller
+ * på 14 482 verksamheter som har minst en.
+ *
+ * Raden är KRONOLOGISK och går inte att vända. Det är villkoret som gör den
+ * tillåten: en rad som visar bedömningar får inte kunna läsas som en
+ * rangordning, och ett datum rangordnar ingenting. Det finns ingen
+ * sorteringskontroll, ingen "sämst först", och kommunerna ställs aldrig mot
+ * varandra på kontrollresultat.
+ *
+ * Av de 16 047 är 11 966 rena, 1 219 har brister, 373 har brister som
+ * kvarstår och 2 489 saknar bedömning. Raden speglar den fördelningen därför
+ * att den inte väljer bort något, och det är också skälet till att den inte
+ * väljer bort något: en "senast kontrollerade" som tyst strök de dåliga vore
+ * en annan lista med samma namn.
+ *
+ * ══ TVÅ PER KOMMUN, RÄKNAT ══════════════════════════════════════════════
+ *
+ * Utan tak blir raden Stockholm. Uppmätt i datan 2026-08-21: av de 60 senast
+ * kontrollerade verksamheterna i landet ligger 42 i Stockholm, 9 i Uppsala,
+ * 6 i Jönköping, 2 i Oskarshamn och 1 i Höganäs. Alltså 70 procent från en
+ * kommun, vilket följer av att Stockholm är 8 520 av 16 047 verksamheter och
+ * publicerar oftast.
+ *
+ * Taket på två per kommun är inte en rangordning och inte en bortsortering:
+ * det är samma lista, spridd så att tolv kort kommer från minst sex
+ * kommuner. Ingen kommun kan hamna över eller under en annan av det.
  */
 import { getCollection } from 'astro:content';
 import type { ImageMetadata } from 'astro';
 import { Image } from 'astro:assets';
-/**
- * Bakgrundsfotot bakom sökkortet, Boolis mönster: ett verkligt foto kant i
- * kant, och innehållet på vita kort ovanpå. Booli använder en varm husfasad
- * i gatunivå — närbild, mänsklig skala, inget vykort. Av våra nio stadsfoton
- * är Linköpings det enda med samma bildspråk: varm puts, grönska, vatten,
- * och framför allt inget landmärke. Stockholm, Örebro och Borgholm är
- * slott och siluetter, och ett landmärke i heron hade läst som "sajten
- * handlar om den staden". Aldrig en genererad bild, aldrig en stockbild:
- * fotot är samma fil som kommunkortets, redan betald och redan i repo.
- */
-import heroPhoto from '../assets/hero-restaurang.jpg';
-import HeroVektor from '../components/HeroVektor.astro';
 
-/**
- * ══ VÄLJ HERONS BAKGRUND ══════════════════════════════════════════════════
- * Byt värdet på raden härunder. Det är hela bytet.
- *
- *   'ingen'  ger vit hero med två kort. Boolis egen form, uppmätt nedan.
- *   'foto'   ger Linköpingsbilden, kant i kant.
- *   'vektor' ger HeroVektor.astro: platt märkesblått fält med Prikkos egna
- *            bedömningsansikten och mat, byggd av bedömningsfärgerna.
- *
- * Alla tre ligger kvar i repot. Fotot är LCP-elementet när det är valt;
- * vektorn är inline-SVG och laddar ingenting alls.
- *
- * ── Varför 'ingen' är förvalet ───────────────────────────────────────────
- * Uppmätt på booli.se 2026-08-13, i webbläsaren och inte ur minnet, i 1280
- * och 375 px bredd:
- *
- *   Heron är 1280×648 och HELT VIT. Ingen bild, inget färgfält, ingen
- *   toning. Sidbehållaren är 980 och innehåller två kort sida vid sida:
- *   söktkortet 560×552 till vänster och påståendekortet 380×270 till höger,
- *   med 40 px mellan sig. Båda korten är vita, 1 px #E6E6E6, radie 6 och
- *   skugga 0 2px 8px rgba(0,0,0,.05). Påståendet är 40/52/600. I mobil
- *   (375) blir bandet 676 högt, sökkortet 343 brett med 16 px marginal, och
- *   påståendekortet tas bort helt.
- *
- * Vår hero var ett mättat märkesblått fält kant i kant med en tecknad
- * illustration och ett kort med skuggan 0 24px 60px rgba(0,0,0,.22). Den
- * skuggan har 7,5 gånger Boolis spridning och 4,4 gånger dess alfa. Det var
- * sajtens största enskilda avvikelse från förebilden, och det första man ser.
- *
- * Vektorn är ägarens egen beställning från 7 augusti och raderas inte. Den
- * står kvar som ett val, en rad härunder.
- */
-const heroBakgrund: 'ingen' | 'foto' | 'vektor' = 'ingen';
 import Base from '../layouts/Base.astro';
+import FaceSprite from '../components/FaceSprite.astro';
+import Kategoriikon from '../components/Kategoriikon.astro';
 import KommunKort from '../components/KommunKort.astro';
-import SiteSearch from '../components/SiteSearch.astro';
+import Verksamhetskort from '../components/Verksamhetskort.astro';
+
+import { articleImage, HERO_WIDTHS } from '../lib/artikelbilder';
 import { readingMinutes, sectionReady } from '../lib/artiklar';
 import {
+  categoriesOf,
   coverage,
+  establishments,
   formatDate,
   formatNumber,
+  latestInspectionDate,
   municipalityCategories,
   municipalitySummaries,
   topCategory,
+  TOP_CATEGORIES,
+  type Establishment,
   type TopCategoryId,
 } from '../lib/data';
+import type { IkonNyckel } from '../lib/ikoner';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
@@ -100,58 +110,138 @@ const summaries = municipalitySummaries();
 
 /**
  * Störst först, inte bokstavsordning. Bokstavsordningen gav Borgholm och
- * Höganäs de två översta platserna och begravde Stockholm under vikningen,
- * samtidigt som genvägsraden i gamla heron redan visste rätt ordning.
+ * Höganäs de två översta platserna och begravde Stockholm.
+ *
+ * Det här är INGEN rangordning i den mening regeln förbjuder. Talet är antal
+ * verksamheter i registret, alltså kommunens storlek, och säger ingenting om
+ * hur kontrollerna utfallit. En ordning på kontrollresultat finns inte på
+ * sajten och ska inte finnas.
  */
 const byTotal = [...summaries].sort((a, b) => b.total - a.total);
 
 /**
- * TRE KORT. INTE FLER, ALDRIG EN LISTA UNDER DEM.
+ * TRE KOMMUNKORT. INTE FLER.
  *
- * Startsidan visade nio fotokort plus en radlista med de tre kommuner som
- * saknade foto. Ägaren (2026-08-05): "jag tycker det blir för mkt ... kanske
- * bara 3 max, på dem största eller något, kom ihåg, vi kommer ha 290
- * tillslut." Skalargumentet avgör: ett rutnät som växer med beståndet är
- * ohållbart vid 290 kommuner, och kortblocket var redan det som gjorde
- * startsidan lång. Tre kort är ett konstant mått, oavsett hur många kommuner
- * som tillkommer.
+ * Beslutet är ägarens och står kvar från 2026-08-05: "jag tycker det blir för
+ * mkt ... kanske bara 3 max, på dem största eller något, kom ihåg, vi kommer
+ * ha 290 tillslut." Skalargumentet avgör: ett rutnät som växer med beståndet
+ * är ohållbart vid 290 kommuner.
  *
- * Radlistan under korten är struken helt, inte kortad. Den var en dubblett:
- * sidfoten står på den här sidan och länkar redan de tolv största kommunerna
- * från varje dokument, så den interna länkkraften till kommunhubbarna finns
- * kvar. En andra lista över samma kommuner en skärmhöjd ovanför är precis den
- * upprepning som hela nedskärningen handlar om. Vägen till resten går via
- * länken bredvid rubriken, platsväljaren i sidhuvudet och webbkartan.
+ * Alla tolv provades först. Det gav fyra rader kort varav TRE tomma rutor med
+ * texten "Ingen bild ännu", eftersom kristinehamn, lomma och svenljunga saknar
+ * stadsfoto, och det är precis den tomma rutan hela ombyggnaden ska bort från.
+ * Vägen till de nio andra går via länken bredvid rubriken, via sidfoten, som
+ * står på varje sida och länkar de tolv största kommunerna, och via sökfältet.
  *
- * Bara kommuner med foto kan bli kort: ett kort utan bild är en tom ruta.
  * Fotona upptäcks från filsystemet precis som i KommunKort, så ett nytt foto
  * kan flytta en kommun in bland korten utan att någon rör den här filen.
  */
-const CARDS = 3;
+const KOMMUNKORT = 3;
 
-const withPhoto = new Set(
+const medFoto = new Set(
   Object.keys(
     import.meta.glob<{ default: ImageMetadata }>('../assets/stad/*.jpg'),
   ).map((p) => p.split('/').pop()!.replace('.jpg', '')),
 );
 
-const cards = byTotal.filter((m) => withPhoto.has(m.slug)).slice(0, CARDS);
+const kommunkort = byTotal
+  .filter((m) => medFoto.has(m.slug))
+  .slice(0, KOMMUNKORT);
 
 // ---------------------------------------------------------------------------
-// Snabbvalen under sökfältet
+// Senast kontrollerade
 // ---------------------------------------------------------------------------
 
+/** Tolv kort, alltså tre jämna rader i fyra spalter och sex i två. */
+const RUTOR = 12;
+
+/** Se filhuvudet: utan taket är 42 av de 60 senaste från Stockholm. */
+const TAK_PER_KOMMUN = 2;
+
+/**
+ * Hela beståndet sorterat en gång, nyast först.
+ *
+ * `establishments()` returnerar listan ur db.ts cache och får aldrig muteras
+ * av en anropare, därför kopian. Kategorierna räknas ut EN gång per
+ * verksamhet och inte en gång per grupp: `classify()` över 14 482 poster sex
+ * gånger vore 86 892 anrop för ett svar som inte ändrar sig.
+ */
+interface Rad {
+  e: Establishment;
+  kategorier: readonly TopCategoryId[];
+  datum: string;
+}
+
+const kronologi: Rad[] = establishments()
+  .map((e) => ({ e, datum: latestInspectionDate(e) }))
+  .filter((r): r is { e: Establishment; datum: string } => r.datum !== null)
+  .map((r) => ({ ...r, kategorier: categoriesOf(r.e).categories }))
+  .sort(
+    (a, b) =>
+      b.datum.localeCompare(a.datum) || a.e.name.localeCompare(b.e.name, 'sv'),
+  );
+
+/** Nyast först, högst två per kommun, tills rutorna är fulla. */
+function senaste(kategori: TopCategoryId | null): Establishment[] {
+  const rakning = new Map<string, number>();
+  const ut: Establishment[] = [];
+  for (const rad of kronologi) {
+    if (kategori && !rad.kategorier.includes(kategori)) continue;
+    const n = rakning.get(rad.e.municipality.slug) ?? 0;
+    if (n >= TAK_PER_KOMMUN) continue;
+    rakning.set(rad.e.municipality.slug, n + 1);
+    ut.push(rad.e);
+    if (ut.length === RUTOR) break;
+  }
+  return ut;
+}
+
+/**
+ * Sex grupper: hemläget plus de fem toppkategorierna.
+ *
+ * Alla sex ritas i markupen och urvalet görs i CSS med :has() på
+ * radioknapparna, precis som artikellistans sortering i
+ * pages/artiklar/index.astro. Ingen adress, ingen sidladdning, inget skript.
+ * Faller :has() bort visas hemläget, vilket är sidans grundläge ändå.
+ *
+ * En kategori kan inte länka någonstans i stället: kategorisidorna finns per
+ * kommun (`/[kommun]/kategori/…`) och det finns ingen nationell. Att bygga
+ * fem nya nationella sidor för en filterrad är precis det bibeln förbjuder,
+ * "en funktion får aldrig kosta en sida", och filtaket ligger på 19 500 med
+ * omkring 17 000 i dag.
+ */
+interface Grupp {
+  id: string;
+  ikon: IkonNyckel;
+  etikett: string;
+  poster: Establishment[];
+}
+
+const grupper: Grupp[] = [
+  { id: 'alla', ikon: 'alla', etikett: 'Alla', poster: senaste(null) },
+  ...TOP_CATEGORIES.map((c) => ({
+    id: c.id,
+    ikon: c.id as IkonNyckel,
+    etikett: c.name,
+    poster: senaste(c.id),
+  })),
+].filter((g) => g.poster.length > 0);
 
 // ---------------------------------------------------------------------------
 // Länkkolumnerna
 // ---------------------------------------------------------------------------
 
 /**
- * Fyra kolumner med kommunernas kategorisidor, JobbSafaris "Lediga jobb per
- * ort/yrke"-sektion översatt till vår uppgift. Skälet är inte utseendet utan
+ * Fyra kolumner med kommunernas kategorisidor. Skälet är inte utseendet utan
  * länkkraften: kommun- och kategorisidorna är de sidtyper som bär trafiken,
- * och startsidan är den starkaste interna avsändaren. Övrigt är restposten
- * (tillverkare, grossister, lager) och förtjänar ingen kolumn på startsidan.
+ * och startsidan är den starkaste interna avsändaren.
+ *
+ * De låg tidigare på plats två, i ett vitt kort, med en egen uppsättning
+ * ikoner. Alla tre sakerna är borta. Platsen är ägarens beslut: kolumnerna
+ * hör hemma vid sidfoten. Kortet är borta för att en länklista inte är ett
+ * kort. Ikonerna är borta för att det var sajtens TREDJE uppsättning
+ * kategoriikoner, efter Kategoriikon.astro och AreaIcon.astro, och samma fem
+ * former står nu i filterraden en skärm längre upp.
  *
  * Bara sidor som finns: linked-flaggan kommer ur samma grind som bygger
  * sidorna (MIN_CATEGORY_PAGE), så en rad här kan aldrig peka på en 404.
@@ -179,40 +269,38 @@ const columns = COLUMN_IDS.map((id) => {
   return { category, links };
 }).filter((c) => c.links.length > 0);
 
-/** Kolumnernas ikoner: handritade i sajtens formspråk, 20×20 med 1,5-streck,
- *  samma manér som sökpanelens och platsväljarens ikoner. Aldrig emoji,
- *  aldrig genererade bilder. */
-const COLUMN_ICONS: Record<TopCategoryId, string> = {
-  restaurang:
-    '<path d="M6.2 2.8v5.4M3.8 2.8v3.6a2.4 2.4 0 0 0 4.8 0V2.8M6.2 8.2v9M13.6 11.4V2.8c2 1.4 3 3.4 3 6v2.6h-3Zm0 0v5.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-  cafe:
-    '<path d="M3.6 8h10v5.2a3.6 3.6 0 0 1-3.6 3.6H7.2a3.6 3.6 0 0 1-3.6-3.6V8ZM13.6 9h1.2a2.2 2.2 0 0 1 0 4.4h-1.2M5.9 5.4c0-.9.9-.9.9-1.8M8.6 5.4c0-.9.9-.9.9-1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-  butik:
-    '<path d="M4.4 7.6h11.2l-.9 8a1.8 1.8 0 0 1-1.8 1.6H7.1a1.8 1.8 0 0 1-1.8-1.6l-.9-8ZM7.2 7.6V6a2.8 2.8 0 0 1 5.6 0v1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-  skola:
-    '<path d="M3.4 16.6V8.2L10 4l6.6 4.2v8.4M3.4 16.6h13.2M8.2 16.6v-3.4a1.8 1.8 0 0 1 3.6 0v3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-  ovrigt: '',
-};
-
 // ---------------------------------------------------------------------------
 // Artiklarna
 // ---------------------------------------------------------------------------
 
 /**
- * Ingången till det redaktionella rummet, JobbSafaris "Läs det senaste" i
- * vårt formspråk. Sektionen lyder under samma kvalitetsgrind som /artiklar/:
- * under MIN_ARTICLES publicerade artiklar bär den sektionen noindex och då
- * ska startsidan inte heller länka dit. Grinden bor i lib/artiklar och
- * dubbleras inte här.
+ * Sist på sidan, och det är ägarens beslut: "artiklarna hör inte hemma högt
+ * upp. Sist, om alls."
+ *
+ * De får ändå vara kvar, och skälet är ett tal: 24 av 24 artiklar har en
+ * egen bild i src/assets/artiklar/. Det är sidans enda rad där varje kort
+ * bär ett riktigt fotografi, och den bristen är just vad som skiljer oss
+ * från förlagan. Se Verksamhetskort.astro för varför verksamhetskorten inte
+ * kan göra samma sak.
+ *
+ * Sektionen lyder under samma kvalitetsgrind som /artiklar/: under
+ * MIN_ARTICLES publicerade artiklar bär den rummet noindex, och då ska
+ * startsidan inte heller länka dit.
  */
-const articlesReady = sectionReady();
-const articleEntries = articlesReady
+const ARTIKLAR = 3;
+const artiklarKlara = sectionReady();
+const artikelposter = artiklarKlara
   ? await getCollection('artiklar', ({ data }) => !data.draft)
   : [];
-const articles = articleEntries
-  .map((e) => ({ slug: e.id, minutes: readingMinutes(e.body ?? ''), ...e.data }))
+const artiklar = artikelposter
+  .map((e) => ({
+    slug: e.id,
+    minutes: readingMinutes(e.body ?? ''),
+    photo: articleImage(e.id, e.data.image),
+    ...e.data,
+  }))
   .sort((a, b) => b.published.localeCompare(a.published))
-  .slice(0, 3);
+  .slice(0, ARTIKLAR);
 
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
@@ -231,12 +319,7 @@ const jsonLd = [
      * sökresultaten i november 2024. Den kunde dessutom aldrig ha fungerat:
      * `urlTemplate` pekade på `/sok/?q={search_term_string}`, och robots.txt
      * blockerar just den formen med `Disallow: /sok/?` för att tunna
-     * resultatsidor inte ska hamna i indexet. Sajten deklarerade alltså en
-     * ingång den samtidigt bad sökmotorerna att inte gå in genom.
-     *
-     * Blockeringen är rätt och sökrutan är borta, så det som ska falla är
-     * påståendet. Kommer funktionen tillbaka behöver den en crawlbar
-     * målsökväg först, inte bara en återinsatt rad.
+     * resultatsidor inte ska hamna i indexet.
      */
   },
   {
@@ -249,163 +332,101 @@ const jsonLd = [
 ];
 ---
 
-<Base title={SITE.name} description={description} jsonLd={jsonLd} headerSearch={false}>
-  {/* Heron efter Boolis mönster, som ägaren pekade ut: ett verkligt foto
-      kant i kant och innehållet på ett vitt kort ovanpå. Hos Booli bär två
-      kort var sin uppgift (sökpanel och rubrik) eftersom deras sökning är
-      ett formulär med flikar och filter. Vår sökning är ETT fält, så hos
-      oss bär ett kort båda: rubrik och fält. Fotot är obehandlat
-      och utan scrim — kortet bär all text, precis som hos förebilden.
+<Base title={SITE.name} description={description} jsonLd={jsonLd}>
+  <FaceSprite />
 
-      Rubriken är besökarens egen fråga, inte vårt påstående om oss själva.
-      Tre föregångare föll på samma grund: "Kommunernas hygienkontroller"
-      gjorde kommunerna till subjekt, "Se vad inspektören såg" inspektören
-      och "Vi visar hur rent det är" oss. Frågeformen sätter läsaren i
-      subjektet, och "där du äter" täcker restaurang, café och skolkök utan
-      uppräkning och utan förkunskap om vad en hygienkontroll är.
+  {/* Sidans enda h1, och den syns inte. Se filhuvudet: båda förlagorna har
+      antingen en enpixelsrubrik eller ingen alls. Meningen är skriven för
+      att kunna citeras rakt av i ett AI-svar, alltså självbärande. */}
+  <h1 class="visually-hidden">
+    Hygienkontroller i {formatNumber(total.municipalities)} kommuner:
+    {formatNumber(total.establishments)} restauranger, caféer, butiker och skolkök
+  </h1>
 
-      Ingen proveniens i heron, och sedan augusti 2026 ingen någonstans på
-      startsidan. "Byggt på kommunernas officiella hygienkontroller" var ett
-      försvar, inte ett löfte. Ratsit och hitta.se leder med handlingen och
-      objektet, aldrig med källan. Var datan kommer ifrån står där det hör
-      hemma: metodiken, källsidan och sidfoten. */}
-  <div class="hero">
-    {/* Fotot är LCP-elementet och laddas därför eager med hög prioritet.
-        Tom alt: bilden är stämning, inte information, och en skärmläsare
-        ska gå direkt på rubriken. Vektorn är aria-hidden av samma skäl.
-        Vilken av dem som visas styrs av heroBakgrund i frontmattern. */}
-    {heroBakgrund === 'foto' && (
-      <Image
-        class="hero-foto"
-        src={heroPhoto}
-        alt=""
-        widths={[800, 1400]}
-        sizes="100vw"
-        loading="eager"
-        fetchpriority="high"
-      />
-    )}
-    {heroBakgrund === 'vektor' && <HeroVektor />}
+  {/* ── Senast kontrollerade ───────────────────────────────────────────
+      Filterraden och rutnätet ligger i SAMMA rot, eftersom urvalsregeln är
+      skriven som :has() på den. */}
+  <section class="senast">
+    <div class="container">
+      <fieldset class="filter">
+        <legend class="visually-hidden">Visa en sorts verksamhet</legend>
+        {grupper.map((g, i) => (
+          <>
+            <input
+              class="visually-hidden"
+              type="radio"
+              name="kategori"
+              id={`kat-${g.id}`}
+              checked={i === 0}
+            />
+            <label class="val" for={`kat-${g.id}`}>
+              <Kategoriikon namn={g.ikon} size={20} />
+              <span class="etikett" data-etikett={g.etikett}>{g.etikett}</span>
+            </label>
+          </>
+        ))}
+      </fieldset>
 
-    {/* Två kort sida vid sida, Boolis uppmätta form: verktyget till vänster
-        och påståendet till höger. Deras påstående är ett säljargument
-        ("Sveriges största utbud"); vårt är tre tal, för en tjänst som
-        återger myndighetsbeslut säger vad den har, inte hur bra den är. */}
-    <div class="hero-rad">
-      <div class="hero-kort">
-        <h1>Hur rent är det där du&nbsp;äter?</h1>
-        {/* Talet stod här förut ("Sök bland 15 983 ..."). Det står nu i
-            faktakortet bredvid, och samma siffra två gånger i samma hero är
-            en upprepning, inte en förstärkning. Raden bär handlingen och
-            objektet, Ratsit-formen, precis som förut. */}
-        <p class="under">
-          Sök bland restauranger, caféer, skolkök och butiker.
-        </p>
+      {/* Rubriken är 14/24 och inte en rubrikgrad, och det är mätt: Airbnbs
+          egen `h2` över kortraden är 14 px i vikt 400. Vår är halvfet
+          eftersom den till skillnad från deras inte har någon större rad
+          ovanför sig som bär avsnittets namn. */}
+      <h2 class="radrubrik">Senast kontrollerade</h2>
 
-        <div class="hero-sok">
-          <SiteSearch size="hero" />
-        </div>
-
-      </div>
-
-      {/* aria-hidden vore fel här: talen är innehåll, inte dekor. Kortet
-          döljs i mobil med display: none, precis som Boolis eget, och då
-          försvinner det ur uppläsningen på samma villkor som hos dem. */}
-      <aside class="hero-fakta">
-        <dl>
-          <div>
-            <dt>Verksamheter</dt>
-            <dd>{formatNumber(total.establishments)}</dd>
-          </div>
-          <div>
-            <dt>Kontroller</dt>
-            <dd>{formatNumber(total.inspections)}</dd>
-          </div>
-          <div>
-            <dt>Kommuner</dt>
-            <dd>{formatNumber(total.municipalities)}</dd>
-          </div>
-        </dl>
-      </aside>
+      <ul class="rutnat">
+        {grupper.map((g) =>
+          g.poster.map((e) => (
+            <li data-grupp={g.id}>
+              <Verksamhetskort e={e} />
+            </li>
+          )),
+        )}
+      </ul>
     </div>
-  </div>
+  </section>
 
+  {/* ── Kommunerna ─────────────────────────────────────────────────────
+      Tre kort och inte tolv, se KOMMUNKORT i frontmattern. */}
   <section class="container block">
-    <div class="block-head">
-      <h2>Välj kommun</h2>
-      {/* Vägen vidare, och den enda. Webbkartan är den sida som faktiskt
-          räknar upp varje kommun och fyller på sig själv ur samma register
-          som XML-sitemapen, alltså den enda ingång som håller vid 290.
-          Platsväljaren i sidhuvudet har samma lista med sökfält. */}
-      <a href="/webbkarta/">Alla {total.municipalities} kommuner</a>
+    <div class="blockhuvud">
+      <h2>Kommunerna</h2>
+      <a href="/webbkarta/">Alla {formatNumber(total.municipalities)} kommuner</a>
     </div>
 
     <ul class="kommuner">
-      {cards.map((m) => (
-        <li>
-          {/* Tre kort, samtliga vid eller strax under vikningen. Alla laddas
-              därför direkt: ett lat kort här hade blivit ett lat LCP. */}
-          <KommunKort kommun={m} eager={true} />
-        </li>
+      {kommunkort.map((m) => (
+        <li><KommunKort kommun={m} /></li>
       ))}
     </ul>
   </section>
 
-  {/* Länkkolumnerna. Se frontmattern för varför de finns. */}
-  {columns.length > 0 && (
+  {/* ── Artiklarna ─────────────────────────────────────────────────────*/}
+  {artiklarKlara && artiklar.length > 0 && (
     <section class="container block">
-      <div class="block-head">
-        <h2>Utforska efter typ av verksamhet</h2>
-      </div>
-
-      <div class="kolumner card">
-        {columns.map((col) => (
-          <div class="kolumn">
-            <h3>
-              <span class="kolumn-ikon" aria-hidden="true">
-                <svg viewBox="0 0 20 20" focusable="false" set:html={COLUMN_ICONS[col.category.id]} />
-              </span>
-              {col.category.name}
-            </h3>
-            <ul>
-              {col.links.map((l) => (
-                <li>
-                  <a href={l.href}>
-                    <span class="stad">
-                      {l.city}
-                      <span class="antal">({formatNumber(l.count)})</span>
-                    </span>
-                    <svg class="pil" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                      <path d="m7.5 4.5 5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </section>
-  )}
-
-  {/* Artiklarna. Visas bara när sektionen klarat kvalitetsgrinden — en
-      startsida som länkar in i ett noindexat rum pekar fel för både
-      besökare och sökmotorer. */}
-  {articlesReady && articles.length > 0 && (
-    <section class="container block">
-      <div class="block-head">
-        <h2>Så fungerar kontrollen</h2>
+      <div class="blockhuvud">
+        <h2>Att läsa</h2>
         <a href="/artiklar/">Alla artiklar</a>
       </div>
 
       <ul class="artiklar">
-        {articles.map((a) => (
-          <li class="card">
+        {artiklar.map((a) => (
+          <li>
             <a href={path('artiklar', a.slug)}>
-              <p class="eyebrow tagg">{a.category}</p>
-              <h3>{a.title}</h3>
-              <p class="summering">{a.lede}</p>
-              <p class="meta">{formatDate(a.published)} · {a.minutes} min lästid</p>
+              {a.photo && (
+                <Image
+                  class="artikelbild"
+                  src={a.photo.src}
+                  alt={a.photo.alt}
+                  width={HERO_WIDTHS.at(-1)}
+                  widths={HERO_WIDTHS}
+                  sizes="(min-width: 1080px) 344px, (min-width: 640px) 33vw, 92vw"
+                  loading="lazy"
+                />
+              )}
+              <span class="artikelnamn">{a.title}</span>
+              <span class="artikelmeta text-secondary">
+                {a.category} · {a.minutes} min lästid
+              </span>
             </a>
           </li>
         ))}
@@ -413,421 +434,347 @@ const jsonLd = [
     </section>
   )}
 
-  {/* INGEN grundrad här. Sidan förklarade sig tidigare tre gånger: i heron,
-      i tre spalter längst ned, och sist i en enda rad om att underlaget var
-      kommunernas kontrollrapporter. Även den sista är struken. Sidfoten står
-      direkt under och bär redan både avsändaren och replikrätten, och den
-      länkar till metodiken och källsidan. Två block med samma innehåll ovanpå
-      varandra är en förklaring för mycket. */}
+  {/* ── Länkkolumnerna ─────────────────────────────────────────────────*/}
+  {columns.length > 0 && (
+    <nav class="container kolumner" aria-label="Verksamhetstyper per kommun">
+      {columns.map((col) => (
+        <div>
+          <h2>{col.category.name}</h2>
+          <ul>
+            {col.links.map((l) => (
+              <li>
+                <a href={l.href}>
+                  {l.city} <span class="antal text-secondary">{formatNumber(l.count)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  )}
 </Base>
 
 <style>
-  /*
-   * Heron. Fotot ligger kant i kant och kortet flyter ovanpå — Boolis
-   * grundform. Det som gör deras hero ren är inte färre element utan att
-   * fotot får vara ostört: ingen scrim, inget filter, ingen text direkt på
-   * bilden. Allt läsbart står på det vita kortet, och kortet tar bara den
-   * yta det behöver. Höjden är satt så att kommunraden precis skymtar under
-   * vikningen på en vanlig laptop — sidan ska hinta att den fortsätter.
-   */
-  .hero {
+  /* ═══ Senast kontrollerade ═══════════════════════════════════════════ */
+
+  /* Bandet börjar direkt under sidhuvudets hårlinje. Ingen luft över och
+     ingen egen bakgrund: förlagornas första kort börjar 297 px (Airbnb,
+     1280) respektive 240 px (Ednia, 1280) ned på sidan, och hos oss betyder
+     det 64 px sidhuvud plus filterrad plus rubrikrad. */
+  .senast { padding-block: var(--s-6) var(--s-12); }
+
+  /* ── Filterraden ─────────────────────────────────────────────────────
+     Ednias form, översatt till våra tokens: ikon och etikett i rad, ingen
+     ram, ingen fyllning, ingen radie, och ett understreck på det valda.
+     Ednias egen ikon står ÖVER etiketten och gör raden 69 px hög; våra
+     etiketter är längre ("Caféer och bagerier", "Skolor och omsorg") och
+     staplat hade gett en rad som är dubbelt så hög för samma innehåll.
+
+     Bredden är räknad: sex val med ikon 20, luft 8 och etiketter på 14 px
+     lägger sig på omkring 620 px plus fem mellanrum à 24, alltså 740 av
+     1 048 tillgängliga i --w-wide. Raden rullar därför aldrig på dator, och
+     under omkring 780 px rullar den på riktigt. */
+  .filter {
+    display: flex;
+    align-items: stretch;
+    gap: var(--s-6);
+    margin: 0 0 var(--s-6);
+    padding: 0;
+    border: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* `min-inline-size: 0` och inte bara `min-width`, och den är obligatorisk.
+       Ett `fieldset` har `min-inline-size: min-content` i webbläsarens egen
+       stilmall, och den vinner över `overflow-x: auto`. Utan raden mätte raden
+       617 px i en 390 px vid vyport och sköt hela dokumentet till 616 px
+       scrollWidth, alltså rullade SIDAN i sidled i stället för raden.
+       Uppmätt i webbläsaren 2026-08-21. */
+    min-inline-size: 0;
+  }
+  .filter::-webkit-scrollbar { display: none; }
+
+  .val {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
-    /* Ingen min-height. Boolis band är 648 px och det är korten som sätter
-       måttet: deras sökkort är 552 högt plus 48 px luft över och under. Ett
-       låst minimum gav oss i stället 250 px tom vit yta över och under två
-       kort på 270, alltså ett band som såg ofärdigt ut. Luften är --s-16
-       (64) och höjden blir det korten behöver. */
-    padding: var(--s-16) var(--s-4);
-    /* Vit, inte tonad. Boolis hero är 648 px rent vitt: ingen bild, inget
-       färgfält, ingen toning. Ligger ett foto eller vektorn i heron står
-       den här regeln kvar under dem och syns inte. */
-    background: var(--card);
-    /*
-     * INGEN overflow: hidden här.
-     *
-     * Den fanns för att hålla fotot innanför heron, men fotot ligger redan
-     * absolut med inset: 0 och object-fit: cover, alltså exakt i ramen, så
-     * den klippte ingenting utom det som skulle sticka ut: sökpanelen som
-     * fälls ut ur fältet. Panelen hamnade under kommunkorten i stället för
-     * över dem. En förälder med overflow: hidden klipper varje ättling,
-     * oavsett z-index.
-     */
+    gap: var(--s-2);
+    flex: 0 0 auto;
+    /* Träffytan är 44 px, alltså --h-tap, och den bärs av höjden här och
+       inte av ett ::after: raden har inget under sig att krocka med. */
+    min-height: var(--h-tap);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
   }
 
-  .hero :global(.hero-foto) {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Strömmen och stenpartiet ligger i bildens mitt där kortet ändå står.
-       55 % lyfter fasaden och grönskan, det som ger heron sin värme. */
-    object-position: 50% 55%;
-  }
-
-  /*
-   * Raden. Boolis 980 delas 560 + 40 + 380; vår behållare är --w-wide (1080)
-   * och påståendekortet behåller deras 380, så sökkortet får resten.
-   */
-  .hero-rad {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 380px;
-    gap: var(--s-8);
-    align-items: stretch;
-    width: 100%;
-    max-width: var(--w-wide);
-  }
-
-  /*
-   * Kortet. Uppmätt hos Booli: vitt, 1 px #E6E6E6, radie 6, och skuggan
-   * 0 2px 8px rgba(0,0,0,.05). Det är en KANT som avgränsar deras kort, inte
-   * en skugga. Vår --shadow-sm är exakt det greppet (1 px ring plus
-   * 0 1px 2px), och vår radie är --r-card, ett taget beslut i docs/19.
-   *
-   * Här stod tidigare 0 24px 60px rgba(0,0,0,.22). Den behövdes för att
-   * lyfta kortet från ett mättat blått fält, och när fältet är vitt blir
-   * samma skugga en grå fläck under kortet. Boolis kraftigaste skugga på
-   * hela sajten är 8 px spridning vid 5 procent.
-   */
-  .hero-kort {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: var(--s-12) var(--s-8);
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* Ligger ett foto eller vektorn bakom kortet behövs lyftet igen: mot en
-     bild räcker inte en hårlinje. Regeln kostar ingenting när bakgrunden är
-     vit, för då finns varken .hero-foto eller .hero-vektor i sidan. */
-  .hero:has(.hero-foto) .hero-kort,
-  .hero:has(.hero-vektor) .hero-kort {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 24px 60px rgba(0, 0, 0, .22);
-  }
-
-  /*
-   * Påståendekortet. Boolis är 380×270 med 24 px padding och bär ett
-   * säljargument i 40/52/600. Vårt bär tre tal i stället: en tjänst som
-   * återger myndighetsbeslut ska säga vad den har, inte hur bra den är.
-   * Talen är --fs-title, alltså uppslagssidans grad, för de SLÅS upp.
-   */
-  .hero-fakta {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: var(--s-6);
-    background: var(--card);
-    border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .hero-fakta dl {
-    display: grid;
-    gap: var(--s-6);
-    margin: 0;
-  }
-
-  .hero-fakta dt {
+  .etikett {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    color: var(--text-secondary);
+    font-weight: 400;
   }
 
-  .hero-fakta dd {
+  /* Etiketten reserverar sin HALVFETA bredd redan i viloläget.
+     Vikten är en av de tre bärarna av "valt" (understreck, vikt, :checked),
+     och utan reservationen växer ordet när man väljer det, vilket knuffar
+     varje val till höger om det i sidled. Kopian ritas aldrig: höjd 0,
+     overflow hidden. Den bidrar ändå till elementets bredd, vilket är hela
+     poängen. */
+  .etikett::after {
+    content: attr(data-etikett);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    font-weight: 600;
+    visibility: hidden;
+  }
+
+  /* Understrecket. Två pixlar och märkesblått, samma regel som
+     Filterrad.astro och Kategorival.astro: valt läge är blått i sökpanelen,
+     i kartan och i pagineringen, och en svart list bredvid dem ser lånad ut.
+
+     Rörelsen är Airbnbs, uppmätt på deras kategorirad 2026-08-21: deras
+     markör är en 3 px hög span med
+     `transition: transform, height .3s cubic-bezier(.2, 0, 0, 1)`.
+     Kurvan är deras genomgående; samma bezier ligger på varje knapp de har. */
+  .val::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--brand);
+    transform: scaleX(0);
+    transition: transform .3s cubic-bezier(.2, 0, 0, 1);
+  }
+
+  /* Hovringen visar strecket i grått innan det blir blått, alltså en
+     förhandsvisning av vad ett klick gör. Det är Ednias eget beteende,
+     skärmbildat 2026-08-21 i `ednia-1280-kategori-hovring.png`: deras
+     inaktiva val får både mörkare text och en ljusgrå list vid hovring,
+     medan det valda har en svart. */
+  .val:hover { color: var(--text); }
+  .val:hover::after { background: var(--tone-quiet); transform: scaleX(1); }
+
+  /* Radioknappen ligger omedelbart före sin etikett i markupen, därför + och
+     inte ~. Med ~ hade varje senare val också träffats.
+
+     Regeln står EFTER hovringen med avsikt: de två har samma specificitet,
+     och det valda ska vinna även när pekaren står på det. */
+  input:checked + .val { color: var(--text); }
+  input:checked + .val .etikett { font-weight: 600; }
+  input:checked + .val::after { background: var(--brand); transform: scaleX(1); }
+
+  /* Tangentbordet ska se vilket val som har fokus. Radioknappen är
+     visuellt dold, alltså måste ringen ritas på etiketten. */
+  input:focus-visible + .val {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* ── Rubrikraden ─────────────────────────────────────────────────────*/
+  .radrubrik {
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    letter-spacing: normal;
+  }
+
+  /* ── Rutnätet ────────────────────────────────────────────────────────
+     Fyra spalter i --w-wide ger 250 px per kort, vilket är inom en
+     tiondels bildbredd från Airbnbs eget kort (182 px vid 1512, alltså sju
+     i bredd). Fyra och inte sju: deras kort bär ett fotografi som tål att
+     vara litet, vårt bär ett namn som ska gå att läsa. */
+  .rutnat {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-4);
     margin: 0;
-    font-size: var(--fs-title);
-    line-height: var(--lh-title);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -.02em;
+    padding: 0;
+    list-style: none;
   }
 
-  /*
-   * Centreringen sitter på de tre elementen, inte på kortet.
-   *
-   * Låg den på .hero-kort ärvde sökfältets förslagslista den, och då
-   * centrerades varje träffs NAMN medan adressraden under var vänsterställd.
-   * Vänsterkanten sicksackade och listan såg trasig ut. En panel som fälls
-   * ut ur ett fält ska aldrig ärva sidans textjustering.
-   */
-  /* Vänsterställt, inte centrerat. Boolis sökkort är vänsterställt rakt
-     igenom: flikar, fält, kryssruta, knapp. Centrerad text fungerade när
-     kortet stod ensamt mitt i ett foto; med ett kort bredvid sig blir en
-     centrerad spalt en tredje kant att läsa efter. */
-  .hero-kort > h1,
-  .hero-kort > .under {
-    text-align: left;
+  /* Urvalet. Grundläget visar hemgruppen och döljer de fem andra, så en
+     webbläsare utan :has() får en fungerande sida med tolv kort i stället
+     för 72. Varje val vänder sedan på vilken grupp som är synlig. */
+  .rutnat > li:not([data-grupp='alla']) { display: none; }
+
+  .senast:has(#kat-restaurang:checked) .rutnat > li[data-grupp='alla'],
+  .senast:has(#kat-cafe:checked) .rutnat > li[data-grupp='alla'],
+  .senast:has(#kat-butik:checked) .rutnat > li[data-grupp='alla'],
+  .senast:has(#kat-skola:checked) .rutnat > li[data-grupp='alla'],
+  .senast:has(#kat-ovrigt:checked) .rutnat > li[data-grupp='alla'] {
+    display: none;
   }
 
-  /* Serifen är borta, en röst på hela sajten.
-     ────────────────────────────────────────────────────────────────────────
-     Rubriken stod i Instrument Serif medan varje annan h1 på sajten står i
-     Instrument Sans. Det var ett medvetet undantag och dokumenterat som ett,
-     men ett undantag på EN sida av 16 616 läser som ett misstag och inte som
-     en avsikt. Ägaren valde en röst.
-
-     Graden går från 48 till `--fs-display`. Serifen sattes i 48 därför att en
-     lätt serif i vikt 400 väger ungefär som en halvfet sans i 40, alltså var
-     talet en kompensation för typsnittet och inte ett eget beslut. Med sansen
-     tillbaka gäller sidmallens egen skala igen, och den är sedan
-     Booli-genomgången satt efter förebildens kvot.
-
-     Importen av `@fontsource/instrument-serif` är borttagen i frontmattern.
-     Den var sidans enda användning, alltså laddade startsidan ett helt
-     typsnitt för en rad. */
-  .hero-kort h1 {
-    max-width: 24ch;
-    font-size: var(--fs-display);
-    line-height: var(--lh-display);
-    letter-spacing: -.02em;
+  .senast:has(#kat-restaurang:checked) .rutnat > li[data-grupp='restaurang'],
+  .senast:has(#kat-cafe:checked) .rutnat > li[data-grupp='cafe'],
+  .senast:has(#kat-butik:checked) .rutnat > li[data-grupp='butik'],
+  .senast:has(#kat-skola:checked) .rutnat > li[data-grupp='skola'],
+  .senast:has(#kat-ovrigt:checked) .rutnat > li[data-grupp='ovrigt'] {
+    display: block;
   }
 
-  /* En rad, Ratsit-formen: handlingen och objektet, aldrig källan. */
-  .under {
-    margin-top: var(--s-3);
-    max-width: 52ch;
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
-    color: var(--text-secondary);
-  }
+  /* ═══ Blocken under ══════════════════════════════════════════════════ */
 
-  /* Fältet går kant i kant i kortet, som Boolis: deras fält är 510 brett i
-     ett kort på 560, alltså kortets bredd minus paddingen. Måtten bor i
-     SiteSearchs hero-läge. */
-  .hero-sok {
-    position: relative;
-    margin-top: var(--s-6);
-  }
+  .block { padding-block: var(--s-12); }
 
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    font-weight: 600;
-    color: var(--text);
-  }
+  /* Hårlinje över varje block i stället för en tonad bakgrund. Booli skiljer
+     avsnitt med hårlinje och luft och aldrig med ett färgfält, se
+     docs/19_formsystem.md. */
+  .block { border-top: 1px solid var(--hairline); }
 
-  .chip svg {
-    width: 14px;
-    height: 14px;
-    color: var(--text-secondary);
-  }
-
-  .chip:hover {
-    text-decoration: none;
-    border-color: var(--text-muted);
-    color: var(--text);
-  }
-
-  .block-head {
+  .blockhuvud {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--s-4);
+    margin-bottom: var(--s-6);
   }
 
-  .block-head a { font-size: var(--fs-body-s); }
-
-  /* Sektionsrytmen: kommunerna, kolumnerna och artiklarna är syskon och får
-     samma avstånd av samma regel. */
-  .block { margin-top: var(--s-12); }
-
-  /* Kommunkorten. Rutnätet äger bara placeringen, kortets egen form bor i
-     KommunKort.astro.
-
-     TRE LIKA SPALTER, inte auto-fit. Rutnätet var byggt för ett växande antal
-     kort (`auto-fit, minmax(250px, 1fr)`), och med bara tre kort kvar lade det
-     en fjärde tom spalt till höger på breda skärmar: raden såg avhuggen ut i
-     stället för avsiktlig. Tre kort ska fylla bredden, och antalet är
-     konstant, så spaltantalet får vara det också. */
-  .kommuner {
-    list-style: none;
-    margin: var(--s-6) 0 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s-4);
-  }
-
-  /* ── Länkkolumnerna ─────────────────────────────────────────────────────
-     Ett kort med fyra spalter. Raderna är hårlinjeavgränsade med stad,
-     antal i parentes och en vinkel — JobbSafaris radform, för att den gör
-     tre saker samtidigt: läsbar lista, klickyta över hela raden och ett
-     antal som visar att länken leder till något med innehåll. */
-  .kolumner {
-    margin-top: var(--s-6);
-    padding: var(--s-8) var(--s-8) var(--s-6);
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--s-6) var(--s-16);
-  }
-
-  .kolumn h3 {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
-  }
-
-  .kolumn-ikon {
-    display: inline-flex;
-    color: var(--text-secondary);
-  }
-
-  .kolumn-ikon svg { width: 20px; height: 20px; }
-
-  .kolumn ul {
-    list-style: none;
-    margin: var(--s-2) 0 0;
-    padding: 0;
-  }
-
-  .kolumn li { border-top: 1px solid var(--hairline); }
-  .kolumn li:first-child { border-top: 0; }
-
-  .kolumn ul a {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-    padding: 10px 0;
-    color: var(--text);
+  /* Samma grad som rutnätets rubrik. Sidan har inte en enda rubrik i
+     rubrikgrad, och det är avsikten. */
+  .blockhuvud h2 {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
+    font-weight: 600;
+    letter-spacing: normal;
   }
 
-  .kolumn ul a:hover { text-decoration: none; }
-  .kolumn ul a:hover .stad { color: var(--brand-ink); }
-
-  .stad { font-weight: 600; }
-
-  .antal {
-    margin-left: 6px;
-    font-weight: 400;
-    color: var(--text-muted);
+  .blockhuvud a {
     font-size: var(--fs-caption);
-    font-variant-numeric: tabular-nums;
+    line-height: var(--lh-caption);
+    white-space: nowrap;
   }
 
-  .pil {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    color: var(--text-muted);
-  }
-
-  /* ── Artiklarna ─────────────────────────────────────────────────────────
-     Samma kortform som /artiklar/: etikett, rubrik, ingress, lästid. Inga
-     bilder — förebilden har foton, men vi har inga redaktionella foton och
-     en genererad bild är förbjuden. Hellre ett rent textkort än ett fejkat
-     fotografi. */
-  .artiklar {
-    list-style: none;
-    margin: var(--s-6) 0 0;
-    padding: 0;
+  /* ── Kommunerna ──────────────────────────────────────────────────────*/
+  /* Tre spalter, alltså 344 px per kort i --w-wide. KommunKortets metarad bär
+     antal verksamheter och ett datum bredvid varandra, och vid fyra spalter
+     (250 px) bryter datumet till två rader. */
+  .kommuner {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: var(--s-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* ── Artiklarna ──────────────────────────────────────────────────────
+     Tre kort i bredd, alltså bredare än verksamhetskorten, för att bilden
+     ska få vara stor nog att läsas som ett fotografi och inte som en
+     miniatyr. */
+  .artiklar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   .artiklar a {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    padding: var(--s-6);
+    gap: var(--s-2);
     color: var(--text);
+    text-decoration: none;
   }
 
-  .artiklar a:hover { text-decoration: none; }
-  .artiklar a:hover h3 { color: var(--brand-ink); }
-
-  .tagg { margin-bottom: var(--s-2); }
-
-  .artiklar h3 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
+  .artiklar :global(.artikelbild) {
+    width: 100%;
+    /* Airbnbs kortbild mätt 2026-08-21: 182 × 173, alltså kvoten 1,05.
+       Artikelbilderna är panorama och tål ett bredare format; 16:10 är
+       samma kvot som src/assets/artiklar levererar (1400 × 875). */
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    border-radius: var(--r-card);
   }
 
-  .summering {
-    margin-top: var(--s-2);
+  .artikelnamn {
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-weight: 600;
   }
 
-  .meta {
-    margin-top: auto;
-    padding-top: var(--s-4);
+  .artiklar a:hover .artikelnamn { text-decoration: underline; }
+
+  .artikelmeta {
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    color: var(--text-secondary);
   }
 
-  @media (max-width: 900px) {
-    .artiklar { grid-template-columns: 1fr; }
-
-    /*
-     * Påståendekortet tas BORT, inte staplas under. Booli gör exakt det:
-     * uppmätt i 375 px är deras påståendekort display: none och bandet
-     * innehåller bara sökkortet, 343 brett med 16 px marginal. Ett kort
-     * som läggs under sökfältet skjuter kommunraden under vikningen utan
-     * att bära något som besökaren kom hit för.
-     */
-    .hero-rad { grid-template-columns: minmax(0, 1fr); }
-    .hero-fakta { display: none; }
+  /* ── Länkkolumnerna ──────────────────────────────────────────────────
+     Ingen ruta, ingen ram, inga ikoner. En länklista mot sidfoten. */
+  .kolumner {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-6);
+    padding-block: var(--s-12);
+    border-top: 1px solid var(--hairline);
   }
 
-  /* Tre spalter går ned till en, aldrig till två: två spalter lämnar det
-     tredje kortet ensamt på en egen rad i dubbel bredd, och då läser raden
-     som att något fattas. Gränsen ligger där spalten annars skulle bli
-     smalare än 250 px, vilket är minsta mått kortets bildzon tål. */
-  @media (max-width: 820px) {
-    .kommuner { grid-template-columns: minmax(0, 1fr); }
+  .kolumner h2 {
+    margin-bottom: var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 600;
+    letter-spacing: normal;
   }
 
-  @media (max-width: 680px) {
-    /* Fotot krymper med kortet men försvinner aldrig: en smal remsa foto
-       runt kortet är hela skillnaden mot en vit sida. */
-    .hero { min-height: 0; padding: var(--s-8) var(--s-3); }
-    .hero-kort { padding: var(--s-8) var(--s-4); }
+  .kolumner ul {
+    display: grid;
+    gap: var(--s-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
 
-    /* Vektorvarianten behöver toppluft, fotot gör det inte. Ett foto tål att
-       vara en remsa runt kortet; en teckning gör det inte, den behöver ett
-       eget band att stå i. Regeln kostar ingenting när fotot är valt, för då
-       finns .hero-vektor inte i sidan. */
-    .hero:has(.hero-vektor) { padding-top: 140px; }
+  .kolumner a {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+  }
+  .kolumner a:hover { color: var(--brand-ink); }
 
-    /* Serifen tål mer grad än sansen gjorde, men frågan ska fortfarande
-       rymmas på två rader i den smala spalten. */
-    .hero-kort h1 { font-size: 36px; line-height: 41px; }
+  .antal { font-size: var(--fs-caption); }
 
-    /* Chipsen radbryts; de två kategorichipsen först och kedjan sist, så
-       den som klipps av vikningen är den minst lokala. Ingen horisontell
-       rullning: en rad som rullar ser klickbar ut först när man råkar dra
-       i den, och fyra chips ryms på två rader. */
+  /* ═══ Smalare skärmar ════════════════════════════════════════════════
+     Tre brytpunkter och inga andra. 1024 är där fyra spalter ger under
+     220 px per kort, 640 är tokens egen mobilbrytpunkt. */
+  @media (max-width: 1023px) {
+    .rutnat { grid-template-columns: repeat(3, 1fr); }
+  }
 
-    .kolumner {
-      grid-template-columns: 1fr;
-      padding: var(--s-4) var(--s-4) var(--s-3);
-      gap: var(--s-6);
+  @media (max-width: 767px) {
+    .artiklar { grid-template-columns: repeat(2, 1fr); }
+    .kolumner { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 639px) {
+    .senast { padding-block: var(--s-4) var(--s-8); }
+    .block { padding-block: var(--s-8); }
+    .kolumner { padding-block: var(--s-8); }
+
+    /* Filterraden rullar under kanten på telefon. Den behöver då luft
+       utanför containern, annars klipps första och sista valet mot en kant
+       i stället för att gå ut ur bild. */
+    .filter {
+      margin-inline: calc(var(--s-4) * -1);
+      padding-inline: var(--s-4);
+      gap: var(--s-4);
     }
+
+    .rutnat,
+    .artiklar { grid-template-columns: repeat(2, 1fr); }
+
+    /* Kommunkorten staplas i stället för att krympa: kortet bär ett foto
+       med stadens namn på, och i 171 px blir namnet större än bilden. */
+    .kommuner { grid-template-columns: 1fr; }
+
+    .artiklar { gap: var(--s-4); }
   }
 </style>
