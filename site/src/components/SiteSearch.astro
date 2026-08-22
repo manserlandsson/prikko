@@ -592,7 +592,44 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     padding: 6px 6px 6px var(--s-6);
   }
 
-  .site-search.is-hero .search-field input { font-size: var(--fs-body); }
+  /* 16 px, samma tal på alla skärmar, och det är skrivet i px med flit.
+     ────────────────────────────────────────────────────────────────────────
+     Fältet låg först på --fs-body, alltså 17. Ägaren: "är inte textstorleken
+     i sökrutan lite stor, känns stor i jämförelse med allt annat." Uppmätt på
+     airbnb.se 2026-08-22 bär deras fält 14 px i vikt 500, så jag satte 14.
+
+     Ägaren igen: "sökrutan kan ha typ 16px, eller 15 som vi hade innan." 16
+     alltså, och skälet att just det talet är rätt är inte smak utan Safari:
+     iOS zoomar in hela sidan när ett fält med mindre än 16 px text får fokus,
+     och zoomar aldrig ut igen. Regeln fanns redan som ett mobilundantag
+     längre ned i filen, med precis den motiveringen.
+
+     Med 16 på alla skärmar försvinner undantaget. Ett tal i stället för två,
+     och det ena som fanns var ändå ett golv och inte ett val.
+
+     Talet står i px och inte som ett token därför att sajtens skala saknar
+     16: --fs-caption är 13, --fs-body-s är 14 och --fs-body är 17. Att hitta
+     på ett femte typsnittssteg för ett fält vore värre än att skriva ut det
+     tal som redan står skrivet en gång i samma fil. */
+  .site-search.is-hero .search-field input {
+    font-size: 16px;
+    /* VIKT 400, trots att Airbnb kör 500.
+       ─────────────────────────────────────────────────────────────────────
+       Uppmätt på airbnb.se 2026-08-22: deras fält är 14 px i vikt 500 med
+       radavstånd 18. Vår kopierade vikten men inte graden, och ägaren:
+       "sökfonten är också för fet så du vet."
+
+       Han har rätt, och det följer av de två talen tillsammans. Vikt 500 vid
+       14 px och vikt 500 vid 16 px är inte samma synintryck: bokstäverna blir
+       både större och tjockare på en gång. Graden är låst till 16 av Safaris
+       zoomgolv, se ovan, så vikten är den enda av de två som kan ge efter.
+
+       400 är dessutom rätt för det texten ÄR. Fältet står tomt och visar en
+       platshållare, alltså en uppmaning och inte ett svar. Airbnbs 500 bär
+       ofta ett VALT värde, "Vart som helst", och ett val får väga mer än en
+       fråga. */
+    font-weight: 400;
+  }
 
   .site-search.is-hero .go { width: 44px; height: 44px; }
   .site-search.is-hero .go::after { content: none; }
@@ -986,12 +1023,11 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       padding: 5px 5px 5px var(--s-4);
     }
 
-    /* Herotexten ner till golvet på mobil. 17 px (--fs-body) är för grovt i
-       en smal spalt, men 16 är ett GOLV och inte ett val: under det zoomar
-       iOS Safari in sidan vid fokus, se regeln ovanför. Känns fältet ändå
-       stort är det höjden och platshållaren som får jobba — skriptet kortar
-       redan platshållaren till "Sök ställe eller ort" på smala skärmar. */
-    .site-search.is-hero .search-field input { font-size: 16px; }
+    /* Ingen egen mobilgrad längre. Hero-fältet ligger på 16 px överallt sedan
+       2026-08-22, se regeln högre upp i filen, och det talet ÄR golvet den
+       här regeln fanns till för att hålla. Känns fältet stort på telefon är
+       det höjden och platshållaren som får jobba: skriptet kortar redan
+       platshållaren till "Sök ställe eller ort" på smala skärmar. */
   }
 
   @media (max-width: 380px) {

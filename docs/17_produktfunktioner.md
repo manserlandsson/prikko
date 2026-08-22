@@ -243,3 +243,55 @@ etablerar SVG-mönstret som punkt 3 sedan återanvänder. Därefter punkt 2, som
 hinner gå fel i det tysta innan någon är beroende av den. Punkt 4 är en
 mellandag när som helst. Punkt 6 till 8 efter det, i den ordning designfasen
 ger.
+
+---
+
+## Vad en bevakning gör
+
+Tillagt 2026-08-12. Punkt 2 och punkt 7 ovan beskrev var sin halva av samma
+funktion utan att någon sagt vilken av dem som ÄR bevakningen. Frågan har
+stått öppen i `25_oppna_punkter.md` sedan knappen byggdes, och den kostade mer
+än den såg ut att göra: eftersom mejlet räknades som funktionen låg också
+listan bakom mejlflaggan i `notify.py`, och `RESEND_API_KEY` är inte inlagd.
+En bevakning gjorde alltså ingenting alls. 22 rader låg i `community.follows`,
+klockan i sidhuvudet stod på noll, och `/konto/notiser/` var tom.
+
+**Förslaget, och det som nu är byggt: en bevakning är en LISTA på kontot.
+Mejlet är en påminnelse om listan, inte funktionen.**
+
+Ordningen är avgörande och inte en smaksak:
+
+- **Listan går att bygga i dag.** Den kräver ingen nyckel, ingen leverantör
+  och inget avtal. Mejlet kräver Resend, ett DNS-arbete och ett biträdesavtal,
+  se `13_epost_pa_prikko_se.md`.
+- **Listan kan inte gå fel utåt.** Ett mejl som går till fel person, med fel
+  ton eller vid fel tillfälle går inte att ta tillbaka. En rad på ett konto
+  kan alltid rättas.
+- **Listan är beviset mejlet pekar på.** Ett mejl om något som inte står på
+  kontot är ett besked man inte kan gå tillbaka till. Därför innebär
+  `--skicka` numera `--notiser` i `notify.py`, aldrig tvärtom.
+
+Vad en bevakning betyder, uttryckt så det går att pröva:
+
+> Du bevakar ett ställe. När kommunen registrerar en NY kontroll där som
+> slutar i anmärkningar, står det på ditt konto nästa gång du tittar. Har du
+> mejl påslaget kommer det dessutom ett mejl samma natt.
+
+Gränserna, som gäller båda vägarna in:
+
+- Bara nya kontroller MED anmärkningar. Inte utmärkelser, inte namnbyten, inte
+  kontroller som gick bra. Skälet står i huvudet på `notify.py` och ändras
+  inte av att listan nu bär funktionen.
+- Ordagrant kommunens uppgift, aldrig en rubrik som skandaliserar.
+- Att sluta bevaka och att sluta få mejl är samma sak. Ett halvläge där raden
+  ligger kvar men är tyst ser ut som en bevakning utan att vara det.
+
+Kvar att göra, i den ordningen:
+
+1. **Bevakningslistan på `/konto/` visar läget**, alltså bedömning och
+   senaste kontrolldatum per bevakat ställe, och länkar till verksamheten i
+   stället för till en sökning. Punkt 7 ovan. Kräver ingen ny tabell:
+   `publishable_establishments` bär `verdict` och `slug`, och namnet slås
+   redan upp av `placeNames()` i `site/src/lib/community.ts`.
+2. **Mejlet slås på** den dag `RESEND_API_KEY` ligger i GitHub-hemligheterna.
+   Ingen kodändring behövs; nattjobbet väljer gren på om nyckeln finns.

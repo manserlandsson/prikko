@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -582,11 +583,32 @@ def main() -> int:
     if not args.godkanda:
         raise SystemExit("tillampa kräver --godkanda med JSON ur granskningsarket")
 
-    from hamta_commonsbilder import build_store  # noqa: PLC0415
-    from prikko.supabase import Supabase  # noqa: PLC0415
+    # Klienten bor i hamta_commonsbilder.py och INTE i prikko/. Första
+    # versionen importerade `prikko.supabase`, en modul jag hittade på i
+    # stället för att läsa hur den befintliga hämtaren gör, och kommandot föll
+    # på ModuleNotFoundError innan det hann göra något alls.
+    from hamta_commonsbilder import Supabase, build_store  # noqa: PLC0415
 
     store = build_store(args)
-    db = Supabase.from_env()
+
+    db = None
+    if not args.lokal:
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_KEY")
+        if url and key:
+            db = Supabase(url, key)
+        else:
+            # Samma besked som hamta_commonsbilder ger, och av samma skäl:
+            # skrivs bilden bara i datafilen bygger nattens export om filen ur
+            # databasen och tar bort den igen.
+            raise SystemExit(
+                "SUPABASE_URL och SUPABASE_SERVICE_KEY saknas.\n\n"
+                "Utan dem skrivs bilderna bara i datafilen, och nattens\n"
+                "export_supabase.py bygger om filen ur databasen och tar då bort\n"
+                "dem igen. Nycklarna bor i ~/.prikko-env:\n\n"
+                "    set -a; source ~/.prikko-env; set +a\n"
+            )
+
     return tillampa(args.files, args.godkanda, store, db)
 
 

@@ -62,8 +62,13 @@ ALLOWED_CLASSES är en TILLÅTELSELISTA av samma skäl som `commons.FREE_LICENCE
 är det: en förbudslista hade behövt känna till varenda klass Wikidata har, och
 en okänd klass ska betyda ingen bild, aldrig "förmodligen ett hus". Priset är
 mätt och det är elva objekt som saknar P31 helt, bland dem Wedholms Fisk och
-Restaurang Pelikan. Att de faller är samma besked som när P625 saknas i
-`commons.within_reach`: en bild vi inte kan pröva är en bild vi inte visar.
+Restaurang Pelikan.
+
+Att SAKNA P31 och att ha FEL P31 visade sig vara två olika saker, och de
+elva fick sedan två vägar förbi grinden: `UTAN_P31_MAX_M` när objektet ligger
+inpå oss, `BESKRIVNINGSORD` när dess svenska beskrivning säger vad tinget är.
+Ett objekt med en P31 som inte står i listan har fortfarande ingen väg alls,
+för där har någon redan sagt vad det är.
 
 ## Grind 3: licensen och formatet
 
@@ -117,7 +122,7 @@ import re
 import time
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .oppettider import _GENERIC, metres, name_tokens
@@ -284,11 +289,131 @@ ALLOWED_CLASSES: Dict[str, str] = {
 #: Vinsten vid 40 meter är fem rader av 11 577, och de tre kommunerna utanför
 #: Stockholm gav noll. Det är litet, och det är ärligt: Wikidata har bara
 #: stockholmskrogar som objekt utan P31.
+#:
+#: Det avståndet gäller de objekt som inte säger något om sig själva alls. Ett
+#: objekt vars svenska beskrivning säger vad tinget är prövas mot den vanliga
+#: spärren i stället. Se `BESKRIVNINGSORD`.
 UTAN_P31_MAX_M = 40.0
+
+
+#: ORD I DEN SVENSKA BESKRIVNINGEN SOM SÄGER VAD FÖR SLAGS TING DET ÄR.
+#:
+#: ══ VARFÖR GRINDEN FINNS ══════════════════════════════════════════════════
+#:
+#: `UTAN_P31_MAX_M` låter avståndet ensamt gå i god för ett objekt Wikidata
+#: inte sagt vad det är, och fyrtio meter är kort just därför att avståndet är
+#: ett svagt belägg. Beskrivningen är ett STARKARE belägg: står det
+#: "restaurang i Stockholm" i klartext så vet vi vad tinget är, om än inte av
+#: en P31.
+#:
+#: Det här är ett SUBSTITUT för klassen och inte ett ombud för den. Orden är
+#: `ALLOWED_CLASSES` egna svenska etiketter lästa som ord i stället för som
+#: Q-nummer, med bindeorden strukna: "i", "av", "Sverige", "fransk", "ideell",
+#: "nationell" och "lärt" står inte här, för "stadsdel i Stockholm" hade
+#: passerat på ordet i. Böjningarna är mätta och inte gissade: Restaurang
+#: Pelikans objekt står som "restauranger i Stockholm" i pluralis och
+#: Sundbergs som "traditionsrikt café", inte "kafé".
+#:
+#: ══ VAD GRINDEN GÖR, MÄTT 2026-08-22 ══════════════════════════════════════
+#:
+#: Över alla tolv kommunerna finns 15 namnlika par utan P31 inom en kilometer.
+#: Bara sex av dem bär en svensk beskrivning alls, och alla sex passerar
+#: grinden. De nio utan beskrivning fälls.
+#:
+#: Bortom fyrtio meter passerar EXAKT ETT par, och det blir en riktig bild:
+#:
+#:     Hägerstensåsens Skola  →  Q31866510  75,4 m
+#:                               "skola i Hägerstensåsen, Stockholm"
+#:                               "Hägerstensåsens skola, 2016b.jpg"
+#:
+#: Nästa par som passerar grinden ligger bortom en kilometer, alltså är det
+#: inte grinden som sätter gränsen utan modulens vanliga `MAX_DISTANCE_M`.
+#: Allt mellan 76 och 1 000 meter ger identiskt utfall, och 150 valdes för att
+#: det är den spärr som redan gäller allt annat här.
+#:
+#: Hela namnspåret mätt över tolv kommuner före och efter, samma dag: 264 par
+#: blev 265, och nya bilder gick från 5 till 6. Elva av de tolv kommunerna är
+#: oförändrade.
+#:
+#: DE TVÅ KÄNDA FÄLLORNA FALLER, båda på att de saknar en svensk beskrivning:
+#:
+#:     Gamla Östberga Bageri AB  →  Q5520237   321 m  sv saknas
+#:                                  (en: "area of Stockholm, Sweden")
+#:     Långpannan Pizzeria       →  Q10572633  520 m  ingen beskrivning alls
+#:
+#: ══ VARFÖR FYRTIOMETERSREGELN STÅR KVAR BREDVID ═══════════════════════════
+#:
+#: Grinden får ALDRIG ersätta `UTAN_P31_MAX_M`, bara stå bredvid den. Rolfs
+#: kök, fallet som gjorde undantaget, har ingen beskrivning heller: Q10656465
+#: bär varken P31 eller `schema:description`. Fyra av de tio paren inom fyrtio
+#: meter är av den sorten, bland dem Restaurang Kvarnen och Skärholmens gård.
+#: En beskrivningsgrind i stället för avståndsregeln hade alltså kostat tre av
+#: dagens fem nya bilder.
+BESKRIVNINGSORD = {
+    # Hus och gårdar
+    "byggnad", "byggnaden", "byggnader", "byggnadsverk", "hus", "huset",
+    "skolbyggnad", "museibyggnad", "arkivbyggnad", "domstolsbyggnad",
+    "höghus", "villa", "mur", "herrgård", "herrgårdshus", "malmgård",
+    "mangårdsbyggnad", "slott", "torp", "vattentorn", "väderkvarn",
+    # Ställen man äter, dricker och sover på
+    "restaurang", "restaurangen", "restauranger", "krog", "krogen",
+    "kafé", "kaféet", "café", "caféet", "cafe", "kafe", "konditori",
+    "bageri", "bageriet", "bar", "baren", "pub", "puben", "ölhall",
+    "nattklubb", "jazzklubb", "pizzeria", "matsal",
+    "hotell", "hotellet", "värdshus", "värdshuset", "gästgiveri",
+    "gästgivargård", "pensionat",
+    # Scener, salonger och mässor
+    "konserthus", "konsertlokal", "teaterhus", "teater", "teatern",
+    "biograf", "biografen", "biografkomplex", "handelsmässa",
+    "konferensanläggning",
+    # Kyrkor
+    "kyrka", "kyrkan", "kyrkobyggnad", "församlingskyrka", "församling",
+    # Skolor
+    "skola", "skolan", "grundskola", "gymnasieskola", "gymnasium",
+    "läroverk", "realskola", "fackskola", "skolenhet", "folkhögskola",
+    "förskola", "waldorfskola", "utlandsskola", "avtalsskola",
+    "studentnation",
+    # Museer
+    "museum", "museet", "konstmuseum", "länsmuseum", "friluftsmuseum",
+    "arbetslivsmuseum",
+    # Vård och omsorg
+    "sjukhus", "äldreboende", "apotek",
+    # Anläggningar
+    "sportanläggning", "stadion", "boulebana", "djurpark", "nöjespark",
+    # Institutioner
+    "forskningsinstitut", "vetenskapsakademi", "akademi", "samfund",
+    "organisation", "landmärke",
+}
+
+_ICKE_ORD = re.compile(r"[^\wåäöéèüáà]+", re.UNICODE)
+
+
+def _orden(text: str) -> set:
+    """Orden i en text, gemener, utan skiljetecken.
+
+    `name_tokens` duger inte här. Den stryker bolagsformerna, och i en
+    beskrivning är "restaurang" inte en bolagsform utan hela beskedet.
+    """
+    return {o for o in _ICKE_ORD.split((text or "").lower()) if o}
 
 
 class WikidataError(RuntimeError):
     pass
+
+
+class AvhuggetSvar(WikidataError):
+    """WDQS började skicka och slutade mitt i.
+
+    Uppmätt 2026-08-22: Stockholms låda gav 917 504 bytes, alltså jämnt 896
+    KiB, och sista strängen var oavslutad. Uppsala gav 940 965 bytes helt, så
+    det är ingen storleksgräns. Tjänsten strömmar resultatet och slår i sin
+    egen tidsgräns mitt i utskicket, varpå förbindelsen stängs på en jämn
+    buffertkant. Stockholm är den täta lådan och därmed den långsamma frågan.
+
+    Att vänta och försöka igen hjälper inte, för frågan tar lika lång tid
+    nästa gång: fem försök i rad föll på exakt samma teckenposition. Det som
+    hjälper är att fråga om mindre yta, se `objects_in_box`.
+    """
 
 
 @dataclass(frozen=True)
@@ -306,6 +431,7 @@ class Objekt:
     punkter: Tuple[Tuple[float, float], ...]
     klasser: Tuple[str, ...]
     alias: Tuple[str, ...] = field(default=())
+    beskrivning: str = ""
 
     def tillaten_klass(self) -> bool:
         """Står något av objektets slag i tillåtelselistan?
@@ -323,6 +449,14 @@ class Objekt:
         en sak vi inte vill ha. Bara det första får en andra chans.
         """
         return not self.klasser
+
+    def beskrivningen_sager_vad_det_ar(self) -> bool:
+        """Står det i den svenska beskrivningen vad för slags ting det är?
+
+        Ett SUBSTITUT för P31 och inte ett ombud för det. Se
+        `BESKRIVNINGSORD` och `UTAN_P31_MAX_M`.
+        """
+        return bool(_orden(self.beskrivning) & BESKRIVNINGSORD)
 
     def namnformer(self) -> List[Tuple[str, ...]]:
         """Namnet och alla alias som ordmängder."""
@@ -360,7 +494,7 @@ def bounding_box(
     )
 
 
-_OBJEKT_QUERY = """SELECT ?item ?itemLabel ?lat ?lon ?img ?klass WHERE {
+_OBJEKT_QUERY = """SELECT ?item ?itemLabel ?lat ?lon ?img ?klass ?beskrivning WHERE {
   SERVICE wikibase:box {
     ?item wdt:P625 ?coord .
     bd:serviceParam wikibase:cornerWest "Point(%(vast)s %(syd)s)"^^geo:wktLiteral .
@@ -370,6 +504,7 @@ _OBJEKT_QUERY = """SELECT ?item ?itemLabel ?lat ?lon ?img ?klass WHERE {
   ?item p:P625/psv:P625 ?node .
   ?node wikibase:geoLatitude ?lat ; wikibase:geoLongitude ?lon .
   OPTIONAL { ?item wdt:P31 ?klass . }
+  OPTIONAL { ?item schema:description ?beskrivning . FILTER(LANG(?beskrivning) = "sv") }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "sv,en". }
 }"""
 
@@ -382,6 +517,14 @@ _ALIAS_QUERY = """SELECT ?item ?alias WHERE {
   ?item wdt:P18 ?img .
   ?item skos:altLabel ?alias . FILTER(LANG(?alias) IN ("sv","en"))
 }"""
+
+
+MAX_DELNINGAR = 3
+"""Hur många gånger en låda får halveras innan vi ger upp.
+
+Tre delningar är 64 rutor av ursprungslådan. Stockholm klarar sig på en, och
+en låda som inte går igenom på 64 delar har något annat fel än storlek.
+"""
 
 
 def _ask(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
@@ -398,6 +541,10 @@ def _ask(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
             request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))["results"]["bindings"]
+        except json.JSONDecodeError as exc:
+            raise AvhuggetSvar(
+                f"WDQS klippte strömmen efter {exc.pos} tecken"
+            ) from exc
         except Exception as exc:  # noqa: BLE001
             if attempt == tries - 1:
                 raise WikidataError(f"WDQS svarade inte: {exc}") from exc
@@ -419,19 +566,63 @@ def _filnamn(url: str) -> str:
     return urllib.parse.unquote(url.rsplit("/", 1)[-1]).replace("_", " ")
 
 
-def objects_in_box(box: Tuple[float, float, float, float]) -> List[Objekt]:
+def objects_in_box(
+    box: Tuple[float, float, float, float], djup: int = 0
+) -> List[Objekt]:
     """Alla Wikidata-objekt med P18 och koordinat i lådan.
 
     Två frågor och inte en. Aliasen ligger i en egen fråga eftersom en
     sammanslagning multiplicerar raderna: ett objekt med fyra alias och två
     koordinater hade gett åtta rader av samma sak, och Stockholms låda ger
     redan 7 943 rader utan dem.
+
+    Klipper WDQS strömmen delas lådan i fyra och varje kvadrant frågas för
+    sig, se `AvhuggetSvar`. `djup` räknar delningarna så att en låda som ändå
+    inte går igenom får falla i stället för att dela sig i evighet.
     """
     syd, vast, nord, ost = box
     params = {"syd": syd, "vast": vast, "nord": nord, "ost": ost}
 
+    try:
+        rader = _ask(_OBJEKT_QUERY % params)
+    except AvhuggetSvar:
+        if djup >= MAX_DELNINGAR:
+            raise
+        # Fyra kvadranter, var och en med en fjärdedel av ytan och därmed en
+        # bråkdel av arbetet. Delningen är på MITTEN och inte på täthet, för
+        # tätheten är just det vi inte vet innan vi frågat.
+        #
+        # Kvadranterna ÖVERLAPPAR inte, men objekt med flera koordinater kan
+        # ändå dyka upp i två av dem. Sammanslagningen nedan är därför på qid
+        # och unionerar punkter, klasser och alias, precis som slingan gör
+        # inom en enda fråga.
+        mitt_ns = (syd + nord) / 2
+        mitt_ov = (vast + ost) / 2
+        delar = (
+            (syd, vast, mitt_ns, mitt_ov),
+            (syd, mitt_ov, mitt_ns, ost),
+            (mitt_ns, vast, nord, mitt_ov),
+            (mitt_ns, mitt_ov, nord, ost),
+        )
+        hopslaget: Dict[str, Objekt] = {}
+        for del_ in delar:
+            time.sleep(POLITE_DELAY_S)
+            for objekt in objects_in_box(del_, djup=djup + 1):
+                tidigare = hopslaget.get(objekt.qid)
+                if tidigare is None:
+                    hopslaget[objekt.qid] = objekt
+                    continue
+                hopslaget[objekt.qid] = replace(
+                    tidigare,
+                    punkter=tuple(sorted(set(tidigare.punkter) | set(objekt.punkter))),
+                    klasser=tuple(sorted(set(tidigare.klasser) | set(objekt.klasser))),
+                    alias=tuple(sorted(set(tidigare.alias) | set(objekt.alias))),
+                    beskrivning=tidigare.beskrivning or objekt.beskrivning,
+                )
+        return list(hopslaget.values())
+
     samlade: Dict[str, dict] = {}
-    for row in _ask(_OBJEKT_QUERY % params):
+    for row in rader:
         qid = _qid(row["item"]["value"])
         post = samlade.setdefault(
             qid,
@@ -441,11 +632,16 @@ def objects_in_box(box: Tuple[float, float, float, float]) -> List[Objekt]:
                 "punkter": set(),
                 "klasser": set(),
                 "alias": set(),
+                "beskrivning": "",
             },
         )
         post["punkter"].add((float(row["lat"]["value"]), float(row["lon"]["value"])))
         if "klass" in row:
             post["klasser"].add(_qid(row["klass"]["value"]))
+        if "beskrivning" in row:
+            # Ett objekt har högst en svensk beskrivning, så raderna
+            # multipliceras inte av att den ligger i samma fråga som klassen.
+            post["beskrivning"] = row["beskrivning"]["value"]
 
     time.sleep(POLITE_DELAY_S)
     for row in _ask(_ALIAS_QUERY % params):
@@ -461,6 +657,7 @@ def objects_in_box(box: Tuple[float, float, float, float]) -> List[Objekt]:
             punkter=tuple(sorted(post["punkter"])),
             klasser=tuple(sorted(post["klasser"])),
             alias=tuple(sorted(post["alias"])),
+            beskrivning=post["beskrivning"],
         )
         for qid, post in samlade.items()
     ]
@@ -617,7 +814,15 @@ def pair(index: Index, namn: Optional[str], lat: float, lng: float) -> Optional[
         avstand = within_reach(objekt, lat, lng)
         if avstand is None:
             continue
-        if klasslos and avstand > UTAN_P31_MAX_M:
+        if (
+            klasslos
+            and avstand > UTAN_P31_MAX_M
+            and not objekt.beskrivningen_sager_vad_det_ar()
+        ):
+            # Utan P31 duger fyrtio meter, med en beskrivning som säger vad
+            # tinget är duger `MAX_DISTANCE_M` som för alla andra. Se
+            # `BESKRIVNINGSORD`: vinsten är Hägerstensåsens skola på 75 meter,
+            # och de två stadsdelsfällorna faller ändå.
             continue
         if basta is None or avstand < basta.metres:
             basta = Traff(objekt=objekt, metres=avstand)

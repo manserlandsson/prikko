@@ -1014,24 +1014,27 @@ Apple, alltså skulle sex kilobyte betala för något nästan ingen hinner se.
   Byggs inte förrän beslutet är fattat.
 
 - ~~**Matsnuskmärket bär i dag ordmärkets smiley och ska fortsätta göra det.**~~
-  **Ritat.** Raden ovan beskrev en avsikt, inte en ritning: märket var i
-  själva verket en platshållare som renderade `FaceMark` i rött, alltså
-  GRÄVLINGENS ansikte, och stod därmed bredvid en bedömning av en namngiven
-  verksamhet i strid med §2. Ägaren såg det två gånger: "Matsnusk ikonen ska
-  fortsatt ej vara grävlingen liksom... är du med???"
+  ~~**Ritat.**~~ **BORTTAGET 2026-08-22.** Ägaren: "ta bort matsnusk märket
+  helt, vill inte köra det." Komponenterna `MatsnuskSeal.astro` och
+  `MatsnuskNote.astro`, ritningen `brand/matsnuskmarke.mjs`, den importerade
+  `site/src/marks/matsnusk.ts`, provarken och importskriptets `matsnusk`-läge
+  är alla borta ur repot, inte utkommenterade. Det som fanns i git finns i git.
 
-  Märket är nu en stämpel: wordmarken med sitt eget ansikte, munnen vänd till
-  major enligt §3b, innesluten i en dubbelregel, allt i `--verdict-major-ink`.
-  Ritningen och hela avvägningen står i `brand/matsnuskmarke.mjs`, och det som
-  hör hemma här är den ena meningen som rör maskotprogrammet: **ansiktet i
-  märket är ordmärkets, inte figurens**, alltså ingen kontur, inga öron, ingen
-  nos, inga bryn och inga pupiller.
+  MatsnuskLISTAN lever kvar, se `site/src/lib/matsnusk.ts` och
+  `site/src/pages/[kommun]/matsnusk.astro`. Det var MÄRKET ägaren tog bort,
+  alltså sigillet bredvid en namngiven verksamhets bedömning, inte listan.
 
-  Att ansiktet inte heller fick fylla märket är samma gräns sedd från andra
-  hållet. En av de sex uppställningarna satte ordmärkets ansikte uppförstorat
-  där utmärkelsens årtal står. Den läste bäst av alla i provarket och ströks
-  ändå: ett ansikte som fyller ett märke är inte längre ett tecken utan en
-  MIN, och det är precis vad §4b beskriver. Delningen i §2 mellan neutralt
-  tecken och karaktär går alltså inte bara mellan två komponenter, den går
-  också inuti en enda ritning, och det är den lärdomen som är värd att ta med
-  nästa gång något ska ritas för en namngiven verksamhet.
+  Två lärdomar ur arbetet är värda att behålla, för de gäller nästa gång något
+  ska ritas för en namngiven verksamhet:
+
+  1. **Ansiktet i ett sådant märke är ordmärkets, inte figurens.** Den första
+     versionen renderade `FaceMark` i rött, alltså GRÄVLINGENS ansikte, och
+     stod därmed bredvid en bedömning av en namngiven verksamhet i strid med
+     §2. Ägaren såg det två gånger: "Matsnusk ikonen ska fortsatt ej vara
+     grävlingen liksom... är du med???"
+  2. **Ett ansikte som fyller ett märke är inte längre ett tecken utan en MIN.**
+     En av de sex uppställningarna satte ordmärkets ansikte uppförstorat där
+     utmärkelsens årtal står. Den läste bäst av alla i provarket och ströks
+     ändå, se §4b. Delningen i §2 mellan neutralt tecken och karaktär går
+     alltså inte bara mellan två komponenter, den går också inuti en enda
+     ritning.

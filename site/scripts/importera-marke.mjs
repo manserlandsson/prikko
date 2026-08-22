@@ -1,8 +1,6 @@
 /**
  * NYTT ÅR, NYTT MÄRKE. Så här gör du.
  *
- * (Skriptet importerar också matsnuskmärket. Se avsnittet längst ned.)
- *
  *   1. Rita om märket med det nya årtalet. Utgå från förra årets fil i brand/.
  *      Årtalet måste vara konverterat till kurvor, alltså INTE en textruta.
  *      Skriptet vägrar filen annars.
@@ -41,20 +39,11 @@
  * `width` och `height` tas bort och bara `viewBox` står kvar, så att märket
  * skalar med sin behållare i stället för att slåss med den.
  *
- * ## Matsnuskmärket går samma väg, med `matsnusk` i stället för ett årtal
- *
- *     node scripts/importera-marke.mjs ../brand/prikko-matsnuskmarke.svg matsnusk
- *
- * Skriptet skriver då `src/marks/matsnusk.ts` utan `year`. Att det är samma
- * skript och inte ett andra är hela poängen: de två märkena måste hållas till
- * SAMMA garantier, alltså exakt en färg som kan bytas mot currentColor, ingen
- * `<text>` som renderar olika på en främmande maskin, och en viewBox som
- * skalar. Ett eget skript hade varit hundra rader som glider isär.
- *
- * Skillnaden ligger inte här utan i vad som händer sedan: utmärkelsen serveras
- * som en nedladdningsbar fil (se lib/marke.ts), matsnuskmärket gör det aldrig.
- * Ett LEVANDE märke som lämnar sajten kan inte tas tillbaka, och det skulle
- * kunna ljuga om nuläget den dag bristerna är åtgärdade.
+ * MATSNUSKLÄGET ÄR BORTTAGET. Skriptet hade ett andra mål, `matsnusk`, som
+ * skrev src/marks/matsnusk.ts utan årtal. Ägaren tog bort matsnuskmärket
+ * 2026-08-22: "ta bort matsnusk märket helt, vill inte köra det." Läget är
+ * struket och inte lämnat kvar oanvänt, för ett läge som ingen kör är ett läge
+ * ingen märker är trasigt den dag någon råkar köra det.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -66,13 +55,11 @@ const OUT = join(here, '..', 'src', 'marks');
 
 const [sourceArg, malArg] = process.argv.slice(2);
 if (!sourceArg || !malArg) {
-  throw new Error('Kör: node scripts/importera-marke.mjs <källa.svg> <år|matsnusk>');
+  throw new Error('Kör: node scripts/importera-marke.mjs <källa.svg> <år>');
 }
 
-/** Matsnuskmärket är levande och har därför inget årtal. Se filhuvudet. */
-const levande = malArg === 'matsnusk';
-const year = levande ? null : Number(malArg);
-if (!levande && (!Number.isInteger(year) || year < 2020 || year > 2100)) {
+const year = Number(malArg);
+if (!Number.isInteger(year) || year < 2020 || year > 2100) {
   throw new Error(`Orimligt årtal: ${malArg}`);
 }
 
@@ -168,27 +155,19 @@ if (out.includes('<text')) {
  * Måns original ligger kvar orört i brand/. Filen här är kompilatet.
  */
 mkdirSync(OUT, { recursive: true });
-const target = join(OUT, levande ? 'matsnusk.ts' : `utmarkelse-${year}.ts`);
+const target = join(OUT, `utmarkelse-${year}.ts`);
 const viewBox = out.match(/viewBox="([^"]+)"/)[1];
 
-const huvud = levande
-  ? ` * Matsnuskmärket. GENERERAD FIL, redigera den inte för hand.\n` +
-    ` *\n` +
-    ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
-    ` * Ritningen och skälen bakom varje mått står i brand/matsnuskmarke.mjs.\n` +
-    ` * Färgen är utbytt mot currentColor och sätts av MatsnuskSeal.astro.\n` +
-    ` *\n` +
-    ` * INGET ÅRTAL, till skillnad från utmärkelsen, och det är avsiktligt:\n` +
-    ` * märket är levande och försvinner i samma bygge som raden gör det.\n`
-  : ` * Utmärkelsemärket ${year}. GENERERAD FIL, redigera den inte för hand.\n` +
-    ` *\n` +
-    ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
-    ` * Färgen är utbytt mot currentColor, se lib/marke.ts för varför.\n`;
+const huvud =
+  ` * Utmärkelsemärket ${year}. GENERERAD FIL, redigera den inte för hand.\n` +
+  ` *\n` +
+  ` * Skriven av scripts/importera-marke.mjs ur ${sourceArg}.\n` +
+  ` * Färgen är utbytt mot currentColor, se lib/marke.ts för varför.\n`;
 
 writeFileSync(
   target,
   `/**\n${huvud} */\n` +
-    (levande ? '' : `export const year = ${year};\n`) +
+    `export const year = ${year};\n` +
     `export const viewBox = '${viewBox}';\n` +
     `export const source =\n  ${JSON.stringify(out.trim())};\n`,
 );

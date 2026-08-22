@@ -10,6 +10,7 @@ prikko/wikidatanamn.py och docs/39_fler_bilder.md.
 
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,10 +20,12 @@ from prikko.oppettider import name_tokens  # noqa: E402
 
 
 def objekt(namn="Den gyldene freden", bild="Den Gyldene Freden 2013a.jpg",
-           punkter=((59.323283, 18.071583),), klasser=("Q11707",), alias=()):
+           punkter=((59.323283, 18.071583),), klasser=("Q11707",), alias=(),
+           beskrivning=""):
     return wn.Objekt(
         qid="Q1145843", namn=namn, bild=bild,
         punkter=tuple(punkter), klasser=tuple(klasser), alias=tuple(alias),
+        beskrivning=beskrivning,
     )
 
 
@@ -94,6 +97,51 @@ class Klassen(unittest.TestCase):
 
     def test_en_tillaten_klass_av_flera_racker(self):
         self.assertTrue(objekt(klasser=("Q2983893", "Q41176")).tillaten_klass())
+
+
+class Beskrivningen(unittest.TestCase):
+    """Substitutet för P31 när Wikidata inte sagt vad tinget är.
+
+    Mätt 2026-08-22: av 15 namnlika par utan P31 inom en kilometer bär sex en
+    svensk beskrivning, och bara ett av dem ligger bortom fyrtio meter.
+    """
+
+    def sager(self, text):
+        return objekt(klasser=(), beskrivning=text).beskrivningen_sager_vad_det_ar()
+
+    def test_restaurang_racker(self):
+        self.assertTrue(self.sager("restaurang i Stockholm"))
+
+    def test_pluralis_racker(self):
+        # Restaurang Pelikans objekt står faktiskt i pluralis på Wikidata.
+        self.assertTrue(self.sager("restauranger i Stockholm"))
+
+    def test_cafe_med_accent_racker(self):
+        # Sundbergs står som "café", inte som "kafé".
+        self.assertTrue(self.sager("traditionsrikt café i Stockholm"))
+
+    def test_skolan_racker(self):
+        self.assertTrue(self.sager("skola i Hägerstensåsen, Stockholm"))
+
+    def test_stadsdelen_faller(self):
+        # Gamla Östberga Bageri AB mot stadsdelen Gamla Östberga, 321 meter.
+        self.assertFalse(self.sager("stadsdel i Stockholms kommun"))
+
+    def test_bindeordet_racker_inte(self):
+        # Orden "i" och "av" står med avsikt inte i listan: annars hade varje
+        # svensk beskrivning som helst passerat.
+        self.assertFalse(self.sager("plats i Stockholm"))
+
+    def test_utan_beskrivning_faller(self):
+        # Långpannan Pizzeria mot platsen Långpannan, 520 meter. Objektet har
+        # ingen beskrivning alls.
+        self.assertFalse(self.sager(""))
+
+    def test_utomhusbadet_faller(self):
+        # Tinnerbäcksbadet, 184 meter. Ordet står inte i listan, alltså ingen
+        # bild. En okänd sorts ting betyder ingen bild, precis som en okänd
+        # klass gör.
+        self.assertFalse(self.sager("kommunalt utomhusbad i Linköping"))
 
 
 class Avstandet(unittest.TestCase):
@@ -196,6 +244,81 @@ class Ladan(unittest.TestCase):
         self.assertIsNone(wn.bounding_box([(59.3, None)]))
 
 
+class Delningen(unittest.TestCase):
+    """Klipper WDQS strömmen delas lådan i fyra.
+
+    Uppmätt 2026-08-22: Stockholms låda gav 917 504 bytes, alltså jämnt 896
+    KiB, med sista strängen oavslutad, medan Uppsala gav 940 965 bytes helt.
+    Ingen storleksgräns alltså, utan en ström som klipps när tjänsten slår i
+    sin egen tidsgräns mitt i utskicket. De fem inbyggda omförsöken föll på
+    exakt samma teckenposition, för frågan tar lika lång tid varje gång.
+    """
+
+    def _svar(self, item, lat, lon, klass=None):
+        rad = {
+            "item": {"value": f"http://www.wikidata.org/entity/{item}"},
+            "itemLabel": {"value": item},
+            "img": {"value": "http://commons.wikimedia.org/wiki/Special:FilePath/A.jpg"},
+            "lat": {"value": str(lat)},
+            "lon": {"value": str(lon)},
+        }
+        if klass:
+            rad["klass"] = {"value": f"http://www.wikidata.org/entity/{klass}"}
+        return rad
+
+    def test_hela_ladan_fragas_i_fyra_delar_nar_strommen_klipps(self):
+        fragade = []
+
+        def falsk_ask(sparql, **_):
+            # Den odelade lådan spänner 59.0 till 60.0. Kvadranterna möts i
+            # 59.5, så mittvärdet i frågan skiljer dem åt.
+            bred = '"Point(18.0 59.0)"' in sparql and '"Point(19.0 60.0)"' in sparql
+            fragade.append("hel" if bred else "del")
+            if bred:
+                raise wn.AvhuggetSvar("klippt vid 916120")
+            if "alias" in sparql.lower():
+                return []
+            return [self._svar(f"Q{len(fragade)}", 59.25, 18.25)]
+
+        with unittest.mock.patch.object(wn, "_ask", falsk_ask), \
+                unittest.mock.patch.object(wn, "POLITE_DELAY_S", 0):
+            objekt_ut = wn.objects_in_box((59.0, 18.0, 60.0, 19.0))
+
+        self.assertEqual(fragade.count("hel"), 1)
+        # Fyra kvadranter, var och en med objektfrågan och aliasfrågan.
+        self.assertEqual(fragade.count("del"), 8)
+        self.assertEqual(len(objekt_ut), 4)
+
+    def test_samma_objekt_i_tva_kvadranter_slas_ihop(self):
+        # Ett objekt kan bära flera koordinater och därmed dyka upp i två
+        # rutor. Sammanslagningen är på qid och unionerar punkterna.
+        def falsk_ask(sparql, **_):
+            if '"Point(18.0 59.0)"' in sparql and '"Point(19.0 60.0)"' in sparql:
+                raise wn.AvhuggetSvar("klippt")
+            if "alias" in sparql.lower():
+                return []
+            if '"Point(18.5 59.5)"' in sparql:  # nordöstra rutan
+                return [self._svar("Q7", 59.75, 18.75, klass="Q11707")]
+            return [self._svar("Q7", 59.25, 18.25)]
+
+        with unittest.mock.patch.object(wn, "_ask", falsk_ask), \
+                unittest.mock.patch.object(wn, "POLITE_DELAY_S", 0):
+            objekt_ut = wn.objects_in_box((59.0, 18.0, 60.0, 19.0))
+
+        self.assertEqual(len(objekt_ut), 1)
+        self.assertEqual(len(objekt_ut[0].punkter), 2)
+        self.assertEqual(objekt_ut[0].klasser, ("Q11707",))
+
+    def test_delningen_ger_upp_i_stallet_for_att_dela_i_evighet(self):
+        def falsk_ask(sparql, **_):
+            raise wn.AvhuggetSvar("klippt")
+
+        with unittest.mock.patch.object(wn, "_ask", falsk_ask), \
+                unittest.mock.patch.object(wn, "POLITE_DELAY_S", 0):
+            with self.assertRaises(wn.AvhuggetSvar):
+                wn.objects_in_box((59.0, 18.0, 60.0, 19.0))
+
+
 class Filnamnet(unittest.TestCase):
     """WDQS lämnar P18 som en URL, inte som ett filnamn."""
 
@@ -237,6 +360,42 @@ class Hopparningen(unittest.TestCase):
         )
         index = wn.Index([langre, nara])
         self.assertEqual(wn.pair(index, "Den Gyldene Freden", *self.FREDEN).objekt.qid, "Q1145843")
+
+    def test_utan_p31_men_inpa_oss_slapps_igenom(self):
+        # Rolfs kök, Q10656465, 0,8 meter. Objektet har varken P31 eller
+        # beskrivning, och avståndet är det enda belägget som finns.
+        nara = (59.323290, 18.071583)
+        index = wn.Index([objekt(namn="Rolfs kök", klasser=(), punkter=(nara,))])
+        self.assertIsNotNone(wn.pair(index, "Rolfs Kök", *self.FREDEN))
+
+    def test_utan_p31_och_utan_beskrivning_faller_bortom_fyrtio_meter(self):
+        # Bällsta gård, 97 meter. Ingen klass, ingen beskrivning, för långt.
+        langt = (59.324160, 18.071583)
+        index = wn.Index([objekt(namn="Bällsta gård", klasser=(), punkter=(langt,))])
+        self.assertIsNone(wn.pair(index, "Bällsta gård", *self.FREDEN))
+
+    def test_beskrivningen_bar_avstandet_bortom_fyrtio_meter(self):
+        # Hägerstensåsens skola, 75 meter, "skola i Hägerstensåsen, Stockholm".
+        # Enda paret av femton som den här grinden vinner.
+        langt = (59.323961, 18.071583)
+        index = wn.Index([
+            objekt(
+                namn="Hägerstensåsens skola", klasser=(), punkter=(langt,),
+                beskrivning="skola i Hägerstensåsen, Stockholm",
+            )
+        ])
+        self.assertIsNotNone(wn.pair(index, "Hägerstensåsens Skola", *self.FREDEN))
+
+    def test_beskrivningen_baddar_inte_fel_klass(self):
+        # En P31 som INTE står i tillåtelselistan är ett besked och inte en
+        # lucka, och då hjälper ingen beskrivning i världen.
+        index = wn.Index([
+            objekt(
+                namn="Gamla stan", klasser=("Q2983893",), punkter=(self.FREDEN,),
+                beskrivning="restaurang i Stockholm",
+            )
+        ])
+        self.assertIsNone(wn.pair(index, "Gamla stan", *self.FREDEN))
 
     def test_utan_namn_ingen_traff(self):
         index = wn.Index([objekt(punkter=(self.FREDEN,))])

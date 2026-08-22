@@ -16,6 +16,11 @@ import { SITE } from '../lib/site';
 
 interface Props {
   title: string;
+  /**
+   * Utelämnar "| Prikko" i titeln. Sätts BARA där titeln behöver varje
+   * tecken, se `varumarke` i title-mönstret nedan.
+   */
+  varumarkeITitel?: boolean;
   description: string;
   /** Sätts av kvalitetsgrinden när sidan saknar tillräcklig data. */
   noindex?: boolean;
@@ -58,6 +63,7 @@ interface Props {
 
 const {
   title,
+  varumarkeITitel = true,
   description,
   noindex = false,
   jsonLd,
@@ -74,8 +80,28 @@ const {
 const canonical = new URL(Astro.url.pathname, SITE.url).href;
 const ogImageUrl = new URL(ogImage, SITE.url).href;
 
-// Title-mönster: sidan leder, varumärket följer. Undvik dubblering på startsidan.
-const fullTitle = title === SITE.name ? title : `${title} | ${SITE.name}`;
+/*
+ * Title-mönster: sidan leder, varumärket följer. Undvik dubblering på
+ * startsidan.
+ *
+ * `varumarkeITitel={false}` stryker suffixet, och det finns för att
+ * verksamhetssidorna behöver plats. Ägaren 2026-08-22 om ett verkligt
+ * sökresultat: "borde inte titeln på google vara typ 'Hygienkontroll på
+ * Normal, Sveavägen 17, Stockholm - Prikko'". Han har rätt i att sökordet
+ * saknades. Mätt över alla 16 047 verksamheter, med Googles kapning omkring
+ * 60 tecken:
+ *
+ *   Namn, Stad | Prikko                      median 37   över 60:  1,0 %
+ *   Hygienkontroll på Namn, Stad | Prikko    median 55   över 60: 25,3 %
+ *   Hygienkontroll på Namn, Stad             median 46   över 60:  6,3 %
+ *
+ * Sökordet först och varumärket struket ger alltså var sextonde kapad i
+ * stället för var fjärde. Varumärket förloras inte: Google skriver "prikko.se"
+ * på egen rad ovanför titeln, och SITE.name står kvar i og:site_name och i
+ * WebSite-schemat.
+ */
+const fullTitle =
+  title === SITE.name || !varumarkeITitel ? title : `${title} | ${SITE.name}`;
 
 const structuredData = jsonLd
   ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd])

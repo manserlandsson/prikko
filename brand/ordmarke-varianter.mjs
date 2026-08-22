@@ -32,7 +32,7 @@
  * maskotmodulen och är alltså aldrig gröna, gula eller röda.
  */
 
-import { figur } from './maskot/gravling.mjs';
+import { figur, PALETT, PLATTA_TONER } from './maskot/gravling.mjs';
 
 export const PRIKKOBLA = '#007BE0';
 
@@ -171,15 +171,50 @@ const MUN_ANDEL = (() => {
 /* ══ GRÄVLINGENS ANSIKTE SOM BYGGKLOSS ═════════════════════════════════ */
 
 const RAM_R = 17;   // FaceMark.astro rx på 100-rutan, samma som märkesramen
+const PLATTA_STEG = 3;
+
+/* Maskotmodulens egna två tal, framräknade med dess egen formel och inte
+ * avskrivna, så att ett färgbyte i figuren följer med hit. */
+const hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const hs = (a) => '#' + a.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+const LJUS = hs(hx(PALETT.blue.bas).map((v) => v + (255 - v) * 0.62));
+const PLATTA = PLATTA_TONER.blue[PLATTA_STEG];
+
+/**
+ * DETALJNIVÅN VÄLJS UR DEN VERKLIGA PIXELSTORLEKEN och inte ur en förvald.
+ *
+ * Maskotmodulens egna gränser: `rik` över 56 px, `enkel` 32 till 56, `nal`
+ * under 32. Ett förslagsark som ritar nålnivån i 64 px ljuger om hur märket
+ * skulle se ut, och ett som ritar den rika i 20 px ljuger åt andra hållet.
+ */
+function nivaFor(px) {
+  return px >= 56 ? 'rik' : px >= 32 ? 'enkel' : 'nal';
+}
+
+/**
+ * KONTRASTLÄGET, och varför det finns.
+ *
+ * Ansiktets kanoniska valörer är byggda för att ligga ENSAMMA i en lista:
+ * huvudet är ljusblått och plattan medelblå. Bredvid ett ord i full
+ * Prikkoblå väger den uppställningen för lätt, alltså tippar märket åt
+ * vänster. Kontrastläget byter bara två färger, plattan mot ren Prikkoblå
+ * och huvudet mot vitt, och rör ingen geometri. Båda ritas, valet är ägarens.
+ */
+function omfarga(kod, farg) {
+  return kod
+    .split(PLATTA).join(farg)
+    .split(LJUS).join('#ffffff');
+}
 
 /** Ansiktets 100-ruta, hämtad ur maskotmodulen och skalad in på plats. */
-function ansiktsruta({ x, y, storlek, detalj = 'nal', platta = true, rundad = true }) {
+function ansiktsruta({ x, y, storlek, px, platta = true, rundad = true, kontrast = false }) {
   let kod = figur({
     size: 100, ton: 'blue', uttryck: 'clean',
-    ansikte: true, detalj, platta: 3,
+    ansikte: true, detalj: nivaFor(px ?? storlek), platta: PLATTA_STEG,
   })
     .replace(/^[\s\S]*?<svg[^>]*>/, '')
     .replace(/<\/svg>\s*$/, '');
+  if (kontrast) kod = omfarga(kod, PRIKKOBLA);
   /* Plattan är märkets bakgrund. Utan den står huvudet fritt, vilket är vad
    * ett ansikte INNE i ett ord vill, och med den är det appikonen. */
   if (!platta) kod = kod.replace(/<rect width="100" height="100" fill="[^"]*"\/>/, '');
@@ -242,11 +277,14 @@ function svgA({ height = 36, farg = PRIKKOBLA } = {}) {
  */
 const B_MITT = LUCKA.topp + (LUCKA.botten - LUCKA.topp) / 2;   // 30,63
 
-function svgB({ height = 36, farg = PRIKKOBLA, platta = false } = {}) {
+function svgB({ height = 36, farg = PRIKKOBLA, platta = true, kontrast = false } = {}) {
   const S = LUCKA.botten - LUCKA.topp;                          // 21,25
   return skal(
     `0 0 159 ${RUTA_H}`, height,
-    ansiktsruta({ x: LUCKA.mx - S / 2, y: B_MITT - S / 2, storlek: S, platta, rundad: platta }) +
+    ansiktsruta({
+      x: LUCKA.mx - S / 2, y: B_MITT - S / 2, storlek: S,
+      px: (S / RUTA_H) * height, platta, rundad: platta, kontrast,
+    }) +
     ordet(farg),
     'Prikko',
   );
@@ -273,7 +311,9 @@ const C_MITT = ORD.xtak + XHOJD / 2;                 // 30,12
 export const C_STORLEK = { liten: XHOJD * 1.39, stor: XHOJD * 1.76 };
 export const C_AVSTAND = { tat: XHOJD * 0.32, luftig: XHOJD * 0.64 };
 
-function svgC({ height = 36, farg = PRIKKOBLA, storlek = 'stor', avstand = 'tat' } = {}) {
+function svgC({
+  height = 36, farg = PRIKKOBLA, storlek = 'stor', avstand = 'tat', kontrast = false,
+} = {}) {
   const S = typeof storlek === 'number' ? storlek : C_STORLEK[storlek];
   const G = typeof avstand === 'number' ? avstand : C_AVSTAND[avstand];
   const x0 = 2.44;
@@ -281,7 +321,7 @@ function svgC({ height = 36, farg = PRIKKOBLA, storlek = 'stor', avstand = 'tat'
   const bredd = ordX + ORD_BREDD + 2.44;
   return skal(
     `0 0 ${n(bredd)} ${RUTA_H}`, height,
-    ansiktsruta({ x: x0, y: C_MITT - S / 2, storlek: S }) +
+    ansiktsruta({ x: x0, y: C_MITT - S / 2, storlek: S, px: (S / RUTA_H) * height, kontrast }) +
     `<g transform="translate(${n(ordX - ORD.v)} 0)">${ordet(farg)}</g>`,
     'Prikko',
   );
@@ -326,13 +366,36 @@ function svgC({ height = 36, farg = PRIKKOBLA, storlek = 'stor', avstand = 'tat'
  * den höjden får brynet ingen plats ovanför ögat.
  */
 
-const D = (() => {
-  const TOPP = 15;                                   // bandets överkant
+/**
+ * BRYNET FÖLL, och det föll på en bild och inte på en åsikt.
+ *
+ * Första ritningen hade brynen med, som hål precis som ögonen. I 64 px läste
+ * masken som FYRA ÖGON, alltså som en domino och inte som ett ansikte, och
+ * skälet är strukturellt: i figuren skiljs brynet från ögonvitan av att det
+ * ena är ljus päls och det andra är vitt mot en mörk pupill, alltså av TRE
+ * valörer. I ett enda bläck finns bara två, alltså blir bryn och ögonvita
+ * exakt samma sak för ögat: ett hål i ett band.
+ *
+ * Det som blir kvar är i stället figurens egen bärande mening, ordagrant ur
+ * maskotmodulen: BANDET OCH ÖGAT ÄR SAMMA FORM. Pupillen står kvar som en ö
+ * inne i hålet, och det är också den som räddar namnet: prickarna i dagens
+ * märke är fortfarande prickar, de har bara fått en ram.
+ *
+ * `bryn: true` ritar den fallna varianten, så att provet går att göra om.
+ */
+function byggD({ bryn = false } = {}) {
+  const par = [['v', 0], ['h', 1]];
+  /* Bandets överkant är GEMENSAM för de två, och det är det enda stället där
+   * figurens asymmetri medvetet rätas ut. I figuren beskärs bandens toppar av
+   * huvudet och blir därför jämna ändå; utan huvud skulle två olika höga
+   * staplar bredvid ett ord läsa som slarv och inte som liv. Underkanterna
+   * följer sina egna ögon och är alltså fortfarande olika. */
+  const TOPP = Math.min(...par.map(([k]) => OGA[k].y - OGA[k].ry - OGA[k].ry * 0.62));
   const band = (o) => {
     const W = o.rx + o.rim;
-    return { x: o.x - W, y: TOPP, w: 2 * W, h: o.y + 23.5 - TOPP, r: W * 0.5 };
+    return { x: o.x - W, y: TOPP, w: 2 * W, h: o.y + 20 - TOPP, r: W };
   };
-  const bryn = (o, i) => {
+  const brynEl = (o, i) => {
     const L = BRYN.langd * BRYN.enhet * (o.rx / BRYN.rxMedel);
     const G = BRYN.glugg * BRYN.enhet;
     return {
@@ -348,38 +411,42 @@ const D = (() => {
     cy: o.y + 0.3 * o.ry,
     r: o.rx * 0.55,
   });
-  const par = [['v', 0], ['h', 1]];
   const banden = par.map(([k]) => band(OGA[k]));
-  const brynen = par.map(([k, i]) => bryn(OGA[k], i));
+  const MUN_CY = 82;
   const d =
     banden.map((b) => rutaBana(b.x, b.y, b.w, b.h, b.r)).join('') +
-    par.map(([k]) => {
-      const o = OGA[k];
-      return ellipsBana(o.x, o.y, o.rx, o.ry, o.vrid);
-    }).join('') +
+    par.map(([k]) => ellipsBana(OGA[k].x, OGA[k].y, OGA[k].rx, OGA[k].ry, OGA[k].vrid)).join('') +
     par.map(([k]) => {
       const p = pupill(OGA[k]);
       return ellipsBana(p.cx, p.cy, p.r, p.r, 0);
     }).join('') +
-    brynen.map((b) => ellipsBana(b.cx, b.cy, b.rx, b.ry, b.rot)).join('');
-  const munD = bage(MUN.cx, MUN.cy, MUN.bredd, MUN_ANDEL, MUN.lut);
+    (bryn
+      ? par.map(([k, i]) => {
+        const b = brynEl(OGA[k], i);
+        return ellipsBana(b.cx, b.cy, b.rx, b.ry, b.rot);
+      }).join('')
+      : '');
+  const munD = bage(MUN.cx, MUN_CY, MUN.bredd, MUN_ANDEL, MUN.lut);
   /* Bläckets ruta, räknad ur primitiverna och inte avskriven. */
   const x1 = Math.min(...banden.map((b) => b.x));
   const x2 = Math.max(...banden.map((b) => b.x + b.w));
-  const y2 = MUN.cy + (MUN.bredd * MUN_ANDEL) / 2 + MUN.stryk / 2;
+  const y2 = MUN_CY + (MUN.bredd * MUN_ANDEL) / 2 + MUN.stryk / 2;
   return { d, munD, box: { x: x1, y: TOPP, w: x2 - x1, h: y2 - TOPP } };
-})();
+}
 
-function svgD({ height = 36, farg = PRIKKOBLA } = {}) {
+const D_REN = byggD();
+const D_BRYN = byggD({ bryn: true });
+
+function svgD({ height = 36, farg = PRIKKOBLA, bryn = false } = {}) {
+  const D = bryn ? D_BRYN : D_REN;
   /* Masken står från k:ets topp till baslinjen, alltså ordets versalhöjd. */
   const H = ORD.bas - ORD.topp;                       // 30,28
   const s = H / D.box.h;
-  const B = D.box.w * s;
   const glugg = XHOJD * 0.42;                         // luft mellan ord och mask
   const x0 = ORD.h + glugg;
   const tx = x0 - D.box.x * s;
   const ty = ORD.topp - D.box.y * s;
-  const bredd = x0 + B + 2;
+  const bredd = x0 + D.box.w * s + 2;
   return skal(
     `0 0 ${n(bredd)} ${RUTA_H}`, height,
     ordet(farg) +

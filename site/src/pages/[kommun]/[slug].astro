@@ -52,7 +52,6 @@ import StreetPhoto from '../../components/StreetPhoto.astro';
 import Commonsbild from '../../components/Commonsbild.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
-import MatsnuskNote from '../../components/MatsnuskNote.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
@@ -628,7 +627,8 @@ const breadcrumbs = {
 ---
 
 <Base
-  title={`${e.name}, ${kommun.city}`}
+  title={`Hygienkontroll på ${e.name}, ${kommun.city}`}
+  varumarkeITitel={false}
   description={description}
   noindex={!indexable}
   jsonLd={[jsonLd, breadcrumbs]}
@@ -763,27 +763,30 @@ const breadcrumbs = {
                   och sätta tillbaka den i stycket, inte att ta bort tipset. */}
               <p class="answer">{answer}</p>
             </div>
-            {/* Märket som märke, ute till höger på bedömningsraden. Som
+            {/* Utmärkelsens sigill, ute till höger på bedömningsraden. Som
                 piller i rubriken syntes det knappt; som låda under
                 nyckeltalen låg det i vägen. Här har det plats att vara ett
                 sigill utan att skjuta ned något.
 
-                DE TVÅ SIGILLEN DELAR DEN HÄR PLATSEN, och det går för att de
-                aldrig kan gälla samtidigt: utmärkelsen kräver ren historik och
-                matsnusk kräver kvarstående brister. Ingen rad kan alltså bära
-                båda, och ingen av dem behöver veta om den andra. */}
-            <AwardNote establishment={e} />
-            <MatsnuskNote establishment={e} />
-          </div>
-          {/* Grunden för matsnuskmärket, direkt under det sigill den hör till.
-              Ett sigill utan förklaring intill är en anklagelse utan grund, och
-              det är hela skälet till att märket inte fick flytta upp ensamt.
-              Utmärkelsen behöver ingen motsvarighet: dess sigill bär sitt eget
-              årtal och länkar till en utgåvesida som förklarar ribban.
+                MATSNUSKMÄRKET STOD FÖRUT PÅ SAMMA PLATS OCH ÄR BORTA, på
+                ägarens beslut 2026-08-22: "ta bort matsnusk märket helt, vill
+                inte köra det." Det gick att dela platsen eftersom de två
+                aldrig kunde gälla samtidigt, en utmärkelse kräver ren historik
+                och matsnusk kvarstående brister, men nu bär raden bara den
+                ena. Komponenten, ritningen och det importerade märket är
+                borttagna, inte utkommenterade. Se docs/24_maskotprogram.md.
 
-              Före metodiklänken, som är generisk. Den här meningen gäller det
-              här stället. */}
-          <MatsnuskNote establishment={e} visa="grund" />
+                MatsnuskLISTAN lever kvar, se lib/matsnusk.ts och
+                [kommun]/matsnusk.astro. Det var märket ägaren ville bort. */}
+            <AwardNote establishment={e} />
+          </div>
+          {/* Här stod grunden för matsnuskmärket, alltså meningen som förklarade
+              vad som konstaterats. Den fanns bara för märkets skull: ett sigill
+              utan förklaring intill är en anklagelse utan grund. Utan märket
+              säger den ingenting som inte redan står i svarsmeningen ovanför,
+              som lyder "har brister som inte åtgärdats vid kommunens
+              uppföljning den 25 juni 2026". Två meningar i rad om samma sak är
+              precis det ägaren kallade överförklarat. */}
           <p class="method caption">
             <a href="/metodik/">Så sätts bedömningen</a>
           </p>
@@ -1276,6 +1279,26 @@ const breadcrumbs = {
 </script>
 
 <style>
+  /* SIDAN ÄR LIKA BRED SOM RESTEN AV SAJTEN, OCH PANELEN TAR SLACKEN.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22, i tur och ordning: "titeln är rätt men bodyn har typ
+     petats in från vänster till höger ojämnt", och sedan "verksamhetsidorna
+     är ju ej stretchade lika brett som resten, varför tog du bort det?"
+
+     Två krav som krockar så länge panelen är fast. Full bredd betyder att
+     något måste fylla 1 304 px. Rak kant betyder att brödtexten inte får
+     göra det: en rad mättes till 836 px i det första försöket, alltså
+     omkring 119 tecken, mot läsbara 45 till 75.
+
+     Det som ger är PANELEN. Huvudkolumnen står kvar på --w-read och panelen
+     går från fasta 300 till `1fr`, alltså 576 vid 1440. Då gäller båda
+     kraven: behållaren är --w-wide precis som startsidan och kommunsidan,
+     varje block börjar på samma pixel och slutar på samma pixel, och
+     brödtexten håller sitt läsmått.
+
+     Ägarens val 2026-08-22 mellan fyra alternativ, där de tre andra var
+     bred kolumn med kapade stycken (den ojämna kanten han redan sagt ifrån
+     om), behålla 1 028, och vänsterställa i 1 400 med tom yta till höger. */
   .page {
     max-width: var(--w-wide);
     padding-block: var(--s-6) var(--s-16);
@@ -1326,17 +1349,51 @@ const breadcrumbs = {
      eller tabeller. De ska fortsätta använda hela kolumnen, och det är
      själva vinsten med den bredare sidan: siffrorna får plats, texten
      behåller sitt mått. */
-  /* `:global` är OBLIGATORISKT här. Merparten av styckena bor i egna
-     komponenter, till exempel `.answer` i FollowUp.astro, och Astros
-     stilomfång sätter sin attributnyckel bara på element i SAMMA fil. Utan
-     `:global` träffar regeln bara de stycken sidmallen själv skriver, vilket
-     var noll av de fyra breda. `.main` är fortfarande omfångad, så regeln
-     kan inte läcka utanför den här sidan. */
-  .main :global(:is(p, ul, ol)) { max-width: var(--w-read); }
+  /* REGELN ÄR BORTA, OCH DET ÄR POÄNGEN.
+     Att kapa styckena till 680 medan kolumnen stod på 760 gav precis den
+     ojämna vänsterkant ägaren såg 2026-08-22: "titeln är rätt men bodyn har
+     typ petats in från vänster till höger ojämnt." Rubriker, kort och
+     tidslinjer gick till 760, styckena stannade på 680, och ögat läste de
+     80 px som ett slarvigt indrag som kom och gick nedför sidan.
 
+     Måttet hör hemma på KOLUMNEN, inte på vartannat element i den. Se
+     .layout nedan. */
+
+  /* HUVUDKOLUMNEN TAR INTE EMOT HELA BREDDNINGEN.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "kontrollhistoriken på restaurangsidorna, blev dom
+     inte väldigt stora nu när vi gjorde hemsidan mkt bredare?"
+
+     Jo. Sidan var byggd som en FLYTANDE huvudkolumn plus en fast 300 px
+     panel, så när --w-wide gick från 1080 till 1400 landade hela vinsten i
+     huvudkolumnen: 732 px blev 956. Uppmätt vid 1440 px fönster.
+
+     Följden var värre än bara bredd. Löptexten är låst till --w-read på 680,
+     medan rutnät, karta och tidslinje sträckte sig till 956, alltså en ojämn
+     högerkant genom hela sidan.
+
+     Huvudkolumnen får därför ett tak, och taket är --w-read. Ett enda mått
+     för hela kolumnen är det som gör kanterna raka: när kolumnen ÄR
+     lässpalten behöver inget element inuti den kapas för sig, och rubrik,
+     stycke, tidslinje och tabell börjar och slutar på samma två pixlar.
+     Överskottet går till panelen, se `.page` ovan, inte till löptexten.
+
+     Det första försöket satte kolumnen på --w-page (760) och kapade bara
+     styckena till 680. Det löste bredden och skapade indraget. 680 plus 48
+     px glugg plus 300 px panel blir 1028, alltså 52 px smalare än de 1080
+     sidan hade före breddningen, och det är rätt håll: docs/19 säger att
+     --w-wide bär "rutnät och hubbar", och verksamhetssidan är en LÄSSIDA med
+     en sidopanel. Startsidan är skyltytan och behåller sina 1304.
+
+     `justify-content: center` stod här och är BORTA. Den centrerade spalterna
+     inne i en behållare som var bredare än de, vilket är precis det som drog
+     isär rubriken och brödtexten. Behållaren är numera lika bred som
+     spalterna, så det finns ingenting kvar att centrera inuti. */
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, var(--w-read)) minmax(300px, 1fr);
+    /* Överskottet hamnar i GLUGGEN, inte i rutorna. Se `.side` nedan för
+       varför panelen inte får bli bredare än den är ritad för. */
     gap: var(--s-12);
     align-items: start;
     /* Luften under topraden bärs här och ingen annanstans. Den satt förut på
@@ -1445,11 +1502,9 @@ const breadcrumbs = {
        klickbar och tog besökaren till utgåvesidan.
 
        Ritningens egen tomma marginal rättas där ritningen bor, alltså i
-       AwardNote respektive MatsnuskNote, eftersom talet skiljer sig mellan
-       de två. Båda sigillen tas ändå av samma regel här: de står aldrig
-       samtidigt, och regeln ska inte behöva veta vilket som råkade renderas. */
-    .verdict > :global(.utmarkelse),
-    .verdict > :global(.snusk-lank) {
+       AwardNote. Väljaren för matsnuskmärket stod här bredvid och är borttagen
+       med märket. */
+    .verdict > :global(.utmarkelse) {
       grid-column: 1 / -1;
       justify-self: start;
     }
@@ -1494,9 +1549,51 @@ const breadcrumbs = {
   }
 
   /* Sidopanel */
+  /* PANELEN LÄGGER SINA RUTOR I SPALTER, den stretchar dem inte.
+     ────────────────────────────────────────────────────────────────────────
+     När panelen växte från 300 till 576 för att fylla sidans bredd blev
+     följden mätbar och ful: kartbilden gick från 300 × 160 till 544 × 160,
+     alltså kvoten 3,4 och en brevlådremsa, och faktaraden "Uteservering ... Ja"
+     fick 544 px mellan etikett och värde. Rutorna är ritade för omkring 300.
+
+     `auto-fit` med ett golv på 260 löser det utan en enda brytpunkt: vid 576
+     blir det två spalter à 276, alltså nästan precis måttet rutorna ritades
+     för, och vid 300 eller på telefon faller det tillbaka till en spalt.
+
+     Bonus som inte var syftet: panelens höjd halveras från omkring 1 700 till
+     900, och `position: sticky` blir därmed meningsfull. En panel som är
+     högre än fönstret kan aldrig rullas till slutet när den klistrats. */
   .side {
     position: sticky;
     top: var(--s-4);
+    display: grid;
+    /* EN SPALT, TILL HÖGER, I SIN RITADE BREDD.
+       ──────────────────────────────────────────────────────────────────────
+       Ägaren 2026-08-22: "spalten kan ju bara va till höger, i en singel och
+       sen bodyn till vänster????"
+
+       Han har rätt, och det var ett läge jag inte hade räknat på. Sidan ska
+       vara --w-wide bred, brödtexten --w-read och rutorna sina 300. De tre
+       går ihop så snart överskottet läggs i GLUGGEN mellan spalterna i
+       stället för i rutorna.
+
+       Rutnätets andra spalt är `1fr` och alltså 576 vid 1440, men panelen
+       tar bara 380 av dem och `justify-self: end` klistrar den mot spaltens
+       högra kant. Kvar blir 196 px som lägger sig som extra luft mellan
+       texten och panelen. Båda ytterkanterna stämmer då med brödsmulorna,
+       källfoten och artikelbandet: 68 till vänster, 1372 till höger.
+
+       Två spalter i panelen provades först och var fel svar på rätt fråga.
+       Måttet är hämtat ur vad rutorna tål: vid 576 gick kartbilden från
+       300 × 160 till 544 × 160, alltså kvoten 3,4, och faktaraden
+       "Uteservering ... Ja" fick 544 px mellan etikett och värde. Vid 380
+       blir kartan 348 × 160, alltså 2,18, och raderna håller ihop.
+
+       `flex` och inte `grid`: en enda spalt behöver inget rutnät, och
+       flexkolumnen sträcker inte rutorna till varandras höjd. */
+    justify-self: end;
+    width: 100%;
+    max-width: 380px;
     display: flex;
     flex-direction: column;
     gap: var(--s-4);

@@ -321,6 +321,14 @@
   --w-page: 760px;    /* enkelspaltiga datasidor: sök, listor, kategorier */
   --w-read: 680px;    /* brödtext, aldrig bredare */
 
+  /* Behållarens rinnande gutter, 16 på telefon och 48 på dator. Står som
+     token och inte bara inbakad i `.container`, för en sida som sätter sin
+     egen max-width måste kunna lägga TILL luften: `.container` är border-box,
+     så ett mått räknat på spalterna blir annars luften för smalt. Uppmätt vid
+     1440 innan token fanns: verksamhetssidans huvudkolumn blev 584 i stället
+     för 680, alltså exakt de 96 px paddingen tar. */
+  --container-luft: clamp(var(--s-4), 4vw, 48px);
+
   /* Gamla namn. Pekar på samma värden så att ingenting flyttar sig.
      Ny kod skriver --w-wide och --w-read. */
   --container: var(--w-wide);
@@ -443,7 +451,7 @@ img, svg { max-width: 100%; height: auto; }
    * Talet binder bara när fönstret är smalare än behållaren plus två gutters.
    * För --w-read på 680 sker det först under 776 px, och där är 4vw omkring
    * 30, alltså inte de fulla 48. */
-  padding-inline: clamp(var(--s-4), 4vw, 48px);
+  padding-inline: var(--container-luft);
 }
 
 .card {

@@ -433,3 +433,95 @@ bygget, se `prikko/imagestore.py`. Grinden i `site/astro.config.mjs` fäller vid
 per kommun, plus ett `extmetadata`-anrop per kandidat och en hämtning per bild.
 Hela riket blev 24 + 239 + 183 anrop. Ingenting behöver cachas och ingenting
 behöver köras ofta.
+
+---
+
+## 8. Efterskrift 2026-08-22: beskrivningsgrinden, lådedelningen och motivet
+
+Tre saker tillkom när skörden kördes skarpt och startsidan skulle visa
+bilderna. De hör ihop och står därför samlade.
+
+### 8.1 Beskrivningen som tredje väg förbi P31
+
+`ALLOWED_CLASSES` fäller ett objekt utan P31, och det kostade riktiga träffar:
+Rolfs kök, Restaurang Kvarnen och Skärholmens gård saknar alla klass.
+`UTAN_P31_MAX_M = 40` släppte igenom dem på avstånd i stället.
+
+Mätt över alla tolv kommunerna finns **15 namnlika par utan P31 inom en
+kilometer, och bara sex bär en svensk beskrivning alls**. Beskrivningen lades
+till i lådfrågan och prövades som grind:
+
+| Gräns | Par inom | Passerar | Nya utöver 40 m |
+|---|---|---|---|
+| 40 m | 10 | 5 | 0 |
+| 80 m | 11 | 6 | 1 |
+| 150 m | 12 | 6 | 1 |
+| 500 m | 14 | 6 | 1 |
+
+Hela vinsten är **en** träff: Hägerstensåsens Skola mot Q31866510 på 75,4 m,
+"skola i Hägerstensåsen, Stockholm". Nästa par som passerar ligger bortom en
+kilometer, så grinden ger identiskt utfall från 76 m till 1 000 m.
+
+**Grinden ersätter INTE avståndsregeln.** Rolfs kök har varken P31 eller
+beskrivning, och fyra av tio par inom 40 m är av den sorten. En beskrivningsgrind
+i stället för `UTAN_P31_MAX_M` hade kostat tre av fem bilder.
+
+De två fällorna, Gamla Östberga på 321 m och Långpannan på 520 m, faller på
+FRÅNVARO och inte på ordet stadsdel: den ena har bara en engelsk beskrivning,
+den andra ingen alls. Ordlistan är en tillåtelselista, så en påhittad "stadsdel
+i Stockholms kommun" faller också.
+
+### 8.2 WDQS klipper strömmen på täta lådor
+
+Stockholms lådfråga gav **917 504 bytes, alltså jämnt 896 KiB**, med sista
+strängen oavslutad. Uppsala gav 940 965 bytes helt. Det är alltså ingen
+storleksgräns: tjänsten strömmar resultatet och slår i sin egen tidsgräns mitt
+i utskicket, varpå förbindelsen stängs på en jämn buffertkant.
+
+De fem inbyggda omförsöken i `_ask` hjälper inte, för frågan tar lika lång tid
+varje gång: fem försök i rad föll på exakt samma teckenposition.
+
+`objects_in_box` fångar därför `AvhuggetSvar` och delar lådan i fyra
+kvadranter, rekursivt till `MAX_DELNINGAR = 3`. Objekt slås ihop på qid med
+union av punkter, klasser och alias, precis som slingan gör inom en fråga.
+Stockholm ger då **5 865 objekt på 20 sekunder**. Tre prov i
+`test_wikidatanamn.py` täcker delningen, sammanslagningen och taket.
+
+### 8.3 Vad bilden visar är ett BEDÖMT fält
+
+Ägaren 2026-08-22: "restaurangerna med bilder på restaurangen istället för ett
+stort palats vill vi visa långt uppe i populära lista."
+
+Ingenting i datan svarar på det. `amenity=restaurant` sitter på både Riche och
+Operakällaren. En namnregel provades och **hade fel om sex av trettiotre**:
+Herrängens Gård är en krog med skylten i bild, Wedholms Fisk ett hörnhus där
+krogen knappt syns, och Hasselbacken bär inget byggnadsord alls trots att
+bilden är ett rosa palats med staty framför.
+
+Varje bild öppnades därför och sågs på. `site/src/lib/bildmotiv.data.json` bär
+189 rader med `motiv` och en mening om vad bilden faktiskt visar:
+
+| motiv | antal | vad |
+|---|---|---|
+| `stallet` | 66 | fasad med skylt, entré, uteservering, matsal, disk, bar |
+| `byggnad` | 115 | hus, palats, museum, kyrka, arena på håll, flygbild, vy |
+| `annat` | 8 | maträtt, logotyp, porträtt, karta, enbart en skylt |
+
+Fältet styr ORDNING på startsidan och ingenting annat, se `bildrang` i
+`site/src/pages/index.astro`. Ett obedömt ställe hamnar i mitten om OSM säger
+matplats, aldrig överst, så en ny bild kan inte smyga sig upp innan någon
+tittat på den.
+
+Kalibreringsval värda att minnas: fartyg blev `byggnad` när bilden är en
+hamnvy utan servering; herrgårdar med enstaka utemöbler blev `byggnad`;
+hotellobbyer och salonger räknades som tydlig interiör och alltså `stallet`.
+
+### 8.4 Fällan i mappen
+
+`site/src/data/*.json` är ett glob, och globet fångar allt som ligger där.
+Bedömningsfilen lades först i den mappen, är en lista och inte ett
+kommunobjekt, och fällde en skarp körning på `payload["municipality"]`. Filen
+ligger nu i `site/src/lib/`, och `ar_kommunfiler` i
+`pipeline/hamta_commonsbilder.py` känner igen en kommunfil på FORMEN och inte
+på sökvägen. Nästa fil någon lägger i den mappen ska inte kunna fälla en
+körning som skriver skarpt.

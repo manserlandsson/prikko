@@ -77,6 +77,7 @@ import {
   matkategorierFor,
   type MatkategoriId,
 } from '../lib/matkategori';
+import { bildmotiv, bildmotivAntal } from '../lib/bildmotiv';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
@@ -236,25 +237,42 @@ function plocka(lista: Rad[], antal: number, takPerKommun: number): Rad[] {
  *
  * ══ ANTALET RUTOR ══════════════════════════════════════════════════════
  *
- * Tolv, alltså tre jämna rader om fyra. Ägaren 2026-08-22: "ska vi inte ha
- * 6 kort på stockholm grejen, liksom lite fler."
+ * Se HEM_FORSTA nedan. Talet stod förut här som tolv och var mätt på en rad
+ * som bara visade Stockholm i fyra spalter. Båda förutsättningarna är borta:
+ * raden är rikstäckande och rutnätet sex spalter.
  *
- * Tolv är ett TAK och inte en önskan om ett jämnt tal. Räknat samma dag på
- * Stockholm: 91 verksamheter är konsumentvända, inte skola och bär en bild;
- * 80 av dem har en bild yngre än tjugo år; 24 av de 80 bär också en
- * matkategori. Med urvalet i ordning ser plats 1 till 12 ut så här:
- *
- *   Günters Korv, Restaurang Skanskvarn, Sushi SHO, Den Gröne Jägaren,
- *   Fersenska Palatset, Grand Hotel, Tudor Arms Pub, Engelen,
- *   Herrängens Gård, Lundbergs Konditori, Julius Hus, Gula villan
- *
- * Plats 14, 15, 21 och 22 är Västerortskyrkan, Uppenbarelsekyrkan,
- * Markuskyrkan och Abrahamsbergskyrkan. De är korrekt klassade, kyrkfik ÄR
- * caféer i vårt register, men fyra kyrkor i en rad som heter "Kända ställen"
- * på en matsajt läser som att vi skrapat botten. Tolv är där raden tar slut
- * innan den gör det.
+ * Ett skäl ur den gamla räkningen lever kvar och är värt att minnas. Plats
+ * 14, 15, 21 och 22 i det gamla urvalet var Västerortskyrkan,
+ * Uppenbarelsekyrkan, Markuskyrkan och Abrahamsbergskyrkan. De är korrekt
+ * klassade, kyrkfik ÄR caféer i vårt register, men fyra kyrkor i rad på en
+ * matsajt läser som att vi skrapat botten. Den gången löstes det genom att
+ * kapa raden vid tolv. Nu löser bildrangen det i stället: en kyrka är bedömd
+ * som `byggnad` eller obedömd och inte matplats, alltså rang 2 eller 3, och
+ * hamnar i svansen oavsett hur många rutor raden har.
  */
-const HEM_RUTOR = 12;
+/**
+ * HEMGRUPPENS FÖRSTA VÄNDA ÄR FEM RADER, INTE TVÅ.
+ *
+ * Ägaren 2026-08-22: "det ska ej vara en knapp med visa fler, det ska vara på
+ * skroll, så är det någon laddning animation."
+ *
+ * Med tolv kort i sex spalter blev första vändan två rader, och då ligger
+ * vaktposten under rutnätet ALLTID inne i vyn redan vid inladdningen. Uppmätt
+ * i bygget 2026-08-22 vid 1440 × 900: vaktposten hamnade omkring 750 px ned,
+ * rutans nedre kant med marginal ligger på 1 100, alltså avslöjades alla
+ * trettiosex korten innan man rört musen. Rullningen fanns i koden men
+ * inträffade aldrig.
+ *
+ * Räknat: innehållet ovanför rutnätet är omkring 306 px och varje kortrad 222.
+ * Fem rader lägger vaktposten på omkring 1 416, vilket är under kanten på
+ * varje fönster upp till 1 216 px höjd. Fyra rader hade gett 1 194 och alltså
+ * inte räckt på en skärm i fullskärm.
+ *
+ * Talet är hemgruppens eget. Kategoriflikarna behåller PER_SIDA, för deras
+ * hela innehåll är PER_KATEGORI och en femradersvända hade gjort "visa fler"
+ * meningslöst där.
+ */
+const HEM_FORSTA = 30;
 
 /** Äldre än så och bilden visar inte stället som det är i dag. */
 const HOGSTA_BILDALDER = 20;
@@ -279,9 +297,26 @@ function fotoAr(attribution: string | null | undefined): number | null {
 
 const iAr = new Date().getUTCFullYear();
 
+/**
+ * MATPLATSGRINDEN ÄR NEDFLYTTAD FRÅN URVAL TILL ORDNING.
+ *
+ * Den satt först som ett krav, och det kostade för mycket. Räknat 2026-08-22
+ * över de 210 bilderna:
+ *
+ *   med bild, konsumentvänd och inte skola     99 rena, 8 brister, 3 kvarstår
+ *   av dem, som OSM kallar matplats            36 rena, 3 brister, 1 kvarstår
+ *
+ * Grinden slängde alltså SJU av elva verksamheter med anmärkning, och det är
+ * precis de ägaren bett om två gånger: "ha gärna på fronten blandat
+ * restauranger med anmärkningar, brister som kvartsår, som också har bilder."
+ *
+ * Kravet är därför bara konsumentvänd, inte skola och en daterad bild som är
+ * högst tjugo år. Att OSM kallar stället matplats är i stället en
+ * SORTERINGSNYCKEL: de bäst belagda krogarna ligger först bland de rena, och
+ * de med anmärkning kommer med oavsett.
+ */
 const kandaKandidater = kronologi.filter((r) => {
   if (!r.foto || !r.konsument) return false;
-  if (!arMatplats(r.e)) return false;
   const ar = fotoAr(r.e.image?.attribution);
   return ar !== null && iAr - ar <= HOGSTA_BILDALDER;
 });
@@ -325,10 +360,74 @@ const kandaKandidater = kronologi.filter((r) => {
  * kronologisk, och rubriken säger ingenting om vilken verksamhet som är bäst
  * eller sämst.
  */
-const HOGST_ICKE_RENA = Math.floor(HEM_RUTOR / 3);
+const HOGST_ICKE_RENA = Math.floor(HEM_FORSTA / 3);
 
-const ickeRena = kandaKandidater.filter((r) => r.e.verdict !== 'clean');
-const rena = kandaKandidater.filter((r) => r.e.verdict === 'clean');
+/** Hela hemgruppen, alltså första vändan plus det "Visa fler" avslöjar. */
+const HEM_POOL = 60;
+
+/**
+ * RANGEN VÄGER DOMEN OCH TAGGEN IHOP, och måste göra det.
+ *
+ * Första försöket sorterade bara på domen med matplatsen som andrahandsnyckel.
+ * Utfallet mättes i bygget: Van Der Nootska Palatset låg ETTA och Westmanska
+ * Palatset tia. Båda är palats, båda saknade dom, och en saknad dom rankade
+ * över ett bedömt hus. Domen fanns bara för de 33 som bär `amenity`, och
+ * palatsen är inte taggade som matplatser.
+ *
+ *   0  bedömd som krog
+ *   1  obedömd, men OSM säger matplats: sannolikt en krog vi inte hunnit se
+ *   2  bedömd som hus
+ *   3  obedömd och inte matplats: sannolikt en kyrka, ett museum, en biograf
+ *
+ * Tvåan före trean är avsiktlig. Ett bedömt hus är ändå ett ställe man äter
+ * på; en obedömd icke-matplats är oftast inte det.
+ */
+function bildrang(r: Rad): number {
+  const dom = bildmotiv(r.e);
+  if (dom === 'stallet') return 0;
+  if (dom === 'byggnad') return 2;
+  /* `annat` är bedömt och underkänt, alltså sist, aldrig i mitten: en bild som
+     varken visar stället eller huset säljer ingenting. Bara det OBEDÖMDA får
+     mittenplatsen. */
+  if (dom === 'annat') return 3;
+  return arMatplats(r.e) ? 1 : 3;
+}
+
+/* Samma bildregel som för de rena nedan: krogen först, huset sist. Här
+   avgör den vilka icke-rena som får de reserverade platserna den dag de är
+   fler än platserna. I dag är de exakt fyra och alla fyra får plats. */
+const ickeRena = kandaKandidater
+  .filter((r) => r.e.verdict !== 'clean')
+  .sort((a, b) => bildrang(a) - bildrang(b));
+
+/**
+ * KROGEN FÖRE BYGGNADEN.
+ *
+ * Ägaren 2026-08-22: "restaurangerna med bilder på restaurangen istället för
+ * ett stort palats vill vi visa långt uppe i populära lista, så tex: riche,
+ * sushi sho, dashi, rolfs kök, den gröne jägaren, tudor arms, prinsen, etc
+ * inga palats, annars ok."
+ *
+ * Matplatsgrinden räcker inte för det. Operakällaren och Spritmuseum bär
+ * också `amenity=restaurant` och passerar den, men deras fotografi är ett hus
+ * över ett torg. Det som skiljer sitter i BILDEN, inte i taggen.
+ *
+ * Ett namnord provades först och hade fel om sex av trettiotre: Herrängens
+ * Gård är en krog med skylten i bild, Wedholms Fisk är ett hörnhus där krogen
+ * knappt syns, och Hasselbacken bär inget byggnadsord alls trots att bilden
+ * är ett rosa palats med staty framför. Regeln ströks och bilderna öppnades i
+ * stället, en och en. Se lib/bildmotiv.ts.
+ *
+ * Ordningen blir alltså: krogen, det obedömda, huset. Huset sorteras SENARE,
+ * aldrig bort. Ett konferenshus med bild är fortfarande bättre än en tom ruta.
+ * Matplatsgrinden lever kvar som andrahandsnyckel och skiljer bara inom en
+ * grupp där bilden inte har någon dom.
+ */
+
+const rena = kandaKandidater
+  .filter((r) => r.e.verdict === 'clean')
+  .sort((a, b) => bildrang(a) - bildrang(b));
+
 
 const hem =
   kandaKandidater.length > 0
@@ -336,8 +435,8 @@ const hem =
         ...ickeRena.slice(0, HOGST_ICKE_RENA),
         ...rena,
         ...ickeRena.slice(HOGST_ICKE_RENA),
-      ].slice(0, HEM_RUTOR)
-    : plocka(kronologi, HEM_RUTOR, 2);
+      ].slice(0, HEM_POOL)
+    : plocka(kronologi, HEM_POOL, 2);
 
 const hemRubrik = 'Populära ställen';
 
@@ -423,7 +522,12 @@ hem.forEach((rad, i) => laggTill(rad, 'hem', i));
 function extraGrupper(e: Establishment): string {
   const grupperna = [...grupperPerRad.get(e)!];
   const platser = platsPerRad.get(e)!;
-  return grupperna.filter((_, i) => platser[i] >= PER_SIDA).join(' ');
+  /* Tröskeln är per grupp: hemgruppen visar HEM_FORSTA i första vändan,
+     kategorierna PER_SIDA. Ett kort kan ligga i båda och vara tidigt i den
+     ena och sent i den andra. */
+  return grupperna
+    .filter((g, i) => platser[i] >= (g === 'hem' ? HEM_FORSTA : PER_SIDA))
+    .join(' ');
 }
 
 for (const kategori of MATKATEGORIER) {
@@ -435,19 +539,6 @@ for (const kategori of MATKATEGORIER) {
   urval.forEach((rad, i) => laggTill(rad, kategori.id, i));
 }
 
-/**
- * De fyra korten i hemgruppens FÖRSTA rad laddar sitt foto ivrigt.
- *
- * Poolen är sorterad kronologiskt över alla grupper, så "de fyra första i
- * poolen" är inte de fyra man ser: de kan lika gärna ligga under fliken
- * Kebab. Mätt i webbläsaren 2026-08-21 fick just de tre översta korten
- * `loading="lazy"` av precis det skälet.
- *
- * Fyra och inte fler: rutnätet är fyra spalter i --w-wide, alltså är rad ett
- * fyra kort. Alla tolv ivrigt vore tolv hämtningar mot vår objektlagring i
- * första bildrutan för åtta bilder som ligger under vikkanten.
- */
-const tidiga = new Set(hem.slice(0, 4).map((r) => r.e));
 
 /**
  * GRIND: varje grupp i raden MÅSTE ha en :has()-regel i stilblocket.
@@ -499,6 +590,118 @@ pool.sort(
     (b.datum ?? '').localeCompare(a.datum ?? '') ||
     a.e.name.localeCompare(b.e.name, 'sv'),
 );
+
+/**
+ * SPRID UT BEDÖMNINGARNA I HEMGRUPPEN.
+ *
+ * Ägaren 2026-08-22: "hade uppskattat om du blandar dom listade på populära i
+ * homepagen, inte liksom i ordning från inga avvikelser, till brister, till
+ * brister kvarstår, ser mer legit ut om du blandar ordning lite."
+ *
+ * Han har rätt i vad han såg. Poolen sorteras på foto och sedan datum, och
+ * datumen råkade lägga de fyra icke-rena sist i raden, så den läste som en
+ * trappa: först allt rent, sedan bristerna, sist de kvarstående. En rad som
+ * ser sorterad ut på bedömning läses som en rangordning även när den inte är
+ * det, och det är precis vad sajten aldrig får göra.
+ *
+ * Spridningen görs på PLATS och inte på slump: de icke-rena läggs jämnt
+ * fördelade genom de tolv första rutorna. Det är stabilt mellan bygganden,
+ * till skillnad från en slumpordning som hade gjort varje nattkörning till en
+ * ny sida utan att datan ändrats.
+ *
+ * Sprids bara det som faktiskt SYNS, alltså de tolv första. Resten av
+ * hempoolen ligger kvar i sin ordning bakom rullningen.
+ */
+const hemSet = new Set(hem.map((r) => r.e));
+
+/**
+ * Ordningen bland de icke-rena: allvarligast först i kön till platserna.
+ *
+ * Ägaren 2026-08-22: "jag vill få upp riche på högsta raden."
+ *
+ * DETTA RANGORDNAR INTE VERKSAMHETER. Ordningen säger inte att Riche är sämre
+ * eller bättre än något annat kort; den ser till att raden visar hela spannet
+ * av utfall direkt, i stället för att de lindrigaste råkar ligga överst.
+ * Rubriken heter "Populära ställen" och inte något som pekar ut ett ställe att
+ * undvika, och det är den gränsen som gäller.
+ */
+const ALLVAR: Record<string, number> = { major: 0, minor: 1 };
+
+const forsta = hem.slice(0, HEM_FORSTA);
+const orena = forsta
+  .filter((r) => r.e.verdict !== 'clean')
+  .sort(
+    (a, b) =>
+      (ALLVAR[a.e.verdict ?? ''] ?? 2) - (ALLVAR[b.e.verdict ?? ''] ?? 2) ||
+      bildrang(a) - bildrang(b),
+  );
+const renaIForsta = forsta.filter((r) => r.e.verdict === 'clean');
+
+const blandad: Rad[] = [...renaIForsta];
+if (orena.length > 0) {
+  const steg = Math.max(1, Math.round(forsta.length / (orena.length + 1)));
+  orena.forEach((r, i) => {
+    blandad.splice(Math.min(blandad.length, (i + 1) * steg - 1), 0, r);
+  });
+}
+
+/**
+ * HEMGRUPPEN SKRIVER SIN EGEN ORDNING TILLBAKA I POOLEN, och utan det steget
+ * betyder ingenting av arbetet ovanför något.
+ *
+ * `pool.sort()` några rader upp sorterar HELA poolen på foto, datum och namn,
+ * för att en kategoriflik ska visa samma ordning oavsett var man kom ifrån.
+ * Den sorteringen körde efter att hemgruppen lagts in, alltså slog den ut både
+ * bildrangen och bedömningsspridningen.
+ *
+ * Uppmätt i bygget 2026-08-22, och felet var osynligt i koden: `hem[0]` var
+ * Riche precis som avsett, men `pool[0]` var Van Der Nootska Palatset. Den
+ * gamla reparationen läste ordningen ur POOLEN i stället för ur `hem`, så dess
+ * "icke-rena i första vändan" blev noll stycken och hela blandningen hoppades
+ * över utan ett ljud.
+ *
+ * Rättningen är att bygga ordningen ur `hem` och skriva den på exakt de
+ * platser hemgruppens rader redan har i poolen. Platserna rörs inte, bara
+ * innehållet, så ingen annan grupp får ett hål eller en dubblett.
+ *
+ * Priset är att ett kort som ligger i BÅDE hemgruppen och en kategori kan byta
+ * plats inom kategorin. Det är rätt pris: alternativet var en startsida som
+ * öppnar med ett palats.
+ */
+const hemPlatser: number[] = [];
+pool.forEach((r, i) => {
+  if (hemSet.has(r.e)) hemPlatser.push(i);
+});
+
+const hemOrdning = [...blandad, ...hem.slice(HEM_FORSTA)];
+
+if (hemPlatser.length !== hemOrdning.length) {
+  throw new Error(
+    `Hemgruppen har ${hemPlatser.length} platser i poolen men ${hemOrdning.length} rader att skriva. ` +
+      `Ordningen på startsidan går inte att lita på.`,
+  );
+}
+
+hemPlatser.forEach((plats, i) => {
+  pool[plats] = hemOrdning[i];
+});
+
+/**
+ * De sex korten i hemgruppens FÖRSTA rad laddar sitt foto ivrigt.
+ *
+ * Poolen är sorterad kronologiskt över alla grupper, så "de fyra första i
+ * poolen" är inte de fyra man ser: de kan lika gärna ligga under fliken
+ * Kebab. Mätt i webbläsaren 2026-08-21 fick just de tre översta korten
+ * `loading="lazy"` av precis det skälet.
+ *
+ * Sex och inte fler: rutnätet är sex spalter i --w-wide, alltså är rad ett sex
+ * kort. Alla tolv ivrigt vore tolv hämtningar mot vår objektlagring i första
+ * bildrutan för sex bilder som ligger under vikkanten.
+ *
+ * Talet läses ur `hemOrdning` och inte ur `hem`, för det är den blandade
+ * ordningen som faktiskt hamnar i markupen.
+ */
+const tidiga = new Set(hemOrdning.slice(0, 6).map((r) => r.e));
 
 // ---------------------------------------------------------------------------
 // Senast kontrollerade
@@ -581,7 +784,19 @@ const columns = COLUMN_IDS.map((id) => {
  * Sist på sidan, och det är ägarens beslut: "artiklarna hör inte hemma högt
  * upp." Sektionen lyder under samma kvalitetsgrind som /artiklar/.
  */
-const ARTIKLAR = 3;
+/**
+ * Sex artiklar och inte tre.
+ *
+ * Ägaren 2026-08-22: "att läsa gridden eller vad de tär kan ha mycket fler
+ * kort, om det går typ 6 eller ngt, annars lite mindre."
+ *
+ * Tre kort i en 1 304 px behållare gav 424 px per artikelkort, alltså bredare
+ * än en artikels egen brödtextspalt. Sex ger 198, vilket ligger på Airbnbs
+ * eget kortmått: deras är 182 vid 1 512, uppmätt 2026-08-21.
+ *
+ * Beståndet räcker: 25 artiklar, noll utkast.
+ */
+const ARTIKLAR = 6;
 const artiklarKlara = sectionReady();
 const artikelposter = artiklarKlara
   ? await getCollection('artiklar', ({ data }) => !data.draft)
@@ -730,10 +945,8 @@ const jsonLd = [
           i vikt 500, ikon till vänster, centrerad i vyn med 48 px till
           nederkanten.
 
-          `position: sticky` och inte `fixed`, och det är skillnaden mot
-          deras: en fast knapp följer med över sidfoten och ligger i vägen
-          där den inte har något att erbjuda. Klistrad inuti `.upptack`
-          svävar den så länge rutnätet syns och rullar bort med det.
+          Fast i vyn hela startsidan igenom, se .kartrad i stilen för varför
+          den inte längre är klistrad.
 
           En LÄNK och inte en knapp. Kartan är en egen sida, och en knapp
           som byter sida går inte att öppna i ny flik, inte att spara och
@@ -748,12 +961,27 @@ const jsonLd = [
         </a>
       </div>
 
-      <div class="merrad">
+      {/* ══ NÄSTA VÄNDA, PÅ RULLNING ═══════════════════════════════════
+          Ägaren 2026-08-22: "det ska ej vara en knapp med visa fler, det ska
+          vara på skroll, så är det någon laddning animation."
+
+          Vaktposten ligger under rutnätet. Når den vyn avslöjas nästa vända,
+          och korten tonas in.
+
+          INGEN FALSK SPINNARE. Korten står redan i markupen, så avslöjandet
+          tar noll millisekunder; ett hjul som snurrar i en halv sekund vore
+          en animering av något som inte händer. Pulsen nedan syns BARA innan
+          vändan avslöjats, alltså som ett besked om att det finns mer, och
+          slocknar i samma ögonblick korten kommer. Intoningen är den enda
+          rörelse som svarar mot en verklig händelse.
+
+          Kryssrutan står kvar och är fortfarande det som styr CSS:en, se
+          .rutnat-reglerna. Skriptet bockar i den. Utan skript syns den som en
+          knapp och sidan fungerar ändå. */}
+      <div class="merrad" data-merrad>
         <input class="visually-hidden" type="checkbox" id="visa-fler" />
-        <label class="mer" for="visa-fler">
-          <span data-mer>Visa fler</span>
-          <span data-farre>Visa färre</span>
-        </label>
+        <label class="mer" for="visa-fler">Visa fler</label>
+        <span class="puls" data-puls aria-hidden="true"><i></i><i></i><i></i></span>
       </div>
     </div>
   </section>
@@ -777,7 +1005,7 @@ const jsonLd = [
                   alt={a.photo.alt}
                   width={HERO_WIDTHS.at(-1)}
                   widths={HERO_WIDTHS}
-                  sizes="(min-width: 1080px) 344px, (min-width: 640px) 33vw, 92vw"
+                  sizes="(min-width: 1280px) 200px, (min-width: 1024px) 300px, (min-width: 640px) 33vw, 92vw"
                   loading="lazy"
                 />
               )}
@@ -886,12 +1114,22 @@ const jsonLd = [
     white-space: nowrap;
   }
 
-  /* 12/16 i vikt 600, alltså Ednias egna mått uppmätta 2026-08-22. Vår låg på
-     vikt 500, vilket gjorde skillnaden mot det valdas vikt större än den
-     behövde vara: när viloläget är tunt måste det valda skrika. */
+  /* 13 px och inte Ednias 12.
+     ────────────────────────────────────────────────────────────────────────
+     Ednias egen kategorirad mäter 12/16 i vikt 600, uppmätt 2026-08-22, och
+     raden låg på det. Ägaren: "sökrutan kan ha typ 16px ... men då måste
+     kategori skrollet blir större också, någon pixel iaf liksom."
+
+     Han har rätt i förhållandet. Ednias sökfält och kategorirad ligger på 14
+     respektive 12, alltså två steg isär. Vårt fält är 16, och då blir 12 tre
+     steg under, vilket får raden att se ut som en fotnot till fältet i
+     stället för som sidans navigering.
+
+     --fs-caption är 13 och är sajtens närmaste steg. --fs-body-s på 14 vore
+     lika stort som en kortrubrik och skulle konkurrera med korten. */
   .etikett {
-    font-size: var(--fs-eyebrow);
-    line-height: var(--lh-eyebrow);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     font-weight: 600;
   }
 
@@ -1028,7 +1266,7 @@ const jsonLd = [
      som ska gå att läsa. Ednia kör tre à 382 px. */
   .rutnat {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: var(--s-4);
     margin: 0;
     padding: 0;
@@ -1115,19 +1353,37 @@ const jsonLd = [
     display: none;
   }
 
-  /* Kartknappen. Se markupen för måtten och för varför den är klistrad. */
+  /* Kartknappen, FAST och inte klistrad.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "visa karta grejen syns typ inte fullt ut, och ska inte
+     den finnas typ hela tiden när man är på homepagen?"
+
+     Jo. Första versionen var `position: sticky` inuti `.upptack`, med
+     motiveringen att en fast knapp följer med över sidfoten. Utfallet var att
+     den knappt syntes alls: den svävade bara medan just den sektionen var i
+     vy, och hann försvinna innan man hunnit läsa den.
+
+     Airbnbs egen ligger fast i vyn på hela sökresultatsidan, och det är rätt
+     avvägning: kartan är ett sätt att se HELA sidans innehåll, inte en fotnot
+     till ett avsnitt.
+
+     `bottom` räknar med sidfoten via en enkel regel i stället för ett skript:
+     knappen ligger kvar tills man nått botten, och sidfoten har gott om egen
+     luft. */
   .kartrad {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: var(--s-6);
     display: flex;
     justify-content: center;
-    /* Höjden tas ur flödet, annars skjuter raden ned rutnätet med 48 px
-       som ingen ser. Knappen svävar över korten, den står inte efter dem. */
-    height: 0;
-    margin-top: calc(var(--s-12) * -1);
     /* Under sidhuvudets 60 och över sidans innehåll. */
-    z-index: 20;
+    z-index: 40;
+    /* Raden spänner hela bredden men bara knappen ska gå att träffa. */
+    pointer-events: none;
   }
+
+  .kartrad > * { pointer-events: auto; }
 
   .kartknapp {
     display: inline-flex;
@@ -1183,9 +1439,46 @@ const jsonLd = [
     outline-offset: 2px;
   }
 
-  .mer [data-farre] { display: none; }
-  .upptack:has(#visa-fler:checked) .mer [data-mer] { display: none; }
-  .upptack:has(#visa-fler:checked) .mer [data-farre] { display: inline; }
+  /* Pulsen ersätter knappen så snart skriptet tagit över, se markupen. */
+  .puls { display: none; gap: 6px; }
+  .puls i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tone-quiet);
+    animation: puls 1.1s ease-in-out infinite;
+  }
+  .puls i:nth-child(2) { animation-delay: .16s; }
+  .puls i:nth-child(3) { animation-delay: .32s; }
+
+  @keyframes puls {
+    0%, 80%, 100% { opacity: .25; transform: scale(.8); }
+    40%           { opacity: 1;   transform: none; }
+  }
+
+  /* Skriptet sätter data-rullar när vaktposten är armerad: då är knappen
+     överflödig och pulsen tar dess plats. */
+  .merrad[data-rullar] .mer { display: none; }
+  .merrad[data-rullar] .puls { display: inline-flex; }
+
+  /* Vändan är avslöjad: ingenting mer att vänta på. */
+  .upptack:has(#visa-fler:checked) .merrad { visibility: hidden; }
+
+  /* Intoningen. Enda rörelsen som svarar mot en verklig händelse: korten
+     fanns inte i vyn förut och finns där nu. */
+  .upptack:has(#visa-fler:checked) .rutnat > li[data-extra] {
+    animation: tona-in .32s cubic-bezier(.2, 0, 0, 1) both;
+  }
+
+  @keyframes tona-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .puls i { animation: none; }
+    .upptack:has(#visa-fler:checked) .rutnat > li[data-extra] { animation: none; }
+  }
 
   /* Finns inga extrakort i den valda gruppen ska knappen inte stå kvar och
      lova något den inte kan ge. Varje flik prövas för sig. */
@@ -1269,11 +1562,14 @@ const jsonLd = [
     white-space: nowrap;
   }
 
-  /* ── Artiklarna ──────────────────────────────────────────────────────*/
+  /* ── Artiklarna ──────────────────────────────────────────────────────
+     Sex i bredd, se ARTIKLAR i frontmattern. Gluggen är 16 och inte 24:
+     med sex spalter äter 24 px hundratjugo pixlar av bredden, och korten
+     hamnar under 190. Samma glugg som verksamhetsrutnätet. */
   .artiklar {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--s-6);
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--s-4);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -1294,10 +1590,22 @@ const jsonLd = [
     border-radius: var(--r-card);
   }
 
+  /* 14/20 och inte 14/24, alltså samma stramare radavstånd som
+     Verksamhetskort.astro redan valt och av samma skäl: i ett 198 px kort
+     blir två rader med 24 punkters avstånd 48 px och drar isär kortets
+     nedre halva.
+
+     Tre rader och sedan avhugget. Artikelrubriker är långa ("Allergener och
+     märkning i restaurang"), och ett kort som växer efter sin längsta rubrik
+     spräcker radens jämnhet. */
   .artikelnamn {
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    line-height: 20px;
     font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .artiklar a:hover .artikelnamn { text-decoration: underline; }
@@ -1345,17 +1653,51 @@ const jsonLd = [
   /* ═══ Smalare skärmar ════════════════════════════════════════════════*/
   /* FYRA SPALTER, INTE FEM.
      ────────────────────────────────────────────────────────────────────────
-     Här stod en femspaltsregel som jag hittade på, inte mätte. Den gav kort
-     på 224 px i en 1184 px behållare, alltså SMALARE kort än de 250 vi hade
-     före breddningen, vilket är precis tvärtemot vad breddningen var till för.
+     Här stod först en femspaltsregel jag hittade på, sedan en fyrspaltsregel
+     mätt mot Ednia. Ägaren 2026-08-22: "att läsa gridden eller vad det är kan
+     ha mycket fler kort, om det går typ 6 eller ngt, annars lite mindre."
 
-     Ednia kör tre spalter à 384 vid 1280 och fem à 304 vid 1680, uppmätt
-     2026-08-22. Deras kort ligger alltså mellan 304 och 384. Fyra spalter i
-     vår 1184 ger 284, och vid taket 1400 ger de 314. Det är inom deras spann;
-     fem spalter var det inte.
+     Han har rätt, och skälet syns i att jag mätte fel sida. Airbnbs SÖKRESULTAT
+     kör fyra spalter à 307 vid 1440, och det var den siffran fyrspaltsregeln
+     landade på. Men vår rad är ingen sökträfflista, den är en upptäcktsrad på
+     en startsida, och Airbnbs egen startsida kör "Populära boenden i Göteborg"
+     i ÅTTA spalter à 182 med bilden i kvot 1,05 och titeln i 13 px. Uppmätt
+     2026-08-22 vid 1440.
+
+     Sex spalter är alltså inte tätt, det är mitt emellan deras två lägen. Åtta
+     går inte hos oss: vårt kort bär namn, bedömning och ort under bilden, och
+     märkesplattan är 42 px. Vid 182 hade plattan tagit en fjärdedel av
+     bildbandets bredd.
+
+     Trappan är satt så att kortet håller sig mellan 210 och 235 px hela vägen
+     ned, i stället för att en spaltmängd ligger kvar för länge och klämmer:
+
+       ≥ 1400   6 spalter   210 vid 1440, 220 vid 1600 och uppåt
+       1200     5 spalter   224 vid 1280
+       1024     4 spalter   220 vid 1024
+        768     3 spalter   235 vid 768
+        < 768   2 spalter
   */
+  @media (max-width: 1399px) {
+    .rutnat { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  @media (max-width: 1199px) {
+    .rutnat { grid-template-columns: repeat(4, 1fr); }
+  }
+
   @media (max-width: 1023px) {
     .rutnat { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Artikelraden trappas ned i samma takt som kortrutnätet: sex spalter
+     kräver omkring 1 200 px behållare för att kortet ska hålla 190. */
+  @media (max-width: 1279px) {
+    .artiklar { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (max-width: 1023px) {
+    .artiklar { grid-template-columns: repeat(3, 1fr); }
   }
 
   @media (max-width: 767px) {
@@ -1402,6 +1744,60 @@ const jsonLd = [
   "ett val" på det ena och "hela raden" på det andra. Rullningen är mjuk
   via `scroll-behavior: smooth` i CSS, alltså ingen egen animering här.
 */}
+{/*
+  Nästa vända avslöjas när vaktposten når vyn.
+
+  IntersectionObserver och inte en rullhanterare, av samma skäl som
+  sidhuvudets ihopfällning: en hanterare som körs vid varje rullsteg på en
+  sida med 340 kort kostar mer än frågan är värd.
+
+  `rootMargin` på 200 px gör att vändan är på plats innan man rullat fram
+  till kanten, alltså känns det som att sidan fortsätter i stället för att
+  ta slut och sedan växa. Talet är ett tak och inte en smak: marginalen
+  läggs till fönstrets höjd, och blir summan större än vaktpostens läge
+  avslöjas vändan redan vid inladdningen. Se HEM_FORSTA för räkningen.
+
+  Knappen står kvar i markupen och är fortfarande det som styr CSS:en.
+  Skriptet bockar bara i den. Utan skript är den en vanlig knapp som
+  fungerar, vilket är hela skälet att den inte ersattes av ett skript.
+*/}
+<script is:inline>
+  (() => {
+    const merrad = document.querySelector('[data-merrad]');
+    const ruta = document.getElementById('visa-fler');
+
+    if (merrad && ruta && 'IntersectionObserver' in window) {
+      merrad.dataset.rullar = '';
+      /* `isIntersecting` ensamt räcker inte, och det syns bara om man mäter.
+         En vaktpost rapporteras korsad först den bildruta då den ligger inne
+         i rutan. Hoppar sidan FÖRBI den i ett enda steg, alltså End-tangenten,
+         en återställd rullposition vid bakåtknappen eller en ankarlänk, finns
+         det ingen sådan bildruta och nästa vända avslöjas aldrig. Uppmätt
+         2026-08-22: ett hopp till sidfoten lämnade tolv kort kvar av trettiosex,
+         medan samma sträcka rullad med hjulet gav alla trettiosex.
+
+         `boundingClientRect.top < rootBounds.bottom` är sant både när posten
+         är inne i rutan och när den passerat ovanför den, alltså exakt de två
+         lägen som ska avslöja. */
+      const io = new IntersectionObserver(
+        (poster) => {
+          const passerad = poster.some(
+            (p) =>
+              p.isIntersecting ||
+              p.boundingClientRect.top <
+                (p.rootBounds ? p.rootBounds.bottom : window.innerHeight),
+          );
+          if (!passerad) return;
+          io.disconnect();
+          ruta.checked = true;
+        },
+        { rootMargin: '200px' },
+      );
+      io.observe(merrad);
+    }
+  })();
+</script>
+
 <script is:inline>
   (() => {
     const rad = document.querySelector('[data-katrad]');

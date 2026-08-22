@@ -558,6 +558,31 @@ def process(path: Path, args, store, db: Optional[Supabase]) -> dict:
     return tally
 
 
+def ar_kommunfiler(paths):
+    """Släpp igenom kommunfiler, tyst förbi allt annat i samma mapp.
+
+    Anropen skrivs som `site/src/data/*.json`, alltså ett glob, och globet
+    fångar ALLT som ligger där. Det gick bra så länge mappen bara innehöll de
+    tolv kommunfilerna. Den 2026-08-22 lades `bildmotiv.json` dit, en lista och
+    inte ett kommunobjekt, och körningen dog på `payload["municipality"]` med
+    "list indices must be integers" mitt i en skarp skrivning mot lagringen.
+
+    Filen är flyttad till site/src/lib/, men grinden står kvar: nästa fil någon
+    lägger i den mappen ska inte kunna fälla en körning som skriver skarpt.
+    Formen är beviset, inte sökvägen.
+    """
+    for path in paths:
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as fel:
+            print(f"Hoppar {path}: går inte att läsa som JSON ({fel}).", file=sys.stderr)
+            continue
+        if not isinstance(payload, dict) or "municipality" not in payload:
+            print(f"Hoppar {path}: ingen kommunfil.", file=sys.stderr)
+            continue
+        yield path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
@@ -600,7 +625,7 @@ def main() -> int:
 
     kor = process_namnspar if args.namnspar else process
     total = {k: 0 for k in ("consumer", "wikidata", "p18", "inom", "skrivna", "hoppade", "fel")}
-    for path in args.files:
+    for path in ar_kommunfiler(args.files):
         for key, value in kor(path, args, store, db).items():
             total[key] += value
 

@@ -266,8 +266,9 @@ const LASA = [
               ikoner i två avsnitt och en ren textspalt mitt i dem är det som
               ser ofärdigt ut.
 
-              Ikonerna är 18 px på 24-rutnätet med 1,6 px streck, alltså samma
-              språk som resten av filen kräver i filhuvudet. */}
+              Ikonerna är 16 px på 24-rutnätet med 1,6 px streck, alltså samma
+              språk som resten av filen kräver i filhuvudet. Måttet är uppmätt
+              hos Airbnb 2026-08-22, se .radikon i stilblocket. */}
           <nav class="lankar" aria-label="Om Prikko">
             <a href={path('metodik')}>
               <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -784,15 +785,32 @@ const LASA = [
     justify-content: start;
   }
 
-  /* Ikonen är 18 och inte 24. Avsnittens ikoner sitter på en 80 px platta och
-     bär raden ensamma; de här sitter bredvid 14 px text och ska väga mindre än
-     ordet, inte lika mycket. Samma 24-rutnät och samma 1,6 px streck, se
-     filhuvudet: det är storleken som skiljer, inte språket. */
+  /* Ikonen är 16 px och bär radens egen färg, alltså currentColor.
+     ───────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "nu gjorde du meny grejerna i hamburagreikonen
+     svarta, men inte ikonerna".
+
+     Uppmätt på airbnb.se 2026-08-22, hamburgarpanelen öppnad vid 1280 px
+     fönsterbredd: panelen har fem klickbara rader och exakt EN av dem bär
+     ikon (Hjälpcenter). Den ikonen är 16x16 px och dess fyllning är
+     rgb(34, 34, 34), samma värde på pixeln som radens textfärg. Ingen dämpad
+     ton alls. Avståndet ikon till ord är 10 px hos dem; vårt närmaste mått är
+     --s-2 (8 px) och det står kvar nedan.
+
+     Skälet till 18 px var tidigare att ikonen skulle väga mindre än ordet
+     genom att vara grå. Den vägen är stängd när färgen är densamma, och då är
+     storleken det enda som kan skilja dem åt. Airbnbs svar på just den frågan
+     är 16 px bredvid 14 px text, alltså är vårt 16. Samma 24-rutnät och samma
+     1,6 px streck som resten av filen, se filhuvudet.
+
+     currentColor och inte var(--text): raden sätter sin färg själv, och med
+     currentColor följer ikonen med i både vila och hovring utan en egen
+     regel. Den tidigare hovringsregeln för .radikon är därför borta. */
   .radikon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex: none;
-    color: var(--tone-quiet);
+    color: currentColor;
   }
 
   .lankar a,
@@ -801,11 +819,6 @@ const LASA = [
     align-items: center;
     gap: var(--s-2);
   }
-
-  /* Ikonen följer med i radens hovring. Utan det stannar den kvar i grått
-     medan ordet blir svart, och raden ser halvt utsläckt ut. */
-  .lankar a:hover .radikon,
-  .account-in:hover .radikon { color: var(--text); }
 
   .account,
   .account-out {
@@ -834,7 +847,26 @@ const LASA = [
     font: inherit;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
-    font-weight: 600;
+    /* VIKT 400, inte 600.
+       ─────────────────────────────────────────────────────────────────────
+       Ägaren 2026-08-22: "känns typ some meny länkarna, så tex, logga in,
+       metod, etc har för tjock font".
+
+       Uppmätt på airbnb.se 2026-08-22, hamburgarpanelen vid 1280 px
+       fönsterbredd. Alla fyra länkrader i panelen (Hjälpcenter, Hitta en
+       medvärd, Presentkort, Logga in eller bli medlem) ligger på
+       14 px / vikt 400 / radhöjd 18 px i rgb(34, 34, 34), med 9 px luft över
+       och under, alltså 36 px hög rad och noll pixlar mellan raderna.
+       Avdelarna är 1 px med 8 px marginal. INGEN rad i panelen är 600. Det
+       enda som är tyngre än 400 där inne är rubriken "Bli en värd" i deras
+       reklamruta, och den ligger på 500.
+
+       Vår grad stämde redan: --fs-body-s är 14 px, och --lh-body-s (24 px)
+       plus 6 px luft över och under ger 36 px hög rad, exakt deras radhöjd.
+       Det var bara vikten som var fel. Sajten tillåter 400 och 600 och inget
+       annat, se tokens.css, så valet stod mellan de två och mätningen pekar
+       på 400. */
+    font-weight: 400;
     /* SVART, inte grått.
        ─────────────────────────────────────────────────────────────────────
        Ägaren 2026-08-22: "varför är länkarna i en grå och inte vår svarta
@@ -843,8 +875,9 @@ const LASA = [
        Det fanns inget skäl. `--text-secondary` är sajtens DÄMPADE ton och
        hör hemma på underrader, metatext och det som förklarar något annat.
        De här raderna är menyns huvudinnehåll och det enda man kommit hit för
-       att klicka på. Ikonen bredvid är fortsatt dämpad, se .radikon, för den
-       ÄR en underordnad markering till ordet. */
+       att klicka på. Ikonen bredvid tar samma färg via currentColor, se
+       .radikon: hos Airbnb har ikonen exakt radens textfärg, och det är
+       storleken och inte tonen som gör den underordnad ordet. */
     color: var(--text);
     text-align: left;
     background: none;
