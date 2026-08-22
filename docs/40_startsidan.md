@@ -707,6 +707,121 @@ automatisk publicering.** Kräver ägarens beslut.
 
 ---
 
+## 10. Omgång fem, 2026-08-22 kväll
+
+### Senast kontrollerade är borta
+
+Ägarens beslut. Raden bar åtta kort utan foto direkt under tolv med foto,
+alltså samma sorts innehåll i sämre skick. Färskheten finns kvar på varje kort
+i datumraden under namnet.
+
+### Visa fler, tolv kort i taget
+
+Ägaren: "jag gillar laddiden, kanske inte oändlig laddning men ändå lite."
+
+Ingen oändlig skroll och inget anrop: sajten är statisk, så det finns ingen
+tjänst att fråga. Nästa vända står i markupen och avslöjas av en kryssruta,
+samma grepp som kategoriraden. Priset är att poolen växer från 154 till 255
+kort.
+
+**Kortet bär en ORDLISTA över de grupper där det ligger efter första vändan**,
+inte en enda flagga. Ett ställe kan vara nummer tre under Pizza och nummer
+tjugo under Café, och med en enda flagga fick jag välja mellan att dölja det
+där det hör hemma tidigt eller visa det där det hör hemma sent. Utfallet av
+det andra var att Café visade sexton kort i första vändan i stället för tolv.
+
+Uppmätt efter rättningen: varje flik börjar på tolv, och Visa fler ger Café 20,
+Pizza 18, Livsmedel 16, Bar 13. Sushi stannar på elva, för fler finns inte i
+beståndet, och då döljs knappen.
+
+### Kartknappen
+
+Uppmätt på Airbnbs sökresultat 2026-08-22:
+
+| | Airbnb | Prikko |
+|---|---|---|
+| mått | 129 × 48 | 146 × 48 |
+| radie | 24 | 24 |
+| platta | `rgb(34, 34, 34)` | `var(--text)` |
+| etikett | 14 px / 500 | samma |
+| avstånd till nederkant | 48 | 24 |
+
+Vår är bredare eftersom "Visa på karta" är längre än "Visa karta".
+
+**Klistrad och inte fast**, vilket är skillnaden mot deras. En fast knapp följer
+med över sidfoten och ligger i vägen där den inte har något att erbjuda. Inuti
+`.upptack` svävar den så länge rutnätet syns och rullar bort med det, utan
+skript.
+
+En LÄNK och inte en knapp: kartan är en egen sida, och en knapp som byter sida
+går inte att öppna i ny flik eller mellanklicka.
+
+### Menylänkarna är svarta
+
+Ägaren: "varför är länkarna i en grå och inte vår svarta färg?"
+
+Det fanns inget skäl. `--text-secondary` är sajtens dämpade ton och hör hemma
+på underrader och metatext, inte på det enda man kommit till menyn för att
+klicka på. Ikonen bredvid är fortsatt dämpad, för den ÄR underordnad ordet.
+
+### Luften mellan kategoriraden och rubriken
+
+Ägaren: "populära ställen sitter nästan limmad mot toppen."
+
+Första försöket la 24 px som `padding-block` på hela `.upptack` och sköt därmed
+ned kategoribandet, medan rubriken satt kvar dikt an mot dess hårlinje.
+Luften ligger nu som fyllning på rubrikblocket. En marginal på rubriken hade
+kollapsat ut genom `.container`, som bara har fyllning i sidled, och hamnat
+ovanför bandet igen.
+
+### Wikidata utan P31 får en andra chans
+
+Ägaren pekade på Rolfs kök, som har en bild på Wikipedia men ingen hos oss.
+
+Objektet Q10656465 heter "Rolfs kök", bär "Rolfs kök.JPG" och en koordinat
+**0,77 meter** från vår rad, men har `P31: []`. Klassgrinden avvisade allt utan
+P31, alltså läste den tomrummet som "fel sorts sak".
+
+**Att sakna P31 och att ha fel P31 är två olika saker.** Det ena är en lucka i
+Wikidata, det andra ett besked. Bara det första får en andra chans, och bara
+inom 40 meter. Se `UTAN_P31_MAX_M` i `pipeline/prikko/wikidatanamn.py`.
+
+Mätt över 11 577 rader i fyra kommuner. Av 7 459 objekt i lådorna saknar 238
+P31, och tolv är namnlika inom 150 meter.
+
+**Fyra av de tolv har redan bild via OSM-vägen, och regeln pekar på exakt samma
+fil i alla fyra:** Sundbergs Konditori 0,6 m, Restaurang Kvarnen 0,9,
+Restaurang Pelikan 1,1, Wedholms Fisk 4,2. Två oberoende personer har pekat på
+samma bild.
+
+```
+  <= 10 m: 2 nya      <= 30 m: 6 nya
+  <= 20 m: 3 nya      <= 40 m: 6 nya   <- valt
+  <= 80 m: 7 nya      <= 150 m: 8 nya
+```
+
+Träffarna slutar vid 27,1 meter och nästa ligger på 75,4, så gränsen ligger i
+ett glapp och inte mitt i en hög.
+
+**Varför inte vidare.** Avståndet skyddar inte mot stadsdelsfelet: vid en
+kilometer paras "Gamla Östberga Bageri AB" med stadsdelen på 321 meter och
+"Långpannan Pizzeria" med platsen på 520. Att bageriet hamnade på 321 är en
+slump; hade det legat mitt i stadsdelen hade centroiden legat femtio meter bort
+och sluppit igenom vilken spärr som helst under 150.
+
+Vinsten är fem rader av 11 577: Norra Brunn, Rolfs Kök, Restaurang Syster o
+Bror och Skärholmens gård, som står två gånger i registret. De tre kommunerna
+utanför Stockholm gav noll, för Wikidata har bara stockholmskrogar som objekt
+utan P31.
+
+**Nästa steg, inte byggt:** åtta av de elva objekten bär en svensk beskrivning
+som säger vad tinget är, "restaurang i Stockholm", "skola i Hägerstensåsen". En
+grind på beskrivningen vore ett riktigt substitut för P31 i stället för ett
+ombud, och skulle antagligen tillåta ett vidare avstånd med bättre säkerhet än
+40 meter ger.
+
+---
+
 ## 7. Skärmbilderna
 
 I `research/forlagor/`, tagna 2026-08-21.
