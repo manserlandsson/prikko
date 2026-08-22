@@ -1313,6 +1313,27 @@ const breadcrumbs = {
     font-size: var(--fs-body-s);
   }
 
+  /* HUVUDKOLUMNENS LÖPTEXT ÄR ALDRIG BREDARE ÄN --w-read.
+     ────────────────────────────────────────────────────────────────────────
+     Regeln kom till 2026-08-22, när `--w-wide` gick från 1080 till 1400 på
+     ägarens beslut. Sidan är byggd som en fluid huvudkolumn plus en fast
+     300 px panel, så hela breddningen landade i löptexten: meningen "1
+     avvikelse noterades vid kontrollen den 18 maj 2018" mättes till 836 px,
+     alltså omkring 119 tecken per rad. Läsbart spann är 45 till 75, och
+     docs/19_formsystem.md säger att brödtext aldrig går bredare än --w-read.
+
+     Regeln träffar STYCKEN och listor, inte rutnät, diagram, tidslinjer
+     eller tabeller. De ska fortsätta använda hela kolumnen, och det är
+     själva vinsten med den bredare sidan: siffrorna får plats, texten
+     behåller sitt mått. */
+  /* `:global` är OBLIGATORISKT här. Merparten av styckena bor i egna
+     komponenter, till exempel `.answer` i FollowUp.astro, och Astros
+     stilomfång sätter sin attributnyckel bara på element i SAMMA fil. Utan
+     `:global` träffar regeln bara de stycken sidmallen själv skriver, vilket
+     var noll av de fyra breda. `.main` är fortfarande omfångad, så regeln
+     kan inte läcka utanför den här sidan. */
+  .main :global(:is(p, ul, ol)) { max-width: var(--w-read); }
+
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;

@@ -398,7 +398,22 @@ class Egenskaper(unittest.TestCase):
         self.assertEqual(facts_of({"payment:cash": "no"})["payment"], "nocash")
 
     def test_tomma_taggar_ger_inga_egenskaper(self):
-        self.assertEqual(facts_of({"name": "Rossi", "amenity": "restaurant"}), {})
+        self.assertEqual(facts_of({"name": "Rossi", "opening_hours": "24/7"}), {})
+
+    def test_stallets_slag_foljer_med(self):
+        """`amenity` och `shop` bärs, för kategoriraden behöver dem.
+
+        Provet stod tidigare tvärtom, alltså att `amenity` INTE bars. Det var
+        rätt så länge egenskaperna bara skulle skrivas ut på verksamhetssidan.
+        Nu driver de också startsidans kategorier, där kök inte räcker: café,
+        snabbmat, bageri, bar och livsmedelsbutik är ställets slag och inte
+        dess kök.
+        """
+        self.assertEqual(facts_of({"amenity": "cafe"})["amenity"], "cafe")
+        self.assertEqual(facts_of({"shop": "bakery"})["shop"], "bakery")
+        # Sammansatt värde: första vinner, som i `_first_value`.
+        self.assertEqual(facts_of({"amenity": "cafe;fast_food"})["amenity"], "cafe")
+        self.assertNotIn("shop", facts_of({"shop": "  "}))
 
 
 class Wikidataid(unittest.TestCase):

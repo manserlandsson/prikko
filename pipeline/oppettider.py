@@ -351,11 +351,24 @@ def process(path: Path, refresh: bool, write: bool) -> Counter:
 
 def insert_after(mapping: dict, after: str, key: str, value) -> dict:
     """Kopia där `key` ligger direkt efter `after`. Samma skäl som i
-    geocode.py: nya fält sist gör diffen svårläst."""
+    geocode.py: nya fält sist gör diffen svårläst.
+
+    FINNS NYCKELN REDAN LIGGER DEN KVAR DÄR DEN LIGGER, och det är inte
+    kosmetika. Blockens ordning på filens toppnivå är ett prov:
+    test_export_koordinater.py::test_blockordningen_ar_filernas läser FILBLOCK
+    ur export_supabase.py och kräver att filerna bär blocken i samma ordning.
+
+    Nattjobbet kör oppettider.py FÖRE narhet.py, så `narhet` hamnar efter
+    `openstreetmap` och FILBLOCK står i den ordningen. Kördes den här filen
+    ensam i efterhand flyttades `openstreetmap` upp direkt efter `source`,
+    ordningen kastades om, och provet föll. Det hände 2026-08-21.
+    """
+    if key in mapping:
+        return {existing: (value if existing == key else current)
+                for existing, current in mapping.items()}
+
     rebuilt: dict = {}
     for existing, current in mapping.items():
-        if existing == key:
-            continue
         rebuilt[existing] = current
         if existing == after:
             rebuilt[key] = value

@@ -36,10 +36,16 @@ interface Props {
   prev?: string;
   next?: string;
   /**
-   * Falskt bara på startsidan, som bär sökfältet i heron i stället för i
-   * sidhuvudet. Vidarebefordras rakt till Header; se resonemanget där.
+   * Falskt på sidor som inte ska bära sökfältet i raden alls.
+   * Vidarebefordras rakt till Header; se resonemanget där.
    */
   headerSearch?: boolean;
+  /**
+   * Sant bara på startsidan. Sidhuvudet blir klistrat och bär sökfältet i
+   * ett stort läge som fälls ihop vid rullning. Kräver att sidan lämnar
+   * 144 px tomrum överst, se .storsok i index.astro.
+   */
+  hemhuvud?: boolean;
   /**
    * Falskt bara på kartsidan. Den är en app-yta som fyller hela höjden under
    * sidhuvudet och aldrig skrollar på sidnivå, och då finns inget "under
@@ -60,6 +66,7 @@ const {
   prev,
   next,
   headerSearch = true,
+  hemhuvud = false,
   footer = true,
 } = Astro.props;
 
@@ -115,7 +122,7 @@ const structuredData = jsonLd
 
   <body>
     <a href="#main" class="skip-link glass">Hoppa till innehåll</a>
-    <Header search={headerSearch} />
+    <Header search={headerSearch} hem={hemhuvud} />
     <main id="main">
       <slot />
     </main>

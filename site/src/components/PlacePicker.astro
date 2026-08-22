@@ -247,13 +247,75 @@ const LASA = [
         </div>
 
         <div class="meta">
+          {/* ALLA RADER BÄR IKON, och det är andra försöket.
+
+              Första gången fick tre av sju rader ikon, efter Airbnbs förlaga:
+              deras panel har sju rader och exakt EN ikon, "Hjälpcenter" med
+              ett frågetecken. Regeln var att en ikon markerar en rad som GÖR
+              något och inte en som berättar något.
+
+              Ägaren såg resultatet: "vad hände med ikonerna på hamburgremenyn
+              popupen, ser typ halvdant fixat ut." Han har rätt, och felet var
+              att jag lånade Airbnbs ANTAL utan att låna deras layout. Deras
+              rader ligger i en smal rullgardin där en ensam ikon läser som en
+              markering. Våra ligger i en bred panel som redan har sju
+              ikonplattor i avsnitten nedanför, och där läser tre av sju i
+              stället som fyra rader där ikonen inte hunnit fram.
+
+              Antingen alla eller ingen, alltså. Alla, för panelen bär redan
+              ikoner i två avsnitt och en ren textspalt mitt i dem är det som
+              ser ofärdigt ut.
+
+              Ikonerna är 18 px på 24-rutnätet med 1,6 px streck, alltså samma
+              språk som resten av filen kräver i filhuvudet. */}
           <nav class="lankar" aria-label="Om Prikko">
-            <a href={path('metodik')}>Metodik</a>
-            <a href={path('kallor')}>Källor</a>
-            <a href={path('hjalp')}>Hjälp</a>
-            <a href={path('om')}>Om Prikko</a>
-            <a href={path('webbkarta')}>Webbkarta</a>
-            <a href={path('kontakt')}>Kontakt</a>
+            <a href={path('metodik')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 3.6h10a1.6 1.6 0 0 1 1.6 1.6v13.6a1.6 1.6 0 0 1-1.6 1.6H7a1.6 1.6 0 0 1-1.6-1.6V5.2A1.6 1.6 0 0 1 7 3.6z" />
+                <path d="m8.8 10.4 1.7 1.7 3.4-3.4" />
+                <path d="M8.8 16h6.4" />
+              </svg>
+              Metodik
+            </a>
+            <a href={path('kallor')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3.4h9.4a1.6 1.6 0 0 1 1.6 1.6v11.4" />
+                <path d="M5.6 6.6h9.2a1.6 1.6 0 0 1 1.6 1.6v11a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19.2V8.2a1.6 1.6 0 0 1 1.6-1.6z" />
+              </svg>
+              Källor
+            </a>
+            <a href={path('om')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11.2v5" />
+                <path d="M12 7.9h.01" />
+              </svg>
+              Om Prikko
+            </a>
+            <a href={path('webbkarta')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9.2" y="3.2" width="5.6" height="4.4" rx="1.2" />
+                <rect x="3.2" y="16.4" width="5.6" height="4.4" rx="1.2" />
+                <rect x="15.2" y="16.4" width="5.6" height="4.4" rx="1.2" />
+                <path d="M12 7.6v4.2M6 16.4v-2.4h12v2.4M12 11.8v2.2" />
+              </svg>
+              Webbkarta
+            </a>
+            <a href={path('hjalp')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.7-2.6 2.7" />
+                <path d="M12 17h.01" />
+              </svg>
+              Hjälp
+            </a>
+            <a href={path('kontakt')}>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5.5" width="18" height="13" rx="2" />
+                <path d="m3.6 7 7.3 5.2a2 2 0 0 0 2.2 0L20.4 7" />
+              </svg>
+              Kontakt
+            </a>
           </nav>
 
           {/* Kontoblocket. Ligger sist i läsordningen med avsikt och efter
@@ -267,7 +329,13 @@ const LASA = [
               Motsatt förval hade visat "Ditt konto" för alla som har
               JavaScript avstängt. */}
           <div class="account">
-            <button type="button" class="account-in" data-signin>Logga in</button>
+            <button type="button" class="account-in" data-signin>
+              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8.4" r="3.6" />
+                <path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" />
+              </svg>
+              Logga in
+            </button>
 
             <div class="account-out" hidden data-account>
               <p class="who" data-who></p>
@@ -715,6 +783,29 @@ const LASA = [
     gap: 0 var(--s-12);
     justify-content: start;
   }
+
+  /* Ikonen är 18 och inte 24. Avsnittens ikoner sitter på en 80 px platta och
+     bär raden ensamma; de här sitter bredvid 14 px text och ska väga mindre än
+     ordet, inte lika mycket. Samma 24-rutnät och samma 1,6 px streck, se
+     filhuvudet: det är storleken som skiljer, inte språket. */
+  .radikon {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    color: var(--tone-quiet);
+  }
+
+  .lankar a,
+  .account-in {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  /* Ikonen följer med i radens hovring. Utan det stannar den kvar i grått
+     medan ordet blir svart, och raden ser halvt utsläckt ut. */
+  .lankar a:hover .radikon,
+  .account-in:hover .radikon { color: var(--text); }
 
   .account,
   .account-out {

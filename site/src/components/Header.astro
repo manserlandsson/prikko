@@ -22,22 +22,33 @@ import SiteSearch from './SiteSearch.astro';
 
 interface Props {
   /**
-   * Startsidan stänger av fältet här och bär i stället hero-läget av samma
-   * komponent mitt på sidan. En sida får aldrig två sökfält: dubbleringen
-   * var det som fick den gamla heron att kännas tom, och SiteSearchs skript
-   * och fält-id förutsätter dessutom en instans.
+   * Falskt på en sida som inte ska bära fältet i raden alls. Utan fältet
+   * försvinner också underkanten: sidhuvudet ska då läsa som ETT vitt band
+   * med wordmarken som avsändarrad, inte som en tom rad med två saker i var
+   * sin ände ovanför en linje.
    *
-   * Utan fältet försvinner också underkanten. Sidhuvud och hero ska då läsa
-   * som ETT vitt band med wordmarken som avsändarrad, inte som en tom rad
-   * med två saker i var sin ände ovanför en linje.
+   * En sida får aldrig två sökfält. SiteSearch ankrar sitt skript i
+   * document.querySelector och fält-id:t site-search-q är skrivet en gång.
+   * Startsidan sätter därför `hem` i stället för att stänga av fältet och
+   * rita en andra instans i sidan: docken nedan flyttar den enda instansen.
    */
   search?: boolean;
+  /**
+   * Startsideläget: fältet ligger kvar HÄR men ritas stort och centrerat
+   * nere i sidan tills man rullar, och far då upp i raden. Se .sokdock i
+   * stilblocket och skriptet längst ned för hur och varför.
+   *
+   * Läget kräver att sidan bär ett tomrum på 96 px överst där det stora
+   * fältet ska hänga. index.astro gör det med .storsok, och de två måtten
+   * måste hållas i takt: fältet står på top 88 och är 56 högt.
+   */
+  hem?: boolean;
 }
 
-const { search = true } = Astro.props;
+const { search = true, hem = false } = Astro.props;
 ---
 
-<header class:list={[!search && 'plain']}>
+<header class:list={[!search && 'plain', hem && 'hem']} data-huvud>
   <div class="container bar">
     <a href="/" class="brand" aria-label={`${SITE.name}, till startsidan`}>
       <svg
@@ -56,7 +67,7 @@ const { search = true } = Astro.props;
       </svg>
     </a>
 
-    {search && <SiteSearch />}
+    {search && !hem && <SiteSearch />}
 
     {/*
       Metodik och Om låg tidigare här bredvid menyknappen. De finns nu i
@@ -69,6 +80,16 @@ const { search = true } = Astro.props;
 
     <PlacePicker />
   </div>
+
+  {/* Ett enda fält, två lägen. En sida får aldrig bära två instanser:
+      SiteSearch ankrar sitt skript i document.querySelector och fältets id
+      site-search-q är skrivet en gång. Docken flyttar och skalar just den
+      instansen i stället för att rita en andra. */}
+  {hem && (
+    <div class="sokdock">
+      <SiteSearch size="hero" />
+    </div>
+  )}
 </header>
 
 <style>
@@ -99,6 +120,220 @@ const { search = true } = Astro.props;
 
   /* Startsideläget, se Props. Ingen linje mellan sidhuvud och hero. */
   header.plain { border-bottom: 0; }
+
+  /* ══ STARTSIDANS SÖKDOCK ═══════════════════════════════════════════════
+   *
+   * Ägaren 2026-08-20: "airbnb har också typ att sökbaren och lite filter
+   * eller kategorier är stora i början, sen när man scrollar ner så petas
+   * sökbaren upp och blir lite mer simpel, något sånt kan ju va smart."
+   *
+   * Uppmätt på airbnb.se 2026-08-21, se docs/40 §3. Deras fält går från
+   * 850 × 66 till 458 × 46, och hela sidhuvudsblocket bär
+   *
+   *     transition: transform 0.451754s
+   *                 linear(0 0%, 0.185572 10%, 0.465306 20%, 0.682334 30%,
+   *                        0.822325 40%, 0.904974 50%, 0.951289 60%,
+   *                        0.976364 70%, 0.989612 80%, 0.996485 90%, 1 100%)
+   *
+   * alltså 452 ms med en fjäder samplad i elva steg. Kurvan står ordagrant i
+   * --fjader nedan och används på både läge och bredd.
+   *
+   * VARFÖR HÖJDEN ALDRIG ANIMERAS. Att låta sidhuvudet krympa från 236 till
+   * 64 px hade varit den uppenbara lösningen och den är fel: 172 px
+   * omflödning per bildruta, i 452 ms, på en sida med tvåhundra kort. Docken
+   * är i stället `position: absolute` i ett sidhuvud som ALLTID är 64 px
+   * högt, och det stora läget hänger ut nedanför sidhuvudets underkant över
+   * sidans egna 144 px tomrum (.storsok i index.astro). Ihopfällningen rör
+   * därmed bara `top`, `width` och `height` på ETT element, och sidan under
+   * står helt stilla.
+   *
+   * `overflow: visible` på sidhuvudet är alltså ett krav och inte en
+   * slentrian: docken sticker ut nedanför det. */
+  header.hem {
+    --fjader: linear(
+      0 0%, 0.185572 10%, 0.465306 20%, 0.682334 30%, 0.822325 40%,
+      0.904974 50%, 0.951289 60%, 0.976364 70%, 0.989612 80%, 0.996485 90%, 1 100%
+    );
+    position: sticky;
+    top: 0;
+    overflow: visible;
+    border-bottom: 0;
+  }
+
+  /* Underkanten kommer först när fältet har landat i raden. Vid vila ska
+     sidhuvud och det stora fältet läsa som ETT vitt band, inte som en rad
+     med en linje under och något stort hängande nedanför den. */
+  header.hem.kompakt { border-bottom: 1px solid var(--hairline); }
+
+  .sokdock {
+    position: absolute;
+    left: 50%;
+    top: 88px;
+    z-index: 2;
+    /* 600 och inte 680. SiteSearch sätter `max-width: 600px` på sitt
+       hero-läge, så ett bredare omslag ger bara luft på var sida och en
+       bredd som inte stämmer med fältet i den. Airbnbs eget fält är 850,
+       men deras är ett trepartsformulär och vårt är ETT fält. */
+    width: min(600px, calc(100vw - 2 * var(--s-6)));
+    transform: translateX(-50%);
+    transition:
+      top var(--fjader-tid) var(--fjader),
+      width var(--fjader-tid) var(--fjader);
+    --fjader-tid: .452s;
+  }
+
+  header.hem.kompakt .sokdock {
+    top: 10px;
+    width: min(380px, 34vw);
+  }
+
+  /* MENYN ÄR ÖPPEN: docken går undan.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "sök baren syns också när man öppnar hamburgaremenyn."
+
+     Två fel i ett. Det tekniska: menypanelen är `position: fixed` med
+     `z-index: 1` och docken `z-index: 2`, så docken målades ovanpå panelen
+     och dolde "Rätta en uppgift" och "Jämför två ställen". Ingen annan sida
+     visade det, eftersom bara startsidan har en dock som hänger ned över
+     sidan.
+
+     Det andra är att en z-index-rättning inte hade räckt. Panelen är en yta
+     som tar hela mitten av skärmen, och ett sökfält som ligger kvar ovanpå
+     den, halvt skymt, är fortfarande fel. Docken tonas därför bort helt så
+     länge menyn står öppen.
+
+     `.picker` är ett `<details>`, alltså är `[open]` sanningen om läget och
+     inget skript behövs. */
+  header.hem:has(.picker[open]) .sokdock {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s cubic-bezier(.2, 0, 0, 1);
+  }
+
+  /* Fältets egen höjd. 56 utfällt och 44 ihopfällt, alltså --h-field i det
+     ihopfällda läget. Airbnb går 66 → 46; vårt fält är ETT fält och inte
+     ett trepartsformulär, och 66 px på en enda rad text blir en platta. */
+  .sokdock :global(.search-field) {
+    height: 56px;
+    transition: height var(--fjader-tid) var(--fjader);
+  }
+
+  header.hem.kompakt .sokdock :global(.search-field) {
+    height: var(--h-field);
+  }
+
+  /* Skuggan byter i 175 ms och inte i 452, uppmätt: Airbnbs kompakta piller
+     bär `box-shadow 0.175s cubic-bezier(0.2, 0, 0, 1)`. Den ska landa före
+     rörelsen, annars ser fältet ut att tappa sin platta på vägen upp. */
+  .sokdock :global(.search-field) {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .02), 0 8px 24px rgba(0, 0, 0, .10);
+    transition:
+      height var(--fjader-tid) var(--fjader),
+      box-shadow .175s cubic-bezier(.2, 0, 0, 1);
+  }
+
+  header.hem.kompakt .sokdock :global(.search-field) {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 4px 12px rgba(0, 0, 0, .05);
+  }
+
+  /* KNAPPEN MÅSTE KRYMPA MED FÄLTET.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "cirkeln för sök i högre hörnet ser ej alignad ut."
+
+     Uppmätt, och han har rätt: fältet var 44 px högt och knappen 44 px, alltså
+     noll luft över och under men sex på höger sida. Ögat läser det inte som
+     "stor knapp" utan som "knappen sitter snett", eftersom luften finns på
+     ena ledden och inte på den andra.
+
+     SiteSearch sätter 44 px på knappen i sitt hero-läge, vilket är rätt i ett
+     56 px fält: (56 − 44) / 2 = 6, samma som fältets högerfyllning. Docken
+     krympte fältet till 44 utan att röra knappen, och då gick räkningen inte
+     ihop.
+
+     34 i ett 44 px fält ger (44 − 34) / 2 = 5, alltså exakt fältets egna
+     5 px fyllning på alla fyra sidor. Airbnbs kompakta piller mäter 46 högt
+     med en 32 px knapp, alltså samma princip och samma storleksordning. */
+  /* IHOPFÄLLNINGEN TAR BORT VAR-DELEN, och det är det som gör rörelsen till
+     en funktion i stället för en storleksändring.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "vad fyller sökbarens animationen för funktion nu? det
+     ska ju vara som airbnb att söket blir mer utevecklat eller?"
+
+     Airbnbs utfällda läge är ett trepartsformulär som fälls ihop till ETT
+     piller med tre etiketter. Vårt utfällda läge är två delar, Vad och Var,
+     och det ihopfällda är ett fält. Utfällt frågar sidan alltså mer än
+     ihopfällt, vilket var hela poängen.
+
+     `display: none` och inte `opacity`: delen bär ett formulärfält och en
+     knapp, och en knapp man kan tabba till men inte se är värre än ingen
+     knapp. Det dolda `kommun`-fältet följer med och skickas alltså inte
+     heller i det kompakta läget, vilket är rätt: valet syns inte, då ska det
+     inte gälla. */
+  header.hem.kompakt .sokdock :global(.var) { display: none; }
+
+  header.hem.kompakt .sokdock :global(.go) {
+    width: 34px;
+    height: 34px;
+  }
+
+  header.hem.kompakt .sokdock :global(.go svg) {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Telefon: inget utfällt läge alls.
+     Airbnbs egen mobilstartsida, uppmätt 2026-08-21, har ett fält i full
+     bredd överst och ingen ihopfällning. 680 px av ett 390 px fönster finns
+     inte, och 144 px tomrum överst på en 812 px skärm är en sjättedel av
+     sidan. Docken sitter därför i raden från början och rör sig aldrig; det
+     är också därför .storsok är 0 px hög under samma brytpunkt. */
+  @media (max-width: 700px) {
+    header.hem .sokdock,
+    header.hem.kompakt .sokdock {
+      top: 10px;
+      width: auto;
+      left: auto;
+      right: var(--s-4);
+      transform: none;
+      /* Wordmarken är 97 px plus radens indrag, menyknappen 36 plus samma.
+         Fältet tar allt däremellan. */
+      inset-inline-start: 132px;
+      transition: none;
+    }
+
+    /* `header.hem` står med i BÅDA väljarna, och det är inte slentrian.
+       SiteSearch sätter höjden med `.site-search.is-hero .search-field`,
+       alltså tre klasser. Utan sidhuvudet i väljaren blir vår två, och
+       fältet blir 54 px på telefon i stället för 44. */
+    header.hem .sokdock :global(.search-field),
+    header.hem.kompakt .sokdock :global(.search-field) {
+      height: var(--h-field);
+      transition: none;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 4px 12px rgba(0, 0, 0, .05);
+    }
+
+    /* Samma räkning som på dator, se ovan: telefonens fält är alltid 44. */
+    /* Telefonen har inget utfällt läge alls, se .sokdock ovan, så Var-delen
+       hör inte hemma där. 227 px fält delat i två är två delar på hundra
+       pixlar var. */
+    header.hem .sokdock :global(.var) { display: none; }
+
+    header.hem .sokdock :global(.go) {
+      width: 34px;
+      height: 34px;
+    }
+
+    header.hem .sokdock :global(.go svg) {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  /* Den som bett om mindre rörelse får lägesbytet utan resa. */
+  @media (prefers-reduced-motion: reduce) {
+    .sokdock,
+    .sokdock :global(.search-field) { transition: none; }
+  }
 
   /* position: relative — på små skärmar ankras sökpanelen till hela raden i
      stället för till fältet, som då börjar för långt in på skärmen. */
@@ -254,3 +489,56 @@ const { search = true } = Astro.props;
     .bar { gap: var(--s-3); }
   }
 </style>
+
+{/*
+  Ihopfällningen. Ett klassbyte och ingenting mer, all rörelse ligger i CSS.
+
+  EN VAKTPOST OCH EN IntersectionObserver, INTE EN RULLHANTERARE.
+
+  Skälet är kostnaden. En `scroll`-hanterare körs vid varje rullsteg, på en
+  sida som bär 154 kort, för att svara på en fråga som ändrar svar två gånger
+  per besök. En observatör körs bara när vaktposten korsar kanten.
+
+  Vaktposten är en pixel stor, ligger absolut på y = 24 i dokumentet och syns
+  aldrig. Korsar den överkanten är sidan rullad, punkt.
+
+  Ingen hysteres behövs, och det är vaktpostens förtjänst. Den första
+  versionen lyssnade på `scroll` och hade två trösklar, 24 ned och 8 upp, för
+  att gummibandsrullningen på iOS passerar noll flera gånger efter att fingret
+  släppt. Med en vaktpost är det inte ett problem: gummibandet drar scrollY
+  under noll, vilket gör vaktposten MER synlig och alltså aldrig kan vända
+  läget av misstag.
+
+  EN VARNING TILL DEN SOM SKA MÄTA DET HÄR. En observatör körs när sidan
+  RITAS, och en flik som ligger i bakgrunden ritas aldrig. Mäts det här i en
+  dold flik svarar den noll gånger, och slutsatsen blir att ihopfällningen är
+  trasig. Det hände 2026-08-21, och samma fälla står redan nedskriven för
+  kartans attributionskontroll. Ha fliken i förgrunden.
+
+  Skriptet är `is:inline` och avsiktligt inte en modul. Det är några rader som
+  ska vara igång vid första bildrutan; en modul med defer hade låtit fältet
+  stå i sitt stora läge en stund på en sida som laddats mitt i en rullning,
+  och sedan hoppa.
+*/}
+<script is:inline>
+  (() => {
+    const huvud = document.querySelector('header[data-huvud].hem');
+    if (!huvud) return;
+
+    // Utan IntersectionObserver står fältet kvar i sitt stora läge. Sidan
+    // fungerar, den fäller bara inte ihop, vilket är rätt utfall att falla
+    // tillbaka på: det stora läget är sidans grundläge.
+    if (!('IntersectionObserver' in window)) return;
+
+    const vakt = document.createElement('div');
+    vakt.setAttribute('aria-hidden', 'true');
+    vakt.style.cssText =
+      'position:absolute;top:24px;left:0;width:1px;height:1px;pointer-events:none';
+    document.body.prepend(vakt);
+
+    new IntersectionObserver(
+      ([post]) => huvud.classList.toggle('kompakt', !post.isIntersecting),
+      { threshold: 0 },
+    ).observe(vakt);
+  })();
+</script>

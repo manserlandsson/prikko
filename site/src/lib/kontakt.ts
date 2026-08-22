@@ -70,6 +70,18 @@ export interface Contact {
   diet?: string;
   /** "cards", "cash" eller "nocash", komma emellan. */
   payment?: string;
+  /**
+   * Vad OSM kallar STÄLLET, till skillnad från `cuisine` som är vad det
+   * lagar: `restaurant`, `fast_food`, `cafe`, `bar`, `pub`, `ice_cream`.
+   *
+   * Skrivs ALDRIG ut på verksamhetssidan. Uppräkningen i `kontaktrader()`
+   * nämner den inte, och det är avsiktligt: "Restaurang" som en egenskap på
+   * en restaurangsida är en tom rad. Fältet finns för matkategori.ts, som
+   * bygger startsidans kategorirad av det.
+   */
+  amenity?: string;
+  /** Samma sak för butiker: `supermarket`, `bakery`, `kiosk`, `convenience`. */
+  shop?: string;
   /** OSM-objektet uppgiften kommer ur, t.ex. "node/1234". */
   osm: string;
   /** ISO-datum då vi hämtade uppgiften ur OSM. */

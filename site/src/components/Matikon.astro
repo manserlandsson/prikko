@@ -1,0 +1,268 @@
+---
+/**
+ * Ikon per matkategori.
+ *
+ * Samma språk som Kategoriikon.astro och AreaIcon.astro: 24-rutnät, 1,6 px
+ * streck, runda ändar och hörn, ingen fyllning, inget lånat ikonbibliotek och
+ * ingen emoji. Airbnb kör videor på 180 px i sin kategorirad, uppmätt
+ * 2026-08-21, och det är en budget vi inte har. Ednia kör streckikoner på
+ * 24 px, vilket är precis det här.
+ *
+ * VILLKORET SOM STYRDE VARJE FORM: tjugo ikoner i en rad man rullar förbi
+ * måste gå att skilja åt i ögonvrån. Därför är närbesläktade motiv medvetet
+ * dragna isär:
+ *
+ *   bageri     limpa, alltså en LÅG kupol med tre snitt
+ *   burgare    tre lager, alltså en HÖG stapel med sesam
+ *   konditori  muffin, alltså form plus krön, aldrig en kupol
+ *   asiatiskt  skål MED pinnar
+ *   indiskt    gryta MED ånga, raka sidor
+ *   glass      strut, alltså spets nedåt
+ *   pizza      kil, alltså spets uppåt
+ *
+ * `alla` är radens hemläge och inte en kategori. Den delar form med
+ * Kategoriikon.astro av samma skäl som den bor där: samma sak ska se likadan
+ * ut på hela sajten.
+ *
+ * OPTIKEN ÄR NORMALISERAD, och faktorerna är UPPMÄTTA. Se OPTIK längre ned.
+ * Rita fritt i 24-rutnätet och mät om faktorn efteråt, precis som
+ * Kategoriikon.astro säger. Gissa inte.
+ */
+import type { MatkategoriId } from '../lib/matkategori';
+
+export type MatikonNyckel = MatkategoriId | 'alla';
+
+interface Props {
+  namn: MatikonNyckel;
+  size?: number;
+}
+
+const { namn, size = 22 } = Astro.props;
+
+const PATHS: Record<MatikonNyckel, string> = {
+  // Hemläget. Staplade lager, alltså hela bunten. Samma form som
+  // Kategoriikon.astro ritar, och den ska förbli samma.
+  alla:
+    'M5 11.5h14a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19v-6A1.5 1.5 0 0 1 5 11.5z' +
+    'M5.5 8h13M8 4.5h8',
+
+  // Livsmedel. Korg med bygelhandtag och två spjälor.
+  livsmedel:
+    'M3.4 9.2h17.2l-1.5 8.9a2.1 2.1 0 0 1-2.1 1.8H7a2.1 2.1 0 0 1-2.1-1.8L3.4 9.2z' +
+    'M8.6 9.2 10.2 4.6M15.4 9.2 13.8 4.6' +
+    'M9.6 12.4v4.3M14.4 12.4v4.3',
+
+  // Snabbmat. Pommesstrut.
+  //
+  // Struten var först hög och stavarna korta, och det blev en kaffemugg med
+  // lock. Struten är därför nedflyttad till y = 11 och stavarna dragna upp
+  // till y = 3,4, alltså mer stav än strut. Vikningen tvärs över struten är
+  // det som gör den till en strut och inte till en mugg.
+  snabbmat:
+    'M6.6 11h10.8l-1.2 8.2a1.7 1.7 0 0 1-1.7 1.5H9.5a1.7 1.7 0 0 1-1.7-1.5L6.6 11z' +
+    'M6.9 13.8h10.2' +
+    'M9.3 11 8.4 4.6M12 11V3.4M14.7 11l.9-6.1',
+
+  // Café. Kopp med öra, samma form som Kategoriikon.astro ritar för cafe.
+  'cafe-fik':
+    'M4 8.5h13v4.5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8.5z' +
+    'M17 10h1.5a2.5 2.5 0 0 1 0 5H17M3 21h15',
+
+  // Pizza. Kil med spetsen UPPÅT och bågformad kant nedtill, plus två fyllda
+  // prickar. Prickarna är nollånga delvägar: med runda ändar ritar
+  // webbläsaren dem som cirklar med streckets bredd i diameter.
+  pizza:
+    'M12 3.4 3.7 18.6a16.6 16.6 0 0 0 16.6 0L12 3.4z' +
+    'M10.2 12.4h.01M13.7 15.4h.01',
+
+  // Asiatiskt. Skål med pinnar över.
+  asiatiskt:
+    'M3.4 12h14.2a7.1 7.1 0 0 1-14.2 0z' +
+    'M7 20.4h7' +
+    'M13.9 9.8 20.4 3.6M16.1 10.4 21 5.2',
+
+  // Bar och pub. Cocktailglas.
+  bar: 'M4.6 5.4h14.8L12 14zM12 14v6.2M8.4 20.6h7.2',
+
+  // Sushi. Nigiri från sidan: risbädd med en påläggsskiva draperad över.
+  //
+  // Noribandet tvärs över är BORTA. Med det läste formen som en bil: kupol,
+  // vindruta och en låg kaross. Utan det är det två kroppar ovanpå varandra,
+  // vilket är vad en nigiri är.
+  sushi:
+    'M4.6 14.4h14.8a2.5 2.5 0 0 1 0 5H4.6a2.5 2.5 0 0 1 0-5z' +
+    'M3.4 13.4c0-2.6 3.9-4.6 8.6-4.6s8.6 2 8.6 4.6c0 1-.9 1.6-2 1.6H5.4c-1.1 0-2-.6-2-1.6z',
+
+  // Burgare. Tre lager och sesam.
+  burgare:
+    'M3.8 11.6a8.2 8.2 0 0 1 16.4 0z' +
+    'M3.9 14.1h16.2' +
+    'M4 16.6h16a6 6 0 0 1-6 4H10a6 6 0 0 1-6-4z' +
+    'M9.2 8.9h.01M13.8 8.4h.01',
+
+  // Italienskt. Gaffel med nudlar hängande över.
+  //
+  // TREDJE FÖRSÖKET, och de två första står här för att ingen ska rita om
+  // dem: en ring med en båge i blev en klubba på en pinne, och en ring med
+  // två strängar tvärs över blev ett förstoringsglas. Felet var i båda
+  // fallen att gaffeln aldrig SYNTES.
+  //
+  // Nu syns den: tre klor, ett huvud och ett skaft. Nudlarna hänger ned på
+  // var sida i stället för att ligga i en boll, och det är också vad som
+  // skiljer formen från allt annat i raden.
+  //
+  // Strängarna börjar INNANFÖR huvudets bredd. Utanför den blev de horn i
+  // stället för nudlar.
+  //
+  // Motivet är också KORTAT, från 3,8..20,2 till 5..19,4, och klorna är
+  // spridda från 7,2 till 8,4 enheters bredd. Skälet är optiken: 7,2 brett
+  // och 16,4 högt ger rotytan 10,87, och en faktor på 1,49 för att komma
+  // upp i sajtens 16,23 skjuter motivet 24,5 enheter högt, alltså ut ur
+  // rutan. En mindre extrem proportion får sin rätta vikt utan tak.
+  italienskt:
+    'M7.8 5v3.6M12 5v3.6M16.2 5v3.6' +
+    'M7.8 8.6h8.4v.8a4.2 4.2 0 0 1-8.4 0z' +
+    'M12 13.6v5.8' +
+    'M9.7 13.4c-1.1 1.6-1.3 3.5-.6 5.4' +
+    'M14.3 13.4c1.1 1.6 1.3 3.5.6 5.4',
+
+  // Kiosk. Markis och serveringslucka.
+  //
+  // Disken tvärs över gjorde stället till ett kylskåp med hyllor. En LUCKA
+  // i stället, alltså en ruta mitt på framsidan, är det som skiljer en kiosk
+  // från vilken låda som helst.
+  kiosk:
+    'M3.6 8.6h16.8l-1.4-3.3a1.6 1.6 0 0 0-1.5-1H6.5a1.6 1.6 0 0 0-1.5 1L3.6 8.6z' +
+    'M5.2 8.6v11.8h13.6V8.6' +
+    'M9.4 12.2h5.2v3.6H9.4z',
+
+  // Bageri. Limpa: låg kupol med tre snitt.
+  bageri:
+    'M4 14.6c0-4 3.6-6.6 8-6.6s8 2.6 8 6.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z' +
+    'M8.9 10.7 7.5 13.3M12 10.3l-1.4 2.8M15.1 10.7l-1.4 2.6',
+
+  // Kebab. Spett med kött, alltså en lodrätt axel genom hela rutan.
+  kebab:
+    'M12 2.6v18.8' +
+    'M12 5.5c3.2 0 5 2.6 5 6.4s-1.8 6.6-5 6.6-5-2.8-5-6.6 1.8-6.4 5-6.4z',
+
+  // Medelhavet. Olivkvist.
+  medelhav:
+    'M4.6 20 19.4 5.6' +
+    'M12.3 12.6c1.6-1.7 4.3-1.8 6-.2-1.6 1.7-4.3 1.8-6 .2z' +
+    'M8.7 16.3c-1.7-1.6-1.8-4.3-.2-6 1.7 1.6 1.8 4.3.2 6z' +
+    'M15.6 8.2h.01',
+
+  // Sallad. Blad med nerv.
+  sallad:
+    'M20 4.2c0 8.6-5.2 13.3-11.4 13.3A5.6 5.6 0 0 1 3 11.9C3 6.4 9.4 4.2 20 4.2z' +
+    'M16.4 7.7 5.7 18.9',
+
+  // Thai. Chili med stjälk.
+  //
+  // Formen är SLUTEN och inte en enda böjd linje. Den öppna versionen läste
+  // som ett kommatecken; en sluten kropp med spets nedåt vänster och krok
+  // uppåt höger läser som chili.
+  thai:
+    'M18 4.8c1.8 6.4-2.4 12.4-8.7 13.5-2.9.5-5.2-.8-5.6-2.9-.4-2 1-3.8 3-4 ' +
+    '1.6-.2 2.9.7 3.2 2 .3-4.5 3.3-7.5 8.1-8.6z' +
+    'M18 4.8c-.5-1.6-1.9-2.6-3.6-2.6',
+
+  // Indiskt. Gryta med ånga och raka sidor.
+  indiskt:
+    'M3.5 11.6h17' +
+    'M5 11.6v3.6a5.4 5.4 0 0 0 5.4 5.4h3.2a5.4 5.4 0 0 0 5.4-5.4v-3.6' +
+    'M9.4 8.8c0-1.6 1.5-1.6 1.5-3.2M13.9 8.8c0-1.6 1.5-1.6 1.5-3.2',
+
+  // Konditori. Muffin: form, krön och bär.
+  konditori:
+    'M6 12.6h12l-1.4 6.9a1.5 1.5 0 0 1-1.5 1.2H8.9a1.5 1.5 0 0 1-1.5-1.2L6 12.6z' +
+    'M6.4 12.6a5.6 5.6 0 0 1 11.2 0' +
+    'M12 7v-1.4M12 4.6h.01',
+
+  // Grill. Låga.
+  grill:
+    'M12 3.2c4.2 3.4 6.4 6.7 6.4 10a6.4 6.4 0 0 1-12.8 0c0-1.9.7-3.7 2.1-5.3.4 1.7 1.2 2.7 2.4 3.1.5-3 1.1-5.4 1.9-7.8z',
+
+  // Mellanöstern. Tagine: kon med knopp på ett fat.
+  mellanostern:
+    'M12 4.9 18.6 14.7a1 1 0 0 1-.85 1.6H6.25a1 1 0 0 1-.85-1.6z' +
+    'M12 4.9V3.3' +
+    'M4.4 16.3h15.2a1.6 1.6 0 0 1-1.6 2.6H6a1.6 1.6 0 0 1-1.6-2.6z',
+
+  // Glass. Strut med spetsen NEDÅT och en kula över.
+  glass:
+    'M7.4 9.6a4.6 4.6 0 0 1 9.2 0z' +
+    'M6.6 10.6h10.8' +
+    'M7.1 10.6 12 21l4.9-10.4',
+};
+
+/**
+ * Optisk utjämning. Samma rutnät räcker inte, formerna måste också väga lika.
+ *
+ * Uppmätt med `getBBox()` i webbläsaren 2026-08-21, på alla tjugoen på en
+ * gång. Spridningen var stor nog att synas: roten ur ytan gick från 11,73
+ * (limpan, som är låg och bred) till 17,20 (skålen med pinnar), alltså 47
+ * procent mellan minsta och största motiv i en rad man rullar förbi.
+ *
+ * MÅLET ÄR 16,23 OCH INTE MEDELVÄRDET AV DE TJUGOEN.
+ *
+ * 16,23 är Kategoriikon.astros mål, och det talet gäller därför hela sajtens
+ * ikonspråk och inte bara den här filen. Två bevis på att metoden och målet
+ * stämmer: koppen mäter 15,00 här och får faktorn 1,082, exakt vad
+ * Kategoriikon.astro redan har för samma form, och `alla` mäter 16,49 och får
+ * 0,984, också exakt samma. Samma väg, samma svar.
+ *
+ * TVÅ FAKTORER ÄR NEDDRAGNA, och det är formens skuld och inte metodens.
+ * Rotytan tar ingen hänsyn till proportion, så ett brett och lågt motiv får
+ * en faktor som sprutar ut det över rutans kant. Limpan skulle bli 22,1 bred
+ * vid 1,384 och nigirin 23,6 vid 1,083, alltså utanför rutan när halva
+ * streckbredden räknas med. Taket är att bredaste ledet får bli 22 av 24,
+ * vilket ger limpan 1,375 och nigirin 1,009.
+ *
+ * Streckvikten delas med samma faktor så att linjen är 1,6 px på skärmen i
+ * alla tjugoen. Skalar man en ikon utan att kompensera blir den lilla ikonen
+ * också den tunnaste, vilket är precis det man försökte rätta.
+ */
+const OPTIK: Record<MatikonNyckel, { skala: number; cx: number; cy: number }> = {
+  alla:         { skala: 0.984, cx: 12,   cy: 12.5 },
+  livsmedel:    { skala: 1.001, cx: 12,   cy: 12.3 },
+  snabbmat:     { skala: 1.187, cx: 12,   cy: 12.1 },
+  'cafe-fik':   { skala: 1.082, cx: 12,   cy: 14.8 },
+  pizza:        { skala: 0.954, cx: 12,   cy: 12.1 },
+  asiatiskt:    { skala: 0.944, cx: 12.2, cy: 12 },
+  bar:          { skala: 1.082, cx: 12,   cy: 13 },
+  sushi:        { skala: 1.111, cx: 12,   cy: 14.1 },
+  burgare:      { skala: 0.966, cx: 12,   cy: 12 },
+  italienskt:   { skala: 1.476, cx: 12,   cy: 12.2 },
+  kiosk:        { skala: 0.987, cx: 12,   cy: 12.3 },
+  bageri:       { skala: 1.375, cx: 12,   cy: 12.3 },
+  kebab:        { skala: 1.184, cx: 12,   cy: 12 },
+  medelhav:     { skala: 1.112, cx: 12,   cy: 12.8 },
+  sallad:       { skala: 1.027, cx: 11.5, cy: 11.5 },
+  thai:         { skala: 1.048, cx: 11,   cy: 10.3 },
+  indiskt:      { skala: 1.016, cx: 12,   cy: 13.1 },
+  konditori:    { skala: 1.168, cx: 12,   cy: 12.7 },
+  grill:        { skala: 1.120, cx: 12,   cy: 11.4 },
+  mellanostern: { skala: 1.027, cx: 12,   cy: 11.1 },
+  glass:        { skala: 1.235, cx: 12,   cy: 13 },
+};
+
+const { skala, cx, cy } = OPTIK[namn];
+const transform = `translate(12 12) scale(${skala}) translate(${-cx} ${-cy})`;
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width={(1.6 / skala).toFixed(3)}
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={PATHS[namn]} transform={transform} />
+</svg>

@@ -202,27 +202,153 @@ panel med sju rader.
 
 ## 6. Vad sidan blev, och vilka tal som avgjorde
 
-### Ingen bild på verksamhetskorten
+Avsnittet skrevs om 2026-08-21 efter ägarens dom över första försöket. Tre
+saker underkändes, och alla tre hade fel i den här filen som grund. De gamla
+slutsatserna står kvar i kursiv, eftersom en fil som bara bär det slutgiltiga
+svaret inte hindrar någon från att gå tillbaka samma väg.
 
-| | |
+### Fotot på kortet
+
+*Gammal slutsats: inget verksamhetskort bär ett foto, eftersom 187 av de 210
+bilderna bär en licens som kräver att fotografen namnges där bilden visas, och
+ett kort på 250 px inte rymmer "Foto: Balazs Szanto, 2013, CC BY-SA 2.0".*
+
+Ägaren: "vi kör bilder på dom som finns ... bildens attribution visas ju när
+man väl klickar in, vilket var deras krav."
+
+Han har rätt, och licenstexten säger det. CC BY-SA 4.0 §3(a)(2): villkoren i
+3(a)(1) får uppfyllas "in any reasonable manner based on the medium, means, and
+context", och stycket nämner uttryckligen att det kan vara rimligt att uppfylla
+dem "by providing a URI or hyperlink to a resource that includes the required
+information". 3.0 §4(c) och 2.0 §4(b) har samma öppning.
+
+Resursen finns redan: verksamhetssidan, där `Commonsbild.astro` skriver ut
+fotograf, licens med länk och ändringsangivelsen "nedskalad". Två villkor
+följer, och båda är uppfyllda: **hela kortet är länken dit**, och bildtexten
+får aldrig försvinna från verksamhetssidan.
+
+Fördelningen över de 210, mätt 2026-08-21:
+
+| licens | antal |
 |---|---|
-| verksamheter med bild | **210 av 16 047 = 1,3 %** |
-| kommuner med noll bilder | 6 av 12 |
-| källa | 210 av 210 Wikimedia Commons |
-| licens som kräver attribution | 187 av 210 |
+| CC BY-SA 3.0 | 104 |
+| CC BY-SA 4.0 | 63 |
+| public domain | 20 |
+| CC BY 3.0 | 7 |
+| CC BY-SA 2.0 | 6 |
+| övriga fem koder | 10 |
 
-`Commonsbild.astro` har redan avgjort att attributionen ska vara en **synlig
-bildtext** och inte en (i)-knapp, och att även de 20 public domain-bilderna får
-bildtext eftersom årtalet är ett ärlighetskrav: Grand Hotel är fotograferat 2013
-och Rosenlunds Herrgård 2019.
+### Kort utan foto: bandet har en andra form
 
-Ett kort på 250 px kan inte bära "Foto: Balazs Szanto, 2013, CC BY-SA 2.0" utan
-att bildtexten blir kortets största textmassa. Alltså bär inget verksamhetskort
-på startsidan ett foto.
+1,3 procent har en bild, så bandet måste ha en andra form, och ägaren har
+pekat ut risken: en tom ruta läses som ett foto som inte laddat.
 
-Vinsten är att kortet får EN form i stället för två, och att ansiktsrutan inte
-kan läsas som en platshållare för ett foto som saknas, eftersom inget kort på
-sidan har ett foto.
+Rutan bär därför en av tre lugna toner och en ikon i 64 px med 16 procents
+opacitet. Ingen av tonerna ligger nära en bedömningsfärg; grönt är uteslutet i
+synnerhet, eftersom en grön platta bakom ett märke som också kan vara grönt
+hade gjort ytan till en andra bedömning.
+
+```
+ton-blast   #EDF4FC → #E2ECF8      ton-sand   #F7F2E9 → #EFE7D9
+ton-dis     #F2F1F6 → #E9E8F0
+```
+
+**Ikonen har två nivåer, och den andra är ett krav och inte en reservutgång.**
+12 120 av 16 047 har ingen OSM-träff och alltså ingen matkategori. Ritade de
+alla `alla`-ikonen blev raden "Senast kontrollerade" åtta identiska rutor med
+samma staplade lager i, vilket är precis den platshållarkänsla bandet finns
+till för att undvika. Toppkategorin finns på 15 961 av 16 047, och dess fem
+former är redan ritade: bestick, kopp, kasse, byggnad, låda.
+
+### Kategoriraden: tjugo, inte fem
+
+*Gammal slutsats: sex val, alltså hemläget plus de fem toppkategorierna.*
+
+Ägaren: "vi måste bygga egna kategorier själva, för vi har för få nu, så det
+blir liksom en dålig skroll och restauranger säger ingenting."
+
+Han har rätt i båda leden. Sex val ger en rad som inte går att rulla, och
+"Restauranger" är 8 000 rader, alltså ingen valmöjlighet alls.
+
+Tabellen ligger i `lib/matkategori.ts` och bygger på tre OSM-taggar ur samma
+hopparning som redan bär öppettider och kontaktuppgifter. **`amenity` och
+`shop` hämtades inte förrän 2026-08-21**, och det var hela skillnaden: med
+bara `cuisine` saknade café, snabbmat, bageri, bar och livsmedelsbutik
+kategori, alltså de fem vanligaste ställena i landet.
+
+| tagg | verksamheter |
+|---|---|
+| `cuisine` | 1 674 |
+| `amenity` | 3 005 |
+| `shop` | 962 |
+| minst en | 3 927 |
+
+Antal per kategori, mätt över de 3 927:
+
+```
+livsmedel 625   snabbmat 549   cafe-fik 484   pizza 311   asiatiskt 236
+bar 221         sushi 172      burgare 160    italienskt 136   kiosk 135
+bageri 117      kebab 91       medelhav 87    sallad 77    thai 76
+indiskt 72      konditori 63   grill 61       mellanostern 48   glass 31
+```
+
+En kategori under 30 tas inte med, och en som inte fyller fyra rutor ritas
+inte i raden: fyra kort under en flik som utlovar en hel sorts mat läser som
+ett fel.
+
+**Ingen språkmodell och ingen strängmatchning på namn.** Det var det andra
+alternativet ägaren nämnde, och det duger inte: en gissning ur namnet är
+osynlig när den är fel. "Kina Palatset" kan vara en thairestaurang och
+"Bagarstugan" en pub. OSM-taggen är någons faktiska iakttagelse på plats, den
+bär licens och den går att rätta vid källan.
+
+**Ordningen inom en verksamhets kategorier är efter SKÄRPA, inte efter
+tabellens storleksordning.** Ett `cuisine` säger vad stället lagar, ett
+`amenity` bara vad det är. Pizzeria Peppar bär `cuisine=pizza` och
+`amenity=fast_food`; med tabellordningen vann Snabbmat, och kortet fick en
+pommesstrut medan man stod på fliken Pizza. Tre av åtta kort under Pizza gjorde
+det innan rättningen.
+
+### En pool, inte tjugoen listor
+
+Filtret kör `:has()` på radioknappar, alltså utan skript och utan sidladdning.
+Priset är att allt som kan visas måste stå i markupen, och tjugoen grupper à
+tolv kort vore 252.
+
+Varje verksamhet renderas därför EN gång och bär sina grupper i `data-kat`. Ett
+ställe som är både Pizza och Italienskt står i markupen en gång och syns under
+båda. Unionen mätte **154 kort** vid bygget 2026-08-21.
+
+Faller `:has()` bort visas hemgruppen, vilket är sidans grundläge ändå.
+
+En kategori kan inte länka någonstans i stället: kategorisidorna finns per
+kommun och det finns ingen nationell. Tjugo nya nationella sidor för en
+filterrad är precis det bibeln förbjuder, och filtaket ligger på 19 500.
+
+### Hemgruppen heter "Kända ställen" och inte "Populära"
+
+Ägaren föreslog "populära". Ordet går inte att använda: vi mäter ingen
+popularitet, har inga besöksdata och ingen betygsvolym, och en rubrik som
+påstår något vi inte vet är samma fel som en rangordning fast i mjukare form.
+
+Det de tolv faktiskt delar är att någon lagt ett fotografi av dem på Wikimedia
+Commons och knutit det till ett Wikidata-objekt, vilket kräver att stället är
+omskrivet någonstans. "Kända ställen" beskriver alltså urvalet och är inte en
+komplimang till verksamheterna.
+
+Tre grindar, alla tre räknade:
+
+| grind | kvar |
+|---|---|
+| bär en bild med känd licens | 210 |
+| konsumentvänd, alltså inte skolkök | **127** |
+| av dem, med en OSM-tagg som säger vad de ÄR | 13 |
+
+81 av de 210 bilderna sitter på ett skolkök, eftersom skolbyggnader är flitigt
+fotograferade på Commons. Utan den grinden blev raden Torpaskolan, Nyeds Skola
+och Katedralskolan, alltså sex av tolv kort på en matsajts förstasida. De 13
+med OSM-tagg ställs främst, men elva av dem ligger i Stockholm och kan inte
+bära raden ensamma; taket per kommun håller dem på tre.
 
 ### Senast kontrollerade, och taket på två per kommun
 
@@ -233,8 +359,8 @@ stockholm 42   uppsala 9   jonkoping 6   oskarshamn 2   hoganas 1
 ```
 
 alltså 70 procent i en kommun. Det följer av att Stockholm är 8 520 av 16 047
-verksamheter och publicerar oftast. Taket på två per kommun sprider tolv kort
-över minst sex kommuner.
+verksamheter och publicerar oftast. Taket sprider korten över minst sex
+kommuner.
 
 **Raden är kronologisk och går inte att vända.** Det är villkoret som gör den
 tillåten enligt regeln om att en namngiven verksamhet aldrig får framställas som
@@ -255,28 +381,329 @@ stå där i stället: "Där står bedömningsmärket, som är ett neutralt tecke
 inte en karaktär." Tabellen sätter märkets plats till "Listor, kartnålar,
 sökträffar, verksamhetssidan" och antalet per sida till "Tusentals".
 
-Kortet använder `FaceRef` och inte `FaceMark`: 72 märken på sidan ritas som
-`<use>` mot fyra symboler i sidans sprite. Ingen rörelseflagga sätts, av samma
-skäl som listorna aldrig får dem.
+På kortet sitter det i en **rund vit bricka på 44 px nedsänkt i bandets nedre
+vänstra hörn**, alltså exakt där Ednia sätter lärosätets sigill. Plattan är
+inte dekor: utan den är ett märke i 30 px inte läsbart mot ett fotografi.
 
-### Filtret utan skript
+Kortet använder `FaceRef` och inte `FaceMark`: 162 märken på sidan ritas som
+`<use>` mot fyra symboler i sidans sprite. Ingen rörelseflagga sätts.
 
-Sex grupper ritas i markupen och urvalet görs i CSS med `:has()` på
-radioknappar, exakt som artikellistans sortering i `pages/artiklar/index.astro`
-redan gör. Ingen adress, ingen sidladdning, inget skript. Faller `:has()` bort
-visas hemgruppen, alltså tolv kort i stället för 72, vilket är sidans grundläge
-ändå.
+### Ihopfällningen, som förra försöket mätte men aldrig byggde
 
-En kategori kan inte länka någonstans i stället: kategorisidorna finns per
-kommun och det finns ingen nationell. Fem nya nationella sidor för en filterrad
-är precis det bibeln förbjuder, och filtaket ligger på 19 500.
+Ägaren: "du gjorde ju inte animationen som airbnb har, det ser seriöst sämst
+ut." Måtten i §3 var uppmätta och nedskrivna, och sedan lämnade filen dem med
+raden "Vad vi tog: kurvan ... Inte ihopfällningen."
+
+Den ligger nu i `Header.astro` med Airbnbs egen fjäder, samplad i elva steg.
+
+| | utfällt | ihopfällt |
+|---|---|---|
+| Prikko, uppmätt | 680 × 56 vid `top: 88` | 380 × 44 vid `top: 10` |
+| Airbnb, uppmätt | 850 × 66 | 458 × 46 |
+
+**Höjden animeras aldrig.** Att låta sidhuvudet krympa från 236 till 64 px hade
+varit den uppenbara lösningen och den är fel: 172 px omflödning per bildruta i
+452 ms, på en sida med 162 kort. Docken är i stället `position: absolute` i ett
+sidhuvud som alltid är 64 px högt, och det stora läget hänger ut nedanför över
+sidans egna 96 px tomrum (`.storsok`). Ihopfällningen rör därmed bara `top`,
+`width` och `height` på ETT element, och sidan under står helt stilla.
+
+Läget styrs av en **IntersectionObserver på en vaktpost** och inte av en
+rullhanterare. En `scroll`-hanterare körs vid varje rullsteg, på en sida med
+154 kort, för att svara på en fråga som ändrar svar två gånger per besök.
+
+Vaktposten är en pixel stor och ligger absolut på y = 24 i dokumentet. Ingen
+hysteres behövs: gummibandet på iOS drar scrollY under noll, vilket gör
+vaktposten mer synlig och alltså aldrig kan vända läget av misstag. Den första
+versionen lyssnade på `scroll` och behövde två trösklar, 24 ned och 8 upp, av
+just det skälet.
+
+**Mät aldrig det här i en dold flik.** En observatör körs när sidan ritas, och
+en bakgrundsflik ritas aldrig; den svarar då noll gånger och slutsatsen blir
+att ihopfällningen är trasig. Det inträffade under arbetet 2026-08-21, och
+samma fälla står redan nedskriven för kartans attributionskontroll.
+
+`.storsok` är 96 px och inte 144. Vid 144 började kategoriraden på 208, och
+mellan fältets underkant och raden stod 64 px vitt intet. Ednias första kort
+börjar 240 px ned och Airbnbs 297; vårt låg på 290 med ett hål i mitten.
 
 ### Tredje uppsättningen kategoriikoner är borta
 
 `index.astro` bar en egen `COLUMN_ICONS` på 20 × 20 med 1,5 px streck, alltså
-sajtens tredje uppsättning kategoriikoner efter `Kategoriikon.astro` och
-`AreaIcon.astro`. Den är struken. Samma fem former står nu i filterraden en
-skärm längre upp.
+sajtens tredje uppsättning kategoriikoner. Den är struken. `Matikon.astro` är
+inte en fjärde: den ritar tjugo motiv som inte fanns, på samma 24-rutnät med
+samma 1,6 px streck som de två som finns.
+
+---
+
+## 8. Omgång tre, 2026-08-22
+
+Ägaren gick igenom omgång två och tog upp åtta saker. Alla mått nedan är
+uppmätta samma dag, i webbläsaren, på ednia.se respektive vår egen sida.
+
+### Sidans bredd
+
+| | vid 1280 px fönster | vid 1680 px fönster |
+|---|---|---|
+| ednia.se | 1184 innehåll, 48 marginal | 1584 innehåll, 48 marginal |
+| Prikko, före | 1080 innehåll, 200 marginal | 1080, 300 marginal |
+| Prikko, efter | **1184, 48 marginal** | 1400, tak |
+
+Ednia har alltså **inget tak alls**: behållaren är fönstret minus 96. Deras
+rutnät lägger till spalter i stället för att svälla, tre à 384 vid 1280 och
+fem à 304 vid 1680, med 16 px mellan.
+
+Bara startsidan är breddad, och det är avsiktligt. `--w-wide` styr kommunsidan,
+verksamhetssidan och varje lista, och `docs/27_booli_genomgang.md` punkt 9 slår
+fast att den bredden "kräver ägarens beslut, rättas inte av en agent". Regeln
+gäller åt båda hållen. Startsidan är en skyltyta, och sajten har redan en bredd
+för sådana: `--w-full` på 1400, som kartan använder.
+
+**Fyra spalter, inte fem.** En femspaltsregel provades och gav kort på 224 px,
+alltså smalare än de 250 vi hade FÖRE breddningen. Fyra ger 284 vid 1280 och
+314 vid taket, vilket ligger inom Ednias eget spann på 304 till 384.
+
+### Kategoriraden
+
+| | Ednia | Prikko före | Prikko efter |
+|---|---|---|---|
+| radhöjd | 69 | 67 | 68 |
+| ikon | 24, fylld | 22, streck | 24, streck |
+| etikett | 12/16 vikt 600 | 12/16 vikt 500 | 12/16 vikt 600 |
+| mellanrum | 28 | 24 | 28 |
+| avdelare efter hemläget | 1 × 48 px | ingen | **1 × 48 px** |
+
+Avdelaren är det som gör "Alla" till ett eget läge i stället för radens första
+kategori. Ikonen förblir streck och inte fylld: `Kategoriikon.astro` och
+`AreaIcon.astro` är streck på 1,6 px, och en fylld uppsättning i en rad hade
+varit sajtens andra ikonspråk.
+
+### Sökknappen satt inte snett, den var för stor
+
+Uppmätt: fältet 44 px högt, knappen 44 px, alltså **noll luft över och under
+men sex på höger sida**. Ögat läser det som snedhet eftersom luften finns på
+ena ledden och inte på den andra.
+
+SiteSearch sätter 44 px på knappen i sitt hero-läge, vilket stämmer i ett 56 px
+fält: (56 − 44) / 2 = 6, samma som högerfyllningen. Docken krympte fältet till
+44 utan att röra knappen. 34 i ett 44 px fält ger 5 runt om. Airbnbs kompakta
+piller är 46 högt med en 32 px knapp, alltså samma princip.
+
+### Sökfältet låg över menyn
+
+Menypanelen är `position: fixed` med `z-index: 1`, docken hade 2. Bara
+startsidan visade felet, eftersom bara den har en dock som hänger ned över
+sidan. Docken tonas nu bort helt medan menyn står öppen; en z-index-rättning
+hade lämnat ett halvt skymt fält ovanpå en yta som tar hela mitten av skärmen.
+
+### Märkets platta är kvadratisk, och radien är räknad
+
+Plattan var först en vit CIRKEL på 44 px, avritad från Ednias sigill. Ägaren:
+"det ser också fult ut med märket på en rund cirkel sådår." Felet var
+geometriskt: deras sigill är runt, så en rund platta ger två koncentriska
+cirklar, medan vårt märke är en rundad KVADRAT som då slåss med cirkeln om
+samma hörn.
+
+Plattan togs då bort helt, och ägaren svarade: "du kan ju ha märket med en vit
+bakgrund." Den behövdes: mot en ljus himmel eller en vit fasad tappar ett
+ljusgrönt märke sin kontur.
+
+Radien följer märkets egen. `FACE_RAM_RADIE` är 17 av 100, alltså 17 procent av
+sidan. Märket är 32 px och har därmed 5,4 px radie. Plattan är 42 px, alltså
+5 px fyllning, och för parallella kurvor måste dess radie vara 5,4 + 5 = 10,4.
+`--r-control` är 10.
+
+| | |
+|---|---|
+| platta | 42 × 42, radie 10, vit |
+| märke | 32, radie 5,4 |
+| ring och skugga | `0 0 0 1px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.16)` |
+
+### Menyns ikoner
+
+Airbnbs panel har sju rader och EN ikon, se §5. Regeln blev: en ikon markerar en
+rad som GÖR något, inte en som berättar något. Metodik, Källor, Om Prikko och
+Webbkarta står som text; Hjälp, Kontakt och Logga in bär ikon på 18 px. De
+ligger i skilda grupper, eftersom en lista där somliga rader har ikon får två
+vänsterkanter och läser som att ikoner saknas.
+
+### Kategorierna: kommunernas egna typer
+
+Den största ändringen, och den kom ur ägarens fråga "har du lagt in alla
+restauranger i olika filter, för open street map fanns ju ej för alla".
+
+Svaret var nej. OSM täckte 3 927 av 16 047. Kommunernas EGNA typvärden täcker
+15 961, och flera av dem är otvetydiga klassningar av lokalen, inte gissningar
+ur namnet:
+
+```
+Café 1 429 (6 kommuner)   Snabbmatsrestaurang 495   Pizzeria 203 (5 kommuner)
+Bageri 203 (5 kommuner)   Kiosk 75                  Glass 24
+```
+
+Utfallet:
+
+| kategori | före | efter |
+|---|---:|---:|
+| Café | 484 | **1 710** |
+| Livsmedel | 625 | 749 |
+| Pizza | 311 | 455 |
+| Bageri | 117 | 305 |
+| Kiosk | 135 | 195 |
+| Konditori | 63 | 102 |
+| Snabbmat | 549 | **429** |
+
+Täckningen gick från 3 927 till 4 824, alltså 30,1 procent. **11 223
+verksamheter har fortfarande ingen matkategori och syns bara under "Alla".**
+Raden är ett urval och inte en fullständig lista.
+
+Bara otvetydiga ord är med. `categories.ts` §3 varnar för att samma ord betyder
+olika saker i olika kommuner, `Mottagningskök` är skolmat i Jönköping och
+restaurangservering i Linköping. Varje ord i tabellen är kontrollerat per
+kommun.
+
+### Snabbmat är en restpost
+
+Ägaren: "snabbmat, hur kan det va en egen kategori om vi har pizza osv?"
+
+Tabellen blandade två axlar. Pizza säger VAD man äter, Snabbmat säger HUR det
+serveras, och en pizzeria är nästan alltid `amenity=fast_food` OCH
+`cuisine=pizza`. Ett ställe faller nu ur Snabbmat så fort någon källa säger vad
+det faktiskt lagar. Café, Bar och pub, Livsmedel och Kiosk står utanför regeln:
+de beskriver också ett ställe och inte en maträtt, så de kan inte krocka på
+samma sätt.
+
+### Kända ställen i Stockholm
+
+Rubriken namnger staden och staden väljs ur datan. Tre grindar, se
+`index.astro`: konsumentvänd och inte skola, måste bära en matkategori, och
+fotot får vara högst tjugo år gammalt. Den sista tog bort Wirströms Pub från
+1959 och Blå Porten från 1912 till 1920, båda svartvita, båda kända ställen och
+usla fotografier av hur det ser ut i dag.
+
+Kommunkorten är borta, på ägarens beslut.
+
+---
+
+## 9. Omgång fyra, 2026-08-22 eftermiddag
+
+### Söket i två delar
+
+Ägaren: "vad fyller sökbarens animationen för funktion nu? det ska ju vara som
+airbnb att söket blir mer utevecklat eller?"
+
+Han hade rätt. Fältet blev bara STÖRRE, och storlek är ingen funktion. Airbnbs
+utfällda läge är ett trepartsformulär, Var / När / Vem.
+
+Vårt utfällda läge är nu **Vad** och **Var** i ett piller med en hårlinje
+emellan. Ihopfällt försvinner Var-delen. Sidan frågar alltså mer i det utfällda
+läget, vilket är det som gör rörelsen till en funktion.
+
+Två delar och inte tre: något "När" finns inte att fråga om. Vi har öppettider
+på 2 747 av 16 047 och kan inte söka på dem.
+
+**Målet avgörs vid skick**, och det är det som gör Var till mer än ett filter:
+
+```
+bara kommun   → /<kommun>/          kommunens egen sida
+bara text     → /sok/?q=…
+både och      → /sok/?q=…&kommun=…
+```
+
+`/sok/` filtrerar på `href`-prefixet och inte på en ny kolumn i registret:
+varje förslag bär redan `/<kommun>/<slug>/`, och registret ligger på varje
+sidvisning, så en extra kolumn hade kostat 16 047 strängar för en uppgift som
+redan står där. Filtret gäller bara verksamheter; kommunträffarna står kvar, så
+den som filtrerat på Karlstad och söker "Uppsala" hittar Uppsala.
+
+Uppmätt: Karlstad plus "pizza" ger 2 träffar mot 135 i fem kommuner utan
+filtret.
+
+**Ett fel på vägen.** Ortnamnet slås upp i sökregistret, som hämtas över nätet,
+och första versionen satte upp filterremsan innan svaret kommit. Uppslaget gav
+null, koden tolkade det som okänd kommun och nollade filtret.
+
+### Grinden till "Populära ställen" var trasig
+
+Ägaren: "för närvarande har vi typ inga med brister som kvarstår på homepage,
+trots att tex riche har det."
+
+Grinden krävde en MATKATEGORI. Riche bär `amenity=restaurant`, ingen `cuisine`,
+och kommunens typ är `Restaurang`. Ingen av de tre finns i kategoritabellen, och
+det är avsiktligt: "Restaurang" är 8 000 rader och duger inte som filterval.
+
+Följden var att grinden sållade bort precis de bästa krogarna medan kyrkor med
+kyrkfik slank igenom på kommunens typ `Café`.
+
+| grind | kandidater | rena | brister | kvarstår | ingen |
+|---|---:|---:|---:|---:|---:|
+| krav på matkategori | 24 | 23 | 2 | **0** | 3 |
+| krav på OSM-matplats | 33 | 29 | 2 | **1** | 1 |
+
+Med den rätta grinden kommer Operakällaren, Ekstedt, Wedholms Fisk, Mäster
+Anders, Den Gyldene Freden, Sturehof och Riche in, och kyrkorna försvinner. Se
+`arMatplats` i lib/matkategori.ts.
+
+Raden är nu 8 rena, 2 med brister, 1 med brister som kvarstår och 1 utan
+aktuell kontroll.
+
+### Rubriken heter "Populära"
+
+Ägarens beslut efter att ha bett om ordet två gånger. Invändningen står kvar i
+`index.astro` som en beskrivning av vad ordet betyder: vi mäter ingen
+popularitet, har inga besöksdata och ingen betygsvolym. Gränsen går vid
+bedömningen. Raden får heta populär; ingen verksamhet får framställas som bättre
+eller sämre än en annan på kontrollresultat, och raden är fortfarande
+kronologisk.
+
+### Sidbredden gäller hela sajten
+
+`--w-wide` 1080 → 1400, och `.container` fick `clamp(16px, 4vw, 48px)`. Vid
+1280 blir innehållet 1184, alltså Ednias mått.
+
+**Och den avslöjade en regression.** Verksamhetssidan är en flytande
+huvudkolumn plus en fast 300 px panel, så hela breddningen landade i löptexten:
+meningen om avvikelsen mätte 836 px, omkring 119 tecken per rad. Brödtext i
+huvudkolumnen är nu låst till `--w-read`, medan diagram och tabeller behåller
+hela bredden. Det är vinsten med den bredare sidan: siffrorna får plats, texten
+behåller sitt mått.
+
+Rättningen krävde `:global`. Styckena bor i egna komponenter, till exempel
+`.answer` i FollowUp.astro, och Astros stilomfång sätter sin attributnyckel bara
+på element i samma fil. Utan `:global` träffade regeln noll av fyra breda
+stycken.
+
+### Menyns ikoner: alla rader, inte några
+
+Första försöket gav tre av sju rader ikon, efter Airbnbs förlaga. Ägaren: "ser
+typ halvdant fixat ut."
+
+Felet var att jag lånade Airbnbs ANTAL utan deras layout. Deras rader ligger i
+en smal rullgardin där en ensam ikon läser som en markering. Våra ligger i en
+bred panel som redan har sju ikonplattor i avsnitten nedanför, och där läser tre
+av sju som fyra rader där ikonen inte hunnit fram.
+
+### Bilder ur Wikipedia: mätt, och inte byggd
+
+Ägaren pekade på Frantzén och Max Hammarby Sjöstad. Orsaken till att de saknas
+är att kedjan är Etablering → OSM-punkt → `wikidata` → P18 → Commons, och
+Frantzén har ingen OSM-träff alls.
+
+Tre regelvarianter provade:
+
+| regel | utfall |
+|---|---|
+| namnlikhet | 10 träffar av 50, **sju fel ställe** |
+| alla våra namnord i filnamnet | Bank Hotel och Siam Square överlever ändå |
+| alla ord plus tre ord eller sv.wikipedia | 5 av 70 godkända, 10 korrekt avvisade, **cirka två av fem ändå fel** |
+
+Geosökning duger inte: Max-filen har inga koordinater. Globalusage duger inte
+ensamt: Max-filen används på KEDJANS artikel.
+
+Utbytet är omkring sju procent fler bilder till tjugo till fyrtio procents
+felrisk. Ett fel foto på en namngiven restaurang går inte att ta tillbaka när
+sidan är indexerad. **Rekommendationen är en kandidatlista för granskning, inte
+automatisk publicering.** Kräver ägarens beslut.
 
 ---
 

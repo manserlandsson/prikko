@@ -411,6 +411,25 @@ def facts_of(tags: Dict[str, str]) -> Dict[str, str]:
         if parts:
             facts["cuisine"] = ",".join(parts[:3])
 
+    # `amenity` och `shop` är vad OSM kallar stället, inte vad det lagar.
+    #
+    # De skrivs ALDRIG ut på verksamhetssidan, och det är avsiktligt:
+    # kontakt.ts räknar upp de fält som ska visas, och de här två står inte
+    # där. De finns för att startsidans kategorirad ska kunna säga "Bageri"
+    # och "Bar och pub", vilket ingen `cuisine` bär. Mätt 2026-08-21 över de
+    # 4 147 hopparade: 1 723 amenity=restaurant, 549 fast_food, 472 cafe,
+    # 365 shop=supermarket, 224 bar eller pub, 217 convenience, 124 bakery.
+    # Utan dem är kategoriraden bara kök, och de fyra vanligaste ställena i
+    # landet saknar kategori.
+    #
+    # Semikolon förekommer även här ("cafe;fast_food", ett fall). Första
+    # värdet vinner, av samma skäl som `_first_value`: ett sammansatt värde
+    # är inte ett värde vi kan slå upp i en tabell.
+    for key in ("amenity", "shop"):
+        raw = (tags.get(key) or "").split(";")[0].strip()
+        if raw:
+            facts[key] = raw
+
     for name, key in _YESNO_FACTS:
         value = (tags.get(key) or "").strip().lower()
         if value in _YESNO_VALUES:

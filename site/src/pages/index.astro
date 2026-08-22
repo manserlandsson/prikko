@@ -2,84 +2,59 @@
 /**
  * Startsidan.
  *
- * ══ VAD SOM ÄR BORTA, OCH VARFÖR ════════════════════════════════════════
+ * ══ FORMEN, OCH VAR DEN KOMMER IFRÅN ════════════════════════════════════
  *
- * Rubriken och hjälten. Ägaren om det förra försöket: "homepagen är
- * katastrof, skrota" och "helheten, den ser AI-genererad ut". Domen gällde
- * FORMEN och inte utförandet, och han har rätt: rubrik över sökfält över
- * förklarande block är mönstret varje genererad landningssida har.
+ * Två förlagor, båda uppmätta i webbläsaren 2026-08-21 och inte skrivna ur
+ * minnet. Elva skärmbilder ligger i research/forlagor/ och måtten i
+ * docs/40_startsidan.md.
  *
- * Förlagorna gör inte så, och det är uppmätt i webbläsaren 2026-08-21, inte
- * skrivet ur minnet. Skärmbilderna ligger i research/forlagor/.
+ *   airbnb.se   `h1` är 1 × 1 pixel. Ingen hjälte, ingen värdetext, ingen
+ *               förklaring av tjänsten. Sökfält, kategorirad, kort.
+ *               Sökfältet fälls ihop vid rullning: 850 × 66 blir 458 × 46
+ *               på 452 ms.
+ *   ednia.se    ingen `h1` alls. Sökfält i sidhuvudet, ikonrad under, kort
+ *               direkt. Kortet är ett BILDBAND med en rund bricka nedsänkt
+ *               i nedre vänstra hörnet.
  *
- *   airbnb.se   `h1` är 1×1 pixel och lyder "Airbnbs hemsida", alltså bara
- *               för skärmläsare. Ingen hjälte, ingen värdetext, ingen
- *               förklaring av tjänsten. Body-bakgrunden är ren vit.
- *               Sidhuvud, kategorirad, sökfält, och sedan kort direkt.
- *   ednia.se    ingen `h1` alls. Sökfält i sidhuvudet, ikonrad under, och
- *               sedan kort direkt.
+ * Sidan gör samma sak. `h1` finns för sökmotorn och skärmläsaren och syns
+ * inte. Ingen rubrik, ingen hjälte, ingen förklaring.
  *
- * Vår `h1` gör därför samma sak: den finns för sökmotorn och för
- * skärmläsaren, och den syns inte. `.visually-hidden` i tokens.css finns
- * redan uttryckligen "för SEO-korrekta men visuellt dolda rubriker".
+ * ══ TRE SAKER ÄGAREN UNDERKÄNDE, OCH VAD SOM GJORDES ════════════════════
  *
- * Tre block är också borta: "Välj kommun", "Utforska efter typ av
- * verksamhet" och "Så fungerar kontrollen". Ägaren: både Airbnb och Ednia
- * visar RESULTAT på startsidan, inte navigering och inte förklaring. Våra
- * tre var två navigeringsblock och en förklaring, alltså noll resultat, och
- * det var sannolikt lika mycket av AI-känslan som rubriken var.
+ * 1. "du gjorde ju inte animationen som airbnb har, det ser seriöst sämst
+ *    ut". Rätt. Måtten var uppmätta men aldrig byggda. Ihopfällningen ligger
+ *    nu i Header.astro med Airbnbs egen fjäder, samplad i elva steg, och
+ *    .storsok nedan är tomrummet det stora läget hänger i.
  *
- * ══ VAD SIDAN ÄR I STÄLLET ══════════════════════════════════════════════
+ * 2. "vi kör bilder på dom som finns ... bildens attribution visas ju när
+ *    man väl klickar in, vilket var deras krav". Rätt igen, och CC BY-SA
+ *    4.0 §3(a)(2) säger det rakt ut. Korten bär foto där foto finns. Se
+ *    Verksamhetskort.astro för hela licensresonemanget.
  *
- *   1. Sidhuvudet bär sökfältet. Base får inte längre headerSearch={false}.
- *      Det är den enda platsen båda förlagorna har det.
- *   2. Kategorifiltret, sex val, direkt under sidhuvudet. Ednias plats.
- *   3. Senast kontrollerade. Tolv verksamheter, filtrerade på plats.
- *   4. Kommunerna.
- *   5. Artiklarna, sist.
- *   6. Länkkolumnerna, längst ned mot sidfoten.
+ * 3. "vi måste bygga egna kategorier själva, för vi har för få nu ... och
+ *    restauranger säger ingenting". Rätt. Fem breda kategorier är ingen
+ *    rad att rulla. Tjugo matkategorier byggda ur OpenStreetMaps `cuisine`,
+ *    `amenity` och `shop` ligger nu i lib/matkategori.ts.
  *
- * Ordningen är ägarens: korten är verksamheter, artiklarna hör inte hemma
- * högt upp, länkkolumnerna hör inte hemma på plats två.
+ * ══ EN POOL, INTE TJUGOEN LISTOR ════════════════════════════════════════
  *
- * ══ VARFÖR JUST "SENAST KONTROLLERADE" ══════════════════════════════════
+ * Kategoriraden filtrerar med `:has()` på radioknappar, alltså utan skript
+ * och utan sidladdning, samma grepp som artikellistans sortering redan
+ * använder. Priset är att allt som kan visas måste stå i markupen.
  *
- * Det är den enda raden vars innehåll garanterat är färskt varje dag, och
- * alltså den enda som visar att sajten lever. Nämnaren är 68 958 kontroller
- * på 14 482 verksamheter som har minst en.
+ * Tjugoen grupper à tolv kort vore 252 kort. I stället renderas varje
+ * verksamhet EN gång och bär sina grupper i `data-kat`. Ett ställe som är
+ * både Pizza och Italienskt står i markupen en gång och syns under båda.
+ * Unionen blir omkring 130 kort i stället för 252.
  *
- * Raden är KRONOLOGISK och går inte att vända. Det är villkoret som gör den
- * tillåten: en rad som visar bedömningar får inte kunna läsas som en
- * rangordning, och ett datum rangordnar ingenting. Det finns ingen
- * sorteringskontroll, ingen "sämst först", och kommunerna ställs aldrig mot
- * varandra på kontrollresultat.
- *
- * Av de 16 047 är 11 966 rena, 1 219 har brister, 373 har brister som
- * kvarstår och 2 489 saknar bedömning. Raden speglar den fördelningen därför
- * att den inte väljer bort något, och det är också skälet till att den inte
- * väljer bort något: en "senast kontrollerade" som tyst strök de dåliga vore
- * en annan lista med samma namn.
- *
- * ══ TVÅ PER KOMMUN, RÄKNAT ══════════════════════════════════════════════
- *
- * Utan tak blir raden Stockholm. Uppmätt i datan 2026-08-21: av de 60 senast
- * kontrollerade verksamheterna i landet ligger 42 i Stockholm, 9 i Uppsala,
- * 6 i Jönköping, 2 i Oskarshamn och 1 i Höganäs. Alltså 70 procent från en
- * kommun, vilket följer av att Stockholm är 8 520 av 16 047 verksamheter och
- * publicerar oftast.
- *
- * Taket på två per kommun är inte en rangordning och inte en bortsortering:
- * det är samma lista, spridd så att tolv kort kommer från minst sex
- * kommuner. Ingen kommun kan hamna över eller under en annan av det.
+ * Faller `:has()` bort visas hemgruppen, vilket är sidans grundläge ändå.
  */
 import { getCollection } from 'astro:content';
-import type { ImageMetadata } from 'astro';
 import { Image } from 'astro:assets';
 
 import Base from '../layouts/Base.astro';
 import FaceSprite from '../components/FaceSprite.astro';
-import Kategoriikon from '../components/Kategoriikon.astro';
-import KommunKort from '../components/KommunKort.astro';
+import Matikon from '../components/Matikon.astro';
 import Verksamhetskort from '../components/Verksamhetskort.astro';
 
 import { articleImage, HERO_WIDTHS } from '../lib/artikelbilder';
@@ -88,163 +63,463 @@ import {
   categoriesOf,
   coverage,
   establishments,
-  formatDate,
   formatNumber,
   latestInspectionDate,
   municipalityCategories,
   municipalitySummaries,
   topCategory,
-  TOP_CATEGORIES,
   type Establishment,
   type TopCategoryId,
 } from '../lib/data';
-import type { IkonNyckel } from '../lib/ikoner';
+import {
+  arMatplats,
+  MATKATEGORIER,
+  matkategorierFor,
+  type MatkategoriId,
+} from '../lib/matkategori';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
 const total = coverage();
 
-// Sammanräkningen ligger i lib/data. Kortet och sidan får aldrig räkna var
-// för sig.
-const summaries = municipalitySummaries();
+// ---------------------------------------------------------------------------
+// Beståndet, genomgånget EN gång
+// ---------------------------------------------------------------------------
 
 /**
- * Störst först, inte bokstavsordning. Bokstavsordningen gav Borgholm och
- * Höganäs de två översta platserna och begravde Stockholm.
+ * Verksamhetens rad i poolens urval.
  *
- * Det här är INGEN rangordning i den mening regeln förbjuder. Talet är antal
- * verksamheter i registret, alltså kommunens storlek, och säger ingenting om
- * hur kontrollerna utfallit. En ordning på kontrollresultat finns inte på
- * sajten och ska inte finnas.
+ * `foto` är sant bara när bilden också bär en känd licenskod. Samma grind
+ * som Verksamhetskort.astro och Commonsbild.astro sätter: en bild vars
+ * licens vi inte kan skriva ut på verksamhetssidan får inte heller stå på
+ * ett kort, för då finns ingen resurs att hänvisa attributionen till.
  */
-const byTotal = [...summaries].sort((a, b) => b.total - a.total);
+interface Rad {
+  e: Establishment;
+  kategorier: MatkategoriId[];
+  datum: string | null;
+  foto: boolean;
+  konsument: boolean;
+}
 
 /**
- * TRE KOMMUNKORT. INTE FLER.
- *
- * Beslutet är ägarens och står kvar från 2026-08-05: "jag tycker det blir för
- * mkt ... kanske bara 3 max, på dem största eller något, kom ihåg, vi kommer
- * ha 290 tillslut." Skalargumentet avgör: ett rutnät som växer med beståndet
- * är ohållbart vid 290 kommuner.
- *
- * Alla tolv provades först. Det gav fyra rader kort varav TRE tomma rutor med
- * texten "Ingen bild ännu", eftersom kristinehamn, lomma och svenljunga saknar
- * stadsfoto, och det är precis den tomma rutan hela ombyggnaden ska bort från.
- * Vägen till de nio andra går via länken bredvid rubriken, via sidfoten, som
- * står på varje sida och länkar de tolv största kommunerna, och via sökfältet.
- *
- * Fotona upptäcks från filsystemet precis som i KommunKort, så ett nytt foto
- * kan flytta en kommun in bland korten utan att någon rör den här filen.
+ * Konsumentvänd betyder restaurang, café eller butik enligt categories.ts.
+ * Resten är förskolekök, äldreboenden, matmäklare, grossister och
+ * dricksvattenposter. Samma grind som pipeline/oppettider.py sätter, och
+ * samma lista: ändras den där ska den ändras här.
  */
-const KOMMUNKORT = 3;
+const KONSUMENT = new Set<TopCategoryId>(['restaurang', 'cafe', 'butik']);
 
-const medFoto = new Set(
-  Object.keys(
-    import.meta.glob<{ default: ImageMetadata }>('../assets/stad/*.jpg'),
-  ).map((p) => p.split('/').pop()!.replace('.jpg', '')),
+const rader: Rad[] = establishments().map((e) => {
+  const topp = categoriesOf(e).categories;
+  return {
+    e,
+    kategorier: matkategorierFor(e),
+    datum: latestInspectionDate(e),
+    foto: Boolean(e.image?.url && e.image.licence),
+    /*
+     * INTE bara "har en konsumentkategori", utan också "är inte en skola".
+     *
+     * Blackebergs Gymnasium bär både `Skola och omsorg` och ett cafévärde i
+     * kommunens typer, alltså blev det både skola OCH café och slank igenom
+     * den mildare grinden rakt in i "Kända ställen". Ett gymnasium med
+     * skolcafé är fortfarande ett gymnasium.
+     */
+    konsument: topp.some((c) => KONSUMENT.has(c)) && !topp.includes('skola'),
+  };
+});
+
+/**
+ * Nyast först. Ordningen är KRONOLOGISK och går inte att vända, och det är
+ * villkoret som gör hela sidan tillåten: en rad som visar bedömningar får
+ * aldrig kunna läsas som en rangordning, och ett datum rangordnar ingenting.
+ * Det finns ingen sorteringskontroll, ingen "sämst först", och kommunerna
+ * ställs aldrig mot varandra på kontrollresultat.
+ */
+const kronologi = [...rader]
+  .filter((r) => r.datum !== null)
+  .sort(
+    (a, b) =>
+      b.datum!.localeCompare(a.datum!) ||
+      a.e.name.localeCompare(b.e.name, 'sv'),
+  );
+
+/**
+ * Plocka ur en sorterad lista med tak per kommun.
+ *
+ * Taket är spridning och inte rangordning. Utan det blir varje rad
+ * Stockholm: av de 60 senast kontrollerade i landet ligger 42 där, vilket
+ * följer av att Stockholm är 8 520 av 16 047 verksamheter och publicerar
+ * oftast. Ingen kommun kan hamna över eller under en annan av ett tak.
+ */
+function plocka(lista: Rad[], antal: number, takPerKommun: number): Rad[] {
+  const rakning = new Map<string, number>();
+  const ut: Rad[] = [];
+  for (const rad of lista) {
+    const n = rakning.get(rad.e.municipality.slug) ?? 0;
+    if (n >= takPerKommun) continue;
+    rakning.set(rad.e.municipality.slug, n + 1);
+    ut.push(rad);
+    if (ut.length === antal) break;
+  }
+  return ut;
+}
+
+// ---------------------------------------------------------------------------
+// Hemgruppen: de som bär ett fotografi
+// ---------------------------------------------------------------------------
+
+/**
+ * "Kända ställen i Stockholm".
+ *
+ * Ägaren 2026-08-22: "visa typ kända ställen i stockholm eller något, med bra
+ * bilder, det ska vara schyssta bilder i guess."
+ *
+ * ══ VARFÖR EN STAD OCH INTE HELA LANDET ═════════════════════════════════
+ *
+ * Förra versionen spred tolv kort över sex kommuner med ett tak på tre per
+ * kommun, och det gav en rad med två kyrkor, en studentnation och en arena i.
+ * Skälet var räknat: 147 av de 210 bilderna ligger i Stockholm, så ett tak
+ * tvingade in kommuner som bara hade byggnadsfoton att bidra med.
+ *
+ * Med staden namngiven i rubriken behövs inget tak, och då kan urvalet i
+ * stället kräva kvalitet. Det är samma grepp som förlagan använder: Airbnbs
+ * rader heter "Populära hem i X" och blandar aldrig ihop städer för
+ * spridningens skull.
+ *
+ * Staden VÄLJS UR DATAN och står inte skriven i koden. Den med flest
+ * verksamheter som klarar alla grindar vinner, vilket i dag är Stockholm och
+ * i morgon kan vara någon annan.
+ *
+ * ══ NAMNET ═════════════════════════════════════════════════════════════
+ *
+ * "Populära ställen i Stockholm", på ägarens beslut 2026-08-22, efter att han
+ * bett om ordet två gånger.
+ *
+ * Jag invände först och satte "Kända ställen", med skälet att vi inte mäter
+ * popularitet: inga besöksdata, ingen betygsvolym. Invändningen står kvar som
+ * en beskrivning av vad ordet BETYDER, och den är värd att känna till för den
+ * som en dag vill bygga en riktig popularitetsmätning: det finns ingen i dag,
+ * och rubriken bygger inte på en.
+ *
+ * Det urvalet FAKTISKT delar är att någon lagt ett fotografi av dem på
+ * Wikimedia Commons och knutit det till ett Wikidata-objekt, vilket kräver att
+ * stället är omskrivet någonstans, plus att OpenStreetMap kartlagt dem som
+ * matplats. Operakällaren, Ekstedt, Riche, Sturehof, Den Gyldene Freden.
+ *
+ * ORDET ÄR MARKNADSFÖRING OCH INTE EN UPPGIFT, och gränsen går vid
+ * bedömningen: raden får heta populär, men ingen verksamhet får framställas
+ * som bättre eller sämre än en annan på kontrollresultat. Den regeln är
+ * orörd, och raden är fortfarande kronologisk.
+ *
+ * ══ TRE GRINDAR, ALLA TRE RÄKNADE 2026-08-22 ═══════════════════════════
+ *
+ * 1. KONSUMENTVÄND. 81 av de 210 bilderna sitter på ett SKOLKÖK, eftersom
+ *    skolbyggnader är flitigt fotograferade på Commons. Utan grinden blev
+ *    raden Torpaskolan, Nyeds Skola och Katedralskolan. Kvar: 127.
+ *
+ * 2. OSM SÄGER ATT DET ÄR EN MATPLATS, se `arMatplats`. Grinden krävde först
+ *    en MATKATEGORI, och det var fel: ägaren 2026-08-22 om att Riche saknades
+ *    trots att den har brister som kvarstår och en bild. Riche bär
+ *    `amenity=restaurant` och ingenting mer, och "Restaurang" finns inte i
+ *    kategoritabellen eftersom den är 8 000 rader. Grinden sållade alltså bort
+ *    Operakällaren, Ekstedt, Wedholms Fisk och Den Gyldene Freden, medan
+ *    kyrkor med kyrkfik slank igenom på kommunens typ `Café`. Kvar med den
+ *    rätta grinden: 33 i landet.
+ *
+ * 3. BILDENS ÅLDER. Wirströms Pub är fotograferad 1959 och Blå Porten någon
+ *    gång 1912 till 1920, båda i svartvitt. De är kända ställen och usla
+ *    fotografier av hur det ser ut i dag, vilket är precis vad raden ska
+ *    visa. Grinden är alltså inte smak utan samma ärlighetskrav som
+ *    Commonsbild.astro redan bär: en odaterad eller gammal bild är ett
+ *    påstående om nuet som inte stämmer. Kvar: nio i Stockholm.
+ *
+ * ══ ANTALET RUTOR ══════════════════════════════════════════════════════
+ *
+ * Tolv, alltså tre jämna rader om fyra. Ägaren 2026-08-22: "ska vi inte ha
+ * 6 kort på stockholm grejen, liksom lite fler."
+ *
+ * Tolv är ett TAK och inte en önskan om ett jämnt tal. Räknat samma dag på
+ * Stockholm: 91 verksamheter är konsumentvända, inte skola och bär en bild;
+ * 80 av dem har en bild yngre än tjugo år; 24 av de 80 bär också en
+ * matkategori. Med urvalet i ordning ser plats 1 till 12 ut så här:
+ *
+ *   Günters Korv, Restaurang Skanskvarn, Sushi SHO, Den Gröne Jägaren,
+ *   Fersenska Palatset, Grand Hotel, Tudor Arms Pub, Engelen,
+ *   Herrängens Gård, Lundbergs Konditori, Julius Hus, Gula villan
+ *
+ * Plats 14, 15, 21 och 22 är Västerortskyrkan, Uppenbarelsekyrkan,
+ * Markuskyrkan och Abrahamsbergskyrkan. De är korrekt klassade, kyrkfik ÄR
+ * caféer i vårt register, men fyra kyrkor i en rad som heter "Kända ställen"
+ * på en matsajt läser som att vi skrapat botten. Tolv är där raden tar slut
+ * innan den gör det.
+ */
+const HEM_RUTOR = 12;
+
+/** Äldre än så och bilden visar inte stället som det är i dag. */
+const HOGSTA_BILDALDER = 20;
+
+/**
+ * Årtalet ur attributionsraden, eller null.
+ *
+ * Raden byggs i pipeline/prikko/commons.py och ser ut som "Foto:
+ * Holger.Ellgaard, 2020" eller "Okänd fotograf, 1912 till 1920". `capturedAt`
+ * duger inte: fältet är en `date` i databasen och står tomt på fem av de elva,
+ * eftersom Commons ofta bara känner ett årtal och ibland ett spann.
+ *
+ * Första fyrsiffriga talet vinner, och saknas det får bilden ingen ålder.
+ * Utan ålder står verksamheten utanför raden men finns kvar överallt annars:
+ * en odaterad bild är inte fel att visa, den duger bara inte som påstående om
+ * hur det ser ut i dag.
+ */
+function fotoAr(attribution: string | null | undefined): number | null {
+  const traff = /\b(1[89]\d{2}|20\d{2})\b/.exec(attribution ?? '');
+  return traff ? Number(traff[1]) : null;
+}
+
+const iAr = new Date().getUTCFullYear();
+
+const kandaKandidater = kronologi.filter((r) => {
+  if (!r.foto || !r.konsument) return false;
+  if (!arMatplats(r.e)) return false;
+  const ar = fotoAr(r.e.image?.attribution);
+  return ar !== null && iAr - ar <= HOGSTA_BILDALDER;
+});
+
+/**
+ * HELA LANDET, INTE EN STAD.
+ *
+ * Ägaren 2026-08-22: "det behöver ej heta populära ställen i stockholm, du kan
+ * kalla det för populara ställen på prikko eller något som passar bättre, då
+ * kan du köra från andra städer också."
+ *
+ * Raden hette först "Kända ställen i Stockholm" och valde staden ur datan.
+ * Skälet var att bildbeståndet är Stockholm: 147 av 210. Med den rätta
+ * matplatsgrinden är fördelningen 32 Stockholm och 1 Jönköping av 33, så
+ * spridningen blir inte mycket bättre av att raden är nationell.
+ *
+ * Rubriken blir ändå sannare utan stad, och det är skälet att byta: den lovar
+ * inte längre en stadsrad den inte är, och den dag Göteborg eller Malmö kommer
+ * in behöver ingen röra koden.
+ */
+
+/**
+ * BLANDA BEDÖMNINGARNA.
+ *
+ * Ägaren 2026-08-22: "ha gärna på fronten blandat restauranger med
+ * anmärkningar, brister som kvartsår, som också har bilder."
+ *
+ * Räknat samma dag över de 33 kandidaterna:
+ *
+ *   rena                    29
+ *   brister                  2   Lundbergs Konditori, Nalen
+ *   brister som kvarstår     1   Riche
+ *   utan bedömning           1   Hamburger Börs
+ *
+ * Alla fyra icke-rena får plats, alltså en tredjedel av tolv rutor. Fler finns
+ * inte: det är hela beståndet av verksamheter som både har en bild vi får visa
+ * och en bedömning som inte är ren.
+ *
+ * DET HÄR ÄR INGEN RANGORDNING. Reserveringen ser bara till att raden inte
+ * blir enfärgat grön av en slump. Ordningen i rutnätet är fortfarande
+ * kronologisk, och rubriken säger ingenting om vilken verksamhet som är bäst
+ * eller sämst.
+ */
+const HOGST_ICKE_RENA = Math.floor(HEM_RUTOR / 3);
+
+const ickeRena = kandaKandidater.filter((r) => r.e.verdict !== 'clean');
+const rena = kandaKandidater.filter((r) => r.e.verdict === 'clean');
+
+const hem =
+  kandaKandidater.length > 0
+    ? [
+        ...ickeRena.slice(0, HOGST_ICKE_RENA),
+        ...rena,
+        ...ickeRena.slice(HOGST_ICKE_RENA),
+      ].slice(0, HEM_RUTOR)
+    : plocka(kronologi, HEM_RUTOR, 2);
+
+const hemRubrik = 'Populära ställen';
+
+// ---------------------------------------------------------------------------
+// Kategorigrupperna
+// ---------------------------------------------------------------------------
+
+/** Åtta per kategori. Tolv gav en union på över tvåhundra kort. */
+const PER_KATEGORI = 8;
+
+/**
+ * Foto först, sedan datum.
+ *
+ * Det är ett VISNINGSval och inte en bedömning: ett kort med fotografi bär
+ * mer information än ett med tonplatta, och raden ska visa vad vi har.
+ * Ordningen inom respektive halva är fortfarande kronologisk.
+ */
+function kategoriurval(id: MatkategoriId): Rad[] {
+  const traffar = kronologi.filter((r) => r.kategorier.includes(id));
+  const sorterade = [
+    ...traffar.filter((r) => r.foto),
+    ...traffar.filter((r) => !r.foto),
+  ];
+  return plocka(sorterade, PER_KATEGORI, 2);
+}
+
+interface Grupp {
+  id: string;
+  ikon: 'alla' | MatkategoriId;
+  etikett: string;
+}
+
+const grupper: Grupp[] = [{ id: 'hem', ikon: 'alla', etikett: 'Alla' }];
+
+/**
+ * Vilka grupper varje verksamhet står i. Kortet renderas en gång och
+ * grupperna hamnar i `data-kat`.
+ */
+const grupperPerRad = new Map<Establishment, Set<string>>();
+const pool: Rad[] = [];
+
+function laggTill(rad: Rad, grupp: string) {
+  let set = grupperPerRad.get(rad.e);
+  if (!set) {
+    set = new Set();
+    grupperPerRad.set(rad.e, set);
+    pool.push(rad);
+  }
+  set.add(grupp);
+}
+
+for (const rad of hem) laggTill(rad, 'hem');
+
+for (const kategori of MATKATEGORIER) {
+  const urval = kategoriurval(kategori.id);
+  // En kategori som inte fyller sina rutor står inte i raden. Fyra kort
+  // under en flik som utlovar en hel sorts mat läser som ett fel.
+  if (urval.length < 4) continue;
+  grupper.push({ id: kategori.id, ikon: kategori.id, etikett: kategori.namn });
+  for (const rad of urval) laggTill(rad, kategori.id);
+}
+
+/**
+ * De fyra korten i hemgruppens FÖRSTA rad laddar sitt foto ivrigt.
+ *
+ * Poolen är sorterad kronologiskt över alla grupper, så "de fyra första i
+ * poolen" är inte de fyra man ser: de kan lika gärna ligga under fliken
+ * Kebab. Mätt i webbläsaren 2026-08-21 fick just de tre översta korten
+ * `loading="lazy"` av precis det skälet.
+ *
+ * Fyra och inte fler: rutnätet är fyra spalter i --w-wide, alltså är rad ett
+ * fyra kort. Alla tolv ivrigt vore tolv hämtningar mot vår objektlagring i
+ * första bildrutan för åtta bilder som ligger under vikkanten.
+ */
+const tidiga = new Set(hem.slice(0, 4).map((r) => r.e));
+
+/**
+ * GRIND: varje grupp i raden MÅSTE ha en :has()-regel i stilblocket.
+ *
+ * Reglerna är utskrivna en per grupp och kan inte genereras, se stilblocket.
+ * Läggs en tjugoförsta kategori i matkategori.ts utan att reglerna följer med,
+ * blir följden en flik som visar noll kort, och ingenting klagar: markupen är
+ * giltig, kategorin finns, och felet syns bara för den som råkar klicka.
+ *
+ * Talet står därför här och bygget faller om det inte stämmer.
+ */
+const RADENS_GRUPPER = grupper.map((g) => g.id);
+const REGLER_FINNS = [
+  'hem', 'livsmedel', 'snabbmat', 'cafe-fik', 'pizza', 'asiatiskt', 'bar',
+  'sushi', 'burgare', 'italienskt', 'kiosk', 'bageri', 'kebab', 'medelhav',
+  'sallad', 'thai', 'indiskt', 'konditori', 'grill', 'mellanostern', 'glass',
+];
+const utanRegel = RADENS_GRUPPER.filter((id) => !REGLER_FINNS.includes(id));
+if (utanRegel.length > 0) {
+  throw new Error(
+    `Startsidans kategorirad bär ${utanRegel.join(', ')}, som saknar :has()-regel ` +
+      `i index.astro. Lägg till en rad i BÅDA väljarlistorna i stilblocket, ` +
+      `annars visar fliken noll kort.`,
+  );
+}
+
+/**
+ * Poolens ordning i markupen är EN ordning för alla grupper. Rutnätet visar en
+ * grupp i taget, så ordningen inom en grupp är det enda som syns, och den ska
+ * vara densamma oavsett vilken flik man kom från.
+ *
+ * FOTO FÖRST, SEDAN DATUM.
+ *
+ * Ägaren 2026-08-22: "om man använder filter, dvs, tex trycker på sushi så ska
+ * alternativ med bilder komma upp först."
+ *
+ * Urvalet gjorde redan det, se `kategoriurval`, men RENDERINGEN gjorde det
+ * inte: poolen sorterades enbart kronologiskt, så en flik visade sina åtta
+ * kort i datumordning och fotona hamnade var som helst. Urvalet och ordningen
+ * är två olika saker, och bara den andra syns.
+ *
+ * Det här är ingen rangordning. Ett fotografi säger ingenting om hygienen; det
+ * säger att vi vet mer om stället, och den som bläddrar ska se det vi vet
+ * först.
+ */
+pool.sort(
+  (a, b) =>
+    Number(b.foto) - Number(a.foto) ||
+    (b.datum ?? '').localeCompare(a.datum ?? '') ||
+    a.e.name.localeCompare(b.e.name, 'sv'),
 );
-
-const kommunkort = byTotal
-  .filter((m) => medFoto.has(m.slug))
-  .slice(0, KOMMUNKORT);
 
 // ---------------------------------------------------------------------------
 // Senast kontrollerade
 // ---------------------------------------------------------------------------
 
-/** Tolv kort, alltså tre jämna rader i fyra spalter och sex i två. */
-const RUTOR = 12;
+/**
+ * Egen rad längre ned, och skälet är ett annat än hemgruppens.
+ *
+ * Det är den enda raden vars innehåll garanterat är färskt varje dag, alltså
+ * den enda som visar att sajten lever. Nämnaren är 68 958 kontroller på
+ * 14 482 verksamheter som har minst en.
+ *
+ * Raden väljer inte bort något. Av de 16 047 är 11 966 rena, 1 219 har
+ * brister, 373 har brister som kvarstår och 2 489 saknar bedömning, och
+ * raden speglar den fördelningen. En "senast kontrollerade" som tyst strök
+ * de dåliga vore en annan lista med samma namn.
+ */
+const SENAST_RUTOR = 8;
+const senast = plocka(kronologi, SENAST_RUTOR, 2);
 
-/** Se filhuvudet: utan taket är 42 av de 60 senaste från Stockholm. */
-const TAK_PER_KOMMUN = 2;
+// ---------------------------------------------------------------------------
+// Kommunerna
+// ---------------------------------------------------------------------------
 
 /**
- * Hela beståndet sorterat en gång, nyast först.
+ * KOMMUNKORTEN ÄR BORTA, OCH DET ÄR ÄGARENS BESLUT 2026-08-22: "kanske att vi
+ * ska droppa kommunkorten".
  *
- * `establishments()` returnerar listan ur db.ts cache och får aldrig muteras
- * av en anropare, därför kopian. Kategorierna räknas ut EN gång per
- * verksamhet och inte en gång per grupp: `classify()` över 14 482 poster sex
- * gånger vore 86 892 anrop för ett svar som inte ändrar sig.
+ * De var tre stadsfoton med ett kommunnamn på, alltså navigering. Sidan visar
+ * numera verksamheter, och tre kort som leder till en lista av listor bryter
+ * den linjen. Vägen till en kommun finns kvar på fyra ställen: sökfältet,
+ * länkkolumnerna längst ned, sidfoten som står på varje sida, och
+ * /webbkarta/.
+ *
+ * `byTotal` står kvar, eftersom länkkolumnerna nedan sorterar på den.
  */
-interface Rad {
-  e: Establishment;
-  kategorier: readonly TopCategoryId[];
-  datum: string;
-}
-
-const kronologi: Rad[] = establishments()
-  .map((e) => ({ e, datum: latestInspectionDate(e) }))
-  .filter((r): r is { e: Establishment; datum: string } => r.datum !== null)
-  .map((r) => ({ ...r, kategorier: categoriesOf(r.e).categories }))
-  .sort(
-    (a, b) =>
-      b.datum.localeCompare(a.datum) || a.e.name.localeCompare(b.e.name, 'sv'),
-  );
-
-/** Nyast först, högst två per kommun, tills rutorna är fulla. */
-function senaste(kategori: TopCategoryId | null): Establishment[] {
-  const rakning = new Map<string, number>();
-  const ut: Establishment[] = [];
-  for (const rad of kronologi) {
-    if (kategori && !rad.kategorier.includes(kategori)) continue;
-    const n = rakning.get(rad.e.municipality.slug) ?? 0;
-    if (n >= TAK_PER_KOMMUN) continue;
-    rakning.set(rad.e.municipality.slug, n + 1);
-    ut.push(rad.e);
-    if (ut.length === RUTOR) break;
-  }
-  return ut;
-}
+const summaries = municipalitySummaries();
 
 /**
- * Sex grupper: hemläget plus de fem toppkategorierna.
- *
- * Alla sex ritas i markupen och urvalet görs i CSS med :has() på
- * radioknapparna, precis som artikellistans sortering i
- * pages/artiklar/index.astro. Ingen adress, ingen sidladdning, inget skript.
- * Faller :has() bort visas hemläget, vilket är sidans grundläge ändå.
- *
- * En kategori kan inte länka någonstans i stället: kategorisidorna finns per
- * kommun (`/[kommun]/kategori/…`) och det finns ingen nationell. Att bygga
- * fem nya nationella sidor för en filterrad är precis det bibeln förbjuder,
- * "en funktion får aldrig kosta en sida", och filtaket ligger på 19 500 med
- * omkring 17 000 i dag.
+ * Störst först, inte bokstavsordning. INGEN rangordning i den mening regeln
+ * förbjuder: talet är antal verksamheter i registret, alltså kommunens
+ * storlek, och säger ingenting om hur kontrollerna utfallit.
  */
-interface Grupp {
-  id: string;
-  ikon: IkonNyckel;
-  etikett: string;
-  poster: Establishment[];
-}
-
-const grupper: Grupp[] = [
-  { id: 'alla', ikon: 'alla', etikett: 'Alla', poster: senaste(null) },
-  ...TOP_CATEGORIES.map((c) => ({
-    id: c.id,
-    ikon: c.id as IkonNyckel,
-    etikett: c.name,
-    poster: senaste(c.id),
-  })),
-].filter((g) => g.poster.length > 0);
+const byTotal = [...summaries].sort((a, b) => b.total - a.total);
 
 // ---------------------------------------------------------------------------
 // Länkkolumnerna
 // ---------------------------------------------------------------------------
 
 /**
- * Fyra kolumner med kommunernas kategorisidor. Skälet är inte utseendet utan
- * länkkraften: kommun- och kategorisidorna är de sidtyper som bär trafiken,
- * och startsidan är den starkaste interna avsändaren.
- *
- * De låg tidigare på plats två, i ett vitt kort, med en egen uppsättning
- * ikoner. Alla tre sakerna är borta. Platsen är ägarens beslut: kolumnerna
- * hör hemma vid sidfoten. Kortet är borta för att en länklista inte är ett
- * kort. Ikonerna är borta för att det var sajtens TREDJE uppsättning
- * kategoriikoner, efter Kategoriikon.astro och AreaIcon.astro, och samma fem
- * former står nu i filterraden en skärm längre upp.
+ * Fyra kolumner med kommunernas kategorisidor, mot sidfoten. Skälet är inte
+ * utseendet utan länkkraften: kommun- och kategorisidorna bär trafiken, och
+ * startsidan är den starkaste interna avsändaren.
  *
  * Bara sidor som finns: linked-flaggan kommer ur samma grind som bygger
- * sidorna (MIN_CATEGORY_PAGE), så en rad här kan aldrig peka på en 404.
+ * sidorna, så en rad här kan aldrig peka på en 404.
  */
 const COLUMN_IDS: TopCategoryId[] = ['restaurang', 'cafe', 'butik', 'skola'];
 const COLUMN_ROWS = 5;
@@ -275,17 +550,7 @@ const columns = COLUMN_IDS.map((id) => {
 
 /**
  * Sist på sidan, och det är ägarens beslut: "artiklarna hör inte hemma högt
- * upp. Sist, om alls."
- *
- * De får ändå vara kvar, och skälet är ett tal: 24 av 24 artiklar har en
- * egen bild i src/assets/artiklar/. Det är sidans enda rad där varje kort
- * bär ett riktigt fotografi, och den bristen är just vad som skiljer oss
- * från förlagan. Se Verksamhetskort.astro för varför verksamhetskorten inte
- * kan göra samma sak.
- *
- * Sektionen lyder under samma kvalitetsgrind som /artiklar/: under
- * MIN_ARTICLES publicerade artiklar bär den rummet noindex, och då ska
- * startsidan inte heller länka dit.
+ * upp." Sektionen lyder under samma kvalitetsgrind som /artiklar/.
  */
 const ARTIKLAR = 3;
 const artiklarKlara = sectionReady();
@@ -313,13 +578,10 @@ const jsonLd = [
     inLanguage: 'sv-SE',
     description: SITE.description,
     /*
-     * Ingen `potentialAction`/`SearchAction` här, och det är ett beslut.
-     *
-     * Markeringen fanns för sitelinks-sökrutan, som Google tog bort ur
-     * sökresultaten i november 2024. Den kunde dessutom aldrig ha fungerat:
-     * `urlTemplate` pekade på `/sok/?q={search_term_string}`, och robots.txt
-     * blockerar just den formen med `Disallow: /sok/?` för att tunna
-     * resultatsidor inte ska hamna i indexet.
+     * Ingen `potentialAction`/`SearchAction`, och det är ett beslut.
+     * Markeringen fanns för sitelinks-sökrutan, som Google tog bort i
+     * november 2024, och den kunde aldrig ha fungerat: robots.txt blockerar
+     * `/sok/?` för att tunna resultatsidor inte ska hamna i indexet.
      */
   },
   {
@@ -332,7 +594,7 @@ const jsonLd = [
 ];
 ---
 
-<Base title={SITE.name} description={description} jsonLd={jsonLd}>
+<Base title={SITE.name} description={description} jsonLd={jsonLd} hemhuvud>
   <FaceSprite />
 
   {/* Sidans enda h1, och den syns inte. Se filhuvudet: båda förlagorna har
@@ -343,64 +605,101 @@ const jsonLd = [
     {formatNumber(total.establishments)} restauranger, caféer, butiker och skolkök
   </h1>
 
-  {/* ── Senast kontrollerade ───────────────────────────────────────────
-      Filterraden och rutnätet ligger i SAMMA rot, eftersom urvalsregeln är
-      skriven som :has() på den. */}
-  <section class="senast">
-    <div class="container">
-      <fieldset class="filter">
-        <legend class="visually-hidden">Visa en sorts verksamhet</legend>
-        {grupper.map((g, i) => (
-          <>
-            <input
-              class="visually-hidden"
-              type="radio"
-              name="kategori"
-              id={`kat-${g.id}`}
-              checked={i === 0}
-            />
-            <label class="val" for={`kat-${g.id}`}>
-              <Kategoriikon namn={g.ikon} size={20} />
-              <span class="etikett" data-etikett={g.etikett}>{g.etikett}</span>
-            </label>
-          </>
-        ))}
-      </fieldset>
+  {/* Tomrummet som sidhuvudets stora sökläge hänger i.
+      Räknat, och måttet måste hållas i takt med .sokdock i Header.astro:
+      fältet står på top 88 och är 56 högt, alltså slut vid 144. Sidhuvudets
+      rad tar de första 64, och 16 px luft under fältet ger 144 − 64 + 16.
 
+      96 och inte 144. Vid 144 började kategoriraden på 208, och mellan
+      fältets underkant och raden stod 64 px vitt intet. Uppmätt på
+      förlagorna 2026-08-21: Ednias första kort börjar 240 px ned och
+      Airbnbs 297, medan vårt låg på 290 med ett hål i mitten. */}
+  <div class="storsok" aria-hidden="true"></div>
+
+  {/* ══ Kategoriraden och rutnätet ═════════════════════════════════════
+      SAMMA ROT, eftersom urvalsregeln är skriven som :has() på den. */}
+  <section class="upptack">
+    <div class="katband">
+      <div class="container katinre">
+        <fieldset class="katrad" data-katrad>
+          <legend class="visually-hidden">Visa en sorts verksamhet</legend>
+          {grupper.map((g, i) => (
+            <>
+              <input
+                class="visually-hidden"
+                type="radio"
+                name="kategori"
+                id={`kat-${g.id}`}
+                checked={i === 0}
+              />
+              <label class="val" for={`kat-${g.id}`}>
+                <Matikon namn={g.ikon} size={24} />
+                <span class="etikett" data-etikett={g.etikett}>{g.etikett}</span>
+              </label>
+              {/* Avdelaren efter hemläget. Ednia har exakt den, uppmätt
+                  2026-08-22: en 1 px bred och 48 px hög linje mellan "Alla
+                  program" och kategorierna. Den gör att "Alla" läses som ett
+                  eget läge och inte som den första kategorin i raden, vilket
+                  är hela skillnaden mellan en filterrad och en lista. */}
+              {i === 0 && <span class="avdelare" aria-hidden="true"></span>}
+            </>
+          ))}
+        </fieldset>
+
+        {/* Rullknapparna. Ednia har en rund knapp vid högerkanten på sin
+            kategorirad, skärmbildad i ednia-1280-kategorirad.png: 32 px,
+            vit, hårlinje och svag skugga. Vi har en i vardera änden.
+            De är `hidden` tills skriptet har mätt att raden faktiskt går
+            att rulla; en pil som inte gör något är sämre än ingen pil. */}
+        <button class="rulla vanster" type="button" hidden data-rulla="-1" aria-label="Visa föregående kategorier">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+        </button>
+        <button class="rulla hoger" type="button" hidden data-rulla="1" aria-label="Visa fler kategorier">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="container">
       {/* Rubriken är 14/24 och inte en rubrikgrad, och det är mätt: Airbnbs
           egen `h2` över kortraden är 14 px i vikt 400. Vår är halvfet
           eftersom den till skillnad från deras inte har någon större rad
-          ovanför sig som bär avsnittets namn. */}
-      <h2 class="radrubrik">Senast kontrollerade</h2>
+          ovanför sig som bär avsnittets namn.
+
+          En rubrik per grupp, en synlig. Ednia låter kortraden stå utan
+          rubrik när ett filter är valt; vi behåller den, eftersom vår
+          hemgrupp och våra kategorigrupper inte är samma sorts urval och
+          raden annars byter innehåll utan att säga att den gjort det. */}
+      <h2 class="radrubrik">
+        <span data-for="hem">{hemRubrik}</span>
+        {grupper.slice(1).map((g) => <span data-for={g.id}>{g.etikett}</span>)}
+      </h2>
 
       <ul class="rutnat">
-        {grupper.map((g) =>
-          g.poster.map((e) => (
-            <li data-grupp={g.id}>
-              <Verksamhetskort e={e} />
-            </li>
-          )),
-        )}
+        {pool.map((rad) => (
+          <li data-kat={[...grupperPerRad.get(rad.e)!].join(' ')}>
+            <Verksamhetskort e={rad.e} tidig={tidiga.has(rad.e)} />
+          </li>
+        ))}
       </ul>
     </div>
   </section>
 
-  {/* ── Kommunerna ─────────────────────────────────────────────────────
-      Tre kort och inte tolv, se KOMMUNKORT i frontmattern. */}
+  {/* ══ Senast kontrollerade ═══════════════════════════════════════════*/}
   <section class="container block">
     <div class="blockhuvud">
-      <h2>Kommunerna</h2>
-      <a href="/webbkarta/">Alla {formatNumber(total.municipalities)} kommuner</a>
+      <h2>Senast kontrollerade</h2>
+      <a href="/karta/">Se alla på kartan</a>
     </div>
 
-    <ul class="kommuner">
-      {kommunkort.map((m) => (
-        <li><KommunKort kommun={m} /></li>
+    <ul class="rutnat">
+      {senast.map((rad) => (
+        <li><Verksamhetskort e={rad.e} /></li>
       ))}
     </ul>
   </section>
 
-  {/* ── Artiklarna ─────────────────────────────────────────────────────*/}
+  {/* ══ Artiklarna ════════════════════════════════════════════════════*/}
   {artiklarKlara && artiklar.length > 0 && (
     <section class="container block">
       <div class="blockhuvud">
@@ -434,7 +733,7 @@ const jsonLd = [
     </section>
   )}
 
-  {/* ── Länkkolumnerna ─────────────────────────────────────────────────*/}
+  {/* ══ Länkkolumnerna ════════════════════════════════════════════════*/}
   {columns.length > 0 && (
     <nav class="container kolumner" aria-label="Verksamhetstyper per kommun">
       {columns.map((col) => (
@@ -456,87 +755,119 @@ const jsonLd = [
 </Base>
 
 <style>
-  /* ═══ Senast kontrollerade ═══════════════════════════════════════════ */
+  /* ═══ Sidans bredd ═══════════════════════════════════════════════════
+   *
+   * Ingen egen regel längre. Startsidan hade en `.bred`-klass med
+   * `max-width: var(--w-full)` och 48 px fyllning, medan resten av sajten låg
+   * kvar på 1080. Ägaren 2026-08-22: "kör hela sajten på nya bredden."
+   *
+   * `--w-wide` är därför 1400 och `.container` bär gutterna, se tokens.css.
+   * Startsidan använder nu samma `.container` som varje annan sida.
+   */
 
-  /* Bandet börjar direkt under sidhuvudets hårlinje. Ingen luft över och
-     ingen egen bakgrund: förlagornas första kort börjar 297 px (Airbnb,
-     1280) respektive 240 px (Ednia, 1280) ned på sidan, och hos oss betyder
-     det 64 px sidhuvud plus filterrad plus rubrikrad. */
-  .senast { padding-block: var(--s-6) var(--s-12); }
+  /* ═══ Tomrummet under sidhuvudet ═════════════════════════════════════
+     Se markupen. Höjden är låst till sökdockens läge i Header.astro. */
+  .storsok { height: 96px; }
 
-  /* ── Filterraden ─────────────────────────────────────────────────────
-     Ednias form, översatt till våra tokens: ikon och etikett i rad, ingen
-     ram, ingen fyllning, ingen radie, och ett understreck på det valda.
-     Ednias egen ikon står ÖVER etiketten och gör raden 69 px hög; våra
-     etiketter är längre ("Caféer och bagerier", "Skolor och omsorg") och
-     staplat hade gett en rad som är dubbelt så hög för samma innehåll.
+  /* ═══ Kategoriraden ══════════════════════════════════════════════════
+     Klistrad under sidhuvudets 64 px rad. Ednias egen rad är inte klistrad,
+     Airbnbs försvinner helt vid rullning. Vår står kvar, och skälet är att
+     den är sidans enda väg mellan tjugo urval: en rad man måste rulla
+     tillbaka till toppen för att nå är en rad man använder en gång. */
+  .katband {
+    position: sticky;
+    top: var(--h-bar);
+    z-index: 30;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--hairline);
+  }
 
-     Bredden är räknad: sex val med ikon 20, luft 8 och etiketter på 14 px
-     lägger sig på omkring 620 px plus fem mellanrum à 24, alltså 740 av
-     1 048 tillgängliga i --w-wide. Raden rullar därför aldrig på dator, och
-     under omkring 780 px rullar den på riktigt. */
-  .filter {
+  .katinre { position: relative; }
+
+  /* Ednias form: ikon ÖVER etikett, ingen ram, ingen fyllning, understreck
+     på det valda. Uppmätt i ednia-1280-kategorirad.png, där raden är 69 px
+     hög med ikonen på 24 och etiketten på 13.
+
+     Staplat och inte i rad, till skillnad från den gamla filterraden här.
+     Skälet är antalet: sex val i rad rymdes på 740 av 1 048 px, tjugoett
+     gör det inte. Staplat är varje val omkring 76 px brett i stället för
+     omkring 120, och raden rullar mjukare med kortare steg. */
+  .katrad {
     display: flex;
     align-items: stretch;
-    gap: var(--s-6);
-    margin: 0 0 var(--s-6);
+    /* 28 och inte 24. Uppmätt på ednia.se 2026-08-22: deras kategorirad har
+       `gap: 28px` mellan valen och är 69 px hög. Vår låg på 24 och 67. */
+    gap: 28px;
+    margin: 0;
     padding: 0;
     border: 0;
     overflow-x: auto;
+    scroll-behavior: smooth;
     scrollbar-width: none;
-    /* `min-inline-size: 0` och inte bara `min-width`, och den är obligatorisk.
-       Ett `fieldset` har `min-inline-size: min-content` i webbläsarens egen
-       stilmall, och den vinner över `overflow-x: auto`. Utan raden mätte raden
-       617 px i en 390 px vid vyport och sköt hela dokumentet till 616 px
-       scrollWidth, alltså rullade SIDAN i sidled i stället för raden.
-       Uppmätt i webbläsaren 2026-08-21. */
+    /* OBLIGATORISK. Ett `fieldset` har `min-inline-size: min-content` i
+       webbläsarens egen stilmall, och den vinner över `overflow-x: auto`.
+       Utan raden mätte raden 617 px i en 390 px vid vyport och sköt hela
+       dokumentet i sidled. Uppmätt i webbläsaren 2026-08-21. */
     min-inline-size: 0;
   }
-  .filter::-webkit-scrollbar { display: none; }
+  .katrad::-webkit-scrollbar { display: none; }
 
   .val {
     position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--s-2);
+    justify-content: center;
+    gap: 6px;
     flex: 0 0 auto;
-    /* Träffytan är 44 px, alltså --h-tap, och den bärs av höjden här och
-       inte av ett ::after: raden har inget under sig att krocka med. */
-    min-height: var(--h-tap);
+    min-width: 56px;
+    padding-block: var(--s-3) 10px;
     color: var(--text-secondary);
     cursor: pointer;
     white-space: nowrap;
   }
 
+  /* 12/16 i vikt 600, alltså Ednias egna mått uppmätta 2026-08-22. Vår låg på
+     vikt 500, vilket gjorde skillnaden mot det valdas vikt större än den
+     behövde vara: när viloläget är tunt måste det valda skrika. */
   .etikett {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    font-weight: 400;
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    font-weight: 600;
   }
 
-  /* Etiketten reserverar sin HALVFETA bredd redan i viloläget.
-     Vikten är en av de tre bärarna av "valt" (understreck, vikt, :checked),
-     och utan reservationen växer ordet när man väljer det, vilket knuffar
-     varje val till höger om det i sidled. Kopian ritas aldrig: höjd 0,
-     overflow hidden. Den bidrar ändå till elementets bredd, vilket är hela
-     poängen. */
+  /* Etiketten reserverar sin HALVFETA bredd redan i viloläget. Vikten är en
+     av bärarna av "valt", och utan reservationen växer ordet när man väljer
+     det, vilket knuffar varje val till höger om det i sidled. Kopian ritas
+     aldrig: höjd 0, overflow hidden. Den bidrar ändå till bredden, vilket
+     är hela poängen. */
   .etikett::after {
     content: attr(data-etikett);
     display: block;
     height: 0;
     overflow: hidden;
-    font-weight: 600;
+    font-weight: 700;
     visibility: hidden;
   }
 
-  /* Understrecket. Två pixlar och märkesblått, samma regel som
-     Filterrad.astro och Kategorival.astro: valt läge är blått i sökpanelen,
-     i kartan och i pagineringen, och en svart list bredvid dem ser lånad ut.
+  /* Avdelaren, se markupen. 48 px hög i en 67 px rad, alltså centrerad med
+     luft över och under, precis som Ednias. */
+  .avdelare {
+    flex: 0 0 1px;
+    align-self: center;
+    width: 1px;
+    height: 48px;
+    background: var(--hairline);
+  }
 
-     Rörelsen är Airbnbs, uppmätt på deras kategorirad 2026-08-21: deras
-     markör är en 3 px hög span med
-     `transition: transform, height .3s cubic-bezier(.2, 0, 0, 1)`.
-     Kurvan är deras genomgående; samma bezier ligger på varje knapp de har. */
+  /* Understrecket. Rörelsen är Airbnbs, uppmätt på deras kategorirad
+     2026-08-21: en markör med `transition: transform .3s
+     cubic-bezier(.2, 0, 0, 1)`. Kurvan är deras genomgående och ligger på
+     varje knapp de har.
+
+     Färgen är märkesblå och inte svart, samma regel som Filterrad.astro och
+     Kategorival.astro: valt läge är blått i sökpanelen, i kartan och i
+     pagineringen, och en svart list bredvid dem ser lånad ut. */
   .val::after {
     content: '';
     position: absolute;
@@ -550,44 +881,85 @@ const jsonLd = [
   }
 
   /* Hovringen visar strecket i grått innan det blir blått, alltså en
-     förhandsvisning av vad ett klick gör. Det är Ednias eget beteende,
-     skärmbildat 2026-08-21 i `ednia-1280-kategori-hovring.png`: deras
-     inaktiva val får både mörkare text och en ljusgrå list vid hovring,
-     medan det valda har en svart. */
+     förhandsvisning av vad ett klick gör. Ednias eget beteende, skärmbildat
+     i ednia-1280-kategori-hovring.png. */
   .val:hover { color: var(--text); }
   .val:hover::after { background: var(--tone-quiet); transform: scaleX(1); }
 
-  /* Radioknappen ligger omedelbart före sin etikett i markupen, därför + och
-     inte ~. Med ~ hade varje senare val också träffats.
-
-     Regeln står EFTER hovringen med avsikt: de två har samma specificitet,
-     och det valda ska vinna även när pekaren står på det. */
+  /* Radioknappen ligger omedelbart före sin etikett i markupen, därför +
+     och inte ~. Regeln står EFTER hovringen med avsikt: de har samma
+     specificitet, och det valda ska vinna även när pekaren står på det. */
   input:checked + .val { color: var(--text); }
-  input:checked + .val .etikett { font-weight: 600; }
+  input:checked + .val .etikett { font-weight: 700; }
   input:checked + .val::after { background: var(--brand); transform: scaleX(1); }
 
-  /* Tangentbordet ska se vilket val som har fokus. Radioknappen är
-     visuellt dold, alltså måste ringen ritas på etiketten. */
   input:focus-visible + .val {
     outline: 2px solid var(--brand);
-    outline-offset: 2px;
+    outline-offset: -2px;
     border-radius: 4px;
+  }
+
+  /* ── Rullknapparna ───────────────────────────────────────────────────
+     Ednias mått: 32 px, rund, vit, hårlinje, svag skugga. Toningen bredvid
+     är vår egen och löser något deras rad inte har: vår rad ligger mot
+     --canvas och inte mot vitt, så ett kort som klipps mot kanten behöver
+     en mjuk övergång för att läsa som "det finns mer" i stället för
+     "det tog slut". */
+  .rulla {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-top: -16px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--card);
+    box-shadow: 0 0 0 1px var(--hairline), 0 2px 6px rgba(0, 0, 0, .10);
+    color: var(--text);
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(.2, 0, 0, 1);
+  }
+  .rulla:hover { transform: scale(1.06); }
+
+  /* INNANFÖR behållarens fyllning, inte utanför.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod `left: -12px` och `right: -12px`, vilket sköt knapparna utanför
+     `.katinre`, och med träffytans `inset: -6px` blev dokumentets scrollWidth
+     1298 i en 1280 px vid vy. Alltså rullade SIDAN i sidled, samma sorts fel
+     som `fieldset`-buggen längre ned i filen.
+
+     Med 48 px gutter finns det gott om plats: knappen är 32 bred och står
+     12 px från behållarens kant, alltså i gutterns yttre halva och fri från
+     radens innehåll, som börjar vid 48. */
+  .rulla.vanster { left: 12px; }
+  .rulla.hoger { right: 12px; }
+  .rulla[hidden] { display: none; }
+
+  /* Träffytan är 44 px, alltså --h-tap, oberoende av knappens 32. */
+  .rulla::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
   }
 
   /* ── Rubrikraden ─────────────────────────────────────────────────────*/
   .radrubrik {
-    margin-bottom: var(--s-3);
+    margin-bottom: var(--s-4);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
     letter-spacing: normal;
   }
 
+  .radrubrik span { display: none; }
+
   /* ── Rutnätet ────────────────────────────────────────────────────────
-     Fyra spalter i --w-wide ger 250 px per kort, vilket är inom en
-     tiondels bildbredd från Airbnbs eget kort (182 px vid 1512, alltså sju
-     i bredd). Fyra och inte sju: deras kort bär ett fotografi som tål att
-     vara litet, vårt bär ett namn som ska gå att läsa. */
+     Fyra spalter i --w-wide ger 250 px per kort. Airbnb kör sju à 182 px;
+     deras kort bär ett fotografi som tål att vara litet, vårt bär ett namn
+     som ska gå att läsa. Ednia kör tre à 382 px. */
   .rutnat {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -597,35 +969,88 @@ const jsonLd = [
     list-style: none;
   }
 
-  /* Urvalet. Grundläget visar hemgruppen och döljer de fem andra, så en
-     webbläsare utan :has() får en fungerande sida med tolv kort i stället
-     för 72. Varje val vänder sedan på vilken grupp som är synlig. */
-  .rutnat > li:not([data-grupp='alla']) { display: none; }
+  /* LUFT MELLAN KATEGORIRADEN OCH RUBRIKEN.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-22: "populära ställen sitter nästan limmad mot toppen, är
+     det verkligen rimligt?"
 
-  .senast:has(#kat-restaurang:checked) .rutnat > li[data-grupp='alla'],
-  .senast:has(#kat-cafe:checked) .rutnat > li[data-grupp='alla'],
-  .senast:has(#kat-butik:checked) .rutnat > li[data-grupp='alla'],
-  .senast:has(#kat-skola:checked) .rutnat > li[data-grupp='alla'],
-  .senast:has(#kat-ovrigt:checked) .rutnat > li[data-grupp='alla'] {
-    display: none;
-  }
+     Nej. Rubriken låg med noll marginal under kategoribandets hårlinje,
+     alltså dikt an mot en kant. Kategoriraden är sidans navigering och
+     rutnätet dess innehåll, och två saker som gör olika jobb ska inte sitta
+     ihop.
 
-  .senast:has(#kat-restaurang:checked) .rutnat > li[data-grupp='restaurang'],
-  .senast:has(#kat-cafe:checked) .rutnat > li[data-grupp='cafe'],
-  .senast:has(#kat-butik:checked) .rutnat > li[data-grupp='butik'],
-  .senast:has(#kat-skola:checked) .rutnat > li[data-grupp='skola'],
-  .senast:has(#kat-ovrigt:checked) .rutnat > li[data-grupp='ovrigt'] {
+     24 px över rubriken och 16 under, i stället för 0 och 12. Ednias första
+     kort börjar 240 px ned vid 1280, med en rad Filtrera- och Sortera-piller
+     i mellanrummet som vi inte har; luften får göra det jobbet i stället. */
+  .upptack { padding-block: var(--s-6) var(--s-12); }
+  .upptack .rutnat { padding-top: var(--s-4); }
+
+  /* ── Urvalet ─────────────────────────────────────────────────────────
+     Grundläget visar hemgruppen. En webbläsare utan :has() får därmed en
+     fungerande sida med tolv kort i stället för hela poolen.
+
+     Reglerna är utskrivna en per grupp och inte genererade. Det är tjugoen
+     rader att läsa, och alternativet — en sträng byggd i frontmattern och
+     utskriven med set:html — hade lämnat Astros stilomfång och gjort
+     `.rutnat` och `.upptack` till globala klassnamn. */
+  .upptack .rutnat > li { display: none; }
+
+  .upptack:has(#kat-hem:checked) .rutnat > li[data-kat~='hem'],
+  .upptack:has(#kat-livsmedel:checked) .rutnat > li[data-kat~='livsmedel'],
+  .upptack:has(#kat-snabbmat:checked) .rutnat > li[data-kat~='snabbmat'],
+  .upptack:has(#kat-cafe-fik:checked) .rutnat > li[data-kat~='cafe-fik'],
+  .upptack:has(#kat-pizza:checked) .rutnat > li[data-kat~='pizza'],
+  .upptack:has(#kat-asiatiskt:checked) .rutnat > li[data-kat~='asiatiskt'],
+  .upptack:has(#kat-bar:checked) .rutnat > li[data-kat~='bar'],
+  .upptack:has(#kat-sushi:checked) .rutnat > li[data-kat~='sushi'],
+  .upptack:has(#kat-burgare:checked) .rutnat > li[data-kat~='burgare'],
+  .upptack:has(#kat-italienskt:checked) .rutnat > li[data-kat~='italienskt'],
+  .upptack:has(#kat-kiosk:checked) .rutnat > li[data-kat~='kiosk'],
+  .upptack:has(#kat-bageri:checked) .rutnat > li[data-kat~='bageri'],
+  .upptack:has(#kat-kebab:checked) .rutnat > li[data-kat~='kebab'],
+  .upptack:has(#kat-medelhav:checked) .rutnat > li[data-kat~='medelhav'],
+  .upptack:has(#kat-sallad:checked) .rutnat > li[data-kat~='sallad'],
+  .upptack:has(#kat-thai:checked) .rutnat > li[data-kat~='thai'],
+  .upptack:has(#kat-indiskt:checked) .rutnat > li[data-kat~='indiskt'],
+  .upptack:has(#kat-konditori:checked) .rutnat > li[data-kat~='konditori'],
+  .upptack:has(#kat-grill:checked) .rutnat > li[data-kat~='grill'],
+  .upptack:has(#kat-mellanostern:checked) .rutnat > li[data-kat~='mellanostern'],
+  .upptack:has(#kat-glass:checked) .rutnat > li[data-kat~='glass'] {
     display: block;
   }
 
-  /* ═══ Blocken under ══════════════════════════════════════════════════ */
+  .upptack:has(#kat-hem:checked) .radrubrik span[data-for='hem'],
+  .upptack:has(#kat-livsmedel:checked) .radrubrik span[data-for='livsmedel'],
+  .upptack:has(#kat-snabbmat:checked) .radrubrik span[data-for='snabbmat'],
+  .upptack:has(#kat-cafe-fik:checked) .radrubrik span[data-for='cafe-fik'],
+  .upptack:has(#kat-pizza:checked) .radrubrik span[data-for='pizza'],
+  .upptack:has(#kat-asiatiskt:checked) .radrubrik span[data-for='asiatiskt'],
+  .upptack:has(#kat-bar:checked) .radrubrik span[data-for='bar'],
+  .upptack:has(#kat-sushi:checked) .radrubrik span[data-for='sushi'],
+  .upptack:has(#kat-burgare:checked) .radrubrik span[data-for='burgare'],
+  .upptack:has(#kat-italienskt:checked) .radrubrik span[data-for='italienskt'],
+  .upptack:has(#kat-kiosk:checked) .radrubrik span[data-for='kiosk'],
+  .upptack:has(#kat-bageri:checked) .radrubrik span[data-for='bageri'],
+  .upptack:has(#kat-kebab:checked) .radrubrik span[data-for='kebab'],
+  .upptack:has(#kat-medelhav:checked) .radrubrik span[data-for='medelhav'],
+  .upptack:has(#kat-sallad:checked) .radrubrik span[data-for='sallad'],
+  .upptack:has(#kat-thai:checked) .radrubrik span[data-for='thai'],
+  .upptack:has(#kat-indiskt:checked) .radrubrik span[data-for='indiskt'],
+  .upptack:has(#kat-konditori:checked) .radrubrik span[data-for='konditori'],
+  .upptack:has(#kat-grill:checked) .radrubrik span[data-for='grill'],
+  .upptack:has(#kat-mellanostern:checked) .radrubrik span[data-for='mellanostern'],
+  .upptack:has(#kat-glass:checked) .radrubrik span[data-for='glass'] {
+    display: inline;
+  }
 
-  .block { padding-block: var(--s-12); }
-
-  /* Hårlinje över varje block i stället för en tonad bakgrund. Booli skiljer
+  /* ═══ Blocken under ══════════════════════════════════════════════════
+     Hårlinje över varje block i stället för en tonad bakgrund. Booli skiljer
      avsnitt med hårlinje och luft och aldrig med ett färgfält, se
      docs/19_formsystem.md. */
-  .block { border-top: 1px solid var(--hairline); }
+  .block {
+    padding-block: var(--s-12);
+    border-top: 1px solid var(--hairline);
+  }
 
   .blockhuvud {
     display: flex;
@@ -650,23 +1075,7 @@ const jsonLd = [
     white-space: nowrap;
   }
 
-  /* ── Kommunerna ──────────────────────────────────────────────────────*/
-  /* Tre spalter, alltså 344 px per kort i --w-wide. KommunKortets metarad bär
-     antal verksamheter och ett datum bredvid varandra, och vid fyra spalter
-     (250 px) bryter datumet till två rader. */
-  .kommuner {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--s-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  /* ── Artiklarna ──────────────────────────────────────────────────────
-     Tre kort i bredd, alltså bredare än verksamhetskorten, för att bilden
-     ska få vara stor nog att läsas som ett fotografi och inte som en
-     miniatyr. */
+  /* ── Artiklarna ──────────────────────────────────────────────────────*/
   .artiklar {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -686,9 +1095,6 @@ const jsonLd = [
 
   .artiklar :global(.artikelbild) {
     width: 100%;
-    /* Airbnbs kortbild mätt 2026-08-21: 182 × 173, alltså kvoten 1,05.
-       Artikelbilderna är panorama och tål ett bredare format; 16:10 är
-       samma kvot som src/assets/artiklar levererar (1400 × 875). */
     aspect-ratio: 16 / 10;
     object-fit: cover;
     border-radius: var(--r-card);
@@ -742,9 +1148,18 @@ const jsonLd = [
 
   .antal { font-size: var(--fs-caption); }
 
-  /* ═══ Smalare skärmar ════════════════════════════════════════════════
-     Tre brytpunkter och inga andra. 1024 är där fyra spalter ger under
-     220 px per kort, 640 är tokens egen mobilbrytpunkt. */
+  /* ═══ Smalare skärmar ════════════════════════════════════════════════*/
+  /* FYRA SPALTER, INTE FEM.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod en femspaltsregel som jag hittade på, inte mätte. Den gav kort
+     på 224 px i en 1184 px behållare, alltså SMALARE kort än de 250 vi hade
+     före breddningen, vilket är precis tvärtemot vad breddningen var till för.
+
+     Ednia kör tre spalter à 384 vid 1280 och fem à 304 vid 1680, uppmätt
+     2026-08-22. Deras kort ligger alltså mellan 304 och 384. Fyra spalter i
+     vår 1184 ger 284, och vid taket 1400 ger de 314. Det är inom deras spann;
+     fem spalter var det inte.
+  */
   @media (max-width: 1023px) {
     .rutnat { grid-template-columns: repeat(3, 1fr); }
   }
@@ -754,27 +1169,71 @@ const jsonLd = [
     .kolumner { grid-template-columns: repeat(2, 1fr); }
   }
 
+  @media (max-width: 700px) {
+    /* Inget utfällt sökläge på telefon, alltså inget tomrum att lämna.
+       Se .sokdock i Header.astro under samma brytpunkt. */
+    .storsok { height: 0; }
+  }
+
   @media (max-width: 639px) {
-    .senast { padding-block: var(--s-4) var(--s-8); }
     .block { padding-block: var(--s-8); }
     .kolumner { padding-block: var(--s-8); }
+    .upptack { padding-bottom: var(--s-8); }
 
-    /* Filterraden rullar under kanten på telefon. Den behöver då luft
-       utanför containern, annars klipps första och sista valet mot en kant
-       i stället för att gå ut ur bild. */
-    .filter {
+    /* Raden rullar under kanten på telefon och behöver då luft utanför
+       containern, annars klipps första och sista valet mot en kant i
+       stället för att gå ut ur bild. Pilarna hör inte hemma där: på en
+       pekskärm rullar man med fingret. */
+    .katrad {
       margin-inline: calc(var(--s-4) * -1);
       padding-inline: var(--s-4);
       gap: var(--s-4);
     }
 
+    .rulla { display: none; }
+
     .rutnat,
     .artiklar { grid-template-columns: repeat(2, 1fr); }
-
-    /* Kommunkorten staplas i stället för att krympa: kortet bär ett foto
-       med stadens namn på, och i 171 px blir namnet större än bilden. */
-    .kommuner { grid-template-columns: 1fr; }
 
     .artiklar { gap: var(--s-4); }
   }
 </style>
+
+{/*
+  Rullknapparna. Visas bara när raden faktiskt går att rulla, och släcks i
+  var sin ände. En pil som inte gör något är sämre än ingen pil.
+
+  Steget är 60 procent av synlig bredd och inte en fast pixelmängd: raden
+  är 1 048 px på dator och 358 på telefon, och ett fast steg hade betytt
+  "ett val" på det ena och "hela raden" på det andra. Rullningen är mjuk
+  via `scroll-behavior: smooth` i CSS, alltså ingen egen animering här.
+*/}
+<script is:inline>
+  (() => {
+    const rad = document.querySelector('[data-katrad]');
+    if (!rad) return;
+
+    const knappar = document.querySelectorAll('[data-rulla]');
+
+    const stall = () => {
+      const kanRulla = rad.scrollWidth > rad.clientWidth + 1;
+      const vid = rad.scrollLeft;
+      const slut = rad.scrollWidth - rad.clientWidth;
+      for (const knapp of knappar) {
+        const riktning = Number(knapp.dataset.rulla);
+        const kvar = riktning < 0 ? vid : slut - vid;
+        knapp.hidden = !kanRulla || kvar < 8;
+      }
+    };
+
+    for (const knapp of knappar) {
+      knapp.addEventListener('click', () => {
+        rad.scrollBy({ left: Number(knapp.dataset.rulla) * rad.clientWidth * 0.6 });
+      });
+    }
+
+    rad.addEventListener('scroll', stall, { passive: true });
+    window.addEventListener('resize', stall, { passive: true });
+    stall();
+  })();
+</script>

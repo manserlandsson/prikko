@@ -172,6 +172,35 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       spellcheck="false"
       data-input
     />
+
+    {/* ══ VAR-DELEN ═══════════════════════════════════════════════════════
+        Bara i hero-läget, alltså bara på startsidan och bara innan raden
+        fällts ihop. Se .var i stilen för varför den försvinner i det
+        kompakta läget.
+
+        Ägaren 2026-08-22: "vad fyller sökbarens animationen för funktion nu?
+        det ska ju vara som airbnb att söket blir mer utevecklat eller?"
+
+        Han hade rätt: fältet blev bara STÖRRE, och storlek är inte en
+        funktion. Airbnbs utfällda läge är ett trepartsformulär, Var / När /
+        Vem, som fälls ihop till ett piller. Våra två delar är Vad och Var,
+        eftersom det är de två frågor vår data faktiskt kan svara på: ett
+        namn och en kommun. Något "När" finns inte, vi har öppettider på
+        2 747 av 16 047 och kan inte söka på dem.
+
+        Knappen och inte en <select>: listan ska kunna bära "Var som helst"
+        överst, en rad per kommun med ort och antal, och senare en sökruta när
+        de blir 290. Ett <select> kan inget av det.
+
+        Det dolda fältet är det som FÄRDAS. `kommun` läses av /sok/, se
+        `SOK_KOMMUN` där. */}
+    <span class="var" data-var hidden>
+      <button type="button" class="var-knapp" data-var-knapp aria-expanded="false" aria-haspopup="listbox">
+        <span class="var-etikett">Var</span>
+        <span class="var-varde" data-var-varde>Var som helst</span>
+      </button>
+      <input type="hidden" name="kommun" data-var-falt />
+    </span>
     {/* Genvägsmärket, hitta.se-mönstret på ägarens uttryckliga begäran: TVÅ
         separata tangentrutor i fältets högerkant, ⌘ i den ena och K i den
         andra, med litet mellanrum. Skriptet byter modifierarrutans tecken
@@ -199,6 +228,24 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       </svg>
     </button>
   </form>
+
+  {/* Kommunlistan. Egen yta och INTE förslagspanelen.
+
+      Förslagspanelen bär en listbox med tangentbordsnavigering, en platsrad
+      och tre sektioner, och att lägga ett andra läge i den hade betytt att
+      pilnavigeringen måste veta vilket läge den står i. Det här är tolv rader
+      som stänger vid val. Den dagen kommunerna är 290 får listan en egen
+      sökruta, och då är det bra att den ligger för sig. */}
+  <div class="var-lista glass" hidden data-var-lista role="listbox" aria-label="Välj kommun">
+    <button type="button" class="var-rad" data-var-val="" role="option" aria-selected="true">
+      Var som helst
+    </button>
+    {platser.map((p) => (
+      <button type="button" class="var-rad" data-var-val={p.slug} role="option" aria-selected="false">
+        {p.city}
+      </button>
+    ))}
+  </div>
 
   <div class="panel glass" hidden data-panel>
 
@@ -445,6 +492,100 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   .site-search.is-hero {
     max-width: 600px;
   }
+
+  /* ══ VAR-DELEN ═════════════════════════════════════════════════════════
+     Se markupen för varför den finns. Här bor bara måtten.
+
+     Delen är `hidden` i markupen och väcks av skriptet. Utan skript finns
+     ingen kommunlista att öppna, och en knapp som inte gör något är sämre än
+     ingen knapp: formuläret fungerar ändå, det söker på hela landet. */
+  .var {
+    display: flex;
+    align-items: center;
+    flex: none;
+    /* Skiljelinjen mellan Vad och Var. Airbnbs trepartsfält har exakt den,
+       en 1 px hårlinje i full delhöjd, och den är det som gör de två
+       fälten till ETT piller i stället för två rutor. */
+    border-left: 1px solid var(--hairline);
+    padding-left: var(--s-4);
+    margin-left: var(--s-3);
+  }
+
+  .var[hidden] { display: none; }
+
+  .var-knapp {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* Etiketten över värdet, alltså Airbnbs form: "Var" litet och halvfett över
+     "Var som helst" i brödtextens grad. Utan etiketten läser knappen som en
+     platshållare till, och två platshållare i samma piller går inte att
+     skilja åt. */
+  .var-etikett {
+    font-size: var(--fs-micro);
+    line-height: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .var-varde {
+    font-size: var(--fs-body-s);
+    line-height: 18px;
+    color: var(--text-secondary);
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .var-knapp:hover .var-varde { color: var(--text); }
+
+  .var-knapp:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Listan. Samma svävande lager som förslagspanelen, se .panel nedan. */
+  .var-lista {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    right: 0;
+    z-index: 50;
+    width: 220px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: var(--s-2);
+    border-radius: var(--r-card);
+  }
+
+  .var-lista[hidden] { display: none; }
+
+  .var-rad {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--r-control);
+    background: none;
+    font: inherit;
+    font-size: var(--fs-body-s);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .var-rad:hover { background: var(--brand-wash); }
+  .var-rad[aria-selected='true'] { font-weight: 600; }
 
   .site-search.is-hero .search-field {
     height: 56px;
@@ -1546,5 +1687,84 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     // Öppnas platsväljaren ska sökpanelen stänga, och tvärtom.
     const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
     if (picker) picker.addEventListener('toggle', () => { if (picker.open) close(); });
+  }
+</script>
+
+<script>
+  /**
+   * VAR-DELEN: kommunväljaren i det tvådelade fältet.
+   *
+   * Egen modul och inte inbakad i sökpanelens skript ovanför, av samma skäl
+   * som listan är en egen yta: panelen bär en listbox med pilnavigering och
+   * tre sektioner, och ett andra läge i den hade betytt att varje
+   * tangenthanterare måste veta vilket läge den står i.
+   *
+   * DELEN VÄCKS HÄR OCH FINNS INTE UTAN SKRIPT. `hidden` står i markupen och
+   * tas bort först när listan är kopplad. Utan skript söker formuläret på
+   * hela landet, vilket är rätt grundläge: en knapp som inte öppnar något är
+   * sämre än ingen knapp.
+   *
+   * MÅLET AVGÖRS VID SKICK, och det är hela poängen med att delen betyder
+   * något:
+   *
+   *   bara kommun          → /<kommun>/, alltså kommunens egen sida
+   *   bara text            → /sok/?q=…
+   *   både och            → /sok/?q=…&kommun=…
+   *
+   * Första fallet är det som gör "Var" till mer än ett filter: den som bara
+   * vill se Karlstad ska inte behöva skriva något alls.
+   */
+  const rot = document.querySelector<HTMLElement>('[data-sitesearch]');
+  const del = rot?.querySelector<HTMLElement>('[data-var]');
+  const knapp = rot?.querySelector<HTMLButtonElement>('[data-var-knapp]');
+  const varde = rot?.querySelector<HTMLElement>('[data-var-varde]');
+  const falt = rot?.querySelector<HTMLInputElement>('[data-var-falt]');
+  const lista = rot?.querySelector<HTMLElement>('[data-var-lista]');
+  const form = rot?.querySelector<HTMLFormElement>('[data-field]');
+
+  if (rot && del && knapp && varde && falt && lista && form) {
+    del.hidden = false;
+
+    const stang = () => {
+      lista.hidden = true;
+      knapp.setAttribute('aria-expanded', 'false');
+    };
+
+    knapp.addEventListener('click', () => {
+      const oppen = !lista.hidden;
+      lista.hidden = oppen;
+      knapp.setAttribute('aria-expanded', String(!oppen));
+    });
+
+    for (const rad of lista.querySelectorAll<HTMLButtonElement>('[data-var-val]')) {
+      rad.addEventListener('click', () => {
+        for (const annan of lista.querySelectorAll('[data-var-val]')) {
+          annan.setAttribute('aria-selected', String(annan === rad));
+        }
+        falt.value = rad.dataset.varVal ?? '';
+        varde.textContent = rad.textContent?.trim() || 'Var som helst';
+        stang();
+      });
+    }
+
+    document.addEventListener('click', (handelse) => {
+      if (!del.contains(handelse.target as Node)) stang();
+    });
+
+    document.addEventListener('keydown', (handelse) => {
+      if (handelse.key === 'Escape' && !lista.hidden) {
+        stang();
+        knapp.focus();
+      }
+    });
+
+    form.addEventListener('submit', (handelse) => {
+      const kommun = falt.value;
+      const text = (form.querySelector<HTMLInputElement>('[data-input]')?.value ?? '').trim();
+      if (kommun && !text) {
+        handelse.preventDefault();
+        location.assign(`/${kommun}/`);
+      }
+    });
   }
 </script>

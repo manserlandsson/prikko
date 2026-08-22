@@ -81,6 +81,14 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       />
     </form>
 
+    {/* Filterremsan. Startar dold och väcks bara när `kommun` kom med i
+        adressen, se skriptet. Ett filter man inte ser och inte kan släppa är
+        ett fel som ser ut som noll träffar. */}
+    <p class="filterrad" id="filter-rad" hidden>
+      Visar bara <b data-filter-namn></b>
+      <button type="button" class="filter-bort" data-filter-bort>Visa hela landet</button>
+    </p>
+
     <p id="status" class="status text-secondary" aria-live="polite"></p>
 
     {/* Kommunerna FÖRE träffarna. Söker någon "stockholm" är kommunen det
@@ -187,6 +195,29 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
   }
 
   .search input::placeholder { color: var(--text-muted); }
+
+  /* Filterremsan mellan fältet och statusraden. */
+  .filterrad {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .filterrad[hidden] { display: none; }
+
+  .filter-bort {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--fs-caption);
+    color: var(--brand-ink);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
   .status {
     margin-top: var(--s-4);
@@ -424,6 +455,44 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
   /* Maskotens block. Står utanför if-satsens villkor med flit: saknas det ska
      sökningen fungera ändå, för figuren är avsändare och inte funktion. */
   const tomt = document.getElementById('tomt');
+  const filterRad = document.getElementById('filter-rad');
+  const filterNamn = document.querySelector<HTMLElement>('[data-filter-namn]');
+
+  /** Kommunen som Var-delen i sidhuvudet skickade med, eller tom sträng. */
+  let kommunFilter = new URLSearchParams(location.search).get('kommun') ?? '';
+
+  /** Ortnamnet ur registrets k-lista, eller null när sluggen är okänd. */
+  const kommunNamn = (slug: string): string | null => {
+    const rad = searchIndex().kommuner.find((k) => k[0] === slug);
+    return rad ? (rad[1] as string) : null;
+  };
+
+  /**
+   * Visa filterremsan, eller släpp filtret om sluggen är okänd.
+   *
+   * Anropas FÖRST när registret är hämtat, se loadIndex nedan. Remsan går att
+   * ta bort: ett filter man inte ser och inte kan släppa är ett fel som ser
+   * ut som noll träffar. Adressen skrivs om utan omladdning, så att en delad
+   * länk aldrig bär ett filter som inte längre gäller.
+   */
+  function stallFilterrad(): void {
+    if (!kommunFilter || !filterRad || !filterNamn) return;
+    const namn = kommunNamn(kommunFilter);
+    if (!namn) {
+      kommunFilter = '';
+      return;
+    }
+    filterNamn.textContent = namn;
+    filterRad.hidden = false;
+    filterRad.querySelector('[data-filter-bort]')?.addEventListener('click', () => {
+      kommunFilter = '';
+      filterRad.hidden = true;
+      const url = new URL(location.href);
+      url.searchParams.delete('kommun');
+      history.replaceState(null, '', url);
+      render(input!.value);
+    });
+  }
 
   if (form && input && results && status && kommunBlock && kommunRows && sidorBlock && sidorRows) {
     const spriteId = form.dataset.sprite!;
@@ -484,8 +553,22 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       }
 
       const groups = collect(q, MAX_RESULTS);
+      /*
+       * KOMMUNFILTRET, som sidhuvudets Var-del skickar hit.
+       *
+       * Filtreras på `href` och inte på en ny kolumn i registret. Varje
+       * verksamhetsförslag bär `/<kommun>/<slug>/`, alltså finns kommunen
+       * redan i raden, och registret ligger på varje sidvisning: en extra
+       * kolumn per rad hade kostat 16 047 strängar för en uppgift som går
+       * att läsa ur den som redan står där.
+       *
+       * Filtret gäller BARA verksamheter. Kommunträffarna nedanför står
+       * kvar orörda, för den som filtrerat på Karlstad och söker "Uppsala"
+       * ska hitta Uppsala och inte ett tomt svar.
+       */
       const shown = ranked(groups)
         .filter((s) => s.kind === 'place')
+        .filter((s) => !kommunFilter || s.href.startsWith(`/${kommunFilter}/`))
         .slice(0, MAX_RESULTS);
 
       // groups.term och inte q: har avståndspasset rättat en felstavning är
@@ -546,9 +629,20 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
        en egen kopia av fetch-slingan och byggde sin egen söksträng per rad,
        vilket innebar att registret kunde hämtas två gånger på en sida som
        både har sidhuvudets fält och den här listan. */
-    loadIndex(form.dataset.index!, form.dataset.indexFallback ?? null).then(() =>
-      render(input!.value),
-    );
+    /*
+     * Filterremsan måste vänta in REGISTRET.
+     *
+     * Ortnamnet slås upp i `searchIndex().kommuner`, och registret hämtas
+     * över nätet. Första versionen satte upp remsan direkt efter det här
+     * anropet, alltså innan svaret kommit: uppslaget gav null, koden tolkade
+     * det som "okänd kommun" och nollade filtret. Följden var att
+     * /sok/?q=pizza&kommun=karlstad visade fyrtio träffar från fem kommuner
+     * och ingen remsa alls. Uppmätt 2026-08-22.
+     */
+    loadIndex(form.dataset.index!, form.dataset.indexFallback ?? null).then(() => {
+      stallFilterrad();
+      render(input!.value);
+    });
 
     // Stöd för /sok?q=... så att länkar utifrån fungerar direkt.
     const initial = new URLSearchParams(location.search).get('q');
@@ -556,5 +650,7 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       input.value = initial;
       render(initial);
     }
+
+
   }
 </script>

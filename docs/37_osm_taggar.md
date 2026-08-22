@@ -119,7 +119,7 @@ behöver mäta om, inte för att allt i den ska byggas.
 | Tagg | Antal | av 3 927 | Kommentar |
 |---|---:|---:|---|
 | `name` | 3 927 | 100,0 % | hopparningen kräver det |
-| `amenity` | 3 005 | 76,5 % | vår egen kategori är bättre, se §4 |
+| `amenity` | 3 005 | 76,5 % | **byggd sedan 2026-08-21**, se §4 |
 | `opening_hours` | 2 830 | 72,1 % | `docs/33`, 2 747 efter syntaxfiltret |
 | `check_date` | 1 990 | 50,7 % | när en kartläggare senast var på plats |
 | `check_date:opening_hours` | 1 372 | 34,9 % | samma, för öppettiden |
@@ -203,6 +203,34 @@ på https, och fyra fall är inte värda den risken.
 
 ## 4. Vad som mättes och ändå inte byggdes
 
+### `amenity` och `shop`: bortvalda 2026-08-18, byggda 2026-08-21
+
+Raden om dem stod tidigare i tabellen nedan, med skälet att `categories.ts` är
+sanningen om vad ett ställe är och gäller hela beståndet medan de här två bara
+gäller de 3 927 hopparade.
+
+Skälet höll så länge frågan var vilken kategori en SIDA ska ligga i. Det gör
+det inte när frågan är vad en KATEGORIRAD ska erbjuda. `categories.ts` delar
+16 047 rader i fem, och "Restauranger" är 8 000 av dem, alltså ingen
+valmöjlighet. Ägaren 2026-08-21: "restauranger säger ingenting."
+
+De två taggarna skrivs därför i `contact` och läses av
+`site/src/lib/matkategori.ts`. Två saker gäller, och båda är avsiktliga:
+
+- **De skrivs aldrig ut på verksamhetssidan.** `kontakt.ts` räknar upp de fält
+  som visas, och dessa två står inte där. "Restaurang" som en egenskap på en
+  restaurangsida är en tom rad.
+- **De ersätter inte `categories.ts`.** Ingen sida placeras av dem, ingen URL
+  byggs av dem, ingen räkning på en kommunsida rör dem. De två indelningarna
+  svarar på olika frågor: vad stället ÄR i registret, och vad man kan vilja
+  äta.
+
+Utan dem finns ingen kategori för café, snabbmat, bageri, bar eller
+livsmedelsbutik, alltså de fem vanligaste ställena i landet: `cuisine` säger
+vad ett kök lagar och inte vad ett ställe är.
+
+---
+
 Ingen av posterna nedan valdes bort för att den är för sällsynt. §6 säger
 varför det aldrig är ett skäl. De valdes bort för att uppgiften är fel,
 dubblerad eller obegriplig.
@@ -211,7 +239,6 @@ dubblerad eller obegriplig.
 |---|---:|---|
 | `brand`, `operator` | 781, 306 | **Vi har redan kedjan, och bättre.** `site/src/lib/kedjeregister.ts` är byggt på vårt eget bestånd och gäller alla 16 047 raderna, inte de 3 927 hopparade. En andra kedjeuppgift som gäller en femtedel så många hade blivit en andra sanning som glider isär från den första. |
 | `addr:*` | ~1 100 | **Kommunens adress är förstahandsuppgiften.** Vi visar den redan. OSM:s adress är en avskrift av samma sak, ibland en annan port. |
-| `amenity`, `shop` | 3 005, 962 | **`categories.ts` är sanningen om vad ett ställe är**, och den gäller hela beståndet. Samma skäl som `docs/33` §2.1 gav för att inte skriva av 228 råvärden till Python. |
 | `check_date` | 1 990 | Säger när en KARTLÄGGARE var på plats, inte när uppgiften gäller från. Vår egen `checkedAt` säger när VI hämtade den, vilket är det läsaren behöver för att bedöma åldern. Två datum med olika betydelse bredvid varandra är sämre än ett. |
 | `indoor_seating` | 637 | "Det finns stolar inne" på en restaurang är inget besked. |
 | `description` | 37 | Fritext på blandade språk, oredigerad, av vem som helst. Sidan har redan en redigerad presentationsyta i `Foretagsuppgifter.astro`, och den är verksamhetens egen och släppt fram av redaktionen. |

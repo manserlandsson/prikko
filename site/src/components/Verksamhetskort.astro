@@ -2,87 +2,158 @@
 /**
  * Startsidans verksamhetskort.
  *
- * ══ VARFÖR KORTET INTE BÄR ETT FOTO ═════════════════════════════════════
+ * ══ FORMEN ÄR EDNIAS, OCH DEN ÄR UPPMÄTT ════════════════════════════════
  *
- * Förlagan är Airbnbs startsida, och det som gör den bra är att varje kort är
- * ett fotografi av ett riktigt ställe. Den formen går inte att låna, och det
- * är räknat och inte tyckt.
+ * Uppmätt på ednia.se 2026-08-21, skärmbild i research/forlagor/. Deras kort
+ * är fyra saker i den här ordningen:
  *
- *   210 av 16 047 verksamheter bär en bild.        1,3 procent.
- *   Sex kommuner av tolv har noll.                 borgholm, hoganas,
- *                                                  kristinehamn, lomma,
- *                                                  oskarshamn, svenljunga
- *   Samtliga 210 kommer ur Wikimedia Commons.      noll mapillary, noll egna
+ *   1. ett bildband överst, brett och lågt, med `object-fit: cover`
+ *   2. en rund BRICKA nedsänkt i bandets nedre vänstra hörn, som bär
+ *      avsändaren (hos dem lärosätets sigill)
+ *   3. namnet i halvfet, sedan två grå rader
+ *   4. en nyckeltalsrad underst: fet siffra, liten etikett
  *
- * Ett rutnät i deras form hade alltså blivit 98,7 procent tomma rutor. Men
- * det är inte ens huvudskälet. Licensen är det.
+ * Vårt kort gör samma sak. Brickan bär bedömningsmärket, vilket är den enda
+ * plats på kortet där färg förekommer.
  *
- * 187 av de 210 bär en CC-licens som kräver att fotografen namnges där bilden
- * visas, och Commonsbild.astro har redan avgjort hur vi uppfyller det: en
- * SYNLIG bildtext, aldrig en (i)-knapp. Den filen har också avgjort att även
- * de 20 public domain-bilderna får bildtext, eftersom årtalet är ett
- * ärlighetskrav: Grand Hotel är fotograferat 2013 och Rosenlunds Herrgård
- * 2019, och en bild utan årtal är ett påstående om hur det ser ut i dag.
- *
- * Ett kort på 250 pixlar kan inte bära "Foto: Balazs Szanto, 2013, CC BY-SA
- * 2.0" utan att bildtexten blir kortets största textmassa. Alltså bär inget
- * kort på startsidan ett foto, och det är ett beslut och inte en lucka.
- *
- * Vinsten är att kortet får EN form i stället för två. Det som ägaren
- * varnade för, att ansiktsrutan skulle läsa som en platshållare för ett
- * foto som saknas, kan inte inträffa när inget kort någonstans har ett foto.
- *
- * ══ VAD KORTET ÄR I STÄLLET ═════════════════════════════════════════════
- *
- * Bedömningsmärket, sajtens eget tecken, som kortets enda färg. Allt annat
- * på kortet är svart, grått och vitt. Ett rutnät av åtta kort blir därmed
- * åtta färgprickar på vit botten, och det går att läsa på en blick utan att
- * något skriker.
- *
- * MÄRKET FÅR STÅ HÄR. Regeln i docs/24_maskotprogram.md §2 lyder att
- * MASKOTEN aldrig får stå bredvid en bedömning av en namngiven verksamhet,
- * och samma stycke pekar uttryckligen ut bedömningsmärket som det som ska
- * stå där i stället: "Där står bedömningsmärket, som är ett neutralt tecken
- * och inte en karaktär." Tabellen i samma paragraf sätter märkets plats till
- * "Listor, kartnålar, sökträffar, verksamhetssidan" och dess antal per sida
- * till "Tusentals". Kortet är en listpost i rutnätsform.
- *
- * FaceRef och inte FaceMark: åtta märken per grupp och sex grupper är 48
- * märken på sidan, och sprite-varianten ritar dem som `<use>` mot fyra
- * symboler. Ingen av rörelseflaggorna sätts, av samma skäl som listorna
- * aldrig får dem, se FaceMark.astro.
+ * MÄRKET FÅR STÅ HÄR. docs/24_maskotprogram.md §2 förbjuder MASKOTEN bredvid
+ * en bedömning av en namngiven verksamhet, och samma stycke pekar uttryckligen
+ * ut bedömningsmärket som det som ska stå där i stället: "Där står
+ * bedömningsmärket, som är ett neutralt tecken och inte en karaktär."
+ * Tabellen sätter märkets plats till "Listor, kartnålar, sökträffar" och dess
+ * antal per sida till "Tusentals". Ett kort i ett rutnät är en listpost.
  *
  * BETYDELSEN SITTER ALDRIG I FÄRGEN. Etiketten står i klartext under namnet,
- * precis som i EstablishmentList.astro, och munnen skiljer de tre nivåerna åt
- * i gråskala. Samma krav som tokens.css ställer på --verdict-minor-ink.
+ * och munnen skiljer nivåerna åt även i gråskala.
+ *
+ * ══ FOTOT, OCH VARFÖR DET NU FÅR VARA MED ═══════════════════════════════
+ *
+ * Filen sa tidigare att inget kort fick bära ett foto, med licensen som skäl:
+ * 187 av de 210 bilderna bär en CC-licens som kräver att fotografen namnges
+ * där bilden visas, och en bildtext på "Foto: Balazs Szanto, 2013, CC BY-SA
+ * 2.0" ryms inte på ett kort på 250 pixlar.
+ *
+ * Den slutsatsen var för sträng, och ägaren påpekade varför: "bildens
+ * attribution visas ju när man väl klickar in, vilket var deras krav."
+ *
+ * Han har rätt, och licenstexten säger det rakt ut. CC BY-SA 4.0 §3(a)(2):
+ * villkoren i 3(a)(1) får uppfyllas "in any reasonable manner based on the
+ * medium, means, and context", och stycket nämner uttryckligen att det kan
+ * vara rimligt att uppfylla dem "by providing a URI or hyperlink to a resource
+ * that includes the required information". Version 3.0 §4(c) och 2.0 §4(b) har
+ * samma öppning i orden "in any reasonable manner" respektive "reasonable to
+ * the medium or means You are utilizing".
+ *
+ * Resursen finns och är redan byggd: verksamhetssidan, där Commonsbild.astro
+ * skriver ut fotograf, licens med länk och ändringsangivelsen "nedskalad".
+ * Två villkor följer av det, och båda är uppfyllda här:
+ *
+ *   HELA KORTET ÄR LÄNKEN till just den sidan. Ingen bild utan väg till sin
+ *   egen bildtext. Det är därför fotot ligger inuti <a> och inte bredvid.
+ *   BILDTEXTEN FÅR ALDRIG FÖRSVINNA från verksamhetssidan. Skulle
+ *   Commonsbild.astro någon gång sluta rita den raden faller grunden för det
+ *   här kortet med den.
+ *
+ * Miniatyren på en kortyta är dessutom precis det bruk "based on the medium"
+ * är skrivet för, och det är den form Commons egna återanvändare använder i
+ * varje galleri och varje sökresultat.
+ *
+ * ══ KORT UTAN FOTO ══════════════════════════════════════════════════════
+ *
+ * 210 av 16 047 bär en bild, alltså 1,3 procent. Bandet måste därför ha en
+ * andra form, och ägaren har pekat ut risken med den: en tom ruta läses som
+ * ett foto som inte laddat.
+ *
+ * Rutan är därför inte tom och inte grå. Den bär en av tre lugna toner och
+ * matkategorins ikon i stor grad, alltså en yta som ser AVSIKTLIG ut. Tonen
+ * väljs på kategorin och inte slumpvis, så att samma sorts ställe får samma
+ * ton genom hela rutnätet.
+ *
+ * Ingen av de tre tonerna ligger nära en bedömningsfärg. Grönt är uteslutet
+ * i synnerhet: en grön platta bakom ett märke som också kan vara grönt hade
+ * gjort ytan till en andra bedömning.
  *
  * ══ HOVRING ═════════════════════════════════════════════════════════════
  *
  * Bara understrykning av namnet. Uppmätt på airbnb.se 2026-08-21: deras kort
  * har INGEN hovringseffekt alls. Varje ättling till kortets länk svarade
- * `transition-duration: 0s`, `transform: none` och `box-shadow: none`, och
- * bilden hade ingen övergång. Ett kort som lyfter och skuggar på hovring är
- * inte förlagans grepp utan mallens.
+ * `transition-duration: 0s`, `transform: none` och `box-shadow: none`.
+ * Ednia lägger till en svag ram. Ett kort som lyfter och skuggar på hovring
+ * är inte förlagans grepp utan mallens.
  */
 import FaceRef from './FaceRef.astro';
+import Kategoriikon from './Kategoriikon.astro';
+import Matikon from './Matikon.astro';
 import {
+  categoriesOf,
   formatDate,
   isIndexable,
   latestInspectionDate,
   missingReason,
   type Establishment,
+  type TopCategoryId,
 } from '../lib/data';
+import { matkategorierFor, MATKATEGORI_ORDNING } from '../lib/matkategori';
 import { MISSING, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 
 interface Props {
   e: Establishment;
+  /**
+   * Sant på kortet i den första raden ovanför vikkanten. Sätter
+   * `loading="eager"` och `fetchpriority="high"` på fotot, eftersom det då
+   * är sidans LCP-kandidat och en lat bild där kostar mätbar tid.
+   */
+  tidig?: boolean;
 }
 
-const { e } = Astro.props;
+const { e, tidig = false } = Astro.props;
 
 const date = latestInspectionDate(e);
 const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
+
+/**
+ * Bilden visas bara när den bär en känd licens, samma grind som
+ * Commonsbild.astro sätter. En bild vars licens vi inte kan skriva ut på
+ * verksamhetssidan får inte heller stå på kortet: då finns ingen resurs att
+ * hänvisa till, och hela §3(a)(2)-resonemanget i filhuvudet faller.
+ */
+const foto = e.image?.url && e.image.licence ? e.image : null;
+
+/** Första matkategorin, alltså den mest förekommande. Styr ikon och ton. */
+const kategorier = matkategorierFor(e);
+const kategori = kategorier[0] ?? null;
+
+/**
+ * TVÅ NIVÅER AV IKON, OCH DEN ANDRA ÄR INTE EN RESERVUTGÅNG UTAN ETT KRAV.
+ *
+ * 12 120 av 16 047 har ingen OSM-träff och alltså ingen matkategori. Ritade
+ * de alla `alla`-ikonen blev raden "Senast kontrollerade" åtta identiska
+ * rutor med samma staplade lager i, vilket är precis den platshållarkänsla
+ * hela bildbandet finns till för att undvika. Uppmätt på skärm 2026-08-21.
+ *
+ * Toppkategorin finns däremot på 15 961 av 16 047, alltså nästan alla, och
+ * dess fem former är redan ritade i Kategoriikon.astro: bestick, kopp,
+ * kasse, byggnad, låda. En kasse på en butik och ett bestick på en krog är
+ * dessutom SANT, till skillnad från en generisk bunt.
+ */
+const topp: TopCategoryId | null = categoriesOf(e).categories[0] ?? null;
+
+/**
+ * Tre toner. Nyckeln är kategorins plats i sin tabell, modulo tre, och inte
+ * en hash på slug: samma sorts ställe ska ha samma ton, annars blir rutnätet
+ * konfetti. Toppkategorierna får sin egen ordning så att de fem inte alla
+ * hamnar på samma ton.
+ */
+const TONER = ['ton-blast', 'ton-sand', 'ton-dis'] as const;
+const TOPPORDNING: TopCategoryId[] = ['restaurang', 'cafe', 'butik', 'skola', 'ovrigt'];
+
+const tonindex = kategori
+  ? MATKATEGORI_ORDNING.indexOf(kategori)
+  : topp
+    ? TOPPORDNING.indexOf(topp)
+    : 2;
+const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
 ---
 
 <a
@@ -90,44 +161,150 @@ const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
   href={path(e.municipality.slug, e.slug)}
   rel={isIndexable(e) ? undefined : 'nofollow'}
 >
-  <FaceRef verdict={e.verdict} size={44} />
-  <span class="namn">{e.name}</span>
-  <span class="dom" style={`color: ${dom.colorVar}`}>{dom.label}</span>
-  <span class="ort text-secondary">
-    {[e.municipality.city, date && formatDate(date)].filter(Boolean).join(' · ')}
+  <span class:list={['band', !foto && ton]}>
+    {foto ? (
+      <img
+        src={foto.url}
+        alt=""
+        width="600"
+        height="400"
+        loading={tidig ? 'eager' : 'lazy'}
+        fetchpriority={tidig ? 'high' : undefined}
+        decoding="async"
+      />
+    ) : (
+      <span class="tomikon">
+        {kategori ? (
+          <Matikon namn={kategori} size={64} />
+        ) : (
+          <Kategoriikon namn={topp ?? 'ovrigt'} size={64} />
+        )}
+      </span>
+    )}
+
+    {/* Märket på en vit platta. Se .marke för varför plattan är kvadratisk. */}
+    <span class="marke">
+      <FaceRef verdict={e.verdict} size={32} />
+    </span>
+  </span>
+
+  <span class="text">
+    <span class="namn">{e.name}</span>
+    <span class="dom" style={`color: ${dom.colorVar}`}>{dom.label}</span>
+    <span class="ort text-secondary">
+      {[e.municipality.city, date && formatDate(date)].filter(Boolean).join(' · ')}
+    </span>
   </span>
 </a>
 
 <style>
-  /* Kortet är en vit ruta med ring, alltså sajtens .card, men klassen sätts
-     här i stället för i markupen: kortet är en länk, och .card bär ingen
-     länktypografi. Ringen kommer ur --shadow-sm, som sedan --canvas gick
-     till nästan vitt är det enda som avgränsar ett kort från sidan. */
   .kort {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: var(--s-1);
     height: 100%;
-    padding: var(--s-4);
     background: var(--card);
     border-radius: var(--r-card);
     box-shadow: var(--shadow-sm);
     color: var(--text);
     text-decoration: none;
+    overflow: hidden;
   }
 
-  /* Märket har sin egen luft under sig och inte via rutans gap: gapet är 4 px
-     och håller de tre textraderna tätt ihop, medan märket ska stå av från
-     dem. 12 px är --s-3. */
-  .kort :global(.face) { margin-bottom: var(--s-3); }
+  /* Bandet är 3:2 och inte kvadratiskt. Airbnbs kortbild mäter 182 × 173,
+     alltså nästan kvadrat, men deras kort bär ett fotografi av ett rum och
+     vårt bär i 98,7 procent av fallen en tonplatta. En hög tonplatta är en
+     stor tom yta; en låg är en list. `aspect-ratio` och inte fast höjd, så
+     att bandet följer kortets bredd i varje spaltantal. */
+  .band {
+    position: relative;
+    display: block;
+    aspect-ratio: 3 / 2;
+    background: var(--brand-wash);
+    overflow: hidden;
+  }
 
-  /* Namnet är sajtens vanligaste grad, 14/24, i halvfet. Två rader och sedan
-     avhugget: en verksamhet heter ibland "Stiftelsen Konung Oscar I:s Minne",
-     och ett kort som växer efter sitt längsta namn spräcker rutnätets rader. */
+  .band img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* De tre tonerna. Ingen är nära en bedömningsfärg, se filhuvudet.
+     Övertoningen går snett och är svag, tre till fyra steg mellan ändarna:
+     en platt fyllning läser som ett fel i renderingen, en tydlig övertoning
+     läser som dekor. */
+  .ton-blast { background: linear-gradient(135deg, #EDF4FC 0%, #E2ECF8 100%); }
+  .ton-sand  { background: linear-gradient(135deg, #F7F2E9 0%, #EFE7D9 100%); }
+  .ton-dis   { background: linear-gradient(135deg, #F2F1F6 0%, #E9E8F0 100%); }
+
+  /* Ikonen är stor och svag, alltså en vattenstämpel och inte en ikon man
+     ska läsa. Den sitter till höger om mitten så att brickan i nedre vänstra
+     hörnet aldrig hamnar ovanpå ett streck. */
+  .tomikon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 12%;
+    color: var(--brand);
+    opacity: .16;
+  }
+
+  /* Märket på en vit platta i bandets nedre vänstra hörn.
+     ────────────────────────────────────────────────────────────────────────
+     RADIEN ÄR RÄKNAD, INTE VALD, och det är hela poängen.
+
+     Här satt först en vit CIRKEL på 44 px, avritad från Ednias sigill. Ägaren
+     2026-08-22: "det ser också fult ut med märket på en rund cirkel sådår, ser
+     liksom konstigt ut." Felet var geometriskt: Ednias sigill är runt, så en
+     rund platta ger två koncentriska cirklar. Vårt bedömningsmärke är en
+     rundad KVADRAT, och en rundad kvadrat i en cirkel är två former som slåss
+     om samma hörn.
+
+     Plattan togs då bort helt, och ägaren svarade: "du kan ju ha märket med en
+     vit bakgrund." Han har rätt, den behövdes: mot en ljus himmel eller en vit
+     fasad tappar ett ljusgrönt märke sin kontur, och en skugga ensam räcker
+     inte.
+
+     Kvadratisk platta alltså, och radien följer märkets egen. `FACE_RAM_RADIE`
+     i lib/face.ts är 17 av 100, alltså 17 procent av sidan. Märket är 32 px
+     och har därmed 5,4 px radie. Plattan är 42 px, alltså 5 px fyllning runt
+     om, och för att kurvorna ska löpa parallellt måste dess radie vara
+     5,4 + 5 = 10,4. `--r-control` är 10. Ritar man om märkets ram måste det
+     här talet räknas om. */
+  .marke {
+    position: absolute;
+    left: var(--s-3);
+    bottom: var(--s-3);
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--r-control);
+    background: var(--card);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 1px 3px rgba(0, 0, 0, .16);
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s-3) var(--s-4) var(--s-4);
+  }
+
+  /* Namnet är 14/20 i halvfet. Radhöjden är stramare än sajtens --lh-body-s
+     på 24: två rader namn i 24 punkters radavstånd blir 48 px och drar isär
+     kortets nedre halva. Ednias korttitel ligger på 16/22, vår på 14/20 av
+     samma skäl som resten av sajten står på 14: verksamhetsnamn är långa.
+
+     Två rader och sedan avhugget: en verksamhet heter ibland "Stiftelsen
+     Konung Oscar I:s Minne", och ett kort som växer efter sitt längsta namn
+     spräcker rutnätets rader. */
   .namn {
     font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+    line-height: 20px;
     font-weight: 600;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -141,7 +318,16 @@ const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
     line-height: var(--lh-caption);
   }
 
-  /* Hovringen, hela kortets enda. Se filhuvudet. */
-  .kort:hover { text-decoration: none; }
+  .dom { font-weight: 500; }
+
+  /* Ednias kort får en tydligare ram på hovring, Airbnbs får ingenting alls.
+     Vi tar understrykningen av namnet och ingenting mer. Kurvan är den
+     uppmätta, se docs/40 §3. */
+  .kort { transition: box-shadow .2s cubic-bezier(.2, 0, 0, 1); }
+  .kort:hover { text-decoration: none; box-shadow: var(--shadow-sm), 0 2px 8px rgba(0, 0, 0, .06); }
   .kort:hover .namn { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kort { transition: none; }
+  }
 </style>
