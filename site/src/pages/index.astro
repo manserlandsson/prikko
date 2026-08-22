@@ -345,8 +345,19 @@ const hemRubrik = 'Populära ställen';
 // Kategorigrupperna
 // ---------------------------------------------------------------------------
 
-/** Åtta per kategori. Tolv gav en union på över tvåhundra kort. */
-const PER_KATEGORI = 8;
+/**
+ * Tolv i första vändan och tolv till bakom "Visa fler".
+ *
+ * Ägaren 2026-08-22: "jag gillar laddiden, kanske inte oändlig laddning men
+ * ändå lite."
+ *
+ * Ingen oändlig skroll alltså, och inte heller ett anrop: sajten är statisk,
+ * så det finns ingen tjänst att fråga. Nästa vända står redan i markupen och
+ * avslöjas av en kryssruta. Priset är att poolen växer, och det är räknat:
+ * åtta per kategori gav 154 kort i markupen, tjugofyra ger omkring 330.
+ */
+const PER_SIDA = 12;
+const PER_KATEGORI = 24;
 
 /**
  * Foto först, sedan datum.
@@ -375,21 +386,45 @@ const grupper: Grupp[] = [{ id: 'hem', ikon: 'alla', etikett: 'Alla' }];
 /**
  * Vilka grupper varje verksamhet står i. Kortet renderas en gång och
  * grupperna hamnar i `data-kat`.
+ *
+ * `platsPerRad` håller kortets PLATS i varje grupp, och det behövs för
+ * "Visa fler": ett kort kan vara nummer tre under Pizza och nummer tjugo
+ * under Café. Ett kort räknas som extra bara när det ligger efter
+ * PER_SIDA i ALLA sina grupper, annars hade det försvunnit från en flik
+ * där det egentligen hör hemma på första vändan.
  */
 const grupperPerRad = new Map<Establishment, Set<string>>();
+const platsPerRad = new Map<Establishment, number[]>();
 const pool: Rad[] = [];
 
-function laggTill(rad: Rad, grupp: string) {
+function laggTill(rad: Rad, grupp: string, plats: number) {
   let set = grupperPerRad.get(rad.e);
   if (!set) {
     set = new Set();
     grupperPerRad.set(rad.e, set);
+    platsPerRad.set(rad.e, []);
     pool.push(rad);
   }
   set.add(grupp);
+  platsPerRad.get(rad.e)!.push(plats);
 }
 
-for (const rad of hem) laggTill(rad, 'hem');
+hem.forEach((rad, i) => laggTill(rad, 'hem', i));
+
+/**
+ * Grupperna där kortet ligger EFTER första vändan, som en ordlista.
+ *
+ * Per grupp och inte som en enda flagga, och skälet är mätt: ett kort kan
+ * vara nummer tre under Pizza och nummer tjugo under Café. Med en enda flagga
+ * fick jag välja mellan att dölja det på fliken där det hör hemma tidigt,
+ * eller att visa det på fliken där det hör hemma sent. Utfallet av det andra
+ * var att Café visade sexton kort i första vändan i stället för tolv.
+ */
+function extraGrupper(e: Establishment): string {
+  const grupperna = [...grupperPerRad.get(e)!];
+  const platser = platsPerRad.get(e)!;
+  return grupperna.filter((_, i) => platser[i] >= PER_SIDA).join(' ');
+}
 
 for (const kategori of MATKATEGORIER) {
   const urval = kategoriurval(kategori.id);
@@ -397,7 +432,7 @@ for (const kategori of MATKATEGORIER) {
   // under en flik som utlovar en hel sorts mat läser som ett fel.
   if (urval.length < 4) continue;
   grupper.push({ id: kategori.id, ikon: kategori.id, etikett: kategori.namn });
-  for (const rad of urval) laggTill(rad, kategori.id);
+  urval.forEach((rad, i) => laggTill(rad, kategori.id, i));
 }
 
 /**
@@ -470,19 +505,13 @@ pool.sort(
 // ---------------------------------------------------------------------------
 
 /**
- * Egen rad längre ned, och skälet är ett annat än hemgruppens.
+ * BORTA, på ägarens beslut 2026-08-22: "vi behöver ju ej tex Senast
+ * kontrollerade."
  *
- * Det är den enda raden vars innehåll garanterat är färskt varje dag, alltså
- * den enda som visar att sajten lever. Nämnaren är 68 958 kontroller på
- * 14 482 verksamheter som har minst en.
- *
- * Raden väljer inte bort något. Av de 16 047 är 11 966 rena, 1 219 har
- * brister, 373 har brister som kvarstår och 2 489 saknar bedömning, och
- * raden speglar den fördelningen. En "senast kontrollerade" som tyst strök
- * de dåliga vore en annan lista med samma namn.
+ * Raden bar åtta kort utan foto direkt under tolv med foto, alltså samma
+ * sorts innehåll i sämre skick. Färskheten den visade finns kvar på varje
+ * kort ändå, i datumraden under namnet, och på kommunsidorna.
  */
-const SENAST_RUTOR = 8;
-const senast = plocka(kronologi, SENAST_RUTOR, 2);
 
 // ---------------------------------------------------------------------------
 // Kommunerna
@@ -660,7 +689,7 @@ const jsonLd = [
       </div>
     </div>
 
-    <div class="container">
+    <div class="container radblock">
       {/* Rubriken är 14/24 och inte en rubrikgrad, och det är mätt: Airbnbs
           egen `h2` över kortraden är 14 px i vikt 400. Vår är halvfet
           eftersom den till skillnad från deras inte har någon större rad
@@ -677,26 +706,56 @@ const jsonLd = [
 
       <ul class="rutnat">
         {pool.map((rad) => (
-          <li data-kat={[...grupperPerRad.get(rad.e)!].join(' ')}>
+          <li
+            data-kat={[...grupperPerRad.get(rad.e)!].join(' ')}
+            data-extra={extraGrupper(rad.e) || undefined}
+          >
             <Verksamhetskort e={rad.e} tidig={tidiga.has(rad.e)} />
           </li>
         ))}
       </ul>
-    </div>
-  </section>
 
-  {/* ══ Senast kontrollerade ═══════════════════════════════════════════*/}
-  <section class="container block">
-    <div class="blockhuvud">
-      <h2>Senast kontrollerade</h2>
-      <a href="/karta/">Se alla på kartan</a>
-    </div>
+      {/* "Visa fler" som en kryssruta och inte en knapp.
+          ────────────────────────────────────────────────────────────────
+          Samma grepp som kategoriraden: `:has()` på ett formulärelement,
+          alltså inget skript. En knapp hade krävt en klickhanterare för
+          något som CSS redan kan.
 
-    <ul class="rutnat">
-      {senast.map((rad) => (
-        <li><Verksamhetskort e={rad.e} /></li>
-      ))}
-    </ul>
+          Etiketten byter text när rutan är i, och båda orden står i
+          markupen: en etikett vars text sätts av `content` går inte att
+          markera, inte att söka i sidan och inte att läsa upp korrekt. */}
+      {/* ══ VISA PÅ KARTA ══════════════════════════════════════════════
+          Airbnbs flytande knapp, uppmätt på deras sökresultat 2026-08-22:
+          129 × 48 px, radie 24, mörk platta rgb(34, 34, 34), etikett 14 px
+          i vikt 500, ikon till vänster, centrerad i vyn med 48 px till
+          nederkanten.
+
+          `position: sticky` och inte `fixed`, och det är skillnaden mot
+          deras: en fast knapp följer med över sidfoten och ligger i vägen
+          där den inte har något att erbjuda. Klistrad inuti `.upptack`
+          svävar den så länge rutnätet syns och rullar bort med det.
+
+          En LÄNK och inte en knapp. Kartan är en egen sida, och en knapp
+          som byter sida går inte att öppna i ny flik, inte att spara och
+          inte att mellanklicka. */}
+      <div class="kartrad">
+        <a class="kartknapp" href="/karta/">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9.2 3.4 3.6 5.6v15l5.6-2.2 5.6 2.2 5.6-2.2v-15l-5.6 2.2z" />
+            <path d="M9.2 3.4v15.2M14.8 5.6v15.2" />
+          </svg>
+          Visa på karta
+        </a>
+      </div>
+
+      <div class="merrad">
+        <input class="visually-hidden" type="checkbox" id="visa-fler" />
+        <label class="mer" for="visa-fler">
+          <span data-mer>Visa fler</span>
+          <span data-farre>Visa färre</span>
+        </label>
+      </div>
+    </div>
   </section>
 
   {/* ══ Artiklarna ════════════════════════════════════════════════════*/}
@@ -945,7 +1004,14 @@ const jsonLd = [
     inset: -6px;
   }
 
-  /* ── Rubrikraden ─────────────────────────────────────────────────────*/
+  /* ── Rubrikraden ─────────────────────────────────────────────────────
+     Luften ligger som PADDING på blocket och inte som marginal på rubriken.
+     En marginal hade kollapsat ut genom `.container`, som bara har fyllning i
+     sidled, och hamnat ovanför kategoribandet i stället för under det. Det
+     var precis felet i första försöket: 24 px lades på `.upptack` och sköt
+     ned hela bandet medan rubriken satt kvar dikt an mot dess hårlinje. */
+  .radblock { padding-top: var(--s-6); }
+
   .radrubrik {
     margin-bottom: var(--s-4);
     font-size: var(--fs-body-s);
@@ -982,7 +1048,7 @@ const jsonLd = [
      24 px över rubriken och 16 under, i stället för 0 och 12. Ednias första
      kort börjar 240 px ned vid 1280, med en rad Filtrera- och Sortera-piller
      i mellanrummet som vi inte har; luften får göra det jobbet i stället. */
-  .upptack { padding-block: var(--s-6) var(--s-12); }
+  .upptack { padding-bottom: var(--s-12); }
   .upptack .rutnat { padding-top: var(--s-4); }
 
   /* ── Urvalet ─────────────────────────────────────────────────────────
@@ -1017,6 +1083,134 @@ const jsonLd = [
   .upptack:has(#kat-mellanostern:checked) .rutnat > li[data-kat~='mellanostern'],
   .upptack:has(#kat-glass:checked) .rutnat > li[data-kat~='glass'] {
     display: block;
+  }
+
+  /* EXTRAKORTEN, andra vändan.
+     ────────────────────────────────────────────────────────────────────────
+     Regeln står EFTER gruppreglerna och har högre specificitet tack vare
+     `:not(:has())`, så den vinner över dem utan `!important`. Gruppreglerna
+     behöver därmed inte skrivas i två uppsättningar: de säger vilka kort som
+     hör till fliken, och den här säger vilka av dem som ännu inte fått plats. */
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-hem:checked) .rutnat > li[data-extra~='hem'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-livsmedel:checked) .rutnat > li[data-extra~='livsmedel'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-snabbmat:checked) .rutnat > li[data-extra~='snabbmat'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-cafe-fik:checked) .rutnat > li[data-extra~='cafe-fik'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-pizza:checked) .rutnat > li[data-extra~='pizza'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-asiatiskt:checked) .rutnat > li[data-extra~='asiatiskt'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-bar:checked) .rutnat > li[data-extra~='bar'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-sushi:checked) .rutnat > li[data-extra~='sushi'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-burgare:checked) .rutnat > li[data-extra~='burgare'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-italienskt:checked) .rutnat > li[data-extra~='italienskt'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-kiosk:checked) .rutnat > li[data-extra~='kiosk'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-bageri:checked) .rutnat > li[data-extra~='bageri'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-kebab:checked) .rutnat > li[data-extra~='kebab'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-medelhav:checked) .rutnat > li[data-extra~='medelhav'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-sallad:checked) .rutnat > li[data-extra~='sallad'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-thai:checked) .rutnat > li[data-extra~='thai'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-indiskt:checked) .rutnat > li[data-extra~='indiskt'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-konditori:checked) .rutnat > li[data-extra~='konditori'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-grill:checked) .rutnat > li[data-extra~='grill'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-mellanostern:checked) .rutnat > li[data-extra~='mellanostern'],
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-glass:checked) .rutnat > li[data-extra~='glass'] {
+    display: none;
+  }
+
+  /* Kartknappen. Se markupen för måtten och för varför den är klistrad. */
+  .kartrad {
+    position: sticky;
+    bottom: var(--s-6);
+    display: flex;
+    justify-content: center;
+    /* Höjden tas ur flödet, annars skjuter raden ned rutnätet med 48 px
+       som ingen ser. Knappen svävar över korten, den står inte efter dem. */
+    height: 0;
+    margin-top: calc(var(--s-12) * -1);
+    /* Under sidhuvudets 60 och över sidans innehåll. */
+    z-index: 20;
+  }
+
+  .kartknapp {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 48px;
+    padding-inline: 19px;
+    border-radius: 24px;
+    background: var(--text);
+    color: var(--card);
+    font-size: var(--fs-body-s);
+    font-weight: 500;
+    text-decoration: none;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, .28);
+    transition: transform .25s cubic-bezier(.2, 0, 0, 1);
+  }
+
+  .kartknapp:hover {
+    color: var(--card);
+    text-decoration: none;
+    transform: scale(1.04);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kartknapp { transition: none; }
+  }
+
+  .merrad {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--s-8);
+  }
+
+  /* Ednias och Airbnbs "visa fler" är båda en ram utan fyllning, alltså en
+     handling som inte konkurrerar med korten om uppmärksamheten. */
+  .mer {
+    min-height: var(--h-tap);
+    display: inline-flex;
+    align-items: center;
+    padding-inline: var(--s-6);
+    border: 1px solid var(--text);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .mer:hover { background: var(--canvas); }
+
+  #visa-fler:focus-visible + .mer {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .mer [data-farre] { display: none; }
+  .upptack:has(#visa-fler:checked) .mer [data-mer] { display: none; }
+  .upptack:has(#visa-fler:checked) .mer [data-farre] { display: inline; }
+
+  /* Finns inga extrakort i den valda gruppen ska knappen inte stå kvar och
+     lova något den inte kan ge. Varje flik prövas för sig. */
+  .upptack:has(#kat-hem:checked):not(:has(.rutnat > li[data-extra~='hem'])) .merrad,
+  .upptack:has(#kat-livsmedel:checked):not(:has(.rutnat > li[data-extra~='livsmedel'])) .merrad,
+  .upptack:has(#kat-snabbmat:checked):not(:has(.rutnat > li[data-extra~='snabbmat'])) .merrad,
+  .upptack:has(#kat-cafe-fik:checked):not(:has(.rutnat > li[data-extra~='cafe-fik'])) .merrad,
+  .upptack:has(#kat-pizza:checked):not(:has(.rutnat > li[data-extra~='pizza'])) .merrad,
+  .upptack:has(#kat-asiatiskt:checked):not(:has(.rutnat > li[data-extra~='asiatiskt'])) .merrad,
+  .upptack:has(#kat-bar:checked):not(:has(.rutnat > li[data-extra~='bar'])) .merrad,
+  .upptack:has(#kat-sushi:checked):not(:has(.rutnat > li[data-extra~='sushi'])) .merrad,
+  .upptack:has(#kat-burgare:checked):not(:has(.rutnat > li[data-extra~='burgare'])) .merrad,
+  .upptack:has(#kat-italienskt:checked):not(:has(.rutnat > li[data-extra~='italienskt'])) .merrad,
+  .upptack:has(#kat-kiosk:checked):not(:has(.rutnat > li[data-extra~='kiosk'])) .merrad,
+  .upptack:has(#kat-bageri:checked):not(:has(.rutnat > li[data-extra~='bageri'])) .merrad,
+  .upptack:has(#kat-kebab:checked):not(:has(.rutnat > li[data-extra~='kebab'])) .merrad,
+  .upptack:has(#kat-medelhav:checked):not(:has(.rutnat > li[data-extra~='medelhav'])) .merrad,
+  .upptack:has(#kat-sallad:checked):not(:has(.rutnat > li[data-extra~='sallad'])) .merrad,
+  .upptack:has(#kat-thai:checked):not(:has(.rutnat > li[data-extra~='thai'])) .merrad,
+  .upptack:has(#kat-indiskt:checked):not(:has(.rutnat > li[data-extra~='indiskt'])) .merrad,
+  .upptack:has(#kat-konditori:checked):not(:has(.rutnat > li[data-extra~='konditori'])) .merrad,
+  .upptack:has(#kat-grill:checked):not(:has(.rutnat > li[data-extra~='grill'])) .merrad,
+  .upptack:has(#kat-mellanostern:checked):not(:has(.rutnat > li[data-extra~='mellanostern'])) .merrad,
+  .upptack:has(#kat-glass:checked):not(:has(.rutnat > li[data-extra~='glass'])) .merrad {
+    display: none;
   }
 
   .upptack:has(#kat-hem:checked) .radrubrik span[data-for='hem'],

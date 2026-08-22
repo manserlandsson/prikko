@@ -239,6 +239,54 @@ ALLOWED_CLASSES: Dict[str, str] = {
 }
 
 
+#: Hur nära ett objekt UTAN P31 måste ligga för att ändå duga.
+#:
+#: ══ VARFÖR UNDANTAGET FINNS ═══════════════════════════════════════════════
+#:
+#: Klassgrinden avvisade allt utan P31, och det kostade riktiga träffar.
+#: Ägaren pekade 2026-08-22 på Rolfs kök: Wikidata-objektet Q10656465 heter
+#: "Rolfs kök", bär bilden "Rolfs kök.JPG" och en koordinat 0,8 meter från vår
+#: rad, men har `P31: []`. Ingen har skrivit vad för slags sak det är, och
+#: grinden läste det som "fel sorts sak".
+#:
+#: Att sakna P31 och att ha fel P31 är två olika saker. Det andra är ett
+#: besked, det första är en lucka i Wikidata.
+#:
+#: ══ VARFÖR JUST 40 METER ══════════════════════════════════════════════════
+#:
+#: Uppmätt 2026-08-22 över 11 577 rader i Stockholm, Linköping, Jönköping och
+#: Karlstad. Av 7 459 objekt i lådorna saknar 238 P31. Namnlika par utan P31
+#: inom 150 meter: tolv, samtliga i Stockholm.
+#:
+#: FYRA AV DE TOLV HAR REDAN EN BILD VIA OSM-VÄGEN, och regeln pekar på exakt
+#: samma fil i alla fyra: Sundbergs Konditori 0,6 m, Restaurang Kvarnen 0,9,
+#: Restaurang Pelikan 1,1, Wedholms Fisk 4,2. Två oberoende människor, en i
+#: OSM och en i Wikidata, har alltså pekat på samma bild. Det är den starkaste
+#: valideringen mätningen ger.
+#:
+#: Talet ligger i ett GLAPP och inte mitt i en hög, precis som
+#: `commons.MAX_DISTANCE_M`: träffarna slutar vid 27,1 meter och nästa ligger
+#: på 75,4. Allt mellan 28 och 75 ger identiskt utfall.
+#:
+#: De fyra OSM-validerade sitter på 0,6 till 4,2 meter, och det säger vad ett
+#: riktigt "objektet ÄR verksamheten" ser ut som. Ligger objektet längre bort
+#: är det oftast HUSET eller GÅRDEN, och då är namnlikheten ett svagare belägg.
+#:
+#: ══ VARFÖR INTE VIDARE ════════════════════════════════════════════════════
+#:
+#: Avståndet skyddar inte mot stadsdelsfelet. Mätt vid en kilometer dyker de
+#: upp: "Gamla Östberga Bageri AB" paras med stadsdelen Gamla Östberga på 321
+#: meter, "Långpannan Pizzeria" med platsen Långpannan på 520. Att bageriet
+#: hamnade på 321 är en slump; hade det legat mitt i stadsdelen hade
+#: centroiden legat femtio meter bort och sluppit igenom vilken spärr som
+#: helst under 150.
+#:
+#: Vinsten vid 40 meter är fem rader av 11 577, och de tre kommunerna utanför
+#: Stockholm gav noll. Det är litet, och det är ärligt: Wikidata har bara
+#: stockholmskrogar som objekt utan P31.
+UTAN_P31_MAX_M = 40.0
+
+
 class WikidataError(RuntimeError):
     pass
 
@@ -262,9 +310,19 @@ class Objekt:
     def tillaten_klass(self) -> bool:
         """Står något av objektets slag i tillåtelselistan?
 
-        Objekt utan P31 svarar alltid nej. Se modulens docstring, grind 2.
+        Objekt utan P31 svarar nej HÄR, men kan ändå passera. Se
+        `UTAN_P31_MAX_M` och `pair`.
         """
         return any(k in ALLOWED_CLASSES for k in self.klasser)
+
+    def saknar_klass(self) -> bool:
+        """Har objektet ingen P31 alls?
+
+        Skilj det från "har en P31 som inte står i listan". Det första är att
+        Wikidata inte VET vad tinget är, det andra är att någon sagt att det är
+        en sak vi inte vill ha. Bara det första får en andra chans.
+        """
+        return not self.klasser
 
     def namnformer(self) -> List[Tuple[str, ...]]:
         """Namnet och alla alias som ordmängder."""
@@ -551,12 +609,15 @@ def pair(index: Index, namn: Optional[str], lat: float, lng: float) -> Optional[
         return None
     basta: Optional[Traff] = None
     for objekt in index.near(lat, lng):
-        if not objekt.tillaten_klass():
+        klasslos = objekt.saknar_klass()
+        if not objekt.tillaten_klass() and not klasslos:
             continue
         if not any(form and names_agree(ours, form) for form in objekt.namnformer()):
             continue
         avstand = within_reach(objekt, lat, lng)
         if avstand is None:
+            continue
+        if klasslos and avstand > UTAN_P31_MAX_M:
             continue
         if basta is None or avstand < basta.metres:
             basta = Traff(objekt=objekt, metres=avstand)

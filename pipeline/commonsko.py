@@ -175,6 +175,11 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
     ko: List[dict] = []
     provade = 0
 
+    KOFIL.parent.mkdir(parents=True, exist_ok=True)
+
+    def spara() -> None:
+        KOFIL.write_text(json.dumps(ko, ensure_ascii=False, indent=1), encoding="utf-8")
+
     for path in filer:
         payload = json.loads(path.read_text(encoding="utf-8"))
         kommun = payload["municipality"]
@@ -211,7 +216,18 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
                 # licens utanför FREE_LICENCES, och en bild vi ändå aldrig får
                 # visa hör inte hemma i en granskningskö: den kostar bara ett
                 # beslut som inte spelar roll.
-                funnen = commons.lookup(titel[len("File:") :])
+                #
+                # Nätfelet fångas HÄR och inte i `commons.lookup`. Modulen
+                # ska fälla högt när OSM-spåret slår upp sina 27 filer: går
+                # ett av dem fel vill vi veta det. Den här kön gör tusentals
+                # anrop i en följd, och ett avbrutet anrop mitt i är då ett
+                # utfall och inte ett haveri. Att låta det kasta hade kostat
+                # hela skörden för en fils skull.
+                try:
+                    funnen = commons.lookup(titel[len("File:") :])
+                except Exception as fel:  # noqa: BLE001
+                    print(f"  {titel}: {fel}", file=sys.stderr)
+                    funnen = None
                 time.sleep(PAUS_S)
                 if funnen is None:
                     continue
@@ -225,7 +241,7 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
                         "ort": kommun["city"],
                         "fil": funnen.title,
                         "licens": funnen.licence,
-                        "attribution": funnen.attribution,
+                        "attribution": commons.credit_line(funnen),
                         "capturedAt": funnen.captured_at,
                         "forhandsvisning": funnen.fetch_url,
                         "filsida": commons.file_page_url(funnen.title),
@@ -235,8 +251,14 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
                 )
                 break
 
-    KOFIL.parent.mkdir(parents=True, exist_ok=True)
-    KOFIL.write_text(json.dumps(ko, ensure_ascii=False, indent=1), encoding="utf-8")
+        spara()
+        print(
+            f"{kommun['slug']}: {provade} prövade totalt, {len(ko)} kandidater",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    spara()
     print(f"{provade} verksamheter prövade, {len(ko)} kandidater i {KOFIL}", file=sys.stderr)
     return 0
 

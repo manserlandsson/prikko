@@ -144,27 +144,47 @@ const show = licence !== null;
       decoding="async"
       data-commons-photo
     />
+    {/* EN rad, inte två, och så kort licensen tillåter.
+     *
+     * Raden bar förut upphovsperson på en rad och "Wikimedia Commons · CC
+     * BY-SA 4.0 · nedskalad" på en andra. Ägaren: "ta bort så mycket courtesy
+     * på bilden som möjligt". Det går, och gränsen är inte smak utan avtal.
+     *
+     * CC BY-SA 4.0 §3(a)(2) säger att villkoren får uppfyllas "in any
+     * reasonable manner based on the medium", och nämner uttryckligen en
+     * hyperlänk till en resurs som bär uppgifterna som ett godtagbart sätt.
+     * Filsidan på Commons ÄR den resursen: den bär upphovsperson,
+     * upphovsrättsnotis, licensnotis och ansvarsfriskrivning.
+     *
+     * Kvar syns därför det minsta som fortfarande är sant utan att man
+     * klickar: vem som tagit bilden och under vilken licens. Orden "Wikimedia
+     * Commons" är borta, eftersom namnet nu bär länken dit, och en läsare som
+     * vill veta var bilden kommer ifrån ser det på hovring och på filsidan.
+     *
+     * "Nedskalad" står kvar och kan inte kortas bort. Det är ändringsangivelsen
+     * enligt 3(a)(1)(B), och vi lagrar en 1024 px WebP i stället för
+     * originalets upp till 6 720 × 4 480 JPEG.
+     *
+     * Public domain och CC0 har inga villkor alls och får därför ingen rad.
+     * Årtalet, som är ett ärlighetskrav och inte ett licenskrav, ligger kvar i
+     * `credit` för de historiska bilderna och står ensamt där. */}
     <figcaption class="text-muted">
-      {credit && <span class="line">{credit}</span>}
-      <span class="line">
-        {filePage ? (
-          <a href={filePage} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>
+      {credit ? (
+        filePage ? (
+          <a href={filePage} target="_blank" rel="noopener noreferrer">{credit}</a>
         ) : (
-          <span>Wikimedia Commons</span>
-        )}
-        {' · '}
-        {licence.href ? (
+          <span>{credit}</span>
+        )
+      ) : null}
+      {credit && licence.label && ' · '}
+      {licence.label && (
+        licence.href ? (
           <a href={licence.href} target="_blank" rel="noopener noreferrer">{licence.label}</a>
         ) : (
           <span>{licence.label}</span>
-        )}
-        {/* Ändringsangivelsen enligt 3(a)(1)(B). Vi lagrar en nedskalad kopia
-            i 1024 bildpunkters bredd och WebP i stället för originalets upp
-            till 6 720 × 4 480 JPEG, och det ska stå. Ordet är också det som
-            gör länken ovan meningsfull: den som vill ha originalet vet nu att
-            det finns ett och var. */}
-        {' · nedskalad'}
-      </span>
+        )
+      )}
+      {(credit || licence.label) && ' · nedskalad'}
     </figcaption>
   </figure>
 )}
