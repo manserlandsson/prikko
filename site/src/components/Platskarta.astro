@@ -185,7 +185,7 @@ const nal = faceSvg(key, derived);
    * modulkommentaren för varför den inte laddas direkt, och lib/kartbas.ts
    * för varför biblioteket laddas som statisk fil utanför paketeraren.
    */
-  import { KARTA_I_DOKUMENT, KARTSTIL, faceBitmap, laddaMaplibre, laddaMaplibreCss } from '../lib/kartbas';
+  import { KARTA_I_DOKUMENT, KARTSTIL, faceBitmap, laddaMaplibre, laddaMaplibreCss, vakna } from '../lib/kartbas';
   import type { FaceKey } from '../lib/face';
 
   const root = document.querySelector<HTMLElement>('[data-platskarta]');
@@ -285,22 +285,32 @@ const nal = faceSvg(key, derived);
     knapp.addEventListener('click', start);
 
     /*
-     * Vyn som utlösare. Tröskeln 0,2 i stället för första pixeln: rutan ska
-     * vara på väg in i blickfånget, inte bara nudda vyportens kant under en
-     * snabb rullning förbi.
+     * Uppvaknandet ligger i `vakna` i lib/kartbas.ts och inte här.
+     *
+     * HÄR STOD EN EGEN IntersectionObserver, och den saknade
+     * uppkopplingsgrinden som sajtens tre andra kartor har. Den som bett om
+     * sparläge, som ligger på sämre än 4g eller som satt
+     * `prefers-reduced-data` fick alltså MapLibres 231 kB brotlade hämtade
+     * ändå, och just på verksamhetssidan: sajtens vanligaste sidtyp med
+     * 13 579 sidor.
+     *
+     * Divergensen är den som `vakna` själv varnar för i sin docstring, och
+     * den uppstod precis som den förutsade: villkoren fanns i två kopior och
+     * den fjärde kartan glömdes bort. Kopiera inte tillbaka dem, importera.
+     *
+     * TVÅ SAKER ÄNDRAS MED BYTET, båda till det bättre. Kartan väntar nu på
+     * `load` och på en tomgångslucka innan den tolkar biblioteket, så den
+     * konkurrerar aldrig med sidans egna resurser. Och tröskeln 0,2 blir
+     * `rootMargin: 200px`, alltså vaknar den strax INNAN rutan når vyn i
+     * stället för när den är en femtedel inne.
+     *
+     * KNAPPEN STÅR KVAR OAVSETT. `vakna` returnerar false när uppkopplingen
+     * sa nej, och då är knappen den enda vägen till kartan; den som verkligen
+     * vill ha den ska få den. Att gömma knappen när kartan ändå kommer av sig
+     * själv vore rätt på en bred yta, men här är den också den enda
+     * affordansen för den som inte rullar.
      */
-    if ('IntersectionObserver' in window) {
-      const io = new IntersectionObserver(
-        (poster) => {
-          if (poster.some((p) => p.isIntersecting)) {
-            io.disconnect();
-            void start();
-          }
-        },
-        { threshold: 0.2 },
-      );
-      io.observe(root);
-    }
+    vakna(root, () => void start());
   }
 </script>
 

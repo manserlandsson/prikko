@@ -68,6 +68,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from html import escape
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -175,6 +176,8 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
     ko: List[dict] = []
     provade = 0
 
+    ko = rensa(ko)
+
     KOFIL.parent.mkdir(parents=True, exist_ok=True)
 
     def spara() -> None:
@@ -261,6 +264,138 @@ def hamta(filer: List[Path], tak: Optional[int]) -> int:
     spara()
     print(f"{provade} verksamheter prövade, {len(ko)} kandidater i {KOFIL}", file=sys.stderr)
     return 0
+
+
+def rensa(ko: List[dict]) -> List[dict]:
+    """Två automatiska gallringar innan människan får se kön.
+
+    Båda tar bort fel som en granskare INTE kan se på bilden, alltså precis
+    de fel en granskningskö annars släpper igenom.
+
+    ══ EN FIL, EN VERKSAMHET ═══════════════════════════════════════════════
+
+    Delas samma fil av flera rader är det en KEDJA, och då är bilden fel på
+    alla utom möjligen en. Mätt över de 205 första kandidaterna: 13 filer
+    delades av 41 rader. "Bastard Burgers, Rehnsgatan.jpg" föreslogs för nio
+    adresser i fem städer, och bilden på Rehnsgatan i Stockholm är inte
+    Bastard Burgers i Linköping.
+
+    Det här är samma fel som `brand:wikidata` redan är förbjuden för i
+    docs/37: taggen pekar på kedjan och inte på stället. Här kommer felet in
+    genom filnamnet i stället, men det ÄR samma fel.
+
+    Alla raderna kastas, inte alla utom en. Vi kan inte veta vilken adress
+    fotografiet togs på, och en gissning som ser rätt ut är värre än ett
+    tomrum.
+
+    ══ INGA LOGOTYPER ══════════════════════════════════════════════════════
+
+    En varumärkeslogotyp är inte ett fotografi av ett ställe. `Small flying
+    tiger copenhagen Tall Black RGB.png` föreslogs för åtta adresser och är
+    en vektoriserad logotyp. PNG och SVG bär nästan alltid grafik och nästan
+    aldrig ett foto, och ordet "logo" i filnamnet räcker för resten.
+    """
+    delade = Counter(k["fil"] for k in ko)
+
+    #: Våra egna orter. En bild från Jönköping på en verksamhet i Linköping är
+    #: lika fel som en från Malmö, och ANDRA_ORTER räknar bara upp orter vi
+    #: INTE har. Utan den här mängden slank "ELITE STORA HOTELLET, JÖNKÖPING"
+    #: igenom till en verksamhet i Linköping.
+    vara_orter = {k["ort"].lower() for k in ko}
+
+    kvar = []
+    kedja = grafik = brittisk = felort = sent = 0
+    for k in ko:
+        namn = k["fil"].lower()
+        if namn.endswith((".png", ".svg")) or "logo" in namn:
+            grafik += 1
+            continue
+        if delade[k["fil"]] > 1:
+            kedja += 1
+            continue
+        if "geograph.org.uk" in namn:
+            brittisk += 1
+            continue
+        if fel_ort(k, vara_orter):
+            felort += 1
+            continue
+        if not borjar_med_namnet(k):
+            sent += 1
+            continue
+        kvar.append(k)
+
+    print(
+        f"  gallrat: {kedja} delade fil med en annan verksamhet, "
+        f"{grafik} logotyp eller vektorgrafik, {brittisk} brittiska, "
+        f"{felort} nämnde en annan ort, {sent} bar namnet för sent i filnamnet",
+        file=sys.stderr,
+    )
+    return kvar
+
+
+#: Svenska orter vi INTE har i registret, men som ofta står i ett filnamn.
+#:
+#: Listan behöver inte vara fullständig. Den fångar de vanligaste, och varje
+#: namn den fångar är ett fel som ögat inte kan se: en granskare som tittar på
+#: ett foto av ett apotek kan omöjligt veta att apoteket ligger i Malmö.
+ANDRA_ORTER = {
+    "göteborg", "goteborg", "malmö", "malmo", "lund", "helsingborg", "umeå",
+    "umea", "luleå", "lulea", "gävle", "gavle", "västerås", "vasteras",
+    "norrköping", "norrkoping", "borås", "boras", "eskilstuna", "halmstad",
+    "växjö", "vaxjo", "sundsvall", "kalmar", "falun", "visby", "kiruna",
+    "skokloster", "sigtuna", "trollhättan", "trollhattan",
+}
+
+
+def borjar_med_namnet(kandidat: dict, tak: int = 2) -> bool:
+    """Står verksamhetens namn TIDIGT i filnamnet?
+
+    Grinden ovanför kräver bara att alla våra namnord FINNS någonstans i
+    titeln, och det räcker inte. En lång bildtext kan råka innehålla dem:
+
+        "2013 WSDC Sochi - Jan Szymanski.JPG"
+        "Flor em um café do Parque da Cidade.jpg"
+        "Comic History of Rome p 039 Mrs Sextus consoles herself with ..."
+
+    En fil som verkligen FÖRESTÄLLER ett ställe brukar heta efter stället, och
+    då står namnet först eller näst intill: "Sommarro Värdshus.jpg", "Stångs
+    magasin 4.JPG", "Hotell Scandic Karlstad City.JPG".
+
+    Två ord får stå före, för det räcker till "Hotell", "Restaurang" och
+    "Ekar vid". Mätt över 149 kandidater: 21 föll, och samtliga 21 var
+    uppenbart fel ställe. Noll riktiga träffar förlorades.
+    """
+    fil = re.sub(r"^File:|\.\w+$", "", kandidat["fil"])
+    i_filen = name_tokens(fil)
+    vara = name_tokens(kandidat["namn"])
+    if not vara:
+        return False
+    try:
+        start = i_filen.index(vara[0])
+    except ValueError:
+        return False
+    return start <= tak
+
+
+def fel_ort(kandidat: dict, vara_orter: set) -> bool:
+    """Nämner filnamnet en ANNAN ort än verksamhetens?
+
+    Mätt över de 161 kandidater som återstod efter kedje- och logotypgallringen:
+    nio filnamn bar en annan svensk ort, och åtta av nio var uppenbart fel
+    ställe. "Apoteket Lejonet" i Oskarshamn föreslogs bilden av Apoteket
+    Lejonet vid Stortorget i Malmö.
+
+    UNDANTAGET ÄR NÖDVÄNDIGT. Den nionde var "Kalmar nation" i Uppsala, som
+    föreslogs "Kalmar Nation 1a hus Kuratorsrummet.jpg". Kalmar nation LIGGER i
+    Uppsala; ordet hör till nationens namn och inte till en plats. Ett ortnamn
+    som redan står i verksamhetens eget namn säger därför ingenting om var
+    bilden är tagen.
+    """
+    i_filen = set(re.findall(r"[a-zåäöéèü]+", kandidat["fil"].lower()))
+    i_namnet = set(re.findall(r"[a-zåäöéèü]+", kandidat["namn"].lower()))
+    var_ort = kandidat["ort"].lower()
+    misstankta = (ANDRA_ORTER | vara_orter) - {var_ort}
+    return bool((i_filen & misstankta) - i_namnet)
 
 
 def ark() -> int:

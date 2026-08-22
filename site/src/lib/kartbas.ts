@@ -348,8 +348,9 @@ function uppkopplingenTal(): boolean {
  * Villkoren bor HÄR och inte i komponenterna. De låg i två ordagrant lika
  * kopior, en i KartaPuff.astro och en i OmradeKarta.astro, och en kopia av en
  * sanning divergerar alltid: sajtens fjärde karta, verksamhetssidans
- * platskarta, har redan glidit ifrån och saknar uppkopplingsgrinden helt.
- * Kopiera inte tillbaka villkoren, importera dem.
+ * platskarta, hade glidit ifrån och saknade uppkopplingsgrinden helt. Den
+ * använder den här funktionen sedan 2026-08-22. Kopiera inte tillbaka
+ * villkoren, importera dem.
  *
  * Ordningen är: uppkopplingen ska tåla det, rutan ska synas, sidan ska vara
  * klar, huvudtråden ska vara ledig.
