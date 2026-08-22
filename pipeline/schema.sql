@@ -324,10 +324,12 @@ create index if not exists assessments_verdict_idx
 -- ---------------------------------------------------------------------------
 -- Vyn släpps innan den skapas om, i stället för `create or replace`.
 --
--- Vyn väljer `e.*`. Läggs en ny kolumn till på `establishments` expanderas
--- stjärnan med den, vilket flyttar alla kolumner som står efter ett steg åt
--- höger. `create or replace view` får inte byta namn eller ordning på
--- befintliga kolumner, bara lägga till sist, så den vägrar med:
+-- Vyn räknade tidigare `e.*`, och stjärnan expanderades med varje ny kolumn,
+-- vilket flyttade alla kolumner som står efter ett steg åt höger. Stjärnan är
+-- borta sedan 2026-08-22, men vyn måste ändå släppas: också en uppräkning
+-- ändras när en kolumn läggs till eller tas bort mitt i, och `create or
+-- replace view` får inte byta namn eller ordning på befintliga kolumner, bara
+-- lägga till sist. Den vägrar då med:
 --
 --   ERROR: cannot change name of view column "municipality_slug"
 --
@@ -338,9 +340,59 @@ create index if not exists assessments_verdict_idx
 -- på vyn ska kommandot fälla, inte tyst riva med sig det också.
 drop view if exists publishable_establishments;
 
+-- KOLUMNERNA RÄKNAS UPP, ALDRIG `e.*`.
+--
+-- Vyn är ett PUBLIKT API: den är `grant select ... to anon`, alltså läsbar för
+-- vem som helst som har den publika nyckeln. `e.*` betyder då att varje ny
+-- kolumn någon lägger till i `establishments` blir publik i samma ögonblick,
+-- utan att någon rört den här filen och utan att någon fattat ett beslut.
+--
+-- Det är inte en teoretisk risk. `establishments.organization_number` är
+-- FÖR ENSKILD FIRMA ÄGARENS PERSONNUMMER, se kolumnens egen kommentar. Fältet
+-- är tomt i dag eftersom ingen adapter skriver det, men SCB:s företagsregister
+-- ligger på färdplanen, och den dagen någon fyller kolumnen hade personnummer
+-- blivit publika via anon-nyckeln utan ett enda kodbyte i vyn.
+--
+-- UTELÄMNADE MED AVSIKT:
+--
+--   organization_number   personuppgift, se ovan
+--   risk_class            kommunens egen riskklassning, styr kontrollfrekvens
+--   exp_class             samma, erfarenhetsklass
+--   inspection_time_h     samma, tilldelad kontrolltid
+--
+-- De tre sista är kommunernas interna planeringsunderlag. De visas inte på
+-- sajten och har ingen läsare utanför pipelinen, som kör med service-nyckeln
+-- och läser tabellen direkt.
+--
+-- MEDTAGNA MED AVSIKT: `geo_source` och `geo_precision`. De är provenens och
+-- inte hemlighet. Sajten skriver ut skillnaden mellan en kommunal och en
+-- härledd kartnål öppet, och att dölja dem här vore inkonsekvent mot just den
+-- öppenheten.
+--
+-- Lägger någon till en kolumn i `establishments` som ska vara publik måste den
+-- läggas till här också. Det är hela poängen: förvalet är att INTE publicera.
 create view publishable_establishments as
 select
-    e.*,
+    e.id,
+    e.municipality_code,
+    e.id_local,
+    e.name,
+    e.types,
+    e.active,
+    e.street_address,
+    e.postal_code,
+    e.locality,
+    e.district,
+    e.region,
+    e.country,
+    e.lat,
+    e.lng,
+    e.geo_source,
+    e.geo_precision,
+    e.slug,
+    e.source_created_at,
+    e.source_modified_at,
+    e.fetched_at,
     m.slug          as municipality_slug,
     m.city          as municipality_city,
     m.name          as municipality_name,
