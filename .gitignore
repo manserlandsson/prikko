@@ -30,15 +30,38 @@ pipeline/data/interim/
 *.sqlite
 *.db
 
-# Obeskurna original till artikelbilderna. Flera megabyte var och aldrig något
-# sajten läser: den beskurna 1400x788-kopian i site/src/assets/artiklar/ är den
-# som gäller. Se site/src/content/artiklar/README.md.
-brand/clipboard-checklist.jpg
-brand/commercial-kitchen.jpg
-brand/restaurant-inside.jpg
-brand/pexels-lastkaj-37907538.jpg
-brand/pexels-gatecafe-16230999.jpg
-brand/pexels-kokspass-4947388.jpg
+# Obeskurna original till artikel- och stadsbilderna. Flera megabyte var och
+# aldrig något sajten läser: den beskurna kopian i site/src/assets/ är den som
+# gäller, 1400x788 för artiklarna. Se site/src/content/artiklar/README.md.
+#
+# MÖNSTER OCH INTE EN LISTA, sedan 2026-08-22. Sex filer stod uppräknade vid
+# namn och listan höll inte jämna steg: nitton nya original hade hunnit landa i
+# brand/, 82 MB, och ett "commit allt" hade svalt dem. Git glömmer aldrig en
+# binär. Originalet hör hemma på disk hos ägaren, inte i historiken.
+#
+# Regeln fanns före de PNG- och JPG-original som redan ligger spårade,
+# brand/karlstad.png och några till. De rörs inte av det här: gitignore gäller
+# bara filer git ännu inte känner. Ny kod ska följa regeln.
+brand/*.jpg
+brand/*.jpeg
+
+# Provarken. Genererade av brand/prov-*.mjs och maskot-ark-*.mjs, ofta över en
+# megabyte styck, och alltid återskapningsbara ur skriptet som skrev dem.
+# brand/_prov-gront.html ligger spårad sedan tidigare och stannar där: dess
+# skript finns inte längre kvar, så den filen går inte att återskapa.
+brand/_prov-*.html
+brand/_granska-*.html
+
+# Mapillarys logotypkit. Hämtat för gatubildsspåret, som ägaren skrotade, se
+# docs/28_gatubilder.md. Ingenting i repot pekar på det.
+brand/mapillary-logos/
+
+# Adapterutdata som hamnat i fel mapp. Sanningen är site/src/data/, och de här
+# är två veckor äldre och tunnare: 8 497 rader mot 8 520 för Stockholm.
+/data/
+
+# Diagnostik ur typklassningen, skrivs om vid varje körning.
+pipeline/unknown_types.json
 
 # OS/editor
 .DS_Store
