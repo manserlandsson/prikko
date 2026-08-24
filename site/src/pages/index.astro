@@ -1398,11 +1398,77 @@ const jsonLd = [
        uppmätt 2026-08-24; sex ligger mellan deras trögt och vårt tidigare
        raska, och glimten hinner läsas som en ljuskälla som vandrar.
 
+       RESERVEN, alltså det som gäller där rullningstidslinjer saknas. Där
+       tidslinjen finns tar den över, se @supports strax nedan.
+
        WCAG 2.2.2 gäller rörelse som startar av sig själv och varar över fem
-       sekunder. Den här gör det, och grinden nedan är svaret: den som ställt
-       in mindre rörelse i sitt system får ingen alls. Ägaren är informerad om
-       att regeln strikt läst vill ha en knapp i sidan och har valt ändå. */
+       sekunder. Den här reserven gör det, och grinden längre ned är svaret:
+       den som ställt in mindre rörelse i sitt system får ingen alls. */
     animation: kartvarv 6s linear infinite;
+  }
+
+  /* RULLNINGEN DRIVER RINGEN.
+     ──────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: "kanske att snurren på bordern liksom snurrar på
+     skroll hade varit coolt eller något?"
+
+     Det är det bästa svaret på hela frågan, och det av tre skäl.
+
+     1. DEN GÅR INTE ATT MISSA. Tre avtryckare har provats och alla var en
+        chans var: ett varv 0,9 s efter inladdning gick medan blicken låg
+        överst och knappen sitter i nederkanten; ett varv vid första
+        rullningen krävde att man tittade åt rätt håll i just de 2,2
+        sekunderna; en evig ring syns bara om man råkar se ned. En ring som
+        följer rullningen rör sig exakt när besökaren rör sig.
+
+     2. WCAG 2.2.2 FALLER BORT. Kriteriet gäller rörelse som "startar
+        automatiskt". Den här startar inte alls av sig själv: står sidan
+        still står ringen still. Kravet på en stoppknapp uppstår aldrig,
+        till skillnad från den eviga varianten ovan.
+
+     3. DEN KOSTAR NOLL SKRIPT. `scroll()` körs av kompositören, alltså inte
+        en rullhanterare som kostar en bildruta per rullsteg på en sida med
+        340 kort.
+
+     Åtta varv över hela dokumentet och inte ett. Startsidan mäter omkring
+     4 700 px utfälld, så åtta varv blir ungefär ett varv per 590 px rullning,
+     vilket är i takt med handen. Ett enda varv över hela sidan hade rört sig
+     så långsamt att det inte lästs som rörelse alls.
+
+     @supports och inte en rak ersättning: Firefox saknar fortfarande
+     rullningstidslinjer, och där ska den eviga sextasekundersringen stå kvar
+     i stället för ingen ring alls. */
+  /* TVÅ REGLER OCH BARA LÅNGFORMER, och båda delarna är nödvändiga.
+     ──────────────────────────────────────────────────────────────────────
+     Första försöket skrev kortformen plus tidslinjen i samma regel. Bygget
+     minifierade ihop dem till `animation: linear kartvarv-skroll scroll(root)`,
+     och `animation-timeline` ingår INTE i kortformen `animation` i någon
+     webbläsare i dag. Deklarationen blev ogiltig och kastades i sin helhet.
+     Uppmätt i det byggda dokumentet: `animation-name` stod kvar på reservens
+     `kartvarv` och `animation-timeline` på `auto`, alltså ingen rullning alls.
+
+     `:not(:root)` är alltid sant för en div och finns här för att selektorn
+     ska skilja sig textmässigt från raden ovanför. Två identiska selektorer
+     hade minifieraren slagit ihop igen, och då är vi tillbaka i samma fälla.
+
+     `animation-duration: auto` är det som binder varvet till rullsträckan i
+     stället för till tid. Utan den sätter kortformen 0s och ingenting rör
+     sig. Det är också skälet att kortformen inte används här alls. */
+  @supports (animation-timeline: scroll()) {
+    .kartrad {
+      animation-name: kartvarv-skroll;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-iteration-count: 1;
+    }
+
+    .kartrad:not(:root) {
+      animation-timeline: scroll(root block);
+    }
+  }
+
+  @keyframes kartvarv-skroll {
+    to { --kartvinkel: 2880deg; }
   }
 
   .kartrad > * { pointer-events: auto; }
@@ -1560,6 +1626,8 @@ const jsonLd = [
     /* Ingen vinkel rör sig. Ringen står kvar på 0 grader, vilket är exakt
        samma bild som slutläget efter varvet, alltså syns det inte att något
        togs bort. */
+    /* Träffar båda: den eviga reserven OCH den rullningsdrivna, eftersom
+       `animation: none` slår ut namnet oavsett vilken tidslinje som driver. */
     .kartrad,
     .kartknapp:hover::before { animation: none; }
   }
