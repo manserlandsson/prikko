@@ -12,6 +12,7 @@ import '../styles/tokens.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SignInDialog from '../components/SignInDialog.astro';
+import Kvittens from '../components/Kvittens.astro';
 import { SITE } from '../lib/site';
 
 interface Props {
@@ -165,6 +166,17 @@ const structuredData = jsonLd
         så att lägga den överallt kostar bara markup. Den väger runt tre
         kilobyte och skriptet laddas ändå bara en gång per sida. */}
     <SignInDialog />
+
+    {/* Kvittenslagret, av samma skäl som inloggningsrutan ovanför: det hör
+        till layouten och inte till enskilda sidor. Lagret är en tom div som
+        aldrig visar något av sig själv, alltså kostar det bara markup, och
+        varje yta som vill kvittera en handling kan importera visaKvittens
+        utan att först behöva lägga till en komponent på sin egen sida.
+
+        Det ligger EFTER sidfoten i dokumentet med flit. Lagret är fast
+        placerat, så ordningen syns inte, men den som tabbar sig genom sidan
+        ska inte träffa en länk i hörnet mitt i innehållet. */}
+    <Kvittens />
 
     {/* Kommandopaletten låg här, som en egen panel som cmd+K fällde ut ur
         sökfältet. Den finns inte längre: genvägen och fältet delar numera

@@ -1115,37 +1115,35 @@ const jsonLd = [
     scroll-behavior: smooth;
     scrollbar-width: none;
 
-    /* TONINGEN I KANTERNA, som en kommentar länge påstod fanns men som aldrig
-       byggdes.
+    /* TONINGEN I KANTERNA, och bara i den ände det finns mer att rulla åt.
        ────────────────────────────────────────────────────────────────────
        Ägaren 2026-08-24 om ednia.se: "pilen sitter liksom flush längst höger
        och vänster kanten, och pilen sitter ju därför över en kategori mot
-       kanten och då suddas den ut lite."
+       kanten och då suddas den ut lite." Och sedan: "det ska ju såklart ej
+       vara toning åt vänster om man är hela vägen till vänster."
 
-       Uppmätt hos dem samma dag: pilen ligger på `right: 0` OVANPÅ raden med
-       en toning på 100 px under sig, och vid mätningen låg hela "Vård och
-       omsorg" begravd under båda.
+       Uppmätt hos dem: pilen på `right: 0` OVANPÅ raden med 100 px toning
+       under sig, och "Vård och omsorg" låg begravd under båda. Vår hade
+       motsatt fel: ingen toning alls, och "Sallad" klipptes rakt av vid
+       radens kant på 1365.
 
-       Vår rad hade motsatt fel: ingen toning alls. Kategorin "Sallad" började
-       vid 1318 och slutade vid 1374 medan radens kant går vid 1365, alltså
-       klipptes etiketten rakt av. Utan toning läser en kapad etikett som ett
-       renderingsfel i stället för som "det finns mer".
+       40 px och inte deras 100, för hundra suddar en hel kategori.
 
-       40 px och inte Ednias 100. Deras hundra är precis det som suddar en hel
-       kategori; fyrtio räcker för att kanten ska läsa som mjuk, och vår pil
-       står ändå UTANFÖR raden på 1369 och inte ovanpå den. Det är vår lösning
-       och den är bättre än förlagans, så den behålls.
+       Flaggorna sätts av skriptet längst ned, med samma 8 px slack som
+       pilarna, så att toning och pil alltid visas och döljs tillsammans.
+       Utan skript finns ingen toning, och det är rätt: då finns inga pilar
+       heller och raden rullas med fingret.
 
        `mask-image` och inte ett överlägg: en toning i en pseudo hade legat
-       ovanpå etiketterna och därmed också ovanpå deras träffyta. Masken tar
-       bort bläck, inte klick.
+       ovanpå etiketternas träffyta. Masken tar bort bläck, inte klick. */
+    --tona-vanster: #000 0;
+    --tona-hoger: #000 100%;
 
-       Två stopp i var ände så att masken är helt ogenomskinlig i mitten. */
     mask-image: linear-gradient(
       to right,
       transparent 0,
-      #000 40px,
-      #000 calc(100% - 40px),
+      var(--tona-vanster),
+      var(--tona-hoger),
       transparent 100%
     );
 
@@ -1158,6 +1156,9 @@ const jsonLd = [
        dokumentet i sidled. Uppmätt i webbläsaren 2026-08-21. */
     min-inline-size: 0;
   }
+  .katrad[data-mer-vanster] { --tona-vanster: #000 40px; }
+  .katrad[data-mer-hoger]   { --tona-hoger: #000 calc(100% - 40px); }
+
   .katrad::-webkit-scrollbar { display: none; }
 
   .val {
@@ -1289,11 +1290,17 @@ const jsonLd = [
      1298 i en 1280 px vid vy. Alltså rullade SIDAN i sidled, samma sorts fel
      som `fieldset`-buggen längre ned i filen.
 
-     Med 48 px gutter finns det gott om plats: knappen är 32 bred och står
-     12 px från behållarens kant, alltså i gutterns yttre halva och fri från
-     radens innehåll, som börjar vid 48. */
-  .rulla.vanster { left: 12px; }
-  .rulla.hoger { right: 12px; }
+     12 px från behållarens YTTRE kant räckte inte heller. Ägaren 2026-08-24:
+     "få in knapparna innanför väggarna." Uppmätt vid 1440: `.katinre` spänner
+     0 till 1425 medan raden går 48 till 1377, så `right: 12px` la högerpilen
+     på 1381 till 1413, alltså helt utanför radens egen yta och ute i gutter
+     som annars är tom.
+
+     Gutterns eget mått i stället, alltså `--container-luft`. Då slutar pilen
+     på exakt samma pixel som raden och ligger innanför väggen, ovanpå
+     toningen som redan gör kanten mjuk. */
+  .rulla.vanster { left: var(--container-luft); }
+  .rulla.hoger { right: var(--container-luft); }
   .rulla[hidden] { display: none; }
 
   /* Träffytan är 44 px, alltså --h-tap, oberoende av knappens 32. */
@@ -1505,7 +1512,13 @@ const jsonLd = [
       var(--kant-halv)  352deg,
       var(--kant-dis)   360deg);
     animation: kartvarv 6s linear infinite;
-    z-index: 0;
+    /* NEGATIVT, och det är hela knepet. `isolation: isolate` på knappen gör
+       den till ett eget stapelsammanhang, och där målas barn med negativt
+       z-index UNDER elementets eget innehåll men över dess bakgrund. Etiketten
+       "Visa på karta" är en ren TEXTNOD och inte ett element, så den går inte
+       att lyfta med en selektor. Uppmätt: med plattan på z-index 1 låg texten
+       under den och knappen såg tom ut. */
+    z-index: -2;
   }
 
   /* Plattan. Täcker allt utom de 2 px som blir ring. */
@@ -1515,12 +1528,9 @@ const jsonLd = [
     inset: 2px;
     border-radius: 22px;
     background: var(--text);
-    z-index: 1;
+    /* Ett steg över ringen, fortfarande under texten. Se ::before. */
+    z-index: -1;
   }
-
-  /* Etiketten och ikonen över båda. Utan detta ligger de under plattan. */
-  .kartknapp > *,
-  .kartknapp > svg { position: relative; z-index: 2; }
 
   .kartknapp:hover {
     color: var(--card);
@@ -2019,6 +2029,16 @@ const jsonLd = [
         const kvar = riktning < 0 ? vid : slut - vid;
         knapp.hidden = !kanRulla || kvar < 8;
       }
+
+      /* Toningen ska bara finnas i den ände det FINNS mer att rulla åt.
+         Ägaren 2026-08-24: "det ska ju såklart ej vara toning åt vänster om
+         man är hela vägen till vänster."
+
+         Samma tal som pilarna använder, alltså 8 px slack, så att toning och
+         pil alltid visas och döljs tillsammans. En toning utan pil hade sett
+         ut som en skugga ingen förstår. */
+      rad.toggleAttribute('data-mer-vanster', kanRulla && vid > 8);
+      rad.toggleAttribute('data-mer-hoger', kanRulla && slut - vid > 8);
     };
 
     for (const knapp of knappar) {

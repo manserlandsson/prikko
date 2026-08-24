@@ -139,10 +139,17 @@ const HAR_RIKSKARTA =
  * peka på ännu, och HAR_RIKSKARTA ovanför är noll. Dagen rikskartan landar
  * tänds rutan av sig själv, på den plats ägaren bett om.
  */
+/* Webbkartan är BORTA ur menyn, på ägarens beslut 2026-08-24: "ta bort
+   webbkarta från hamburgaremenyn dropdownen."
+
+   Den låg på två ställen här, som "Kommuner" i hitta-listan och som
+   "Webbkarta" längre ned. Sidan finns kvar och länkas från sidfoten, som är
+   där en webbkarta hör hemma: den är en karta för sökmotorer och för den som
+   letar en sida som inte syns någon annanstans, inte en av de fem saker en
+   meny ska erbjuda. */
 const HITTA = [
   { href: path('sok'), label: 'Sök', ikon: 'sok' },
   { href: path('kedja'), label: 'Kedjor', ikon: 'kedja' },
-  { href: path('webbkarta'), label: 'Kommuner', ikon: 'kommun' },
   ...(HAR_RIKSKARTA ? [{ href: path('karta'), label: 'Karta', ikon: 'karta' }] : []),
 ] as const;
 
@@ -292,15 +299,6 @@ const LASA = [
                 <path d="M12 7.9h.01" />
               </svg>
               Om Prikko
-            </a>
-            <a href={path('webbkarta')}>
-              <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9.2" y="3.2" width="5.6" height="4.4" rx="1.2" />
-                <rect x="3.2" y="16.4" width="5.6" height="4.4" rx="1.2" />
-                <rect x="15.2" y="16.4" width="5.6" height="4.4" rx="1.2" />
-                <path d="M12 7.6v4.2M6 16.4v-2.4h12v2.4M12 11.8v2.2" />
-              </svg>
-              Webbkarta
             </a>
             <a href={path('hjalp')}>
               <svg class="radikon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">

@@ -1,0 +1,315 @@
+---
+/**
+ * Kvittensrutan i sidans hörn.
+ *
+ * ## Varför den finns
+ *
+ * Ägaren 2026-08-24, om ednia.se: "om man trycker på spara på ednia.se, dvs
+ * följ på prikko, så kommer en lite success popup i hörnet på sidan och sedan
+ * typ, se alla du följer eller något, vi kanske ska ha något liknande?"
+ *
+ * Det som saknades hos oss var inte kvittensen. Knappen byter redan från
+ * "Följ" till "Följer" och klockan ringer en gång, och den kvittensen räckte
+ * för att ägaren skulle riva ut den förklarande meningen som stod under
+ * knappen. Det som saknades var VÄGEN VIDARE. Den som nyss börjat följa sitt
+ * första ställe får ingenstans veta att listan finns, och /konto/ nås annars
+ * bara via en ikon i sidhuvudet.
+ *
+ * ## Förlagan, uppmätt 2026-08-24
+ *
+ * Ednias spara kräver konto: knappen öppnar en inloggningsruta med telefon,
+ * Apple och Google, och `toast.custom` anropas bara i grenen `u && e.saved`,
+ * alltså inloggad OCH sparad, aldrig vid avsparning. Rutan gick därför inte
+ * att framkalla, och måtten nedan är lästa ur deras egen CSS och deras egna
+ * paket, samt uppmätta genom att rendera deras klasser i deras egen sida:
+ *
+ *   ruta        344 × 63 px, radie 12, kant 1 px #EBEBEB, vit botten,
+ *               skugga 0 4px 16px rgba(0,0,0,.16)
+ *   text        "Gymnasiet sparat", 16/24, vikt 400, #222222
+ *   åtgärd      "Visa sparade" + chevron, 14, vikt 600, #717171,
+ *               padding 20 8 20 20, radie 0 12 12 0, leder till
+ *               /profil/sparade och stänger rutan i samma klick
+ *   hörn        nere till höger, 24 px från kanterna på dator och 16 på
+ *               telefon, bredd 356 för lagret (sonners egna standardvärden,
+ *               de skickar inga egna)
+ *   tid         4 000 ms, försvinner av sig själv
+ *   rörelse     translateY(100%) till 0 plus opacitet, 400 ms, kurvan är
+ *               CSS-standardens `ease`
+ *   flera       sonner staplar upp till tre och skalar de bakre 5 procent
+ *   uppläsning  ingen role="status" per ruta; hela lagret är en
+ *               `<section aria-live="polite" aria-relevant="additions text">`
+ *
+ * ## Vad vi gör annorlunda, och varför
+ *
+ * EN ruta, inte tre. Vi har en enda handling som kvitteras, och två snabba
+ * klick på Följ är följ och avfölj, alltså inte två kvittenser utan en som
+ * ska bort. En stapel hade bara kunnat uppstå av ett fel.
+ *
+ * 5 000 ms, inte 4 000. Ednias 4 000 är sonners standardvärde och alltså
+ * inget uppmätt beslut. Vår rad är längre: "Du följer stället" plus "Dina
+ * bevakningar" är fem ord mot deras fyra, och fem ord i tyst läsning på
+ * 200 ord i minuten tar 1,5 s. Lägg till ungefär en sekund innan blicken
+ * hittar ned i hörnet och en dryg sekund för att bestämma sig och föra
+ * musen dit, så är 4 000 för snålt och 5 000 räcker. Klockan pausar
+ * dessutom vid hovring och vid fokus, se skriptet: en ruta som bär en länk
+ * får aldrig försvinna under handen på den som är på väg dit.
+ *
+ * Nere till HÖGER som hos Ednia. Sidhuvudet ligger på z-index 60 och är det
+ * högsta laget på sajten; lagret här ligger på 70 eftersom en sida som
+ * rullats till sin botten annars kan måla en klistrad rad ovanpå rutan.
+ * Inloggningsrutan är ett `<dialog>` och ligger i webbläsarens topplager,
+ * alltså alltid ovanför oss, vilket är rätt ordning: den kräver ett svar.
+ *
+ * Klockan och inte en bock. Följ-knappen bär en klocka, och kvittensen ska
+ * bära samma märke som den knapp den kvitterar. Ednia gör likadant åt sitt
+ * håll: deras knapp är ett hjärta och deras kvittens bär ett rött hjärta.
+ */
+---
+
+{/*
+  role="status" ligger på LAGRET och inte på rutan, och det är hela poängen
+  med att lagret alltid finns i DOM:en.
+
+  En skärmläsare läser upp ett levande område när dess INNEHÅLL ändras. Ett
+  element som stoppas in i sidan med role="status" redan på plats är ett nytt
+  område, inte en ändring i ett gammalt, och läses därför inte upp
+  tillförlitligt i vare sig VoiceOver eller NVDA. Lagret registreras vid
+  sidladdning och står tomt; när rutan läggs i det är det en ändring, och den
+  läses upp. "Polite" följer med role="status" och betyder att uppläsningen
+  väntar på sin tur i stället för att avbryta.
+
+  Lagret är `pointer-events: none` och rutan slår på det igen, så att ett
+  tomt lager aldrig fångar ett klick i sidans hörn.
+*/}
+<div id="kvittenslager" class="lager" role="status"></div>
+
+<style>
+  .lager {
+    position: fixed;
+    z-index: 70;
+    right: var(--s-6);
+    bottom: var(--s-6);
+    pointer-events: none;
+  }
+
+  /* Telefon: rutan spänner över bredden minus 16 px per sida, samma tal som
+     --container-luft på små skärmar, så att kvittensen står i linje med allt
+     annat på sidan i stället för att sväva in från kanten. Ednia gör samma
+     sak, med sonners 16 px mobiloffset. */
+  @media (max-width: 560px) {
+    .lager {
+      left: var(--s-4);
+      right: var(--s-4);
+      bottom: var(--s-4);
+    }
+  }
+
+  /* Rutan ritas av skriptet, alltså :global. Måtten:
+
+     Vänsterhalvan bär 14 px luft över och under sin rad, högerhalvan är en
+     länk som fyller hela rutans höjd. 14 + 20 + 14 ger 48 px, över --h-tap (44), som
+     är golvet för en träffyta. Ednia löser samma sak med 20 px padding i sin
+     åtgärd och landar på 61 av rutans 63.
+
+     Bredden är innehållets, med tak. `max-content` och inte ett satt tal, för
+     texten kommer från anroparen och rutan ska sluta där meningen slutar.
+     Taket 380 ligger strax över Ednias 344, och skälet är att vår åtgärd
+     NAMNGER sitt mål: "Dina bevakningar" mäter 165 px mot deras "Visa
+     sparade" på 131. Uppmätt bredd med Följ-knappens egen text: 315. Över
+     taket bryter texten rad i stället för att huggas av. */
+  .lager :global(.kvittensruta) {
+    pointer-events: auto;
+    display: flex;
+    align-items: stretch;
+    width: max-content;
+    max-width: min(380px, calc(100vw - 2 * var(--s-6)));
+    background: #FFFFFF;
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-pop);
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity .18s cubic-bezier(.2, .8, .3, 1),
+      transform .18s cubic-bezier(.2, .8, .3, 1);
+  }
+
+  @media (max-width: 560px) {
+    .lager :global(.kvittensruta) {
+      width: auto;
+      max-width: none;
+    }
+  }
+
+  .lager :global(.kvittensruta.inne) {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Ut går snabbare än in och med en kurva som drar iväg i stället för att
+     landa. Det som kommer ska synas att det kommer; det som går ska inte
+     kräva uppmärksamhet på vägen ut.
+
+     Rörelsen nollas av den globala regeln i tokens.css vid
+     prefers-reduced-motion: reduce. Rutan finns kvar, den bara byter läge
+     direkt. Det är avsiktligt: det är rörelsen som utlöser yrsel, inte
+     kvittensen. */
+  .lager :global(.kvittensruta.ute) {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity .14s cubic-bezier(.4, 0, 1, 1),
+      transform .14s cubic-bezier(.4, 0, 1, 1);
+  }
+
+  .lager :global(.kvittenstext) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 14px var(--s-3) 14px var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: 20px;
+    color: var(--text);
+    margin: 0;
+  }
+
+  /* Samma 18 px glyfmått som ikonen i Följ-knappen, se Handlingsrad. Fylld
+     och i märkesblått, för det är knappens tillstånd efter klicket som
+     avbildas: knappen står nu och lyser "Följer". */
+  .lager :global(.kvittensikon) {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--brand);
+  }
+
+  /* Åtgärden är en LÄNK och ser ut som en länk, i --brand-ink som resten av
+     sajtens länkar. Ednias är grå, men deras kvittens ligger i en produkt där
+     grått är åtgärdsfärgen; hos oss hade grått sett avstängt ut.
+
+     Kanten till vänster är en hårfin linje och inte ett mellanrum. Utan den
+     läses raden som en enda mening som slutar med två ord i blått. */
+  .lager :global(.kvittensvag) {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding-inline: var(--s-4);
+    border-left: 1px solid var(--hairline);
+    border-radius: 0 var(--r-card) var(--r-card) 0;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    line-height: 1;
+    color: var(--brand-ink);
+    white-space: nowrap;
+  }
+
+  .lager :global(.kvittensvag:hover) {
+    background: var(--canvas);
+    text-decoration: none;
+  }
+
+  .lager :global(.kvittensvag svg) {
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+</style>
+
+<script>
+  import { registerKvittens, type Kvittens } from '../lib/kvittens';
+
+  const lager = document.getElementById('kvittenslager');
+
+  if (lager) {
+    /* 5 000 ms, se komponentens kommentar. Uttiden 220 måste vara längre än
+       utrörelsens 140 ms, annars rycks rutan bort mitt i sin egen animation. */
+    const STANNAR = 5000;
+    const UT = 220;
+
+    let klocka = 0;
+    let stadning = 0;
+
+    function dolj(): void {
+      window.clearTimeout(klocka);
+      window.clearTimeout(stadning);
+      klocka = 0;
+
+      const ruta = lager!.firstElementChild;
+      if (!ruta) return;
+
+      ruta.classList.add('ute');
+      /* Ingen transitionend: den uteblir helt om rutan aldrig hann måla sitt
+         ingångsläge, och vid prefers-reduced-motion är övergången 0,01 ms.
+         En timer är det enda som håller i båda fallen. */
+      stadning = window.setTimeout(() => lager!.replaceChildren(), UT);
+    }
+
+    function starta(): void {
+      window.clearTimeout(klocka);
+      klocka = window.setTimeout(dolj, STANNAR);
+    }
+
+    function visa({ text, href, lank }: Kvittens): void {
+      window.clearTimeout(stadning);
+
+      /* EN ruta i taget: allt som står ersätts. `replaceChildren` med nytt
+         innehåll i samma svep är också det som får lagret att räknas som
+         ÄNDRAT av skärmläsaren, se kommentaren vid role="status". */
+      const ruta = document.createElement('div');
+      ruta.className = 'kvittensruta';
+
+      const rad = document.createElement('p');
+      rad.className = 'kvittenstext';
+      /* Samma klocka som i Handlingsrad, men FYLLD kupa och tecknad kläpp.
+         Knappen ritar en tom klocka i konturlinje; kvittensen ritar den fylld,
+         eftersom den avbildar knappens läge EFTER klicket. */
+      rad.innerHTML =
+        '<svg class="kvittensikon" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">' +
+        '<path fill="currentColor" d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.2 4-1.7 4.6-.2.2 0 .6.3.6h11.8c.3 0 .5-.4.3-.6-.5-.6-1.7-1.6-1.7-4.6A4.5 4.5 0 0 0 10 3Z"></path>' +
+        '<path d="M8.4 15.3a1.7 1.7 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>' +
+        '</svg>';
+      rad.append(document.createTextNode(text));
+      ruta.append(rad);
+
+      if (href && lank) {
+        const vag = document.createElement('a');
+        vag.className = 'kvittensvag';
+        vag.href = href;
+        vag.append(document.createTextNode(lank));
+        vag.insertAdjacentHTML(
+          'beforeend',
+          '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">' +
+            '<path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>' +
+            '</svg>',
+        );
+        ruta.append(vag);
+      }
+
+      /* Klockan pausar under handen och under fokus. Utan det försvinner
+         rutan för den som är på väg att klicka på länken, alltså precis den
+         användare rutan finns för. `focusin` täcker tangentbordet.
+
+         Lyssnarna sitter på RUTAN och inte på lagret. Lagret är
+         `pointer-events: none` för att ett tomt lager inte ska fånga klick i
+         hörnet, och ett element som inte träffas av pekaren är inte heller
+         garanterat att räknas som beträtt när pekaren går in i ett barn. */
+      ruta.addEventListener('pointerenter', () => window.clearTimeout(klocka));
+      ruta.addEventListener('focusin', () => window.clearTimeout(klocka));
+      ruta.addEventListener('pointerleave', starta);
+      ruta.addEventListener('focusout', starta);
+
+      lager!.replaceChildren(ruta);
+
+      /* Två bildrutor innan ingångsläget sätts. En räcker inte alltid: den
+         första kan hinna före webbläsarens egen stilberäkning av det nyss
+         inlagda elementet, och då finns inget läge att animera FRÅN, utan
+         rutan bara står där. */
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => ruta.classList.add('inne'));
+      });
+
+      starta();
+    }
+
+    registerKvittens(visa, dolj);
+  }
+</script>
