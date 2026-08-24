@@ -694,14 +694,14 @@ hemPlatser.forEach((plats, i) => {
  * Kebab. Mätt i webbläsaren 2026-08-21 fick just de tre översta korten
  * `loading="lazy"` av precis det skälet.
  *
- * Sex och inte fler: rutnätet är sex spalter i --w-wide, alltså är rad ett sex
- * kort. Alla tolv ivrigt vore tolv hämtningar mot vår objektlagring i första
+ * Fem och inte fler: rutnätet är fem spalter i --w-wide sedan 2026-08-24,
+ * alltså är rad ett fem kort. Alla tolv ivrigt vore tolv hämtningar mot vår objektlagring i första
  * bildrutan för sex bilder som ligger under vikkanten.
  *
  * Talet läses ur `hemOrdning` och inte ur `hem`, för det är den blandade
  * ordningen som faktiskt hamnar i markupen.
  */
-const tidiga = new Set(hemOrdning.slice(0, 6).map((r) => r.e));
+const tidiga = new Set(hemOrdning.slice(0, 5).map((r) => r.e));
 
 // ---------------------------------------------------------------------------
 // Senast kontrollerade
@@ -1266,7 +1266,7 @@ const jsonLd = [
      som ska gå att läsa. Ednia kör tre à 382 px. */
   .rutnat {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--s-4);
     margin: 0;
     padding: 0;
@@ -1480,9 +1480,45 @@ const jsonLd = [
     align-items: center;
     gap: var(--s-2);
     height: 48px;
-    padding-inline: 19px;
+    /* 17 och inte 19: kanten nedan lägger till 2 px på var sida, och knappen
+       ska mäta samma 145,50 × 48 som före kantvarvet. */
+    padding-inline: 17px;
     border-radius: 24px;
-    background: var(--text);
+
+    /* KANTEN ÄR ETT ANDRA BAKGRUNDSLAGER, inte ett maskat pseudoelement.
+       ──────────────────────────────────────────────────────────────────────
+       Första bygget använde det vanliga greppet: ett ::before på inset 0 med
+       padding och två masker som tar ut varandra. Det RENDERADE INTE på den
+       byggda sidan, och felsökningen på prikko.se visade exakt var gränsen
+       går: med `background: red` syntes ringen tydligt, med en konisk
+       gradient syntes ingenting alls, även när gradienten var helt
+       ogenomskinlig. Alltså åt masken bakgrunds-BILDEN men inte
+       bakgrunds-FÄRGEN på just den här knappen.
+
+       Det här är i stället Vercels egen teknik, som agenten mätte upp
+       2026-08-24: ett `padding-box`-lager med plattans färg ovanpå ett
+       `border-box`-lager med gradienten, och en genomskinlig kant som släpper
+       fram det undre lagret i exakt kantens bredd. Ingen mask, inget
+       pseudoelement och inget kompositlager som kan rastrera fel.
+
+       Ljuset är en glimt med svans och inte en jämn ring: en jämn ring läser
+       som krom, en glimt som en ljuskälla. Grundtonen 10 procent gör att
+       kanten nästan försvinner i vila, så det man ser är ljuset som vandrar
+       och inte en permanent grå ram. */
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--text), var(--text)) padding-box,
+      conic-gradient(from var(--kartvinkel, 0deg),
+        var(--kant-dis)     0deg,
+        var(--kant-dis)   190deg,
+        var(--kant-halv)  268deg,
+        var(--kant-ljus)  312deg,
+        var(--kant-halv)  352deg,
+        var(--kant-dis)   360deg) border-box;
+
+    --kant-dis:  color-mix(in srgb, var(--card) 10%, transparent);
+    --kant-halv: color-mix(in srgb, var(--card) 60%, transparent);
+    --kant-ljus: var(--card);
     color: var(--card);
     font-size: var(--fs-body-s);
     font-weight: 500;
@@ -1497,88 +1533,10 @@ const jsonLd = [
     transform: scale(1.04);
   }
 
-  /* ═══ Kantvarvet ═════════════════════════════════════════════════════
-   *
-   * Ägaren 2026-08-24: "kör någon koll border animation på visa karta på
-   * homepagen, tycker inte man märker den, typ en grå/vit gradient som
-   * snurrar runt ett varv eller något, så det nästan ser lite magiskt ut."
-   *
-   * Mätt hos andra 2026-08-24, i webbläsaren och innan en rad skrevs:
-   *
-   *   vercel.com   Deras dyra kant är en gradient UTAN en enda färgad ton:
-   *                linear-gradient(bakgrund, bakgrund) padding-box lagd över
-   *                linear-gradient(vit 100 %, grå 66 %, grå 49 %) border-box.
-   *                Hela ramplen ligger på nyans 0 och mättnad 0. Den står
-   *                dessutom helt still, och all deras rörelse ligger bakom
-   *                prefers-reduced-motion: no-preference.
-   *   magicui      Ringen är ett överlägg på inset 0 med 1 px fyllning och
-   *                mask-composite: exclude, alltså exakt greppet nedan.
-   *                Deras varv tar 14 s och går i evig loop.
-   *   linear.app   Har ingen roterande kant alls. Deras 300-tal
-   *                @property-regler är StyleX-atomer, ingen av dem är en
-   *                <angle>.
-   *
-   * Slutsatsen: grått och vitt är rätt, urhålkningen är rätt, den eviga
-   * loopen är fel. WCAG 2.2.2 kräver att rörelse som startar av sig själv
-   * och varar längre än fem sekunder går att stoppa. Ett ÄNDLIGT varv på
-   * 2,2 s ställer aldrig den frågan, och det är dessutom precis vad ägaren
-   * bad om.
-   *
-   * ::before och INTE border: en border hade lagt 1,5 px på 48-pixelshöjden
-   * och 3 px på bredden, alltså flyttat både knappen och raden. Ringen är
-   * absolut positionerad på inset 0 och ligger innanför knappens egen yta.
-   * Mätt i webbläsaren 2026-08-24: 147,56 × 48 px med ringen, 147,56 × 48 px
-   * utan, samma x och y på hundradelen, och noll poster i layout-shift.
-   *
-   * Urhålkningen är två masker som tar ut varandra: den ena täcker
-   * innehållsrutan, den andra hela rutan, och `exclude` lämnar skillnaden.
-   * Kvar blir en 1,5 px bred ring med hål i mitten, så etikett och ikon syns
-   * rakt igenom och ringen aldrig kan lägga sig över texten. Det gör den
-   * också oberoende av att `transform: scale(1.04)` ovan reser ett eget
-   * stapelsammanhang vid hovring.
-   */
-  .kartknapp::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    /* 2 px och inte 1,5: en bredare glimt behöver en kant att synas på. */
-    padding: 2px;
-    pointer-events: none;
+  /* Här låg ringen som ett maskat ::before. Den är borta och bor numera i
+     knappens egen bakgrund, se .kartknapp ovan. Skälet står där: masken åt
+     bakgrundsbilden på den byggda sidan medan en platt färg gick igenom. */
 
-    /* --card och inte #fff. Knappens platta är var(--text) och etiketten
-       var(--card), alltså är --card den färg som redan är definierad som
-       "det som lyser mot plattan". Byter plattan färg följer ringen med. */
-    --kant-dis:  color-mix(in srgb, var(--card) 26%, transparent);
-    --kant-ljus: var(--card);
-
-    /* Ljuset är en enda glimt med svans, inte en ring av lika starkt ljus
-       hela vägen runt. En jämn ring läses som krom, en glimt läses som en
-       ljuskälla. Båda ändarna av varvet ligger på --kant-dis, alltså finns
-       ingen söm vid 0 grader.
-
-       BREDDAD OCH FÖRSTÄRKT 2026-08-24 på ägarens begäran: "gör den mer
-       synlig, bredare glimt och starkare". Glimten går från 25 till 52 grader,
-       svansen kortas från 130 till 87 så att uppgången blir brantare, toppen
-       går från 85 procent till full --card, grundtonen från 14 till 26
-       procent och ringen från 1,5 till 2 px.
-
-       Prikko-blå provades och valdes bort av ägaren samma dag: "svart går bra
-       btw, skit i prikko blå."
-
-       I vila står glimten uppe till vänster, som ljus uppifrån. */
-    background: conic-gradient(from var(--kartvinkel, 0deg),
-      var(--kant-dis)     0deg,
-      var(--kant-dis)   205deg,
-      var(--kant-ljus)  292deg,
-      var(--kant-ljus)  344deg,
-      var(--kant-dis)   360deg);
-
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-  }
 
   /* Hovervarvet ligger på knappen, startvarvet på raden, och den delningen
      är inte godtycklig. En animering startar om så fort `animation-name`
@@ -1596,7 +1554,7 @@ const jsonLd = [
      snabbare läser som att knappen känner av pekaren. Båda är eviga, så
      ingen av dem startar om den andra: utpekning lämnar bara tillbaka
      vinkeln till radens egen, som aldrig slutat gå. */
-  .kartknapp:hover::before {
+  .kartknapp:hover {
     animation: kartvarv 1.4s linear infinite;
   }
 
@@ -1629,7 +1587,7 @@ const jsonLd = [
     /* Träffar båda: den eviga reserven OCH den rullningsdrivna, eftersom
        `animation: none` slår ut namnet oavsett vilken tidslinje som driver. */
     .kartrad,
-    .kartknapp:hover::before { animation: none; }
+    .kartknapp:hover { animation: none; }
   }
 
   .merrad {
@@ -1885,30 +1843,35 @@ const jsonLd = [
      i ÅTTA spalter à 182 med bilden i kvot 1,05 och titeln i 13 px. Uppmätt
      2026-08-22 vid 1440.
 
-     Sex spalter är alltså inte tätt, det är mitt emellan deras två lägen. Åtta
-     går inte hos oss: vårt kort bär namn, bedömning och ort under bilden, och
+     Sex spalter provades och blev FEM på ägarens beslut 2026-08-24: "kör 5
+     kort på bredden på homepage btw, för restaurangerna."
+
+     Sex gav 204 px kort vid 1440. Fem ger 256, alltså en fjärdedel mer yta åt
+     varje bild och åt namnet under den. Fem ligger närmare Airbnbs
+     sökresultat, 307 vid samma bredd, än deras startsidas åtta à 182, och
+     mellan de två lägena är precis där vårt kort hör hemma: det bär namn,
+     bedömning och ort UNDER bilden, vilket deras startsidekort inte gör, och
      märkesplattan är 42 px. Vid 182 hade plattan tagit en fjärdedel av
      bildbandets bredd.
 
-     Trappan är satt så att kortet håller sig mellan 210 och 235 px hela vägen
+     Trappan är satt så att kortet håller sig mellan 256 och 299 px hela vägen
      ned, i stället för att en spaltmängd ligger kvar för länge och klämmer:
 
-       ≥ 1400   6 spalter   210 vid 1440, 220 vid 1600 och uppåt
-       1200     5 spalter   224 vid 1280
-       1024     4 spalter   220 vid 1024
-        768     3 spalter   235 vid 768
-        < 768   2 spalter
+       ≥ 1400   5 spalter   256 vid 1440
+       1200     4 spalter   272 vid 1280
+       1024     3 spalter   299 vid 1024
+        < 1024  2 spalter
   */
   @media (max-width: 1399px) {
-    .rutnat { grid-template-columns: repeat(5, 1fr); }
-  }
-
-  @media (max-width: 1199px) {
     .rutnat { grid-template-columns: repeat(4, 1fr); }
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1199px) {
     .rutnat { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 1023px) {
+    .rutnat { grid-template-columns: repeat(2, 1fr); }
   }
 
   /* Artikelraden trappas ned i samma takt som kortrutnätet: sex spalter
