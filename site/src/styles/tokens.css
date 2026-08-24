@@ -33,6 +33,22 @@
      WCAG. Går tonen mörkare faller den sekundära under kravet. */
   --brand-wash: #EBF4FD;
 
+  /* PLATSHÅLLAREN UNDER ETT KORTFOTO ÄR NEUTRALT GRÅ, inte blå.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24 efter en genomgång av ednia.se: "deras kort på load är
+     också ljusgrå, vår är ljusblå, men jag gillar ljusgrå mer."
+
+     Här användes --brand-wash, alltså märkesblån blandad 8 procent i vitt.
+     Den är rätt för ett BAND som ska läsa som en egen sektion, vilket är vad
+     den togs fram för, men fel bakom ett fotografi: en blå yta som blir en
+     gatubild läser som att bilden bytt färg när den landar, och i ett rutnät
+     med fem kort blinkar fem blå rutor till vitt.
+
+     Neutralt grått gör inget anspråk alls, och det är hela poängen med en
+     platshållare. Två steg mörkare än --canvas så att bandet syns mot kortet
+     innan bilden kommit. */
+  --bild-platshallare: #F1F1F3;
+
   /* Text */
   --text: #1D1D1F;
   /* EN grå för text. Inte tre.

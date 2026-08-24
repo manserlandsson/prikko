@@ -219,7 +219,9 @@ const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
     position: relative;
     display: block;
     aspect-ratio: 3 / 2;
-    background: var(--brand-wash);
+    /* Neutralt grått och inte --brand-wash, se tokens.css. Ytan syns bara
+       innan fotot landat, och en platshållare ska inte påstå en färg. */
+    background: var(--bild-platshallare);
     overflow: hidden;
   }
 
