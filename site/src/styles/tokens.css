@@ -333,7 +333,24 @@
    * BRÖDTEXT FÖLJER INTE MED. --w-read står kvar på 680, och varje spalt som
    * bär löptext måste bära den gränsen själv. Se .huvudspalt på
    * verksamhetssidan. */
-  --w-wide: 1400px;   /* rutnät och hubbar: startsida, kommun, verksamhet */
+  /* 1800 sedan 2026-08-24, på ägarens beslut: "allt ska vara samma tror jag".
+     ────────────────────────────────────────────────────────────────────────
+     Han såg att ednia.se växer med fönstret medan vi stannade. Uppmätt samma
+     dag: deras behållare är `min(2000 + 96, 100%)`, alltså ett TAK på 2000 och
+     inte det obegränsade docs/40 rad 452 påstår. Vid 2560 px fönster har de
+     225 px marginal per sida, vi hade 573.
+
+     1800 och inte 2000, och skälet är kortbredden. Deras kort håller 288 till
+     368 px hela vägen genom fem brytpunkter. Våra låg på 204 vid sex spalter,
+     nu 248 vid fem. Med 1704 px innehåll ger fem spalter 325, alltså mitt i
+     deras spann. 2000 hade gett 383 och tvingat fram en sjätte spalt, och då
+     är vi tillbaka där vi började.
+
+     TAKET GÄLLER ALLA SIDTYPER, vilket är hela ägarens poäng. Priset syns på
+     verksamhetssidan, som är två spalter med brödtext låst till --w-read: där
+     hamnar tillskottet i gluggen mellan spalterna. Panelen växer därför från
+     380 till 480 och svälde 100 av dem, se .side i [kommun]/[slug].astro. */
+  --w-wide: 1800px;   /* rutnät och hubbar: startsida, kommun, verksamhet */
   --w-page: 760px;    /* enkelspaltiga datasidor: sök, listor, kategorier */
   --w-read: 680px;    /* brödtext, aldrig bredare */
 

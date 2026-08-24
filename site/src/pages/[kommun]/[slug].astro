@@ -1299,8 +1299,29 @@ const breadcrumbs = {
      Ägarens val 2026-08-22 mellan fyra alternativ, där de tre andra var
      bred kolumn med kapade stycken (den ojämna kanten han redan sagt ifrån
      om), behålla 1 028, och vänsterställa i 1 400 med tom yta till höger. */
+  /* EGET TAK PÅ VERKSAMHETSSIDAN, och bara det taket skiljer den från resten.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: först "allt ska vara samma tror jag", sedan "jag är
+     fine med att vi har ett breddtak på restaurangsidan kanske, men liksom
+     bara på stora skärmar i guess."
+
+     Det andra är precis rätt avvägning, och skälet är att den här sidan är
+     TVÅ SPALTER med brödtexten låst till --w-read. Ett rutnät blir bättre av
+     mer bredd, det får fler eller större kort. En lässida blir det inte: hela
+     tillskottet hamnar i gluggen mellan text och panel. Uppmätt vid 1800:
+     gluggen växte till 644 px, alltså mer än brödtextens egen bredd, och två
+     spalter med ett halvt kvarter emellan läser som två sidor.
+
+     `min()` och inte en brytpunkt: sidan följer --w-wide hela vägen upp till
+     1480 och stannar där. Under det taket är den alltså EXAKT lika bred som
+     startsidan och kommunsidan, vilket var ägarens första önskemål, och det
+     är bara på stora skärmar den skiljer sig, vilket var hans andra.
+
+     1480 är räknat: 680 brödtext plus 480 panel plus 48 glugg är 1208, plus
+     2 × 48 px gutter blir 1304, och 176 px kvar som glugg lägger panelen på
+     behagligt avstånd utan att spalterna tappar varandra. */
   .page {
-    max-width: var(--w-wide);
+    max-width: min(var(--w-wide), 1480px);
     padding-block: var(--s-6) var(--s-16);
   }
 
@@ -1593,7 +1614,11 @@ const breadcrumbs = {
        flexkolumnen sträcker inte rutorna till varandras höjd. */
     justify-self: end;
     width: 100%;
-    max-width: 380px;
+    /* 480 sedan --w-wide gick till 1800. Panelen svälter annars medan gluggen
+       växer: vid 1800 blev avståndet mellan text och panel 644 px, alltså mer
+       än brödtextens egen bredd. 480 tar 100 av dem, och rutorna inuti är
+       byggda för 260 och uppåt, se auto-fit-golvet nedan. */
+    max-width: 480px;
     display: flex;
     flex-direction: column;
     gap: var(--s-4);

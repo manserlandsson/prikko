@@ -151,6 +151,67 @@ function fargom(lager) {
   }
 }
 
+/**
+ * Etiketterna på svenska.
+ *
+ * Libertys `text-field` ser ordagrant ut så här i alla lager som visar ett
+ * namn:
+ *
+ *   ["case", ["has", "name:nonlatin"],
+ *     ["concat", ["get", "name:latin"], "\n", ["get", "name:nonlatin"]],
+ *     ["coalesce", ["get", "name_en"], ["get", "name"]]]
+ *
+ * Alltså `name_en` FÖRST, och det är hela felet: OpenMapTiles `name_en` är
+ * engelska, så kartan skrev Gothenburg, Copenhagen och Helsinki på en svensk
+ * sajt. Det lokala `name` kom bara fram när engelskan saknades.
+ *
+ * Vad brickorna faktiskt bär, uppmätt ur TileJSON:ens vector_layers och ur en
+ * avkodad bricka på tiles.openfreemap.org/planet/20260816_080001_pt 2026-08-24:
+ * place-lagret har 81 namnfält, däribland `name:sv`. Göteborg bär
+ * name = Göteborg, name:en = Gothenburg, name:sv = Göteborg; Helsingfors bär
+ * name = Helsinki, name:en = Helsinki, name:sv = Helsingfors. Fältet finns
+ * alltså, och det är INTE samma sak som `name`.
+ *
+ * Vår kedja blir `name:sv`, sedan `name:latin`, sedan `name`:
+ *
+ *   - `name:sv` är det svenska exonymet där det finns, alltså Helsingfors,
+ *     Köpenhamn, Peking.
+ *   - `name:latin` är reserven, inte `name`, därför att planetiler fyller den
+ *     för VARJE objekt: latinska namn går rakt igenom, andra skrifter kommer
+ *     translittererade. Utan den hade en kinesisk ort utan svenskt namn
+ *     ritats med tecken vi saknar glyfer för.
+ *   - `name` sist, för det fall ett objekt saknar båda.
+ *
+ * Andraraden med `name:nonlatin` faller därmed bort. Den fanns för att visa
+ * det lokala skriftspråket under translittereringen, och på en karta som talar
+ * svenska är den en rad text besökaren inte kan läsa.
+ *
+ * Det här görs HÄR och inte i en `style.load`-hanterare i komponenterna.
+ * Sajten har fyra kartor, och de läser samma fil: en omskrivning i stilen
+ * gäller alla fyra utan en rad kod i webbläsaren, medan en runtime-lösning
+ * hade varit fyra tillfällen att glömma den. Att stilen är vår egen och
+ * genereras av det här skriptet är förutsättningen; ligger man på någon annans
+ * stil-URL finns inte det valet.
+ */
+const SVENSKA_NAMN = ['coalesce', ['get', 'name:sv'], ['get', 'name:latin'], ['get', 'name']];
+
+function sprakom(lager) {
+  const layout = lager.layout;
+  if (!layout) return false;
+
+  /*
+   * Bara fält som faktiskt hämtar ett namn. Vägskyltarna (highway-shield-*,
+   * road_shield_us) bär ["to-string", ["get", "ref"]], alltså vägnumret E6,
+   * och det är inget namn att översätta. Testet går på den serialiserade
+   * uttrycket eftersom fältet är ett träd och inte en sträng.
+   */
+  const uttryck = JSON.stringify(layout['text-field'] ?? null);
+  if (!uttryck.includes('"name')) return false;
+
+  layout['text-field'] = SVENSKA_NAMN;
+  return true;
+}
+
 const svar = await fetch(KALLA);
 if (!svar.ok) throw new Error(`${KALLA} svarade ${svar.status}`);
 const stil = await svar.json();
@@ -165,6 +226,8 @@ stil.layers = stil.layers.filter((l) => l.source !== 'ne2_shaded');
 
 for (const lager of stil.layers) fargom(lager);
 
+const svenska = stil.layers.filter(sprakom).length;
+
 stil.name = 'Prikko';
 stil.metadata = {
   'prikko:bygge': 'scripts/kartstil.mjs',
@@ -177,7 +240,7 @@ await writeFile(fil, JSON.stringify(stil));
 
 const otraffade = stil.layers.filter((l) => !REGLER.some(([m]) => m.test(l.id)));
 const trafffar = stil.layers.length - otraffade.length;
-console.log(`${fil}: ${stil.layers.length} lager, ${trafffar} omfärgade`);
+console.log(`${fil}: ${stil.layers.length} lager, ${trafffar} omfärgade, ${svenska} på svenska`);
 // Utan den här listan går det inte att veta om en oträffad är avsiktlig eller
 // ett nytt lager som OpenFreeMap lagt till sedan sist.
 for (const l of otraffade) console.log(`  oträffad: ${l.id} (${l.type})`);

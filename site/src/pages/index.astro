@@ -1021,16 +1021,39 @@ const jsonLd = [
   )}
 
   {/* ══ Länkkolumnerna ════════════════════════════════════════════════*/}
+  {/* UTFORSKA-BLOCKET HAR EN RUBRIK NU, och länkarna står i två rader.
+      ──────────────────────────────────────────────────────────────────
+      Ägaren 2026-08-24 om ednia.se: "dom har också en utforska delen som
+      typ nästan är en del av footern... det är likt vår fast mer clean."
+
+      Uppmätt hos dem samma dag: en H2 "Utforska" i 22/26 vikt 600 namnger
+      blocket, och varje länk står i TVÅ rader, ortnamnet i 16/20 vikt 600
+      över antalet i 14/20 vikt 400 grått, till exempel "Stockholm" över
+      "129 gymnasier".
+
+      Vår hade ingen rubrik alls, så blocket började mitt i luften med fyra
+      kolumnrubriker, och länken låg på EN rad: "Stockholm 3 559". Den formen
+      tvingar ögat att skilja namn från siffra utan hjälp. Tvåradigt kostar
+      10 px per rad och gör skillnaden gratis.
+
+      Deras flikar och deras "Visa fler" tas INTE. Flikarna byter datamängd i
+      samma yta, vilket är fint men ett eget bygge, och de döljer elva av 26
+      länkar bakom en knapp. Interna länkar som göms bakom ett klick är
+      precis vad docs/26 säger att vi inte ska göra. */}
   {columns.length > 0 && (
     <nav class="container kolumner" aria-label="Verksamhetstyper per kommun">
+      <h2 class="utforska">Utforska</h2>
       {columns.map((col) => (
         <div>
-          <h2>{col.category.name}</h2>
+          <h3>{col.category.name}</h3>
           <ul>
             {col.links.map((l) => (
               <li>
                 <a href={l.href}>
-                  {l.city} <span class="antal text-secondary">{formatNumber(l.count)}</span>
+                  <span class="ort">{l.city}</span>
+                  <span class="antal text-secondary">
+                    {formatNumber(l.count)} {col.category.name.toLowerCase()}
+                  </span>
                 </a>
               </li>
             ))}
@@ -1091,6 +1114,44 @@ const jsonLd = [
     overflow-x: auto;
     scroll-behavior: smooth;
     scrollbar-width: none;
+
+    /* TONINGEN I KANTERNA, som en kommentar länge påstod fanns men som aldrig
+       byggdes.
+       ────────────────────────────────────────────────────────────────────
+       Ägaren 2026-08-24 om ednia.se: "pilen sitter liksom flush längst höger
+       och vänster kanten, och pilen sitter ju därför över en kategori mot
+       kanten och då suddas den ut lite."
+
+       Uppmätt hos dem samma dag: pilen ligger på `right: 0` OVANPÅ raden med
+       en toning på 100 px under sig, och vid mätningen låg hela "Vård och
+       omsorg" begravd under båda.
+
+       Vår rad hade motsatt fel: ingen toning alls. Kategorin "Sallad" började
+       vid 1318 och slutade vid 1374 medan radens kant går vid 1365, alltså
+       klipptes etiketten rakt av. Utan toning läser en kapad etikett som ett
+       renderingsfel i stället för som "det finns mer".
+
+       40 px och inte Ednias 100. Deras hundra är precis det som suddar en hel
+       kategori; fyrtio räcker för att kanten ska läsa som mjuk, och vår pil
+       står ändå UTANFÖR raden på 1369 och inte ovanpå den. Det är vår lösning
+       och den är bättre än förlagans, så den behålls.
+
+       `mask-image` och inte ett överlägg: en toning i en pseudo hade legat
+       ovanpå etiketterna och därmed också ovanpå deras träffyta. Masken tar
+       bort bläck, inte klick.
+
+       Två stopp i var ände så att masken är helt ogenomskinlig i mitten. */
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 40px,
+      #000 calc(100% - 40px),
+      transparent 100%
+    );
+
+    /* Sista etiketten ska inte hamna under pilen. Pilen är 32 bred och står
+       12 px in, alltså 44, plus toningens 40. */
+    padding-inline-end: 84px;
     /* OBLIGATORISK. Ett `fieldset` har `min-inline-size: min-content` i
        webbläsarens egen stilmall, och den vinner över `overflow-x: auto`.
        Utan raden mätte raden 617 px i en 390 px vid vyport och sköt hela
@@ -1381,151 +1442,85 @@ const jsonLd = [
     z-index: 40;
     /* Raden spänner hela bredden men bara knappen ska gå att träffa. */
     pointer-events: none;
-
-    /* RINGEN SNURRAR HELA TIDEN.
-       ──────────────────────────────────────────────────────────────────────
-       Ägaren 2026-08-24: "varvet går ej, och det ska väl snurra hela tiden."
-
-       Två avtryckare provades först och båda var fel svar på "man märker den
-       inte". Ett varv vid inladdning gick 0,9 s in och var slut efter 3,1,
-       medan raden är `position: fixed` i NEDERKANTEN av vyn och blicken låg
-       överst. Ett varv vid första rullningen var bättre men fortfarande en
-       enda chans: missade man de 2,2 sekunderna kom de aldrig igen.
-
-       SEX SEKUNDER PER VARV OCH INTE 2,2. En evig ring i samma fart som ett
-       engångsvarv läser som en laddindikator, alltså som att sidan väntar på
-       något. Långsamt läser den som liv. magicuis shine-border kör 14 s,
-       uppmätt 2026-08-24; sex ligger mellan deras trögt och vårt tidigare
-       raska, och glimten hinner läsas som en ljuskälla som vandrar.
-
-       RESERVEN, alltså det som gäller där rullningstidslinjer saknas. Där
-       tidslinjen finns tar den över, se @supports strax nedan.
-
-       WCAG 2.2.2 gäller rörelse som startar av sig själv och varar över fem
-       sekunder. Den här reserven gör det, och grinden längre ned är svaret:
-       den som ställt in mindre rörelse i sitt system får ingen alls. */
-    animation: kartvarv 6s linear infinite;
-  }
-
-  /* RULLNINGEN DRIVER RINGEN.
-     ──────────────────────────────────────────────────────────────────────
-     Ägaren 2026-08-24: "kanske att snurren på bordern liksom snurrar på
-     skroll hade varit coolt eller något?"
-
-     Det är det bästa svaret på hela frågan, och det av tre skäl.
-
-     1. DEN GÅR INTE ATT MISSA. Tre avtryckare har provats och alla var en
-        chans var: ett varv 0,9 s efter inladdning gick medan blicken låg
-        överst och knappen sitter i nederkanten; ett varv vid första
-        rullningen krävde att man tittade åt rätt håll i just de 2,2
-        sekunderna; en evig ring syns bara om man råkar se ned. En ring som
-        följer rullningen rör sig exakt när besökaren rör sig.
-
-     2. WCAG 2.2.2 FALLER BORT. Kriteriet gäller rörelse som "startar
-        automatiskt". Den här startar inte alls av sig själv: står sidan
-        still står ringen still. Kravet på en stoppknapp uppstår aldrig,
-        till skillnad från den eviga varianten ovan.
-
-     3. DEN KOSTAR NOLL SKRIPT. `scroll()` körs av kompositören, alltså inte
-        en rullhanterare som kostar en bildruta per rullsteg på en sida med
-        340 kort.
-
-     Åtta varv över hela dokumentet och inte ett. Startsidan mäter omkring
-     4 700 px utfälld, så åtta varv blir ungefär ett varv per 590 px rullning,
-     vilket är i takt med handen. Ett enda varv över hela sidan hade rört sig
-     så långsamt att det inte lästs som rörelse alls.
-
-     @supports och inte en rak ersättning: Firefox saknar fortfarande
-     rullningstidslinjer, och där ska den eviga sextasekundersringen stå kvar
-     i stället för ingen ring alls. */
-  /* TVÅ REGLER OCH BARA LÅNGFORMER, och båda delarna är nödvändiga.
-     ──────────────────────────────────────────────────────────────────────
-     Första försöket skrev kortformen plus tidslinjen i samma regel. Bygget
-     minifierade ihop dem till `animation: linear kartvarv-skroll scroll(root)`,
-     och `animation-timeline` ingår INTE i kortformen `animation` i någon
-     webbläsare i dag. Deklarationen blev ogiltig och kastades i sin helhet.
-     Uppmätt i det byggda dokumentet: `animation-name` stod kvar på reservens
-     `kartvarv` och `animation-timeline` på `auto`, alltså ingen rullning alls.
-
-     `:not(:root)` är alltid sant för en div och finns här för att selektorn
-     ska skilja sig textmässigt från raden ovanför. Två identiska selektorer
-     hade minifieraren slagit ihop igen, och då är vi tillbaka i samma fälla.
-
-     `animation-duration: auto` är det som binder varvet till rullsträckan i
-     stället för till tid. Utan den sätter kortformen 0s och ingenting rör
-     sig. Det är också skälet att kortformen inte används här alls. */
-  @supports (animation-timeline: scroll()) {
-    .kartrad {
-      animation-name: kartvarv-skroll;
-      animation-duration: auto;
-      animation-timing-function: linear;
-      animation-iteration-count: 1;
-    }
-
-    .kartrad:not(:root) {
-      animation-timeline: scroll(root block);
-    }
-  }
-
-  @keyframes kartvarv-skroll {
-    to { --kartvinkel: 2880deg; }
   }
 
   .kartrad > * { pointer-events: auto; }
 
   .kartknapp {
-    /* Ankare för kantvarvets ring. Ändrar ingenting i flödet. */
     position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
     height: 48px;
-    /* 17 och inte 19: kanten nedan lägger till 2 px på var sida, och knappen
-       ska mäta samma 145,50 × 48 som före kantvarvet. */
     padding-inline: 17px;
     border-radius: 24px;
-
-    /* KANTEN ÄR ETT ANDRA BAKGRUNDSLAGER, inte ett maskat pseudoelement.
-       ──────────────────────────────────────────────────────────────────────
-       Första bygget använde det vanliga greppet: ett ::before på inset 0 med
-       padding och två masker som tar ut varandra. Det RENDERADE INTE på den
-       byggda sidan, och felsökningen på prikko.se visade exakt var gränsen
-       går: med `background: red` syntes ringen tydligt, med en konisk
-       gradient syntes ingenting alls, även när gradienten var helt
-       ogenomskinlig. Alltså åt masken bakgrunds-BILDEN men inte
-       bakgrunds-FÄRGEN på just den här knappen.
-
-       Det här är i stället Vercels egen teknik, som agenten mätte upp
-       2026-08-24: ett `padding-box`-lager med plattans färg ovanpå ett
-       `border-box`-lager med gradienten, och en genomskinlig kant som släpper
-       fram det undre lagret i exakt kantens bredd. Ingen mask, inget
-       pseudoelement och inget kompositlager som kan rastrera fel.
-
-       Ljuset är en glimt med svans och inte en jämn ring: en jämn ring läser
-       som krom, en glimt som en ljuskälla. Grundtonen 10 procent gör att
-       kanten nästan försvinner i vila, så det man ser är ljuset som vandrar
-       och inte en permanent grå ram. */
-    border: 2px solid transparent;
-    background:
-      linear-gradient(var(--text), var(--text)) padding-box,
-      conic-gradient(from var(--kartvinkel, 0deg),
-        var(--kant-dis)     0deg,
-        var(--kant-dis)   190deg,
-        var(--kant-halv)  268deg,
-        var(--kant-ljus)  312deg,
-        var(--kant-halv)  352deg,
-        var(--kant-dis)   360deg) border-box;
-
-    --kant-dis:  color-mix(in srgb, var(--card) 10%, transparent);
-    --kant-halv: color-mix(in srgb, var(--card) 60%, transparent);
-    --kant-ljus: var(--card);
     color: var(--card);
     font-size: var(--fs-body-s);
     font-weight: 500;
     text-decoration: none;
     box-shadow: 0 3px 12px rgba(0, 0, 0, .28);
     transition: transform .25s cubic-bezier(.2, 0, 0, 1);
+
+    /* Plattan bor på ::after. Knappen själv är ramen som klipper. */
+    background: transparent;
+    overflow: hidden;
+    isolation: isolate;
+
+    --kant-dis:  color-mix(in srgb, var(--card) 10%, transparent);
+    --kant-halv: color-mix(in srgb, var(--card) 60%, transparent);
+    --kant-ljus: var(--card);
   }
+
+  /* RINGEN SNURRAR MED transform, INTE MED EN VINKEL I GRADIENTEN.
+     ──────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: "kartgrejen, den är ej smooth, går bara från halv till
+     hel på skroll."
+
+     Han har rätt, och skälet är hur webbläsaren arbetar. Att animera `from` i
+     en `conic-gradient` ändrar själva BILDEN, alltså måste gradienten ritas om
+     varje bildruta, och en omritning körs inte på kompositören. Under en
+     rullningstidslinje uppdateras den då i språng.
+
+     `rotate` är däremot precis vad kompositören finns till för: gradienten
+     ritas EN gång och kvadraten under vrids.
+
+     Kvadraten måste vara kvadratisk och större än knappens diagonal, annars
+     sveper ett hörn förbi kanten när den vrids. Knappen är 145,5 × 48, alltså
+     diagonal 153,2, och 220 täcker med marginal. Knappen klipper med
+     `overflow: hidden` och sin egen radie, så det enda som syns är de 2 px
+     som ::after inte täcker. */
+  .kartknapp::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 220px;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    background: conic-gradient(
+      var(--kant-dis)     0deg,
+      var(--kant-dis)   190deg,
+      var(--kant-halv)  268deg,
+      var(--kant-ljus)  312deg,
+      var(--kant-halv)  352deg,
+      var(--kant-dis)   360deg);
+    animation: kartvarv 6s linear infinite;
+    z-index: 0;
+  }
+
+  /* Plattan. Täcker allt utom de 2 px som blir ring. */
+  .kartknapp::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 22px;
+    background: var(--text);
+    z-index: 1;
+  }
+
+  /* Etiketten och ikonen över båda. Utan detta ligger de under plattan. */
+  .kartknapp > *,
+  .kartknapp > svg { position: relative; z-index: 2; }
 
   .kartknapp:hover {
     color: var(--card);
@@ -1533,50 +1528,44 @@ const jsonLd = [
     transform: scale(1.04);
   }
 
-  /* Här låg ringen som ett maskat ::before. Den är borta och bor numera i
-     knappens egen bakgrund, se .kartknapp ovan. Skälet står där: masken åt
-     bakgrundsbilden på den byggda sidan medan en platt färg gick igenom. */
+  /* Hovringen snabbar bara upp varvet, den startar inget nytt. Ringen snurrar
+     redan, så en ny animation hade ryckt till. */
+  .kartknapp:hover::before { animation-duration: 1.4s; }
 
+  /* RULLNINGEN DRIVER RINGEN.
+     ──────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: "kanske att snurren på bordern liksom snurrar på
+     skroll hade varit coolt eller något?"
 
-  /* Hovervarvet ligger på knappen, startvarvet på raden, och den delningen
-     är inte godtycklig. En animering startar om så fort `animation-name`
-     byter värde. Låg båda varven här skulle namnet gå TILLBAKA till
-     startvarvets så fort pekaren lämnade, alltså ett helt varv till varje
-     gång man pekar bort. Uppmätt på den varianten 2026-08-24: 200 ms efter
-     utpekning stod vinkeln på 32,6 grader och en sekund senare på 165
-     grader. Ett varv ingen bett om.
+     Den går inte att missa, den startar inte av sig själv så WCAG 2.2.2 faller
+     bort, och `scroll()` körs av kompositören utan en enda rullhanterare.
 
-     .kartrad har ingen :hover-regel, så dess animation-name byter aldrig och
-     startvarvet går en enda gång. Ringen får vinkeln därifrån eftersom
-     --kartvinkel är registrerad med inherits: true.
+     Åtta varv över dokumentet, alltså ungefär ett varv per 590 px.
 
-     1,4 s och inte 6: vid hovring har man redan pekat, och ringen som svarar
-     snabbare läser som att knappen känner av pekaren. Båda är eviga, så
-     ingen av dem startar om den andra: utpekning lämnar bara tillbaka
-     vinkeln till radens egen, som aldrig slutat gå. */
-  .kartknapp:hover {
-    animation: kartvarv 1.4s linear infinite;
+     TVÅ REGLER OCH BARA LÅNGFORMER. Kortformen plus tidslinjen i samma regel
+     minifierades ihop till `animation: linear kartvarv-skroll scroll(root)`,
+     och `animation-timeline` ingår inte i kortformen i någon webbläsare, så
+     hela deklarationen kastades. `:not(:root)` skiljer selektorerna åt så att
+     minifieraren inte kan slå ihop dem igen. `animation-duration: auto` binder
+     varvet till rullsträckan i stället för till tid.
+
+     Firefox saknar rullningstidslinjer och behåller de sex sekunderna ovan. */
+  @supports (animation-timeline: scroll()) {
+    .kartknapp::before {
+      animation-name: kartvarv-skroll;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-iteration-count: 1;
+    }
+
+    .kartknapp:not(:root)::before {
+      animation-timeline: scroll(root block);
+    }
   }
 
-  /* En vinkel går bara att interpolera om den är registrerad som <angle>.
-     Utan @property vore --kartvinkel en osynlig sträng och varvet ett hopp.
+  @keyframes kartvarv { to { rotate: 360deg; } }
+  @keyframes kartvarv-skroll { to { rotate: 2880deg; } }
 
-     Fallbacken 0deg i var() ovan är degraderingen. Firefox före 128 saknar
-     @property; där är --kartvinkel oregistrerad och helt utan värde, och
-     conic-gradient hade blivit ogiltig och tagit bort hela bakgrunden.
-     Med fallbacken står ringen still på 0 grader, alltså samma ljusglimt
-     uppe till vänster som knappen vilar i här. Oregistrerade variabler
-     animeras dessutom diskret, och hoppet från 0deg till 360deg ritar
-     exakt samma bild, så ingenting blinkar under de 2,2 sekunderna. */
-  @property --kartvinkel {
-    syntax: '<angle>';
-    inherits: true;
-    initial-value: 0deg;
-  }
-
-  @keyframes kartvarv {
-    from { --kartvinkel: 0deg; }
-    to   { --kartvinkel: 360deg; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1586,8 +1575,8 @@ const jsonLd = [
        togs bort. */
     /* Träffar båda: den eviga reserven OCH den rullningsdrivna, eftersom
        `animation: none` slår ut namnet oavsett vilken tidslinje som driver. */
-    .kartrad,
-    .kartknapp:hover { animation: none; }
+    .kartknapp::before,
+    .kartknapp:hover::before { animation: none; }
   }
 
   .merrad {
@@ -1804,7 +1793,35 @@ const jsonLd = [
     border-top: 1px solid var(--hairline);
   }
 
-  .kolumner h2 {
+  /* Rubriken spänner hela rutnätet och namnger blocket. Ednias är 22/26 vikt
+     600, uppmätt 2026-08-24; vår h2-nivå ur tokens ligger på samma plats i
+     skalan och används i stället för ett eget tal. */
+  .utforska {
+    grid-column: 1 / -1;
+    margin-bottom: var(--s-2);
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    font-weight: 600;
+  }
+
+  /* Tvåradig länk. Ortnamnet bär vikten, antalet står under i den sekundära
+     grån. Blocket är `grid` och inte två rader text, så att raden mellan dem
+     blir ett mått och inte ett radavstånd som ärvs. */
+  .kolumner .ort {
+    display: block;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+  }
+
+  .kolumner .antal {
+    display: block;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 400;
+  }
+
+  .kolumner h3 {
     margin-bottom: var(--s-3);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
@@ -1908,6 +1925,10 @@ const jsonLd = [
       margin-inline: calc(var(--s-4) * -1);
       padding-inline: var(--s-4);
       gap: var(--s-4);
+      /* Pilarna är dolda på telefon, se .rulla nedan, så ingen plats att
+         reservera. Toningen står kvar: kanten ska läsa som mjuk även när man
+         rullar med fingret. */
+      padding-inline-end: var(--s-4);
     }
 
     .rulla { display: none; }
