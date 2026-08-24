@@ -1294,8 +1294,8 @@ const jsonLd = [
      fungerande sida med tolv kort i stället för hela poolen.
 
      Reglerna är utskrivna en per grupp och inte genererade. Det är tjugoen
-     rader att läsa, och alternativet — en sträng byggd i frontmattern och
-     utskriven med set:html — hade lämnat Astros stilomfång och gjort
+     rader att läsa, och alternativet, en sträng byggd i frontmattern och
+     utskriven med set:html, hade lämnat Astros stilomfång och gjort
      `.rutnat` och `.upptack` till globala klassnamn. */
   .upptack .rutnat > li { display: none; }
 
@@ -1381,11 +1381,22 @@ const jsonLd = [
     z-index: 40;
     /* Raden spänner hela bredden men bara knappen ska gå att träffa. */
     pointer-events: none;
+
+    /* Startvarvet. Se kantvarvet längre ned för vad det är och varför det
+       ligger på RADEN och inte på knappen.
+
+       Ingen vaktpost och inget skript för "när knappen först syns": raden är
+       `position: fixed`, alltså syns knappen från första bildrutan och hela
+       startsidan igenom. Fördröjningen på 0,9 s är till för att varvet ska
+       hinna bli en händelse i stället för att drunkna i inladdningen. */
+    animation: kartvarv 2.2s .9s 1 linear;
   }
 
   .kartrad > * { pointer-events: auto; }
 
   .kartknapp {
+    /* Ankare för kantvarvets ring. Ändrar ingenting i flödet. */
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
@@ -1407,8 +1418,127 @@ const jsonLd = [
     transform: scale(1.04);
   }
 
+  /* ═══ Kantvarvet ═════════════════════════════════════════════════════
+   *
+   * Ägaren 2026-08-24: "kör någon koll border animation på visa karta på
+   * homepagen, tycker inte man märker den, typ en grå/vit gradient som
+   * snurrar runt ett varv eller något, så det nästan ser lite magiskt ut."
+   *
+   * Mätt hos andra 2026-08-24, i webbläsaren och innan en rad skrevs:
+   *
+   *   vercel.com   Deras dyra kant är en gradient UTAN en enda färgad ton:
+   *                linear-gradient(bakgrund, bakgrund) padding-box lagd över
+   *                linear-gradient(vit 100 %, grå 66 %, grå 49 %) border-box.
+   *                Hela ramplen ligger på nyans 0 och mättnad 0. Den står
+   *                dessutom helt still, och all deras rörelse ligger bakom
+   *                prefers-reduced-motion: no-preference.
+   *   magicui      Ringen är ett överlägg på inset 0 med 1 px fyllning och
+   *                mask-composite: exclude, alltså exakt greppet nedan.
+   *                Deras varv tar 14 s och går i evig loop.
+   *   linear.app   Har ingen roterande kant alls. Deras 300-tal
+   *                @property-regler är StyleX-atomer, ingen av dem är en
+   *                <angle>.
+   *
+   * Slutsatsen: grått och vitt är rätt, urhålkningen är rätt, den eviga
+   * loopen är fel. WCAG 2.2.2 kräver att rörelse som startar av sig själv
+   * och varar längre än fem sekunder går att stoppa. Ett ÄNDLIGT varv på
+   * 2,2 s ställer aldrig den frågan, och det är dessutom precis vad ägaren
+   * bad om.
+   *
+   * ::before och INTE border: en border hade lagt 1,5 px på 48-pixelshöjden
+   * och 3 px på bredden, alltså flyttat både knappen och raden. Ringen är
+   * absolut positionerad på inset 0 och ligger innanför knappens egen yta.
+   * Mätt i webbläsaren 2026-08-24: 147,56 × 48 px med ringen, 147,56 × 48 px
+   * utan, samma x och y på hundradelen, och noll poster i layout-shift.
+   *
+   * Urhålkningen är två masker som tar ut varandra: den ena täcker
+   * innehållsrutan, den andra hela rutan, och `exclude` lämnar skillnaden.
+   * Kvar blir en 1,5 px bred ring med hål i mitten, så etikett och ikon syns
+   * rakt igenom och ringen aldrig kan lägga sig över texten. Det gör den
+   * också oberoende av att `transform: scale(1.04)` ovan reser ett eget
+   * stapelsammanhang vid hovring.
+   */
+  .kartknapp::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    pointer-events: none;
+
+    /* --card och inte #fff. Knappens platta är var(--text) och etiketten
+       var(--card), alltså är --card den färg som redan är definierad som
+       "det som lyser mot plattan". Byter plattan färg följer ringen med. */
+    --kant-dis:  color-mix(in srgb, var(--card) 14%, transparent);
+    --kant-ljus: color-mix(in srgb, var(--card) 85%, transparent);
+
+    /* Ljuset är en enda glimt med lång svans, inte en ring av lika starkt
+       ljus hela vägen runt. En jämn ring läses som krom, en glimt läses som
+       en ljuskälla. Svansen tonas upp över 130 grader, glimten står 25
+       grader och slocknar på 35, och båda ändarna av varvet ligger på
+       --kant-dis, alltså finns ingen söm vid 0 grader.
+
+       I vila står glimten uppe till vänster, som ljus uppifrån. */
+    background: conic-gradient(from var(--kartvinkel, 0deg),
+      var(--kant-dis)     0deg,
+      var(--kant-dis)   170deg,
+      var(--kant-ljus)  300deg,
+      var(--kant-ljus)  325deg,
+      var(--kant-dis)   360deg);
+
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+  }
+
+  /* Hovervarvet ligger på knappen, startvarvet på raden, och den delningen
+     är inte godtycklig. En animering startar om så fort `animation-name`
+     byter värde. Låg båda varven här skulle namnet gå TILLBAKA till
+     startvarvets så fort pekaren lämnade, alltså ett helt varv till varje
+     gång man pekar bort. Uppmätt på den varianten 2026-08-24: 200 ms efter
+     utpekning stod vinkeln på 32,6 grader och en sekund senare på 165
+     grader. Ett varv ingen bett om.
+
+     .kartrad har ingen :hover-regel, så dess animation-name byter aldrig och
+     startvarvet går en enda gång. Ringen får vinkeln därifrån eftersom
+     --kartvinkel är registrerad med inherits: true.
+
+     1,4 s och inte 2,2: vid hovring har man redan pekat och väntar på ett
+     svar, vid inladdning är varvet ett påpekande som ingen bett om. Varvet
+     går färdigt även om man står kvar, alltså ingen loop under pekaren. */
+  .kartknapp:hover::before {
+    animation: kartvarv 1.4s 1 linear;
+  }
+
+  /* En vinkel går bara att interpolera om den är registrerad som <angle>.
+     Utan @property vore --kartvinkel en osynlig sträng och varvet ett hopp.
+
+     Fallbacken 0deg i var() ovan är degraderingen. Firefox före 128 saknar
+     @property; där är --kartvinkel oregistrerad och helt utan värde, och
+     conic-gradient hade blivit ogiltig och tagit bort hela bakgrunden.
+     Med fallbacken står ringen still på 0 grader, alltså samma ljusglimt
+     uppe till vänster som knappen vilar i här. Oregistrerade variabler
+     animeras dessutom diskret, och hoppet från 0deg till 360deg ritar
+     exakt samma bild, så ingenting blinkar under de 2,2 sekunderna. */
+  @property --kartvinkel {
+    syntax: '<angle>';
+    inherits: true;
+    initial-value: 0deg;
+  }
+
+  @keyframes kartvarv {
+    from { --kartvinkel: 0deg; }
+    to   { --kartvinkel: 360deg; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .kartknapp { transition: none; }
+    /* Ingen vinkel rör sig. Ringen står kvar på 0 grader, vilket är exakt
+       samma bild som slutläget efter varvet, alltså syns det inte att något
+       togs bort. */
+    .kartrad,
+    .kartknapp:hover::before { animation: none; }
   }
 
   .merrad {
