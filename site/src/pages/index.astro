@@ -800,7 +800,12 @@ const columns = COLUMN_IDS.map((id) => {
  *
  * Beståndet räcker: 25 artiklar, noll utkast.
  */
-const ARTIKLAR = 6;
+/* Tolv och inte sex, sedan raden blev en rullrad 2026-08-24. Med sex kort à
+   220 px mätte innehållet 1 400 mot 1 329 synliga, alltså 71 px att rulla, och
+   en rullrad som rullar sjuttio pixlar är bara en rad som ser sönderklippt ut.
+   Tolv ger 2 832 och därmed drygt en skärm till. Finns färre artiklar än så
+   faller pilarna bort av sig själva, se skriptet. */
+const ARTIKLAR = 12;
 const artiklarKlara = sectionReady();
 const artikelposter = artiklarKlara
   ? await getCollection('artiklar', ({ data }) => !data.draft)
@@ -998,7 +1003,14 @@ const jsonLd = [
         <a href="/artiklar/">Alla artiklar</a>
       </div>
 
-      <ul class="artiklar">
+      <div class="artikelram" data-artikelram>
+        <button class="rulla vanster" type="button" hidden data-artrulla="-1" aria-label="Visa föregående artiklar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+        </button>
+        <button class="rulla hoger" type="button" hidden data-artrulla="1" aria-label="Visa fler artiklar">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+        </button>
+      <ul class="artiklar" data-artiklar>
         {artiklar.map((a) => (
           <li>
             <a href={path('artiklar', a.slug)}>
@@ -1021,6 +1033,7 @@ const jsonLd = [
           </li>
         ))}
       </ul>
+      </div>
     </section>
   )}
 
@@ -1223,22 +1236,21 @@ const jsonLd = [
      steg under, vilket får raden att se ut som en fotnot till fältet i
      stället för som sidans navigering.
 
-     12 PX OCH VIKT 500 sedan 2026-08-24. Ägaren bad först om 16 och rättade
-     sedan: "förlåt menade 12 px inte 16 px på kategori", plus "kan vi testa
-     hur den ser ut i lite lite lite tunnare, inte lika fet."
+     15 PX OCH VIKT 500. Graden har gått 13 → 16 → 12 → 15 under 2026-08-24,
+     och landningen är ägarens: "gör gärna fonten på kategoribanner på homepage
+     typ 15px, låt denna texten va kvar", alltså behåll vikten.
 
-     Här stod 13 i vikt 600. Tolv finns inte i skalan, som går 13, 14, 15, 17,
-     och står därför som ett tal med skälet utskrivet i stället för som en ny
-     token: raden är sajtens enda plats med den graden, och ett femte steg i
-     skalan för ETT bruk gör skalan sämre, inte bättre.
+     Femton står som ett tal, för skalan går 13, 14, 15 är alltså inte med:
+     stegen är --fs-caption 13, --fs-body-s 14 och --fs-body 17. Femton ligger
+     mellan de två nedre och är precis det ägaren pekat ut, så talet skrivs ut
+     med skälet i stället för att avrundas till fjorton.
 
-     Vikten från 600 till 500 är det "lite tunnare" han bad om. Det VALDA står
-     kvar på 700 längre ned, så avståndet mellan valt och ovalt växer från 100
-     till 200 steg, vilket är bra: vid 12 px bär vikten mer av markeringen än
-     graden gör. */
+     Vikten 500 är det "lite lite lite tunnare" han bad om tidigare samma dag
+     och den står kvar. Det VALDA ligger på 700 längre ned, alltså 200 steg
+     emellan, vilket bär markeringen utan att graden behöver ändras. */
   .etikett {
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 15px;
+    line-height: 20px;
     font-weight: 500;
   }
 
@@ -1791,14 +1803,72 @@ const jsonLd = [
      Sex i bredd, se ARTIKLAR i frontmattern. Gluggen är 16 och inte 24:
      med sex spalter äter 24 px hundratjugo pixlar av bredden, och korten
      hamnar under 190. Samma glugg som verksamhetsrutnätet. */
+  /* ARTIKELRADEN RULLAR I SIDLED i stället för att brytas till fler rader.
+     ──────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: "kör sidoskroll på artikelraden."
+
+     Ett rutnät med sex spalter tvingar varje kort till 1/6 av bredden och
+     bryter till en andra rad så snart det finns fler än sex artiklar. En
+     rullrad gör tvärtom: kortet håller sitt mått och raden växer åt sidan,
+     vilket är samma grepp som kategoriraden högre upp och som Ednias egen
+     kategoribanner, uppmätt 2026-08-24.
+
+     `grid-auto-flow: column` och inte flex: korten ska ha EN bredd, och en
+     kolumnström med `grid-auto-columns` sätter den på ett ställe i stället
+     för `flex: 0 0 220px` på varje kort.
+
+     220 px är kortets mått vid sex spalter i den gamla formen, alltså
+     oförändrad täthet för den som inte rullar. Airbnbs egna karuseller på
+     startsidan ligger på 182 och deras sökresultat på 307, uppmätt
+     2026-08-22; 220 ligger i deras spann och bär vår tre raders rubrik.
+
+     `scroll-snap` så att raden stannar med ett kort mot vänsterkanten och
+     inte mitt i ett. Samma toning och samma pilar som kategoriraden, se
+     .katrad, så att sidan har EN sorts rullrad och inte två. */
   .artiklar {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 220px;
     gap: var(--s-4);
     margin: 0;
     padding: 0;
     list-style: none;
+
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    scroll-snap-type: x mandatory;
+
+    --tona-vanster: #000 0;
+    --tona-hoger: #000 100%;
+
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      var(--tona-vanster),
+      var(--tona-hoger),
+      transparent 100%
+    );
   }
+
+  .artiklar::-webkit-scrollbar { display: none; }
+  .artiklar > li { scroll-snap-align: start; }
+
+  .artiklar[data-mer-vanster] { --tona-vanster: #000 40px; }
+  .artiklar[data-mer-hoger]   { --tona-hoger: #000 calc(100% - 40px); }
+
+  /* Raden behöver ett ankare för pilarna, precis som .katinre. */
+  .artikelram { position: relative; }
+
+  /* Eget indrag, och skälet är att de två ramarna inte är samma sak.
+     `.katinre` ÄR behållaren och rymmer dess 48 px gutter, så där lägger
+     `right: var(--container-luft)` pilen på innehållets kant. `.artikelram`
+     ligger redan innanför behållarens fyllning, så samma tal sköt pilen 48 px
+     in i raden: uppmätt 1297 till 1329 i en rad som slutar på 1377.
+
+     8 px, alltså pilen strax innanför kanten och ovanpå toningens 40. */
+  .artikelram .rulla.vanster { left: var(--s-2); }
+  .artikelram .rulla.hoger { right: var(--s-2); }
 
   .artiklar a {
     display: flex;
@@ -1859,6 +1929,21 @@ const jsonLd = [
     gap: var(--s-2);
     margin-bottom: var(--s-4);
     border-bottom: 1px solid var(--hairline);
+
+    /* FÖRSTA FLIKENS ORD SKA STÅ PÅ SAMMA PIXEL SOM ALLT ANNAT.
+       ──────────────────────────────────────────────────────────────────
+       Ägaren 2026-08-24: "fixa så restauranger under utforska är flush mot
+       vänster."
+
+       Rubriken, listan och första posten mätte alla 48 vid 1440. Fliken
+       gjorde det också, men dess ETIKETT har 12 px fyllning för träffytans
+       skull, så ordet började på 60. Tolv pixlar räcker för att raden ska
+       läsa som indragen.
+
+       Ett negativt utdrag på raden i stället för mindre fyllning på fliken:
+       träffytan ska förbli 24 px bred runt ordet, och understrecket är redan
+       inskjutet 12 px från flikens kanter, så det landar också på 48. */
+    margin-left: calc(var(--s-3) * -1);
   }
 
   .flik {
@@ -2022,16 +2107,9 @@ const jsonLd = [
 
   /* Artikelraden trappas ned i samma takt som kortrutnätet: sex spalter
      kräver omkring 1 200 px behållare för att kortet ska hålla 190. */
-  @media (max-width: 1279px) {
-    .artiklar { grid-template-columns: repeat(4, 1fr); }
-  }
 
-  @media (max-width: 1023px) {
-    .artiklar { grid-template-columns: repeat(3, 1fr); }
-  }
 
   @media (max-width: 767px) {
-    .artiklar { grid-template-columns: repeat(2, 1fr); }
     .kolumner { grid-template-columns: repeat(2, 1fr); }
   }
 
@@ -2063,7 +2141,6 @@ const jsonLd = [
     .rulla { display: none; }
 
     .rutnat,
-    .artiklar { grid-template-columns: repeat(2, 1fr); }
 
     .artiklar { gap: var(--s-4); }
   }
@@ -2171,3 +2248,55 @@ const jsonLd = [
     stall();
   })();
 </script>
+
+<script is:inline>
+  /* Artikelradens rullning. Samma logik som kategoriraden, med samma
+     8 px slack, så att toning och pil alltid visas och döljs tillsammans.
+     Egen slinga och inte en delad hjälpfunktion: de två raderna har olika
+     steglängd, kategoriraden 60 procent av bredden och den här ett helt
+     kort plus glugg, alltså 236. Ett halvt kort framme i kanten är sämre än
+     att stanna på ett.
+
+     SIST I FILEN, och det är inte en smaksak. Skriptet låg först efter
+     kategorifältet, alltså FÖRE artikelraden i dokumentet. Vid parsning fanns
+     raden inte än, `querySelector` gav null och slingan återvände direkt.
+     Uppmätt i bygget: raden hade 2 816 px innehåll i en 1 329 px vid ruta och
+     båda pilarna stod ändå dolda. */
+  (() => {
+    const rad = document.querySelector('[data-artiklar]');
+    if (!rad) return;
+    const knappar = document.querySelectorAll('[data-artrulla]');
+
+    const stall = () => {
+      const kanRulla = rad.scrollWidth > rad.clientWidth + 1;
+      const vid = rad.scrollLeft;
+      const slut = rad.scrollWidth - rad.clientWidth;
+      for (const knapp of knappar) {
+        const riktning = Number(knapp.dataset.artrulla);
+        const kvar = riktning < 0 ? vid : slut - vid;
+        knapp.hidden = !kanRulla || kvar < 8;
+      }
+      rad.toggleAttribute('data-mer-vanster', kanRulla && vid > 8);
+      rad.toggleAttribute('data-mer-hoger', kanRulla && slut - vid > 8);
+    };
+
+    for (const knapp of knappar) {
+      knapp.addEventListener('click', () => {
+        rad.scrollBy({ left: Number(knapp.dataset.artrulla) * 236 });
+      });
+    }
+
+    rad.addEventListener('scroll', stall, { passive: true });
+    addEventListener('resize', stall, { passive: true });
+
+    /* Tre tillfällen, och alla tre behövs. Vid parsning står måtten inte
+       klara, vid `load` har korten fått sina bilder, och bildrutan däremellan
+       fångar fallet då bilderna redan låg i cachen och `load` hann före det
+       här skriptet. Uppmätt utan dem: båda pilarna stod dolda trots att
+       innehållet var 1 400 px i en 1 329 px vid rad. */
+    stall();
+    requestAnimationFrame(stall);
+    addEventListener('load', stall, { once: true });
+  })();
+</script>
+
