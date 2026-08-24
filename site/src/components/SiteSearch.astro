@@ -174,9 +174,19 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     />
 
     {/* ══ VAR-DELEN ═══════════════════════════════════════════════════════
-        Bara i hero-läget, alltså bara på startsidan och bara innan raden
-        fällts ihop. Se .var i stilen för varför den försvinner i det
-        kompakta läget.
+        RENDERAS bara i hero-läget, alltså bara på startsidan. Villkoret satt
+        förut bara i en kommentar: markupen skrevs på varje sida och skriptet
+        gjorde `del.hidden = false` utan att fråga efter läget, så Var-delen
+        stod i sidhuvudet på alla 16 769 sidor. Ägaren 2026-08-24: "sökbaren
+        med 'Var' splittat ska bara vara på homepagen, men nu syns den
+        sökbaren på alla sidor."
+
+        Villkoret hör hemma i markupen och inte i skriptet. En del som inte
+        finns kan inte visas av misstag, och den kostar heller ingenting i de
+        16 768 dokument som inte är startsidan.
+
+        Kvar i hero-läget försvinner den ändå när raden fälls ihop, se .var i
+        stilen.
 
         Ägaren 2026-08-22: "vad fyller sökbarens animationen för funktion nu?
         det ska ju vara som airbnb att söket blir mer utevecklat eller?"
@@ -194,6 +204,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 
         Det dolda fältet är det som FÄRDAS. `kommun` läses av /sok/, se
         `SOK_KOMMUN` där. */}
+    {size === 'hero' && (
     <span class="var" data-var hidden>
       <button type="button" class="var-knapp" data-var-knapp aria-expanded="false" aria-haspopup="listbox">
         <span class="var-etikett">Var</span>
@@ -201,6 +212,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       </button>
       <input type="hidden" name="kommun" data-var-falt />
     </span>
+    )}
     {/* Genvägsmärket, hitta.se-mönstret på ägarens uttryckliga begäran: TVÅ
         separata tangentrutor i fältets högerkant, ⌘ i den ena och K i den
         andra, med litet mellanrum. Skriptet byter modifierarrutans tecken
@@ -236,6 +248,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       pilnavigeringen måste veta vilket läge den står i. Det här är tolv rader
       som stänger vid val. Den dagen kommunerna är 290 får listan en egen
       sökruta, och då är det bra att den ligger för sig. */}
+{size === 'hero' && (
   <div class="var-lista glass" hidden data-var-lista role="listbox" aria-label="Välj kommun">
     <button type="button" class="var-rad" data-var-val="" role="option" aria-selected="true">
       Var som helst
@@ -246,6 +259,7 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       </button>
     ))}
   </div>
+  )}
 
   <div class="panel glass" hidden data-panel>
 
@@ -1758,6 +1772,11 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   const lista = rot?.querySelector<HTMLElement>('[data-var-lista]');
   const form = rot?.querySelector<HTMLFormElement>('[data-field]');
 
+  /* Villkoret är också lägesgrinden. `del` finns bara i hero-läget, se
+     markupen, så hela blocket hoppas över på de 16 768 sidor som inte är
+     startsidan. Det är avsiktligt: allt härinne rör Var-delen, och formuläret
+     klarar sig utan. Utan skript, och på varje annan sida, gör en submit en
+     vanlig GET till /sok/?q=… vilket är exakt rätt beteende. */
   if (rot && del && knapp && varde && falt && lista && form) {
     del.hidden = false;
 

@@ -487,7 +487,14 @@ const href = path(`/${kommun.slug}`, 'karta');
     /* 380 och inte 320. Kartan är sidopanelens överst stående ruta och panelen
        är klistrad, alltså följer kartan med genom hela listan. Samma roll som
        Boolis karta, som ligger fast på halva sökresultatsidan. */
-    height: 380px;
+    /* 460 och inte 380. Spalten gick från 320 till 400 den 2026-08-24, se
+       .layout i KommunHub, och en karta som växer på bredden men står kvar i
+       höjd blir liggande. 460 ger kvoten 400/460, alltså stående, vilket är
+       rätt för en kommun: Linköpings låda är högre än den är bred, och en
+       liggande ruta hade fyllts med tomt landskap i öst och väst.
+
+       Boolis kartcanvas är 752 × 836, alltså också stående, uppmätt samma dag. */
+    height: 460px;
     /* Platshållarens yta läser som mark på en karta läser: som en yta, inte
        som tomrum. */
     background: color-mix(in srgb, var(--brand) 7%, var(--card));

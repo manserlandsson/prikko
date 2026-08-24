@@ -179,6 +179,13 @@ function share(n: number): string | null {
 </section>
 
 <style>
+  .oversikt {
+    /* Frågan gäller HUVUDKOLUMNENS bredd och inte fönstrets, se .legend.
+       Utan den här raden har @container ingen behållare att mäta mot och
+       regeln inuti slår aldrig till, tyst. */
+    container-type: inline-size;
+  }
+
   /* Inget kort. Raden är sammanhang, inte innehåll, och ska väga därefter. */
   .rubrikrad {
     display: flex;
@@ -234,8 +241,22 @@ function share(n: number): string | null {
     margin: var(--s-2) 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* FYRA eller TVÅ, aldrig tre.
+       ──────────────────────────────────────────────────────────────────────
+       `auto-fit` med golv på 150 gav tre spalter när huvudkolumnen låg mellan
+       omkring 500 och 650, uppmätt vid 1 180 px fönster: posterna bröt 3 plus
+       1 och "Ingen bedömning" stod ensam på en andra rad. Fyra poster tål
+       bara delare som går jämnt ut i fyra.
+
+       Brytpunkten är satt på huvudkolumnen och inte på fönstret, eftersom
+       kartspalten tar 400 av bredden. 620 är där fyra spalter à 140 plus tre
+       gluggar à 16 slutar rymmas. */
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--s-3) var(--s-4);
+  }
+
+  @container (min-width: 620px) {
+    .legend { grid-template-columns: repeat(4, 1fr); }
   }
 
   .legend a, .rad {

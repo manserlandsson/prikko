@@ -488,6 +488,21 @@ const { search = true, hem = false } = Astro.props;
   @media (max-width: 640px) {
     .bar { gap: var(--s-3); }
   }
+
+  /* De sista pixlarna går till fältet, inte till luften.
+     ────────────────────────────────────────────────────────────────────────
+     Uppmätt vid 375 px: ordmärket tar 97, menyknappen 36, containern 2 × 16
+     och de två gluggarna 2 × 12. Kvar blev 186 till fältet, alltså 123 inuti
+     efter knapp och indrag, medan den korta platshållaren "Sök ställe eller
+     ort" behöver 129. Den kapades mitt i sista ordet.
+
+     Glugg 8 i stället för 12 ger de 8 px som fattas. Åtta är fortfarande mer
+     än den optiska minsta gluggen mellan ett ordmärke och en rund knapp, och
+     alternativet var att korta platshållaren till något som inte längre säger
+     att man kan söka på en ort. */
+  @media (max-width: 400px) {
+    .bar { gap: var(--s-2); }
+  }
 </style>
 
 {/*

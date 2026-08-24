@@ -822,8 +822,25 @@ export function collect(q: string, keep: number): Groups {
   const groups = gather(key, keep, q);
   if (groups.count >= NEAR_MIN) return groups;
 
-  const fix = repair(key, groups.count === 0);
+  const fix = repair(key);
   if (!fix) return groups;
+
+  /* BYTET SKER BARA NÄR DET SKRIVNA GAV NOLL.
+     ────────────────────────────────────────────────────────────────────────
+     Här byttes frågan ut så snart träffarna var färre än tre, alltså även när
+     de var en eller två. Följden var att sidan visade träffar för ett ord
+     besökaren inte skrivit, utan att säga det: `didYouMean` krävde tomt
+     resultat och tigde därför i precis de lägen då bytet faktiskt skedde.
+     Att svara på en annan fråga i tysthet är sämre än att inte rätta alls.
+
+     Nu gäller: noll träffar byter fråga, en eller två behåller sina. I det
+     andra fallet står rättningen som en LÄNK i stället, "Menade du X?", och
+     besökaren väljer själv. Det är Googles ordning, och den bygger på att den
+     som fått två träffar har fått ett svar på det hon faktiskt skrev. */
+  if (groups.count > 0) {
+    groups.didYouMean = fix.didYouMean;
+    return groups;
+  }
 
   const better = gather(fix.key, keep, fix.key);
   better.didYouMean = fix.didYouMean;
@@ -1081,9 +1098,11 @@ function spelling(key: string): string {
  *   Avståndet är ett. Två tecken fel tillåts för att HITTA, aldrig för att
  *   påstå.
  *
- *   Tvåan ligger längre bort. Är det jämnt mellan "Västerlånggatan" och
- *   "Österlånggatan" har vi ingen aning om vilken som menades, och då visas
- *   träffarna utan påstående.
+ *   Tvåan ligger längre bort, och med tvåan menas nästa kandidat som är ett
+ *   ANNAT ord. Är det jämnt mellan "Västerlånggatan" och "Österlånggatan" har
+ *   vi ingen aning om vilken som menades, och då visas träffarna utan
+ *   påstående. Ett ord som bara är vinnaren i förkortad eller förlängd form
+ *   räknas däremot inte som tvekan, se rival längre ner.
  *
  * Skillnaden är hela poängen: ett "menade du" som stämmer varje gång det
  * står ut är värt något, ett som gissar är brus. På 504 riktiga gatunamn med
@@ -1092,7 +1111,7 @@ function spelling(key: string): string {
  * vilket är exakt vad "Rosenborgatan" ska ge: den ligger ett steg från
  * "Rosenborgsgatan", men inte ensam om det.
  */
-function repair(key: string, empty: boolean): { key: string; didYouMean: string | null } | null {
+function repair(key: string): { key: string; didYouMean: string | null } | null {
   const parts = key.split(' ');
   const found: Array<Candidate[] | null> = [];
   let changed = -1;
@@ -1136,12 +1155,52 @@ function repair(key: string, empty: boolean): { key: string; didYouMean: string 
   }
   if (!hits) return null;
 
+  /*
+   * Tvåan som RIVAL, alltså nästa kandidat som är ett ANNAT ord.
+   *
+   * Tvekansregeln stod tidigare som `list[1].distance > 1` rakt av, och det
+   * var den som tystade raden i praktiken. Skälet ligger i prefixDistance:
+   * den mäter mot det bästa PREFIXET av ordbokens ord, eftersom fältet söker
+   * medan man skriver. Följden är att ett ord som är en förkortning eller en
+   * förlängning av vinnaren hamnar på exakt samma avstånd som vinnaren.
+   *
+   * Registret är fullt av sådana par, för det bär både kedjan och bolaget:
+   *
+   *     "mcdonals"  ->  mkdonalds (avstånd 1, 40 rader)
+   *                     mkdonald  (avstånd 1,  2 rader)
+   *     "frantzn"   ->  frantsen  (avstånd 1,  2 rader)
+   *                     frants    (avstånd 1,  1 rad)
+   *
+   * "mkdonald" är inte en annan stavning som besökaren kan ha menat, det är
+   * samma ord ett tecken kortare. Att låta det rösta ner rättningen är att
+   * kalla ett ord tvetydigt mot sig självt, och båda de två frågorna ovan
+   * visade sina rättade träffar helt utan att säga varför.
+   *
+   * En prefixsläkting hoppas därför över när tvåan letas upp. Äkta tvekan
+   * står kvar orörd: "vasterlangatan" och "osterlangatan" är inget prefix av
+   * varandra, alltså tiger raden där precis som förut.
+   *
+   * Mätt på registrets egna ord med ett fel inskrivet, 2 314 frågor över 400
+   * gatunamn och 400 verksamhetsnamn med tappat tecken, omkastade tecken och
+   * fel tecken: raden gick från 1 431 till 1 475 utskrifter. Ingen befintlig
+   * rad föll bort, och samtliga 44 nya pekar på det ord som muterades, 29 på
+   * ordet självt och 15 på dess genitivform eller på ledet före bindestrecket
+   * ("Båggatans" för Båggatan, "Gällersta" för Gällersta-ökna).
+   */
+  const win = list[0].word;
+  const rival = list.find((c, i) => i > 0 && !win.startsWith(c.word) && !c.word.startsWith(win));
+
+  /* `empty` stod som första villkor här och är borttaget. Det fanns för att
+     hålla raden tyst när frågan gav träffar, men `collect` anropar repair
+     BARA när träffarna är färre än tre, så villkoret uteslöt i praktiken just
+     de en eller två träffar där rättningen är som mest värd. Grinden ligger
+     numera i `collect`, se bytet där, och den här funktionen svarar bara på
+     hur säker rättningen är. */
   const sure =
-    empty &&
     changes === 1 &&
     pick === 0 &&
     list[0].distance === 1 &&
-    (list.length < 2 || list[1].distance > 1);
+    (!rival || rival.distance > 1);
 
   return {
     key: fixed.join(' '),
