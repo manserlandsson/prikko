@@ -478,9 +478,11 @@ interface Grupp {
   id: string;
   ikon: 'alla' | MatkategoriId;
   etikett: string;
+  /** Hur många verksamheter gruppen bär. Se RAKNAREN i markupen. */
+  antal: number;
 }
 
-const grupper: Grupp[] = [{ id: 'hem', ikon: 'alla', etikett: 'Alla' }];
+const grupper: Grupp[] = [{ id: 'hem', ikon: 'alla', etikett: 'Alla', antal: hem.length }];
 
 /**
  * Vilka grupper varje verksamhet står i. Kortet renderas en gång och
@@ -535,7 +537,7 @@ for (const kategori of MATKATEGORIER) {
   // En kategori som inte fyller sina rutor står inte i raden. Fyra kort
   // under en flik som utlovar en hel sorts mat läser som ett fel.
   if (urval.length < 4) continue;
-  grupper.push({ id: kategori.id, ikon: kategori.id, etikett: kategori.namn });
+  grupper.push({ id: kategori.id, ikon: kategori.id, etikett: kategori.namn, antal: urval.length });
   urval.forEach((rad, i) => laggTill(rad, kategori.id, i));
 }
 
@@ -888,6 +890,10 @@ const jsonLd = [
               <label class="val" for={`kat-${g.id}`}>
                 <Matikon namn={g.ikon} size={24} />
                 <span class="etikett" data-etikett={g.etikett}>{g.etikett}</span>
+                {/* Antalet under etiketten, alltså fördelningen synlig innan
+                    man väljer. Ednia gör samma sak i sin flikrad, "Till salu
+                    5 418" och "Slutpris 126 823", uppmätt 2026-08-24. */}
+                <span class="katantal">{formatNumber(g.antal)}</span>
               </label>
               {/* Avdelaren efter hemläget. Ednia har exakt den, uppmätt
                   2026-08-22: en 1 px bred och 48 px hög linje mellan "Alla
@@ -989,7 +995,23 @@ const jsonLd = [
           knapp och sidan fungerar ändå. */}
       <div class="merrad" data-merrad>
         <input class="visually-hidden" type="checkbox" id="visa-fler" />
-        <label class="mer" for="visa-fler">Visa fler</label>
+        {/* RÄKNAREN PÅ KNAPPEN.
+            ──────────────────────────────────────────────────────────────
+            Ägaren 2026-08-24: "kör räknaren och histogrammet, skit i hela
+            panelen."
+
+            Greppet är Ednias, uppmätt samma dag: deras bekräftelseknapp gick
+            från "Visa 178 skolor" till "Visa 82 skolor" medan man kryssade i
+            panelen, alltså visar knappen konsekvensen av valet INNAN man
+            trycker. Deras panel bygger vi inte, den är 2 341 px innehåll i
+            tolv sektioner för en datamängd med tre användbara axlar.
+
+            Talet är per GRUPP och skrivs av skriptet, eftersom en kategori
+            byter hur många som återstår. Utan skript står det bara "Visa
+            fler", vilket är sant men tystare. */}
+        <label class="mer" for="visa-fler">
+          Visa fler<span class="merantal" data-merantal></span>
+        </label>
         <span class="puls" data-puls aria-hidden="true"><i></i><i></i><i></i></span>
       </div>
     </div>
@@ -1260,6 +1282,15 @@ const jsonLd = [
      det, vilket knuffar varje val till höger om det i sidled. Kopian ritas
      aldrig: höjd 0, overflow hidden. Den bidrar ändå till bredden, vilket
      är hela poängen. */
+  /* Antalet under etiketten. Sekundär grå och ett steg mindre, alltså en
+     upplysning bredvid ordet och inte en andra etikett. */
+  .katantal {
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
   .etikett::after {
     content: attr(data-etikett);
     display: block;
@@ -1512,6 +1543,11 @@ const jsonLd = [
   }
 
   .kartrad > * { pointer-events: auto; }
+
+  /* Räknaren på "Visa fler". Skrivs av skriptet, tom tills dess, och tar
+     därför ingen plats innan den har något att säga. */
+  .merantal { color: var(--text-secondary); }
+  .merantal:not(:empty)::before { content: ' '; }
 
   .kartknapp {
     position: relative;
@@ -2267,6 +2303,43 @@ const jsonLd = [
     rad.addEventListener('scroll', stall, { passive: true });
     window.addEventListener('resize', stall, { passive: true });
     stall();
+  })();
+</script>
+
+<script is:inline>
+  /* RÄKNAREN PÅ "VISA FLER".
+     ──────────────────────────────────────────────────────────────────────
+     Talet är hur många kort som ligger bakom kryssrutan i den grupp man just
+     nu tittar på, alltså konsekvensen av att trycka. Ednias motsvarighet står
+     på deras bekräftelseknapp och räknar om medan man väljer.
+
+     Räknas ur DOM:en och inte ur frontmattern, av två skäl. Talet skiljer sig
+     per grupp, och en grupp med färre extrakort än en annan hade krävt ett
+     attribut per grupp på knappen. Och det som räknas ska vara exakt det som
+     CSS:en döljer, alltså `data-extra` för den valda gruppen, annars kan de
+     två glida isär utan att någon märker det.
+
+     Skriptet lyssnar på kategoriradens radioknappar. `change` och inte
+     `click`: tangentbordet byter val med piltangenter utan ett enda klick. */
+  (() => {
+    const ut = document.querySelector('[data-merantal]');
+    const rutnat = document.querySelector('.rutnat');
+    if (!ut || !rutnat) return;
+
+    const skriv = () => {
+      const vald = document.querySelector('.katrad input:checked');
+      if (!vald) return;
+      const grupp = vald.id.replace(/^kat-/, '');
+      const kvar = rutnat.querySelectorAll(
+        `li[data-extra~="${grupp}"]`,
+      ).length;
+      ut.textContent = kvar > 0 ? `(${kvar.toLocaleString('sv-SE')})` : '';
+    };
+
+    for (const r of document.querySelectorAll('.katrad input')) {
+      r.addEventListener('change', skriv);
+    }
+    skriv();
   })();
 </script>
 
