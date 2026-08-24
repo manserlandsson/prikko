@@ -951,7 +951,7 @@ const jsonLd = [
           En LÄNK och inte en knapp. Kartan är en egen sida, och en knapp
           som byter sida går inte att öppna i ny flik, inte att spara och
           inte att mellanklicka. */}
-      <div class="kartrad">
+      <div class="kartrad" data-kartrad>
         <a class="kartknapp" href="/karta/">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9.2 3.4 3.6 5.6v15l5.6-2.2 5.6 2.2 5.6-2.2v-15l-5.6 2.2z" />
@@ -1385,12 +1385,27 @@ const jsonLd = [
     /* Startvarvet. Se kantvarvet längre ned för vad det är och varför det
        ligger på RADEN och inte på knappen.
 
-       Ingen vaktpost och inget skript för "när knappen först syns": raden är
-       `position: fixed`, alltså syns knappen från första bildrutan och hela
-       startsidan igenom. Fördröjningen på 0,9 s är till för att varvet ska
-       hinna bli en händelse i stället för att drunkna i inladdningen. */
-    animation: kartvarv 2.2s .9s 1 linear;
+       VARVET GÅR VID FÖRSTA RULLNINGEN, INTE VID INLADDNING.
+       ──────────────────────────────────────────────────────────────────────
+       Här stod `animation: kartvarv 2.2s .9s 1 linear` utan villkor, alltså
+       startade varvet 0,9 s efter inladdning och var slut efter 3,1 s. Det
+       var fel av ett skäl som borde ha varit uppenbart från början: raden är
+       `position: fixed` i NEDERKANTEN av vyn, och en besökare som just fått
+       upp sidan tittar överst. Varvet hann alltså gå färdigt innan blicken
+       nådde knappen. Ägaren 2026-08-24, efter att det byggts: "kantvarvet
+       syns fortfarande inte."
+
+       Klassen sätts av skriptet längst ned i filen vid första rullningen,
+       alltså när man bläddrar bland korten och en karta börjar betyda något.
+       Fördröjningen på 0,25 s är kortare än den gamla på 0,9: nu har
+       besökaren redan sidan för ögonen och behöver ingen uppvärmning.
+
+       Utan skript går varvet aldrig. Det är rätt: knappen fungerar ändå, och
+       en ring som står still är den bild alla lägen vilar i. */
+    animation: kartvarv 2.2s .25s 1 linear paused;
   }
+
+  .kartrad[data-vackt] { animation-play-state: running; }
 
   .kartrad > * { pointer-events: auto; }
 
@@ -1463,27 +1478,36 @@ const jsonLd = [
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1.5px;
+    /* 2 px och inte 1,5: en bredare glimt behöver en kant att synas på. */
+    padding: 2px;
     pointer-events: none;
 
     /* --card och inte #fff. Knappens platta är var(--text) och etiketten
        var(--card), alltså är --card den färg som redan är definierad som
        "det som lyser mot plattan". Byter plattan färg följer ringen med. */
-    --kant-dis:  color-mix(in srgb, var(--card) 14%, transparent);
-    --kant-ljus: color-mix(in srgb, var(--card) 85%, transparent);
+    --kant-dis:  color-mix(in srgb, var(--card) 26%, transparent);
+    --kant-ljus: var(--card);
 
-    /* Ljuset är en enda glimt med lång svans, inte en ring av lika starkt
-       ljus hela vägen runt. En jämn ring läses som krom, en glimt läses som
-       en ljuskälla. Svansen tonas upp över 130 grader, glimten står 25
-       grader och slocknar på 35, och båda ändarna av varvet ligger på
-       --kant-dis, alltså finns ingen söm vid 0 grader.
+    /* Ljuset är en enda glimt med svans, inte en ring av lika starkt ljus
+       hela vägen runt. En jämn ring läses som krom, en glimt läses som en
+       ljuskälla. Båda ändarna av varvet ligger på --kant-dis, alltså finns
+       ingen söm vid 0 grader.
+
+       BREDDAD OCH FÖRSTÄRKT 2026-08-24 på ägarens begäran: "gör den mer
+       synlig, bredare glimt och starkare". Glimten går från 25 till 52 grader,
+       svansen kortas från 130 till 87 så att uppgången blir brantare, toppen
+       går från 85 procent till full --card, grundtonen från 14 till 26
+       procent och ringen från 1,5 till 2 px.
+
+       Prikko-blå provades och valdes bort av ägaren samma dag: "svart går bra
+       btw, skit i prikko blå."
 
        I vila står glimten uppe till vänster, som ljus uppifrån. */
     background: conic-gradient(from var(--kartvinkel, 0deg),
       var(--kant-dis)     0deg,
-      var(--kant-dis)   170deg,
-      var(--kant-ljus)  300deg,
-      var(--kant-ljus)  325deg,
+      var(--kant-dis)   205deg,
+      var(--kant-ljus)  292deg,
+      var(--kant-ljus)  344deg,
       var(--kant-dis)   360deg);
 
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -1891,6 +1915,28 @@ const jsonLd = [
   Skriptet bockar bara i den. Utan skript är den en vanlig knapp som
   fungerar, vilket är hela skälet att den inte ersattes av ett skript.
 */}
+{/*
+  Kantvarvet väcks vid första rullningen. Se .kartrad i stilen för varför det
+  inte längre går vid inladdning.
+
+  `{ once: true }` och ingen avregistrering att glömma. `passive` eftersom
+  hanteraren aldrig kallar preventDefault, och en icke-passiv rullhanterare
+  kostar en bildruta på varje rullsteg.
+
+  Också vid `scrollY > 0` direkt: kommer man tillbaka med bakåtknappen har
+  webbläsaren redan återställt rullpositionen, och då inträffar ingen
+  rullhändelse att lyssna på.
+*/}
+<script is:inline>
+  (() => {
+    const rad = document.querySelector('[data-kartrad]');
+    if (!rad) return;
+    const vack = () => rad.setAttribute('data-vackt', '');
+    if (window.scrollY > 0) vack();
+    else window.addEventListener('scroll', vack, { once: true, passive: true });
+  })();
+</script>
+
 <script is:inline>
   (() => {
     const merrad = document.querySelector('[data-merrad]');
