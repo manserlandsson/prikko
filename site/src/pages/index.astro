@@ -951,7 +951,7 @@ const jsonLd = [
           En LÄNK och inte en knapp. Kartan är en egen sida, och en knapp
           som byter sida går inte att öppna i ny flik, inte att spara och
           inte att mellanklicka. */}
-      <div class="kartrad" data-kartrad>
+      <div class="kartrad">
         <a class="kartknapp" href="/karta/">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9.2 3.4 3.6 5.6v15l5.6-2.2 5.6 2.2 5.6-2.2v-15l-5.6 2.2z" />
@@ -1382,30 +1382,28 @@ const jsonLd = [
     /* Raden spänner hela bredden men bara knappen ska gå att träffa. */
     pointer-events: none;
 
-    /* Startvarvet. Se kantvarvet längre ned för vad det är och varför det
-       ligger på RADEN och inte på knappen.
-
-       VARVET GÅR VID FÖRSTA RULLNINGEN, INTE VID INLADDNING.
+    /* RINGEN SNURRAR HELA TIDEN.
        ──────────────────────────────────────────────────────────────────────
-       Här stod `animation: kartvarv 2.2s .9s 1 linear` utan villkor, alltså
-       startade varvet 0,9 s efter inladdning och var slut efter 3,1 s. Det
-       var fel av ett skäl som borde ha varit uppenbart från början: raden är
-       `position: fixed` i NEDERKANTEN av vyn, och en besökare som just fått
-       upp sidan tittar överst. Varvet hann alltså gå färdigt innan blicken
-       nådde knappen. Ägaren 2026-08-24, efter att det byggts: "kantvarvet
-       syns fortfarande inte."
+       Ägaren 2026-08-24: "varvet går ej, och det ska väl snurra hela tiden."
 
-       Klassen sätts av skriptet längst ned i filen vid första rullningen,
-       alltså när man bläddrar bland korten och en karta börjar betyda något.
-       Fördröjningen på 0,25 s är kortare än den gamla på 0,9: nu har
-       besökaren redan sidan för ögonen och behöver ingen uppvärmning.
+       Två avtryckare provades först och båda var fel svar på "man märker den
+       inte". Ett varv vid inladdning gick 0,9 s in och var slut efter 3,1,
+       medan raden är `position: fixed` i NEDERKANTEN av vyn och blicken låg
+       överst. Ett varv vid första rullningen var bättre men fortfarande en
+       enda chans: missade man de 2,2 sekunderna kom de aldrig igen.
 
-       Utan skript går varvet aldrig. Det är rätt: knappen fungerar ändå, och
-       en ring som står still är den bild alla lägen vilar i. */
-    animation: kartvarv 2.2s .25s 1 linear paused;
+       SEX SEKUNDER PER VARV OCH INTE 2,2. En evig ring i samma fart som ett
+       engångsvarv läser som en laddindikator, alltså som att sidan väntar på
+       något. Långsamt läser den som liv. magicuis shine-border kör 14 s,
+       uppmätt 2026-08-24; sex ligger mellan deras trögt och vårt tidigare
+       raska, och glimten hinner läsas som en ljuskälla som vandrar.
+
+       WCAG 2.2.2 gäller rörelse som startar av sig själv och varar över fem
+       sekunder. Den här gör det, och grinden nedan är svaret: den som ställt
+       in mindre rörelse i sitt system får ingen alls. Ägaren är informerad om
+       att regeln strikt läst vill ha en knapp i sidan och har valt ändå. */
+    animation: kartvarv 6s linear infinite;
   }
-
-  .kartrad[data-vackt] { animation-play-state: running; }
 
   .kartrad > * { pointer-events: auto; }
 
@@ -1528,11 +1526,12 @@ const jsonLd = [
      startvarvet går en enda gång. Ringen får vinkeln därifrån eftersom
      --kartvinkel är registrerad med inherits: true.
 
-     1,4 s och inte 2,2: vid hovring har man redan pekat och väntar på ett
-     svar, vid inladdning är varvet ett påpekande som ingen bett om. Varvet
-     går färdigt även om man står kvar, alltså ingen loop under pekaren. */
+     1,4 s och inte 6: vid hovring har man redan pekat, och ringen som svarar
+     snabbare läser som att knappen känner av pekaren. Båda är eviga, så
+     ingen av dem startar om den andra: utpekning lämnar bara tillbaka
+     vinkeln till radens egen, som aldrig slutat gå. */
   .kartknapp:hover::before {
-    animation: kartvarv 1.4s 1 linear;
+    animation: kartvarv 1.4s linear infinite;
   }
 
   /* En vinkel går bara att interpolera om den är registrerad som <angle>.
@@ -1915,28 +1914,6 @@ const jsonLd = [
   Skriptet bockar bara i den. Utan skript är den en vanlig knapp som
   fungerar, vilket är hela skälet att den inte ersattes av ett skript.
 */}
-{/*
-  Kantvarvet väcks vid första rullningen. Se .kartrad i stilen för varför det
-  inte längre går vid inladdning.
-
-  `{ once: true }` och ingen avregistrering att glömma. `passive` eftersom
-  hanteraren aldrig kallar preventDefault, och en icke-passiv rullhanterare
-  kostar en bildruta på varje rullsteg.
-
-  Också vid `scrollY > 0` direkt: kommer man tillbaka med bakåtknappen har
-  webbläsaren redan återställt rullpositionen, och då inträffar ingen
-  rullhändelse att lyssna på.
-*/}
-<script is:inline>
-  (() => {
-    const rad = document.querySelector('[data-kartrad]');
-    if (!rad) return;
-    const vack = () => rad.setAttribute('data-vackt', '');
-    if (window.scrollY > 0) vack();
-    else window.addEventListener('scroll', vack, { once: true, passive: true });
-  })();
-</script>
-
 <script is:inline>
   (() => {
     const merrad = document.querySelector('[data-merrad]');
