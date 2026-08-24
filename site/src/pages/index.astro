@@ -1236,21 +1236,22 @@ const jsonLd = [
      steg under, vilket får raden att se ut som en fotnot till fältet i
      stället för som sidans navigering.
 
-     15 PX OCH VIKT 500. Graden har gått 13 → 16 → 12 → 15 under 2026-08-24,
-     och landningen är ägarens: "gör gärna fonten på kategoribanner på homepage
-     typ 15px, låt denna texten va kvar", alltså behåll vikten.
+     13 PX OCH VIKT 500. Graden provades i 16, 12 och 15 under 2026-08-24 och
+     landade på 13, som är ägarens sista ord: "kör 13px istället på
+     kategoritexten."
 
-     Femton står som ett tal, för skalan går 13, 14, 15 är alltså inte med:
-     stegen är --fs-caption 13, --fs-body-s 14 och --fs-body 17. Femton ligger
-     mellan de två nedre och är precis det ägaren pekat ut, så talet skrivs ut
-     med skälet i stället för att avrundas till fjorton.
+     Tretton ÄR --fs-caption, alltså tillbaka i skalan efter tre tal som stod
+     utanför den. Det är också graden raden hade från början; det som ändrats
+     mot utgångsläget är vikten.
 
-     Vikten 500 är det "lite lite lite tunnare" han bad om tidigare samma dag
-     och den står kvar. Det VALDA ligger på 700 längre ned, alltså 200 steg
-     emellan, vilket bär markeringen utan att graden behöver ändras. */
+     Vikten 500 är det "lite lite lite tunnare" han bad om samma dag och den
+     står kvar. Det VALDA ligger på 700 längre ned, alltså 200 steg emellan i
+     stället för de 100 raden hade förut. Vid 13 px bär vikten mer av
+     markeringen än graden kan göra, så det avståndet är det som gör valt
+     läsbart utan att ordet växer. */
   .etikett {
-    font-size: 15px;
-    line-height: 20px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     font-weight: 500;
   }
 
@@ -1869,6 +1870,26 @@ const jsonLd = [
      8 px, alltså pilen strax innanför kanten och ovanpå toningens 40. */
   .artikelram .rulla.vanster { left: var(--s-2); }
   .artikelram .rulla.hoger { right: var(--s-2); }
+
+  /* CENTRERAD PÅ BILDEN, inte på kortet.
+     ──────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-24: "pilen på artiklarna på homepagen ska vara centered."
+
+     Den VAR centrerad, men på ramen: uppmätt låg pilens mitt på 2243 och
+     ramens mitt på 2243, alltså exakt. Felet är att ramen är hela kortet.
+     Kortet mäter 232 px medan bilden bara är 138, så kortets mitt hamnar
+     nere vid rubrikens första rad och pilen ser låg ut.
+
+     Kategoriraden har inte problemet, för där ÄR raden lika hög som sitt
+     innehåll.
+
+     Måttet räknas ur kortets egen bredd och bildens egen kvot, alltså
+     220 / (16/10) / 2 = 68,75, och står som en formel så att det följer med
+     om någon av de två ändras. `margin-top` nollas, den hörde till top: 50%. */
+  .artikelram .rulla {
+    top: calc(220px * 10 / 16 / 2);
+    margin-top: -16px;
+  }
 
   .artiklar a {
     display: flex;
