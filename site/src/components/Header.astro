@@ -293,7 +293,23 @@ const { search = true, hem = false } = Astro.props;
       top: 10px;
       width: auto;
       left: auto;
-      right: var(--s-4);
+      /* MENYKNAPPEN SKA INTE LIGGA UNDER FÄLTET.
+         ──────────────────────────────────────────────────────────────────
+         Ägaren 2026-08-24: "varför syns ej hamburgareikonen i headern på
+         mobile om man är på home, men syns fint väl inne på en
+         restaurangsida?"
+
+         Skälet: bara startsidan har klassen `hem`, och bara då finns
+         sökdocken. Här stod `right: var(--s-4)`, alltså 16 px från kanten,
+         och docken slutade därmed på exakt samma pixel som menyknappen.
+         Uppmätt vid 375: docken 132 till 359 med z-index 2, knappen 323 till
+         359 med z-index auto. Fältet låg alltså rakt ovanpå hamburgaren, och
+         eftersom docken har ett högre lager fångade den även klicken.
+
+         Kommentaren nedan räknade redan med knappens 36 px men marginalen
+         drog aldrig av dem. 16 plus 36 plus 8 px luft lägger fältets högra
+         kant på 315 och knappen står fri från 323. */
+      right: calc(var(--s-4) + 36px + var(--s-2));
       transform: none;
       /* Wordmarken är 97 px plus radens indrag, menyknappen 36 plus samma.
          Fältet tar allt däremellan. */
@@ -384,7 +400,10 @@ const { search = true, hem = false } = Astro.props;
      höll bara så länge varje sida hade ett fält i sidhuvudet: startsidan bär
      fältet i heron i stället, och där stod hamburgaren plötsligt dikt an mot
      wordmarken. En knapp som byter kant beroende på sida är trasig. */
-  .bar :global(.picker) { margin-left: auto; }
+  /* Över sökdockens z-index 2. En knapp som ligger under ett fält går varken
+     att se eller trycka på, och lagret är billigare än att lita på att inga
+     mått någonsin överlappar igen. */
+  .bar :global(.picker) { margin-left: auto; position: relative; z-index: 3; }
 
   /* `flex: none` och inte bara `display: inline-flex`.
      ────────────────────────────────────────────────────────────────────────

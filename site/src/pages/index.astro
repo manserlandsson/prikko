@@ -754,7 +754,11 @@ const byTotal = [...summaries].sort((a, b) => b.total - a.total);
  * sidorna, så en rad här kan aldrig peka på en 404.
  */
 const COLUMN_IDS: TopCategoryId[] = ['restaurang', 'cafe', 'butik', 'skola'];
-const COLUMN_ROWS = 5;
+/* Tolv och inte fem, sedan utforska-blocket blev flikat 2026-08-24.
+   Femman fanns för att fyra kolumner skulle rymmas bredvid varandra på en
+   skärmhöjd. Med flikar visas EN kategori i taget över fyra kolumner, alltså
+   finns plats för alla tolv kommuner utan att blocket växer på höjden. */
+const COLUMN_ROWS = 12;
 
 const columns = COLUMN_IDS.map((id) => {
   const category = topCategory(id);
@@ -1036,29 +1040,61 @@ const jsonLd = [
       tvingar ögat att skilja namn från siffra utan hjälp. Tvåradigt kostar
       10 px per rad och gör skillnaden gratis.
 
-      Deras flikar och deras "Visa fler" tas INTE. Flikarna byter datamängd i
-      samma yta, vilket är fint men ett eget bygge, och de döljer elva av 26
-      länkar bakom en knapp. Interna länkar som göms bakom ett klick är
-      precis vad docs/26 säger att vi inte ska göra. */}
+      Flikarna ÄR byggda, se markupen. Deras "Visa fler" tas däremot inte:
+      den döljer elva av 26 interna länkar bakom ett klick, vilket docs/26
+      talar emot. Flikarna byter vad som syns, aldrig vad som finns. */}
   {columns.length > 0 && (
     <nav class="container kolumner" aria-label="Verksamhetstyper per kommun">
       <h2 class="utforska">Utforska</h2>
+
+      {/* FLIKAR SOM BYTER DATAMÄNGD I SAMMA YTA.
+          ──────────────────────────────────────────────────────────────────
+          Ägaren 2026-08-24: "ednias är ju med klick, där det byter typ."
+
+          Uppmätt hos dem samma dag: fyra flikar, 16/20 vikt 600, knapp 36 px
+          hög, och det valda bär ett 2 px understreck i nästan svart. De byter
+          Områden, Program i olika områden, Inriktningar i olika områden och
+          Program nationellt, alltså fyra vyer på en skärmhöjd i stället för
+          fyra kolumner som alla syns halvt.
+
+          Radioknappar och `:has()`, ingen JavaScript. Exakt samma teknik som
+          kategoriraden högre upp på sidan använder, och skälet är detsamma:
+          sajten är statisk, och en flik som byter innehåll utan skript
+          fungerar också för den som har skript avstängt och för sökmotorn,
+          som ser alla fyra listorna i markupen.
+
+          ALLA LÄNKAR STÅR KVAR I DOKUMENTET. Ednia döljer elva av 26 bakom en
+          "Visa fler", och det gör vi inte: interna länkar bakom ett klick är
+          precis vad docs/26 talar emot. Flikarna byter vad som SYNS, aldrig
+          vad som finns. */}
+      <div class="flikar" role="tablist">
+        {columns.map((col, i) => (
+          <>
+            <input
+              class="visually-hidden"
+              type="radio"
+              name="utforska"
+              id={`utf-${col.category.id}`}
+              checked={i === 0}
+            />
+            <label class="flik" for={`utf-${col.category.id}`}>{col.category.name}</label>
+          </>
+        ))}
+      </div>
+
       {columns.map((col) => (
-        <div>
-          <h3>{col.category.name}</h3>
-          <ul>
-            {col.links.map((l) => (
-              <li>
-                <a href={l.href}>
-                  <span class="ort">{l.city}</span>
-                  <span class="antal text-secondary">
-                    {formatNumber(l.count)} {col.category.name.toLowerCase()}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul class="utforskalista" data-for={col.category.id}>
+          {col.links.map((l) => (
+            <li>
+              <a href={l.href}>
+                <span class="ort">{l.city}</span>
+                <span class="antal text-secondary">
+                  {formatNumber(l.count)} {col.category.name.toLowerCase()}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
       ))}
     </nav>
   )}
@@ -1187,12 +1223,23 @@ const jsonLd = [
      steg under, vilket får raden att se ut som en fotnot till fältet i
      stället för som sidans navigering.
 
-     --fs-caption är 13 och är sajtens närmaste steg. --fs-body-s på 14 vore
-     lika stort som en kortrubrik och skulle konkurrera med korten. */
+     12 PX OCH VIKT 500 sedan 2026-08-24. Ägaren bad först om 16 och rättade
+     sedan: "förlåt menade 12 px inte 16 px på kategori", plus "kan vi testa
+     hur den ser ut i lite lite lite tunnare, inte lika fet."
+
+     Här stod 13 i vikt 600. Tolv finns inte i skalan, som går 13, 14, 15, 17,
+     och står därför som ett tal med skälet utskrivet i stället för som en ny
+     token: raden är sajtens enda plats med den graden, och ett femte steg i
+     skalan för ETT bruk gör skalan sämre, inte bättre.
+
+     Vikten från 600 till 500 är det "lite tunnare" han bad om. Det VALDA står
+     kvar på 700 längre ned, så avståndet mellan valt och ovalt växer från 100
+     till 200 steg, vilket är bra: vid 12 px bär vikten mer av markeringen än
+     graden gör. */
   .etikett {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    font-weight: 600;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
   }
 
   /* Etiketten reserverar sin HALVFETA bredd redan i viloläget. Vikten är en
@@ -1803,6 +1850,70 @@ const jsonLd = [
     border-top: 1px solid var(--hairline);
   }
 
+  /* Flikraden spänner hela rutnätet och bär en hårlinje under sig, precis som
+     Ednias, uppmätt 2026-08-24: 1 px i deras ljusgrå tvärs hela blocket. */
+  .flikar {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-bottom: var(--s-4);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .flik {
+    position: relative;
+    padding: 8px 12px;
+    color: var(--text-secondary);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .flik:hover { color: var(--text); }
+
+  /* Understrecket ligger på flikens egen bredd minus fyllningen, som hos dem.
+     Blått och inte nästan svart, av samma skäl som kategoriraden: valt läge är
+     blått överallt annars på sajten, och en svart list bredvid dem ser lånad
+     ut. */
+  .flik::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--brand);
+    transform: scaleX(0);
+    transition: transform .25s cubic-bezier(.2, 0, 0, 1);
+  }
+
+  .flikar input:checked + .flik { color: var(--text); }
+  .flikar input:checked + .flik::after { transform: scaleX(1); }
+
+  /* Listorna. Alla fyra står i markupen, en syns. Fyra spalter inuti EN lista
+     i stället för fyra listor bredvid varandra: så får den valda kategorin
+     hela bredden och alla tolv kommuner får plats. */
+  .utforskalista {
+    display: none;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s-3) var(--s-6);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* En regel per kategori, samma mönster som kategoriradens :has()-lista.
+     Ordningen i markupen är COLUMN_IDS, alltså fyra fasta id. */
+  .kolumner:has(#utf-restaurang:checked) .utforskalista[data-for='restaurang'],
+  .kolumner:has(#utf-cafe:checked) .utforskalista[data-for='cafe'],
+  .kolumner:has(#utf-butik:checked) .utforskalista[data-for='butik'],
+  .kolumner:has(#utf-skola:checked) .utforskalista[data-for='skola'] {
+    display: grid;
+  }
+
   /* Rubriken spänner hela rutnätet och namnger blocket. Ednias är 22/26 vikt
      600, uppmätt 2026-08-24; vår h2-nivå ur tokens ligger på samma plats i
      skalan och används i stället för ett eget tal. */
@@ -1839,8 +1950,16 @@ const jsonLd = [
     letter-spacing: normal;
   }
 
+  /* Regeln stod här från den gamla fyrkolumnsformen och satte `display: grid`
+     på VARJE ul i blocket. Efter flikarna 2026-08-24 slog den ut
+     `.utforskalista { display: none }`, som är den regel som döljer de tre
+     ovalda listorna: samma specificitet, senare i filen, alltså vann den.
+     Uppmätt i bygget: alla fyra listor låg synliga samtidigt trots att bara
+     en flik var vald.
+
+     Måtten bor numera i `.utforskalista`. Den här regeln bär bara det som
+     gäller alla listor i blocket, och rör inte display. */
   .kolumner ul {
-    display: grid;
     gap: var(--s-2);
     margin: 0;
     padding: 0;

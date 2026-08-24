@@ -117,27 +117,28 @@ const PATHS: Record<MatikonNyckel, string> = {
   // Motivet är också KORTAT, från 3,8..20,2 till 5..19,4, och klorna är
   // spridda från 7,2 till 8,4 enheters bredd. Skälet är optiken: 7,2 brett
   // och 16,4 högt ger rotytan 10,87, och en faktor på 1,49 för att komma
-  // Italienskt. En PIZZASLICE, alltså en triangel med rund botten och tre
-  // toppings.
+  // Italienskt. En PASTASKÅL: skål, brädd och tre strån som sticker upp.
   //
-  // Här stod en gaffel med spagetti: tre pinnar, ett huvud och två nudlar som
-  // svängde ut under det. Ägaren 2026-08-24: "byt ikon på italienska
-  // kategorin, kan inte ens förstå vad det är." Han hade rätt. I 24 px blev
-  // gaffelns klor tre streck och nudlarna två krokar, och hela figuren lästes
-  // som en sopborste. Formen krävde dessutom faktorn 1,476 för att nå sajtens
-  // optiska vikt, alltså var den redan uppförstorad till gränsen.
+  // Två försök ligger bakom. Först en gaffel med spagetti, som ägaren inte
+  // kunde tyda 2026-08-24: i 24 px blev klorna tre streck och nudlarna två
+  // krokar, och figuren lästes som en sopborste. Sedan en pizzaslice, som var
+  // tydlig men fel: "nu satt du samma ikon på pizza som italienskt, går ej."
+  // Han har rätt, Pizza ÄR den runda pajen och en bit av den är samma sak.
   //
-  // En slice är EN sluten form och läser i varje storlek. Att den överlappar
-  // med Pizza är avsiktligt och rätt: Pizza är den runda hela pajen sedd
-  // uppifrån, Italienskt är slicen. De två står aldrig bredvid varandra i
-  // raden utan att också bära var sin etikett.
+  // Skålen är en sluten form och bär hela igenkänningen, precis som skålen i
+  // Sallad, men brädden ligger HÖGRE här och strået sticker upp över den.
+  // Det är skillnaden mot sallad: sallad är fylld till kanten, pasta välver
+  // sig över den.
   //
-  // Spetsen i 12,4 och inte 12,0: bottenbågen är asymmetrisk och tyngdpunkten
-  // hamnar annars till vänster om mitten.
+  // Tre strån och inte fem. Fem blev ett raster i 24 px. Det mittersta är
+  // rakt och de yttre lutar utåt, alltså en solfjäder, vilket läser som en
+  // hög och inte som ånga.
   italienskt:
-    'M12 4.2 4.6 18.4a16 16 0 0 0 14.8 0z' +
-    'M12 4.2 4.6 18.4M12 4.2 19.4 18.4' +
-    'M10.2 12.6h.01M13.8 12.6h.01M12 16.2h.01',
+    'M4.4 12.4h15.2' +
+    'M5.2 12.4a6.8 6.8 0 0 0 13.6 0' +
+    'M9.4 12.4c-.2-2 .4-3.4 1.2-4.2' +
+    'M12 12.4c0-2.2.1-3.6.3-4.6' +
+    'M14.6 12.4c.2-2-.4-3.4-1.2-4.2',
 
   // Kiosk. Markis och serveringslucka.
   //
@@ -247,7 +248,7 @@ const OPTIK: Record<MatikonNyckel, { skala: number; cx: number; cy: number }> = 
   bar:          { skala: 1.082, cx: 12,   cy: 13 },
   sushi:        { skala: 1.111, cx: 12,   cy: 14.1 },
   burgare:      { skala: 0.966, cx: 12,   cy: 12 },
-  italienskt:   { skala: 1.052, cx: 12,   cy: 13.6 },
+  italienskt:   { skala: 1.118, cx: 12,   cy: 12.9 },
   kiosk:        { skala: 0.987, cx: 12,   cy: 12.3 },
   bageri:       { skala: 1.375, cx: 12,   cy: 12.3 },
   kebab:        { skala: 1.184, cx: 12,   cy: 12 },
