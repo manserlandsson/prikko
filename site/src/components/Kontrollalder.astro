@@ -1,0 +1,136 @@
+---
+/**
+ * Hur färskt registret är: antal verksamheter per år för sin SENASTE kontroll.
+ *
+ * Ägaren 2026-08-25 valde den här av tre möjliga histogram: "kör senaste
+ * kontroll per år."
+ *
+ * ## Varför just den, och inte de två andra
+ *
+ * Förlagan är ednia.se, uppmätt 2026-08-24: deras filterpanel visar
+ * antagningsgränserna som ett histogram med 32 staplar bakom ett dubbelreglage,
+ * alltså ser man om ett spann är tomt INNAN man drar reglaget dit. Panelen
+ * byggde vi inte, den är 2 341 px innehåll i tolv sektioner, men greppet att
+ * visa fördelningen före valet är värt att ta.
+ *
+ * De två andra kandidaterna valdes bort med skäl som är värda att minnas:
+ *
+ * - Antal anmärkningar per verksamhet ligger närmast Ednias form, men läser
+ *   som en skala över hur illa det står till i kommunen.
+ * - Bedömning per kategori vore mest likt "se innan du väljer", eftersom
+ *   kategori är det man faktiskt filtrerar på. Den skulle läsa som en
+ *   rangordning av matsorter, alltså "undvik pizzerior", och sådana påståenden
+ *   gör den här sajten aldrig.
+ *
+ * Det här diagrammet påstår ingenting om någon verksamhet. Det säger hur
+ * gammal uppgiften är, vilket är en egenskap hos REGISTRET och inte hos den
+ * som står i det.
+ *
+ * ## Vad det inte är
+ *
+ * Inte samma sak som Kontrolltakt.astro, som räknar publicerade kontroller per
+ * år och alltså är en volym över tid. Här räknas varje verksamhet EN gång, på
+ * året för sin senaste kontroll. Summan är därför antalet verksamheter med
+ * minst en kontroll, inte antalet kontroller.
+ *
+ * ## Åren som visas
+ *
+ * De åtta senaste med uppgift, nyast överst. Åtta för att bedömningen vilar på
+ * ett treårsfönster, se docs/03, och tre år räcker inte för att se en svans:
+ * det man vill kunna avläsa är just hur många som ligger UTANFÖR fönstret.
+ * Äldre än så samlas i en sista rad så att summan alltid går ihop.
+ */
+import Stapel from './Stapel.astro';
+import InfoTip from './InfoTip.astro';
+import { establishments, latestInspectionDate, formatNumber } from '../lib/data';
+
+interface Props {
+  slug: string;
+  city: string;
+}
+
+const { slug, city } = Astro.props;
+
+const AR_SOM_VISAS = 8;
+
+const arPerVerksamhet = establishments(slug)
+  .map((e) => latestInspectionDate(e))
+  .filter((d): d is string => d !== null)
+  .map((d) => Number(d.slice(0, 4)))
+  .filter((n) => Number.isFinite(n));
+
+const antalPerAr = new Map<number, number>();
+for (const ar of arPerVerksamhet) {
+  antalPerAr.set(ar, (antalPerAr.get(ar) ?? 0) + 1);
+}
+
+const ar = [...antalPerAr.keys()].sort((a, b) => b - a);
+const visade = ar.slice(0, AR_SOM_VISAS);
+const aldre = ar.slice(AR_SOM_VISAS);
+const aldreAntal = aldre.reduce((s, a) => s + (antalPerAr.get(a) ?? 0), 0);
+
+const rows = [
+  ...visade.map((a) => ({
+    label: String(a),
+    value: antalPerAr.get(a) ?? 0,
+    display: formatNumber(antalPerAr.get(a) ?? 0),
+  })),
+  ...(aldreAntal > 0
+    ? [{
+        label: `${aldre[aldre.length - 1]} till ${aldre[0]}`,
+        value: aldreAntal,
+        display: formatNumber(aldreAntal),
+      }]
+    : []),
+];
+
+/*
+ * Tre år räcker inte för en fördelning som ska läsas som en fördelning. Samma
+ * hållning som Kontrolltakt.astro: hellre ingen ruta än en ruta med två
+ * staplar, som inte säger något men ser ut att göra det.
+ */
+const visa = rows.length >= 3;
+const summa = arPerVerksamhet.length;
+---
+
+{visa && (
+  <section class="alder" aria-labelledby="alder-rubrik">
+    <h3 id="alder-rubrik">
+      Hur färska uppgifterna är i {city}
+      <InfoTip
+        label="Om talet"
+        text={`Varje verksamhet räknas en gång, på året för sin senaste kontroll. Summan är de ${formatNumber(summa)} verksamheter i ${city} som har minst en kontroll i registret, inte antalet kontroller.`}
+      />
+    </h3>
+
+    <p class="ingress text-secondary">
+      Året för varje verksamhets senaste kontroll. Bedömningen vilar på ett
+      treårsfönster, så raderna längst ned är de vars uppgift ligger utanför
+      det.
+    </p>
+
+    <Stapel
+      rows={rows}
+      ton="tyst"
+      avdelare={false}
+      label={`Antal verksamheter i ${city} per år för sin senaste kontroll`}
+    />
+  </section>
+)}
+
+<style>
+  /* Ingen ruta och ingen ram. Avsnitten i bandet skiljs av luft, se
+     .djup-inner i KommunHub.astro, och en låda här hade brutit den formen. */
+  .alder h3 {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  .ingress {
+    margin-top: var(--s-2);
+    margin-bottom: var(--s-4);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+</style>

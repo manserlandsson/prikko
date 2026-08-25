@@ -40,6 +40,7 @@ import KommunBanner from './KommunBanner.astro';
 import KommunOversikt from './KommunOversikt.astro';
 import Kontrollen from './Kontrollen.astro';
 import Kontrolltakt from './Kontrolltakt.astro';
+import Kontrollalder from './Kontrollalder.astro';
 import Pagination from './Pagination.astro';
 import RenHistorik from './RenHistorik.astro';
 import Tathet from './Tathet.astro';
@@ -545,6 +546,14 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
             "har det blivit fler besök" som en naturlig följdfråga på "hur gick
             uppföljningen". */}
         <Kontrolltakt slug={kommun.slug} city={city} />
+
+        {/* Direkt efter takten, och det är avsiktligt. Kontrolltakt räknar
+            publicerade kontroller per år, alltså en VOLYM över tid.
+            Kontrollalder räknar varje verksamhet en gång på året för sin
+            senaste kontroll, alltså hur FÄRSKT registret är. De två svarar på
+            frågor som ligger bredvid varandra, och den andra är den som säger
+            om bedömningarna på sidan ovanför vilar på nya uppgifter. */}
+        <Kontrollalder slug={kommun.slug} city={city} />
 
         {/* Efter hur uppföljningen gick och före vad som inte hunnits med:
             avsnittet förklarar båda, och det läser bäst mellan dem. */}

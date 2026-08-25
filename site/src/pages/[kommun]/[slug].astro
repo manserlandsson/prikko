@@ -51,6 +51,7 @@ import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import Commonsbild from '../../components/Commonsbild.astro';
 import AwardNote from '../../components/AwardNote.astro';
+import Michelinstjarna from '../../components/Michelinstjarna.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
@@ -872,6 +873,25 @@ const breadcrumbs = {
         <RecurringIssues issues={recurring} />
 
         <InspectionHistory inspections={e.inspections} />
+
+        {/* Michelinstjärnan står HÄR och inte på bedömningsraden, och platsen
+            är vald och inte tillgänglig.
+
+            Bedömningsraden bär ansiktsmärket, beskedet och utmärkelsens
+            sigill. Alla tre är data om KOMMUNENS KONTROLL. Ett fjärde märke
+            där, om maten och satt av någon annan, hade lästs som att det ena
+            följer av det andra, och den felläsningen är farligast åt hållet
+            "stjärna, alltså rent kök". Se docs/24_maskotprogram.md för samma
+            gräns dragen åt maskoten.
+
+            Raden ovanför är slutet på kontrollberättelsen: vad kontrollen
+            visade, vad uppföljningen visade, vad som återkommer, historiken.
+            Här börjar sidans andra halva, den om STÄLLET, och kartan, vägen
+            dit och öppettiderna följer under. Stjärnan hör hemma först i den
+            halvan, inte sist i den förra.
+
+            Sju sidor av 16 047 ritar den. Se Michelinstjarna.astro. */}
+        <Michelinstjarna establishment={e} />
 
         {/* Kartan som egen sektion i huvudkolumnen med adressen under, som
             hos booli. Efter historiken: den hör till fakta om stället men

@@ -1,0 +1,160 @@
+---
+/**
+ * Michelinstjärna på verksamhetens egen sida.
+ *
+ * Ritas på sju av 16 047 sidor, samtliga i Stockholm: Celeste, Dashi, Ekstedt,
+ * Etoile, Mathias Dahlgren, Operakällaren och Sushi Sho. Urvalet görs i
+ * pipeline/prikko/michelin.py och godkänns av en människa i
+ * pipeline/michelin.py. Mallen läser bara `e.michelin` och räknar ingenting om.
+ *
+ *
+ * ═══ VARFÖR DEN INTE STÅR PÅ BEDÖMNINGSRADEN ═══
+ *
+ * Bedömningsraden bär ansiktsmärket, beskedet och utmärkelsens sigill. Alla tre
+ * säger samma sorts sak: det här är vad KOMMUNENS LIVSMEDELSKONTROLL har
+ * funnit, räknat av oss. En Michelinstjärna säger något helt annat, den säger
+ * något om maten, och den är dessutom någon annans omdöme.
+ *
+ * Ställs de bredvid varandra blir felläsningen omedelbar och den går åt båda
+ * hållen: att stjärnan är ett kvitto på ren hygien, eller att vår gröna
+ * bedömning är ett omdöme om maten. Den första är den farligare. Ett
+ * stjärnkök med kvarstående brister skulle med två märken på samma rad se ut
+ * som ett ställe vi rekommenderar.
+ *
+ * docs/24_maskotprogram.md drar samma gräns för maskoten och av samma skäl:
+ * det som står bredvid en bedömning av en namngiven verksamhet måste vara DATA
+ * OM DEN BEDÖMNINGEN. Maskoten får inte stå där för att han är avsändaren;
+ * stjärnan får inte stå där för att hon är en annan mätning.
+ *
+ * Sektionen ligger därför efter hela kontrollberättelsen, alltså efter vad
+ * kontrollen visade, vad uppföljningen visade, vad som återkommer och
+ * historiken, och före kartan. Där börjar sidans andra halva, den som handlar
+ * om stället i stället för om kontrollen: var det ligger, hur man tar sig dit
+ * och när det är öppet. Stjärnan hör hemma först i den halvan.
+ *
+ *
+ * ═══ INGEN STJÄRNSYMBOL, OCH DET ÄR INTE EN SMAKFRÅGA ═══
+ *
+ * Sajten ritar inga stjärnor. Beslutet togs när "Ren historik" hade en stjärna
+ * framför sig och när omdömena skulle få betyg, och skälet är att en stjärna på
+ * en sida som bedömer verksamheter läses som SIDANS betyg. Se Reviews.astro och
+ * sidmallens kommentar vid bedömningsraden.
+ *
+ * Här är skälet ännu starkare, inte svagare. En ritad stjärna intill vår egen
+ * bedömning är precis det märke regeln finns till för att förhindra, och en
+ * läsare som ser den vet inte om det är Michelin eller vi som satt den. Ordet
+ * "Michelinstjärna" bär hela uppgiften och bär dessutom vems den är.
+ *
+ *
+ * ═══ ATTRIBUTIONEN ═══
+ *
+ * Wikidata är CC0 och kräver ingenting. Källan står ändå, av samma skäl som
+ * fotografens namn står under en public domain-bild i Commonsbild.astro: en
+ * uppgift om en namngiven verksamhet ska gå att spåra till sin källa, och att
+ * stryka källan för att vi juridiskt får är sämre för läsaren.
+ *
+ * DATUMET ÄR VIKTIGARE ÄN LÄNKEN. Michelin delar ut och drar in en gång om
+ * året, och Wikidata följer efter när någon frivillig hinner. "Läst den 25
+ * augusti 2026" säger vad påståendet vilar på och gör det gammalt i stället för
+ * falskt när det blir inaktuellt.
+ */
+import { formatDate, type Establishment } from '../lib/data';
+
+interface Props {
+  establishment: Establishment;
+}
+
+const { establishment: e } = Astro.props;
+const m = e.michelin;
+
+/**
+ * Antalet som ord. Tre är taket i guiden och därmed i listan.
+ *
+ * Ett tal utanför listan ger `null`, alltså samma utfall som ett saknat tal,
+ * och sidan skriver då "en Michelinstjärna" utan att påstå hur många. Att
+ * skriva ut siffran råt hade betytt att en felskriven fyra i Wikidata blivit
+ * "fyra stjärnor" på en namngiven restaurangs sida.
+ */
+const STJARNORD: Record<number, string> = {
+  1: 'en stjärna',
+  2: 'två stjärnor',
+  3: 'tre stjärnor',
+};
+
+const antal = m && m.stars !== null ? STJARNORD[m.stars] ?? null : null;
+
+/* Rubriken böjs efter antalet. "Michelinstjärnor" över en restaurang med en
+   stjärna är fel, och pluralformen behövs den dag ett av objekten i Wikidata
+   får sin andra. */
+const rubrik = m && m.stars !== null && m.stars > 1 ? 'Michelinstjärnor' : 'Michelinstjärna';
+
+/**
+ * Meningen, byggd av det datan säger och inte mer.
+ *
+ * Tre former, och skillnaden mellan dem är vad källan faktiskt bär:
+ *
+ *   antal och årtal   "har en stjärna i Michelinguiden sedan 2013"
+ *   bara antal        "har en stjärna i Michelinguiden"
+ *   inget av dem      "finns i Michelinguiden med minst en stjärna"
+ *
+ * Den sista gäller Mathias Dahlgren, vars påstående saknar `P1114`. Formen
+ * "minst en" är sann av att utmärkelsen ÄR en stjärna: den som har den har
+ * minst en, och hur många fler säger Wikidata inte.
+ */
+let mening = '';
+if (m) {
+  const vad = antal
+    ? `har ${antal} i Michelinguiden`
+    : 'finns i Michelinguiden med minst en stjärna';
+  mening = `Wikidata anger att ${e.name} ${vad}${m.since ? ` sedan ${m.since}` : ''}.`;
+}
+
+const kalla = m ? `https://www.wikidata.org/wiki/${m.qid}` : null;
+---
+
+{m && (
+  <section class="michelin">
+    <h2>{rubrik}</h2>
+
+    <p class="answer">{mening}</p>
+
+    {/* GRÄNSEN SKRIVS UT, och det är en rad och inte ett stycke.
+     *
+     * Läsaren har just läst hela kontrollberättelsen och möter sedan ett annat
+     * omdöme om samma ställe. Utan raden är den naturliga slutsatsen att de
+     * hänger ihop. Med den är de två mätningar av två saker, sagt en gång och
+     * utan att förklara vidare. */}
+    <p class="gransen caption text-secondary">
+      Michelin bedömer maten. Bedömningen högre upp på sidan gäller kommunens
+      livsmedelskontroll, och de två säger ingenting om varandra.
+    </p>
+
+    <p class="kalla caption text-muted">
+      <a href={kalla} target="_blank" rel="noopener noreferrer">Uppgift ur Wikidata</a>
+      {m.checkedAt && <>, läst den {formatDate(m.checkedAt)}</>}
+    </p>
+  </section>
+)}
+
+<style>
+  /* Ingen ram och ingen platta. Huvudkolumnens hela form bygger på att
+     ingenting är inramat, se AwardNote.astro för vad en låda kostade där. */
+  .michelin {
+    margin-top: var(--s-8);
+  }
+
+  .answer {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .gransen {
+    margin-top: var(--s-2);
+  }
+
+  .kalla {
+    margin-top: var(--s-3);
+  }
+</style>

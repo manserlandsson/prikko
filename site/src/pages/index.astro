@@ -478,7 +478,19 @@ interface Grupp {
   id: string;
   ikon: 'alla' | MatkategoriId;
   etikett: string;
-  /** Hur många verksamheter gruppen bär. Se RAKNAREN i markupen. */
+  /**
+   * Hur många verksamheter gruppen bär.
+   *
+   * Talet visas INTE i raden. Det stod en stund under varje etikett, och
+   * ägaren 2026-08-25: "varför har du lagt till nummer under kategoriradan,
+   * ser sämst ut?" Han har rätt: raden är navigering och inte statistik, och
+   * tolv tal under tolv ord gör den till en tabell man ska läsa i stället för
+   * en rad man ska välja ur. Räknaren på "Visa fler" säger redan vad ett
+   * klick ger, och den säger det på det ställe där valet får en följd.
+   *
+   * Fältet står kvar eftersom det är billigt och kan behövas den dag raden
+   * ska sortera eller gallra på storlek.
+   */
   antal: number;
 }
 
@@ -890,10 +902,6 @@ const jsonLd = [
               <label class="val" for={`kat-${g.id}`}>
                 <Matikon namn={g.ikon} size={24} />
                 <span class="etikett" data-etikett={g.etikett}>{g.etikett}</span>
-                {/* Antalet under etiketten, alltså fördelningen synlig innan
-                    man väljer. Ednia gör samma sak i sin flikrad, "Till salu
-                    5 418" och "Slutpris 126 823", uppmätt 2026-08-24. */}
-                <span class="katantal">{formatNumber(g.antal)}</span>
               </label>
               {/* Avdelaren efter hemläget. Ednia har exakt den, uppmätt
                   2026-08-22: en 1 px bred och 48 px hög linje mellan "Alla
@@ -1282,14 +1290,6 @@ const jsonLd = [
      det, vilket knuffar varje val till höger om det i sidled. Kopian ritas
      aldrig: höjd 0, overflow hidden. Den bidrar ändå till bredden, vilket
      är hela poängen. */
-  /* Antalet under etiketten. Sekundär grå och ett steg mindre, alltså en
-     upplysning bredvid ordet och inte en andra etikett. */
-  .katantal {
-    font-size: 11px;
-    line-height: 14px;
-    font-weight: 400;
-    color: var(--text-secondary);
-  }
 
   .etikett::after {
     content: attr(data-etikett);

@@ -182,9 +182,27 @@ const { search = true, hem = false } = Astro.props;
     --fjader-tid: .452s;
   }
 
+  /* 460 OCH INTE 380, för texten fick inte plats.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-25: "sökrutan är för liten när den skrollas upp."
+
+     Uppmätt i det byggda dokumentet vid 1440, efter att ihopfällningen gått
+     färdigt: docken 380, fältet 250 px invändigt, och platshållaren "Sök
+     restaurang, café eller kommun" behöver 253. Den kapades alltså med tre
+     pixlar, vilket är det värsta läget: precis nog för att se ut som ett fel
+     och inte nog för att läsa som en avsiktlig förkortning.
+
+     460 ger fältet 330 invändigt, alltså 77 px slack. Det räcker för att
+     texten ska andas och för att en längre platshållare ska tåla en framtida
+     ändring, och docken är fortfarande tydligt mindre än de 600 den har
+     utfälld, vilket är hela poängen med ihopfällningen.
+
+     42vw i stället för 34: på en smal dator ska talet krympa i samma takt som
+     förut, och 42 av 1 100 är 462, alltså tar taket vid ungefär samma bredd
+     som förr. */
   header.hem.kompakt .sokdock {
     top: 10px;
-    width: min(380px, 34vw);
+    width: min(460px, 42vw);
   }
 
   /* MENYN ÄR ÖPPEN: docken går undan.
