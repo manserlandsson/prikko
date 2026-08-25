@@ -45,6 +45,12 @@ pipeline/data/interim/
 brand/*.jpg
 brand/*.jpeg
 
+# Ägarens egna fotografier. Originalen är iPhone-filer på flera megabyte styck
+# och de ska aldrig i historiken: site/scripts/egna-foton.mjs gör om dem till
+# webp på 1600 px, och den kopian laddas upp till objektlagringen precis som
+# Commons-bilderna. Se brand/egna-foton/LAS-MIG.md.
+brand/egna-foton/
+
 # Provarken. Genererade av brand/prov-*.mjs och maskot-ark-*.mjs, ofta över en
 # megabyte styck, och alltid återskapningsbara ur skriptet som skrev dem.
 # brand/_prov-gront.html ligger spårad sedan tidigare och stannar där: dess
