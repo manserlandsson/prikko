@@ -40,9 +40,9 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 ---
 
 <Base title="Notiser" description="Dina notiser på Prikko." noindex>
-  <div class="container konto-page konto-wide">
+  <div class="container konto-page konto-app">
     {/* Utloggad. En rubrik och en knapp, aldrig en ruta som poppar upp. */}
-    <div id="guest" hidden>
+    <div id="guest" class="konto-enkel" hidden>
       <header class="konto-head">
         <h1>Notiser</h1>
         <p class="konto-sub">
@@ -54,34 +54,57 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       </div>
     </div>
 
-    {/* Inloggad */}
+    {/* Inloggad.
+
+        Samma ram och samma rand som /konto/. Notiserna bodde på en egen smal
+        sida, och två smala sidor som inte visste om varandra läses som två
+        sidor och inte som ett konto.
+
+        Rubriken är kontots och inte sidans. Randen säger vilket avsnitt man
+        står i, precis som Googles kontoytor gör, och en andra rubrik som
+        upprepar den hade stått en rad från den. Sidans titel i webbläsarens
+        flik är fortfarande "Notiser".
+
+        Länken till /konto/ som stod i rubrikraden är borta: den står nu i
+        randen, tre rader bort, och docs/18 förbjuder upprepning på kort
+        avstånd. */}
     <div id="feed" hidden>
-      <header class="konto-head">
-        <h1>Notiser</h1>
-      </header>
+      <div class="konto-ram har-rand">
+        <header class="konto-head">
+          <h1>Ditt konto</h1>
+        </header>
 
-      <section class="konto-card">
-        <div class="konto-bar">
-          <h2>Senaste</h2>
-          <a href="/konto/">Ditt konto</a>
-        </div>
-        <p class="konto-sub">
-          Nya bedömningar hos verksamheter du bevakar, och besked om dina omdömen.
-        </p>
-        <ul class="konto-list notis-list" id="list"></ul>
-        {/* Maskoten i tomt läge. Ytan är rätt enligt den bärande regeln: en
-            tom notislista nämner ingen verksamhet, och det är sajten som talar
-            till en inloggad person om hens eget konto.
+        <nav class="konto-rand" aria-label="Ditt konto">
+          <a href="/konto/#bevakningar">Bevakningar</a>
+          <a href="/konto/notiser/" aria-current="page">Notiser</a>
+          <a href="/konto/#omdomen">Dina omdömen</a>
+          <a href="/konto/#kontot">Kontot</a>
+        </nav>
 
-            Statisk. Rörelse här hade brutit mot WCAG 2.2.2, som kräver en
-            paus-, stopp- eller döljkontroll för allt som rör sig mer än fem
-            sekunder parallellt med annat innehåll. En loop uppfyller aldrig
-            femsekundersvillkoret. */}
-        <div class="konto-empty" id="empty">
-          <Maskot pose="tom" size={96} />
-          <p>Du har inga notiser än.</p>
+        <div class="konto-spalt">
+          <section class="konto-sektion ar-vald">
+            <div class="konto-bar">
+              <h2>Notiser</h2>
+            </div>
+            <p class="konto-sub">
+              Nya bedömningar hos verksamheter du bevakar, och besked om dina omdömen.
+            </p>
+            <ul class="konto-list notis-list" id="list"></ul>
+            {/* Maskoten i tomt läge. Ytan är rätt enligt den bärande regeln: en
+                tom notislista nämner ingen verksamhet, och det är sajten som
+                talar till en inloggad person om hens eget konto.
+
+                Statisk. Rörelse här hade brutit mot WCAG 2.2.2, som kräver en
+                paus-, stopp- eller döljkontroll för allt som rör sig mer än fem
+                sekunder parallellt med annat innehåll. En loop uppfyller aldrig
+                femsekundersvillkoret. */}
+            <div class="konto-empty" id="empty">
+              <Maskot pose="tom" size={96} />
+              <p>Du har inga notiser än.</p>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   </div>
 

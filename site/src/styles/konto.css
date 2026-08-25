@@ -31,6 +31,197 @@
   max-width: var(--w-read);
 }
 
+/* ---------------------------------------------------------------------------
+   KONTOT SOM EN YTA, INTE SOM EN RULLE
+   ---------------------------------------------------------------------------
+   Ägaren 2026-08-25 om kontosidan: "det är bara en jävla smal skroll, känns
+   liksom inte genomtänkt eller bra ui eller ux."
+
+   Han hade rätt, och talen säger hur rätt. Uppmätt i bygget 2026-08-25 vid
+   1440x900, med åtta bevakningar och tre omdömen i listorna:
+
+     /konto/            584 px innehåll, 2 844 px hög, 3,16 skärmar, fem kort
+     /konto/notiser/    584 px innehåll, 1,71 skärmar för sex rader
+     /konto/verksamhet/ 584 px innehåll, 5,46 skärmar med panelerna öppna
+     /konto/granska/  1 344 px innehåll
+
+   584 av 1440 är 41 procent av fönstret. Talet kommer av att `.konto-wide`
+   sätter --w-read (680) på en behållare med border-box, så containerns 2x48 px
+   luft äts ur bredden. Samma fälla som står dokumenterad vid --container-luft
+   i tokens.css.
+
+   Att granskningsverktyget är den enda kontosidan som inte är en smal rulle är
+   själva beviset: formen fanns redan i huset, den hade bara inte tagits hit.
+
+   FÖRLAGORNA, UPPMÄTTA 2026-08-25 vid 1440x900:
+
+     Google Search Settings   sidomeny 236 px, innehåll 525 till 561 px,
+                              menyrad 56 px, etikett 14/20/500, rubrik 28/36.
+                              Sidan är 900 px hög, alltså EXAKT en skärm: en
+                              vald flik rullar inte.
+     DuckDuckGo Settings      fyra flikar, 74 till 102 x 33 px, 12 px sidluft,
+                              14,4 px text. Huvudspalt 676 px, sidoräl 394 px.
+                              Inställningsrader 62 och 82 px med 1 px linje
+                              emellan, etikett 15,84/21,4. Vid 375 px faller
+                              rälen ned under och flikraden står kvar.
+     Booli sökresultat        listspalten är 688 px och växer inte, raden är
+                              688x227 utan ram, länken inuti 640 px med 24 px
+                              luft. Dominerande grader 14/24/400 och 16/21,6/600.
+
+   Alla tre delar innehållet i två delar: en NAVIGERING som är smal och står
+   still, och EN spalt som bär det man kommer för. Ingen av dem lägger listor
+   och inställningar i samma rulle. Det är exakt vad kontosidan gjorde.
+
+   Våra tal är tokens och inte förlagornas: innehållsspalten är --w-page, som
+   redan är sajtens bredd för "enkelspaltiga datasidor: sök, listor,
+   kategorier". Bara navigeringsrandens 236 px är ett eget tal, för det finns
+   ingen token för en sidoränna, och det är Googles mått. */
+.konto-app {
+  max-width: var(--w-wide);
+}
+
+/* Utloggat läge hämtar tillbaka spaltens bredd. En rubrik och en knapp ska
+   inte ligga och sväva över 1 800 px.
+
+   Klassen sätts ut för hand och regeln är INTE `> :not(.konto-ram)`. Den
+   varianten stod här först och träffade `#account`, alltså behållaren som
+   ramen bor i, och tryckte hela kontot ned i 760 px: ramen tappade 284 px och
+   innehållsspalten gick från 760 till 476. Uppmätt i bygget 2026-08-26. */
+.konto-enkel {
+  max-width: var(--w-page);
+}
+
+/* Ramen. Rand till vänster, spalt till höger, båda centrerade som ett block.
+   236 + 48 + 760 = 1 044, alltså 198 px marginal på var sida vid 1440.
+
+   Två spalter bara när det FINNS en rand. Verksamhetssidan har lägen där den
+   inte har någon, och en tom första spalt hade tryckt innehållet åt höger utan
+   att något stod till vänster om det. */
+.konto-app .konto-ram {
+  display: grid;
+  grid-template-columns: minmax(0, var(--w-page));
+  justify-content: center;
+}
+
+.konto-app .konto-ram.har-rand {
+  grid-template-columns: 236px minmax(0, var(--w-page));
+  column-gap: var(--s-12);
+}
+
+/* Sidrubriken spänner över båda spalterna och står i randens vänsterkant.
+   En rubrik inne i innehållsspalten hade gjort randen till något som stod
+   bredvid sidan i stället för att vara sidans egen meny. */
+.konto-app .konto-head {
+  grid-column: 1 / -1;
+  margin-bottom: var(--s-8);
+}
+
+/* Randen står still medan spalten rullar. Det är hela skillnaden mellan en
+   meny och en rubrikrad man rullar förbi. */
+.konto-rand {
+  position: sticky;
+  top: var(--s-6);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Radhöjden är --h-tap och inte Googles 56. 44 är sajtens golv för en träffyta
+   och en menyrad är en träffyta; 56 är ett tal vi inte har någon annanstans. */
+.konto-rand a {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-tap);
+  padding-inline: var(--s-3);
+  border-radius: var(--r-control);
+  font-size: var(--fs-body-s);
+  line-height: var(--lh-body-s);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.konto-rand a:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Vald rad. Samma fyllning och samma bläck som räkningen i granskningsverktyget
+   redan bär, alltså inte en ny färg för en ny yta. */
+.konto-rand a[aria-current] {
+  background: var(--brand-wash);
+  color: var(--brand-ink);
+}
+
+/* Antalet i randen. Det säger vad som finns bakom en flik utan att man behöver
+   trycka på den, och det är villkoret för att få gömma något bakom en flik
+   över huvud taget. Tomma avsnitt bär ingen siffra. */
+.konto-rand .antal {
+  margin-left: auto;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.konto-rand a[aria-current] .antal { color: var(--brand-ink); }
+
+/* Avsnittet. EN visas i taget.
+   Ingen ram, ingen radie, ingen skugga: ägaren har flera gånger sagt att
+   inramade kort ser sämre ut än rena rader, och Boolis lista har inte en enda
+   ram. `display` och inte `hidden`, så att ett avsnitt som saknar innehåll kan
+   bära `hidden` av EGET skäl och vinna över flikvalet. */
+.konto-sektion { display: none; }
+.konto-sektion.ar-vald { display: block; }
+
+/* Rubriken i ett avsnitt är sidans andra nivå och inte en kortrubrik. */
+.konto-sektion h2 {
+  font-size: var(--fs-h);
+  line-height: var(--lh-h);
+  letter-spacing: -.02em;
+}
+
+/* Under 1024 px finns det inte plats för både rand och spalt.
+   Räknat: 1024 minus containerns 2x41 ger 942, minus randens 236 och gluggens
+   48 ger 658 kvar åt spalten, alltså fortfarande mer än de 584 sidan hade vid
+   1440. Under det blir randen en flikrad ovanför spalten, precis som
+   DuckDuckGos flikrad står kvar vid 375. */
+@media (max-width: 1023px) {
+  .konto-app .konto-ram,
+  .konto-app .konto-ram.har-rand {
+    grid-template-columns: minmax(0, var(--w-page));
+    justify-content: start;
+  }
+
+  .konto-rand {
+    position: static;
+    flex-direction: row;
+    gap: var(--s-1);
+    margin-bottom: var(--s-6);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--hairline);
+    overflow-x: auto;
+    /* Rullningslisten döljs. Raden är fyra till sex ord bred och en list under
+       den läser som ett fel, inte som en möjlighet. */
+    scrollbar-width: none;
+  }
+
+  .konto-rand::-webkit-scrollbar { display: none; }
+
+  .konto-rand a {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* Siffran följer med in i fliken i stället för att skjutas åt höger: i en
+     lodrät rand finns det ett högerkant att sikta mot, i en vågrät finns det
+     inte. */
+  .konto-rand .antal { margin-left: 0; }
+}
+
 /* Sidhuvudet står utanför korten.
    En rubrik inuti den första rutan gör rutan till sidans titelblock, och då
    ser resten ut som fotnoter till den. Måtten är sajtens sidrubrik, samma som

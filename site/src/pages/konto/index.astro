@@ -40,9 +40,9 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 ---
 
 <Base title="Ditt konto" description="Ditt konto på Prikko." noindex>
-  <div class="container konto-page konto-wide">
+  <div class="container konto-page konto-app">
     {/* Utloggad. Ingen ruta: en rubrik och en knapp. */}
-    <div id="guest" hidden>
+    <div id="guest" class="konto-enkel" hidden>
       <header class="konto-head">
         <h1>Ditt konto</h1>
         <p class="konto-sub">Här ligger dina bevakningar och dina omdömen.</p>
@@ -52,94 +52,118 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       </div>
     </div>
 
-    {/* Inloggad */}
+    {/* Inloggad.
+
+        Randen och EN spalt, aldrig fem kort i en rulle. Vilket avsnitt som
+        visas står i adressens fragment, så att webbläsarens bakåtknapp går
+        mellan flikarna och så att en länk kan peka på ett avsnitt. Notiser
+        är en länk och inte en flik, för den bor på en egen adress som
+        klockan i sidhuvudet pekar på. */}
     <div id="account" hidden>
-      <header class="konto-head">
-        <h1>Ditt konto</h1>
-      </header>
+      <div class="konto-ram har-rand">
+        <header class="konto-head">
+          <h1>Ditt konto</h1>
+        </header>
 
-      <section class="konto-card">
-        <div class="konto-bar">
-          <h2>Bevakningar</h2>
-          <a href="/sok/">Sök verksamhet</a>
-        </div>
-        {/* Vad bevakningen gör, i en rad. Raden sade tidigare att vi inte
-            skickar några utskick, vilket slutade vara sant den natt
-            notify.py började mejla. */}
-        <p class="konto-sub">
-          Vi mejlar när kommunen hittar nya anmärkningar hos någon av dem.
-        </p>
-        <ul class="konto-list" id="follows"></ul>
-        {/*
-          Maskoten i tomt läge, samma yta och samma skäl som den tomma
-          notislistan och den tomma granskningskön: ett konto utan bevakningar
-          nämner ingen verksamhet, alltså finns ingen bedömning att stå
-          bredvid, och det är sajten som talar till en inloggad person om hens
-          eget konto.
+        <nav class="konto-rand" id="rand" aria-label="Ditt konto">
+          <a href="#bevakningar" data-sek="bevakningar" aria-current="page">Bevakningar<span class="antal" id="antal-bevakningar"></span></a>
+          <a href="/konto/notiser/">Notiser</a>
+          <a href="#omdomen" data-sek="omdomen">Dina omdömen<span class="antal" id="antal-omdomen"></span></a>
+          <a href="#verksamheter" data-sek="verksamheter" id="rand-verksamheter" hidden>Verksamheter<span class="antal" id="antal-verksamheter"></span></a>
+          <a href="#bilder" data-sek="bilder" id="rand-bilder" hidden>Dina bilder<span class="antal" id="antal-bilder"></span></a>
+          <a href="#kontot" data-sek="kontot">Kontot</a>
+        </nav>
 
-          ETT per sida. Sidan har två tomma lägen, det här och "Du har inte
-          skrivit något omdöme än" strax nedanför, och bara det första får
-          figur. Två grävlingar på samma skärm är inte en avsändare, det är ett
-          mönster, och docs/24 §2 säger ett per sida utan undantag. Det första
-          får den eftersom bevakningar är vad kontot är till för.
+        <div class="konto-spalt">
 
-          Statisk. Rörelse här hade legat parallellt med annat innehåll och
-          därmed fallit på WCAG 2.2.2, och den som är inloggad ser den här
-          skärmen ofta. Frekvensregeln i docs/24 §2 gäller även rörelse.
-
-          Felraden får INGEN figur, och det sköter sig självt: skriptet skriver
-          `followEmpty.textContent` när hämtningen misslyckas, vilket tar bort
-          svg:n i samma svep. Det är exakt vad docs/24 §2 punkt 8 kräver, och
-          skillnaden mot ett tomt läge är vem som orsakat det.
-
-          Kostnad: 4 939 B gzippat på EN sida, som dessutom är noindex.
-        */}
-        <div class="konto-empty" id="follows-empty">
-          <Maskot pose="tom" size={96} />
-          <p>Du bevakar ingen verksamhet än.</p>
-        </div>
-      </section>
-
-      <section class="konto-card">
-        <div class="konto-bar">
-          <h2>Dina omdömen</h2>
-        </div>
-        {/* Omdömen är anonyma. Inget visningsnamn, ingen författarrad, och
-            därför inget namnfält någonstans på den här sidan. */}
-        <p class="konto-sub">Publiceras anonymt och ordagrant efter granskning.</p>
-        <ul class="konto-list" id="reviews"></ul>
-        <p class="konto-empty" id="reviews-empty">Du har inte skrivit något omdöme än.</p>
-      </section>
-
-      <section class="konto-card" id="claims-card" hidden>
-        <div class="konto-bar">
-          <h2>Verksamheter du företräder</h2>
-        </div>
-        <ul class="konto-list" id="claims"></ul>
-      </section>
-
-      <section class="konto-card" id="uploads-card" hidden>
-        <div class="konto-bar">
-          <h2>Dina bilder</h2>
-        </div>
-        <ul class="konto-list" id="uploads"></ul>
-      </section>
-
-      <section class="konto-card">
-        <div class="konto-bar">
-          <h2>Kontot</h2>
-        </div>
-        <ul class="konto-list">
-          <li>
-            <div class="konto-main">
-              <b id="who"></b>
+          {/* Förvalet står i märkningen och inte bara i skriptet: annars är
+              spalten tom i det ögonblick kontot visas men listorna ännu inte
+              målats. franHash() rättar valet så fort det finns något att rätta. */}
+          <section class="konto-sektion ar-vald" id="sek-bevakningar" data-sek="bevakningar">
+            <div class="konto-bar">
+              <h2>Bevakningar</h2>
+              <a href="/sok/">Sök verksamhet</a>
             </div>
-            <div class="konto-side">
-              <button type="button" class="btn-quiet btn-tight" id="signout">Logga ut</button>
+            {/* Vad bevakningen gör, i en rad. Raden sade tidigare att vi inte
+                skickar några utskick, vilket slutade vara sant den natt
+                notify.py började mejla. */}
+            <p class="konto-sub">
+              Vi mejlar när kommunen hittar nya anmärkningar hos någon av dem.
+            </p>
+            <ul class="konto-list" id="follows"></ul>
+            {/*
+              Maskoten i tomt läge, samma yta och samma skäl som den tomma
+              notislistan och den tomma granskningskön: ett konto utan bevakningar
+              nämner ingen verksamhet, alltså finns ingen bedömning att stå
+              bredvid, och det är sajten som talar till en inloggad person om hens
+              eget konto.
+
+              ETT per sida. Sidan har två tomma lägen, det här och "Du har inte
+              skrivit något omdöme än" strax nedanför, och bara det första får
+              figur. Två grävlingar på samma skärm är inte en avsändare, det är ett
+              mönster, och docs/24 §2 säger ett per sida utan undantag. Det första
+              får den eftersom bevakningar är vad kontot är till för.
+
+              Statisk. Rörelse här hade legat parallellt med annat innehåll och
+              därmed fallit på WCAG 2.2.2, och den som är inloggad ser den här
+              skärmen ofta. Frekvensregeln i docs/24 §2 gäller även rörelse.
+
+              Felraden får INGEN figur, och det sköter sig självt: skriptet skriver
+              `followEmpty.textContent` när hämtningen misslyckas, vilket tar bort
+              svg:n i samma svep. Det är exakt vad docs/24 §2 punkt 8 kräver, och
+              skillnaden mot ett tomt läge är vem som orsakat det.
+
+              Kostnad: 4 939 B gzippat på EN sida, som dessutom är noindex.
+            */}
+            <div class="konto-empty" id="follows-empty">
+              <Maskot pose="tom" size={96} />
+              <p>Du bevakar ingen verksamhet än.</p>
             </div>
-          </li>
-        </ul>
-      </section>
+          </section>
+
+          <section class="konto-sektion" id="sek-omdomen" data-sek="omdomen">
+            <div class="konto-bar">
+              <h2>Dina omdömen</h2>
+            </div>
+            {/* Omdömen är anonyma. Inget visningsnamn, ingen författarrad, och
+                därför inget namnfält någonstans på den här sidan. */}
+            <p class="konto-sub">Publiceras anonymt och ordagrant efter granskning.</p>
+            <ul class="konto-list" id="reviews"></ul>
+            <p class="konto-empty" id="reviews-empty">Du har inte skrivit något omdöme än.</p>
+          </section>
+
+          <section class="konto-sektion" id="claims-card" data-sek="verksamheter" hidden>
+            <div class="konto-bar">
+              <h2>Verksamheter du företräder</h2>
+            </div>
+            <ul class="konto-list" id="claims"></ul>
+          </section>
+
+          <section class="konto-sektion" id="uploads-card" data-sek="bilder" hidden>
+            <div class="konto-bar">
+              <h2>Dina bilder</h2>
+            </div>
+            <ul class="konto-list" id="uploads"></ul>
+          </section>
+
+          <section class="konto-sektion" id="sek-kontot" data-sek="kontot">
+            <div class="konto-bar">
+              <h2>Kontot</h2>
+            </div>
+            <ul class="konto-list">
+              <li>
+                <div class="konto-main">
+                  <b id="who"></b>
+                </div>
+                <div class="konto-side">
+                  <button type="button" class="btn-quiet btn-tight" id="signout">Logga ut</button>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+        </div>
+      </div>
     </div>
   </div>
 
@@ -186,6 +210,60 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 
   const uploadsCard = document.getElementById('uploads-card') as HTMLElement;
   const uploadList = document.getElementById('uploads') as HTMLUListElement;
+
+  const rand = document.getElementById('rand') as HTMLElement;
+
+  /**
+   * Flikarna.
+   *
+   * Sidan bar fem kort i en enda rulle och mätte 2 844 px vid 1440x900, alltså
+   * 3,16 skärmar. Google Search Settings och DuckDuckGos inställningar gör
+   * båda tvärtom: en smal navigering till vänster eller överst, och EN yta i
+   * taget. Googles sida är exakt 900 px hög vid 900 px fönster, alltså rullar
+   * en vald flik inte alls.
+   *
+   * Valet står i adressens fragment och inte i en variabel. Då fungerar
+   * bakåtknappen, och en länk kan peka rakt på ett avsnitt.
+   *
+   * `hidden` på ett avsnitt betyder fortfarande "det här finns inte", och det
+   * vinner över flikvalet: regeln i konto.css är `!important`. Flikvalet bärs
+   * därför av klassen .ar-vald och aldrig av `hidden`.
+   */
+  const sektioner = Array.from(
+    document.querySelectorAll<HTMLElement>('.konto-sektion'),
+  );
+
+  function flikar(): HTMLAnchorElement[] {
+    return Array.from(
+      rand.querySelectorAll<HTMLAnchorElement>('a[data-sek]'),
+    ).filter((a) => !a.hidden);
+  }
+
+  function visa(namn: string) {
+    const rader = flikar();
+    /* Ett fragment som pekar på ett avsnitt utan innehåll, eller på ingenting
+       alls, landar på den första fliken i stället för att visa en tom sida. */
+    const vald = rader.find((a) => a.dataset.sek === namn) ?? rader[0];
+    if (!vald) return;
+
+    for (const a of rader) {
+      if (a === vald) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    }
+    for (const s of sektioner) {
+      s.classList.toggle('ar-vald', s.dataset.sek === vald.dataset.sek);
+    }
+  }
+
+  function franHash() {
+    visa(decodeURIComponent(location.hash.replace(/^#/, '')));
+  }
+
+  /** Siffran i randen. Noll skrivs inte ut: ett tomt avsnitt bär ingen siffra. */
+  function raknare(id: string, antal: number) {
+    const ruta = document.getElementById(id);
+    if (ruta) ruta.textContent = antal > 0 ? String(antal) : '';
+  }
 
   const CITIES: Record<string, string> = JSON.parse(
     document.getElementById('cities')?.textContent || '{}',
@@ -372,12 +450,14 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
             await unfollow(row.establishment_id);
             li.remove();
             followEmpty.hidden = followList.children.length > 0;
+            raknare('antal-bevakningar', followList.children.length);
           }),
         ),
       );
       followList.append(li);
     }
     followEmpty.hidden = rows.length > 0;
+    raknare('antal-bevakningar', rows.length);
   }
 
   /** Bedömningen som etikett, samma form som statusetiketterna på sidan. */
@@ -491,12 +571,14 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
             await deleteReview(row.id);
             li.remove();
             reviewEmpty.hidden = reviewList.children.length > 0;
+            raknare('antal-omdomen', reviewList.children.length);
           }),
         ),
       );
       reviewList.append(li);
     }
     reviewEmpty.hidden = rows.length > 0;
+    raknare('antal-omdomen', rows.length);
   }
 
   /* Anspråk och bilder ------------------------------------------------ */
@@ -529,6 +611,11 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
       claimList.append(li);
     }
     claimsCard.hidden = false;
+    /* Randens rad följer avsnittet. Ett avsnitt som inte finns får ingen flik,
+       annars leder fliken till en tom yta. */
+    const flik = document.getElementById('rand-verksamheter');
+    if (flik) flik.hidden = false;
+    raknare('antal-verksamheter', rows.length);
   }
 
   /**
@@ -608,12 +695,21 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
             await deleteUpload(row);
             li.remove();
             uploadsCard.hidden = uploadList.children.length === 0;
+            const flik = document.getElementById('rand-bilder');
+            if (flik) flik.hidden = uploadsCard.hidden;
+            raknare('antal-bilder', uploadList.children.length);
+            /* Försvann avsnittet man stod i finns ingen vald flik kvar.
+               Då tas den första i stället för att spalten blir tom. */
+            if (uploadsCard.hidden) franHash();
           }),
         ),
       );
       uploadList.append(li);
     }
     uploadsCard.hidden = false;
+    const flik = document.getElementById('rand-bilder');
+    if (flik) flik.hidden = false;
+    raknare('antal-bilder', rows.length);
   }
 
   /* Start ------------------------------------------------------------- */
@@ -626,6 +722,11 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     who.textContent = user?.email ?? 'Du är inloggad';
 
     await Promise.all([paintFollows(), paintReviews(), paintClaims(), paintUploads()]);
+
+    /* Först nu. Vilka flikar som finns avgörs av vad som målats, och ett val
+       taget innan dess hade kunnat landa på en flik som strax döljs. */
+    franHash();
+    addEventListener('hashchange', franHash);
   }
 
   async function start() {

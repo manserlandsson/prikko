@@ -75,325 +75,347 @@ const DAGAR = [
   description="Fyll på med uppgifter om verksamheten och svara på en kontroll."
   noindex
 >
-  <div class="container konto-page konto-wide">
-    <div class="konto-card">
-      <h1 id="title">Din verksamhet</h1>
-      <p class="konto-lead" id="lead">Läser in.</p>
-      <p class="notice notice-error" id="error" hidden role="alert"></p>
-      <div class="konto-actions" id="signin-row" hidden>
-        <button type="button" class="btn-primary" id="signin">Logga in eller bli medlem</button>
-      </div>
-    </div>
+  {/*
+     Ramen är kontots, alltså rand och EN spalt.
 
-    {/* Ansökan om att företräda verksamheten. */}
-    <div class="konto-card" id="claim-card" hidden>
-      <h2>Ansök om att företräda verksamheten</h2>
-      <p class="konto-lead">
-        Vi kontrollerar uppgifterna mot Bolagsverket innan du får svara. Det
-        görs för hand och kan ta någon dag. Uppgifterna nedan publiceras aldrig.
-      </p>
+     Sidan mätte 4 914 px med panelerna öppna vid 1440x900, alltså 5,46
+     skärmar, och innehållet var 584 px brett. Den som företräder ett ställe
+     har tre ärenden här, uppgifter, bilder och svar, och de har ingenting med
+     varandra att göra; att lägga dem i en enda rulle var det som gjorde sidan
+     lång. Randen kommer först när man ÄR godkänd: dessförinnan finns bara ett
+     ärende, att komma in, och en meny över ett val är ingen meny.
+  */}
+  <div class="container konto-page konto-app">
+    <div class="konto-ram" id="ram">
+      <header class="konto-head">
+        <h1 id="title">Din verksamhet</h1>
+        <p class="konto-lead" id="lead">Läser in.</p>
+        <p class="notice notice-error" id="error" hidden role="alert"></p>
+        <div class="konto-actions" id="signin-row" hidden>
+          <button type="button" class="btn-primary" id="signin">Logga in eller bli medlem</button>
+        </div>
+      </header>
 
-      <form id="claim-form" novalidate>
-        <label class="field">
-          <span>Ditt namn</span>
-          <input type="text" name="claimantName" maxlength="100" required autocomplete="name" />
-        </label>
+      <nav class="konto-rand" id="rand" aria-label="Din verksamhet" hidden>
+        <a href="#uppgifter" data-sek="uppgifter">Uppgifter</a>
+        <a href="#bilder" data-sek="bilder" id="rand-bilder" hidden>Bilder</a>
+        <a href="#svar" data-sek="svar">Svar på kontroll</a>
+      </nav>
 
-        {/* Fritext förr. Ett fast val säger redaktionen exakt vad den ska
-            slå upp, och "ägare" och "firmatecknare" är inte samma sak i
-            registret. */}
-        <label class="field">
-          <span>Din roll i verksamheten</span>
-          <select name="claimantRole" required>
-            <option value="">Välj roll</option>
-            <option value="Firmatecknare">Firmatecknare</option>
-            <option value="Verkställande direktör">Verkställande direktör</option>
-            <option value="Styrelseledamot">Styrelseledamot</option>
-            <option value="Ägare">Ägare</option>
-            <option value="Restaurangchef">Restaurangchef</option>
-            <option value="Ombud med fullmakt">Ombud med fullmakt</option>
-          </select>
-        </label>
+      <div class="konto-spalt">
 
-        <label class="field">
-          <span>
-            Organisationsnummer
-            <span class="hint">
-              Verksamhetens, inte ditt personnummer. Används bara för
-              kontrollen och publiceras aldrig.
-            </span>
-          </span>
-          <input
-            type="text"
-            name="organizationNumber"
-            maxlength="13"
-            required
-            inputmode="numeric"
-            placeholder="556677-8899"
-          />
-        </label>
+        {/* Ansökan om att företräda verksamheten. */}
+        <div class="konto-sektion ar-vald" id="claim-card" data-sek="ansok" hidden>
+          <h2>Ansök om att företräda verksamheten</h2>
+          <p class="konto-lead">
+            Vi kontrollerar uppgifterna mot Bolagsverket innan du får svara. Det
+            görs för hand och kan ta någon dag. Uppgifterna nedan publiceras aldrig.
+          </p>
 
-        <label class="field">
-          <span>E-post vi kan nå dig på</span>
-          <input type="email" name="contactEmail" required autocomplete="email" />
-        </label>
+          <form id="claim-form" novalidate>
+            <label class="field">
+              <span>Ditt namn</span>
+              <input type="text" name="claimantName" maxlength="100" required autocomplete="name" />
+            </label>
 
-        <label class="field">
-          <span>Telefon <span class="hint">Frivilligt. Snabbare om något behöver redas ut.</span></span>
-          <input type="tel" name="contactPhone" maxlength="30" autocomplete="tel" />
-        </label>
+            {/* Fritext förr. Ett fast val säger redaktionen exakt vad den ska
+                slå upp, och "ägare" och "firmatecknare" är inte samma sak i
+                registret. */}
+            <label class="field">
+              <span>Din roll i verksamheten</span>
+              <select name="claimantRole" required>
+                <option value="">Välj roll</option>
+                <option value="Firmatecknare">Firmatecknare</option>
+                <option value="Verkställande direktör">Verkställande direktör</option>
+                <option value="Styrelseledamot">Styrelseledamot</option>
+                <option value="Ägare">Ägare</option>
+                <option value="Restaurangchef">Restaurangchef</option>
+                <option value="Ombud med fullmakt">Ombud med fullmakt</option>
+              </select>
+            </label>
 
-        <p class="notice notice-error" id="claim-error" hidden role="alert"></p>
+            <label class="field">
+              <span>
+                Organisationsnummer
+                <span class="hint">
+                  Verksamhetens, inte ditt personnummer. Används bara för
+                  kontrollen och publiceras aldrig.
+                </span>
+              </span>
+              <input
+                type="text"
+                name="organizationNumber"
+                maxlength="13"
+                required
+                inputmode="numeric"
+                placeholder="556677-8899"
+              />
+            </label>
 
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="claim-submit">Skicka ansökan</button>
+            <label class="field">
+              <span>E-post vi kan nå dig på</span>
+              <input type="email" name="contactEmail" required autocomplete="email" />
+            </label>
+
+            <label class="field">
+              <span>Telefon <span class="hint">Frivilligt. Snabbare om något behöver redas ut.</span></span>
+              <input type="tel" name="contactPhone" maxlength="30" autocomplete="tel" />
+            </label>
+
+            <p class="notice notice-error" id="claim-error" hidden role="alert"></p>
+
+            <div class="konto-actions">
+              <button type="submit" class="btn-primary" id="claim-submit">Skicka ansökan</button>
+            </div>
+
+            <p class="konto-legal">
+              Att ansöka ger ingen rätt att svara. Rätten uppstår först när
+              redaktionen kontrollerat att du företräder verksamheten. Lämnar du
+              medvetet oriktiga uppgifter stängs kontot av.
+            </p>
+          </form>
         </div>
 
-        <p class="konto-legal">
-          Att ansöka ger ingen rätt att svara. Rätten uppstår först när
-          redaktionen kontrollerat att du företräder verksamheten. Lämnar du
-          medvetet oriktiga uppgifter stängs kontot av.
-        </p>
-      </form>
-    </div>
+        {/* Kod ur brevet till verksamhetens adress. */}
+        <div class="konto-sektion ar-vald" id="code-card" data-sek="kod" hidden>
+          <h2>Har du fått en kod på posten?</h2>
+          <form id="code-form" novalidate>
+            <label class="field">
+              <span>Koden i brevet</span>
+              <input
+                type="text"
+                name="code"
+                id="code"
+                maxlength="8"
+                required
+                autocomplete="one-time-code"
+                spellcheck="false"
+              />
+            </label>
 
-    {/* Kod ur brevet till verksamhetens adress. */}
-    <div class="konto-card" id="code-card" hidden>
-      <h2>Har du fått en kod på posten?</h2>
-      <form id="code-form" novalidate>
-        <label class="field">
-          <span>Koden i brevet</span>
-          <input
-            type="text"
-            name="code"
-            id="code"
-            maxlength="8"
-            required
-            autocomplete="one-time-code"
-            spellcheck="false"
-          />
-        </label>
+            <p class="notice notice-error" id="code-error" hidden role="alert"></p>
 
-        <p class="notice notice-error" id="code-error" hidden role="alert"></p>
-
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="code-submit">Lös in koden</button>
+            <div class="konto-actions">
+              <button type="submit" class="btn-primary" id="code-submit">Lös in koden</button>
+            </div>
+          </form>
         </div>
-      </form>
-    </div>
 
-    {/* Uppgifter om verksamheten. */}
-    <div class="konto-card" id="facts-card" hidden>
-      <h2>Uppgifter om verksamheten</h2>
-      <p class="konto-lead">
-        Granskas innan de visas. Skicka in på nytt när något ändras, så gäller
-        det du skickade senast.
-      </p>
+        {/* Uppgifter om verksamheten. */}
+        <div class="konto-sektion" id="facts-card" data-sek="uppgifter" hidden>
+          <h2>Uppgifter om verksamheten</h2>
+          <p class="konto-lead">
+            Granskas innan de visas. Skicka in på nytt när något ändras, så gäller
+            det du skickade senast.
+          </p>
 
-      <form id="facts-form" novalidate>
-        <label class="field">
-          <span>
-            Presentation
-            <span class="hint" id="presentation-hint">Minst 20 tecken.</span>
-          </span>
-          <textarea name="presentation" id="presentation" maxlength="1500"></textarea>
-        </label>
+          <form id="facts-form" novalidate>
+            <label class="field">
+              <span>
+                Presentation
+                <span class="hint" id="presentation-hint">Minst 20 tecken.</span>
+              </span>
+              <textarea name="presentation" id="presentation" maxlength="1500"></textarea>
+            </label>
 
-        <fieldset class="hours">
-          <legend>Öppettider</legend>
-          {
-            DAGAR.map(([day, name]) => (
-              <div class="hour-row">
-                <span class="day">{name}</span>
+            <fieldset class="hours">
+              <legend>Öppettider</legend>
+              {
+                DAGAR.map(([day, name]) => (
+                  <div class="hour-row">
+                    <span class="day">{name}</span>
+                    <div class="hour-times">
+                      <input type="time" id={`from-${day}`} aria-label={`${name}, öppnar`} />
+                      <span>till</span>
+                      <input type="time" id={`to-${day}`} aria-label={`${name}, stänger`} />
+                    </div>
+                    <label class="hour-shut">
+                      <input type="checkbox" id={`shut-${day}`} />
+                      <span>Stängt</span>
+                    </label>
+                  </div>
+                ))
+              }
+
+              {/* Avvikande datum: röda dagar, inventering, semesterstängt.
+
+                  Vi räknar inte fram röda dagar åt någon. Vilka dagar som är röda
+                  går att slå upp, men vad ETT ställe gör en röd dag gör det inte,
+                  och en gissning här hade blivit ett påstående på verksamhetens
+                  sida som ingen på verksamheten skrivit. */}
+              <div class="avvikande">
+                <p class="avvikande-rubrik">Avvikande datum</p>
+                <ul class="undantag" id="exceptions"></ul>
+                <button type="button" class="btn-quiet btn-tight" id="add-exception">
+                  Lägg till datum
+                </button>
+              </div>
+            </fieldset>
+
+            {/* Raderna klonas härifrån och inte ur skriptet.
+
+                Stilarna i den här filen är scoped, och Astro märker bara upp det
+                som stod i mallen när sidan byggdes. Ett element som skriptet
+                skapar från grunden får ingen märkning och därmed ingen stil. Det
+                som ligger i en <template> stod i mallen, alltså bär kopian
+                märkningen med sig. */}
+            <template id="exception-template">
+              <li class="undantag-rad">
+                <input type="date" class="ex-date" aria-label="Datum" required />
+                <input
+                  type="text"
+                  class="ex-label"
+                  maxlength="40"
+                  placeholder="Namn på dagen"
+                  aria-label="Namn på dagen"
+                />
                 <div class="hour-times">
-                  <input type="time" id={`from-${day}`} aria-label={`${name}, öppnar`} />
+                  <input type="time" class="ex-from" aria-label="Öppnar" />
                   <span>till</span>
-                  <input type="time" id={`to-${day}`} aria-label={`${name}, stänger`} />
+                  <input type="time" class="ex-to" aria-label="Stänger" />
                 </div>
                 <label class="hour-shut">
-                  <input type="checkbox" id={`shut-${day}`} />
+                  <input type="checkbox" class="ex-shut" />
                   <span>Stängt</span>
                 </label>
-              </div>
-            ))
-          }
+                <button type="button" class="btn-quiet btn-tight ex-remove">Ta bort</button>
+              </li>
+            </template>
 
-          {/* Avvikande datum: röda dagar, inventering, semesterstängt.
-
-              Vi räknar inte fram röda dagar åt någon. Vilka dagar som är röda
-              går att slå upp, men vad ETT ställe gör en röd dag gör det inte,
-              och en gissning här hade blivit ett påstående på verksamhetens
-              sida som ingen på verksamheten skrivit. */}
-          <div class="avvikande">
-            <p class="avvikande-rubrik">Avvikande datum</p>
-            <ul class="undantag" id="exceptions"></ul>
-            <button type="button" class="btn-quiet btn-tight" id="add-exception">
-              Lägg till datum
-            </button>
-          </div>
-        </fieldset>
-
-        {/* Raderna klonas härifrån och inte ur skriptet.
-
-            Stilarna i den här filen är scoped, och Astro märker bara upp det
-            som stod i mallen när sidan byggdes. Ett element som skriptet
-            skapar från grunden får ingen märkning och därmed ingen stil. Det
-            som ligger i en <template> stod i mallen, alltså bär kopian
-            märkningen med sig. */}
-        <template id="exception-template">
-          <li class="undantag-rad">
-            <input type="date" class="ex-date" aria-label="Datum" required />
-            <input
-              type="text"
-              class="ex-label"
-              maxlength="40"
-              placeholder="Namn på dagen"
-              aria-label="Namn på dagen"
-            />
-            <div class="hour-times">
-              <input type="time" class="ex-from" aria-label="Öppnar" />
-              <span>till</span>
-              <input type="time" class="ex-to" aria-label="Stänger" />
-            </div>
-            <label class="hour-shut">
-              <input type="checkbox" class="ex-shut" />
-              <span>Stängt</span>
+            <label class="field">
+              <span>Telefon</span>
+              <input type="tel" name="phone" maxlength="30" autocomplete="tel" />
             </label>
-            <button type="button" class="btn-quiet btn-tight ex-remove">Ta bort</button>
-          </li>
-        </template>
 
-        <label class="field">
-          <span>Telefon</span>
-          <input type="tel" name="phone" maxlength="30" autocomplete="tel" />
-        </label>
+            <label class="field">
+              <span>Webbplats</span>
+              <input type="url" name="website" maxlength="200" placeholder="https://" />
+            </label>
 
-        <label class="field">
-          <span>Webbplats</span>
-          <input type="url" name="website" maxlength="200" placeholder="https://" />
-        </label>
+            <label class="field">
+              <span>Boka bord <span class="hint">Länk till er bokning.</span></span>
+              <input type="url" name="bookingUrl" maxlength="200" placeholder="https://" />
+            </label>
 
-        <label class="field">
-          <span>Boka bord <span class="hint">Länk till er bokning.</span></span>
-          <input type="url" name="bookingUrl" maxlength="200" placeholder="https://" />
-        </label>
+            <p class="notice notice-error" id="facts-error" hidden role="alert"></p>
 
-        <p class="notice notice-error" id="facts-error" hidden role="alert"></p>
+            <div class="konto-actions">
+              <button type="submit" class="btn-primary" id="facts-submit">Skicka in</button>
+            </div>
 
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="facts-submit">Skicka in</button>
+            <p class="konto-legal">
+              Uppgifterna fryses när du skickar dem. Redaktionen kan publicera dem
+              eller låta bli, aldrig ändra i dem. Du ansvarar för att de stämmer.
+            </p>
+          </form>
+
+          <h3 class="sub">Dina insändningar</h3>
+          <ul class="konto-list" id="submissions"></ul>
+          <p class="konto-empty" id="submissions-empty">Du har inte skickat in några uppgifter än.</p>
         </div>
 
-        <p class="konto-legal">
-          Uppgifterna fryses när du skickar dem. Redaktionen kan publicera dem
-          eller låta bli, aldrig ändra i dem. Du ansvarar för att de stämmer.
-        </p>
-      </form>
+        {/* Verksamhetens egna bilder.
 
-      <h3 class="sub">Dina insändningar</h3>
-      <ul class="konto-list" id="submissions"></ul>
-      <p class="konto-empty" id="submissions-empty">Du har inte skickat in några uppgifter än.</p>
-    </div>
+            Egen ruta och inte en del av uppgifterna ovanför: en bild är en fil som
+            laddas upp en i taget och lever sitt eget liv, medan uppgifterna är ett
+            formulär som skickas in i sin helhet.
 
-    {/* Verksamhetens egna bilder.
+            Det här är INTE besökarnas bildflöde. Den som har ett godkänt anspråk
+            är uttryckligen utestängd därifrån, och den spärren står kvar. Se
+            Foretagsbilder.astro. */}
+        <div class="konto-sektion" id="photos-card" data-sek="bilder" hidden>
+          <h2>Bilder</h2>
+          <p class="konto-lead">
+            Granskas innan de visas. Den översta bilden står först på sidan.
+          </p>
 
-        Egen ruta och inte en del av uppgifterna ovanför: en bild är en fil som
-        laddas upp en i taget och lever sitt eget liv, medan uppgifterna är ett
-        formulär som skickas in i sin helhet.
+          <form id="photo-form" novalidate>
+            <label class="field">
+              <span>
+                Bild
+                <span class="hint" id="photo-hint">JPEG, PNG, WebP eller HEIC. Högst 12 MB.</span>
+              </span>
+              {/* HEIC och HEIF står med, och ändelserna står med UTÖVER typerna.
+                  Flera webbläsare lämnar `file.type` tom för HEIC, eftersom
+                  formatet inte står i deras egen tabell, och filväljaren matchar
+                  då på det den känner igen. Utan `.heic` i listan är iPhone-bilden
+                  gråmarkerad i rutan och går inte att välja alls. Samma lista som
+                  besökarnas uppladdning, se Reviews.astro. */}
+              <input
+                type="file"
+                id="photo-file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+              />
+            </label>
 
-        Det här är INTE besökarnas bildflöde. Den som har ett godkänt anspråk
-        är uttryckligen utestängd därifrån, och den spärren står kvar. Se
-        Foretagsbilder.astro. */}
-    <div class="konto-card" id="photos-card" hidden>
-      <h2>Bilder</h2>
-      <p class="konto-lead">
-        Granskas innan de visas. Den översta bilden står först på sidan.
-      </p>
+            <label class="field">
+              <span>Bildtext <span class="hint">Frivilligt. Högst 120 tecken.</span></span>
+              <input type="text" id="photo-caption" maxlength="120" />
+            </label>
 
-      <form id="photo-form" novalidate>
-        <label class="field">
-          <span>
-            Bild
-            <span class="hint" id="photo-hint">JPEG, PNG, WebP eller HEIC. Högst 12 MB.</span>
-          </span>
-          {/* HEIC och HEIF står med, och ändelserna står med UTÖVER typerna.
-              Flera webbläsare lämnar `file.type` tom för HEIC, eftersom
-              formatet inte står i deras egen tabell, och filväljaren matchar
-              då på det den känner igen. Utan `.heic` i listan är iPhone-bilden
-              gråmarkerad i rutan och går inte att välja alls. Samma lista som
-              besökarnas uppladdning, se Reviews.astro. */}
-          <input
-            type="file"
-            id="photo-file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
-          />
-        </label>
+            <label class="samtycke">
+              <input type="checkbox" id="photo-rights" />
+              <span>Bilden är vår egen, eller så har vi fotografens tillstånd att publicera den.</span>
+            </label>
 
-        <label class="field">
-          <span>Bildtext <span class="hint">Frivilligt. Högst 120 tecken.</span></span>
-          <input type="text" id="photo-caption" maxlength="120" />
-        </label>
+            <p class="notice notice-error" id="photo-error" hidden role="alert"></p>
 
-        <label class="samtycke">
-          <input type="checkbox" id="photo-rights" />
-          <span>Bilden är vår egen, eller så har vi fotografens tillstånd att publicera den.</span>
-        </label>
+            <div class="konto-actions">
+              <button type="submit" class="btn-primary" id="photo-submit">Ladda upp</button>
+            </div>
+          </form>
 
-        <p class="notice notice-error" id="photo-error" hidden role="alert"></p>
-
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="photo-submit">Ladda upp</button>
-        </div>
-      </form>
-
-      <h3 class="sub">Era bilder</h3>
-      <ul class="konto-list" id="photo-list"></ul>
-      <p class="konto-empty" id="photo-empty">Ni har inte lagt upp någon bild än.</p>
-    </div>
-
-    {/* Svar på en kontroll. */}
-    <div class="konto-card" id="respond-card" hidden>
-      <h2>Svara på en kontroll</h2>
-      <p class="konto-lead">
-        Ditt svar publiceras <b>ordagrant</b> bredvid kontrollen. Redaktionen
-        kan publicera det eller låta bli, aldrig ändra i det.
-      </p>
-
-      <form id="respond-form" novalidate>
-        <label class="field">
-          <span>Vilken kontroll gäller svaret?</span>
-          <select name="inspection" id="inspection" required></select>
-        </label>
-
-        <label class="field">
-          <span>
-            Ditt svar
-            <span class="hint">
-              Minst tio tecken, högst 2 000. Skriv om kontrollen och vad ni
-              gjort. Namnge inte enskilda inspektörer eller anställda.
-            </span>
-          </span>
-          <textarea name="body" maxlength="2000" required></textarea>
-        </label>
-
-        <p class="notice notice-error" id="respond-error" hidden role="alert"></p>
-
-        <div class="konto-actions">
-          <button type="submit" class="btn-primary" id="respond-submit">Skicka svar</button>
+          <h3 class="sub">Era bilder</h3>
+          <ul class="konto-list" id="photo-list"></ul>
+          <p class="konto-empty" id="photo-empty">Ni har inte lagt upp någon bild än.</p>
         </div>
 
-        <p class="konto-legal">
-          Texten fryses när du skickar den. Varken vi eller du kan ändra den i
-          efterhand, och det är själva poängen: det är så vi kan lova att svar
-          publiceras oredigerade. Vill du säga något annat får det gamla svaret
-          tas bort först. Skriv till
-          <a href="/ratta/">redaktionen</a> om det behövs.
-        </p>
-      </form>
+        {/* Svar på en kontroll. */}
+        <div class="konto-sektion" id="respond-card" data-sek="svar" hidden>
+          <h2>Svara på en kontroll</h2>
+          <p class="konto-lead">
+            Ditt svar publiceras <b>ordagrant</b> bredvid kontrollen. Redaktionen
+            kan publicera det eller låta bli, aldrig ändra i det.
+          </p>
 
-      <h3 class="sub">Dina svar</h3>
-      <ul class="konto-list" id="responses"></ul>
-      <p class="konto-empty" id="responses-empty">Du har inte skickat något svar än.</p>
+          <form id="respond-form" novalidate>
+            <label class="field">
+              <span>Vilken kontroll gäller svaret?</span>
+              <select name="inspection" id="inspection" required></select>
+            </label>
+
+            <label class="field">
+              <span>
+                Ditt svar
+                <span class="hint">
+                  Minst tio tecken, högst 2 000. Skriv om kontrollen och vad ni
+                  gjort. Namnge inte enskilda inspektörer eller anställda.
+                </span>
+              </span>
+              <textarea name="body" maxlength="2000" required></textarea>
+            </label>
+
+            <p class="notice notice-error" id="respond-error" hidden role="alert"></p>
+
+            <div class="konto-actions">
+              <button type="submit" class="btn-primary" id="respond-submit">Skicka svar</button>
+            </div>
+
+            <p class="konto-legal">
+              Texten fryses när du skickar den. Varken vi eller du kan ändra den i
+              efterhand, och det är själva poängen: det är så vi kan lova att svar
+              publiceras oredigerade. Vill du säga något annat får det gamla svaret
+              tas bort först. Skriv till
+              <a href="/ratta/">redaktionen</a> om det behövs.
+            </p>
+          </form>
+
+          <h3 class="sub">Dina svar</h3>
+          <ul class="konto-list" id="responses"></ul>
+          <p class="konto-empty" id="responses-empty">Du har inte skickat något svar än.</p>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -655,6 +677,44 @@ const DAGAR = [
   const photoEmpty = document.getElementById('photo-empty') as HTMLParagraphElement;
 
   const respondCard = document.getElementById('respond-card') as HTMLDivElement;
+
+  const ram = document.getElementById('ram') as HTMLDivElement;
+  const rand = document.getElementById('rand') as HTMLElement;
+
+  /**
+   * Flikarna för den som ÄR godkänd företrädare.
+   *
+   * Uppgifter, bilder och svar är tre skilda ärenden, och de låg i en rulle
+   * som mätte 4 914 px vid 1440x900. Förlagorna gör tvärtom: Googles
+   * inställningar har en 236 px sidomeny och en sida som är exakt en skärm
+   * hög, DuckDuckGos har fyra flikar och en 676 px spalt. Uppmätt 2026-08-25.
+   *
+   * Randen ritas inte i de lägen som saknar den, och då är ramen enspaltig.
+   * Ansökan och koden är ETT ärende och står kvar bredvid varandra.
+   */
+  const sektioner = Array.from(
+    document.querySelectorAll<HTMLElement>('.konto-sektion'),
+  );
+
+  function visa(namn: string) {
+    const rader = Array.from(
+      rand.querySelectorAll<HTMLAnchorElement>('a[data-sek]'),
+    ).filter((a) => !a.hidden);
+    const vald = rader.find((a) => a.dataset.sek === namn) ?? rader[0];
+    if (!vald) return;
+
+    for (const a of rader) {
+      if (a === vald) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    }
+    for (const sektion of sektioner) {
+      sektion.classList.toggle('ar-vald', sektion.dataset.sek === vald.dataset.sek);
+    }
+  }
+
+  function franHash() {
+    visa(decodeURIComponent(location.hash.replace(/^#/, '')));
+  }
   const respondForm = document.getElementById('respond-form') as HTMLFormElement;
   const respondError = document.getElementById('respond-error') as HTMLParagraphElement;
   const respondSubmit = document.getElementById('respond-submit') as HTMLButtonElement;
@@ -857,9 +917,18 @@ const DAGAR = [
     if (niva.bilder > 0) {
       photosCard.hidden = false;
       await wirePhotos(place, niva);
+      const flik = document.getElementById('rand-bilder');
+      if (flik) flik.hidden = false;
     }
 
     await wireRespond(place);
+
+    /* Randen kommer sist, när det är avgjort vilka avsnitt som finns. En flik
+       till en yta som inte ritats leder till en tom spalt. */
+    ram.classList.add('har-rand');
+    rand.hidden = false;
+    franHash();
+    addEventListener('hashchange', franHash);
   }
 
   function wireClaim(place: { id: string; name: string; municipalitySlug: string }) {
