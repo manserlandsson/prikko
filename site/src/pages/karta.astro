@@ -59,9 +59,6 @@ const jsonLd = {
     */}
     <Karta data={data}>
       <Fragment slot="topp">
-        <nav class="crumbs" aria-label="Brödsmulor">
-          <a href="/">Prikko</a>
-        </nav>
         <h1>Karta över hygienkontroller i Sverige</h1>
       </Fragment>
     </Karta>
@@ -93,19 +90,23 @@ const jsonLd = {
      * Kolumnernas egen luft flyttar därför in i listkolumnen, se .lista i
      * Karta.astro. Kartan ska inte ha någon.
      */
-  
     max-width: none;
     padding: 0;
   }
 
-  .crumbs {
-    display: flex;
-    gap: var(--s-2);
-    align-items: center;
-    font-size: var(--fs-body-s);
-    color: var(--text-muted);
-  }
-
+  /*
+   * Brödsmulorna är BORTA, och bara härifrån.
+   *
+   * Ägaren 2026-08-25: "varför står det prikko > stockholm längst upp, det
+   * behövs ju ej." Booli har inga brödsmulor alls på sin kartsida, och på en
+   * app-yta är raden dyrare än på en dokumentsida: den tar 26 lodräta pixlar
+   * ur listkolumnen på varenda kartsida, och den enda vägen den erbjuder är
+   * tillbaka till en sida man just kom ifrån.
+   *
+   * BreadcrumbList i sidans strukturerade data står kvar. Den är för
+   * sökmotorn och ritas aldrig, och kedjan Prikko till kommunen till kartan
+   * är sann vare sig raden syns eller inte.
+   */
   h1 {
     margin-block: var(--s-1) var(--s-4);
     font-size: var(--fs-h-s);
@@ -128,7 +129,6 @@ const jsonLd = {
       overflow: hidden;
     }
 
-    .page:has(.split.ark) .crumbs,
     .page:has(.split.ark) h1 {
       position: absolute;
       width: 1px;

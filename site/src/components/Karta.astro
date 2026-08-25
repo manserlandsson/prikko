@@ -210,6 +210,7 @@ const LEGEND = [
   data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
   data-city={plats}
+  data-kommun={kommun?.slug}
   data-kategorier={JSON.stringify(kategorier)}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
@@ -275,6 +276,24 @@ const LEGEND = [
       */}
       <button type="button" class="kategorimarke" data-kategorimarke hidden>
         <span data-kategorinamn></span>
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </button>
+
+      {/*
+        Områdesmärket. Samma form som kategorimärket och av samma skäl: det som
+        ändrar vyn måste gå att stänga av där man ser det. Skillnaden mot
+        kategorin är att området inte GÖMMER något, det skuggar bara, och
+        därför säger märket "Östermalm" och inte "Filtrerat på Östermalm".
+      */}
+      <button type="button" class="omradesmarke" data-omradesmarke hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" class="omradesikon">
+          <path d="M8 1.6c2.4 0 4.3 1.9 4.3 4.3 0 3-4.3 8.5-4.3 8.5S3.7 8.9 3.7 5.9C3.7 3.5 5.6 1.6 8 1.6Z"
+                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <circle cx="8" cy="5.9" r="1.5" fill="currentColor" />
+        </svg>
+        <span data-omradesnamn></span>
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         </svg>
@@ -488,7 +507,7 @@ const LEGEND = [
    * arbetaren blir 404, och kartan går sönder UTAN att säga något: stilen
    * laddas, kontrollerna ritas, attributionen står där, och kartytan förblir
    * vit. Rasterkällor fungerar samtidigt, eftersom bilder avkodas på
-   * huvudtråden — det var den skillnaden som avslöjade orsaken.
+   * huvudtråden, och det var den skillnaden som avslöjade orsaken.
    *
    * Som statiska filer stämmer `import.meta.url` med var filerna ligger,
    * arbetaren hittar sig själv, och huvudtråd och arbetare DELAR
@@ -866,6 +885,21 @@ const LEGEND = [
      */
     let katMask = 0;
 
+    /**
+     * Områdets slug, alltså den yta kartan skuggar utanför. Tom sträng när
+     * ingen är vald.
+     *
+     * Skilt från `katMask` och `filterVarde` på en avgörande punkt: området
+     * FILTRERAR INGENTING. Kategorin gömmer nålar och textfältet gömmer kort,
+     * men området målar bara en skugga. Det är Boolis beteende och det är rätt
+     * beteende: en krog tvärs över gatan från Östermalms gräns ska synas, den
+     * ligger fortfarande där, och en karta som raderar den ljuger om staden.
+     */
+    let omradeSlug = '';
+
+    /** Kommunens slug. Saknas på rikskartan, som inte har några områden. */
+    const kommunSlug = root.dataset.kommun ?? '';
+
     /** Kategoriernas ordbok ur sidans HTML. Bitarna är bygget som satte dem. */
     const KATEGORIER: Array<{ slug: string; name: string; bit: number }> =
       JSON.parse(root.dataset.kategorier ?? '[]');
@@ -923,6 +957,16 @@ const LEGEND = [
       kategorimarke.hidden = !kat;
       if (kat) kategorinamn.textContent = kat.name;
     }
+
+    const omradesmarke = root.querySelector<HTMLButtonElement>('[data-omradesmarke]')!;
+    const omradesnamn = root.querySelector<HTMLElement>('[data-omradesnamn]')!;
+
+    function stallOmradesmarke() {
+      omradesmarke.hidden = !omradeNamn;
+      omradesnamn.textContent = omradeNamn;
+    }
+
+    omradesmarke.addEventListener('click', () => satOmrade(''));
 
     /**
      * Fältets lyssnare sätts vid sidladdning, men filtret kan verka först när
@@ -1804,10 +1848,12 @@ const LEGEND = [
       q: string;
       /** Kategorins URL-segment. Tom sträng när nyckeln saknas. */
       typ: string;
+      /** Områdets slug, alltså den yta som ska skuggas. Tom sträng utan den. */
+      omrade: string;
     }
 
     function lasFragment(): Fragment {
-      const ut: Fragment = { vy: null, q: '', typ: '' };
+      const ut: Fragment = { vy: null, q: '', typ: '', omrade: '' };
       const rad = location.hash.replace(/^#/, '');
       if (!rad) return ut;
 
@@ -1837,6 +1883,10 @@ const LEGEND = [
           ut.q = decodeURIComponent(varde.replace(/\+/g, ' ')).slice(0, 80);
         } else if (nyckel === 'typ') {
           ut.typ = decodeURIComponent(varde);
+        } else if (nyckel === 'omrade') {
+          /* Samma grind som `typ`: värdet slås upp i en tabell och används
+             aldrig som markup. Slår det inte, händer ingenting. */
+          ut.omrade = decodeURIComponent(varde).slice(0, 80);
         }
       }
       return ut;
@@ -1875,6 +1925,7 @@ const LEGEND = [
       const kat = KATEGORIER.find((k) => k.bit === katMask);
       if (kat) delar.push(`typ=${kat.slug}`);
       if (filterVarde) delar.push(`q=${encodeURIComponent(filterVarde)}`);
+      if (omradeSlug) delar.push(`omrade=${encodeURIComponent(omradeSlug)}`);
 
       const hash = '#' + delar.join('&');
       if (hash === location.hash) return;
@@ -1979,6 +2030,149 @@ const LEGEND = [
       filterVarde = filterFalt.value.trim();
       stallKategorimarke();
       tillampa?.();
+      if (frag.omrade !== omradeSlug) satOmrade(frag.omrade, { skrivFragment: false });
+    }
+
+    // ── Områdesskuggan ───────────────────────────────────────────────────
+
+    /** Områdets namn, för märket i listhuvudet. Tom sträng utan valt område. */
+    let omradeNamn = '';
+
+    /**
+     * Ytorna för kommunens områden, hämtade en gång och sedan kvar.
+     *
+     * De ligger INTE i sidans HTML. Stockholm har 51 områden och en förenklad
+     * kontur väger några kilobyte, alltså hade hela knippet kostat varje
+     * besökare på kartan ett par hundra kilobyte för en yta de flesta aldrig
+     * väljer. Filen hämtas när, och bara när, ett område faktiskt väljs.
+     */
+    let ytor: Record<string, { namn: string; outer: number[][][]; inner: number[][][] }> | null = null;
+    let ytorHamtas: Promise<void> | null = null;
+
+    function hamtaYtor(): Promise<void> {
+      if (ytor) return Promise.resolve();
+      if (!ytorHamtas) {
+        ytorHamtas = fetch(`/omradesytor/${kommunSlug}.json`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            ytor = (d && d.ytor) || {};
+          })
+          .catch(() => {
+            /* Ingen yta är ett fullgott utfall. Kartan fungerar, den skuggar
+               bara ingenting, och det är bättre än ett felmeddelande om en
+               funktion besökaren inte bett om. */
+            ytor = {};
+          });
+      }
+      return ytorHamtas;
+    }
+
+    /**
+     * Polygonen med hål: hela världen minus området.
+     *
+     * Ytterringen går ett varv runt jorden med moturs riktning och innerringen
+     * är områdets kontur. GeoJSON kräver inte att vindningen stämmer för att
+     * rendera, men MapLibres triangulering blir stabilare av att ringarna går
+     * åt olika håll, och en yta som blinkar vid zoom är svår att felsöka i
+     * efterhand.
+     */
+    function maskAv(yta: { outer: number[][][]; inner: number[][][] }) {
+      const varlden = [
+        [-180, -85],
+        [180, -85],
+        [180, 85],
+        [-180, 85],
+        [-180, -85],
+      ];
+      /*
+       * Ytterringarna blir HÅL i världspolygonen, och områdets egna hål blir
+       * egna polygoner som målas igen. Ett område med ett hål i, alltså en
+       * annan stadsdel inuti, ska ha dimma både utanför sig och i hålet.
+       */
+      const polygoner: number[][][][] = [[varlden, ...yta.outer]];
+      for (const hal of yta.inner) polygoner.push([hal]);
+      return {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'MultiPolygon', coordinates: polygoner },
+          },
+        ],
+      };
+    }
+
+    function konturAv(yta: { outer: number[][][]; inner: number[][][] }) {
+      return {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'MultiLineString',
+              coordinates: [...yta.outer, ...yta.inner],
+            },
+          },
+        ],
+      };
+    }
+
+    const TOM = { type: 'FeatureCollection', features: [] };
+
+    /**
+     * Välj eller rensa området.
+     *
+     * `flyg` styr om kameran ska ställa sig på ytan. Den ska den när en
+     * MÄNNISKA valt området, och inte när valet kom ur adressen tillsammans
+     * med ett `map=`: då har besökaren delat ett utsnitt, och att flyga
+     * någon annanstans hade kastat bort just det hen delade.
+     */
+    function satOmrade(slug: string, val: { skrivFragment?: boolean; flyg?: boolean } = {}) {
+      omradeSlug = slug;
+      if (!slug) {
+        omradeNamn = '';
+        stallOmradesmarke();
+        if (karta?.getSource('omradesmask')) {
+          (karta.getSource('omradesmask') as any).setData(TOM);
+          (karta.getSource('omradeskontur') as any).setData(TOM);
+        }
+        if (val.skrivFragment !== false) planeraSkrivning();
+        return;
+      }
+
+      hamtaYtor().then(() => {
+        const yta = ytor?.[`${kommunSlug}/${slug}`];
+        if (!yta || omradeSlug !== slug) {
+          /* Ett område utan yta rensar valet i stället för att bli en
+             halvtillämpad markering. Ägaren ska aldrig se ett märke som säger
+             Östermalm bredvid en karta som inte skuggar något. */
+          if (!yta) satOmrade('', val);
+          return;
+        }
+        omradeNamn = yta.namn;
+        stallOmradesmarke();
+        if (!karta?.getSource('omradesmask')) return;
+        (karta.getSource('omradesmask') as any).setData(maskAv(yta));
+        (karta.getSource('omradeskontur') as any).setData(konturAv(yta));
+        if (val.flyg) {
+          let v = 180;
+          let sy = 90;
+          let o = -180;
+          let n = -90;
+          for (const ring of yta.outer) {
+            for (const [lng, lat] of ring) {
+              if (lng < v) v = lng;
+              if (lng > o) o = lng;
+              if (lat < sy) sy = lat;
+              if (lat > n) n = lat;
+            }
+          }
+          if (v <= o) karta.fitBounds([[v, sy], [o, n]], { padding: 48, duration: 600 });
+        }
+        if (val.skrivFragment !== false) planeraSkrivning();
+      });
     }
 
     /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
@@ -2354,6 +2548,67 @@ const LEGEND = [
           },
           paint: { 'text-color': '#fff', 'text-translate': BRICKA_FLYTT },
         });
+
+        /*
+         * ══ OMRÅDESSKUGGAN ═══════════════════════════════════════════════
+         *
+         * Väljer man Östermalm dimmas allt utanför Östermalm. Boolis grepp,
+         * uppmätt 2026-08-25, och ägarens beställning: "om man söker på en
+         * plats, tex östermalm, då skuggas resten ut."
+         *
+         * Formen är EN polygon med ETT HÅL. Ytterringen täcker hela världen
+         * och innerringen är områdets kontur, alltså är det som målas exakt
+         * komplementet till området. Alternativet, att måla området självt
+         * och lägga skuggan under, går inte: då hade skuggan legat under
+         * gatunamnen och över ingenting.
+         *
+         * Boolis tal, avlästa ur deras levande stil: fill-color #878787,
+         * fill-opacity 0,6, kontur #505050 på 1 px. Vi tar dem rakt av. Sextio
+         * procent låter mycket och är rätt: vid 40 läser skuggan som en
+         * färgton på kartan i stället för som en gräns, och då är hela
+         * upplysningen borta.
+         *
+         * ORDNINGEN ÄR HELA POÄNGEN. Masken ligger OVANFÖR nålarna, alltså
+         * dimmas även nålarna utanför området, och det är avsiktligt: en nål
+         * i full färg utanför gränsen påstår att den hör till träffen. Men
+         * masken ligger UNDER `nal-lyft`, så den nål man pekar på poppar ut
+         * ur dimman. Booli har exakt samma ordning av samma skäl.
+         */
+        karta.addSource('omradesmask', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+
+        karta.addSource('omradeskontur', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+
+        karta.addLayer({
+          id: 'omradesmask',
+          type: 'fill',
+          source: 'omradesmask',
+          paint: { 'fill-color': '#878787', 'fill-opacity': 0.6 },
+        });
+
+        karta.addLayer({
+          id: 'omradeskontur',
+          type: 'line',
+          source: 'omradeskontur',
+          paint: { 'line-color': '#505050', 'line-width': 1 },
+        });
+
+        /*
+         * Måla om, om adressen bar ett område.
+         *
+         * `tillampaFragment` körs INNAN kartan finns, se startFrag, eftersom
+         * fältet och märket ska stå rätt redan när ytan ritas första gången.
+         * Där sattes alltså namnet och märket, men källorna gick inte att
+         * fylla: de fanns inte än. Utan det här anropet visade en delad adress
+         * ett märke som sade Östermalm bredvid en karta utan skugga, vilket är
+         * värre än ingen skuggning alls.
+         */
+        if (omradeSlug) satOmrade(omradeSlug, { skrivFragment: false });
 
         karta.addLayer({
           id: 'nal-lyft',
@@ -3002,6 +3257,28 @@ const LEGEND = [
 
   .kategorimarke:hover { background: color-mix(in srgb, var(--brand) 16%, var(--card)); }
   .kategorimarke[hidden] { display: none; }
+
+  /* Områdesmärket delar kategorimärkets form. Ärvs inte via en gemensam klass,
+     eftersom de två har olika betydelse och kommer att glida isär: kategorin
+     filtrerar, området skuggar. */
+  .omradesmarke {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-top: var(--s-3);
+    margin-left: var(--s-2);
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--brand);
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
+    font: 600 var(--fs-caption) / 1 var(--font-sans);
+    color: var(--brand-ink);
+    cursor: pointer;
+  }
+
+  .omradesmarke[hidden] { display: none; }
+  .omradesmarke svg { width: 12px; height: 12px; }
+  .omradesmarke .omradesikon { width: 14px; height: 14px; }
 
   /*
    * Kommunraderna på rikskartan.
