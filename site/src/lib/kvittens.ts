@@ -26,8 +26,22 @@ export interface Kvittens {
    * Meningen i rutan. EN rad, ingen punkt, ingen förklaring av vad knappen
    * gjorde. Ägaren har redan rivit ut en sådan mening en gång: "ta bort den
    * där jävla texten när man följer".
+   *
+   * Bär rutan ett `namn` är det här bara meningens fasta del, alltså "Du
+   * följer", och namnet sätts efter den.
    */
   text: string;
+  /**
+   * Namnet meningen handlar om, till exempel verksamhetens.
+   *
+   * Skilt från `text` för att det är den ENDA del av raden som får kapas.
+   * Namnet är det som varierar: "Riche" mäter 36 px och det längsta namnet i
+   * registret 808, och rutan har en rad att ge. Namnet får därför sin egen
+   * ruta som kapas med ellips medan meningens fasta del står kvar hel, se
+   * Kvittens.astro. Kapningen är synlig men inte hörd: hela namnet ligger i
+   * DOM:en och läses upp av skärmläsaren.
+   */
+  namn?: string;
   /** Vägen vidare. Utelämnas den blir rutan bara en notis. */
   href?: string;
   /**

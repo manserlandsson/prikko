@@ -47,18 +47,24 @@ const jsonLd = {
 ---
 
 <Base title={title} description={description} jsonLd={jsonLd} footer={false}>
-  <div class="container page">
-    <nav class="crumbs" aria-label="Brödsmulor">
-      <a href="/">Prikko</a>
-    </nav>
+  <div class="page">
+    {/*
+      Brödsmulorna och rubriken ligger i listkolumnen, inte ovanför kartan.
 
-    {/* Rubriken och sedan kartan. Ingenting emellan, av samma skäl som på
-        kommunens kartsida: en karta med färgade ansikten och en
-        teckenförklaring under sig förklarar sig själv, och varje lodrät pixel
-        ovanför kartan är en pixel karta som försvinner. */}
-    <h1>Karta över hygienkontroller i Sverige</h1>
-
-    <Karta data={data} />
+      Booli har ingenting alls ovanför sin delade vy: kartan börjar direkt
+      under sidhuvudet och det första i vänsterkolumnen är flikraden. Vi kan
+      inte ta bort rubriken, den är sidans SEO-svar på "karta över
+      hygienkontroller i Sverige", men vi kan låta den kosta listans höjd i
+      stället för kartans. Slotten finns i Karta.astro.
+    */}
+    <Karta data={data}>
+      <Fragment slot="topp">
+        <nav class="crumbs" aria-label="Brödsmulor">
+          <a href="/">Prikko</a>
+        </nav>
+        <h1>Karta över hygienkontroller i Sverige</h1>
+      </Fragment>
+    </Karta>
   </div>
 </Base>
 
@@ -73,8 +79,23 @@ const jsonLd = {
     /* Sidhuvudets rad plus dess hårlinje. Raden är en token sedan
        2026-08-18, se --h-bar i tokens.css; talet stod förr som 59. */
     height: calc(100dvh - var(--h-bar) - 1px);
-    padding-block: var(--s-4) var(--s-4);
-    max-width: var(--w-full);
+    /*
+     * KANT I KANT. Booli, uppmätt 2026-08-25: deras kartomslag är
+     * `position: fixed` med `top: 64px; right: 0; bottom: 0`, alltså ligger
+     * kartan an mot fönstrets högerkant och underkant på varje bredd.
+     *
+     * Vår sida låg i `.container`, alltså 1400 px bred med 48 px gutter på båda
+     * sidor och centrerad. På en 1920-skärm betydde det 308 px tom yta till
+     * höger om kartan och 48 px till vänster om den, medan Boolis karta där är
+     * 1217 px bred. Det var den enskilt största skillnaden i hur stor kartan
+     * KÄNNS, och den kostade ingenting att ha.
+     *
+     * Kolumnernas egen luft flyttar därför in i listkolumnen, se .lista i
+     * Karta.astro. Kartan ska inte ha någon.
+     */
+  
+    max-width: none;
+    padding: 0;
   }
 
   .crumbs {

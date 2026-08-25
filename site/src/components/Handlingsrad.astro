@@ -419,25 +419,29 @@ const { establishmentId, establishmentName, municipalitySlug, shareText } = Astr
              * den mening ägaren rev ut. Rutan finns för det knappen inte kan
              * säga: att bevakningarna samlas på ett ställe, och var det är.
              *
-             * Verksamhetens namn står inte i rutan. Det står två gånger på
-             * sidan man befinner sig på, och ett långt krognamn hade tvingat
-             * rutan att bryta rad eller kapa. Ednia väljer likadant och
-             * skriver "Gymnasiet sparat", inte skolans namn.
+             * Verksamhetens NAMN och inte "stället". Ägaren 2026-08-25: "det
+             * står du följer 'stället' när man klickar på följ, så den där
+             * notisen vi gjorde, det borde ju vara du följer
+             * 'restaurang-namnet'". Här stod tidigare att namnet inte fick
+             * plats, med Ednias "Gymnasiet sparat" som stöd. Måttet var rätt
+             * och slutsatsen fel: en rad som inte rymmer allt ska kapa det
+             * som varierar, inte byta ut det mot ett pronomen. Namnet går som
+             * eget fält och kapas med ellips, se `namn` i kvittens.ts.
              *
-             * "Du följer stället" och inte "Bevakningen är igång", och det är
-             * ett mått och inte en smaksak. Uppmätt vid 375 px skärm: rutan
-             * har 343 px att röra sig på, åtgärden tar 165, och "Bevakningen
-             * är igång" tar 192, alltså 357 totalt och en radbrytning mitt i
-             * meningen. "Du följer stället" tar 150 och landar på 315.
-             * Ordet "följer" är dessutom detsamma som knappen bredvid nu
-             * lyser med, medan "bevakning" är kontosidans ord och därför hör
-             * hemma i länken, som pekar dit.
+             * Ordet "följer" är detsamma som knappen bredvid nu lyser med,
+             * medan "bevakning" är kontosidans ord och därför hör hemma i
+             * länken, som pekar dit.
+             *
+             * Faller namnet bort går den gamla meningen in i stället. En ruta
+             * som säger "Du följer" och inget mer är en avhuggen mening, och
+             * data-name kan i teorin vara tomt.
              */
-            visaKvittens({
-              text: 'Du följer stället',
-              href: '/konto/',
-              lank: 'Dina bevakningar',
-            });
+            const namn = place.name.trim();
+            visaKvittens(
+              namn
+                ? { text: 'Du följer', namn, href: '/konto/', lank: 'Dina bevakningar' }
+                : { text: 'Du följer stället', href: '/konto/', lank: 'Dina bevakningar' },
+            );
           }
           /* Ingen text vid lyckad handling.
            *

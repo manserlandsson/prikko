@@ -55,32 +55,33 @@ const jsonLd = {
   dataUpdated={source?.fetchedAt.slice(0, 10)}
   footer={false}
 >
-  <div class="container page">
-    <nav class="crumbs" aria-label="Brödsmulor">
-      <a href="/">Prikko</a>
-      <span aria-hidden="true">›</span>
-      <a href={path(base)}>{city}</a>
-    </nav>
-
+  <div class="page">
     {/*
-      Rubriken och sedan kartan. Ingenting emellan.
+      Brödsmulorna och rubriken ligger i listkolumnen, inte ovanför kartan.
 
       Här stod tidigare en ingress som förklarade täckningen, vad en nål
       betyder och hur många som har anmärkningar. Allt var sant och inget av
       det behövdes: en karta med färgade ansikten och en teckenförklaring
       under sig förklarar sig själv, och täckningssiffran står redan i
-      listrubriken. Sidan sköt i stället ned kartan en halv skärm, vilket är
-      dyrt på den sida vars enda uppgift är att visa kartan.
+      listrubriken.
 
+      Sedan 2026-08-25 flyttar även rubriken in i kolumnen, av samma skäl en
+      gång till. Booli har ingenting ovanför sin delade vy: kartan börjar
+      direkt under sidhuvudet. Rubriken kan inte tas bort, den är sidans
+      SEO-svar, men den kan kosta listans höjd i stället för kartans.
       Beskrivningen finns kvar i sidans meta description, alltså där den
-      faktiskt läses av sökmotorer.
+      faktiskt läses.
     */}
-    {/* Brödsmulorna och rubriken delar rad för att spara höjd åt kartan:
-        på en app-yta är varje lodrät pixel ovanför kartan en pixel karta
-        som försvinner. */}
-    <h1>Karta över hygienkontroller i {city}</h1>
-
-    <Karta kommun={kommun} data={data} />
+    <Karta kommun={kommun} data={data}>
+      <Fragment slot="topp">
+        <nav class="crumbs" aria-label="Brödsmulor">
+          <a href="/">Prikko</a>
+          <span aria-hidden="true">›</span>
+          <a href={path(base)}>{city}</a>
+        </nav>
+        <h1>Karta över hygienkontroller i {city}</h1>
+      </Fragment>
+    </Karta>
   </div>
 </Base>
 
@@ -103,8 +104,23 @@ const jsonLd = {
     /* Sidhuvudets rad plus dess hårlinje. Raden är en token sedan
        2026-08-18, se --h-bar i tokens.css; talet stod förr som 59. */
     height: calc(100dvh - var(--h-bar) - 1px);
-    padding-block: var(--s-4) var(--s-4);
-    max-width: var(--w-full);
+    /*
+     * KANT I KANT. Booli, uppmätt 2026-08-25: deras kartomslag är
+     * `position: fixed` med `top: 64px; right: 0; bottom: 0`, alltså ligger
+     * kartan an mot fönstrets högerkant och underkant på varje bredd.
+     *
+     * Vår sida låg i `.container`, alltså 1400 px bred med 48 px gutter på båda
+     * sidor och centrerad. På en 1920-skärm betydde det 308 px tom yta till
+     * höger om kartan och 48 px till vänster om den, medan Boolis karta där är
+     * 1217 px bred. Det var den enskilt största skillnaden i hur stor kartan
+     * KÄNNS, och den kostade ingenting att ha.
+     *
+     * Kolumnernas egen luft flyttar därför in i listkolumnen, se .lista i
+     * Karta.astro. Kartan ska inte ha någon.
+     */
+  
+    max-width: none;
+    padding: 0;
   }
 
   .crumbs {

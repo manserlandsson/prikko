@@ -113,16 +113,25 @@
 
      Bredden är innehållets, med tak. `max-content` och inte ett satt tal, för
      texten kommer från anroparen och rutan ska sluta där meningen slutar.
-     Taket 380 ligger strax över Ednias 344, och skälet är att vår åtgärd
-     NAMNGER sitt mål: "Dina bevakningar" mäter 165 px mot deras "Visa
-     sparade" på 131. Uppmätt bredd med Följ-knappens egen text: 315. Över
-     taket bryter texten rad i stället för att huggas av. */
+     Taket ligger över Ednias 344, och skälet är att vår åtgärd NAMNGER sitt
+     mål: "Dina bevakningar" mäter 165 px mot deras "Visa sparade" på 131.
+
+     Taket höjdes från 380 till 460 när meningen fick bära verksamhetens namn,
+     se `.kvittensnamn`. Uppmätt på 1440 den 2026-08-25, med åtgärden på
+     166,1 px: vid 380 fick namnet 102,8 px, vid 460 får det 182,8. Alla
+     16 047 namn i registret mätta i sidans eget typsnitt: 36 procent rymdes
+     hela vid 380, 84 procent ryms vid 460. Medianen är 119,6 px, alltså strax
+     över det gamla taket och en bra bit under det nya. "Folkets Bar & Bistro"
+     mäter 124,6 och var kapat förr och helt nu. Rutan blir 460 × 48 mot
+     Ednias 344 × 63, alltså bredare och lägre.
+
+     Över taket kapas NAMNET med ellips, aldrig meningen. */
   .lager :global(.kvittensruta) {
     pointer-events: auto;
     display: flex;
     align-items: stretch;
     width: max-content;
-    max-width: min(380px, calc(100vw - 2 * var(--s-6)));
+    max-width: min(460px, calc(100vw - 2 * var(--s-6)));
     background: #FFFFFF;
     border-radius: var(--r-card);
     box-shadow: var(--shadow-pop);
@@ -161,15 +170,90 @@
       transform .14s cubic-bezier(.4, 0, 1, 1);
   }
 
+  /* `min-width: 0` är det som gör kapningen möjlig: en flexruta vägrar annars
+     krympa under sitt innehålls minsta mått, och då hade rutan brett ut sig
+     förbi sitt tak i stället för att korta namnet. */
   .lager :global(.kvittenstext) {
     display: flex;
     align-items: center;
     gap: var(--s-2);
+    min-width: 0;
     padding: 14px var(--s-3) 14px var(--s-4);
     font-size: var(--fs-body-s);
     line-height: 20px;
     color: var(--text);
     margin: 0;
+  }
+
+  /**
+   * Meningen: "Du följer" plus verksamhetens namn.
+   *
+   * Ägaren 2026-08-25: "det står du följer 'stället' när man klickar på följ,
+   * så den där notisen vi gjorde, det borde ju vara du följer
+   * 'restaurang-namnet'".
+   *
+   * Det är NAMNET som kapas när utrymmet tar slut, aldrig meningen. Kostnaden
+   * är mild på en sida där namnet står i rubriken en tumme längre upp: man
+   * ser att kvittensen gäller stället man just tittar på.
+   *
+   * På dator räcker en rad, se taket i `.kvittensruta`. På telefon räcker den
+   * inte, och där får namnet en egen rad innan det kapas, se mediefrågan vid
+   * `.kvittensnamn`. Rutan är alltså 48 px hög utom på telefon med ett långt
+   * namn, då 70,8.
+   *
+   * `nowrap` på hela meningen och inte bara på namnet: utan den kan den fasta
+   * delen bryta mellan "Du" och "följer" när den klämts ihop, och ordet
+   * "följer" är det som bär hela beskedet.
+   */
+  .lager :global(.kvittensmening) {
+    display: flex;
+    align-items: baseline;
+    /* Ett mellanslag brett, och inte ett steg ur avståndsskalan. Delarna är
+       två flexrutor med var sin kant, inte två ord på en rad, så mellanrummet
+       måste sättas, och det ska mäta exakt vad ett mellanslag mäter, annars
+       syns fogen. Uppmätt i Instrument Sans: 2,8 px vid 14 px text, alltså
+       0,2 em, som dessutom följer med om graden ändras. */
+    gap: .2em;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  /* Krymper aldrig. `flex: none` och inget annat är skillnaden mellan att
+     kapa slutet på ett krognamn och att kapa "Du föl…". */
+  .lager :global(.kvittensinledning) {
+    flex: none;
+  }
+
+  .lager :global(.kvittensnamn) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /**
+   * Telefonen: namnet tar egen rad när det inte får plats bredvid "Du följer".
+   *
+   * Rutan är full bredd här, 343 px vid 375, och åtgärden tar 166 av dem.
+   * Kvar till meningen blir 122,9 px, och "Du följer" äter 54,2 av dem. På en
+   * rad får namnet därför 65,8 px, och av registrets 16 047 namn ryms hela
+   * namnet i 10 procent av fallen. Tio procent är ingen kvittens, det är en
+   * gissningslek.
+   *
+   * Med en andra rad får namnet hela 122,9 px och andelen blir 53 procent,
+   * och de som ändå kapas visar ungefär tjugo tecken i stället för tio.
+   * Priset är att rutan blir 70,8 px hög i stället för 48, och det priset är
+   * lågt: rutan visar ETT ställe, nämligen det sidan handlar om, så två
+   * följningar av olika längd sker på var sin sida och den ena höjden hinner
+   * aldrig ses bredvid den andra.
+   *
+   * Ingen sådan rad på dator. Där är rutan innehållets bredd upp till 460 och
+   * namnet ryms i 84 procent av fallen, och en tvåradig ruta med två ord på
+   * första raden hade sett trasig ut för att vinna de sista sexton.
+   */
+  @media (max-width: 560px) {
+    .lager :global(.kvittensmening) {
+      flex-wrap: wrap;
+    }
   }
 
   /* Samma 18 px glyfmått som ikonen i Följ-knappen, se Handlingsrad. Fylld
@@ -189,6 +273,7 @@
      Kanten till vänster är en hårfin linje och inte ett mellanrum. Utan den
      läses raden som en enda mening som slutar med två ord i blått. */
   .lager :global(.kvittensvag) {
+    flex: none;
     display: flex;
     align-items: center;
     gap: var(--s-1);
@@ -248,7 +333,7 @@
       klocka = window.setTimeout(dolj, STANNAR);
     }
 
-    function visa({ text, href, lank }: Kvittens): void {
+    function visa({ text, namn, href, lank }: Kvittens): void {
       window.clearTimeout(stadning);
 
       /* EN ruta i taget: allt som står ersätts. `replaceChildren` med nytt
@@ -267,7 +352,26 @@
         '<path fill="currentColor" d="M10 3a4.5 4.5 0 0 0-4.5 4.5c0 3-1.2 4-1.7 4.6-.2.2 0 .6.3.6h11.8c.3 0 .5-.4.3-.6-.5-.6-1.7-1.6-1.7-4.6A4.5 4.5 0 0 0 10 3Z"></path>' +
         '<path d="M8.4 15.3a1.7 1.7 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>' +
         '</svg>';
-      rad.append(document.createTextNode(text));
+      /* Meningen i två delar när ett namn följer med: den fasta delen kan
+         inte krympa, namnet kapas med ellips. Utan namn är det en ren
+         textnod som förr. */
+      if (namn) {
+        const mening = document.createElement('span');
+        mening.className = 'kvittensmening';
+
+        const inledning = document.createElement('span');
+        inledning.className = 'kvittensinledning';
+        inledning.textContent = text;
+
+        const namnet = document.createElement('span');
+        namnet.className = 'kvittensnamn';
+        namnet.textContent = namn;
+
+        mening.append(inledning, namnet);
+        rad.append(mening);
+      } else {
+        rad.append(document.createTextNode(text));
+      }
       ruta.append(rad);
 
       if (href && lank) {

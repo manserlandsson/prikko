@@ -235,6 +235,23 @@ const LEGEND = [
     </button>
 
     <div class="arkinne" data-arkinne>
+    {/*
+      Sidans brödsmulor och H1 ligger HÄR, inuti listkolumnen, och inte ovanför
+      den delade vyn.
+
+      Booli, uppmätt 2026-08-25: kartan är fixerad med `top: 64px`, alltså
+      direkt under sidhuvudet, och går kant i kant åt höger och nedåt. Det
+      första i deras vänsterkolumn är flikraden. Ingen rubrik, inga
+      brödsmulor och ingen inledande text ligger ovanför vare sig kartan
+      eller listan.
+
+      Hos oss låg brödsmulorna och rubriken i sidans flöde ovanför splitten
+      och kostade varje kartsida drygt sjuttio lodräta pixlar karta. Kartan
+      är sidans funktion, och rubriken är dess SEO-svar; slotten låter båda
+      finnas utan att den ena betalar för den andra.
+    */}
+    <slot name="topp" />
+
     <header class="listhuvud">
       <h2 id="listrubrik" data-rubrik>
         {formatNumber(data.count)} verksamheter i {plats}
@@ -2671,11 +2688,46 @@ const LEGEND = [
 
   .split {
     display: grid;
-    /* Kartan får något mer än halva bredden. Listan är text och blir svårläst
-       bred; kartan blir bara bättre. */
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    gap: var(--s-8);
+    /*
+     * FAST listkolumn, kartan tar allt som blir över. Boolis form, uppmätt
+     * 2026-08-25.
+     *
+     * Deras `grid-template-columns` är `512px 1fr` från 1024 och `688px 1fr`
+     * från 1280, och listkolumnen växer aldrig därifrån. Uppmätt hos dem:
+     *
+     *     1280 -> karta  577 bred
+     *     1440 -> karta  737 bred
+     *     1920 -> karta 1217 bred, listan fortfarande 688
+     *
+     * Vi hade `minmax(0,1fr) minmax(0,1.15fr)`, alltså två kolumner som
+     * växte tillsammans. Det är skälet till att vår kartyta känns liten mot
+     * deras på en bred skärm: andelen är visserligen densamma, men en lista
+     * med brödtext blir inte bättre av att bli 800 px bred medan en karta
+     * blir det av varje pixel den får.
+     *
+     * 688 är dessutom rätt tal av ett andra skäl: huvudkolumnen på
+     * verksamhetssidan är 680, och ett textkort som är bredare än den läses
+     * inte längre som en rad utan som en yta.
+     */
+    --kartlista: 400px;
+    /* Listkolumnens indrag. Boolis tal är 24 rakt igenom, både på
+       modulblocken upptill och på varje rad. Sajtens vanliga
+       --container-luft är en clamp mellan 16 och 48 och hör hemma på
+       dokumentsidor med en centrerad textspalt; här är kolumnen fast bred
+       och luften ska vara det med. */
+    --kartgutter: var(--s-6);
+    grid-template-columns: var(--kartlista) minmax(0, 1fr);
     align-items: start;
+  }
+
+  /* Boolis två tal. Under 1120 är 688 mer än halva fönstret, och då är det
+     kartan som blir remsan i stället för listan. */
+  @media (min-width: 1120px) {
+    .split { --kartlista: 512px; }
+  }
+
+  @media (min-width: 1280px) {
+    .split { --kartlista: 688px; }
   }
 
   /* App-läget på stora skärmar: sidan (.page i karta.astro) är en fast yta
@@ -2689,34 +2741,120 @@ const LEGEND = [
       align-items: stretch;
     }
 
+    /*
+     * Listkolumnen äger sidans gutter, eftersom kartan inte ska ha någon.
+     *
+     * Bara upptill och på sidorna av rubrikdelen: raderna sätter sin egen
+     * innerkant, så att hårlinjen mellan dem går hela kolumnens bredd precis
+     * som hos Booli, och inte slutar i luften 24 px från kanten.
+     */
     .lista {
       min-height: 0;
       overflow-y: auto;
-      /* Luft mellan korten och rullisten, annars ligger den dikt an. */
-      padding-right: var(--s-2);
-      /* Skuggan på hovrade kort klipps annars av skrollytans kant. */
-      padding-block: var(--s-1);
+      padding-block: var(--s-4) 0;
     }
 
     .kartkolumn {
-      position: static;
+      position: relative;
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
 
+    /*
+     * Kant i kant, alltså varken radie eller kant mot fönstrets högerkant
+     * och underkant. Boolis karta är fixerad mot `right: 0; bottom: 0` och
+     * har ingen ram alls; en radie i det hörnet hade lämnat en liten vit
+     * triangel som läser som en bugg. Kanten mot listan står kvar, den
+     * skiljer två ytor och gör faktiskt ett jobb.
+     */
     .kartram {
       flex: 1;
       height: auto;
       min-height: 0;
+      border-width: 0 0 0 1px;
+      border-radius: 0;
     }
 
-    .under { flex: none; }
+    /*
+     * Teckenförklaringen ligger PÅ kartan, inte under den.
+     *
+     * Den stod förut som en rad i kolumnens flöde och tog 30 px, alltså slutade
+     * kartan 30 px ovanför fönstrets underkant. Boolis karta går ända ned, och
+     * "deras kartvy fortsätter även ut i kanten hela vägen" var ägarens ord.
+     * Trettio pixlar låter lite; de är den enda anledningen till att kanten
+     * inte är en kant.
+     *
+     * Nedre VÄNSTRA hörnet, för att attributionen sitter i det högra, se
+     * `addControl(..., 'bottom-right')` i skriptet. Att lägga dem i samma hörn
+     * hade tvingat fram en ihopfälld attributionsknapp, och attributionen är
+     * ett licensvillkor.
+     *
+     * Samma glasyta som MapLibres egna kontroller, se styles/kartram.css, så
+     * att den läser som en del av kartan och inte som en ruta ovanpå den.
+     */
+    .under {
+      position: absolute;
+      /* 16 px in från kartans kanter, samma tal som Booli håller för sina
+         egna kontroller. */
+      left: var(--s-4);
+      bottom: var(--s-4);
+      z-index: 2;
+      flex: none;
+      flex-direction: column;
+      align-items: stretch;
+      margin-top: 0;
+      /* Ett SMALT kort, inte en remsa.
+       *
+       * Uppmätt vid 1440 med posterna på rad: 688 x 62, alltså en slab som
+       * täckte kartans hela underkant och dessutom krockade med
+       * attributionen i det högra hörnet. Booli har samma innehåll som ett
+       * kort på 224 x 320 med en rad per tecken, och det är rätt form: en
+       * teckenförklaring läses uppifrån och ned, en post i taget, inte som
+       * en mening. */
+      width: 224px;
+      max-width: calc(100% - var(--s-16));
+      padding: var(--s-2) var(--s-3);
+      /* Chippets recept ordagrant ur styles/kartram.css, samma yta som
+         MapLibres egna knappar bär. Skriv ALDRIG -webkit-backdrop-filter för
+         hand: byggets optimerare slår ihop de två och behåller prefixet, som
+         Chrome inte känner igen, och kvar blir ett genomskinligt lager utan
+         oskärpa med kartan läsbar rakt igenom. Se varningen i tokens.css. */
+      --glass-fill: color-mix(in srgb, var(--card) 82%, transparent);
+      border: 1px solid var(--glass-edge);
+      border-radius: var(--r-control);
+      background: var(--glass-fill);
+      backdrop-filter: saturate(var(--glass-saturate)) blur(var(--glass-blur));
+      box-shadow: var(--glass-lift), inset 0 1px 0 var(--glass-sheen);
+    }
+
+    /* En post per rad, med talet högerställt så att siffrorna bildar en
+       kolumn man kan jämföra i stället för en rad man måste läsa. */
+    .teckenforklaring {
+      display: grid;
+      gap: var(--s-2);
+      width: 100%;
+    }
+
+    .teckenforklaring li > span:first-of-type { flex: 1; min-width: 0; }
+    .teckenforklaring .n { margin-left: auto; }
   }
 
   /* ── Listan ───────────────────────────────────────────────────────────── */
 
-  .listhuvud { margin-bottom: var(--s-4); }
+  /* Rubrikdelen följer radernas indrag, så att rubrik, filterfält och
+     kortens namn står på samma lodräta linje. */
+  .listhuvud {
+    margin-bottom: var(--s-4);
+    padding-inline: var(--kartgutter, var(--s-4));
+  }
+
+  /* Sidans brödsmulor och H1, inskickade via slot="topp". Samma linje. */
+  .lista :global([slot='topp']),
+  .arkinne > :global(nav),
+  .arkinne > :global(h1) {
+    padding-inline: var(--kartgutter, var(--s-4));
+  }
 
   .listhuvud h2 {
     font-size: var(--fs-h-s);
@@ -2825,14 +2963,22 @@ const LEGEND = [
    * Kommunraderna på rikskartan.
    *
    * De ligger i listspalten och inte på kartan, och de är en NAVIGERING och
-   * inte ett sökresultat: hårlinjer och luft, som Boolis listor, i stället för
-   * kortens ram. Skillnaden i form är avsiktlig, eftersom raderna leder till
-   * en annan sida medan korten leder till en verksamhet.
+   * inte ett sökresultat.
+   *
+   * Här stod att skillnaden i form var avsiktlig: de här raderna hade
+   * hårlinjer och luft medan korten hade ram. Sedan 2026-08-25 har korten
+   * också hårlinjer, och skillnaden finns alltså inte längre. Det är rätt
+   * utfall och inte en förlust: de två listorna visas ALDRIG samtidigt.
+   * Kommunraderna göms i samma sekund som kartan ger ett enda kort, se
+   * `kommuner.hidden` i skriptet, så det finns ingen yta där en läsare kan
+   * förväxla dem. Vad de däremot delar är kolumnen, och två former i samma
+   * kolumn var alltid det verkliga priset.
    */
   .kommuner[hidden] { display: none; }
 
   .kommuner-inledning {
     margin: 0 0 var(--s-2);
+    padding-inline: var(--kartgutter, var(--s-4));
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
   }
@@ -2841,6 +2987,7 @@ const LEGEND = [
     list-style: none;
     margin: 0;
     padding: 0;
+    border-block: 1px solid var(--hairline);
   }
 
   .kommuner li + li { border-top: 1px solid var(--hairline); }
@@ -2850,7 +2997,7 @@ const LEGEND = [
     align-items: baseline;
     justify-content: space-between;
     gap: var(--s-3);
-    padding: var(--s-3) var(--s-1);
+    padding: var(--s-3) var(--kartgutter, var(--s-4));
     text-decoration: none;
     color: inherit;
   }
@@ -2863,13 +3010,36 @@ const LEGEND = [
     line-height: var(--lh-caption);
   }
 
+  /*
+   * EN spalt med ramlösa rader, skilda av en hårlinje. Boolis lista, uppmätt
+   * 2026-08-25.
+   *
+   * Ägaren pekade hit: "rullen på vänster är sjukt mer clean, dom har också
+   * bara ett kort per restaurang". Det är två iakttagelser och båda är sanna.
+   *
+   * Formen hos dem: `<ul class="divide-y border-y">`, varje rad 688 bred med
+   * 24 px innerkant och EN hårlinje under sig. Ingen ram, ingen radie, ingen
+   * skugga, ingen kortbakgrund. Hela deras hovringseffekt är en enda regel i
+   * stilmallen, `.object-card-link:hover .object-card__heading { text-
+   * decoration-line: underline }`.
+   *
+   * Här stod tidigare två kolumner med inramade kort, med Airbnb som förlaga.
+   * Det var rätt läst men fel tillämpat: Airbnbs kort BÄR ETT FOTO, och det
+   * är fotot som gör bricka till kort. Våra kort är tre rader text, och en
+   * ram runt tre rader text ger trettio lådor som konkurrerar med varandra i
+   * en spalt där ingenting är viktigare än något annat. Booli har inte heller
+   * foto i sin högerkolumn, och löser det på det enda sätt som håller: raden
+   * ÄR kortet, och hårlinjen gör avgränsningens jobb.
+   *
+   * En spalt på alla bredder, alltså inga brytpunkter längre. De två som stod
+   * här (901 till 1120, och under 560) fanns bara för att tvinga tillbaka
+   * tvåkolumnsgriden till en, och de behövs inte när utgångsläget är en.
+   */
   .rader {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--s-3);
     list-style: none;
     margin: 0;
     padding: 0;
+    border-block: 1px solid var(--hairline);
   }
 
   /* Maskoten i det tomma utsnittet. Han står där korten skulle ha stått,
@@ -2882,22 +3052,11 @@ const LEGEND = [
   .tomvy {
     display: flex;
     justify-content: center;
+    padding-inline: var(--kartgutter, var(--s-4));
     padding-block: var(--s-8) var(--s-4);
   }
 
   .tomvy[hidden] { display: none; }
-
-  /* En kolumn när ytan blir för smal för två läsbara textkort. Två spann:
-     mellanläget där listspalten delar bredd med kartan, och små mobiler där
-     listan visserligen är fullbredd men 170 px per kort klipper vartannat
-     namn. */
-  @media (min-width: 901px) and (max-width: 1120px) {
-    .rader { grid-template-columns: minmax(0, 1fr); }
-  }
-
-  @media (max-width: 560px) {
-    .rader { grid-template-columns: minmax(0, 1fr); }
-  }
 
   /*
    * Kortgrid i två kolumner, som Airbnbs resultatlista.
@@ -2912,30 +3071,31 @@ const LEGEND = [
    * korten vid varje panorering och element ur createElement bär inget
    * Astro-scope.
    */
+  /* Hårlinjen bor på raden och inte på kortet, så att listan blir en rulle
+     och inte en hög. Den sista raden får ingen, eftersom .rader redan bär en
+     kant nedtill: två linjer på samma plats blir en tjock. */
   .rader :global(li) {
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: var(--card);
     min-width: 0;
+    border-bottom: 1px solid var(--hairline);
   }
+
+  .rader :global(li:last-child) { border-bottom: 0; }
 
   .rader :global(a) {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    height: 100%;
-    padding: var(--s-3) var(--s-4);
-    border-radius: inherit;
+    /* 24 px in från kanten, Boolis tal. Raden äger hela luften själv,
+       eftersom listkolumnen numera börjar vid fönstrets vänsterkant. */
+    padding: var(--s-3) var(--kartgutter);
     color: var(--text);
   }
 
-  .rader :global(a:hover) {
-    text-decoration: none;
-    border-color: transparent;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .rader :global(a:hover b) { color: var(--brand-ink); }
+  /* Boolis hovring, ordagrant: rubriken stryks under och ingenting annat
+     händer. Skuggan som låg här lyfte raden ur spalten, vilket var vad ramen
+     bad om men inte vad en rulle vill ha. */
+  .rader :global(a:hover) { text-decoration: none; }
+  .rader :global(a:hover b) { text-decoration: underline; }
 
   .rader :global(.k-topp) {
     display: flex;
@@ -2969,15 +3129,26 @@ const LEGEND = [
     color: var(--text-secondary);
   }
 
-  /* Nålen som hör till kortet man hovrar lyfts på kartan, och tvärtom. Det är
-     det som binder ihop de två halvorna, samma grepp som hos Airbnb. */
+  /*
+   * Nålen som hör till raden man hovrar lyfts på kartan, och tvärtom.
+   *
+   * Det här är det Booli INTE har, och det mättes: hovring på deras listrad
+   * ändrar ingenting på kartan, och ett klick på en nål ger varken vald rad
+   * eller skroll i listan. Kopplingen är alltså vår, inte deras, och den
+   * överlever att listan blir ramlös.
+   *
+   * Markeringen är en fyllning plus ett streck i vänsterkanten, inte en ram:
+   * raden har ingen ram att färga längre, och en ram som dyker upp vid
+   * hovring hade knuffat texten en pixel.
+   */
   .rader :global(li.aktiv) {
-    border-color: var(--brand);
-    box-shadow: 0 0 0 1px var(--brand);
+    background: var(--surface-hover, color-mix(in srgb, var(--brand) 6%, transparent));
+    box-shadow: inset 3px 0 0 var(--brand);
   }
 
   .listfot {
     margin-top: var(--s-4);
+    padding-inline: var(--kartgutter, var(--s-4));
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
   }
