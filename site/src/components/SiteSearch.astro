@@ -569,12 +569,28 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     border-radius: 4px;
   }
 
-  /* Listan. Samma svävande lager som förslagspanelen, se .panel nedan. */
+  /* Listan. Samma svävande lager som förslagspanelen, se .panel nedan.
+
+     51 OCH INTE 50, alltså ett steg över panelen.
+     ────────────────────────────────────────────────────────────────────────
+     De två stod båda på 50, i samma stapelsammanhang och med samma
+     `top: calc(100% + var(--s-2))`. Vid lika z-index avgör DOM-ordningen, och
+     panelen är författad EFTER listan i markupen ovan. Panelen målades alltså
+     över listan, och eftersom den är 600 px bred mot listans 220 täckte den
+     hela ytan. Uppmätt 2026-08-25: panelen x 221..821, listan x 601..821, och
+     elementFromPoint mitt i listan svarade med en rad i panelen.
+
+     Att panelen vann berodde bara på var i filen markupen råkade stå, och det
+     är ingen grund för en målningsordning. Skriptet ser numera till att bara
+     en av dem är öppen åt gången, se de två skripten nedan, så överlappet ska
+     inte längre kunna uppstå. Talet står ändå kvar utskrivet: blir de någon
+     gång synliga samtidigt är det listan som ska vinna, eftersom den öppnas av
+     ett uttryckligt klick och alltså bär den färskare avsikten. */
   .var-lista {
     position: absolute;
     top: calc(100% + var(--s-2));
     right: 0;
-    z-index: 50;
+    z-index: 51;
     width: 220px;
     max-height: 320px;
     overflow-y: auto;
@@ -1167,6 +1183,43 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     /** Luft mellan panelens underkant och skärmkanten. */
     const PANEL_GAP = 16;
 
+    /* ── Budet mellan fältets två utfällbara ytor ──────────────────────────
+       EXAKT EN AV DEM FÅR VARA UTFÄLLD ÅT GÅNGEN.
+
+       Ägaren 2026-08-25: "om jag skriver in något i textfältet och sedan
+       klickar på var, så gömmer den sig bakom sök liksom.... riktigt dåligt."
+
+       Han hade två fel framför sig och beskrev det ena. Det synliga var att
+       kommunlistan hamnade under panelen, se z-index-räkningen vid .var-lista.
+       Det andra, och det som gjorde det första möjligt, var att båda stod
+       öppna: panelen öppnas av inmatning, listan av Var-knappen, och ingen av
+       dem visste om den andra. Klicket på Var gick dessutom genom bägge
+       spärrarna som annars stänger panelen, eftersom knappen ligger INUTI
+       fältet: focusout såg en relatedTarget innanför roten, och
+       document-klicket kräver ett klick utanför den.
+
+       Airbnbs trepartsfält, som är förlagan för vårt tvådelade, har alltid
+       precis en utfälld del. Skälet är inte plats utan mening: fältet ställer
+       en fråga i taget, och två öppna listor ur samma piller går inte att
+       läsa som ett formulär. Att bara lyfta listan över panelen hade lämnat
+       kvar två svar på skärmen samtidigt, alltså rättat symtomet.
+
+       Ytorna öppnas av två SKILDA skript, av samma skäl som de är två ytor:
+       panelen bär en listbox med pilnavigering och listan är tolv rader som
+       stänger vid val. De talar därför genom två händelser på fältets rot i
+       stället för att slås ihop. Ingen av dem fyras av stängning, så budet
+       kan inte studsa fram och tillbaka.
+
+       Namnen står skrivna en gång till i Var-skriptet längst ned i filen. Två
+       moduler delar inga variabler, och att flytta två strängar till en egen
+       fil för deras skull vore dyrare än att skriva dem två gånger på samma
+       ställe. */
+    const PANEL_OPPNAD = 'prikko:panel-oppnad';
+    const VAR_OPPNAD = 'prikko:var-oppnad';
+
+    // Fälls Var-listan ut, stäng panelen. Motsatta hållet ligger i open().
+    root.addEventListener(VAR_OPPNAD, () => close());
+
     // Rollerna sätts av skriptet. Utan skript finns ingen combobox, och då
     // ska en skärmläsare heller inte få höra att det finns en.
     input.setAttribute('role', 'combobox');
@@ -1244,6 +1297,10 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       // Två svävande lager i samma sidhuvud får aldrig stå öppna samtidigt.
       const picker = document.querySelector<HTMLDetailsElement>('[data-picker]');
       if (picker) picker.open = false;
+
+      // Samma regel gäller Var-listan, och där är den ännu hårdare: den fälls
+      // ut ur SAMMA fält. Se PANEL_OPPNAD nedan.
+      root!.dispatchEvent(new CustomEvent(PANEL_OPPNAD));
     }
 
     function close() {
@@ -1780,15 +1837,33 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
   if (rot && del && knapp && varde && falt && lista && form) {
     del.hidden = false;
 
+    /* Budet mellan fältets två utfällbara ytor. Hela motiveringen står vid
+       PANEL_OPPNAD i skriptet ovanför; kort: exakt en av dem får vara
+       utfälld, och de två ytorna öppnas av två skilda skript som talar genom
+       de här händelserna på fältets rot. Strängarna måste stämma överens med
+       dem däruppe. */
+    const PANEL_OPPNAD = 'prikko:panel-oppnad';
+    const VAR_OPPNAD = 'prikko:var-oppnad';
+
     const stang = () => {
       lista.hidden = true;
       knapp.setAttribute('aria-expanded', 'false');
     };
 
+    // Fälls förslagspanelen ut, stäng listan. Det här hållet fungerade förut
+    // av en slump: panelen öppnas av att man klickar i textfältet, och
+    // document-klicket längre ned stänger listan vid varje klick utanför
+    // Var-delen. Nu står det skrivet, så det håller även när panelen öppnas
+    // utan klick — av cmd+K, av piltangent eller av platsbeskedet.
+    rot.addEventListener(PANEL_OPPNAD, stang);
+
     knapp.addEventListener('click', () => {
       const oppen = !lista.hidden;
       lista.hidden = oppen;
       knapp.setAttribute('aria-expanded', String(!oppen));
+      // Öppnar vi, stäng panelen. Klicket på knappen når varken focusout-
+      // spärren eller document-klicket, eftersom knappen ligger inuti fältet.
+      if (!oppen) rot.dispatchEvent(new CustomEvent(VAR_OPPNAD));
     });
 
     for (const rad of lista.querySelectorAll<HTMLButtonElement>('[data-var-val]')) {

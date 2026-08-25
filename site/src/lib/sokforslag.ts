@@ -526,6 +526,8 @@ export interface SearchIndex {
    *  vikningen ändrar längden, och gränsen mellan namn och adress är det som
    *  skiljer en namnträff från en adressträff i rankningen. */
   nameEnd: Int32Array;
+  /** Områdena: [kommunindex, slug, namn, antal]. Se search-index.ts. */
+  omraden: [number, string, string, number][];
   /** [slug, ort] och en etta på de kommuner som har en kartsida. Se
    *  lib/search-index.ts för varför den tredje platsen finns. */
   kommuner: Array<[string, string] | [string, string, number]>;
@@ -536,9 +538,11 @@ const index: SearchIndex = {
   hay: [],
   nameEnd: new Int32Array(0),
   kommuner: [],
+  omraden: [],
 };
 /** Kommunernas orter som söknycklar, vikta en gång i stället för per fråga. */
 let kommunKey: string[] = [];
+let omradeKey: string[] = [];
 let loading: Promise<void> | null = null;
 let failed = false;
 
@@ -574,7 +578,11 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
     .then((data) => {
       index.kommuner = data.k;
       index.rows = data.e;
+      index.omraden = data.o ?? [];
       kommunKey = index.kommuner.map(([, city]) => foldKey(city));
+      /* Vikta en gång, som kommunerna. 148 rader, alltså inget att optimera,
+         men samma mönster gör att en läsare slipper undra varför de skiljer. */
+      omradeKey = index.omraden.map(([, , namn]) => foldKey(namn));
 
       /*
        * Söksträngarna byggs i ETT svep per rad, inte tre.
@@ -635,6 +643,10 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
  */
 export interface Groups {
   kommunPrefix: Suggestion[];
+  /** Områdena, se search-index.ts. Rankas direkt efter kommunerna: den som
+   *  skriver "Östermalm" vill till stadsdelen och inte till en verksamhet som
+   *  råkar ha ordet i sin adress. */
+  omradePrefix: Suggestion[];
   namePrefix: Suggestion[];
   nameWord: Suggestion[];
   kommunLoose: Suggestion[];
@@ -759,6 +771,33 @@ function gather(q: string, keep: number, term: string): Groups {
   kommunPrefix.sort(byLength);
   kommunLoose.sort(byLength);
 
+  /*
+   * OMRÅDENA. Ägaren 2026-08-25: "varför kan jag ej söka på områden som t.ex.
+   * Östermalm eller Kungsholmen i sök?"
+   *
+   * Bara prefixträffar, till skillnad från kommunerna som också tas på en
+   * träff mitt i ordet. Skälet är att områdesnamn är korta och ofta ingår i
+   * varandra: "Gamla stan" mot "stan", "Norra Ängby" mot "Ängby". En lös
+   * träff hade fyllt panelen med stadsdelar som bara delar en stavelse med
+   * frågan.
+   *
+   * Metaraden bär kommunen OCH antalet, eftersom två kommuner kan ha ett
+   * Centrum och den som söker måste se vilket som är vilket.
+   */
+  const omradePrefix: Suggestion[] = [];
+  for (let i = 0; i < index.omraden.length; i++) {
+    if (!omradeKey[i].startsWith(q)) continue;
+    const [k, slug, namn, antal] = index.omraden[i];
+    const [kommunSlug, city] = kommuner[k];
+    omradePrefix.push({
+      label: namn,
+      meta: `Område i ${city} · ${antal} verksamheter`,
+      href: `/${kommunSlug}/omrade/${slug}/`,
+      kind: 'kommun',
+    });
+  }
+  omradePrefix.sort(byLength);
+
   for (let i = 0; i < rows.length; i++) {
     const h = hay[i];
     const at = h.indexOf(q);
@@ -784,6 +823,7 @@ function gather(q: string, keep: number, term: string): Groups {
 
   return {
     kommunPrefix,
+    omradePrefix,
     namePrefix,
     nameWord,
     kommunLoose,
@@ -809,6 +849,7 @@ export function collect(q: string, keep: number): Groups {
   if (!key) {
     return {
       kommunPrefix: [],
+      omradePrefix: [],
       namePrefix: [],
       nameWord: [],
       kommunLoose: [],
@@ -1210,7 +1251,17 @@ function repair(key: string): { key: string; didYouMean: string | null } | null 
 
 /** Klasserna hopslagna i rankningsordning. */
 export function ranked(g: Groups): Suggestion[] {
-  return [...g.kommunPrefix, ...g.namePrefix, ...g.nameWord, ...g.kommunLoose, ...g.loose];
+  /* Områdena direkt efter kommunerna och FÖRE verksamheterna. Den som skriver
+     "Östermalm" vill till stadsdelen, inte till en pizzeria som råkar ha ordet
+     i sin adress. */
+  return [
+    ...g.kommunPrefix,
+    ...g.omradePrefix,
+    ...g.namePrefix,
+    ...g.nameWord,
+    ...g.kommunLoose,
+    ...g.loose,
+  ];
 }
 
 /**

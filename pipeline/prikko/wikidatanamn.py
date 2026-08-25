@@ -552,6 +552,17 @@ def _ask(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
     return []
 
 
+def fraga(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
+    """Publikt namn på `_ask`, för moduler som frågar WDQS om annat än bilder.
+
+    `michelin.py` ställer sina egna frågor men ska ha samma väntan, samma
+    User-Agent och samma bakåtväxande paus som den här modulen. WDQS drivs av
+    en stiftelse vi lever på att få fråga, och två moduler som är olika artiga
+    mot den är en modul för mycket.
+    """
+    return _ask(sparql, timeout=timeout, tries=tries)
+
+
 def _qid(value: str) -> str:
     return value.rsplit("/", 1)[-1]
 

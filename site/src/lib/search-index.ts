@@ -24,6 +24,7 @@
  */
 import { createHash } from 'node:crypto';
 import { establishments, municipalities } from './data';
+import { linkedAreas } from './omraden';
 import { utsnitt } from './kartrutor';
 
 /** Ordningen speglar VERDICTS. -1 = ingen bedömning. */
@@ -71,6 +72,30 @@ function build(): string {
      */
     k: kommuner.map((m) =>
       utsnitt(m.slug) ? [m.slug, m.city, 1] : [m.slug, m.city],
+    ),
+    /*
+     * OMRÅDENA, alltså Östermalm, Kungsholmen och de 146 andra.
+     * ────────────────────────────────────────────────────────────────────
+     * Ägaren 2026-08-25: "varför kan jag ej söka på områden som t.ex.
+     * Östermalm eller Kungsholmen i sök?"
+     *
+     * Därför att de aldrig låg i registret. Det bar kommuner och verksamheter
+     * och ingenting annat, så en sökning på Östermalm kunde bara ge träff om
+     * ordet råkade stå i en ADRESS. Områdessidorna fanns hela tiden, 148 av
+     * dem, men bara nåbara genom kommunsidans rullrad.
+     *
+     * Bara `linkedAreas`, alltså de som har en egen sida. Ett område med tre
+     * verksamheter har ingen sida att peka på, och ett sökförslag som leder
+     * till en 404 är sämre än inget förslag.
+     *
+     * Formen är [kommunindex, slug, namn, antal]. Kommunen som index och inte
+     * som sträng, av samma skäl som verksamhetsraderna: registret ligger på
+     * varje sidvisning och tolv slugar upprepade 148 gånger är ren vikt.
+     * Antalet följer med så att panelen kan skriva "Östermalm, 412
+     * verksamheter" utan ett andra anrop.
+     */
+    o: kommuner.flatMap((m, i) =>
+      linkedAreas(m.slug).map((a) => [i, a.area.slug, a.area.name, a.count]),
     ),
     v: VERDICTS,
     e: rows,

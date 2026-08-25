@@ -153,13 +153,50 @@ const kronologi = [...rader]
  * följer av att Stockholm är 8 520 av 16 047 verksamheter och publicerar
  * oftast. Ingen kommun kan hamna över eller under en annan av ett tak.
  */
+/**
+ * Plockar `antal` rader med ett tak per kommun, och FYLLER PÅ när taket
+ * svälter listan.
+ *
+ * Påfyllningen kom till 2026-08-25. Ägaren räknade korten i en kategoriflik
+ * och trodde att registret var nästan tomt: "tydligen har vi bara 66
+ * kategoriserade verksamheter, det är katastrofalt."
+ *
+ * Registret är inte tomt. Uppmätt samma dag: 4 824 av 16 047 bär en
+ * matkategori, alltså 30 procent av alla och 48 procent av de konsumentvända.
+ * Sushi ensamt har 172. Det han såg var elva.
+ *
+ * Felet satt här. Taket på två per kommun finns för hemgruppen, där det ska
+ * hindra att raden blir enfärgat Stockholm, men det tillämpades också på
+ * kategoriflikarna. Där betyder det att Sushi aldrig kan visa mer än 24
+ * oavsett hur många som finns, och i praktiken elva, eftersom bara sex
+ * kommuner har någon sushi alls.
+ *
+ * Nu görs två svep. Det första håller taket, så att spridningen mellan
+ * kommuner blir densamma som förut och de bästa raderna ur varje kommun
+ * kommer först. Det andra fyller på ur samma lista utan tak, men bara om
+ * antalet inte nåtts. En kategori med bredd påverkas alltså inte alls, och en
+ * smal kategori får fylla sin rad med det som finns.
+ *
+ * Ordningen i listan är redan den rätta när den kommer hit, se
+ * `kategoriurval`: foto först, sedan datum. Påfyllningen tar därför nästa
+ * bästa och inte en slumpmässig rad.
+ */
 function plocka(lista: Rad[], antal: number, takPerKommun: number): Rad[] {
   const rakning = new Map<string, number>();
   const ut: Rad[] = [];
+  const valda = new Set<Establishment>();
+
   for (const rad of lista) {
     const n = rakning.get(rad.e.municipality.slug) ?? 0;
     if (n >= takPerKommun) continue;
     rakning.set(rad.e.municipality.slug, n + 1);
+    ut.push(rad);
+    valda.add(rad.e);
+    if (ut.length === antal) return ut;
+  }
+
+  for (const rad of lista) {
+    if (valda.has(rad.e)) continue;
     ut.push(rad);
     if (ut.length === antal) break;
   }

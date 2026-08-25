@@ -217,7 +217,7 @@ export interface Establishment {
    * Michelinstjärna ur Wikidata, satt bara när pipelinens fem grindar godkänt
    * hopparningen OCH en människa godkänt den i granskningsarket.
    *
-   * Står på sju rader av 16 047, samtliga i Stockholm. Fältet är valfritt och
+   * Står på tio rader av 16 047, samtliga i Stockholm. Fältet är valfritt och
    * ska förbli valfritt.
    *
    * FÄLTET SÄGER INGENTING OM HYGIENEN och får aldrig räknas in i `verdict`,

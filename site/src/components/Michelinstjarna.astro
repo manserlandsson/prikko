@@ -2,8 +2,9 @@
 /**
  * Michelinstjärna på verksamhetens egen sida.
  *
- * Ritas på sju av 16 047 sidor, samtliga i Stockholm: Celeste, Dashi, Ekstedt,
- * Etoile, Mathias Dahlgren, Operakällaren och Sushi Sho. Urvalet görs i
+ * Ritas på tio av 16 047 sidor, samtliga i Stockholm: Adam Albin, Aira
+ * Biskopsudden, Celeste, Dashi, Ekstedt, Etoile, Mathias Dahlgren,
+ * Operakällaren, Restaurant Frantzén och Sushi Sho. Urvalet görs i
  * pipeline/prikko/michelin.py och godkänns av en människa i
  * pipeline/michelin.py. Mallen läser bara `e.michelin` och räknar ingenting om.
  *
@@ -129,9 +130,11 @@ const kalla = m ? `https://www.wikidata.org/wiki/${m.qid}` : null;
       livsmedelskontroll, och de två säger ingenting om varandra.
     </p>
 
+    {/* Kommatecknet står på SAMMA rad som länken. Bryts raden efter `</a>`
+        gör Astro radbrytet till ett mellanslag, och utfallet blir "Uppgift ur
+        Wikidata , läst den 25 augusti 2026". */}
     <p class="kalla caption text-muted">
-      <a href={kalla} target="_blank" rel="noopener noreferrer">Uppgift ur Wikidata</a>
-      {m.checkedAt && <>, läst den {formatDate(m.checkedAt)}</>}
+      <a href={kalla} target="_blank" rel="noopener noreferrer">Uppgift ur Wikidata</a>{m.checkedAt ? `, läst den ${formatDate(m.checkedAt)}` : ''}
     </p>
   </section>
 )}

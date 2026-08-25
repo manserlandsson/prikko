@@ -36,6 +36,8 @@ På raderna, se `FILFALT`:
     contact                     telefon och webbplats, samma uttag
     stop, parking               närmaste hållplats och parkering,
                                 pipeline/narhet.py
+    michelin                    gällande Michelinstjärna ur Wikidata,
+                                pipeline/michelin.py
 
 På filens toppnivå, se `FILBLOCK`, ett licensblock per källa:
 
@@ -229,7 +231,12 @@ FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 #:
 #: Uppmätt 2026-08-20: stop 12 870, parking 10 606, contact 3 274, hours
 #: 2 747. Inget av dem har en motpart i Supabase.
-FILFALT = ("hours", "contact", "stop", "parking")
+#:
+#: `michelin` tillkom 2026-08-25 och står på tio rader, samtliga i Stockholm.
+#: Tio rader är just den storlek som gör felet osynligt: en export som tappar
+#: dem ser lika grön ut som en som behåller dem, och ingen sida går sönder.
+#: Se pipeline/michelin.py för varför uppgiften inte har någon kolumn.
+FILFALT = ("hours", "contact", "stop", "parking", "michelin")
 
 
 def filblock(path: Path) -> dict:
