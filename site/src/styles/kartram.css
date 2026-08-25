@@ -153,6 +153,26 @@
   padding: 0;
 }
 
+/*
+ * Undantaget: NEDRE HÖGRA hörnet bär knappar och får samma luft som de övre.
+ *
+ * Regeln ovan sattes för upphovsraden, som ska ligga i hörnet, och ägaren
+ * fällde en gång ett försök att flytta in den: "copyrighten har skickats in
+ * mkt pga att du ändra på knapparna". Den gäller fortfarande, men bara för
+ * det VÄNSTRA nedre hörnet, som sedan 2026-08-25 är upphovsradens ensamma.
+ *
+ * Zoomen flyttade samtidigt ned till höger, och utan luft låg den dikt an mot
+ * fönstrets kant: uppmätt noll pixlar mot både höger- och underkanten.
+ * Ägaren: "plus och minus och openstreet map attributen ser skum ut."
+ *
+ * Luften ligger på HÖRNET och inte på gruppen. Ett försök på gruppen föll,
+ * eftersom `.maplibregl-ctrl { margin: 0 }` längre ned i filen väger lika
+ * mycket och står senare.
+ */
+.kartram .maplibregl-ctrl-bottom-right {
+  padding: var(--s-3);
+}
+
 .kartram .maplibregl-ctrl-top-right,
 .kartram .maplibregl-ctrl-bottom-right { align-items: flex-end; }
 

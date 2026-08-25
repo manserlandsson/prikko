@@ -151,6 +151,14 @@ export const KART_SPRAK: Record<string, string> = {
   'AttributionControl.ToggleAttribution': 'Visa eller dölj upphov',
   'FullscreenControl.Enter': 'Helskärm',
   'FullscreenControl.Exit': 'Lämna helskärm',
+
+  /* Platsknappen på kartan. Nycklarna är MapLibres egna; utan dem står
+     "Find my location" på en i övrigt svensk yta. "Visa var jag är" och inte
+     "Lokalisera mig": det senare är vad funktionen HETER och det förra är vad
+     den gör. */
+  'GeolocateControl.FindMyLocation': 'Visa var jag är',
+  'GeolocateControl.LocationNotAvailable': 'Platsen går inte att hämta',
+  'GeolocateControl.Title': 'Visa var jag är',
   'Map.Title': 'Karta',
   'Marker.Title': 'Kartnål',
   'NavigationControl.ZoomIn': 'Zooma in',
