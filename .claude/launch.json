@@ -53,6 +53,31 @@
         "4322"
       ],
       "port": 4322
+    },
+    {
+      "name": "prikko-konto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "site",
+        "--",
+        "--port",
+        "4331"
+      ],
+      "port": 4331
+    },
+    {
+      "name": "prikko-konto-byggd",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "site/dist-konto",
+        "-l",
+        "4332"
+      ],
+      "port": 4332
     }
   ]
 }

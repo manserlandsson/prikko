@@ -49,19 +49,21 @@ const jsonLd = {
 <Base title={title} description={description} jsonLd={jsonLd} footer={false}>
   <div class="page">
     {/*
-      Brödsmulorna och rubriken ligger i listkolumnen, inte ovanför kartan.
+      SIDAN SKICKAR INGEN RUBRIK. Karta.astro äger H1.
 
-      Booli har ingenting alls ovanför sin delade vy: kartan börjar direkt
-      under sidhuvudet och det första i vänsterkolumnen är flikraden. Vi kan
-      inte ta bort rubriken, den är sidans SEO-svar på "karta över
-      hygienkontroller i Sverige", men vi kan låta den kosta listans höjd i
-      stället för kartans. Slotten finns i Karta.astro.
+      Den stod här som `<Fragment slot="topp">` med "Karta över
+      hygienkontroller i Sverige" i 21 px, alltså överst i listkolumnen. Booli
+      har ingen rubrik där: deras H1 står nere vid träffarna i brödtextstorlek
+      och bär platsen plus talen, uppmätt 2026-08-25 till 14 px i vikt 400 på
+      y 263. Vår gör nu samma sak och byggs av Karta.astro, som är den enda
+      som vet talet och som skriver om det vid varje panorering.
+
+      SEO-svaret är alltså inte borta, det har flyttat. Rubriken lyder
+      fortfarande "Karta över hygienkontroller i Sverige" och står i
+      dokumentet på alla bredder, till skillnad från förut då den klipptes
+      bort helt på telefon.
     */}
-    <Karta data={data}>
-      <Fragment slot="topp">
-        <h1>Karta över hygienkontroller i Sverige</h1>
-      </Fragment>
-    </Karta>
+    <Karta data={data} />
   </div>
 </Base>
 
@@ -106,16 +108,16 @@ const jsonLd = {
    * BreadcrumbList i sidans strukturerade data står kvar. Den är för
    * sökmotorn och ritas aldrig, och kedjan Prikko till kommunen till kartan
    * är sann vare sig raden syns eller inte.
+   *
+   * H1-REGELN SOM STOD HÄR ÄR OCKSÅ BORTA. Rubriken bodde i den här sidan och
+   * fick sin storlek här; nu bor den i kontrollbandet i Karta.astro och får
+   * sin storlek där. Den gömdes dessutom med clip-path under 900 px, alltså
+   * hade telefonen en H1 som ingen kunde se. Den finns nu i arket i stället,
+   * i samma brödtextstorlek som på dator.
    */
-  h1 {
-    margin-block: var(--s-1) var(--s-4);
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-  }
 
   /* Under 900 px tar arket över, se arkavsnittet i Karta.astro. Sidan bakom
-     ska då inte skrolla alls, och rubriken står kvar i dokumentet men ute ur
-     vyn: den är sidans H1 och får inte tas bort. */
+     ska då inte skrolla alls. */
   @media (max-width: 900px) {
     .page {
       height: auto;
@@ -127,15 +129,6 @@ const jsonLd = {
       height: 100dvh;
       padding: 0;
       overflow: hidden;
-    }
-
-    .page:has(.split.ark) h1 {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
     }
   }
 </style>

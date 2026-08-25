@@ -71,12 +71,16 @@ const jsonLd = {
       SEO-svar, men den kan kosta listans höjd i stället för kartans.
       Beskrivningen finns kvar i sidans meta description, alltså där den
       faktiskt läses.
+
+      SIDAN SKICKAR NUMERA INGEN RUBRIK ALLS. Den låg här som
+      `<Fragment slot="topp">` och hamnade överst i listkolumnen i 21 px. Ny
+      mätning på booli.se samma dag: deras H1 står NERE vid träffarna, i 14 px
+      vikt 400, och bär platsen med talen bredvid sig. Karta.astro bygger
+      därför H1 själv i kontrollbandet, eftersom den är den enda som vet talet
+      och skriver om det vid varje panorering. Rubriken lyder fortfarande
+      "Karta över hygienkontroller i {city}".
     */}
-    <Karta kommun={kommun} data={data}>
-      <Fragment slot="topp">
-        <h1>Karta över hygienkontroller i {city}</h1>
-      </Fragment>
-    </Karta>
+    <Karta kommun={kommun} data={data} />
   </div>
 </Base>
 
@@ -130,22 +134,25 @@ const jsonLd = {
    * sökmotorn och ritas aldrig, och kedjan Prikko till kommunen till kartan
    * är sann vare sig raden syns eller inte.
    */
-  h1 {
-    margin-block: var(--s-1) var(--s-4);
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-  }
+  /*
+   * H1-REGLERNA SOM STOD HÄR ÄR BORTA, och det är hela poängen med flytten.
+   *
+   * Rubriken bodde i den här sidan, fick 21 px här, och gömdes med clip-path
+   * under 900 px. Det sista var ett tecken på att den låg fel: en rubrik som
+   * måste klippas bort för att den är i vägen är en rubrik på fel plats.
+   *
+   * Den bor nu i kontrollbandet i Karta.astro, i brödtextstorlek bredvid
+   * talet, och syns på alla bredder. Se noten vid resultatraden där.
+   */
 
   /*
    * Under 900 px lägger Karta.astro kartan över hela ytan med listan som ett
    * ark ovanpå, se arkavsnittet där. Sidan bakom ska då inte skrolla alls:
    * arket äger rullningen, och lib/page-lock.ts låser dokumentet så länge det
-   * är uppe. Rubriken och brödsmulorna behövs inte i den vyn; de står kvar i
-   * dokumentet för sökmotorn och för den som saknar skript, men skjuts undan
-   * så snart arket tar över.
+   * är uppe.
    *
    * Utan skript får sidan bete sig som ett vanligt dokument igen, alltså
-   * rubrik, lista och karta under varandra.
+   * lista och karta under varandra.
    */
   @media (max-width: 900px) {
     .page {
@@ -158,18 +165,6 @@ const jsonLd = {
       height: 100dvh;
       padding: 0;
       overflow: hidden;
-    }
-
-    .page:has(.split.ark) h1 {
-      /* Kvar i dokumentet, ute ur vyn. Rubriken är sidans H1 och får inte
-         tas bort; på app-ytan är den däremot ren höjdförlust, och kommunens
-         namn står i arkets rubrik ändå. */
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
     }
   }
 

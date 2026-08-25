@@ -64,6 +64,9 @@
 import FaceMark from './FaceMark.astro';
 import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
+/* Kategoriradens ikoner. Samma fem former som kommunhubbens rutnät och
+   startsidans band, alltså ritade en gång och använda överallt. */
+import Kategoriikon from './Kategoriikon.astro';
 import Maskot from './Maskot.astro';
 import {
   formatDate,
@@ -212,6 +215,50 @@ const marke = utgava && hasMark(utgava.year) ? utgava : null;
 const markeUrl = marke ? `${path('utmarkelser', marke.year)}marke.svg` : '';
 const markeW = marke ? Math.round(MARKE_H * markRatio(marke.year)) : 0;
 
+/**
+ * Sökfältets platshållare, och etiketten för den som lyssnar.
+ *
+ * Den löd "Sök på område, namn eller typ", alltså tre olika sorters saker i
+ * en mening. Booli skriver "Sök på en gata, ort eller kommun" och räknar upp
+ * tre sorters PLATSER, för deras fält söker platser; vår uppräkning bad om tre
+ * olika frågor i samma andetag.
+ *
+ * "Typ" är dessutom inte längre fältets jobb. Kategoriraden i kontrollbandet
+ * äger den axeln sedan i dag, och en platshållare som lovar något en knapp
+ * strax ovanför gör bättre skickar folk till fel ställe.
+ *
+ * Rikskartan har inga områden alls, se `omraden` ovan, så där vore ordet en
+ * inbjudan till en tom förslagslista.
+ *
+ * `size` sätts efter längden, och det är inte kosmetika: i tomläget hugger
+ * fältet om sitt innehåll för att kunna centreras, se .filterfalt i stilarna,
+ * och utan ett mått hade webbläsarens standardbredd på tjugo tecken gett en
+ * platshållare som står lite vid sidan av mitten.
+ */
+const SOKTEXT = omraden.length ? 'Sök på område eller namn' : 'Sök på namn';
+
+/**
+ * Sorteringens tre val, i menyns ordning.
+ *
+ * Ordboken bor i frontmatteret och inte i skriptet, av samma skäl som
+ * kategoriernas: menyn renderas ur den och skriptet läser tillbaka nyckeln ur
+ * `data-sort`, alltså finns talen och namnen på ETT ställe. Två tabeller för
+ * samma tre rader glider isär.
+ *
+ * INGEN AV DEM RÖR BEDÖMNINGEN, och det är en regel och inte ett urval. Se
+ * noten vid kontrollen i markupen nedan.
+ *
+ * Namnen är korta med flit. Boolis knapp är 92 px bred med "Nyast" i, och
+ * knappen bär det VALDA namnet: ett val som heter "Namn i bokstavsordning"
+ * hade gjort knappen dubbelt så bred som förlagan och tvingat resultatraden
+ * att brytas på telefon.
+ */
+const SORTVAL = [
+  { nyckel: 'namn', namn: 'A till Ö' },
+  { nyckel: 'senast', namn: 'Senast kontrollerad' },
+  { nyckel: 'nara', namn: 'Närmast mitten' },
+] as const;
+
 const LEGEND = [
   { v: 0, verdict: 'clean' as const, label: VERDICT.clean.label, count: data.counts[0] },
   { v: 1, verdict: 'minor' as const, label: VERDICT.minor.label, count: data.counts[1] },
@@ -255,51 +302,53 @@ const LEGEND = [
 
     <div class="arkinne" data-arkinne>
     {/*
-      Sidans brödsmulor och H1 ligger HÄR, inuti listkolumnen, och inte ovanför
-      den delade vyn.
+      HÄR LÅG SIDANS H1, inskickad av kartsidorna genom slot="topp".
 
-      Booli, uppmätt 2026-08-25: kartan är fixerad med `top: 64px`, alltså
+      Den flyttade 2026-08-25 ned i kontrollbandet och är numera
+      resultatraden, se den långa noten där. Slotten är borttagen och de två
+      kartsidorna skickar ingenting: en tom slot är en dörr utan rum, och den
+      hade bara inbjudit till att en rubrik smyger tillbaka hit.
+
+      Booli, uppmätt samma dag: kartan är fixerad med `top: 64px`, alltså
       direkt under sidhuvudet, och går kant i kant åt höger och nedåt. Det
       första i deras vänsterkolumn är flikraden. Ingen rubrik, inga
       brödsmulor och ingen inledande text ligger ovanför vare sig kartan
-      eller listan.
-
-      Hos oss låg brödsmulorna och rubriken i sidans flöde ovanför splitten
-      och kostade varje kartsida drygt sjuttio lodräta pixlar karta. Kartan
-      är sidans funktion, och rubriken är dess SEO-svar; slotten låter båda
-      finnas utan att den ena betalar för den andra.
+      eller listan, och deras H1 står i stället nere vid träffarna.
     */}
-    <slot name="topp" />
 
+    {/*
+      ══ KONTROLLBANDET ═══════════════════════════════════════════════════
+
+      Ordningen är Boolis, uppmätt på booli.se 2026-08-25 vid 1440 x 900 i en
+      kolumn på 688 med 640 innehåll och 24 px innerkant:
+
+          flikrad          640 x 50   vid (24, 64)
+          sökfält          640 x 50   vid (24, 130)
+          "Sökfilter"      316 x 40   vid (24, 196)
+          "Spara sökning"  316 x 40   vid (348, 196)
+          resultatrad      14 px      vid y ≈ 263, talen i vikt 600
+          sorteringsknapp   92 x 40   vid (572, 252), högerkant på 664
+          listan
+
+      Vi hade sökfältet och ingenting annat. Rubriken låg dessutom ÖVER
+      fältet i stället för under det, alltså i motsatt ordning mot förlagan.
+      Ägaren: "sökfunktionen ser fortfarande sjukt basic ut... och liksom hela
+      UIn på vänstersidan."
+
+      VAD SOM INTE BYGGS, och varför:
+
+      FLIKRADEN. Deras tre flikar är tre BESTÅND: till salu, slutpriser,
+      kommande. Vi har ett enda bestånd, och tre flikar över samma data är
+      dekor. Kategoriraden nedan är den skillnad som faktiskt finns hos oss.
+
+      "SPARA SÖKNING". Undersökt: sajten har bevakningar PER VERKSAMHET, se
+      Kvittens.astro, lib/kvittens.ts och konto/. Det finns ingen sparad
+      sökning, ingen tabell som kan bära ett utsnitt plus filter, och inget
+      mejl som skulle kunna skickas för den. En knapp som inte gör något är
+      sämre än ingen knapp, så platsen lämnas till kategoriknappen ensam och
+      den får sin egen bredd i stället för Boolis halva.
+    */}
     <header class="listhuvud">
-      <h2 id="listrubrik" data-rubrik>
-        {formatNumber(data.count)} verksamheter i {plats}
-      </h2>
-      <p class="text-secondary" data-underrubrik>
-        Med känd plats. Dra i kartan för att se dem som ligger där.
-      </p>
-
-      {/* Syns bara vid tomt resultat MED filter. Vid tomt utsnitt utan filter
-          är rådet att dra i kartan, och då finns inget att rensa. */}
-      <button type="button" class="rensa" data-rensa hidden>Rensa filtret</button>
-
-      {/*
-        Kategorimärket. Syns bara när adressen bär `typ=`, alltså när man
-        kommit hit från en kategorisida. Det är den ENDA plats i vyn som säger
-        att ett kategorifilter är på, och utan det hade kartan sett ut att ha
-        tappat nio tiondelar av sina nålar utan att säga varför.
-
-        En knapp och inte en etikett: det som filtrerar måste gå att stänga av
-        där det syns. Krysset rensar kategorin och lämnar textfiltret ifred.
-      */}
-      <button type="button" class="kategorimarke" data-kategorimarke hidden>
-        <span data-kategorinamn></span>
-        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
-      </button>
-
-
       {/* Filtret. Sidhuvudets sök leder till andra sidor; det här fältet
           filtrerar vyn man står i, kort och nålar samtidigt, medan man
           skriver. Ingen knapp: fältet ÄR handlingen. Skriptet nedan äger
@@ -326,11 +375,12 @@ const LEGEND = [
 
         <span class="chippar" data-chippar></span>
 
-        <label class="visually-hidden" for="kartfilter-q">Sök på område, namn eller typ</label>
+        <label class="visually-hidden" for="kartfilter-q">{SOKTEXT}</label>
         <input
           id="kartfilter-q"
           type="search"
-          placeholder="Sök på område, namn eller typ"
+          placeholder={SOKTEXT}
+          size={SOKTEXT.length}
           autocomplete="off"
           autocapitalize="off"
           autocorrect="off"
@@ -353,6 +403,217 @@ const LEGEND = [
         alltså är svaret på dem raderna nedanför och inte en lista till.
       */}
       <ul class="forslag" id="kartfilter-forslag" role="listbox" data-forslag hidden></ul>
+
+      {/*
+        Knappraden. Boolis två knappar på 316 x 40, av vilka vi har en.
+
+        "Sökfilter" hos dem öppnar en modal på 688 x 900 med tolv sektioner:
+        pris, rum, boarea, tomt, avgift, byggår och sex till. Vår motsvarighet
+        är EN axel, verksamhetstypen, och en modal för ett enda val är en dörr
+        till ett rum med en stol i. Knappen fäller därför ut raden direkt under
+        sig, alltså samma funktion i vår skala.
+      */}
+      <div class="knapprad">
+        <button
+          type="button"
+          class="sokfilter"
+          data-katknapp
+          aria-expanded="false"
+          aria-controls="kartkategorier"
+        >
+          {/* Reglage. Samma tecken som Boolis knapp bär, ritat i vårt eget
+              24-rutnät med 1,6 px streck som resten av sajtens ikoner. */}
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M3 7h4M11 7h10M3 17h10M17 17h4"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <circle cx="9" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <circle cx="15" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+          Sökfilter
+        </button>
+
+        {/*
+          Kategorimärket. Syns bara när en kategori filtrerar, alltså när man
+          kommit hit från en kategorisida eller valt i raden nedanför.
+
+          Det STÅR KVAR trots att raden nedanför nu visar samma sak, och skälet
+          är att raden är ihopfälld i utgångsläget: utan märket hade en karta
+          som kommit in med `typ=restauranger` sett ut att ha tappat nio
+          tiondelar av sina nålar utan att säga varför.
+
+          En knapp och inte en etikett: det som filtrerar måste gå att stänga av
+          där det syns. Krysset rensar kategorin och lämnar textfiltret ifred.
+        */}
+        <button type="button" class="kategorimarke" data-kategorimarke hidden>
+          <span data-kategorinamn></span>
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      {/*
+        Kategoriraden. Startsidans form, alltså ikon över etikett, ingen ram
+        och ingen fyllning, understreck på det valda, och en rad som rullar i
+        sidled när den inte får plats. Se .katrad i pages/index.astro.
+
+        FEM KATEGORIER OCH INTE TJUGO. Startsidans band bär matkategorierna ur
+        OSM; kartans nålar bär TOP_CATEGORIES som bitmask, satt vid bygget av
+        lib/kartrutor.ts, och det är den enda indelning en nål i en vektorruta
+        kan filtreras på utan att rutorna byggs om. Det är också exakt den
+        nyckel adressens `typ=` redan bär, alltså samma filter som
+        kategorisidorna länkar in med.
+
+        Knappar och inte länkar: en länk hade lämnat kartan, och en funktion
+        får inte kosta en sida. Se docs/17.
+      */}
+      <div
+        class="katrad"
+        id="kartkategorier"
+        data-katrad
+        role="group"
+        aria-label="Visa en sorts verksamhet"
+        hidden
+      >
+        <button type="button" class="katval" data-kat="" aria-pressed="true">
+          <Kategoriikon namn="alla" size={24} />
+          <span>Alla</span>
+        </button>
+        {TOP_CATEGORIES.map((c) => (
+          <button type="button" class="katval" data-kat={c.slug} aria-pressed="false">
+            <Kategoriikon namn={c.id} size={24} />
+            <span>{c.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {/*
+        RESULTATRADEN, SIDANS H1 och SORTERINGEN, allt på samma rad.
+
+        ══ BOOLIS H1 ÄR RESULTATRADEN ══════════════════════════════════════
+
+        Uppmätt på booli.se 2026-08-25 med getComputedStyle och
+        getBoundingClientRect:
+
+            tagg   H1, exakt en på sidan
+            text   "Bostäder till salu i Stockholms län"
+            rect   x 24, y 263, bredd 216, höjd 19
+            stil   font-size 14, font-weight 400
+            dold   NEJ. Ingen clip, ingen clip-path, position static.
+
+        Deras H1 är alltså en rad i BRÖDTEXTSTORLEK som står EFTER sökfältet
+        och efter de två knapparna, inte en rubrik ovanför kolumnen. Talen
+        ligger i samma rad bredvid den, i vikt 600:
+
+            "Bostäder till salu i Stockholms län. 12 919 till salu och
+             12 243 snart till salu."
+
+        Deras enda andra rubriker är H3 på 16 px i vikt 400, en per listrad,
+        alltså objektets namn. Ingen H2 alls. Samma grepp som docs/40 redan
+        noterat för Airbnb, vars H1 är en pixel hög: rubriken finns för
+        sökmotorn, men den är inte skriven som en rubrik för ögat.
+
+        ══ VAD VI GJORDE ═══════════════════════════════════════════════════
+
+        Vi hade TVÅ rubriker där de har en. Sidans H1 låg i 21 px vikt 600
+        högst upp i kolumnen, inskickad genom slot="topp" av de två
+        kartsidorna, och under sökfältet stod dessutom en h2 med "8 498
+        verksamheter". Alltså två rubriknivåer plus den resultatrad vi saknade.
+
+        Nu: H1 är resultatraden, står här nere, och bär 14 px i vikt 400.
+        H2:n är borta som eget element och talet lever i raden bredvid H1.
+        Sidorna skickar inte längre in någon rubrik, se pages/karta.astro och
+        pages/[kommun]/karta.astro.
+
+        ══ VARFÖR TALET LIGGER UTANFÖR H1 ══════════════════════════════════
+
+        Booli delar raden i två element och deras H1 är bara den första
+        meningen, 216 px bred. Vi gör likadant, och hos oss är det inte en
+        formsak utan ett krav: talet skrivs om vid VARJE panorering, och en H1
+        som byter text medan man drar i kartan är ingen H1. Platsmeningen står
+        still och är sidans SEO-svar; talet bredvid följer utsnittet.
+
+        Underrubriken är kvar men tom och gömd. Den bar "Med känd plats. Dra i
+        kartan för att se dem som ligger där.", och av den meningen har den
+        första halvan flyttat in i talraden, medan den andra var en instruktion
+        om något man upptäcker i samma sekund som man drar. Den skrivs numera
+        bara i det tomma utsnittet, där det inte finns något att upptäcka.
+      */}
+      <div class="resultatrad">
+        <div class="resultattext">
+          <h1 id="listrubrik">Karta över hygienkontroller i {plats}.</h1>{' '}
+          <span data-rubrik>
+            <b>{formatNumber(data.count)}</b> verksamheter med känd plats.
+          </span>
+        </div>
+
+        {/*
+          Sorteringen. Vi hade INGEN: listan visade det som råkade ligga i
+          utsnittet, i bokstavsordning, utan att det gick att välja något annat.
+
+          FÖRBUDET, och det är inte en preferens. Ingen av valen rör
+          BEDÖMNINGEN. En lista sorterad på flest anmärkningar ÄR listan över
+          de sämsta, och en lista sorterad på minst anmärkningar är samma lista
+          läst baklänges. Sajten publicerar aldrig den listan. Se
+          RenHistorik.astro, lib/kommunprofil.ts och docs/24.
+
+          De tre valen är de tre axlar datan faktiskt har som inte är en
+          bedömning: bokstaven, tiden och avståndet. Bokstaven är kvar som
+          utgångsläge, eftersom den server-renderade listan under är i
+          bokstavsordning och ett annat utgångsläge hade betytt att listan
+          hoppade om i samma sekund som kartan vaknade.
+        */}
+        <div class="sortval">
+          <button
+            type="button"
+            class="sortknapp"
+            data-sortknapp
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-controls="kartsortering"
+          >
+            <span class="visually-hidden">Sortera listan: </span>
+            <span data-sortnamn>A till Ö</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          {/* Alternativen ligger i MALLEN och inte i skriptet, och det är inte
+              en smaksak. Element ur createElement bär inget Astro-scope, alltså
+              hade varje regel nedan behövt :global. Den fällan har redan slagit
+              till två gånger i den här filen, senast på förslagsraderna som
+              blev 22 px i stället för 41. Tre fasta rader behöver aldrig byggas
+              om, så de renderas en gång och skriptet flyttar bara bocken. */}
+          <ul class="sortmeny" id="kartsortering" role="listbox" data-sortmeny hidden>
+            {SORTVAL.map((s, i) => (
+              <li>
+                <button
+                  type="button"
+                  role="option"
+                  data-sort={s.nyckel}
+                  aria-selected={i === 0 ? 'true' : 'false'}
+                >
+                  <span>{s.namn}</span>
+                  <svg class="bock" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <p class="text-secondary" data-underrubrik hidden></p>
+
+      {/* Syns bara vid tomt resultat MED filter. Vid tomt utsnitt utan filter
+          är rådet att dra i kartan, och då finns inget att rensa. */}
+      <button type="button" class="rensa" data-rensa hidden>Rensa filtret</button>
     </header>
 
     {/* Kortgrid i två kolumner, som Airbnbs resultat. Strukturen här MÅSTE
@@ -647,6 +908,13 @@ const LEGEND = [
     const tomvy = root.querySelector<HTMLElement>('[data-tomvy]');
     const kategorimarke = root.querySelector<HTMLButtonElement>('[data-kategorimarke]')!;
     const kategorinamn = root.querySelector<HTMLElement>('[data-kategorinamn]')!;
+    /* Kontrollbandet: knappen som fäller ut kategoriraden, raden själv, och
+       sorteringens knapp och meny. Se markupen för vad var och en gör. */
+    const katknapp = root.querySelector<HTMLButtonElement>('[data-katknapp]')!;
+    const katrad = root.querySelector<HTMLElement>('[data-katrad]')!;
+    const sortknapp = root.querySelector<HTMLButtonElement>('[data-sortknapp]')!;
+    const sortnamn = root.querySelector<HTMLElement>('[data-sortnamn]')!;
+    const sortmeny = root.querySelector<HTMLUListElement>('[data-sortmeny]')!;
 
     /** Nedskruvad rörelse. Läses en gång: arket, kortet och kartans easeTo
      *  ska alla följa samma inställning, och den ändras inte under besöket. */
@@ -910,10 +1178,16 @@ const LEGEND = [
     /**
      * Kategorin som filtrerar, som bitmask. 0 betyder ingen.
      *
-     * Sätts av adressens `typ=`-nyckel och av kategorimärket i listhuvudet, och
-     * aldrig av något annat: kartan har medvetet ingen egen kategoriväljare.
-     * Kategorisidorna är sidor för att de kan rankas, och en andra väljare på
-     * kartan hade konkurrerat med dem om samma handling.
+     * Sätts av adressens `typ=`-nyckel, av kategorimärket och av
+     * kategoriraden i kontrollbandet.
+     *
+     * Här stod tidigare att kartan MEDVETET saknar en egen kategoriväljare,
+     * med motiveringen att kategorisidorna är sidor för att de kan rankas och
+     * att en väljare här hade konkurrerat med dem. Den motiveringen gäller
+     * inte längre och var dessutom bakvänd: en funktion får aldrig kosta en
+     * sida, och den som står på kartan ska kunna byta typ där hen står i
+     * stället för att lämna kartan. Kategorisidorna finns kvar, rankar på
+     * samma ord, och länkar HIT med `typ=`.
      */
     let katMask = 0;
 
@@ -925,13 +1199,112 @@ const LEGEND = [
      * fram två sidladdningar för den frågan är att göra kartan sämre än en
      * karta.
      *
-     * Skilt från `katMask` och `filterVarde` på en avgörande punkt: området
-     * FILTRERAR INGENTING. Kategorin gömmer nålar och textfältet gömmer kort,
-     * men området målar bara en skugga. Det är Boolis beteende och det är rätt
-     * beteende: en krog tvärs över gatan från Östermalms gräns ska synas, den
-     * ligger fortfarande där, och en karta som raderar den ljuger om staden.
+     * ══ OMRÅDET FILTRERAR LISTAN ════════════════════════════════════════
+     *
+     * Här stod tidigare att området FILTRERAR INGENTING och bara målar en
+     * skugga, med motiveringen att en krog tvärs över gatan från gränsen
+     * fortfarande ligger där och att en karta som raderar den ljuger om
+     * staden.
+     *
+     * Den motiveringen håller för KARTAN och inte för LISTAN, och ägaren har
+     * avgjort saken: "om jag lägger in piller som östermalm, vasastan, och sen
+     * söker 7 eleven, då vill jag ju bara se i dom områdena, liksom de
+     * skuggade ska jag ju inte se."
+     *
+     * Han har rätt, och skillnaden mellan de två ytorna är hela svaret. Kartan
+     * visar var något LIGGER, och där är grannkvarteret meningsfull kontext.
+     * Listan svarar på vad man BAD OM, och den som lagt in två stadsdelar har
+     * bett om två stadsdelar. Ett chip som inte gör något är dessutom samma
+     * fel som en knapp som inte gör något.
+     *
+     * Området är alltså ett filter TILL, och de tre gäller samtidigt: område
+     * OCH kategori OCH text.
+     *
+     * NÅLARNA RÖRS INTE. De står kvar utanför gränsen och förblir dimmade
+     * under masken, alltså exakt Boolis beteende, uppmätt: deras mask dimmar
+     * markörerna utanför området men tar inte bort dem. Se `filtreraNalar`
+     * för vad området däremot gör med bubblorna, och varför.
      */
     let omradeVal: string[] = [];
+
+    /**
+     * De valda områdenas ringar, med sin omslutande ruta förberäknad.
+     *
+     * Null betyder att inget område filtrerar. Byggs av `satOmrade` när ytorna
+     * har landat, alltså ur SAMMA `ytor` som masken målas av.
+     *
+     * Det är inte en detalj utan sanningsprovet för hela funktionen: skuggar
+     * kartan efter en kontur och listan räknar efter en annan, syns en
+     * verksamhet i listan men ligger i dimman, och det felet går inte att
+     * felsöka i efterhand. Filen /omradesytor/<kommun>.json bär i sin tur
+     * ringarna oförenklade ur lib/omraden.ts, alltså samma polygoner som
+     * avgör vilka verksamheter som räknas till området på serversidan.
+     */
+    interface Omradesring {
+      /** [väst, syd, öst, nord]. Grovgallret före punkt-i-polygon. */
+      bbox: [number, number, number, number];
+      outer: number[][][];
+      inner: number[][][];
+    }
+    let omradesfilter: Omradesring[] | null = null;
+
+    /**
+     * Svaret per punkt-id, tömt varje gång urvalet byts.
+     *
+     * Testet körs vid varje omritning av listan, alltså i varje bildruta man
+     * drar kartan, och Stockholm kan ha drygt sju tusen punkter i utsnittet
+     * vid låg zoom. Ringen för Östermalm har 108 hörn. Utan cache är det
+     * sjuhundratusen hörnjämförelser per bildruta; med cache betalas de en
+     * gång per punkt och besök.
+     */
+    const omradesSvar = new Map<number, boolean>();
+
+    /**
+     * Strålmetoden, ORDAGRANT densamma som `inRing` i lib/omraden.ts.
+     *
+     * Kopian är avsiktlig och får inte skrivas om till något som ser snyggare
+     * ut. Serversidan avgör medlemskap med den här formeln, och en punkt exakt
+     * på en kant ska ge samma svar i webbläsaren som i bygget. Två olika
+     * kantfall är svårare att felsöka än en dubblerad slinga: omraden.ts kan
+     * inte importeras hit, den läser kommunernas JSON vid bygget och hade
+     * dragit hela beståndet in i klientpaketet.
+     */
+    function iRing(x: number, y: number, ring: number[][]): boolean {
+      let inne = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+        const [xi, yi] = ring[i];
+        const [xj, yj] = ring[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+          inne = !inne;
+        }
+      }
+      return inne;
+    }
+
+    /** Ligger punkten i något av de valda områdena? Samma ordning som
+     *  `contains` i lib/omraden.ts: ruta, ytterringar, sedan hål. */
+    function iOmrade(p: Punkt): boolean {
+      if (!omradesfilter) return true;
+      const svar = omradesSvar.get(p.i);
+      if (svar !== undefined) return svar;
+
+      let inne = false;
+      for (const yta of omradesfilter) {
+        const [v, s, o, n] = yta.bbox;
+        if (p.lng < v || p.lng > o || p.lat < s || p.lat > n) continue;
+        if (!yta.outer.some((ring) => iRing(p.lng, p.lat, ring))) continue;
+        if (yta.inner.some((ring) => iRing(p.lng, p.lat, ring))) continue;
+        inne = true;
+        break;
+      }
+      omradesSvar.set(p.i, inne);
+      return inne;
+    }
+
+    /** Filtrerar något alls just nu? Text, kategori eller område. */
+    function harFilter(): boolean {
+      return traffar !== null || omradesfilter !== null;
+    }
 
     /** Kommunens slug. Saknas på rikskartan, som inte har några områden. */
     const kommunSlug = root.dataset.kommun ?? '';
@@ -978,6 +1351,10 @@ const LEGEND = [
       const delar: string[] = [];
       if (kat) delar.push(kat.name.toLocaleLowerCase('sv'));
       if (filterVarde) delar.push(`”${filterVarde}”`);
+      /* Områdena med, sedan de filtrerar listan. Tomtexten är den enda plats
+         som säger VARFÖR vyn är tom, och ett område som tömt den utan att
+         nämnas hade gjort raden till en gåta. */
+      for (const slug of omradeVal) delar.push(OMRADESNAMN.get(slug) ?? slug);
       return delar.join(' och ');
     }
 
@@ -992,6 +1369,11 @@ const LEGEND = [
       const kat = KATEGORIER.find((k) => k.bit === katMask);
       kategorimarke.hidden = !kat;
       if (kat) kategorinamn.textContent = kat.name;
+      /* Raden och märket säger samma sak och måste därför sättas av samma
+         funktion. Två anrop på varje anropsplats hade betytt att ett av dem
+         glöms bort, och utfallet av det är ett märke som säger Restauranger
+         bredvid en rad där Alla är understruken. */
+      stallKatvalen();
     }
 
     const chippar = root.querySelector<HTMLElement>('[data-chippar]')!;
@@ -1143,6 +1525,12 @@ const LEGEND = [
       filterFalt.value = '';
       katMask = 0;
       stallKategorimarke();
+      /* ALLA TRE, och området numera med. Knappen syns bara när vyn är tom
+         trots att något filtrerar, alltså är den vägen ut ur en återvändsgränd,
+         och sedan området filtrerar listan kan det vara just området som är
+         väggen. En väg ut som lämnar en tredjedel av det som stängde vägen
+         kvar är ingen väg ut. */
+      if (omradeVal.length) satOmrade([]);
       tillampa?.();
       filterFalt.focus();
     });
@@ -1214,7 +1602,203 @@ const LEGEND = [
       }
     });
 
+    // ── Kategoriraden ────────────────────────────────────────────────────
+
+    /**
+     * "Sökfilter" fäller ut raden, och stänger den igen.
+     *
+     * `hidden` och inte `max-height`: raden innehåller sex knappar och ingen
+     * animering av höjd kan göras utan att listan under hoppar i varje
+     * bildruta. Boolis egen knapp öppnar en modal, alltså ett hopp som är
+     * ännu större, och ingen har någonsin klagat på det.
+     */
+    function stallKatrad(oppen: boolean) {
+      katrad.hidden = !oppen;
+      katknapp.setAttribute('aria-expanded', String(oppen));
+      katknapp.classList.toggle('pa', oppen);
+    }
+
+    katknapp.addEventListener('click', () => {
+      stallKatrad(katrad.hidden);
+      /* Kartan äger höjden på stora skärmar och listan skrollar i sin egen
+         spalt, så en utfälld rad kostar ingenting där. På telefon ligger
+         listan i ett ark som kan stå i remsläget, och en rad som fälls ut
+         under arkets kant hade sett ut att inte hända. */
+      if (arkAktivt && lage === 'remsa' && !katrad.hidden) stallArk('halv');
+    });
+
+    /** Raden speglar `katMask`. Kallas ur stallKategorimarke, så att märket
+     *  och raden aldrig kan säga olika saker om samma filter. */
+    function stallKatvalen() {
+      const kat = KATEGORIER.find((k) => k.bit === katMask);
+      for (const knapp of katrad.querySelectorAll<HTMLButtonElement>('.katval')) {
+        const vald = (knapp.dataset.kat || '') === (kat ? kat.slug : '');
+        knapp.setAttribute('aria-pressed', String(vald));
+      }
+    }
+
+    katrad.addEventListener('click', (ev) => {
+      const knapp = (ev.target as HTMLElement).closest<HTMLButtonElement>('.katval');
+      if (!knapp) return;
+      const slug = knapp.dataset.kat || '';
+      const kat = KATEGORIER.find((k) => k.slug === slug);
+      const bit = kat ? kat.bit : 0;
+      /* Ett andra tryck på det valda tar bort filtret. Det är radens enda väg
+         tillbaka till "Alla" utan att flytta blicken, och samma beteende som
+         kategorimärkets kryss har. */
+      katMask = bit === katMask ? 0 : bit;
+      stallKategorimarke();
+      tillampa?.();
+    });
+
+    // ── Sorteringen ──────────────────────────────────────────────────────
+
+    /**
+     * Listans ordning.
+     *
+     * Vi hade ingen: `uppdatera` sorterade alltid på namn, och det gick inte
+     * att välja något annat.
+     *
+     * De tre nycklarna svarar mot SORTVAL i frontmatteret. Ingen av dem rör
+     * bedömningen, och det är en regel: en lista sorterad på flest
+     * anmärkningar är listan över de sämsta, och samma lista läst baklänges är
+     * listan över de bästa. Sajten publicerar ingendera.
+     */
+    type Sortering = 'namn' | 'senast' | 'nara';
+    let sortering: Sortering = 'namn';
+
+    /**
+     * Ordna nålarna i utsnittet.
+     *
+     * Sorterar PÅ PLATS och returnerar samma lista, eftersom anroparen redan
+     * äger en färsk kopia ur `filter`.
+     *
+     * Namnet är andrahandsnyckel i alla tre, av en anledning som syns direkt
+     * annars: hundratals verksamheter saknar kontrolldatum och ligger på samma
+     * avstånd i tiden, och utan en andra nyckel byter de inbördes plats för
+     * varje bildruta man drar kartan.
+     */
+    function sortera(punkter: Punkt[], mitt: { lng: number; lat: number } | null): Punkt[] {
+      const namnfall = (a: Punkt, z: Punkt) => a.namn.localeCompare(z.namn, 'sv');
+
+      if (sortering === 'senast') {
+        /* `d` är dagar sedan epok, alltså större = nyare, och 0 betyder INGEN
+           kontroll. Nollorna sist och inte först: "senast kontrollerad först"
+           lovar färskhet, och en verksamhet utan kontroll är motsatsen till
+           färsk. Den är inte heller sämre, den är bara okänd, och därför
+           ligger den sist och inte i en egen grupp med en egen etikett. */
+        return punkter.sort((a, z) => {
+          if ((a.d === 0) !== (z.d === 0)) return a.d === 0 ? 1 : -1;
+          return z.d - a.d || namnfall(a, z);
+        });
+      }
+
+      if (sortering === 'nara' && mitt) {
+        /* Kvadrerat avstånd i grader, med longituden hoptryckt efter
+           latituden. Ingen haversine: vi rangordnar inom ett kartutsnitt som
+           aldrig är mer än några mil brett, och där är felet i den här
+           approximationen långt under en radbytesgräns. En rot behövs inte
+           heller, eftersom ordningen är densamma med och utan den. */
+        const k = Math.cos((mitt.lat * Math.PI) / 180);
+        const avst = (p: Punkt) => {
+          const dx = (p.lng - mitt.lng) * k;
+          const dy = p.lat - mitt.lat;
+          return dx * dx + dy * dy;
+        };
+        return punkter.sort((a, z) => avst(a) - avst(z) || namnfall(a, z));
+      }
+
+      return punkter.sort(namnfall);
+    }
+
+    /** Ritar om listan med kartans nuvarande utsnitt. Pekas om av kartans
+     *  load-hanterare, av samma skäl som `tillampa` ovan: före den finns varken
+     *  kartan eller punkterna, och sorteringsknappen ska ändå gå att trycka på
+     *  utan att kasta. */
+    let ritaOm: (() => void) | null = null;
+
+    /** Samma sak för kartlagren: bubblorna göms och visas beroende på om något
+     *  filtrerar, och områdesvalet är numera ett av de filtren. Pekas om av
+     *  kartans load-hanterare, av samma skäl som `ritaOm`. */
+    let filtreraOm: (() => void) | null = null;
+
+    function stallSortknapp() {
+      const val = sortmeny.querySelector<HTMLButtonElement>(`[data-sort="${sortering}"]`);
+      if (val) sortnamn.textContent = val.querySelector('span')!.textContent;
+      for (const knapp of sortmeny.querySelectorAll<HTMLButtonElement>('[data-sort]')) {
+        knapp.setAttribute('aria-selected', String(knapp.dataset.sort === sortering));
+      }
+    }
+
+    function stangSortmeny() {
+      if (sortmeny.hidden) return;
+      sortmeny.hidden = true;
+      sortknapp.setAttribute('aria-expanded', 'false');
+    }
+
+    sortknapp.addEventListener('click', () => {
+      const oppna = sortmeny.hidden;
+      sortmeny.hidden = !oppna;
+      sortknapp.setAttribute('aria-expanded', String(oppna));
+    });
+
+    sortmeny.addEventListener('click', (ev) => {
+      const knapp = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-sort]');
+      if (!knapp) return;
+      sortering = knapp.dataset.sort as Sortering;
+      stallSortknapp();
+      stangSortmeny();
+      sortknapp.focus();
+      ritaOm?.();
+      skrivFragment();
+    });
+
+    /* Stängs av ett klick utanför och av Escape. `stopPropagation` på Escape,
+       eftersom dokumentlyssnaren längre ned annars stänger nålens kort i samma
+       tryckning: ett Escape, en sak. */
+    document.addEventListener('pointerdown', (ev) => {
+      if (sortmeny.hidden) return;
+      const inuti = (ev.target as HTMLElement).closest('.sortval');
+      if (!inuti) stangSortmeny();
+    });
+
+    sortknapp.parentElement!.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape' || sortmeny.hidden) return;
+      stangSortmeny();
+      sortknapp.focus();
+      ev.stopPropagation();
+    });
+
     // ── Listan ───────────────────────────────────────────────────────────
+
+    /**
+     * Talet i resultatraden, med siffran i vikt 600 och resten i 400.
+     *
+     * Ett `<b>` och inte en klass, av samma skäl som Booli gör likadant: det
+     * är talet som är beskedet, och `<b>` betyder i HTML5 precis det, ett
+     * ord som lyfts utan att bära extra betydelse.
+     *
+     * `replaceChildren` och inte innerHTML. Texten är sammansatt av våra egna
+     * ord och ett formaterat tal, alltså aldrig av något ur källorna, men
+     * regeln i den här filen är att markup byggs och aldrig skrivs som
+     * sträng, och ett undantag är det som blir nästa slarv.
+     *
+     * `tal` null betyder att raden inte räknar något, alltså det tomma
+     * utsnittet, och då sätts hela meningen i vikt 600 i stället. En
+     * fjortonpixlarsrad i vikt 400 som säger att här inte finns någonting
+     * läses inte som ett besked utan som en fotnot.
+     */
+    function satTal(tal: number | null, text: string) {
+      rubrik.replaceChildren();
+      rubrik.classList.toggle('tomt', tal === null);
+      if (tal === null) {
+        rubrik.textContent = text;
+        return;
+      }
+      const b = document.createElement('b');
+      b.textContent = tal.toLocaleString('sv-SE');
+      rubrik.append(b, ` ${text}`);
+    }
 
     /** Hur många kort som ritas. Sänkt från 120 när raderna blev kort: varje
      *  post kostar fler element nu, och DOM-kostnaden vid varje panorering är
@@ -1301,7 +1885,7 @@ const LEGEND = [
        * som hjälper.
        */
       const stad = root!.dataset.city;
-      const filtrerat = traffar !== null;
+      const filtrerat = harFilter();
 
       /*
        * Rubriken räknar HELA utsnittet, alltså nålarna plus det som ligger inne
@@ -1324,15 +1908,22 @@ const LEGEND = [
       if (iVyn === 0) {
         // Samma tomrubrik med och utan filter, men förklaringen är en annan:
         // med filter är det filtret som tömde vyn, och rensknappen visas.
-        rubrik.textContent = 'Inga verksamheter här';
+        satTal(null, 'Inga verksamheter här.');
         underrubrik.textContent = filtrerat
           ? `Ingenting i utsnittet matchar ${filterOrd()}. Dra i kartan eller rensa filtret.`
           : `Dra eller zooma ut för att se fler i ${stad}.`;
         underrubrik.hidden = false;
       } else {
-        rubrik.textContent = filtrerat
-          ? `${iVyn.toLocaleString('sv-SE')} ${iVyn === 1 ? 'träff' : 'träffar'}`
-          : `${iVyn.toLocaleString('sv-SE')} ${iVyn === 1 ? 'verksamhet' : 'verksamheter'}`;
+        /* "här" och inte "i utsnittet". H1:n bredvid säger redan att det här
+           är en karta över en viss plats, och talet räknar det man ser. Ett
+           ord som utsnitt eller kartbild är dessutom vårt eget fackspråk om en
+           yta besökaren har framför sig. */
+        satTal(
+          iVyn,
+          filtrerat
+            ? `${iVyn === 1 ? 'träff' : 'träffar'} här.`
+            : `${iVyn === 1 ? 'verksamhet' : 'verksamheter'} här.`,
+        );
         underrubrik.hidden = true;
       }
       rensa.hidden = !(filtrerat && iVyn === 0);
@@ -2036,10 +2627,12 @@ const LEGEND = [
       typ: string;
       /** De valda områdenas slugar. Tom lista utan nyckeln. */
       omrade: string[];
+      /** Listans ordning. Tom sträng betyder utgångsläget, alltså namn. */
+      sort: string;
     }
 
     function lasFragment(): Fragment {
-      const ut: Fragment = { vy: null, q: '', typ: '', omrade: [] };
+      const ut: Fragment = { vy: null, q: '', typ: '', omrade: [], sort: '' };
       const rad = location.hash.replace(/^#/, '');
       if (!rad) return ut;
 
@@ -2069,6 +2662,12 @@ const LEGEND = [
           ut.q = decodeURIComponent(varde.replace(/\+/g, ' ')).slice(0, 80);
         } else if (nyckel === 'typ') {
           ut.typ = decodeURIComponent(varde);
+        } else if (nyckel === 'sort') {
+          /* Grinden är menyn själv: ett värde som inte finns som rad i den
+             faller tillbaka på namnordningen. Samma hållning som `typ`, alltså
+             att fragmentet kan skrivas av vem som helst och aldrig får kunna
+             sätta ett tillstånd gränssnittet inte har en knapp för. */
+          ut.sort = decodeURIComponent(varde).slice(0, 20);
         } else if (nyckel === 'omrade') {
           /* Samma grind som `typ`: varje slug slås upp i en tabell och används
              aldrig som markup. Slår den inte, händer ingenting. Taket på fem
@@ -2118,6 +2717,10 @@ const LEGEND = [
       if (kat) delar.push(`typ=${kat.slug}`);
       if (filterVarde) delar.push(`q=${encodeURIComponent(filterVarde)}`);
       if (omradeVal.length) delar.push(`omrade=${omradeVal.map(encodeURIComponent).join(',')}`);
+      /* Bara när den avviker. Utgångsläget ska inte stå i adressen: en delad
+         länk med `sort=namn` i påstår att någon valt något, och nästa gång
+         ordningen byter utgångsläge hade den länken låst kvar den gamla. */
+      if (sortering !== 'namn') delar.push(`sort=${sortering}`);
 
       const hash = '#' + delar.join('&');
       if (hash === location.hash) return;
@@ -2195,7 +2798,7 @@ const LEGEND = [
          "du är här". */
       const frag = lasFragment();
       if (!karta) return;
-      if (frag.typ || frag.q) tillampaFragment(frag);
+      if (frag.typ || frag.q || frag.sort) tillampaFragment(frag);
       if (!frag.vy) return;
       karta.easeTo({
         center: [frag.vy.lng, frag.vy.lat],
@@ -2220,6 +2823,13 @@ const LEGEND = [
       katMask = kat ? kat.bit : 0;
       if (frag.q) filterFalt.value = frag.q;
       filterVarde = filterFalt.value.trim();
+      /* Ordningen ur adressen, om den finns som rad i menyn. Sätts FÖRE
+         tillampa nedan, så att den första listan ritas i rätt ordning i
+         stället för att först ritas i namnordning och sedan hoppa om. */
+      if (frag.sort && sortmeny.querySelector(`[data-sort="${CSS.escape(frag.sort)}"]`)) {
+        sortering = frag.sort as Sortering;
+        stallSortknapp();
+      }
       stallKategorimarke();
       tillampa?.();
       if (frag.omrade.join(',') !== omradeVal.join(',')) satOmrade(frag.omrade, { skrivFragment: false });
@@ -2320,6 +2930,37 @@ const LEGEND = [
     const TOM = { type: 'FeatureCollection', features: [] };
 
     /**
+     * Ringarna som listan filtreras mot, byggda ur SAMMA ytor som masken.
+     *
+     * Rutan räknas fram här och inte per punkt, av samma skäl som `boxed` i
+     * lib/omraden.ts finns: grovgallret avvisar de allra flesta punkterna med
+     * fyra jämförelser, och först det som ligger inne i rutan kostar en
+     * genomgång av ringens hörn.
+     */
+    function stallOmradesfilter(valda: Yta[] | null) {
+      omradesSvar.clear();
+      if (!valda || !valda.length) {
+        omradesfilter = null;
+        return;
+      }
+      omradesfilter = valda.map((y) => {
+        let v = Infinity;
+        let s = Infinity;
+        let o = -Infinity;
+        let n = -Infinity;
+        for (const ring of y.outer) {
+          for (const [x, yy] of ring) {
+            if (x < v) v = x;
+            if (x > o) o = x;
+            if (yy < s) s = yy;
+            if (yy > n) n = yy;
+          }
+        }
+        return { bbox: [v, s, o, n] as [number, number, number, number], outer: y.outer, inner: y.inner };
+      });
+    }
+
+    /**
      * Sätt hela urvalet.
      *
      * `flyg` styr om kameran ska ställa sig på ytorna. Den ska den när en
@@ -2332,10 +2973,16 @@ const LEGEND = [
       stallChippar();
 
       if (!slugar.length) {
+        stallOmradesfilter(null);
         if (karta?.getSource('omradesmask')) {
           (karta.getSource('omradesmask') as any).setData(TOM);
           (karta.getSource('omradeskontur') as any).setData(TOM);
         }
+        /* Listan bar filtret och måste ritas om utan det. Utan den här raden
+           låg korten kvar tills nästa panorering, alltså ett kryss som såg ut
+           att inte göra något. */
+        filtreraOm?.();
+        ritaOm?.();
         if (val.skrivFragment !== false) planeraSkrivning();
         return;
       }
@@ -2355,6 +3002,16 @@ const LEGEND = [
         }
 
         const valda = funna.map((x) => ytor![`${kommunSlug}/${x}`]) as Yta[];
+
+        /* Listans filter sätts FÖRE kartgrinden nedan, och det är ordningen
+           som gör att ett delat `#omrade=` verkar även om kartan inte hunnit
+           bygga sina lager: filtret gäller från första omritningen, och masken
+           kommer när lagren finns. Samma `valda` till båda, se noten vid
+           omradesfilter om varför det inte får bli två källor. */
+        stallOmradesfilter(valda);
+        filtreraOm?.();
+        ritaOm?.();
+
         if (!karta?.getSource('omradesmask')) return;
         (karta.getSource('omradesmask') as any).setData(maskAv(valda));
         (karta.getSource('omradeskontur') as any).setData(konturAv(valda));
@@ -2899,13 +3556,33 @@ const LEGEND = [
             filtreraNalar();
           }
 
+          /*
+           * Tre villkor ovanpå utsnittet, och rutan sist av en anledning:
+           * jämförelserna mot kartans kanter är fyra tal, `traffar.has` är ett
+           * uppslag, och punkt-i-polygon är det dyra. Att lägga det billiga
+           * först betyder att det dyra bara körs på det som redan överlevt.
+           *
+           * `iOmrade` svarar direkt ur cachen andra gången den ser en punkt,
+           * se noten vid omradesSvar.
+           */
           const synliga = punkter.filter(
             (p) =>
               (traffar === null || traffar.has(p.i)) &&
-              p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth(),
+              p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth() &&
+              iOmrade(p),
           );
-          synliga.sort((a, z) => a.namn.localeCompare(z.namn, 'sv'));
-          ritaLista(synliga, synliga.length, traffar === null ? iBubblor(b) : 0);
+          sortera(synliga, karta.getCenter());
+          /*
+           * Bubblornas innehåll räknas bara när INGENTING filtrerar.
+           *
+           * En bubbla är räknad vid bygget och kan inte räknas om i
+           * webbläsaren, alltså vet vi varken hur många av dess medlemmar som
+           * matchar texten eller hur många som ligger i Östermalm. Att räkna in
+           * den ändå hade gett en rubrik som säger 300 över en lista med fyra.
+           * `filtreraNalar` gömmer dem samtidigt, så det finns ingen bubbla på
+           * skärmen som motsäger talet.
+           */
+          ritaLista(synliga, synliga.length, harFilter() ? 0 : iBubblor(b));
         }
 
         /**
@@ -2998,15 +3675,28 @@ const LEGEND = [
                 : ['all', bas, ['match', ['get', 'i'], [...traffar], true, false]],
           );
 
+          /*
+           * BUBBLORNA göms när NÅGOT filtrerar, alltså även när filtret bara
+           * är ett valt område.
+           *
+           * Det är inte samma sak som att gömma nålar och strider inte mot att
+           * nålarna ska stå kvar utanför gränsen: när bubblorna släcks ritas
+           * i stället varenda enskild nål, alltså syns MER av staden och inte
+           * mindre. Det som försvinner är påståendet "300 här", och det
+           * påståendet går inte att kontrollera mot ett områdesfilter,
+           * eftersom bubblan är räknad vid bygget och inte bär sina medlemmar.
+           */
+          const filtrerar = harFilter();
+
           for (const lager of KLUSTERLAGER) {
-            karta.setLayoutProperty(lager, 'visibility', traffar === null ? 'visible' : 'none');
+            karta.setLayoutProperty(lager, 'visibility', filtrerar ? 'none' : 'visible');
           }
 
           /* Brickan säger hur många som FINNS på adressen och inte hur många
              sökningen träffar. Med ett filter på blir den därför missvisande
              och göms, av samma skäl som bubblorna. */
           for (const lager of ['stapel-ring', 'stapel-antal']) {
-            karta.setLayoutProperty(lager, 'visibility', traffar === null ? 'visible' : 'none');
+            karta.setLayoutProperty(lager, 'visibility', filtrerar ? 'none' : 'visible');
           }
         }
 
@@ -3025,9 +3715,18 @@ const LEGEND = [
         }
 
         tillampa = tillampaFilter;
+        /* Sorteringsknappen och områdesvalet behöver rita om listan och ställa
+           om lagren utan att räkna om textfiltret. Pekarna sätts här, eftersom
+           varken punkterna eller lagren finns innan kartan laddat. */
+        ritaOm = uppdatera;
+        filtreraOm = filtreraNalar;
         // Hann någon skriva innan kartan vaknade, eller kom ett filter ur
         // adressen, plockas det upp här.
         if (filterFalt.value || katMask !== 0) tillampaFilter();
+        /* Ett `#omrade=` ur adressen hann sätta `omradesfilter` innan lagren
+           fanns, se satOmrade. Bubblorna måste därför ställas om en gång här,
+           annars ligger de kvar ovanpå en lista som redan är filtrerad. */
+        else if (omradesfilter) filtreraNalar();
 
         // Kortet är limmat vid sin nål och följer med när kartan rör sig, i
         // stället för att stå still medan nålen glider iväg under det.
@@ -3376,17 +4075,25 @@ const LEGEND = [
     padding-inline: var(--kartgutter, var(--s-4));
   }
 
-  /* Sidans brödsmulor och H1, inskickade via slot="topp". Samma linje. */
-  .lista :global([slot='topp']),
-  .arkinne > :global(nav),
-  .arkinne > :global(h1) {
-    padding-inline: var(--kartgutter, var(--s-4));
-  }
-
-  .listhuvud h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-  }
+  /*
+   * HÄR STOD EN REGEL SOM ÄR BORTTAGEN:
+   *
+   *     .lista :global([slot='topp']),
+   *     .arkinne > :global(nav),
+   *     .arkinne > :global(h1) { padding-inline: var(--kartgutter); }
+   *
+   * Den gav sidans inskickade brödsmulor och H1 kolumnens indrag. Slotten
+   * finns inte längre och H1 ligger i kontrollbandet, så två av de tre
+   * väljarna matchade ingenting.
+   *
+   * Den tredje matchade fel sak. `:global(nav)` träffade nämligen ÄVEN vår
+   * egen `nav.kommuner` på rikskartan, som redan sätter indraget på sin
+   * inledning och på varje rad. Uppmätt vid 1440: kommunnamnen låg på x 48
+   * medan resultatraden ovanför låg på 24, alltså två olika vänsterkanter i
+   * samma kolumn, och radernas hårlinje slutade 24 px från kanten i stället
+   * för att gå hela vägen som Boolis. Med regeln borta hämtar kommunraderna
+   * sitt indrag ur sina egna regler och landar på samma linje som bandet.
+   */
 
   .listhuvud p {
     margin-top: var(--s-1);
@@ -3419,18 +4126,81 @@ const LEGEND = [
     align-items: center;
     gap: var(--s-2);
     flex-wrap: wrap;
-    min-height: 48px;
-    margin-top: var(--s-3);
+    /* 50 och inte 48. Boolis tal, och fältet är kolumnens första yta: en
+       pixels avvikelse syns inte, men det finns ingen anledning att inte ta
+       måttet när det är mätt. */
+    min-height: 50px;
     padding: var(--s-2) var(--s-4);
     background: var(--canvas);
     border: 1px solid var(--canvas);
     border-radius: var(--r-control);
+    transition: box-shadow 120ms ease, border-color 120ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .filterfalt { transition: none; }
   }
 
   .filterfalt:hover { border-color: var(--hairline); }
+
+  /*
+   * FÄLTET CENTRERAR SIG NÄR DET ÄR TOMT, och det är hela skillnaden ägaren
+   * läst tre gånger utan att kunna peka på den: "sök är fortfarande lite
+   * skum... kom igen nu."
+   *
+   * Uppmätt på booli.se 2026-08-25 med getComputedStyle:
+   *
+   *     tomt fält   .bui-input-search har justify-content: center, alltså
+   *                 står platshållaren OCH förstoringsglaset MITT i den
+   *                 640 px breda rutan.
+   *     vid fokus   ramen byter till kontrastfärg plus deras shadow-m, och
+   *                 innehållet glider ut till vänsterkanten.
+   *     med chip    chippet först och fältet efter, alltså vänsterställt så
+   *                 fort något är valt.
+   *
+   * Vårt låg vänsterställt i alla tre lägena med luppen i vänsterkanten, och
+   * det är exakt hur ett filterfält i en tabell ser ut. Rörelsen är det som
+   * gör att rutan läser som ett SÖKFÄLT: ett tomt fält är en inbjudan och står
+   * i mitten, ett fält man håller på i är ett arbetsbord och börjar till
+   * vänster.
+   *
+   * VÄLJAREN, och varför den ser ut så här. Tre villkor, alla nödvändiga:
+   *
+   *     :not(:focus-within)          fokus vänsterställer omedelbart
+   *     :has(input:placeholder-shown) tomt fält, alltså inget skrivet
+   *     :has(.chippar:empty)          inget valt område
+   *
+   * Sista villkoret testar CHIPPARNAS BEHÅLLARE och inte chippen själva, och
+   * det är inte en omskrivning för elegans. Chippen byggs med createElement
+   * och bär därför inget Astro-scope, alltså hade `:has(.chip)` kompilerats
+   * till `:has(.chip[data-astro-...])` och aldrig matchat något. Behållaren
+   * står i mallen, har scopet, och `:empty` är sant exakt när den saknar
+   * chip. Samma fälla som förslagsraderna gick i.
+   *
+   * Ingen övergång på justify-content, eftersom det inte finns någon. Bytet
+   * sker i samma ögonblick som fokus, precis som hos dem.
+   */
+  .filterfalt:not(:focus-within):has(input:placeholder-shown):has(.chippar:empty) {
+    justify-content: center;
+  }
+
+  /* Textfältet får inte SUGA UPP bredden i det centrerade läget. `flex: 1`
+     nedan gör inputen 208 px bred oavsett innehåll, och då står luppen och
+     platshållaren kvar till vänster inuti en centrerad men fullbred rad. I
+     tomläget krymper fältet därför till sitt innehåll. */
+  .filterfalt:not(:focus-within):has(input:placeholder-shown):has(.chippar:empty) input {
+    flex: 0 1 auto;
+    width: auto;
+    text-align: center;
+  }
+
   .filterfalt:focus-within {
     border-color: var(--brand);
     background: var(--card);
+    /* Deras shadow-m, i vår skala. Skuggan gör att den fokuserade rutan lyfts
+       ur kolumnen i stället för att bara byta ramfärg, vilket är svårt att se
+       på en ljus yta. */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .10);
   }
 
   /* Ringen på pillret, inte på fältet, av samma skäl som i SiteSearch: en
@@ -3481,14 +4251,128 @@ const LEGEND = [
   .rensa:hover { border-color: var(--brand); color: var(--brand-ink); }
   .rensa[hidden] { display: none; }
 
+  /* ── Kontrollbandet ───────────────────────────────────────────────────── */
+
+  /*
+   * Knappraden. Boolis två knappar ligger på y 196, alltså 16 px under
+   * sökfältets underkant på 180, och är 40 höga. Vi tar luften och höjden och
+   * inte deras bredd: de har två knappar på 316 var, vi har en, och en ensam
+   * knapp på halva kolumnen med tomrum bredvid läser som ett saknat syskon.
+   * Se noten vid kontrollbandet i markupen om varför "Spara sökning" inte
+   * finns.
+   */
+  .knapprad {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+    margin-top: var(--s-4);
+  }
+
+  .sokfilter {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: 40px;
+    padding-inline: var(--s-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    font: 600 var(--fs-body-s) / 1 var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .sokfilter svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+  }
+
+  .sokfilter:hover { border-color: var(--text-muted); }
+
+  /* Utfällt läge. Knappen är en växel och måste se ut som en: en knapp som
+     ser likadan ut oavsett om panelen under den är öppen eller stängd tvingar
+     ögat att titta ned för att veta vad ett tryck kommer att göra. */
+  .sokfilter.pa {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
+    color: var(--brand-ink);
+  }
+
+  /*
+   * Kategoriraden. Startsidans katband, samma form och samma tal: ikon 24 över
+   * etikett, gap 28, ingen ram och ingen fyllning, understreck på det valda,
+   * och en rad som rullar i sidled i stället för att brytas.
+   *
+   * Rullningen behövs här på riktigt, till skillnad från kommunhubbens
+   * rutnät. Sex val med etiketter upp till "Caféer och bagerier" mäter mer än
+   * kolumnens 640 minus 48, och på telefon är kolumnen 295.
+   */
+  .katrad {
+    display: flex;
+    align-items: stretch;
+    gap: 28px;
+    margin-top: var(--s-3);
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--hairline);
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* OBLIGATORISK, samma skäl som i pages/index.astro: utan den mäter en
+       rullbar flexrad sitt innehåll och skjuter kolumnen i sidled. */
+    min-inline-size: 0;
+  }
+
+  .katrad::-webkit-scrollbar { display: none; }
+  .katrad[hidden] { display: none; }
+
+  .katval {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 0 auto;
+    min-width: 56px;
+    padding: var(--s-2) 0 10px;
+    border: 0;
+    background: none;
+    font: 400 var(--fs-caption) / var(--lh-caption) var(--font-sans);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .katval:hover { color: var(--text); }
+
+  /* Understrecket ligger på pseudon och inte på border-bottom, så att det kan
+     ligga ovanpå radens egen hårlinje i stället för att flytta den. */
+  .katval::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: transparent;
+  }
+
+  .katval[aria-pressed='true'] {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .katval[aria-pressed='true']::after { background: var(--brand); }
+
   /* Kategorimärket. Ett chips med ett kryss, samma form som filterchipsen
-     annars på sajten, och placerat före filterfältet eftersom det är det
-     bredare av de två villkoren. */
+     annars på sajten. Ligger i knappraden bredvid Sökfilter, alltså intill den
+     knapp som öppnar raden märket speglar. */
   .kategorimarke {
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
-    margin-top: var(--s-3);
+    height: 40px;
     padding: var(--s-2) var(--s-3);
     border: 1px solid var(--brand);
     border-radius: var(--r-pill);
@@ -3506,6 +4390,146 @@ const LEGEND = [
 
   .kategorimarke:hover { background: color-mix(in srgb, var(--brand) 16%, var(--card)); }
   .kategorimarke[hidden] { display: none; }
+
+  /* ── Resultatraden och sorteringen ────────────────────────────────────── */
+
+  /*
+   * Boolis rad: texten till vänster, sorteringsknappen högerställd med sin
+   * högerkant i kolumnens innerkant, båda i samma rad. Uppmätt hos dem:
+   * texten på y 263 i 14 px, knappen 92 x 40 på (572, 252), alltså
+   * knappmitten i höjd med textens.
+   *
+   * `flex-wrap` och en textdel som får krympa till 200: på telefon är
+   * kolumnen 295 px och en knapp som säger "Senast kontrollerad" mäter drygt
+   * 160. Hellre knappen på egen rad än en textrad som blir fyra ord hög.
+   */
+  .resultatrad {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    margin-top: var(--s-4);
+  }
+
+  .resultattext {
+    flex: 1 1 200px;
+    min-width: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text);
+  }
+
+  /*
+   * SIDANS H1, i brödtextstorlek och inline.
+   *
+   * `display: inline` är inte en formsak: talet står i ett syskon på samma
+   * rad, precis som hos Booli, och en rubrik på egen rad hade gjort raden två
+   * rader hög och skilt platsen från talet som hör ihop med den.
+   *
+   * Vikt 400 och 14 px, alltså exakt vad deras H1 mäter. Sajtens globala
+   * h1-regel sätter både storlek och vikt, så båda skrivs över här.
+   */
+  .resultattext h1 {
+    display: inline;
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: 400;
+  }
+
+  /* Talet. `<b>` bär vikten, resten av meningen är brödtext. */
+  .resultattext [data-rubrik] b { font-weight: 600; }
+
+  /* Tomläget har inget tal att lyfta, och då bär hela meningen vikten i
+     stället. Utan den här regeln är beskedet om att vyn är tom den svagaste
+     texten på skärmen. */
+  .resultattext [data-rubrik].tomt { font-weight: 600; }
+
+  /* `margin-left: auto` och inte bara space-between. När raden bryts på smal
+     skärm blir knappen ensam på sin rad, och då lägger space-between den till
+     VÄNSTER, alltså i motsatt kant mot den den ska stå i. Uppmätt vid 375:
+     knappen hamnade på x 40 i stället för mot kolumnens högerkant. */
+  .sortval { position: relative; flex: none; margin-left: auto; }
+
+  .sortknapp {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    height: 40px;
+    padding-inline: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    font: 600 var(--fs-body-s) / 1 var(--font-sans);
+    color: var(--text);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .sortknapp:hover { border-color: var(--text-muted); }
+  .sortknapp svg { width: 14px; height: 14px; flex: none; }
+  .sortknapp[aria-expanded='true'] svg { transform: rotate(180deg); }
+
+  /*
+   * Menyn. ABSOLUT och inte i flödet, till skillnad från förslagslistan över
+   * sökfältet, och skillnaden är mätt och inte godtycklig.
+   *
+   * Förslagen kan bli sex rader och knuffar då listan nedåt, vilket är rätt:
+   * de är en del av frågan man håller på att ställa. Menyn har tre rader, är
+   * öppen i under en sekund, och en lista som hoppar 120 px varje gång någon
+   * öppnar en sorteringsmeny är det som får en sida att kännas ostadig.
+   *
+   * Klippningsrisken som gjorde förslagen till flöde finns inte här: menyn är
+   * 220 px bred i en kolumn på 640 och hängd i HÖGERKANTEN, alltså kan den
+   * inte nå spaltens vänstra kant, och kolumnen rullar lodrätt utan att
+   * klippa.
+   */
+  .sortmeny {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 5;
+    width: 220px;
+    list-style: none;
+    margin: 0;
+    padding: var(--s-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
+    background: var(--card);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .sortmeny[hidden] { display: none; }
+
+  .sortmeny button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    width: 100%;
+    height: 36px;
+    padding-inline: var(--s-2);
+    border: 0;
+    border-radius: var(--r-control);
+    background: none;
+    font: 400 var(--fs-body-s) / 1 var(--font-sans);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .sortmeny button:hover { background: var(--canvas); }
+
+  .sortmeny .bock {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--brand);
+    visibility: hidden;
+  }
+
+  .sortmeny [aria-selected='true'] { font-weight: 600; }
+  .sortmeny [aria-selected='true'] .bock { visibility: visible; }
 
   /* Områdesmärket delar kategorimärkets form. Ärvs inte via en gemensam klass,
      eftersom de två har olika betydelse och kommer att glida isär: kategorin
