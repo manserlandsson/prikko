@@ -71,6 +71,13 @@ En verksamhet som redan har en `wikimedia`-bild hoppas över av namnspåret.
 OSM-vägens bild är utpekad av en människa i OSM OCH en i Wikidata, alltså
 belagd två gånger, medan namnspårets bara är belagd på namnet.
 
+BÅDA VÄGARNA HÄR SKRIVER SKARPT, och därför kräver båda att namnen är LIKA
+ordmängder. Kravet kostar riktiga träffar, för kommunens register skriver
+nästan alltid ut ett led som Wikidata inte har: "Restaurant Frantzén" mot
+"Frantzén", "Aira Biskopsudden" mot "Aira". De fallen tas om hand av
+`pipeline/wikidatako.py`, som lättar på namngrinden och lägger en människa
+sist i stället. Se `prikko/wikidatanamn.para_brett`.
+
 Se docs/39_fler_bilder.md för hela mätningen, och för det spår som mättes och
 INTE byggdes: Commons geosökning ger 49 305 geotaggade filer i våra områden
 och fäller på motivet och inte på närheten.

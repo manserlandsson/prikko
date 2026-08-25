@@ -26,6 +26,35 @@ Hela modulen är de grindar som ersätter det intyget.
 Fyra grindar och inte en, för varje grind fäller ett eget slags fel. Nedan står
 vilket, med det fall som gjorde grinden nödvändig.
 
+## Trattens tal för den BREDA vägen, mätt 2026-08-25
+
+Den vägen lättar grind 1 och lägger till en femte grind, och den mynnar aldrig
+i en datafil utan i en granskningskö. Se `para_brett` och
+`pipeline/wikidatako.py`, som har hela kedjans tal med artikelspåret inräknat.
+Talen nedan är BARA P18-källan, så att de går att jämföra rad för rad med
+tratten ovan.
+
+    verksamheter                                              16 047
+    varav med en koordinat som får prövas                     13 379
+
+    par genom grind 1 och 2, alltså dagens smala väg              265
+    par genom grind 1, 1b och 2                                   403
+      varav namnen är LIKA                                        265
+      varav vårt namn RYMMER objektets                            138
+
+    varav ett objekt tas av bara en verksamhet (grind 5)          327
+    varav filen är fri och av rätt format (grind 3)                247
+    varav bilden också FÖRESTÄLLER stället (grind 4)               154
+
+    av de 247: rader som saknar bild i dag                         83
+      varav genom likhet, alltså grind 4 är det enda som fällt     29
+      varav genom grind 1b, alltså nya med den här mätningen       54
+
+Grind 4 släpper igenom 3 av de 138 delmängdsparen, och det är hela skälet till
+att den breda vägen är en KÖ och inte automatik: den bild ägaren pekade på,
+Frantzéns, heter "AV4A6287 (25063454437).jpg" och har "AV4A6287" som
+beskrivning. Ingen maskin kan se att den föreställer en restaurang.
+
 ## Grind 1: namnen ska vara LIKA, inte överlappa
 
 `oppettider.names_agree` godtar att den ena ordmängden är en delmängd av den
@@ -45,6 +74,71 @@ Likhet prövas efter att `oppettider._GENERIC` strukits ur BÅDA namnen, för
 annars faller "Restaurang Cassi" mot "Restaurang Cassi" på ordet restaurang och
 "Fåfängan Restaurang & Cafe" mot "Fåfängan" på ordet café. `_LEGAL` är redan
 struket av `name_tokens`.
+
+## Grind 1b: vårt namn får RYMMA objektets, och aldrig tvärtom
+
+Likhetskravet ovan står kvar för den AUTOMATISKA vägen och rörs inte. Vid
+sidan av den finns `rymmer`, en lösare form av samma grind, och den vägen
+slutar alltid hos en människa. Se `pipeline/wikidatako.py`.
+
+Skälet är detsamma som `michelin.namnet_stammer` mätte upp: kommunens register
+skriver nästan alltid ut ett led som Wikidata inte har, och likhetskravet
+fäller då ett riktigt par.
+
+    Restaurant Frantzén   →  Frantzén      6,5 m   ägaren pekade på just den
+    Aira Biskopsudden     →  Aira          5,3 m
+    Scandic Hotel Malmen  →  Hotell Malmen 1,1 m
+    Biograf Saga          →  Saga          0,4 m
+
+Mätt 2026-08-25 över alla tolv kommunerna: 300 par är LIKA ordmängder inom 150
+meter, och 672 till är sådana där vårt namn rymmer objektets.
+
+ÅT ANDRA HÅLLET SLÄPPS INGENTING IGENOM. Att objektets namn rymmer vårt är den
+form ett lån tar när vi har det korta namnet, och de 128 paren av den sorten är
+genomgående fel:
+
+    Café Nikolai        →  Sankt Nikolai kyrka        63 m
+    Brevens Café        →  Brevens kyrka             112 m
+    Johannelunds Kiosk  →  Johannelunds bibliotek     47 m
+    Melins Café & Bistro→  Farbror Melins torg        34 m
+
+## Avståndet är INTE det som skiljer ett lån från en träff
+
+Hypotesen var att delmängden kunde godtas inom ett mycket kort avstånd, i stil
+med de 27,1 meter `UTAN_P31_MAX_M` nedan är mätt på. Den prövades och HÖLL
+INTE. Två av de fem lånen ovan ligger innanför den gränsen:
+
+    Sushi Yama Mitt I City                  21,4 m
+    Kronans Apotek Karlstad Drottninggatan  25,8 m
+
+och riktiga par ligger utanför den: Karla Pressbutik är fel på 17 meter medan
+Restaurang Stortorgskällaren är rätt på 21,4 och Gondolen på 31,5. Talen ligger
+inte i två högar med ett glapp emellan, och en gräns någonstans i mitten hade
+kostat fyrtiotalet riktiga par utan att fälla ett enda av de fem. Grind 1b
+prövas därför mot samma `MAX_DISTANCE_M` som allt annat här, och det som
+faktiskt fäller lånen står i grind 2 och grind 5.
+
+## Grind 5: ETT OBJEKT, EN VERKSAMHET
+
+Ny med grind 1b och nödvändig bara där. Ett Wikidata-objekt som blir närmaste
+träff för FLERA av våra rader är en PLATS som flera verksamheter lånar namnet
+av, för en verksamhet är en rad. Mätt 2026-08-25 bland de 145 delmängdspar som
+klarade grind 2: 17 objekt tog 51 rader mellan sig.
+
+    Asecs           8 rader   Espresso House, Pressbyrån, Life, Hemmakväll …
+    Fältöversten    7 rader
+    Krämaren        4 rader   Clas Ohlson, Subway, Normal, Kronans Apotek
+    Våghustorget    3 rader
+    Hötorgshallen   3 rader
+    Åhléns City     3 rader
+
+Alla 51 kastas och inte alla utom en, av samma skäl som `commonsko.rensa` gör
+det med en delad fil: vi kan inte veta vilken av raderna som är stället, och en
+gissning som ser rätt ut är värre än ett tomrum.
+
+Grinden är samma fel som `brand:wikidata` redan är förbjuden för i docs/37,
+sett från andra hållet: där pekar taggen på kedjan i stället för på stället,
+här pekar namnet på huset i stället för på butiken i det.
 
 ## Grind 2: objektet ska vara ett SLAGS TING vi godtar
 
@@ -125,7 +219,7 @@ import urllib.request
 from dataclasses import dataclass, field, replace
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .oppettider import _GENERIC, metres, name_tokens
+from .oppettider import _GENERIC, MIN_SOLO_TOKEN, metres, name_tokens
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se)"
 
@@ -432,6 +526,13 @@ class Objekt:
     klasser: Tuple[str, ...]
     alias: Tuple[str, ...] = field(default=())
     beskrivning: str = ""
+    #: Adressen till objektets artikel på svenska Wikipedia, när det HAR en.
+    #:
+    #: Tom för allt lådfrågan lämnar, för den frågar på P18 och bryr sig inte
+    #: om artiklar. Fylld av `artikelobjekt_i_box`, som frågar tvärtom: objekt
+    #: UTAN P18 men MED en artikel, där artikelns ledbild får svara i stället.
+    #: Se `pipeline/wikidatako.py`.
+    artikel: str = ""
 
     def tillaten_klass(self) -> bool:
         """Står något av objektets slag i tillåtelselistan?
@@ -674,6 +775,171 @@ def objects_in_box(
     ]
 
 
+_ARTIKEL_QUERY = """SELECT ?item ?itemLabel ?lat ?lon ?klass ?beskrivning ?artikel WHERE {
+  SERVICE wikibase:box {
+    ?item wdt:P625 ?coord .
+    bd:serviceParam wikibase:cornerWest "Point(%(vast)s %(syd)s)"^^geo:wktLiteral .
+    bd:serviceParam wikibase:cornerEast "Point(%(ost)s %(nord)s)"^^geo:wktLiteral .
+  }
+  FILTER NOT EXISTS { ?item wdt:P18 ?bild }
+  ?artikel schema:about ?item ; schema:isPartOf <https://sv.wikipedia.org/> .
+  ?item p:P625/psv:P625 ?node .
+  ?node wikibase:geoLatitude ?lat ; wikibase:geoLongitude ?lon .
+  OPTIONAL { ?item wdt:P31 ?klass . }
+  OPTIONAL { ?item schema:description ?beskrivning . FILTER(LANG(?beskrivning) = "sv") }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "sv,en". }
+}"""
+
+
+def artikelobjekt_i_box(
+    box: Tuple[float, float, float, float], djup: int = 0
+) -> List[Objekt]:
+    """Objekt UTAN P18 men MED en artikel på svenska Wikipedia.
+
+    ══ VARFÖR SPÅRET FINNS ═══════════════════════════════════════════════════
+
+    P18 är Wikidatas eget val av bild, och den saknas oftare än artikeln gör.
+    Ett objekt utan P18 kan mycket väl ha en artikel med en ledbild, och den
+    bilden är vald av en människa till en text om just det objektet.
+
+    Mätt 2026-08-25 över alla tolv kommunerna:
+
+        objekt i våra lådor utan P18 men med en svensk artikel      3 705
+        varav par genom grind 1, 1b och 2                              43
+        varav kvar efter grind 5                                       39
+        varav artikeln har en ledbild alls                             25
+        varav vår rad saknar bild i dag                                20
+
+    Tjugo mot dagens 303 bilder är ett tillskott på sju procent, och det kostar
+    EN fråga till per kommunlåda plus ett uppslag per par.
+
+    ══ VARFÖR LEDBILDEN ALDRIG SKRIVS AV SIG SJÄLV ═══════════════════════════
+
+    En P18 är ett påstående om OBJEKTET. En ledbild är vald till en ARTIKEL,
+    och en artikel kan ha en bild av något annat än sitt ämne: kartan över
+    kvarteret, grundaren, ett dokument. `Life Ikanohuset` fick "Ikea Kungen
+    2009.jpg" och `Klosterbacken Vårdboende` fick "Norra sjukhemmet
+    Örebro.jpg", som båda är hus intill.
+
+    Belägget är alltså SVAGARE än P18:s, och det är skälet till att hela det
+    här spåret bara får mynna ut i en granskningskö.
+
+    Alias frågas inte, till skillnad från `objects_in_box`. Kandidaterna är 39
+    och inte 8 711, alltså kostar ett alias mer i anrop än det ger i träffar.
+    """
+    syd, vast, nord, ost = box
+    params = {"syd": syd, "vast": vast, "nord": nord, "ost": ost}
+
+    try:
+        rader = _ask(_ARTIKEL_QUERY % params)
+    except AvhuggetSvar:
+        if djup >= MAX_DELNINGAR:
+            raise
+        # Samma delning och samma sammanslagning som `objects_in_box`, se
+        # `AvhuggetSvar`. Stockholms låda klipps på den här frågan också.
+        mitt_ns = (syd + nord) / 2
+        mitt_ov = (vast + ost) / 2
+        hopslaget: Dict[str, Objekt] = {}
+        for del_ in (
+            (syd, vast, mitt_ns, mitt_ov),
+            (syd, mitt_ov, mitt_ns, ost),
+            (mitt_ns, vast, nord, mitt_ov),
+            (mitt_ns, mitt_ov, nord, ost),
+        ):
+            time.sleep(POLITE_DELAY_S)
+            for objekt in artikelobjekt_i_box(del_, djup=djup + 1):
+                tidigare = hopslaget.get(objekt.qid)
+                if tidigare is None:
+                    hopslaget[objekt.qid] = objekt
+                    continue
+                hopslaget[objekt.qid] = replace(
+                    tidigare,
+                    punkter=tuple(sorted(set(tidigare.punkter) | set(objekt.punkter))),
+                    klasser=tuple(sorted(set(tidigare.klasser) | set(objekt.klasser))),
+                    beskrivning=tidigare.beskrivning or objekt.beskrivning,
+                )
+        return list(hopslaget.values())
+
+    samlade: Dict[str, dict] = {}
+    for row in rader:
+        qid = _qid(row["item"]["value"])
+        post = samlade.setdefault(
+            qid,
+            {
+                "namn": row["itemLabel"]["value"],
+                "artikel": row["artikel"]["value"],
+                "punkter": set(),
+                "klasser": set(),
+                "beskrivning": "",
+            },
+        )
+        post["punkter"].add((float(row["lat"]["value"]), float(row["lon"]["value"])))
+        if "klass" in row:
+            post["klasser"].add(_qid(row["klass"]["value"]))
+        if "beskrivning" in row:
+            post["beskrivning"] = row["beskrivning"]["value"]
+
+    return [
+        Objekt(
+            qid=qid,
+            namn=post["namn"],
+            bild="",
+            punkter=tuple(sorted(post["punkter"])),
+            klasser=tuple(sorted(post["klasser"])),
+            beskrivning=post["beskrivning"],
+            artikel=post["artikel"],
+        )
+        for qid, post in samlade.items()
+    ]
+
+
+SVWP_API = "https://sv.wikipedia.org/w/api.php"
+
+
+def artikeltitel(url: str) -> str:
+    """Artikelns titel ur den URL WDQS lämnar sitelänken som.
+
+    WDQS svarar `https://sv.wikipedia.org/wiki/Zum%20Franziskaner`, och
+    MediaWikis API vill ha titeln med mellanslag.
+    """
+    return urllib.parse.unquote(url.rsplit("/", 1)[-1]).replace("_", " ")
+
+
+def ledbilder(titlar: Sequence[str], batch: int = 20) -> Dict[str, Optional[str]]:
+    """Filnamnet på varje artikels ledbild, eller None.
+
+    `prop=pageimages` svarar med den bild MediaWiki själv räknar som sidans
+    representativa, alltså samma val infoboxen och sökrutan visar. Att läsa
+    wikitexten och plocka första bilden hade gett en annan och sämre bild:
+    första filen i källan är ofta en ikon eller en karta.
+
+    Titlarna normaliseras av API:et ("Zum franziskaner" blir "Zum
+    Franziskaner"), och kartan nedan bär BÅDA formerna så att den som frågade
+    hittar sitt svar.
+    """
+    funna: Dict[str, Optional[str]] = {}
+    rena = [t for t in dict.fromkeys(titlar) if t]
+    for start in range(0, len(rena), batch):
+        chunk = rena[start : start + batch]
+        url = (
+            f"{SVWP_API}?action=query&format=json&prop=pageimages&piprop=name"
+            "&titles=" + urllib.parse.quote("|".join(chunk))
+        )
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            svar = json.loads(response.read().decode("utf-8"))
+        query = svar.get("query") or {}
+        for sida in (query.get("pages") or {}).values():
+            namn = sida.get("pageimage")
+            funna[sida.get("title")] = namn.replace("_", " ") if namn else None
+        for rad in query.get("normalized") or []:
+            funna[rad["from"]] = funna.get(rad["to"])
+        for titel in chunk:
+            funna.setdefault(titel, None)
+        time.sleep(POLITE_DELAY_S / 10)
+    return funna
+
+
 # ---------------------------------------------------------------------------
 # Grindarna
 # ---------------------------------------------------------------------------
@@ -700,6 +966,45 @@ def names_agree(ours: Sequence[str], theirs: Sequence[str]) -> bool:
     vara = set(distinct(ours))
     deras = set(distinct(theirs))
     return bool(vara) and vara == deras
+
+
+def rymmer(vara: Sequence[str], deras: Sequence[str]) -> bool:
+    """Grind 1b. Rymmer VÅRT namn objektets, utan att vara samma namn?
+
+    Tar ordmängderna EFTER `distinct`, precis som `names_agree`, och svarar
+    nej på likhet: den frågan är redan ställd och besvarad av grind 1.
+
+    ══ BARA ÅT DET HÄR HÅLLET ════════════════════════════════════════════════
+
+    Att vårt namn rymmer objektets är det kommunens register gör hela tiden:
+    "Restaurant Frantzén" mot "Frantzén", "Aira Biskopsudden" mot "Aira",
+    "Scandic Hotel Malmen" mot "Hotell Malmen".
+
+    Att OBJEKTETS namn rymmer vårt är något annat, och de 128 paren av den
+    sorten 2026-08-25 är genomgående fel: "Café Nikolai" mot Sankt Nikolai
+    kyrka, "Brevens Café" mot Brevens kyrka. Vårt korta namn sitter då inuti
+    ett längre namn på något intill, och det är inget belägg alls.
+
+    ══ ETT ENSAMT GEMENSAMT ORD MÅSTE VARA LÅNGT NOG ════════════════════════
+
+    Rymmer vårt namn ett objektsnamn på ETT ord bär det ordet hela beviset,
+    och då gäller `oppettider.MIN_SOLO_TOKEN`. Samma tal och samma skäl som
+    `michelin.namnet_stammer`: tre bokstäver eller färre är i praktiken alltid
+    ett allmänord som kan sitta inuti vilket namn som helst.
+
+    Likheten i grind 1 prövas UTAN längdkravet, och det är avsiktligt: "Sushi
+    SHO" mot "Sushi Sho" är ordmängden {sho} på båda sidor, alltså tre
+    tecken, och en likhet är ett starkare belägg än en delmängd.
+    """
+    vart = set(vara)
+    deras_ = set(deras)
+    if not vart or not deras_:
+        return False
+    if not deras_ < vart:
+        return False
+    if len(deras_) >= 2:
+        return True
+    return len(next(iter(deras_))) >= MIN_SOLO_TOKEN
 
 
 def within_reach(objekt: Objekt, lat: float, lng: float) -> Optional[float]:
@@ -838,3 +1143,103 @@ def pair(index: Index, namn: Optional[str], lat: float, lng: float) -> Optional[
         if basta is None or avstand < basta.metres:
             basta = Traff(objekt=objekt, metres=avstand)
     return basta
+
+
+# ---------------------------------------------------------------------------
+# Den breda vägen: grind 1b, och alltid till en människa
+# ---------------------------------------------------------------------------
+
+
+#: Vilken form av namnlikhet en bred träff vilar på. Skrivs in i kön och i
+#: granskningsarket, så att den som godkänner ser vad beviset är.
+GRIND_LIKA = "namnen är lika ordmängder"
+GRIND_DELMANGD = "vårt namn rymmer objektets"
+
+
+@dataclass(frozen=True)
+class Bredtraff:
+    """Som `Traff`, men med den grind namnet passerade.
+
+    `pair` behöver inget sådant fält: där finns bara en namngrind och den är
+    likhet. Här finns två, och en människa ska kunna se vilken.
+    """
+
+    objekt: Objekt
+    metres: float
+    grind: str
+
+
+def slaget_duger(objekt: Objekt, avstand: float) -> bool:
+    """Grind 2, som en egen fråga: är objektet ett slags ting vi godtar?
+
+    Bruten ur `pair` och inte kopierad ur den, för nu finns två vägar som
+    ställer exakt samma fråga och de får inte kunna glida isär. Reglerna är
+    oförändrade: tillåten P31, eller ingen P31 alls och då antingen
+    `UTAN_P31_MAX_M` eller en svensk beskrivning som säger vad tinget är.
+    """
+    if objekt.tillaten_klass():
+        return True
+    if not objekt.saknar_klass():
+        return False
+    return avstand <= UTAN_P31_MAX_M or objekt.beskrivningen_sager_vad_det_ar()
+
+
+def para_brett(
+    index: Index, namn: Optional[str], lat: float, lng: float
+) -> Optional[Bredtraff]:
+    """Grind 1, 1b och 2: vilket objekt KAN det här stället vara?
+
+    KAN och inte ÄR, till skillnad från `pair`. Utfallet här går till en
+    granskningskö och aldrig rakt in i en datafil, se `pipeline/wikidatako.py`.
+
+    Närmast vinner när flera passerar, precis som i `pair`. Att låta likhet gå
+    före närhet provades och gav samma utfall på alla utom ett par: "Bar
+    Central Folkoperan" ligger 9,1 meter från BÅDE Folkoperan och objektet
+    Ricardo, och där är närheten inget svar. Den frågan får granskaren.
+    """
+    vart = name_tokens(namn or "")
+    if not vart:
+        return None
+    vart_utpekande = distinct(vart)
+    basta: Optional[Bredtraff] = None
+    for objekt in index.near(lat, lng):
+        grind = None
+        for form in objekt.namnformer():
+            if not form:
+                continue
+            if names_agree(vart, form):
+                grind = GRIND_LIKA
+                break
+            if rymmer(vart_utpekande, distinct(form)):
+                grind = GRIND_DELMANGD
+        if grind is None:
+            continue
+        avstand = within_reach(objekt, lat, lng)
+        if avstand is None:
+            continue
+        if not slaget_duger(objekt, avstand):
+            continue
+        if basta is None or avstand < basta.metres:
+            basta = Bredtraff(objekt=objekt, metres=avstand, grind=grind)
+    return basta
+
+
+def ett_objekt_en_verksamhet(par: Sequence[Tuple[str, str]]) -> set:
+    """Grind 5. Vilka qid:n är HÖGST en av våra rader, räknat över hela riket?
+
+    Tar (verksamhets-id, qid) och lämnar de qid som bara en enda verksamhet
+    har som närmaste träff. Se modulens docstring: ett objekt som flera rader
+    delar är ett hus, en galleria eller ett torg, och då är namnlikheten ett
+    lån och inte ett belägg.
+
+    RIKET OCH INTE KOMMUNEN är rätt nämnare. Lådorna överlappar vid
+    kommungränsen, och ett objekt som tas av en rad i Stockholm och en i
+    Uppsala är lika mycket en delad plats som två rader i samma galleria.
+
+    Samma verksamhet räknas en gång hur många gånger den än står i listan, för
+    en omkörning som lägger samma par två gånger ska inte kunna fälla det.
+    """
+    rader: Dict[str, set] = {}
+    for verksamhet, qid in par:
+        rader.setdefault(qid, set()).add(verksamhet)
+    return {qid for qid, ids in rader.items() if len(ids) == 1}
