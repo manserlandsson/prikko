@@ -156,6 +156,9 @@ def build(limit: Optional[int], today: date) -> dict:
                             }
                             for a in i.areas
                         ],
+                        # Diarienumret besökaren behöver för att begära ut
+                        # kontrollrapporten. Se uppsala.py.
+                        "caseNumber": i.case_number,
                     }
                     for i in sorted(inspections, key=lambda x: x.inspected_at, reverse=True)
                 ],

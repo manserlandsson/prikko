@@ -414,7 +414,32 @@ def ark() -> int:
 
 <script>
   const NYCKEL = 'prikko-michelin-ko';
-  const beslut = JSON.parse(localStorage.getItem(NYCKEL) || '{{}}');
+  /*
+   * localStorage bakom en spärr, och det är inte en artighet.
+   *
+   * Ägaren 2026-08-25: "det funkar ej, knapparna funkar ej." Arket öppnas
+   * genom att dubbelklicka på filen, alltså på file://, och Safari behandlar
+   * file:// som ett ogenomskinligt ursprung: BARA ATT LÄSA localStorage
+   * kastar SecurityError där. Kastet skedde på skriptets första rad, alltså
+   * innan en enda knapp hade fått sin lyssnare, och kvar blev ett ark som såg
+   * färdigt ut och inte svarade på något.
+   *
+   * Minnet är en bekvämlighet, inte arkets uppgift. Utan det tål arket ingen
+   * omladdning, men knapparna fungerar, och det är den ordning felet visade
+   * att vi hade fel på.
+   */
+  const lager = (() => {{
+    try {{
+      localStorage.setItem(NYCKEL + ':prov', '1');
+      localStorage.removeItem(NYCKEL + ':prov');
+      return localStorage;
+    }} catch (e) {{
+      const m = new Map();
+      return {{ getItem: (k) => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, v) }};
+    }}
+  }})();
+
+  const beslut = JSON.parse(lager.getItem(NYCKEL) || '{{}}');
 
   function rakna() {{
     const v = Object.values(beslut);
@@ -434,7 +459,7 @@ def ark() -> int:
       kort.querySelector(knapp).addEventListener('click', () => {{
         beslut[nyckel] = val;
         kort.dataset.beslut = val;
-        localStorage.setItem(NYCKEL, JSON.stringify(beslut));
+        lager.setItem(NYCKEL, JSON.stringify(beslut));
         rakna();
       }});
     }}

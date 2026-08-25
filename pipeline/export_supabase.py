@@ -232,11 +232,41 @@ FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 #: Uppmätt 2026-08-20: stop 12 870, parking 10 606, contact 3 274, hours
 #: 2 747. Inget av dem har en motpart i Supabase.
 #:
-#: `michelin` tillkom 2026-08-25 och står på tio rader, samtliga i Stockholm.
-#: Tio rader är just den storlek som gör felet osynligt: en export som tappar
+#: `michelin` tillkom 2026-08-25 och står på elva rader, samtliga i Stockholm.
+#: Elva rader är just den storlek som gör felet osynligt: en export som tappar
 #: dem ser lika grön ut som en som behåller dem, och ingen sida går sönder.
 #: Se pipeline/michelin.py för varför uppgiften inte har någon kolumn.
-FILFALT = ("hours", "contact", "stop", "parking", "michelin")
+#:
+#: Fem fält tillkom samma dag ur kommunernas egna svar, alltså uppgifter vi
+#: redan hämtade och kastade bort:
+#:
+#:     registration    Stockholms registreringsintyg: organisationsnummer,
+#:                     postnummer, livsmedelsföretagare, registreringsdatum,
+#:                     omfattning och beslutad kontrollfrekvens. Se
+#:                     pipeline/stockholmsintyg.py.
+#:     registeredAt    datum då verksamheten registrerades hos kommunen
+#:     operator        den juridiska person som driver stället
+#:     riskClass       kommunens beslutade riskklass, Linköping i dag
+#:     decisions       delegationsbeslut som PDF, Kristinehamn i dag
+#:
+#: De står här av EXAKT samma skäl som de fyra första: exporten bygger varje
+#: rad från grunden ur databasen, ingen av dem har en kolumn där, och en rad
+#: utan organisationsnummer är fullt publicerbar. Alltså skulle de försvinna
+#: tyst i nästa nattkörning och ingenting skulle klaga. Det felet har redan
+#: inträffat fem gånger på fem dygn och listan finns för att det inte ska ske
+#: en sjätte.
+FILFALT = (
+    "hours",
+    "contact",
+    "stop",
+    "parking",
+    "michelin",
+    "registration",
+    "registeredAt",
+    "operator",
+    "riskClass",
+    "decisions",
+)
 
 
 def filblock(path: Path) -> dict:

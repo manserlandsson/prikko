@@ -39,7 +39,9 @@ from prikko.sources.kristinehamn import (  # noqa: E402
     UnknownSourceValue,
     attachments_url,
     is_active,
+    is_decision_text,
     merge_features,
+    normalize_decisions,
     normalize_establishment,
     normalize_inspections,
     parse_attachments,
@@ -171,10 +173,12 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
 
         attachments = [a for oid in object_ids for a in by_parent.get(oid) or []]
         reports = []
+        decided_ids = set()
         for attachment in attachments:
             if attachment.is_decision:
                 # Ett föreläggande är inget kontrolltillfälle. Kontrollen som
                 # ledde fram till beslutet publiceras som en egen rapport.
+                # Filnamnet räcker för att veta det, så PDF:en hämtas aldrig.
                 continue
             try:
                 raw = report_bytes(attachment.url, attachment.id, cache)
@@ -185,8 +189,17 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
                 )
                 unreadable += 1
                 continue
+
+            text = extract_text(raw)
+            if is_decision_text(text):
+                # Ett beslut som filnamnet inte avslöjade. Det är inte en
+                # oläsbar rapport utan ett annat sorts dokument, och ska
+                # därför inte räknas som en lucka i historiken.
+                decided_ids.add(attachment.id)
+                continue
+
             try:
-                report = parse_report(extract_text(raw), attachment)
+                report = parse_report(text, attachment)
             except UnknownSourceValue as exc:
                 print(f"  ! {exc}", file=sys.stderr)
                 unreadable += 1
@@ -211,6 +224,7 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
         inspections = normalize_inspections(
             attachments, reports, establishment.id_national
         )
+        decisions = normalize_decisions(attachments, decided_ids)
 
         result = assess(
             [
@@ -240,6 +254,17 @@ def build(today: date, limit: Optional[int], cache: Optional[Path]) -> dict:
                 "reason": result.reason,
                 "modelVersion": result.model_version,
                 "uncertain": False,
+                # Delegationsbeslut, alltså förelägganden. Ligger MEDVETET
+                # utanför `inspections`: de är inga kontrolltillfällen och
+                # får aldrig räknas in i omdömet. Se källmodulen.
+                "decisions": [
+                    {
+                        "url": d.url,
+                        "filename": d.filename,
+                        "date": d.published_at.isoformat() if d.published_at else None,
+                    }
+                    for d in decisions
+                ],
                 "inspections": [
                     {
                         "id": i.id_national,

@@ -173,6 +173,13 @@ def build(today: date, limit: Optional[int]) -> dict:
                 "reason": result.reason,
                 "modelVersion": result.model_version,
                 "uncertain": False,
+                # Registreringsdatumet ur `Registrerades`, som kommunen visar
+                # själv på verksamhetssidan. Se orebro.registration_date().
+                "registeredAt": (
+                    establishment.registered_at.isoformat()
+                    if establishment.registered_at
+                    else None
+                ),
                 "inspections": [
                     {
                         "id": i.id_national,
@@ -202,6 +209,13 @@ def build(today: date, limit: Optional[int]) -> dict:
     # filen utan att något ändrats.
     records.sort(key=lambda r: r["id"])
     dedupe_slugs(records)
+
+    # Täckningen skrivs ut i stället för att kontrolleras med ett kast. Se
+    # orebro.registration_date(): ett oläsbart datum får inte fälla en
+    # verksamhet, men det får inte heller försvinna tyst. Talet var 1 233 av
+    # 1 233 vid mätningen 2026-08-25.
+    dated = sum(1 for r in records if r["registeredAt"])
+    print(f"  registreringsdatum {dated}/{len(records)}", file=sys.stderr)
 
     return {
         "municipality": {

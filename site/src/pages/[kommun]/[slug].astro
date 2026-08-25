@@ -64,6 +64,7 @@ import Reviews from '../../components/Reviews.astro';
 import ActionPanel from '../../components/ActionPanel.astro';
 import ArtikelBanner from '../../components/ArtikelBanner.astro';
 import Handlingsrad from '../../components/Handlingsrad.astro';
+import Anmal from '../../components/Anmal.astro';
 import Kontrolldatum from '../../components/Kontrolldatum.astro';
 import {
   BEST_NEARBY_M,
@@ -285,6 +286,26 @@ const ownCategories: CategorySlice[] = kommunCats.usable
  * på en URL som kvalitetsgrinden håller borta. Se lib/kedjor.ts.
  */
 const kedja = chainFor(e);
+
+/**
+ * Konsumentvänd eller inte, samma nämnare som öppettiderna redan använder.
+ *
+ * Restaurang, café och butik. Listan speglar KONSUMENT i pipeline/oppettider.py,
+ * som i sin tur pekar hit och säger att site/src/lib/categories.ts är
+ * sanningen. Ändras den ena ska den andra ändras med.
+ *
+ * Talet är 5 610 av Stockholms 8 520, mätt 2026-08-25 genom att köra
+ * `classify` över hela filen. Den enda som läser flaggan i dag är
+ * matförgiftningslänken i Anmal.astro: ett förskolekök, en transportör eller
+ * ett huvudkontor ska inte erbjudas den, för det är ingen plats någon ätit på.
+ *
+ * `spanning` räknas INTE med, till skillnad från i öppettidsskriptet. Det
+ * statusvärdet betyder att kommunens ordförråd inte går att lösa upp, och det
+ * finns bara i Höganäs. I Stockholm är det uppmätt 0 av 8 520, alltså hade en
+ * gren för det varit en gren som aldrig tas.
+ */
+const KONSUMENTVANDA = new Set<string>(['restaurang', 'cafe', 'butik']);
+const konsumentvand = categoriesOf(e).categories.some((id) => KONSUMENTVANDA.has(id));
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -1055,6 +1076,32 @@ const breadcrumbs = {
             municipalitySlug={kommun.slug}
           />
         </div>
+
+        {/* Vägen till kommunens egna anmälningsformulär, UNDER "Något som inte
+            stämmer?" och inte i handlingsraden.
+
+            Handlingsraden är två knappar bred av princip och vetter mot den
+            som vill följa eller dela. Regeln där är att en knapp hör hemma där
+            dess verkan sker; verkan sker här utanför sajten, alltså har rutan
+            ingen sektion att höra till, och då är sidopanelen rätt plats.
+            Samma resonemang som redan gäller bevakningen, se Handlingsrad.astro.
+
+            Villkoret är kommunkoden och inte ett fält på raden. Bara Stockholm
+            har formulär som tar emot verksamheten som parameter, och länkarna
+            byggs av id, namn och adress som redan står i raden. De övriga elva
+            kommunerna har allmänna anmälningssidor utan förifyllning; en sådan
+            länk är en annan sak och byggs inte här förrän den är utredd per
+            kommun. Se Anmal.astro. */}
+        {kommun.code === '0180' && (
+          <div class="panel">
+            <Anmal
+              establishmentId={e.id}
+              establishmentName={e.name}
+              address={e.address}
+              matforgiftning={konsumentvand}
+            />
+          </div>
+        )}
 
         {/* `data-nosnippet`: panelen är en väg vidare, inte sidans svar.
             Listan är namn och avstånd till andra ställen, och i ett sökresultat

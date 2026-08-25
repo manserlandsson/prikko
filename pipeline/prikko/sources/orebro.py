@@ -6,6 +6,10 @@ Sjätte källan, sjätte formatet — men den mest detaljerade efter Linköping.
     1) GET /rest-api/foodreport/search
          → [{Registrerades, Objektsnamn, Typ, AnlaggningId, Adress}]  1 234 st
 
+       Alla fem fälten läses. `Registrerades` är registreringsdatumet och
+       kastades fram till 2026-08-25; det är ifyllt i 1 233 av 1 233 poster
+       och kostar inget extra anrop. Se `registration_date()`.
+
     2) GET …/resultat-fran-livsmedelskontroller---verksamhet.html?facility=<id>
          → HTML där historiken ligger inbäddad som
            `const INSPECTIONS = [{id, reason, date, recent}]`
@@ -158,6 +162,34 @@ class NormalizedEstablishment:
     types: list
     lat: Optional[float]
     lng: Optional[float]
+    #: Dagen verksamheten registrerades hos kommunen, ur `Registrerades`.
+    #: Se `registration_date()`.
+    registered_at: Optional[date] = None
+
+
+def registration_date(raw: dict) -> Optional[date]:
+    """Registreringsdatumet, ur fältet `Registrerades`.
+
+    Fältet ligger i det svar vi redan hämtar och var ifyllt i 1 233 av 1 233
+    poster 2026-08-25. Kommunen visar det själv på verksamhetssidan, så det
+    är ingen uppgift vi räknat fram: det är deras egen.
+
+    **Ett oläsbart datum ger None i stället för att kasta.** Modulens
+    strikthetsregel gäller värden som bedömningen vilar på; ett
+    registreringsdatum påverkar inget omdöme, och att fälla en hel
+    verksamhet ur beståndet för att en datumsträng ändrat form vore en
+    dyrare rättelse än felet. Att uppgiften försvinner tyst är däremot inte
+    acceptabelt, och därför räknar `fetch_orebro.py` hur många datum som gick
+    att läsa och skriver ut talet. Faller det från 1 233 till noll syns det i
+    loggen samma natt.
+    """
+    value = (raw.get("Registrerades") or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
 
 
 def facility_url(facility_id: str) -> str:
@@ -217,6 +249,7 @@ def normalize_establishment(raw: dict) -> NormalizedEstablishment:
         # steg, pipeline/geocode.py, och märks då som härledd.
         lat=None,
         lng=None,
+        registered_at=registration_date(raw),
     )
 
 

@@ -23,9 +23,18 @@ from prikko.sources.linkoping import (  # noqa: E402
     AREA_IS_REMARK,
     AREA_OK,
     AREA_PERSISTING,
+    ARCGIS_FACILITIES,
+    ARCGIS_INSPECTIONS,
+    LIST_URL,
     UnknownSourceValue,
+    arcgis_query_url,
+    check_arcgis_address,
+    enrich,
     normalize_establishment,
     normalize_inspection,
+    parse_arcgis_facilities,
+    parse_arcgis_inspections,
+    with_case_numbers,
 )
 
 # Verkligt objekt ur /api/v1/Anlaggningar/{id}
@@ -181,6 +190,188 @@ class Inspections(unittest.TestCase):
         self.assertEqual(
             normalize_inspection(raw, "F-0580-x").inspected_at, date(2023, 12, 20)
         )
+
+
+# Verklig rad ur Livsmedelkoll_anlaggningar/FeatureServer/0
+ARCGIS_FACILITY = {
+    "features": [
+        {
+            "attributes": {
+                "OBJECTID": 1,
+                "AnlaggningId": "975A4347-8927-4230-98E6-AAED2975562E",
+                "Objektsnamn": "247 PUNKTEN*",
+                "Fastighet": "Absalon 22",
+                "Adress": "Platensgatan 6A",
+                "PostNr": "58220",
+                "PostOrt": "Linköping",
+                "Plats": "Innerstaden",
+                "Status": "Aktiv",
+                "FME_DATUM": "2026-08-24",
+            }
+        }
+    ]
+}
+
+# Verklig rad ur LIVSMEDELKOLL_TILLSYNER/FeatureServer/0
+ARCGIS_INSPECTION = {
+    "features": [
+        {
+            "attributes": {
+                "AnlaggningId": "975A4347-8927-4230-98E6-AAED2975562E",
+                "Objektsnamn": "247 PUNKTEN*",
+                "R2024RiskklassBeslutad": "SL1",
+                "AnlaggningStatus": "Aktiv",
+                "ArendeNummer": "MK-2024-5051",
+                "TillsynsId": "E7998230-47F1-41B8-9342-1B7E5DFB255D",
+                "TillsynsDatum": "2025-01-24",
+                "Kontrollorsak": "Uppföljande",
+                "KontrollTyp": "Oanmäld",
+                "Helhetsbedomning2024": "Utan Avvikelse",
+            }
+        }
+    ]
+}
+
+FULL_INSPECTION = dict(
+    RAW_INSPECTION, anlaggningsId="975A4347-8927-4230-98E6-AAED2975562E"
+)
+
+
+class Ettanropshamtningen(unittest.TestCase):
+    """Hela beståndet med full historik ryms i ett anrop.
+
+    Fram till 2026-08-25 gjordes 1 241 detaljanrop i stället. Påståendet att
+    listendpointen "alltid" ger tom `tillsyner` var sant bara när
+    `inkluderaInspektioner` utelämnades.
+    """
+
+    def test_the_list_url_asks_for_the_history(self):
+        self.assertIn("inkluderaInspektioner=true", LIST_URL)
+        self.assertIn("inkluderaVerksamheter=true", LIST_URL)
+
+    def test_the_list_url_is_not_the_old_sweep(self):
+        self.assertNotIn("medsenastetillsyn", LIST_URL)
+
+
+class ArcGisAnrop(unittest.TestCase):
+    def test_geometry_is_not_requested(self):
+        # Koordinaterna kommer ur JSON-API:et som förut. Att inte begära
+        # geometri här betyder att det inte finns någon avrundning att bli
+        # lurad av, till skillnad från i karlstad.py och oskarshamn.py.
+        url = arcgis_query_url(ARCGIS_FACILITIES)
+        self.assertIn("returnGeometry=false", url)
+
+    def test_paging_is_expressed_as_an_offset(self):
+        # Tabellen har 2 646 rader och serverns tak är 2 000.
+        self.assertIn("resultOffset=2000", arcgis_query_url(ARCGIS_INSPECTIONS, 2000))
+
+
+class Riskklass(unittest.TestCase):
+    def test_risk_class_reaches_the_establishment(self):
+        risk, _ = parse_arcgis_inspections([ARCGIS_INSPECTION])
+        e = enrich(
+            normalize_establishment(RAW_ESTABLISHMENT),
+            parse_arcgis_facilities([ARCGIS_FACILITY]),
+            risk,
+        )
+        self.assertEqual(e.risk_class, "SL1")
+
+    def test_property_postal_code_and_district_come_along(self):
+        e = enrich(
+            normalize_establishment(RAW_ESTABLISHMENT),
+            parse_arcgis_facilities([ARCGIS_FACILITY]),
+            {},
+        )
+        self.assertEqual(e.property_designation, "Absalon 22")
+        self.assertEqual(e.postal_code, "58220")
+        self.assertEqual(e.district, "Innerstaden")
+
+    def test_an_establishment_missing_from_the_layers_is_left_alone(self):
+        # Lagren täcker 792 av 1 246. De övriga ska SAKNA riskklass, inte
+        # hoppas över och inte få en gissad.
+        e = enrich(normalize_establishment(RAW_ESTABLISHMENT), {}, {})
+        self.assertIsNone(e.risk_class)
+        self.assertIsNone(e.property_designation)
+
+    def test_an_unknown_risk_class_raises_instead_of_being_published(self):
+        # Ett värde utanför HK/SL/TL/KM betyder att kommunen bytt kodverk.
+        # Att publicera en klass vi inte vet betydelsen av vore värre än
+        # att sakna den.
+        broken = {"features": [{"attributes": {
+            "AnlaggningId": "A", "R2024RiskklassBeslutad": "ZZ9"}}]}
+        with self.assertRaises(UnknownSourceValue):
+            parse_arcgis_inspections([broken])
+
+    def test_two_risk_classes_for_one_establishment_raise(self):
+        # Tabellen har en rad per kontroll, så klassen upprepas. Motsägelser
+        # var noll av 546 anläggningar vid mätningen.
+        broken = {"features": [
+            {"attributes": {"AnlaggningId": "A", "R2024RiskklassBeslutad": "SL4"}},
+            {"attributes": {"AnlaggningId": "A", "R2024RiskklassBeslutad": "SL5"}},
+        ]}
+        with self.assertRaises(UnknownSourceValue):
+            parse_arcgis_inspections([broken])
+
+    def test_a_repeated_identical_risk_class_is_fine(self):
+        ok = {"features": [
+            {"attributes": {"AnlaggningId": "A", "R2024RiskklassBeslutad": "SL4"}},
+            {"attributes": {"AnlaggningId": "A", "R2024RiskklassBeslutad": "SL4"}},
+        ]}
+        risk, _ = parse_arcgis_inspections([ok])
+        self.assertEqual(risk["A"], "SL4")
+
+
+class Diarienummer(unittest.TestCase):
+    def test_case_number_is_matched_on_establishment_and_inspection(self):
+        _, cases = parse_arcgis_inspections([ARCGIS_INSPECTION])
+        got = with_case_numbers(
+            [normalize_inspection(FULL_INSPECTION, "F-0580-test")], cases
+        )
+        self.assertEqual(got[0].case_number, "MK-2024-5051")
+
+    def test_an_inspection_the_layer_does_not_know_keeps_none(self):
+        # 2 492 av 9 131 kontroller fick ett nummer. Resten är äldre än
+        # riskklassmodellen 2024 och finns inte i tabellen.
+        got = with_case_numbers(
+            [normalize_inspection(FULL_INSPECTION, "F-0580-test")], {}
+        )
+        self.assertIsNone(got[0].case_number)
+
+
+class AdressFacit(unittest.TestCase):
+    """Punktlagrets adress stämde med API:ets i 773 fall av 773.
+
+    Kontrollen är gratis facit på att GUID:et pekar på samma verksamhet i
+    båda källorna. Gör den inte det är riskklassen inte att lita på.
+    """
+
+    def test_agreeing_addresses_pass(self):
+        check_arcgis_address(
+            normalize_establishment(RAW_ESTABLISHMENT),
+            parse_arcgis_facilities([ARCGIS_FACILITY]),
+        )
+
+    def test_contradicting_addresses_raise(self):
+        payload = {"features": [{"attributes": dict(
+            ARCGIS_FACILITY["features"][0]["attributes"],
+            Adress="Helt Annan Gata 9")}]}
+        with self.assertRaises(UnknownSourceValue):
+            check_arcgis_address(
+                normalize_establishment(RAW_ESTABLISHMENT),
+                parse_arcgis_facilities([payload]),
+            )
+
+    def test_a_missing_address_on_either_side_is_not_a_conflict(self):
+        # Att den ena källan saknar adress är väntat och betyder ingenting.
+        payload = {"features": [{"attributes": dict(
+            ARCGIS_FACILITY["features"][0]["attributes"], Adress="")}]}
+        check_arcgis_address(
+            normalize_establishment(RAW_ESTABLISHMENT),
+            parse_arcgis_facilities([payload]),
+        )
+
+    def test_an_establishment_outside_the_layer_is_not_a_conflict(self):
+        check_arcgis_address(normalize_establishment(RAW_ESTABLISHMENT), {})
 
 
 if __name__ == "__main__":

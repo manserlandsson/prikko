@@ -31,8 +31,10 @@ from prikko.sources.kristinehamn import (  # noqa: E402
     assessment_of,
     control_date,
     is_active,
+    is_decision_text,
     local_id,
     merge_features,
+    normalize_decisions,
     normalize_establishment,
     normalize_inspections,
     parse_attachments,
@@ -444,6 +446,85 @@ class EndToEnd(unittest.TestCase):
         result = self.verdict((old, attachment("Sannabadet 2020-09-14.pdf")))
         self.assertIsNone(result.verdict)
         self.assertEqual(result.reason, REASON_STALE)
+
+
+DECISION_TEXT = "DELEGATIONSBESLUT\nSida\n1\n(\n3\n)\nDatum\n2025\n-\n06\n-\n12"
+
+
+class Delegationsbeslut(unittest.TestCase):
+    """De nio föreläggandena. URL:erna hade vi redan; vi gjorde inget med dem.
+
+    Kristinehamn är den enda av våra tolv kommuner där ett myndighetsbeslut
+    om en livsmedelsverksamhet alls är åtkomligt utan en begäran om allmän
+    handling. Besluten räknas ALDRIG som kontroller — det är hela poängen
+    med att de ligger i ett eget fält.
+    """
+
+    def test_the_heading_is_recognised_in_the_text(self):
+        self.assertTrue(is_decision_text(DECISION_TEXT))
+        self.assertFalse(is_decision_text(CLEAN_REPORT))
+
+    def test_the_heading_survives_the_pdf_line_breaks(self):
+        # Texten kommer ur PDF:en styckad i korta löpor, ibland mitt i ett
+        # ord. Därför matchas den med alla blanksteg borttagna.
+        self.assertTrue(is_decision_text("DELEGATIONS\nBESLUT om något"))
+
+    def test_a_decision_found_by_filename_is_collected(self):
+        files = [attachment("Föreläggande lidl 2025-06-12.pdf", 900)]
+        got = normalize_decisions(files, set())
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0].filename, "Föreläggande lidl 2025-06-12.pdf")
+        self.assertEqual(got[0].published_at, date(2025, 6, 12))
+
+    def test_a_decision_found_only_in_the_text_is_collected(self):
+        # Kommunen namnger inte alla beslut konsekvent. Filnamnet räcker
+        # inte alltid, och då är rubriken i texten det enda vi har.
+        files = [attachment("Lidl 2025-06-12.pdf", 901)]
+        got = normalize_decisions(files, {901})
+        self.assertEqual(len(got), 1)
+
+    def test_the_misspelling_the_municipality_uses_is_caught(self):
+        # Kommunens egen felstavning `Förleäggande`.
+        files = [attachment("Förleäggande Coop 2024-01-05.pdf", 902)]
+        self.assertEqual(len(normalize_decisions(files, set())), 1)
+
+    def test_a_report_is_never_collected_as_a_decision(self):
+        self.assertEqual(normalize_decisions([attachment()], set()), [])
+
+    def test_decisions_are_newest_first(self):
+        files = [
+            attachment("Föreläggande A 2024-01-05.pdf", 1),
+            attachment("Föreläggande B 2025-06-12.pdf", 2),
+        ]
+        got = normalize_decisions(files, set())
+        self.assertEqual([d.published_at for d in got],
+                         [date(2025, 6, 12), date(2024, 1, 5)])
+
+    def test_a_decision_without_a_readable_date_still_comes_along(self):
+        # 4 av 354 filnamn saknar läsbart datum. Beslutet är värt att länka
+        # ändå; datumet är det som saknas, inte handlingen.
+        files = [attachment("Föreläggande utan datum.pdf", 3)]
+        got = normalize_decisions(files, set())
+        self.assertEqual(len(got), 1)
+        self.assertIsNone(got[0].published_at)
+
+    def test_the_same_attachment_is_never_listed_twice(self):
+        # En bilaga kan nås via flera OBJECTID när två rader slagits ihop
+        # till en verksamhet, se merge_features.
+        one = attachment("Föreläggande lidl 2025-06-12.pdf", 900)
+        self.assertEqual(len(normalize_decisions([one, one], set())), 1)
+
+    def test_a_decision_never_becomes_an_inspection(self):
+        # Snubbeltråden. Skulle ett föreläggande någonsin räknas som en
+        # kontroll hade en verksamhet fått ett omdöme ur ett dokument som
+        # inte är en kontrollrapport.
+        files = [attachment("Föreläggande lidl 2025-06-12.pdf", 900)]
+        self.assertEqual(normalize_inspections(files, [], "F-1781-test"), [])
+
+    def test_the_url_points_at_the_municipalitys_own_attachment(self):
+        got = normalize_decisions([attachment("Föreläggande x 2025-06-12.pdf", 900)],
+                                  set())
+        self.assertTrue(got[0].url.endswith("/1/attachments/900"))
 
 
 if __name__ == "__main__":

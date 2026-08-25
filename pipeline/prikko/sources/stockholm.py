@@ -18,6 +18,44 @@ Kontraktet stödjer punkt plus radie, vilket vi använder som rutnät.
 Format skiljer sig helt från både Sambruk-specen och Linköping — tredje
 källan, tredje formatet. Det är den bekräftade verkligheten: varje kommun
 kräver en egen adapter.
+
+## FÄLT I SVARET SOM VI MEDVETET INTE BÄR MED
+
+Svaret har fyra fält till som handlar om anmälningar:
+
+    PoisoningLink   färdig URL till /matforgiftning/sallskap
+    Poisoning       "Rapportera misstänkt matförgiftning"
+    ComplainLink    färdig URL till /brister/brister
+    Complain        "Lämna klagomål"
+
+Länkarna ser ut att vara gratis att skriva av. DE ÄR TRASIGA FÖR DE 113 RADER
+SOM SAKNAR ADRESS. Båda formulären kräver att id, namn och adress alla är
+icke-tomma; är adressen tom släpper deras parameterbindning hela blocket, så
+att även namnet försvinner. Sidan svarar ändå 200 och laddar oifylld, alltså
+en tyst förlust. Stadens egen karta bygger `address=` tomt i de fallen och
+länkar därmed fel till sig själv. Kontrollerat 2026-08-25 på M/s Ballerina,
+id 00b1cf0a-aa70-4533-bbe0-2e19cb88a9a7, och på Linje 80, SL,
+Rederiaktiebolaget Ballerina.
+
+Länkarna byggs därför på sajten, av id, namn och adress som redan står i
+raden, med ett mellanslag där adressen saknas. Se
+site/src/components/Anmal.astro. Att lägga två färdiga URL:er per rad hade
+dessutom vuxit stockholm.json med ett par megabyte för något som är härlett.
+
+Tre fält till läses inte, och skälen är andra:
+
+    ReviewLabel   "Utan avvikelser". Vi mappar Judgement själva.
+    SummaryText   full mening; vi läser den bara för äldre kontroller, se
+                  `normalize_inspections`.
+    ReadMore      innehåller "Diarie-/ärendenummer: <x>". MÄTT: 613 poster i
+                  innerstan, 613 av 613 hade TOMT diarienummer. Värdelöst.
+
+## UPPGIFTER SOM INTE FINNS I DET HÄR SVARET ALLS
+
+Organisationsnummer, postnummer, juridisk person, registreringsdatum och hela
+riskklassningen ligger i stadens registreringsintyg, ett GET per anläggning
+med samma guid som nyckel. Se prikko/stockholmsintyg.py. Intyget svarar också
+Aktiv eller Inaktiv, alltså vet kommunen själv vilka rader som upphört.
 """
 
 from __future__ import annotations

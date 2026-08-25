@@ -27,6 +27,23 @@ beståndet 2026-08-02:
    visa ATT en avvikelse noterats men inte VAD den gällde — sämre detaljnivå
    än Linköping, Stockholm och Uppsala.
 
+## Vad som finns i lagren och inte används
+
+Fältdefinitionen har fjorton fält. Tre av dem läser vi inte, och skälen är
+olika:
+
+* `objektstyp` och `status` är konstanta (`Livsmedel` respektive
+  `Registrerad`) i samtliga 1 119 rader. `status` är ändå värd att
+  **övervaka**: börjar kommunen någon gång sätta ett annat värde är det vår
+  enda signal om avregistrerade verksamheter, precis som `Aktiv` är i
+  Kristinehamn.
+* `fastighetsbeteckning` bär däremot verklig information, och den läses nu
+  in som `property_designation`. Den skrivs INTE till sajtens datafil.
+  Beteckningen är lantmäteriets språk, inte allmänhetens, och en besökare
+  som redan ser gatuadressen blir inte klokare av "Västra Folkskolan 1".
+  Värdet ligger i pipelinen: det är det enda vi har att geokoda en rad med
+  när gatuadressen fattas.
+
 Liksom Stockholm saknar Jönköping en "kvarstår"-etikett: resultaten är bara
 `Utan avvikelse` och `Med avvikelse`. Det är skälet till att `grading.py`
 härleder allvarsgraden ur mönstret i stället för ur etiketten. Utan den
@@ -54,7 +71,18 @@ SERVICE = (
     "https://gis.jonkoping.se/arcgis/rest/services/kommunatlas"
     "/Kommunatlas_Naringsliv_och_Arbete/MapServer"
 )
-SOURCE_URL = "https://kartor.jonkoping.se/kommunatlas/"
+#: Kommunens egen länk till kartan, med länktexten "Kommunkarta - genomförda
+#: livsmedelskontroller" på jonkoping.se.
+#:
+#: Fram till 2026-08-25 stod här `https://kartor.jonkoping.se/kommunatlas/`.
+#: Det värdnamnet FINNS INTE: `nslookup` ger NXDOMAIN och curl faller på
+#: exit 6, kunde inte slå upp värden. Länken har alltså aldrig fungerat för
+#: en besökare, och den syntes inte i något bygge eftersom källänken pekar
+#: utanför sajten och inte kontrolleras av länkgranskningen.
+SOURCE_URL = (
+    "https://jonkoping.maps.arcgis.com/apps/webappviewer/index.html"
+    "?id=036b2657f4eb47238e9872695ef29797"
+)
 
 #: Underlagren med livsmedelsverksamheter, med kommunens egna namn.
 #: Antalen är räknade över hela beståndet 2026-08-02, inte uppskattade.
@@ -135,6 +163,10 @@ class NormalizedEstablishment:
     types: list
     lat: Optional[float]
     lng: Optional[float]
+    #: Fastighetsbeteckning ur `fastighetsbeteckning`, t.ex. "Åminne 1".
+    #: Ifylld genomgående. Bärs INTE vidare till sajtens datafil — se
+    #: modulens inledning.
+    property_designation: Optional[str] = None
 
 
 def query_url(layer: int) -> str:
@@ -226,6 +258,9 @@ def normalize_establishment(feature: dict, category: str) -> NormalizedEstablish
         types=types,
         lat=lat,
         lng=lng,
+        property_designation=(
+            " ".join((attributes.get("fastighetsbeteckning") or "").split()) or None
+        ),
     )
 
 

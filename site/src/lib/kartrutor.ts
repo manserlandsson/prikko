@@ -81,15 +81,75 @@ const MAXZOOM = 14;
 const EXTENT = 4096;
 
 /*
- * De tre talen som avgör hur mycket blått man ser, oförändrade från den
- * klustring som redan står i Karta.astro. Motiveringen står där: under fem
- * punkter ritas de som var sin nål i stället för som en bubbla med en trea i,
- * radien håller klustren lokala i stället för stadsdelsstora, och 13 släpper
- * fram nålarna ett zoomsteg tidigare.
+ * De tre talen som avgör hur mycket blått man ser.
+ *
+ * ══ ÄGARENS INVÄNDNING 2026-08-25 ═════════════════════════════════════════
+ *
+ * "kan vi undvika dom där blåa prickarna som säger 340+, jag förstår att det
+ * behövs ibland, men kan vi sänka threshold, dvs visa fler markörer om
+ * möjligt", och strax efter: "booli har också inte att man måste zooma in så
+ * långt för att se nålar."
+ *
+ * Han har rätt, och Boolis karta är mätt 2026-08-25 för att visa hur långt
+ * ifrån vi låg. De klustrar inte i klienten alls. Aggregeringen ligger i
+ * vektorbrickan och cellen är en rutnätscell på kartans zoom PLUS ÅTTA,
+ * alltså ungefär två pixlar. I praktiken betyder det att ett "kluster" hos
+ * dem är objekt på SAMMA ADRESS, ingenting annat. Uppmätt över Linköpings
+ * kommun vid zoom 8,73: 960 figurer för 1 155 objekt, varav 551 var ensamma
+ * nålar. Alltså syns hälften som egna nålar redan på en zoom där hela
+ * kommunen ryms i rutan.
+ *
+ * Vi låg på 38 pixlars radie och släppte inte fram en enda nål förrän z14.
+ *
+ * ══ VAD SOM ÄNDRADES OCH VARFÖR JUST DE TALEN ═════════════════════════════
+ *
+ * ══ ÄGARENS AVVÄGNING, OCH DEN ÄR HANS ATT GÖRA ═══════════════════════════
+ *
+ * "jag har det hellre att några prickar kanske inte syns, än att köra dom där
+ * blå rutorna med siffror i så långt ut, liksom jag vill att det ska se
+ * proppfullt ut i stockholm nästan."
+ *
+ * Det avgör frågan, och det är värt att skriva ned VILKEN fråga det är. En
+ * bubbla är ett byte: man ger upp att se de enskilda ställena för att slippa
+ * nålar som ligger ovanpå varandra. Ägaren väljer den andra sidan av det
+ * bytet. En karta som ser tät ut säger sanningen om Stockholm, som har 8 520
+ * verksamheter; en karta med fjorton blå rutor på säger ingenting alls, och
+ * en ruta med "340+" i är dessutom ett tal ingen kan använda till något.
+ *
+ * ══ TALEN ═════════════════════════════════════════════════════════════════
+ *
+ * Radien 38 till 12. Trettioåtta pixlar är ungefär en stadsdel på z12 och
+ * slår ihop krogar som ligger på olika gator. Tolv är mindre än en nåls egen
+ * bredd, alltså slås bara det ihop som faktiskt ligger på samma punkt.
+ *
+ * Minsta antalet 5 till 3. Under tre punkter ritades de redan som egna nålar;
+ * med tre går även trean och fyran fram, och en bubbla med en trea i är den
+ * mest meningslösa bubblan som finns.
+ *
+ * Maxzoomen 13 till 8, och åttan är RÄKNAD och inte vald på känsla.
+ *
+ * Supercluster klustrar för zoom mindre än eller lika med maxzoomen, och
+ * MapLibre begär rutan på golvet av kartans zoom. Stockholms kartsida öppnar
+ * på ungefär 10,7, alltså hämtas ruta z10. Med maxzoomen på 10 var den rutan
+ * fortfarande klustrad, och öppningsvyn såg ut precis som förut trots att
+ * radien var sänkt två gånger. Först på 9 blir öppningsvyn råa punkter, och
+ * 8 ger en marginal för de kommuner som öppnar vidare än Stockholm.
+ *
+ * Över åttan klustras ingenting alls. Bubblorna finns kvar bara på den zoom
+ * där man ser flera län samtidigt och de faktiskt bär en upplysning.
+ *
+ * Boolis motsvarighet, uppmätt 2026-08-25: de klustrar inte i klienten alls,
+ * cellen är ungefär två pixlar, och `icon-allow-overlap: true` gör att
+ * ingenting göms av kollision. Vid zoom 8,73 över Linköpings kommun ritade de
+ * 551 ensamma nålar av 1 155 objekt. Vi landar nu på samma sida av bytet.
+ *
+ * Priset är fler figurer per ruta, och det är rutgrinden i astro.config.mjs
+ * som vaktar det: den mäter tyngsta rutan uppackad vid varje bygge och fäller
+ * om arkivet blir för dyrt. Talen efter ändringen står i byggets utskrift.
  */
-const CLUSTER_RADIUS_PX = 38;
-const CLUSTER_MIN_POINTS = 5;
-const CLUSTER_MAX_ZOOM = 13;
+const CLUSTER_RADIUS_PX = 12;
+const CLUSTER_MIN_POINTS = 3;
+const CLUSTER_MAX_ZOOM = 8;
 
 const DAY = 86_400_000;
 const epochMs = Date.parse(MAP_EPOCH);

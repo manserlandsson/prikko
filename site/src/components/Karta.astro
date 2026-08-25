@@ -312,15 +312,17 @@ const LEGEND = [
       {initial.map((e) => (
         <li>
           <a href={path(base, e.slug)}>
-            <span class="k-topp">
-              <FaceRef verdict={e.verdict} size={28} />
+            <FaceRef verdict={e.verdict} size={40} />
+            <span class="k-text">
               <b>{e.name}</b>
-            </span>
-            {e.types[0] && <span class="k-typ text-secondary">{e.types[0]}</span>}
-            <span class="k-meta">
-              {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
+              <span class="k-typ text-secondary">{e.types[0] ?? 'Livsmedelsverksamhet'}</span>
+              <span class="k-dom" data-v={e.verdict ?? 'none'}>
+                {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
+              </span>
               {latestInspectionDate(e) && (
-                <> · {formatDate(latestInspectionDate(e)!)}</>
+                <span class="k-datum text-muted">
+                  Kontrollerad {formatDate(latestInspectionDate(e)!)}
+                </span>
               )}
             </span>
           </a>
@@ -1011,36 +1013,46 @@ const LEGEND = [
         // Samma struktur som de server-renderade korten i mallen ovan, av
         // samma skäl som stilarna ligger under :global: klienten byter ut
         // korten, och två kortformer hade synts som ett hopp.
-        const topp = document.createElement('span');
-        topp.className = 'k-topp';
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('class', 'face');
-        svg.setAttribute('width', '28');
-        svg.setAttribute('height', '28');
+        svg.setAttribute('width', '40');
+        svg.setAttribute('height', '40');
         svg.setAttribute('viewBox', '0 0 100 100');
         svg.setAttribute('aria-hidden', 'true');
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
         svg.appendChild(use);
+        a.appendChild(svg);
+
+        const text = document.createElement('span');
+        text.className = 'k-text';
+
         const b = document.createElement('b');
         // textContent, aldrig innerHTML: namnen kommer ur kommunernas register
         // och har inte passerat någon sanering.
         b.textContent = p.namn;
-        topp.append(svg, b);
-        a.appendChild(topp);
+        text.appendChild(b);
 
-        if (p.typ) {
-          const typ = document.createElement('span');
-          typ.className = 'k-typ text-secondary';
-          typ.textContent = p.typ;
-          a.appendChild(typ);
+        const typ = document.createElement('span');
+        typ.className = 'k-typ text-secondary';
+        typ.textContent = p.typ || 'Livsmedelsverksamhet';
+        text.appendChild(typ);
+
+        const dom = document.createElement('span');
+        dom.className = 'k-dom';
+        dom.dataset.v = ['clean', 'minor', 'major', 'none'][p.v] ?? 'none';
+        dom.textContent = LABEL[p.v];
+        text.appendChild(dom);
+
+        const datum = datumText(p.d);
+        if (datum) {
+          const d = document.createElement('span');
+          d.className = 'k-datum text-muted';
+          d.textContent = `Kontrollerad ${datum}`;
+          text.appendChild(d);
         }
 
-        const meta = document.createElement('span');
-        meta.className = 'k-meta';
-        const datum = datumText(p.d);
-        meta.textContent = LABEL[p.v] + (datum ? ` · ${datum}` : '');
-        a.appendChild(meta);
+        a.appendChild(text);
 
         li.appendChild(a);
         frag.appendChild(li);
@@ -2099,8 +2111,23 @@ const LEGEND = [
        * duken ensam skulle kortet ligga kvar bakom helskärmslagret och vara
        * osynligt så länge läget var på.
        */
+      /*
+       * Helskärm uppe till höger, zoomen NERE till höger. Boolis placering,
+       * uppmätt 2026-08-25: deras Fullskärm och Kartval ligger på y 80 och
+       * zoomen på y 796 och 844 i en karta som slutar på 900.
+       *
+       * Alla tre låg förut i samma hörn hos oss, alltså en pelare på tre
+       * knappar uppe till höger. Det är MapLibres förval och inte ett val.
+       * Skälet att dela dem är att de gör olika saker: helskärm ändrar YTAN
+       * kartan har, zoomen ändrar vad man ser i den. Tummen når dessutom
+       * nederkanten på en telefon och inte överkanten, vilket är samma skäl
+       * som Google och Apple lägger zoomen lågt.
+       *
+       * Attributionen sitter kvar nere till höger och zoomen hamnar ovanför
+       * den, vilket är MapLibres egen staplingsordning inom ett hörn.
+       */
       karta.addControl(new FullscreenControl({ container: kartram }), 'top-right');
-      karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+      karta.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
       karta.addControl(new AttributionControl({ compact: false }), 'bottom-right');
 
       karta.on('load', async () => {
@@ -2873,20 +2900,37 @@ const LEGEND = [
    * talar om vad det är. Klassen får inte heta .field, se SiteSearch: ett
    * globalt kontoark äger det namnet.
    */
+  /*
+   * Boolis sökfält, uppmätt live 2026-08-25: en PLATT GRÅ ruta, 50 px hög,
+   * `background: #F0F0F0`, kant i samma färg som fyllningen, radie 4.
+   *
+   * Vårt var ett vitt piller på 40 px med hårlinje och radie 999, alltså ett
+   * chip och inte ett fält. Ägaren: "sök funktionen på vänstra sidan på
+   * kartsidan är också helt annorlunda." Skillnaden mellan ett piller och en
+   * ruta låter liten och är den enskilt mest synliga i hela kolumnen, för
+   * pillret läser som en knapp man trycker på och rutan som en yta man
+   * skriver i.
+   *
+   * Fyllningen tas ur --canvas och inte ur ett tal, så att den följer med om
+   * sajtens grundton flyttas.
+   */
   .filterfalt {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    height: 40px;
+    height: 48px;
     margin-top: var(--s-3);
     padding: 0 var(--s-4);
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
+    background: var(--canvas);
+    border: 1px solid var(--canvas);
+    border-radius: var(--r-control);
   }
 
-  .filterfalt:hover { border-color: var(--text-muted); }
-  .filterfalt:focus-within { border-color: var(--brand); }
+  .filterfalt:hover { border-color: var(--hairline); }
+  .filterfalt:focus-within {
+    border-color: var(--brand);
+    background: var(--card);
+  }
 
   /* Ringen på pillret, inte på fältet, av samma skäl som i SiteSearch: en
      ring runt den osynliga inre rutan skär tvärs över rundningen. */
@@ -3081,14 +3125,56 @@ const LEGEND = [
 
   .rader :global(li:last-child) { border-bottom: 0; }
 
+  /*
+   * Radens anatomi, Boolis ordagrant, med märket där deras foto ligger.
+   *
+   * Deras rad är två spalter: bilden 308 px till vänster, texten till höger,
+   * och texten är fem våningar med olika vikt och färg. Rubriken 16/400,
+   * en grå förklarande rad, PRISET i 16/600, faktaraden och datumet.
+   *
+   * Vår motsvarighet, uppmätt före ändringen: en 28 px ikon bredvid ett
+   * namn i 14/600, och sedan två grå rader i 13 px varav den sista bar både
+   * bedömning och datum med en punkt emellan. Ägaren: "korten på
+   * vänstersidan ser också sämst ut." Tre saker gjorde det:
+   *
+   *   1. ALLT UTOM NAMNET VAR GRÅTT och lika stort, alltså fanns ingen
+   *      andra våning. Boolis pris är radens andra ankare och det som ögat
+   *      landar på efter rubriken. Vår motsvarighet till priset är
+   *      BEDÖMNINGEN, och den låg hopklämd med datumet i den svagaste raden
+   *      på hela kortet.
+   *   2. Märket var 28 px och stod på samma rad som namnet, alltså läste
+   *      det som en punktlista och inte som ett kort.
+   *   3. Fjorton pixlar i vikt 600 är mindre OCH fetare än Boolis 16 i vikt
+   *      400, vilket är den kombination som får en lista att läsa som en
+   *      tabell.
+   *
+   * Nu: märket 40 px i egen spalt hela radens höjd, som deras bild, och
+   * texten i fyra våningar där bedömningen bär sin egen färg.
+   */
   .rader :global(a) {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    column-gap: var(--s-4);
+    align-items: start;
+    /* 24 px in från kanten OCH uppifrån, Boolis tal rakt av. Raden äger hela
+       luften själv, eftersom listkolumnen numera börjar vid fönstrets
+       vänsterkant. */
+    padding: var(--s-4) var(--kartgutter);
+    color: var(--text);
+  }
+
+  .rader :global(svg.face) {
+    grid-row: 1 / -1;
+    flex: none;
+    /* En pixel ned, så att märkets mitt hamnar mot namnets mitt och inte mot
+       dess överkant. Rent optiskt, inte räknat. */
+    margin-top: 1px;
+  }
+
+  .rader :global(.k-text) {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    /* 24 px in från kanten, Boolis tal. Raden äger hela luften själv,
-       eftersom listkolumnen numera börjar vid fönstrets vänsterkant. */
-    padding: var(--s-3) var(--kartgutter);
-    color: var(--text);
+    min-width: 0;
   }
 
   /* Boolis hovring, ordagrant: rubriken stryks under och ingenting annat
@@ -3097,36 +3183,53 @@ const LEGEND = [
   .rader :global(a:hover) { text-decoration: none; }
   .rader :global(a:hover b) { text-decoration: underline; }
 
-  .rader :global(.k-topp) {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-width: 0;
+  /* Boolis radrubrik är 16 px i vikt 400 med radhöjd 21,6. Vår var 14 i vikt
+     600, alltså mindre OCH fetare. Femhundra i stället för fyrahundra,
+     eftersom vårt namn står bredvid ett märke och inte över en bild: utan
+     bilden är namnet radens enda ankare. */
+  .rader :global(b) {
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .rader :global(.k-topp .face) { flex: none; }
+  /* Förklaringsraden, Boolis grå "Kedjehus · Hedensbyn · Skellefteå". */
+  .rader :global(.k-typ) {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-  .rader :global(.k-topp b) {
+  /*
+   * Bedömningen, radens andra ankare. Boolis pris sitter på samma plats i
+   * ordningen och bär samma vikt.
+   *
+   * FÄRGEN ÄR TEXTFÄRGEN ur tokens.css och inte nålens. Gult som text på
+   * vitt är i praktiken oläsligt, se kommentaren vid KART_FARG i
+   * lib/kartbas.ts, och det är precis därför --verdict-*-ink finns. Den gula
+   * bläckfärgen är ändå för ljus för en textrad i 15 px, så anmärkningsraden
+   * får sajtens vanliga textfärg: bedömningen syns redan i märket bredvid,
+   * och en rad som inte går att läsa är sämre än en rad utan färg.
+   */
+  .rader :global(.k-dom) {
+    margin-top: var(--s-2);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--text);
   }
 
-  .rader :global(.k-typ) {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  .rader :global(.k-dom[data-v='clean']) { color: var(--verdict-clean-ink); }
+  .rader :global(.k-dom[data-v='major']) { color: var(--verdict-major-ink); }
 
-  .rader :global(.k-meta) {
+  .rader :global(.k-datum) {
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    color: var(--text-secondary);
   }
 
   /*

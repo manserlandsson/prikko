@@ -35,6 +35,13 @@ Förelägganden är inte kontroller och blir därför inga kontrolltillfällen. 
 kontroll som ledde fram till beslutet publiceras som en egen rapport, så
 uppgiften går inte förlorad.
 
+**URL:erna till de nio besluten bärs däremot vidare sedan 2026-08-25.** Vi
+hade dem redan; vi gjorde bara ingenting med dem. Kristinehamn är den enda
+av våra tolv kommuner där ett myndighetsbeslut om en livsmedelsverksamhet
+alls är åtkomligt utan att någon begär ut en allmän handling. Se
+`normalize_decisions()` — och notera att besluten fortfarande hålls utanför
+bedömningen, vilket är hela poängen med att de ligger i ett eget fält.
+
 ## Källan har både historik och kontrolltyp
 
 Det gör Kristinehamn till den bästa av de fem nya källorna. 54 rapporter
@@ -233,6 +240,19 @@ class Attachment:
 
 
 @dataclass(frozen=True)
+class Decision:
+    """Ett delegationsbeslut, alltså ett föreläggande.
+
+    Inte ett kontrolltillfälle och aldrig en del av bedömningen. Se
+    `normalize_decisions()` för varför vi ändå bär URL:en vidare.
+    """
+
+    url: str
+    filename: str
+    published_at: Optional[date]
+
+
+@dataclass(frozen=True)
 class Report:
     """En tolkad kontrollrapport."""
 
@@ -406,6 +426,54 @@ def assessment_of(squeezed: str) -> Optional[int]:
     if not hits:
         return None
     return min(hits)[1]
+
+
+def is_decision_text(text: str) -> bool:
+    """Bär dokumentet rubriken DELEGATIONSBESLUT?
+
+    Två vägar leder till samma slutsats, och båda behövs. Filnamnet räcker
+    ibland (`Attachment.is_decision`), men inte alltid: kommunen namnger inte
+    alla beslut konsekvent, och rubriken står i texten. Omvänt kan en
+    inskannad bilaga sakna textlager helt, och då är filnamnet det enda vi
+    har.
+    """
+    return DECISION_MARKER in squeeze(text)
+
+
+def normalize_decisions(
+    attachments: List[Attachment], decided_ids: set
+) -> List[Decision]:
+    """Verksamhetens delegationsbeslut, nyast först.
+
+    Besluten räknas ALDRIG som kontroller. De hör inte hemma i historiken,
+    de påverkar inte omdömet, och kontrollen som ledde fram till beslutet
+    publiceras som en egen rapport — så ingen uppgift går förlorad genom att
+    de hålls utanför bedömningen.
+
+    Att bära URL:erna vidare är ändå värt något, och det är Kristinehamn
+    ensam om: nio av 354 bilagor är förelägganden, och det här är den enda
+    av våra tolv kommuner där ett myndighetsbeslut om en livsmedelsverksamhet
+    alls är åtkomligt utan en begäran om allmän handling. Vi har haft
+    adresserna hela tiden utan att göra något med dem.
+
+    `decided_ids` är bilage-id vars TEXT bar rubriken. Filnamnsträffarna
+    läggs till här, så att en inskannad bilaga utan textlager också kommer
+    med.
+    """
+    seen: dict = {}
+    for attachment in attachments:
+        if attachment.id not in decided_ids and not attachment.is_decision:
+            continue
+        seen[attachment.id] = Decision(
+            url=attachment.url,
+            filename=attachment.filename,
+            published_at=attachment.published_at,
+        )
+    return sorted(
+        seen.values(),
+        key=lambda d: (d.published_at is not None, d.published_at, d.filename),
+        reverse=True,
+    )
 
 
 def parse_report(text: str, attachment: Attachment) -> Report:

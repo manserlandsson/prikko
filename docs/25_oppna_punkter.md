@@ -45,6 +45,25 @@ Ingen. Kön är tom och allt är pushat, se listan längst ned.
   ingenting alls när SCB bara saknar stället. Talen som motiverar den: 2 501 av
   16 047 publicerade verksamheter saknar kontroll nyare än två år, och
   kommunerna har själva avpublicerat 59 rader någonsin.
+
+  **SPÄRREN GÄLLER INTE STOCKHOLM SEDAN 2026-08-25.** Stadens
+  registreringsintyg svarar `Status: Aktiv` eller `Inaktiv` per anläggnings-id,
+  utan certifikat, utan avtal och utan adressmatchning. Det är kommunens eget
+  besked om sin egen registrering, alltså ett starkare underlag än SCB:s
+  arbetsställeregister, och det täcker 8 520 av 16 047 rader.
+
+  Provfallet är `F-0180-c6a477fa-3ad7-4c0b-9935-785b0db8553a`, Pressbyrån
+  4308139 på Klarabergsviadukten 49. Raden fanns i vårt uttag 2026-08-17 och är
+  borta ur kommunens i dag. Intyget svarar fortfarande, och säger
+  "Pressbyrån 4308139/ Upphörd" och "Inaktiv". Ett påhittat id ger i stället
+  "Inget data kunde hittas", alltså degraderar spåret tyst och säkert.
+
+  Designen ändras inte av detta: en not, aldrig avpublicering, ingenting alls
+  när källan bara saknar stället. Det som ändras är att Stockholm inte behöver
+  vänta på september. Läsaren finns i `pipeline/prikko/stockholmsintyg.py`,
+  hämtaren i `pipeline/stockholmsintyg.py`. Kvar innan noten kan byggas:
+  `registration` måste in i `FILFALT` i `pipeline/export_supabase.py`, annars
+  raderar nästa nattkörning fältet tyst. `tillampa` vägrar skriva tills dess.
 - **Bevakningslistan på kontot visar bara namn och stad.** Vad en bevakning ÄR
   är avgjort, se `17_produktfunktioner.md`, avsnittet "Vad en bevakning gör":
   en lista på kontot, med mejlet som tillägg. Notiserna skrivs numera varje

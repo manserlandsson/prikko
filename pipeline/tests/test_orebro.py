@@ -32,6 +32,7 @@ from prikko.sources.orebro import (  # noqa: E402
     normalize_establishment,
     normalize_inspection,
     parse_history,
+    registration_date,
     under_embargo,
 )
 
@@ -288,6 +289,43 @@ class Inspections(unittest.TestCase):
         got = normalize_inspection(ROUTINE_ENTRY, REPORTS, "F-1880-test")
         self.assertEqual(len(got.areas), 2)
         self.assertEqual({a.status for a in got.areas}, {AREA_OK, AREA_DEVIATION})
+
+
+class Registreringsdatum(unittest.TestCase):
+    """`Registrerades` låg i råsvaret och kastades fram till 2026-08-25.
+
+    Ifyllt i 1 233 av 1 233 poster, och kommunen visar det själv på
+    verksamhetssidan. Noll extra anrop.
+    """
+
+    def test_date_is_read_from_the_search_response(self):
+        self.assertEqual(registration_date(RAW_FACILITY), date(2009, 1, 19))
+
+    def test_it_reaches_the_establishment(self):
+        e = normalize_establishment(RAW_FACILITY)
+        self.assertEqual(e.registered_at, date(2009, 1, 19))
+
+    def test_missing_value_is_none(self):
+        self.assertIsNone(registration_date({"Registrerades": ""}))
+        self.assertIsNone(registration_date({}))
+
+    def test_unreadable_value_gives_none_instead_of_raising(self):
+        # Strikthetsregeln skyddar värden som BEDÖMNINGEN vilar på. Ett
+        # registreringsdatum gör inte det, och att fälla en verksamhet ur
+        # beståndet för en datumsträng vore en dyrare rättelse än felet.
+        # Täckningen räknas i stället av fetch_orebro.py.
+        self.assertIsNone(registration_date({"Registrerades": "januari 2009"}))
+
+    def test_timestamp_is_truncated_to_the_day(self):
+        got = registration_date({"Registrerades": "2009-01-19T08:30:00"})
+        self.assertEqual(got, date(2009, 1, 19))
+
+    def test_merge_keeps_the_date(self):
+        # Sammanslagningen av dubbletter får inte tappa fältet.
+        merged = merge_duplicates([dict(RAW_FACILITY), dict(RAW_FACILITY)])
+        self.assertEqual(
+            normalize_establishment(merged[0]).registered_at, date(2009, 1, 19)
+        )
 
 
 if __name__ == "__main__":

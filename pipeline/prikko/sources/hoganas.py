@@ -38,10 +38,43 @@ och gul 2026-02-27, och tre gula i rad är en brist som överlevt två besök.
 Kontrolltypen står däremot ingenstans, så uppföljningen kan bara läsas ur
 mönstret, aldrig ur en etikett. Vi gissar inte fram den.
 
-## Ingen adress, och en ort som inte går att lita på
+## Ingen adress i FILNAMNET — men adresserna finns, inne i rapporterna
 
-Kommunen publicerar ingen gatuadress, så `pipeline/geocode.py` har inget att
-gå på och Höganäs får inga kartnålar. Orten finns däremot, och 153 av 310
+Filnamnet bär ingen gatuadress, så länge vi bara läser listsidan har
+`pipeline/geocode.py` inget att gå på och Höganäs får inga kartnålar. Alla
+316 verksamheter står i dag utan nål.
+
+**Det är en begränsning i vårt val att inte öppna PDF:erna, inte i vad
+kommunen publicerar.** Rapporterna bär gatuadressen. Verifierat 2026-08-25
+med vår egen `prikko.pdf.extract_blocks` mot
+`Adams kök & bar, Höganäs, 2026-03-30, gul.pdf` (HTTP 200, 358 535 byte):
+
+    "Vi på miljöavdelningen har 2026-03-30 kontrollerat er verksamhet
+     Adams kök och bar, Storgatan 12, 26337 Höganäs, TELEFONEN 6."
+
+Samma rad ger alltså gatuadress, postnummer OCH fastighetsbeteckning. I
+rapporten står dessutom `Org.nr: 5591302038`, verksamhetsutövaren
+("Adams kök och bar i Höganäs AB"), `Dnr: MIL-2026-455`, handläggare, samt
+om besöket var planerat och oanmält.
+
+Två mallar förekommer. Den nyare (2026) har gatuadress och orgnr; den äldre
+(kontrollerad på rapporter från 2021 och 2024) har fastighetsbeteckning i
+stället för gatuadress. Båda går att läsa.
+
+Kostnaden är 333 anrop, och det är skälet till att steget inte är byggt än,
+inte att uppgiften saknas. Rätt utformning när det byggs: hämta bara
+rapporter vi inte sett förut och cacha per `reportUrl`, ungefär som
+`geocode_cache.json`. `reportUrl` bärs redan vidare per kontroll, så
+adresserna finns kvar att hämta när någon vill.
+
+Publiceringsgrunden står i rapporten och är värd att känna till: "I enlighet
+med miljötillsynsnämndens beslut § 78 av den 1 oktober 2008 offentliggörs
+inspektionsresultaten från livsmedelsinspektionerna på Höganäs kommuns
+hemsida."
+
+## En ort som inte går att lita på
+
+Orten finns i filnamnet, och 153 av 310
 verksamheter ligger i en annan ort än centralorten — Viken, Nyhamnsläge,
 Mölle, Jonstorp, Mjöhult, Lerberget, Arild, Farhult, Strandbaden, Skäret,
 Väsby, Ingelsträde. Den uppgiften är värd att visa.
@@ -417,8 +450,12 @@ def normalize_establishment(report: Report, categories: list) -> NormalizedEstab
             else None
         ),
         types=list(categories),
-        # Kommunen publicerar inga koordinater, och utan gatuadress kan
-        # pipeline/geocode.py inte härleda någon heller.
+        # Kommunen publicerar inga koordinater, och listsidan bär ingen
+        # gatuadress, så pipeline/geocode.py har inget att härleda ur.
+        #
+        # Det är INTE samma sak som att adressen inte går att få tag i:
+        # rapport-PDF:erna bär den, se modulens inledning. Nålen saknas för
+        # att vi valt bort 333 anrop, inte för att uppgiften är hemlig.
         lat=None,
         lng=None,
     )

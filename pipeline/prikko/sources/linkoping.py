@@ -10,17 +10,62 @@ och pipelinen får aldrig bygga på det.
 
 API: https://livsmedelsdata.linkoping.se/swagger/index.html
 
-    GET /api/v1/Anlaggningar/medsenastetillsyn   alla + senaste kontrollen
-    GET /api/v1/Anlaggningar/{id}                en anläggning med FULL historik
+    GET /api/v1/Anlaggningar?inkluderaInspektioner=true&inkluderaVerksamheter=true
+        → HELA beståndet med FULL historik, i ett enda anrop
 
-Viktigt: listendpointen /Anlaggningar returnerar alltid tom `tillsyner`.
-Full kontrollhistorik finns bara per anläggning, alltså ett anrop per objekt
-(1 241 st i Linköping). Sveptet görs därför mot medsenastetillsyn, och
-detaljhämtning sker inkrementellt.
+## Rättelse: hela beståndet ryms i ett anrop
+
+Fram till 2026-08-25 stod här att listendpointen "alltid" returnerar tom
+`tillsyner`, och hämtningen gjorde därför ett anrop per anläggning: 1 241
+stycken med 0,25 sekunders paus, alltså över fem minuter.
+
+Påståendet var sant men ofullständigt. Listan är tom när
+`inkluderaInspektioner` UTELÄMNAS. Med flaggan kommer allt. Uppmätt
+2026-08-25:
+
+    ?Page=1&PageSize=1                        → totalCount 1245, 0 tillsyner
+    ?inkluderaInspektioner=true&PageSize=2000 → 1 245 anläggningar,
+                                                 9 288 tillsyner,
+                                                53 111 kontrollområden
+                                                16 764 849 byte, 4,0 sekunder
+
+Fälten är identiska med dem detaljanropet gav. 1 241 anrop mot kommunens
+server har alltså blivit ett. Det ger besökaren ingenting, och det är just
+därför det är värt att göra: vi lever på att kommunerna fortsätter tycka om
+oss.
+
+`medsenastetillsyn` används inte längre.
+
+## ArcGIS-lagren bär riskklass, som API:et saknar
+
+Kommunens publika Livsmedelskollen är en ArcGIS Dashboard, och den vilar på
+tre öppna Feature Services (ingen token, `access: public`). Två av dem bär
+fält JSON-API:et inte har alls:
+
+    Livsmedelkoll_anlaggningar   792 punkter   Fastighet, PostNr, PostOrt,
+                                               Plats (stadsdel), Status
+    LIVSMEDELKOLL_TILLSYNER    2 646 rader     R2024RiskklassBeslutad,
+                                               ArendeNummer (diarienummer)
+
+`AnlaggningId` där är exakt samma GUID som API:ets `anlaggningsId`, så
+hopparningen är en nyckelslagning och inte en namnmatchning. Uppmätt mot
+vårt eget bestånd 2026-08-25:
+
+    riskklass          743 av 1 246 verksamheter
+    fastighet m.m.     792 av 1 246 verksamheter
+    diarienummer     2 492 av 9 131 kontroller
+
+Lagren täcker bara riskklassmodellen från 2024 och framåt. De **ersätter
+inte** API:et, de kompletterar det, och en verksamhet som saknas där ska
+sakna riskklass, inte hoppas över.
+
+En gratis kontroll följer med: punktlagrets `Adress` stämde med vår i 773
+fall av 773 vid mätningen. Se `check_arcgis_address()`.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Optional
@@ -72,6 +117,39 @@ TYPE_MAP = {
 }
 
 ASSESSMENT_FIELD = "helhetsbedomning av tillsynen"  # ja, med mellanslag
+
+# ---------------------------------------------------------------------------
+# ArcGIS-lagren. Se modulens inledning.
+# ---------------------------------------------------------------------------
+
+API_BASE = "https://livsmedelsdata.linkoping.se/api/v1"
+
+#: Hela beståndet med full historik. Se rättelsen i modulens inledning.
+LIST_URL = (
+    f"{API_BASE}/Anlaggningar"
+    "?inkluderaInspektioner=true&inkluderaVerksamheter=true"
+)
+
+ARCGIS_BASE = "https://kartor.linkoping.se/arcgis/rest/services/ecos"
+ARCGIS_FACILITIES = f"{ARCGIS_BASE}/Livsmedelkoll_anlaggningar/FeatureServer/0"
+ARCGIS_INSPECTIONS = f"{ARCGIS_BASE}/LIVSMEDELKOLL_TILLSYNER/FeatureServer/0"
+
+#: Serverns eget tak per svar. Tabellen med tillsyner har 2 646 rader och
+#: kräver därför två anrop; punktlagret ryms i ett.
+ARCGIS_PAGE = 2000
+
+#: Riskklassen, i kommunens fyra serier. Uträknade värden över hela tabellen
+#: 2026-08-25: HK1, HK3, KM1, KM2, SL1–SL7, TL1–TL4. HK2 förekommer inte i
+#: dag men hör till serien och godtas.
+#:
+#: Bokstäverna är Livsmedelsverkets: HK = huvudkontor, SL = sista led,
+#: TL = tidigare led, KM = kött och mjölk. Siffran är den beslutade
+#: riskklassen, där ett är den högsta kontrollfrekvensen.
+#:
+#: Mönstret är en spärr och inte en städning. Ett värde utanför serierna
+#: betyder att kommunen bytt kodverk, och då ska vi få veta det i stället för
+#: att publicera en klass vi inte vet vad den betyder.
+RISK_CLASS = re.compile(r"^(HK[1-3]|SL[1-7]|TL[1-4]|KM[1-2])$")
 
 
 class UnknownSourceValue(Exception):
@@ -131,6 +209,9 @@ class NormalizedInspection:
     on_site: bool
     areas: list
     uncertain: bool
+    #: Kommunens diarienummer, t.ex. "MK-2026-2285". Kommer ur ArcGIS-lagret
+    #: och inte ur JSON-API:et. Se `with_case_numbers()`.
+    case_number: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -143,6 +224,14 @@ class NormalizedEstablishment:
     types: list
     lat: Optional[float]
     lng: Optional[float]
+    #: Beslutad riskklass enligt 2024 års modell, t.ex. "SL4". Ur
+    #: ArcGIS-lagret; API:et saknar fältet helt. Se `RISK_CLASS`.
+    risk_class: Optional[str] = None
+    #: Postnummer, fastighetsbeteckning och stadsdel ur ArcGIS-punktlagret.
+    #: Stannar i pipelinen, se modulens inledning.
+    postal_code: Optional[str] = None
+    property_designation: Optional[str] = None
+    district: Optional[str] = None
 
 
 def _parse_date(value: str) -> date:
@@ -297,3 +386,160 @@ def merge_duplicate_inspections(inspections: list) -> list:
         )
 
     return list(merged.values())
+
+
+def arcgis_query_url(service: str, offset: int = 0) -> str:
+    """Ett sidhämtande anrop mot ett av ArcGIS-lagren.
+
+    `outSR=4326` begär WGS84. Här, till skillnad från i karlstad.py och
+    oskarshamn.py, är det rätt val: vi läser ingen geometri ur lagret alls
+    (koordinaterna kommer ur JSON-API:et som förut), så det finns ingen
+    avrundning att bli lurad av. `returnGeometry=false` säger det uttryckligen.
+    """
+    return (
+        f"{service}/query?where=1%3D1&outFields=*&returnGeometry=false"
+        f"&resultOffset={offset}&resultRecordCount={ARCGIS_PAGE}&f=json"
+    )
+
+
+def _attributes(payload: dict) -> list:
+    return [f.get("attributes") or {} for f in payload.get("features") or []]
+
+
+def parse_arcgis_facilities(payloads: list) -> dict:
+    """Bygg AnlaggningId → fastighet, postnummer, postort, stadsdel, adress.
+
+    Nyckeln är GUID:et, alltså samma identitet som API:et använder. Ingen
+    namnmatchning behövs, och därför finns ingen tvetydighet att hantera —
+    till skillnad från Karlstad, där hopparningen sker på skylten.
+    """
+    out: dict = {}
+    for payload in payloads:
+        for row in _attributes(payload):
+            key = (row.get("AnlaggningId") or "").strip().upper()
+            if not key:
+                continue
+            out[key] = {
+                "property_designation": (row.get("Fastighet") or "").strip() or None,
+                "postal_code": (row.get("PostNr") or "").strip() or None,
+                "postal_town": (row.get("PostOrt") or "").strip() or None,
+                "district": (row.get("Plats") or "").strip() or None,
+                "address": (row.get("Adress") or "").strip() or None,
+            }
+    return out
+
+
+def parse_arcgis_inspections(payloads: list) -> tuple:
+    """Bygg riskklasser per anläggning och diarienummer per kontroll.
+
+    Returnerar `(riskklasser, diarienummer)`, där riskklasserna slås upp på
+    `AnlaggningId` och diarienumren på `(AnlaggningId, TillsynsId)` — samma
+    par som vårt `id_national` för en kontroll byggs av.
+
+    Två spärrar:
+
+    * En riskklass utanför `RISK_CLASS` kastar. Se konstanten.
+    * Två OLIKA riskklasser för samma anläggning kastar. Tabellen har en rad
+      per kontroll, så klassen upprepas många gånger per anläggning, och
+      motsägelser var noll av 546 anläggningar vid mätningen. Skulle de
+      börja förekomma vet vi inte vilken som gäller, och då är rätt svar att
+      stanna.
+    """
+    risk_classes: dict = {}
+    case_numbers: dict = {}
+
+    for payload in payloads:
+        for row in _attributes(payload):
+            facility = (row.get("AnlaggningId") or "").strip().upper()
+            if not facility:
+                continue
+
+            risk = (row.get("R2024RiskklassBeslutad") or "").strip()
+            if risk:
+                if not RISK_CLASS.match(risk):
+                    raise UnknownSourceValue(
+                        f"Okänd riskklass {risk!r} för {facility}"
+                    )
+                previous = risk_classes.get(facility)
+                if previous is not None and previous != risk:
+                    raise UnknownSourceValue(
+                        f"Två riskklasser för {facility}: {previous!r} och {risk!r}"
+                    )
+                risk_classes[facility] = risk
+
+            inspection = (row.get("TillsynsId") or "").strip().upper()
+            case = (row.get("ArendeNummer") or "").strip()
+            if inspection and case:
+                case_numbers[(facility, inspection)] = case
+
+    return risk_classes, case_numbers
+
+
+def check_arcgis_address(
+    establishment: NormalizedEstablishment, facilities: dict
+) -> None:
+    """Stäm av API:ets adress mot ArcGIS-lagrets.
+
+    De två källorna är oberoende uttag ur samma ärendesystem, och de stämde i
+    773 fall av 773 vid mätningen 2026-08-25. Kontrollen är alltså gratis
+    facit på att vi parat ihop rätt anläggning: ett GUID som pekar på en
+    annan adress betyder att någon av källorna bytt betydelse, och då ska vi
+    få veta det innan riskklassen publiceras på fel verksamhet.
+
+    Bara olikhet larmar. Att ArcGIS saknar en adress vi har, eller tvärtom,
+    är väntat och betyder ingenting.
+    """
+    row = facilities.get(establishment.id_local.upper())
+    if not row:
+        return
+    theirs, ours = row.get("address"), establishment.street_address
+    if not theirs or not ours:
+        return
+    if " ".join(theirs.split()).casefold() != " ".join(ours.split()).casefold():
+        raise UnknownSourceValue(
+            f"ArcGIS säger {theirs!r} men API:et {ours!r} för "
+            f"{establishment.id_national}"
+        )
+
+
+def enrich(
+    establishment: NormalizedEstablishment,
+    facilities: dict,
+    risk_classes: dict,
+) -> NormalizedEstablishment:
+    """Lägg ArcGIS-uppgifterna på en anläggning.
+
+    En anläggning som saknas i lagren lämnas orörd. Lagren täcker 792 av
+    1 246 verksamheter, och de övriga 454 ska sakna riskklass — inte hoppas
+    över, och inte få en gissad.
+    """
+    key = establishment.id_local.upper()
+    row = facilities.get(key) or {}
+    risk = risk_classes.get(key)
+    if not row and not risk:
+        return establishment
+
+    return replace(
+        establishment,
+        risk_class=risk,
+        postal_code=row.get("postal_code"),
+        property_designation=row.get("property_designation"),
+        district=row.get("district"),
+    )
+
+
+def with_case_numbers(inspections: list, case_numbers: dict) -> list:
+    """Sätt diarienumret på de kontroller ArcGIS känner igen.
+
+    Nyckeln är `(anläggning, tillsyn)`. 2 492 av våra 9 131 kontroller fick
+    ett nummer vid mätningen; resten är äldre än riskklassmodellen 2024 och
+    finns inte i tabellen.
+    """
+    out = []
+    for inspection in inspections:
+        # id_national är "I-0580-<anläggning>-<tillsyn>", båda GUID.
+        rest = inspection.id_national[len(f"I-{MUNICIPALITY_CODE}-"):]
+        key = (rest[:36].upper(), rest[37:].upper())
+        case = case_numbers.get(key)
+        out.append(replace(inspection, case_number=case) if case else inspection)
+    return out

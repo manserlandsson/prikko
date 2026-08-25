@@ -4,6 +4,84 @@ Datum: 2026-08-03. Alla siffror om vårt eget bestånd är körda mot databasen 
 dag, inte gissade. Alla externa källor är verifierade med anrop eller sidhämtning,
 och där jag inte kunnat verifiera skriver jag ut det.
 
+---
+
+## RÄTTELSE 2026-08-25: för Stockholm räcker ett GET
+
+Rapporten nedan är skriven innan Stockholms **registreringsintyg** var känt. Tre
+av dess påståenden gäller inte längre för Stockholm, alltså för 8 520 av 16 047
+rader, 53 procent av beståndet. De står kvar oförändrade nedan, med en hänvisning
+hit, eftersom en rapport som skrivs om i efterhand inte går att lita på.
+
+Intyget är serverrenderad HTML, kräver ingen inloggning och tar ingen annan
+parameter än anläggningens id, som ÄR vårt eget id med prefixet `F-0180-`
+avklippt:
+
+    GET https://etjanster.stockholm.se/livsmedelsinspektioner/registration
+        ?foodplaceid=<guid>
+
+**Vad som mättes, och när.** 150 slumpade anläggningar ur `site/src/data/stockholm.json`,
+hämtade 2026-08-25 med fyra trådar på 39 sekunder, frö 23. 150 av 150 svarade,
+noll fel, noll okända etiketter. Fältutfall:
+
+| Fält | Ifyllt |
+|---|---|
+| Person/Organisationsnummer | 150 av 150 |
+| Postnummer och ort | 150 av 150 |
+| Livsmedelsföretagare, juridisk person | 150 av 150 |
+| Status, Aktiv eller Inaktiv | 150 av 150 |
+| Registreringsdatum | 150 av 150 |
+| Huvudsaklig inriktning | 150 av 150 |
+| Omfattning, storleksklass | 150 av 150 |
+| God efterlevnad | 150 av 150 |
+| Tredjepartscertifiering | 150 av 150 |
+| Beslutad kontrollfrekvens per 5 år | 149 av 150 |
+| Beslutsdatum för riskklassning | 145 av 150 |
+| Verksamhetstyper enligt Livsmedelsverkets modell | 149 av 150 |
+| Aktivitetslista | 139 av 150 |
+
+Fördelningar ur samma 150: aktiebolag 113, kommun eller stat 15, enskild firma 13,
+ideell förening 5, ekonomisk förening 2, handelsbolag 2. Omfattning Liten 73,
+Mikro 55, Mellan 17, Stor 5. God efterlevnad nej 76, ja 74. Kontrollfrekvens per
+fem år 1:45, 2:41, 5:32, 4:22, 10:7, 15:2. 119 unika organisationsnummer på 150
+verksamheter, alltså bär koncerner och kedjor flera rader var, och det går att
+bilda på numret i stället för på namnlikhet som `site/src/lib/kedjor.ts` gör i dag.
+
+**De tre påståendena som faller:**
+
+1. *Punkt 1 och avsnitt A1: orgnr kräver en binärsökning på ungefär 60 anrop per
+   verksamhet.* Nej. Ett GET ger numret i klartext. Prefixnedstigningen i
+   sökfiltret `FoodPlaceOrgNr` fungerar fortfarande och är fortfarande sann som
+   beskrivning, men den är onödig.
+
+2. *Punkt 3 och avsnitt A3: gissa ur Bolagsverkets bulkfil och bekräfta med ett
+   anrop.* Ingen bulkfil, ingen namnmatchning och ingen gissning behövs för
+   Stockholm. Kommunens egen registerkoppling är svaret direkt, alltså är
+   felmarginalen borta i stället för nedtryckt. Bulkfilen behövs fortfarande för
+   de andra elva kommunerna.
+
+3. *Avsnitt A och A2: postnummer är tomt i samtliga rader och är den starkaste
+   särskiljaren vi saknar.* Postnumret står i intyget, 150 av 150. Det gör
+   adressmatchningen mot företagsregistret starkare för hela Stockholm, för de
+   fall där den ändå behövs.
+
+**Personnumret är rapportens blinda fläck.** Fältet heter
+"Person/Organisationsnummer" och bär innehavarens personnummer när verksamheten
+drivs som enskild firma: 13 av 150, alltså ungefär var tolfte sida. Rapporten
+nedan resonerar genomgående om "orgnr" som om alla nummer vore ett bolags. Det
+är de inte. `prikko/stockholmsintyg.py` sållar dem på regeln att ett svenskt
+organisationsnummer alltid har minst 2 som tredje siffra, medan ett personnummers
+tredje siffra är månadens första och alltså 0 eller 1. Numret hålls inne;
+upplysningen att verksamheten drivs som enskild firma bärs av `companyForm`.
+
+**Intyget är dessutom ett nedlagt-orakel.** Status svarar Aktiv eller Inaktiv per
+id, se `25_oppna_punkter.md`.
+
+Kod: `pipeline/prikko/stockholmsintyg.py` och `pipeline/stockholmsintyg.py`.
+Länken till formulären som samma id öppnar: `site/src/components/Anmal.astro`.
+
+---
+
 ## Kort sammanfattning
 
 Organisationsnumret är låset. Utan det är Prikko en ö. Med det öppnas i princip
@@ -12,7 +90,9 @@ blev avgiftsfritt så sent som den 3 februari 2025.
 
 Det finns tre nyheter i den här rapporten som ändrar bilden:
 
-1. **Stockholms egen sökruta läcker organisationsnumret.** Vi kastar inte bort
+1. **Stockholms egen sökruta läcker organisationsnumret.**
+   *Överspelad, se rättelsen ovan: ett GET mot registreringsintyget ger numret
+   direkt.* Vi kastar inte bort
    orgnr i adaptern, källan returnerar det inte. Men samma kartgränssnitt vi redan
    anropar tar emot orgnr som sökfilter och matchar det som delsträng, kombinerat
    med anläggnings-id som ett OCH-villkor. Det gör gränssnittet till ett booleskt
@@ -27,7 +107,8 @@ Det finns tre nyheter i den här rapporten som ändrar bilden:
    hela registret. Bulkfilen är det som gör namn plus adress-matchning möjlig helt
    offline, utan att betala per anrop.
 
-3. Kombinationen av de två gör matchningen både billig och trovärdig: matcha namn
+3. *Gäller de elva andra kommunerna, inte Stockholm, se rättelsen ovan.*
+   Kombinationen av de två gör matchningen både billig och trovärdig: matcha namn
    plus adress mot bulkfilen för att gissa ett orgnr, bekräfta sedan gissningen med
    ETT Stockholmsanrop i stället för sextio. Staden själv säger ja eller nej. Då är
    felmarginalen inte längre vår gissning utan kommunens egen registerkoppling.
@@ -46,6 +127,10 @@ Läget i dag, verifierat: `organization_number` är ifyllt i 0 av 15 916 rader.
 alltså gatunamn och ort men inget postnummer. Det försvagar adressmatchning, för
 postnumret är den starkaste särskiljaren. Vi har däremot koordinat på 13 544 rader,
 vilket är en annan och ofta bättre nyckel än postadressen (se A3).
+
+> **Rättat 2026-08-25.** Postnumret är tomt i FILERNA, inte i verkligheten.
+> Stockholms registreringsintyg lämnar ut det på 150 av 150 mätta, alltså går det
+> att fylla för 8 520 av dagens 16 047 rader. Se rättelsen överst.
 
 ### A1. Levererar någon källa orgnr i råformat, som vi tappar i adaptern?
 
@@ -96,6 +181,7 @@ Ett aktiebolag som driver en lunchservering registrerar ofta sin postadress hos
 redovisningsbyrån eller ägarens hemadress. Att matcha vårt `street_address` plus
 `locality` mot företagsregistrets postadress ger därför fler missar än man tror,
 och vi saknar dessutom postnummer helt, vilket är den starkaste särskiljaren.
+(Gäller inte Stockholm sedan 2026-08-25, se rättelsen överst.)
 
 Två saker räddar matchningen:
 
@@ -124,6 +210,11 @@ bekräftat.** En sannolik matchning är bra nog för intern analys och för att 
 aldrig bra nog för att visa på verksamhetssidan.
 
 ### A3. Den billiga och trovärdiga vägen: matcha offline, bekräfta med oraklet
+
+> **Överspelad för Stockholm 2026-08-25.** Registreringsintyget ger numret på ett
+> GET, alltså behövs varken bulkfil, kandidatgenerering eller verifierare för de
+> 8 520 stockholmsraderna. Stegen nedan gäller de elva andra kommunerna, där
+> inget orakel finns. Se rättelsen överst.
 
 Sätt ihop A1 och A2:
 

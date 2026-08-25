@@ -29,6 +29,7 @@ from prikko.sources.oskarshamn import (  # noqa: E402
     merge_layers,
     normalize_establishment,
     normalize_inspections,
+    registration_date,
 )
 
 TODAY = date(2026, 8, 2)
@@ -443,6 +444,65 @@ class EndToEnd(unittest.TestCase):
         # Källan publicerar en enda kontroll per verksamhet, och utmärkelsen
         # kräver tre rena i rad.
         self.assertFalse(self.verdict(CLEAN).distinction)
+
+
+class KastadeFalt(unittest.TestCase):
+    """Fyra fält låg i råsvaret och kastades fram till 2026-08-25.
+
+    Två bärs vidare till sajtens datafil (registreringsdatum och
+    verksamhetsutövare) och två stannar i pipelinen (postnummer och
+    fastighetsbeteckning). Se modulens inledning för avvägningen.
+    """
+
+    def test_registration_date_is_read(self):
+        self.assertEqual(registration_date(CLEAN["attributes"]), date(2024, 6, 15))
+        self.assertEqual(
+            normalize_establishment(CLEAN, ["Restaurang"]).registered_at,
+            date(2024, 6, 15),
+        )
+
+    def test_missing_registration_date_is_none(self):
+        self.assertIsNone(registration_date({"StartDatum": ""}))
+        self.assertIsNone(registration_date({}))
+
+    def test_unreadable_registration_date_gives_none_instead_of_raising(self):
+        # Samma avvägning som i orebro.py: strikthetsregeln skyddar värden
+        # som bedömningen vilar på, och ett registreringsdatum gör inte det.
+        self.assertIsNone(registration_date({"StartDatum": "vt 2024"}))
+
+    def test_operator_is_the_legal_person_not_the_sign(self):
+        # Besökaren söker på skylten, så `name` är "The Corner". Vem som
+        # DRIVER stället är en egen uppgift, och den enda vi har som närmar
+        # sig ett orgnr i den här kommunen.
+        e = normalize_establishment(CLEAN, ["Restaurang"])
+        self.assertEqual(e.name, "The Corner")
+        self.assertEqual(e.operator, "Mat i Söder AB")
+
+    def test_operator_that_only_repeats_the_sign_is_dropped(self):
+        # 152 av 229 ifyllda `AnlaggningsNamn` är identiska med
+        # `Objektsnamn`. Samma sträng under två rubriker ser ut som två
+        # uppgifter men är en.
+        self.assertIsNone(
+            normalize_establishment(OLD_MODEL, ["Övrigt"]).operator
+        )
+
+    def test_operator_comparison_ignores_case(self):
+        # "Coop Flanaden" och "coop Flanaden" är samma namn.
+        self.assertIsNone(
+            normalize_establishment(DEVIATIONS, ["Butik"]).operator
+        )
+
+    def test_postal_code_and_property_stay_on_the_dataclass(self):
+        e = normalize_establishment(CLEAN, ["Restaurang"])
+        self.assertEqual(e.postal_code, "57291")
+        self.assertEqual(e.property_designation, "Biet 16")
+
+    def test_missing_postal_code_and_property_are_none(self):
+        e = normalize_establishment(
+            variant(PostNr="", Fastighet=None), ["Restaurang"]
+        )
+        self.assertIsNone(e.postal_code)
+        self.assertIsNone(e.property_designation)
 
 
 if __name__ == "__main__":

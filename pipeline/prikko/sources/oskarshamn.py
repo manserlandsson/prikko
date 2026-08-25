@@ -43,6 +43,25 @@ Uppdelningen syns i datan utan undantag: alla 7 `Godtagbar` har
 `TillsynsDatum` före 2024-01-01, och alla 209 `Inga avvikelser` /
 `Kvarstående avvikelser` ligger efter.
 
+## Fyra fält som kastades fram till 2026-08-25
+
+Alla fyra ligger i det svar vi redan hämtar, alltså noll extra anrop.
+Antalen är räknade över hela beståndet (240 rader, 2026-08-25):
+
+    StartDatum       240/240   registreringsdatum      → `registered_at`
+    AnlaggningsNamn  229/240   verksamhetsutövaren     → `operator`
+    PostNr           228/240   postnummer              → `postal_code`
+    Fastighet        239/240   fastighetsbeteckning    → `property_designation`
+
+De två första är uppgifter OM verksamheten och bärs vidare till sajtens
+datafil. De två sista gör det inte, och det är ett medvetet val: sidan
+skriver redan ut ort och kommun efter gatuadressen, så ett postnummer
+tillför inget en besökare läser, och en fastighetsbeteckning är
+lantmäteriets språk, inte allmänhetens. Värdet ligger i pipelinen —
+`Fastighet` är det enda vi har att geokoda de rader som saknar gatuadress
+med, och `PostNr` skiljer två gator med samma namn i olika tätorter. De står
+därför på `NormalizedEstablishment` men skrivs inte till JSON.
+
 ## Ett numeriskt mått vi inte sett tidigare
 
 `AntalKvarstAvvikelser` säger HUR MÅNGA avvikelser som är öppna, inte bara
@@ -199,6 +218,37 @@ class NormalizedEstablishment:
     types: list
     lat: Optional[float]
     lng: Optional[float]
+    #: Dagen anläggningen registrerades, ur `StartDatum`. 240 av 240.
+    registered_at: Optional[date] = None
+    #: Verksamhetsutövaren, alltså den juridiska personen, ur
+    #: `AnlaggningsNamn`. 229 av 240. Se `normalize_establishment()`.
+    operator: Optional[str] = None
+    #: Postnummer ur `PostNr`, 228 av 240. Stannar i pipelinen, se
+    #: modulens inledning.
+    postal_code: Optional[str] = None
+    #: Fastighetsbeteckning ur `Fastighet`, 239 av 240. Stannar i pipelinen.
+    property_designation: Optional[str] = None
+
+
+def registration_date(attributes: dict) -> Optional[date]:
+    """Registreringsdatumet, ur `StartDatum`.
+
+    Ifyllt i 240 av 240 rader 2026-08-25, med spannet 1970-01-01 till i dag.
+    Fältet ligger i det svar vi redan hämtar.
+
+    Ett oläsbart datum ger None i stället för att kasta, av samma skäl som i
+    orebro.py: strikthetsregeln skyddar värden som bedömningen vilar på, och
+    ett registreringsdatum gör det inte. Att fälla en verksamhet ur beståndet
+    för en datumsträng vore en dyrare rättelse än felet. Täckningen räknas i
+    stället av `fetch_oskarshamn.py` och skrivs ut.
+    """
+    value = (attributes.get("StartDatum") or "").strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
 
 
 def query_url(layer: int) -> str:
@@ -310,8 +360,14 @@ def normalize_establishment(feature: dict, categories: list) -> NormalizedEstabl
 
     # Två namnfält: `Objektsnamn` är det utåtriktade namnet ("The Corner"),
     # `AnlaggningsNamn` den juridiska personen ("Mat i Söder AB"). Besökaren
-    # söker på skylten, inte på bolaget.
+    # söker på skylten, inte på bolaget — därför bär `name` skylten.
+    #
+    # Bolaget kastades fram till 2026-08-25. Det var fel: vem som DRIVER
+    # stället är en uppgift om verksamheten, och den enda vi har som ens
+    # närmar sig ett orgnr i den här kommunen. Det bärs nu vidare som
+    # `operator`, tydligt skilt från namnet.
     name = " ".join((attributes.get("Objektsnamn") or "").split())
+    operator = " ".join((attributes.get("AnlaggningsNamn") or "").split())
 
     address = " ".join((attributes.get("Adress") or "").split())
     ort = " ".join((attributes.get("PostOrt") or "").split())
@@ -334,6 +390,22 @@ def normalize_establishment(feature: dict, categories: list) -> NormalizedEstabl
         types=_types(attributes, categories),
         lat=lat,
         lng=lng,
+        registered_at=registration_date(attributes),
+        # Bolaget utelämnas när det bara upprepar skylten. Det är inte ett
+        # kantfall utan huvudfallet: av 229 ifyllda `AnlaggningsNamn` är 152
+        # identiska med `Objektsnamn` (räknat över alla 240 rader
+        # 2026-08-25). Att skriva ut samma sträng två gånger under två
+        # rubriker ser ut som två uppgifter men är en. Kvar blir 77 rader
+        # där bolaget faktiskt säger något skylten inte säger.
+        operator=(
+            operator
+            if operator and operator.casefold() != name.casefold()
+            else None
+        ),
+        postal_code=" ".join((attributes.get("PostNr") or "").split()) or None,
+        property_designation=(
+            " ".join((attributes.get("Fastighet") or "").split()) or None
+        ),
     )
 
 

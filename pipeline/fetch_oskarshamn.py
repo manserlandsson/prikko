@@ -156,6 +156,15 @@ def build(today: date, limit: Optional[int]) -> dict:
                 "reason": result.reason,
                 "modelVersion": result.model_version,
                 "uncertain": False,
+                # Uppgifter OM verksamheten, ur samma svar. `postal_code` och
+                # `property_designation` finns också men stannar i pipelinen,
+                # se källmodulens inledning.
+                "registeredAt": (
+                    establishment.registered_at.isoformat()
+                    if establishment.registered_at
+                    else None
+                ),
+                "operator": establishment.operator,
                 "inspections": [
                     {
                         "id": i.id_national,
@@ -178,6 +187,17 @@ def build(today: date, limit: Optional[int]) -> dict:
         )
 
     dedupe_slugs(records)
+
+    # Täckningen skrivs ut i stället för att kontrolleras med ett kast. Se
+    # oskarshamn.registration_date(): ett oläsbart datum får inte fälla en
+    # verksamhet, men det får inte heller försvinna tyst.
+    dated = sum(1 for r in records if r["registeredAt"])
+    operators = sum(1 for r in records if r["operator"])
+    print(
+        f"  registreringsdatum {dated}/{len(records)}, "
+        f"verksamhetsutövare {operators}/{len(records)}",
+        file=sys.stderr,
+    )
 
     return {
         "municipality": {

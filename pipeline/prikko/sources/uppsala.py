@@ -12,8 +12,14 @@ mönstret: varje kommun kräver en egen adapter.
 
 Datakvaliteten är däremot den bästa hittills. Uppsala har ett eget värde för
 "Avvikelse kvarstår", precis som Linköping men till skillnad från Stockholm,
-och kontrollområdena är lika detaljerade som Linköpings. De anger dessutom
-diarienummer per kontroll.
+och kontrollområdena är lika detaljerade som Linköpings.
+
+De anger dessutom **diarienummer per kontroll** ("MHN-2026-5095"), i samma
+faktaruta som orsak och typ. Det kastades fram till 2026-08-25 och bärs nu
+vidare som `case_number`. Skälet: kontrollrapporten i sin helhet finns inte
+publicerad någonstans, men den är en allmän handling, och diarienumret är
+det som gör en begäran om utlämnande möjlig att besvara. Utan numret måste
+besökaren beskriva vilken kontroll hen menar; med det räcker en rad.
 
 SAKNAS: koordinater. Uppsala publicerar inga. Adaptern lämnar därför lat/lng
 tomma — den ljuger inte ihop en punkt. Kartnålen sätts i ett eget, senare steg
@@ -95,6 +101,9 @@ class NormalizedInspection:
     on_site: bool
     areas: list
     uncertain: bool
+    #: Kommunens diarienummer för kontrollen, t.ex. "MHN-2026-5095". Uppsala
+    #: skriver ut det själva i kontrollens faktaruta. Se modulens inledning.
+    case_number: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -189,6 +198,13 @@ def normalize_inspections(detail: str, establishment_id: str, local_id: str) -> 
         kind = re.search(r"<dt>Typ av kontroll:</dt>\s*<dd>(.*?)</dd>", block, re.S)
         kind_text = _clean(kind.group(1)).lower() if kind else ""
 
+        # Diarienumret står i samma faktaruta som orsak och typ. Uppsala
+        # publicerar det själva, och det är den nyckel en besökare behöver
+        # för att begära ut kontrollrapporten som allmän handling. Det
+        # kastades fram till 2026-08-25.
+        case = re.search(r"<dt>Diarienummer:</dt>\s*<dd>(.*?)</dd>", block, re.S)
+        case_number = _clean(case.group(1)) if case else ""
+
         # Avvikelser listas som "Avvikelser: <område> <beskrivning>".
         # Avvikelser ligger nästlade: lagstiftningsområdet i en länk, de
         # enskilda punkterna i en inre lista under den.
@@ -226,6 +242,7 @@ def normalize_inspections(detail: str, establishment_id: str, local_id: str) -> 
                 on_site=True,
                 areas=areas,
                 uncertain=False,
+                case_number=case_number or None,
             )
         )
 

@@ -1,0 +1,157 @@
+---
+/**
+ * Vägen till kommunens egna anmälningsformulär, förifylld med verksamheten.
+ *
+ * ---------------------------------------------------------------------------
+ * DEN GAMLA INVÄNDNINGEN ÄR UPPFYLLD, INTE ÖVERTRÄDD
+ * ---------------------------------------------------------------------------
+ * Handlingsrad.astro säger att "Anmäl en brist" är borttagen och inte kommer
+ * tillbaka, eftersom Prikko inte är tillsynsmyndighet och inte kan ta emot en
+ * anmälan om dålig hygien. Skälet var att PRIKKO tog emot anmälan. Här sker
+ * det motsatta: länken lämnar sajten och landar i Stockholms stads eget
+ * formulär, med verksamheten redan vald. Vi tar inte emot någonting, vi
+ * kortar vägen till den som gör det.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR RUBRIKEN NÄMNER MOTTAGAREN OCH INTE ANKLAGELSEN
+ * ---------------------------------------------------------------------------
+ * Sidan handlar om en namngiven verksamhet, och den får inte antyda att just
+ * det här stället gjort någon sjuk. "Blev du sjuk här?" gör precis det.
+ * "Anmäl till kommunen" är ett konstaterande om VAR en anmälan hamnar, aldrig
+ * ett påstående om verksamheten. Ordet "misstänkt" i den första länken är
+ * kommunens eget och bär hela förbehållet: man anmäler en misstanke.
+ *
+ * Ingen brödtext. Rubriken säger redan vart det går, alltså faller en rad om
+ * att anmälan inte går till Prikko under docs/18_sprakregler.md.
+ *
+ * ---------------------------------------------------------------------------
+ * FÄLLAN: EN TOM ADRESS NOLLAR HELA FÖRIFYLLNINGEN, TYST
+ * ---------------------------------------------------------------------------
+ * Båda formulären kräver att id, namn OCH adress är icke-tomma. Är adressen
+ * tom släpper deras parameterbindning hela blocket, och då blir även NAMNET
+ * tomt. Sidan svarar 200 och laddar som vanligt, den är bara oifylld — alltså
+ * en tyst förlust av hela poängen.
+ *
+ * Uppmätt 2026-08-25 på M/s Ballerina, id 00b1cf0a-aa70-4533-bbe0-2e19cb88a9a7:
+ *
+ *     address=       ->  formuläret visar inget namn      (trasigt)
+ *     address=%20    ->  formuläret visar "M/s Ballerina" (fungerar)
+ *     address=+      ->  formuläret visar "M/s Ballerina" (fungerar)
+ *
+ * Samma utfall på /brister/ med FoodPlaceAddress. Därför ADRESS_SAKNAS, ett
+ * mellanslag, och aldrig en tom sträng. Det gäller 113 av 8 520 stockholmsrader,
+ * varav 99 är konsumentvända och alltså får båda länkarna.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR VI BYGGER LÄNKEN SJÄLVA I STÄLLET FÖR ATT BÄRA MED KOMMUNENS
+ * ---------------------------------------------------------------------------
+ * Rådata från SearchFacilitiesMap bär färdiga fält PoisoningLink och
+ * ComplainLink. Det är frestande att bara skriva av dem, men de har samma bugg:
+ * stadens egen karta bygger `address=` tomt för de 113 adresslösa och
+ * producerar alltså trasiga länkar till sig själv. Kontrollerat 2026-08-25 på
+ * M/s Ballerina och på Linje 80, SL, Rederiaktiebolaget Ballerina.
+ *
+ * Vi bygger dem därför här, av id, namn och adress som redan står i raden.
+ * Det kostar noll nätverk, noll fält i datafilen och gäller alla 8 520 utan
+ * en ny hämtning. Att lägga två färdiga URL:er på varje rad hade dessutom
+ * vuxit stockholm.json med ett par megabyte för något som är härlett.
+ *
+ * Kodningen är URLSearchParams, som skriver mellanslag som `+`. Prövat mot
+ * båda formulären med snedstreck, ampersand och å-ä-ö i namnet: "M/s
+ * Ballerina" och "Parma Kök & Bar" kom tillbaka oförändrade.
+ */
+
+interface Props {
+  /** Vårt nationella id, `F-0180-<guid>`. Guiden ÄR stadens foodplaceid. */
+  establishmentId: string;
+  establishmentName: string;
+  /** Gatuadressen, eller null. Null är hela skälet till ADRESS_SAKNAS. */
+  address: string | null;
+  /**
+   * Får matförgiftningslänken visas? Sant för restauranger, caféer och
+   * butiker. Ett förskolekök, en transportör eller ett huvudkontor ska inte
+   * ha den; klagomålslänken gäller alla, för brister i livsmedelshantering
+   * finns även där. Sidmallen avgör, den känner kategorierna.
+   */
+  matforgiftning: boolean;
+}
+
+const { establishmentId, establishmentName, address, matforgiftning } = Astro.props;
+
+/** Se fällan ovan. Ett mellanslag, aldrig en tom sträng. */
+const ADRESS_SAKNAS = ' ';
+
+const foodplaceid = establishmentId.replace(/^F-0180-/, '');
+const adress = (address ?? '').trim() || ADRESS_SAKNAS;
+
+const matforgiftningHref =
+  'https://etjanster.stockholm.se/matforgiftning/sallskap?' +
+  new URLSearchParams({
+    foodplaceid,
+    name: establishmentName,
+    address: adress,
+  }).toString();
+
+const bristerHref =
+  'https://etjanster.stockholm.se/brister/brister?' +
+  new URLSearchParams({
+    FoodPlaceId: foodplaceid,
+    FoodPlaceName: establishmentName,
+    FoodPlaceAddress: adress,
+  }).toString();
+---
+
+{/* `data-nosnippet` av samma skäl som sidopanelens övriga rutor: två
+    länketiketter är en väg vidare och inte sidans svar. Google har byggt ett
+    utdrag av knappnamn förut, se Handlingsrad.astro. */}
+<div data-nosnippet>
+  <h2 class="rubrik">Anmäl till kommunen</h2>
+
+  <ul class="lankar">
+    {matforgiftning && (
+      <li>
+        <a href={matforgiftningHref} target="_blank" rel="noopener nofollow">
+          Misstänkt matförgiftning
+        </a>
+      </li>
+    )}
+    <li>
+      <a href={bristerHref} target="_blank" rel="noopener nofollow">
+        Brister i livsmedelshanteringen
+      </a>
+    </li>
+  </ul>
+</div>
+
+<style>
+  /* Samma panelrubriknivå som resten av sidopanelen. Regeln står här och inte
+     i sidmallen eftersom Astros scopeade selektorer inte korsar
+     komponentgränser, se ActionPanel.astro. */
+  .rubrik {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  /* Två länkar och inte två knappar. Rutan står under "Något som inte
+     stämmer?", vars enda knapp vetter mot den som driver stället. Två fyllda
+     knappar här hade ropat högre än den, och den som söker vägen att anmäla
+     letar aktivt. */
+  .lankar {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    font-size: var(--fs-body-s);
+  }
+
+  .lankar li + li {
+    margin-top: var(--s-2);
+  }
+
+  /* Träffytan är hela raden och inte bara ordlängden. --h-tap är golvet för
+     en knapp; en länk i en lista når det med padding uppåt och nedåt. */
+  .lankar a {
+    display: block;
+    padding: var(--s-2) 0;
+  }
+</style>

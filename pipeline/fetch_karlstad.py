@@ -31,9 +31,13 @@ from prikko.sources.karlstad import (  # noqa: E402
     MUNICIPALITY_NAME,
     SOURCE_URL,
     UnknownSourceValue,
+    address_query_url,
     normalize_establishment,
     normalize_inspections,
+    parse_addresses,
     query_url,
+    unambiguous_names,
+    with_address,
 )
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
 
@@ -82,12 +86,44 @@ def collect() -> list:
     return out
 
 
+def collect_addresses() -> dict:
+    """Adresslagret, ett anrop. Se karlstad.parse_addresses().
+
+    Ett tappat adresslager får INTE fälla hämtningen. Adressen är en
+    förbättring ovanpå ett bestånd som fungerade utan den i månader, och att
+    låta hela Karlstad utebli för att ett avställt lager inte svarade vore
+    fel avvägning. Tom tabell betyder att verksamheterna står kvar utan
+    adress, precis som förut.
+    """
+    try:
+        payload = get(address_query_url())
+    except Exception as exc:
+        print(f"  ! adresslagret gick inte att hämta: {exc}", file=sys.stderr)
+        return {}
+    finally:
+        time.sleep(POLITE_DELAY_S)
+
+    try:
+        addresses = parse_addresses(payload)
+    except UnknownSourceValue as exc:
+        # Spärren har löst ut: svaret bar mer än namn och adress. Då
+        # använder vi ingenting därifrån.
+        print(f"  ! adresslagret avvisat: {exc}", file=sys.stderr)
+        return {}
+
+    print(f"  {'adresser (avställt lager)':24s} {len(addresses):4d}", file=sys.stderr)
+    return addresses
+
+
 def build(today: date, limit: Optional[int]) -> dict:
     features = collect()
     if limit:
         features = features[:limit]
 
+    addresses = collect_addresses()
+
     records, skipped = [], 0
+    normalized = []
 
     for feature, category in features:
         try:
@@ -101,6 +137,20 @@ def build(today: date, limit: Optional[int]) -> dict:
         if not establishment.name:
             skipped += 1
             continue
+
+        normalized.append((establishment, inspections))
+
+    # Hopparningen kräver att namnet är entydigt i BÅDA bestånden, så den kan
+    # inte göras förrän hela vårt eget är känt.
+    unique = unambiguous_names([e for e, _ in normalized])
+    normalized = [
+        (with_address(establishment, addresses, unique), inspections)
+        for establishment, inspections in normalized
+    ]
+    with_street = sum(1 for e, _ in normalized if e.street_address)
+    print(f"\n{with_street} av {len(normalized)} fick en adress", file=sys.stderr)
+
+    for establishment, inspections in normalized:
 
         result = assess(
             [
@@ -140,6 +190,9 @@ def build(today: date, limit: Optional[int]) -> dict:
                         "audit": i.audit,
                         "onSite": i.on_site,
                         "areas": [],
+                        # Diarienumret besökaren behöver för att begära ut
+                        # rapporten hos Kontaktcenter. Se karlstad.py.
+                        "caseNumber": i.case_number,
                     }
                     for i in inspections
                 ],

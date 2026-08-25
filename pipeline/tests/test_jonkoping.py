@@ -220,5 +220,38 @@ class DeviationFlag(unittest.TestCase):
             check_deviation_flag(feature, normalize_inspections(feature, "F-0680-test"))
 
 
+class Fastighetsbeteckning(unittest.TestCase):
+    """`fastighetsbeteckning` kastades fram till 2026-08-25.
+
+    Den bärs nu in i pipelinen men INTE vidare till sajtens datafil. Se
+    modulens inledning: beteckningen är lantmäteriets språk, och värdet
+    ligger i att kunna geokoda en rad som saknar gatuadress.
+    """
+
+    def test_it_is_read(self):
+        self.assertEqual(
+            normalize_establishment(RAW, "Restaurang").property_designation,
+            "Åminne 1",
+        )
+
+    def test_missing_value_is_none_not_empty_string(self):
+        got = normalize_establishment(
+            with_attributes(fastighetsbeteckning=""), "Restaurang"
+        )
+        self.assertIsNone(got.property_designation)
+
+
+class Kallanken(unittest.TestCase):
+    def test_source_url_host_exists(self):
+        # Den tidigare adressen pekade på kartor.jonkoping.se, ett värdnamn
+        # som inte finns i DNS: nslookup ger NXDOMAIN och curl exit 6.
+        # Länken har alltså aldrig fungerat för en besökare.
+        from prikko.sources.jonkoping import SOURCE_URL
+
+        self.assertNotIn("kartor.jonkoping.se", SOURCE_URL)
+        self.assertIn("jonkoping.maps.arcgis.com", SOURCE_URL)
+        self.assertIn("036b2657f4eb47238e9872695ef29797", SOURCE_URL)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

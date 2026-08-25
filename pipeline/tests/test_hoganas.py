@@ -386,5 +386,44 @@ class EndToEnd(unittest.TestCase):
         self.assertTrue(three.distinction)
 
 
+class Rapportlanken(unittest.TestCase):
+    """Rapport-URL:en är vägen till adressen, och måste överleva.
+
+    `hoganas.py` sa fram till 2026-08-25 att kommunen inte publicerar
+    gatuadress och att Höganäs därför inte kan få kartnålar. Det gällde
+    LISTSIDAN. Rapport-PDF:erna bär gatuadressen — verifierat med vår egen
+    prikko.pdf.extract_blocks: "Adams kök och bar, Storgatan 12, 26337
+    Höganäs". De bär dessutom orgnr, verksamhetsutövare och diarienummer.
+
+    Vi hämtar dem inte, och det är fortfarande rätt avvägning: 333 anrop mot
+    en kommunwebbplats varje natt. Men `report_url` är det som gör att valet
+    går att ompröva utan att hämta om listan, och därför är det testat.
+    """
+
+    def test_every_inspection_carries_its_report_url(self):
+        reports = [
+            parse_report("https://www.hoganas.se/download/18.abc/x.pdf",
+                         "Adams kök & bar, Höganäs, 2026-03-30, gul.pdf"),
+        ]
+        got = normalize_inspections(reports, "F-1284-test")
+        self.assertEqual(got[0].report_url,
+                         "https://www.hoganas.se/download/18.abc/x.pdf")
+
+    def test_the_url_survives_the_same_day_merge(self):
+        # Två rapporter från samma dag slås ihop. Den som vinner ska ta med
+        # sig sin egen länk, inte den förlorandes.
+        reports = [
+            parse_report("https://www.hoganas.se/download/18.gron/a.pdf",
+                         "Jonstorpsskolans kök, Höganäs, 2026-03-24, grön.pdf"),
+            parse_report("https://www.hoganas.se/download/18.gul/b.pdf",
+                         "Jonstorpsskolans kök, Jonstorp, 2026-03-24, gul.pdf"),
+        ]
+        got = normalize_inspections(reports, "F-1284-test")
+        self.assertEqual(len(got), 1)
+        # Gul är det sämre utfallet och vinner, så länken ska vara gul.
+        self.assertEqual(got[0].report_url,
+                         "https://www.hoganas.se/download/18.gul/b.pdf")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
