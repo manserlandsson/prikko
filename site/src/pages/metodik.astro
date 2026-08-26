@@ -9,6 +9,117 @@
  *
  * Innehållet måste alltid spegla pipeline/prikko/grading.py exakt. Ändras
  * modellen ska den här sidan ändras i samma commit, och modellversionen höjas.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * OMBYGGNAD 2026-08-26: FORMEN, INTE SANNINGEN
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Ägaren: "sätt en agent på 'så sätts bedömningen' sidan, det är bara text
+ * rakt ner, ser liksom inte välgjort ut, fixa gärna."
+ *
+ * Diagnosen mättes i webbläsaren innan något rördes.
+ *
+ *   1440 x 900   Textspalten 584 px, inte 680. Sidan är 9 403 px hög, alltså
+ *                10,45 skärmar. Sexton rubriker, noll navigering.
+ *   375 x 812    Textspalten 343 px. Sidan 15 772 px hög, alltså 19,42
+ *                skärmar.
+ *
+ * De 584 var ett fel, inte ett val. `.container` är border-box, så en sida som
+ * sätter `max-width: var(--w-read)` får 680 MINUS två gutters. Tokens.css
+ * beskriver precis den fällan vid --container-luft, och sidan gick i den.
+ *
+ * Förlagorna mättes samma dag, i 1440 x 900, och alla fyra svarar på samma
+ * sorts fråga som vi: hur räknas omdömet fram.
+ *
+ *   Trustpilot   help.trustpilot.com, "TrustScore and star rating explained".
+ *                Spalt 616, brödtext 16/27,2. Hela sidan 3 688 px, alltså 4,10
+ *                skärmar. Ingen innehållsförteckning: sidan är kort nog utan.
+ *                Svaret står i ingressen och SJÄLVA BERÄKNINGEN är första h2.
+ *                De tre faktorerna står som en lista med fet ingångsetikett,
+ *                inte i löptext, och en figur på 616 x 433 visar var gränserna
+ *                mellan stjärnorna går.
+ *   Livsmedels-  kontrollwiki.livsmedelsverket.se/artikel/236. Spalt 596,
+ *   verket       brödtext 21/27,3. Sidan 3 022 px, alltså 3,36 skärmar.
+ *                Avsnittsmeny till vänster, 236 px bred, x = 130, dold under
+ *                small-brytpunkten. Dessutom en ankarlista i brödtexten
+ *                (`brodtext-ankare`), 636 x 137, som ligger EFTER ingressen
+ *                och FÖRE första h2.
+ *   Skolverket   skolverket.se/.../om-skolverkets-statistik. Ingress 936,
+ *                brödtext 608 i 16/24. Sidan 4 338 px, alltså 4,82 skärmar.
+ *                Avsnittsmeny till vänster 352 px, och en egen "På denna
+ *                sida"-förteckning till höger, 272 x 251 vid x = 1116. Den
+ *                står kvar i mobil (212 px bred vid 375), alltså är den inte
+ *                en dator-lyx.
+ *   Yelp         trust.yelp.com/recommendation-software. Ingress 733,
+ *                brödtext 468 i tre spalter inom en behållare på 1 144. Ingen
+ *                ankarmeny, men en fast toppmeny över de sex förtroendesidorna.
+ *                Modellens fyra faktorer står som fyra korta stycken med fet
+ *                ingångsetikett, sida vid sida, inte som löptext.
+ *
+ * Tre slutsatser, och alla tre är byggda:
+ *
+ *   a) Spaltbredden var aldrig problemet. 468 till 616 hos förlagorna, våra
+ *      584 låg mitt i spannet. Den rättas ändå till 680, eftersom 680 var det
+ *      sidan bad om.
+ *   b) LÄNGDEN var problemet. Ingen förlaga är längre än 4,82 skärmar; vi låg
+ *      på 10,45. Tre av fyra ger ändå läsaren en väg in i texten. Vi gav
+ *      ingen. Därför en innehållsförteckning som följer med (Skolverkets
+ *      högerspalt, speglad till vänster som hos Livsmedelsverket) och som
+ *      står kvar i mobil, där sidan är dubbelt så lång.
+ *   c) Ingen av dem låter modellen stå som ren löptext. Trustpilot visar
+ *      gränserna i en figur, Yelp bryter faktorerna i spalter. Vi hade fyra
+ *      regler utspridda över fyra avsnitt och ingen yta där de syns arbeta
+ *      tillsammans. Därför räkneexemplet.
+ *
+ * EFTER, uppmätt i samma två fönster:
+ *
+ *   1440 x 900   Textspalten 680. Förteckningen 232 bred vid x = 240, klistrad
+ *                32 px från överkanten. Sidan 9 502 px, alltså 10,56 skärmar:
+ *                nästan oförändrad trots ett helt nytt avsnitt på 737 px,
+ *                eftersom den bredare spalten kortade allt annat. Hela
+ *                beräkningskedjan, från nivåerna till "när vi vägrar bedöma",
+ *                löper nu obruten från 305 till 3 657, alltså 4,06 skärmar.
+ *                Före låg samma kedja på 305 till 4 796, alltså 5,33 skärmar,
+ *                och bröts på mitten av erkännandet.
+ *   375 x 812    Textspalten 343, oförändrad. Förteckningen i två spalter,
+ *                257 px hög. Sidan 17 283 px, alltså 21,28 skärmar mot 19,42.
+ *                Tillväxten är förteckningen plus räkneexemplet, och den är
+ *                priset för att de nitton skärmarna nu går att hoppa i.
+ *                Ingen vågrät översvämning, kontrollerad ned till 320 px.
+ *   1044 / 1043  Brytpunkten. Vid 1044 ligger förteckningen kvar i sin spalt
+ *                med 42 px kantluft; vid 1043 faller den till en blockrad och
+ *                brödtexten är fortfarande 680.
+ *
+ * VARFÖR EN INNEHÅLLSFÖRTECKNING HÄR, NÄR HJÄLPSIDAN AVVISADE EN
+ * ---------------------------------------------------------------------------
+ * hjalp.astro säger uttryckligen nej till en sådan, och skälet står där: åtta
+ * rubriker som ligger en skärm längre ned är precis vad språkreglerna kallar
+ * att skriva ut det som står en rad bort. Det argumentet håller på en sida som
+ * är tre skärmar hög. Den här är tio på dator och nitton på telefon, och elva
+ * av avsnitten går inte att se samtidigt i något fönster som finns. En
+ * förteckning som räknar upp det som syns är svammel; en som räknar upp det
+ * som INTE syns är navigering. Etiketterna är dessutom kortare än rubrikerna,
+ * alltså upprepas ingen rubrik ordagrant.
+ *
+ * ORDNINGEN ÄR ÄNDRAD, TEXTEN ÄR DET INTE
+ * ---------------------------------------------------------------------------
+ * Avsnittet om erkännandet (ren historik och utmärkelsen) var 1 710 px högt
+ * och låg mitt i beräkningskedjan, alltså mellan "administrativa avvikelser
+ * skärps aldrig" och "när vi vägrar bedöma". Erkännandet är inte en del av
+ * bedömningen; grading.py säger det med egna ord ("Nuläget avgör bedömningen;
+ * historiken avgör erkännandet"). Det flyttas därför ned under kedjan i
+ * stället för att bryta den. Ingen mening i det avsnittet är ändrad.
+ *
+ * MASKOTEN OCH RÄKNEEXEMPLET, docs/24
+ * ---------------------------------------------------------------------------
+ * Exemplet är påhittat OCH namnlöst. Ett påhittat namn är ingen namngiven
+ * verksamhet i regelns mening, men ett kafénamn vi hittar på finns med stor
+ * sannolikhet på riktigt någonstans i landet, och då står vår hårdaste
+ * bedömning bredvid ett verkligt företag utan att vi menat det. Namnet
+ * behövdes inte för att exemplet ska gå att följa, alltså finns det inte.
+ * Figuren står kvar i sitt enda läge högst upp, fyra avsnitt ovanför exemplet.
+ * Märkena i exemplet är FaceMark, alltså bedömningsmärket, som docs/24 pekar
+ * ut som det neutrala tecknet och det som SKA stå där en bedömning visas.
  */
 import Base from '../layouts/Base.astro';
 import FaceMark from '../components/FaceMark.astro';
@@ -47,6 +158,71 @@ const levels = [
     verdict: null,
     label: 'Ingen bedömning',
     when: 'Det saknas kontroll, eller så är den senaste äldre än tre år. Detta betyder aldrig att hygienen är dålig.',
+  },
+];
+
+/**
+ * Innehållsförteckningen. Etiketterna är KORTARE än rubrikerna de pekar på,
+ * och det är avsiktligt: en förteckning som upprepar elva rubriker ordagrant
+ * är den upprepning på kort avstånd som docs/18 förbjuder, medan en som
+ * sammanfattar dem är en väg in. Id:na är sidans ankare och får inte döpas om:
+ * #administrativa, #utmarkelsen, #jamfor och #lokalen länkas från artiklarna,
+ * Kontrollen, KommunHub, FollowUpRate, RenHistorik och kallor.astro.
+ */
+const avsnitt = [
+  { id: 'nivaerna', label: 'De tre nivåerna' },
+  { id: 'senaste', label: 'Senaste kontrollen avgör' },
+  { id: 'monstret', label: 'Kvarstående brister' },
+  { id: 'administrativa', label: 'Administrativa avvikelser' },
+  { id: 'exempel', label: 'Ett räkneexempel' },
+  { id: 'utan-bedomning', label: 'När vi vägrar bedöma' },
+  { id: 'utmarkelsen', label: 'Ren historik och utmärkelsen' },
+  { id: 'jamfor', label: 'Jämför verksamheter' },
+  { id: 'lokalen', label: 'Historiken följer lokalen' },
+  { id: 'vad-vi-inte-gor', label: 'Vad vi inte gör' },
+  { id: 'ratta', label: 'Rätta oss' },
+];
+
+/**
+ * Räkneexemplets kontroller. Påhittad verksamhet, ingen namngiven.
+ *
+ * Raderna är valda för att köra hela modellen i grading.py på en gång, och
+ * varje rad är kontrollerad mot koden:
+ *
+ *   assess() sorterar de tre inom treårsfönstret, nyast först.
+ *   Den senaste har assessment = 1 (mindre anmärkningar), alltså MINOR.
+ *   _is_persisting() är sant på tecken 1, latest.type == FOLLOWUP. Tecken 2
+ *   är också sant, eftersom föregående kontroll har avvikelser; vart och ett
+ *   räcker för sig.
+ *   _purely_administrative() är falskt: rengöring i beredningen hör till
+ *   J (grundförutsättningar, hygien), som inte ligger i ADMINISTRATIVE_AREAS
+ *   ("ADEFHM"). Alltså skärps MINOR till MAJOR.
+ *   distinction är falskt, eftersom alla tre inte är utan anmärkning.
+ *
+ * Grenen i texten under: byts den enda avvikelsen mot spårbarhet (H) blir
+ * _purely_administrative() sant, skärpningen uteblir och nivån stannar på
+ * MINOR. Viktningen läser bara den SENASTE kontrollens rader, alltså spelar
+ * det ingen roll att kontrollen innan hade en hygienavvikelse.
+ *
+ * Kontrollerna är namngivna efter sin ordning och inte daterade. Ett datum
+ * skrivet för hand faller ur treårsfönstret av sig självt när sidan blir ett
+ * år gammal, och då hade exemplet slutat stämma utan att någon rört det.
+ */
+const exempelKontroller = [
+  {
+    nar: 'Äldsta av de tre',
+    typ: 'Planerad kontroll',
+    utfall: 'Inga avvikelser.',
+  },
+  {
+    nar: 'Kontrollen innan',
+    typ: 'Planerad kontroll',
+    utfall: 'En avvikelse: kylförvaring.',
+  },
+  {
+    nar: 'Senaste kontrollen',
+    typ: 'Återbesök',
+    utfall: 'En avvikelse: rengöring i beredningen.',
   },
 ];
 
@@ -136,432 +312,697 @@ const jsonLd = {
       </p>
     </header>
 
-    <section class="nivaer-sektion">
-      {/* Maskoten granskar, och det är precis vad avsnittet handlar om. Här
-          förklarar tjänsten sin egen metod, alltså finns ingen namngiven
-          verksamhet på skärmen och den bärande regeln håller.
-
-          Märkena i listan nedanför är DATA, alltså de tre bedömningsfärgerna.
-          Figuren är AVSÄNDARE och är därför blå. Att de två står i samma
-          avsnitt är själva poängen: den som ser efter, och det han kan säga. */}
-      <Maskot pose="soker" size={80} class="granskaren" />
-      <h2>De tre nivåerna</h2>
-      <p>
-        Nivåerna beskriver vad som hänt, inte hur allvarligt vi tycker att det
-        är. Vi säger inte "allvarliga brister", eftersom ingen kommun använder
-        det ordet och en gradering av allvar vore vårt eget påstående. Vi säger
-        i stället om bristerna åtgärdats eller inte. Det är verifierbart, och
-        säger mer om verksamheten än ett ögonblicksvärde.
-      </p>
-      <ul class="levels">
-        {levels.map((l) => (
-          <li>
-            <FaceMark verdict={l.verdict} size={44} />
-            <div>
-              <b>{l.label}</b>
-              <p class="text-secondary">{l.when}</p>
-            </div>
-          </li>
+    {/* Ligger i DOM efter ingressen och före första avsnittet, alltså exakt
+        där Livsmedelsverkets ankarlista ligger. På dator flyttar rutnätet den
+        till vänsterspalten; i mobil står den kvar här. */}
+    <nav class="innehall" aria-labelledby="innehall-rubrik">
+      <p class="innehall-rubrik" id="innehall-rubrik">På sidan</p>
+      <ol>
+        {avsnitt.map((a) => (
+          <li><a href={`#${a.id}`}>{a.label}</a></li>
         ))}
-      </ul>
-    </section>
+      </ol>
+    </nav>
 
-    <section>
-      <h2>Senaste kontrollen avgör</h2>
-      <p>
-        Bedömningen speglar den <strong>senaste</strong> kontrollen, inte den
-        värsta och inte ett genomsnitt. Skälet är enkelt: den som står utanför
-        dörren vill veta hur det ser ut nu, inte hur det såg ut för fyra år
-        sedan.
-      </p>
-      <p>
-        Det betyder också att ett återbesök utan anmärkning läses som rent,
-        även om föregående kontroll hade brister. Den som åtgärdar ska inte straffas för sin
-        historia, men historiken göms inte. Den visas alltid i sin helhet på
-        verksamhetens sida.
-      </p>
-    </section>
+    <div class="brod">
+      <section id="nivaerna" class="nivaer-sektion">
+        {/* Maskoten granskar, och det är precis vad avsnittet handlar om. Här
+            förklarar tjänsten sin egen metod, alltså finns ingen namngiven
+            verksamhet på skärmen och den bärande regeln håller.
 
-    <section>
-      <h2>Kvarstående brister läses ur mönstret, inte ur ordvalet</h2>
-      <p>
-        Kommunerna använder olika ord för samma sak. Linköping har ett eget
-        värde för ”Kvarstår” när en avvikelse inte åtgärdats vid uppföljning.
-        Stockholms skala slutar vid ”Med avvikelser” och har inget sådant ord
-        alls.
-      </p>
-      <p>
-        Läste vi bara etiketten skulle följden bli orimlig: ingen verksamhet i
-        Stockholm kunde någonsin hamna på den allvarligaste nivån, hur illa det
-        än vore, medan en verksamhet i Linköping kunde det. Då går städerna inte
-        att jämföra, och jämförbarheten är hela poängen med Prikko.
-      </p>
-      <p>
-        Därför bedömer vi vad som <strong>hände</strong> i stället för vad
-        kommunen råkade kalla det. En avvikelse räknas som kvarstående när ett
-        av två tecken finns, och båda går att läsa i alla kommuners data:
-      </p>
-      <ul class="plain">
-        <li>
-          Kontrollen var ett <strong>återbesök</strong> och hittade ändå
-          avvikelser. Kommunen kom tillbaka för att se att bristen var åtgärdad,
-          och den var inte det.
-        </li>
-        <li>
-          <strong>Föregående kontroll hade också avvikelser.</strong> Problemet
-          upprepas i stället för att vara en engångsmiss.
-        </li>
-      </ul>
-      <p>
-        Det här är enda stället där något skärps utöver kommunens egen
-        notering, och det bygger på kommunens egna uppgifter om vilken sorts
-        kontroll det var och vad den förra visade. Vi tolkar aldrig innehållet i
-        en avvikelse, bara mönstret. Ett undantag kan mildra, aldrig skärpa,
-        och det beskrivs härnäst.
-      </p>
-    </section>
-
-    <section id="administrativa">
-      <h2>Rent administrativa avvikelser skärps aldrig</h2>
-      <p>
-        En saknad journalanteckning är inte samma sak som smuts i beredningen.
-        Sedan modellversion 4 skärper vi därför aldrig en bedömning till
-        ”Brister som kvarstår” när <strong>samtliga</strong> avvikelser vid den
-        senaste kontrollen är rent administrativa. Nivån stannar då på
-        ”Brister”, hur mönstret än ser ut.
-      </p>
-      <p>
-        Vad som är administrativt avgör inte vi från fall till fall. Varje
-        kontrollpunkt hör till ett av Livsmedelsverkets lagstiftningsområden,
-        och sex av dem räknar vi som rent administrativa: administrativa krav
-        (registrering och godkännande av verksamheten), spårbarhet
-        (journalföring av varifrån råvaror kommer), skyddade beteckningar,
-        handelsnormer, varustandarder samt handel inom EU, import och export.
-      </p>
-      <p>
-        Tre områden kan låta administrativa men räknas med avsikt inte dit.
-        Allmän livsmedelsinformation omfattar allergeninformation, och fel där
-        kan skada människor. Särskild märkning omfattar bland annat
-        glutenfritt, av samma skäl. HACCP rymmer egenkontrollens pappersdel,
-        men också mikrobiologiska kriterier, och vi kan inte skilja en oskriven
-        faroanalys från ett provsvar med fynd. I tveksamma fall väger vi inte
-        ner.
-      </p>
-      <ul class="plain">
-        <li>
-          Viktningen kan bara mildra vår egen härledda skärpning. Har kommunen
-          själv bedömt bristerna som allvarliga står kommunens bedömning,
-          alltid.
-        </li>
-        <li>
-          Ingenting döljs. Varje avvikelse visas på verksamhetens sida med
-          kommunens egna ord, även de administrativa.
-        </li>
-        <li>
-          Okänt underlag mildrar aldrig. Redovisar kommunen inga
-          kontrollpunkter, eller går en avvikelse inte att föra till ett
-          område, bedöms mönstret som tidigare.
-        </li>
-      </ul>
-      <p>
-        Menar du som verksamhet att en avvikelse hamnat i fel område, eller att
-        viktningen slår fel på din sida, gäller samma väg som för alla andra
-        uppgifter: <a href="/ratta/">rätta oss</a>, så prövar vi det mot
-        kommunens kontrollrapport.
-      </p>
-    </section>
-
-    <section id="utmarkelsen">
-      <h2>Historiken ger ett erkännande, inte ett betygssteg</h2>
-      <p>
-        De allra flesta verksamheter sköter sig. Med tre nivåer skulle ungefär
-        två tredjedelar hamna på den bästa, vilket gör det svårt att skilja de
-        genomgående skötsamma från de nyss godkända. Därför vägs historiken in
-        separat. Den påverkar aldrig hur allvarligt något bedöms: nuläget avgör
-        bedömningen, historiken avgör erkännandet.
-      </p>
-      <p>
-        Erkännandet finns i två former, med olika krav. De hette båda
-        ”utmärkelsen” fram till augusti 2026, vilket gjorde att den här sidan och
-        utmärkelsesidan gav två svar på samma fråga. Nu heter de olika saker.
-      </p>
-
-      <h3>Ren historik: märkningen på verksamhetens sida</h3>
-      <p>
-        En verksamhet med rent resultat vid <strong>samtliga {chipWord} senaste
-        kontrollerna</strong> märks som ren historik. Kontrollerna ska ligga inom
-        treårsfönstret, samma fönster som avgör om vi alls bedömer.
-      </p>
-      <p>
-        {capitalise(chipWord)} kontroller är också ett krav. Finns bara en
-        eller två i kommunens register ges ingen märkning, oavsett hur rena de
-        är: märkningen ska betyda att vi sett ett mönster, inte att vi gissat på
-        ett. Den räknas om varje gång vi hämtar data och försvinner samma dag
-        kommunen noterar en avvikelse.
-      </p>
-
-      <h3>Utmärkelsen: årslistan och märket</h3>
-      {awardWords && latest && (
-        <>
-          <p>
-            Utmärkelsen ligger högre och delas ut en gång om året. Den kräver en
-            obruten rad av <strong>kontroller utan anmärkning</strong> hos en
-            verksamhet vars senaste kontroll är färsk nog att bedöma. Raden får
-            ta hur lång tid som helst. Listan fryses per ett datum och räknas
-            aldrig om, så ett märke i ett fönster går att slå upp i efterhand.
-            {' '}<a href={path('utmarkelser')}>Utmärkelsen och årets lista</a>.
-          </p>
-          <p>
-            Hur många kontroller raden måste vara är <strong>inte samma tal i
-            hela landet</strong>. Det räknas fram ur varje kommuns egen data, så
-            att utmärkelsen går till högst {awardPct} procent av kommunens
-            bedömda verksamheter. I {latest.year} års utgåva ligger ribborna på
-            {' '}{awardWords} kontroller, och varje kommuns tal står på kommunens
-            egen lista.
-          </p>
-          <p>
-            Skälet är att ett gemensamt tal mäter kommunen och inte köket.
-            Kommunerna kontrollerar olika ofta och publicerar olika många
-            kontroller per verksamhet. Ett krav på fem i rad, som utgåvan hade
-            först, gav Stockholm en lista på var sjunde bedömd verksamhet
-            samtidigt som sex kommuner inte kunde nå den alls, eftersom deras
-            register är grundare än fem. Med ribban räknad per kommun betyder
-            märket samma sak överallt: verksamheten hör till de {awardPct}
-            {' '}procent i sin kommun som har längst obruten ren historik.
-          </p>
-          <p class="callout">
-            En högre ribba är inget betyg på kommunen, och ett märke från en
-            kommun med lägre ribba är inte värt mindre. Ribban speglar hur djupt
-            kommunen publicerar och hur ofta den kontrollerar, inte hur rena
-            köken är. Vi rangordnar inte kommuner, och det gäller även här.
-          </p>
-          <p>
-            Att tiden inte räknas är också en rättelse. Fram till augusti 2026
-            skulle kontrollerna rymmas inom tre år, och den regeln mätte hur ofta
-            kommunen kom på besök. Kontrollfrekvensen bestäms av riskklass och
-            myndighetens planering. En restaurang som inspekteras ungefär en gång
-            om året kunde ha ett decennium utan en enda anmärkning och ändå stå
-            utanför listan.
-          </p>
-          <p>
-            {latest.year} års lista räknades om när modellen rättades, och
-            verksamheter föll då ur den. Det fick ske därför att listan var dagar
-            gammal och ännu inte nått någon läsare. Det är enda gången: bygget
-            stannar numera om en omräkning skulle ta bort någon ur en publicerad
-            lista, och svaret blir en ny årsutgåva i stället för en omskriven
-            gammal. Vad som ändrades står på utgåvans egen sida.
-          </p>
-        </>
-      )}
-      <p class="callout">
-        Ingen av de två kan nås i varje kommun. En kommun som bara publicerar
-        den senaste kontrollen gör båda omöjliga, hur välskötta verksamheterna
-        än är. Det står utskrivet på de sidor där nollan annars kunde
-        missförstås, och räknas fram ur datan.
-      </p>
-    </section>
-
-    <section>
-      <h2>När vi vägrar bedöma</h2>
-      <p>
-        Saknas kontroll, eller är den senaste äldre än tre år, sätter vi ingen
-        bedömning alls. Vi gissar aldrig.
-      </p>
-      <p>
-        Tre år är inte godtyckligt: Livsmedelsverkets kontroller sprids normalt
-        över en treårscykel, så en äldre kontroll säger inget om nuläget. Att
-        publicera ”allvarliga brister” om en verksamhet som åtgärdade allt för
-        fem år sedan vore både orättvist och missvisande.
-      </p>
-      <p class="callout">
-        Ingen bedömning betyder aldrig dålig hygien. Det betyder att vi saknar
-        underlag för att säga något.
-      </p>
-    </section>
-
-    <section id="jamfor">
-      <h2>Jämför verksamheter, inte kommuner</h2>
-      {spread && (
+            Märkena i listan nedanför är DATA, alltså de tre bedömningsfärgerna.
+            Figuren är AVSÄNDARE och är därför blå. Att de två står i samma
+            avsnitt är själva poängen: den som ser efter, och det han kan säga. */}
+        <Maskot pose="soker" size={80} class="granskaren" />
+        <h2>De tre nivåerna</h2>
         <p>
-          Samma modell körs på alla kommuner, men kommunerna arbetar inte likadant.
-          Andelen bedömda verksamheter med kvarstående brister varierar från {spread}
+          Nivåerna beskriver vad som hänt, inte hur allvarligt vi tycker att det
+          är. Vi säger inte "allvarliga brister", eftersom ingen kommun använder
+          det ordet och en gradering av allvar vore vårt eget påstående. Vi säger
+          i stället om bristerna åtgärdats eller inte. Det är verifierbart, och
+          säger mer om verksamheten än ett ögonblicksvärde.
         </p>
-      )}
-      <p>
-        Den skillnaden speglar med största sannolikhet inte hygienen. Den speglar
-        hur ofta kommunen gör uppföljande kontroller, hur många av dem den lämnar
-        ut och hur den beskriver dem. En kommun som gör många återbesök och
-        publicerar hela historiken får fler kvarstående brister än en som gör få
-        och publicerar lite. Två sätt att redovisa samma verklighet ger olika
-        siffror.
-      </p>
-      <p>
-        Sedan augusti 2026 går det att se skillnaden i stället för att bara läsa
-        om den. Varje kommunsida visar hur kommunen bedriver sin kontroll: hur
-        många anläggningar registret har, hur stor andel som kontrollerades
-        under året, hur många av kontrollerna som var uppföljande och hur många
-        anläggningar varje årsarbetskraft har att gå på. Uppgifterna är
-        kommunens egen rapportering till Livsmedelsverket. Jämförelsetalet är
-        alltid medianen för landets kontrollmyndigheter, aldrig en annan kommun
-        och aldrig en placering.
-      </p>
-
-      <h3>Vissa utfall är omöjliga i vissa kommuner</h3>
-      <p>
-        Det går längre än så. I några kommuner räcker inte det kommunen lämnar ut
-        för att modellen ska kunna nå alla sina utfall. En nolla där betyder inte
-        att det aldrig hänt, utan att det aldrig kunde synas.
-      </p>
-      {limited.length > 0 && (
-        <ul class="plain">
-          {limited.map((m) => (
+        {/* Jämförelse, inte fyra stycken efter varandra. Ordet står i egen
+            spalt och villkoret i nästa, alltså går de fyra villkoren att läsa
+            mot varandra utan att ögat tappar bort vilket ord som gäller. Booli:
+            hårlinje MELLAN raderna, ingen ram, ingen radie. */}
+        <ul class="levels">
+          {levels.map((l) => (
             <li>
-              {m.limits.note} <a href={path(m.slug)}>Se {m.city}</a>.
+              <div class="level-ord">
+                <FaceMark verdict={l.verdict} size={44} />
+                <b>{l.label}</b>
+              </div>
+              <p class="text-secondary">{l.when}</p>
             </li>
           ))}
         </ul>
-      )}
-      <p>
-        Detta står också på respektive kommuns sida, intill de siffror det
-        gäller. Vi räknar fram listan ur datan, så att en kommun som börjar
-        publicera mer försvinner ur den av sig själv.
-      </p>
+      </section>
 
-      <p class="callout">
-        Därför publicerar vi ingen rangordning av kommuner. Att göra det vore att
-        utse den kommun som redovisar minst till den renaste. Inom en kommun är
-        jämförelsen mellan verksamheter rättvis. Mellan kommuner är den det inte.
-      </p>
-    </section>
+      <section id="senaste">
+        <h2>Senaste kontrollen avgör</h2>
+        <p>
+          Bedömningen speglar den <strong>senaste</strong> kontrollen, inte den
+          värsta och inte ett genomsnitt. Skälet är enkelt: den som står utanför
+          dörren vill veta hur det ser ut nu, inte hur det såg ut för fyra år
+          sedan.
+        </p>
+        <p>
+          Det betyder också att ett återbesök utan anmärkning läses som rent,
+          även om föregående kontroll hade brister. Den som åtgärdar ska inte straffas för sin
+          historia, men historiken göms inte. Den visas alltid i sin helhet på
+          verksamhetens sida.
+        </p>
+      </section>
 
-    <section id="lokalen">
-      <h2>Historiken följer lokalen, inte företaget</h2>
-      <p>
-        Kommunerna registrerar sina livsmedelskontroller på <strong>anläggningen</strong>,
-        alltså på lokalen och adressen. De registrerar dem inte på företaget som
-        driver verksamheten. Tar en ny restaurang över en adress följer den
-        tidigare verksamhetens kontrollhistorik med.
-      </p>
-      <p>
-        Ingen av våra källor har ett fält för när en verksamhet startade eller
-        för om ägaren bytt. Vi kan alltså inte se bytet, och vi kan inte dela
-        historiken vid rätt punkt. Det betyder att statistiken på en
-        verksamhetssida är räknad på adressen: antalet kontroller, andelen utan
-        anmärkning och året för den äldsta kontrollen kan alla omfatta ett
-        företag som inte längre finns på platsen.
-      </p>
-      <p>
-        Vi skriver därför aldrig att en verksamhet är "först kontrollerad" ett
-        visst år, och vi låter aldrig en sida antyda hur gammal en verksamhet är.
-        Där siffrorna summerar över flera kontroller står det på sidan att de
-        avser adressen.
-      </p>
+      <section id="monstret">
+        <h2>Kvarstående brister läses ur mönstret, inte ur ordvalet</h2>
+        <p>
+          Kommunerna använder olika ord för samma sak. Linköping har ett eget
+          värde för ”Kvarstår” när en avvikelse inte åtgärdats vid uppföljning.
+          Stockholms skala slutar vid ”Med avvikelser” och har inget sådant ord
+          alls.
+        </p>
+        <p>
+          Läste vi bara etiketten skulle följden bli orimlig: ingen verksamhet i
+          Stockholm kunde någonsin hamna på den allvarligaste nivån, hur illa det
+          än vore, medan en verksamhet i Linköping kunde det. Då går städerna inte
+          att jämföra, och jämförbarheten är hela poängen med Prikko.
+        </p>
+        <p>
+          Därför bedömer vi vad som <strong>hände</strong> i stället för vad
+          kommunen råkade kalla det. En avvikelse räknas som kvarstående när ett
+          av två tecken finns, och båda går att läsa i alla kommuners data:
+        </p>
+        <ul class="plain">
+          <li>
+            Kontrollen var ett <strong>återbesök</strong> och hittade ändå
+            avvikelser. Kommunen kom tillbaka för att se att bristen var åtgärdad,
+            och den var inte det.
+          </li>
+          <li>
+            <strong>Föregående kontroll hade också avvikelser.</strong> Problemet
+            upprepas i stället för att vara en engångsmiss.
+          </li>
+        </ul>
+        <p>
+          Det här är enda stället där något skärps utöver kommunens egen
+          notering, och det bygger på kommunens egna uppgifter om vilken sorts
+          kontroll det var och vad den förra visade. Vi tolkar aldrig innehållet i
+          en avvikelse, bara mönstret. Ett undantag kan mildra, aldrig skärpa,
+          och det beskrivs härnäst.
+        </p>
+      </section>
 
-      <h3>Särskilt om återkommande brister</h3>
-      <p>
-        Att samma brist noterats vid flera kontroller är sidans skarpaste
-        iakttagelse, och den enda som kan läsas som en anklagelse. Den är också
-        den som drabbas hårdast av att historiken hänger på lokalen: två företag
-        som fått samma anmärkning i samma kök med flera år emellan ser i datan ut
-        som ett företag som inte rättat sig.
-      </p>
-      <p>
-        Vi tar inte bort dem. De är kommunens egna uppgifter och kommunernas
-        egna e-tjänster visar dem. Men vi låter aldrig en brist vars noteringar
-        ligger långt isär toppa listan, och vi skriver ut hur lång tid det gått
-        mellan noteringarna så att läsaren kan väga det själv.
-      </p>
+      <section id="administrativa">
+        <h2>Rent administrativa avvikelser skärps aldrig</h2>
+        <p>
+          En saknad journalanteckning är inte samma sak som smuts i beredningen.
+          Sedan modellversion 4 skärper vi därför aldrig en bedömning till
+          ”Brister som kvarstår” när <strong>samtliga</strong> avvikelser vid den
+          senaste kontrollen är rent administrativa. Nivån stannar då på
+          ”Brister”, hur mönstret än ser ut.
+        </p>
+        <p>
+          Vad som är administrativt avgör inte vi från fall till fall. Varje
+          kontrollpunkt hör till ett av Livsmedelsverkets lagstiftningsområden,
+          och sex av dem räknar vi som rent administrativa: administrativa krav
+          (registrering och godkännande av verksamheten), spårbarhet
+          (journalföring av varifrån råvaror kommer), skyddade beteckningar,
+          handelsnormer, varustandarder samt handel inom EU, import och export.
+        </p>
+        <p>
+          Tre områden kan låta administrativa men räknas med avsikt inte dit.
+          Allmän livsmedelsinformation omfattar allergeninformation, och fel där
+          kan skada människor. Särskild märkning omfattar bland annat
+          glutenfritt, av samma skäl. HACCP rymmer egenkontrollens pappersdel,
+          men också mikrobiologiska kriterier, och vi kan inte skilja en oskriven
+          faroanalys från ett provsvar med fynd. I tveksamma fall väger vi inte
+          ner.
+        </p>
+        <ul class="plain">
+          <li>
+            Viktningen kan bara mildra vår egen härledda skärpning. Har kommunen
+            själv bedömt bristerna som allvarliga står kommunens bedömning,
+            alltid.
+          </li>
+          <li>
+            Ingenting döljs. Varje avvikelse visas på verksamhetens sida med
+            kommunens egna ord, även de administrativa.
+          </li>
+          <li>
+            Okänt underlag mildrar aldrig. Redovisar kommunen inga
+            kontrollpunkter, eller går en avvikelse inte att föra till ett
+            område, bedöms mönstret som tidigare.
+          </li>
+        </ul>
+        <p>
+          Menar du som verksamhet att en avvikelse hamnat i fel område, eller att
+          viktningen slår fel på din sida, gäller samma väg som för alla andra
+          uppgifter: <a href="/ratta/">rätta oss</a>, så prövar vi det mot
+          kommunens kontrollrapport.
+        </p>
+      </section>
 
-      <h3>Varför vi inte gissar när bytet skedde</h3>
-      <p>
-        Ett långt uppehåll mellan två kontroller ser ut som en rimlig ledtråd:
-        en lokal som byter hand står ofta tom eller byggs om. Vi har mätt det på
-        hela vårt bestånd, och ledtråden håller inte.
-      </p>
-      <p>
-        Uppehållen styrs av hur ofta kommunen kontrollerar just den sortens
-        verksamhet, inte av om lokalen bytt ägare. I Stockholm har 28 procent av
-        restaurangerna ett uppehåll på två år eller mer, mot 79 procent av
-        matmäklarna och 72 procent av förskolorna med mottagningskök. I Örebro är
-        siffran 6 procent för pizzerior och 67 procent för bufféverksamheter. Ett
-        apotek som kontrolleras vart femte år ger ett långt uppehåll utan att
-        något har hänt.
-      </p>
-      <p>
-        Sambandet går dessutom åt fel håll. Restauranger kontrolleras oftast och
-        byter ägare oftast. Av de restaurangliknande verksamheterna i våra tre
-        kommuner med djup historik skulle 64 procent aldrig få ett uppehåll långt
-        nog att märkas. Medianintervallet mellan två kontroller av en restaurang
-        i Stockholm är 272 dagar; ett ägarbyte däremellan syns inte alls.
-      </p>
-      <p class="callout">
-        Därför visar vi upplysningen om att historiken följer lokalen på alla
-        verksamheter, inte bara på dem med ett uppehåll. Ett förbehåll som bara
-        dyker upp ibland lär läsaren att frånvaron betyder att historiken är
-        säker, och det vore en falsk trygghet på just de sidor där risken är
-        störst.
-      </p>
+      {/* Fyra regler har nu stått var för sig. Här körs de tillsammans en gång,
+          på ett underlag läsaren kan överblicka. Trustpilots figur och Yelps
+          faktorspalter gör samma jobb: bryta löptexten med modellen i arbete. */}
+      <section id="exempel">
+        <h2>Ett räkneexempel</h2>
+        <p>
+          Verksamheten nedan är påhittad. Den har tre kontroller, alla inom
+          treårsfönstret.
+        </p>
 
-      <h3>Vad kommunerna själva säger</h3>
-      <p>
-        En kommun uppger att den hanterar detta. Örebro kommun skriver på sina
-        verksamhetssidor att resultat från tidigare kontroller tas bort vid
-        ägarbyte. Vi återger den uppgiften på verksamheternas sidor i Örebro. Vi
-        går inte i god för den och vi motsäger den inte: vi har inte kunnat
-        bekräfta den i datan, och kommunen kan bara rensa när den fått veta att
-        bytet skett.
-      </p>
-      <p>
-        Framåt går problemet delvis att lösa. Vi hämtar datan varje natt mot
-        samma anläggnings-id, så när namnet på ett id ändras mellan två
-        körningar har verksamheten sannolikt bytt. Vi sparar namnhistoriken per
-        anläggning för att kunna säga det. Det rättar inte historiken som redan
-        finns, men det gör att problemet inte växer.
-      </p>
-    </section>
+        <table class="exempel">
+          <thead>
+            <tr>
+              <th scope="col">Kontroll</th>
+              <th scope="col">Typ</th>
+              <th scope="col">Vad kommunen noterade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exempelKontroller.map((k) => (
+              <tr>
+                <th scope="row">{k.nar}</th>
+                <td>{k.typ}</td>
+                <td>{k.utfall}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-    <section>
-      <h2>Vad vi inte gör</h2>
-      <ul class="plain">
-        <li>
-          Vi blandar aldrig ihop den officiella kontrollen med omdömen. Det
-          kommunen konstaterat är fakta; vad någon tycker om maten är något
-          annat, och redovisas separat.
-        </li>
-        <li>
-          Vi märker aldrig upp bedömningen som betyg eller recension i
-          sökmotorernas strukturerade data. Den bygger på myndighetsdata, inte
-          på omdömen insamlade hos oss.
-        </li>
-        <li>
-          Vi säljer aldrig en bättre bedömning, och vi säljer inga
-          förbättringstjänster till verksamheter vi själva bedömt.
-        </li>
-        <li>
-          Vi skriver ingen text med AI. Sidorna byggs av datan; formuleringarna
-          är mallar som fylls med kommunens uppgifter.
-        </li>
-      </ul>
-    </section>
+        <ol class="harledning">
+          <li>
+            <b>Utgångsnivån kommer ur den senaste kontrollen, och bara ur
+            den.</b> Den har en avvikelse, alltså ”Brister”.
+          </li>
+          <li>
+            <b>Kontrollen var ett återbesök som ändå hittade en avvikelse.</b>
+            {' '}Det är ett av de två tecknen på att bristen kvarstår. Här finns
+            båda: föregående kontroll hade också en avvikelse. Vart och ett
+            räcker för sig.
+          </li>
+          <li>
+            <b>Avvikelsen gäller rengöring i beredningen.</b> Den hör till
+            hygienområdet, inte till de rent administrativa, alltså skärps nivån
+            till ”Brister som kvarstår”.
+          </li>
+          <li>
+            <b>Ingen märkning för ren historik.</b> Den kräver att samtliga
+            {' '}{chipWord} kontroller är utan anmärkning.
+          </li>
+        </ol>
 
-    <section>
-      <h2>Rätta oss</h2>
-      <p>
-        Menar du att en uppgift är fel har du rätt att få det rättat, och
-        verksamheter har rätt att svara. Svar publiceras oredigerat bredvid
-        bedömningen.
-        <a href="/ratta/">Rätta en uppgift</a>.
-      </p>
-      <p class="text-secondary">
-        Modellen är versionerad. Varje publicerad bedömning bär numret på den
-        version som räknade fram den, så att ett tidigare resultat alltid går
-        att härleda. Nuvarande version: {MODEL_VERSION}.
-      </p>
-    </section>
+        {/* Grenen. Samma tre kontroller, ett enda värde bytt, och utfallet blir
+            ett annat. Det är version 4:s hela regel på två rader, och den är
+            svår att tro på i löptext men självklar bredvid sitt alternativ. */}
+        <ul class="utfall">
+          <li>
+            <FaceMark verdict="major" size={36} />
+            <div>
+              <b>Brister som kvarstår</b>
+              <p class="text-secondary">Så som kontrollerna ser ut ovan.</p>
+            </div>
+          </li>
+          <li>
+            <FaceMark verdict="minor" size={36} />
+            <div>
+              <b>Brister</b>
+              <p class="text-secondary">
+                Hade den enda avvikelsen vid återbesöket i stället gällt
+                spårbarhet, alltså journalföringen av varifrån råvarorna kommer,
+                hade skärpningen uteblivit.
+              </p>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section id="utan-bedomning">
+        <h2>När vi vägrar bedöma</h2>
+        <p>
+          Saknas kontroll, eller är den senaste äldre än tre år, sätter vi ingen
+          bedömning alls. Vi gissar aldrig.
+        </p>
+        <p>
+          Tre år är inte godtyckligt: Livsmedelsverkets kontroller sprids normalt
+          över en treårscykel, så en äldre kontroll säger inget om nuläget. Att
+          publicera ”allvarliga brister” om en verksamhet som åtgärdade allt för
+          fem år sedan vore både orättvist och missvisande.
+        </p>
+        <p class="callout">
+          Ingen bedömning betyder aldrig dålig hygien. Det betyder att vi saknar
+          underlag för att säga något.
+        </p>
+      </section>
+
+      <section id="utmarkelsen">
+        <h2>Historiken ger ett erkännande, inte ett betygssteg</h2>
+        <p>
+          De allra flesta verksamheter sköter sig. Med tre nivåer skulle ungefär
+          två tredjedelar hamna på den bästa, vilket gör det svårt att skilja de
+          genomgående skötsamma från de nyss godkända. Därför vägs historiken in
+          separat. Den påverkar aldrig hur allvarligt något bedöms: nuläget avgör
+          bedömningen, historiken avgör erkännandet.
+        </p>
+        <p>
+          Erkännandet finns i två former, med olika krav. De hette båda
+          ”utmärkelsen” fram till augusti 2026, vilket gjorde att den här sidan och
+          utmärkelsesidan gav två svar på samma fråga. Nu heter de olika saker.
+        </p>
+
+        <h3>Ren historik: märkningen på verksamhetens sida</h3>
+        <p>
+          En verksamhet med rent resultat vid <strong>samtliga {chipWord} senaste
+          kontrollerna</strong> märks som ren historik. Kontrollerna ska ligga inom
+          treårsfönstret, samma fönster som avgör om vi alls bedömer.
+        </p>
+        <p>
+          {capitalise(chipWord)} kontroller är också ett krav. Finns bara en
+          eller två i kommunens register ges ingen märkning, oavsett hur rena de
+          är: märkningen ska betyda att vi sett ett mönster, inte att vi gissat på
+          ett. Den räknas om varje gång vi hämtar data och försvinner samma dag
+          kommunen noterar en avvikelse.
+        </p>
+
+        <h3>Utmärkelsen: årslistan och märket</h3>
+        {awardWords && latest && (
+          <>
+            <p>
+              Utmärkelsen ligger högre och delas ut en gång om året. Den kräver en
+              obruten rad av <strong>kontroller utan anmärkning</strong> hos en
+              verksamhet vars senaste kontroll är färsk nog att bedöma. Raden får
+              ta hur lång tid som helst. Listan fryses per ett datum och räknas
+              aldrig om, så ett märke i ett fönster går att slå upp i efterhand.
+              {' '}<a href={path('utmarkelser')}>Utmärkelsen och årets lista</a>.
+            </p>
+            <p>
+              Hur många kontroller raden måste vara är <strong>inte samma tal i
+              hela landet</strong>. Det räknas fram ur varje kommuns egen data, så
+              att utmärkelsen går till högst {awardPct} procent av kommunens
+              bedömda verksamheter. I {latest.year} års utgåva ligger ribborna på
+              {' '}{awardWords} kontroller, och varje kommuns tal står på kommunens
+              egen lista.
+            </p>
+            <p>
+              Skälet är att ett gemensamt tal mäter kommunen och inte köket.
+              Kommunerna kontrollerar olika ofta och publicerar olika många
+              kontroller per verksamhet. Ett krav på fem i rad, som utgåvan hade
+              först, gav Stockholm en lista på var sjunde bedömd verksamhet
+              samtidigt som sex kommuner inte kunde nå den alls, eftersom deras
+              register är grundare än fem. Med ribban räknad per kommun betyder
+              märket samma sak överallt: verksamheten hör till de {awardPct}
+              {' '}procent i sin kommun som har längst obruten ren historik.
+            </p>
+            <p class="callout">
+              En högre ribba är inget betyg på kommunen, och ett märke från en
+              kommun med lägre ribba är inte värt mindre. Ribban speglar hur djupt
+              kommunen publicerar och hur ofta den kontrollerar, inte hur rena
+              köken är. Vi rangordnar inte kommuner, och det gäller även här.
+            </p>
+            <p>
+              Att tiden inte räknas är också en rättelse. Fram till augusti 2026
+              skulle kontrollerna rymmas inom tre år, och den regeln mätte hur ofta
+              kommunen kom på besök. Kontrollfrekvensen bestäms av riskklass och
+              myndighetens planering. En restaurang som inspekteras ungefär en gång
+              om året kunde ha ett decennium utan en enda anmärkning och ändå stå
+              utanför listan.
+            </p>
+            <p>
+              {latest.year} års lista räknades om när modellen rättades, och
+              verksamheter föll då ur den. Det fick ske därför att listan var dagar
+              gammal och ännu inte nått någon läsare. Det är enda gången: bygget
+              stannar numera om en omräkning skulle ta bort någon ur en publicerad
+              lista, och svaret blir en ny årsutgåva i stället för en omskriven
+              gammal. Vad som ändrades står på utgåvans egen sida.
+            </p>
+          </>
+        )}
+        <p class="callout">
+          Ingen av de två kan nås i varje kommun. En kommun som bara publicerar
+          den senaste kontrollen gör båda omöjliga, hur välskötta verksamheterna
+          än är. Det står utskrivet på de sidor där nollan annars kunde
+          missförstås, och räknas fram ur datan.
+        </p>
+      </section>
+
+      <section id="jamfor">
+        <h2>Jämför verksamheter, inte kommuner</h2>
+        {spread && (
+          <p>
+            Samma modell körs på alla kommuner, men kommunerna arbetar inte likadant.
+            Andelen bedömda verksamheter med kvarstående brister varierar från {spread}
+          </p>
+        )}
+        <p>
+          Den skillnaden speglar med största sannolikhet inte hygienen. Den speglar
+          hur ofta kommunen gör uppföljande kontroller, hur många av dem den lämnar
+          ut och hur den beskriver dem. En kommun som gör många återbesök och
+          publicerar hela historiken får fler kvarstående brister än en som gör få
+          och publicerar lite. Två sätt att redovisa samma verklighet ger olika
+          siffror.
+        </p>
+        <p>
+          Sedan augusti 2026 går det att se skillnaden i stället för att bara läsa
+          om den. Varje kommunsida visar hur kommunen bedriver sin kontroll: hur
+          många anläggningar registret har, hur stor andel som kontrollerades
+          under året, hur många av kontrollerna som var uppföljande och hur många
+          anläggningar varje årsarbetskraft har att gå på. Uppgifterna är
+          kommunens egen rapportering till Livsmedelsverket. Jämförelsetalet är
+          alltid medianen för landets kontrollmyndigheter, aldrig en annan kommun
+          och aldrig en placering.
+        </p>
+
+        <h3>Vissa utfall är omöjliga i vissa kommuner</h3>
+        <p>
+          Det går längre än så. I några kommuner räcker inte det kommunen lämnar ut
+          för att modellen ska kunna nå alla sina utfall. En nolla där betyder inte
+          att det aldrig hänt, utan att det aldrig kunde synas.
+        </p>
+        {limited.length > 0 && (
+          <ul class="plain">
+            {limited.map((m) => (
+              <li>
+                {m.limits.note} <a href={path(m.slug)}>Se {m.city}</a>.
+              </li>
+            ))}
+          </ul>
+        )}
+        <p>
+          Detta står också på respektive kommuns sida, intill de siffror det
+          gäller. Vi räknar fram listan ur datan, så att en kommun som börjar
+          publicera mer försvinner ur den av sig själv.
+        </p>
+
+        <p class="callout">
+          Därför publicerar vi ingen rangordning av kommuner. Att göra det vore att
+          utse den kommun som redovisar minst till den renaste. Inom en kommun är
+          jämförelsen mellan verksamheter rättvis. Mellan kommuner är den det inte.
+        </p>
+      </section>
+
+      <section id="lokalen">
+        <h2>Historiken följer lokalen, inte företaget</h2>
+        <p>
+          Kommunerna registrerar sina livsmedelskontroller på <strong>anläggningen</strong>,
+          alltså på lokalen och adressen. De registrerar dem inte på företaget som
+          driver verksamheten. Tar en ny restaurang över en adress följer den
+          tidigare verksamhetens kontrollhistorik med.
+        </p>
+        <p>
+          Ingen av våra källor har ett fält för när en verksamhet startade eller
+          för om ägaren bytt. Vi kan alltså inte se bytet, och vi kan inte dela
+          historiken vid rätt punkt. Det betyder att statistiken på en
+          verksamhetssida är räknad på adressen: antalet kontroller, andelen utan
+          anmärkning och året för den äldsta kontrollen kan alla omfatta ett
+          företag som inte längre finns på platsen.
+        </p>
+        <p>
+          Vi skriver därför aldrig att en verksamhet är "först kontrollerad" ett
+          visst år, och vi låter aldrig en sida antyda hur gammal en verksamhet är.
+          Där siffrorna summerar över flera kontroller står det på sidan att de
+          avser adressen.
+        </p>
+
+        <h3>Särskilt om återkommande brister</h3>
+        <p>
+          Att samma brist noterats vid flera kontroller är sidans skarpaste
+          iakttagelse, och den enda som kan läsas som en anklagelse. Den är också
+          den som drabbas hårdast av att historiken hänger på lokalen: två företag
+          som fått samma anmärkning i samma kök med flera år emellan ser i datan ut
+          som ett företag som inte rättat sig.
+        </p>
+        <p>
+          Vi tar inte bort dem. De är kommunens egna uppgifter och kommunernas
+          egna e-tjänster visar dem. Men vi låter aldrig en brist vars noteringar
+          ligger långt isär toppa listan, och vi skriver ut hur lång tid det gått
+          mellan noteringarna så att läsaren kan väga det själv.
+        </p>
+
+        <h3>Varför vi inte gissar när bytet skedde</h3>
+        <p>
+          Ett långt uppehåll mellan två kontroller ser ut som en rimlig ledtråd:
+          en lokal som byter hand står ofta tom eller byggs om. Vi har mätt det på
+          hela vårt bestånd, och ledtråden håller inte.
+        </p>
+        <p>
+          Uppehållen styrs av hur ofta kommunen kontrollerar just den sortens
+          verksamhet, inte av om lokalen bytt ägare. I Stockholm har 28 procent av
+          restaurangerna ett uppehåll på två år eller mer, mot 79 procent av
+          matmäklarna och 72 procent av förskolorna med mottagningskök. I Örebro är
+          siffran 6 procent för pizzerior och 67 procent för bufféverksamheter. Ett
+          apotek som kontrolleras vart femte år ger ett långt uppehåll utan att
+          något har hänt.
+        </p>
+        <p>
+          Sambandet går dessutom åt fel håll. Restauranger kontrolleras oftast och
+          byter ägare oftast. Av de restaurangliknande verksamheterna i våra tre
+          kommuner med djup historik skulle 64 procent aldrig få ett uppehåll långt
+          nog att märkas. Medianintervallet mellan två kontroller av en restaurang
+          i Stockholm är 272 dagar; ett ägarbyte däremellan syns inte alls.
+        </p>
+        <p class="callout">
+          Därför visar vi upplysningen om att historiken följer lokalen på alla
+          verksamheter, inte bara på dem med ett uppehåll. Ett förbehåll som bara
+          dyker upp ibland lär läsaren att frånvaron betyder att historiken är
+          säker, och det vore en falsk trygghet på just de sidor där risken är
+          störst.
+        </p>
+
+        <h3>Vad kommunerna själva säger</h3>
+        <p>
+          En kommun uppger att den hanterar detta. Örebro kommun skriver på sina
+          verksamhetssidor att resultat från tidigare kontroller tas bort vid
+          ägarbyte. Vi återger den uppgiften på verksamheternas sidor i Örebro. Vi
+          går inte i god för den och vi motsäger den inte: vi har inte kunnat
+          bekräfta den i datan, och kommunen kan bara rensa när den fått veta att
+          bytet skett.
+        </p>
+        <p>
+          Framåt går problemet delvis att lösa. Vi hämtar datan varje natt mot
+          samma anläggnings-id, så när namnet på ett id ändras mellan två
+          körningar har verksamheten sannolikt bytt. Vi sparar namnhistoriken per
+          anläggning för att kunna säga det. Det rättar inte historiken som redan
+          finns, men det gör att problemet inte växer.
+        </p>
+      </section>
+
+      <section id="vad-vi-inte-gor">
+        <h2>Vad vi inte gör</h2>
+        <ul class="plain">
+          <li>
+            Vi blandar aldrig ihop den officiella kontrollen med omdömen. Det
+            kommunen konstaterat är fakta; vad någon tycker om maten är något
+            annat, och redovisas separat.
+          </li>
+          <li>
+            Vi märker aldrig upp bedömningen som betyg eller recension i
+            sökmotorernas strukturerade data. Den bygger på myndighetsdata, inte
+            på omdömen insamlade hos oss.
+          </li>
+          <li>
+            Vi säljer aldrig en bättre bedömning, och vi säljer inga
+            förbättringstjänster till verksamheter vi själva bedömt.
+          </li>
+          <li>
+            Vi skriver ingen text med AI. Sidorna byggs av datan; formuleringarna
+            är mallar som fylls med kommunens uppgifter.
+          </li>
+        </ul>
+      </section>
+
+      <section id="ratta">
+        <h2>Rätta oss</h2>
+        <p>
+          Menar du att en uppgift är fel har du rätt att få det rättat, och
+          verksamheter har rätt att svara. Svar publiceras oredigerat bredvid
+          bedömningen.
+          <a href="/ratta/">Rätta en uppgift</a>.
+        </p>
+        <p class="text-secondary">
+          Modellen är versionerad. Varje publicerad bedömning bär numret på den
+          version som räknade fram den, så att ett tidigare resultat alltid går
+          att härleda. Nuvarande version: {MODEL_VERSION}.
+        </p>
+      </section>
+    </div>
   </article>
 </Base>
 
+<script>
+  /*
+   * Innehållsförteckningen märker ut var läsaren står.
+   *
+   * Ingen createElement: hela listan står i mallen och skriptet byter bara
+   * aria-current. Ett element skapat i JS bär inget Astro-scope, och då hade
+   * stilen nedan behövt :global(), vilket är onödig risk för en lista som
+   * redan finns.
+   *
+   * Regeln är "det sista avsnitt vars överkant har passerat en linje 88 px ned
+   * i fönstret". Första försöket var en IntersectionObserver med ett smalt
+   * band, och den kunde aldrig markera sista avsnittet: sidfoten är omkring
+   * 800 px hög, alltså hinner "Rätta oss" aldrig upp i bandet innan sidan tar
+   * slut. Uppmätt vid 1440 x 900: sidan slutar på 8 602 och avsnittet börjar
+   * på 8 519. En linje har inte det problemet.
+   *
+   * Kostnaden är elva rect-avläsningar per bildruta man faktiskt rullar,
+   * strypt med requestAnimationFrame och utan en enda skrivning emellan,
+   * alltså ingen omflödning. Att i stället spara talen skulle kräva att de
+   * räknas om när typsnittet landar och när fönstret ändras, och det blir mer
+   * kod för mindre säkerhet.
+   */
+  const nav = document.querySelector<HTMLElement>('.innehall');
+  const avsnitt = [...document.querySelectorAll<HTMLElement>('.brod > section[id]')];
+
+  if (nav && avsnitt.length > 0) {
+    const lankar = new Map<string, HTMLAnchorElement>();
+    nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((a) => {
+      lankar.set(a.getAttribute('href')!.slice(1), a);
+    });
+
+    /** Linjen som avgör vilket avsnitt som räknas som läsarens. */
+    const LINJE = 88;
+
+    let markerad: string | null = null;
+    let vantar = false;
+
+    const markera = (id: string | null) => {
+      if (id === markerad) return;
+      if (markerad) lankar.get(markerad)?.removeAttribute('aria-current');
+      if (id) lankar.get(id)?.setAttribute('aria-current', 'true');
+      markerad = id;
+    };
+
+    const rakna = () => {
+      vantar = false;
+      let aktuell: string | null = null;
+      for (const s of avsnitt) {
+        if (s.getBoundingClientRect().top <= LINJE) aktuell = s.id;
+        else break;
+      }
+      markera(aktuell);
+    };
+
+    const be = () => {
+      if (vantar) return;
+      vantar = true;
+      requestAnimationFrame(rakna);
+    };
+
+    addEventListener('scroll', be, { passive: true });
+    addEventListener('resize', be, { passive: true });
+    rakna();
+  }
+</script>
+
 <style>
+  /* ═══ SIDANS RUTNÄT ══════════════════════════════════════════════════════
+   *
+   * Två spalter: förteckningen till vänster, brödtexten till höger. Måtten är
+   * räknade, inte valda.
+   *
+   *   680  brödtexten, --w-read. Den var 584 före ombyggnaden, och det var
+   *        felet tokens.css varnar för vid --container-luft: `.container` är
+   *        border-box, så en sida som sätter max-width: var(--w-read) får 680
+   *        minus två gutters. Luften läggs därför TILL taket.
+   *   232  förteckningen. Livsmedelsverkets avsnittsmeny är 236 och
+   *        Skolverkets "På denna sida" är 272; 232 är den smalaste bredd där
+   *        vår längsta etikett, "Ren historik och utmärkelsen", ryms på två
+   *        rader i 14 px.
+   *    48  luften emellan, --s-12.
+   *
+   * 960 tillsammans, vilket är Boolis sidbehållare på 980 så när som på en
+   * hårsmån, och det är avsiktligt: sidan ska inte läsa som en bredare sida
+   * än resten av sajten, bara som en sida med en spalt till.
+   *
+   * Talen 232 och 1043 står här och inte i tokens. docs/19 gäller
+   * INNEHÅLLSBREDDER och rubrikgrader, och en sidospalt är varken; hjalp.astro
+   * har sitt 1000 lokalt av samma skäl. Brödtexten, som ÄR en innehållsbredd,
+   * kommer ur --w-read. */
+  .page {
+    --innehall-bredd: 232px;
+
+    max-width: calc(
+      var(--w-read) + var(--innehall-bredd) + var(--s-12) +
+        2 * var(--container-luft)
+    );
+    padding-block: var(--s-12) var(--s-16);
+
+    display: grid;
+    grid-template-columns: var(--innehall-bredd) minmax(0, var(--w-read));
+    column-gap: var(--s-12);
+    /* Radluften är avståndet mellan ingressen och första rubriken, alltså
+       samma 48 som mellan två avsnitt. Den ligger på rutnätet och inte på
+       avsnittet, så att förteckningen börjar i exakt samma höjd som texten. */
+    row-gap: var(--s-12);
+    align-items: start;
+  }
+
+  /* Rubriken står i högerspalten, alltså i linje med brödtexten. Att lägga
+     h1 över båda spalterna hade gett förteckningen en tom rad över sig och
+     rubriken en indragning som ingen annan sida på sajten har. */
+  .page > header { grid-column: 2; grid-row: 1; }
+  .brod { grid-column: 2; grid-row: 2; }
+
+  /* Klistrad inom sin rutnätsruta, alltså rad 2, som är exakt lika hög som
+     brödtexten. Samma grepp som etikettspalten i hjalp.astro. Sidhuvudet är
+     inte klistrat (position: relative i Header.astro), så 32 px räcker som
+     avstånd till fönstrets överkant. */
+  .innehall {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: var(--s-8);
+    align-self: start;
+    max-height: calc(100vh - var(--s-16));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .innehall-rubrik {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding-bottom: var(--s-2);
+  }
+
+  .innehall ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* Booli: hårlinje, ingen ram, ingen radie. Skenan visar spaltens
+       utsträckning, och den markerade posten byter sitt segment mot bläck. */
+    border-left: 1px solid var(--hairline);
+  }
+
+  .innehall a {
+    display: block;
+    padding: 6px var(--s-3);
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    font-size: var(--fs-body-s);
+    line-height: 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+
+  .innehall a:hover { color: var(--text); }
+
+  .innehall a[aria-current='true'] {
+    color: var(--text);
+    font-weight: 600;
+    border-left-color: currentColor;
+  }
+
+  /* Ankaret får inte landa under fönstrets överkant utan luft, och inte heller
+     under ett klistrat sidhuvud på de sidor där ett sådant finns. */
+  .brod > section { scroll-margin-top: var(--s-8); }
+
+  /* ═══ INNEHÅLLET ════════════════════════════════════════════════════════ */
+
   /* Figuren flyter till höger så att texten lindar sig runt den i stället för
      att ligga under den. Första försöket var absolut positionerad i avsnittets
      hörn, och den lade sig rakt ovanpå brödtexten. Ett absolut positionerat
@@ -592,11 +1033,6 @@ const jsonLd = {
     }
   }
 
-  .page {
-    max-width: var(--w-read);
-    padding-block: var(--s-12) var(--s-16);
-  }
-
   h1 {
     font-size: var(--fs-display);
     line-height: var(--lh-display);
@@ -612,6 +1048,11 @@ const jsonLd = {
   section {
     margin-top: var(--s-12);
   }
+
+  /* Första avsnittet ligger direkt under ingressen i rutnätets nästa rad, och
+     radens egen luft är redan satt. Utan det här hade avståndet blivit dubbelt
+     så stort som mellan två avsnitt. */
+  .brod > section:first-child { margin-top: 0; }
 
   section h2 {
     margin-bottom: var(--s-4);
@@ -630,6 +1071,11 @@ const jsonLd = {
     line-height: var(--lh-body);
   }
 
+  /* De fyra nivåerna som en jämförelse: ordet i egen spalt, villkoret i nästa.
+     Hårlinje MELLAN raderna, ingen över den första och ingen under den sista.
+     Det är Boolis träffrad, mätt i docs/19: genomskinlig bakgrund, ingen ram,
+     ingen skugga, radie 0. Spalten är 220 px, alltså precis nog för märket på
+     44 plus "Brister som kvarstår" på två rader. */
   .levels {
     list-style: none;
     margin: 0;
@@ -637,11 +1083,21 @@ const jsonLd = {
   }
 
   .levels li {
-    display: flex;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
     gap: var(--s-4);
-    align-items: flex-start;
+    align-items: start;
     padding: var(--s-4) 0;
+  }
+
+  .levels li + li {
     border-top: 1px solid var(--hairline);
+  }
+
+  .level-ord {
+    display: flex;
+    gap: var(--s-3);
+    align-items: center;
   }
 
   .levels b {
@@ -649,9 +1105,18 @@ const jsonLd = {
   }
 
   .levels p {
-    margin-top: 2px;
     font-size: var(--fs-body-s);
     line-height: 21px;
+    padding-top: 11px;
+  }
+
+  @media (max-width: 620px) {
+    .levels li {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-2);
+    }
+
+    .levels p { padding-top: 0; }
   }
 
   .plain {
@@ -664,6 +1129,101 @@ const jsonLd = {
     line-height: var(--lh-body);
   }
 
+  /* ═══ RÄKNEEXEMPLET ═════════════════════════════════════════════════════
+   *
+   * Boolis datatabell, mätt i docs/19: hårlinje under varje rad, ingen zebra,
+   * ingen ram runt tabellen. Radhöjden där är 57 px; här blir den 16 px luft
+   * över och under en rad på 21 px, alltså 53, eftersom raderna bär två
+   * kolumner text och inte ett tal. */
+  .exempel {
+    width: 100%;
+    margin-top: var(--s-4);
+    border-collapse: collapse;
+    text-align: left;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  .exempel th,
+  .exempel td {
+    padding: var(--s-4) var(--s-4) var(--s-4) 0;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+  }
+
+  .exempel thead th {
+    padding-top: 0;
+    padding-bottom: var(--s-2);
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .exempel tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .exempel td:last-child { padding-right: 0; }
+
+  /* I mobil är hela tabellen 343 px bred. Då får raden inte hållas ihop av
+     nowrap: "Senaste kontrollen" ryms vid 375 men inte vid 320, och en tabell
+     som spränger sidbredden är värre än en etikett på två rader. */
+  @media (max-width: 620px) {
+    .exempel tbody th { white-space: normal; }
+
+    .exempel th,
+    .exempel td { padding-right: var(--s-3); }
+  }
+
+  /* Härledningen är numrerad, för den ÄR en ordning: byter man plats på steg
+     två och tre får man ett annat svar. */
+  .harledning {
+    margin: var(--s-6) 0 0;
+    padding-left: var(--s-6);
+  }
+
+  .harledning li {
+    margin-top: var(--s-3);
+    line-height: var(--lh-body);
+  }
+
+  .harledning b { font-weight: 600; }
+
+  /* De två utfallen sida vid sida. Samma hårlinjeregister som resten: en linje
+     över paret, inget som ramar in dem. Att de står bredvid varandra och inte
+     under är hela poängen; ett alternativ under ett annat läses som nästa
+     stycke, inte som ett annat svar på samma fråga. */
+  .utfall {
+    list-style: none;
+    margin: var(--s-6) 0 0;
+    padding: var(--s-6) 0 0;
+    border-top: 1px solid var(--hairline);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-6);
+  }
+
+  .utfall li {
+    display: flex;
+    gap: var(--s-3);
+    align-items: flex-start;
+  }
+
+  .utfall b { font-weight: 600; }
+
+  .utfall p {
+    margin-top: 2px;
+    font-size: var(--fs-body-s);
+    line-height: 21px;
+  }
+
+  @media (max-width: 620px) {
+    .utfall {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-4);
+    }
+  }
+
   .callout {
     margin-top: var(--s-4);
     padding: var(--s-4);
@@ -672,5 +1232,59 @@ const jsonLd = {
     border-radius: 0 var(--r-control) var(--r-control) 0;
     font-size: var(--fs-body-s);
     line-height: 21px;
+  }
+
+  /* ═══ EN SPALT ══════════════════════════════════════════════════════════
+   *
+   * Brytpunkten är räknad. Rutnätet behöver 960 px plus två gutters, och
+   * gutten är clamp(16, 4vw, 48). Under 1200 px fönster är den 4vw, alltså
+   * löser w = 960 + 0,08w till w = 1043,5. Vid 1043 får rutnätet alltså inte
+   * plats, och där faller förteckningen tillbaka till en blockrad.
+   *
+   * Den försvinner INTE i mobil. Skolverket behåller sin, och skälet är
+   * starkare hos oss: sidan är 19,4 skärmar på en telefon mot 10,4 på en
+   * dator, alltså är det just där en läsare tappar bort sig. Två spalter i
+   * listan halverar dess höjd. */
+  @media (max-width: 1043px) {
+    .page {
+      max-width: calc(var(--w-read) + 2 * var(--container-luft));
+      display: block;
+    }
+
+    .innehall {
+      position: static;
+      max-height: none;
+      overflow: visible;
+      margin-top: var(--s-8);
+      padding-top: var(--s-6);
+      border-top: 1px solid var(--hairline);
+    }
+
+    .innehall ol {
+      border-left: 0;
+      columns: 2;
+      column-gap: var(--s-6);
+    }
+
+    .innehall a {
+      margin-left: 0;
+      border-left: 0;
+      padding: 5px 0;
+    }
+
+    .innehall a[aria-current='true'] { font-weight: 400; }
+
+    .brod {
+      margin-top: var(--s-6);
+      padding-top: var(--s-2);
+      border-top: 1px solid var(--hairline);
+    }
+  }
+
+  /* Två spalter hela vägen ned till 340 px fönster. Uppmätt vid 375: listan
+     går från 330 px hög till 200. Under 340 blir en spalt smalare än 150 och
+     då bryts halva etiketterna över tre rader, vilket äter upp vinsten. */
+  @media (max-width: 339px) {
+    .innehall ol { columns: 1; }
   }
 </style>
