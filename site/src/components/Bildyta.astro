@@ -1,0 +1,330 @@
+---
+/**
+ * Bildytan på ett kort eller i en listrad. Den är ALDRIG tom.
+ *
+ * ══ TALEN SOM STYR HELA FILEN ═══════════════════════════════════════════
+ *
+ * 366 av 16 047 verksamheter bär en bild, alltså 2,3 procent. Platshållaren
+ * är därför inte ett reservläge utan sajtens VANLIGASTE bildyta, och den ska
+ * ritas som en möbel och inte som en väntan.
+ *
+ * Ägaren om det som stod här innan: "korten är sjukt ful, jag tom stör mig på
+ * dem", och om Boolis lösning, en beige yta med en illustrerad kamera: "Sånna
+ * hör placeholders istället för bild är också najs".
+ *
+ * Motivet väljs i brand/_prov-bildyta.html, där tre förslag står mot varandra
+ * i ett rutnät på tolv kort. Ändra `MOTIV` här och provsidan i samma andetag.
+ *
+ *
+ * ══ VARFÖR MOTIVET INTE SÄGER NÅGOT OM VERKSAMHETEN ═════════════════════
+ *
+ * Det som stod här innan var matkategorins ikon på 16 procents opacitet: en
+ * kaffekopp på ett café, en kasse på en butik. Tre fel i ett:
+ *
+ *   1. Det är ett PÅSTÅENDE om en namngiven verksamhet, byggt på en
+ *      OSM-kategori som saknas för 12 120 av 16 047 rader.
+ *   2. 16 procents opacitet är inte en styrka utan ett sätt att slippa välja.
+ *      Formen läser varken som motiv eller som yta.
+ *   3. Tre olika toner i samma rutnät ger tre bakgrunder bredvid varandra utan
+ *      att skillnaden betyder något för läsaren.
+ *
+ * Boolis grepp är motsatsen på alla tre punkter, och det som gör det tryggt är
+ * att föremålet handlar om DEN BILD SOM SAKNAS och inte om objektet. Ett
+ * föremål som inte säger något om verksamheten kan inte säga något fel om den.
+ *
+ * MASKOTEN FÅR ALDRIG STÅ HÄR, och det är inte en smakfråga.
+ * docs/24_maskotprogram.md §2: figuren får aldrig stå bredvid en bedömning av
+ * en namngiven verksamhet. Kortet bär både namnet och bedömningen, och märket
+ * sitter nedsänkt i själva bildytan. Det här är alltså inte en gränsyta utan
+ * mitten av det regeln finns för. Samma stycke pekar ut vad som ska stå där i
+ * stället, och det är bedömningsmärket, som redan gör det.
+ *
+ *
+ * ══ VILKEN BILD SOM VISAS AVGÖRS INTE HÄR ═══════════════════════════════
+ *
+ * Ordningen eget foto → gatubild → platshållare finns, men de två första
+ * konkurrerar i PIPELINEN och inte i mallen: `Establishment.image` är ett
+ * fält och inte en lista, och pipelinen har redan valt. `image.source` säger
+ * vem som vann, och det fältet styr bara attributionen. Se
+ * pipeline/prikko/imagery.py och pipeline/gatubildsko.py.
+ *
+ * Skulle fältet någon gång bli en lista är det HÄR ordningen ska stå, och inte
+ * i varje mall som råkar visa en bild.
+ */
+import type { Establishment } from '../lib/data';
+
+interface Props {
+  e: Establishment;
+  /**
+   * `kort` fyller sin spalt i 3:2, `rad` är en fast kvadrat för en listrad.
+   * Kartagenten ritar kort; sökträffar och listor ritar rader.
+   */
+  storlek?: 'kort' | 'rad';
+  /** Kvadratens sida i px när `storlek` är `rad`. */
+  px?: number;
+  /**
+   * Sant på den första raden ovanför vikkanten. Sätter `loading="eager"` och
+   * `fetchpriority="high"`, eftersom bilden då är sidans LCP-kandidat.
+   */
+  tidig?: boolean;
+}
+
+const { e, storlek = 'kort', px = 72, tidig = false } = Astro.props;
+
+/**
+ * LICENSGRINDEN, och den är två olika grindar för två olika sorters bild.
+ *
+ * En bild från Commons, Mapillary eller Panoramax får bara visas när vi vet
+ * under vilken licens. Samma grind som Commonsbild.astro sätter: utan känd
+ * licens finns ingen resurs att hänvisa till, och tomt är alltid det säkra
+ * utfallet.
+ *
+ * En bild som verksamheten själv laddat upp har ingen licenskod och ska inte
+ * behöva någon. Vi har rätten via villkoren, och att kräva en SPDX-sträng av
+ * en krögare hade tystat precis de bilder vi helst vill visa.
+ */
+const EGNA = new Set(['own', 'owner']);
+const kalla = e.image?.source ?? null;
+const egen = kalla !== null && EGNA.has(kalla);
+const foto = e.image?.url && (egen || e.image.licence) ? e.image : null;
+
+/**
+ * MAPILLARYS LOGOTYP ÄR ETT VILLKOR, INTE EN DEKORATION.
+ *
+ * Villkoren på mapillary.com/terms avsnitt 11, ordagrant: den som laddar ned
+ * enskilda bilder och serverar dem från sina egna servrar "must attribute the
+ * image(s) by visibly displaying the Mapillary logo and linking back to the
+ * Mapillary homepage or corresponding Mapillary image page". Det är precis vad
+ * vi gör.
+ *
+ * KRAVET FÖLJER BILDEN OCH INTE SIDAN. Kortets resonemang för att slippa
+ * bildtext lutar sig mot CC BY-SA §3(a)(2), som tillåter att villkoren
+ * uppfylls med en länk till en resurs som bär uppgifterna, och den resursen är
+ * verksamhetssidan. Mapillarys avtal har ingen sådan öppning: det säger
+ * "visibly displaying", och en logotyp på en annan sida syns inte här.
+ *
+ * Så länge filen saknas visas ingen Mapillary-bild alls, och platshållaren
+ * ritas i stället. Det är med avsikt och det är det försiktiga valet: att
+ * publicera bilden utan sin attribution är ett avtalsbrott, medan att låta bli
+ * bara är en platshållare till, och den ytan är sajten redan byggd för.
+ *
+ * Samma glob och samma sökväg som StreetPhoto.astro använder, av samma skäl:
+ * `new URL(..., import.meta.url)` pekar i ett Astro-bygge på den paketerade
+ * modulen och inte på källfilen.
+ */
+const logotyper = import.meta.glob<string>('../brand/mapillary-logo.*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const MAPILLARY_LOGO = Object.values(logotyper)[0];
+
+const kraverLogo = kalla === 'mapillary';
+const visaFoto = foto !== null && !(kraverLogo && !MAPILLARY_LOGO);
+
+/**
+ * MOTIVET. 24-rutnät, 1,6 px streck, runda ändar och hörn, ingen fyllning,
+ * inget lånat ikonbibliotek och ingen emoji, alltså exakt samma språk som
+ * Matikon.astro, Kategoriikon.astro och AreaIcon.astro talar.
+ *
+ * Kameran, alltså Boolis eget föremål i vår ritning. Fyra delar: hus, lock,
+ * objektiv och blixtprick.
+ *
+ * Locket är en TRAPETS och inte en halvcirkel. En kupol gör kameran till en
+ * gammal låda, och den formen är daterad på ett sätt ett föremål man ser tusen
+ * gånger inte tål.
+ *
+ * Objektivet är r 3,5 mot husets höjd 12, alltså knappt en tredjedel. Större
+ * gör kameran till ett öga, mindre gör den till en brödrost. Provrenderat i
+ * 160, 72 och 40 px innan valet.
+ */
+const MOTIV = [
+  'M4.8 7.6h14.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z',
+  'M8.6 7.6l1.5-2.3h3.8l1.5 2.3',
+  'M15.5 13.6a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0',
+  'M6 10.9h.01',
+];
+
+/**
+ * Motivets andel av ytans KORTASTE sida.
+ *
+ * Att den är en andel och inte ett fast tal är hela poängen med att storleken
+ * är en prop: ett fast motiv blir en tavla i en listrad på 72 px och en prick
+ * i ett kort på 340.
+ *
+ * TALET ÄR VALT PÅ SKÄRM och inte räknat. Fyra kort renderades sida vid sida
+ * i 0,34, 0,42, 0,50 och 0,58 med bedömningsmärket på plats:
+ *
+ *   0,34   blygt, kameran blir en prick i en stor tom yta
+ *   0,42   närvarande och tyst, och märket har fortfarande sitt hörn
+ *   0,50   börjar konkurrera med märket om samma band
+ *   0,58   ytan blir en ikonknapp
+ *
+ * Notera att andelen gäller SVG-rutan och inte bläcket. Kameran fyller 14,3
+ * av rutans 24 enheter på höjden, alltså knappt sextio procent, så 0,42 ger
+ * ett motiv som optiskt är en fjärdedel av bandets höjd. Ritas motivet om
+ * måste talet prövas på skärm igen.
+ */
+const ANDEL = 0.42;
+const sida = storlek === 'rad' ? px * ANDEL : undefined;
+---
+
+<span class:list={['bildyta', storlek === 'rad' && 'rad']} style={storlek === 'rad' ? `--sida: ${px}px` : undefined}>
+  {/*
+    MOTIVET RITAS ALLTID, ÄVEN UNDER ETT FOTO, och det är inte slöseri.
+
+    Fotot ligger ovanpå i samma rutnätscell och täcker det. Vinsten är att den
+    trasiga bilden blir ett icke-problem: skriptet nedan tar bort en <img> som
+    inte gick att hämta, och kvar står platshållaren av sig själv. Alternativet
+    var att bygga om ytan i webbläsaren, alltså att skriva SVG i JavaScript för
+    ett fall som ska vara sällsynt.
+
+    Kostnaden är omkring 200 byte per kort som har ett foto, alltså per 2,3
+    procent av korten, och de är identiska och komprimeras därefter.
+  */}
+  <svg
+    class="motiv"
+    viewBox="0 0 24 24"
+    width={sida}
+    height={sida}
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    {MOTIV.map((d) => <path d={d} />)}
+  </svg>
+
+  {visaFoto && (
+    <img
+      src={foto!.url}
+      alt=""
+      width="600"
+      height="400"
+      loading={tidig ? 'eager' : 'lazy'}
+      fetchpriority={tidig ? 'high' : undefined}
+      decoding="async"
+      data-bildyta
+    />
+  )}
+
+  {visaFoto && kraverLogo && (
+    <a
+      class="logo"
+      href={`https://www.mapillary.com/app/?pKey=${foto!.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Mapillary"
+    >
+      <img src={MAPILLARY_LOGO} alt="Mapillary" width="56" height="19" loading="lazy" />
+    </a>
+  )}
+
+  <slot />
+</span>
+
+{/*
+  En bild som inte går att hämta ska lämna platshållaren efter sig.
+
+  Samma sista försvar som StreetPhoto.astro och Commonsbild.astro har, men med
+  motsatt utgång: där tas hela figuren bort, här ska ytan bli kvar. Kortet har
+  en bildyta oavsett, och ett kort utan band är en annan form och inte en
+  saknad bild.
+
+  Logotypen följer med ut. Den är attributionen för en bild som inte längre
+  syns, och en ensam Mapillary-logotyp på en platshållare är ett påstående om
+  var en bild kommer ifrån som inte finns.
+
+  Objekt kan försvinna ur lagringen, en uppladdning kan vara halv, och en URL
+  som var sann vid bygget behöver inte vara det en månad senare.
+*/}
+<script is:inline>
+  document.querySelectorAll('img[data-bildyta]').forEach((img) => {
+    const fall = () => {
+      img.closest('.bildyta')?.querySelector('.logo')?.remove();
+      img.remove();
+    };
+    img.addEventListener('error', fall, { once: true });
+    // Bilder som redan hunnit misslyckas innan skriptet kördes har complete
+    // satt men ingen naturlig bredd.
+    if (img.complete && img.naturalWidth === 0) fall();
+  });
+</script>
+
+<style>
+  /* Bandet är 3:2 och inte kvadratiskt. Airbnbs kortbild mäter 182 × 173,
+     alltså nästan kvadrat, men deras kort bär ett fotografi av ett rum och
+     vårt bär i 97,7 procent av fallen en platshållare. En hög platshållare är
+     en stor tom yta; en låg är en list. `aspect-ratio` och inte fast höjd, så
+     att bandet följer kortets bredd i varje spaltantal. */
+  .bildyta {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    background: var(--bild-tom);
+    color: var(--bild-tom-blck);
+  }
+
+  .bildyta.rad {
+    width: var(--sida);
+    aspect-ratio: 1;
+    border-radius: var(--r-control);
+  }
+
+  /* Fotot ligger i samma cell som motivet och täcker det. */
+  .bildyta > img {
+    grid-area: 1 / 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* I kortläget skalas motivet med ytan i stället för att ligga fast, av samma
+     skäl som ANDEL finns. Talet är ANDEL uttryckt mot bredden i stället för
+     mot höjden: ytan är 3:2, alltså är höjden två tredjedelar av bredden, och
+     0,42 · 2/3 = 28 procent. Ändras ANDEL måste det här talet ändras med.
+
+     I radläget sätts måttet i stället som attribut på elementet, eftersom
+     rutan då har en känd sida i px. */
+  .motiv {
+    grid-area: 1 / 1;
+    display: block;
+    width: 28%;
+    height: auto;
+  }
+
+  .bildyta.rad .motiv {
+    width: auto;
+  }
+
+  /* Logotypen är ett villkor och ska vara SYNLIG, inte synas bra. Fjorton
+     pixlar är ordmärkets versalhöjd omkring 8 px, alltså läsbart. Full
+     opacitet: att dämpa ett varumärke är en ändring av dess utseende som
+     Mapillarys avsnitt 7 inte tillåter. Diskretionen ligger i storleken.
+
+     Nedre HÖGRA hörnet, eftersom bedömningsmärket sitter i det nedre vänstra.
+     Plattan bakom är vit och inte genomskinlig: logotypen har vit botten
+     inbakad i filen, och att klippa bort den hade varit just en sådan ändring
+     avsnitt 7 förbjuder. */
+  .logo {
+    position: absolute;
+    right: var(--s-2);
+    bottom: var(--s-2);
+    display: block;
+    padding: 3px 5px;
+    border-radius: 5px;
+    background: var(--card);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .05);
+  }
+
+  .logo img {
+    display: block;
+    height: 14px;
+    width: auto;
+  }
+</style>

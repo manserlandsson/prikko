@@ -22,6 +22,25 @@
   --canvas: #FCFCFD;
   --card: #FFFFFF;
 
+  /*
+   * HÄR LÅG --falt-fyllning, #F0F0F0, och det tokenet är borttaget igen samma
+   * dag det lades till.
+   *
+   * Det kom in för att kartans sökfält låg på --canvas i en vit kolumn,
+   * alltså en procents skillnad, och ägaren skrev "sökbaren ser skum".
+   * Diagnosen var rätt och botemedlet fel: Boolis platta grå fyllning löser
+   * deras problem, men sajten har redan ett eget sökfält i sidhuvudet, och
+   * det bär sin kant med en RING plus en skugga i stället för med en
+   * fyllning. Se .search-field i SiteSearch.astro: vit yta, piller, 1px
+   * --hairline, --shadow-sm.
+   *
+   * Ägaren 2026-08-26: "booli har fortfarande en sökruta på kartan och den
+   * måste ju matcha ui/ux ganska nära det vi har i header." Två sökfält på
+   * samma skärm som ser olika ut är värre än ett sökfält som avviker från en
+   * förlaga, alltså vinner sajtens egen form över Boolis mått. Kartans fält
+   * bär numera sidhuvudets recept och ingen använder tokenet.
+   */
+
   /* Tonad yta för band som ska läsas som en egen sektion utan att bli ett
      kort. Boolis motsvarighet är en varm beige ur deras palett; vår hämtas
      ur märkesblåan i stället för att bli en ny färg, alltså --brand blandad
@@ -48,6 +67,35 @@
      platshållare. Två steg mörkare än --canvas så att bandet syns mot kortet
      innan bilden kommit. */
   --bild-platshallare: #F1F1F3;
+
+  /* DEN TOMMA BILDYTAN ÄR NÅGOT ANNAT ÄN LADDNINGSLÄGET OVAN, och de två får
+     inte slås ihop trots att de ser nästan lika ut.
+     ────────────────────────────────────────────────────────────────────────
+     --bild-platshallare är ytan man ser INNAN ett foto landar. Där är
+     neutralt grått rätt, av precis det skäl som står ovan.
+
+     Den här är ytan som ALDRIG blir ett foto. 366 av 16 047 verksamheter bär
+     en bild, alltså 2,3 procent, så på 97,7 procent av korten är det här
+     slutresultatet och inte ett mellanläge. En slutgiltig yta är en möbel och
+     inte en väntan, och då gäller andra hänsyn: den ska tåla att ses tusen
+     gånger, inte att bytas ut om en halv sekund.
+
+     Ägaren skickade Boolis lösning, en beige yta med en illustrerad kamera:
+     "Sånna hör placeholders istället för bild är också najs". Beige är alltså
+     riktningen, och den varma sanden nedan är den kandidat som står mot den
+     kalla grå i brand/_prov-bildyta.html.
+
+     VÄRDET HÄR ÄR TILLS VIDARE DEN KALLA GRÅ. Provsidan rekommenderar den
+     varma #F3F0EA, men ytan är ägarens beslut och han har inte tagit det än.
+     Byt de två raderna nedan när han valt, så följer varje kort och varje
+     listrad med i samma ändring.
+
+     Bläcket ligger på omkring 1,45:1 mot ytan. Tydligt synligt utan att kräva
+     uppmärksamhet; mörkare gör platshållaren till en ikon man läser varje
+     gång. Det är inte en textfärg och får aldrig bära text, exakt som
+     --tone-quiet längre ned. */
+  --bild-tom: #F1F1F3;
+  --bild-tom-blck: #C3C3C8;
 
   /* Text */
   --text: #1D1D1F;
