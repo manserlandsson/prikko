@@ -341,6 +341,25 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
     if (e.inspections.length > 0) props.k = e.inspections.length;
     if (e.distinction) props.u = 1;
 
+    /*
+     * Bildens adress, och bara när den finns.
+     *
+     * Listraderna i den delade vyn bär sedan 2026-08-26 en bildyta, och 366 av
+     * 16 047 verksamheter har ett riktigt foto. Resten får en ritad
+     * platshållare som ligger i CSS och alltså inte kostar en byte i rutan.
+     *
+     * URL:en är VÅR egen kopia i objektlagringen, aldrig källans, se
+     * StreetImage i lib/db.ts. Att i stället bära ett id och slå upp adressen
+     * hade lagt en andra rundtur mitt i en panorering, vilket är precis det
+     * hela rutlösningen finns för att slippa.
+     *
+     * Kostnaden är mätt och inte uppskattad: 366 adresser à ungefär 150 tecken
+     * är 55 kB i hela landet, utspritt över de rutor som råkar innehålla en av
+     * dem, och rutorna är dessutom komprimerade. En rad utan bild bär ingen
+     * nyckel alls.
+     */
+    if (e.image?.url) props.b = e.image.url;
+
     punkter.push({ lng, lat, props });
   });
 

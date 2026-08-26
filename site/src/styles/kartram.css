@@ -28,7 +28,31 @@
   border: 1px solid var(--hairline);
   border-radius: var(--r-card);
   overflow: hidden;
-  background: var(--card);
+  /*
+   * ══ RAMEN HAR EN KARTGRUND FRÅN FÖRSTA BILDRUTAN ═══════════════════════
+   *
+   * Här stod var(--card), alltså vitt. Ägaren 2026-08-26 om /karta/: "på load
+   * ser jag också något annat i typ 1 sekund". Skärmbilden visar en HELVIT
+   * högerhalva med teckenförklaringen svävande på den och MapLibres knappar
+   * redan uppe i kanterna, medan vänsterkolumnen står klar. Ramen och
+   * kontrollerna ritas direkt; kartbotten kommer först när stilen och de
+   * första rutorna hämtats. En vit ruta med en vit ruta på läser som en
+   * trasig sida.
+   *
+   * FÄRGEN ÄR KARTANS EGEN OCH INTE ETT NYTT TAL. `public/kartstil/prikko.json`
+   * har ett `background`-lager längst ned med `background-color: #F2F1EC`, och
+   * det är den yta som ligger under all mark i hela stilen. Genom att måla den
+   * här i förväg blir övergången inte bara odramatisk utan OSYNLIG på land:
+   * samma färg byter plats med sig själv. Booli målar #CCCCCC under sin karta,
+   * uppmätt, men de har heller ingen stil att stämma av mot.
+   *
+   * Talet är hårdkodat och kan glida isär från stilfilen. Ändras
+   * `background-color` i det lagret ska raden här ändras samma dag; det är
+   * billigare än att hämta stilen två gånger bara för att veta en färg.
+   *
+   * Gäller ALLA sajtens kartor, eftersom alla fyra bär den här ramen.
+   */
+  background: #F2F1EC;
 }
 
 /*

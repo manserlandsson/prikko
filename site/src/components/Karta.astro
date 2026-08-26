@@ -153,12 +153,68 @@ const omradesgrupper = (kommun ? [kommun] : municipalities())
   .filter((x) => x.skivor.length > 0)
   .map(({ m, skivor }) => ({
     k: m.slug,
-    kn: m.city,
-    o: skivor.map((s) => ({ s: s.area.slug, n: s.area.name, a: s.count })),
+    kn: m.name,
+    o: skivor.map((s) => ({ s: s.area.slug, n: s.area.name, a: s.count, k: s.area.source })),
   }));
 
 /** Hur många områden som går att välja här. Styr bara platshållartexten. */
 const omradesAntal = omradesgrupper.reduce((a, g) => a + g.o.length, 0);
+
+/**
+ * ══ KOMMUNERNA SOM SÖKBAR TYP ═══════════════════════════════════════════
+ *
+ * Ägaren 2026-08-26, och det är hans tydligaste bugg i hela vyn: "tec kan jag
+ * ju ej söka på städer?????". Skriver man Linköping på rikskartan händer
+ * ingenting alls, eftersom fältet bara kände områden.
+ *
+ * Boolis fält heter "Sök på en gata, ort eller kommun" och deras förslagslista
+ * blandar fyra typer i samma nio rader. Vår kunde en.
+ *
+ * ══ EN KOMMUN BLIR INTE ETT CHIP, DEN FLYTTAR KAMERAN ════════════════════
+ *
+ * Det var den avvägning som behövde avgöras, och den avgörs av vad ett chip
+ * BETYDER i det här fältet. Varje chip står i dag för en yta som skuggas på
+ * kartan och som filtrerar listan; koden går till och med så långt att ett
+ * område vars kontur inte gick att hämta rensas bort i stället för att bli ett
+ * halvtillämpat val, se `satOmrade`, med motiveringen att ägaren aldrig ska se
+ * ett chip som säger Östermalm bredvid en oskuggad karta.
+ *
+ * En kommun har ingen polygon hos oss. Områdesfilerna bär stadsdelar och
+ * RegSO-områden, aldrig kommungränser, alltså kan en kommun varken skugga
+ * eller filtrera på yta. Ett kommunchip hade därför varit exakt det påstående
+ * koden redan vägrar göra.
+ *
+ * Och det behövs inte, för i den HÄR vyn ÄR kameran filtret. Listan visar det
+ * som ligger i utsnittet och ingenting annat, se `ritaLista`. Att flytta
+ * kameran till Linköpings utsträckning ger alltså Linköpings verksamheter i
+ * listan och Linköpings nålar på kartan, vilket är hela svaret på frågan.
+ * Chippet hade bara varit en andra, svagare beskrivning av samma sak, och en
+ * som dessutom inte gick att lita på.
+ *
+ * Utsträckningen kommer ur `utsnitt(slug)`, samma tal som kommunens egen
+ * kartsida öppnar på. Kommuner utan en enda känd koordinat är inte med, av
+ * samma skäl som de inte får en kartsida: ett förslag som leder till en tom
+ * karta är värre än inget förslag.
+ *
+ * Kostnad i sidans HTML: ÅTTA rader med slug, namn, utsträckning och antal,
+ * inte tolv. Fyra av de tolv kommunerna lämnar inga koordinater alls och
+ * faller därför bort i filtret ovan. Uppmätt på det byggda bygget 2026-08-27:
+ * 896 B ogzippat, alltså under en promille av sidan, mot en extra hämtning som
+ * hade behövt vara klar innan man skrivit färdigt sitt första ord.
+ */
+const kommunforslag = municipalities()
+  .map((m) => ({ m, vy: utsnitt(m.slug) }))
+  .filter((x) => x.vy !== undefined)
+  .map(({ m, vy }) => ({
+    s: m.slug,
+    /** Orten, alltså det som fetstilas: "Stockholm". */
+    n: m.city,
+    /** Det formella namnet, andra ledet: "Stockholms stad", "Uppsala kommun". */
+    kn: m.name,
+    /** [väst, syd, öst, nord]. Kameran ställer sig här vid ett val. */
+    b: vy!.bounds,
+    a: vy!.count,
+  }));
 
 /*
  * Rutarkivet, hela riket i en fil.
@@ -273,7 +329,15 @@ const markeW = marke ? Math.round(MARKE_H * markRatio(marke.year)) : 0;
  * och utan ett mått hade webbläsarens standardbredd på tjugo tecken gett en
  * platshållare som står lite vid sidan av mitten.
  */
-const SOKTEXT = omradesAntal ? 'Sök på område eller namn' : 'Sök på namn';
+/*
+ * KOMMUNEN STÅR FÖRST I UPPRÄKNINGEN sedan kommunerna blev en förslagstyp,
+ * se `kommunforslag` ovan. Ordningen är inte kosmetisk: den som inte vet vad
+ * fältet kan läser platshållaren, och det ägaren saknade var just kommunen.
+ * Booli skriver "Sök på en gata, ort eller kommun" och räknar upp från minst
+ * till störst; vi räknar från störst till minst, eftersom vår största enhet är
+ * den som faktiskt saknades och den som flyttar kartan längst.
+ */
+const SOKTEXT = omradesAntal ? 'Sök på kommun, område eller namn' : 'Sök på kommun eller namn';
 
 /**
  * Sorteringens tre val, i menyns ordning.
@@ -314,6 +378,7 @@ const LEGEND = [
   data-city={plats}
   data-kommun={kommun?.slug}
   data-omraden={JSON.stringify(omradesgrupper)}
+  data-kommunval={JSON.stringify(kommunforslag)}
   data-kategorier={JSON.stringify(kategorier)}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
@@ -406,11 +471,6 @@ const LEGEND = [
         precis det skälet.
       */}
       <div class="filterfalt" data-filterfalt>
-        <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" class="lupp">
-          <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.7" />
-          <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-        </svg>
-
         <span class="chippar" data-chippar></span>
 
         <label class="visually-hidden" for="kartfilter-q">{SOKTEXT}</label>
@@ -429,6 +489,34 @@ const LEGEND = [
           aria-autocomplete="list"
           data-filter
         />
+
+        {/*
+          LUPPEN LIGGER SIST I MARKUPEN, alltså i fältets HÖGERKANT.
+
+          Den låg först, på x 41 i en kolumn där kategoriradens första ikon,
+          resultatraden och listradernas märke alla ligger på 24. Booli har
+          den i högerkanten (uppmätt 2026-08-26: 18 x 18 på x 629 i ett fält
+          som slutar på 664, alltså 12 px in från innerkanten) och sajtens
+          eget sökfält i sidhuvudet har sin knapp där.
+
+          EN RUND YTA OCH INTE EN NAKEN IKON, för att silhuetten ska bli
+          sidhuvudets: där sitter en 38 px cirkel i högerkanten med 3 px luft
+          runt om, och det är den formen ögat känner igen på håll.
+
+          MEN INTE BLÅ, och inte en knapp. Sidhuvudets cirkel är fylld med
+          --brand för att den SKICKAR sökningen till /sok/, alltså har den en
+          handling. Det här fältet filtrerar medan man skriver och har
+          ingenting att skicka. En blå fylld cirkel hade varit det starkaste
+          på skärmen fäst vid det enda som inte går att trycka på, och den
+          som ändå trycker får inget svar. Ytan är därför tonad och ikonen
+          tyst, och elementet är ett <span> utan tabbstopp.
+        */}
+        <span class="lupp" aria-hidden="true">
+          <svg viewBox="0 0 20 20" focusable="false">
+            <circle cx="9" cy="9" r="5.4" fill="none" stroke="currentColor" stroke-width="1.7" />
+            <path d="M13.2 13.2 17 17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+        </span>
       </div>
 
       {/*
@@ -628,22 +716,38 @@ const LEGEND = [
         spegla ritaLista i skriptet exakt: klienten byter ut korten vid varje
         panorering, och två olika kortformer hade synts som ett hopp i samma
         sekund som kartan vaknar. */}
+    {/*
+      ══ RADENS ANATOMI ══════════════════════════════════════════════════
+
+      STRUKTUREN HÄR MÅSTE SPEGLA `ritaLista` I SKRIPTET EXAKT, element för
+      element och klass för klass. Klienten byter ut korten så fort kartan
+      vaknar, och den minsta skillnad syns som ett hopp under den första
+      sekunden. Ändras något här ska samma sak ändras där, och tvärtom.
+
+      Två spalter: bildytan och texten. Bedömningens märke ligger INUTI
+      bildytan, i dess nedre vänstra hörn, och inte i en egen spalt.
+      Motiveringen i sin helhet står vid .k-bild i stilarna.
+    */}
     <ol class="rader" data-rader>
       {initial.map((e) => (
         <li>
           <a href={path(base, e.slug)}>
-            <FaceRef verdict={e.verdict} size={40} />
+            <span class="k-bild">
+              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="320" height="116" />}
+              <FaceRef verdict={e.verdict} size={40} />
+            </span>
             <span class="k-text">
               <b>{e.name}</b>
               <span class="k-typ text-secondary">{e.types[0] ?? 'Livsmedelsverksamhet'}</span>
               <span class="k-dom" data-v={e.verdict ?? 'none'}>
                 {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
               </span>
-              {latestInspectionDate(e) && (
-                <span class="k-datum text-muted">
-                  Kontrollerad {formatDate(latestInspectionDate(e)!)}
-                </span>
-              )}
+              <span class="k-fakta text-muted">
+                <span>{e.inspections.length === 1 ? '1 kontroll' : `${formatNumber(e.inspections.length)} kontroller`}</span>
+                {latestInspectionDate(e) && (
+                  <span class="k-datum">{formatDate(latestInspectionDate(e)!)}</span>
+                )}
+              </span>
             </span>
           </a>
         </li>
@@ -873,6 +977,9 @@ const LEGEND = [
     k: number;
     /** Har utmärkelse. */
     u: boolean;
+    /** Bildens adress i vår objektlagring, eller tom. 366 av 16 047 har en,
+     *  se `b` i lib/kartrutor.ts. Tom betyder den ritade platshållaren. */
+    b: string;
     /** Toppkategorierna som bitmask, satt av bygget. 0 = okänd kategori. */
     kat: number;
   }
@@ -985,6 +1092,7 @@ const LEGEND = [
         typ: props.ty ?? '',
         k: props.k ?? 0,
         u: props.u === 1,
+        b: props.b ?? '',
         kat: props.c ?? 0,
       };
     }
@@ -1412,18 +1520,121 @@ const LEGEND = [
       n: string;
       /** Antal verksamheter. Rangordnar förslagen, står aldrig på skärmen. */
       a: number;
+      /** Vilken källa som ritat ytan. Avgör typetiketten, se `slagOrd`. */
+      kalla: 'osm' | 'regso';
     }
 
-    const OMRADESGRUPPER: { k: string; kn: string; o: { s: string; n: string; a: number }[] }[] =
-      JSON.parse(root.dataset.omraden || '[]');
+    const OMRADESGRUPPER: {
+      k: string;
+      kn: string;
+      o: { s: string; n: string; a: number; k: 'osm' | 'regso' }[];
+    }[] = JSON.parse(root.dataset.omraden || '[]');
 
     const OMRADEN: Omrade[] = OMRADESGRUPPER.flatMap((g) =>
-      g.o.map((o) => ({ nyckel: `${g.k}/${o.s}`, k: g.k, kn: g.kn, n: o.n, a: o.a })),
+      g.o.map((o) => ({ nyckel: `${g.k}/${o.s}`, k: g.k, kn: g.kn, n: o.n, a: o.a, kalla: o.k })),
     );
 
     /** Uppslag på nyckel. Är också GRINDEN mot skräp i adressen: ett `omrade=`
      *  som inte finns här får aldrig bli en hämtning, se `lasFragment`. */
     const OMRADESREG = new Map(OMRADEN.map((o) => [o.nyckel, o]));
+
+    /** Kommunerna som förslag. Se `kommunforslag` i frontmatteret för varför
+     *  ett kommunval flyttar kameran i stället för att bli ett chip. */
+    interface Kommunval {
+      s: string;
+      n: string;
+      kn: string;
+      b: [number, number, number, number];
+      a: number;
+    }
+    const KOMMUNVAL: Kommunval[] = JSON.parse(root.dataset.kommunval || '[]');
+
+    /**
+     * ══ ALIAS: NAMN FOLK ANVÄNDER SOM INGEN KÄLLA KÄNNER ═══════════════════
+     *
+     * Ägaren 2026-08-26: "btw, vasastaden heter också vasastan om det betyder
+     * ngt, kan vi göra det som samma?"
+     *
+     * Ja. Tabellen är handskriven och det är rätt: den bär undantag som varken
+     * OpenStreetMap eller SCB har någon kolumn för, och en regel som räknar ut
+     * dem skulle gissa fel oftare än den gissade rätt.
+     *
+     * ALIASET MATCHAR MEN VISAS ALDRIG. Raden säger fortfarande "Vasastaden,
+     * Stockholms stad", eftersom det är områdets namn och det namnet står på
+     * områdessidan. Ett förslag som byter namn beroende på vad man skrev är en
+     * annan sorts fel: man klickar på Vasastan och landar på en sida som heter
+     * något annat.
+     *
+     * VILLKORET FÖR EN RAD HÄR: aliaset ska vara ett SYNONYMT namn på samma
+     * plats, och det ska inte redan matcha av sig självt. Alla 64 länkade
+     * områdesnamn är genomgångna 2026-08-26 och bara två klarar båda proven.
+     *
+     * Övervägda och avvisade, med skäl:
+     *
+     *   Söder → Södermalm          MATCHAR REDAN. Prefixsökningen går på
+     *                              ordstart, och "Södermalm" börjar på
+     *                              "Söder". En rad här hade varit död kod.
+     *   Gamla Stan → Gamla stan    MATCHAR REDAN. Jämförelsen är gemener,
+     *                              se `vikOm`, så versalen spelar ingen roll.
+     *   Kungsholmen                Inget alias. Namnet är detsamma i tal.
+     *   City → Norrmalm            AVVISAT. City är ett vardagligt område utan
+     *                              fastställd gräns och sammanfaller inte med
+     *                              Norrmalms polygon: den sträcker sig långt
+     *                              norr om det någon kallar City. Ett alias
+     *                              ska vara ett annat NAMN på samma yta, inte
+     *                              ett ungefärligt överlapp.
+     *   Kransen → Midsommarkransen AVVISAT för att jag inte kan belägga att
+     *                              det är lika etablerat som Gärdet. Regeln är
+     *                              att bara det säkra går in.
+     *   Hässelby → Hässelby Gård   AVVISAT. Hässelby är tre områden hos oss,
+     *                              Gård, Strand och Villastad, och ett alias
+     *                              som pekar på ett av dem svarar fel på två
+     *                              tredjedelar av frågorna.
+     */
+    const ALIAS: Record<string, string[]> = {
+      /* "Vasastaden" börjar inte på "vasastan", de skiljer sig på åttonde
+         tecknet, alltså behövs raden. Namnet är Stockholms officiella och
+         Vasastan är vad varenda människa säger. */
+      'stockholm/vasastaden': ['Vasastan'],
+      /* Gärdet är inte en ordstart i "Ladugårdsgärdet", det är ett efterled
+         i ett sammansatt ord, alltså kan prefixsökningen aldrig hitta det. */
+      'stockholm/ladugardsgardet': ['Gärdet'],
+    };
+
+    /**
+     * Typetiketten till höger i förslagsraden.
+     *
+     * Boolis fyra ord är Stadsdel, Område, Gata och Kommun, och vi skrev
+     * "Område" på varenda rad. Två av de fyra går att belägga i vår egen data
+     * och en gör det inte:
+     *
+     *   KOMMUN   Egen förslagstyp sedan i dag, se `kommunforslag`.
+     *   STADSDEL `Area.source === 'osm'`. Urvalet ur OpenStreetMap är
+     *            `place=suburb|neighbourhood|quarter|borough|city_district`
+     *            plus `boundary=administrative` med `admin_level=10`, se
+     *            PLACE_KINDS i pipeline/omraden.py. Alla fem place-värdena och
+     *            admin_level 10 ÄR stadsdelar eller kvarter; admin_level 9 är
+     *            uttryckligen uteslutet där.
+     *   OMRÅDE   `Area.source === 'regso'`. SCB:s regionala statistikområden
+     *            är en statistisk indelning och ingen stadsdel. De delar
+     *            Södermalm i sju församlingar. "Område" är det ärliga ordet.
+     *   GATA     BYGGS INTE i dag. Se rapporten.
+     *
+     * FÖRDELNINGEN, uppmätt på det byggda bygget 2026-08-27: av de 64 länkade
+     * områdena blir 30 Stadsdel och 34 Område.
+     *
+     * DET ENDA MEKANISKA UNDANTAGET, och det är FÖREBYGGANDE. Linköping har två
+     * OSM-ytor som heter "Torvinge industriområde" och "Östra Malmskogen
+     * industriområde", alltså hade regeln kallat dem stadsdelar. Ingen av dem
+     * når tröskeln på 25 verksamheter i dag och de finns därför inte i listan,
+     * mätt: noll av de 64. Undantaget står ändå kvar, och det läser ordet i
+     * namnet i stället för att räkna upp de två, så att nästa kommuns
+     * industriområde blir rätt utan att någon rad här ändras.
+     */
+    function slagOrd(o: Omrade): string {
+      if (/industriområde$/i.test(o.n)) return 'Område';
+      return o.kalla === 'osm' ? 'Stadsdel' : 'Område';
+    }
 
     /**
      * Flera kommuner i spel, alltså ska kommunen skrivas ut?
@@ -1521,84 +1732,227 @@ const LEGEND = [
     }
 
     /**
-     * Vikta tecken MED karta tillbaka till originalet.
+     * ══ HÄR LÅG `vikMedKarta`, OCH DEN ÄR BORTTAGEN ════════════════════════
      *
-     * `vikOm` på hela strängen duger till att matcha och inte till att
-     * FETSTILA, eftersom vikningen kan ändra längden: NFKD delar upp ett
-     * tecken i två och strykningen tar bort det ena, och en ligatur blir två
-     * bokstäver som aldrig blir en igen. Ett index i den vikta strängen är
-     * alltså inte ett index i namnet.
+     * Den vek tecken för tecken och höll en karta tillbaka till originalet, så
+     * att bara de tecken man RÅKAT SKRIVA kunde fetstilas med accenter och
+     * versaler i behåll. Det är Boolis beteende, uppmätt på deras rad: söker
+     * man "östermalm" står "Östermalm" i vikt 600 och "sgatan" i 400.
      *
-     * Här viks därför tecken för tecken och varje vikt tecken minns vilket
-     * original det kom ur. Då kan matchningen ske på den vikta strängen och
-     * fetstilen läggas på de RIKTIGA tecknen, med versaler och accenter kvar.
+     * Ägaren 2026-08-26 avvisade det: "östermalm blir bara fetstilat för jag
+     * skrev det... som att liksom, 'du skrev detta'".
+     *
+     * Han har rätt, och skälet håller. Fetstil på det man själv nyss skrev
+     * upprepar inmatningen och säger ingenting nytt. Fetstil på HELA NAMNET
+     * säger däremot vilken del av raden som ÄR träffen och vilken del som är
+     * dess adress i världen, och det är den enda uppdelning läsaren behöver
+     * för att välja rad. Raden blir alltså
+     *
+     *     Östermalm, Stockholms stad          med Östermalm helt fet
+     *     Östermalmsgatan, Stockholms stad    med Östermalmsgatan helt fet
+     *
+     * Med det behövs ingen teckenkarta: namnet skrivs i ett <b> och ledet
+     * efter kommatecknet i ett vanligt textnod. Startindexet räknas fortfarande
+     * fram, men bara för RANGORDNINGEN, se `rangordna`.
      */
-    function vikMedKarta(t: string): { vikt: string; till: number[] } {
-      let vikt = '';
-      const till: number[] = [];
-      const tecken = Array.from(t);
-      let pos = 0;
-      for (const c of tecken) {
-        const v = vikOm(c);
-        for (let i = 0; i < v.length; i += 1) till.push(pos);
-        vikt += v;
-        pos += c.length;
-      }
-      till.push(t.length);
-      return { vikt, till };
+
+    /** Antal förslag på bred skärm. Boolis lista visar nio rader, uppmätt
+     *  2026-08-25, och talet spelar roll först nu: med hela landets 64 områden
+     *  plus tolv kommuner i tabellen matchar "bro" fler rader än sex. */
+    const FORSLAG_MAX = 9;
+
+    /**
+     * Antal förslag i ARKET, alltså under 900 px.
+     *
+     * Listan ligger i dokumentflödet och knuffar allt under sig nedåt, se
+     * .forslag i stilarna. På bred skärm är det oproblematiskt: kolumnen
+     * rullar och nio rader à 41 px tar 369 av en spalt på 683.
+     *
+     * I arket är det inte det. Uppmätt vid 375 x 812 före ändringen: arket
+     * börjar på y 390, sökfältet slutar på 472 och första kortet ligger på
+     * 686, alltså finns 126 px kvar till skärmens underkant. Nio förslag
+     * lägger 369 px där och sveper bort BÅDE kategoriraden, resultatraden och
+     * varenda rad man höll på att filtrera. Man ser då bara sin egen fråga.
+     *
+     * Fem rader är 205 px, alltså ryms de i den yta som ändå var ledig under
+     * fältet, och resultatraden med talet står kvar precis i underkanten. Det
+     * är det villkoret talet är valt efter: man ska se hur många träffar
+     * listan under har MEDAN man väljer bland förslagen.
+     */
+    const FORSLAG_MAX_ARK = 5;
+
+    /**
+     * ══ FÖRSLAGSMODELLEN ═══════════════════════════════════════════════════
+     *
+     * En rad är antingen en KOMMUN eller ett OMRÅDE, och de två beter sig
+     * olika vid val: kommunen flyttar bara kameran, området blir ett chip och
+     * skuggar. Se `kommunforslag` i frontmatteret för avgörandet.
+     *
+     * `namn` fetstilas i sin helhet, `led` står i vanlig vikt efter ett
+     * kommatecken, `slag` är ordet till höger. `start` är index för träffen i
+     * det vikta namnet och används bara för att rangordna.
+     */
+    interface Forslag {
+      typ: 'kommun' | 'omrade';
+      nyckel: string;
+      namn: string;
+      led: string;
+      slag: string;
+      a: number;
+      start: number;
     }
 
-    /** Antal förslag. Boolis lista visar nio rader, uppmätt 2026-08-25, och
-     *  talet spelar roll först nu: med hela landets 64 områden i tabellen
-     *  matchar "bro" fler rader än sex. */
-    const FORSLAG_MAX = 9;
+    /**
+     * Alla strängar en rad ska kunna hittas på: namnet plus dess alias.
+     *
+     * Aliaset ingår i MATCHNINGEN och aldrig i visningen, se ALIAS ovan.
+     */
+    function sokbara(o: Omrade): string[] {
+      const extra = ALIAS[o.nyckel];
+      return extra ? [o.n, ...extra] : [o.n];
+    }
+
+    /**
+     * Träffens startindex, eller -1.
+     *
+     * Prefix på ORDSTART och inte substräng. "malm" ska inte föreslå
+     * Östermalm: den som skriver malm menar Malmen eller Malmvägen, och ett
+     * förslag som träffar mitt i ett ord känns som en gissning. Samma regel
+     * som lib/sokforslag.ts håller för kommunerna.
+     *
+     * Flera strängar prövas och det LÄGSTA indexet vinner, så att ett alias som
+     * träffar på position 0 rangordnas lika högt som ett namn som gör det.
+     */
+    function traffIndex(strangar: string[], q: string): number {
+      let bast = -1;
+      for (const t of strangar) {
+        const i = (' ' + vikOm(t)).indexOf(' ' + q);
+        if (i < 0) continue;
+        if (bast < 0 || i < bast) bast = i;
+      }
+      return bast;
+    }
 
     /**
      * MAX_FORSLAG-tabellens ordning.
      *
-     * Träffarna kom förut i tabellens egen ordning, alltså bokstavsordning
-     * inom kommunen, och det räckte när tabellen var en kommuns 51. Med
-     * landets 64 i samma tabell hade "b" gett Bankeryd, Bandhagen, Blackeberg,
-     * Bro, Bromsten, Brommaplan i den ordning kommunerna råkade ligga.
+     * Tre steg, och inget av dem är en smaksak.
      *
-     * Två steg, båda mätbara och ingetdera en smaksak. Namnets BÖRJAN före en
-     * träff längre in: den som skriver "bro" menar oftare Bro än Bromsten,
-     * men aldrig Hässelby Bro. Och därefter STÖRST FÖRST, alltså efter antal
-     * verksamheter, av samma skäl som kommunraderna på rikskartan sorteras så:
-     * i bokstavsordning hamnar Östermalm sist bland allt som börjar på Ö.
+     * KOMMUNEN FÖRST. Skriver man "linköping" har man namngett en hel kommun,
+     * och den som gör det menar kommunen och inte ett område som råkar börja
+     * likadant. Det är dessutom precis den fråga som förut inte gick att
+     * ställa, se ägarens "tec kan jag ju ej söka på städer?????", och en rad
+     * som ligger sjua i listan är en rad man inte hittar.
+     *
+     * SEDAN NAMNETS BÖRJAN före en träff längre in: den som skriver "bro"
+     * menar oftare Bro än Bromsten, men aldrig Hässelby Bro.
+     *
+     * OCH SIST STÖRST FÖRST, alltså efter antal verksamheter, av samma skäl som
+     * kommunraderna på rikskartan sorteras så: i bokstavsordning hamnar
+     * Östermalm sist bland allt som börjar på Ö.
+     *
+     * INGEN ORDNING MELLAN STADSDEL OCH OMRÅDE, till skillnad från Booli som
+     * lägger alla Område före alla Gata. Deras två typer är olika STORA, en
+     * gata ligger inuti ett område, och då är typen en rimlig första nyckel.
+     * Våra två är lika stora och skiljer sig bara på vilken källa som ritat
+     * ytan, vilket är en uppgift om oss och inte om platsen. Att ranka
+     * Kungsholmen över Kungsängen för att den ena kom ur OSM vore att låta
+     * vår datainsamling bestämma vad läsaren letar efter.
      */
-    function rangordna(a: { start: number; o: Omrade }, z: { start: number; o: Omrade }) {
+    function rangordna(a: Forslag, z: Forslag) {
+      if ((a.typ === 'kommun') !== (z.typ === 'kommun')) return a.typ === 'kommun' ? -1 : 1;
       if ((a.start === 0) !== (z.start === 0)) return a.start === 0 ? -1 : 1;
-      return z.o.a - a.o.a;
+      return z.a - a.a;
+    }
+
+    /**
+     * Vilket förslag som är förvalt, alltså det Enter tar.
+     *
+     * Booli har en ljusgrå bakgrund på första raden i samma sekund listan
+     * öppnar, uppmätt: #F0F0F0 mot genomskinligt på de åtta andra. Det säger
+     * vad Enter gör innan man tryckt, och det är hela poängen: nio rader utan
+     * markering är nio rader man måste peka på.
+     *
+     * Talet är också det piltangenterna flyttar. Det nollställs vid varje ny
+     * fråga, eftersom raderna då är andra rader.
+     */
+    let forslagIndex = 0;
+
+    /** Raderna som just nu ligger i listan. Behövs av tangentbordet. */
+    let forslagRader: Forslag[] = [];
+
+    /** Markerar den förvalda raden och rullar in den. */
+    function stallForslagsval() {
+      const knappar = forslag.querySelectorAll<HTMLButtonElement>('button');
+      knappar.forEach((k, i) => {
+        const vald = i === forslagIndex;
+        k.classList.toggle('vald', vald);
+        k.setAttribute('aria-selected', String(vald));
+        if (vald) {
+          filterFalt.setAttribute('aria-activedescendant', k.id);
+          k.scrollIntoView({ block: 'nearest' });
+        }
+      });
+      if (!knappar.length) filterFalt.removeAttribute('aria-activedescendant');
     }
 
     function stallForslag() {
       const q = vikOm(filterFalt.value.trim());
-      const traff =
-        q.length < 2
-          ? []
-          : OMRADEN.map((o) => {
-              if (omradeVal.includes(o.nyckel)) return null;
-              const { vikt, till } = vikMedKarta(o.n);
-              const n = ' ' + vikt;
-              const i = n.indexOf(' ' + q);
-              if (i < 0) return null;
-              /* `i` är index i strängen med den påhängda inledande blanken,
-                 alltså är i samma tal som startindex i den vikta strängen. */
-              return { start: i, o, till, langd: q.length };
-            })
-              .filter((x): x is NonNullable<typeof x> => x !== null)
-              .sort(rangordna)
-              .slice(0, FORSLAG_MAX);
+      /* Arket och inte bredden i sig: samma brytpunkt som .split.ark, så att
+         taket följer den layout som faktiskt gäller. */
+      const tak = window.matchMedia('(max-width: 899px)').matches
+        ? FORSLAG_MAX_ARK
+        : FORSLAG_MAX;
 
+      let traff: Forslag[] = [];
+      if (q.length >= 2) {
+        for (const k of KOMMUNVAL) {
+          const i = traffIndex([k.n, k.kn], q);
+          if (i < 0) continue;
+          traff.push({
+            typ: 'kommun',
+            nyckel: k.s,
+            namn: k.n,
+            /* Det FORMELLA namnet som andra led, alltid: "Stockholm,
+               Stockholms stad". Booli skriver ut ordet kommun på varje rad och
+               ägaren pekade på just det. Vår källa bär namnet i klartext, se
+               `Municipality.name`, alltså behöver vi inte hitta på en
+               genitivregel som ändå hade gått fel på Örebro och Uppsala. */
+            led: k.kn,
+            slag: 'Kommun',
+            a: k.a,
+            start: i,
+          });
+        }
+        for (const o of OMRADEN) {
+          if (omradeVal.includes(o.nyckel)) continue;
+          const i = traffIndex(sokbara(o), q);
+          if (i < 0) continue;
+          traff.push({
+            typ: 'omrade',
+            nyckel: o.nyckel,
+            namn: o.n,
+            led: VISA_KOMMUN ? o.kn : '',
+            slag: slagOrd(o),
+            a: o.a,
+            start: i,
+          });
+        }
+        traff.sort(rangordna);
+        traff = traff.slice(0, tak);
+      }
+
+      forslagRader = traff;
+      forslagIndex = 0;
       forslag.replaceChildren();
       forslag.hidden = traff.length === 0;
       filterFalt.setAttribute('aria-expanded', String(traff.length > 0));
 
-      for (const t of traff) {
+      traff.forEach((t, i) => {
         const li = document.createElement('li');
         const knapp = document.createElement('button');
         knapp.type = 'button';
+        knapp.id = `kartfilter-forslag-${i}`;
         knapp.setAttribute('role', 'option');
         knapp.setAttribute('aria-selected', 'false');
         /* tabindex -1, som Boolis rader. Listan styrs med piltangenter och
@@ -1607,41 +1961,68 @@ const LEGEND = [
         knapp.tabIndex = -1;
 
         /*
-         * DET MATCHADE STÄLLET I VIKT 600, resten i 400. Boolis rad, uppmätt,
-         * och den enskilt viktigaste raden i den här funktionen: fetstilen är
-         * det enda som säger VARFÖR raden föreslås. Utan den är nio rader nio
-         * gissningar.
+         * HELA NAMNET I VIKT 600, ledet efter kommatecknet i 400.
+         *
+         * Se den långa noten där `vikMedKarta` låg för varför det inte är
+         * Boolis prefixfetstil. textContent hela vägen: namnen kommer ur OSM,
+         * SCB och kommunernas egna register och har inte passerat någon
+         * sanering.
          */
         const namn = document.createElement('span');
-        const org = t.o.n;
-        const fore = org.slice(0, t.till[t.start]);
-        const mitt = org.slice(t.till[t.start], t.till[t.start + t.langd]);
-        const efter = org.slice(t.till[t.start + t.langd]);
-        // textContent hela vägen: namnen kommer ur OSM och SCB, aldrig markup.
-        if (fore) namn.append(document.createTextNode(fore));
         const stark = document.createElement('b');
-        stark.textContent = mitt;
+        stark.textContent = t.namn;
         namn.appendChild(stark);
-        if (efter) namn.append(document.createTextNode(efter));
-        /* Kommunen som andra led, "Östermalm, Stockholm", ägarens egna ord.
-           Aldrig fetstilt: den är där för att skilja rader åt och inte för
-           att den matchade. */
-        if (VISA_KOMMUN) namn.append(document.createTextNode(`, ${t.o.kn}`));
+        if (t.led) namn.append(document.createTextNode(`, ${t.led}`));
 
         const slag = document.createElement('span');
         slag.className = 'forslagstyp';
-        slag.textContent = 'Område';
+        slag.textContent = t.slag;
 
         knapp.append(namn, slag);
         /* mousedown och inte click: fältet tappar fokus när man trycker, och
            blur hinner gömma listan innan click hunnit avfyras. */
         knapp.addEventListener('mousedown', (e) => {
           e.preventDefault();
-          valjOmrade(t.o.nyckel, true);
+          valjForslag(t);
         });
         li.appendChild(knapp);
         forslag.appendChild(li);
+      });
+
+      stallForslagsval();
+    }
+
+    /**
+     * Ett valt förslag, oavsett typ.
+     *
+     * Kommunen flyttar kameran och blir aldrig ett chip. Området blir ett chip
+     * och skuggar. Motiveringen i sin helhet står vid `kommunforslag` i
+     * frontmatteret.
+     */
+    function valjForslag(t: Forslag) {
+      if (t.typ === 'omrade') {
+        valjOmrade(t.nyckel, true);
+        return;
       }
+      const k = KOMMUNVAL.find((x) => x.s === t.nyckel);
+      if (!k) return;
+
+      /* Fältet töms, precis som vid ett områdesval. Ordet var vägen TILL
+         kommunen och inte ett filter på namnet; låg "linköping" kvar hade
+         listan visat de verksamheter vars NAMN innehåller ordet, alltså en
+         handfull av tolvhundra, bredvid en karta som just flugit dit. */
+      filterFalt.value = '';
+      filterVarde = '';
+      tillampa?.();
+      forslag.hidden = true;
+      filterFalt.setAttribute('aria-expanded', 'false');
+
+      /* Samma padding och samma varaktighet som ett områdesval, se
+         `satOmrade`, så att de två valen känns som samma handling. Kartan kan
+         saknas om stilen inte laddat än; då står utsnittet kvar och det är
+         rätt utfall, för listan följer ändå kartan. */
+      karta?.fitBounds([[k.b[0], k.b[1]], [k.b[2], k.b[3]]], { padding: 48, duration: 600 });
+      filterFalt.focus();
     }
 
     /**
@@ -1718,16 +2099,39 @@ const LEGEND = [
         return;
       }
 
-      /* Enter tar första förslaget. Utan det är listan något man måste peka
-         på, och den som just skrivit "österm" har redan händerna på
-         tangenterna. */
-      if (ev.key === 'Enter' && !forslag.hidden) {
-        const forsta = forslag.querySelector('button');
-        if (forsta) {
-          ev.preventDefault();
-          (forsta as HTMLButtonElement).dispatchEvent(new MouseEvent('mousedown'));
-          return;
-        }
+      /*
+       * PILTANGENTERNA FLYTTAR MARKERINGEN, Enter tar den markerade.
+       *
+       * Här stod bara "Enter tar första förslaget". Det var rätt så länge
+       * ingen rad var markerad, alltså så länge det inte gick att se vad
+       * Enter skulle göra. Sedan Boolis förvalda första rad byggts, se
+       * `forslagIndex`, finns en markering på skärmen, och en markering som
+       * inte går att flytta är ett löfte som inte hålls: den som ser rad ett
+       * lyst upp förväntar sig att pilen ned tänder rad två.
+       *
+       * Ingen svepning runt hörnet. Pil upp på första raden stannar där i
+       * stället för att hoppa till den sista, eftersom listan är nio rader
+       * lång och ett hopp från topp till botten läser som att markeringen
+       * försvann.
+       */
+      if (ev.key === 'ArrowDown' && !forslag.hidden && forslagRader.length) {
+        ev.preventDefault();
+        forslagIndex = Math.min(forslagIndex + 1, forslagRader.length - 1);
+        stallForslagsval();
+        return;
+      }
+
+      if (ev.key === 'ArrowUp' && !forslag.hidden && forslagRader.length) {
+        ev.preventDefault();
+        forslagIndex = Math.max(forslagIndex - 1, 0);
+        stallForslagsval();
+        return;
+      }
+
+      if (ev.key === 'Enter' && !forslag.hidden && forslagRader[forslagIndex]) {
+        ev.preventDefault();
+        valjForslag(forslagRader[forslagIndex]);
+        return;
       }
 
       if (ev.key === 'Escape' && !forslag.hidden) {
@@ -1966,6 +2370,16 @@ const LEGEND = [
      *                 bubbla och därför INTE kan bli kort. Noll när ett filter
      *                 är på, eftersom bubblorna göms då.
      */
+    /** Radnumren i den ordning de senast ritades. Se noten vid signaturen
+     *  nedan: den finns för att slippa rita om en lista som inte ändrats. */
+    let listSignatur = '';
+
+    /* Vilken rad musen står över, eller null. Deklarerad HÄR och inte vid
+       `satHovrad` längre ned: `ritaLista` läser den för att sätta tillbaka
+       markeringen efter en omritning, och en `let` som deklareras senare i
+       samma block finns inte för koden ovanför den. */
+    let hovrad: number | null = null;
+
     function ritaLista(synliga: Punkt[], totalt: number, iBubbla = 0) {
       const visa = synliga.slice(0, MAX_RADER);
       const frag = document.createDocumentFragment();
@@ -1977,19 +2391,43 @@ const LEGEND = [
         const a = document.createElement('a');
         a.href = adress(p);
 
-        // Samma struktur som de server-renderade korten i mallen ovan, av
-        // samma skäl som stilarna ligger under :global: klienten byter ut
-        // korten, och två kortformer hade synts som ett hopp.
+        /*
+         * SPEGLAR MARKUPEN I MALLEN EXAKT, element för element och klass för
+         * klass. Se noten över <ol class="rader"> för varför: den minsta
+         * skillnad syns som ett hopp när kartan vaknar och byter ut raderna.
+         */
+        const bild = document.createElement('span');
+        bild.className = 'k-bild';
+
+        /* Riktigt foto på 366 av 16 047. Adressen kommer ur rutan, se `b` i
+           lib/kartrutor.ts. Saknas den ligger den ritade platshållaren kvar,
+           och den bor i CSS och inte i markupen, alltså finns den redan. */
+        if (p.b) {
+          const img = document.createElement('img');
+          img.src = p.b;
+          img.alt = '';
+          img.loading = 'lazy';
+          img.decoding = 'async';
+          img.width = 320;
+          img.height = 116;
+          bild.appendChild(img);
+        }
+
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('class', 'face');
         svg.setAttribute('width', '40');
         svg.setAttribute('height', '40');
         svg.setAttribute('viewBox', '0 0 100 100');
         svg.setAttribute('aria-hidden', 'true');
+        /* focusable="false" står i FaceRef.astro och måste stå här också.
+           Attributet påverkar inte måtten men de två formerna ska vara
+           identiska, annars är regeln ovan inte längre sann någonstans. */
+        svg.setAttribute('focusable', 'false');
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
         svg.appendChild(use);
-        a.appendChild(svg);
+        bild.appendChild(svg);
+        a.appendChild(bild);
 
         const text = document.createElement('span');
         text.className = 'k-text';
@@ -2011,13 +2449,35 @@ const LEGEND = [
         dom.textContent = LABEL[p.v];
         text.appendChild(dom);
 
+        /*
+         * FAKTARADEN, Boolis "91,5 m² 3 rum vån 3 7 039 kr/mån" på vår data.
+         *
+         * Antalet kontroller är det ENDA fält som lagts till, och det är valt
+         * för att det säger hur mycket bedömningen ovanför vilar på: en ren
+         * verksamhet med sju kontroller och en ren med en är två olika
+         * påståenden. Talet ligger redan i rutan som `k` och kostar alltså
+         * ingenting nytt.
+         *
+         * Datumet står HÖGERSTÄLLT i samma rad, där Boolis mäklarlogga ligger.
+         * Det är inte dekoration: rader vars innehåll slutar mitt i spalten är
+         * hela orsaken till att kolumnen såg tom ut, och en högerställd sista
+         * uppgift binder ihop radens två kanter. Uppmätt före ändringen:
+         * 44,2 procent av radens bredd bar innehåll.
+         */
+        const fakta = document.createElement('span');
+        fakta.className = 'k-fakta text-muted';
+        const antal = document.createElement('span');
+        antal.textContent = p.k === 1 ? '1 kontroll' : `${p.k.toLocaleString('sv-SE')} kontroller`;
+        fakta.appendChild(antal);
+
         const datum = datumText(p.d);
         if (datum) {
           const d = document.createElement('span');
-          d.className = 'k-datum text-muted';
-          d.textContent = `Kontrollerad ${datum}`;
-          text.appendChild(d);
+          d.className = 'k-datum';
+          d.textContent = datum;
+          fakta.appendChild(d);
         }
+        text.appendChild(fakta);
 
         a.appendChild(text);
 
@@ -2025,7 +2485,48 @@ const LEGEND = [
         frag.appendChild(li);
       }
 
-      rader.replaceChildren(frag);
+      /*
+       * ══ TVÅ BUGGAR SOM BÅDA BODDE I DEN HÄR RADEN ═══════════════════════
+       *
+       * Ägaren 2026-08-26: "på load ser jag också något annat i typ 1 sekund,
+       * när jag hovrar blir något också lite blått i ngn sekund, som en äldre
+       * version".
+       *
+       * BUGG A, HOPPET VID SIDLADDNING. Sextio rader kommer serverrenderade i
+       * HTML. När kartan vaknar byter den här funktionen ut dem mot rader
+       * byggda med createElement, och även när innehållet är IDENTISKT byggs
+       * sextio nya element och webbläsaren målar om hela listan. Sextio rader
+       * som ersätts med sextio identiska rader är ett hopp utan orsak.
+       *
+       * Lösningen är en signatur: radnumren i den ordning de ska stå. Är den
+       * densamma som förra gången rörs listan inte alls. Det tar bort hoppet
+       * vid sidladdning när kartan öppnar på samma utsnitt som listan
+       * renderades för, och det tar dessutom bort en omritning per `move` och
+       * `sourcedata` under en panorering där inget nytt kommit in i rutan.
+       *
+       * Signaturen bygger på radnumren och inte på innehållet, och det räcker:
+       * ett radnummer pekar ut en verksamhet i en datafil som är oföränderlig
+       * under sidans livstid.
+       *
+       * BUGG B, MARKERINGEN SOM SLOCKNAR AV SIG SJÄLV. `li.aktiv` sätts när
+       * musen står över en rad och binder ihop raden med nålen. Vid varje
+       * omritning byggdes nya li-element utan klassen, alltså slocknade
+       * markeringen mitt under att musen stod stilla. Det läser exakt som
+       * ägaren beskriver, som att en gammal version blinkar förbi.
+       *
+       * `hovrad` överlever omritningen, så klassen sätts tillbaka efteråt.
+       */
+      const signatur = visa.map((p) => p.i).join(',');
+      if (signatur === listSignatur && rader.children.length === visa.length) {
+        // Listan är redan den här listan. Rör den inte.
+      } else {
+        listSignatur = signatur;
+        rader.replaceChildren(frag);
+        if (hovrad !== null) {
+          const li = rader.querySelector(`li[data-i="${hovrad}"]`);
+          if (li) li.classList.add('aktiv');
+        }
+      }
 
       /*
        * En rad, inte två.
@@ -2118,8 +2619,6 @@ const LEGEND = [
      * bara i paint-egenskaper. `setFilter` rör ett lager som innehåller noll
      * eller en nål, så det kostar ingenting per bild.
      */
-    let hovrad: number | null = null;
-
     function satHovrad(i: number | null) {
       if (hovrad === i) return;
       hovrad = i;
@@ -3454,6 +3953,30 @@ const LEGEND = [
       karta.addControl(new AttributionControl({ compact: false }), 'bottom-left');
 
       karta.on('load', async () => {
+        /*
+         * KARTAN FINNS. Klassen är villkoret för allt som beskriver kartan
+         * men inte ÄR den: teckenförklaringen och MapLibres kontroller.
+         *
+         * Ägarens skärmbild 2026-08-26 visar båda uppe på en helvit yta under
+         * den första sekunden. Teckenförklaringen förklarar färgerna på nålar
+         * som inte finns än, och zoomknapparna zoomar i ingenting. Ramen har
+         * fått kartans egen grundfärg, se .kartram i styles/kartram.css, men
+         * en ruta som säger "Inga anmärkningar 6 485" ovanpå en tom yta är
+         * ändå ett påstående om något som inte syns.
+         *
+         * Sätts här och inte vid `styledata` eller `idle`: `load` är den
+         * händelse som betyder att stilen ÄR klar och de första rutorna har
+         * ritats, alltså exakt villkoret. Nålkortet väntar redan på samma sak.
+         *
+         * KLASSEN HETER `live` OCH INTE NÅGOT NYTT. Namnet är sajtens, se
+         * Platskarta.astro och KartaPuff.astro: båda lägger `live` på sin rot
+         * när kartan är uppe och byter då ut sin platshållare. Raden fanns
+         * redan HÄR också, allra sist i den här hanteraren, men ingen CSS-regel
+         * läste den, alltså gjorde den ingenting. Nu gör den det, och den är
+         * flyttad hit upp så att den sätts även om något längre ned i
+         * hanteraren skulle kasta.
+         */
+        root!.classList.add('live');
         let ansikten = true;
         try {
           const bitmaps = await Promise.all(FACE_KEYS.map(faceBitmap));
@@ -4125,7 +4648,6 @@ const LEGEND = [
         if (startVy && !egenVy) satHar(startVy);
 
         karta.getCanvas().setAttribute('aria-label', `Karta över hygienkontroller i ${root!.dataset.city}`);
-        root!.classList.add('live');
       });
     }
 
@@ -4331,54 +4853,60 @@ const LEGEND = [
   }
 
   /*
-   * Filtret: samma piller som sidhuvudets sök, men utan knapp. Fältet gör
-   * något medan man skriver, så det behöver ingen avtryckare, bara luppen som
-   * talar om vad det är. Klassen får inte heta .field, se SiteSearch: ett
-   * globalt kontoark äger det namnet.
-   */
-  /*
-   * Boolis sökfält, uppmätt live 2026-08-25: en PLATT GRÅ ruta, 50 px hög,
-   * `background: #F0F0F0`, kant i samma färg som fyllningen, radie 4.
+   * ══ FILTERFÄLTET ÄR SIDHUVUDETS FÄLT, INTE BOOLIS ══════════════════════
    *
-   * Vårt var ett vitt piller på 40 px med hårlinje och radie 999, alltså ett
-   * chip och inte ett fält. Ägaren: "sök funktionen på vänstra sidan på
-   * kartsidan är också helt annorlunda." Skillnaden mellan ett piller och en
-   * ruta låter liten och är den enskilt mest synliga i hela kolumnen, för
-   * pillret läser som en knapp man trycker på och rutan som en yta man
-   * skriver i.
+   * Här stod Boolis recept: en platt grå ruta, #F0F0F0, 50 px hög, radie 4,
+   * ram i samma färg som fyllningen. Det byggdes 2026-08-26 för att vårt fält
+   * låg på --canvas i en vit kolumn, alltså en procents skillnad, och ägaren
+   * skrev "sökbaren ser skum". Diagnosen var rätt och botemedlet fel.
    *
-   * Fyllningen tas ur --canvas och inte ur ett tal, så att den följer med om
-   * sajtens grundton flyttas.
+   * Ägaren samma dag: "booli har fortfarande en sökruta på kartan och den
+   * måste ju matcha ui/ux ganska nära det vi har i header." Det slår Boolis
+   * mått, och det gör det av ett skäl som inte är smak: sajten har ett eget
+   * sökfält i sidhuvudet, det står 65 px ovanför det här på varje kartsida,
+   * och två sökfält på samma skärm som ser olika ut är värre än ett sökfält
+   * som avviker från en förlaga.
+   *
+   * SIDHUVUDETS RECEPT, uppmätt på det byggda bygget 2026-08-26 vid 1440 px:
+   *
+   *     .search-field   380 x 44
+   *     bakgrund        #FFFFFF, alltså --card
+   *     radie           999, alltså --r-pill
+   *     kant            1px solid rgba(0,0,0,.08), alltså --hairline
+   *     skugga          0 0 0 1px --hairline, 0 1px 2px rgba(0,0,0,.05)
+   *                     alltså --shadow-sm
+   *     innerkant       3px 3px 3px 16px
+   *     knappen         38 x 38 i högerkanten
+   *
+   * KANTEN KOMMER AV RINGEN OCH SKUGGAN och inte av fyllningen. Det är hela
+   * knepet, och det löser problemet Boolis grå försökte lösa åt fel håll:
+   * --shadow-sm lägger en 1px ring UTANPÅ ramen, alltså två linjer i samma
+   * grå, och det är det som gör att ett vitt fält syns i en vit kolumn.
+   *
+   * DEN GAMLA NOTEN OM VÄNSTERKANTEN ÄR BESVARAD AV ATT LUPPEN FLYTTAT.
+   * Den sa att 16 px innerkant lade luppen på x 41 medan kategoriradens
+   * ikoner och listradernas märke ligger på 24. Luppen ligger inte längre
+   * där: den sitter i högerkanten, och de 16 pixlarna är numera TEXTENS
+   * indrag. Ett piller måste ha större indrag än en ruta, annars ligger
+   * första bokstaven an mot rundningen, och sidhuvudets fält har exakt det
+   * indraget en halv skärm högre upp.
    */
   .filterfalt {
     display: flex;
     align-items: center;
     gap: var(--s-2);
+    /* Chippen faller nedåt när de inte får plats. Se noten vid .chip: på
+       375 px har fältet 343 att röra sig på och luppen tar 38 av dem, alltså
+       ryms ett chip plus ett skrivbart textfält och inte två. */
     flex-wrap: wrap;
-    /* 50 och inte 48. Boolis tal, och fältet är kolumnens första yta: en
-       pixels avvikelse syns inte, men det finns ingen anledning att inte ta
-       måttet när det är mätt. */
-    min-height: 50px;
-    /*
-     * FYRA PIXLAR, inte sexton, och det är vänsterkanten ägaren pekar på.
-     *
-     * Uppmätt på booli.se 2026-08-26, på deras levande sida: `.bui-input-search`
-     * ligger på x 24 och är 640 x 50 med `padding: 4px` och en pixels ram,
-     * alltså börjar allt inne i fältet på x 29. Deras inre rad mäter 596 x 40.
-     *
-     * Vår hade 16, alltså luppen på x 41 medan resultatraden, kategoriradens
-     * första ikon och listradernas märke alla ligger på 24. Sjutton pixlar in
-     * i kolumnen, på det första ögat träffar. Ägaren 2026-08-26: "det ser ej
-     * ut som booli... framförallt vänsterkanten."
-     *
-     * Fem pixlar in och inte noll, för det är deras tal: rutan har en
-     * vänsterkant och innehållet ska inte ligga an mot den. Samma förhållande
-     * som förslagslistan under fältet har med sina 12.
-     */
-    padding: 4px;
-    background: var(--canvas);
-    border: 1px solid var(--canvas);
-    border-radius: var(--r-control);
+    /* --h-field och inte Boolis 50. Sidhuvudets tal, se noten ovan.
+       min-height och inte height, eftersom raden växer när chippen bryts. */
+    min-height: var(--h-field);
+    padding: 3px 3px 3px var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-sm);
     transition: box-shadow 120ms ease, border-color 120ms ease;
   }
 
@@ -4386,66 +4914,27 @@ const LEGEND = [
     .filterfalt { transition: none; }
   }
 
-  .filterfalt:hover { border-color: var(--hairline); }
+  /* Hovringens kant tas ur --tone-quiet, exakt som .search-field:hover i
+     SiteSearch. Samma fält, samma hovring. */
+  .filterfalt:hover { border-color: var(--tone-quiet); }
 
   /*
-   * FÄLTET CENTRERAR SIG NÄR DET ÄR TOMT, och det är hela skillnaden ägaren
-   * läst tre gånger utan att kunna peka på den: "sök är fortfarande lite
-   * skum... kom igen nu."
+   * INGEN CENTRERING. Fältet är vänsterställt i alla lägen.
    *
-   * Uppmätt på booli.se 2026-08-25 med getComputedStyle:
+   * Här stod Boolis grepp, att ett tomt fält centrerar platshållaren och
+   * luppen och glider ut till vänsterkanten vid fokus. Det byggdes och mättes
+   * (deras input är 208 x 32 mitt i ett fält på 640), och ägaren avvisade det
+   * 2026-08-26: "vi behöver ej ha centralizerad sökning, liksom i mitten, som
+   * booli, men den ska vara clean och funktionerbar."
    *
-   *     tomt fält   .bui-input-search har justify-content: center, alltså
-   *                 står platshållaren OCH förstoringsglaset MITT i den
-   *                 640 px breda rutan.
-   *     vid fokus   ramen byter till kontrastfärg plus deras shadow-m, och
-   *                 innehållet glider ut till vänsterkanten.
-   *     med chip    chippet först och fältet efter, alltså vänsterställt så
-   *                 fort något är valt.
-   *
-   * Vårt låg vänsterställt i alla tre lägena med luppen i vänsterkanten, och
-   * det är exakt hur ett filterfält i en tabell ser ut. Rörelsen är det som
-   * gör att rutan läser som ett SÖKFÄLT: ett tomt fält är en inbjudan och står
-   * i mitten, ett fält man håller på i är ett arbetsbord och börjar till
-   * vänster.
-   *
-   * VÄLJAREN, och varför den ser ut så här. Tre villkor, alla nödvändiga:
-   *
-   *     :not(:focus-within)          fokus vänsterställer omedelbart
-   *     :has(input:placeholder-shown) tomt fält, alltså inget skrivet
-   *     :has(.chippar:empty)          inget valt område
-   *
-   * Sista villkoret testar CHIPPARNAS BEHÅLLARE och inte chippen själva, och
-   * det är inte en omskrivning för elegans. Chippen byggs med createElement
-   * och bär därför inget Astro-scope, alltså hade `:has(.chip)` kompilerats
-   * till `:has(.chip[data-astro-...])` och aldrig matchat något. Behållaren
-   * står i mallen, har scopet, och `:empty` är sant exakt när den saknar
-   * chip. Samma fälla som förslagsraderna gick i.
-   *
-   * Ingen övergång på justify-content, eftersom det inte finns någon. Bytet
-   * sker i samma ögonblick som fokus, precis som hos dem.
+   * Han har rätt i sak. Boolis fält är sidans ENDA ingång. Vårt står under en
+   * kategorirad i en kolumn som redan visar resultat, alltså är det ett
+   * verktyg bredvid innehållet och inte en startpunkt.
    */
-  .filterfalt:not(:focus-within):has(input:placeholder-shown):has(.chippar:empty) {
-    justify-content: center;
-  }
-
-  /* Textfältet får inte SUGA UPP bredden i det centrerade läget. `flex: 1`
-     nedan gör inputen 208 px bred oavsett innehåll, och då står luppen och
-     platshållaren kvar till vänster inuti en centrerad men fullbred rad. I
-     tomläget krymper fältet därför till sitt innehåll. */
-  .filterfalt:not(:focus-within):has(input:placeholder-shown):has(.chippar:empty) input {
-    flex: 0 1 auto;
-    width: auto;
-    text-align: center;
-  }
 
   .filterfalt:focus-within {
     border-color: var(--brand);
-    background: var(--card);
-    /* Deras shadow-m, i vår skala. Skuggan gör att den fokuserade rutan lyfts
-       ur kolumnen i stället för att bara byta ramfärg, vilket är svårt att se
-       på en ljus yta. */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .10);
+    box-shadow: var(--shadow-sm);
   }
 
   /* Ringen på pillret, inte på fältet, av samma skäl som i SiteSearch: en
@@ -4455,12 +4944,28 @@ const LEGEND = [
     outline-offset: 2px;
   }
 
+  /*
+   * Luppen i högerkanten, i sidhuvudsknappens mått och inte i dess färg.
+   *
+   * 38 x 38 med 3 px luft, alltså exakt .go i SiteSearch. Fyllningen är
+   * --canvas och inte --brand: motiveringen står i sin helhet vid markupen.
+   * Ikonen 18 px, Boolis mått.
+   *
+   * `margin-left: auto` och inte `order`: när chippen bryter raden ska luppen
+   * följa med textfältet och inte bli ensam kvar på den övre raden.
+   */
   .filterfalt .lupp {
-    width: 16px;
-    height: 16px;
+    display: grid;
+    place-items: center;
     flex: none;
-    color: var(--text-muted);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-pill);
+    background: var(--canvas);
+    color: var(--text-secondary);
   }
+
+  .filterfalt .lupp svg { width: 18px; height: 18px; }
 
   /* Minst 208 px kvar åt texten, Boolis tal. Under det är fältet inte längre
      något man skriver i utan en chipbehållare med en sladd efter sig, och
@@ -4468,7 +4973,10 @@ const LEGEND = [
   .filterfalt input {
     flex: 1 1 208px;
     min-width: 0;
-    height: 28px;
+    /* 38 och inte 28: sidhuvudets input är `height: 100%` i ett fält på 44
+       med 3 px luft, alltså 38, och luppen bredvid är 38. Tre höjder i samma
+       rad hade gett en textrad som satt en pixel snett mot ikonen. */
+    height: 38px;
     padding: 0;
     border: 0;
     background: none;
@@ -4678,7 +5186,21 @@ const LEGEND = [
   }
 
   .sortknapp:hover { border-color: var(--text-muted); }
-  .sortknapp svg { width: 14px; height: 14px; flex: none; }
+
+  /*
+   * PILEN I MÄRKESFÄRG.
+   *
+   * Boolis pil är rgb(255,97,13), uppmätt 2026-08-26, alltså deras orange.
+   * Den är det enda färgade i hela deras vänsterkolumn ovanför listan och det
+   * är det som gör att ögat hittar knappen utan att leta. Vår låg i --text,
+   * alltså samma bläck som allt annat, och knappen försvann i raden.
+   *
+   * --brand och inte orange: färgen är ett märkesval hos dem och ska vara ett
+   * märkesval hos oss. Bara pilen och inte texten, precis som hos dem: det
+   * VALDA alternativet är det man ska läsa, och en hel knapp i blått hade
+   * läst som en handling.
+   */
+  .sortknapp svg { width: 14px; height: 14px; flex: none; color: var(--brand); }
   .sortknapp[aria-expanded='true'] svg { transform: rotate(180deg); }
 
   /*
@@ -4695,22 +5217,73 @@ const LEGEND = [
    * inte nå spaltens vänstra kant, och kolumnen rullar lodrätt utan att
    * klippa.
    */
+  /*
+   * ══ MENYNS MÅTT, RAD FÖR RAD MOT BOOLI ═════════════════════════════════
+   *
+   * Uppmätt på deras öppnade meny 2026-08-26, och vad vi hade mot varje tal:
+   *
+   *     panelen    256 bred            hade 220            ✗
+   *                14 alternativ       har 3               (se förbudet)
+   *                ram 1px #CCCCCC     hade --hairline      ~
+   *                radie 6             hade --r-card, 12    ~
+   *                skugga 0 2px 8px    hade --shadow-pop    ✗
+   *                  rgba(0,0,0,.05)     med 0 8px 30px .12
+   *                overflow hidden     hade ingen           ✗
+   *                ingen innerkant     hade 4 px            ✗
+   *                högerkant i         hade det             ✓
+   *                  kolumnens 664
+   *     raderna    41 px med 1px       hade 36 utan         ✗
+   *                  hårlinje #CCCCCC    hårlinje
+   *                hela radens bredd   hade 4 px indrag     ✗
+   *                hovring ljusgrå     hade --canvas        ✓
+   *     texten     16/400              hade 14/400          BEHÅLLS, se nedan
+   *                valt i 600          hade det             ✓
+   *     bocken     14 x 10, grön       hade 14 x 14         ✓ i vår färg
+   *                högerkant 651,      hade det             ✓
+   *                  alltså 12 in
+   *
+   * BREDDEN. 256 rakt av. Vår längsta etikett är "Senast kontrollerad" och
+   * knappen bär det valda namnet; på 220 låg texten 8 px från bocken.
+   *
+   * RADHÖJDEN OCH HÅRLINJERNA. 40 plus en avdelare är 41, exakt som
+   * förslagslistan ovanför redan gör, och av samma skäl: en meny utan linjer
+   * är en textmassa med luft emellan. Innerkanten tas bort och raden går kant
+   * i kant, annars kan avdelaren inte nå ut till ramen.
+   *
+   * TECKENGRADEN BEHÅLLS PÅ 14. Booli kör 16 här och 14 i sin förslagslista,
+   * alltså två grader i två listrutor som hänger i samma kolumn. Det är en
+   * inkonsekvens hos dem och inte ett mått värt att kopiera: vår knapp är 14,
+   * förslagsraderna är 14, och hela listkolumnen är 14.
+   *
+   * SKUGGAN. Deras är nästan osynlig och bärs av en mörk ram. Vår ram är
+   * --hairline och behöver ringen i --shadow-pop för att panelen ska lyfta;
+   * fallet dämpas däremot till deras storleksordning, för menyn är öppen i
+   * under en sekund och ska inte kasta samma skugga som förslagslistan man
+   * skriver i.
+   */
   .sortmeny {
     position: absolute;
     right: 0;
     top: calc(100% + 4px);
     z-index: 5;
-    width: 220px;
+    width: 256px;
+    /* På 375 px är kolumnen 343 bred och menyn 256, alltså ryms den innanför
+       högerkanten. Taket finns ändå: en fjärde sorteringsnyckel med ett långt
+       namn får aldrig skjuta menyn utanför skärmen. */
+    max-width: calc(100vw - 2 * var(--kartgutter, 16px));
     list-style: none;
     margin: 0;
-    padding: var(--s-1);
+    padding: 0;
     border: 1px solid var(--hairline);
     border-radius: var(--r-card);
     background: var(--card);
-    box-shadow: var(--shadow-pop);
+    box-shadow: 0 0 0 1px var(--hairline), 0 2px 8px rgba(0, 0, 0, .08);
+    overflow: hidden;
   }
 
   .sortmeny[hidden] { display: none; }
+
+  .sortmeny li + li { border-top: 1px solid var(--hairline); }
 
   .sortmeny button {
     display: flex;
@@ -4718,10 +5291,9 @@ const LEGEND = [
     justify-content: space-between;
     gap: var(--s-2);
     width: 100%;
-    height: 36px;
-    padding-inline: var(--s-2);
+    height: 40px;
+    padding-inline: var(--s-3);
     border: 0;
-    border-radius: var(--r-control);
     background: none;
     font: 400 var(--fs-body-s) / 1 var(--font-sans);
     color: var(--text);
@@ -4746,22 +5318,32 @@ const LEGEND = [
      eftersom de två har olika betydelse och kommer att glida isär: kategorin
      filtrerar, området skuggar. */
   /*
-   * Chippen i fältet. Boolis mått, uppmätta på deras levande sida 2026-08-25:
+   * ══ CHIPPEN I FÄLTET ═══════════════════════════════════════════════════
    *
-   *     bakgrund   #FAFAFA
-   *     radie      4
-   *     ram        ingen
-   *     padding    4 0 4 6
-   *     höjd       27
-   *     text       14 px, radhöjd 18,9
-   *     skugga     0 1px 4px #0000001a
-   *     kryss      22 x 18 med en 10 x 10 ikon
-   *     li-marginal 4 runt om
+   * Boolis mått, uppmätta på deras levande sida 2026-08-25: bakgrund #FAFAFA,
+   * radie 4, INGEN ram, padding 4 0 4 6, höjd 27, text 14/18,9, skugga
+   * 0 1px 4px #0000001a, kryss 22 x 18 med en 10 x 10 ikon.
    *
-   * Ingen ram OCH en skugga är ovanligt och avsiktligt hos dem: chippet ligger
-   * PÅ fältets grå yta, och en ram hade gett två linjer nära varandra.
-   * Skuggan lyfter i stället chippet en aning ur ytan. Vi tar det rakt av,
-   * eftersom vårt fält numera har samma grå yta.
+   * MÅTTEN ÄR KVAR, FÄRGERNA ÄR BYTTA, och skälet är att underlaget bytt.
+   * Deras chip ligger PÅ en grå fyllning: därför är det vitt, därför saknar
+   * det ram, och därför lyfter en skugga det ur ytan. Vårt fält är sedan
+   * 2026-08-26 vitt, sidhuvudets piller, se .filterfalt ovan. Ett vitt chip
+   * med en svag skugga på en vit yta är inte ett chip, det är en text med
+   * suddiga kanter.
+   *
+   * Förhållandet vänds därför: TONAD yta och en hårlinje, ingen skugga. Det
+   * är samma grepp som chippet nu ligger inuti, alltså --canvas mot --card
+   * med --hairline emellan, och det är också formen sajtens egna brickor har
+   * i Verksamhetskort och i kontosidornas rader.
+   *
+   * RADIEN. Boolis 4 finns inte i vår skala och fältet runt är numera ett
+   * piller. --r-control, alltså 10, på en yta som är 27 hög läser som ett
+   * mjukt rektangulärt chip och inte som ett andra piller inuti det första.
+   *
+   * TRÄFFYTAN. Kryssknappen är ritad 22 x 18 och måste ändå nå --h-tap. Ett
+   * genomskinligt ::after tar de 44 pixlarna utan att flytta något, samma
+   * grepp som .go och .palette-hint i SiteSearch och kartknapparna i
+   * kartram.css.
    */
   .chippar {
     display: contents;
@@ -4773,16 +5355,28 @@ const LEGEND = [
     flex: none;
     gap: 2px;
     height: 27px;
-    padding: 4px 0 4px 6px;
+    padding: 4px 0 4px 8px;
+    border: 1px solid var(--hairline);
     border-radius: var(--r-control);
-    background: var(--card);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .1);
+    background: var(--canvas);
     font-size: var(--fs-body-s);
     line-height: 1.35;
     white-space: nowrap;
+    /* Chippet får inte bli bredare än fältet på 375 px, där det finns 343
+       minus luppens 38 och innerkanten. "Hässelby Villastad, Stockholm" är
+       196 px och ryms; ett längre namn klipps i sin egen ände i stället för
+       att spränga raden. */
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .filterfalt :global(.chip > span:first-child) {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .filterfalt :global(.chip-bort) {
+    position: relative;
     display: grid;
     place-items: center;
     width: 22px;
@@ -4792,6 +5386,18 @@ const LEGEND = [
     background: none;
     color: var(--text-secondary);
     cursor: pointer;
+  }
+
+  /* Träffytan, --h-tap i båda riktningar, genomskinlig och centrerad över
+     den ritade knappen. Se noten ovan. */
+  .filterfalt :global(.chip-bort::after) {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--h-tap);
+    height: var(--h-tap);
+    transform: translate(-50%, -50%);
   }
 
   .filterfalt :global(.chip-bort:hover) { color: var(--text); }
@@ -4848,15 +5454,31 @@ const LEGEND = [
     list-style: none;
     margin: var(--s-4) 0 0;
     padding: 0;
-    border: 1px solid rgba(0, 0, 0, .2);
-    border-radius: var(--r-control);
+    /*
+     * RAMEN OCH RADIEN FÖLJER FÄLTET, inte Boolis ruta.
+     *
+     * Boolis lista har ram #CCCCCC och radie 6 under ett fält med radie 4.
+     * Vårt fält är sedan 2026-08-26 sidhuvudets piller, se .filterfalt, och
+     * en fyrkant med en annan ram under ett piller läser som två element som
+     * inte hör ihop. --r-card, alltså 12, är sajtens rundning för en yta som
+     * ligger ovanpå en annan, och den är också det närmaste ett piller en
+     * rektangel kan komma utan att bli en tablett.
+     *
+     * Ramen tas ur --hairline plus ringen i --shadow-pop, alltså samma recept
+     * som varje annan panel på sajten, i stället för Boolis rgba(0,0,0,.2).
+     * Den mörka ramen fanns för att hålla emot en tung skugga; med sajtens
+     * egen ring behövs den inte, och två olika grå på samma kant är precis
+     * den suddighet ändringen skulle bort från.
+     */
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-card);
     background: var(--card);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, .12);
+    box-shadow: var(--shadow-pop);
     overflow: hidden;
   }
 
   .forslag[hidden] { display: none; }
-  .forslag :global(li + li) { border-top: 1px solid rgba(0, 0, 0, .2); }
+  .forslag :global(li + li) { border-top: 1px solid var(--hairline); }
 
   /* 40 och inte 41. Boolis rad MÄTER 41 med sin avdelare inräknad, och den
      sista mäter 40 eftersom den inte har någon. Vår 41 plus avdelaren gav 42,
@@ -4880,15 +5502,34 @@ const LEGEND = [
   .forslag :global(button:hover) { background: var(--canvas); }
 
   /*
-   * DET MATCHADE STÄLLET I VIKT 600.
+   * DEN FÖRVALDA RADEN, alltså den Enter tar.
    *
-   * Den lilla saken som gör hela skillnaden ägaren pekar på: fetstilen säger
-   * VARFÖR raden föreslås. Utan den är nio rader nio gissningar, och det är
-   * exakt vad "ser ut som ngn basic variant" beskriver.
+   * Boolis lista har en ljusgrå bakgrund på första raden i samma sekund den
+   * öppnar, uppmätt 2026-08-26: rgb(240,240,240) mot genomskinligt på de åtta
+   * andra. Vi hade ingen markering alls, alltså var nio rader nio rader utan
+   * besked om vad Enter skulle göra.
+   *
+   * --canvas och inte deras #F0F0F0. Den grå är Boolis fältfyllning och därmed
+   * en färg som inte längre finns hos oss, se noten i tokens.css. --canvas är
+   * sajtens egen tonade yta och samma ton som hovringen ovan, vilket är rätt:
+   * markeringen och hovringen betyder samma sak, "det här händer om du
+   * fortsätter", och två toner för samma besked hade sagt att de skiljer sig.
    *
    * :global, eftersom raderna byggs med createElement och därför inte bär
-   * något Astro-scope. Fällan har slagit till fyra gånger i den här filen,
-   * senast på .chip.
+   * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
+   */
+  .forslag :global(button.vald) { background: var(--canvas); }
+
+  /*
+   * HELA NAMNET I VIKT 600, ledet efter kommatecknet i 400.
+   *
+   * Här stod Boolis prefixfetstil, alltså att bara de tecken man skrivit blev
+   * feta. Ägaren 2026-08-26: "östermalm blir bara fetstilat för jag skrev
+   * det... som att liksom, 'du skrev detta'". Se den långa noten i skriptet
+   * där `vikMedKarta` låg.
+   *
+   * :global, eftersom raderna byggs med createElement och därför inte bär
+   * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
    */
   .forslag :global(b) { font-weight: 600; }
 
@@ -5030,55 +5671,231 @@ const LEGEND = [
   .rader :global(li:last-child) { border-bottom: 0; }
 
   /*
-   * Radens anatomi, Boolis ordagrant, med märket där deras foto ligger.
+   * ══ RADENS ANATOMI ═════════════════════════════════════════════════════
    *
-   * Deras rad är två spalter: bilden 308 px till vänster, texten till höger,
-   * och texten är fem våningar med olika vikt och färg. Rubriken 16/400,
-   * en grå förklarande rad, PRISET i 16/600, faktaraden och datumet.
+   * Ägaren har sagt samma sak tre gånger: "korten på vänstersidan ser också
+   * sämst ut", "korten är sjukt ful, jag tom stör mig på dem", "sökkorten
+   * måste se bättre ut". Två svar med typografi räckte inte, och mätningen
+   * säger varför.
    *
-   * Vår motsvarighet, uppmätt före ändringen: en 28 px ikon bredvid ett
-   * namn i 14/600, och sedan två grå rader i 13 px varav den sista bar både
-   * bedömning och datum med en punkt emellan. Ägaren: "korten på
-   * vänstersidan ser också sämst ut." Tre saker gjorde det:
+   * UPPMÄTT FÖRE, på det byggda bygget vid 1440 px, sextio rader i Stockholm:
    *
-   *   1. ALLT UTOM NAMNET VAR GRÅTT och lika stort, alltså fanns ingen
-   *      andra våning. Boolis pris är radens andra ankare och det som ögat
-   *      landar på efter rubriken. Vår motsvarighet till priset är
-   *      BEDÖMNINGEN, och den låg hopklämd med datumet i den svagaste raden
-   *      på hela kortet.
-   *   2. Märket var 28 px och stod på samma rad som namnet, alltså läste
-   *      det som en punktlista och inte som ett kort.
-   *   3. Fjorton pixlar i vikt 600 är mindre OCH fetare än Boolis 16 i vikt
-   *      400, vilket är den kombination som får en lista att läsa som en
-   *      tabell.
+   *     raden          688 x 82
+   *     bläckets andel av bredden   44,2 % i medel, 33,5 som minst
+   *     tomrum mitt i raden         210,8 px på den första raden
    *
-   * Nu: märket 40 px i egen spalt hela radens höjd, som deras bild, och
-   * texten i fyra våningar där bedömningen bär sin egen färg.
+   * Fyra korta textrader vänsterställda i ett hav av vitt läser som en
+   * ofärdig sida, och det är det ögat reagerar på långt innan man kan peka på
+   * vad som är fel.
+   *
+   * BOOLIS RAD, uppmätt 2026-08-26 vid samma kolumnbredd som vår:
+   *
+   *     li             688 x 227, innerkant 24
+   *     kortet         640 x 178
+   *     bilden         308 x 172 till vänster, radie 6
+   *     platshållaren  samma 308 x 172, #F8F0E8, med en ritad kamera 89 x 68
+   *     texten         från x 356, sex våningar i fyra vikter
+   *
+   * DERAS KORT ÄR ALDRIG TOMT. Saknas foto ritas platshållaren, och den är
+   * exakt lika stor. Det är hela knepet: raden är full oavsett vad datan
+   * innehåller.
+   *
+   * ══ VÅRA FYRA VILLKOR OCH HUR VART OCH ETT UPPFYLLS ═════════════════════
+   *
+   * 1. RADEN SKA VARA FULL, minst 80 procent av bredden.
+   *
+   *    BILDENS BREDD ÄR RÄKNAD BAKLÄNGES UR DET KRAVET och inte kopierad.
+   *    Kolumnen är 640 innanför innerkanterna, precis som deras. Med bilden på
+   *    B px täcker raden B, plus namnraden som i medel mäter omkring 150, plus
+   *    datumet som är högerställt mot 664 och mäter omkring 110.
+   *
+   *    Räkningen gav B >= 290 och Boolis eget tal är 308, så 308 provades
+   *    först. UPPMÄTT PÅ SEXTIO RIKTIGA RADER i Stockholm blev fyllnaden då
+   *    79,7 procent i medel, alltså tre tiondelar under golvet: medelnamnet är
+   *    kortare än räkningens 150. Bredden höjdes tills det MÄTTA medlet klarade
+   *    kravet med marginal:
+   *
+   *        308 -> 79,7 %      328 -> 82,3 %
+   *        316 -> 80,7 %      336 -> 83,3 %
+   *        320 -> 81,3 %
+   *
+   *    320 är valt. Ett tal över det köper en procent till för varje åtta
+   *    pixlar som tas från namnet, och namnet är radens första våning.
+   *
+   *    BILDENS HÖJD ÄR DÄREMOT INTE DERAS. 172 bär sex textvåningar. Vi har
+   *    fyra, alltså 172 x 4/6 = 115, avrundat till 116. Raden blir 116 + 48 i
+   *    innerkant = 164, mot Boolis 227. Att ta 172 rakt av hade gett en rad på
+   *    220 med 100 px luft under texten, alltså luftig och inte full.
+   *
+   * 2. EXAKT ETT VISUELLT ANKARE. Märket låg i en egen 40 px spalt BREDVID
+   *    texten, alltså hade raden fått två ankare i samma sekund bildytan kom
+   *    in. Det ligger nu i bildytans nedre vänstra hörn, 12 px från kanten,
+   *    exakt där Boolis svarta etikett "Snart till salu" sitter.
+   *
+   * 3. FYRA VÅNINGAR MED FYRA OLIKA VIKTER ELLER FÄRGER:
+   *
+   *        namnet        17 / 500, --text
+   *        typen         14 / 400, --text-secondary
+   *        BEDÖMNINGEN   17 / 600, bedömningens egen bläckfärg
+   *        faktaraden    13 / 400, --text-muted
+   *
+   *    Det ursprungliga felet var att allt utom namnet var grått OCH lika
+   *    stort, alltså fanns ingen andra våning. Vår motsvarighet till Boolis
+   *    pris är bedömningen, och den bär nu radens andra tyngdpunkt.
+   *
+   * 4. BEDÖMNINGEN SKA GÅ ATT LÄSA UTAN ATT LÄSA. Märket i bildens hörn bär
+   *    färgen och ansiktet på samma plats i varje rad, alltså ser den som
+   *    skummar tio rader mönstret innan hen läst ett enda namn.
+   *
+   * ETT FÄLT TILLAGT OCH INTE FLER: antalet kontroller. Det säger hur mycket
+   * bedömningen ovanför vilar på, och det låg redan i rutan som `k`. Öppettider
+   * står på 2 747 av 16 047 och michelinstjärnan på tio, alltså hade båda varit
+   * en rad som är tom i nio fall av tio. Kedjetillhörigheten säger ingenting om
+   * den här verksamheten.
+   *
+   * INGEN RAM, INGEN RADIE OCH INGEN SKUGGA PÅ RADEN. Listan är en rulle med
+   * en hårlinje emellan, det är mätt mot Booli och beslutat, och inramade kort
+   * är det ägaren avvisade allra först.
+   */
+  /*
+   * ══ RADEN HAR TVÅ FORMER, OCH BRYTPUNKTEN ÄR KOLUMNENS ═════════════════
+   *
+   * Grundformen är den KOMPAKTA: en bildyta på 104 x 78 bredvid texten. Den
+   * breda formen, 320 x 116, ligger i @media (min-width: 1280px) längre ned.
+   *
+   * TALET 1280 ÄR INTE VALT FÖR FÖNSTRET UTAN FÖR KOLUMNEN. `--kartlista` är
+   * 400 px från 900, 512 från 1120 och 688 först från 1280, se .split ovan.
+   * Bilden på 320 är räknad mot en kolumn på 688, alltså mot ett innehåll på
+   * 640. I en kolumn på 400 lämnar samma bild 16 px åt texten.
+   *
+   * Uppmätt 2026-08-27 vid 1024 px innan regeln fanns: raden var 400 bred och
+   * bildytan 320 av dem. Det är precis den sortens sönderfall vid brytpunktens
+   * kant som ingen märker förrän någon står på just den bredden.
+   *
+   * Formen följer alltså kolumnen och inte fönstret, och de två breddar som
+   * ligger emellan, 400 och 512, får den kompakta raden som är gjord för en
+   * smal spalt.
    */
   .rader :global(a) {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr);
-    column-gap: var(--s-4);
+    /* Två spalter, som Boolis. Bilden är fast, texten tar resten. Den tredje
+       spalten med bedömningen är borta: bedömningen är numera radens tredje
+       textvåning och datumet är högerställt i den fjärde, alltså når raden
+       högerkanten utan en egen spalt för det. */
+    grid-template-columns: 104px minmax(0, 1fr);
+    column-gap: var(--s-3);
+    /* start och inte center: i den kompakta formen är bilden LÄGRE än texten,
+       tvärtom mot den breda, och en centrerad bild hade flutit mitt i en
+       textspalt. */
     align-items: start;
-    /* 24 px in från kanten OCH uppifrån, Boolis tal rakt av. Raden äger hela
-       luften själv, eftersom listkolumnen numera börjar vid fönstrets
-       vänsterkant. */
-    padding: var(--s-4) var(--kartgutter);
+    padding: var(--s-3) var(--kartgutter);
     color: var(--text);
   }
 
-  .rader :global(svg.face) {
-    grid-row: 1 / -1;
-    flex: none;
-    /* En pixel ned, så att märkets mitt hamnar mot namnets mitt och inte mot
-       dess överkant. Rent optiskt, inte räknat. */
-    margin-top: 1px;
+  /*
+   * ══ BILDYTAN ═══════════════════════════════════════════════════════════
+   *
+   * Aldrig tom. Ligger det ett foto i objektlagringen läggs det ovanpå;
+   * annars står den ritade platshållaren kvar. Ritningen är en BAKGRUND i CSS
+   * och inte ett element i markupen, och det är ett medvetet val: raden byggs
+   * i två former, en på servern och en med createElement, och varje element
+   * som finns i den ena och inte i den andra är ett hopp när kartan vaknar.
+   * En bakgrund kan inte glida isär.
+   *
+   * TONEN ÄR --bild-tom OCH INTE --bild-platshallare, och de två får inte
+   * blandas ihop trots att de har samma värde i dag. --bild-platshallare är
+   * ytan man ser INNAN ett foto landar; --bild-tom är ytan för en verksamhet
+   * som inte HAR något foto, vilket är fallet för 15 681 av 16 047. Läs
+   * skillnaden vid tokenen i tokens.css. Ytan är dessutom ägarens öppna beslut
+   * mellan den kalla grå och en varm sand, se brand/_prov-bildyta.html, och
+   * genom att läsa tokenet följer varje listrad med den dagen han väljer.
+   *
+   * Boolis egen är en varm #F8F0E8 med en ritad kamera, uppmätt 2026-08-26.
+   *
+   * BLÄCKET I RITNINGEN ÄR HÅRDKODAT till #C3C3C8, alltså värdet i
+   * --bild-tom-blck. En data-URI kan inte läsa en CSS-variabel. Ändras tokenet
+   * ska raden nedan ändras samma dag.
+   *
+   * MOTIVET ÄR SAJTENS EGET OCH RITAS INTE EN ANDRA GÅNG. Kameran, alltså
+   * Boolis eget föremål i vår streckritning, är vald och provrenderad i
+   * Bildyta.astro och brand/_prov-bildyta.html. De fyra banorna nedan är
+   * KOPIERADE därifrån, tecken för tecken, och måste ändras i båda filerna
+   * samtidigt. Att listraden inte kan använda komponenten står strax nedan.
+   *
+   * Ett föremål ur matvärlden hade påstått något om verksamheten, och raden
+   * gäller lika ofta ett skolkök som en pizzeria.
+   *
+   * ══ VARFÖR INTE Bildyta.astro HÄR ═══════════════════════════════════════
+   *
+   * Komponenten finns och är den rätta ytan på varje sida som renderas på
+   * servern. Den här listan renderas i TVÅ former, en på servern och en med
+   * createElement när kartan byter ut raderna, och en Astro-komponent kan
+   * bara den första. Två former som ritar samma yta på två sätt är precis det
+   * hopp raden i övrigt är byggd för att undvika, se noten över <ol>.
+   *
+   * Ytan hämtar därför sina två TOKEN ur samma ställe som komponenten och
+   * kopierar motivet. Går de isär är det den här kommentaren som ska ha
+   * sagt varför.
+   *
+   * MASKOTEN FÅR ALDRIG STÅ HÄR. Det är sajtens hårdaste regel, docs/24 §2:
+   * Benny får inte stå bredvid en bedömning av en namngiven verksamhet, och
+   * varje rad i den här listan bär både ett namn och en bedömning.
+   */
+  .rader :global(.k-bild) {
+    position: relative;
+    display: block;
+    width: 104px;
+    height: 78px;
+    border-radius: var(--r-control);
+    overflow: hidden;
+    background-color: var(--bild-tom);
+    background-repeat: no-repeat;
+    background-position: center;
+    /* 42 procent av ytans HÖJD, alltså Bildytas ANDEL rakt av, och en andel
+       i stället för två fasta tal: motivet skalar då med båda radformerna av
+       sig självt. 0,42 av 116 är 49, av 78 är 33. Talet är provrenderat av
+       Bildyta i 0,34, 0,42, 0,50 och 0,58 med bedömningsmärket på plats. */
+    background-size: auto 42%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C3C3C8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.8 7.6h14.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'/%3E%3Cpath d='M8.6 7.6l1.5-2.3h3.8l1.5 2.3'/%3E%3Cpath d='M15.5 13.6a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0'/%3E%3Cpath d='M6 10.9h.01'/%3E%3C/svg%3E");
+  }
+
+  .rader :global(.k-bild img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Bilden kan vara i vilket format som helst; ytan är alltid 320 x 116 och
+       det är ytan raden räknar med. */
+    display: block;
+  }
+
+  /*
+   * Märket i bildens nedre vänstra hörn, 12 px från båda kanterna. Boolis
+   * etikett "Snart till salu" ligger på exakt de talen, uppmätt.
+   *
+   * Absolut och ovanpå bilden, alltså syns det även när ett riktigt foto
+   * landat. En vit ring runt om så att ett grönt ansikte mot en grön fasad
+   * inte försvinner: fotografiet är okänt och märket måste hålla i alla.
+   */
+  .rader :global(.k-bild svg.face) {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-control);
+    box-shadow: 0 0 0 2px var(--card), 0 1px 3px rgba(0, 0, 0, .25);
   }
 
   .rader :global(.k-text) {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    /* Fyra våningar med Boolis luft mellan blocken, nedskalad: deras 18 px
+       mellan sex rader i 172 blir 4 mellan fyra rader i 116, annars spränger
+       texten bildytan den ska stå jämnhög med. */
+    gap: 4px;
   }
 
   /* Boolis hovring, ordagrant: rubriken stryks under och ingenting annat
@@ -5092,8 +5909,8 @@ const LEGEND = [
      eftersom vårt namn står bredvid ett märke och inte över en bild: utan
      bilden är namnet radens enda ankare. */
   .rader :global(b) {
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5110,30 +5927,111 @@ const LEGEND = [
   }
 
   /*
-   * Bedömningen, radens andra ankare. Boolis pris sitter på samma plats i
-   * ordningen och bär samma vikt.
+   * Bedömningen, radens andra ankare och tredje våning. Boolis pris sitter på
+   * samma plats i ordningen och bär samma vikt.
    *
-   * FÄRGEN ÄR TEXTFÄRGEN ur tokens.css och inte nålens. Gult som text på
-   * vitt är i praktiken oläsligt, se kommentaren vid KART_FARG i
-   * lib/kartbas.ts, och det är precis därför --verdict-*-ink finns. Den gula
-   * bläckfärgen är ändå för ljus för en textrad i 15 px, så anmärkningsraden
-   * får sajtens vanliga textfärg: bedömningen syns redan i märket bredvid,
-   * och en rad som inte går att läsa är sämre än en rad utan färg.
+   * 17 px i vikt 600 och inte 14: den ska ha samma tyngd som namnet ovanför,
+   * annars är den bara ännu en grå rad. Priset hos dem är 16/600 mot en
+   * rubrik i 16/400, alltså är bedömningen hos oss till och med tyngre i
+   * förhållande till namnet än priset är hos dem. Det är rätt: hela sajten
+   * finns för bedömningen.
+   *
+   * FÄRGEN ÄR TEXTFÄRGEN ur tokens.css och inte nålens. Gult som text på vitt
+   * är i praktiken oläsligt, se kommentaren vid KART_FARG i lib/kartbas.ts,
+   * och det är precis därför --verdict-*-ink finns. Den gula bläckfärgen är
+   * ändå för ljus, så anmärkningsraden får sajtens vanliga textfärg:
+   * bedömningen syns redan i märket i bildens hörn, och en rad som inte går
+   * att läsa är sämre än en rad utan färg.
    */
   .rader :global(.k-dom) {
-    margin-top: var(--s-2);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
     color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rader :global(.k-dom[data-v='clean']) { color: var(--verdict-clean-ink); }
   .rader :global(.k-dom[data-v='major']) { color: var(--verdict-major-ink); }
 
-  .rader :global(.k-datum) {
+  /*
+   * FAKTARADEN, radens fjärde våning och den som når högerkanten.
+   *
+   * Boolis motsvarighet är "91,5 m² 3 rum vån 3 7 039 kr/mån" med
+   * mäklarloggan högerställd i samma rad. Hos oss står antalet kontroller till
+   * vänster och datumet till höger.
+   *
+   * DATUMET TILL HÖGER ÄR INTE DEKORATION. Före ändringen slutade allt
+   * innehåll mitt i raden och 210,8 px stod tomma, se noten över .rader a.
+   * En högerställd sista uppgift binder ihop radens två kanter, och den är
+   * dessutom den enda uppgiften man jämför lodrätt mellan rader.
+   *
+   * `gap` och `justify-content` och inte `float`: klipps namnet på smal skärm
+   * ska de två ändå aldrig krocka.
+   */
+  .rader :global(.k-fakta) {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
+  }
+
+  .rader :global(.k-fakta > span) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rader :global(.k-datum) { flex: none; }
+
+  /*
+   * ══ DEN BREDA RADEN, FRÅN 1280 ═════════════════════════════════════════
+   *
+   * Talet är kolumnens och inte fönstrets, se noten över .rader a: först vid
+   * 1280 är `--kartlista` 688 px, alltså 640 innanför innerkanterna, och det
+   * är den bredd bildens 320 är uträknade mot.
+   *
+   * Här ligger allt som skiljer den breda formen från grundformen, och
+   * ingenting annat.
+   */
+  @media (min-width: 1280px) {
+    .rader :global(a) {
+      grid-template-columns: 320px minmax(0, 1fr);
+      column-gap: var(--s-4);
+      /* center och inte start: här är bilden HÖGRE än texten, alltså ska
+         texten stå mitt i bildens höjd. */
+      align-items: center;
+      /* 24 px in från kanten OCH uppifrån, Boolis tal rakt av. */
+      padding: var(--s-4) var(--kartgutter);
+    }
+
+    .rader :global(.k-bild) {
+      width: 320px;
+      height: 116px;
+    }
+
+    /* Märket 40 px och 12 px från kanterna, alltså Boolis etikettplacering.
+       I den kompakta rutan på 104 x 78 hade 40 px tagit en tredjedel av
+       bredden och halva höjden. */
+    .rader :global(.k-bild svg.face) {
+      left: 12px;
+      bottom: 12px;
+      width: 40px;
+      height: 40px;
+    }
+
+    /* Namnet och bedömningen upp ett steg. 17 px kräver en spalt på minst
+       300; i den kompakta formen är den 195 och klipper varannan rad. */
+    .rader :global(b),
+    .rader :global(.k-dom) {
+      font-size: var(--fs-body);
+      line-height: var(--lh-body);
+    }
   }
 
   /*
@@ -5148,9 +6046,29 @@ const LEGEND = [
    * raden har ingen ram att färga längre, och en ram som dyker upp vid
    * hovring hade knuffat texten en pixel.
    */
+  /*
+   * MARKERINGEN ÄR TYST OCH INTE BLÅ.
+   *
+   * Här stod en blå fyllning plus ett 3 px blått streck i vänsterkanten.
+   * Ägaren såg det som "något blir också lite blått i ngn sekund, som en
+   * äldre version", och den halva buggen är rättad i skriptet: klassen föll
+   * bort vid varje omritning. Men färgen var fel oavsett.
+   *
+   * Blått är sajtens märkesfärg och bär HANDLINGAR: sidhuvudets sökknapp,
+   * pilen på sorteringsknappen, fokusringen. En hovrad rad är ingen handling,
+   * den är en markering av var man är. Booli har ingen alls, och deras enda
+   * hovringseffekt på en listrad är att rubriken stryks under.
+   *
+   * Kopplingen rad till nål är ändå VÅR och behålls: den är det Booli inte
+   * har, och den är hela poängen med att kartan ligger bredvid listan. Den
+   * bärs nu av --canvas, alltså samma ton som förslagslistans hovring och
+   * dess förvalda rad, plus ett streck i --hairline. Strecket är kvar för att
+   * det säger VILKEN rad utan att lägga en färg på hela ytan, och tonen är
+   * densamma som allt annat "det här är raden du pekar på" på sajten.
+   */
   .rader :global(li.aktiv) {
-    background: var(--surface-hover, color-mix(in srgb, var(--brand) 6%, transparent));
-    box-shadow: inset 3px 0 0 var(--brand);
+    background: var(--canvas);
+    box-shadow: inset 3px 0 0 var(--tone-quiet);
   }
 
   .listfot {
@@ -5181,6 +6099,52 @@ const LEGEND = [
   .kartram {
     height: calc(100dvh - var(--s-8) - 56px);
     min-height: 440px;
+  }
+
+  /*
+   * TECKENFÖRKLARINGEN OCH MAPLIBRES KONTROLLER VÄNTAR PÅ KARTAN.
+   *
+   * Se noten vid `root.classList.add('live')` i skriptet: ramen och
+   * kontrollerna ritas i första bildrutan, kartbotten kommer först när stilen
+   * och de första rutorna hämtats, och under den sekunden förklarar
+   * teckenförklaringen färgerna på nålar som inte finns.
+   *
+   * Gäller i BÅDA lägena och ligger därför utanför brytpunkten. På bred skärm
+   * svävar rutan på kartan, i arket står den under den, och i inget av lägena
+   * ska den säga något om en yta som är tom.
+   *
+   * `visibility` och inte `display`: en yta som går från `none` till `flex`
+   * mäter om sig själv och allt under den hoppar, en som går från dold till
+   * synlig gör det inte. Elementen har alltså sina slutgiltiga positioner
+   * hela tiden och ingenting flyttar sig när kartan kommer.
+   *
+   * SJÄLVA DUKEN STÅR MED I LISTAN, och det är den mätning som avgjorde att
+   * ramens bakgrund inte räckte. MapLibres WebGL-duk är OGENOMSKINLIG: den
+   * målar vitt tills stilen ritats, alltså låg den som ett vitt lock över den
+   * kartfärg ramen just fått. Uppmätt 2026-08-27 genom att sätta ramen till
+   * rött med kartan halvladdad: ingen röd pixel syntes. Duken tonas därför in
+   * i samma rörelse som allt annat, och under tiden är det ramens #F2F1EC man
+   * ser, alltså exakt den färg duken själv målar en bråkdel senare.
+   */
+  .split:not(.live) .under,
+  .split:not(.live) .kartram :global(.maplibregl-canvas),
+  .split:not(.live) .kartram :global(.maplibregl-control-container) {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .split.live .under,
+  .split.live .kartram :global(.maplibregl-canvas),
+  .split.live .kartram :global(.maplibregl-control-container) {
+    transition: opacity 200ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .split.live .under,
+    .split.live .kartram :global(.maplibregl-canvas),
+    .split.live .kartram :global(.maplibregl-control-container) {
+      transition: none;
+    }
   }
 
   .duk { position: absolute; inset: 0; }
@@ -5582,6 +6546,41 @@ const LEGEND = [
      * inte förhandlingsbart.
      */
     .split.ark .filterfalt input { font-size: 16px; }
+
+    /*
+     * ══ RADEN I ARKET ══════════════════════════════════════════════════════
+     *
+     * HÄR LÅG DEN KOMPAKTA RADEN, och den ligger nu i grundformen i stället,
+     * se noten över .rader a. Skälet är att den behövs på fler bredder än
+     * arkets: listkolumnen är 400 px från 900 och 512 från 1120, alltså är den
+     * smal ända upp till 1280, och en regel som bara gällde under 900 lämnade
+     * de två breddarna med en bildyta som var bredare än sin egen spalt.
+     *
+     * TALEN SOM MOTIVERAR FORMEN HÖR ÄNDÅ HEMMA HÄR, för det är i arket det
+     * gör mest skillnad. Uppmätt vid 375 x 812:
+     *
+     *                          före          efter
+     *     arkets överkant      y 390         y 390
+     *     sökfältet            295 x 50      295 x 46
+     *     kategoriraden        y 488         y 484
+     *     resultatraden        y 573         y 569
+     *     första kortet        y 686         y 682
+     *     radens höjd          82            127
+     *     hela kort i remsan   1             1
+     *     hela kort utrullat   5             3
+     *     fyllnad              80,4 %        81,9 %
+     *
+     * Med skrivbordets bildyta, 320 x 116, hade raden blivit 164 hög och
+     * remsläget visat 0,7 rader, alltså en app-yta där man ser en halv
+     * verksamhet. Med 104 x 78 är raden 127 och remsan visar en hel rad plus
+     * en påbörjad, precis som före ändringen, medan det UTFÄLLDA arket, som är
+     * det läge man faktiskt läser listan i, visar tre.
+     *
+     * Fyllnadskravet på 80 procent binder inte här: i en spalt på 343 tar
+     * samma text nästan hela bredden ändå, och raden låg redan på 80,4 procent
+     * före ändringen. Bilden är här till för igenkänningen och inte för
+     * fyllnaden.
+     */
 
     /* ── Nålens kort på telefon ─────────────────────────────────────────── */
 
