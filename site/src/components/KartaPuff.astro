@@ -585,8 +585,24 @@ const href = path(`/${kommun.slug}`, 'karta');
     font-weight: 600;
   }
 
-  /* Smal skärm: kartan ligger ovanför listan, se ordningen i KommunHub.astro.
-     Där behöver den inte vara lika hög som i spalten bredvid listan. */
+  /* En spalt: kartan ligger ovanför listan, se ordningen i KommunHub.astro.
+     Där behöver den inte vara lika hög som i spalten bredvid listan, och den
+     är dessutom LIGGANDE i stället för stående: den fyller hela spaltbredden
+     och en stående ruta över hela bredden hade blivit en vägg framför
+     registret.
+
+     320 i det breda bandet är Hemnets mått. Deras områdessida lägger kartan
+     precis så, som ett band över träfflistan i spaltens hela bredd, uppmätt
+     till 980 × 320 på y=457 vid 1440 den 2026-08-26. Vår spalt är 823 till
+     946 px i bandet, alltså kvoten 2,6 till 3,0 mot deras 3,1.
+
+     200 på telefon står kvar oförändrat och är mätt: vid 375 blev rutan
+     336 × 200 och kartan syntes i första skärmen, med första verksamheten
+     kvar strax över en och en kvarts skärm. */
+  @media (max-width: 1023.98px) {
+    .kartram { height: 320px; }
+  }
+
   @media (max-width: 900px) {
     .kartram { height: 200px; }
   }

@@ -625,7 +625,30 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
      till registret, vilket är mer än Boolis 688.
 
      Spalten är sticky sedan tidigare och det är MÄTT att den fungerar: vid
-     y=1500, 4000 och 8000 låg panelen kvar med överkanten på 16. */
+     y=1500 och y=4000 låg kartan kvar med överkanten på 16, och vid y=8000
+     har listan tagit slut och panelen rullar ut med den.
+
+     TVÅ SPALTER FÖRST FRÅN 1024, inte från 901.
+     ──────────────────────────────────────────────────────────────────────
+     Kartspalten är ett fast tal medan registret är `1fr`, alltså betalar
+     registret hela smalnandet självt. Uppmätt på /oskarshamn/ den 2026-08-26,
+     med brytpunkten på 900:
+
+       1440    registret 912, kartan 400, 0 av 40 rader radbrutna
+       1024    registret 510, kartan 400, 2 av 40 radbrutna
+        960    registret 451, kartan 400, 11 av 40 radbrutna
+        901    registret 397, kartan 400, 26 av 40 radbrutna
+
+     På 901 var alltså kartan BREDARE än registret, och raderna växte från
+     79 till 106 px därför att namn, adress och datum inte längre fick plats.
+     Ett register på 397 px är telefonbredd, och att servera den på en skärm
+     som är 901 px bred är att låta kartan äta upp det man kom för.
+
+     Knät ligger vid ett register på omkring 500 px, alltså vid ett fönster på
+     1024. Under det går sidan till en spalt, och kartan blir ett liggande
+     band över listan i stället: samma grepp som Hemnets områdessida, som
+     lägger kartan som ett band på 980 × 320 ovanför träfflistan. Höjden bor i
+     KartaPuff.astro. */
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 400px;
@@ -849,18 +872,18 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     color: var(--text-secondary);
   }
 
-  /* ── Smal skärm ───────────────────────────────────────────────────────── */
+  /* ── En spalt ─────────────────────────────────────────────────────────── */
 
   /*
-   * Under 900 px blir sidan en spalt, och då är ordningen hela frågan.
+   * Under 1024 px blir sidan en spalt, och då är ordningen hela frågan.
    *
    * Den var: lista, karta, paneler. Kartan låg alltså hundra listrader ner,
    * i praktiken osynlig, och en svävande kartknapp i underkant fick bära
    * kartan i stället. Det var samma fel som ägaren pekade ut på skrivbordet:
    * kartan fanns som länk, inte som karta. Knappen är därför borta.
    *
-   * Den är nu: karta, lista, paneler. Kartan är 200 px hög här och står
-   * direkt under fördelningsraden, alltså syns den utan att bli en vägg
+   * Den är nu: karta, lista, paneler. Kartan är ett liggande band här och
+   * står direkt under fördelningsraden, alltså syns den utan att bli en vägg
    * framför registret. Panelerna står kvar EFTER listan: de bär källa och
    * färskhet, som hör hemma efter uppgifterna på en smal skärm.
    *
@@ -868,7 +891,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
    * Panelens barn blir egna flexbarn i .layout och kan ordnas var för sig,
    * så att kartan går före huvudspalten medan panelerna stannar efter den.
    */
-  @media (max-width: 900px) {
+  @media (max-width: 1023.98px) {
     .layout {
       display: flex;
       flex-direction: column;
@@ -884,8 +907,9 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     .side > :global(.panel) { order: 1; }
 
     /*
-     * `align-self: stretch` och `min-width: 0` är inte pynt. Utan dem rullar
-     * inte filterraden, den spränger sidan.
+     * `align-items: stretch` och `min-width: 0` är inte pynt. Utan det första
+     * får sidan tre olika högerkanter, och utan det andra rullar inte
+     * filterraden, den spränger sidan.
      *
      * .layout sätter `align-items: start` för rutnätet ovanför, och den
      * deklarationen följer med hit ner. I ett rutnät betyder den "toppställ
@@ -897,13 +921,30 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
      * fick vågrät rullning, och raden rullade inte alls eftersom den hade
      * fått all plats den bad om.
      *
-     * `align-self` och inte `align-items` på föräldern: kartpuffen och
-     * panelerna är också barn här, och deras bredd är inte det här ärendet.
+     * Här stod `align-self` på .main ensamt, med motiveringen att kartpuffens
+     * och panelernas bredd inte var det ärendet. Mätningen säger något annat.
+     * Vid 375 den 2026-08-26, med spalten på 343:
+     *
+     *              karta   "Senast kontrollerade"   .main   "Om uppgifterna"
+     *   Stockholm    336            280              343          343
+     *   Linköping    333            219              343          343
+     *   Oskarshamn   326            260              343          343
+     *
+     * Fyra block, tre olika högerkanter på en och samma telefonskärm: 352,
+     * 296 och 359 i Stockholm. De två som bar en synlig ruta, kartan och
+     * panelen, var de som stack ut mest, alltså syntes felet som mest där det
+     * fanns en kant att jämföra med.
+     * Sidan har ett eget krav på detta några rader upp: Booli har inte en
+     * enda avvikande vänsterkant på hela sin områdessida, och kravet gäller
+     * åt båda hållen. `align-items` på föräldern träffar varje barn en gång
+     * och kan inte glömmas bort när ett nytt block tillkommer.
      *
      * `min-width: 0` står kvar som andra spärr, alltså mot att innehållet
      * trycker ut spalten inifrån. Skrivbordsläget har den redan i form av
      * nollan i `minmax(0, 1fr)`.
      */
-    .main { order: 0; align-self: stretch; min-width: 0; }
+    .layout { align-items: stretch; }
+
+    .main { order: 0; min-width: 0; }
   }
 </style>
