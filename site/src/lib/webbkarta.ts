@@ -65,7 +65,6 @@ const ACCOUNT_PAGES = [
   'konto',
   'konto/granska',
   'konto/inloggad',
-  'konto/notiser',
   'konto/verksamhet',
   'sluta-bevaka',
 ];

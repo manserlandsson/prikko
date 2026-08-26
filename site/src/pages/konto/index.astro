@@ -56,9 +56,13 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 
         Randen och EN spalt, aldrig fem kort i en rulle. Vilket avsnitt som
         visas står i adressens fragment, så att webbläsarens bakåtknapp går
-        mellan flikarna och så att en länk kan peka på ett avsnitt. Notiser
-        är en länk och inte en flik, för den bor på en egen adress som
-        klockan i sidhuvudet pekar på. */}
+        mellan flikarna och så att en länk kan peka på ett avsnitt.
+
+        Notiser är en FLIK sedan 2026-08-26 och inte längre en egen sida.
+        Ägarens regel: en funktion får aldrig kosta en sida, sidor köps för
+        SEO. /konto/notiser/ var en egen adress för en enda lista på ett konto
+        som ändå kräver inloggning, alltså en sida ingen sökmotor får se och
+        ingen besökare vinner på. Adressen omdirigerar hit. */}
     <div id="account" hidden>
       <div class="konto-ram har-rand">
         <header class="konto-head">
@@ -67,7 +71,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 
         <nav class="konto-rand" id="rand" aria-label="Ditt konto">
           <a href="#bevakningar" data-sek="bevakningar" aria-current="page">Bevakningar<span class="antal" id="antal-bevakningar"></span></a>
-          <a href="/konto/notiser/">Notiser</a>
+          <a href="#notiser" data-sek="notiser">Notiser<span class="antal" id="antal-notiser"></span></a>
           <a href="#omdomen" data-sek="omdomen">Dina omdömen<span class="antal" id="antal-omdomen"></span></a>
           <a href="#verksamheter" data-sek="verksamheter" id="rand-verksamheter" hidden>Verksamheter<span class="antal" id="antal-verksamheter"></span></a>
           <a href="#bilder" data-sek="bilder" id="rand-bilder" hidden>Dina bilder<span class="antal" id="antal-bilder"></span></a>
@@ -119,6 +123,41 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
               <Maskot pose="tom" size={96} />
               <p>Du bevakar ingen verksamhet än.</p>
             </div>
+          </section>
+
+          {/*
+            Notiser. Flyttade hit från /konto/notiser/ 2026-08-26.
+
+            Två saker står i listan, båda sådana någon ANNAN gjort med det du
+            redan brytt dig om: en verksamhet du bevakar har fått en ny
+            bedömning, och ditt omdöme har publicerats eller avvisats.
+
+            Ingen kryssruta. Samma resonemang som över notify.py: Prikko
+            besöks två gånger om året, och en inställning ingen hinner sätta
+            slår aldrig ett förval som är rätt. Vill man inte höra om en
+            verksamhet slutar man bevaka den, och det är samma knapp som förut.
+
+            OLÄSTMARKERINGEN är en vattenlinje i databasen, inte en flagga per
+            rad och ALDRIG en nyckel i localStorage. Skälen står i
+            docs/14_samtycke_och_lagring_i_webblasaren.md och över
+            community.notice_reads i pipeline/schema_community.sql. Linjen
+            flyttas när listan MÅLATS och inte när sidan börjar laddas: en
+            notis som räknats som läst utan att ha visats är en notis som
+            försvunnit.
+          */}
+          <section class="konto-sektion" id="sek-notiser" data-sek="notiser">
+            <div class="konto-bar">
+              <h2>Notiser</h2>
+            </div>
+            <p class="konto-sub">
+              Nya bedömningar hos verksamheter du bevakar, och besked om dina omdömen.
+            </p>
+            <ul class="konto-list notis-list" id="notiser"></ul>
+            {/* Ingen maskot här. Sidan har flera tomma lägen och bara det
+                första får figur, se docs/24 paragraf 2: två grävlingar på
+                samma skärm är ett mönster och inte en avsändare. Bevakningarna
+                bär den, eftersom de är vad kontot är till för. */}
+            <p class="konto-empty" id="notiser-tom" hidden>Du har inga notiser än.</p>
           </section>
 
           <section class="konto-sektion" id="sek-omdomen" data-sek="omdomen">
@@ -186,8 +225,12 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     deleteUpload,
     placeNames,
     placeStates,
+    notices,
+    reviewNotices,
+    noticesReadAt,
+    markNoticesRead,
   } from '../../lib/community';
-  import type { PlaceState } from '../../lib/community';
+  import type { PlaceState, NoticeRow, ReviewNotice, PlaceName } from '../../lib/community';
   import { openSignIn } from '../../lib/signin-dialog';
 
   const guest = document.getElementById('guest') as HTMLDivElement;
@@ -714,6 +757,159 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
 
   /* Start ------------------------------------------------------------- */
 
+  // ── Notiser ────────────────────────────────────────────────────────────
+
+  const notisLista = document.getElementById('notiser') as HTMLUListElement;
+  const notisTom = document.getElementById('notiser-tom') as HTMLElement;
+
+  /** En rad i notislistan, oavsett varifrån den kommer. */
+  interface Notis {
+    /* Sorteringsnyckeln OCH det som jämförs mot vattenlinjen. För en
+       bevakningsnotis är det när VI UPPTÄCKTE kontrollen och inte när kommunen
+       utförde den: en kontroll från i våras som dyker upp i natt är ny för
+       läsaren i natt. */
+    at: string;
+    title: string;
+    meta: string;
+    href: string | null;
+    tag: string;
+    tagClass: string;
+    why: string | null;
+  }
+
+  function notisFranBevakning(row: NoticeRow): Notis {
+    const city = CITIES[row.municipality_slug] ?? row.municipality_slug;
+    return {
+      at: row.created_at,
+      title: row.establishment_name,
+      meta: `${city} · Kontroll ${swedishDate(row.inspected_at)}`,
+      href: `/${row.municipality_slug}/${row.establishment_slug}/`,
+      tag: VERDICT_LABEL[row.verdict] ?? row.verdict,
+      tagClass: `notis-${row.verdict}`,
+      why: null,
+    };
+  }
+
+  function notisFranOmdome(row: ReviewNotice, place: PlaceName | undefined): Notis {
+    /* Namnet kommer ur den redaktionella databasen och kan saknas: en
+       verksamhet som avpublicerats sedan omdömet skrevs finns inte i vyn. Då
+       skrivs notisen utan namn i stället för att utelämnas, för beskedet
+       gäller läsarens egen text och är sant ändå. */
+    const where = place ? ` om ${place.name}` : '';
+    return {
+      at: row.moderated_at,
+      title: `Ditt omdöme${where}`,
+      meta:
+        row.status === 'published'
+          ? 'Ligger nu ute hos verksamheten'
+          : 'Kom inte med, och kan skrivas om',
+      href: place ? `/${place.municipality_slug}/${place.slug}/` : null,
+      tag: REVIEW_STATUS[row.status] ?? row.status,
+      tagClass: `status-${row.status}`,
+      /* Skälet hör hemma på raden. Utan det står det "Avslaget" bredvid en
+         text man inte får veta något om. */
+      why: row.status === 'rejected' ? row.rejection_reason : null,
+    };
+  }
+
+  function notisRad(item: Notis, olast: boolean): HTMLLIElement {
+    const li = document.createElement('li');
+
+    /* Pricken ligger FÖRE titeln och står kvar som en tom yta när raden är
+       läst. Utan platshållaren hoppar hela listan i sidled så fort man
+       tittat på den. */
+    const pip = document.createElement('span');
+    pip.className = olast ? 'notis-prick' : 'notis-prick last';
+    if (olast) pip.setAttribute('aria-label', 'Oläst');
+    li.append(pip);
+
+    const box = document.createElement(item.href ? 'a' : 'div');
+    box.className = 'konto-main';
+    if (item.href) (box as HTMLAnchorElement).href = item.href;
+
+    const strong = document.createElement('b');
+    strong.textContent = item.title;
+    box.append(strong);
+
+    const meta = document.createElement('span');
+    meta.className = 'konto-meta';
+    meta.textContent = `${item.meta} · ${swedishDate(item.at)}`;
+    box.append(meta);
+
+    if (item.why) {
+      const why = document.createElement('span');
+      why.className = 'konto-why';
+      why.textContent = `Skäl: ${item.why}`;
+      box.append(why);
+    }
+    li.append(box);
+
+    const side = document.createElement('div');
+    side.className = 'konto-side';
+    const tagg = document.createElement('span');
+    tagg.className = `status-tag ${item.tagClass}`;
+    tagg.textContent = item.tag;
+    side.append(tagg);
+    li.append(side);
+
+    return li;
+  }
+
+  async function paintNotiser() {
+    let rows: NoticeRow[] = [];
+    let mine: ReviewNotice[] = [];
+    let readAt: string | null = null;
+
+    try {
+      [rows, mine, readAt] = await Promise.all([notices(), reviewNotices(), noticesReadAt()]);
+    } catch {
+      /* Tabellerna saknas tills ägaren kört om schema_community.sql, och då
+         svarar PostgREST 404. Beskedet ska säga att listan inte gick att
+         hämta, aldrig att den är tom: en tom lista är ett påstående. */
+      notisTom.textContent = 'Notiserna kunde inte hämtas. Ladda om sidan.';
+      notisTom.hidden = false;
+      return;
+    }
+
+    let places = new Map<string, PlaceName>();
+    if (mine.length > 0) {
+      try {
+        places = await placeNames(mine.map((row) => row.establishment_id));
+      } catch {
+        /* Namnen är en förbättring, inte notisen. Utan dem står det "Ditt
+           omdöme" utan verksamhet, och beskedet är fortfarande sant. */
+      }
+    }
+
+    const items = [
+      ...rows.map(notisFranBevakning),
+      ...mine.map((row) => notisFranOmdome(row, places.get(row.establishment_id))),
+    ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+
+    const since = readAt ? Date.parse(readAt) : Number.NEGATIVE_INFINITY;
+    const olasta = items.filter((i) => Date.parse(i.at) > since).length;
+
+    notisLista.textContent = '';
+    for (const item of items) notisLista.append(notisRad(item, Date.parse(item.at) > since));
+    notisTom.hidden = items.length > 0;
+
+    /* Siffran i randen räknar OLÄSTA och inte alla, till skillnad från de
+       andra avsnitten. En etta bredvid Notiser betyder "en sak har hänt", och
+       ett tal som står kvar på fyrtiotre för alltid betyder ingenting. */
+    raknare('antal-notiser', olasta);
+
+    /* Först nu, och bara när något faktiskt målats. En vattenlinje som
+       flyttats utan att raderna visats gör notiserna osynliga för alltid. */
+    if (items.length > 0) {
+      try {
+        await markNoticesRead();
+      } catch {
+        /* Pricken står kvar till nästa besök. Det är rätt riktning att
+           misslyckas åt. */
+      }
+    }
+  }
+
   async function loadAccount() {
     guest.hidden = true;
     account.hidden = false;
@@ -721,7 +917,13 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     const user = currentUser();
     who.textContent = user?.email ?? 'Du är inloggad';
 
-    await Promise.all([paintFollows(), paintReviews(), paintClaims(), paintUploads()]);
+    await Promise.all([
+      paintFollows(),
+      paintNotiser(),
+      paintReviews(),
+      paintClaims(),
+      paintUploads(),
+    ]);
 
     /* Först nu. Vilka flikar som finns avgörs av vad som målats, och ett val
        taget innan dess hade kunnat landa på en flik som strax döljs. */

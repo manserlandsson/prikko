@@ -725,6 +725,27 @@ function sitemapGuard() {
 export default defineConfig({
   site: 'https://prikko.se',
 
+  /*
+   * Adresser som flyttat.
+   *
+   * /konto/notiser/ blev en flik på /konto/ 2026-08-26. Ägarens regel är att
+   * en funktion aldrig får kosta en sida, och notiserna var en egen adress för
+   * en enda lista på ett konto som ändå kräver inloggning.
+   *
+   * Sidan tas INTE bort utan omdirigeras, av samma skäl som står i
+   * docs/adr/0003-slugen-ar-permanent.md: en publicerad adress som slutar
+   * svara är ett löfte som brutits, och den här stod i webbkartan.
+   *
+   * I ett statiskt bygge blir en post här en liten HTML-sida med
+   * `<meta http-equiv="refresh">` plus en canonical, alltså inte en riktig
+   * 301. Det duger här: sidan bär noindex och har aldrig haft någon rankning
+   * att flytta över.
+   */
+  redirects: {
+    '/konto/notiser': '/konto/#notiser',
+    '/konto/notiser/': '/konto/#notiser',
+  },
+
   integrations: [
     /* Artiklarna är .mdx för att en text ska kunna visa ett diagram där talet
        annars stått i löptext. Ligger först i arrayen: sitemapGuard nedan läser

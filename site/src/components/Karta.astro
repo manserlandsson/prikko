@@ -109,20 +109,56 @@ const base = kommun ? `/${kommun.slug}` : '';
 const plats = kommun ? kommun.city : 'Sverige';
 
 /**
- * Kommunens områden som namn och slug, för förslagen i filterfältet.
+ * Områdena som går att välja i filterfältet, grupperade per kommun.
  *
  * BARA namnen, aldrig konturerna. Namnen väger omkring trettio byte styck och
- * måste finnas innan man börjat skriva, alltså 1,5 kB för Stockholms 51.
- * Konturerna väger 77 kB för samma 51 och behövs först vid ett val, se
- * pages/omradesytor/[kommun].json.ts.
+ * måste finnas innan man börjat skriva. Konturerna väger 77 kB för Stockholms
+ * 51 och behövs först vid ett val, se pages/omradesytor/[kommun].json.ts.
  *
  * Samma urval som områdessidorna, alltså minst 25 verksamheter. Ett område som
  * inte har en egen sida ska inte gå att välja här heller: skuggningen är en
  * vy av området, och ett område utan sida är inte ett område vi publicerar.
+ *
+ * ══ RIKSKARTAN FÅR ALLA LANDETS OMRÅDEN ═══════════════════════════════════
+ *
+ * Här stod `kommun ? linkedAreas(kommun.slug) : []`, alltså en TOM lista på
+ * /karta/. Ägaren 2026-08-26: "på hela kartan kan man ju ej söka med
+ * östermalm, östermalm är ju därför, 'östermalm, stockholm' och man söker i
+ * sverige". Han har rätt, och den tomma listan var inte ett beslut utan en
+ * följd av att kommunens slug var det enda som fanns att slå upp på.
+ *
+ * GRUPPERAT PER KOMMUN, och det är formens hela poäng. Tre saker behöver
+ * kommunen och ingen av dem kan gissas ur ett områdesnamn:
+ *
+ *   1. Konturfilen ligger på /omradesytor/<kommun>.json, en per kommun. Flera
+ *      valda områden kan ligga i olika kommuner, alltså måste varje förslag
+ *      bära SIN kommun ända fram till hämtningen.
+ *   2. Nyckeln i den filen är `<kommun>/<slug>`, se endpointen.
+ *   3. Förslaget ska stå som ägaren skriver det, "Östermalm, Stockholm".
+ *
+ * Grupperingen och inte ett fält per rad, eftersom kommunens slug och namn
+ * annars hade upprepats 51 gånger för Stockholm. Sex rubriker mot 64
+ * upprepningar är omkring 900 byte, och det är samma räkning som gjorde att
+ * rutarkivets kommunslugar ligger som ordbok och inte i varje nål.
+ *
+ * NAMNKROCKAR. Av dagens 64 delar noll stycken namn, mätt över alla sex
+ * kommunerna. Det talet är ändå inte ett skäl att utelämna kommunen: "Bro"
+ * i Kristinehamn och "Kungsängen" i Uppsala har båda namnar som finns på
+ * flera håll i landet, och nästa kommun med områdessidor kan bära en
+ * "Centrum" som redan finns. Chippet och förslaget skriver därför alltid ut
+ * kommunen på rikskartan, oavsett om just det namnet krockar i dag.
  */
-const omraden = kommun
-  ? linkedAreas(kommun.slug).map((s) => ({ s: s.area.slug, n: s.area.name, a: s.count }))
-  : [];
+const omradesgrupper = (kommun ? [kommun] : municipalities())
+  .map((m) => ({ m, skivor: linkedAreas(m.slug) }))
+  .filter((x) => x.skivor.length > 0)
+  .map(({ m, skivor }) => ({
+    k: m.slug,
+    kn: m.city,
+    o: skivor.map((s) => ({ s: s.area.slug, n: s.area.name, a: s.count })),
+  }));
+
+/** Hur många områden som går att välja här. Styr bara platshållartexten. */
+const omradesAntal = omradesgrupper.reduce((a, g) => a + g.o.length, 0);
 
 /*
  * Rutarkivet, hela riket i en fil.
@@ -227,15 +263,17 @@ const markeW = marke ? Math.round(MARKE_H * markRatio(marke.year)) : 0;
  * äger den axeln sedan i dag, och en platshållare som lovar något en knapp
  * strax ovanför gör bättre skickar folk till fel ställe.
  *
- * Rikskartan har inga områden alls, se `omraden` ovan, så där vore ordet en
- * inbjudan till en tom förslagslista.
+ * Rikskartan har numera ALLA landets 64 länkade områden, se `omradesgrupper`
+ * ovan, alltså gäller samma text där. Villkoret står kvar för den dag en
+ * kommun utan områdessidor får en kartsida: då vore ordet en inbjudan till en
+ * tom förslagslista.
  *
  * `size` sätts efter längden, och det är inte kosmetika: i tomläget hugger
  * fältet om sitt innehåll för att kunna centreras, se .filterfalt i stilarna,
  * och utan ett mått hade webbläsarens standardbredd på tjugo tecken gett en
  * platshållare som står lite vid sidan av mitten.
  */
-const SOKTEXT = omraden.length ? 'Sök på område eller namn' : 'Sök på namn';
+const SOKTEXT = omradesAntal ? 'Sök på område eller namn' : 'Sök på namn';
 
 /**
  * Sorteringens tre val, i menyns ordning.
@@ -275,7 +313,7 @@ const LEGEND = [
   data-bounds={data.bounds.join(',')}
   data-city={plats}
   data-kommun={kommun?.slug}
-  data-omraden={JSON.stringify(omraden)}
+  data-omraden={JSON.stringify(omradesgrupper)}
   data-kategorier={JSON.stringify(kategorier)}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
