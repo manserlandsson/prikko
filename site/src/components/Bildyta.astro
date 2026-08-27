@@ -123,26 +123,60 @@ const kraverLogo = kalla === 'mapillary';
 const visaFoto = foto !== null && !(kraverLogo && !MAPILLARY_LOGO);
 
 /**
- * MOTIVET. 24-rutnät, 1,6 px streck, runda ändar och hörn, ingen fyllning,
- * inget lånat ikonbibliotek och ingen emoji, alltså exakt samma språk som
- * Matikon.astro, Kategoriikon.astro och AreaIcon.astro talar.
+ * ══ MOTIVET: MARKISEN, ILLUSTRERAD I FEM TONER ═══════════════════════════
  *
- * Kameran, alltså Boolis eget föremål i vår ritning. Fyra delar: hus, lock,
- * objektiv och blixtprick.
+ * Ägaren har fattat tre beslut om den här ytan och alla tre står här:
  *
- * Locket är en TRAPETS och inte en halvcirkel. En kupol gör kameran till en
- * gammal låda, och den formen är daterad på ett sätt ett föremål man ser tusen
- * gånger inte tål.
+ *   2026-08-27  "jag hade nog kört markisen på fotot, i grått..."
+ *               Alltså markisen och inte kameran, och den kalla grå och inte
+ *               den varma sanden. Provsidan rekommenderade kameran på
+ *               #F3F0EA och den rekommendationen är avgjord emot.
+ *   2026-08-27  "kan du göra bilden för att det ej finns någon bild lite
+ *               bättre, boolis är ju lite snyggare och välgjord."
+ *   2026-08-27  "kör på illustret utan kontur (b)"
  *
- * Objektivet är r 3,5 mot husets höjd 12, alltså knappt en tredjedel. Större
- * gör kameran till ett öga, mindre gör den till en brödrost. Provrenderat i
- * 160, 72 och 40 px innan valet.
+ * Det som stod här var kameran i EN ton och ETT streck på 1,6, alltså en ikon.
+ * Boolis egen platshållare är ritad som en illustration: flera toner och volym
+ * i formen. Tre utföranden av markisen ställdes mot varandra i
+ * brand/_prov-bildyta.html och ägaren valde det mellersta.
+ *
+ * ══ RUTNÄTET ÄR 48 OCH INTE 24 ══════════════════════════════════════════
+ *
+ * Sajtens ikoner ritas i 24, se Matikon.astro och Kategoriikon.astro, och det
+ * är rätt för en ikon: den ska vara ETT streck och inte en teckning. Det här
+ * är inte en ikon. En fylld illustration behöver halva enheter för att
+ * markisens sluttning ska landa på en linje i stället för mellan två, och 48
+ * ger den upplösningen utan att någon behöver skriva decimaler.
+ *
+ * ══ INGET STRECK NÅGONSTANS ═════════════════════════════════════════════
+ *
+ * Varje kant i motivet är en TONSKARV. Det var valet ägaren gjorde, och det
+ * ställer krav på stegen mellan tonerna: en skarv som är för liten finns inte.
+ * Talen och deras uppmätta kontrast står vid palettens tokens i tokens.css.
+ *
+ * ══ TALEN I RITNINGEN ═══════════════════════════════════════════════════
+ *
+ * Byggnaden x 12..36, markisens fäste i samma bredd och dess underkant
+ * x 8..40, alltså FYRA enheters utsprång åt vardera hållet. Justerat på skärm:
+ * tolv enheters utsprång gjorde figuren till en svamp.
+ *
+ * TRE KAPPOR och inte fyra eller fem. En kappa är 10,67 av 48, alltså 7,3 px
+ * när motivet ritas 33 px högt i listradens kompakta form. Fyra kappor ger
+ * 5,5 px och fem ger 4,4, och under omkring 6 px slutar en båge vara en båge.
+ *
+ * Ytterkapporna är mörkare än mittkappan, alltså läser mitten som ljus
+ * uppifrån. Det är hela volymen, och den kostar noll extra former.
+ *
+ * MOTIVET FÅR ALDRIG VARA MASKOTEN, docs/24 §2, se noten längst upp. En markis
+ * över en butiksfront är ett neutralt föremål och påstår ingenting om
+ * verksamheten under den.
  */
-const MOTIV = [
-  'M4.8 7.6h14.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z',
-  'M8.6 7.6l1.5-2.3h3.8l1.5 2.3',
-  'M15.5 13.6a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0',
-  'M6 10.9h.01',
+const KAPPOR = [
+  /* Vänster kappa: fästet (12,12) till (20,12), underkanten (8,20) till
+     (18,667, 20), och en halvcirkel med r 5,333 tillbaka. */
+  'M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z',
+  'M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z',
+  'M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z',
 ];
 
 /**
@@ -160,10 +194,13 @@ const MOTIV = [
  *   0,50   börjar konkurrera med märket om samma band
  *   0,58   ytan blir en ikonknapp
  *
- * Notera att andelen gäller SVG-rutan och inte bläcket. Kameran fyller 14,3
- * av rutans 24 enheter på höjden, alltså knappt sextio procent, så 0,42 ger
- * ett motiv som optiskt är en fjärdedel av bandets höjd. Ritas motivet om
- * måste talet prövas på skärm igen.
+ * Notera att andelen gäller SVG-rutan och inte bläcket.
+ *
+ * TALET ÖVERLEVDE OMRITNINGEN, och det är räknat och inte hoppats på. Kameran
+ * fyllde 14,3 av rutans 24 enheter på höjden, alltså 59,6 procent. Markisen
+ * fyller 29,2 av 48, alltså 60,8 procent. Skillnaden är en procentenhet, och
+ * det motiv som stod här och det som står här nu är därför lika stora på
+ * skärmen vid samma andel. Prövat i båda listradens former, se rapporten.
  */
 const ANDEL = 0.42;
 const sida = storlek === 'rad' ? px * ANDEL : undefined;
@@ -182,19 +219,16 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
     Kostnaden är omkring 200 byte per kort som har ett foto, alltså per 2,3
     procent av korten, och de är identiska och komprimeras därefter.
   */}
-  <svg
-    class="motiv"
-    viewBox="0 0 24 24"
-    width={sida}
-    height={sida}
-    fill="none"
-    stroke="currentColor"
-    stroke-width="1.6"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    aria-hidden="true"
-  >
-    {MOTIV.map((d) => <path d={d} />)}
+  <svg class="motiv" viewBox="0 0 48 48" width={sida} height={sida} aria-hidden="true">
+    {/* Fasaden först: markisen ligger framför den och dörren i den. */}
+    <path class="m-fasad" d="M12 12h24v28H12z" />
+    {KAPPOR.map((d, i) => (
+      <path class:list={['m-markis', i === 1 && 'ljus']} d={d} />
+    ))}
+    <path class="m-dorr" d="M19 29h10v11H19z" />
+    {/* Marklinjen. Bredare än huset, så att huset står PÅ något i stället för
+        att sluta i luften. Det var den enda uppgift strecket hade kvar. */}
+    <rect class="m-bas" x="7" y="39.4" width="34" height="1.8" rx=".9" />
   </svg>
 
   {visaFoto && (
@@ -301,6 +335,25 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
   .bildyta.rad .motiv {
     width: auto;
   }
+
+  /*
+   * MOTIVETS TONER.
+   *
+   * Som CSS och inte som fill-attribut, eftersom ett attribut inte kan läsa
+   * en variabel. Tokenen bor i tokens.css tillsammans med sin uppmätta
+   * kontrast, och det är enda stället talen ska stå.
+   *
+   * DE HÄR FEM RADERNA HAR EN TVILLING. Kartans listrad ritar samma motiv som
+   * en data-URI i CSS, och en data-URI kan varken läsa en variabel eller ärva
+   * en klass, alltså står tonerna hårdkodade där. Ändras ett tal här ska
+   * .k-bild i Karta.astro ändras samma dag. Noten där säger samma sak åt
+   * andra hållet.
+   */
+  .m-fasad { fill: var(--bild-tom-fasad); }
+  .m-markis { fill: var(--bild-tom-markis); }
+  .m-markis.ljus { fill: var(--bild-tom-markis-ljus); }
+  .m-dorr { fill: var(--bild-tom-dorr); }
+  .m-bas { fill: var(--bild-tom-bas); }
 
   /* Logotypen är ett villkor och ska vara SYNLIG, inte synas bra. Fjorton
      pixlar är ordmärkets versalhöjd omkring 8 px, alltså läsbart. Full

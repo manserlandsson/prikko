@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { municipalities } from '../../lib/db';
-import { linkedAreas } from '../../lib/omraden';
+import { linkedAreas, municipalityArea } from '../../lib/omraden';
 
 /**
  * Områdenas konturer, en fil per kommun, för kartans skuggning.
@@ -42,18 +42,41 @@ import { linkedAreas } from '../../lib/omraden';
  * Samma urval som områdessidorna, alltså de med minst 25 verksamheter. Ett
  * område utan sida går inte att välja i söket heller, så en kontur för det
  * hade varit vikt utan mottagare.
+ *
+ * ## Kommunen ligger i samma fil, under en nyckel utan snedstreck
+ *
+ * "Om man söker på jönköping, så är väl det hela staden, den ska väl skuggas in
+ * som ett filter då." Kommunen är ett val precis som stadsdelen, och den ska
+ * skugga på samma sätt. Konturen kommer ur `municipalityArea` i lib/omraden.ts,
+ * alltså ur samma pipeline och samma `sources`-block som stadsdelarna.
+ *
+ * NYCKELN ÄR KOMMUNENS SLUG UTAN SNEDSTRECK, alltså `stockholm` där ett område
+ * heter `stockholm/sodermalm`. Formen är vald för att kartan inte ska behöva
+ * lära sig något nytt: den härleder kommunen ur nyckeln med
+ * `nyckel.split('/')[0]`, vilket ger `stockholm` för båda formerna, och slår
+ * upp ytan med `ytor[nyckel]`. Ett val av kommun och ett val av stadsdel kan
+ * därmed ligga i samma urval och bli hål i samma mask.
+ *
+ * Kommunens kontur väger 2 till 36 kilobyte per kommun efter förenkling. Den
+ * ligger i samma fil som områdena och inte i en egen, av samma skäl som
+ * områdena delar fil: en hämtning per kommun, aldrig en per val.
  */
 export const prerender = true;
 
 export function getStaticPaths() {
   return municipalities()
-    .filter((m) => linkedAreas(m.slug).length > 0)
+    .filter((m) => linkedAreas(m.slug).length > 0 || municipalityArea(m.slug))
     .map((m) => ({ params: { kommun: m.slug } }));
 }
 
 export const GET: APIRoute = ({ params }) => {
   const kommun = params.kommun!;
   const ytor: Record<string, { namn: string; outer: number[][][]; inner: number[][][] }> = {};
+
+  const hela = municipalityArea(kommun);
+  if (hela) {
+    ytor[kommun] = { namn: hela.name, outer: hela.outer, inner: hela.inner };
+  }
 
   for (const skiva of linkedAreas(kommun)) {
     ytor[`${kommun}/${skiva.area.slug}`] = {

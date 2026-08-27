@@ -78,6 +78,15 @@ interface AreaFile {
   municipality: { code: string; slug: string };
   sources: Partial<Record<AreaSourceId, AreaSource>>;
   areas: Area[];
+  /**
+   * Kommunens egen kontur, när OSM har en som passerat pipelinens tre grindar.
+   *
+   * Ligger BREDVID `areas` och inte bland dem. Ett område är ett utsnitt av
+   * kommunen och får en egen sida vid 25 verksamheter; kommunen är inget
+   * utsnitt, den är helheten, och en rad i `areas` hade därmed gett en
+   * områdessida som täcker sin egen kommunhubb.
+   */
+  municipalityArea?: Area;
 }
 
 /**
@@ -162,6 +171,7 @@ for (const module of Object.values(files)) {
   const file = module.default as unknown as AreaFile;
   if (file && file.municipality && Array.isArray(file.areas)) {
     for (const area of file.areas) assertRings(file.municipality.slug, area);
+    if (file.municipalityArea) assertRings(file.municipality.slug, file.municipalityArea);
     areaFiles.set(file.municipality.slug, file);
   }
 }
@@ -176,6 +186,31 @@ for (const module of Object.values(files)) {
  */
 export function areaSource(slug: string, area: Area): AreaSource | undefined {
   return areaFiles.get(slug)?.sources?.[area.source];
+}
+
+/**
+ * Kommunens egen kontur, eller undefined där OSM:s gräns inte höll.
+ *
+ * Finns för att en kommun i söket ska bete sig som ett område: kartan skuggar
+ * allt utanför den valda ytan och listan filtreras på samma polygon, och det
+ * svaret ska inte bli ett annat bara för att utsnittet råkar vara hela
+ * kommunen. Se OMRÅDESSKUGGAN i Karta.astro.
+ *
+ * Ytan bär `source` som allt annat här, så `areaSource(slug, yta)` ger
+ * attributionen och ODbL är uppfyllt av samma block som stadsdelarnas.
+ *
+ * Konturen är FÖRENKLAD, se KOMMUN_TOLERANS_M i pipeline/omraden.py: den
+ * flyttar sig som mest tio meter mot OSM:s original. Den duger därför till att
+ * skugga och till att peka ut kommunen på en karta, men den är inte ett
+ * juridiskt gränsbesked och ska aldrig användas som ett.
+ *
+ * Inte att förväxla med `municipalityAreas` en bit ned, som lämnar kommunens
+ * STADSDELAR. Den här lämnar kommunen själv, alltså helheten de är utsnitt av.
+ * Namnen skiljer sig på ett s och returtyperna skiljer sig helt, så en
+ * förväxling faller på typkontrollen och inte i drift.
+ */
+export function municipalityArea(slug: string): Area | undefined {
+  return areaFiles.get(slug)?.municipalityArea;
 }
 
 // ---------------------------------------------------------------------------
@@ -340,7 +375,12 @@ function index(slug: string): AreaIndex {
 // Utåt
 // ---------------------------------------------------------------------------
 
-/** Kommunens områden som har minst en verksamhet, i bokstavsordning. */
+/**
+ * Kommunens STADSDELAR som har minst en verksamhet, i bokstavsordning.
+ *
+ * Se `municipalityArea` ovan för kommunens egen kontur. Plural är delarna,
+ * singular är helheten.
+ */
 export function municipalityAreas(slug: string): AreaSlice[] {
   return index(slug).slices;
 }

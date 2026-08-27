@@ -112,6 +112,73 @@ docs/30 §11.
 RegSO är dessutom fortfarande rätt källa den dag vi vill räkna STATISTIK per
 område. Den är byggd för det och den kopplar till SCB:s befolkningstal.
 
+KOMMUNEN ÄR OCKSÅ ETT OMRÅDE
+----------------------------
+"Om man söker på jönköping, så är väl det hela staden, den ska väl skuggas in
+som ett filter då." Ägaren har rätt. Kartan skuggar allt utanför ett valt
+område och listan filtreras på samma polygon; en kommun i söket flyttade förut
+bara kameran, med motiveringen att en kommun saknar polygon. Motiveringen var
+sann om VÅR DATA och inte om världen.
+
+Svenska kommuner ligger i OSM som relationer med `boundary=administrative` och
+`admin_level=7`. Det är kontrollerat och inte gissat: samtliga tolv kommuner
+slogs upp på `ref:scb` utan nivåfilter i augusti 2026, och alla tolv svarade med
+exakt EN relation, alla med `boundary=administrative`, `type=boundary` och
+`admin_level=7`. Ingen kommun har någon annan nivå med samma SCB-kod.
+
+Relationen hämtas i samma anrop som förut bara slog upp områdes-id:t åt
+stadsdelsfrågan, alltså utan ett enda extra anrop per kommun.
+
+TRE GRINDAR, OCH DE ÄR VIKTIGARE ÄN HÄMTNINGEN
+----------------------------------------------
+En kommungräns som är fel skuggar bort halva landet, och de två felen drar åt
+var sitt håll: en yta kan vara för LITEN eller på fel plats, och den kan vara
+för STOR. En för stor yta ser bedrägligt riktig ut, eftersom den rymmer varenda
+verksamhet med god marginal.
+
+1. NAMNPROVET. Relationens namn måste stämma mot kommunens eget namn, inte
+   innehålla det. Ett innehållsprov hade släppt igenom "Stockholms län" och
+   "Norra Stockholm". Jämförelsen görs på grundnamnet, alltså namnet utan
+   efterledet och utan genitiv-s, eftersom OSM skriver "Stockholms kommun" där
+   vi skriver "Stockholms stad". Grundnamnet måste vara IDENTISKT med vårt.
+
+2. TÄCKNINGSPROVET, mot en yta som är för liten. Andelen av kommunens
+   verksamheter med koordinat som ligger innanför ytan måste nå
+   KOMMUN_TACKNING. Mätt i augusti 2026 ligger samtliga åtta kommuner som har
+   koordinater på 1,0000, alltså varenda verksamhet innanför. Spärren står
+   ändå lägre än så: en enstaka verksamhet kan ha geokodats en meter fel, och
+   Stockholm har en verksamhet som ligger EN METER från gränsen.
+
+3. GRANNPROVET, mot en yta som är för stor. Ingen verksamhet från någon ANNAN
+   av våra kommuner får ligga innanför. Provet finns för att täckningsprovet är
+   blint åt det hållet: hade Karlstad fått Värmlands läns yta hade den rymt
+   varenda Karlstadsverksamhet och passerat. Nu faller den i stället på
+   Kristinehamns verksamheter, och Kalmar län faller på Oskarshamns. Mätt
+   utfall: noll främmande verksamheter i alla tolv ytor.
+
+En kommun utan godkänd yta får INGEN yta. Det är ett fullgott utfall och ingen
+sämre yta söks upp i stället.
+
+FÖRENKLINGEN
+------------
+En kommungräns är hundra gånger större än en stadsdel. Rått väger de tolv
+konturerna 550 kilobyte, och Jönköping ensam 127. Konturen ritas på zoom 5 till
+14 och behöver inte vara metersann, så den förenklas med Douglas-Peucker i ett
+metermått, se simplify_ring.
+
+Toleransen är KOMMUN_TOLERANS_M och sattes av en mätning, inte av en smak: vid
+30 meter faller Stockholm ur täckningsprovet, eftersom en verksamhet ligger en
+meter från gränsen. Tio meter är två bildpunkter vid zoom 14 på våra breddgrader
+och lämnar konturerna på 30 procent av råvikten.
+
+Skärgårdskommuner är den svåra sorten, och en naiv förenkling raderar små öar
+eller slår ihop dem med fastlandet. Två saker hindrar det. Ringarna förenklas
+var för sig, så två ringar kan aldrig smälta ihop. Och en ring som skulle
+krympa under fyra punkter behålls OFÖRENKLAD i stället för att kastas: en ö som
+väger tvåhundra byte är inte värd att förlora. Antalet ytterringar är därför
+detsamma före och efter i alla tolv kommuner, från Höganäs enda till Uppsalas
+tio.
+
 Körs med:
 
     python3 pipeline/omraden.py
@@ -123,6 +190,7 @@ läser dem genom site/src/lib/omraden.ts.
 from __future__ import annotations
 
 import json
+import math
 import sys
 import time
 import unicodedata
@@ -170,6 +238,31 @@ PLACE_KINDS = "^(suburb|neighbourhood|quarter|borough|city_district)$"
 #: Samma precision som kartans punkter i site/src/lib/map-data.ts. En stadsdel
 #: behöver inte mätas noggrannare än en verksamhet placeras.
 PRECISION = 5
+
+#: Hur långt kommunkonturen får flytta sig när den förenklas, i meter.
+#:
+#: Satt av en mätning och inte av en smak. Vid 30 meter faller Stockholm ur
+#: täckningsprovet, eftersom en verksamhet ligger en meter från kommungränsen.
+#: Vid 10 meter ligger alla åtta kommuner med koordinater kvar på full täckning
+#: och de tolv konturerna väger tillsammans 30 procent av råvikten.
+#:
+#: Tio meter är ungefär två bildpunkter vid zoom 14 på våra breddgrader, alltså
+#: osynligt vid det djupaste zoomsteg konturen ritas i.
+KOMMUN_TOLERANS_M = 10.0
+
+#: Andelen av kommunens verksamheter med koordinat som måste ligga innanför
+#: kommunytan för att ytan ska få publiceras.
+#:
+#: Mätt utfall i augusti 2026: 1,0000 i alla åtta kommuner som har koordinater,
+#: alltså varenda verksamhet innanför. Spärren står lägre än det mätta för att
+#: en enstaka verksamhet kan vara geokodad någon meter fel, och högre än vad
+#: någon FELAKTIG yta kan nå: en grannkommuns yta rymmer nästan ingenting av
+#: våra punkter och landar nära noll, inte nära ett.
+KOMMUN_TACKNING = 0.995
+
+#: Efterled som skiljer kommunens namn från ortens. OSM skriver "Stockholms
+#: kommun" där vi skriver "Stockholms stad", och båda menar samma sak.
+KOMMUN_EFTERLED = frozenset({"kommun", "stad"})
 
 #: Namn som avslöjar att objektet är ett distrikt och inte en stadsdel. OSM har
 #: enstaka distrikt taggade som place i stället för som admin_level 9, och de
@@ -243,15 +336,30 @@ def slugify(name: str) -> str:
     return slug.strip("-") or "namnlos"
 
 
-def kommun_area(code: str) -> int:
-    """Overpass områdes-id för kommunen. Slås upp på SCB-kod, aldrig på namn."""
+def kommun_relation(code: str) -> dict:
+    """Kommunens gränsrelation MED geometri. Slås upp på SCB-kod, aldrig på namn.
+
+    Ett anrop, två användningar. Relationens id blir Overpass områdes-id åt
+    stadsdelsfrågan, precis som förut, och dess geometri blir kommunens egen
+    yta. Att hämta den två gånger hade gett två sanningar om samma gräns, och
+    Overpass ska inte betala för vår bokföring.
+
+    Nivån filtreras INTE i frågan. Vi vill se vad som faktiskt ligger under
+    SCB-koden och inte bara det vi hoppades hitta; nivån prövas nedan i stället,
+    och ett oväntat svar ska stanna körningen i stället för att tyst försvinna.
+    """
     payload = overpass(
-        f'[out:json][timeout:180];relation["ref:scb"="{code}"]["admin_level"="7"];out ids;'
+        f'[out:json][timeout:600];relation["ref:scb"="{code}"];out geom;'
     )
     relations = payload.get("elements") or []
     if len(relations) != 1:
         raise SystemExit(f"Hittade {len(relations)} kommungränser för {code}, väntade en.")
-    return 3600000000 + relations[0]["id"]
+    return relations[0]
+
+
+def kommun_area(relation: dict) -> int:
+    """Overpass områdes-id ur relationens id."""
+    return 3600000000 + relation["id"]
 
 
 def rings_from_way(element: dict) -> tuple[list, list] | None:
@@ -341,8 +449,7 @@ def wanted(tags: dict) -> bool:
     return tags.get("boundary") == "administrative" and tags.get("admin_level") == "10"
 
 
-def fetch(code: str) -> list:
-    area = kommun_area(code)
+def fetch(area: int) -> list:
     payload = overpass(
         f"[out:json][timeout:600];"
         f'(way["place"~"{PLACE_KINDS}"](area:{area});'
@@ -559,21 +666,307 @@ def merge(osm_areas: list, regso_areas: list) -> list:
     return out
 
 
-def main() -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    fetched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+# ---------------------------------------------------------------------------
+# Kommunen som område: förenklingen och de tre grindarna
+# ---------------------------------------------------------------------------
 
+
+#: Meter per grad latitud. Jordens omkrets delad med 360, avrundad. Räcker gott
+#: för att mäta hur långt en förenklad kontur flyttat sig; det här är ett
+#: felmått och ingen kartprojektion.
+METER_PER_GRAD = 111320.0
+
+
+def _meter(ring: list, lat0: float) -> list:
+    """Ringen i ett plant metermått runt sin egen medelbredd.
+
+    Longituderna krymper med cosinus för breddgraden, annars vore en grad
+    öst-väst dubbelt så lång som en grad nord-syd på våra breddgrader och
+    förenklingen hade ätit mer av nord-sydliga kanter än av öst-västliga.
+    """
+    k = math.cos(math.radians(lat0)) * METER_PER_GRAD
+    return [(p[0] * k, p[1] * METER_PER_GRAD) for p in ring]
+
+
+def _avstand_till_segment(p: tuple, a: tuple, b: tuple) -> float:
+    """Punktens avstånd till STRÄCKAN ab, inte till linjen genom a och b."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    if dx == 0.0 and dy == 0.0:
+        return math.hypot(p[0] - a[0], p[1] - a[1])
+    t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)
+    t = max(0.0, min(1.0, t))
+    return math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
+
+
+def simplify_ring(ring: list, tolerance_m: float) -> tuple[list, float]:
+    """Douglas-Peucker på en SLUTEN ring. Lämnar ringen och största avvikelsen.
+
+    Tre saker skiljer den här från lärobokens variant, och alla tre finns för
+    att en kommungräns inte är en linje utan en ring:
+
+    1. TVÅ ANKARE. Lärobokens DP ankrar i kedjans två ändar, och i en ring är
+       de samma punkt. Då blir hela ringen ett enda segment av längd noll och
+       varje annan punkt ligger "för långt bort", vilket ger ett godtyckligt
+       resultat. Ringen delas därför i två kedjor vid den punkt som ligger
+       längst från startpunkten.
+
+    2. INGEN REKURSION. Jönköpings ytterring har 6 400 punkter och en
+       obalanserad delning hade nått Pythons rekursionstak. Stacken är egen.
+
+    3. INGEN RING GÅR FÖRLORAD. Skulle förenklingen krympa ringen under fyra
+       punkter lämnas den OFÖRENKLAD tillbaka. En ö som väger tvåhundra byte
+       är inte värd att förlora, och det är just småöarna som en naiv
+       förenkling raderar.
+    """
+    if len(ring) < 5:
+        return list(ring), 0.0
+
+    lat0 = sum(p[1] for p in ring) / len(ring)
+    pts = _meter(ring, lat0)
+    sist = len(ring) - 1
+
+    # Ankare två: punkten längst från startpunkten. Se punkt 1 ovan.
+    far = max(
+        range(1, sist),
+        key=lambda i: math.hypot(pts[i][0] - pts[0][0], pts[i][1] - pts[0][1]),
+    )
+
+    keep = [False] * len(ring)
+    keep[0] = keep[far] = keep[sist] = True
+
+    avvikelse = 0.0
+    stack = [(0, far), (far, sist)]
+    while stack:
+        lo, hi = stack.pop()
+        if hi <= lo + 1:
+            continue
+        a, b = pts[lo], pts[hi]
+        varst, vid = -1.0, -1
+        for i in range(lo + 1, hi):
+            d = _avstand_till_segment(pts[i], a, b)
+            if d > varst:
+                varst, vid = d, i
+        if varst > tolerance_m:
+            keep[vid] = True
+            stack.append((lo, vid))
+            stack.append((vid, hi))
+        elif varst > avvikelse:
+            avvikelse = varst
+
+    kvar = [ring[i] for i in range(len(ring)) if keep[i]]
+    if len(kvar) < 4:
+        return list(ring), 0.0
+    return kvar, avvikelse
+
+
+def simplify_rings(rings: list, tolerance_m: float) -> tuple[list, float]:
+    """Varje ring för sig, så att två ringar aldrig kan smälta ihop."""
+    ut = []
+    varst = 0.0
+    for ring in rings:
+        förenklad, avvikelse = simplify_ring(ring, tolerance_m)
+        varst = max(varst, avvikelse)
+        förenklad = round_ring(förenklad)
+        if len(förenklad) >= 4:
+            ut.append(förenklad)
+    return ut, varst
+
+
+def kommun_grundnamn(name: str) -> str:
+    """Namnet utan efterled och utan genitiv-s, gement.
+
+    "Stockholms kommun", "Stockholms stad" och "Stockholm" ger alla "stockholm".
+    "Stockholms län" ger "stockholms län" och kan därmed aldrig råka bli lika
+    med någon av dem.
+    """
+    words = [w for w in name.lower().replace("\u00a0", " ").split() if w]
+    while words and words[-1] in KOMMUN_EFTERLED:
+        words.pop()
+    if not words:
+        return ""
+    if len(words[-1]) > 1 and words[-1].endswith("s"):
+        words[-1] = words[-1][:-1]
+    return " ".join(words)
+
+
+def kommun_namn_haller(osm_name: str, name: str, city: str) -> bool:
+    """Grind 1. Namnet måste STÄMMA mot kommunens, inte innehålla det.
+
+    Ett innehållsprov hade släppt igenom "Stockholms län" och "Norra
+    Stockholm", och båda ytorna skuggar bort halva landet.
+    """
+    grund = kommun_grundnamn(osm_name or "")
+    if not grund:
+        return False
+    return grund in {kommun_grundnamn(name), kommun_grundnamn(city)}
+
+
+def tackning(area: dict, points: list) -> float | None:
+    """Grind 2. Andelen verksamheter innanför ytan, None utan koordinater.
+
+    None är inte ett underkännande. Borgholm, Höganäs, Lomma och Svenljunga
+    lämnar inte ut en enda koordinat, se bounding_box i prikko/wikidatanamn.py.
+    Det säger något om kommunens källa och ingenting om kommunens gräns, så
+    provet är tomt där i stället för fällande.
+    """
+    if not points:
+        return None
+    return sum(1 for x, y in points if in_area(area, x, y)) / len(points)
+
+
+def frammande_innanfor(area: dict, others: dict) -> list:
+    """Grind 3. Andra kommuners verksamheter som ligger innanför ytan.
+
+    Provet mot en yta som är för STOR, alltså det fel täckningsprovet är blint
+    för: ett län rymmer varenda verksamhet i sin egen kommun och passerar
+    därmed grind 2 med glans. Det faller här i stället, på grannkommunen.
+    """
+    träffar = []
+    for slug, points in others.items():
+        antal = sum(1 for x, y in points if in_area(area, x, y))
+        if antal:
+            träffar.append((slug, antal))
+    return sorted(träffar)
+
+
+def kommunyta(relation: dict, municipality: dict, points: list, others: dict) -> dict | None:
+    """Kommunens yta, förenklad och prövad. None när något prov faller.
+
+    Skriver varje utfall till stderr, godkänt som fällt. En yta som försvinner
+    tyst är samma sak som en gräns ingen kan felsöka.
+    """
+    slug = municipality["slug"]
+    tags = relation.get("tags") or {}
+    ref = f"relation/{relation['id']}"
+
+    nivå = tags.get("admin_level")
+    if tags.get("boundary") != "administrative" or nivå != "7":
+        print(
+            f"  ingen kommunyta: {ref} är boundary={tags.get('boundary')} "
+            f"admin_level={nivå}, väntade administrative/7",
+            file=sys.stderr,
+        )
+        return None
+
+    if not kommun_namn_haller(tags.get("name", ""), municipality["name"], municipality["city"]):
+        print(
+            f"  ingen kommunyta: {ref} heter {tags.get('name')!r} och inte "
+            f"{municipality['name']!r}",
+            file=sys.stderr,
+        )
+        return None
+
+    built = rings_from_relation(relation)
+    if not built:
+        print(f"  ingen kommunyta: {ref} sluter ingen ytterring", file=sys.stderr)
+        return None
+
+    rå_outer = [r for r in (round_ring(x) for x in built[0]) if len(r) >= 4]
+    rå_inner = [r for r in (round_ring(x) for x in built[1]) if len(r) >= 4]
+    if not rå_outer:
+        print(f"  ingen kommunyta: {ref} har ingen ytterring med fyra punkter", file=sys.stderr)
+        return None
+
+    outer, av_outer = simplify_rings(rå_outer, KOMMUN_TOLERANS_M)
+    inner, av_inner = simplify_rings(rå_inner, KOMMUN_TOLERANS_M)
+    if len(outer) != len(rå_outer) or len(inner) != len(rå_inner):
+        # Kan inte hända så länge simplify_ring lämnar korta ringar oförenklade,
+        # men en ring som tappas bort är precis det fel som inte får ske tyst.
+        print(
+            f"  ingen kommunyta: förenklingen tappade ringar, "
+            f"{len(rå_outer)}/{len(rå_inner)} blev {len(outer)}/{len(inner)}",
+            file=sys.stderr,
+        )
+        return None
+
+    area = {"outer": outer, "inner": inner}
+
+    andel = tackning(area, points)
+    if andel is not None and andel < KOMMUN_TACKNING:
+        print(
+            f"  ingen kommunyta: bara {andel:.4f} av verksamheterna ligger innanför "
+            f"{ref}, kräver {KOMMUN_TACKNING}",
+            file=sys.stderr,
+        )
+        return None
+
+    främmande = frammande_innanfor(area, others)
+    if främmande:
+        visas = ", ".join(f"{s}: {n}" for s, n in främmande)
+        print(f"  ingen kommunyta: {ref} rymmer andra kommuners verksamheter ({visas})", file=sys.stderr)
+        return None
+
+    print(
+        f"  kommunyta {ref}: {len(outer)} ytterringar, {len(inner)} hål, "
+        f"täckning {'utan koordinater' if andel is None else format(andel, '.4f')}, "
+        f"flyttad högst {max(av_outer, av_inner):.1f} m",
+        file=sys.stderr,
+    )
+
+    # Namnet tas ur VÅR data och inte ur OSM, till skillnad från stadsdelarnas.
+    # Skälet är att sajten redan har ett namn på kommunen och säger "Stockholms
+    # stad" där OSM säger "Stockholms kommun". Namnprovet ovan har just visat
+    # att de två menar samma sak, så valet är inte en redigering av källan utan
+    # ett val mellan två namn som båda är riktiga.
+    return {
+        "name": municipality["name"],
+        "slug": slug,
+        "source": "osm",
+        "ref": ref,
+        "size": sum(ring_area(r) for r in outer),
+        "outer": outer,
+        "inner": inner,
+    }
+
+
+def las_kommuner() -> list[tuple[dict, list]]:
+    """Kommunerna ur site/src/data, med verksamheternas koordinater.
+
+    Läses i sin helhet FÖRE första Overpass-anropet. Grannprovet behöver alla
+    tolv kommuners punkter för att kunna pröva den första kommunens yta.
+    """
+    ut = []
     for path in sorted(DATA_DIR.glob("*.json")):
         dataset = json.loads(path.read_text(encoding="utf-8"))
         municipality = dataset.get("municipality")
         if not municipality:
             continue
+        points = [
+            (e["lng"], e["lat"])
+            for e in dataset.get("establishments", [])
+            if e.get("lat") is not None and e.get("lng") is not None
+        ]
+        ut.append((municipality, points))
+    return ut
+
+
+def main() -> None:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    fetched_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    kommuner = las_kommuner()
+    punkter = {m["slug"]: pts for m, pts in kommuner}
+
+    for municipality, points in kommuner:
         code = municipality["code"]
         slug = municipality["slug"]
         city = municipality["city"]
 
         print(f"{slug} ({code})", file=sys.stderr)
-        osm_areas = fetch(code)
+
+        # Ett anrop, två användningar: områdes-id åt stadsdelsfrågan och
+        # geometri åt kommunens egen yta. Se kommun_relation.
+        relation = kommun_relation(code)
+        time.sleep(5)
+
+        kommun = kommunyta(
+            relation,
+            municipality,
+            points,
+            {s: p for s, p in punkter.items() if s != slug and p},
+        )
+
+        osm_areas = fetch(kommun_area(relation))
         regso_areas = fetch_regso(code, city)
         areas = merge(osm_areas, regso_areas)
         print(
@@ -583,28 +976,29 @@ def main() -> None:
         )
 
         out = OUT_DIR / f"{slug}.json"
-        if not areas:
+        if not areas and not kommun:
             # Ingen fil alls hellre än en tom. En tom fil läses som "vi har
             # tittat och det finns inget", vilket är sant i dag och blir en
             # tyst lögn den dag källorna växt men filen ligger kvar.
             if out.exists():
                 out.unlink()
+            time.sleep(5)
             continue
 
-        used = sorted({a["source"] for a in areas})
+        used = sorted({a["source"] for a in areas} | ({kommun["source"]} if kommun else set()))
+        fil = {
+            "municipality": {"code": code, "slug": slug},
+            "sources": {key: {**SOURCES[key], "fetchedAt": fetched_at} for key in used},
+            "areas": areas,
+        }
+        if kommun:
+            # Kommunen ligger bredvid stadsdelarna och inte bland dem. Den är
+            # inget utsnitt av kommunen, den ÄR kommunen, och en yta i `areas`
+            # hade blivit en områdessida som täcker hela sin egen kommun.
+            fil["municipalityArea"] = kommun
+
         out.write_text(
-            json.dumps(
-                {
-                    "municipality": {"code": code, "slug": slug},
-                    "sources": {
-                        key: {**SOURCES[key], "fetchedAt": fetched_at} for key in used
-                    },
-                    "areas": areas,
-                },
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-            + "\n",
+            json.dumps(fil, ensure_ascii=False, separators=(",", ":")) + "\n",
             encoding="utf-8",
         )
         time.sleep(5)

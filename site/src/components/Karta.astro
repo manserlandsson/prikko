@@ -79,7 +79,15 @@ import {
 } from '../lib/data';
 import { kategoriBitar, MAP_EPOCH, tileSet, utsnitt, type Utsnitt } from '../lib/kartrutor';
 import { hasMark, markRatio } from '../lib/marke';
-import { linkedAreas } from '../lib/omraden';
+import { linkedAreas, municipalityArea } from '../lib/omraden';
+/*
+ * SAJTENS NATIONELLA SÖKREGISTER, samma adress som sidhuvudets sök läser.
+ *
+ * search-index.ts importerar node:crypto och kan därför bara läsas i
+ * frontmatter. Adressen går ned till skriptet som ett data-attribut, precis
+ * som SiteSearch.astro gör det, se `data-index` på roten.
+ */
+import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
@@ -170,26 +178,36 @@ const omradesAntal = omradesgrupper.reduce((a, g) => a + g.o.length, 0);
  * Boolis fält heter "Sök på en gata, ort eller kommun" och deras förslagslista
  * blandar fyra typer i samma nio rader. Vår kunde en.
  *
- * ══ EN KOMMUN BLIR INTE ETT CHIP, DEN FLYTTAR KAMERAN ════════════════════
+ * ══ EN KOMMUN ÄR ETT CHIP, PRECIS SOM EN STADSDEL ════════════════════════
  *
- * Det var den avvägning som behövde avgöras, och den avgörs av vad ett chip
- * BETYDER i det här fältet. Varje chip står i dag för en yta som skuggas på
- * kartan och som filtrerar listan; koden går till och med så långt att ett
- * område vars kontur inte gick att hämta rensas bort i stället för att bli ett
- * halvtillämpat val, se `satOmrade`, med motiveringen att ägaren aldrig ska se
- * ett chip som säger Östermalm bredvid en oskuggad karta.
+ * HÄR STOD MOTSATSEN, och den motiveringen är upphävd 2026-08-27. Den löd att
+ * en kommun inte kan bli ett chip eftersom vi saknar kommunpolygoner, att ett
+ * chip står för en yta som skuggar, och att ett kommunchip därför hade varit
+ * ett påstående koden inte kunde infria.
  *
- * En kommun har ingen polygon hos oss. Områdesfilerna bär stadsdelar och
- * RegSO-områden, aldrig kommungränser, alltså kan en kommun varken skugga
- * eller filtrera på yta. Ett kommunchip hade därför varit exakt det påstående
- * koden redan vägrar göra.
+ * Premissen föll. Kommungränserna finns numera som riktiga ytor, se
+ * `municipalityArea` i lib/omraden.ts, och de ligger i samma konturfil som
+ * stadsdelarna under en nyckel utan snedstreck: `stockholm` mot
+ * `stockholm/sodermalm`. Se pages/omradesytor/[kommun].json.ts.
  *
- * Och det behövs inte, för i den HÄR vyn ÄR kameran filtret. Listan visar det
- * som ligger i utsnittet och ingenting annat, se `ritaLista`. Att flytta
- * kameran till Linköpings utsträckning ger alltså Linköpings verksamheter i
- * listan och Linköpings nålar på kartan, vilket är hela svaret på frågan.
- * Chippet hade bara varit en andra, svagare beskrivning av samma sak, och en
- * som dessutom inte gick att lita på.
+ * Ägaren, samma dag: "om man söker på jönköping, så är väl det hela staden,
+ * den ska väl skuggas in som ett filter då, precis som i booli."
+ *
+ * Han har rätt, och det är dessutom en bättre funktion än kameraflytten var.
+ * Kameran som filter håller bara så länge ingen rör den: drar man en
+ * centimeter är Linköping inte längre det man ser, och listan visar
+ * grannkommunens verksamheter utan att något sagt ifrån. Ett chip håller kvar
+ * frågan tills någon tar bort det, och skuggan visar var gränsen går.
+ *
+ * KAMERAN FLYTTAR ÄNDÅ. Ett kommunval gör alltså två saker, precis som ett
+ * stadsdelsval: `satOmrade` med `flyg: true` ställer kameran på ytan och
+ * skuggar allt utanför den. Utsträckningen behövs alltså fortfarande, se `b`
+ * nedan.
+ *
+ * DEN KOMMUN SOM SAKNAR KONTUR FLYTTAR BARA KAMERAN, se `y` nedan. Ett chip
+ * utan yta är exakt det halvtillämpade val `satOmrade` rensar bort, och den
+ * gamla motiveringen ovan är därför inte fel om det fallet, bara om det
+ * allmänna.
  *
  * Utsträckningen kommer ur `utsnitt(slug)`, samma tal som kommunens egen
  * kartsida öppnar på. Kommuner utan en enda känd koordinat är inte med, av
@@ -214,6 +232,19 @@ const kommunforslag = municipalities()
     /** [väst, syd, öst, nord]. Kameran ställer sig här vid ett val. */
     b: vy!.bounds,
     a: vy!.count,
+    /**
+     * Har kommunen en KONTUR att skugga med?
+     *
+     * Sant sedan kommungränserna landade som riktiga ytor i lib/omraden.ts.
+     * Den som är sann blir ett chip precis som en stadsdel; den som är falsk
+     * flyttar bara kameran, alltså det beteende alla tolv hade förut. Se den
+     * omskrivna noten ovanför.
+     *
+     * Flaggan finns för att alternativet är tyst. `satOmrade` rensar ett val
+     * vars yta saknas i konturfilen, alltså hade ett chip på en kommun utan
+     * kontur blinkat till och försvunnit utan att något hänt.
+     */
+    y: municipalityArea(m.slug) !== undefined,
   }));
 
 /*
@@ -379,6 +410,8 @@ const LEGEND = [
   data-kommun={kommun?.slug}
   data-omraden={JSON.stringify(omradesgrupper)}
   data-kommunval={JSON.stringify(kommunforslag)}
+  data-index={SEARCH_INDEX_URL}
+  data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
   data-kategorier={JSON.stringify(kategorier)}
   data-epoch={MAP_EPOCH}
   data-count={data.count}
@@ -948,6 +981,16 @@ const LEGEND = [
   } from '../lib/kartbas';
   import { lockPage, unlockPage } from '../lib/page-lock';
   import { slugify } from '../lib/slug';
+  /*
+   * Sajtens sökregister, ORDAGRANT samma modul som sidhuvudets panel och /sok
+   * läser. Inte en kopia och inte en andra rangordning.
+   *
+   * Vite lyfter sokforslag.ts till en delad bunt, alltså finns exakt en
+   * instans av registret per dokument oavsett hur många komponenter som
+   * importerar den. Det är också skälet till att den inte får röra node: eller
+   * astro:, se noten överst i filen.
+   */
+  import { collect, indexFailed, loadIndex, normalise, searchIndex } from '../lib/sokforslag';
   import { VERDICT } from '../lib/site';
 
   const MAPLIBRE_URL = '/maplibre/maplibre-gl.mjs';
@@ -1546,8 +1589,21 @@ const LEGEND = [
       kn: string;
       b: [number, number, number, number];
       a: number;
+      /** Har kommunen en kontur? Se `kommunforslag` i frontmatteret. */
+      y: boolean;
     }
     const KOMMUNVAL: Kommunval[] = JSON.parse(root.dataset.kommunval || '[]');
+
+    /**
+     * Kommunerna som går att VÄLJA som chip, alltså de som har en kontur.
+     *
+     * Nyckeln är kommunens slug utan snedstreck, `stockholm`, medan en
+     * stadsdel heter `stockholm/sodermalm`. Formen är konturfilens och den är
+     * vald så att resten av skriptet inte behöver veta skillnaden: kommunen
+     * härleds med `nyckel.split('/')[0]` för båda, och ytan slås upp med
+     * `ytor[nyckel]`. Se pages/omradesytor/[kommun].json.ts.
+     */
+    const KOMMUNREG = new Map(KOMMUNVAL.filter((k) => k.y).map((k) => [k.s, k]));
 
     /**
      * ══ ALIAS: NAMN FOLK ANVÄNDER SOM INGEN KÄLLA KÄNNER ═══════════════════
@@ -1645,8 +1701,16 @@ const LEGEND = [
      */
     const VISA_KOMMUN = OMRADESGRUPPER.length > 1;
 
-    /** Områdets namn som det ska stå på skärmen. */
+    /**
+     * Det valdas namn som det ska stå på skärmen, i chippet och i tomtexten.
+     *
+     * Kommunen skrivs som bara orten. Ett chip som säger "Stockholm,
+     * Stockholms stad" upprepar sig själv, och ledet efter kommatecknet finns
+     * för att skilja två Centrum åt, vilket en kommun aldrig behöver.
+     */
     function omradesNamn(nyckel: string): string {
+      const k = KOMMUNREG.get(nyckel);
+      if (k) return k.n;
       const o = OMRADESREG.get(nyckel);
       if (!o) return nyckel;
       return VISA_KOMMUN ? `${o.n}, ${o.kn}` : o.n;
@@ -1668,6 +1732,10 @@ const LEGEND = [
      */
     function tillNyckel(rad: string): string | null {
       if (OMRADESREG.has(rad)) return rad;
+      /* En kommun ligger under sin egen slug utan snedstreck. Grinden gäller
+         lika hårt här: bara en slug som finns i KOMMUNREG släpps vidare, och
+         den kommer ur sidans egen HTML och aldrig ur adressen. */
+      if (KOMMUNREG.has(rad)) return rad;
       if (rad.includes('/')) return null;
       if (kommunSlug) {
         const med = `${kommunSlug}/${rad}`;
@@ -1784,22 +1852,27 @@ const LEGEND = [
     /**
      * ══ FÖRSLAGSMODELLEN ═══════════════════════════════════════════════════
      *
-     * En rad är antingen en KOMMUN eller ett OMRÅDE, och de två beter sig
-     * olika vid val: kommunen flyttar bara kameran, området blir ett chip och
-     * skuggar. Se `kommunforslag` i frontmatteret för avgörandet.
+     * En rad är en KOMMUN, ett OMRÅDE eller en VERKSAMHET, och de tre beter
+     * sig olika vid val: kommunen flyttar bara kameran, området blir ett chip
+     * och skuggar, verksamheten är en länk till sin egen sida. Se
+     * `kommunforslag` i frontmatteret och `valjForslag` nedan.
      *
      * `namn` fetstilas i sin helhet, `led` står i vanlig vikt efter ett
      * kommatecken, `slag` är ordet till höger. `start` är index för träffen i
      * det vikta namnet och används bara för att rangordna.
+     *
+     * `href` finns bara på verksamheter. De andra två har ingen adress att gå
+     * till: de gör något med den karta man redan står på.
      */
     interface Forslag {
-      typ: 'kommun' | 'omrade';
+      typ: 'kommun' | 'omrade' | 'verksamhet';
       nyckel: string;
       namn: string;
       led: string;
       slag: string;
       a: number;
       start: number;
+      href?: string;
     }
 
     /**
@@ -1866,6 +1939,105 @@ const LEGEND = [
     }
 
     /**
+     * ══ VERKSAMHETERNA: EN FEMTE FÖRSLAGSTYP, OCH DEN ÄR NATIONELL ═════════
+     *
+     * Ägaren 2026-08-27 skrev "allegrine" i fältet på /karta/ och fick "Inga
+     * verksamheter här. Ingenting i utsnittet matchar allegrine." Hans fråga:
+     * "varför funkar ej söket här?"
+     *
+     * Orsaken var att fältet gjorde EN sak och såg ut som om det gjorde två.
+     * Det filtrerade de punkter som låg i kartans utsnitt, och punkterna kommer
+     * ur vektorrutor som bara bär det man just då tittar på. På hela Sverige
+     * finns alltså inget namn att matcha mot, och Allegrine på Kammakargatan 22
+     * i Stockholm existerade inte för filtret. Områden och kommuner slogs upp i
+     * en tabell och fungerade nationellt; verksamhetsnamn fungerade bara där man
+     * redan stod, vilket är obegripligt för den som skriver ett namn.
+     *
+     * FÄLTET GÖR NU TVÅ SAKER OCH BÅDA FINNS KVAR:
+     *
+     *   1. FILTRERAR listan medan man skriver. "pizz" smalnar listan precis
+     *      som förut, och det sker mot rutorna i utsnittet.
+     *   2. FÖRESLÅR platser och verksamheter ur det nationella registret.
+     *      "allegrine" ger en rad att trycka på oavsett var kameran står.
+     *
+     * REGISTRET ÄR SAJTENS EGET OCH BYGGS INTE OM. Modulen lib/sokforslag.ts
+     * bär mätta regler om vikning, prefix på ordstart och rangordning som
+     * sidhuvudets panel och /sok redan lutar sig mot. Två register över samma
+     * sextontusen namn divergerar, och den här filen hade fått en tredje
+     * tolkning av samma bokstäver.
+     */
+
+    /** Registret hämtas vid FÖRSTA TANGENTTRYCKET och aldrig vid sidladdning.
+     *  Filen är 1,08 MB rå och omkring 300 kB gzippad, alltså ett pris den ska
+     *  betala som faktiskt söker. Se rapporten för det mätta talet. */
+    let registerBegart = false;
+    let registerKlart = false;
+
+    /** Kommunens namn per slug, ur registret. Verksamhetsraden bär kommunen som
+     *  andra led och registret är det enda stället som känner alla tolv: sidans
+     *  egen KOMMUNVAL rymmer bara de åtta som har en kartsida. */
+    let registerKommuner = new Map<string, string>();
+
+    function begarRegister() {
+      if (registerBegart) return;
+      registerBegart = true;
+      const url = root.dataset.index;
+      if (!url) return;
+      loadIndex(url, root.dataset.indexFallback ?? null).then(() => {
+        if (indexFailed()) return;
+        registerKlart = true;
+        registerKommuner = new Map(searchIndex().kommuner.map(([s, city]) => [s, city]));
+        /* Raderna som redan står i listan byggdes utan registret. Rita om dem
+           så snart det landat, annars måste besökaren trycka en tangent till
+           för att se den träff hen redan bett om. */
+        if (filterFalt.value.trim().length >= 2) stallForslag();
+      });
+    }
+
+    /**
+     * Antal verksamheter i REGISTRET som matchar det skrivna, oavsett var
+     * kameran står. Noll betyder också noll innan registret landat.
+     *
+     * Talet läses av tomläget: "ingenting i utsnittet matchar" får aldrig stå
+     * kvar när registret har en träff att peka på.
+     *
+     * DET RÄKNAR DE RADER SOM FAKTISKT LIGGER I LISTAN och inte `Groups.count`.
+     * Det talet räknar varje rad vars namn, adress ELLER ort innehåller
+     * frågan, alltså också de träffar som medvetet sorteras bort här, se
+     * `loose` i stallForslag. Tomtexten säger "välj en rad under sökfältet",
+     * och den meningen får bara stå där det finns en rad att välja.
+     */
+    let registerTraffar = 0;
+
+    /**
+     * ══ RANGORDNINGEN MELLAN DE FEM TYPERNA ════════════════════════════════
+     *
+     * Kommun, Stadsdel, Område, Verksamhet. (Gata är inte byggd, se noten i
+     * `slagOrd`.)
+     *
+     * TYPEN FÖRE NAMNLIKHETEN, alltså Boolis ordning: deras lista är Kommun,
+     * Län, Område, Gata, uppmätt i ägarens skärmbild, och en gata som heter
+     * likadant som ett område står ändå under det.
+     *
+     * VÅR ORDNING ÄR YTANS STORLEK: kommun, sedan område, sedan verksamhet.
+     * Skälet är inte estetik utan en obalans i antalen. Vi har 12 kommuner, 64
+     * områden och 16 047 verksamheter. Rankas de fritt mot varandra dränker
+     * verksamheterna de sex områden som matchar samma bokstäver, och den som
+     * skriver "vasa" får nio krogar i stället för Vasastaden. Omvänt kostar
+     * ordningen ingenting i det fall som gjorde att typen byggdes: skriver man
+     * "allegrine" matchar varken kommun eller område, och verksamheten står
+     * överst av sig själv.
+     *
+     * MEN PLATSERNA FÅR INTE TA HELA LISTAN HELLER. Ett ord som "bro" matchar
+     * flera områden, och med enbart en typordning hade nio platsrader lämnat
+     * noll rader åt en verksamhet som heter Bro. Tre rader är därför RESERVERADE
+     * åt verksamheter så snart det finns någon: platserna klipps då till taket
+     * minus tre. Talet är litet med flit, för platsen är fortfarande den fråga
+     * fältet i första hand svarar på.
+     */
+    const VERKSAMHETSPLATSER = 3;
+
+    /**
      * Vilket förslag som är förvalt, alltså det Enter tar.
      *
      * Booli har en ljusgrå bakgrund på första raden i samma sekund listan
@@ -1883,7 +2055,10 @@ const LEGEND = [
 
     /** Markerar den förvalda raden och rullar in den. */
     function stallForslagsval() {
-      const knappar = forslag.querySelectorAll<HTMLButtonElement>('button');
+      /* [role="option"] och inte "button": verksamhetsraden är ett <a>, se
+         `stallForslag`, och en selektor på taggnamnet hade hoppat över den
+         med följden att piltangenterna gick förbi varannan rad. */
+      const knappar = forslag.querySelectorAll<HTMLElement>('[role="option"]');
       knappar.forEach((k, i) => {
         const vald = i === forslagIndex;
         k.classList.toggle('vald', vald);
@@ -1897,7 +2072,8 @@ const LEGEND = [
     }
 
     function stallForslag() {
-      const q = vikOm(filterFalt.value.trim());
+      const skrivet = filterFalt.value.trim();
+      const q = vikOm(skrivet);
       /* Arket och inte bredden i sig: samma brytpunkt som .split.ark, så att
          taket följer den layout som faktiskt gäller. */
       const tak = window.matchMedia('(max-width: 899px)').matches
@@ -1907,6 +2083,10 @@ const LEGEND = [
       let traff: Forslag[] = [];
       if (q.length >= 2) {
         for (const k of KOMMUNVAL) {
+          /* En redan vald kommun föreslås inte igen, precis som ett redan
+             valt område inte gör det. Chippet står i fältet och en rad som
+             lägger till det en andra gång gör ingenting. */
+          if (omradeVal.includes(k.s)) continue;
           const i = traffIndex([k.n, k.kn], q);
           if (i < 0) continue;
           traff.push({
@@ -1939,7 +2119,55 @@ const LEGEND = [
           });
         }
         traff.sort(rangordna);
-        traff = traff.slice(0, tak);
+
+        /*
+         * VERKSAMHETERNA UR DET NATIONELLA REGISTRET.
+         *
+         * `collect` sveper hela registret och delar träffarna i klasser.
+         * Härifrån tas de TVÅ NAMNKLASSERNA och ingen mer:
+         *
+         *   namePrefix  namnet börjar med frågan
+         *   nameWord    frågan börjar ett ord inne i namnet
+         *
+         * `loose` lämnas medvetet kvar. Den klassen är substräng var som helst
+         * i namn, adress eller ort, och den regeln motsäger den som gäller för
+         * områdena två stycken upp: prefix på ordstart, aldrig mitt i ett ord.
+         * Ett fält kan inte hålla två olika löften om vad en träff är.
+         *
+         * Kommun- och områdesklasserna ur `collect` lämnas också. Kartan har
+         * redan sina egna, med utsträckningar att flyga till och nycklar att
+         * skugga med, och registrets rader är länkar till andra sidor.
+         */
+        if (registerKlart) {
+          const g = collect(normalise(skrivet), tak);
+          for (const s of [...g.namePrefix, ...g.nameWord]) {
+            /* href är `/<kommun>/<slug>/`, se gather i lib/sokforslag.ts.
+               Kommunens slug är andra ledet och slår upp namnet i klartext. */
+            const kSlug = s.href.split('/')[1] ?? '';
+            traff.push({
+              typ: 'verksamhet',
+              nyckel: s.href,
+              namn: s.label,
+              led: registerKommuner.get(kSlug) ?? '',
+              slag: 'Verksamhet',
+              a: 0,
+              start: 0,
+              href: s.href,
+            });
+          }
+        }
+
+        /* Platserna först, men aldrig hela listan när en verksamhet matchar.
+           Se VERKSAMHETSPLATSER för varför tre. */
+        const platser = traff.filter((t) => t.typ !== 'verksamhet');
+        const verk = traff.filter((t) => t.typ === 'verksamhet');
+        const platstak = verk.length
+          ? Math.max(1, tak - Math.min(VERKSAMHETSPLATSER, verk.length))
+          : tak;
+        traff = [...platser.slice(0, platstak), ...verk].slice(0, tak);
+        registerTraffar = traff.filter((t) => t.typ === 'verksamhet').length;
+      } else {
+        registerTraffar = 0;
       }
 
       forslagRader = traff;
@@ -1950,8 +2178,16 @@ const LEGEND = [
 
       traff.forEach((t, i) => {
         const li = document.createElement('li');
-        const knapp = document.createElement('button');
-        knapp.type = 'button';
+        /*
+         * EN LÄNK ÄR EN LÄNK. Verksamhetsraden leder till en annan sida, alltså
+         * ska den vara ett <a> med href: mittenklick, cmd-klick och "öppna i ny
+         * flik" hör till en rad som byter sida. Kommunen och området byter
+         * ingen sida, de gör något med kartan man står på, och de förblir
+         * knappar. Samma delning som sidhuvudets panel gör.
+         */
+        const knapp = document.createElement(t.typ === 'verksamhet' ? 'a' : 'button');
+        if (knapp instanceof HTMLAnchorElement) knapp.href = t.href!;
+        else knapp.type = 'button';
         knapp.id = `kartfilter-forslag-${i}`;
         knapp.setAttribute('role', 'option');
         knapp.setAttribute('aria-selected', 'false');
@@ -1980,9 +2216,18 @@ const LEGEND = [
 
         knapp.append(namn, slag);
         /* mousedown och inte click: fältet tappar fokus när man trycker, och
-           blur hinner gömma listan innan click hunnit avfyras. */
+           blur hinner gömma listan innan click hunnit avfyras.
+           Det gäller även länkraden, och därför tas de modifierade klicken
+           uttryckligen här: släpps de igenom hinner listan försvinna under
+           fingret innan webbläsaren fått sitt click, och raden gör ingenting
+           alls. */
         knapp.addEventListener('mousedown', (e) => {
           e.preventDefault();
+          if (t.href && (e.button === 1 || e.metaKey || e.ctrlKey || e.shiftKey)) {
+            window.open(t.href, '_blank', 'noopener');
+            return;
+          }
+          if (e.button !== 0) return;
           valjForslag(t);
         });
         li.appendChild(knapp);
@@ -2004,6 +2249,54 @@ const LEGEND = [
         valjOmrade(t.nyckel, true);
         return;
       }
+      /*
+       * ══ VERKSAMHETEN GÅR TILL SIN SIDA OCH FLYGER INTE ═════════════════
+       *
+       * Avgjort på vad registret faktiskt bär, inte på smak. En rad i
+       * sok-index är [namn, adress, slug, kommunindex, bedömning], se
+       * lib/search-index.ts. DEN BÄR INGEN KOORDINAT. Att flyga kameran dit
+       * kräver ett läge, och att öppna nålkortet kräver dessutom att punkten
+       * ligger i en vektorruta som redan är hämtad för det utsnitt man står
+       * på, alltså exakt den sak som inte gäller när man söker nationellt.
+       *
+       * De två vägar som hade gjort en flygning möjlig är båda värre:
+       *
+       *   Koordinater i registret. Två tal per rad gånger 16 047 rader växer
+       *   filen som HELA sajtens sök hämtar, för en funktion som bara kartan
+       *   har. Priset betalas då av varje besökare som söker i sidhuvudet.
+       *
+       *   En andra uppslagning per vald rad. Då behövs en ny endpoint och en
+       *   väntan mellan klick och kamera, för en resa som ändå slutar med att
+       *   besökaren vill läsa verksamhetens sida.
+       *
+       * Sidan är dessutom det svar frågan ställde. Den som skriver ett
+       * verksamhetsnamn vill se verksamheten, och verksamhetssidan bär
+       * bedömningen, historiken, kartan och adressen. Sidhuvudets sök gör
+       * redan precis det med samma rader, alltså gör de två fälten samma sak
+       * med samma data i stället för två olika saker.
+       *
+       * ETT CHIP BLIR DET INTE, av samma skäl som en kommun inte blir det:
+       * ett chip står för en yta som skuggar, och en verksamhet är en punkt.
+       */
+      if (t.typ === 'verksamhet') {
+        if (t.href) window.location.href = t.href;
+        return;
+      }
+      /*
+       * KOMMUNEN BLIR ETT CHIP när den har en kontur, alltså i normalfallet.
+       * Den skuggar allt utanför sig och filtrerar listan, precis som en
+       * stadsdel, och `satOmrade` sköter både flyget och masken. Se den
+       * omskrivna noten vid `kommunforslag` i frontmatteret för varför det
+       * ändrades, och ägarens ord som ändrade det.
+       */
+      if (KOMMUNREG.has(t.nyckel)) {
+        valjOmrade(t.nyckel, true);
+        return;
+      }
+
+      /* Kvar står den kommun som saknar kontur. Den flyttar bara kameran,
+         alltså det beteende alla tolv hade innan gränserna fanns. Ett chip
+         utan yta hade rensats bort av `satOmrade` i samma andetag. */
       const k = KOMMUNVAL.find((x) => x.s === t.nyckel);
       if (!k) return;
 
@@ -2065,6 +2358,17 @@ const LEGEND = [
     let tillampa: (() => void) | null = null;
 
     filterFalt.addEventListener('input', () => {
+      /*
+       * Registret hämtas HÄR och inte vid sidladdning, och inte heller vid
+       * fokus som sidhuvudets panel gör. Skälet är att fältet står mitt i en
+       * app-yta som redan hämtar kartstil, MapLibre och vektorrutor vid start:
+       * en megabyte JSON i samma andetag hade konkurrerat med den karta
+       * besökaren faktiskt kom för. Vid första tangenttrycket är kartan uppe.
+       *
+       * Anropet är idempotent i två lager: flaggan här, och `loading` inne i
+       * loadIndex som återanvänder samma promise för hela dokumentet.
+       */
+      begarRegister();
       tillampa?.();
       stallForslag();
     });
@@ -2554,17 +2858,47 @@ const LEGEND = [
        */
       const iVyn = totalt + iBubbla;
 
-      /* Kommunraderna, bara på rikskartan: de är listans innehåll så länge
-         kartan inte gett några kort, och försvinner i samma stund den gör det.
-         Se `kommunrader` i frontmatteret. */
-      if (kommuner) kommuner.hidden = visa.length > 0;
+      /*
+       * Kommunraderna, bara på rikskartan.
+       *
+       * HÄR STOD `visa.length > 0`, alltså att raderna försvann i samma stund
+       * kartan gav ett enda kort. Den regeln höll så länge rikskartan öppnade
+       * på beståndets egen låda, för då låg varenda punkt i en bubbla och
+       * listan var tom.
+       *
+       * Sedan 2026-08-27 öppnar rikskartan på hela Sverige, se SVERIGE i
+       * pages/karta.astro. Uppmätt vid 1441 x 900 på den vyn: 13 616
+       * verksamheter i utsnittet, varav TRE ligger som lösa nålar och 13 613 i
+       * bubblor. Tre nålar räckte för att gömma navigeringen, alltså stod
+       * kolumnen med tre godtyckliga kort och ingen väg vidare.
+       *
+       * Villkoret är därför inte längre "finns det kort" utan "är listan hel".
+       * Ligger något kvar i en bubbla visar listan inte allt som finns i
+       * utsnittet, och då är kommunraderna fortfarande en väg vidare. De står
+       * under korten i markupen, alltså konkurrerar de inte med dem.
+       */
+      if (kommuner) kommuner.hidden = iBubbla === 0;
 
       if (iVyn === 0) {
         // Samma tomrubrik med och utan filter, men förklaringen är en annan:
         // med filter är det filtret som tömde vyn, och rensknappen visas.
         satTal(null, 'Inga verksamheter här.');
+        /*
+         * TOMTEXTEN FÅR ALDRIG SÄGA "ingenting i utsnittet" NÄR REGISTRET HAR
+         * EN TRÄFF. Det var precis den meningen ägaren fick på "allegrine", och
+         * den var sann om utsnittet och falsk om sajten: verksamheten finns, på
+         * Kammakargatan 22 i Stockholm.
+         *
+         * Meningen pekar därför på förslagsraden i stället, som ligger under
+         * fältet i samma sekund. `registerTraffar` räknar HELA registret och
+         * inte de nio rader listan sparat, alltså kan texten inte påstå en rad
+         * som inte syns: har registret en träff finns den i listan, eftersom
+         * tre rader är reserverade åt verksamheter.
+         */
         underrubrik.textContent = filtrerat
-          ? `Ingenting i utsnittet matchar ${filterOrd()}. Dra i kartan eller rensa filtret.`
+          ? registerTraffar > 0
+            ? `Ingenting i utsnittet matchar ${filterOrd()}, men namnet finns i registret. Välj en rad under sökfältet.`
+            : `Ingenting i utsnittet matchar ${filterOrd()}. Dra i kartan eller rensa filtret.`
           : `Dra eller zooma ut för att se fler i ${stad}.`;
         underrubrik.hidden = false;
       } else {
@@ -4685,12 +5019,30 @@ const LEGEND = [
      * inte längre som en rad utan som en yta.
      */
     --kartlista: 400px;
-    /* Listkolumnens indrag. Boolis tal är 24 rakt igenom, både på
-       modulblocken upptill och på varje rad. Sajtens vanliga
-       --container-luft är en clamp mellan 16 och 48 och hör hemma på
-       dokumentsidor med en centrerad textspalt; här är kolumnen fast bred
-       och luften ska vara det med. */
-    --kartgutter: var(--s-6);
+    /*
+     * Listkolumnens indrag, och det är SAJTENS gutter och inte Boolis.
+     *
+     * Här stod 24, alltså Boolis tal, med motiveringen att deras kolumn är
+     * fast bred och luften därför skulle vara det med. Den motiveringen
+     * faller på ett enkelt mått: sidhuvudet ligger på --container-luft, en
+     * clamp mellan 16 och 48, och vid 1440 börjar loggan på x 48. Med 24 här
+     * började sökfältet, resultatraden och varje listrad på x 24, alltså 24
+     * px till vänster om loggan rakt ovanför.
+     *
+     * Ägaren 2026-08-27: "ska inte vänsterkanten vara flush med logotypen i
+     * headern till vänster, liksom vänsterpanelen startar lite för långt
+     * vänster tror jag."
+     *
+     * En förlaga följdes alltså där sajten har en egen regel, samma feltänk
+     * som med sökfältet. Kolumnen under sidhuvudet ska börja på sidhuvudets
+     * linje, och den linjen bor i --container-luft. Vid 375 ger clampen 16,
+     * och då blir indraget 16 här också, precis som loggans.
+     *
+     * TALET ÄR INNEHÅLLETS INDRAG OCH INTE KOLUMNENS BREDD. --kartlista står
+     * kvar på 400/512/688 och kartan går fortfarande kant i kant åt höger.
+     * Rör de sig har någon annan regel börjat läsa det här tokenet.
+     */
+    --kartgutter: var(--container-luft);
     grid-template-columns: var(--kartlista) minmax(0, 1fr);
     align-items: start;
   }
@@ -5483,7 +5835,11 @@ const LEGEND = [
   /* 40 och inte 41. Boolis rad MÄTER 41 med sin avdelare inräknad, och den
      sista mäter 40 eftersom den inte har någon. Vår 41 plus avdelaren gav 42,
      alltså en pixel för mycket per rad och nio för hela listan. */
-  .forslag :global(button) {
+  /* Både knappen och länken. Verksamhetsraden är ett <a> och de andra två är
+     <button>, se `stallForslag`, och de två får aldrig se olika ut: typen står
+     redan i ordet till höger och behöver ingen andra signal. */
+  .forslag :global(button),
+  .forslag :global(a) {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -5496,10 +5852,12 @@ const LEGEND = [
     font: 400 var(--fs-body-s) / 1 var(--font-sans);
     color: var(--text);
     text-align: left;
+    text-decoration: none;
     cursor: pointer;
   }
 
-  .forslag :global(button:hover) { background: var(--canvas); }
+  .forslag :global(button:hover),
+  .forslag :global(a:hover) { background: var(--canvas); }
 
   /*
    * DEN FÖRVALDA RADEN, alltså den Enter tar.
@@ -5518,7 +5876,8 @@ const LEGEND = [
    * :global, eftersom raderna byggs med createElement och därför inte bär
    * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
    */
-  .forslag :global(button.vald) { background: var(--canvas); }
+  .forslag :global(button.vald),
+  .forslag :global(a.vald) { background: var(--canvas); }
 
   /*
    * HELA NAMNET I VIKT 600, ledet efter kommatecknet i 400.
@@ -5536,7 +5895,8 @@ const LEGEND = [
   /* Namnet får krympa, typetiketten aldrig. Ett långt "Hässelby Villastad,
      Stockholm" ska klippas i sin egen ände och inte knuffa ut ordet Område
      ur rutan. */
-  .forslag :global(button > span:first-child) {
+  .forslag :global(button > span:first-child),
+  .forslag :global(a > span:first-child) {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5806,21 +6166,31 @@ const LEGEND = [
    * blandas ihop trots att de har samma värde i dag. --bild-platshallare är
    * ytan man ser INNAN ett foto landar; --bild-tom är ytan för en verksamhet
    * som inte HAR något foto, vilket är fallet för 15 681 av 16 047. Läs
-   * skillnaden vid tokenen i tokens.css. Ytan är dessutom ägarens öppna beslut
-   * mellan den kalla grå och en varm sand, se brand/_prov-bildyta.html, och
-   * genom att läsa tokenet följer varje listrad med den dagen han väljer.
+   * skillnaden vid tokenen i tokens.css.
    *
-   * Boolis egen är en varm #F8F0E8 med en ritad kamera, uppmätt 2026-08-26.
+   * Ägaren valde ytan 2026-08-27: "jag hade nog kört markisen på fotot, i
+   * grått...". Alltså den kalla grå och inte den varma sand provsidan
+   * rekommenderade. Boolis egen är en varm #F8F0E8, uppmätt 2026-08-26.
    *
-   * BLÄCKET I RITNINGEN ÄR HÅRDKODAT till #C3C3C8, alltså värdet i
-   * --bild-tom-blck. En data-URI kan inte läsa en CSS-variabel. Ändras tokenet
-   * ska raden nedan ändras samma dag.
+   * MOTIVET ÄR SAJTENS EGET OCH RITAS INTE EN ANDRA GÅNG. Markisen, ritad som
+   * en illustration i fem toner, är vald och provrenderad i Bildyta.astro och
+   * brand/_prov-bildyta.html. Formerna nedan är KOPIERADE därifrån, tecken för
+   * tecken, och måste ändras i båda filerna samtidigt. Att listraden inte kan
+   * använda komponenten står strax nedan.
    *
-   * MOTIVET ÄR SAJTENS EGET OCH RITAS INTE EN ANDRA GÅNG. Kameran, alltså
-   * Boolis eget föremål i vår streckritning, är vald och provrenderad i
-   * Bildyta.astro och brand/_prov-bildyta.html. De fyra banorna nedan är
-   * KOPIERADE därifrån, tecken för tecken, och måste ändras i båda filerna
-   * samtidigt. Att listraden inte kan använda komponenten står strax nedan.
+   * TONERNA ÄR HÅRDKODADE, och det är inte slarv. En data-URI är ett eget
+   * dokument: den kan varken läsa en CSS-variabel eller ärva en klass, alltså
+   * finns ingen väg att peka på --bild-tom-fasad härifrån. Talen nedan är
+   * palettens fem, i den ordning de står i tokens.css:
+   *
+   *     %23D0D0D8  --bild-tom-fasad
+   *     %23ADADB5  --bild-tom-markis
+   *     %23C6C6CE  --bild-tom-markis-ljus
+   *     %239E9EA7  --bild-tom-dorr
+   *     %23BCBCC4  --bild-tom-bas
+   *
+   * Ändras ett token ska raden nedan ändras samma dag. Noten i Bildyta.astro
+   * säger samma sak åt andra hållet.
    *
    * Ett föremål ur matvärlden hade påstått något om verksamheten, och raden
    * gäller lika ofta ett skolkök som en pizzeria.
@@ -5856,7 +6226,7 @@ const LEGEND = [
        sig självt. 0,42 av 116 är 49, av 78 är 33. Talet är provrenderat av
        Bildyta i 0,34, 0,42, 0,50 och 0,58 med bedömningsmärket på plats. */
     background-size: auto 42%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C3C3C8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.8 7.6h14.4a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z'/%3E%3Cpath d='M8.6 7.6l1.5-2.3h3.8l1.5 2.3'/%3E%3Cpath d='M15.5 13.6a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0'/%3E%3Cpath d='M6 10.9h.01'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23D0D0D8' d='M12 12h24v28H12z'/%3E%3Cpath fill='%23ADADB5' d='M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23C6C6CE' d='M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23ADADB5' d='M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%239E9EA7' d='M19 29h10v11H19z'/%3E%3Crect fill='%23BCBCC4' x='7' y='39.4' width='34' height='1.8' rx='.9'/%3E%3C/svg%3E");
   }
 
   .rader :global(.k-bild img) {
@@ -6526,7 +6896,22 @@ const LEGEND = [
     .split.ark .arkinne {
       flex: 1;
       min-height: 0;
-      padding: 0 var(--s-4) var(--s-6);
+      /*
+       * INGEN VÅGRÄT PADDING HÄR, och det är en rättelse 2026-08-27.
+       *
+       * Här stod `0 var(--s-4) var(--s-6)`, alltså 16 px in på varje sida av
+       * arket. Varje barn bär redan sitt eget indrag ur --kartgutter, se
+       * .listhuvud, .rader a, .kommuner och .listfot, så de 16 lades OVANPÅ
+       * gutterns. Uppmätt vid 375 innan ändringen: loggan i sidhuvudet på
+       * x 16 och sökfältet på x 32, alltså exakt den dubblering ägaren såg på
+       * bred skärm av ett annat skäl.
+       *
+       * Alla fyra barn har ett eget indrag, kontrollerat i webbläsaren, så
+       * ingenting går flush mot kanten av att raden tas bort. Radernas
+       * hårlinjer går däremot hela vägen ut nu, vilket är Boolis form och det
+       * som stod som avsikt vid .rader.
+       */
+      padding: 0 0 var(--s-6);
       /* Tröghetsrullning på iOS, och rullningen får inte fortsätta ut i
          sidan bakom när listan tar slut. */
       overscroll-behavior: contain;

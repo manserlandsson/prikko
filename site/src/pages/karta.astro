@@ -31,6 +31,53 @@ import { absolute } from '../lib/urls';
    motsvarigheten i `[kommun]/karta.astro` har. */
 const data = utsnitt()!;
 
+/**
+ * ══ SIDAN HETER SVERIGE OCH SKA ÖPPNA PÅ SVERIGE ══════════════════════════
+ *
+ * Ägaren 2026-08-27: "borde inte standardvyn på kartan vara hela sverige...
+ * jag kan tex inte söka på kartan på en restaurang från stockholm som standard
+ * när jag går in på kartan för zoomen är typ runt linköping/jönköping."
+ *
+ * `utsnitt()` ger den minsta lådan runt de verksamheter som HAR koordinater,
+ * uppmätt ur `data-bounds` före ändringen:
+ *
+ *     13,43076  57,260725  18,132182  59,888058
+ *
+ * Det är Karlstad till Stockholm till Oskarshamn, och mittpunkten hamnar
+ * mellan Linköping och Jönköping. Lomma och Höganäs ligger i Skåne och hade
+ * dragit lådan söderut, men de lämnar inga koordinater alls, se `bounding_box`
+ * i pipeline/prikko/wikidatanamn.py. Sidan heter "Karta över hygienkontroller
+ * i Sverige" och visade inte Sverige.
+ *
+ * TALET ÄNDRAS HÄR OCH INTE I lib/kartrutor.ts. `utsnitt()` svarar på "var
+ * ligger punkterna", och det svaret är sant och används av kommunhubben, av
+ * `kartfragment` och av varje kommuns kartsida. Frågan som var fel ställd är
+ * "vad ska rikskartan öppna på", och den frågan äger den här sidan. En ändring
+ * i kartrutor.ts hade flyttat de andra elva svaren med.
+ *
+ * LÅDAN ÄR LANDETS OCH INTE BESTÅNDETS. Riksgränserna avrundade utåt till en
+ * decimal: Kosteröarna i väster, Haparanda i öster, Smygehuk i söder och
+ * Treriksröset i norr. En decimal är omkring elva kilometer, alltså under en
+ * pixel på den zoom lådan ger, och ett rundat tal säger ärligare än fem
+ * decimaler att det här är ett VAL av utsnitt och inte en mätning av data.
+ *
+ * ATT TVÅ TREDJEDELAR AV KARTAN BLIR TOM ÄR AVSIKTEN OCH INTE PRISET. Vi har
+ * tolv kommuner och ingen av dem i Norrland. Den gamla lådan dolde det genom
+ * att zooma till sitt eget bestånd, alltså genom att påstå att beståndet är
+ * landet. En besökare som ser fyra bubblor i Mälardalen och tomt norrut vet
+ * på en sekund vad sajten täcker, och det är en sannare första bild än en
+ * karta som ser fullständig ut för att den klippt bort allt den saknar.
+ * Vänsterkolumnen står dessutom aldrig tom: kommunraderna med sina tal ligger
+ * serverrenderade där och bär vägen vidare, se `kommunrader` i Karta.astro.
+ *
+ * Booli gör samma val i sitt tomma läge, uppmätt: center 17,54 / 62,91 och
+ * zoom 5, med minZoom 5 så att landet är den yttersta vyn som finns. Talen är
+ * deras, räknade för deras bestånd; lådan nedan är vår och räknas om av
+ * MapLibre efter kartrutans faktiska storlek.
+ */
+const SVERIGE: [number, number, number, number] = [10.6, 55.2, 24.2, 69.1];
+const rikevy = { ...data, bounds: SVERIGE };
+
 const title = 'Karta över hygienkontroller i Sverige';
 const description =
   `Karta med ${formatNumber(data.count)} restauranger och livsmedelsverksamheter i Sverige. ` +
@@ -63,7 +110,7 @@ const jsonLd = {
       dokumentet på alla bredder, till skillnad från förut då den klipptes
       bort helt på telefon.
     */}
-    <Karta data={data} />
+    <Karta data={rikevy} />
   </div>
 </Base>
 

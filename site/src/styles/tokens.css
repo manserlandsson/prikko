@@ -85,17 +85,61 @@
      riktningen, och den varma sanden nedan är den kandidat som står mot den
      kalla grå i brand/_prov-bildyta.html.
 
-     VÄRDET HÄR ÄR TILLS VIDARE DEN KALLA GRÅ. Provsidan rekommenderar den
-     varma #F3F0EA, men ytan är ägarens beslut och han har inte tagit det än.
-     Byt de två raderna nedan när han valt, så följer varje kort och varje
-     listrad med i samma ändring.
+     ÄGAREN HAR VALT, 2026-08-27: "jag hade nog kört markisen på fotot, i
+     grått...". Alltså den kalla grå och inte den varma sanden, och markisen
+     och inte kameran. Provsidan rekommenderade kameran på #F3F0EA och den
+     rekommendationen är avgjord emot. Ytan står kvar på #F1F1F3, alltså
+     samma tal som --bild-platshallare ovan, och de två förblir ändå skilda
+     tokens: de svarar på olika frågor och kan gå isär i morgon.
 
-     Bläcket ligger på omkring 1,45:1 mot ytan. Tydligt synligt utan att kräva
-     uppmärksamhet; mörkare gör platshållaren till en ikon man läser varje
-     gång. Det är inte en textfärg och får aldrig bära text, exakt som
-     --tone-quiet längre ned. */
+     Ingen av dem ligger nära en bedömningsfärg och ingen är hämtad ur
+     märkesblån. Talen som betyder något står vid palettens toner nedan. */
   --bild-tom: #F1F1F3;
+
+  /* Ärvd textfärg inne i bildytan. Den RITAR inte längre motivet: sedan
+     platshållaren blev en illustration i flera toner bär varje form sin egen
+     ton nedan, och currentColor pekar inte ut någon av dem. Kvar står den som
+     färg för det en anropare lägger i ytans slot. Aldrig text i brödstorlek,
+     exakt som --tone-quiet längre ned. */
   --bild-tom-blck: #C3C3C8;
+
+  /* ── PLATSHÅLLARENS PALETT ─────────────────────────────────────────────
+     Ägaren 2026-08-27: "kan du göra bilden för att det ej finns någon bild
+     lite bättre, boolis är ju lite snyggare och välgjord."
+
+     Boolis platshållare är ritad som en ILLUSTRATION och inte som en ikon:
+     flera toner och volym i formen. Vår markis var ett enda streck i en enda
+     ton. Tre utföranden ställdes mot varandra i brand/_prov-bildyta.html och
+     ägaren valde 2026-08-27: "kör på illustret utan kontur (b)".
+
+     UTAN KONTUR betyder att varje kant i motivet är en TONSKARV och ingenting
+     annat. Det ställer krav på stegen mellan tonerna, eftersom en skarv som
+     är för liten helt enkelt inte finns. Uppmätt mot --bild-tom med WCAG
+     2.1:s formel:
+
+         fasad         #D0D0D8   1,36:1
+         markis ljus   #C6C6CE   1,50:1
+         bas           #BCBCC4   1,67:1
+         markis mörk   #ADADB5   1,98:1
+         dörr          #9E9EA7   2,36:1
+
+     Spannet är avsikten. En illustration behöver djup för att läsa som en
+     form och inte som en fläck, och det djupet finns inte i en enda ton: det
+     gamla bläcket låg på 1,56:1 och var allt motivet hade. Den mörkaste tonen
+     är dörren på 2,36 och den täcker tio av 48 enheter i bredd, alltså en
+     liten del av ytan. Låg HELA motivet där vore platshållaren en ikon man
+     läser varje gång, vilket är precis vad den inte får vara.
+
+     ORDNINGEN MELLAN TONERNA BÄR VOLYMEN. Markisens ytterkappor är mörkare än
+     mittkappan, alltså läser mitten som ljus uppifrån, och fasaden är ljusare
+     än båda så att markisen ligger framför huset.
+
+     INGEN AV DEM BÄR TEXT och ingen behöver därför klara 4,5:1. */
+  --bild-tom-fasad: #D0D0D8;
+  --bild-tom-markis-ljus: #C6C6CE;
+  --bild-tom-bas: #BCBCC4;
+  --bild-tom-markis: #ADADB5;
+  --bild-tom-dorr: #9E9EA7;
 
   /* Text */
   --text: #1D1D1F;
