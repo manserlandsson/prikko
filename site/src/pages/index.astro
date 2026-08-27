@@ -1147,19 +1147,40 @@ const jsonLd = [
           "Visa fler", och det gör vi inte: interna länkar bakom ett klick är
           precis vad docs/26 talar emot. Flikarna byter vad som SYNS, aldrig
           vad som finns. */}
-      <div class="flikar" role="tablist">
-        {columns.map((col, i) => (
-          <>
-            <input
-              class="visually-hidden"
-              type="radio"
-              name="utforska"
-              id={`utf-${col.category.id}`}
-              checked={i === 0}
-            />
-            <label class="flik" for={`utf-${col.category.id}`}>{col.category.name}</label>
-          </>
-        ))}
+      {/* HÅRLINJEN LIGGER PÅ EN EGEN RAD OCH INTE PÅ FLIKRADEN.
+          ──────────────────────────────────────────────────────────────────
+          Två mätta skäl, båda från 2026-08-27.
+
+          Linjen låg fel. Flikraden bär `margin-left: -12px` för att första
+          flikens ORD ska stå på 48 som allt annat, och underkanten följde
+          med ut: uppmätt vid 1440 gick linjen 36 till 1392, alltså tolv
+          pixlar ut i vänstergutten och jämnt i höger. Ednias linje är ett
+          eget 1 px block i innehållets bredd, uppmätt till 48 till 1464 i
+          en 1512 px vy, alltså symmetrisk. Wrappern bär linjen och står på
+          innehållets bredd; flikraden får dra ut sig som förut.
+
+          Flikarna måste dessutom kunna rulla. Uppmätt vid 375 bröt raden
+          till två våningar och blocket blev 89 px högt i stället för 41,
+          eftersom de fyra etiketterna mäter 113, 154, 71 och 147, alltså
+          509 px med luft i en spalt på 343. Ednia rullar sin flikrad i en
+          våning på 36 px, samma grepp som kategoriraden högre upp på den
+          här sidan. En rullande rad kan inte bära linjen själv, för då
+          rullar den med, och det är samma skäl som wrappern. */}
+      <div class="flikrad">
+        <div class="flikar" role="tablist">
+          {columns.map((col, i) => (
+            <>
+              <input
+                class="visually-hidden"
+                type="radio"
+                name="utforska"
+                id={`utf-${col.category.id}`}
+                checked={i === 0}
+              />
+              <label class="flik" for={`utf-${col.category.id}`}>{col.category.name}</label>
+            </>
+          ))}
+        </div>
       </div>
 
       {columns.map((col) => (
@@ -1263,9 +1284,31 @@ const jsonLd = [
       transparent 100%
     );
 
-    /* Sista etiketten ska inte hamna under pilen. Pilen är 32 bred och står
-       12 px in, alltså 44, plus toningens 40. */
-    padding-inline-end: 84px;
+    /* INGEN RESERV I SLUTET AV RADEN, och det är en rättelse.
+       ────────────────────────────────────────────────────────────────────
+       Här stod `padding-inline-end: 84px` med motiveringen att sista
+       etiketten inte skulle hamna under pilen. Måttet gjorde två fel.
+
+       Det första: pilen döljs när raden är utrullad, se skriptet med sina
+       8 px slack. Vid full utrullning fanns alltså ingen pil att skydda
+       etiketten mot, bara 84 px tomt. Uppmätt vid 1440 den 2026-08-27:
+       radens scrollWidth 1929 mot ett innehåll på 1845, alltså 84 px död
+       yta efter sista valet.
+
+       Det andra: reserven tog bort just det ägaren bad om. Ednia 2026-08-27
+       vid 1512: spårets scrollWidth 3347 är exakt innehållets bredd, alltså
+       noll reserv, och deras högerpil på `right: 0` ligger därför OVANPÅ en
+       kategori som toningen suddar ut under den. Vår pil slutar redan på
+       samma pixel som raden, 1392 vid 1440, men reserven såg till att den
+       aldrig hade något under sig.
+
+       Utan reserven landar sista valet dikt an mot radens högerkant när man
+       rullat färdigt, precis som hos dem, och under vägen dit passerar
+       etiketterna under pilen och tonas av masken.
+
+       Telefonen har kvar sin reserv och det är något annat: där är den lika
+       med gutterns 16 och finns för att raden blöder ut ur containern.
+       Ednia gör detsamma vid 375, uppmätt: 19 px kvar mot deras gutter 24. */
     /* OBLIGATORISK. Ett `fieldset` har `min-inline-size: min-content` i
        webbläsarens egen stilmall, och den vinner över `overflow-x: auto`.
        Utan raden mätte raden 617 px i en 390 px vid vyport och sköt hela
@@ -2006,23 +2049,75 @@ const jsonLd = [
 
   /* ── Länkkolumnerna ──────────────────────────────────────────────────
      Ingen ruta, ingen ram, inga ikoner. En länklista mot sidfoten. */
+  /* EN SPALT OCH INGEN RADLUFT, för blocket sätter sin rytm själv.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod `grid-template-columns: repeat(4, 1fr)` med `gap: var(--s-6)`.
+     Spalterna gjorde ingenting: blockets tre barn spänner alla `1 / -1`, och
+     de riktiga fyra spalterna bor i `.utforskalista`. Kvar av regeln fanns
+     bara radluften, och den låg dubbelt: 24 px rutnätsluft PLUS flikradens
+     egen 16 px marginal blev 40 px mellan hårlinjen och första länken,
+     uppmätt vid 1440. Ednias mått är 16, uppmätt samma dag.
+
+     Fyrspaltsregeln bar dessutom en följdfelaktighet, se mediefrågan längst
+     ned: brytpunkten på 767 px ställde om `.kolumner` till två spalter, och
+     eftersom den regeln aldrig hade någon verkan stod listan kvar på fyra
+     ända ned till 375. Uppmätt där: fyra spalter à 77 till 89 px.
+
+     Raderna får sina mått av barnen i stället, alltså 24 under rubriken och
+     16 under hårlinjen, vilket är exakt Ednias rytm. */
   .kolumner {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--s-6);
+    /* En explicit spalt, så att barnens `grid-column: 1 / -1` har en sista
+       linje att peka på. Utan template finns bara linje 1, och `-1` faller
+       tillbaka på den, alltså på ett spann om ett. Det blir rätt ändå här,
+       men bara av en slump. */
+    grid-template-columns: 1fr;
+    row-gap: 0;
     padding-block: var(--s-12);
     border-top: 1px solid var(--hairline);
   }
 
-  /* Flikraden spänner hela rutnätet och bär en hårlinje under sig, precis som
-     Ednias, uppmätt 2026-08-24: 1 px i deras ljusgrå tvärs hela blocket. */
-  .flikar {
+  /* Hårlinjen. Ednias är ett eget 1 px block i innehållets bredd, uppmätt
+     2026-08-27 till 48 till 1464 i en 1512 px vy. Se noten i markupen för
+     varför den inte får sitta på flikraden själv. */
+  .flikrad {
     grid-column: 1 / -1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
+    /* OBLIGATORISK, av exakt samma skäl som `min-inline-size: 0` på
+       kategoriraden längre upp. Ett rutnätsbarn har `auto` som minsta mått,
+       alltså sitt min-content, och wrappern ärver det ur flikraden inuti sig
+       trots att den rullar. Uppmätt vid 375 utan raden: wrappern 497 px bred
+       i en spalt på 343, och hela dokumentets scrollWidth 513 mot 375, alltså
+       sidan rullade i sidled. Med raden: wrappern 343, flikraden 355 med
+       509 px innehåll att rulla, dokumentet 375. */
+    min-width: 0;
     margin-bottom: var(--s-4);
     border-bottom: 1px solid var(--hairline);
+  }
+
+  .flikar {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--s-2);
+    /* Rullar när de fyra etiketterna inte ryms, alltså under omkring 560 px.
+       Samma form som kategoriraden högre upp på sidan och som Ednias egen
+       flikrad, uppmätt: 722 px innehåll i ett 375 px spår. */
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    /* UNDERSTRECKET FÅR INTE KLIPPAS AV RULLNINGEN.
+       ──────────────────────────────────────────────────────────────────
+       `overflow-x: auto` gör att `overflow-y` räknas som `auto` och inte
+       som `visible`, det står i specifikationen. Flikens `::after` sitter på
+       `bottom: -1px` för att lägga sig ovanpå hårlinjen, alltså en pixel
+       utanför raden, och den pixeln hade klippts bort och dessutom kunnat
+       ge raden en lodrät rullning.
+
+       En pixels fyllning gör plats åt strecket inuti raden, och en lika stor
+       negativ marginal tar tillbaka den, så att hårlinjen under står kvar på
+       exakt samma pixel som förut. Marginalen kollapsar inte ut genom
+       wrappern: den bär en underkant, och en underkant stänger kollapsen. */
+    padding-bottom: 1px;
+    margin-bottom: -1px;
 
     /* FÖRSTA FLIKENS ORD SKA STÅ PÅ SAMMA PIXEL SOM ALLT ANNAT.
        ──────────────────────────────────────────────────────────────────
@@ -2036,17 +2131,28 @@ const jsonLd = [
 
        Ett negativt utdrag på raden i stället för mindre fyllning på fliken:
        träffytan ska förbli 24 px bred runt ordet, och understrecket är redan
-       inskjutet 12 px från flikens kanter, så det landar också på 48. */
+       inskjutet 12 px från flikens kanter, så det landar också på 48.
+
+       Utdraget sitter kvar på RADEN och inte på wrappern, så att hårlinjen
+       ovanför står kvar på innehållets 48. Ednia gör likadant: deras flikrad
+       bär `-ml-12` och deras linje är ett syskon utan utdrag. */
     margin-left: calc(var(--s-3) * -1);
   }
 
+  .flikar::-webkit-scrollbar { display: none; }
+
   .flik {
     position: relative;
+    /* `flex: none` sedan raden blev nowrap. Utan den pressas "Caféer och
+       bagerier" ihop i stället för att raden rullar, samma fälla som
+       wordmarken gick i, se Header.astro. */
+    flex: none;
     padding: 8px 12px;
     color: var(--text-secondary);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
   }
 
@@ -2073,7 +2179,15 @@ const jsonLd = [
 
   /* Listorna. Alla fyra står i markupen, en syns. Fyra spalter inuti EN lista
      i stället för fyra listor bredvid varandra: så får den valda kategorin
-     hela bredden och alla tolv kommuner får plats. */
+     hela bredden och alla tolv kommuner får plats.
+
+     SPALTANTALET TRAPPAS NED, och det gjorde det inte förut. Regeln som
+     skulle sköta det satt på `.kolumner`, som inte har några verksamma
+     spalter, så listan stod kvar på fyra ända ned till 375: uppmätt där till
+     77, 89, 77 och 84 px, alltså "3 559 restauranger" i en spalt på 77.
+     Ednia trappar 4, 2, 1 med brytpunkter vid 1024 och 768, uppmätt 2026-08-27
+     till en spalt à 327 px vid 375. Vi tar samma trappa på våra egna
+     brytpunkter. */
   .utforskalista {
     display: none;
     grid-column: 1 / -1;
@@ -2082,6 +2196,14 @@ const jsonLd = [
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  @media (max-width: 1023px) {
+    .utforskalista { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 639px) {
+    .utforskalista { grid-template-columns: 1fr; }
   }
 
   /* En regel per kategori, samma mönster som kategoriradens :has()-lista.
@@ -2098,7 +2220,10 @@ const jsonLd = [
      skalan och används i stället för ett eget tal. */
   .utforska {
     grid-column: 1 / -1;
-    margin-bottom: var(--s-2);
+    /* 24 och inte 8. Rutnätsluften på .kolumner låg tidigare ovanpå och gav
+       32; Ednias mått mellan rubrikens underkant och flikradens överkant är
+       24, uppmätt 2026-08-27 (rubriken slutar på 166, flikarna börjar 190). */
+    margin-bottom: var(--s-6);
     font-size: var(--fs-h-s);
     line-height: var(--lh-h-s);
     font-weight: 600;
@@ -2137,9 +2262,14 @@ const jsonLd = [
      en flik var vald.
 
      Måtten bor numera i `.utforskalista`. Den här regeln bär bara det som
-     gäller alla listor i blocket, och rör inte display. */
+     gäller alla listor i blocket, och rör inte display.
+
+     `gap` stod kvar här och det var inte sant att måtten bodde i listan:
+     `.kolumner ul` väger 0,1,1 mot listklassens 0,1,0, så åtta pixlar vann
+     över listans 12 och 24. Uppmätt vid 1440 den 2026-08-27: fyra spalter à
+     330 px med 8 px emellan, alltså också en spaltluft på 8 där 24 var
+     skriven. Talet är borta här och gäller nu där det står. */
   .kolumner ul {
-    gap: var(--s-2);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -2203,9 +2333,10 @@ const jsonLd = [
      kräver omkring 1 200 px behållare för att kortet ska hålla 190. */
 
 
-  @media (max-width: 767px) {
-    .kolumner { grid-template-columns: repeat(2, 1fr); }
-  }
+  /* Här stod `@media (max-width: 767px) { .kolumner { grid-template-columns:
+     repeat(2, 1fr) } }`. Den var verkningslös: blockets barn spänner alla
+     `1 / -1`, och de riktiga spalterna bor i `.utforskalista`. Trappan står
+     numera vid listan själv, se där. */
 
   @media (max-width: 700px) {
     /* Inget utfällt sökläge på telefon, alltså inget tomrum att lämna.

@@ -178,7 +178,37 @@
      mot vitt är fullt läsbart som ett fält bredvid ett märkesblått. Skriv
      aldrig color: var(--tone-quiet). */
   --tone-quiet: #A1A1A6;
-  --hairline: rgba(0, 0, 0, .08);
+
+  /* HÅRLINJEN ÄR MÄTT MOT BOOLI OCH INTE VALD.
+     ────────────────────────────────────────────────────────────────────────
+     Ägaren 2026-08-27: "avgränsningen generellt ska vara lite mörkare, som
+     booli liksom."
+
+     Booli har TVÅ avdelare, uppmätta ur deras levande stil:
+
+         listradernas hårlinje            #E6E6E6
+         förslagslistans ram och rader    #CCCCCC
+
+     Tokenet låg på .08, vilket komposterar till #EBEBEB mot vitt, alltså
+     ljusare än båda. Det nya talet är .098, som komposterar till exakt
+     #E6E6E6: samma färg som Boolis listrader, på pricken. Mot --canvas,
+     #FCFCFD, blir den #E3E3E4.
+
+     .098 OCH INTE .1, och det är inte petigt. Byggets minifierare skriver om
+     alfa till åtta siffrors hex: .1 blir 0x1a, alltså 26/255, och 26 mot vitt
+     ger #E5E5E5. 25/255 träffar 230 och därmed #E6E6E6. Talet som skrivs här
+     är det som når skärmen först efter den avrundningen.
+
+     ETT TOKEN OCH INTE TVÅ, trots att Booli har två tal. Deras mörkare
+     #CCCCCC bär kanten på en ruta som ligger OVANPÅ sidan, och den kanten
+     löser vi redan på ett annat sätt: en hårlinje plus ringen i --shadow-pop.
+     Det är utrett två gånger med mått, se .forslag och .sortmeny i
+     Karta.astro, och en andra hårlinje hade rivit upp det utan att någon bett
+     om det. Beställningen gällde den generella linjen.
+
+     Alfa och inte hexadecimalt: en fast ljusgrå linje blir osynlig den dag
+     ytan under är mörk. */
+  --hairline: rgba(0, 0, 0, .098);
 
   /* Bedömningsnivåer. Tre steg, speglar källdatan (Sambruk assessment 0/1/2).
      Färg = betydelse, men kombineras ALLTID med symbol + textetikett:
@@ -297,7 +327,7 @@
      skugga syns inte längre. Tydligast på kommunkortet utan foto: vit
      bildzon, vit kropp, vit sida — kortet försvann helt.
 
-     Ringen ligger på 1,19:1 mot vitt (rgba(0,0,0,.08) över vitt = #EBEBEB).
+     Ringen ligger på 1,24:1 mot vitt (rgba(0,0,0,.098) över vitt = #E6E6E6).
      Det är under WCAG 1.4.11:s 3:1, men den regeln gäller grafik som BÄR
      information. Kortets kant bär ingen: allt som betyder något står som
      text inuti. En kant är dessutom det ögat är byggt för att hitta — en
