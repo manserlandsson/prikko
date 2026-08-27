@@ -1607,7 +1607,6 @@ let pointsCache: MunicipalityPoint[] | null = null;
  */
 const DECLARED_POINTS: Record<string, { lat: number; lng: number }> = {
   borgholm: { lat: 56.8795, lng: 16.656 },
-  hoganas: { lat: 56.2, lng: 12.5667 },
   lomma: { lat: 55.6667, lng: 13.0833 },
   svenljunga: { lat: 57.4964, lng: 13.1116 },
 };

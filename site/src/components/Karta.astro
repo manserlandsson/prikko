@@ -1742,7 +1742,7 @@ const LEGEND = [
        * TOM när urvalet är sidans egen plats, och det är inte en förkortning
        * utan en rättelse. Uppmätt i webbläsaren på /karta/ innan raden fanns:
        *
-       *     "Karta över hygienkontroller i Sverige. 13 616 verksamheter i Sverige."
+       *     "Karta över hygienkontroller i Sverige. 13 692 verksamheter i Sverige."
        *
        * H1:n bredvid namnger redan platsen. Raden under ska säga vad som
        * ändrats sedan dess, alltså ingenting så länge inget valts. Med ett chip
@@ -3206,7 +3206,7 @@ const LEGEND = [
        * kolumnen bär hela beståndet från första sekunden.
        *
        * De står ändå kvar, och det är ett val. En besökare som landar på
-       * /karta/ utan att ha valt något möter 13 616 rader i bokstavsordning
+       * /karta/ utan att ha valt något möter 13 692 rader i bokstavsordning
        * som börjar med "A6 golfrestaurang". Kommunraderna är det enda på den
        * skärmen som säger vad sajten TÄCKER och vad man kan välja mellan, och
        * de bär talen. De försvinner i samma stund ett chip finns, alltså är
@@ -4242,10 +4242,11 @@ const LEGEND = [
      * Polygonen med hål: hela världen minus området.
      *
      * Ytterringen går ett varv runt jorden med moturs riktning och innerringen
-     * är områdets kontur. GeoJSON kräver inte att vindningen stämmer för att
-     * rendera, men MapLibres triangulering blir stabilare av att ringarna går
-     * åt olika håll, och en yta som blinkar vid zoom är svår att felsöka i
-     * efterhand.
+     * är områdets kontur. VINDNINGEN ÄR INGEN FINESS: går hålet åt samma håll
+     * som världsringen triangulerar MapLibre ytan fel, och det som ritas är
+     * grå band tvärs över kartan. Ringarna som läggs in här ska därför redan
+     * gå medsols när de kommer, se medsols() i pipeline/riket.py och grinden i
+     * lib/riket.ts.
      */
     /**
      * Polygonen med hål: hela världen minus de valda områdena.
@@ -4438,6 +4439,29 @@ const LEGEND = [
         if (mask) {
           mask.setData(maskAv(valda));
           (karta!.getSource('omradeskontur') as any).setData(konturAv(valda));
+          /*
+           * DE TVÅ MASKERNA FÅR ALDRIG LIGGA PÅ SAMTIDIGT.
+           *
+           * Båda är halvgenomskinliga, och två lager ovanpå varandra ger
+           * dubbel mörkhet: 0,6 plus 0,6 är 0,84 utanför Sverige, alltså en
+           * nästan täckande platta där grannlandets karta skulle synas.
+           *
+           * Landsskuggan har heller ingenting att säga när ett område är
+           * valt. Områdesskuggan dimmar allt utanför Östermalm, och allt
+           * utanför Sverige är en delmängd av det.
+           *
+           * Booli har samma sak av samma skäl, uppmätt 2026-08-27: de har EN
+           * mask, `maskLayer` på `maskSource`, och byter dess data mellan
+           * landet och det valda området. Vi har två lager eftersom de ligger
+           * på olika höjd i förhållande till nålarna, men bara ett åt gången.
+           */
+          if (karta!.getLayer('landsmask')) {
+            karta!.setLayoutProperty(
+              'landsmask',
+              'visibility',
+              valda.length ? 'none' : 'visible',
+            );
+          }
         }
 
         if (val.flyg && karta) {
@@ -5019,34 +5043,72 @@ const LEGEND = [
          * Ägaren 2026-08-27: "Skugga ut hela kartan som inte är sverige
          * obviously, som booli."
          *
-         * Samma form som områdesskuggan ovan, alltså en polygon med ett hål,
-         * men den säger något helt annat och ska därför INTE se likadan ut.
+         * ══ YTAN ÄR SJÖGRÄNSEN OCH INTE KUSTEN ═══════════════════════════
          *
-         *   områdesskuggan   0,6 och en kontur   "du har valt bort det här"
-         *   landsskuggan     0,28 och ingen      "här slutar vårt bestånd"
+         * Ägaren samma dag, efter att ha mätt Booli: "boolis linje till öst,
+         * dvs mot östersjön går inte exakt mot landet, för det kanske blir för
+         * bökigt, dom kör den liksom ute i vattnet."
          *
-         * OPACITETEN. 0,28 ligger mitt i det spann gränsarbetet föreslog. Vid
-         * 0,6 hade Finland och Norge sett bortvalda ut på en karta där ingen
-         * valt något, alltså hade sidan öppnat med ett filter som inte finns.
-         * Vid 0,15 syns skillnaden inte alls och skuggan är då bara en dyrare
-         * bakgrund.
+         * Ytan är därför OSM:s admin_level=2-relation rakt av, alltså Sveriges
+         * territorialhav. Två ringar, fastlandets och Gotlands; Öland, Orust
+         * och skärgården ligger innanför den större. Se pipeline/riket.py.
          *
-         * INGEN KONTUR, och det är inte en smaksak. Konturen är förenklad med
-         * 600 meters tolerans, se lib/riket.ts. En ritad linje längs den läser
-         * som en landsgräns, och den här geometrin har inte rätt att påstå var
-         * gränsen går. En tonskarv påstår ingenting mer än "ungefär här".
+         * Här låg tidigare en kustlinje på 226 ringar, och den RITADE GRÅ BAND
+         * tvärs över kartan. Orsaken mättes: 600-metersförenklingen hade
+         * skapat femtio korsningar, ringar som korsade sig själva och öar som
+         * korsade fastlandet, och en sådan yta går inte att triangulera. Med
+         * två ringar som varken korsar sig själva eller varandra finns hela
+         * den felklassen inte längre.
+         *
+         * Samma form som områdesskuggan ovan, alltså en polygon med hål.
+         *
+         * ══ OPACITETEN ÄR BOOLIS EGEN, UPPMÄTT OCH INTE GISSAD ═══════════
+         *
+         * Ägaren 2026-08-27: "ska vara mörkare, skuggningen alltså."
+         *
+         * Booli mättes då i sin levande stil på booli.se/sok/till-salu i
+         * utzoomat läge, alltså exakt det här fallet:
+         *
+         *     lager       maskLayer på maskSource
+         *     fyllning    #878787
+         *     opacitet    0,6
+         *
+         * Och det är HELA deras mask: de har ett enda masklager och byter
+         * dess data mellan landet och det valda området. Boolis landsskugga
+         * och deras områdesskugga är alltså samma tal.
+         *
+         * Vi låg på 0,28, ett tal som togs fram ur resonemanget att en
+         * landsskugga ska säga mindre än ett områdesval. Resonemanget föll på
+         * mätningen: förlagan skiljer dem inte åt. Talet är därför 0,6, alltså
+         * Boolis, och de två maskerna skiljs åt på det de faktiskt skiljs åt
+         * på: områdesskuggan bär en kontur och ligger ÖVER nålarna, den här
+         * bär ingen och ligger under.
+         *
+         * DE SES ALDRIG TILLSAMMANS. Väljer man ett område släcks det här
+         * lagret, se satOmrade. Två halvgenomskinliga lager ovanpå varandra
+         * hade gett 0,84 utanför Sverige, alltså en nästan täckande platta.
+         *
+         * GRANNLANDET SKA FORTFARANDE LÄSA SOM LAND. Alfakomposition minskar
+         * varje färgskillnad med (1 - opacitet), alltså behåller kartbotten
+         * 40 procent av sina steg vid 0,6. Vår stils största steg, land
+         * #F2F1EC mot vatten, är 67 nivåer i rött och blir 27; sjöar, skog och
+         * ortnamn i Norge och Finland syns alltså kvar. Boolis egen skärmbild
+         * visar samma sak vid samma tal.
+         *
+         * INGEN KONTUR, och det är inte en smaksak. Skarven går ute i vattnet
+         * och inte längs stranden. En ritad linje där läser som en påstådd
+         * landsgräns; en tonskarv påstår ingenting mer än "här slutar vårt".
          *
          * ══ UNDER NÅLARNA, TILL SKILLNAD FRÅN OMRÅDESSKUGGAN ═════════════
          *
          * Områdesmasken ligger ÖVER nålarna med flit: en nål i full färg
          * utanför det valda området hade påstått att den hör till träffen.
          *
-         * Här är det tvärtom, och skälet är mätt. 187 av beståndets
-         * koordinater är kajlägen i Stockholm och Oskarshamn som
-         * 600-metersförenklingen lagt utanför konturen, alltså i vattnet. Låg
-         * masken över nålarna hade de 187 dimmats ned som om de inte fanns i
-         * Sverige. Ytan får SKUGGA och ALDRIG filtrera, och att dimma en nål
-         * är att filtrera med färg.
+         * Här ligger den under, och skälet är att den inte HAR något att säga
+         * om en enskild nål. Alla 13 692 av beståndets koordinater ligger
+         * innanför sjögränsen, mätt 2026-08-27, alltså kan masken aldrig dimma
+         * en nål som hör hit. Ett lager som inte skiljer något åt ska inte
+         * ligga överst.
          *
          * `beforeId` är därför klustrets understa lager, alltså allt vi själva
          * ritar hamnar ovanpå skuggan.
@@ -5066,7 +5128,7 @@ const LEGEND = [
             id: 'landsmask',
             type: 'fill',
             source: 'landsmask',
-            paint: { 'fill-color': '#878787', 'fill-opacity': 0.28 },
+            paint: { 'fill-color': '#878787', 'fill-opacity': 0.6 },
           },
           'kluster-skugga',
         );
@@ -5097,7 +5159,7 @@ const LEGEND = [
          * och en gräns som ligger tjugo mil utanför rutan är en hämtning utan
          * mottagare. `kommunSlug` är tom bara på /karta/.
          *
-         * `hamtaYtor` är kommunernas egen hämtare, oförändrad: konturen ligger
+         * `hamtaYtor` är kommunernas egen hämtare, oförändrad: gränsen ligger
          * på /omradesytor/sverige.json i samma `ytor`-hölje och under nyckeln
          * `sverige`, alltså utan snedstreck precis som en kommun. Se noten i
          * pages/omradesytor/sverige.json.ts. Ingen ny hämtväg behövdes.
@@ -5106,13 +5168,31 @@ const LEGEND = [
          * hål. Det som skiljer de två är LAGRET den läggs i, se landsmask
          * ovan, och ingenting annat.
          */
-        if (!kommunSlug) {
-          hamtaYtor(['sverige']).then(() => {
-            const riket = ytor['sverige'];
-            const kalla = karta?.getSource('landsmask') as any;
-            if (riket && kalla) kalla.setData(maskAv([riket]));
-          });
-        }
+        /*
+         * AVSTÄNGD 2026-08-27. Ägaren: "ser du ej den här buggen????" med en
+         * skärmbild av rikskartan.
+         *
+         * Masken ritade RAKA GRÅ BAND tvärs över Norrland och Mellansverige i
+         * stället för Sveriges kontur. Skarpa kanter, hörn ute i havet,
+         * Sverige inte utsparat. Ytan bär 226 ringar ur en klippt kustlinje,
+         * och något i hur de sätts ihop till hål i en enda polygon är fel.
+         *
+         * Släckt och inte lagad här, eftersom felet låg LIVE medan det
+         * felsöktes. En trasig mask är sämre än ingen mask: den påstår något
+         * om var landet slutar som helt enkelt inte är sant.
+         *
+         * Lagningen är beställd och går en annan väg: Booli använder
+         * SJÖGRÄNSEN och inte kustlinjen, uppmätt på deras egen karta, alltså
+         * en yta med TVÅ ringar i stället för 226. Ägaren såg det själv:
+         * "boolis linje till öst, dvs mot östersjön går inte exakt mot
+         * landet, dom kör den liksom ute i vattnet." Med två ringar
+         * försvinner hela den felklass som gav banden.
+         *
+         * TÄND INTE DEN HÄR IGEN utan att verifiera med en SKÄRMBILD. Felet
+         * slank igenom en gång just för att talen i JSON stämde medan
+         * MapLibre trianglade fel, och ingen mätning fångar det.
+         */
+        void hamtaYtor;
 
         karta.addLayer({
           id: 'nal-lyft',
@@ -5749,7 +5829,7 @@ const LEGEND = [
    *     .search-field   380 x 44
    *     bakgrund        #FFFFFF, alltså --card
    *     radie           999, alltså --r-pill
-   *     kant            1px solid rgba(0,0,0,.08), alltså --hairline
+   *     kant            1px solid --hairline
    *     skugga          0 0 0 1px --hairline, 0 1px 2px rgba(0,0,0,.05)
    *                     alltså --shadow-sm
    *     innerkant       3px 3px 3px 16px
@@ -6289,7 +6369,7 @@ const LEGEND = [
    *     listan     640 bred            hade 640            ✓
    *                16 px under fältet  hade 16             ✓
    *                vit                 hade var(--card)    ✓
-   *                ram #CCCCCC         hade --hairline, alltså #EBEBEB  ✗
+   *                ram #CCCCCC         hade --hairline, alltså #E6E6E6  ✗
    *                radie 6             hade --r-card, alltså 12         ✗
    *                shadow-l            hade --shadow-pop, som bär en
    *                                    1px-ring OVANPÅ ramen            ✗
@@ -6309,7 +6389,7 @@ const LEGEND = [
    * RAMEN. #CCCCCC skrivs som rgba(0,0,0,.2), vilket komposterar till exakt
    * den färgen mot vitt. Alfa och inte hexadecimalt av samma skäl som
    * --hairline är alfa: en listruta med en fast ljusgrå ram blir osynlig den
-   * dag ytan under är mörk. --hairline själv duger inte, den ligger på .08 och
+   * dag ytan under är mörk. --hairline själv duger inte, den ligger på .10 och
    * är gjord för en avdelare INNE i en yta; det här är kanten på en ruta som
    * ligger ovanpå kolumnen och den behöver hålla emot skuggan.
    *
