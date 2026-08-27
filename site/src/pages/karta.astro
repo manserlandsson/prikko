@@ -44,39 +44,82 @@ const data = utsnitt()!;
  *     13,43076  57,260725  18,132182  59,888058
  *
  * Det är Karlstad till Stockholm till Oskarshamn, och mittpunkten hamnar
- * mellan Linköping och Jönköping. Lomma och Höganäs ligger i Skåne och hade
- * dragit lådan söderut, men de lämnar inga koordinater alls, se `bounding_box`
- * i pipeline/prikko/wikidatanamn.py. Sidan heter "Karta över hygienkontroller
- * i Sverige" och visade inte Sverige.
+ * mellan Linköping och Jönköping. Sidan heter "Karta över hygienkontroller i
+ * Sverige" och visade inte Sverige.
  *
  * TALET ÄNDRAS HÄR OCH INTE I lib/kartrutor.ts. `utsnitt()` svarar på "var
  * ligger punkterna", och det svaret är sant och används av kommunhubben, av
  * `kartfragment` och av varje kommuns kartsida. Frågan som var fel ställd är
- * "vad ska rikskartan öppna på", och den frågan äger den här sidan. En ändring
- * i kartrutor.ts hade flyttat de andra elva svaren med.
+ * "vad ska rikskartan öppna på", och den frågan äger den här sidan.
  *
- * LÅDAN ÄR LANDETS OCH INTE BESTÅNDETS. Riksgränserna avrundade utåt till en
- * decimal: Kosteröarna i väster, Haparanda i öster, Smygehuk i söder och
- * Treriksröset i norr. En decimal är omkring elva kilometer, alltså under en
- * pixel på den zoom lådan ger, och ett rundat tal säger ärligare än fem
- * decimaler att det här är ett VAL av utsnitt och inte en mätning av data.
+ * ══ EN LÅDA RYMMER, ETT CENTER FYLLER ═════════════════════════════════════
  *
- * ATT TVÅ TREDJEDELAR AV KARTAN BLIR TOM ÄR AVSIKTEN OCH INTE PRISET. Vi har
- * tolv kommuner och ingen av dem i Norrland. Den gamla lådan dolde det genom
- * att zooma till sitt eget bestånd, alltså genom att påstå att beståndet är
- * landet. En besökare som ser fyra bubblor i Mälardalen och tomt norrut vet
- * på en sekund vad sajten täcker, och det är en sannare första bild än en
- * karta som ser fullständig ut för att den klippt bort allt den saknar.
- * Vänsterkolumnen står dessutom aldrig tom: kommunraderna med sina tal ligger
- * serverrenderade där och bär vägen vidare, se `kommunrader` i Karta.astro.
+ * Första försöket var en låda runt riksgränserna, 10,6 / 55,2 / 24,2 / 69,1,
+ * som MapLibre passade in med 32 px marginal. Uppmätt utfall vid 1440 x 900:
+ * center 17,40 / 62,97 och zoom 4,16. Hela landet rymdes, och just därför låg
+ * det som en frimärke mitt i en ruta med luft runt om.
  *
- * Booli gör samma val i sitt tomma läge, uppmätt: center 17,54 / 62,91 och
- * zoom 5, med minZoom 5 så att landet är den yttersta vyn som finns. Talen är
- * deras, räknade för deras bestånd; lådan nedan är vår och räknas om av
- * MapLibre efter kartrutans faktiska storlek.
+ * Ägaren skickade Boolis landsvy: "så här inzoomat är kartan på booli, hela
+ * sveriges syns inte, men nästan." Uppmätt hos dem: center 17,538 / 62,907 och
+ * zoom 5 i en ruta på 737 x 836, vilket spänner latitud 58,41 till 66,80 och
+ * longitud 9,44 till 25,64. De klipper alltså BÅDE Skåne och Kiruna. Rutan
+ * fylls, den rymmer inte.
+ *
+ * Sidan skickar därför center och zoom i stället för en låda, se `vy` på
+ * Karta.astro. Talen nedan är RÄKNADE MOT VÅR EGEN KARTRUTA och inte avskrivna
+ * ur deras skärmbild.
+ *
+ * ══ VILLKORET SOM SATTE ZOOMEN, OCH DET ÄR INTE FRAMINGEN ═════════════════
+ *
+ * Boolis center går inte att kopiera. Deras södra kant ligger på latitud
+ * 58,41, och Lomma, Höganäs och Svenljunga ligger på 55,6 till 57,7. Kopierade
+ * vi deras framing hade tre av våra tolv kommuner legat utanför bilden på den
+ * sida som ska visa hela beståndet. Beståndet väger tyngre än framingen.
+ *
+ * Villkoret är alltså: ALLA TOLV KOMMUNER INNANFÖR, med marginal. Lådan runt
+ * de tolv kommunernas konturer, räknad ur `municipalityArea` i lib/omraden.ts:
+ *
+ *     latitud    55,641 (Lomma)     till 60,186 (Uppsala)
+ *     longitud   12,117 (Höganäs)   till 18,473 (Uppsala)
+ *
+ * Högsta zoom som rymmer den lådan med 32 px marginal, räknat per kartruta:
+ *
+ *     1440 x 900, kartrutan 751 x 835    bredd 6,25   höjd 5,98
+ *     375 x 812,  kartrutan 375 x 812    bredd 5,11   höjd 5,94
+ *
+ * Den smala rutan binder, och den binder på BREDDEN. 5,10 är alltså inte ett
+ * tal som liknar Boolis fem av en slump utan det högsta vår smalaste kartruta
+ * tål utan att skjuta ut Höganäs i väster eller Uppsala i öster.
+ *
+ * ══ CENTRET SKJUTS NORRUT, OCH DET ÄR DÄR LUFTEN TAS BORT ════════════════
+ *
+ * Vid zoom 5,10 är kartrutan mer än dubbelt så hög som de tolv kommunerna
+ * behöver, alltså finns drygt fyra latitudgrader över. La vi centret mitt i
+ * lådan hamnade halva överskottet SÖDER om Skåne, alltså i Östersjön och
+ * norra Tyskland, och andra halvan i Norrland.
+ *
+ * Centret ligger därför så att södra kanten hamnar 32 px under Lomma, räknat
+ * mot den LÄGSTA av de två rutorna så att båda håller. Hela överskottet går
+ * då norrut, alltså till land. Uppmätt utfall:
+ *
+ *     1440   longitud  7,60 .. 22,99    latitud  55,13 .. 63,78
+ *     375    longitud 11,45 .. 19,14    latitud  55,27 .. 63,67
+ *
+ * Sverige går till 69,1, så norra Norrland klipps vid 63,8, ungefär i höjd med
+ * Östersund. Det är precis Boolis besked, "hela sverige syns inte, men nästan",
+ * och det klipper dessutom bort just den del av landet där vi inte har en enda
+ * verksamhet.
+ *
+ * Marginalen till närmaste kommun, uppmätt: 0,37 grader i söder vid 375 och
+ * 0,67 grader i väster och öster. Ingen kommun tangerar en kant.
+ *
+ * TALEN GÄLLER TVÅ RUTOR OCH INTE ALLA. En kartruta som är BREDARE i
+ * förhållande till sin höjd än 375 x 812 kan visa mer hav i öster, och en som
+ * är smalare kan klippa Höganäs. Provat vid 1440 och 375, se rapporten. Ändras
+ * `--kartlista` eller arkets höjd ska talen räknas om, och räkningen står i
+ * sin helhet ovan.
  */
-const SVERIGE: [number, number, number, number] = [10.6, 55.2, 24.2, 69.1];
-const rikevy = { ...data, bounds: SVERIGE };
+const SVERIGE_VY = { lng: 15.295, lat: 59.734, zoom: 5.1 };
 
 const title = 'Karta över hygienkontroller i Sverige';
 const description =
@@ -110,7 +153,7 @@ const jsonLd = {
       dokumentet på alla bredder, till skillnad från förut då den klipptes
       bort helt på telefon.
     */}
-    <Karta data={rikevy} />
+    <Karta data={data} vy={SVERIGE_VY} />
   </div>
 </Base>
 

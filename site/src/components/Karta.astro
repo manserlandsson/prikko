@@ -108,9 +108,22 @@ interface Props {
   /** Utsnittet kartan öppnar på, och talen under den. Kommunens, eller hela
    *  rikets. Kommer ur lib/kartrutor.ts. */
   data: Utsnitt;
+  /**
+   * Öppningsvyn som CENTER OCH ZOOM i stället för som en låda.
+   *
+   * En låda rymmer allt den innehåller och lämnar därför alltid luft; ett
+   * center med en zoom FYLLER rutan och klipper det som inte får plats. Det
+   * är skillnaden mellan de två sätten och hela skälet till att det här
+   * fältet finns, se SVERIGE i pages/karta.astro.
+   *
+   * Utelämnad betyder lådan i `data.bounds`, alltså det varje kommunkarta
+   * gör. Fragmentet i adressen vinner alltid över båda: den som delat ett
+   * utsnitt har bett om just det.
+   */
+  vy?: { lng: number; lat: number; zoom: number };
 }
 
-const { kommun, data } = Astro.props;
+const { kommun, data, vy } = Astro.props;
 const base = kommun ? `/${kommun.slug}` : '';
 
 /** Vyns namn i klartext. Står i rubriken, i kartans etikett och i tomläget. */
@@ -406,6 +419,7 @@ const LEGEND = [
   data-url={rutor.url}
   data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
+  data-vy={vy ? `${vy.zoom}/${vy.lat}/${vy.lng}` : undefined}
   data-city={plats}
   data-kommun={kommun?.slug}
   data-omraden={JSON.stringify(omradesgrupper)}
@@ -4179,6 +4193,23 @@ const LEGEND = [
        */
       const startFrag = lasFragment();
       const startVy = startFrag.vy;
+
+      /**
+       * SIDANS EGEN ÖPPNINGSVY, alltså center och zoom i stället för en låda.
+       *
+       * Skild från `startVy` med flit, och det är inte en stilfråga: `startVy`
+       * kommer ur ADRESSEN och styr längre ned även "du är här"-ringen, se
+       * `satHar`. En öppningsvy är ingen position, den är en kamerainställning,
+       * och en ring mitt i den hade påstått att någon står där.
+       *
+       * Samma form som fragmentet, `<zoom>/<lat>/<lng>`, så att den som läser
+       * markupen känner igen talen.
+       */
+      const vyDel = (root!.dataset.vy ?? '').split('/').map(Number);
+      const oppningsVy =
+        vyDel.length === 3 && vyDel.every((n) => Number.isFinite(n))
+          ? { zoom: vyDel[0], lat: vyDel[1], lng: vyDel[2] }
+          : null;
       /* Ringen bara när fragmentet kom utifrån. Se skrivFragment: vår egen
          återskrivning bär en flagga i history.state, och den överlever en
          omladdning av samma historikpost. */
@@ -4202,9 +4233,13 @@ const LEGEND = [
          * ändras av någon annan mellan två besök.
          */
         style: '/kartstil/prikko.json',
+        /* Tre utgångslägen i fallande ordning: adressens fragment, sidans egen
+           öppningsvy, och sist lådan. Lådan är kommunkartornas väg. */
         ...(startVy
           ? { center: [startVy.lng, startVy.lat] as [number, number], zoom: startVy.zoom }
-          : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
+          : oppningsVy
+            ? { center: [oppningsVy.lng, oppningsVy.lat] as [number, number], zoom: oppningsVy.zoom }
+            : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
         attributionControl: false,
         /* MapLibres knappar och etiketter på svenska. Se kartbas.ts. */
         locale: KART_SPRAK,

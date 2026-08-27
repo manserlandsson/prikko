@@ -742,7 +742,10 @@ export default defineConfig({
    * att flytta över.
    */
   redirects: {
-    '/konto/notiser': '/konto/#notiser',
+    /* Bara formen MED avslutande snedstreck. Båda formerna gav
+       'A static route cannot be defined more than once' i bygget, eftersom
+       Astro normaliserar dem till samma väg. Sajten bygger med
+       trailingSlash-förvalet, alltså är den här formen den som skrivs. */
     '/konto/notiser/': '/konto/#notiser',
   },
 
