@@ -74,6 +74,10 @@ SOURCE_OSM = "osm"
 # Lantmäteriets belägenhetsadresser. Se prikko/lantmateriet.py för källa,
 # licens och villkor.
 SOURCE_LANTMATERIET = "lantmateriet"
+# Uppsala kommuns egen adresspunktstjänst. Öppen utan nyckel, men licensen
+# är INTE klarlagd, så källan väljs aldrig automatiskt. Se
+# prikko/uppsalaadresser.py för vad ägaren behöver få svar på först.
+SOURCE_UPPSALA = "uppsala"
 
 # Skäl att inte sätta någon koordinat. Redovisas i cachen och i körningens
 # sammanfattning: en utebliven träff ska gå att förklara, inte bara räknas.

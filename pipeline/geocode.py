@@ -8,10 +8,11 @@ uppslag i pipeline/geocode_cache.json. Nästa körning läser cachen och rör
 inte nätet — adresser ändras sällan, och att fråga om samma sak varje natt är
 varken snabbt eller artigt.
 
-    --kalla     auto (förvalt), lantmateriet eller osm
+    --kalla     auto (förvalt), lantmateriet, osm eller uppsala
     --refresh   räkna om uppslagen även för adresser som finns i cachen
+    --torrkor   räkna ut täckningen men skriv varken datafil eller cache
 
-TVÅ ADRESSKÄLLOR
+TRE ADRESSKÄLLOR
 ----------------
 `auto` väljer Lantmäteriets belägenhetsadresser när kommunens GeoPackage-fil
 ligger i data/interim/, annars OpenStreetMap. Registret är Sveriges
@@ -26,23 +27,35 @@ officiella adressregister och är fullständigt där OSM är ojämn, så ordning
                      Geotorget. Se prikko/lantmateriet.py och
                      fetch_belagenhetsadresser.py.
 
-Båda kräver attribution där koordinaten visas, och sidan ska kunna säga
+    Uppsala kommun   LICENS INTE KLARLAGD. Öppen tjänst med 56 150
+                     adresspunkter som skulle ta Uppsala från 986 till
+                     1 523 nålar, men lagret bär ingen licensuppgift och
+                     ligger inte i kommunens öppna data-katalog. Väljs
+                     ALDRIG av `auto`, och main() vägrar skriva dess
+                     koordinater till en datafil så länge licensen är
+                     okänd. Se prikko/uppsalaadresser.py för vad ägaren
+                     behöver få svar på, och kör med --torrkor så länge.
+
+Alla kräver attribution där koordinaten visas, och sidan ska kunna säga
 vilken av dem en enskild nål kommer ur. Därför bär varje verksamhet sitt
 `geoSource`, och datafilens `geocoding` bär källans licens och attribution.
 
 VILKA KOMMUNER SOM GÅR ATT GEOKODA
 ----------------------------------
-Bara de som publicerar en GATUADRESS. Uppmätt 2026-08-18 över samtliga
+Bara de som publicerar en GATUADRESS. Uppmätt 2026-08-27 över samtliga
 adressrader i site/src/data, kolumnen "med husnummer" räknad med
 parse_address:
 
-    kommun       verksamheter   adressrader   med husnummer   nål
-    Örebro           1 233         1 233          1 233        645
-    Uppsala          1 854         1 525          1 525        986
-    Borgholm           406           251              0          0
-    Höganäs            316           156              0          0
-    Svenljunga          99            32              0          0
-    Lomma              153             0              0          0
+    kommun       verksamheter   med husnummer   nål   varav ur rapport
+    Örebro           1 233          1 233        645          0
+    Uppsala          1 854          1 525        986          0
+    Borgholm           406              0          0          0
+    Höganäs            316            243         79         79
+    Svenljunga          99              0          0          0
+    Lomma              153              0          0          0
+
+Höganäs 243 kommer inte ur listsidan, som bär noll gatuadresser, utan ur
+kommunens rapport-PDF:er. Se avsnittet längre ned.
 
 Borgholm, Höganäs och Svenljunga publicerar en ORT och inget mer: 22, 13 och
 11 distinkta ortnamn på 439 rader, och inte en enda av de 439 innehåller så
@@ -56,11 +69,25 @@ Byxelkrok är kilometer breda, och en nål i ortens mitt är fel adress för
 nästan varje verksamhet. Samma linje som saknat husnummer följer, se
 parse_address: utan nummer finns ingen punkt att peka på.
 
-Det som skulle öppna de fyra är att kommunen börjar lämna ut adressen. Ingen
-adresskälla i världen hjälper mot en post som bara säger "Böda". För
-Svenljunga gäller dessutom att OSM inte har en enda adresspunkt i hela
-kommunen (uppmätt via Overpass 2026-08-18: noll noder och noll vägar med
-addr:housenumber), så även med adresser hade Lantmäteriet krävts.
+ADRESSER UR KOMMUNENS EGNA RAPPORTER
+------------------------------------
+Tabellen ovan mäter LISTSIDAN, och för Höganäs är listsidan inte allt
+kommunen publicerar. Rapport-PDF:en bär gatuadressen, och den läses numera
+ut av pipeline/fetch_rapportadresser.py till rapportadresser.json. Saknar en
+verksamhets egen adressrad husnummer slås den adressen upp i stället. Se
+prikko/rapportadress.py för vilken av rapportens två adresser som får läsas.
+
+Uppslaget använder alltså kommunens uppgift om VAR verksamheten ligger, och
+koordinaten kommer fortfarande ur OSM eller Lantmäteriet. `geoSource` bär
+därför koordinatens källa som förut, medan rapportadresser.json bär vilken
+rapport adressen kom ur. Tillsammans svarar de på var punkten kommer ifrån.
+
+För Borgholm, Lomma och Svenljunga hjälper ingen adresskälla i världen: en
+post som bara säger "Böda" pekar inte ut något hus. Där måste kommunen börja
+lämna ut adressen. För Svenljunga gäller dessutom att OSM inte har en enda
+adresspunkt i hela kommunen (uppmätt via Overpass 2026-08-18: noll noder och
+noll vägar med addr:housenumber), så även med adresser hade Lantmäteriet
+krävts.
 """
 
 from __future__ import annotations
@@ -79,7 +106,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from prikko import lantmateriet  # noqa: E402
+from prikko import lantmateriet, uppsalaadresser  # noqa: E402
 from prikko.geocode import (  # noqa: E402
     MATCHED,
     MISS_NO_ADDRESS,
@@ -87,6 +114,7 @@ from prikko.geocode import (  # noqa: E402
     MUNICIPALITIES,
     SOURCE_LANTMATERIET,
     SOURCE_OSM,
+    SOURCE_UPPSALA,
     AddressIndex,
     Lookup,
     Match,
@@ -94,6 +122,18 @@ from prikko.geocode import (  # noqa: E402
     parse_address,
     verify,
 )
+
+#: Varifrån adressen som slogs upp kom. Inte samma sak som `geoSource`, som
+#: säger var KOORDINATEN kom ifrån. En verksamhet i Höganäs har adressen ur
+#: kommunens rapport och koordinaten ur OSM, och båda leden ska gå att läsa.
+ADDRESS_FROM_LISTING = "listing"
+ADDRESS_FROM_REPORT = "report"
+
+#: Räknare som beskriver körningen i stället för utfallet för en verksamhet.
+#: Prefixet håller dem UTANFÖR summan "N av M fick koordinat": varje
+#: verksamhet bidrar med exakt ett utfallsskäl, och en upplysning som
+#: räknades med i nämnaren gjorde 316 verksamheter till 559.
+INFO_FROM_REPORT = "info:address_from_report"
 
 #: Vad datafilens `geocoding` ska säga om respektive källa. Licensen och
 #: attributionen står här och ingen annanstans, så att en fil aldrig kan bära
@@ -111,6 +151,15 @@ PROVENANCE = {
         "licence": "CC BY 4.0",
         "attribution": "© Lantmäteriet",
     },
+    # Licensen är INTE klarlagd, se prikko/uppsalaadresser.py. Posten står
+    # här med okänd licens och inte med en gissad, och main() vägrar skriva
+    # den till en datafil. Fyll i den när kommunen svarat, inte innan.
+    SOURCE_UPPSALA: {
+        "method": "derived",
+        "source": "Uppsala kommun, adresslager (kartportal.uppsala.se)",
+        "licence": None,
+        "attribution": "Uppsala kommun",
+    },
 }
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
@@ -124,6 +173,9 @@ ENDPOINTS = (
 
 ROOT = Path(__file__).resolve().parent
 CACHE_FILE = ROOT / "geocode_cache.json"
+#: Adresser utlästa ur kommunernas egna rapporter, för de verksamheter vars
+#: listrad saknar husnummer. Skrivs av fetch_rapportadresser.py.
+OVERLAY_FILE = ROOT / "rapportadresser.json"
 # Mellanfiler, inte källdata. Ligger utanför versionshanteringen: de är stora,
 # de är utdrag ur någon annans datamängd, och de går att hämta igen.
 EXTRACT_DIR = ROOT / "data" / "interim"
@@ -291,6 +343,24 @@ def resolve(
     return result.match, MATCHED
 
 
+def uppsala_index(refresh: bool):
+    """Index och ram ur Uppsala kommuns eget adresslager."""
+    path = uppsalaadresser.extract_path(EXTRACT_DIR)
+    if not path.exists():
+        raise SystemExit(
+            f"Saknar {path}. Hämta uttaget först:\n"
+            f"    python3 pipeline/fetch_uppsalaadresser.py"
+        )
+    metadata = uppsalaadresser.load_metadata(path)
+    index = uppsalaadresser.build_index(uppsalaadresser.read_extract(path))
+    print(
+        f"  Uppsala: {index.points} adresspunkter på {index.streets} gator "
+        f"(uttag {metadata.get('fetchedAt')})",
+        file=sys.stderr,
+    )
+    return index, MUNICIPALITIES[uppsalaadresser.MUNICIPALITY_CODE]
+
+
 def choose_source(code: str, requested: str) -> str:
     """Vilken adresskälla körningen ska använda för kommunen.
 
@@ -309,11 +379,24 @@ def choose_source(code: str, requested: str) -> str:
         return SOURCE_LANTMATERIET
     if requested == SOURCE_OSM:
         return SOURCE_OSM
+    if requested == SOURCE_UPPSALA:
+        if code != uppsalaadresser.MUNICIPALITY_CODE:
+            raise SystemExit(
+                f"--kalla uppsala gäller bara Uppsala kommun "
+                f"({uppsalaadresser.MUNICIPALITY_CODE}), inte {code}."
+            )
+        return SOURCE_UPPSALA
+    # `auto` väljer ALDRIG Uppsalas lager. Se prikko/uppsalaadresser.py:
+    # tjänsten är öppen men licensen är inte klarlagd, och en källa vars
+    # villkor vi inte känner ska inte kunna smyga in i ett nattligt bygge.
     return SOURCE_LANTMATERIET if gpkg.exists() else SOURCE_OSM
 
 
 def build_index(code: str, source: str, refresh: bool):
     """Bygg adressindexet och den rimlighetsram träffarna prövas mot."""
+    if source == SOURCE_UPPSALA:
+        return uppsala_index(refresh)
+
     if source == SOURCE_LANTMATERIET:
         gpkg, metadata_path = lantmateriet.extract_dir_paths(EXTRACT_DIR, code)
         metadata = lantmateriet.load_metadata(metadata_path)
@@ -366,19 +449,56 @@ def build_index(code: str, source: str, refresh: bool):
     return index, municipality
 
 
-def process(path: Path, entries: dict, refresh: bool, requested: str) -> Counter:
+def load_overlay(code: str) -> dict:
+    """Adresser ur kommunens egna rapporter, för en kommun.
+
+    Tom ordbok när filen saknas. Steget är frivilligt: en pipeline som aldrig
+    kört fetch_rapportadresser.py ska geokoda precis som förut, inte stanna.
+    """
+    if not OVERLAY_FILE.exists():
+        return {}
+    stored = json.loads(OVERLAY_FILE.read_text(encoding="utf-8"))
+    municipality = (stored.get("municipalities") or {}).get(code) or {}
+    return municipality.get("entries") or {}
+
+
+def effective_address(establishment: dict, overlay: dict) -> tuple:
+    """Adressen som ska slås upp, och varifrån den kom.
+
+    Verksamhetens EGEN adressrad går alltid först. Rapportadressen träder in
+    bara när den raden inte pekar ut en adressplats, alltså när den saknas
+    eller saknar husnummer ("Viken"). Ordningen är inte förhandlingsbar:
+    listsidan är kommunens aktuella uppgift, rapporten är ett ögonblick i
+    det förflutna, och en verksamhet som flyttat ska följa listsidan.
+    """
+    raw = establishment.get("address")
+    if parse_address(raw) is not None:
+        return raw, ADDRESS_FROM_LISTING
+    extra = overlay.get(establishment.get("id")) or {}
+    candidate = extra.get("address")
+    if candidate and parse_address(candidate) is not None:
+        return candidate, ADDRESS_FROM_REPORT
+    return raw, ADDRESS_FROM_LISTING
+
+
+def process(
+    path: Path, entries: dict, refresh: bool, requested: str, dry_run: bool = False
+) -> Counter:
     payload = json.loads(path.read_text(encoding="utf-8"))
     code = payload["municipality"]["code"]
     name = payload["municipality"]["name"]
     establishments = payload["establishments"]
 
     source = choose_source(code, requested)
+    overlay = load_overlay(code)
     print(f"{name}: {len(establishments)} verksamheter, källa {source}", file=sys.stderr)
+    if overlay:
+        print(f"  {len(overlay)} adresser ur kommunens rapporter", file=sys.stderr)
 
     unknown = {
-        cache_key(code, e["address"], source)
-        for e in establishments
-        if e.get("address") and cache_key(code, e["address"], source) not in entries
+        cache_key(code, address, source)
+        for address, _ in (effective_address(e, overlay) for e in establishments)
+        if address and cache_key(code, address, source) not in entries
     }
 
     index: Optional[AddressIndex] = None
@@ -396,11 +516,13 @@ def process(path: Path, entries: dict, refresh: bool, requested: str) -> Counter
     now = datetime.now(timezone.utc).date().isoformat()
 
     for establishment in establishments:
-        raw = establishment.get("address")
+        raw, origin = effective_address(establishment, overlay)
         if not raw or not raw.strip():
             stats[MISS_NO_ADDRESS] += 1
             forget(establishment)
             continue
+        if origin == ADDRESS_FROM_REPORT:
+            stats[INFO_FROM_REPORT] += 1
 
         key = cache_key(code, raw, source)
         cached = entries.get(key)
@@ -433,22 +555,43 @@ def process(path: Path, entries: dict, refresh: bool, requested: str) -> Counter
 
     # Licensblocket skrivs bara när filen faktiskt bär en härledd koordinat.
     # En ODbL-klausul i en fil utan en enda nål är ett påstående om data som
-    # inte finns, och i fyra av tolv kommuner är det just läget: Borgholm,
-    # Höganäs, Lomma och Svenljunga publicerar ingen gatuadress, så noll av
-    # deras 439 adressrader går att slå upp. Samma regel som
+    # inte finns, och i tre av tolv kommuner är det just läget: Borgholm,
+    # Lomma och Svenljunga publicerar ingen gatuadress någonstans, så noll av
+    # deras adressrader går att slå upp. Samma regel som
     # pipeline/oppettider.py skriver sitt block efter.
     if stats[MATCHED]:
-        payload = insert_after(
-            payload,
-            "source",
-            "geocoding",
-            {
-                **PROVENANCE[source],
-                "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            },
-        )
+        block = {
+            **PROVENANCE[source],
+            "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        # Kom någon adress ur en rapport ska filen säga det. Blocket beskriver
+        # annars bara var KOORDINATEN kommer ifrån, och för Höganäs vore det
+        # halva svaret: punkten är OSM:s, men adressen som pekade ut den är
+        # kommunens egen uppgift ur kontrollrapporten.
+        if stats[INFO_FROM_REPORT]:
+            block["addressSource"] = (
+                f"{stats[INFO_FROM_REPORT]} adresser utlästa ur kommunens "
+                "kontrollrapporter, se pipeline/rapportadresser.json"
+            )
+        payload = insert_after(payload, "source", "geocoding", block)
     else:
         payload.pop("geocoding", None)
+    if dry_run:
+        print("  torrkörning — datafilen rördes inte", file=sys.stderr)
+        return stats
+
+    # En källa utan känd licens får aldrig bli en publicerad koordinat. Det
+    # här är den sista spärren, efter att `auto` redan vägrat välja den:
+    # den som skriver --kalla uppsala ska mötas av ett besked och inte av en
+    # datafil som tyst börjat bära någon annans data.
+    if stats[MATCHED] and PROVENANCE[source].get("licence") is None:
+        raise SystemExit(
+            f"Källan {source!r} har ingen klarlagd licens, så koordinaterna ur "
+            f"den får inte skrivas till {path.name}.\n"
+            "Kör med --torrkor för att mäta vad den skulle ge, och se\n"
+            "prikko/uppsalaadresser.py för vad ägaren behöver få svar på."
+        )
+
     # indent=1 och ingen avslutande radbrytning — samma form som fetch_*.py
     # skriver, så att diffen visar koordinaterna och inget annat.
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -460,9 +603,14 @@ def main() -> None:
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument(
         "--kalla",
-        choices=("auto", SOURCE_LANTMATERIET, SOURCE_OSM),
+        choices=("auto", SOURCE_LANTMATERIET, SOURCE_OSM, SOURCE_UPPSALA),
         default="auto",
         help="adresskälla; auto tar Lantmäteriet när uttaget finns",
+    )
+    parser.add_argument(
+        "--torrkor",
+        action="store_true",
+        help="räkna ut täckningen men skriv varken datafil eller cache",
     )
     parser.add_argument(
         "--refresh",
@@ -473,14 +621,22 @@ def main() -> None:
 
     entries = load_cache()
     for path in args.files:
-        stats = process(path, entries, args.refresh, args.kalla)
-        total = sum(v for k, v in stats.items() if not k.startswith("precision:"))
+        stats = process(path, entries, args.refresh, args.kalla, args.torrkor)
+        total = sum(
+            v
+            for k, v in stats.items()
+            if not k.startswith(("precision:", "info:"))
+        )
         placed = stats[MATCHED]
         share = f" ({placed / total:.0%})" if total else ""
         print(f"  {placed} av {total} fick koordinat{share}", file=sys.stderr)
         for reason, count in sorted(stats.items()):
             print(f"    {reason}: {count}", file=sys.stderr)
-        save_cache(entries)
+        # Cachen sparas inte vid torrkörning. En mätning ska kunna göras mot
+        # en källa vi kanske inte får använda utan att dess svar blir kvar i
+        # en versionshanterad fil.
+        if not args.torrkor:
+            save_cache(entries)
 
     print(f"Cache: {len(entries)} adresser i {CACHE_FILE}", file=sys.stderr)
 

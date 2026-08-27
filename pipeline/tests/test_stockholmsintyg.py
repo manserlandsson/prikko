@@ -15,6 +15,8 @@ personnummer på ungefär var tolfte sida, och det går inte att ta tillbaka nä
 sidan är indexerad.
 """
 
+import json
+import re
 import sys
 import unittest
 from datetime import date
@@ -402,6 +404,87 @@ class Raden(unittest.TestCase):
 
         rad = si.raden(si.las(ALLEGRINE, "x"), date(2026, 8, 25))
         self.assertEqual(json.loads(json.dumps(rad)), rad)
+
+
+class IngetPersonnummerILevererad(unittest.TestCase):
+    """Sållet prövas mot HELA det incheckade beståndet, inte mot ett urval.
+
+    Proven ovan visar att `raden` gör rätt på de fall som står i den här
+    filen. Det här provet visar att ingenting FAKTISKT läckt ut, och det är en
+    annan fråga: sållet kan vara riktigt och ändå kringgås av ett spår som
+    skriver fältet utan att gå genom `raden`.
+
+    Regeln som prövas är den enda som gäller: tio siffror med 0 eller 1 som
+    tredje är ett födelsedatums månad och alltså en fysisk person. Sökningen
+    går över varje sträng i varje `registration`, och inte bara över `orgnr`,
+    eftersom ett personnummer som hamnat i fel fält är precis lika publicerat.
+
+    Faller provet ska INGENTING rättas i efterhand utan att raderna först tas
+    bort ur filen. Ett personnummer som en gång stått i ett bygge går inte att
+    ta tillbaka.
+    """
+
+    DATA = Path(__file__).resolve().parents[2] / "site" / "src" / "data"
+
+    #: Tio siffror i följd, med eller utan bindestreck, var som helst i en
+    #: sträng. Bredare än fältets egen form med flit: provet ska hitta numret
+    #: även om det ligger inbakat i ett namn eller en fritext.
+    TIOSIFFRIGT = re.compile(r"(?<!\d)(\d{6})[-+]?(\d{4})(?!\d)")
+
+    def _strangar(self, varde):
+        """Varje sträng i ett godtyckligt JSON-värde, hur djupt det än ligger."""
+        if isinstance(varde, str):
+            yield varde
+        elif isinstance(varde, dict):
+            for v in varde.values():
+                yield from self._strangar(v)
+        elif isinstance(varde, list):
+            for v in varde:
+                yield from self._strangar(v)
+
+    def test_ingen_registerrad_bar_ett_personnummer(self):
+        filer = sorted(self.DATA.glob("*.json"))
+        self.assertTrue(filer, f"hittade inga datafiler i {self.DATA}")
+
+        granskade = 0
+        traffar = []
+        for path in filer:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rad in payload.get("establishments", []):
+                reg = rad.get("registration")
+                if not reg:
+                    continue
+                granskade += 1
+                for text in self._strangar(reg):
+                    for match in self.TIOSIFFRIGT.finditer(text):
+                        if si.ar_personnummer(match.group(0)):
+                            traffar.append((path.name, rad.get("id")))
+
+        self.assertEqual(
+            traffar,
+            [],
+            f"personnummer i {len(traffar)} av {granskade} registerrader: "
+            f"{traffar[:5]}",
+        )
+
+    def test_numret_halls_inne_pa_varje_enskild_firma(self):
+        """Andra sidan av samma mynt: formen bärs, numret gör det inte.
+
+        Utan det här provet skulle en fil utan en enda `registration` klara
+        provet ovan, och beviset vore värdelöst. Här prövas att raderna som
+        FAKTISKT bär en enskild firma också saknar nummer.
+        """
+        for path in sorted(self.DATA.glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rad in payload.get("establishments", []):
+                reg = rad.get("registration") or {}
+                if reg.get("companyForm") != "enskild":
+                    continue
+                with self.subTest(id=rad.get("id")):
+                    self.assertIsNone(
+                        reg.get("orgnr"),
+                        "enskild firma får aldrig bära ett nummer",
+                    )
 
 
 if __name__ == "__main__":

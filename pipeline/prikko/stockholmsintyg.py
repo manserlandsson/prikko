@@ -11,27 +11,35 @@ inte slå upp någonting: varje rad i site/src/data/stockholm.json bär redan
 nyckeln till sitt eget intyg. Samma sida driver också de två
 anmälningsformulären, se site/src/components/Anmal.astro.
 
-## Vad intyget lämnar ut, mätt på 150 slumpade anläggningar 2026-08-25
+## Vad intyget lämnar ut, mätt på HELA Stockholm 2026-08-27
 
-    Namn på verksamhet                    150 av 150
-    Person/Organisationsnummer            150 av 150
-    Besöksadress                          150 av 150
-    Livsmedelsföretagare, juridisk person 150 av 150
-    Postadress, Postnummer, Ort           150 av 150
-    c/o                                    11 av  30
-    Status, Aktiv eller Inaktiv           150 av 150
-    Registreringsdatum                    150 av 150
-    Huvudsaklig inriktning                150 av 150
-    Verksamhetstyper och huvudaktiviteter 150 av 150
-    Alla aktiviteter                      150 av 150
-    Omfattning, storleksklass             150 av 150
-    God efterlevnad                       150 av 150
-    Tredjepartscertifiering               150 av 150
-    Beslutsdatum för riskklassning        140 av 150
-    Beslutad kontrollfrekvens per 5 år    150 av 150
+Talen nedan är den skarpa körningen och inte längre urvalet på 150. 8 520
+anläggningar, fyra trådar, 39 minuter. 8 514 svarade med ett intyg, 6 svarade
+"Inget data kunde hittas", noll fel efter att tre nya statusvärden och ett
+namnuppslag hämtats om. Nämnaren är de 8 514.
 
-Vi har NOLL av dessa i dag, på samtliga 16 047 rader. Postnumret ensamt fyller
-ett fält som docs/12 räknade som tomt i alla 15 916 rader det mättes på.
+    Registreringsdatum                  8 514 av 8 514
+    Status, Aktiv eller Inaktiv         8 514 av 8 514
+    Huvudsaklig inriktning              8 514 av 8 514
+    God efterlevnad                     8 514 av 8 514
+    Tredjepartscertifiering             8 514 av 8 514
+    Omfattning, storleksklass           8 513 av 8 514
+    Verksamhetstyper                    8 511 av 8 514
+    Beslutad kontrollfrekvens per 5 år  8 507 av 8 514
+    Livsmedelsföretagare                8 488 av 8 514
+    Postnummer och ort                  8 486 av 8 514
+    Organisationsnummer, publicerbart   8 016 av 8 514
+    Beslutsdatum för riskklassning      7 904 av 8 514
+    Alla aktiviteter                    7 645 av 8 514
+
+Vi hade NOLL av dessa på samtliga 16 047 rader innan körningen. Postnumret
+ensamt fyller ett fält som docs/12 räknade som tomt i alla 15 916 rader det
+mättes på.
+
+Fördelningar ur samma 8 514: aktiebolag 6 415, kommun eller stat 842, enskild
+firma 491, handelsbolag 427, ideell förening 212, ekonomisk förening 119, samt
+8 utan läsbar form. 5 666 unika organisationsnummer på 8 016 rader, alltså bär
+koncerner och kedjor flera rader var. 30 rader är inte längre aktiva.
 
 ## VARFÖR DET HÄR ERSÄTTER BINÄRSÖKNINGEN I docs/12
 
@@ -56,6 +64,20 @@ personnummers tredje siffra är månadens första och alltså 0 eller 1.
 `raden` släpper igenom organisationsnummer och sätter numret till None när det
 är ett personnummer. Uppgiften "det finns ingen juridisk person bakom" bärs i
 stället av `foretagsform`, som säger `enskild` utan att röja vem.
+
+Uppmätt över hela beståndet 2026-08-27: 498 av 8 514 rader bar ett nummer som
+hölls inne, varav 491 är personnummer i tiosiffrig form och 7 är rader där
+staden skrivit "Enskild firma. Se övrigt." i sifferfältet. Noll personnummer
+finns i site/src/data, prövat med `IngetPersonnummerILevererad` i
+pipeline/tests/test_stockholmsintyg.py, som söker igenom varje sträng i varje
+sparad rad och inte bara `orgnr`.
+
+NAMNET ÄR OCKSÅ EN PERSONUPPGIFT. Fältet "Livsmedelsföretagare" bär
+innehavarens namn i klartext på samma rader, uppmätt på 451 av dem: "Pierre
+Oanes", "Åsa Johansson Ef Niddes Café". Numret hålls inne här i pipelinen,
+namnet hålls inne på sidan, se `registerrader` i site/src/lib/registrering.ts.
+Att hålla inne det ena och skriva ut det andra vore att hålla inne halva
+uppgiften.
 
 ## VAD MODULEN INTE GÖR
 
@@ -134,7 +156,19 @@ def pdflank(id_national: str) -> str:
 #: Status. Se docstringen: "Inaktiv" är kommunens eget besked om att den egna
 #: registreringen upphört, alltså ett starkare underlag än SCB:s
 #: arbetsställeregister och utan certifikat. Se docs/25 och docs/35.
-STATUS = {"Aktiv": True, "Inaktiv": False}
+#:
+#: TRE VÄRDEN OCH INTE TVÅ. "Upphörd/Skrotad" fanns inte i urvalet på 150 och
+#: fälldes därför av `OkantVarde` på 3 av 8 520 i den skarpa körningen
+#: 2026-08-27, precis som undantaget är byggt för. Larmet gjorde sitt jobb och
+#: värdet är läst av en människa innan det skrevs in här: alla tre bär ordet
+#: "Upphörd" redan i verksamhetens NAMN, alltså är det stadens eget besked om
+#: att registreringen tagits ur bruk. Det betyder samma sak som "Inaktiv" och
+#: översätts därför likadant.
+#:
+#: LÄGG ALDRIG TILL ETT VÄRDE HÄR UTAN ATT HA SETT SIDAN. Poängen med
+#: `OkantVarde` är att ett nytt ord ska stanna körningen och inte tolkas som
+#: det vanligaste, se undantagets docstring.
+STATUS = {"Aktiv": True, "Inaktiv": False, "Upphörd/Skrotad": False}
 
 JA_NEJ = {"Ja": True, "Nej": False}
 
@@ -162,6 +196,20 @@ FALT = {
     "Beslutsdatum för riskklassning": "riskklassbeslut",
     "Beslutad kontrollfrekvens per 5 år": "kontrollfrekvens",
 }
+
+#: Rader i intyget som inte är fält utan löptext till läsaren. De hamnar inte
+#: i `okanda_falt`, alltså larmar hämtaren inte om dem.
+#:
+#: Ett larm som ljuder vid varje körning utan att någonsin betyda något lär
+#: den som läser loggen att bläddra förbi larmen, och då tystas också det som
+#: faktiskt är en nyhet. "Övrigt"-raden stod på 7 av 8 510 i den skarpa
+#: körningen 2026-08-27 och säger ordagrant åt läsaren att kontakta
+#: Bolagsverket. Den bär ingen uppgift om verksamheten.
+#:
+#: Matchningen sker på inledningen och inte på hela strängen: cellen bär hela
+#: meningen efter etiketten, och den meningen kan staden skriva om utan att
+#: raden blir en annan rad.
+IGNORERADE = ("Övrigt",)
 
 _SIFFROR = re.compile(r"\D")
 _DATUM = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -340,6 +388,8 @@ def las(html: str, guid_: str) -> Optional[Intyg]:
     for etikett, rader in lasare.rader:
         falt = FALT.get(etikett)
         if falt is None:
+            if etikett.startswith(IGNORERADE):
+                continue
             if etikett not in okanda:
                 okanda.append(etikett)
             continue

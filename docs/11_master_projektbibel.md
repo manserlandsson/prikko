@@ -262,7 +262,7 @@ TYPSKALA (px/vikt/line-height):
   VIKTER: endast 400 och 600 (Apple-disciplin)
 FÄRG:
   canvas #F5F5F7   card #FFFFFF
-  text #1D1D1F   sekundär #6E6E73   muted #A1A1A6   hairline rgba(0,0,0,.08)
+  text #1D1D1F   sekundär #6E6E73   muted #A1A1A6   hairline rgba(0,0,0,.098)
   accent (brand) blå ~#3B78E7 (exakt hex från Figma) — EN accent, sparsamt
   betyg A #0E7A4B · B #34C759 · C #E3A008 · D #E8730C · E #D0342C  (färg=betydelse)
 RADIE: kort 12px · kontroller 10px · primär CTA piller 999px · nål/avatar 50%

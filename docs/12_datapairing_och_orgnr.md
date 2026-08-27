@@ -20,32 +20,47 @@ avklippt:
     GET https://etjanster.stockholm.se/livsmedelsinspektioner/registration
         ?foodplaceid=<guid>
 
-**Vad som mättes, och när.** 150 slumpade anläggningar ur `site/src/data/stockholm.json`,
-hämtade 2026-08-25 med fyra trådar på 39 sekunder, frö 23. 150 av 150 svarade,
-noll fel, noll okända etiketter. Fältutfall:
+**Vad som mättes, och när.** Först 150 slumpade anläggningar 2026-08-25. Sedan
+HELA beståndet 2026-08-27: 8 520 anläggningar ur `site/src/data/stockholm.json`,
+fyra trådar, 39 minuter väggtid, alltså 0,27 sekunder per sida. 8 514 svarade med
+ett intyg och 6 med "Inget data kunde hittas". Fyra sidor föll först och gick
+igenom vid omhämtning: tre bar statusvärdet `Upphörd/Skrotad`, som inte fanns i
+urvalet på 150, och en föll på ett namnuppslag. Noll fel kvar. Talen nedan är
+den skarpa körningen, med de 8 514 som nämnare:
 
 | Fält | Ifyllt |
 |---|---|
-| Person/Organisationsnummer | 150 av 150 |
-| Postnummer och ort | 150 av 150 |
-| Livsmedelsföretagare, juridisk person | 150 av 150 |
-| Status, Aktiv eller Inaktiv | 150 av 150 |
-| Registreringsdatum | 150 av 150 |
-| Huvudsaklig inriktning | 150 av 150 |
-| Omfattning, storleksklass | 150 av 150 |
-| God efterlevnad | 150 av 150 |
-| Tredjepartscertifiering | 150 av 150 |
-| Beslutad kontrollfrekvens per 5 år | 149 av 150 |
-| Beslutsdatum för riskklassning | 145 av 150 |
-| Verksamhetstyper enligt Livsmedelsverkets modell | 149 av 150 |
-| Aktivitetslista | 139 av 150 |
+| Registreringsdatum | 8 514 av 8 514 |
+| Status, Aktiv eller Inaktiv | 8 514 av 8 514 |
+| Huvudsaklig inriktning | 8 514 av 8 514 |
+| God efterlevnad | 8 514 av 8 514 |
+| Tredjepartscertifiering | 8 514 av 8 514 |
+| Omfattning, storleksklass | 8 513 av 8 514 |
+| Verksamhetstyper enligt Livsmedelsverkets modell | 8 511 av 8 514 |
+| Beslutad kontrollfrekvens per 5 år | 8 507 av 8 514 |
+| Livsmedelsföretagare | 8 488 av 8 514 |
+| Postnummer och ort | 8 486 av 8 514 |
+| Organisationsnummer, publicerbart | 8 016 av 8 514 |
+| Beslutsdatum för riskklassning | 7 904 av 8 514 |
+| Aktivitetslista | 7 645 av 8 514 |
 
-Fördelningar ur samma 150: aktiebolag 113, kommun eller stat 15, enskild firma 13,
-ideell förening 5, ekonomisk förening 2, handelsbolag 2. Omfattning Liten 73,
-Mikro 55, Mellan 17, Stor 5. God efterlevnad nej 76, ja 74. Kontrollfrekvens per
-fem år 1:45, 2:41, 5:32, 4:22, 10:7, 15:2. 119 unika organisationsnummer på 150
-verksamheter, alltså bär koncerner och kedjor flera rader var, och det går att
-bilda på numret i stället för på namnlikhet som `site/src/lib/kedjor.ts` gör i dag.
+Urvalet på 150 höll. Två tal ändrade sig något: `Person/Organisationsnummer` var
+ifyllt på 150 av 150, men över hela beståndet är 498 av numren en fysisk persons
+och hålls inne, alltså landar det publicerbara organisationsnumret på 94,1
+procent och inte på 100. Aktivitetslistan gick från 92,7 till 89,8 procent.
+Resten ligger inom en procentenhet.
+
+Fördelningar ur samma 8 514: aktiebolag 6 415, kommun eller stat 842, enskild
+firma 491, handelsbolag 427, ideell förening 212, ekonomisk förening 119, samt 8
+utan läsbar form. Omfattning Liten 4 256, Mikro 2 651, Mellan 1 386, Stor 219,
+Mycket stor 1. God efterlevnad ja 4 296, nej 4 218. Kontrollfrekvens per fem år
+2:2 720, 1:1 952, 4:1 816, 5:1 554, 10:376, 15:70, 20:8, 25:6, 3:5. Status
+Inaktiv eller Upphörd på 30 rader.
+
+**5 666 unika organisationsnummer på 8 016 rader.** Koncerner och kedjor bär
+alltså flera rader var, och kedjeigenkänningen går att bilda på numret i stället
+för på namnlikhet som `site/src/lib/kedjor.ts` gör i dag. Det är den enskilt
+största följdmöjligheten i körningen och den är inte byggd.
 
 **De tre påståendena som faller:**
 
@@ -67,17 +82,39 @@ bilda på numret i stället för på namnlikhet som `site/src/lib/kedjor.ts` gö
 
 **Personnumret är rapportens blinda fläck.** Fältet heter
 "Person/Organisationsnummer" och bär innehavarens personnummer när verksamheten
-drivs som enskild firma: 13 av 150, alltså ungefär var tolfte sida. Rapporten
-nedan resonerar genomgående om "orgnr" som om alla nummer vore ett bolags. Det
-är de inte. `prikko/stockholmsintyg.py` sållar dem på regeln att ett svenskt
+drivs som enskild firma: 13 av 150 i urvalet, och **498 av 8 514** över hela
+beståndet, alltså var sjuttonde sida. Rapporten nedan resonerar genomgående om
+"orgnr" som om alla nummer vore ett bolags. Det är de inte.
+`prikko/stockholmsintyg.py` sållar dem på regeln att ett svenskt
 organisationsnummer alltid har minst 2 som tredje siffra, medan ett personnummers
 tredje siffra är månadens första och alltså 0 eller 1. Numret hålls inne;
 upplysningen att verksamheten drivs som enskild firma bärs av `companyForm`.
 
-**Intyget är dessutom ett nedlagt-orakel.** Status svarar Aktiv eller Inaktiv per
-id, se `25_oppna_punkter.md`.
+Av de 498 är 491 personnummer i tiosiffrig form. De 7 övriga är rader där staden
+skrivit "Enskild firma. Se övrigt." i sifferfältet, och de bär i själva verket
+statliga myndigheter som Kriminalvården och Specialpedagogiska Skolmyndigheten.
+De får varken nummer eller form, vilket är rätt svar: vi vet inte vad numret är.
+
+**Noll personnummer nådde datan**, prövat efter körningen på varje sträng i varje
+sparad rad och inte bara på `orgnr`. Provet ligger kvar som
+`IngetPersonnummerILevererad` i `pipeline/tests/test_stockholmsintyg.py` och
+läser de incheckade filerna, alltså faller det nästa gång någon skriver ett
+sådant nummer.
+
+**Namnet är också en personuppgift.** Fältet "Livsmedelsföretagare" bär
+innehavarens namn i klartext på samma rader, uppmätt på 451 av dem: "Pierre
+Oanes", "Åsa Johansson Ef Niddes Café", "Dana Halanova Ef". Sajten skriver
+därför bara ut den som driver stället när det finns ett organisationsnummer, se
+`site/src/lib/registrering.ts`. Att hålla inne numret och publicera namnet vore
+att hålla inne halva uppgiften.
+
+**Intyget är dessutom ett nedlagt-orakel.** Status svarar Aktiv, Inaktiv eller
+Upphörd/Skrotad per id, och 30 av 8 514 rader är inte längre aktiva. Noten är
+inte byggd, se `25_oppna_punkter.md`.
 
 Kod: `pipeline/prikko/stockholmsintyg.py` och `pipeline/stockholmsintyg.py`.
+Vad som faktiskt visas på verksamhetssidan, och vilka tolv av intygets sexton
+fält som medvetet inte gör det: `site/src/components/Foretagsregister.astro`.
 Länken till formulären som samma id öppnar: `site/src/components/Anmal.astro`.
 
 ---

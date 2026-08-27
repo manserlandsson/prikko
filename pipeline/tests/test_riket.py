@@ -1,26 +1,24 @@
-"""Test för Sveriges landkontur.
+"""Test för Sveriges sjögräns.
 
-Rikskartans skugga står och faller med att konturen är just Sverige. Fem fel
-skulle annars ge en karta som SER hel ut:
+Rikskartans skugga står och faller med att ytan är just Sverige. Fem fel skulle
+annars ge en karta som SER hel ut:
 
-1. En klippning som tagit hela Skandinavien, eller bara en flik av Skåne.
-   Arealprovet i main fångar det, och areal_km2 måste därför vara sfärisk: en
-   kvadratgrad är nästan dubbelt så stor i Skåne som i Kiruna.
-2. En förenkling som raderat Gotland, Öland eller Orust, eller klistrat ihop
-   dem med fastlandet. Det är det fel varenda svensk ser direkt och som ingen
-   automatisk mätning fångar utom den som letar efter dem vid namn.
-3. En kustlöpa som brutits i bitar. Kontinentringen ska korsa sjögränsen exakt
-   två gånger; fler löpor betyder att klippningen fått fatt i något annat.
-4. En landsgräns som inte kedjats ihop, så att ringen viker dubbelt i stället
-   för att sluta sig.
-5. Fel relation ur OSM. Sverige ligger på admin_level 2; länen ligger på 4 och
+1. Fel relation ur OSM. Sverige ligger på admin_level 2; länen ligger på 4 och
    ritar en åttondel av landet med samma sorts taggar.
+2. En relation som inte gått ihop till slutna ringar. En öppen kedja som ändå
+   ritades blir en rak linje tvärs över havet där hålet satt.
+3. Fel antal ringar, eller en mindre ring som inte är Gotlands sjögräns utan
+   en holme i Torne älv som råkat sluta sig.
+4. En ring vänd åt fel håll. Masken är en världspolygon med gränsen som HÅL,
+   och ett hål måste gå åt motsatt håll mot världsringen. Går de åt samma håll
+   ritar MapLibre grå band tvärs över kartan.
+5. En areal som spårat ur. Arealprovet i main fångar det, och areal_km2 måste
+   därför vara sfärisk: en kvadratgrad är nästan dubbelt så stor i Skåne som i
+   Kiruna.
 
 Körs utan beroenden:  python3 pipeline/tests/test_riket.py
 """
 
-import math
-import struct
 import sys
 import unittest
 from pathlib import Path
@@ -30,77 +28,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from riket import (  # noqa: E402
     Innanfor,
     areal_km2,
-    avstand_m,
+    bygg_kontur,
     gransen_haller,
+    gransringar,
     kedja,
-    langsta_lopan,
-    las_landytor,
-    nyckeloar_finns,
+    medsols,
+    ringarna_haller,
     runda,
-    _lat2y,
-    _lon2x,
 )
-
-
-def shapefil(polygoner):
-    """En giltig shapefil av typ Polygon, byggd ur ringar i longitud/latitud."""
-    poster = b""
-    for nummer, ringar in enumerate(polygoner, start=1):
-        punkter = [(_lon2x(x), _lat2y(y)) for ring in ringar for x, y in ring]
-        delar = []
-        n = 0
-        for ring in ringar:
-            delar.append(n)
-            n += len(ring)
-        innehåll = struct.pack("<i", 5)
-        innehåll += struct.pack(
-            "<4d",
-            min(p[0] for p in punkter), min(p[1] for p in punkter),
-            max(p[0] for p in punkter), max(p[1] for p in punkter),
-        )
-        innehåll += struct.pack("<ii", len(delar), len(punkter))
-        innehåll += struct.pack(f"<{len(delar)}i", *delar)
-        for x, y in punkter:
-            innehåll += struct.pack("<2d", x, y)
-        poster += struct.pack(">ii", nummer, len(innehåll) // 2) + innehåll
-
-    huvud = struct.pack(">i", 9994) + b"\0" * 20
-    huvud += struct.pack(">i", (100 + len(poster)) // 2)
-    huvud += struct.pack("<ii", 1000, 5)
-    huvud += struct.pack("<8d", -180, -85, 180, 85, 0, 0, 0, 0)
-    return huvud + poster
 
 
 def ruta(w, s, e, n):
     return [[w, s], [w, n], [e, n], [e, s], [w, s]]
 
 
-class Shapefilen(unittest.TestCase):
-    """Läsaren. Formatet är publicerat och får inte gissas på."""
+def vag(punkter):
+    """En väg i Overpass form, alltså med geometry som lon/lat-objekt."""
+    return {"geometry": [{"lon": x, "lat": y} for x, y in punkter]}
 
-    def test_en_polygon_blir_en_ring(self):
-        ringar = las_landytor(shapefil([[ruta(13.0, 59.0, 14.0, 60.0)]]), (10.0, 54.0, 25.0, 70.0))
-        self.assertEqual(len(ringar), 1)
-        self.assertEqual(len(ringar[0]), 5)
-        self.assertAlmostEqual(ringar[0][0][0], 13.0, places=5)
-        self.assertAlmostEqual(ringar[0][0][1], 59.0, places=5)
 
-    def test_flera_delar_blir_flera_ringar(self):
-        """En ö med ett hål, eller två öar i samma post, ger två ringar."""
-        ringar = las_landytor(
-            shapefil([[ruta(13.0, 59.0, 14.0, 60.0), ruta(13.2, 59.2, 13.4, 59.4)]]),
-            (10.0, 54.0, 25.0, 70.0),
-        )
-        self.assertEqual(len(ringar), 2)
-
-    def test_polygon_utanfor_rutan_packas_inte_upp(self):
-        """Rutan i postens eget huvud är hela skälet till att läsaren är billig."""
-        data = shapefil([[ruta(13.0, 59.0, 14.0, 60.0)], [ruta(-70.0, 43.0, -69.0, 44.0)]])
-        ringar = las_landytor(data, (10.0, 54.0, 25.0, 70.0))
-        self.assertEqual(len(ringar), 1)
-
-    def test_ingen_polygon_alls(self):
-        self.assertEqual(las_landytor(shapefil([]), (10.0, 54.0, 25.0, 70.0)), [])
+def ytformel(ring):
+    """Dubbla den plana ytan med tecken. Negativ betyder medsols."""
+    return sum(
+        ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1] for i in range(len(ring) - 1)
+    )
 
 
 class PunktIPolygon(unittest.TestCase):
@@ -135,7 +86,7 @@ class PunktIPolygon(unittest.TestCase):
 
 
 class Areal(unittest.TestCase):
-    """Sfäriskt, inte plant. Se punkt 1 i modulens huvud."""
+    """Sfäriskt, inte plant. Se punkt 5 i modulens huvud."""
 
     def test_en_kvadratgrad_vid_ekvatorn(self):
         km2 = areal_km2(ruta(0.0, 0.0, 1.0, 1.0))
@@ -148,9 +99,9 @@ class Areal(unittest.TestCase):
         self.assertAlmostEqual(vid_60 / vid_0, 0.5, delta=0.03)
 
     def test_riktningen_spelar_ingen_roll(self):
-        medsols = areal_km2([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])
+        medsols_ = areal_km2([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]])
         motsols = areal_km2([[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]])
-        self.assertAlmostEqual(medsols, motsols, places=6)
+        self.assertAlmostEqual(medsols_, motsols, places=6)
 
 
 class Avrundning(unittest.TestCase):
@@ -169,7 +120,7 @@ class Avrundning(unittest.TestCase):
 
 
 class Kedjan(unittest.TestCase):
-    """Landsgränsen kommer som lösa remsor i godtycklig ordning och riktning."""
+    """Relationens 178 vägar kommer i godtycklig ordning och riktning."""
 
     def test_remsor_i_omvand_ordning_och_riktning(self):
         linjer = kedja([[(2, 0), (3, 0)], [(1, 0), (0, 0)], [(2, 0), (1, 0)]])
@@ -178,7 +129,7 @@ class Kedjan(unittest.TestCase):
         self.assertEqual({linjer[0][0], linjer[0][-1]}, {(0, 0), (3, 0)})
 
     def test_oppen_linje_forblir_oppen(self):
-        """Landsgränsen mot Norge och Finland är en linje och ingen ring."""
+        """En kedja som inte går ihop ska SYNAS, inte tvingas till en ring."""
         linjer = kedja([[(0, 0), (1, 0)], [(1, 0), (2, 1)]])
         self.assertNotEqual(linjer[0][0], linjer[0][-1])
 
@@ -192,30 +143,8 @@ class Kedjan(unittest.TestCase):
         self.assertEqual(len(linjer[0]), 3)
 
 
-class Lopor(unittest.TestCase):
-    """Kontinentringen ska korsa sjögränsen exakt två gånger. Punkt 3 ovan."""
-
-    INNE = Innanfor([ruta(13.0, 59.0, 14.0, 60.0)])
-
-    def test_en_lopa_over_gransen(self):
-        ring = [[12.0, 59.5], [13.2, 59.5], [13.4, 59.5], [13.6, 59.5], [15.0, 59.5]]
-        löpa, antal = langsta_lopan(ring, self.INNE)
-        self.assertEqual(antal, 1)
-        self.assertEqual(len(löpa), 3)
-
-    def test_flera_lopor_raknas(self):
-        ring = [[13.2, 59.5], [15.0, 59.5], [13.4, 59.5], [13.5, 59.5], [13.6, 59.5]]
-        löpa, antal = langsta_lopan(ring, self.INNE)
-        self.assertEqual(antal, 2)
-        self.assertEqual(len(löpa), 3, "den längsta löpan vinner")
-
-    def test_ingen_punkt_innanfor(self):
-        löpa, antal = langsta_lopan([[20.0, 65.0], [21.0, 65.0]], self.INNE)
-        self.assertEqual((löpa, antal), ([], 0))
-
-
 class Gransprovet(unittest.TestCase):
-    """Punkt 5 ovan. Länen bär samma taggar och ritar en åttondel av landet."""
+    """Punkt 1 ovan. Länen bär samma taggar och ritar en åttondel av landet."""
 
     SVERIGE = {
         "tags": {
@@ -245,42 +174,108 @@ class Gransprovet(unittest.TestCase):
         self.assertFalse(gransen_haller({}))
 
 
-class Nyckeloarna(unittest.TestCase):
-    """Punkt 2 ovan. Gotland, Öland och Orust ska överleva förenklingen."""
+class Sjogransringar(unittest.TestCase):
+    """Punkt 2 ovan. Bara det som sluter sig får bli en ring."""
 
-    GOTLAND = ruta(18.1, 56.9, 19.1, 57.9)
-    OLAND = ruta(16.4, 56.2, 17.1, 57.3)
-    ORUST = ruta(11.4, 58.1, 11.8, 58.3)
+    def test_remsor_i_godtycklig_ordning_blir_en_sluten_ring(self):
+        vagar = [
+            vag([(14.0, 60.0), (13.0, 60.0)]),
+            vag([(13.0, 59.0), (14.0, 59.0)]),
+            vag([(13.0, 60.0), (13.0, 59.0)]),
+            vag([(14.0, 59.0), (14.0, 60.0)]),
+        ]
+        ringar = gransringar(vagar)
+        self.assertEqual(len(ringar), 1)
+        self.assertEqual(ringar[0][0], ringar[0][-1])
 
-    def test_alla_tre_finns(self):
-        self.assertEqual(nyckeloar_finns([self.GOTLAND, self.OLAND, self.ORUST]), [])
+    def test_en_oppen_kedja_kastas(self):
+        vagar = [vag([(13.0, 59.0), (14.0, 59.0)]), vag([(14.0, 59.0), (14.0, 60.0)])]
+        self.assertEqual(gransringar(vagar), [])
 
-    def test_en_som_saknas_namnges(self):
-        self.assertEqual(nyckeloar_finns([self.GOTLAND, self.ORUST]), ["Öland"])
+    def test_en_kedja_under_fyra_punkter_kastas(self):
+        """En triangel som slutit sig på tre hörn är en linje fram och åter."""
+        vagar = [vag([(13.0, 59.0), (14.0, 59.0)]), vag([(14.0, 59.0), (13.0, 59.0)])]
+        self.assertEqual(gransringar(vagar), [])
 
-    def test_en_o_som_klistrats_ihop_med_fastlandet_raknas_inte(self):
-        """Ringen rymmer inte längre i öns ruta, alltså är den inte längre ön."""
-        hopklistrad = ruta(16.4, 56.2, 22.0, 57.3)
-        self.assertIn("Öland", nyckeloar_finns([self.GOTLAND, hopklistrad, self.ORUST]))
+    def test_koordinaterna_rundas_till_fem_decimaler(self):
+        vagar = [
+            vag([(13.0000004, 59.0), (14.0, 59.0)]),
+            vag([(14.0, 59.0), (14.0, 60.0)]),
+            vag([(14.0, 60.0), (13.0000004, 59.0)]),
+        ]
+        ringar = gransringar(vagar)
+        self.assertEqual(ringar[0][0], [13.0, 59.0])
 
-    def test_en_o_som_krympt_till_en_prick_raknas_inte(self):
-        prick = ruta(18.5, 57.3, 18.55, 57.35)
-        self.assertIn("Gotland", nyckeloar_finns([prick, self.OLAND, self.ORUST]))
+    def test_vagar_utan_geometri_hoppas_over(self):
+        vagar = [{"id": 1}, vag([(13.0, 59.0), (14.0, 59.0)])]
+        self.assertEqual(gransringar(vagar), [])
 
 
-class Avstand(unittest.TestCase):
-    """Provet att kust och landsgräns möts. Punkt 4 ovan."""
+class Vindningen(unittest.TestCase):
+    """Punkt 4 ovan. Ett hål måste gå åt motsatt håll mot världsringen."""
 
-    def test_samma_punkt_ar_noll(self):
-        self.assertAlmostEqual(avstand_m([13.0, 59.0], [13.0, 59.0]), 0.0)
+    def test_en_motsols_ring_vands(self):
+        motsols = [[13.0, 59.0], [14.0, 59.0], [14.0, 60.0], [13.0, 59.0]]
+        self.assertGreater(ytformel(motsols), 0, "provets egen ring gick åt fel håll")
+        self.assertLess(ytformel(medsols(motsols)), 0)
 
-    def test_en_hundradels_grad_norrut(self):
-        self.assertAlmostEqual(avstand_m([13.0, 59.0], [13.0, 59.01]), 1113.2, delta=1.0)
+    def test_en_medsols_ring_lamnas_som_den_ar(self):
+        ring = [[13.0, 59.0], [14.0, 60.0], [14.0, 59.0], [13.0, 59.0]]
+        self.assertIs(medsols(ring), ring)
 
-    def test_longituden_krymper_norrut(self):
-        söder = avstand_m([13.0, 55.0], [13.01, 55.0])
-        norr = avstand_m([13.0, 68.0], [13.01, 68.0])
-        self.assertLess(norr, söder * 0.7)
+
+class Konturen(unittest.TestCase):
+    """Förenklingen och vändningen, alltså bygg_kontur."""
+
+    #: En ring med en överflödig punkt mitt på varje sida. Douglas-Peucker med
+    #: 600 meters tolerans ska ta bort alla fyra.
+    STOR = [
+        [13.0, 59.0], [13.5, 59.0], [14.0, 59.0], [14.0, 59.5],
+        [14.0, 60.0], [13.5, 60.0], [13.0, 60.0], [13.0, 59.5], [13.0, 59.0],
+    ]
+    LITEN = [
+        [18.0, 57.0], [18.5, 57.0], [19.0, 57.0], [19.0, 57.5],
+        [19.0, 58.0], [18.5, 58.0], [18.0, 58.0], [18.0, 57.5], [18.0, 57.0],
+    ]
+
+    def test_tva_ringar_in_ger_tva_slutna_ringar_ut(self):
+        ringar, _ = bygg_kontur([self.STOR, self.LITEN])
+        self.assertEqual(len(ringar), 2)
+        for ring in ringar:
+            self.assertEqual(ring[0], ring[-1])
+
+    def test_forenklingen_tar_bort_punkter_och_mattet_redovisar_det(self):
+        ringar, mått = bygg_kontur([self.STOR, self.LITEN])
+        self.assertEqual(mått["punkter_fore"], 18)
+        self.assertEqual(mått["punkter_efter"], sum(len(r) for r in ringar))
+        self.assertLess(mått["punkter_efter"], mått["punkter_fore"])
+
+    def test_bada_ringarna_kommer_tillbaka_medsols(self):
+        ringar, _ = bygg_kontur([self.STOR[::-1], self.LITEN])
+        for ring in ringar:
+            self.assertLess(ytformel(ring), 0)
+
+
+class Ringprovet(unittest.TestCase):
+    """Punkt 3 ovan. Två ringar, och den mindre ska vara Gotlands."""
+
+    FASTLANDET = ruta(11.0, 55.0, 24.0, 69.0)
+    GOTLAND = ruta(17.5, 56.7, 19.7, 58.6)
+
+    def test_tva_ratta_ringar_haller(self):
+        self.assertEqual(ringarna_haller([self.FASTLANDET, self.GOTLAND]), "")
+
+    def test_fel_antal_ringar_namnges(self):
+        self.assertIn("1 ringar", ringarna_haller([self.FASTLANDET]))
+
+    def test_den_mindre_ringen_pa_fel_plats_namnges(self):
+        holme = ruta(12.0, 56.0, 14.2, 57.9)
+        self.assertIn("Gotlands sjögräns", ringarna_haller([self.FASTLANDET, holme]))
+
+    def test_den_storre_ringen_utan_fastlandet_namnges(self):
+        """En ring som slutar vid Dalälven rymmer inte Kiruna."""
+        halva = ruta(11.0, 55.0, 24.0, 60.0)
+        self.assertIn("rymmer inte punkten", ringarna_haller([halva, self.GOTLAND]))
 
 
 if __name__ == "__main__":

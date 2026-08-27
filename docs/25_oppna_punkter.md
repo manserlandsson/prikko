@@ -61,9 +61,24 @@ Ingen. Kön är tom och allt är pushat, se listan längst ned.
   Designen ändras inte av detta: en not, aldrig avpublicering, ingenting alls
   när källan bara saknar stället. Det som ändras är att Stockholm inte behöver
   vänta på september. Läsaren finns i `pipeline/prikko/stockholmsintyg.py`,
-  hämtaren i `pipeline/stockholmsintyg.py`. Kvar innan noten kan byggas:
-  `registration` måste in i `FILFALT` i `pipeline/export_supabase.py`, annars
-  raderar nästa nattkörning fältet tyst. `tillampa` vägrar skriva tills dess.
+  hämtaren i `pipeline/stockholmsintyg.py`.
+
+  **UNDERLAGET FINNS PÅ PLATS SEDAN 2026-08-27.** `registration` står i
+  `FILFALT`, hela Stockholm är hämtat och `tillampa` har skrivit 8 514 rader
+  till `site/src/data/stockholm.json`. Status är läst på var och en: **30 rader
+  är inte längre aktiva**, 27 som `Inaktiv` och 3 som `Upphörd/Skrotad`, ett
+  tredje statusvärde som inte fanns i urvalet på 150. Matchningströskeln i
+  `35_scb_foretagsregistret.md` §5.4 gäller dessutom INTE här: intyget slås upp
+  på vårt eget anläggnings-id, så det finns ingen adressmatchning som kan bli
+  fel företag.
+
+  Kvar innan noten kan byggas är bara ytan, och den är inte liten. §5.1 kräver
+  att verksamheten bär **samma markering i listor, sök och karta**, annars är
+  noten "en fälla man bara ser om man klickar in". Det rör
+  `Verksamhetskort.astro`, `EstablishmentList.astro`, `sok.astro` och
+  `Karta.astro`. Sidan visar därför i dag ingenting om status, se
+  `site/src/components/Foretagsregister.astro`, där också de elva andra
+  utelämnade fälten står med skäl.
 - **Bevakningslistan på kontot visar bara namn och stad.** Vad en bevakning ÄR
   är avgjort, se `17_produktfunktioner.md`, avsnittet "Vad en bevakning gör":
   en lista på kontot, med mejlet som tillägg. Notiserna skrivs numera varje

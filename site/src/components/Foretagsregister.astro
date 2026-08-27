@@ -1,0 +1,176 @@
+---
+/**
+ * Företaget bakom stället: vem som driver det, och numret det står under.
+ *
+ * ═══ VAD DET HÄR ÄR, OCH VAD DET INTE ÄR ═══════════════════════════════════
+ *
+ * Kommunens EGEN registeruppgift, hämtad ur Stockholms registreringsintyg av
+ * pipeline/stockholmsintyg.py och skriven på raden som `registration`.
+ *
+ * Det är en annan sak än Foretagsuppgifter.astro, som visar vad verksamheten
+ * SJÄLV skickat in och som fylls i webbläsaren. De två delar varken fält,
+ * plats eller kod, och det är avsiktligt: ett företags egen presentation och
+ * ett registerutdrag är olika sorters påståenden, och en läsare ska inte
+ * behöva gissa vilket hen läser.
+ *
+ * ═══ VARFÖR I SIDOPANELEN OCH INTE I HUVUDKOLUMNEN ════════════════════════
+ *
+ * Huvudkolumnen är kontrollberättelsen, från bedömningen ned till historiken,
+ * och varje kommentar i [slug].astro värjer den ordningen. Ett organisations-
+ * nummer är ingen del av den berättelsen, och inklämt mellan bedömningen och
+ * vad kontrollen visade hade det brutit den utan att svara på något.
+ *
+ * Det hör i stället ihop med kontaktkortet: båda svarar på "vem är det här",
+ * inte på "hur sköts det". Därför står panelen direkt under kontaktkortet, som
+ * nästa fakta om samma part. Samma indelning som booli har, och samma plats
+ * som allabolag och hitta.se ger sina företagsfakta.
+ *
+ * ═══ VAD SOM VISAS, OCH VAD SOM MEDVETET INTE GÖR DET ═════════════════════
+ *
+ * Intyget lämnar ut sexton fält. Fyra av dem står här.
+ *
+ * VISAS:
+ *
+ *   Drivs av        Livsmedelsföretagaren, alltså den JURIDISKA person som
+ *                   ansvarar. Ofta ett annat namn än skylten, och då är det
+ *                   en upplysning ingen annan yta på sidan bär. Raden står
+ *                   bara där det finns ett organisationsnummer: på enskild
+ *                   firma är fältet innehavarens eget namn, och det hålls
+ *                   inne av samma skäl som numret. 451 rader, uppmätt över
+ *                   hela Stockholm. Se lib/registrering.ts.
+ *   Organisationsnummer   Nyckeln till varje företagsregister i landet, och
+ *                   det enda fältet som gör verksamheten sökbar utanför oss.
+ *   Företagsform    Bara när numret hålls inne, alltså på enskild firma. Där
+ *                   är det den enda upplysningen vi kan ge om vem som står
+ *                   bakom, och den ges utan att röja en personuppgift.
+ *   Registrerad     Datumet stället registrerades hos kommunen. Sidan har
+ *                   hittills bara kunnat säga "Äldsta kontroll", med ett tips
+ *                   om att det INTE är året verksamheten startade. Nu finns
+ *                   det riktiga datumet, och det är den enda uppgiften på
+ *                   sidan som säger något om hur länge stället funnits.
+ *
+ * VISAS INTE, och varje strykning har ett skäl:
+ *
+ *   God efterlevnad   Kommunens EGEN efterlevnadsbedömning, ja eller nej.
+ *                   Sidan bär redan en bedömning, vår, med en hel berättelse
+ *                   under sig. Två omdömen om samma ställe, satta efter olika
+ *                   modeller och utan gemensam skala, är sämre än ett. Ett
+ *                   "Nej" i en faktaruta bredvid vårt "Inga anmärkningar"
+ *                   läses dessutom som att vi motsäger oss själva.
+ *   Kontrollfrekvens  Hur många kontroller kommunen beslutat per fem år. Det
+ *                   är kommunens interna planering och grunden för
+ *                   årsavgiften, inte ett besked om stället. En läsare som ser
+ *                   "15" bredvid "1" drar den enda slutsats som ligger nära,
+ *                   och den är fel.
+ *   Omfattning      Storleksklassen Mikro, Liten, Mellan, Stor. Samma sak:
+ *                   den styr avgiften, och som ensam rad läses den som ett
+ *                   omdöme om kvaliteten.
+ *   Tredjepartscertifiering  Nej på de allra flesta. En rad som nästan alltid
+ *                   säger nej är ingen upplysning, den är en anmärkning.
+ *   Verksamhetstyper och aktiviteter   Livsmedelsverkets modell, i kommunens
+ *                   ordval. Sidan kategoriserar redan stället med vår egen
+ *                   indelning, och två kategorisystem i samma spalt förklarar
+ *                   ingenting.
+ *   Postnummer och ort  Adressen står redan under kartan. Postnumret gör
+ *                   nytta i pipelinen, som särskiljare mot företagsregistret,
+ *                   och ingen nytta för den som läser.
+ *   Status Aktiv eller Inaktiv   Den STÖRSTA uppgiften i intyget, och den
+ *                   byggs inte här. Designen för noten om nedlagda
+ *                   verksamheter är låst sedan tidigare, se
+ *                   docs/35_scb_foretagsregistret.md §5.1, och den kräver
+ *                   samma markering i listor, sök och karta. Utan den
+ *                   markeringen är noten "en fälla man bara ser om man
+ *                   klickar in", och en halv funktion är här sämre än ingen.
+ *                   Se docs/25_oppna_punkter.md.
+ *
+ * ═══ INGEN PROVENIENS I PANELEN ═══════════════════════════════════════════
+ *
+ * Ingen källrad, ingen (i)-knapp, ingen mening om varifrån numret kommer.
+ * Ratsit, allabolag och hitta.se skriver inte ut Bolagsverket vid varje
+ * organisationsnummer, och vi gör det inte heller. Se docs/18_sprakregler.md.
+ *
+ * ═══ SAKNAS UPPGIFTEN VISAS INGENTING ═════════════════════════════════════
+ *
+ * Ingen rad, ingen rubrik, ingen panel. Fältet står i dag bara på Stockholms
+ * rader, alltså saknas det på nästan halva beståndet, och en ruta som säger
+ * "Organisationsnummer saknas" hade stått på 7 527 sidor och sagt ingenting.
+ */
+import type { Registration } from '../lib/db';
+import { registerrader } from '../lib/registrering';
+
+interface Props {
+  registration: Registration;
+  /** Verksamhetens namn, för att slippa upprepa det som "Drivs av". */
+  name: string;
+}
+
+const { registration, name } = Astro.props;
+
+/* Raderna byggs i lib/registrering.ts och inte här, av samma skäl som
+   `harNagot` i lib/kontakt.ts ligger utanför Kontaktuppgifter.astro:
+   sidmallen måste kunna fråga om panelen har något att visa INNAN den ritar
+   lådan runt den, annars står en tom vit ruta i spalten. */
+const rader = registerrader(registration, name);
+---
+
+{rader.length > 0 && (
+<section class="foretaget-register" aria-label={`Företagsuppgifter för ${name}`}>
+  <h2 class="rubrik">Företaget</h2>
+
+  {/* Definitionslista av samma skäl som i Kontaktuppgifter.astro: raderna är
+      påståenden och inte handlingar, alltså ingen ikon och ingen länk. */}
+  <dl class="fakta">
+    {rader.map((rad) => (
+      <div class="rad">
+        <dt class="text-secondary">{rad.label}</dt>
+        <dd>{rad.value}</dd>
+      </div>
+    ))}
+  </dl>
+</section>
+)}
+
+<style>
+  /* Panelen är sidopanelens `.panel`: ram, radie och skugga ritas av
+     sidmallen, och här bor bara innehållet. 300 px bred, 268 px innanför
+     paddingen, och det är måttet allt nedan är satt efter. */
+
+  /* Samma panelrubriknivå som Kontaktuppgifter.astro och ActionPanel.astro.
+     Regeln står här och inte i sidmallen eftersom Astros scopeade selektorer
+     inte korsar komponentgränser. */
+  .rubrik {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    margin: 0 0 var(--s-3);
+  }
+
+  .fakta {
+    margin: 0;
+  }
+
+  /* Etiketten över värdet och inte bredvid det. Ett organisationsnummer är
+     tolv tecken och etiketten nitton; på 268 px hade de två spalterna tvingat
+     numret att brytas mitt itu, och ett brutet nummer går inte att kopiera med
+     ögat. Samma skäl som gör att kontaktkortets länkar bär sin etikett i
+     aria-label i stället för i en spalt. */
+  .rad + .rad {
+    margin-top: var(--s-3);
+  }
+
+  dt {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body-s);
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 600;
+    /* Numret ska gå att läsa siffra för siffra utan att kolumnerna hoppar. */
+    font-variant-numeric: tabular-nums;
+    /* Ett långt bolagsnamn får bryta hellre än att spränga panelen. */
+    overflow-wrap: anywhere;
+  }
+</style>

@@ -43,8 +43,10 @@ import Platskarta from '../../components/Platskarta.astro';
 import TaMigHit from '../../components/TaMigHit.astro';
 import Oppettider from '../../components/Oppettider.astro';
 import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
+import Foretagsregister from '../../components/Foretagsregister.astro';
 import Sidupphov from '../../components/Sidupphov.astro';
 import { harNagot } from '../../lib/kontakt';
+import { registerrader } from '../../lib/registrering';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
@@ -1025,6 +1027,30 @@ const breadcrumbs = {
         {e.contact && harNagot(e.contact) && (
           <div class="panel" data-kontakt-panel>
             <Kontaktuppgifter contact={e.contact} name={e.name} />
+          </div>
+        )}
+
+        {/* Företaget bakom stället, DIREKT UNDER kontaktkortet.
+
+            De två svarar på samma sorts fråga, vem är det här, medan
+            huvudkolumnen svarar på hur det sköts. Ett organisationsnummer
+            inklämt mellan bedömningen och vad kontrollen visade hade brutit
+            berättelsen utan att svara på något; här står det som nästa fakta
+            om samma part.
+
+            Panelen ritas bara där kommunen lämnar uppgiften. Fältet finns i
+            dag på Stockholms 8 520 rader och på ingen annan kommun, alltså
+            saknas den på drygt sju tusen sidor, och där syns ingenting alls.
+            Vad panelen visar och vad den medvetet utelämnar står i
+            Foretagsregister.astro.
+
+            Villkoret är dubbelt av samma skäl som kontaktkortets: en rad kan
+            bära `registration` utan att en enda av de fyra raderna går att
+            skriva, och då hade panelen blivit en tom vit ruta med bara en
+            rubrik. `registerrader` är det som utesluter det. */}
+        {e.registration && registerrader(e.registration, e.name).length > 0 && (
+          <div class="panel">
+            <Foretagsregister registration={e.registration} name={e.name} />
           </div>
         )}
 

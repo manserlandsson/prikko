@@ -118,6 +118,52 @@ export type SourceType =
   | 'scrape'
   | 'foi_request';
 
+/**
+ * Kommunens egen registeruppgift om verksamheten.
+ *
+ * Skrivs av pipeline/stockholmsintyg.py ur Stockholms registreringsintyg och
+ * står i dag bara på stockholmsrader. Fältet är valfritt och ska förbli
+ * valfritt: sajten visar uppgiften där den finns och ingenting alls där den
+ * saknas, samma dom som `hours`, `contact` och `stop` redan lyder under.
+ *
+ * INGET AV DET HÄR ÄR VERKSAMHETENS EGEN UPPGIFT. Det som företaget självt
+ * skickat in bor i community-schemat och visas av Foretagsuppgifter.astro.
+ * Skillnaden är hela poängen med att de är två fält och två avsnitt.
+ *
+ * ORGANISATIONSNUMRET SAKNAS PÅ VARJE ENSKILD FIRMA, och det är avsiktligt.
+ * Kommunens fält heter "Person/Organisationsnummer" och bär innehavarens
+ * PERSONNUMMER när det inte finns någon juridisk person. Pipelinen håller
+ * inne numret och låter `companyForm` bära upplysningen i stället. Se
+ * `ar_personnummer` i pipeline/prikko/stockholmsintyg.py.
+ */
+export interface Registration {
+  /** Bara ett BOLAGS nummer, aldrig en fysisk persons. Se ovan. */
+  orgnr?: string | null;
+  /** 'aktiebolag' | 'enskild' | 'stat_kommun' | 'ideell_forening' | ... */
+  companyForm?: string | null;
+  /** Livsmedelsföretagaren: den juridiska person som driver stället. */
+  operator?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  /** Kommunens besked om sin EGEN registrering, Aktiv eller Inaktiv. */
+  active?: boolean | null;
+  /** ISO-datum då verksamheten registrerades hos kommunen. */
+  registeredAt?: string | null;
+  focus?: string | null;
+  businessTypes?: string[];
+  activities?: string[];
+  /** Storleksklass: Mikro, Liten, Mellan, Stor. */
+  scope?: string | null;
+  /** Kommunens egen efterlevnadsbedömning. Visas inte, se Foretagsregister.astro. */
+  compliance?: boolean | null;
+  certified?: boolean | null;
+  riskDecidedAt?: string | null;
+  /** Beslutad kontrollfrekvens per fem år. Visas inte, se Foretagsregister.astro. */
+  frequency?: number | null;
+  /** När intyget lästes, ISO. */
+  checkedAt?: string | null;
+}
+
 export interface Municipality {
   code: string;
   /** Formellt namn: "Stockholms stad". */
@@ -183,6 +229,11 @@ export interface Establishment {
   stop?: string;
   /** Parkeringar inom 200 m, packat som "3|40": antal och avstånd till den närmaste. */
   parking?: string;
+  /**
+   * Kommunens registeruppgift, se `Registration`. Står i dag på Stockholms
+   * 8 520 rader och på ingen annan kommun.
+   */
+  registration?: Registration;
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;
