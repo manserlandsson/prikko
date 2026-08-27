@@ -178,6 +178,21 @@ export interface Utsnitt {
 }
 
 export interface TileSet extends Utsnitt {
+  /**
+   * Varje punkt i beståndet, i den ordning `i` pekar på dem.
+   *
+   * Samma array som rutorna byggs av, alltså samma egenskaper och SAMMA
+   * radnummer. Att den ligger här är hela villkoret för att listan ska kunna
+   * drivas av ett urval i stället för av kameran: rutorna bär bara det
+   * kartan tittar på, och ett urval som spänner ett land kan inte hämta sina
+   * rader ur dem. Se pages/kartlista/[kommun].json.ts.
+   *
+   * Den serveras ALDRIG som den är. Fältet finns för att rutten bredvid ska
+   * kunna dela upp den per kommun utan att bygga om beståndet en andra gång,
+   * och en andra uppbyggnad hade dessutom kunnat numrera raderna annorlunda,
+   * vilket är exakt det fel som bryter kopplingen mellan en rad och en nål.
+   */
+  punkter: Punkt[];
   /** Antal rutor i arkivet. */
   tiles: number;
   /** Kommunernas slugar i den ordning `m` i rutorna pekar på dem. */
@@ -191,7 +206,7 @@ export interface TileSet extends Utsnitt {
   url: string;
 }
 
-interface Punkt {
+export interface Punkt {
   lng: number;
   lat: number;
   props: Record<string, string | number>;
@@ -579,6 +594,7 @@ function build(): TileSet {
 
   return {
     ...set,
+    punkter,
     tiles: archive.tiles,
     body: archive.buffer,
     hash,

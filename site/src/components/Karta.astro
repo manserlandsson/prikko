@@ -262,14 +262,22 @@ const kommunforslag = municipalities()
     /**
      * Har kommunen en KONTUR att skugga med?
      *
-     * Sant sedan kommungränserna landade som riktiga ytor i lib/omraden.ts.
-     * Den som är sann blir ett chip precis som en stadsdel; den som är falsk
-     * flyttar bara kameran, alltså det beteende alla tolv hade förut. Se den
-     * omskrivna noten ovanför.
+     * SANT FÖR ALLA TOLV sedan 2026-08-27, uppmätt på datan: varje fil i
+     * site/src/data/omraden/ bär numera en `municipalityArea` med minst en
+     * ytterring, från Höganäs 105 hörn till Uppsala tio ytterringar. Det
+     * betyder att Stockholm, Uppsala, Örebro och Oskarshamn har slutat falla
+     * tillbaka på kameraflytten; de blir chip precis som de fyra andra.
      *
-     * Flaggan finns för att alternativet är tyst. `satOmrade` rensar ett val
-     * vars yta saknas i konturfilen, alltså hade ett chip på en kommun utan
-     * kontur blinkat till och försvunnit utan att något hänt.
+     * GRENEN FÖR `false` STÅR ÄNDÅ KVAR, och det är inte kvarglömt. Flaggan
+     * läser DATAN och är inte en konstant: endpointen bredvid tar med en
+     * kommun så snart den har antingen länkade områden eller en egen yta, se
+     * pages/omradesytor/[kommun].json.ts, alltså kan en kommun utan
+     * OSM-relation komma in i beståndet i morgon. Utan flaggan blir det felet
+     * tyst: `satOmrade` rensar ett val vars yta saknas, så chippet hade
+     * blinkat till och försvunnit utan att något hänt.
+     *
+     * Tolv kommuner i dag, 290 den dag täckningen är hel. Grenen är billig och
+     * felet den fångar är osynligt.
      */
     y: municipalityArea(m.slug) !== undefined,
   }));
@@ -439,6 +447,7 @@ const LEGEND = [
   data-kommun={kommun?.slug}
   data-omraden={JSON.stringify(omradesgrupper)}
   data-kommunval={JSON.stringify(kommunforslag)}
+  data-listkommuner={[...rutor.perKommun.keys()].join(',')}
   data-index={SEARCH_INDEX_URL}
   data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
   data-kategorier={JSON.stringify(kategorier)}
@@ -896,6 +905,29 @@ const LEGEND = [
     ) : (
       <p class="listfot text-secondary" data-listfot hidden></p>
     )}
+
+    {/*
+      VÄGEN VIDARE ÄR EN KNAPP OCH INTE ETT BESKED.
+      ────────────────────────────────────────────────────────────────────
+      Här stod bara foten ovanför, och den sa "Visar 60 av 8 520. Zooma in
+      för att se färre åt gången." Det är en återvändsgränd: raden konstaterar
+      att 8 460 verksamheter inte går att nå och lämnar besökaren med en
+      instruktion om att göra listan MINDRE.
+
+      Sedan listan drivs av urvalet och inte av kameran finns hela urvalet i
+      minnet, alltså finns det inget skäl att inte kunna nå det. Knappen ritar
+      sextio till per tryck.
+
+      INGEN PAGINERING, till skillnad från Booli som delar sina träffar i 33
+      sidor. Sidnummer bryter kopplingen mellan rad och nål: en nål på skärmen
+      vars rad ligger på sidan sju är en död koppling, och den kopplingen är
+      vår och inte deras. En växande lista behåller varje rad som ritats.
+
+      Knappen ligger i markupen och inte i skriptet, av samma skäl som allt
+      annat i den här kolumnen: den ska finnas i dokumentet innan kartan
+      vaknar, så att ingenting hoppar in.
+    */}
+    <button type="button" class="visa-fler" data-visa-fler hidden></button>
     </div>
   </section>
 
@@ -1076,6 +1108,7 @@ const LEGEND = [
     const rubrik = root.querySelector<HTMLElement>('[data-rubrik]')!;
     const underrubrik = root.querySelector<HTMLElement>('[data-underrubrik]')!;
     const listfot = root.querySelector<HTMLElement>('[data-listfot]')!;
+    const visaFler = root.querySelector<HTMLButtonElement>('[data-visa-fler]')!;
     const filterFalt = root.querySelector<HTMLInputElement>('[data-filter]')!;
     const rensa = root.querySelector<HTMLButtonElement>('[data-rensa]')!;
     const kartram = root.querySelector<HTMLElement>('[data-kartram]')!;
@@ -1226,15 +1259,122 @@ const LEGEND = [
 
       lastade = [...sedda.values()];
       lastadVersion = version;
-      // Grupperna och söktexten hörde till den förra mängden.
+      /* Grupperna hör till rutorna och byggs om här. Söktexten gör det INTE
+         längre: `sokbar` är en karta över URVALETS rader sedan listan slutade
+         följa kameran, och den nollas när urvalet byts, se `sokbarFor`. */
       byggGrupper(lastade);
-      sokbar = null;
       return lastade;
     }
 
     /** Punkten med ett visst radnummer, om den ligger i en laddad ruta. */
     function punktMed(i: number): Punkt | undefined {
       return punktKalla().find((p) => p.i === i);
+    }
+
+    /*
+     * ══ URVALET: LISTANS EGEN KÄLLA, SKILD FRÅN KARTANS ════════════════════
+     *
+     * Ägaren 2026-08-27: listan ska svara på det man VALT och inte på var
+     * kameran råkar stå.
+     *
+     * Fram till nu var de två samma sak. `punktKalla()` ovan läser de rutor
+     * MapLibre hämtat, och en ruta bär bara det man tittar på; listan
+     * beskars dessutom mot kartans utsnitt. Drog man kartan en centimeter
+     * byttes listan, och ett kommunval höll bara så länge ingen rörde
+     * kameran.
+     *
+     * Rutorna kan inte fixas till. Ett urval som spänner en kommun eller ett
+     * land finns aldrig i rutorna för det utsnitt man står på, och det är
+     * hela skälet till att rutpyramiden finns. Listan får därför en EGEN
+     * källa, /kartlista/<kommun>.json, och kartan behåller sin.
+     *
+     * DE TVÅ FÅR INTE GLIDA ISÄR, och det är därför filen bär rutornas egna
+     * egenskaper tecken för tecken och läses med `franRuta` nedan, samma
+     * funktion som rutorna läses med. Radnumret `i` är detsamma i båda,
+     * eftersom filen byggs ur `tileSet().punkter`, alltså ur samma array som
+     * rutorna. Se pages/kartlista/[kommun].json.ts.
+     *
+     * KOSTNADEN ÄR ÄGARENS BESLUT. Hela riket är 1,24 MB rått, Stockholm 808
+     * kB och 265 kB gzippat. Han fick talet och svarade "ja betalr megabyten".
+     */
+
+    /** Kommunerna som HAR en urvalsfil, alltså de som lämnar koordinater.
+     *  Fyra av tolv gör det inte och har därför ingen fil att hämta. */
+    const LISTKOMMUNER = (root.dataset.listkommuner ?? '').split(',').filter(Boolean);
+
+    /** Hämtade rader per kommun. Nyckeln är kommunens slug. */
+    const urvalPerKommun = new Map<string, Punkt[]>();
+
+    /** Pågående hämtningar, så att två val av samma kommun blir EN hämtning.
+     *  Samma mönster och samma skäl som `ytorHamtas` längre ned. */
+    const urvalHamtas = new Map<string, Promise<void>>();
+
+    function hamtaUrval(slugar: string[]): Promise<void> {
+      const arbete = slugar.map((k) => {
+        let p = urvalHamtas.get(k);
+        if (!p) {
+          p = fetch(`/kartlista/${k}.json`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+              if (!d || !Array.isArray(d.rader)) return;
+              urvalPerKommun.set(
+                k,
+                d.rader.map((rad: [number, number, any]) => franRuta(rad[2], rad[0], rad[1])),
+              );
+            })
+            .catch(() => {
+              /* En kommun som inte gick att hämta ger inga rader, och det är
+                 ett fullgott utfall: listan visar det den har och kartan
+                 fungerar. Ett felmeddelande om en fil besökaren inte bett om
+                 vore värre. */
+            });
+          urvalHamtas.set(k, p);
+        }
+        return p;
+      });
+      return Promise.all(arbete).then(() => undefined);
+    }
+
+    /**
+     * Vilka kommuner urvalet spänner över.
+     *
+     * Tre fall, och det tredje är det nya:
+     *
+     *   chip satta      kommunerna i chippen, alltså `<kommun>` för ett
+     *                   kommunval och ledet före snedstrecket för ett område
+     *   kommunkarta     sidans egen kommun. Den ÄR urvalet där, även utan
+     *                   chip: /stockholm/karta/ handlar om Stockholm
+     *   rikskartan      alla, alltså hela beståndet
+     */
+    function urvalsKommuner(): string[] {
+      if (omradeVal.length) {
+        const ut = new Set<string>();
+        for (const n of omradeVal) {
+          const k = n.split('/')[0];
+          if (LISTKOMMUNER.includes(k)) ut.add(k);
+        }
+        return [...ut];
+      }
+      if (kommunSlug) return LISTKOMMUNER.includes(kommunSlug) ? [kommunSlug] : [];
+      return LISTKOMMUNER;
+    }
+
+    /** Urvalets rader, alltså allt som hunnit landa för de kommuner urvalet
+     *  spänner. En kommun som inte hämtats än bidrar med noll rader, och
+     *  listan ritas om av sig själv när filen kommer. */
+    function urvalsPunkter(): Punkt[] {
+      const ut: Punkt[] = [];
+      for (const k of urvalsKommuner()) {
+        const rader = urvalPerKommun.get(k);
+        if (rader) ut.push(...rader);
+      }
+      return ut;
+    }
+
+    /** Sant när varje kommun urvalet behöver har landat. Rubriken och foten
+     *  får inte påstå ett tal medan hälften av raderna är på väg. */
+    function urvalKlart(): boolean {
+      return urvalsKommuner().every((k) => urvalPerKommun.has(k));
     }
 
     // ── Punkter på samma adress ──────────────────────────────────────────
@@ -1352,6 +1492,10 @@ const LEGEND = [
      * det talet hade blivit tiotusentals tomma platser.
      */
     let sokbar: Map<number, string> | null = null;
+    /** Vilket urval `sokbar` byggdes för. Byts urvalet är kartan över
+     *  söktexterna en karta över andra rader, och en träff i den hade pekat
+     *  ut ett radnummer som inte längre finns i listan. */
+    let sokbarFor = '';
 
     function normalisera(s: string): string {
       return s
@@ -1470,7 +1614,25 @@ const LEGEND = [
     /** Ligger punkten i något av de valda områdena? Samma ordning som
      *  `contains` i lib/omraden.ts: ruta, ytterringar, sedan hål. */
     function iOmrade(p: Punkt): boolean {
-      if (!omradesfilter) return true;
+      /*
+       * ETT KOMMUNVAL FILTRERAR PÅ FÄLTET OCH INTE PÅ POLYGONEN.
+       *
+       * Ett område kan bara avgöras geometriskt: vi vet inte vilken stadsdel
+       * en verksamhet ligger i annat än genom att pröva punkten mot ringen.
+       * En KOMMUN vet vi däremot, den står i datan, och `p.kommun` är
+       * kommunens slug rakt ur källan.
+       *
+       * Skillnaden är inte akademisk. Kommunkonturerna är förenklade, och en
+       * verksamhet vid kajkanten kan hamna någon meter utanför sin egen
+       * kommun. Med en polygonprövning hade den fallit ur listan över den
+       * kommun som registrerat den, vilket är ett påstående datan motsäger.
+       * Fältet kan inte ha det felet.
+       *
+       * Ytan används alltså till att SKUGGA och aldrig till att räkna. Samma
+       * regel som landsskuggan lyder under, och av samma skäl.
+       */
+      if (kommunFilter.size > 0 && kommunFilter.has(p.kommun)) return true;
+      if (!omradesfilter) return kommunFilter.size === 0;
       const svar = omradesSvar.get(p.i);
       if (svar !== undefined) return svar;
 
@@ -1487,9 +1649,16 @@ const LEGEND = [
       return inne;
     }
 
-    /** Filtrerar något alls just nu? Text, kategori eller område. */
+    /**
+     * De valda KOMMUNERNAS slugar, alltså de chip som filtrerar på fält.
+     * Tom betyder att ingen kommun är vald. Se `iOmrade` för varför de två
+     * sorternas chip filtrerar på olika sätt.
+     */
+    let kommunFilter = new Set<string>();
+
+    /** Filtrerar något alls just nu? Text, kategori, område eller kommun. */
     function harFilter(): boolean {
-      return traffar !== null || omradesfilter !== null;
+      return traffar !== null || omradesfilter !== null || kommunFilter.size > 0;
     }
 
     /**
@@ -1521,9 +1690,18 @@ const LEGEND = [
       const tokens = normalisera(filterFalt.value).split(' ').filter(Boolean);
       if (tokens.length === 0 && katMask === 0) return null;
 
-      const punkter = punktKalla();
-      if (!sokbar) {
+      /*
+       * URVALET och inte rutorna. Texten filtrerar listan, listan är urvalet,
+       * alltså måste träffmängden räknas över samma rader som listan visar.
+       *
+       * Läste den fortfarande `punktKalla()` hade en sökning på rikskartan
+       * bara kunnat träffa de nålar som råkade ligga i utsnittet, alltså
+       * exakt det fel som gjorde att ägaren inte kunde söka på Allegrine.
+       */
+      const punkter = urvalsPunkter();
+      if (!sokbar || sokbarFor !== urvalsKommuner().join(',')) {
         sokbar = new Map(punkter.map((p) => [p.i, ' ' + normalisera(p.namn + ' ' + p.typ)]));
+        sokbarFor = urvalsKommuner().join(',');
       }
       const ut = new Set<number>();
       for (const p of punkter) {
@@ -1539,6 +1717,44 @@ const LEGEND = [
         if (allaMed) ut.add(p.i);
       }
       return ut;
+    }
+
+    /**
+     * Vad urvalet heter, i ord. Står i rubriken.
+     *
+     * Tre fall i fallande ordning, och de speglar `urvalsKommuner` exakt:
+     *
+     *   chip satta    chippens namn, "Jönköping" eller "Södermalm, Stockholm"
+     *   kommunkarta   sidans ort. Den är urvalet där även utan chip.
+     *   rikskartan    "Sverige"
+     *
+     * Flera chip skrivs med "och" mellan, samma bindeord som `filterOrd`
+     * använder, så att rubriken och tomtexten låter som samma röst.
+     *
+     * KATEGORIN OCH TEXTEN STÅR INTE HÄR. De är filter PÅ urvalet och inte
+     * urvalet självt, och rubriken säger redan "träffar" i stället för
+     * "verksamheter" när de är på. Att räkna upp dem här hade gett "12 träffar
+     * i caféer i Jönköping", alltså en plats som inte finns.
+     */
+    function urvalsOrd(): string {
+      if (omradeVal.length) return omradeVal.map(omradesNamn).join(' och ');
+      /*
+       * TOM när urvalet är sidans egen plats, och det är inte en förkortning
+       * utan en rättelse. Uppmätt i webbläsaren på /karta/ innan raden fanns:
+       *
+       *     "Karta över hygienkontroller i Sverige. 13 616 verksamheter i Sverige."
+       *
+       * H1:n bredvid namnger redan platsen. Raden under ska säga vad som
+       * ändrats sedan dess, alltså ingenting så länge inget valts. Med ett chip
+       * står namnet där i stället, och då säger det något H1:n inte gör.
+       */
+      return '';
+    }
+
+    /** Ledet " i Jönköping" när något är valt, annars ingenting. */
+    function urvalsLed(): string {
+      const ord = urvalsOrd();
+      return ord ? ` i ${ord}` : '';
     }
 
     /** Vad filtret säger, i ord. Står i tomtexten, som annars hade sagt att
@@ -2323,9 +2539,11 @@ const LEGEND = [
         return;
       }
 
-      /* Kvar står den kommun som saknar kontur. Den flyttar bara kameran,
-         alltså det beteende alla tolv hade innan gränserna fanns. Ett chip
-         utan yta hade rensats bort av `satOmrade` i samma andetag. */
+      /* Kvar står den kommun som saknar kontur, och det är INGEN av dagens
+         tolv, se `y` i frontmatteret. Grenen är en grind mot en framtida
+         kommun utan OSM-relation: ett chip utan yta hade rensats bort av
+         `satOmrade` i samma andetag, alltså tyst. Då är en kameraflytt som
+         faktiskt gör något det bättre utfallet. */
       const k = KOMMUNVAL.find((x) => x.s === t.nyckel);
       if (!k) return;
 
@@ -2370,6 +2588,52 @@ const LEGEND = [
       stallForslag();
       if (pa) filterFalt.focus();
     }
+
+    /*
+     * Knappen ritar sextio till. Den räknar upp och ritar om, ingenting mer:
+     * hela urvalet ligger redan i minnet, alltså finns ingen hämtning att
+     * vänta på och ingen sida att byta till.
+     *
+     * Fokus flyttas inte. Den som tryckt står kvar vid knappen, och knappen
+     * står kvar under de nya raderna, alltså är nästa tryck på samma ställe.
+     */
+    visaFler.addEventListener('click', () => {
+      visade += MAX_RADER;
+      ritaOm?.();
+    });
+
+    /*
+     * ══ URVALET HÄMTAS VID SIDLADDNING, OCH DET ÄR ETT VAL ═════════════════
+     *
+     * Frågan var om filerna skulle hämtas nu eller vid första behovet. Båda
+     * mättes.
+     *
+     * VID FÖRSTA BEHOVET FINNS INTE. Listan är sidans vänsterkolumn och den
+     * ska bära rader från första sekunden; det första behovet ÄR alltså den
+     * första målningen. Ett senare tillfälle finns inte att vänta på, och att
+     * vänta på att besökaren rör något hade betytt en tom kolumn tills dess.
+     * Sökregistret hämtas vid första tangenttrycket av precis motsatt skäl:
+     * det behövs inte förrän någon skriver.
+     *
+     * VAD SIDAN FAKTISKT HÄMTAR, och det är inte hela riket överallt:
+     *
+     *   /karta/            alla åtta kommunfiler, 1,24 MB rått
+     *   /stockholm/karta/  bara stockholm.json, 808 kB rått
+     *   /karlstad/karta/   bara karlstad.json, 62 kB rått
+     *
+     * Kommunkartan hämtar alltså sin egen kommun och ingenting mer, eftersom
+     * sidans kommun ÄR urvalet där. Det var hela skälet till att filerna ligger
+     * per kommun i stället för i en riksfil.
+     *
+     * HÄMTNINGEN BLOCKERAR INGENTING. Den ligger vid sidan av kartans egen
+     * uppstart, och tills den landat står de sextio serverrenderade raderna
+     * kvar. Sidan har alltså innehåll i kolumnen från första bildrutan, precis
+     * som förut.
+     *
+     * Ägaren fick talet 1,24 MB innan han valde det nationella flödet och
+     * svarade "ja betalr megabyten".
+     */
+    hamtaUrval(urvalsKommuner()).then(() => ritaOm?.());
 
     filterFalt.addEventListener('blur', () => {
       window.setTimeout(() => {
@@ -2697,11 +2961,15 @@ const LEGEND = [
     const MAX_RADER = 60;
 
     /**
-     * @param synliga  Nålarna i utsnittet, alltså de som blir kort.
-     * @param totalt   Hur många av dem det är.
-     * @param iBubbla  Hur många verksamheter i utsnittet som ligger inne i en
-     *                 bubbla och därför INTE kan bli kort. Noll när ett filter
-     *                 är på, eftersom bubblorna göms då.
+     * Ritar listan ur URVALET.
+     *
+     * @param rader_  Hela urvalet efter filter och sortering, alltså varje rad
+     *                som hör till valet. Funktionen ritar de `visade` första
+     *                och låter knappen ta besökaren vidare.
+     *
+     * Parametern heter `rader_` med understreck eftersom `rader` är <ol> i
+     * DOM:en några rader upp. Att skugga elementet hade varit en tyst fälla i
+     * en funktion som rör båda.
      */
     /** Radnumren i den ordning de senast ritades. Se noten vid signaturen
      *  nedan: den finns för att slippa rita om en lista som inte ändrats. */
@@ -2713,8 +2981,43 @@ const LEGEND = [
        samma block finns inte för koden ovanför den. */
     let hovrad: number | null = null;
 
-    function ritaLista(synliga: Punkt[], totalt: number, iBubbla = 0) {
-      const visa = synliga.slice(0, MAX_RADER);
+    /**
+     * Hur många rader som ritas just nu. Växer med sextio per tryck på
+     * knappen och nollställs när urvalet, filtret eller ordningen byts:
+     * de raderna är andra rader, och att stå kvar på rad 480 i en ny lista
+     * är att fortsätta bläddra i något man lämnat.
+     */
+    let visade = MAX_RADER;
+
+    /** Vilken lista `visade` räknar i. Byts den är raderna andra rader. */
+    let listForm = '';
+
+    function ritaLista(rader_: Punkt[]) {
+      /*
+       * Nollställningen bor HÄR och ingen annanstans.
+       *
+       * Alternativet var ett anrop till en `nollstallVisade()` från varje
+       * ställe som ändrar urvalet, filtret eller ordningen, alltså sju
+       * anropsplatser att komma ihåg. Ett bortglömt anrop hade betytt att man
+       * står kvar på rad 480 i en lista som just bytts ut.
+       *
+       * Formen räknar INTE antalet rader. En kommunfil som landar sent lägger
+       * till rader utan att byta lista, och att då hoppa tillbaka till sextio
+       * hade ryckt undan det man redan bläddrat fram.
+       */
+      const form = [
+        urvalsKommuner().join(','),
+        omradeVal.join(','),
+        filterVarde,
+        katMask,
+        sortering,
+      ].join('|');
+      if (form !== listForm) {
+        listForm = form;
+        visade = MAX_RADER;
+      }
+
+      const visa = rader_.slice(0, visade);
       const frag = document.createDocumentFragment();
 
       for (const p of visa) {
@@ -2871,103 +3174,105 @@ const LEGEND = [
        * där det inte finns något att upptäcka och en instruktion är det enda
        * som hjälper.
        */
-      const stad = root!.dataset.city;
-      const filtrerat = harFilter();
+      /*
+       * ══ RUBRIKEN SÄGER URVALET OCH ALDRIG "HÄR" ═════════════════════════
+       *
+       * "Här" var sant så länge listan var kameran. Nu är listan urvalet, och
+       * ett urval har ett namn: en kommun, en stadsdel, eller hela landet.
+       * Ordet "här" hade dessutom blivit direkt falskt, eftersom raderna står
+       * kvar när man drar kartan någon annanstans.
+       */
+      /*
+       * "TRÄFFAR" BARA NÄR NÅGOT SÖKTS, inte när något valts.
+       *
+       * `harFilter()` är sant även för ett kommunchip, eftersom chippet
+       * filtrerar listan. Men ett chip är URVALET och inte en sökning i det,
+       * och rubriken namnger det redan i ledet: "1 115 träffar i Jönköping"
+       * läser som om 1 115 av något större matchat en fråga ingen ställt.
+       * Ordet byts därför bara av texten och kategorin, alltså av `traffar`.
+       *
+       * `harFilter()` står kvar där det hör hemma, på rensknappen: den är
+       * vägen ut ur en tom lista oavsett vilket av de tre som tömde den.
+       */
+      const sokt = traffar !== null;
+      const totalt = rader_.length;
+      const hela = urvalKlart();
 
       /*
-       * Rubriken räknar HELA utsnittet, alltså nålarna plus det som ligger inne
-       * i bubblorna. Listan kan bara visa nålarna.
+       * Kommunraderna, bara på rikskartan, och bara när INGET är valt.
        *
-       * Skillnaden fanns inte förut. Hela kommunen låg då i minnet och varje
-       * punkt var en rad, oavsett om kartan råkade rita den som en bubbla. Med
-       * rutor finns bara det rutan bär, och på kommunens öppningszoom är nästan
-       * allt sammanslaget: ett Stockholm med 8 499 verksamheter ger ett
-       * femtontal lösa nålar. En rubrik som sa "15 verksamheter" hade varit
-       * falsk, inte bara mindre användbar.
+       * De var det tomma lägets svar i det förslag som skrevs innan ägaren
+       * valde det nationella flödet. Något tomt läge finns inte längre:
+       * kolumnen bär hela beståndet från första sekunden.
+       *
+       * De står ändå kvar, och det är ett val. En besökare som landar på
+       * /karta/ utan att ha valt något möter 13 616 rader i bokstavsordning
+       * som börjar med "A6 golfrestaurang". Kommunraderna är det enda på den
+       * skärmen som säger vad sajten TÄCKER och vad man kan välja mellan, och
+       * de bär talen. De försvinner i samma stund ett chip finns, alltså är
+       * de en rubrik som löser upp sig själv och inte en andra lista som
+       * konkurrerar med den riktiga.
        */
-      const iVyn = totalt + iBubbla;
+      if (kommuner) kommuner.hidden = omradeVal.length > 0 || filterVarde !== '' || katMask !== 0;
 
-      /*
-       * Kommunraderna, bara på rikskartan.
-       *
-       * HÄR STOD `visa.length > 0`, alltså att raderna försvann i samma stund
-       * kartan gav ett enda kort. Den regeln höll så länge rikskartan öppnade
-       * på beståndets egen låda, för då låg varenda punkt i en bubbla och
-       * listan var tom.
-       *
-       * Sedan 2026-08-27 öppnar rikskartan på hela Sverige, se SVERIGE i
-       * pages/karta.astro. Uppmätt vid 1441 x 900 på den vyn: 13 616
-       * verksamheter i utsnittet, varav TRE ligger som lösa nålar och 13 613 i
-       * bubblor. Tre nålar räckte för att gömma navigeringen, alltså stod
-       * kolumnen med tre godtyckliga kort och ingen väg vidare.
-       *
-       * Villkoret är därför inte längre "finns det kort" utan "är listan hel".
-       * Ligger något kvar i en bubbla visar listan inte allt som finns i
-       * utsnittet, och då är kommunraderna fortfarande en väg vidare. De står
-       * under korten i markupen, alltså konkurrerar de inte med dem.
-       */
-      if (kommuner) kommuner.hidden = iBubbla === 0;
-
-      if (iVyn === 0) {
-        // Samma tomrubrik med och utan filter, men förklaringen är en annan:
-        // med filter är det filtret som tömde vyn, och rensknappen visas.
-        satTal(null, 'Inga verksamheter här.');
+      if (totalt === 0) {
+        satTal(null, hela ? `Inga verksamheter${urvalsLed()}.` : 'Hämtar listan…');
         /*
-         * TOMTEXTEN FÅR ALDRIG SÄGA "ingenting i utsnittet" NÄR REGISTRET HAR
-         * EN TRÄFF. Det var precis den meningen ägaren fick på "allegrine", och
-         * den var sann om utsnittet och falsk om sajten: verksamheten finns, på
-         * Kammakargatan 22 i Stockholm.
+         * TOMTEXTEN FÅR ALDRIG SÄGA ATT NÅGOT SAKNAS NÄR REGISTRET HAR EN
+         * TRÄFF. Det var precis den meningen ägaren fick på "allegrine", och
+         * den var sann om utsnittet och falsk om sajten.
          *
-         * Meningen pekar därför på förslagsraden i stället, som ligger under
-         * fältet i samma sekund. `registerTraffar` räknar HELA registret och
-         * inte de nio rader listan sparat, alltså kan texten inte påstå en rad
-         * som inte syns: har registret en träff finns den i listan, eftersom
-         * tre rader är reserverade åt verksamheter.
+         * Ordet "utsnittet" är borta ur den här texten av samma skäl som ur
+         * rubriken: listan är inte ett utsnitt längre.
          */
-        underrubrik.textContent = filtrerat
-          ? registerTraffar > 0
-            ? `Ingenting i utsnittet matchar ${filterOrd()}, men namnet finns i registret. Välj en rad under sökfältet.`
-            : `Ingenting i utsnittet matchar ${filterOrd()}. Dra i kartan eller rensa filtret.`
-          : `Dra eller zooma ut för att se fler i ${stad}.`;
+        underrubrik.textContent = !hela
+          ? 'Listan fylls på medan kommunernas filer landar.'
+          : harFilter()
+            ? registerTraffar > 0
+              ? `Ingenting${urvalsLed()} matchar ${filterOrd()}, men namnet finns i registret. Välj en rad under sökfältet.`
+              : `Ingenting matchar ${filterOrd()}. Rensa filtret för att se hela listan.`
+            : 'Ingen verksamhet har ett känt läge här.';
         underrubrik.hidden = false;
       } else {
-        /* "här" och inte "i utsnittet". H1:n bredvid säger redan att det här
-           är en karta över en viss plats, och talet räknar det man ser. Ett
-           ord som utsnitt eller kartbild är dessutom vårt eget fackspråk om en
-           yta besökaren har framför sig. */
         satTal(
-          iVyn,
-          filtrerat
-            ? `${iVyn === 1 ? 'träff' : 'träffar'} här.`
-            : `${iVyn === 1 ? 'verksamhet' : 'verksamheter'} här.`,
+          totalt,
+          sokt
+            ? `${totalt === 1 ? 'träff' : 'träffar'}${urvalsLed()}.`
+            : `${totalt === 1 ? 'verksamhet' : 'verksamheter'}${urvalsLed()}.`,
         );
         underrubrik.hidden = true;
       }
-      rensa.hidden = !(filtrerat && iVyn === 0);
+      rensa.hidden = !(harFilter() && totalt === 0);
       /* Figuren följer rubriken ovanför, och bara den. En egen regel här hade
          betytt att de två kan hamna i otakt, alltså en grävling som säger att
          här finns ingenting bredvid en rubrik som räknar fyrtio verksamheter.
 
-         Elementet finns bara på kommunernas kartor, se markupen. Är det inte
-         där händer ingenting, och rikskartan behöver därför inget undantag i
-         den här raden. */
-      if (tomvy) tomvy.hidden = iVyn !== 0;
+         Elementet finns bara på kommunernas kartor, se markupen. */
+      if (tomvy) tomvy.hidden = totalt !== 0;
 
       /*
-       * Foten säger vad man inte ser, och varför. Två olika skäl, två olika
-       * meningar: antingen ryms inte alla kort på en gång, eller så ligger
-       * verksamheterna i bubblor som måste delas först.
+       * Foten säger hur långt man kommit, knappen tar en vidare.
+       *
+       * Här stod "Visar 60 av 8 520. Zooma in för att se färre åt gången.",
+       * alltså ett besked om att resten inte gick att nå. Hela urvalet ligger
+       * i minnet nu, så beskedet var inte längre sant och instruktionen inte
+       * längre rätt väg.
        */
-      if (iBubbla > 0) {
+      if (totalt > visa.length) {
         listfot.hidden = false;
-        listfot.textContent = totalt === 0
-          ? `Zooma in eller klicka på en prick för att se dem i listan.`
-          : `Visar ${visa.length} av ${iVyn.toLocaleString('sv-SE')}. Zooma in för att se resten.`;
+        listfot.textContent = `Visar ${visa.length.toLocaleString('sv-SE')} av ${totalt.toLocaleString('sv-SE')}.`;
+        visaFler.hidden = false;
+        const kvar = totalt - visa.length;
+        visaFler.textContent =
+          kvar <= MAX_RADER
+            ? `Visa de sista ${kvar.toLocaleString('sv-SE')}`
+            : `Visa ${MAX_RADER} till`;
       } else {
         listfot.hidden = totalt <= MAX_RADER;
         if (!listfot.hidden) {
-          listfot.textContent = `Visar ${visa.length} av ${totalt.toLocaleString('sv-SE')}. Zooma in för att se färre åt gången.`;
+          listfot.textContent = `Visar alla ${totalt.toLocaleString('sv-SE')}.`;
         }
+        visaFler.hidden = true;
       }
     }
 
@@ -4039,7 +4344,24 @@ const LEGEND = [
       omradeVal = nycklar;
       stallChippar();
 
+      /*
+       * Urvalets rader hämtas i samma andetag som chippen sätts.
+       *
+       * På rikskartan är alla kommuner redan hämtade och anropet är gratis, se
+       * memoiseringen i `hamtaUrval`. På en KOMMUNKARTA är det inte gratis:
+       * där hämtas bara sidans egen kommun vid start, och väljer man en annan
+       * kommuns stadsdel i fältet finns dess rader inte i minnet.
+       *
+       * Anropet ligger före hämtningen av ytorna nedan och inte i den, för de
+       * två svarar på olika frågor: ytan är formen som ska skuggas, filen är
+       * raderna som ska listas, och en av dem kan landa utan den andra.
+       */
+      hamtaUrval(urvalsKommuner()).then(() => ritaOm?.());
+
       if (!nycklar.length) {
+        /* Kommunhögen töms med områdeshögen. Ett chip som ligger kvar i en av
+           de två efter att urvalet nollats är ett filter ingen ser. */
+        kommunFilter = new Set();
         stallOmradesfilter(null);
         if (karta?.getSource('omradesmask')) {
           (karta.getSource('omradesmask') as any).setData(TOM);
@@ -4075,12 +4397,23 @@ const LEGEND = [
 
         const valda = funna.map((x) => ytor[x]);
 
+        /*
+         * Nycklarna delas i två högar innan filtret sätts.
+         *
+         * Ett område har ett snedstreck, `stockholm/sodermalm`, och avgörs
+         * geometriskt. En kommun har inget, `stockholm`, och avgörs på fältet.
+         * MASKEN ritas av båda tillsammans, alltså av `valda` ovan, eftersom
+         * en skugga bara handlar om form och inte om vem som räknas var.
+         */
+        kommunFilter = new Set(funna.filter((x) => !x.includes('/')));
+        const omradesytor = funna.filter((x) => x.includes('/')).map((x) => ytor[x]);
+
         /* Listans filter sätts FÖRE kartgrinden nedan, och det är ordningen
            som gör att ett delat `#omrade=` verkar även om kartan inte hunnit
            bygga sina lager: filtret gäller från första omritningen, och masken
            kommer när lagren finns. Samma `valda` till båda, se noten vid
            omradesfilter om varför det inte får bli två källor. */
-        stallOmradesfilter(valda);
+        stallOmradesfilter(omradesytor.length ? omradesytor : null);
         filtreraOm?.();
         ritaOm?.();
 
@@ -4680,6 +5013,64 @@ const LEGEND = [
           paint: { 'fill-color': '#878787', 'fill-opacity': 0.6 },
         });
 
+        /*
+         * ══ LANDSSKUGGAN ═════════════════════════════════════════════════
+         *
+         * Ägaren 2026-08-27: "Skugga ut hela kartan som inte är sverige
+         * obviously, som booli."
+         *
+         * Samma form som områdesskuggan ovan, alltså en polygon med ett hål,
+         * men den säger något helt annat och ska därför INTE se likadan ut.
+         *
+         *   områdesskuggan   0,6 och en kontur   "du har valt bort det här"
+         *   landsskuggan     0,28 och ingen      "här slutar vårt bestånd"
+         *
+         * OPACITETEN. 0,28 ligger mitt i det spann gränsarbetet föreslog. Vid
+         * 0,6 hade Finland och Norge sett bortvalda ut på en karta där ingen
+         * valt något, alltså hade sidan öppnat med ett filter som inte finns.
+         * Vid 0,15 syns skillnaden inte alls och skuggan är då bara en dyrare
+         * bakgrund.
+         *
+         * INGEN KONTUR, och det är inte en smaksak. Konturen är förenklad med
+         * 600 meters tolerans, se lib/riket.ts. En ritad linje längs den läser
+         * som en landsgräns, och den här geometrin har inte rätt att påstå var
+         * gränsen går. En tonskarv påstår ingenting mer än "ungefär här".
+         *
+         * ══ UNDER NÅLARNA, TILL SKILLNAD FRÅN OMRÅDESSKUGGAN ═════════════
+         *
+         * Områdesmasken ligger ÖVER nålarna med flit: en nål i full färg
+         * utanför det valda området hade påstått att den hör till träffen.
+         *
+         * Här är det tvärtom, och skälet är mätt. 187 av beståndets
+         * koordinater är kajlägen i Stockholm och Oskarshamn som
+         * 600-metersförenklingen lagt utanför konturen, alltså i vattnet. Låg
+         * masken över nålarna hade de 187 dimmats ned som om de inte fanns i
+         * Sverige. Ytan får SKUGGA och ALDRIG filtrera, och att dimma en nål
+         * är att filtrera med färg.
+         *
+         * `beforeId` är därför klustrets understa lager, alltså allt vi själva
+         * ritar hamnar ovanpå skuggan.
+         *
+         * INGET FILTER HÄR HELLER. `stallOmradesfilter` anropas bara ur
+         * `satOmrade` med `omradeVal`, och `sverige` läggs aldrig i den
+         * listan. Landsskuggan kan alltså inte nå listans filter ens av
+         * misstag, och den blir aldrig ett chip.
+         */
+        karta.addSource('landsmask', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+
+        karta.addLayer(
+          {
+            id: 'landsmask',
+            type: 'fill',
+            source: 'landsmask',
+            paint: { 'fill-color': '#878787', 'fill-opacity': 0.28 },
+          },
+          'kluster-skugga',
+        );
+
         karta.addLayer({
           id: 'omradeskontur',
           type: 'line',
@@ -4698,6 +5089,30 @@ const LEGEND = [
          * värre än ingen skuggning alls.
          */
         if (omradeVal.length) satOmrade(omradeVal, { skrivFragment: false });
+
+        /*
+         * Landsskuggan hämtas och målas, men BARA på rikskartan.
+         *
+         * En kommunkarta öppnar inne i en kommun, alltså långt inne i Sverige,
+         * och en gräns som ligger tjugo mil utanför rutan är en hämtning utan
+         * mottagare. `kommunSlug` är tom bara på /karta/.
+         *
+         * `hamtaYtor` är kommunernas egen hämtare, oförändrad: konturen ligger
+         * på /omradesytor/sverige.json i samma `ytor`-hölje och under nyckeln
+         * `sverige`, alltså utan snedstreck precis som en kommun. Se noten i
+         * pages/omradesytor/sverige.json.ts. Ingen ny hämtväg behövdes.
+         *
+         * `maskAv` är också områdesskuggans egen, alltså samma polygon med
+         * hål. Det som skiljer de två är LAGRET den läggs i, se landsmask
+         * ovan, och ingenting annat.
+         */
+        if (!kommunSlug) {
+          hamtaYtor(['sverige']).then(() => {
+            const riket = ytor['sverige'];
+            const kalla = karta?.getSource('landsmask') as any;
+            if (riket && kalla) kalla.setData(maskAv([riket]));
+          });
+        }
 
         karta.addLayer({
           id: 'nal-lyft',
@@ -4727,93 +5142,100 @@ const LEGEND = [
          * hade listan stått kvar och saknat de verksamheter som just ritats ut
          * på kartan bredvid.
          */
+        /*
+         * ══ LISTAN RITAS UR URVALET OCH INTE UR KAMERAN ═══════════════════
+         *
+         * HÄR STOD MOTSATSEN, och den är borttagen 2026-08-27. Funktionen tog
+         * `karta.getBounds()`, läste de laddade rutorna och behöll det som låg
+         * innanför de fyra kanterna. Följden var att ett val bara gällde så
+         * länge ingen rörde kartan: en centimeters dragning bytte listan, och
+         * ett kommunchip bredvid grannkommunens verksamheter är ett filter som
+         * ljuger.
+         *
+         * Nu läses `urvalsPunkter()`, alltså kommunfilerna för de kommuner
+         * urvalet spänner, och INGEN jämförelse mot kartans kanter finns kvar.
+         * Kameran får flytta sig hur som helst; listan står still tills någon
+         * ändrar urvalet.
+         *
+         * Kvar av det gamla är två villkor, och de är filter PÅ urvalet:
+         * texten med kategorin i `traffar`, och områdesringen i `iOmrade`. Det
+         * dyra ligger sist av samma skäl som förut: `traffar.has` är ett
+         * uppslag och punkt-i-polygon är det som kostar.
+         */
         function uppdatera() {
-          const b = karta.getBounds();
-          const punkter = punktKalla();
-
           /*
-           * Träffarna räknas om mot den NYA mängden, inte mot den gamla.
+           * Träffarna räknas om varje gång, och det är billigare än det låter.
            *
-           * Förut låg hela kommunen i minnet, så en sökning kunde räknas en gång
-           * och gälla resten av besöket. Nu byts mängden varje gång en ruta
-           * landar, och ett radnummer som inte fanns när man skrev bokstaven
-           * hade annars aldrig kunnat bli en träff: man drar kartan västerut,
-           * nya nålar dyker upp, och ingen av dem matchar det man skrivit.
+           * Funktionen anropas inte längre per `move` utan bara när urvalet,
+           * filtret eller ordningen ändras, alltså en handfull gånger per
+           * besök i stället för en gång per bildruta. Omräkningen behövs
+           * eftersom en kommunfil kan landa efter att man skrivit: raderna i
+           * den fanns inte när bokstaven skrevs och hade annars aldrig kunnat
+           * bli träffar.
            */
           if (traffar !== null) {
             traffar = raknaTraffar();
             filtreraNalar();
           }
 
-          /*
-           * Tre villkor ovanpå utsnittet, och rutan sist av en anledning:
-           * jämförelserna mot kartans kanter är fyra tal, `traffar.has` är ett
-           * uppslag, och punkt-i-polygon är det dyra. Att lägga det billiga
-           * först betyder att det dyra bara körs på det som redan överlevt.
-           *
-           * `iOmrade` svarar direkt ur cachen andra gången den ser en punkt,
-           * se noten vid omradesSvar.
-           */
-          const synliga = punkter.filter(
-            (p) =>
-              (traffar === null || traffar.has(p.i)) &&
-              p.lng >= b.getWest() && p.lng <= b.getEast() && p.lat >= b.getSouth() && p.lat <= b.getNorth() &&
-              iOmrade(p),
+          const valda = urvalsPunkter().filter(
+            (p) => (traffar === null || traffar.has(p.i)) && iOmrade(p),
           );
-          sortera(synliga, karta.getCenter());
+
           /*
-           * Bubblornas innehåll räknas bara när INGENTING filtrerar.
-           *
-           * En bubbla är räknad vid bygget och kan inte räknas om i
-           * webbläsaren, alltså vet vi varken hur många av dess medlemmar som
-           * matchar texten eller hur många som ligger i Östermalm. Att räkna in
-           * den ändå hade gett en rubrik som säger 300 över en lista med fyra.
-           * `filtreraNalar` gömmer dem samtidigt, så det finns ingen bubbla på
-           * skärmen som motsäger talet.
+           * "Närmast" mäts från kartans mitt EN gång per omritning, inte per
+           * bildruta. Att läsa mitten är rätt: frågan "vad ligger närmast"
+           * måste ha en punkt att mätas från, och kartans mitt är den enda
+           * besökaren ser. Att sortera om medan man drar vore däremot precis
+           * den kamerastyrning som just togs bort, och det gör den inte
+           * längre, eftersom `move` inte anropar hit.
            */
-          ritaLista(synliga, synliga.length, harFilter() ? 0 : iBubblor(b));
+          sortera(valda, karta ? karta.getCenter() : null);
+          ritaLista(valda);
         }
 
-        /**
-         * Hur många verksamheter i utsnittet som ligger inne i en bubbla.
+        /*
+         * ══ HÄR LÅG `iBubblor`, OCH DEN ÄR BORTTAGEN ══════════════════════
          *
-         * Rubriken sa förut hur många punkter listan hade, och det stämde,
-         * eftersom hela kommunen låg i minnet och varenda punkt var en rad.
-         * Med rutor är det inte längre sant: på kommunens öppningszoom är
-         * nästan allt sammanslaget till bubblor, och nålarna som ligger lösa är
-         * ett femtontal. En rubrik som sa "15 verksamheter" över ett Stockholm
-         * med 8 499 hade varit fel, inte bara mindre användbar.
+         * Den räknade hur många verksamheter i utsnittet som låg inne i en
+         * bubbla, så att rubriken kunde säga 8 499 över en lista med femton
+         * kort. Talet var det ärliga svaret på frågan "hur många finns här",
+         * och den frågan ställer rubriken inte längre.
          *
-         * Talet räknas därför ur bubblornas egna summor. Avdubbleringen på läge
-         * och antal är nödvändig av samma skäl som för nålarna: rutorna har en
-         * kantbuffert, så en bubbla nära en rutgräns ligger i två rutor.
+         * Rubriken säger numera URVALET, alltså "8 520 verksamheter i
+         * Stockholm", och det talet kommer ur kommunfilen och inte ur
+         * bubblorna. En bubbla är dessutom räknad vid bygget och kan inte
+         * räknas om under ett filter, vilket var hela skälet till att talet
+         * bara gällde när ingenting filtrerade. Urvalets tal har inte den
+         * begränsningen.
          */
-        function iBubblor(b: any): number {
-          const sedda = new Set<string>();
-          let summa = 0;
-          for (const f of karta.querySourceFeatures('verksamheter', {
-            sourceLayer: TILE_LAYER,
-            filter: ['has', 'point_count'],
-          })) {
-            const [lng, lat] = f.geometry.coordinates;
-            if (lng < b.getWest() || lng > b.getEast() || lat < b.getSouth() || lat > b.getNorth()) continue;
-            const nyckel = lng.toFixed(5) + ':' + lat.toFixed(5) + ':' + f.properties.point_count;
-            if (sedda.has(nyckel)) continue;
-            sedda.add(nyckel);
-            summa += f.properties.point_count;
-          }
-          return summa;
-        }
 
+        /*
+         * ══ KAMERAN RÖR INTE LÄNGRE LISTAN ═══════════════════════════════
+         *
+         * Båda de här lyssnarna anropade `uppdatera()`, alltså ritade om hela
+         * listan per bildruta under en dragning. Det var meningen så länge
+         * listan VAR utsnittet. Nu är den urvalet, och en kamera som skriver
+         * om listan är precis det fel som togs bort.
+         *
+         * `version` räknas fortfarande upp, och det måste den: den är
+         * nycklen till `punktKalla()`, alltså till KARTANS mängd, som
+         * nålkortet och adressgrupperna läser. Den mängden byts varje gång en
+         * ruta landar och har ingenting med listan att göra.
+         *
+         * `filtreraNalar` körs vid nya rutor och inte vid varje rörelse. En ny
+         * ruta bär nålar som aldrig sett filtret; en panorering inom redan
+         * hämtade rutor gör det inte, och att sätta om ett `match`-filter med
+         * tusentals radnummer per bildruta hade synts i dragningen.
+         */
         karta.on('move', () => {
           version += 1;
-          uppdatera();
         });
 
         karta.on('sourcedata', (ev: any) => {
           if (ev.sourceId !== 'verksamheter' || !ev.isSourceLoaded) return;
           version += 1;
-          uppdatera();
+          if (traffar !== null) filtreraNalar();
         });
 
         /* Adressen följer vyn. `moveend` och inte `move`, se planeraSkrivning:
@@ -6212,9 +6634,8 @@ const LEGEND = [
    *
    * ETT FÄLT TILLAGT OCH INTE FLER: antalet kontroller. Det säger hur mycket
    * bedömningen ovanför vilar på, och det låg redan i rutan som `k`. Öppettider
-   * står på 2 747 av 16 047 och michelinstjärnan på tio, alltså hade båda varit
-   * en rad som är tom i nio fall av tio. Kedjetillhörigheten säger ingenting om
-   * den här verksamheten.
+   * står på 2 747 av 16 047, alltså hade den varit en rad som är tom i nio fall
+   * av tio. Kedjetillhörigheten säger ingenting om den här verksamheten.
    *
    * INGEN RAM, INGEN RADIE OCH INGEN SKUGGA PÅ RADEN. Listan är en rulle med
    * en hårlinje emellan, det är mätt mot Booli och beslutat, och inramade kort
@@ -6543,6 +6964,33 @@ const LEGEND = [
     background: var(--canvas);
     box-shadow: inset 3px 0 0 var(--tone-quiet);
   }
+
+  /*
+   * VÄGEN VIDARE. En knapp i kolumnens fulla bredd, som Boolis egen
+   * "Visa fler" men utan deras sidnummer bredvid.
+   *
+   * Sekundär och inte primär: den är listans fortsättning och inte sidans
+   * viktigaste handling. Samma hårlinje och samma radie som ett kort, alltså
+   * läser den som en rad till i listan snarare än som en knapp ovanpå den.
+   *
+   * Indraget är --kartgutter, som varje annan rad i kolumnen, så att den
+   * står på sidhuvudets vänsterkant.
+   */
+  .visa-fler {
+    display: block;
+    width: calc(100% - 2 * var(--kartgutter, var(--s-4)));
+    margin: var(--s-3) var(--kartgutter, var(--s-4)) var(--s-5);
+    padding: var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    font: 500 var(--fs-body-s) / 1.2 var(--font-sans);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .visa-fler:hover { background: var(--canvas); }
+  .visa-fler[hidden] { display: none; }
 
   .listfot {
     margin-top: var(--s-4);
