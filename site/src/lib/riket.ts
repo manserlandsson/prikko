@@ -1,29 +1,41 @@
 /**
- * Sveriges landkontur, för rikskartans skugga.
+ * Sveriges sjögräns, för rikskartans skugga.
  *
  * Rikskartan öppnar på hela landet. Allt utanför gränsen ska dämpas, på samma
  * sätt som allt utanför ett valt område dämpas, se OMRÅDESSKUGGAN i
- * Karta.astro. Konturen är samma sorts hål i samma sorts världspolygon, bara
+ * Karta.astro. Gränsen är samma sorts hål i samma sorts världspolygon, bara
  * större.
  *
  * ## Var geometrin kommer ifrån
  *
- * Hela resonemanget står i pipeline/riket.py. Kortaste versionen: OSM:s
- * `admin_level=2`-relation för Sverige är SJÖGRÄNSEN och inte kusten, så den
- * duger inte som kontur. Konturen kommer i stället ur OSM:s egen generalisering
- * av sin egen kustlinje, klippt mot samma relation. Två OSM-källor, en ODbL,
- * samma attribution som stadsdelarnas och kommunernas ytor.
+ * Hela resonemanget står i pipeline/riket.py. Kortaste versionen: ytan är
+ * OSM:s `admin_level=2`-relation för Sverige, alltså SJÖGRÄNSEN och inte
+ * kusten. Det är avsiktligt. Booli skuggar likadant, uppmätt 2026-08-27: deras
+ * ljusa fält går ute i vattnet mot Östersjön, och Gotland och Öland ligger
+ * inne i fältet tillsammans med havet runt dem.
  *
- * ## Konturen SKUGGAR, den filtrerar aldrig
+ * Två ringar, fastlandets sjögräns och Gotlands. Öland, Orust och hela
+ * skärgården ligger innanför den större och behöver inga egna.
  *
- * Ytan är förenklad med 600 meters tolerans, alltså sextio gånger grövre än
- * kommunernas. 98,6 procent av beståndets koordinater ligger innanför; resten
- * är kajlägen i Stockholm och Oskarshamn som förenklingen lagt i vattnet.
+ * ## Ringarna går MEDSOLS, och det är inte en detalj
  *
- * Det är oskadligt för en skugga och skulle vara förödande för ett filter.
- * Använd alltså ALDRIG den här ytan för att avgöra vad som räknas till något,
- * till skillnad från `municipalityArea` och områdenas ytor i lib/omraden.ts,
- * som är metersanna nog för just det.
+ * Masken är en världspolygon med de här ringarna som HÅL. Världsringen går
+ * moturs och ett hål måste gå åt motsatt håll. Går de åt samma håll
+ * triangulerar MapLibre ytan fel, och det som ritas är grå band tvärs över
+ * kartan i stället för ett utsparat Sverige. Vindningen skrivs ut i filen, se
+ * medsols() i pipeline/riket.py, och prövas en gång till här nedan.
+ *
+ * ## Ytan får skugga, och numera filtrera
+ *
+ * Här stod tidigare en reservation: den gamla kustkonturen la 187 kajlägen i
+ * vattnet och fick därför aldrig avgöra vad som RÄKNADES till något.
+ *
+ * Reservationen föll med kustlinjen. Mätt 2026-08-27 ligger alla 13 692 av
+ * beståndets koordinater innanför sjögränsen, och en kajplats ligger innanför
+ * territorialhavet av samma skäl som en badbrygga gör det. Ytan är ändå grov,
+ * förenklad med 600 meters tolerans, så för frågor om vad som ligger i en
+ * kommun eller en stadsdel gäller fortfarande `municipalityArea` och områdenas
+ * ytor i lib/omraden.ts.
  */
 
 /** En ring är en sluten lista av [longitud, latitud]. */
@@ -56,12 +68,14 @@ const riksgrans = fil as unknown as Riksgrans;
 /**
  * Samma grind som assertRings i lib/omraden.ts, av samma skäl.
  *
- * Två fel skulle annars passera tyst: par kastade om till [lat, lon], och en
- * ring som inte slutit sig. Båda ger en mask som täcker allt eller ingenting,
- * alltså antingen en helt grå karta eller ingen skugga alls, och ingendera går
- * att felsöka i efterhand.
+ * Tre fel skulle annars passera tyst, och alla tre ger en karta som SER
+ * avsiktlig ut: par kastade om till [lat, lon], en ring som inte slutit sig,
+ * och en ring vänd moturs. De två första ger en mask som täcker allt eller
+ * ingenting. Den tredje ger grå band tvärs över kartan, och det är det fel som
+ * faktiskt låg live i augusti 2026.
  *
- * Ytterhöljet är detsamma som looks_like_sweden() i pipeline/prikko/geo.py.
+ * Grinden körs vid bygget och inte hos besökaren: filen läses bara av
+ * pages/omradesytor/sverige.json.ts, som är förrenderad.
  */
 for (const ring of [...riksgrans.outer, ...riksgrans.inner]) {
   if (ring.length < 4) {
@@ -70,7 +84,7 @@ for (const ring of [...riksgrans.outer, ...riksgrans.inner]) {
   const [fx, fy] = ring[0];
   const [lx, ly] = ring[ring.length - 1];
   if (fx !== lx || fy !== ly) {
-    throw new Error('riket: en ring sluter sig inte. Se kedja() i pipeline/riket.py.');
+    throw new Error('riket: en ring sluter sig inte. Se gransringar() i pipeline/riket.py.');
   }
   for (const [lon, lat] of ring) {
     if (lon < 10 || lon > 25 || lat < 55 || lat > 70) {
@@ -80,19 +94,29 @@ for (const ring of [...riksgrans.outer, ...riksgrans.inner]) {
       );
     }
   }
+  let yta = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    yta += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  if (yta > 0) {
+    throw new Error(
+      'riket: en ring går moturs. Ett hål i världspolygonen måste gå medsols, ' +
+        'annars ritar MapLibre grå band. Se medsols() i pipeline/riket.py.',
+    );
+  }
 }
 
-/** Sveriges landkontur. */
+/** Sveriges sjögräns. */
 export function swedenOutline(): Riksgrans {
   return riksgrans;
 }
 
 /**
- * Attributionen som måste stå där konturen visas.
+ * Attributionen som måste stå där gränsen visas.
  *
  * Kravet kommer ur ODbL. Rikskartan visar redan OpenStreetMap under kartan för
  * sitt underlag, men källan hör till DATAN och inte till sidan: flyttas
- * konturen någon annanstans ska attributionen följa med av sig själv.
+ * gränsen någon annanstans ska attributionen följa med av sig själv.
  */
 export function swedenSource(): RiketSource {
   return riksgrans.sources.osm;

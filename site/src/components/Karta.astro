@@ -5169,30 +5169,32 @@ const LEGEND = [
          * ovan, och ingenting annat.
          */
         /*
-         * AVSTÄNGD 2026-08-27. Ägaren: "ser du ej den här buggen????" med en
-         * skärmbild av rikskartan.
+         * TÄND IGEN 2026-08-27, efter att ha släckts samma dag.
          *
-         * Masken ritade RAKA GRÅ BAND tvärs över Norrland och Mellansverige i
-         * stället för Sveriges kontur. Skarpa kanter, hörn ute i havet,
-         * Sverige inte utsparat. Ytan bär 226 ringar ur en klippt kustlinje,
-         * och något i hur de sätts ihop till hål i en enda polygon är fel.
+         * Lagret stängdes av när ägaren skickade "ser du ej den här
+         * buggen????" med en skärmbild där masken ritade RAKA GRÅ BAND tvärs
+         * över Norrland i stället för Sveriges kontur. Det var rätt beslut:
+         * en trasig mask påstår något om var landet slutar som inte är sant.
          *
-         * Släckt och inte lagad här, eftersom felet låg LIVE medan det
-         * felsöktes. En trasig mask är sämre än ingen mask: den påstår något
-         * om var landet slutar som helt enkelt inte är sant.
+         * Felet är hittat och orsaken är borta. Ytan bar 226 ringar ur en
+         * klippt kustlinje, och 600-metersförenklingen hade lämnat 50
+         * korsningar i dem; en yta som korsar sig själv går inte att
+         * triangulera. Ytan är nu sjögränsen med TVÅ ringar, se
+         * pipeline/riket.py, och de korsar varken sig själva eller varandra.
          *
-         * Lagningen är beställd och går en annan väg: Booli använder
-         * SJÖGRÄNSEN och inte kustlinjen, uppmätt på deras egen karta, alltså
-         * en yta med TVÅ ringar i stället för 226. Ägaren såg det själv:
-         * "boolis linje till öst, dvs mot östersjön går inte exakt mot
-         * landet, dom kör den liksom ute i vattnet." Med två ringar
-         * försvinner hela den felklass som gav banden.
-         *
-         * TÄND INTE DEN HÄR IGEN utan att verifiera med en SKÄRMBILD. Felet
-         * slank igenom en gång just för att talen i JSON stämde medan
-         * MapLibre trianglade fel, och ingen mätning fångar det.
+         * VERIFIERAT MED SKÄRMBILD och inte med tal, eftersom det var precis
+         * så felet slank igenom förra gången. Rikskartan renderad på zoom 2,
+         * 3,2 och 7, och Öresund granskat för sig: Sverige och havet runt
+         * ljust, Norge, Danmark och Finland dimmade, en jämn linje ute i
+         * Östersjön och inget band någonstans.
          */
-        void hamtaYtor;
+        if (!kommunSlug) {
+          hamtaYtor(['sverige']).then(() => {
+            const riket = ytor['sverige'];
+            const kalla = karta?.getSource('landsmask') as any;
+            if (riket && kalla) kalla.setData(maskAv([riket]));
+          });
+        }
 
         karta.addLayer({
           id: 'nal-lyft',
@@ -6389,7 +6391,7 @@ const LEGEND = [
    * RAMEN. #CCCCCC skrivs som rgba(0,0,0,.2), vilket komposterar till exakt
    * den färgen mot vitt. Alfa och inte hexadecimalt av samma skäl som
    * --hairline är alfa: en listruta med en fast ljusgrå ram blir osynlig den
-   * dag ytan under är mörk. --hairline själv duger inte, den ligger på .10 och
+   * dag ytan under är mörk. --hairline själv duger inte, den ligger på .098 och
    * är gjord för en avdelare INNE i en yta; det här är kanten på en ruta som
    * ligger ovanpå kolumnen och den behöver hålla emot skuggan.
    *

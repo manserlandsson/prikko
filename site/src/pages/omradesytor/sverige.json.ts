@@ -2,11 +2,11 @@ import type { APIRoute } from 'astro';
 import { swedenOutline, swedenSource } from '../../lib/riket';
 
 /**
- * Sveriges kontur, för rikskartans skugga.
+ * Sveriges sjögräns, för rikskartans skugga.
  *
  * ## Varför den ligger här och inte i kommunfilerna
  *
- * `[kommun].json.ts` bredvid serverar en fil PER KOMMUN, och Sveriges kontur
+ * `[kommun].json.ts` bredvid serverar en fil PER KOMMUN, och Sveriges gräns
  * hör inte till någon av dem. Den ligger därför på en egen adress, men i exakt
  * samma hölje: ett `ytor`-objekt med nycklar. Kartan kan alltså läsa den med
  * samma tre rader som läser en kommunfil, och en Sverigeskugga och ett
@@ -26,20 +26,23 @@ import { swedenOutline, swedenSource } from '../../lib/riket';
  * adress kartans `hamtaYtor` redan bildar ur den strängen. Ingen ny hämtväg
  * behövs alltså, bara ett anrop till den som finns.
  *
- * `inner` är tom i dag. Fältet bärs ändå, eftersom en kontur utan hål och en
- * kontur som TAPPAT sina hål ser likadana ut i ett format som utelämnar det.
+ * `outer` är TVÅ ringar, fastlandets sjögräns och Gotlands. Båda blir hål i
+ * samma världspolygon, se maskAv i Karta.astro.
  *
- * ## Skuggan ska vara svagare än ett områdesval
+ * `inner` är tom i dag. Fältet bärs ändå, eftersom en yta utan hål och en yta
+ * som TAPPAT sina hål ser likadana ut i ett format som utelämnar det.
  *
- * Ett förslag till kartsidan, som äger talen och sätter dem: områdesskuggan
- * använder Boolis fyllning #878787 vid opacitet 0,6. Landsskuggan säger något
- * mycket svagare än ett val. "Du har valt bort det här" mot "här slutar vårt
- * bestånd", och den andra meningen ska inte skrika. Samma fyllning vid
- * opacitet 0,25 till 0,3 och INGEN kontur: en linje längs gränsen läser som en
- * ritad landsgräns, och den är inte metersann nog att påstå var gränsen går.
+ * ## Talen bor i kartan och är Boolis
  *
- * Konturen är förenklad med 600 meters tolerans och får aldrig filtrera, bara
- * skugga. Se lib/riket.ts.
+ * Kartsidan äger dem och sätter dem, se LANDSSKUGGAN i Karta.astro. Kort:
+ * fyllning #878787 vid opacitet 0,6, alltså Boolis egna tal uppmätta i deras
+ * levande stil 2026-08-27, och INGEN kontur. En ritad linje längs sjögränsen
+ * läser som en påstådd landsgräns, och den går ute i vattnet.
+ *
+ * Här stod ett förslag på 0,25 till 0,3, byggt på tanken att en landsskugga
+ * ska säga mindre än ett områdesval. Mätningen av förlagan fällde det:
+ * Booli har ETT masklager och byter bara dess data, alltså är deras
+ * landsskugga och deras områdesskugga samma tal.
  */
 export const prerender = true;
 
