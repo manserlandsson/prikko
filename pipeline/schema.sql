@@ -199,9 +199,11 @@ create table if not exists images (
     establishment_id    text not null references establishments (id) on delete cascade,
 
     url                 text not null,
+    -- Se migreringen strax under tabellen för vad de sex betyder, och för
+    -- varför `prikko` inte är en synonym till `own`.
     source              text not null
                             check (source in ('mapillary', 'panoramax', 'owner',
-                                              'own', 'wikimedia')),
+                                              'own', 'prikko', 'wikimedia')),
     source_id           text,
     licence             text,
     attribution         text,
@@ -214,6 +216,40 @@ create table if not exists images (
 
 create index if not exists images_establishment_idx
     on images (establishment_id, position);
+
+-- Efterhandsmigrering, samma form som establishments ovan. `create table if
+-- not exists` rör inte en tabell som redan finns, alltså måste ett ändrat
+-- check-villkor sägas uttryckligen för att en omkörning ska ge samma schema
+-- oavsett när databasen först skapades.
+--
+-- `prikko` tillkom 2026-08-27 med ägarens tolv foton på Holy Smoke i Höganäs.
+-- Det är en FJÄRDE sorts bild och inte en synonym till de tre som fanns:
+--
+--   owner    verksamheten själv, inskickad genom företagsytan
+--   own      verksamhetens egen bild på annan väg
+--   prikko   VÅRT eget fotografi, taget av redaktionen
+--
+-- Skillnaden är inte akademisk. `own` och `owner` läses av sajten som
+-- "verksamhetens egen bild", och StreetPhoto.astro skriver ut precis de orden
+-- när attributionen saknas. Att lägga ägarens foto på en krog i Nyhamnsläge
+-- under den etiketten hade varit ett falskt påstående om vem som tagit
+-- bilden, på en sida som bygger hela sitt värde på att inte påstå fel saker
+-- om namngivna verksamheter.
+--
+-- Villkoret måste släppas innan det läggs till igen: `add constraint` med ett
+-- namn som redan finns fångas av `duplicate_object`, men själva poängen här
+-- är att villkoret HAR ändrats. Ett `drop ... if exists` först gör
+-- omkörningen idempotent utan att den blir verkningslös.
+alter table images drop constraint if exists images_source_check;
+
+do $$
+begin
+    alter table images
+        add constraint images_source_check
+        check (source in ('mapillary', 'panoramax', 'owner', 'own', 'prikko',
+                          'wikimedia'));
+exception when duplicate_object then null;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Namnhistorik per anläggning

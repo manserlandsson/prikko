@@ -277,7 +277,7 @@ class FalskSupabase:
     så att provet gäller just det som gick sönder.
     """
 
-    def __init__(self, verksamheter: list) -> None:
+    def __init__(self, verksamheter: list, bilder: list | None = None) -> None:
         self.tabeller = {
             "municipalities": [
                 {
@@ -294,7 +294,7 @@ class FalskSupabase:
             "assessments": [],
             "inspections": [],
             "control_areas": [],
-            "images": [],
+            "images": bilder or [],
         }
 
     def all_rows(self, table: str, select: str = "*", order: str = "id") -> list:
@@ -445,6 +445,10 @@ EXPORTENS_EGNA = {
     "geoSource",
     "geoPrecision",
     "image",
+    # Hela bildlistan, skriven bara på rader med mer än en bild. Byggs ur
+    # tabellen `images` precis som `image`, alltså hör den hemma HÄR och inte
+    # i FILFALT. Skälet står utförligt vid FILFALT i export_supabase.py.
+    "images",
     "verdict",
     "distinction",
     "reason",
@@ -523,6 +527,82 @@ class Filfalten(unittest.TestCase):
                 [namn for namn in FILBLOCK if namn in iFilen],
                 f"{path.name} bär blocken i en annan ordning än FILBLOCK",
             )
+
+
+def bild(id: int, establishment_id: str, position: int, source: str = "prikko", **extra) -> dict:
+    return {
+        "id": id,
+        "establishment_id": establishment_id,
+        "url": f"https://bilder.invalid/{id}.webp",
+        "source": source,
+        "source_id": f"Fil-{id}.heic",
+        "licence": None,
+        "attribution": None,
+        "captured_at": None,
+        "position": position,
+        **extra,
+    }
+
+
+class Bildlistan(unittest.TestCase):
+    """Flera bilder per verksamhet ska ta sig hela vägen ut i filen.
+
+    Tabellen `images` har burit en rad per bild och en `position` sedan
+    schemat skrevs, men exporten tog rad noll och kastade resten. Ägaren lade
+    upp tolv foton på Holy Smoke 2026-08-27 och elva av dem hade försvunnit i
+    just den här funktionen.
+
+    Provet håller tre saker: att listan följer `position` och inte
+    svarsordningen, att `image` är listans FÖRSTA bild och inte en annan, och
+    att fältet utelämnas helt när det bara finns en bild. Det sista är inte
+    kosmetik: 366 rader bär en bild var, och ett `images` på var och en av dem
+    hade lagt drygt 2 900 rader i site/src/data utan en enda ny uppgift.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+
+    def _export(self, bilder: list) -> dict:
+        klient = FalskSupabase([rad("F-1")], bilder)
+        export(klient, self.dir)
+        return json.loads((self.dir / "orebro.json").read_text(encoding="utf-8"))[
+            "establishments"
+        ][0]
+
+    def test_flera_bilder_skrivs_i_positionsordning(self):
+        # Raderna lämnas i OMVÄND ordning, så att provet fäller på sorteringen
+        # och inte råkar passera för att listan redan låg rätt.
+        ut = self._export([
+            bild(9, "F-1", 2),
+            bild(8, "F-1", 1),
+            bild(7, "F-1", 0),
+        ])
+        self.assertEqual([b["id"] for b in ut["images"]], ["Fil-7.heic", "Fil-8.heic", "Fil-9.heic"])
+
+    def test_forstabilden_ar_listans_forsta(self):
+        ut = self._export([bild(9, "F-1", 2), bild(7, "F-1", 0)])
+        self.assertEqual(ut["image"], ut["images"][0])
+        self.assertEqual(ut["image"]["id"], "Fil-7.heic")
+
+    def test_en_ensam_bild_ger_inget_images_falt(self):
+        ut = self._export([bild(7, "F-1", 0)])
+        self.assertNotIn("images", ut)
+        self.assertEqual(ut["image"]["id"], "Fil-7.heic")
+
+    def test_ingen_bild_alls_ger_image_none_och_inget_images(self):
+        ut = self._export([])
+        self.assertIsNone(ut["image"])
+        self.assertNotIn("images", ut)
+
+    def test_kallan_foljer_med_varje_bild(self):
+        """Attributionskravet skiljer sig åt per bild, alltså måste `source`
+        stå på var och en och inte bara på den första."""
+        ut = self._export([
+            bild(7, "F-1", 0, source="prikko"),
+            bild(8, "F-1", 1, source="wikimedia", licence="CC-BY-SA-4.0"),
+        ])
+        self.assertEqual([b["source"] for b in ut["images"]], ["prikko", "wikimedia"])
+        self.assertEqual(ut["images"][1]["licence"], "CC-BY-SA-4.0")
 
 
 if __name__ == "__main__":

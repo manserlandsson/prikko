@@ -93,8 +93,20 @@ export interface StreetImage {
    * Commons-bild kräver fotografens namn, licensnamnet och en länk till
    * filsidan. Fältet är alltså inte en upplysning utan det som avgör vilken
    * komponent som får rita bilden.
+   *
+   * De tre sista är alla "egna" i den meningen att ingen tredje part har ett
+   * villkor att uppfylla, men de är tre olika påståenden om VEM som tagit
+   * bilden och de får aldrig skrivas ihop:
+   *
+   *   owner    verksamheten själv, inskickad genom företagsytan
+   *   own      verksamhetens egen bild på annan väg
+   *   prikko   VÅRT eget fotografi, taget av redaktionen och lagt i
+   *            brand/egna-foton. Tillkom 2026-08-27 med ägarens tolv foton på
+   *            Holy Smoke. Kräver ingen attribution, men bär `id` med
+   *            ursprungsfilens namn så att bilden går att spåra tillbaka till
+   *            filen den kom ur.
    */
-  source?: 'mapillary' | 'panoramax' | 'owner' | 'own' | 'wikimedia';
+  source?: 'mapillary' | 'panoramax' | 'owner' | 'own' | 'prikko' | 'wikimedia';
   /**
    * SPDX-beteckning, t.ex. "CC-BY-SA-4.0". För `wikimedia` läst ur Commons
    * eget maskinvärde `extmetadata.License` och aldrig ur texten för
@@ -110,6 +122,35 @@ export interface StreetImage {
    * sättas ihop på nytt av varje mall som råkar visa den.
    */
   attribution?: string | null;
+}
+
+/**
+ * LICENSGRINDEN, på ETT ställe.
+ *
+ * En bild får visas när den antingen bär en känd licenskod eller kommer från
+ * en källa som inte har någon tredje part att kreditera. Utan något av de två
+ * finns ingen resurs att hänvisa till, och tomt är alltid det säkra utfallet:
+ * en bild utan sann licensrad är precis det vi inte får publicera.
+ *
+ * Regeln stod i fyra kopior: Bildyta.astro, Verksamhetskort.astro,
+ * pages/index.astro och verksamhetssidan. Tre av dem sa dessutom OLIKA saker,
+ * och det märktes först 2026-08-27 när källan `prikko` tillkom: kortet och
+ * startsidan krävde en licenskod rakt av, alltså hade ägarens tolv egna foton
+ * på Holy Smoke visats i bandet på verksamhetssidan men ersatts av en
+ * platshållare i varje lista och på varje kort. En grind som gäller samma sak
+ * på fyra ytor ska stå en gång.
+ */
+const UTAN_ATTRIBUTION = new Set(['prikko', 'own', 'owner']);
+
+/** Sant för en bild vi står bakom själva, alltså en utan villkor att uppfylla. */
+export function egenBild(image: StreetImage | null | undefined): boolean {
+  return image ? UTAN_ATTRIBUTION.has(image.source ?? '') : false;
+}
+
+/** Bilden om den får visas, annars null. Se kommentaren över UTAN_ATTRIBUTION. */
+export function visbarBild(image: StreetImage | null | undefined): StreetImage | null {
+  if (!image?.url) return null;
+  return egenBild(image) || image.licence ? image : null;
 }
 
 export type SourceType =
@@ -234,7 +275,48 @@ export interface Establishment {
    * 8 520 rader och på ingen annan kommun.
    */
   registration?: Registration;
+  /**
+   * FÖRSTABILDEN, och ingenting mer.
+   *
+   * Kvar som eget fält efter att listan tillkom, för det är den här bilden
+   * kort, listrader, kartnålens popup och sidans og:image visar, och de
+   * behöver inte veta att det finns fler. Den är alltid `images[0]`: lagret
+   * härleder fältet ur listan, se `withMunicipality`, så att en fil där de två
+   * råkar säga olika saker inte kan ge en förstabild i kortet och en annan i
+   * bandet.
+   */
   image: StreetImage | null;
+  /**
+   * ALLA bilder på verksamheten, i den ordning de ska visas.
+   *
+   * ── VARFÖR FÄLTET BLEV EN LISTA ────────────────────────────────────────
+   * Ägaren 2026-08-27: "fixa så en restaurang kan ha flera bilder också,
+   * första kan vara på utsidan, sedan blir det om vi laddat upp fler". Han
+   * hade då just lagt tolv foton på Holy Smoke i Höganäs, och elva av dem
+   * hade kastats av ett fält som bara rymde en.
+   *
+   * Databasen bar redan flera: `public.images` har en rad per bild och en
+   * kolumn `position`, se pipeline/schema.sql. Det var EXPORTEN som tog
+   * första raden och kastade resten, och sajten som bara hade ett fält att ta
+   * emot dem i. Ingen tabell behövde alltså ändras.
+   *
+   * ── ORDNINGEN ÄR INTE KOSMETISK ────────────────────────────────────────
+   * Första bilden är den som visas i listor, på kort och i kartnålens popup,
+   * alltså är den vad sajten PÅSTÅR att stället ser ut som. Ordningen sätts
+   * därför i pipelinen, av det bedömda motivfältet i lib/bildmotiv.data.json:
+   * fasaden före byggnaden före tallriken. Se site/scripts/egna-foton.mjs
+   * `sortera`. Mallen sorterar aldrig om, den läser listan som den står.
+   *
+   * ── ALLTID SATT, ALDRIG UNDEFINED ──────────────────────────────────────
+   * Lagret fyller i fältet för varje rad, också de 15 678 utan en enda bild,
+   * som får en tom lista. En anropare ska aldrig behöva välja mellan `image`
+   * och `images` eller skriva `?? []`.
+   *
+   * I FILEN står fältet bara när det finns MER ÄN EN bild. En rad med en enda
+   * bild bär bara `image`, precis som förut, och de 366 sådana raderna är
+   * därför oförändrade i diffen. Se `images` i pipeline/export_supabase.py.
+   */
+  images: StreetImage[];
   verdict: Verdict | null;
   distinction: boolean;
   reason: string;
@@ -260,7 +342,14 @@ interface Dataset {
   source: { url: string; fetchedAt: string };
   /** Skrivs av pipeline/narhet.py, bara när filen faktiskt bär en sådan uppgift. */
   narhet?: { checkedAt: string };
-  establishments: Omit<Establishment, 'municipality' | 'narhetCheckedAt'>[];
+  /**
+   * `images` är valfritt i FILEN och står bara på rader med mer än en bild.
+   * `image` är förstabilden och står som förut. Lagret gör om båda till ett
+   * `images` som alltid finns, se `withMunicipality`.
+   */
+  establishments: (Omit<Establishment, 'municipality' | 'narhetCheckedAt' | 'images'> & {
+    images?: StreetImage[];
+  })[];
 }
 
 /**
@@ -289,12 +378,31 @@ export function sourceFor(slug: string) {
   return datasets.find((d) => d.municipality.slug === slug)?.source;
 }
 
+/**
+ * Filens två bildfält blir ett.
+ *
+ * `images` vinner över `image` när båda står på raden, och `image` skrivs om
+ * till listans första. Poängen är att de två aldrig kan säga olika saker om
+ * vilken bild som är förstabild: kortet och bandet läser samma bild, oavsett
+ * vilken väg raden tagit in i filen. En rad utan bild alls får en tom lista
+ * och `image: null`, alltså exakt vad den redan hade.
+ */
+function bildlista(e: { image: StreetImage | null; images?: StreetImage[] }): StreetImage[] {
+  if (e.images?.length) return e.images;
+  return e.image ? [e.image] : [];
+}
+
 function withMunicipality(d: Dataset): Establishment[] {
-  return d.establishments.map((e) => ({
-    ...e,
-    municipality: d.municipality,
-    narhetCheckedAt: d.narhet?.checkedAt,
-  }));
+  return d.establishments.map((e) => {
+    const images = bildlista(e);
+    return {
+      ...e,
+      images,
+      image: images[0] ?? null,
+      municipality: d.municipality,
+      narhetCheckedAt: d.narhet?.checkedAt,
+    };
+  });
 }
 
 /**

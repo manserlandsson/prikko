@@ -248,6 +248,23 @@ FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 #: tyst i nästa nattkörning och ingenting skulle klaga. Det felet har redan
 #: inträffat fem gånger på fem dygn och listan finns för att det inte ska ske
 #: en sjätte.
+#:
+#: `images` PRÖVADES MOT DEN HÄR LISTAN 2026-08-27 OCH HÖR INTE HIT.
+#:
+#: Fältet tillkom när `image` blev en lista, se `bildrad` och `export`. Frågan
+#: är alltid densamma: har fältet en kolumn i Supabase? Här är svaret ja.
+#: Bilderna bor i tabellen `images`, en rad per bild, med en `position` att
+#: sortera dem på, och de kolumnerna har funnits sedan schemat skrevs.
+#: Exporten bygger alltså listan från grunden precis som den bygger `image`,
+#: och ett fält som byggs från grunden får INTE stå här: då hade gårdagens fil
+#: vunnit över databasen och en borttagen bild aldrig kunnat försvinna.
+#:
+#: Villkoret för att det ska fortsätta stämma är att varje väg som skriver en
+#: bild skriver den i BÅDE filen och databasen. `skriv_raden` i
+#: hamta_commonsbilder.py gör det och säger varför; `tillampa` i
+#: pipeline/egna_fotoko.py gör detsamma. En framtida väg som bara rör filen
+#: raderar sitt eget arbete inom ett dygn, och det är samma fel som listan
+#: ovan handlar om, bara från andra hållet.
 FILFALT = (
     "hours",
     "contact",
@@ -295,6 +312,26 @@ def behall_block(block: dict, bevarade: dict, antal_harledda: int) -> bool:
     return any(bevarade.get(falt) for falt in tacker)
 
 
+def bildrad(image: dict) -> dict:
+    """En rad ur `public.images` som sajten läser den.
+
+    Formen är densamma vare sig bilden är förstabild eller står längre in i
+    listan, för det är samma bild och samma villkor. `source` avgör vilken
+    komponent som får rita den, se site/src/components/Bildband.astro och
+    Commonsbild.astro, och `id` bär källans egen identitet: filens namn på
+    Commons, bildens id hos Mapillary, och för ett eget foto namnet på
+    ursprungsfilen, så att bilden går att spåra tillbaka dit den kom ifrån.
+    """
+    return {
+        "url": image["url"],
+        "id": image.get("source_id") or "",
+        "capturedAt": image.get("captured_at"),
+        "source": image.get("source") or "own",
+        "licence": image.get("licence"),
+        "attribution": image.get("attribution"),
+    }
+
+
 def export(client: Supabase, out_dir: Path) -> None:
     print("Hämtar från Supabase", file=sys.stderr)
 
@@ -338,6 +375,20 @@ def export(client: Supabase, out_dir: Path) -> None:
     by_image = defaultdict(list)
     for img in images:
         by_image[img["establishment_id"]].append(img)
+    # ORDNINGEN PÅ BILDERNA ÄR EN UPPGIFT OCH INTE EN SLUMP.
+    #
+    # `images.position` finns i pipeline/schema.sql sedan tabellen skrevs, med
+    # kommentaren "Ordning på verksamhetens sida. Lägst först." Exporten läste
+    # den aldrig, eftersom den ändå bara tog rad noll. Nu bär filen hela
+    # listan och då är sorteringen det som avgör vilken bild som blir
+    # FÖRSTABILD, alltså den som visas i listor, på kort och i kartnålens
+    # popup. Se site/src/lib/db.ts.
+    #
+    # `id` som andra nyckel, så att två bilder med samma position ligger i den
+    # ordning de skrevs och inte i den ordning PostgREST råkade svara. Utan
+    # den kastar en nattkörning om två rader i filen utan att något ändrats.
+    for grupp in by_image.values():
+        grupp.sort(key=lambda r: (r.get("position") or 0, r["id"]))
 
     by_municipality = defaultdict(list)
     for e in establishments:
@@ -357,7 +408,7 @@ def export(client: Supabase, out_dir: Path) -> None:
 
         for e in by_municipality.get(m["code"], []):
             assessment = by_assessment.get(e["id"], {})
-            image = (by_image.get(e["id"]) or [None])[0]
+            bilder = [bildrad(rad) for rad in by_image.get(e["id"], [])]
 
             forra = tidigare.get(e["id"], {})
 
@@ -410,18 +461,35 @@ def export(client: Supabase, out_dir: Path) -> None:
                     # något bygge klagar. Se pipeline/prikko/imagery.py.
                     # `source` följer med eftersom attributionskravet skiljer
                     # sig åt: Mapillary kräver sin logotyp, inte bara en länk.
-                    "image": (
-                        {
-                            "url": image["url"],
-                            "id": image.get("source_id") or "",
-                            "capturedAt": image.get("captured_at"),
-                            "source": image.get("source") or "own",
-                            "licence": image.get("licence"),
-                            "attribution": image.get("attribution"),
-                        }
-                        if image
-                        else None
-                    ),
+                    #
+                    # TVÅ FÄLT OCH INTE ETT, se `images` strax nedan för hela
+                    # skälet. `image` är förstabilden och står på varje rad som
+                    # har en bild alls.
+                    "image": bilder[0] if bilder else None,
+                    # HELA LISTAN, men BARA när det finns mer än en bild.
+                    #
+                    # Tillkom 2026-08-27 med ägarens tolv foton på Holy Smoke.
+                    # Databasen bar redan flera rader per verksamhet med en
+                    # `position` att sortera dem på; det var den här funktionen
+                    # som tog rad noll och kastade resten.
+                    #
+                    # Villkoret `len > 1` är inte snålhet utan diffen. 366
+                    # rader bär en bild var, och att skriva ut ett `images` med
+                    # samma bild en gång till på var och en av dem hade lagt
+                    # drygt 2 900 rader i site/src/data utan en enda ny
+                    # uppgift. Sajtens lager gör en lista av `image` när
+                    # `images` saknas, se `bildlista` i site/src/lib/db.ts, så
+                    # en anropare ser ingen skillnad.
+                    #
+                    # FÄLTET STÅR INTE I FILFALT, och det är avsiktligt. Det
+                    # bor i databasen, i tabellen `images`, alltså bygger
+                    # exporten det från grunden precis som `image`. Villkoret
+                    # för att det ska stämma är att varje väg som skriver en
+                    # bild skriver den i BÅDE filen och databasen. Se
+                    # `skriv_raden` i pipeline/hamta_commonsbilder.py och
+                    # `tillampa` i pipeline/egna_fotoko.py, som båda gör det
+                    # och som båda säger varför.
+                    **({"images": bilder} if len(bilder) > 1 else {}),
                     "verdict": assessment.get("verdict"),
                     "distinction": assessment.get("distinction", False),
                     "reason": assessment.get("reason", "no_inspections"),

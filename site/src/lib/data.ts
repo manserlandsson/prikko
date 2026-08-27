@@ -7,11 +7,13 @@
  */
 import {
   coverage,
+  egenBild,
   establishments,
   findEstablishment,
   municipalities,
   municipality,
   sourceFor,
+  visbarBild,
   type AreaStatus,
   type ControlArea,
   type Establishment,
@@ -48,6 +50,10 @@ export {
   municipality,
   sourceFor,
 };
+/* Licensgrinden. Bor i db.ts, se kommentaren där, och går ut den här vägen av
+   samma skäl som allt annat: sidmallar och komponenter pratar med den här
+   nivån och aldrig med datakällan direkt. */
+export { egenBild, visbarBild };
 export {
   SUB_CATEGORIES,
   TOP_CATEGORIES,

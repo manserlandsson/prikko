@@ -42,16 +42,19 @@
  *
  * ══ VILKEN BILD SOM VISAS AVGÖRS INTE HÄR ═══════════════════════════════
  *
- * Ordningen eget foto → gatubild → platshållare finns, men de två första
- * konkurrerar i PIPELINEN och inte i mallen: `Establishment.image` är ett
- * fält och inte en lista, och pipelinen har redan valt. `image.source` säger
- * vem som vann, och det fältet styr bara attributionen. Se
- * pipeline/prikko/imagery.py och pipeline/gatubildsko.py.
+ * `Establishment.image` är FÖRSTABILDEN ur `Establishment.images`, och den
+ * ytan här visar alltid just den. Ordningen i listan sätts i pipelinen, av det
+ * bedömda motivfältet i lib/bildmotiv.data.json: fasaden före byggnaden före
+ * tallriken. Se `sortera` i site/scripts/egna-foton.mjs och `images` i
+ * lib/db.ts.
  *
- * Skulle fältet någon gång bli en lista är det HÄR ordningen ska stå, och inte
- * i varje mall som råkar visa en bild.
+ * Den här raden sa fram till 2026-08-27 att fältet var ETT och att ordningen
+ * skulle stå här den dag det blev en lista. Det blev en lista, och ordningen
+ * står inte här: en mall som ritar en 72 px ruta i en sökträff kan inte veta
+ * vad ett fotografi föreställer, och den bedömningen ska göras en gång av en
+ * människa och inte en gång per yta.
  */
-import type { Establishment } from '../lib/data';
+import { egenBild, visbarBild, type Establishment } from '../lib/data';
 
 interface Props {
   e: Establishment;
@@ -79,14 +82,20 @@ const { e, storlek = 'kort', px = 72, tidig = false } = Astro.props;
  * licens finns ingen resurs att hänvisa till, och tomt är alltid det säkra
  * utfallet.
  *
- * En bild som verksamheten själv laddat upp har ingen licenskod och ska inte
- * behöva någon. Vi har rätten via villkoren, och att kräva en SPDX-sträng av
- * en krögare hade tystat precis de bilder vi helst vill visa.
+ * En bild som verksamheten själv laddat upp, eller som vi tagit själva, har
+ * ingen licenskod och ska inte behöva någon. Vi har rätten via villkoren, och
+ * att kräva en SPDX-sträng av en krögare hade tystat precis de bilder vi helst
+ * vill visa.
+ *
+ * SJÄLVA GRINDEN BOR I lib/db.ts sedan 2026-08-27 och inte längre här. Den
+ * stod i fyra kopior, och tre av dem sa olika saker: kortet och startsidan
+ * krävde en licenskod rakt av, alltså hade våra egna foton visats i bandet på
+ * verksamhetssidan och ersatts av en platshållare i varje lista och på varje
+ * kort. En grind som gäller samma sak på fyra ytor ska stå en gång.
  */
-const EGNA = new Set(['own', 'owner']);
+const foto = visbarBild(e.image);
+const egen = egenBild(e.image);
 const kalla = e.image?.source ?? null;
-const egen = kalla !== null && EGNA.has(kalla);
-const foto = e.image?.url && (egen || e.image.licence) ? e.image : null;
 
 /**
  * MAPILLARYS LOGOTYP ÄR ETT VILLKOR, INTE EN DEKORATION.

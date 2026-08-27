@@ -52,6 +52,7 @@ import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
 import StreetPhoto from '../../components/StreetPhoto.astro';
 import Commonsbild from '../../components/Commonsbild.astro';
+import Bildband from '../../components/Bildband.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
 import ControlBreakdown from '../../components/ControlBreakdown.astro';
@@ -126,6 +127,36 @@ const latestInspection = e.inspections[0];
 const stats = statistics(e);
 const neighbours = nearby(e);
 const hasCoords = e.lat !== null && e.lng !== null;
+
+/**
+ * VILKA BILDER SOM HAMNAR VAR, OCH DELNINGEN SKER HÄR OCH INGEN ANNANSTANS.
+ *
+ * `images` är en lista sedan 2026-08-27, se lib/db.ts, och den kan bära två
+ * slags bild som inte får blandas:
+ *
+ *   BANDET under bedömningen tar bilder som inte kräver någon synlig
+ *   attributionsrad, alltså våra egna och verksamhetens egna. Se
+ *   Bildband.astro för formen och för måtten.
+ *
+ *   PANELEN tar den första bild som gör det, alltså en ur Commons, Mapillary
+ *   eller Panoramax. Fotografens namn, licensnamnet och länken till filsidan
+ *   behöver den bildtext som bara den formen ger, och den formen rymmer en
+ *   bild. Se Commonsbild.astro och StreetPhoto.astro.
+ *
+ * Att räkna upp de TILLÅTNA i bandet och inte de förbjudna är avsiktligt: en
+ * ny källa med ett villkor vi inte känner till hamnar då utanför bandet av
+ * sig själv och faller ned i panelen, i stället för att slinka in i en 166 px
+ * bred ruta som inte kan bära något villkor alls.
+ *
+ * TVÅ ÄR GOLVET FÖR BANDET. En ensam egen bild står kvar i panelen, där en
+ * bild har stått sedan sajten fanns; att flytta upp den hade ändrat sidan för
+ * en funktion ingen bett om. Panelen tar därför det som bandet inte tog, och
+ * ingen bild kan hamna mellan stolarna.
+ */
+const UTAN_VILLKOR = new Set(['prikko', 'own', 'owner']);
+const egnaBilder = e.images.filter((b) => b.url && UTAN_VILLKOR.has(b.source ?? ''));
+const bandbilder = egnaBilder.length >= 2 ? egnaBilder : [];
+const panelbild = e.images.find((b) => !bandbilder.includes(b)) ?? null;
 
 /*
  * Vad jämförelserutan föreslår. Grannarna är redan uträknade ovan och skickas
@@ -821,6 +852,29 @@ const breadcrumbs = {
           </p>
         </section>
 
+        {/* VÅRA EGNA BILDER, DIREKT UNDER BEDÖMNINGEN OCH ALDRIG OVANFÖR.
+
+            Ägaren 2026-08-27 om ednia.se och yelp.se: "vill vi visa bilderna
+            lite mer... så länge vår bedömning fortfarande är tydlig."
+
+            Placeringen är mätt fram och inte tyckt. Ednia lägger sin mosaik
+            högst upp på sidan och betalar med att deras eget nyckeltal hamnar
+            på y 862 i ett fönster som är 900 högt. Tripadvisor lägger beskedet
+            över bilden på båda bredder, Yelp gör det på mobil och lägger det
+            ovanpå bilden på dator. Två av tre förlagor gör alltså redan det
+            som villkoret kräver.
+
+            Som SYSKON EFTER `.statement` flyttar sig bedömningsraden noll
+            pixlar vid varje bredd, eftersom den ligger ovanför bandet, och
+            bilderna är ändå det andra ögat möter. Det är precis Yelps
+            mobilordning: namn, besked, sedan bilder.
+
+            Avsnittet finns inte alls på de sidor som saknar minst två egna
+            bilder, alltså på alla 16 044 i dag. Vilka bilder som får stå här
+            och varför en Commons-bild inte får det avgörs av `bandbilder` i
+            frontmatteret ovan. */}
+        <Bildband images={bandbilder} name={e.name} />
+
         {/* Datumet bedömningen vilar på, som ett kalenderblad. PAUSAD av
             ägaren: komponenten renderar ingenting, och flaggan som styr det
             bor i Kontrolldatum.astro tillsammans med skälet. Anropet står
@@ -1036,30 +1090,6 @@ const breadcrumbs = {
           </div>
         )}
 
-        {/* Företaget bakom stället, DIREKT UNDER kontaktkortet.
-
-            De två svarar på samma sorts fråga, vem är det här, medan
-            huvudkolumnen svarar på hur det sköts. Ett organisationsnummer
-            inklämt mellan bedömningen och vad kontrollen visade hade brutit
-            berättelsen utan att svara på något; här står det som nästa fakta
-            om samma part.
-
-            Panelen ritas bara där kommunen lämnar uppgiften. Fältet finns i
-            dag på Stockholms 8 520 rader och på ingen annan kommun, alltså
-            saknas den på drygt sju tusen sidor, och där syns ingenting alls.
-            Vad panelen visar och vad den medvetet utelämnar står i
-            Foretagsregister.astro.
-
-            Villkoret är dubbelt av samma skäl som kontaktkortets: en rad kan
-            bära `registration` utan att en enda av de fyra raderna går att
-            skriva, och då hade panelen blivit en tom vit ruta med bara en
-            rubrik. `registerrader` är det som utesluter det. */}
-        {e.registration && registerrader(e.registration, e.name).length > 0 && (
-          <div class="panel">
-            <Foretagsregister registration={e.registration} name={e.name} />
-          </div>
-        )}
-
         {/* Två bildkomponenter och inte en, för attributionskravet skiljer
             dem åt.
 
@@ -1069,8 +1099,21 @@ const breadcrumbs = {
             form. Att låta en komponent bära båda hade betytt två uppsättningar
             villkor i samma mall och en gren i varje rad av den.
 
-            Bilden är fortfarande EN per verksamhet: fältet `image` är samma
-            fält, och 210 av 16 047 sidor bär en Commons-bild. Se
+            EN bild här, också sedan `images` blev en lista 2026-08-27.
+
+            Panelen visar den första bilden som KRÄVER en attributionsrad,
+            alltså en ur Commons, Mapillary eller Panoramax. Våra egna foton
+            går inte hit utan till bandet under bedömningen, se Bildband.astro,
+            och skälet är att kravet skiljer dem åt: en bild som ska bära
+            fotografens namn och licensnamnet behöver den bildtext som bara
+            den här formen ger.
+
+            En verksamhet som har båda sorterna får därför båda ytorna, och
+            ingen bild göms för att den andra finns. Uppmätt 2026-08-27: alla
+            366 bilder i beståndet är `wikimedia`, alltså är den här panelen
+            oförändrad på varenda sida som har en bild i dag.
+
+            210 av 16 047 sidor bär en Commons-bild. Se
             pipeline/hamta_commonsbilder.py för varför den får gå före en
             gatubild när båda finns.
 
@@ -1079,9 +1122,9 @@ const breadcrumbs = {
             ur en OSM-tagg, och den vägen når skolan, kyrkan och
             äldreboendet också. Se docs/39_fler_bilder.md. */}
         <div class="panel">
-          {e.image && (e.image.source === 'wikimedia'
-            ? <Commonsbild image={e.image} name={e.name} />
-            : <StreetPhoto image={e.image} name={e.name} />)}
+          {panelbild && (panelbild.source === 'wikimedia'
+            ? <Commonsbild image={panelbild} name={e.name} />
+            : <StreetPhoto image={panelbild} name={e.name} />)}
           <ActionPanel
             establishmentId={e.id}
             establishmentName={e.name}
@@ -1104,6 +1147,64 @@ const breadcrumbs = {
         {anmalningsvagarna.length > 0 && (
           <div class="panel">
             <Anmal vagar={anmalningsvagarna} />
+          </div>
+        )}
+
+        {/* FÖRETAGET STÅR EFTER HANDLINGARNA OCH FÖRE VÄGARNA VIDARE.
+
+            Rutan låg först direkt under kontaktkortet, med argumentet att båda
+            svarar på frågan vem är det här. Ägaren 2026-08-27: "vet inte om
+            'företaget' rutan i höger spalten ska vara längst upp, känns mer som
+            ngt längre ner, iaf spontant."
+
+            Han har rätt, och regeln som gör honom rätt är att panelen bär TVÅ
+            sorters innehåll. HANDLINGAR är att ringa, gå till webbplatsen,
+            rätta en uppgift, begära replik, anmäla till kommunen och följa
+            stället. UPPSLAGSDATA är organisationsnummer, vem som driver stället
+            och när det registrerades. Ingen kom hit för att slå upp ett
+            organisationsnummer, men den som gör det hittar det var det än står;
+            en handling tappar man däremot om den ligger för långt ned.
+
+            VARFÖR FÖRE "NÄRA DIG" OCH INTE SIST. De tre panelerna längst ned,
+            Nära dig, Bäst i närheten och Så ser det ut i kommunen, leder BORT
+            från den här verksamheten. Företaget handlar fortfarande om den.
+            Panelen läses därför i tre band uppifrån och ned: handlingar,
+            uppslag om det här stället, vägar vidare till andra.
+
+            Uppmätt på Wirströms Pub vid 1440, som har alla sju rutorna:
+            rutan gick från plats två (y 554) till plats fyra (y 1071), och
+            panelens totala höjd är oförändrad 2 207 px. Ingenting som är en
+            handling sköts ned: kontaktkortet, bilden med "Något som inte
+            stämmer?" och "Anmäl till kommunen" ligger alla kvar ovanför.
+
+            REGISTRERINGSDATUMET STANNAR HÄR, och det var en verklig fråga.
+            "Registrerad" är den enda raden som säger något om hur länge stället
+            funnits, och kontrollhistoriken bär redan ett tips om att "Äldsta
+            kontroll" INTE är året verksamheten startade. Frestelsen är att
+            flytta datumet dit.
+
+            Det vore fel, för de två talar om olika saker. Kontrollerna är
+            registrerade på ANLÄGGNINGEN och följer lokalen genom varje
+            ägarbyte, se `establishment_names` i pipeline/schema.sql.
+            Registreringen är gjord av LIVSMEDELSFÖRETAGAREN och börjar om när
+            en ny tar över. Ett datum från operatören lagt intill anläggningens
+            historik hade lästs som "då öppnade stället", vilket är precis den
+            felläsning tipset finns för att hindra. Här, bland företagets egna
+            uppgifter, läser samma datum som det administrativa faktum det är.
+
+            Panelen ritas bara där kommunen lämnar uppgiften. Fältet finns i
+            dag på Stockholms 8 520 rader och på ingen annan kommun, alltså
+            saknas den på drygt sju tusen sidor, och där syns ingenting alls.
+            Vad panelen visar och vad den medvetet utelämnar står i
+            Foretagsregister.astro.
+
+            Villkoret är dubbelt av samma skäl som kontaktkortets: en rad kan
+            bära `registration` utan att en enda av de fyra raderna går att
+            skriva, och då hade panelen blivit en tom vit ruta med bara en
+            rubrik. `registerrader` är det som utesluter det. */}
+        {e.registration && registerrader(e.registration, e.name).length > 0 && (
+          <div class="panel">
+            <Foretagsregister registration={e.registration} name={e.name} />
           </div>
         )}
 
@@ -1491,18 +1592,43 @@ const breadcrumbs = {
     /* Luften under topraden bärs här och ingen annanstans. Den satt förut på
        handlingsraden, men när knapparna flyttade upp bredvid namnet blev
        avståndet till "Bedömning" så litet att etiketten läste som en tredje
-       rad i metaraden. */
-    margin-top: var(--s-8);
+       rad i metaraden.
+
+       24 och inte 32 sedan 2026-08-27, samma beställning som gav sektionerna
+       sina 24. Skälet ovan gäller fortfarande: etiketten "Bedömning" får inte
+       läsa som en tredje rad i metaraden. Uppmätt vid 1440 är avståndet från
+       metaradens underkant till etikettens överkant 24 px, medan raden över
+       den, undertiteln, ligger 4 px under rubriken. Hierarkin står alltså
+       kvar med god marginal. */
+    margin-top: var(--s-6);
   }
 
   /* Huvudkolumnen ligger öppet på sidan — ingen kortlåda. Det är Boolis
      grepp: sektionerna skiljs av hårlinjer och luft, och lugnet kommer av
      att ingenting är inramat. Sidopanelens paneler ÄR kort, och kontrasten
-     däremellan är det som gör att panelen läser som verktyg. */
+     däremellan är det som gör att panelen läser som verktyg.
+
+     24 OCH INTE 32, sedan 2026-08-27. Ägaren: "kan vi ta bort lite whitespace
+     här?"
+
+     Måttet är dubbelt och det är lätt att missa: varje sektion får både
+     `margin-top` och `padding-top`, så avståndet från en sektions sista rad
+     till nästa sektions första var 64 px och inte 32. Uppmätt vid 1440 på
+     verksamhetssidan för Holy Smoke låg fem sådana skarvar ovanför
+     kontrollhistoriken, alltså 320 px luft innan berättelsen ens började.
+
+     24 plus 24 ger 48, och hårlinjen har fortfarande lika mycket luft på båda
+     sidor, vilket är det som gör att den läser som en avdelare och inte som
+     en ram. Att i stället ta bort padding och behålla marginalen hade lagt
+     linjen tätt intill nästa rubrik och brutit just den symmetrin.
+
+     Effekten uppmätt på samma sida: kontrollhistoriken gick från y 949 till
+     848 vid 1440, och från 1116 till 1039 vid 375. Resten av vinsten kommer
+     av svarsmeningen och bildbandet, se `.answer` nedan och Bildband.astro. */
   /* :global krävs — Astros scopeade selektorer korsar inte komponentgränser. */
   .main > :global(* + *) {
-    margin-top: var(--s-8);
-    padding-top: var(--s-8);
+    margin-top: var(--s-6);
+    padding-top: var(--s-6);
     border-top: 1px solid var(--hairline);
   }
 
@@ -1610,12 +1736,38 @@ const breadcrumbs = {
     font-weight: 600;
   }
 
+  /* SVARSMENINGEN KAPAS INTE EN ANDRA GÅNG.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod `max-width: 56ch`. Ägaren 2026-08-27: "denna text kan väl gå
+     längre åt höger utan att brytas: 'Holy Smoke fick anmärkningar vid den
+     senaste hygienkontrollen den 23 september 2025.'"
+
+     UPPMÄTT VID 1440 INNAN RADEN TOGS BORT. Huvudkolumnen är 680 px och
+     `.besked`, alltså spalten till höger om märket, är 612. Spärren räknade
+     56ch på 14 px till 522,14 px. Meningen vill vara 567 px på en rad. Den
+     fattades alltså 45 px, medan kolumnen hade 90 px kvar att ge, och andra
+     raden bar två ord: "september 2025."
+
+     VARFÖR DET ÄR RÄTT ATT TA BORT DEN OCH INTE BARA HÖJA DEN. Kolumnen ÄR
+     redan lässpalten: `.layout` låser huvudkolumnen till --w-read, se
+     kommentaren där, och den globala regeln som kapade varje stycke till 680
+     inuti en bredare kolumn togs bort 2026-08-22 just för att en andra spärr
+     inuti en redan kapad spalt ger en ojämn högerkant. Den här raden var
+     samma fel i litet format: `.level` och `.method` gick till 728 medan
+     stycket mellan dem stannade på 638.
+
+     LÄSBARHETEN ÄR INTE OFFRAD, den är räknad. 612 px på 14 px Instrument
+     Sans blir omkring 68 tecken per rad, och det spann filen själv anger som
+     läsbart är 45 till 75. Meningen är dessutom aldrig lång: den är byggd av
+     lib/data och är en enda mening om en enda kontroll.
+
+     På telefon binder spärren inte alls. Där är `.besked` 275 px, alltså
+     långt under både 522 och 612, och meningen bryter på tre rader oavsett. */
   .answer {
     margin-top: var(--s-2);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     color: var(--text-secondary);
-    max-width: 56ch;
   }
 
   .method {

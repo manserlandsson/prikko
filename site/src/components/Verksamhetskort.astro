@@ -90,6 +90,7 @@ import {
   isIndexable,
   latestInspectionDate,
   missingReason,
+  visbarBild,
   type Establishment,
   type TopCategoryId,
 } from '../lib/data';
@@ -113,12 +114,19 @@ const date = latestInspectionDate(e);
 const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 
 /**
- * Bilden visas bara när den bär en känd licens, samma grind som
- * Commonsbild.astro sätter. En bild vars licens vi inte kan skriva ut på
- * verksamhetssidan får inte heller stå på kortet: då finns ingen resurs att
- * hänvisa till, och hela §3(a)(2)-resonemanget i filhuvudet faller.
+ * Bilden visas bara när den får visas, och grinden bor i lib/db.ts.
+ *
+ * En bild vars licens vi inte kan skriva ut på verksamhetssidan får inte
+ * heller stå på kortet: då finns ingen resurs att hänvisa till, och hela
+ * §3(a)(2)-resonemanget i filhuvudet faller.
+ *
+ * Villkoret stod här som `e.image.licence` rakt av, och det var för hårt.
+ * En bild vi tagit själva har ingen licenskod och behöver ingen, så när
+ * källan `prikko` tillkom 2026-08-27 hade ägarens tolv foton på Holy Smoke
+ * visats på verksamhetssidan men ersatts av en platshållare på varje kort.
+ * Se `visbarBild` i lib/db.ts, som är samma grind för alla fyra ytor.
  */
-const foto = e.image?.url && e.image.licence ? e.image : null;
+const foto = visbarBild(e.image);
 
 /** Första matkategorin, alltså den mest förekommande. Styr ikon och ton. */
 const kategorier = matkategorierFor(e);

@@ -1,0 +1,703 @@
+---
+/**
+ * VÅRA EGNA BILDER PÅ STÄLLET, SOM ETT BAND.
+ *
+ * ═══ VAD ÄGAREN BAD OM ════════════════════════════════════════════════════
+ *
+ * 2026-08-27, först: "fixa så en restaurang kan ha flera bilder också, första
+ * kan vara på utsidan, sedan blir det om vi laddat upp fler." Som förlaga:
+ * "kolla typ tripadvisor, en restaurang ska kunna ha fler bilder liksom."
+ *
+ * Samma dag, efter att ha sett två sidor till: "vill vi visa bilderna lite mer
+ * som tex ednia.se... Jag tror det är en bra idé, SÅ LÄNGE VÅR BEDÖMNING
+ * FORTFARANDE ÄR TYDLIG. Kolla yelp också, det är också jävligt najs. Så länge
+ * bedömning är fortsatt tydlig, hade tagit mest inspo från yelp och
+ * tripadvisor faktiskt."
+ *
+ * Villkoret i versaler är inte en artighet. Bedömningen är det enda ingen
+ * annan sajt har, och den är dessutom inte ett tal utan ett märke plus ett ord
+ * plus en berättelse om vad kontrollen visade. Ett stort foto som trycker ned
+ * den under vikningen är ett fel, hur snyggt det än är.
+ *
+ *
+ * ═══ ALLA TRE FÖRLAGORNA ÄR MÄTTA 2026-08-27, INTE MINDA UR MINNET ════════
+ *
+ * EDNIA, ednia.se/gymnasium/drottning-blankas-gymnasieskola-goteborg-centrum
+ *   1440  Mosaik högst upp på sidan, y 112 till 542. En stor 554x429 och fyra
+ *         små 273x211 i ett 2x2, 8 px mellanrum, block 1116x430. Den stora är
+ *         exakt två små plus mellanrummet, i båda led. Rubriken kommer UNDER,
+ *         y 565, adressen y 645.
+ *   375   Helbredds karusell 375x281 (4:3) vid y 55, en bild i taget, räknare
+ *         "1 / 6" i nedre högra hörnet. Rubriken under vid y 360.
+ *   Priset: deras eget nyckeltal, antagningspoängen, hamnar på y 862 i ett
+ *   fönster som är 900 högt. Nyckeltalet ligger alltså i underkanten av
+ *   första skärmen, och det är bildernas fel.
+ *
+ * YELP, yelp.se/biz/riche-stockholm, alltså en av VÅRA verksamheter
+ *   1440  Band högst upp, y 84, höjd 426. Första rutan 568x426 (4:3), sedan
+ *         320x426 som rullar ut ur vyn åt höger. Namnet (y 288), betyget 4.0
+ *         (y 363) och öppettiden (y 443) ligger PÅ bilden med mörk toning.
+ *         "See all 272 photos" i bandets nedre högra hörn.
+ *   375   ORDNINGEN ÄR OMVÄND. Namnet y 113, betyget 4.0 med 144 recensioner
+ *         y 154, prisklass y 182, öppettid y 210, handlingsrad y 291. Först
+ *         DÄREFTER bilderna, en mosaik 186x197 plus 186x97 plus två 92x97 vid
+ *         y 365, och en remsa 154x104 vid y 677.
+ *
+ * TRIPADVISOR
+ *   1440  Betyget 4.2 vid y 428. Bilderna UNDER: 928x522 (16:9) plus en
+ *         204x522 i kanten, vid y 499. Omdömesbilderna ligger längre ned som
+ *         en egen remsa, 155x155, 8 px mellanrum, 6 px radie, rullar i sidled
+ *         och blöder ut ur spalten.
+ *   375   Betyget 4.2 vid y 195. Hjältebilden 375x211 (16:9) UNDER, vid y 287.
+ *
+ * SLUTSATSEN AV MÄTNINGEN, OCH DEN ÄR HELA SKÄLET TILL PLACERINGEN NEDAN:
+ * Tripadvisor lägger beskedet över bilden på BÅDA bredder. Yelp gör det på
+ * mobil och lägger det ovanpå bilden på dator, alltså kostar bilden noll
+ * pixlar för beskedet i båda fallen. Ednia är den enda som lägger bilderna
+ * först, och Ednia är också den enda vars eget nyckeltal hamnar i vyns
+ * underkant. Två av tre gör alltså redan det vi måste göra.
+ *
+ *
+ * ═══ VÅR PLACERING: ANDRA SEKTIONEN, ALDRIG DEN FÖRSTA ════════════════════
+ *
+ * Bandet är syskon till `.statement` i huvudkolumnen och står DIREKT EFTER
+ * den. Bedömningsraden flyttar sig då noll pixlar vid varje bredd, eftersom
+ * den ligger ovanför, och bilderna är ändå det andra ögat möter. Det är
+ * precis Yelps mobilordning: namn, besked, sedan bilder.
+ *
+ * Att lägga bandet överst som Ednia gör var det enda alternativ som mätningen
+ * kunde utesluta, och den uteslöt det.
+ *
+ * INGET BEDÖMNINGSMÄRKE I BILDENS HÖRN, och det var ett övervägt alternativ.
+ * Kartkorten sätter märket nedsänkt i bildytan därför att kortet är allt man
+ * ser av verksamheten. Här står samma märke i `.statement` några hundra
+ * pixlar ovanför, i sin stora form med ordet och svarsmeningen intill. Ett
+ * andra märke i bilden hade konkurrerat med det första i stället för att
+ * stärka det. Se lib/face.ts, där strömbrytaren står på det klassiska märket
+ * sedan 2026-08-27, och face-klassisk.ts för plattan som numera är #9A9AA0
+ * när bedömning saknas.
+ *
+ *
+ * ═══ VÅR FORM, OCH VÅRA MÅTT ══════════════════════════════════════════════
+ *
+ * Huvudkolumnen är 680 px (--w-read) vid 1440 och 343 px vid 375.
+ *
+ * DATOR, över 640 px: Ednias mosaik, nedskalad till vår spalt. Rutnätet är
+ * fyra lika spalter gånger två rader med 8 px mellanrum, och den stora rutan
+ * spänner över två spalter och båda raderna. Vid 680 blir spårbredden
+ * (680 - 3 * 8) / 4 = 164, alltså stor 164 * 2 + 8 = 336 och små 164.
+ *
+ * Att den stora spänner över två spår OCH mellanrummet är hela knepet, och
+ * det är Ednias eget: deras stora är 554 och deras små 273, alltså exakt
+ * 2 * 273 + 8. Ett första försök gav den stora ett eget 2fr-spår, och då blev
+ * den 332 i stället för 340 eftersom mellanrummet föll bort. Åtta pixlar, men
+ * de gör att den stora rutan får ett annat bildförhållande än de små, och då
+ * är det inte längre en mosaik utan fem olika rutor.
+ *
+ * HÖJDEN ÄR LÅST TILL 3:1 PÅ HELA RUTNÄTET, alltså 227 px vid 680, vilket ger
+ * 3:2 på varenda ruta: stor 336x227 och små 164x109, uppmätt i bygget.
+ *
+ * 3:2 OCH INTE 4:3, sedan 2026-08-27. Ägaren: "kan hela bild grejen var lite
+ * mindre lång dvs neråt liksom." 4:3 gav 255 px och 3:2 ger 227.
+ *
+ * 227 px är MEDVETET lägre än varje förlaga, och andelen av spaltbredden är
+ * talet som går att jämföra rakt av:
+ *
+ *     Tripadvisor   522 av 1136   0,46
+ *     Ednia         430 av 1116   0,385
+ *     Yelp          426 av 1136   0,375
+ *     VI            227 av  680   0,334
+ *
+ * Skälet är villkoret ägaren själv satte. Det som trycks ned av bandet är
+ * inte bedömningen, som ligger ovanför, men väl berättelsen om vad kontrollen
+ * visade, och den är också vår.
+ *
+ * TELEFON, 640 px och under: Ednias mobilform. En bild i taget, 3:2, som
+ * snäpper i sidled, med en räknare i nedre högra hörnet. Vid 375 blir det
+ * 343x229, mot Ednias 375x281 och Booli och Hemnets 375x251. 3:2 är samma
+ * förhållande som Bildyta.astro redan ritar sina kort i.
+ *
+ * Bilden ligger KVAR I SPALTEN och blöder inte ut till skärmkanten som hos
+ * Ednia och Tripadvisor, som båda går kant till kant på 375. Sidan är en
+ * lässida där varje annan yta håller sin marginal, och en enda helbredds
+ * bild mitt i den läser som ett fel och inte som ett grepp.
+ *
+ * `mandatory` och inte `proximity`, till skillnad från remsan i
+ * Bilder.astro: där ska man KUNNA stanna mellan två rutor, eftersom den
+ * halva rutan är hela poängen. Här är formen en bild i taget, och en halv
+ * bild är aldrig ett läge man vill vara i.
+ *
+ *
+ * ═══ VILKA BILDER SOM FÅR STÅ HÄR, OCH VARFÖR INTE ALLA ═══════════════════
+ *
+ * Bara bilder som inte kräver en SYNLIG attributionsrad, alltså `prikko`,
+ * `own` och `owner`. Urvalet görs av anroparen, se `bandbilder` i
+ * [kommun]/[slug].astro, eftersom samma villkor avgör vad som blir kvar till
+ * sidopanelen.
+ *
+ * En Commons-bild kräver fotografens namn och licensnamnet intill bilden, och
+ * en Mapillary-bild kräver deras logotyp; se Commonsbild.astro och
+ * StreetPhoto.astro, som är byggda för just det och som står kvar i
+ * sidopanelen. En 166 px bred ruta i en mosaik kan inte bära någotdera, och
+ * att lägga dit bilden ändå vore ett avtalsbrott.
+ *
+ * Har en verksamhet både sorterna får den BÅDA: bandet här och figuren i
+ * panelen. Ingen bild göms, inget villkor bryts.
+ *
+ * Uppmätt 2026-08-27: alla 366 bilder i beståndet är `wikimedia`, alltså ritar
+ * bandet ingenting alls på någon befintlig sida. De 366 sidorna är oförändrade.
+ */
+import type { StreetImage } from '../lib/data';
+
+interface Props {
+  images: StreetImage[];
+  name: string;
+}
+
+const { images, name } = Astro.props;
+
+/**
+ * Urvalet görs av ANROPAREN, se `bandbilder` i [kommun]/[slug].astro.
+ *
+ * Där står villkoret om vilka källor som får stå i ett band och varför, och
+ * det står på ett ställe eftersom samma villkor avgör vad som blir kvar till
+ * sidopanelen. Två uttryck som ska vara varandras komplement får inte bo i
+ * två filer: den dagen de glider isär hamnar en bild antingen på båda
+ * ytorna eller på ingen.
+ *
+ * Golvet på två står ändå kvar HÄR, som ett sista försvar. Med en enda bild
+ * finns inget band att rulla, och en mosaik med fyra tomma rutor är inte en
+ * form utan ett fel.
+ */
+const egna = images.filter((b) => b.url);
+const visa = egna.length >= 2;
+
+/**
+ * ALLA bilder ritas som rutor. Datorn GÖMMER de överflödiga.
+ *
+ * Ett första försök ritade bara fem, alltså mosaikens stora plus fyra små, och
+ * lät resten nås genom luckan. Det höll på dator och gick sönder på telefon:
+ * där ÄR rutorna karusellen, och plusserien på sista rutan är gömd, så sju av
+ * tolv bilder gick inte att nå med något svep alls. Uppmätt i bygget innan det
+ * rättades: `mosaik.scrollWidth` var 1 715 px, alltså fem rutor à 343.
+ *
+ * Nu står alla tolv i märkningen och `.ruta:nth-child(n+6)` göms över 640 px.
+ * `loading="lazy"` gör att de gömda inte hämtas på en dator som aldrig visar
+ * dem, och på telefonen hämtas de när man sveper fram dem.
+ */
+const forsta = egna[0];
+const resten = egna.slice(1);
+
+/** Hur många som inte får plats i mosaikens fem rutor. Se `.fler` i markupen. */
+const dolda = Math.max(0, egna.length - 5);
+
+/* Den stora först, resten i mosaikens fyra små. Fler än fem finns kvar i
+   luckan, precis som Yelps "See all 272 photos". */
+const stor = egna[0];
+const sma = egna.slice(1, 5);
+---
+
+{visa && (
+  <section
+    class="bildband"
+    id="bildband"
+    data-namn={name}
+    data-urlar={JSON.stringify(egna.map((b) => b.url))}
+    aria-label={`Bilder på ${name}`}
+  >
+    {/*
+      INGEN RUBRIK, och det är mätt och inte tyckt. Ednia, Yelp och
+      Tripadvisor har alla tre noll rubrik över sina bilder. Sidan bär dessutom
+      redan en h2 som heter "Bilder", gästernas, längre ned; två rubriker med
+      samma ord på samma sida hade varit sämre än ingen.
+    */}
+    <div class="mosaik">
+      <button type="button" class="ruta stor" data-oppna="0" aria-label="Visa bilden större">
+        <img
+          src={forsta.url}
+          alt={`Foto på ${name}`}
+          loading="lazy"
+          decoding="async"
+          data-bildband
+        />
+      </button>
+      {/* Tom alt på de övriga. Alla tolv föreställer samma ställe, och tolv
+          identiska alt-texter i rad är brus för den som lyssnar sig igenom
+          sidan. Den första bilden bär beskrivningen, resten är dekor i
+          skärmläsarens mening. Samma dom som Bilder.astro. */}
+      {resten.map((b, i) => (
+        <button
+          type="button"
+          class="ruta"
+          data-oppna={String(i + 1)}
+          aria-label={i === 3 && dolda > 0 ? `Visa alla ${egna.length} bilder` : 'Visa bilden större'}
+        >
+          <img src={b.url} alt="" loading="lazy" decoding="async" data-bildband />
+          {/* RÄKNAREN LIGGER PÅ SISTA RUTAN OCH ÄR INTE EN EGEN KNAPP.
+
+              Här stod Yelps form, en fristående knapp med texten "Visa alla 12
+              bilder" i mosaikens nedre högra hörn. Den mätte 124x42 och rutan
+              under den är 164x109, alltså täckte knappen 76 procent av ett
+              fotografi. Hos Yelp går samma knapp över ett band på 1136 px och
+              skymmer nästan ingenting; i vår 680 px spalt åt den upp en av de
+              fem bilder mosaiken finns till för att visa.
+
+              Formen här är i stället den Airbnb, Google Foto och Booli
+              använder: sista rutan behåller sin bild och får en toning med
+              antalet som återstår. Ingenting göms som inte redan var en
+              miniatyr, höjden kostar noll, och rutan är fortfarande samma
+              knapp som öppnar luckan.
+
+              `aria-label` byts på just den rutan, så att den som lyssnar hör
+              vad plusserien betyder i stället för "Visa bilden större". */}
+          {i === 3 && dolda > 0 && <span class="fler" aria-hidden="true">+{dolda}</span>}
+        </button>
+      ))}
+
+      {/* Ednias räknare, bara på telefon. Skriptet rättar den när man sveper;
+          står den fel innan skriptet hunnit igång är den ändå sann för första
+          bilden, som är den man ser. */}
+      <p class="raknare" aria-hidden="true"><span data-nu>1</span> / {egna.length}</p>
+    </div>
+  </section>
+)}
+
+{visa && (
+  <dialog class="bildband-lucka" id="bildband-lucka" aria-label={`Bild på ${name}`}>
+    {/*
+      Luckan är ett SYSKON till sektionen och inte ett barn.
+
+      Samma skäl som Bilder.astro och Foretagsbilder.astro har: showModal()
+      lyfter elementet till det översta lagret ändå, och i huvudkolumnen
+      träffas varje barn av sidmallens `.main > * + *`, som ger marginal,
+      indrag och en hårlinje. En modal ruta är ingen sektion.
+    */}
+    <button type="button" class="stang" data-stang aria-label="Stäng">
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" />
+      </svg>
+    </button>
+
+    <button type="button" class="bladdra bakat" data-bakat aria-label="Föregående bild" hidden>
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M12.5 4L6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+
+    <img data-stor alt="" />
+
+    <button type="button" class="bladdra framat" data-framat aria-label="Nästa bild" hidden>
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M7.5 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+  </dialog>
+)}
+
+<script>
+  /*
+   * Avsnittet hittas på ID och inte på syskonordning.
+   *
+   * Ett första försök läste `document.currentScript.previousElementSibling`,
+   * eftersom sektionen, luckan och skriptet är tre syskon i mallen. Det är en
+   * konstruktion som håller precis tills någon lägger en kommentar eller ett
+   * element emellan, och den går inte att prova sig till att den gått sönder:
+   * bandet slutar bara svara på klick. Bilder.astro och Foretagsbilder.astro
+   * hämtar båda sina element på id, och det gör det här nu också.
+   *
+   * Skriptet buntas och körs på ALLA sidor, alltså också de 16 046 utan band.
+   * Där finns inget `#bildband` och funktionen faller ut på första raden.
+   */
+  import { lockPage, unlockPage } from '../lib/page-lock';
+
+  const sektion = document.getElementById('bildband');
+  const lucka = document.getElementById('bildband-lucka') as HTMLDialogElement | null;
+
+  if (sektion && lucka) {
+    const urlar: string[] = JSON.parse(sektion.dataset.urlar ?? '[]');
+    const namn = sektion.dataset.namn ?? '';
+    const mosaik = sektion.querySelector('.mosaik') as HTMLElement;
+    const stor = lucka.querySelector('[data-stor]') as HTMLImageElement;
+    const bakat = lucka.querySelector('[data-bakat]') as HTMLButtonElement;
+    const framat = lucka.querySelector('[data-framat]') as HTMLButtonElement;
+    const nu = sektion.querySelector('[data-nu]');
+    let index = -1;
+    let fran: HTMLElement | null = null;
+
+    function visa(i: number) {
+      if (i < 0 || i >= urlar.length) return;
+      index = i;
+      stor.src = urlar[i];
+      /* Namnet på stället är det enda en alt-text kan säga sant om en bild
+         ingen har beskrivit. Samma regel som Bilder.astro. */
+      stor.alt = namn;
+      bakat.hidden = i === 0;
+      framat.hidden = i === urlar.length - 1;
+    }
+
+    function oppna(i: number, knapp: HTMLElement) {
+      fran = knapp;
+      visa(i);
+      lockPage();
+      lucka!.showModal();
+    }
+
+    /* Stängning på ETT ställe: Esc, krysset och klick utanför bilden tar
+       samma väg. Fokus går tillbaka till knappen man öppnade ifrån, och
+       `src` nollas så att en stor bild inte ligger kvar i minnet efter att
+       rutan stängts. */
+    function stang() {
+      if (lucka!.open) lucka!.close();
+      unlockPage();
+      stor.removeAttribute('src');
+      index = -1;
+      fran?.focus({ preventScroll: true });
+    }
+
+    mosaik.querySelectorAll<HTMLElement>('[data-oppna]').forEach((knapp) => {
+      knapp.addEventListener('click', () => oppna(Number(knapp.dataset.oppna), knapp));
+    });
+
+    (lucka.querySelector('[data-stang]') as HTMLButtonElement).addEventListener('click', () => stang());
+    bakat.addEventListener('click', () => visa(index - 1));
+    framat.addEventListener('click', () => visa(index + 1));
+    lucka.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      stang();
+    });
+    /* Klick utanför bilden stänger. Backdrop-klick landar på <dialog> självt,
+       och knapparna ligger ovanpå bilden men är egna knappar. */
+    lucka.addEventListener('click', (event) => {
+      if (event.target === lucka) stang();
+    });
+
+    /* Piltangenterna gör samma sak som pilarna. Rutan är modal, alltså är den
+       ensam om att höra tangentbordet medan den är uppe. */
+    lucka.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft') visa(index - 1);
+      else if (event.key === 'ArrowRight') visa(index + 1);
+      else return;
+      event.preventDefault();
+    });
+
+    /* Svep i luckan, för det är vad man gör med en bild på en telefon.
+       Bara vågrätt: ett lodrätt drag är sidans egen rullning och får inte
+       råka byta bild. Tröskeln på 45 px skiljer ett svep från ett tryck som
+       halkade. Samma tal som Bilder.astro, för det är samma gest. */
+    let x0 = 0;
+    let y0 = 0;
+    lucka.addEventListener('touchstart', (event) => {
+      x0 = event.changedTouches[0].clientX;
+      y0 = event.changedTouches[0].clientY;
+    }, { passive: true });
+    lucka.addEventListener('touchend', (event) => {
+      const dx = event.changedTouches[0].clientX - x0;
+      const dy = event.changedTouches[0].clientY - y0;
+      if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
+      visa(dx < 0 ? index + 1 : index - 1);
+    }, { passive: true });
+
+    /* Räknaren på telefon, Ednias form. Rullningen är CSS:ens och skriptet
+       läser bara av var den hamnade: `scrollLeft` delat med rutbredden är
+       bildens plats, och rutbredden är hela mosaiken, eftersom varje ruta är
+       100 % bred i det läget. `requestAnimationFrame` gör att ett svep ger en
+       avläsning per ruta och inte en per rullhändelse. */
+    if (nu) {
+      let vantar = false;
+      mosaik.addEventListener('scroll', () => {
+        if (vantar) return;
+        vantar = true;
+        requestAnimationFrame(() => {
+          vantar = false;
+          const bredd = mosaik.clientWidth || 1;
+          nu.textContent = String(
+            Math.min(urlar.length, Math.round(mosaik.scrollLeft / bredd) + 1),
+          );
+        });
+      }, { passive: true });
+    }
+
+    /* En bild som inte går att hämta tas bort ur mosaiken. Objekt kan
+       försvinna ur lagringen och en URL som var sann vid bygget behöver inte
+       vara det en månad senare; en söndrig ikon är sämre än en ruta mindre.
+       Samma sista försvar som Commonsbild.astro och StreetPhoto.astro. */
+    sektion.querySelectorAll('img[data-bildband]').forEach((img) => {
+      const bort = () => img.closest('.ruta')?.remove();
+      img.addEventListener('error', bort, { once: true });
+      /* Bilder som redan hunnit misslyckas innan skriptet kördes har
+         `complete` satt men ingen naturlig bredd. */
+      if ((img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth === 0) bort();
+    });
+  }
+</script>
+
+<style>
+  /* ------------------------------------------------------------------ */
+  /* Mosaiken, dator                                                      */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Fyra lika spår, och den stora spänner över två av dem PLUS mellanrummet.
+   *
+   * Ednias stora ruta är exakt två små plus mellanrummet, i båda led, och det
+   * är det som gör att alla fem rutorna får samma bildförhållande. Med 680 px
+   * spalt och 8 px mellanrum blir spåren 164 och den stora 336, och 3:1 på
+   * rutnätet ger 227 px höjd, alltså 3:2 på varenda ruta.
+   *
+   * Höjden på RUTNÄTET och inte på rutorna: en ruta som får sin höjd av sin
+   * bild har ingen höjd förrän bilden laddat, och en mosaik som växer fram
+   * under läsarens ögon flyttar allt under sig. Samma skäl som står över
+   * `.bilder .ruta` i Bilder.astro.
+   */
+  .mosaik {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: var(--s-2);
+    aspect-ratio: 3 / 1;
+  }
+
+  .mosaik > .stor {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  /*
+   * Mosaiken rymmer fem rutor. Resten står i märkningen för telefonens skull,
+   * se `resten` i frontmatteret, och göms här.
+   *
+   * `display: none` och inte `visibility` eller en klippande behållare: en
+   * gömd ruta ska varken ta plats i rutnätet, ta emot tabbning eller hämta sin
+   * bild. Utan raden lägger rutnätet till rader tills alla tolv fått plats,
+   * och bandet blir tre gånger så högt som det är ritat för.
+   *
+   * Knappen och räknaren räknas också som barn, alltså står de sist i
+   * märkningen och skulle annars ha gömts av samma regel. De är `position:
+   * absolute` och därmed utanför rutnätets flöde, men `nth-child` bryr sig
+   * inte om det, så undantaget måste sägas.
+   */
+  .ruta:nth-child(n + 6) {
+    display: none;
+  }
+
+  /* Knappen ÄR bilden. Ingen kant, ingen bakgrund, inget inre mellanrum: det
+     enda som skiljer den från en <img> är att den går att trycka på och att
+     tangentbordet kan nå den. Ordagrant samma grepp som Bilder.astro. */
+  .ruta {
+    position: relative;
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: var(--canvas);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    cursor: zoom-in;
+  }
+
+  .stor {
+    border-radius: var(--r-card);
+  }
+
+  .ruta img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ruta:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* Toningen på sista rutan, med antalet som återstår.
+     Mörk platta och vit text, för den ligger på ett fotografi som kan vara
+     ljust eller mörkt och ingen annan kontrast är säker. Se kommentaren vid
+     markupen för varför det blev en toning och inte Yelps fristående knapp. */
+  .fler {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .52);
+    color: #fff;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    /* Rutan under ÄR knappen. Toningen ska aldrig äta ett klick, och den ska
+       inte heller flytta hovringen från bilden till sig själv. */
+    pointer-events: none;
+  }
+
+  .ruta:hover .fler { background: rgba(0, 0, 0, .62); }
+
+  /* Räknaren finns bara på telefon, se mediefrågan. */
+  .raknare { display: none; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .ruta img { transition: transform .18s ease; }
+    .ruta:hover img { transform: scale(1.02); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ruta img { transition: none; }
+    .ruta:hover img { transform: none; }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Telefon: en bild i taget, som Ednia                                  */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Samma brytpunkt som remsan i Bilder.astro, 640 px, så att sidans två
+   * bildavsnitt byter form på samma ställe.
+   *
+   * Rutnätet blir en rad där varje ruta är hela spaltbredden och snäpper.
+   * `mandatory` och inte `proximity`: en halv bild är aldrig ett läge man vill
+   * stanna i när formen är en bild i taget. Remsan i Bilder.astro har motsatt
+   * dom, och det är med avsikt, för där ÄR den halva rutan hela poängen.
+   */
+  @media (max-width: 640px) {
+    .mosaik {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      aspect-ratio: 3 / 2;
+      gap: 0;
+      scrollbar-width: none;
+      border-radius: var(--r-card);
+    }
+
+    .mosaik::-webkit-scrollbar { display: none; }
+
+    /* Alla rutor tillbaka: här ÄR de karusellen. Se `resten` i
+       frontmatteret för vad som gick sönder utan den här raden. */
+    .ruta:nth-child(n + 6) {
+      display: block;
+    }
+
+    .ruta {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      border-radius: var(--r-card);
+    }
+
+    /* Plusserien hör till en avskuren mosaik och det finns ingen mosaik här.
+       Rutorna ÄR karusellen, räknaren säger hur många de är, och ett svep når
+       varenda en. En toning över bild fem hade bara skymt en bild man kan
+       svepa fram. */
+    .fler { display: none; }
+
+    .raknare {
+      display: block;
+      position: absolute;
+      right: var(--s-3);
+      bottom: var(--s-3);
+      margin: 0;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .62);
+      color: #fff;
+      font-size: var(--fs-caption);
+      /* Räknaren ska aldrig ligga i vägen för svepet. */
+      pointer-events: none;
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Luckan                                                               */
+  /* ------------------------------------------------------------------ */
+  /*
+   * Egen klass och egna regler, inte Bilder.astros `.photo-dialog`.
+   *
+   * Foretagsbilder.astro gjorde samma val med `.foretagsbild-lucka` och av
+   * samma skäl: två avsnitt som delar klassnamn delar också varje framtida
+   * ändring, och det ena skulle då kunna flytta det andra utan att någon
+   * märkte det. Måtten är medvetet desamma.
+   *
+   * Selektorn är tyngre än sidmallens `.main > * + *`, som annars ger luckan
+   * marginal, indrag och en hårlinje och skjuter ned bilden i förhållande
+   * till krysset. `[open]` krävs också, så att en `display`-rad inte slår ut
+   * den `display: none` som gör att en stängd dialog är stängd.
+   */
+  dialog.bildband-lucka {
+    padding: 0;
+    border: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: visible;
+  }
+
+  dialog.bildband-lucka[open] {
+    display: grid;
+    margin: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .bildband-lucka::backdrop { background: rgba(0, 0, 0, .8); }
+
+  .bildband-lucka img {
+    display: block;
+    max-width: calc(100vw - var(--s-8));
+    max-height: 88dvh;
+    width: auto;
+    height: auto;
+    border-radius: var(--r-card);
+  }
+
+  /* 44 px är det minsta mått ett finger träffar säkert, och det gäller
+     överallt: en pekskärm är inte något datorn saknar. */
+  .bildband-lucka .stang,
+  .bildband-lucka .bladdra {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .bildband-lucka .stang {
+    top: var(--s-3);
+    right: var(--s-3);
+  }
+
+  /* Pilarna mitt på bildens sidor och OVANPÅ den. Utanför bilden hade de
+     legat på bakgrunden, och bakgrunden är det man klickar på för att stänga. */
+  .bildband-lucka .bladdra {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .bildband-lucka .bakat { left: var(--s-3); }
+  .bildband-lucka .framat { right: var(--s-3); }
+
+  /* `display` ovan slår ut det `hidden` självt gör, alltså måste attributet
+     sägas om här. Utan raden står pilarna kvar som döda knappar vid ändarna. */
+  .bildband-lucka .bladdra[hidden] { display: none; }
+
+  .bildband-lucka .stang:hover,
+  .bildband-lucka .bladdra:hover { background: rgba(0, 0, 0, .75); }
+
+  .bildband-lucka .stang svg,
+  .bildband-lucka .bladdra svg { width: 20px; height: 20px; }
+
+  .bildband-lucka .stang:focus-visible,
+  .bildband-lucka .bladdra:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+</style>

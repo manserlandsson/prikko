@@ -68,6 +68,7 @@ import {
   municipalityCategories,
   municipalitySummaries,
   topCategory,
+  visbarBild,
   type Establishment,
   type TopCategoryId,
 } from '../lib/data';
@@ -117,7 +118,11 @@ const rader: Rad[] = establishments().map((e) => {
     e,
     kategorier: matkategorierFor(e),
     datum: latestInspectionDate(e),
-    foto: Boolean(e.image?.url && e.image.licence),
+    /* Grinden bor i lib/db.ts och stod här som `e.image.licence` rakt av.
+       Det var för hårt: en bild vi tagit själva har ingen licenskod och
+       behöver ingen, så våra egna foton hade räknats som "utan bild" i hela
+       urvalet till startsidan. Se `visbarBild`. */
+    foto: Boolean(visbarBild(e.image)),
     /*
      * INTE bara "har en konsumentkategori", utan också "är inte en skola".
      *
