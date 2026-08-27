@@ -37,17 +37,33 @@
  *    ljusa stoppet, alltså exakt det värde FACE_PLATE redan exporterade och
  *    som kartnålen och FaceMark redan ritade under gradienten.
  *
- * 2. "INGEN BEDÖMNING" ÄR #6E6E73 OCH INTE #C7C7CC.
+ * 2. "INGEN BEDÖMNING" ÄR #9A9AA0 OCH INTE #C7C7CC.
  *
  *    Två fel i samma tal, båda mätta i brand/_prov-marken.html:
  *
  *      Gråvärdet. #FECB00 ligger på 199,2 och #C7C7CC på 199,4, alltså är
  *      mindre brister och ingen bedömning OMÖJLIGA att skilja åt utan färg.
  *      Provarket mätte samma kollision på maskotens plattor, 196 mot 196.
- *      #6E6E73 ligger på 110,4, alltså 89 gråsteg från den gula.
+ *      #9A9AA0 ligger på 154,7, alltså 40 gråsteg från den gula.
+
+ *      TALET ÄR EN AVVÄGNING OCH INTE ETT OPTIMUM. Först sattes #6E6E73,
+ *      som ger 84 gråsteg och 5,07:1. Ägaren 2026-08-27: "angående den gråa
+ *      så syftar jag på att du gjorde ingen bedömning till en mörkare grå,
+ *      den va ljusare ännu." Han har rätt att den blev för mörk: en
+ *      obedömd verksamhet ska läsa som frånvaro av besked, och en mörk
+ *      platta läser som ett besked.
+ *
+ *      #9A9AA0 är mitten. Fyrtio gråsteg räcker för att skilja den från
+ *      gult, vilket var hela felet med #C7C7CC på 199,6 mot gulans 195,1,
+ *      alltså fyra steg och i praktiken samma ton.
  *
  *      Kontrasten. Vitt på #C7C7CC ger 1,68:1 och WCAG 1.4.11 kräver 3:1 för
- *      grafik som bär betydelse. #6E6E73 ger 5,07:1.
+ *      grafik som bär betydelse. #9A9AA0 ger 2,80:1, alltså under kravet, och
+ *      det är samma undantag som gäller för grönt på 2,63 och gult på 1,53:
+ *      på 19 av 21 ytor står bedömningens text intill märket, och grafiken
+ *      behöver då inte bära betydelsen ensam. Det som INTE får hända är att
+ *      två lägen blir omöjliga att skilja åt, och det är den frågan de
+ *      fyrtio gråstegen svarar på.
  *
  *    Talet är inte nytt i paletten: #6E6E73 är sajtens --ink-quiet och redan
  *    --verdict-none-ink. Etiketten och märket får därmed samma färg, vilket
@@ -102,7 +118,7 @@ const FILL: Record<FaceKeyG, string> = {
   clean: '#00B92B',
   minor: '#FECB00',
   major: '#FF0000',
-  none: '#6E6E73',
+  none: '#9A9AA0',
 };
 
 /** Munnens bana. Glad, rak, ledsen, och en kort neutral för utan bedömning. */
