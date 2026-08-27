@@ -32,7 +32,7 @@
  * astro:. lib/face importeras för geometrin och drar bara in en typ, som
  * försvinner vid kompileringen.
  */
-import { FACE_MARKUP, FACE_PLATE, FACE_RING, type FaceKey } from './face';
+import { FACE_MARKUP, FACE_PLATE, type FaceKey } from './face';
 
 /** Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex]. */
 export type Row = [string, string, string, number, number];
@@ -315,7 +315,6 @@ export function escapeHtml(s: string) {
 function faceSvg(verdict: number | undefined): string {
   const key: FaceKey =
     verdict === undefined ? 'none' : (FACE_BY_INDEX[verdict] ?? 'none');
-  const c = FACE_RING[key];
   // RIK-nivån, av samma skäl som på kartan och i listorna: nivåerna är
   // avställda och märket ska se likadant ut överallt, se lib/face.ts.
   //

@@ -32,7 +32,7 @@
  * maplibre-gl 6 har ingen default-export. Destrukturera namn ur modulen,
  * skriv aldrig `mod.default`.
  */
-import { type FaceKey } from './face';
+import { FACE_KEYS, FACE_PLATE, type FaceKey } from './face';
 
 /*
  * Nålen importeras OCH återexporteras, inte bara återexporteras.
@@ -112,12 +112,23 @@ export const TILE_LAYER = 'punkter';
  * Bedömningens fyra ytfärger, i den ordning `v` i rutorna använder dem:
  * 0 inga anmärkningar, 1 brister, 2 brister som kvarstår, 3 ingen bedömning.
  *
- * Samma tal som `--verdict-*` i styles/tokens.css. De står som hexvärden och
- * inte som token därför att MapLibre målar i WebGL och inte kan läsa en
- * CSS-variabel. Ändras tokens.css ändras de här.
+ * LÄSTA UR MÄRKET OCH INTE SKRIVNA HÄR. Talen stod som fyra hexvärden med en
+ * kommentar om att de skulle hållas synkroniserade med tokens.css för hand,
+ * alltså ett löfte och inte en koppling. Prickarna och nålarna är samma
+ * tecken på två zoomnivåer: en prick ÄR märket när nålen är för dyr att rita.
+ * Att de kunde glida isär var inte teoretiskt. När det klassiska märket
+ * flyttade "ingen bedömning" från #C7C7CC till #6E6E73 stod prickarna kvar på
+ * den ljusa grå, alltså en karta med mörka nålar och ljusa prickar för samma
+ * besked. Ett halvt bytt märke är det värsta utfallet, och den här raden är
+ * en av vägarna dit.
  *
- * De stod i tre komponenter med var sin kommentar som sa just det, alltså tre
- * löften om att hålla samma fyra tal synkroniserade för hand. Nu är det ett.
+ * Ordningen är `v` i rutorna: 0 inga anmärkningar, 1 brister, 2 brister som
+ * kvarstår, 3 ingen bedömning. FACE_KEYS står i exakt den ordningen och det
+ * är provat av kartprovet, inte antaget.
+ *
+ * De står fortfarande som TAL i utfallet, eftersom MapLibre målar i WebGL och
+ * inte kan läsa en CSS-variabel. Skillnaden är att talen nu räknas fram ur
+ * ritningen vid bygget i stället för att skrivas av för hand.
  *
  * Färgerna gäller NÅLAR och PRICKAR, aldrig kluster: en klusterfärg efter
  * andel anmärkningar vore en värmekarta över vilka kvarter som sköter sig
@@ -126,7 +137,7 @@ export const TILE_LAYER = 'punkter';
  * De är inte heller textfärger. Som text på vitt är gult i praktiken oläsligt
  * och grått nästan osynligt; för text finns `--verdict-*-ink` i tokens.css.
  */
-export const KART_FARG: string[] = ['#00B92B', '#FECB00', '#FF0000', '#C7C7CC'];
+export const KART_FARG: string[] = FACE_KEYS.map((k) => FACE_PLATE[k]);
 
 /** `--brand` i tokens.css, alltså klustrens och "du är här"-ringens blå.
  *  Skriven som tal av samma skäl som KART_FARG: WebGL läser ingen variabel. */

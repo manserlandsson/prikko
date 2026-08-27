@@ -63,7 +63,7 @@ Det ger en enkel delning som avgör varje enskilt fall:
 |---|---|---|
 | Vad det är | DATA om en verksamhet | AVSÄNDARE, alltså sajten själv |
 | Färg | Grön, gul, röd eller grå | **Alltid Prikkoblå** |
-| Form | Ansiktet beskuret i rundad kvadrat | Hela figuren med kropp |
+| Form | Två prickar och en båge i rundad kvadrat | Hela figuren med kropp |
 | Var | Listor, kartnålar, sökträffar, verksamhetssidan | Där ingen verksamhet bedöms |
 | Antal per sida | Tusentals | **Ett** |
 | Komponent | `FaceMark.astro` | `Maskot.astro` |
@@ -71,6 +71,48 @@ Det ger en enkel delning som avgör varje enskilt fall:
 Att maskoten alltid är blå är en del av samma regel. Bedömningsfärgerna betyder
 något om ett företag, och den betydelsen får inte smitta av sig på en figur som
 bara säger att en sida är tom.
+
+#### Bedömningsmärket är INTE längre grävlingen, sedan 2026-08-27
+
+Ägaren valde det klassiska märket, sagt två gånger: "D, det klassiska märket"
+och "Basic märket ska därför vara överallt. är du med? inte bara på kartan,
+detta är ett separat projekt." `MASKOT` i `site/src/lib/face.ts` står på
+`false` och ritningen är `site/src/lib/face-klassisk.ts`.
+
+Underlaget är `brand/_prov-marken.html`, som mätte fyra alternativ i de
+storlekar märket faktiskt ritas i. Det som fällde grävlingen som MÄRKE var
+inte att den är för detaljerad utan att de tre kanaler som bär mening är de
+svagaste sakerna i ritningen: munnen är 0,87 px tjock på kartnålen och ligger
+under WCAG 1.4.11:s gräns i två av fyra lägen.
+
+**Delningen i §2 står oförändrad, och det är hela poängen med den.** Maskoten
+är samma figur i samma lägen som förut. Det som bytte är det andra tecknet.
+Att bytet kunde ske utan att röra en enda maskotyta är beviset för att
+delningen var rätt dragen.
+
+Två saker följer för läsningen av det här dokumentet:
+
+* **§3b beskriver GRÄVLINGENS ansikte.** Munnens bredd, brynens vinkel och
+  ögonens storlek gäller figuren och alltså maskoten. De är inte längre
+  märkets regler, eftersom märket inte har några bryn.
+* **Rörelsen i §5 gäller inte märket.** Riggen letar lock, bryn, pupiller,
+  band och öron, och det klassiska märket har inget av det. Grinden heter
+  `MARKE_ROR_SIG` och står i `lib/face.ts`. Ett märke som står still är
+  bättre än ett där halva ansiktet lever.
+
+Vad bytet ändrade i märkets egen palett, båda mätta och inga nya ritningar:
+
+| | Före | Efter | Varför |
+|---|---|---|---|
+| Platta, ingen bedömning | `#C7C7CC` | `#6E6E73` | `#C7C7CC` har gråvärde 199,4 och den gula 199,2, alltså gick de inte att skilja åt utan färg. Vitt på den ljusa grå gav dessutom 1,68:1 mot WCAG:s 3:1. Nu 110,4 respektive 5,07:1. |
+| Plattans gradient | två stopp | en ton | `id` måste vara unika i ett dokument, och `pk-klassisk-clean` förekom tolv gånger på `/stockholm/`. Gradienten ritade också ett söm på kartnålen. |
+
+Vad bytet INTE ändrade, och vad det kostar: symbolen är vit och den gula är
+`#FECB00`, båda ägarens egna beslut. Priset är att vitt ligger på 2,63:1 mot
+grönt och 1,53:1 mot gult, alltså under WCAG 1.4.11. Undantaget i kravet är
+att grafiken inte behöver bära betydelsen ensam, och på 19 av 21 ritställen
+står bedömningens text intill märket. På kartnålen gör den inte det. Talen för
+båda vägarna ut står i `face-klassisk.ts`; valet är ägarens.
 
 ### Får synas
 
@@ -331,10 +373,14 @@ Kartnålen kostar ingenting extra: den ritas en gång per läge och registreras
 som fyra bilder hos kartmotorn, inte en gång per verksamhet.
 
 Ritningarna för `enkel` och `nal` genereras fortfarande och ligger kvar i
-`site/src/lib/face-geometri.ts`. De är avställda, inte borttagna, av samma skäl
-som det klassiska märket ligger kvar bakom `MASKOT = false`: valet ska gå att
-pröva om på en rad. `faceDetalj()` står kvar som den enda platsen där frågan
-besvaras och svarar `rik` för varje storlek.
+`site/src/lib/face-geometri.ts`. De är avställda, inte borttagna, så att valet
+ska gå att pröva om på en rad. `faceDetalj()` står kvar som den enda platsen
+där frågan besvaras och svarar `rik` för varje storlek.
+
+Hela stycket ovan gäller GRÄVLINGSRITNINGEN, som sedan 2026-08-27 inte är
+märket. Den ligger kvar bakom `MASKOT = true` av samma skäl som nivåerna: ett
+val ska gå att pröva om utan att någon gräver i git. Talen står kvar därför att
+de är mätta och gäller den dag flaggan vänds tillbaka.
 
 ### Ikonerna var undantaget som överlevde, och varför det inte syntes
 

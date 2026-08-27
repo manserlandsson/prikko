@@ -9,6 +9,13 @@
  *   1. RIGGAR de fyra ansiktena, alltså ger varje del en namngiven led.
  *   2. PLOCKAR UT märkets del av rörelsekatalogen.
  *
+ * MODULEN FÖRUTSÄTTER GRÄVLINGSANSIKTET. Riggen letar sex leder som bara den
+ * ritningen har, och blinkningen läser ögonlockens viloläge ur markupen. Går
+ * strömbrytaren i lib/face.ts till det klassiska märket finns inget att rigga,
+ * och då ska ingen rörelse ritas alls. Grinden heter MARKE_ROR_SIG och sitter
+ * i FaceMark.astro, alltså före första anropet hit. Spärrarna nedan står kvar
+ * som spärrar: de ska fälla ett bygge, inte tyst leverera ett halvt ansikte.
+ *
  * ── Varför riggen och inte fyra nya klasser i figuren ───────────────────
  *
  * Ansiktet som FaceMark ritar bär bara två klasser, `mun` och `lock-hoger`.
@@ -260,7 +267,9 @@ export function riggatAnsikte(key: FaceKey, niva: FaceDetalj) {
   if (saknas.length) {
     throw new Error(
       `marke-rorelse: riggen hittade inte ${saknas.join(', ')} i ansiktet "${key}". ` +
-      'Ett märke där halva ansiktet lever är sämre än ett som står still.',
+      'Ett märke där halva ansiktet lever är sämre än ett som står still. ' +
+      'Gäller det klassiska märket är svaret inte att lätta på spärren utan ' +
+      'att inte rita rörelse alls; se MARKE_ROR_SIG i lib/face.ts.',
     );
   }
 

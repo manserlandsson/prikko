@@ -59,25 +59,65 @@ import * as KLASSISK from './face-klassisk';
 
 /**
  * ─────────────────────────────────────────────────────────────────────────
- *  STRÖMBRYTAREN. Sätt till false för att få tillbaka det klassiska märket.
+ *  STRÖMBRYTAREN mellan de två ritningarna.
  * ─────────────────────────────────────────────────────────────────────────
  *
- * true   Prikkos grävling, beskuren till ansiktet. Nuvarande märke.
- * false  Två prickar och en båge, alltså märket som var. Ritningen ligger
- *        kvar i sin helhet i face-klassisk.ts och är oförändrad.
+ * true   Prikkos grävling, beskuren till ansiktet.
+ * false  Två prickar och en båge, alltså det klassiska märket. GÄLLER NU.
+ *        Ägarens val 2026-08-27, sagt två gånger: "D, det klassiska märket."
+ *        Underlaget är brand/_prov-marken.html, som mätte fyra alternativ.
  *
- * Det är den ENDA raden som behöver ändras. Ingen komponent, ingen sida,
- * ingen sprite och ingen kartnål behöver röras: alla läser den här modulen.
- * Bygg om och märket är tillbaka.
+ * ── VAD FLAGGAN FAKTISKT KRÄVER ─────────────────────────────────────────
+ *
+ * Här stod förut att det var "den ENDA raden som behöver ändras" och att
+ * ingen komponent, ingen sprite och ingen kartnål behövde röras. DET VAR
+ * FEL, och det var fel redan när det skrevs. Raden räcker för GEOMETRIN,
+ * eftersom alla 21 ritställen läser FACE_MARKUP och FACE_PLATE härifrån. Den
+ * räcker inte för RÖRELSEN, som tillkom efter att strömbrytaren skrevs och
+ * som är riggad mot grävlingens leder.
+ *
+ * Byggen faller på lib/marke-rorelse.ts: riggen letar efter lock, bryn,
+ * pupiller, band och öron, och det klassiska märket har inget av det. Att
+ * lätta på riggens spärr hade gett ett märke där halva ansiktet lever, och
+ * riggens egen princip säger att ett märke som står still är bättre. Därför
+ * finns MARKE_ROR_SIG nedan, och därför säger den nej för det klassiska.
+ *
+ * Den som vänder tillbaka till true får alltså tillbaka rörelsen av sig
+ * själv. Ingen annan fil bär ett antagande om vilken ritning som gäller.
  *
  * Skälet till att strömbrytaren finns: ett märke ska kunna ses live i en dag
  * innan det är oåterkalleligt. Att ritningen ligger i git-historiken räcker
  * inte, eftersom den som vill jämföra då måste veta vilken commit och hur man
  * plockar ut en fil ur den, och det gör ingen en tisdag när något känns fel.
  */
-export const MASKOT = true;
+export const MASKOT = false;
 
 const RITNING = MASKOT ? MASKOTRITNING : KLASSISK;
+
+/**
+ * KAN MÄRKET RÖRA SIG? Följer av vilken ritning som gäller.
+ *
+ * Rörelsen är inte skriven mot "ett märke" utan mot GRÄVLINGENS ansikte.
+ * lib/marke-rorelse.ts riggar sex leder ur ritningen, blinkningen läser
+ * ögonlockens viloläge ur markupen och brynlyftet flyttar bryn som bara
+ * grävlingen har. Det klassiska märket är en platta, två cirklar och en båge:
+ * det finns ingenting där att rigga.
+ *
+ * Två vägar fanns, och den ena är fel. Att låta riggen stå över de delar den
+ * inte hittar ger ett märke där munnen ritas upp medan ögonen står still,
+ * alltså precis det halvlevande ansikte som riggens spärr finns för att
+ * förhindra. Den andra är att inte rita rörelse alls, och den är rätt: ett
+ * märke som står still är ett helt märke.
+ *
+ * Flaggan läses av FaceMark.astro, som är den enda komponent som någonsin
+ * animerar ett märke. FaceRef och FaceSprite ritar via <use> och har aldrig
+ * kunnat röra sig, se noten om de 240 märkena på en kedjesida.
+ *
+ * Propen `liv`, `animate` och `blick` får fortsätta sättas av anropsplatserna.
+ * De blir verkningslösa och inte felaktiga, alltså behöver verksamhetssidan
+ * inte veta vilket märke som gäller. Det är hela poängen med strömbrytaren.
+ */
+export const MARKE_ROR_SIG = MASKOT;
 const { FACE_MARKUP, FACE_PLATE } = RITNING;
 
 export type FaceKey = 'clean' | 'minor' | 'major' | 'none';
@@ -137,18 +177,30 @@ export function faceDetalj(_size: number): FaceDetalj {
 }
 
 /**
- * Ringfärg i den runda varianten, och plattans färg i den fyllda.
+ * RINGEN: den tunna linjen längs kartnålens kant, innanför den vita konturen.
  *
- * Gradienten är borta. Den fanns aldrig av en anledning, och maskotens regel
- * är noll gradienter, verifierat i fyra av Duolingos officiella filer. En
- * gradient som är läsbar i 200 px är dessutom bara brus i 16.
+ * Den enda kvarvarande konsumenten är lib/kartnal.ts. Den runda varianten som
+ * namnet syftar på är borta, se FACE_RAM_RADIE längre ned.
+ *
+ * RINGEN FÖLJER RITNINGEN, och det är inte kosmetik. En ring finns för att ge
+ * droppen en egen kant, alltså måste den skilja sig från plattan. Maskotens
+ * plattor är pastell och ringen mättad. Det klassiska märkets plattor ÄR de
+ * mättade tonerna, så samma fyra tal hade gett en ring i plattans egen färg
+ * på tre nålar av fyra. Den klassiska ritningen bär därför sina egna,
+ * mörkare toner, och de står i face-klassisk.ts.
+ *
+ * Gradienten är borta ur båda ritningarna. Den fanns aldrig av en anledning,
+ * och märkets regel är noll gradienter, verifierat i fyra av Duolingos
+ * officiella filer. En gradient som är läsbar i 200 px är brus i 13.
  */
-export const FACE_RING: Record<FaceKey, string> = {
+const MASKOT_RING: Record<FaceKey, string> = {
   clean: '#00B92B',
   minor: '#FECB00',
   major: '#EB0000',
   none: '#C7C7CC',
 };
+
+export const FACE_RING: Record<FaceKey, string> = MASKOT ? MASKOT_RING : KLASSISK.FACE_RING;
 
 /**
  * Plattans ton bakom ansiktet i den fyllda varianten.

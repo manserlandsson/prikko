@@ -56,7 +56,7 @@
  * märken, och en blinkning där är inte en animation utan 240 stycken.
  */
 import type { VerdictOrNone } from '../lib/site';
-import { FACE_MARKUP, FACE_PLATE, faceDetalj, faceKey } from '../lib/face';
+import { FACE_MARKUP, FACE_PLATE, MARKE_ROR_SIG, faceDetalj, faceKey } from '../lib/face';
 import { MARKE_KATALOG, riggatAnsikte } from '../lib/marke-rorelse';
 
 interface Props {
@@ -141,8 +141,20 @@ const PULS = {
   none: null,
 } as const;
 
-const puls = liv ? PULS[key] : null;
-const rorelse = animate || blick || puls !== null;
+/**
+ * RÖRELSEN GÄLLER BARA GRÄVLINGSMÄRKET, och det avgörs inte här.
+ *
+ * MARKE_ROR_SIG följer av strömbrytaren i lib/face.ts. Det klassiska märket
+ * har varken ögonlock, bryn eller pupiller att rigga, och riggens spärr fäller
+ * bygget hellre än att leverera ett halvlevande ansikte. Skälet i sin helhet
+ * står vid flaggan.
+ *
+ * Grinden sitter HÄR och inte hos anropsplatserna. Verksamhetssidan ska få be
+ * om `liv` utan att veta vilken ritning som gäller, annars hade strömbrytaren
+ * spridit sig till varje sida som ritar ett stort märke.
+ */
+const puls = liv && MARKE_ROR_SIG ? PULS[key] : null;
+const rorelse = MARKE_ROR_SIG && (animate || blick || puls !== null);
 
 /**
  * Ansiktet, riggat bara när något ska röra sig.
