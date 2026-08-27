@@ -66,6 +66,7 @@ import ActionPanel from '../../components/ActionPanel.astro';
 import ArtikelBanner from '../../components/ArtikelBanner.astro';
 import Handlingsrad from '../../components/Handlingsrad.astro';
 import Anmal from '../../components/Anmal.astro';
+import { anmalningsvagar, arKonsumentvand } from '../../lib/anmalan.ts';
 import Kontrolldatum from '../../components/Kontrolldatum.astro';
 import {
   BEST_NEARBY_M,
@@ -289,24 +290,29 @@ const ownCategories: CategorySlice[] = kommunCats.usable
 const kedja = chainFor(e);
 
 /**
- * Konsumentvänd eller inte, samma nämnare som öppettiderna redan använder.
+ * Vägen till kommunens eget anmälningsformulär, noll, en eller två.
  *
- * Restaurang, café och butik. Listan speglar KONSUMENT i pipeline/oppettider.py,
- * som i sin tur pekar hit och säger att site/src/lib/categories.ts är
- * sanningen. Ändras den ena ska den andra ändras med.
+ * Villkoret var tidigare `kommun.code === '0180'` med motiveringen att bara
+ * Stockholm har formulär som tar emot verksamheten som parameter. Ägaren
+ * 2026-08-27: "hur kan vi inte ha anmäl till kommunen på alla kommuner, visst,
+ * vissa kanske vi bara länkar till någon basic e-tjänst ej specifierad för
+ * just den restaurangen men ändå." Han har rätt: en allmän länk är inte ett
+ * sämre svar, den är rätt svar för de kommunerna, och de 7 524 sidor utanför
+ * Stockholm fick i praktiken ingenting.
  *
- * Talet är 5 610 av Stockholms 8 520, mätt 2026-08-25 genom att köra
- * `classify` över hela filen. Den enda som läser flaggan i dag är
- * matförgiftningslänken i Anmal.astro: ett förskolekök, en transportör eller
- * ett huvudkontor ska inte erbjudas den, för det är ingen plats någon ätit på.
+ * Uppslaget bor i lib/anmalan.data.ts och regeln i lib/anmalan.ts. Här står
+ * bara nämnaren för matförgiftningslänken, för det är sidmallen som känner
+ * kategorierna, och den nämnaren är öppettidernas: se `arKonsumentvand`.
+ * Talet är 9 994 konsumentvända av 16 044.
  *
- * `spanning` räknas INTE med, till skillnad från i öppettidsskriptet. Det
- * statusvärdet betyder att kommunens ordförråd inte går att lösa upp, och det
- * finns bara i Höganäs. I Stockholm är det uppmätt 0 av 8 520, alltså hade en
- * gren för det varit en gren som aldrig tas.
+ * Utfallet, mätt i utgåvan 2026-08-27: 15 514 sidor får rutan mot 8 520 förut.
+ * De 530 som inte får den ligger i de fem kommuner som saknar
+ * klagomålstjänst, och är där verksamheter ingen ätit på: skolkök, grossister
+ * och huvudkontor.
+ *
+ * Tom lista betyder ingen ruta, och då sätts ingen `.panel` heller ut.
  */
-const KONSUMENTVANDA = new Set<string>(['restaurang', 'cafe', 'butik']);
-const konsumentvand = categoriesOf(e).categories.some((id) => KONSUMENTVANDA.has(id));
+const anmalningsvagarna = anmalningsvagar(kommun.code, e, arKonsumentvand(categoriesOf(e)));
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -1092,20 +1098,12 @@ const breadcrumbs = {
             ingen sektion att höra till, och då är sidopanelen rätt plats.
             Samma resonemang som redan gäller bevakningen, se Handlingsrad.astro.
 
-            Villkoret är kommunkoden och inte ett fält på raden. Bara Stockholm
-            har formulär som tar emot verksamheten som parameter, och länkarna
-            byggs av id, namn och adress som redan står i raden. De övriga elva
-            kommunerna har allmänna anmälningssidor utan förifyllning; en sådan
-            länk är en annan sak och byggs inte här förrän den är utredd per
-            kommun. Se Anmal.astro. */}
-        {kommun.code === '0180' && (
+            Villkoret är att kommunen har minst en fungerande väg. Elva av tolv
+            har det; den tolfte skulle få en tom ram om vi satte ut panelen
+            ändå. Vilken väg det blir avgörs i lib/anmalan.ts. */}
+        {anmalningsvagarna.length > 0 && (
           <div class="panel">
-            <Anmal
-              establishmentId={e.id}
-              establishmentName={e.name}
-              address={e.address}
-              matforgiftning={konsumentvand}
-            />
+            <Anmal vagar={anmalningsvagarna} />
           </div>
         )}
 

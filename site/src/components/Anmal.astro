@@ -1,6 +1,6 @@
 ---
 /**
- * Vägen till kommunens egna anmälningsformulär, förifylld med verksamheten.
+ * Vägen till kommunens eget anmälningsformulär.
  *
  * ---------------------------------------------------------------------------
  * DEN GAMLA INVÄNDNINGEN ÄR UPPFYLLD, INTE ÖVERTRÄDD
@@ -8,9 +8,8 @@
  * Handlingsrad.astro säger att "Anmäl en brist" är borttagen och inte kommer
  * tillbaka, eftersom Prikko inte är tillsynsmyndighet och inte kan ta emot en
  * anmälan om dålig hygien. Skälet var att PRIKKO tog emot anmälan. Här sker
- * det motsatta: länken lämnar sajten och landar i Stockholms stads eget
- * formulär, med verksamheten redan vald. Vi tar inte emot någonting, vi
- * kortar vägen till den som gör det.
+ * det motsatta: länken lämnar sajten och landar i kommunens eget formulär. Vi
+ * tar inte emot någonting, vi kortar vägen till den som gör det.
  *
  * ---------------------------------------------------------------------------
  * VARFÖR RUBRIKEN NÄMNER MOTTAGAREN OCH INTE ANKLAGELSEN
@@ -25,104 +24,48 @@
  * att anmälan inte går till Prikko under docs/18_sprakregler.md.
  *
  * ---------------------------------------------------------------------------
- * FÄLLAN: EN TOM ADRESS NOLLAR HELA FÖRIFYLLNINGEN, TYST
+ * KOMPONENTEN VET INTE VILKEN KOMMUN DET ÄR
  * ---------------------------------------------------------------------------
- * Båda formulären kräver att id, namn OCH adress är icke-tomma. Är adressen
- * tom släpper deras parameterbindning hela blocket, och då blir även NAMNET
- * tomt. Sidan svarar 200 och laddar som vanligt, den är bara oifylld, alltså
- * en tyst förlust av hela poängen.
+ * Den fick tidigare Stockholms id, namn och adress och byggde två URL:er
+ * själv. Nu tar den emot färdiga vägar från lib/anmalan.ts, som är den enda
+ * plats där tolv kommuners egenheter bor: förifyllning, fältnamn, tysta
+ * fällor och det faktum att en kommun kan ha noll, en eller två vägar.
  *
- * Uppmätt 2026-08-25 på M/s Ballerina, id 00b1cf0a-aa70-4533-bbe0-2e19cb88a9a7:
+ * Rutan säger ingenting om huruvida länken är förifylld eller allmän.
+ * Besökaren bryr sig om att komma till rätt formulär, inte om hur mycket vi
+ * kunde fylla i åt hen.
  *
- *     address=       ->  formuläret visar inget namn      (trasigt)
- *     address=%20    ->  formuläret visar "M/s Ballerina" (fungerar)
- *     address=+      ->  formuläret visar "M/s Ballerina" (fungerar)
- *
- * Samma utfall på /brister/ med FoodPlaceAddress. Därför ADRESS_SAKNAS, ett
- * mellanslag, och aldrig en tom sträng. Det gäller 113 av 8 520 stockholmsrader,
- * varav 99 är konsumentvända och alltså får båda länkarna.
- *
- * ---------------------------------------------------------------------------
- * VARFÖR VI BYGGER LÄNKEN SJÄLVA I STÄLLET FÖR ATT BÄRA MED KOMMUNENS
- * ---------------------------------------------------------------------------
- * Rådata från SearchFacilitiesMap bär färdiga fält PoisoningLink och
- * ComplainLink. Det är frestande att bara skriva av dem, men de har samma bugg:
- * stadens egen karta bygger `address=` tomt för de 113 adresslösa och
- * producerar alltså trasiga länkar till sig själv. Kontrollerat 2026-08-25 på
- * M/s Ballerina och på Linje 80, SL, Rederiaktiebolaget Ballerina.
- *
- * Vi bygger dem därför här, av id, namn och adress som redan står i raden.
- * Det kostar noll nätverk, noll fält i datafilen och gäller alla 8 520 utan
- * en ny hämtning. Att lägga två färdiga URL:er på varje rad hade dessutom
- * vuxit stockholm.json med ett par megabyte för något som är härlett.
- *
- * Kodningen är URLSearchParams, som skriver mellanslag som `+`. Prövat mot
- * båda formulären med snedstreck, ampersand och å-ä-ö i namnet: "M/s
- * Ballerina" och "Parma Kök & Bar" kom tillbaka oförändrade.
+ * En tom lista ritar ingenting. Sidmallen ska ändå låta bli att sätta ut
+ * panelen då, så att den tomma `.panel`-ramen inte blir kvar.
  */
 
+import type { Anmalningsvag } from '../lib/anmalan.ts';
+
 interface Props {
-  /** Vårt nationella id, `F-0180-<guid>`. Guiden ÄR stadens foodplaceid. */
-  establishmentId: string;
-  establishmentName: string;
-  /** Gatuadressen, eller null. Null är hela skälet till ADRESS_SAKNAS. */
-  address: string | null;
-  /**
-   * Får matförgiftningslänken visas? Sant för restauranger, caféer och
-   * butiker. Ett förskolekök, en transportör eller ett huvudkontor ska inte
-   * ha den; klagomålslänken gäller alla, för brister i livsmedelshantering
-   * finns även där. Sidmallen avgör, den känner kategorierna.
-   */
-  matforgiftning: boolean;
+  /** En eller två vägar, i ordning. Se lib/anmalan.ts. */
+  vagar: Anmalningsvag[];
 }
 
-const { establishmentId, establishmentName, address, matforgiftning } = Astro.props;
-
-/** Se fällan ovan. Ett mellanslag, aldrig en tom sträng. */
-const ADRESS_SAKNAS = ' ';
-
-const foodplaceid = establishmentId.replace(/^F-0180-/, '');
-const adress = (address ?? '').trim() || ADRESS_SAKNAS;
-
-const matforgiftningHref =
-  'https://etjanster.stockholm.se/matforgiftning/sallskap?' +
-  new URLSearchParams({
-    foodplaceid,
-    name: establishmentName,
-    address: adress,
-  }).toString();
-
-const bristerHref =
-  'https://etjanster.stockholm.se/brister/brister?' +
-  new URLSearchParams({
-    FoodPlaceId: foodplaceid,
-    FoodPlaceName: establishmentName,
-    FoodPlaceAddress: adress,
-  }).toString();
+const { vagar } = Astro.props;
 ---
 
 {/* `data-nosnippet` av samma skäl som sidopanelens övriga rutor: två
     länketiketter är en väg vidare och inte sidans svar. Google har byggt ett
     utdrag av knappnamn förut, se Handlingsrad.astro. */}
-<div data-nosnippet>
-  <h2 class="rubrik">Anmäl till kommunen</h2>
+{vagar.length > 0 && (
+  <div data-nosnippet>
+    <h2 class="rubrik">Anmäl till kommunen</h2>
 
-  {matforgiftning && (
-    <a class="btn-ghost" href={matforgiftningHref} target="_blank" rel="noopener nofollow">
-      <span>Misstänkt matförgiftning</span>
-      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M6 3h7v7M13 3 3.5 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    </a>
-  )}
-
-  <a class="btn-ghost" href={bristerHref} target="_blank" rel="noopener nofollow">
-    <span>Brister i livsmedelshanteringen</span>
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M6 3h7v7M13 3 3.5 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-  </a>
-</div>
+    {vagar.map((vag) => (
+      <a class="btn-ghost" href={vag.href} target="_blank" rel="noopener nofollow">
+        <span>{vag.etikett}</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M6 3h7v7M13 3 3.5 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+    ))}
+  </div>
+)}
 
 <style>
   /* Samma panelrubriknivå som resten av sidopanelen. Regeln står här och inte
