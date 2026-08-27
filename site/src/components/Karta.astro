@@ -121,9 +121,23 @@ interface Props {
    * utsnitt har bett om just det.
    */
   vy?: { lng: number; lat: number; zoom: number };
+  /**
+   * Lådan som MÅSTE synas, för den layout där `vy` inte går att använda.
+   *
+   * Under 900 px är listan ett ark som ligger ÖVER kartan, och kartrutan är
+   * då 375 x 812 medan den synliga strimman är 375 x 390. Ett center med en
+   * zoom hamnar mitt i RUTAN, alltså bakom arket. Uppmätt vid 375 x 812 innan
+   * det här fältet fanns: strimman visade latitud 59,90 till 63,67, alltså
+   * Norrland, och ALLA TOLV kommuner låg dolda under arket.
+   *
+   * Arket får därför en egen kamera, räknad i webbläsaren mot den strimma som
+   * faktiskt syns. Talet kan inte räknas vid bygget: arkets höjd följer
+   * fönstrets, och 390 px gäller en telefon på 812.
+   */
+  vylada?: [number, number, number, number];
 }
 
-const { kommun, data, vy } = Astro.props;
+const { kommun, data, vy, vylada } = Astro.props;
 const base = kommun ? `/${kommun.slug}` : '';
 
 /** Vyns namn i klartext. Står i rubriken, i kartans etikett och i tomläget. */
@@ -420,6 +434,7 @@ const LEGEND = [
   data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
   data-vy={vy ? `${vy.zoom}/${vy.lat}/${vy.lng}` : undefined}
+  data-vylada={vylada ? vylada.join(',') : undefined}
   data-city={plats}
   data-kommun={kommun?.slug}
   data-omraden={JSON.stringify(omradesgrupper)}
@@ -4210,6 +4225,45 @@ const LEGEND = [
         vyDel.length === 3 && vyDel.every((n) => Number.isFinite(n))
           ? { zoom: vyDel[0], lat: vyDel[1], lng: vyDel[2] }
           : null;
+
+      /**
+       * ══ ARKET HAR EN EGEN KAMERA, OCH DEN RÄKNAS HÄR ═══════════════════
+       *
+       * Under 900 px ligger listan som ett ark ÖVER kartan. Kartrutan är då
+       * hela fönstret medan bara strimman ovanför arket syns, och ett center
+       * med en zoom sätter mitten i RUTAN, alltså under arket.
+       *
+       * Uppmätt vid 375 x 812 innan den här grenen fanns: rutan 375 x 812,
+       * arkets överkant på y 390, alltså en synlig strimma på 390 px. Med
+       * `vy` rakt av visade strimman latitud 59,90 till 63,67, och alla tolv
+       * kommuner låg under arket. Sidan öppnade på Norrland, där vi inte har
+       * en enda verksamhet.
+       *
+       * Lösningen är inte en andra zoom i en mediefråga. Arkets höjd följer
+       * fönstrets, alltså finns inget tal att skriva ned: 390 gäller en
+       * telefon på 812 och ingen annan. Kameran ställs i stället på lådan med
+       * en NEDRE MARGINAL lika stor som det arket täcker, mätt i samma sekund
+       * kartan byggs. Uppmätt utfall vid 375 x 812: zoom 4,74 i stället för
+       * 5,10, alltså ett steg ut, och alla tolv i strimman.
+       *
+       * `padding` gäller bara den här inpassningen. Att sätta den på kartan
+       * med `setPadding` hade flyttat varje senare `fitBounds` också, alltså
+       * även ett områdesval som redan landar rätt.
+       */
+      const arkLage = window.matchMedia('(max-width: 899px)').matches;
+      const vyladaDel = (root!.dataset.vylada ?? '').split(',').map(Number);
+      const oppningsLada =
+        vyladaDel.length === 4 && vyladaDel.every((n) => Number.isFinite(n))
+          ? (vyladaDel as [number, number, number, number])
+          : null;
+
+      /** Vad arket täcker av kartrutan, i px. Noll på bred skärm. */
+      const arkTacker = (() => {
+        if (!arkLage) return 0;
+        const ram = kartram.getBoundingClientRect();
+        const arkRuta = ark.getBoundingClientRect();
+        return Math.max(0, Math.round(ram.bottom - arkRuta.top));
+      })();
       /* Ringen bara när fragmentet kom utifrån. Se skrivFragment: vår egen
          återskrivning bär en flagga i history.state, och den överlever en
          omladdning av samma historikpost. */
@@ -4233,13 +4287,27 @@ const LEGEND = [
          * ändras av någon annan mellan två besök.
          */
         style: '/kartstil/prikko.json',
-        /* Tre utgångslägen i fallande ordning: adressens fragment, sidans egen
-           öppningsvy, och sist lådan. Lådan är kommunkartornas väg. */
+        /*
+         * Fyra utgångslägen i fallande ordning:
+         *
+         *   1. Adressens fragment. Den som delat ett utsnitt har bett om det.
+         *   2. Sidans låda passad i den SYNLIGA strimman, när ett ark täcker
+         *      kartan. Se `arkTacker`.
+         *   3. Sidans center och zoom, alltså bred skärm på rikskartan.
+         *   4. Datalådan. Kommunkartornas väg, oförändrad.
+         */
         ...(startVy
           ? { center: [startVy.lng, startVy.lat] as [number, number], zoom: startVy.zoom }
-          : oppningsVy
-            ? { center: [oppningsVy.lng, oppningsVy.lat] as [number, number], zoom: oppningsVy.zoom }
-            : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
+          : oppningsLada && arkTacker > 0
+            ? {
+                bounds: oppningsLada,
+                fitBoundsOptions: {
+                  padding: { top: 32, left: 32, right: 32, bottom: arkTacker + 32 },
+                },
+              }
+            : oppningsVy
+              ? { center: [oppningsVy.lng, oppningsVy.lat] as [number, number], zoom: oppningsVy.zoom }
+              : { bounds: [w, s, e, n] as [number, number, number, number], fitBoundsOptions: { padding: 32 } }),
         attributionControl: false,
         /* MapLibres knappar och etiketter på svenska. Se kartbas.ts. */
         locale: KART_SPRAK,

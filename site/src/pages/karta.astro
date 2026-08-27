@@ -121,6 +121,26 @@ const data = utsnitt()!;
  */
 const SVERIGE_VY = { lng: 15.295, lat: 59.734, zoom: 5.1 };
 
+/**
+ * Lådan runt de tolv kommunernas konturer, för den layout där arket täcker
+ * kartan.
+ *
+ * Samma tal som räkningen ovan vilar på, och de står här som en enda rad så
+ * att den som ändrar beståndet ser båda ställena samtidigt. Talen kommer ur
+ * `municipalityArea` i lib/omraden.ts:
+ *
+ *     Höganäs 12,117 i väster   Uppsala 18,473 i öster
+ *     Lomma   55,641 i söder    Uppsala 60,186 i norr
+ *
+ * Under 900 px ligger listan som ett ark ÖVER kartan, och den strimma som
+ * syns är knappt halva rutan. Uppmätt vid 375 x 812: rutan 375 x 812, arkets
+ * överkant på y 390. Med centret ovan rakt av visade strimman latitud 59,90
+ * till 63,67, alltså Norrland, och alla tolv kommuner låg dolda. Kameran
+ * passar därför in lådan i strimman i stället, räknat i webbläsaren mot
+ * arkets faktiska höjd, se `vylada` i Karta.astro.
+ */
+const SVERIGE_LADA: [number, number, number, number] = [12.117, 55.641, 18.473, 60.186];
+
 const title = 'Karta över hygienkontroller i Sverige';
 const description =
   `Karta med ${formatNumber(data.count)} restauranger och livsmedelsverksamheter i Sverige. ` +
@@ -153,7 +173,7 @@ const jsonLd = {
       dokumentet på alla bredder, till skillnad från förut då den klipptes
       bort helt på telefon.
     */}
-    <Karta data={data} vy={SVERIGE_VY} />
+    <Karta data={data} vy={SVERIGE_VY} vylada={SVERIGE_LADA} />
   </div>
 </Base>
 
