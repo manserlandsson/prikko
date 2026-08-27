@@ -3451,7 +3451,15 @@ const LEGEND = [
        */
       const fakta: string[] = [];
       if (datum) fakta.push(`Kontrollerad ${datum}`);
-      if (p.k > 1) fakta.push(`${p.k} kontroller i historiken`);
+      /* "6 kontroller" och inte "6 kontroller i historiken".
+         De två orden sa ingenting som raden inte redan säger: framför står
+         "Kontrollerad <datum>", alltså den SENASTE, och då kan talet efter
+         bara vara alla. Priset för dem är mätt över alla 16 044 rader med
+         verklig data: den längsta metaraden går från 275 px till 342, alltså
+         från ett kort på 333 till ett på 400. Vid kortets tak på 336 ryms
+         100 procent av raderna utan orden och 35,0 procent med dem. Det var
+         alltså de två orden som bröt raden i skärmbilden ägaren skickade. */
+      if (p.k > 1) fakta.push(`${p.k} kontroller`);
       if (fakta.length > 0) {
         const rad = e('p', 'kort-fakta');
         rad.textContent = fakta.join(' · ');
@@ -7190,7 +7198,71 @@ const LEGEND = [
     top: 0;
     left: 0;
     z-index: 3;
-    width: 272px;
+    /*
+     * BREDDEN FÖLJER NAMNET, med golv och tak. Båda talen är räknade.
+     *
+     * Här stod `width: 272px` fast. Ägaren 2026-08-27, med skärmbild av
+     * kortet för "Monster Chicken, Birger Jarlsgatan": "dessa rutor som
+     * poppar upp på kartan får gärna vara en aning större så att saker och
+     * ting får plats, alt, att dom anpassas utefter storlek på namn osv."
+     *
+     * GOLVET är dagens 272. Ett kort som krympte till ett kort namn hade
+     * hoppat i storlek mellan två nålar, och kortet har tre sektioner under
+     * namnet som alla vill ha samma bredd.
+     *
+     * ── TAKET ÄR 336, OCH DET ÄR RÄKNAT ─────────────────────────────────
+     *
+     * KROMET FÖRST, uppmätt i webbläsaren på ett riktigt kort och inte
+     * uppskattat ur den här filen. Kortet bär `padding: 8px 12px` och en
+     * hårlinjekant från den delade kortstilen, alltså 13 px i vardera kanten
+     * som INTE syns någonstans i reglerna nedan:
+     *
+     *     runt namnet    13 + 16 + märket 38 + luft 12 + 24 + 13 = 116 px
+     *     runt metaraden 13 + 16 + 16 + 13                       =  58 px
+     *
+     * Ett första försök satte taket till 320 på ett antaget krom av 90 och
+     * 32. Mätningen fällde det: namnet i nittionde percentilen bröt ändå till
+     * två rader och metaraden till två. Talen nedan är därför mätta mot det
+     * verkliga kromet.
+     *
+     * NAMNEN. Alla 16 044 namn i registret rasteriserade i kortets egen stil,
+     * 14 px vikt 600 i Instrument Sans:
+     *
+     *     median 123      p90 207      p95 235      p99 286      längsta 831
+     *
+     * Det längsta är ett DATAFEL och inte ett namn: en hel mening om
+     * arrendatorer som hamnat i namnfältet i Oskarshamn, 124 tecken. Taket
+     * sätts därför på percentilen. p90 kräver 207 + 116 = 324.
+     *
+     * METARADEN binder taket, inte namnet. Raden är byggd av verklig data,
+     * alltså varje verksamhets EGET senaste datum och EGET antal kontroller,
+     * och mätt i 13 px vikt 400:
+     *
+     *     median 223      p90 255      p95 261      p99 267      längsta 275
+     *
+     * Den längsta kräver 275 + 58 = 333. 336 är det minsta talet på sajtens
+     * åttastegsskala som ligger över det, alltså ryms VARENDA metarad på en
+     * rad, och namnet i nittionde percentilen får 12 px över.
+     *
+     * UTFALLET vid 336, räknat på alla 16 044:
+     *
+     *     namnet på en rad     92,8 %   mot 71,4 % vid dagens 272
+     *     metaraden på en rad  100 %    mot 36,0 % vid 272
+     *
+     * Ett tak på 352 hade köpt 2,3 procentenheter till för 16 px mer karta,
+     * och 400 hade tagit över halva kartrutan på en telefon i liggande för de
+     * sista fyra procenten.
+     *
+     * `calc(100% - 20px)` är kartrutans egen bredd minus de två marginaler
+     * placeraKort() räknar med, konstanten M = 10 i vardera kanten. Utan den
+     * hade ett kort på en smal kartruta blivit bredare än ytan det ska
+     * placeras i, och placeraKort() hade inte haft någonstans att lägga det.
+     * Med den gäller left >= M och left + kW <= ramW - M för varje bredd,
+     * alltså kan kortet aldrig hamna utanför kartan i sidled.
+     */
+    width: max-content;
+    min-width: 272px;
+    max-width: min(336px, calc(100% - 20px));
     border-radius: var(--r-card);
     background: var(--card);
     box-shadow: var(--shadow-pop);
@@ -7617,6 +7689,12 @@ const LEGEND = [
       bottom: calc(var(--ark-syns, 122px) + var(--s-3) + var(--keyboard-inset, 0px));
       z-index: 17;
       width: auto;
+      /* Golvet och taket ovanför gäller kortet VID NÅLEN. Här spänner kortet
+         mellan left och right, alltså 351 px på en telefon på 375, och ett
+         tak på 320 hade KRYMPT det. Arket är inte trångt om plats på bredden;
+         det är den ytan namnet har mest av. */
+      min-width: 0;
+      max-width: none;
       border-radius: var(--r-card);
     }
 
