@@ -6834,12 +6834,41 @@ const LEGEND = [
     overflow: hidden;
     background-color: var(--bild-tom);
     background-repeat: no-repeat;
-    background-position: center;
-    /* 42 procent av ytans HÖJD, alltså Bildytas ANDEL rakt av, och en andel
-       i stället för två fasta tal: motivet skalar då med båda radformerna av
-       sig självt. 0,42 av 116 är 49, av 78 är 33. Talet är provrenderat av
-       Bildyta i 0,34, 0,42, 0,50 och 0,58 med bedömningsmärket på plats. */
-    background-size: auto 42%;
+    /*
+     * MOTIVET STÅR PÅ MARKEN, det svävar inte. Ägaren valde utförande H ur
+     * brand/_prov-kartkort.html 2026-08-27, efter att ha sagt att korten "ser
+     * skumt ut med bilden och så sitter ikonen nere till vänster".
+     *
+     * Diagnosen var inte den jag gissade. Jag trodde att markisen och märket
+     * konkurrerade som två figurer, och utförande E prövade just det med en
+     * slät platta utan motiv. Det läste lugnare men lämnade en tom platta med
+     * en dekal i hörnet, alltså var konkurrensen inte felet.
+     *
+     * Det verkliga felet är ANDELEN FOTO. Boolis bildyta är ett fotografi i
+     * 100 procent av raderna, vår i 2,29: uppmätt 367 av 16 044, och i drift
+     * hade 1 av 60 synliga rader på Stockholms kartsida ett foto. I de övriga
+     * låg märket på en 320 x 116 stor ruta med ett 49 px motiv svävande mitt
+     * i fältet. Det läser inte som en bild med en etikett utan som en TRASIG
+     * BILD MED EN DEKAL PÅ, och det är den saknade bilden ägaren ser.
+     *
+     * 58 procent mot underkanten gör motivet till en fasad som står på
+     * marken, och märket får något att ligga bredvid i stället för att sitta
+     * på en tom yta. Utförande G höll samma storlek men behöll centreringen
+     * och visar att det är just svävandet och inte storleken som gör
+     * skillnaden.
+     *
+     * TVÅ UTFÖRANDEN FÖLL PÅ ETT MÄTT TAL och ska inte föreslås igen. Att ta
+     * bort platshållaren, eller hela bildytan, ger radens fyllnad 38,1
+     * respektive 33,9 procent. Radens egen regel längre upp kräver minst 80,
+     * och den regeln finns därför att kolumnen en gång mätte 44,2 och lästes
+     * som en ofärdig sida. Utan bildyta blir raden alltså TOMMARE än den var
+     * den dag ägaren först klagade. Med H står fyllnaden stilla på 84,0.
+     *
+     * Andelen och inte två fasta tal, så att motivet skalar med båda
+     * radformerna av sig självt: 0,58 av 116 är 67, av 78 är 45.
+     */
+    background-position: center bottom;
+    background-size: auto 58%;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23D0D0D8' d='M12 12h24v28H12z'/%3E%3Cpath fill='%23ADADB5' d='M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23C6C6CE' d='M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23ADADB5' d='M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%239E9EA7' d='M19 29h10v11H19z'/%3E%3Crect fill='%23BCBCC4' x='7' y='39.4' width='34' height='1.8' rx='.9'/%3E%3C/svg%3E");
   }
 
