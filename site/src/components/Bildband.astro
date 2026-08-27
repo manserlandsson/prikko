@@ -128,24 +128,26 @@
  * bild är aldrig ett läge man vill vara i.
  *
  *
- * ═══ VILKA BILDER SOM FÅR STÅ HÄR, OCH VARFÖR INTE ALLA ═══════════════════
+ * ═══ VILKA BILDER SOM FÅR STÅ HÄR ════════════════════════════════════════
  *
- * Bara bilder som inte kräver en SYNLIG attributionsrad, alltså `prikko`,
- * `own` och `owner`. Urvalet görs av anroparen, se `bandbilder` i
- * [kommun]/[slug].astro, eftersom samma villkor avgör vad som blir kvar till
- * sidopanelen.
+ * Alla, och det är hela poängen sedan 2026-08-27. Bandet är den enda vägen:
+ * en Commons-bild, en gatubild och ett eget foto ritas av samma komponent, i
+ * samma ruta, med samma radie, och skiljer sig bara i vilken rad de bär under
+ * bandet. Se LICENSGRINDEN nedan för vad som ändå aldrig visas.
  *
- * En Commons-bild kräver fotografens namn och licensnamnet intill bilden, och
- * en Mapillary-bild kräver deras logotyp; se Commonsbild.astro och
- * StreetPhoto.astro, som är byggda för just det och som står kvar i
- * sidopanelen. En 166 px bred ruta i en mosaik kan inte bära någotdera, och
- * att lägga dit bilden ändå vore ett avtalsbrott.
+ * Attributionen är ett VILLKOR och inte en artighet, och den följer bilden och
+ * inte sidan. En Commons-bild bär fotografens namn, licensnamnet och en länk
+ * till filsidan; en Mapillary-bild bär deras logotyp. Båda står i
+ * `figcaption` under bandet, en rad per bild som kräver en, och raden är
+ * bunden till sin ruta med `data-plats` så att en trasig bild tar med sig sin
+ * egen rad ut.
  *
- * Har en verksamhet både sorterna får den BÅDA: bandet här och figuren i
- * panelen. Ingen bild göms, inget villkor bryts.
+ * Ett eget foto kräver ingenting och får ingen rad. En påhittad rad under en
+ * egen bild är en upplysning som inte betyder något.
  *
- * Uppmätt 2026-08-27: alla 366 bilder i beståndet är `wikimedia`, alltså ritar
- * bandet ingenting alls på någon befintlig sida. De 366 sidorna är oförändrade.
+ * Uppmätt 2026-08-27: 366 av 16 044 verksamheter bär en bild, alla ur
+ * Wikimedia Commons, och en enda bär tolv egna foton. Bandet ritas alltså med
+ * en bild på 366 sidor, med tolv på en, och inte alls på 15 677.
  */
 import type { StreetImage } from '../lib/data';
 
@@ -157,72 +159,184 @@ interface Props {
 const { images, name } = Astro.props;
 
 /**
- * Urvalet görs av ANROPAREN, se `bandbilder` i [kommun]/[slug].astro.
+ * LICENSGRINDEN, OCH DEN ÄR BANDETS EGEN.
  *
- * Där står villkoret om vilka källor som får stå i ett band och varför, och
- * det står på ett ställe eftersom samma villkor avgör vad som blir kvar till
- * sidopanelen. Två uttryck som ska vara varandras komplement får inte bo i
- * två filer: den dagen de glider isär hamnar en bild antingen på båda
- * ytorna eller på ingen.
+ * Fram till 2026-08-27 tog bandet bara bilder utan villkor och lät
+ * Commonsbild.astro rita de licensierade i sidopanelen. Det gav två
+ * komponenter för samma sak, och vilken som ritade avgjordes av hur många
+ * bilder verksamheten råkade ha. Ägaren såg det direkt: "kolla på 4340 och se
+ * hur holy smoke ser ut nu, så det är annorlunda tillskillnad från wikipedia
+ * bilderna? så ska det väl ej va?"
  *
- * Golvet på två står ändå kvar HÄR, som ett sista försvar. Med en enda bild
- * finns inget band att rulla, och en mosaik med fyra tomma rutor är inte en
- * form utan ett fel.
+ * Han har rätt, och det var fel håll: den gamla vägen gällde 366 sidor och den
+ * nya en enda. Bandet bär numera ALLA bilder och hela attributionen, och
+ * `photo`-vägen är borta.
+ *
+ * REGELN ÄR DEN SOM STOD I Commonsbild.astro: utan känd licenskod visas ingen
+ * bild alls. En bild vars licens vi inte kan skriva ut har ingen resurs att
+ * hänvisa till, och tomt är alltid det säkra utfallet. En bild vi eller
+ * verksamheten tagit själva har ingen licenskod och ska inte behöva någon.
  */
-const egna = images.filter((b) => b.url);
-const visa = egna.length >= 2;
+const LICENCES: Record<string, { label: string; href: string | null }> = {
+  'CC-BY-SA-4.0': { label: 'CC BY-SA 4.0', href: 'https://creativecommons.org/licenses/by-sa/4.0/deed.sv' },
+  'CC-BY-SA-3.0': { label: 'CC BY-SA 3.0', href: 'https://creativecommons.org/licenses/by-sa/3.0/deed.sv' },
+  'CC-BY-SA-2.5': { label: 'CC BY-SA 2.5', href: 'https://creativecommons.org/licenses/by-sa/2.5/deed.sv' },
+  'CC-BY-SA-2.0': { label: 'CC BY-SA 2.0', href: 'https://creativecommons.org/licenses/by-sa/2.0/deed.sv' },
+  'CC-BY-4.0': { label: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/deed.sv' },
+  'CC-BY-3.0': { label: 'CC BY 3.0', href: 'https://creativecommons.org/licenses/by/3.0/deed.sv' },
+  'CC-BY-2.5': { label: 'CC BY 2.5', href: 'https://creativecommons.org/licenses/by/2.5/deed.sv' },
+  'CC-BY-2.0': { label: 'CC BY 2.0', href: 'https://creativecommons.org/licenses/by/2.0/deed.sv' },
+  'CC0-1.0': { label: 'CC0', href: 'https://creativecommons.org/publicdomain/zero/1.0/deed.sv' },
+  /* Public domain är ingen licens och har ingen licenstext att länka till.
+     Raden står ändå, för läsaren ska få veta varför just den bilden inte bär
+     något villkor. Fyra av Commons-bilderna är public domain. */
+  PD: { label: 'Public domain', href: null },
+  /* Mapillarys villkor säger "Creative Commons Share Alike (CC BY-SA)" utan
+     versionsnummer, så länken pekar på villkoren där licensen står och inte på
+     en versionsdeklaration vi inte kan belägga. */
+  'CC-BY-SA': { label: 'CC BY-SA', href: 'https://www.mapillary.com/terms' },
+};
+
+/** Källor som inte har någon tredje part att kreditera. Se lib/db.ts. */
+const UTAN_VILLKOR = new Set(['prikko', 'own', 'owner']);
 
 /**
- * ALLA bilder ritas som rutor. Datorn GÖMMER de överflödiga.
+ * MAPILLARYS LOGOTYP ÄR ETT VILLKOR, INTE EN DEKORATION.
  *
- * Ett första försök ritade bara fem, alltså mosaikens stora plus fyra små, och
- * lät resten nås genom luckan. Det höll på dator och gick sönder på telefon:
- * där ÄR rutorna karusellen, och plusserien på sista rutan är gömd, så sju av
- * tolv bilder gick inte att nå med något svep alls. Uppmätt i bygget innan det
- * rättades: `mosaik.scrollWidth` var 1 715 px, alltså fem rutor à 343.
+ * Villkoren på mapillary.com/terms avsnitt 11, ordagrant: den som laddar ned
+ * enskilda bilder och serverar dem från sina egna servrar "must attribute the
+ * image(s) by visibly displaying the Mapillary logo and linking back to the
+ * Mapillary homepage or corresponding Mapillary image page". Det är precis vad
+ * vi gör. Avsnitt 7 förbjuder samtidigt att logotypen ritas av eller
+ * återskapas, så filen ska vara originalet ur deras presskit.
  *
- * Nu står alla tolv i märkningen och `.ruta:nth-child(n+6)` göms över 640 px.
- * `loading="lazy"` gör att de gömda inte hämtas på en dator som aldrig visar
- * dem, och på telefonen hämtas de när man sveper fram dem.
+ * Saknas filen visas ingen Mapillary-bild alls. Det är med avsikt och det är
+ * det försiktiga valet: att publicera bilden utan sin attribution är ett
+ * avtalsbrott, medan att låta bli bara är en ruta mindre i bandet.
+ *
+ * Samma glob och samma sökväg som StreetPhoto.astro hade, av samma skäl:
+ * `new URL(..., import.meta.url)` pekar i ett Astro-bygge på den paketerade
+ * modulen och inte på källfilen.
  */
-const forsta = egna[0];
-const resten = egna.slice(1);
+const logotyper = import.meta.glob<string>('../brand/mapillary-logo.*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const MAPILLARY_LOGO = Object.values(logotyper)[0];
+
+if (!MAPILLARY_LOGO && images.some((b) => b.source === 'mapillary')
+    && !(globalThis as any).__prikkoMapillaryLogoWarned) {
+  (globalThis as any).__prikkoMapillaryLogoWarned = true;
+  console.warn(
+    '\n  Mapillary-bilder hoppas över i bygget: site/src/brand/mapillary-logo.*\n' +
+      '  saknas. Mapillarys villkor avsnitt 11 kräver deras logotyp när vi serverar\n' +
+      '  bilden själva. Hämta originalfilen från Mapillarys varumärkessida och lägg\n' +
+      '  den där, så visas bilderna igen. Rita den inte av: avsnitt 7 förbjuder det.\n',
+  );
+}
+
+/** Länken tillbaka till källan, alltså URI:n CC BY-SA 3(a)(1)(A)(v) ber om. */
+function kallans_sida(b: (typeof images)[number]): string | null {
+  if (!b.id) return b.source === 'mapillary' ? 'https://www.mapillary.com' : null;
+  if (b.source === 'wikimedia') {
+    /* Filsidan och inte bildfilen: filsidan bär originalet, licensen,
+       fotografen och filens hela historik, medan bildfilen bär ingenting av
+       det. Samma form som prikko/commons.py `file_page_url` skriver. */
+    return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(b.id.replace(/ /g, '_'))}`;
+  }
+  if (b.source === 'mapillary') return `https://www.mapillary.com/app/?pKey=${b.id}`;
+  if (b.source === 'panoramax') return `https://api.panoramax.xyz/#focus=pic&pic=${b.id}`;
+  return null;
+}
+
+/**
+ * Varje bild med sin attribution, färdig att skriva ut.
+ *
+ * `credit` byggs i PIPELINEN och skrivs ut ordagrant här: "Foto:
+ * Holger.Ellgaard, 2013", eller "Okänd fotograf, 1912 till 1920" när Commons
+ * säger att upphovspersonen är okänd. Attributionen är ett licensvillkor och
+ * ska följa bilden genom databasen i stället för att sättas ihop på nytt av
+ * varje mall som råkar visa den. Se commons.credit_line.
+ */
+const bilder = images
+  .filter((b) => b.url)
+  .map((b) => {
+    const kalla = b.source ?? '';
+    const egen = UTAN_VILLKOR.has(kalla);
+    const licens = b.licence ? LICENCES[b.licence] ?? null : null;
+    return {
+      ...b,
+      egen,
+      licens,
+      credit: b.attribution ?? null,
+      href: kallans_sida(b),
+      logotyp: kalla === 'mapillary',
+      /* Gatubild och fotografi är två olika påståenden om vad man ser.
+         Formuleringarna är ordagrant de som Commonsbild och StreetPhoto
+         använde, så alt-texten är oförändrad för varje befintlig bild. */
+      alt: kalla === 'mapillary' || kalla === 'panoramax'
+        ? `Gatubild vid ${name}`
+        : `Foto på ${name}`,
+    };
+  })
+  /* Grinden. Utan känd licens och utan egen källa: ingen bild. Och ingen
+     Mapillary-bild så länge logotypen saknas i bygget. */
+  .filter((b) => (b.egen || b.licens !== null) && (!b.logotyp || Boolean(MAPILLARY_LOGO)));
+
+const antal = bilder.length;
+const visa = antal > 0;
+
+/* Den första är stor, resten fyller mosaiken. Se `data-antal` i markupen för
+   hur rutnätet delas när de är färre än fem. */
+const forsta = bilder[0];
+const resten = bilder.slice(1);
 
 /** Hur många som inte får plats i mosaikens fem rutor. Se `.fler` i markupen. */
-const dolda = Math.max(0, egna.length - 5);
+const dolda = Math.max(0, antal - 5);
 
-/* Den stora först, resten i mosaikens fyra små. Fler än fem finns kvar i
-   luckan, precis som Yelps "See all 272 photos". */
-const stor = egna[0];
-const sma = egna.slice(1, 5);
+/* Bara de bilder som faktiskt kräver en rad under bandet. Egna foton kräver
+   ingen och får ingen: en påhittad rad under en egen bild är en upplysning
+   som inte betyder något. */
+const upphov = bilder.filter((b) => b.credit || b.licens);
 ---
 
 {visa && (
-  <section
+  <figure
     class="bildband"
     id="bildband"
     data-namn={name}
-    data-urlar={JSON.stringify(egna.map((b) => b.url))}
+    data-urlar={JSON.stringify(bilder.map((b) => b.url))}
     aria-label={`Bilder på ${name}`}
   >
     {/*
+      `figure` och inte `section`, och det är inte kosmetik.
+
+      Bilderna och deras upphovsrad är EN enhet, och `figcaption` får bara bo
+      i en `figure`. Commonsbild.astro hade samma struktur av samma skäl, och
+      den strukturen är hela grunden för att raden under bilden räknas som
+      bildens attribution och inte som lös brödtext.
+
       INGEN RUBRIK, och det är mätt och inte tyckt. Ednia, Yelp och
       Tripadvisor har alla tre noll rubrik över sina bilder. Sidan bär dessutom
       redan en h2 som heter "Bilder", gästernas, längre ned; två rubriker med
       samma ord på samma sida hade varit sämre än ingen.
     */}
-    <div class="mosaik">
+    <div class="mosaik" data-antal={Math.min(antal, 5)}>
       <button type="button" class="ruta stor" data-oppna="0" aria-label="Visa bilden större">
         <img
           src={forsta.url}
-          alt={`Foto på ${name}`}
+          alt={forsta.alt}
+          width="600"
+          height="400"
           loading="lazy"
           decoding="async"
           data-bildband
+          data-plats="0"
         />
       </button>
-      {/* Tom alt på de övriga. Alla tolv föreställer samma ställe, och tolv
-          identiska alt-texter i rad är brus för den som lyssnar sig igenom
+      {/* Tom alt på de övriga. Alla bilderna föreställer samma ställe, och en
+          rad identiska alt-texter är brus för den som lyssnar sig igenom
           sidan. Den första bilden bär beskrivningen, resten är dekor i
           skärmläsarens mening. Samma dom som Bilder.astro. */}
       {resten.map((b, i) => (
@@ -230,9 +344,18 @@ const sma = egna.slice(1, 5);
           type="button"
           class="ruta"
           data-oppna={String(i + 1)}
-          aria-label={i === 3 && dolda > 0 ? `Visa alla ${egna.length} bilder` : 'Visa bilden större'}
+          aria-label={i === 3 && dolda > 0 ? `Visa alla ${antal} bilder` : 'Visa bilden större'}
         >
-          <img src={b.url} alt="" loading="lazy" decoding="async" data-bildband />
+          <img
+            src={b.url}
+            alt=""
+            width="600"
+            height="400"
+            loading="lazy"
+            decoding="async"
+            data-bildband
+            data-plats={String(i + 1)}
+          />
           {/* RÄKNAREN LIGGER PÅ SISTA RUTAN OCH ÄR INTE EN EGEN KNAPP.
 
               Här stod Yelps form, en fristående knapp med texten "Visa alla 12
@@ -254,12 +377,84 @@ const sma = egna.slice(1, 5);
         </button>
       ))}
 
-      {/* Ednias räknare, bara på telefon. Skriptet rättar den när man sveper;
-          står den fel innan skriptet hunnit igång är den ändå sann för första
-          bilden, som är den man ser. */}
-      <p class="raknare" aria-hidden="true"><span data-nu>1</span> / {egna.length}</p>
+      {/* Ednias räknare, bara på telefon och bara när det finns mer än en bild
+          att svepa till. Skriptet rättar den när man sveper; står den fel
+          innan skriptet hunnit igång är den ändå sann för första bilden, som
+          är den man ser. */}
+      {antal > 1 && (
+        <p class="raknare" aria-hidden="true"><span data-nu>1</span> / {antal}</p>
+      )}
     </div>
-  </section>
+
+    {/*
+      ═══ UPPHOVSRADEN ÄR ETT LICENSVILLKOR OCH INTE EN ARTIGHET ═══════════
+
+      Ägaren har sagt ordagrant om öppettidernas källa: "skriv inte ut
+      openstreetmap, den ska ligga i I-ikonen, HA INGET SÅNT där." Den regeln
+      följs överallt annars på sidan. Här bryts den, med avsikt, och skälet är
+      licensen och ingenting annat.
+
+      CC BY-SA 4.0 avsnitt 3(a)(1)(A) kräver att den som delar materialet
+      behåller upphovspersonens namn, en upphovsrättsnotis, en licensnotis, en
+      garantifriskrivning och en URI till materialet. 3(a)(1)(B) kräver att
+      ändringar anges. 3(a)(2) tillåter att villkoren uppfylls "in any
+      reasonable manner based on the medium", och nämner en länk till en
+      resurs som bär uppgifterna. Filsidan på Commons ÄR den resursen.
+
+      Kvar syns därför det minsta som fortfarande är sant utan att man
+      klickar: vem som tagit bilden och under vilken licens. "Nedskalad" är
+      ändringsangivelsen enligt 3(a)(1)(B) och kan inte kortas bort: vi lagrar
+      en 1 600 px WebP i stället för originalets upp till 6 720 x 4 480.
+
+      EN RAD PER BILD SOM KRÄVER EN, och ingen rad alls för våra egna foton.
+      På 366 av 367 sidor är det exakt en rad, alltså ordagrant samma text som
+      Commonsbild.astro skrev. På Holy Smoke är det noll rader, för tolv egna
+      foton har ingen tredje part att kreditera.
+
+      `data-plats` binder raden till sin ruta, så att en bild som inte går att
+      hämta tar med sig sin egen upphovsrad ut och inte någon annans. Utan det
+      hade en trasig bild lämnat kvar en rad som namnger en fotograf vars bild
+      inte syns.
+    */}
+    {upphov.length > 0 && (
+      <figcaption class="upphov text-muted">
+        {upphov.map((b) => (
+          <span class="rad" data-upphov={String(bilder.indexOf(b))}>
+            {b.credit && (
+              b.href ? (
+                <a href={b.href} target="_blank" rel="noopener noreferrer">{b.credit}</a>
+              ) : (
+                <span>{b.credit}</span>
+              )
+            )}
+            {b.credit && b.licens && ' · '}
+            {b.licens && (
+              b.licens.href ? (
+                <a href={b.licens.href} target="_blank" rel="noopener noreferrer">{b.licens.label}</a>
+              ) : (
+                <span>{b.licens.label}</span>
+              )
+            )}
+            {(b.credit || b.licens) && ' · nedskalad'}
+            {/* Logotypen, inte en textlänk. Se MAPILLARY_LOGO i frontmatteret:
+                avsnitt 11 säger "visibly displaying the Mapillary logo", och en
+                logotyp på en annan sida syns inte här. */}
+            {b.logotyp && MAPILLARY_LOGO && (
+              <a
+                class="logo"
+                href="https://www.mapillary.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Mapillary"
+              >
+                <img src={MAPILLARY_LOGO} alt="Mapillary" width="56" height="19" loading="lazy" />
+              </a>
+            )}
+          </span>
+        ))}
+      </figcaption>
+    )}
+  </figure>
 )}
 
 {visa && (
@@ -425,7 +620,20 @@ const sma = egna.slice(1, 5);
        vara det en månad senare; en söndrig ikon är sämre än en ruta mindre.
        Samma sista försvar som Commonsbild.astro och StreetPhoto.astro. */
     sektion.querySelectorAll('img[data-bildband]').forEach((img) => {
-      const bort = () => img.closest('.ruta')?.remove();
+      const bort = () => {
+        /* Rutan OCH dess egen upphovsrad. En trasig bild som lämnar kvar sin
+           rad namnger en fotograf vars bild inte syns, och det är sämre än
+           ingen bild alls. `data-plats` binder de två ihop. */
+        const plats = (img as HTMLElement).dataset.plats;
+        if (plats !== undefined) {
+          sektion.querySelector(`[data-upphov="${plats}"]`)?.remove();
+        }
+        img.closest('.ruta')?.remove();
+        /* Blev raden tom går hela bildtexten ut, så att en ensam prick eller
+           ett kvarglömt mellanrum inte står kvar under bandet. */
+        const kvar = sektion.querySelector('.upphov');
+        if (kvar && kvar.children.length === 0) kvar.remove();
+      };
       img.addEventListener('error', bort, { once: true });
       /* Bilder som redan hunnit misslyckas innan skriptet kördes har
          `complete` satt men ingen naturlig bredd. */
@@ -451,6 +659,23 @@ const sma = egna.slice(1, 5);
    * under läsarens ögon flyttar allt under sig. Samma skäl som står över
    * `.bilder .ruta` i Bilder.astro.
    */
+  /*
+   * `figure` bär webbläsarens egen marginal, `1em 40px`, och den måste bort.
+   *
+   * Uppmätt i bygget innan raden fanns: bandet låg på x 88 och var 600 px
+   * brett i en 680 px spalt, medan varje annan sektion i huvudkolumnen går
+   * kant i kant. Det är exakt det ojämna indrag som togs bort 2026-08-22, när
+   * ägaren såg att "bodyn har typ petats in från vänster till höger ojämnt".
+   *
+   * Bara sidorna och botten nollas. `margin-top` kommer ur sidmallens
+   * `.main > * + *` och ska fortsätta göra det, så att bandet får samma luft
+   * över sig som varje annan sektion.
+   */
+  .bildband {
+    margin-inline: 0;
+    margin-bottom: 0;
+  }
+
   .mosaik {
     position: relative;
     display: grid;
@@ -463,6 +688,44 @@ const sma = egna.slice(1, 5);
   .mosaik > .stor {
     grid-column: span 2;
     grid-row: span 2;
+  }
+
+  /*
+   * BANDET ÄR LIKA HÖGT MED EN BILD SOM MED TOLV.
+   *
+   * Ägaren 2026-08-27: en sida med ett foto såg ut på ett sätt och en med tolv
+   * på ett annat, av ett skäl som inte hade med sidan att göra. Rutnätet är
+   * därför alltid fyra spalter, två rader och 3:1, alltså 680x227 vid 1440,
+   * och det enda som ändras är HUR ytan delas. Placering, radie, proportion
+   * och upphovsrad är desamma i varje läge.
+   *
+   * Ett alternativ var att låta en ensam bild bli 680x453, alltså 3:2 över
+   * hela spalten. Det förkastades på ett mätt tal: det hade lagt 226 px till
+   * 366 sidor och tryckt ned kontrollberättelsen med lika mycket, medan Holy
+   * Smoke med tolv bilder blev kvar på 227. Två sidor som skiljer sig dubbelt
+   * i höjd bara för att den ena har fler foton är precis det felet igen.
+   *
+   * Fyra rutor att fylla finns bara när bilderna är fem eller fler. Är de
+   * färre får de som finns dela på ytan, och alla fyra fallen fyller rutnätet
+   * helt. Noll tomma celler i något läge.
+   */
+  .mosaik[data-antal='1'] > .stor {
+    grid-column: span 4;
+  }
+
+  .mosaik[data-antal='2'] > .stor,
+  .mosaik[data-antal='2'] > .ruta:nth-child(2) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .mosaik[data-antal='3'] > .ruta:nth-child(2),
+  .mosaik[data-antal='3'] > .ruta:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .mosaik[data-antal='4'] > .ruta:nth-child(2) {
+    grid-column: span 2;
   }
 
   /*
@@ -512,6 +775,44 @@ const sma = egna.slice(1, 5);
   .ruta:focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
+  }
+
+  /*
+   * Upphovsraden. Två egenskaper och inte en:
+   *
+   * `flex-direction: column` för att varje bild som kräver en attribution får
+   * en egen rad. Med en bild är det en rad, alltså exakt vad Commonsbild.astro
+   * skrev; med flera licensierade bilder blir det flera, och de får aldrig
+   * flyta ihop till en mening som ser ut att gälla en enda bild.
+   *
+   * `--fs-micro` är samma grad som Commonsbild.astro använde, så raden är
+   * oförändrad i storlek på de 366 sidor som redan hade den.
+   */
+  .upphov {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: var(--s-1);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+  }
+
+  .upphov .rad {
+    min-width: 0;
+  }
+
+  /* Logotypen står på egen rad under sin text, som i StreetPhoto.astro.
+     Villkoret är att den SYNS, inte att den trängs in i en radbrytning. */
+  .upphov .logo {
+    display: block;
+    margin-top: 4px;
+    line-height: 0;
+  }
+
+  .upphov .logo img {
+    display: block;
+    width: 56px;
+    height: auto;
   }
 
   /* Toningen på sista rutan, med antalet som återstår.

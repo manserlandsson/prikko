@@ -34,9 +34,11 @@
  *  - Ingen webbanalys är installerad. Typsnittet är självhostat.
  *  - Supabase-projektets databas ligger på AWS eu-north-1, Stockholm. Härlett
  *    ur Amazons egen ip-ranges.json.
- *  - StreetPhoto.astro finns men ingen datamängd innehåller ännu `image`.
- *    Om Mapillary-bilder börjar serveras från Mapillarys egen domän i stället
- *    för vår, blir det en tredje part till och sidan måste uppdateras.
+ *  - Bildband.astro kan rita gatubilder, men ingen datamängd innehåller ännu
+ *    en Mapillary- eller Panoramax-bild: alla 366 bilder är Commons-bilder ur
+ *    vår egen lagring. Om sådana bilder börjar serveras från källans egen
+ *    domän i stället för vår, blir det en tredje part till och sidan måste
+ *    uppdateras.
  *  - Platstjänsten i SiteSearch.astro läser koordinaten i webbläsaren och
  *    skickar den aldrig vidare. Verifierat i källkoden. Koordinaten kan hamna
  *    i adressens fragment (#map=zoom/lat/lng), avrundad till tre decimaler.

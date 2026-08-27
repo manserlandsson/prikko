@@ -50,8 +50,6 @@ import { registerrader } from '../../lib/registrering';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
-import StreetPhoto from '../../components/StreetPhoto.astro';
-import Commonsbild from '../../components/Commonsbild.astro';
 import Bildband from '../../components/Bildband.astro';
 import AwardNote from '../../components/AwardNote.astro';
 import JamforRuta from '../../components/JamforRuta.astro';
@@ -128,35 +126,25 @@ const stats = statistics(e);
 const neighbours = nearby(e);
 const hasCoords = e.lat !== null && e.lng !== null;
 
-/**
- * VILKA BILDER SOM HAMNAR VAR, OCH DELNINGEN SKER HÄR OCH INGEN ANNANSTANS.
+/*
+ * Bilderna skickas HELA till bandet, och delas inte upp här.
  *
- * `images` är en lista sedan 2026-08-27, se lib/db.ts, och den kan bära två
- * slags bild som inte får blandas:
+ * Här stod en uppdelning: bilder utan attributionskrav gick till bandet i
+ * huvudkolumnen, och den första bilden med ett krav gick till en figur i
+ * sidopanelen. Ägaren 2026-08-27: "kolla på 4340 och se hur holy smoke ser ut
+ * nu, så det är annorlunda tillskillnad från wikipedia bilderna? så ska det
+ * väl ej va?"
  *
- *   BANDET under bedömningen tar bilder som inte kräver någon synlig
- *   attributionsrad, alltså våra egna och verksamhetens egna. Se
- *   Bildband.astro för formen och för måtten.
+ * Han har rätt. Det gav två komponenter som ritade samma sak, och vilken som
+ * ritade avgjordes av om verksamheten råkade ha en bild eller flera. Uppmätt
+ * i bygget: /hoganas/holy-smoke bar klassen `mosaik` och
+ * /stockholm/restaurant-frantzen klassen `photo`. 366 sidor mot en, alltså var
+ * undantaget normalfallet.
  *
- *   PANELEN tar den första bild som gör det, alltså en ur Commons, Mapillary
- *   eller Panoramax. Fotografens namn, licensnamnet och länken till filsidan
- *   behöver den bildtext som bara den formen ger, och den formen rymmer en
- *   bild. Se Commonsbild.astro och StreetPhoto.astro.
- *
- * Att räkna upp de TILLÅTNA i bandet och inte de förbjudna är avsiktligt: en
- * ny källa med ett villkor vi inte känner till hamnar då utanför bandet av
- * sig själv och faller ned i panelen, i stället för att slinka in i en 166 px
- * bred ruta som inte kan bära något villkor alls.
- *
- * TVÅ ÄR GOLVET FÖR BANDET. En ensam egen bild står kvar i panelen, där en
- * bild har stått sedan sajten fanns; att flytta upp den hade ändrat sidan för
- * en funktion ingen bett om. Panelen tar därför det som bandet inte tog, och
- * ingen bild kan hamna mellan stolarna.
+ * Bandet bär numera varje bild och hela attributionen, se Bildband.astro, och
+ * `photo`-vägen är borta. Grinden som avgör vad som FÅR visas bor kvar i
+ * bandet, för det är samma grind som avgör om bilden kan bära sin licensrad.
  */
-const UTAN_VILLKOR = new Set(['prikko', 'own', 'owner']);
-const egnaBilder = e.images.filter((b) => b.url && UTAN_VILLKOR.has(b.source ?? ''));
-const bandbilder = egnaBilder.length >= 2 ? egnaBilder : [];
-const panelbild = e.images.find((b) => !bandbilder.includes(b)) ?? null;
 
 /*
  * Vad jämförelserutan föreslår. Grannarna är redan uträknade ovan och skickas
@@ -870,10 +858,10 @@ const breadcrumbs = {
             mobilordning: namn, besked, sedan bilder.
 
             Avsnittet finns inte alls på de sidor som saknar minst två egna
-            bilder, alltså på alla 16 044 i dag. Vilka bilder som får stå här
-            och varför en Commons-bild inte får det avgörs av `bandbilder` i
-            frontmatteret ovan. */}
-        <Bildband images={bandbilder} name={e.name} />
+            Avsnittet finns inte alls på de sidor som saknar bild, alltså på
+            15 678 av 16 044. Vilka bilder som får visas och vilken
+            attribution var och en bär avgörs i Bildband.astro. */}
+        <Bildband images={e.images} name={e.name} />
 
         {/* Datumet bedömningen vilar på, som ett kalenderblad. PAUSAD av
             ägaren: komponenten renderar ingenting, och flaggan som styr det
@@ -1090,41 +1078,21 @@ const breadcrumbs = {
           </div>
         )}
 
-        {/* Två bildkomponenter och inte en, för attributionskravet skiljer
-            dem åt.
+        {/* Panelen börjar numera med handlingsrutan och inte med en bild.
 
-            En gatubild ur Mapillary kräver DERAS logotyp intill bilden, se
-            StreetPhoto. En Commons-bild kräver fotografens namn, licensnamnet
-            och en länk till filsidan, vilket är ett annat krav och en annan
-            form. Att låta en komponent bära båda hade betytt två uppsättningar
-            villkor i samma mall och en gren i varje rad av den.
+            Bilden låg här fram till 2026-08-27, ritad av Commonsbild.astro
+            eller StreetPhoto.astro. Båda är borta: bandet under bedömningen
+            ritar varje bild, med samma attribution, och en verksamhet ska inte
+            se olika ut beroende på hur många foton den råkar ha. Se
+            Bildband.astro.
 
-            EN bild här, också sedan `images` blev en lista 2026-08-27.
-
-            Panelen visar den första bilden som KRÄVER en attributionsrad,
-            alltså en ur Commons, Mapillary eller Panoramax. Våra egna foton
-            går inte hit utan till bandet under bedömningen, se Bildband.astro,
-            och skälet är att kravet skiljer dem åt: en bild som ska bära
-            fotografens namn och licensnamnet behöver den bildtext som bara
-            den här formen ger.
-
-            En verksamhet som har båda sorterna får därför båda ytorna, och
-            ingen bild göms för att den andra finns. Uppmätt 2026-08-27: alla
-            366 bilder i beståndet är `wikimedia`, alltså är den här panelen
-            oförändrad på varenda sida som har en bild i dag.
-
-            210 av 16 047 sidor bär en Commons-bild. Se
-            pipeline/hamta_commonsbilder.py för varför den får gå före en
-            gatubild när båda finns.
-
-            Nämnaren är alla 16 047 och inte de 9 995 konsumentvända, för 183
-            av de 210 kommer ur Wikidata på namn och koordinat i stället för
-            ur en OSM-tagg, och den vägen når skolan, kyrkan och
-            äldreboendet också. Se docs/39_fler_bilder.md. */}
+            Vad flytten gav, uppmätt vid 1440: bilden gick från panelens
+            smala figur till 680 px bred i huvudkolumnen, alltså samma yta som
+            ett band med tolv bilder får. Bildrutan mäter 680x227 på
+            Restaurant Frantzén med sin enda Commons-bild och 680x227 på Holy
+            Smoke med sina tolv, vid samma x och samma y. Panelen på Frantzén
+            är 1 671 px hög efter flytten. */}
         <div class="panel">
-          {panelbild && (panelbild.source === 'wikimedia'
-            ? <Commonsbild image={panelbild} name={e.name} />
-            : <StreetPhoto image={panelbild} name={e.name} />)}
           <ActionPanel
             establishmentId={e.id}
             establishmentName={e.name}
@@ -1171,11 +1139,15 @@ const breadcrumbs = {
             Panelen läses därför i tre band uppifrån och ned: handlingar,
             uppslag om det här stället, vägar vidare till andra.
 
-            Uppmätt på Wirströms Pub vid 1440, som har alla sju rutorna:
-            rutan gick från plats två (y 554) till plats fyra (y 1071), och
-            panelens totala höjd är oförändrad 2 207 px. Ingenting som är en
-            handling sköts ned: kontaktkortet, bilden med "Något som inte
-            stämmer?" och "Anmäl till kommunen" ligger alla kvar ovanför.
+            Uppmätt på Wirströms Pub vid 1440, som då hade alla sju rutorna:
+            rutan gick från plats två (y 554) till plats fyra (y 1 161), och
+            panelens totala höjd var oförändrad 2 207 px. Ingenting som är en
+            handling sköts ned: kontaktkortet, "Något som inte stämmer?" och
+            "Anmäl till kommunen" låg alla kvar ovanför.
+
+            Bildrutan i panelen är sedan dess borttagen, se rutan ovanför, så
+            panelen är numera sex rutor och Företaget hamnar högre än 1 161.
+            Ordningen mellan de sex är oförändrad.
 
             REGISTRERINGSDATUMET STANNAR HÄR, och det var en verklig fråga.
             "Registrerad" är den enda raden som säger något om hur länge stället

@@ -78,7 +78,7 @@ const { e, storlek = 'kort', px = 72, tidig = false } = Astro.props;
  * LICENSGRINDEN, och den är två olika grindar för två olika sorters bild.
  *
  * En bild från Commons, Mapillary eller Panoramax får bara visas när vi vet
- * under vilken licens. Samma grind som Commonsbild.astro sätter: utan känd
+ * under vilken licens. Samma grind som Bildband.astro sätter: utan känd
  * licens finns ingen resurs att hänvisa till, och tomt är alltid det säkra
  * utfallet.
  *
@@ -117,7 +117,7 @@ const kalla = e.image?.source ?? null;
  * publicera bilden utan sin attribution är ett avtalsbrott, medan att låta bli
  * bara är en platshållare till, och den ytan är sajten redan byggd för.
  *
- * Samma glob och samma sökväg som StreetPhoto.astro använder, av samma skäl:
+ * Samma glob och samma sökväg som Bildband.astro använder, av samma skäl:
  * `new URL(..., import.meta.url)` pekar i ett Astro-bygge på den paketerade
  * modulen och inte på källfilen.
  */
@@ -271,7 +271,7 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
 {/*
   En bild som inte går att hämta ska lämna platshållaren efter sig.
 
-  Samma sista försvar som StreetPhoto.astro och Commonsbild.astro har, men med
+  Samma sista försvar som Bildband.astro har, men med
   motsatt utgång: där tas hela figuren bort, här ska ytan bli kvar. Kortet har
   en bildyta oavsett, och ett kort utan band är en annan form och inte en
   saknad bild.

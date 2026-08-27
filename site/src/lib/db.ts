@@ -74,8 +74,9 @@ export interface StreetImage {
    * Bildens id hos källan, för länken tillbaka dit.
    *
    * För `wikimedia` är det filens namn på Commons, "Den Gyldene Freden
-   * 2013a.jpg", och det är den strängen filsidans adress byggs av. Se
-   * Commonsbild.astro.
+   * 2013a.jpg", och det är den strängen filsidans adress byggs av. För ett
+   * eget foto är det ursprungsfilens namn, så att bilden går att spåra
+   * tillbaka dit den kom ifrån. Se `kallans_sida` i Bildband.astro.
    */
   id: string;
   /**

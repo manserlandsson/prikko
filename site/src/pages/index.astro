@@ -91,10 +91,11 @@ const total = coverage();
 /**
  * Verksamhetens rad i poolens urval.
  *
- * `foto` är sant bara när bilden också bär en känd licenskod. Samma grind
- * som Verksamhetskort.astro och Commonsbild.astro sätter: en bild vars
- * licens vi inte kan skriva ut på verksamhetssidan får inte heller stå på
- * ett kort, för då finns ingen resurs att hänvisa attributionen till.
+ * `foto` är sant bara när bilden får visas. Samma grind som
+ * Verksamhetskort.astro och Bildband.astro sätter, och den bor i lib/db.ts:
+ * en bild vars licens vi inte kan skriva ut på verksamhetssidan får inte
+ * heller stå på ett kort, för då finns ingen resurs att hänvisa
+ * attributionen till. En bild vi tagit själva behöver ingen licenskod.
  */
 interface Rad {
   e: Establishment;
@@ -274,7 +275,7 @@ function plocka(lista: Rad[], antal: number, takPerKommun: number): Rad[] {
  *    gång 1912 till 1920, båda i svartvitt. De är kända ställen och usla
  *    fotografier av hur det ser ut i dag, vilket är precis vad raden ska
  *    visa. Grinden är alltså inte smak utan samma ärlighetskrav som
- *    Commonsbild.astro redan bär: en odaterad eller gammal bild är ett
+ *    Bildband.astro redan bär: en odaterad eller gammal bild är ett
  *    påstående om nuet som inte stämmer. Kvar: nio i Stockholm.
  *
  * ══ ANTALET RUTOR ══════════════════════════════════════════════════════
