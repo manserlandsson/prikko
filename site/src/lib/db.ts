@@ -112,36 +112,6 @@ export interface StreetImage {
   attribution?: string | null;
 }
 
-/**
- * En gällande Michelinstjärna, så som pipelinen läst den ur Wikidata.
- *
- * Skrivs av pipeline/michelin.py och bor BARA i datafilen, se
- * export_supabase.FILFALT. Sajten läser fältet och frågar aldrig Wikidata vid
- * bygget.
- *
- * ATT FÄLTET FINNS BETYDER ATT STJÄRNAN GÄLLDE VID `checkedAt`. En indragen
- * stjärna kommer aldrig hit: pipelinen kräver ett P166-påstående utan
- * slutkvalificerare `P582`, och en stjärna som dragits in tas bort ur filen vid
- * nästa körning. Mallen ska därför aldrig försöka avgöra saken på nytt.
- */
-export interface Michelin {
-  /** Wikidata-objektet uppgiften kommer ur, t.ex. "Q69319048". */
-  qid: string;
-  /**
-   * Antal stjärnor ur `P1114` på det gällande påståendet, eller null.
-   *
-   * NULL ÄR ETT RIKTIGT UTFALL och inte ett fel. Fem av de 30 gällande
-   * påståendena i Sverige saknar antal, bland dem Mathias Dahlgren. Mallen
-   * skriver då "Michelinstjärna" utan tal. Att fylla i en etta hade varit att
-   * skriva ett tal källan inte säger.
-   */
-  stars: number | null;
-  /** Årtalet det gällande påståendet börjar, ur `P580`, eller null. */
-  since: string | null;
-  /** Dagen pipelinen läste Wikidata, ISO. Skrivs ut på sidan. */
-  checkedAt: string | null;
-}
-
 export type SourceType =
   | 'open_data'          // kommunen publicerar en öppen datamängd
   | 'reverse_engineered' // vi anropar samma gränssnitt som kommunens egen tjänst
@@ -213,20 +183,6 @@ export interface Establishment {
   stop?: string;
   /** Parkeringar inom 200 m, packat som "3|40": antal och avstånd till den närmaste. */
   parking?: string;
-  /**
-   * Michelinstjärna ur Wikidata, satt bara när pipelinens fem grindar godkänt
-   * hopparningen OCH en människa godkänt den i granskningsarket.
-   *
-   * Står på tio rader av 16 047, samtliga i Stockholm. Fältet är valfritt och
-   * ska förbli valfritt.
-   *
-   * FÄLTET SÄGER INGENTING OM HYGIENEN och får aldrig räknas in i `verdict`,
-   * `distinction` eller någon lista som sorterar på dem. Michelin bedömer
-   * maten, vi bedömer kommunens kontroller, och en sortering som blandar dem
-   * påstår att det ena följer av det andra. Se
-   * site/src/components/Michelinstjarna.astro.
-   */
-  michelin?: Michelin;
   image: StreetImage | null;
   verdict: Verdict | null;
   distinction: boolean;

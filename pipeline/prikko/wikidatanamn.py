@@ -81,9 +81,8 @@ Likhetskravet ovan står kvar för den AUTOMATISKA vägen och rörs inte. Vid
 sidan av den finns `rymmer`, en lösare form av samma grind, och den vägen
 slutar alltid hos en människa. Se `pipeline/wikidatako.py`.
 
-Skälet är detsamma som `michelin.namnet_stammer` mätte upp: kommunens register
-skriver nästan alltid ut ett led som Wikidata inte har, och likhetskravet
-fäller då ett riktigt par.
+Skälet är uppmätt: kommunens register skriver nästan alltid ut ett led som
+Wikidata inte har, och likhetskravet fäller då ett riktigt par.
 
     Restaurant Frantzén   →  Frantzén      6,5 m   ägaren pekade på just den
     Aira Biskopsudden     →  Aira          5,3 m
@@ -656,10 +655,11 @@ def _ask(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
 def fraga(sparql: str, timeout: int = 300, tries: int = 5) -> List[dict]:
     """Publikt namn på `_ask`, för moduler som frågar WDQS om annat än bilder.
 
-    `michelin.py` ställer sina egna frågor men ska ha samma väntan, samma
-    User-Agent och samma bakåtväxande paus som den här modulen. WDQS drivs av
-    en stiftelse vi lever på att få fråga, och två moduler som är olika artiga
-    mot den är en modul för mycket.
+    INGEN ANROPAR DEN I DAG. Den enda konsumenten togs bort 2026-08-27 och
+    funktionen står kvar därför att nästa modul som vill fråga WDQS ska ha
+    samma väntan, samma User-Agent och samma bakåtväxande paus som den här
+    modulen. WDQS drivs av en stiftelse vi lever på att få fråga, och två
+    moduler som är olika artiga mot den är en modul för mycket.
     """
     return _ask(sparql, timeout=timeout, tries=tries)
 
@@ -988,9 +988,8 @@ def rymmer(vara: Sequence[str], deras: Sequence[str]) -> bool:
     ══ ETT ENSAMT GEMENSAMT ORD MÅSTE VARA LÅNGT NOG ════════════════════════
 
     Rymmer vårt namn ett objektsnamn på ETT ord bär det ordet hela beviset,
-    och då gäller `oppettider.MIN_SOLO_TOKEN`. Samma tal och samma skäl som
-    `michelin.namnet_stammer`: tre bokstäver eller färre är i praktiken alltid
-    ett allmänord som kan sitta inuti vilket namn som helst.
+    och då gäller `oppettider.MIN_SOLO_TOKEN`: tre bokstäver eller färre är i
+    praktiken alltid ett allmänord som kan sitta inuti vilket namn som helst.
 
     Likheten i grind 1 prövas UTAN längdkravet, och det är avsiktligt: "Sushi
     SHO" mot "Sushi Sho" är ordmängden {sho} på båda sidor, alltså tre

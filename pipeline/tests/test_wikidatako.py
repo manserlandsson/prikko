@@ -146,8 +146,8 @@ class Rymmer(unittest.TestCase):
 
     def test_ett_kort_ensamt_ord_racker_inte(self):
         # Delas bara ETT ord bär ordet hela beviset, och tre bokstäver kan
-        # sitta inuti vilket namn som helst. `oppettider.MIN_SOLO_TOKEN`,
-        # samma tal och samma skäl som `michelin.namnet_stammer`.
+        # sitta inuti vilket namn som helst. Talet är
+        # `oppettider.MIN_SOLO_TOKEN`.
         # Ordmängderna här är redan `distinct`, som i `para_brett`.
         self.assertFalse(wn.rymmer(["ost", "huset"], ["ost"]))
 

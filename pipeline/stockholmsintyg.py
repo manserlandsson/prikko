@@ -6,9 +6,9 @@
     python3 pipeline/stockholmsintyg.py hamta site/src/data/stockholm.json --alla
     python3 pipeline/stockholmsintyg.py tillampa site/src/data/stockholm.json
 
-Tre steg, och mellansteget är en människa, precis som i pipeline/michelin.py.
-Skillnaden är vad människan tittar på. Där är frågan om två poster är samma
-verksamhet; här är frågan om vi över huvud taget vill publicera de här nio
+Tre steg, och mellansteget är en människa, precis som i pipeline/wikidatako.py.
+Skillnaden är vad människan tittar på. Där är frågan om bilden föreställer det
+här stället; här är frågan om vi över huvud taget vill publicera de här nio
 fälten om 8 520 namngivna företag. `prov` finns för att den frågan ska gå att
 besvara på tjugo rader i stället för på hela beståndet.
 
@@ -274,12 +274,10 @@ def krav_pa_export() -> Optional[str]:
 def tillampa(path: Path) -> int:
     """Steg tre: skriv intygen i datafilen.
 
-    RADER UTAN INTYG I CACHEN LÄMNAS ORÖRDA, till skillnad från
-    michelin.tillampa som aktivt tar bort det som inte längre är godkänt. Där
-    är påståendet "har en gällande stjärna" och en stjärna kan dras in. Här är
-    påståendet en registeruppgift, och att cachen råkar vara ett urval är
-    ingen upplysning om verksamheten. Ett intyg som faktiskt försvunnit ska
-    tas bort av en hämtning över hela beståndet, inte av ett urval på tjugo.
+    RADER UTAN INTYG I CACHEN LÄMNAS ORÖRDA. Påståendet är en registeruppgift,
+    och att cachen råkar vara ett urval är ingen upplysning om verksamheten.
+    Ett intyg som faktiskt försvunnit ska tas bort av en hämtning över hela
+    beståndet, inte av ett urval på tjugo.
     """
     if not CACHEFIL.exists():
         raise SystemExit(f"Ingen cache att tillämpa. Kör `hamta` först. Väntade {CACHEFIL}")

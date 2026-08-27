@@ -421,9 +421,9 @@ def raden(intyg: Intyg, kontrollerad: date) -> dict:
     enskild firma, vilket är det läsaren har nytta av, utan att numret följer
     med.
 
-    `checkedAt` av samma skäl som i `prikko.michelin.raden`: uppgiften är
-    hämtad vid en tidpunkt och kan ha ändrats sedan dess, och en rad utan det
-    datumet går inte att åldras.
+    `checkedAt` av samma skäl som i `hours` och `contact`: uppgiften är hämtad
+    vid en tidpunkt och kan ha ändrats sedan dess, och en rad utan det datumet
+    går inte att åldras.
     """
     return {
         "orgnr": None if ar_personnummer(intyg.nummer or "") else intyg.nummer,

@@ -6,7 +6,7 @@
     python3 pipeline/wikidatako.py tillampa site/src/data/*.json --godkanda FIL
 
 Tre steg, och det mellersta är en människa. Skriptet publicerar ingenting av
-sig självt, precis som `commonsko.py` och `michelin.py`.
+sig självt, precis som `commonsko.py`.
 
 
 ═══ VARFÖR DEN HÄR VÄGEN FINNS ═══════════════════════════════════════════════
@@ -374,17 +374,15 @@ def _kort(i: int, k: dict) -> str:
 def ark() -> int:
     """Steg två: granskningsarket.
 
-    Samma form som `commonsko.ark` och `michelin.ark`: en fil att öppna i
-    webbläsaren, beslut i localStorage, en knapp som skriver ut de godkända som
-    JSON. Skälet är detsamma, att det här är ett hundratal beslut som ska tas
-    en gång och inte en löpande funktion som förtjänar en vy i sajten.
+    Samma form som `commonsko.ark`: en fil att öppna i webbläsaren, beslut i
+    localStorage, en knapp som skriver ut de godkända som JSON. Skälet är
+    detsamma, att det här är ett hundratal beslut som ska tas en gång och inte
+    en löpande funktion som förtjänar en vy i sajten.
 
-    EN AVDELNING OCH INTE TVÅ, till skillnad från michelinarket. Där skiljer
-    granskaren mellan träffar och avståndsmissar, för där är frågan om två
-    textposter är samma verksamhet. Här är frågan densamma på varje kort och
-    kräver bara ögat: föreställer bilden det här stället? Att sortera korten
-    efter vilken grind de kom in genom hade bara sagt granskaren vad hon borde
-    tycka innan hon tittat.
+    EN AVDELNING OCH INTE TVÅ. Frågan är densamma på varje kort och kräver bara
+    ögat: föreställer bilden det här stället? Att sortera korten efter vilken
+    grind de kom in genom hade bara sagt granskaren vad hon borde tycka innan
+    hon tittat.
     """
     if not KOFIL.exists():
         raise SystemExit(f"Ingen kö att granska. Kör `hamta` först. Väntade {KOFIL}")

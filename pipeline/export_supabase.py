@@ -36,8 +36,6 @@ På raderna, se `FILFALT`:
     contact                     telefon och webbplats, samma uttag
     stop, parking               närmaste hållplats och parkering,
                                 pipeline/narhet.py
-    michelin                    gällande Michelinstjärna ur Wikidata,
-                                pipeline/michelin.py
 
 På filens toppnivå, se `FILBLOCK`, ett licensblock per källa:
 
@@ -232,12 +230,7 @@ FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 #: Uppmätt 2026-08-20: stop 12 870, parking 10 606, contact 3 274, hours
 #: 2 747. Inget av dem har en motpart i Supabase.
 #:
-#: `michelin` tillkom 2026-08-25 och står på elva rader, samtliga i Stockholm.
-#: Elva rader är just den storlek som gör felet osynligt: en export som tappar
-#: dem ser lika grön ut som en som behåller dem, och ingen sida går sönder.
-#: Se pipeline/michelin.py för varför uppgiften inte har någon kolumn.
-#:
-#: Fem fält tillkom samma dag ur kommunernas egna svar, alltså uppgifter vi
+#: Fem fält tillkom 2026-08-25 ur kommunernas egna svar, alltså uppgifter vi
 #: redan hämtade och kastade bort:
 #:
 #:     registration    Stockholms registreringsintyg: organisationsnummer,
@@ -260,7 +253,6 @@ FILFALT = (
     "contact",
     "stop",
     "parking",
-    "michelin",
     "registration",
     "registeredAt",
     "operator",
