@@ -88,6 +88,9 @@ import { linkedAreas, municipalityArea } from '../lib/omraden';
  * som SiteSearch.astro gör det, se `data-index` på roten.
  */
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
+/* Siluetten. Körs vid bygget och följer aldrig med ned till besökaren som
+   kod, bara som en färdig bana. Se SILUETTEN längst ned i lib/riket.ts. */
+import { mercator, SILUETT_VARLD, swedenSilhouette } from '../lib/riket';
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
@@ -139,6 +142,56 @@ interface Props {
 
 const { kommun, data, vy, vylada } = Astro.props;
 const base = kommun ? `/${kommun.slug}` : '';
+
+/**
+ * ══ SILUETTEN, ALLTSÅ EN KARTA I FÖRSTA BILDRUTAN ══════════════════════════
+ *
+ * Ägaren 2026-08-27, med skärmbild av /karta/ vid laddning: "jag ser även som
+ * min screenshot på load... är typ i en sekund, kan du ta bort det helt och
+ * hållet". Tredje gången han tar upp det. Bilden visar hela kartkolumnen som
+ * ett tomt beige fält medan vänsterkolumnen står klar.
+ *
+ * De två tidigare lagningarna gjorde tomrummet snyggare och inte borta:
+ * kartfärgen i stället för vitt på ramen, och teckenförklaringen och
+ * kontrollerna gömda tills kartan finns. Kvar blev en färgad yta utan
+ * innehåll, och en färgad yta utan innehåll är fortfarande ett hål.
+ *
+ * En riktig karta går inte att rita omedelbart. MapLibre är en dynamisk
+ * import, och efter den kommer stilen, sprajten, teckensnitten och rutorna.
+ * SVERIGES KONTUR går däremot att rita direkt: den ligger redan i bygget som
+ * två ringar och 434 punkter, se lib/riket.ts, och som en SVG-bana i sidans
+ * egen HTML kostar den ingen hämtning alls.
+ *
+ * ── BARA DÄR EN VY ÄR GIVEN, alltså bara rikskartan ──────────────────────
+ *
+ * Kommunkartorna passar in en LÅDA, och den inpassningen beror på rutans
+ * pixelmått, som bygget inte känner. Där hade siluetten hamnat bredvid kartan
+ * i stället för under den. Det är heller ingen förlust: på kommunernas zoom
+ * ligger hela rutan inne i Sverige, alltså är hela ytan landfärgad redan i
+ * dag, vilket är precis vad siluetten hade ritat.
+ *
+ * Center och zoom räcker däremot HELT UTAN att veta rutans mått. Kameran
+ * lägger centret i rutans mitt och skalan följer av zoomen, alltså kan banan
+ * hängas upp på `left: 50%` och `top: 50%` med ett fast pixelavstånd, och den
+ * ligger rätt på varje bredd. Se `.siluett` i stilarna.
+ */
+const siluett = (() => {
+  if (!vy) return null;
+  const bana = swedenSilhouette();
+  /* MapLibres skala: världen är 512 px gånger två upphöjt till zoomen. */
+  const k = (512 * 2 ** vy.zoom) / SILUETT_VARLD;
+  const [cx, cy] = mercator(vy.lng, vy.lat);
+  const av = (n: number) => `${Math.round(n * 10) / 10}px`;
+  return {
+    d: bana.d,
+    viewBox: bana.viewBox,
+    /* Fyra tal, som egenskaper och inte som färdiga regler, så att skriptet
+       kan skriva om dem i arkläget. Se `stallSiluett` längre ned. */
+    stil:
+      `--sil-w:${av(bana.w * k)};--sil-h:${av(bana.h * k)};` +
+      `--sil-x:${av((bana.x - cx) * k)};--sil-y:${av((bana.y - cy) * k)}`,
+  };
+})();
 
 /** Vyns namn i klartext. Står i rubriken, i kartans etikett och i tomläget. */
 const plats = kommun ? kommun.city : 'Sverige';
@@ -599,7 +652,29 @@ const LEGEND = [
         Bara OMRÅDEN föreslås. Namn och typ filtreras redan medan man skriver,
         alltså är svaret på dem raderna nedanför och inte en lista till.
       */}
-      <ul class="forslag" id="kartfilter-forslag" role="listbox" data-forslag hidden></ul>
+      {/*
+        `glass` OCH INTE EN EGEN YTA, och klassen står HÄR i markupen med flit.
+
+        Ägaren 2026-08-27: "är det inte konstigt att sökbaren för vanliga sök i
+        headern, och kartsöken är annorlunda, dom har liksom olika ui, rutan när
+        man söker och får upp alternativ är också annorlunda, en är typ glas
+        (vilket jag gillar), den andra inte."
+
+        Fältet fick sidhuvudets recept 2026-08-26. Panelen under det fick det
+        inte, alltså hängde en vanlig vit ruta under ett piller som var
+        sidhuvudets. SiteSearch.astro skriver `class="panel glass"` och hämtar
+        hela ytan ur tokens.css; den här raden gör samma sak, och därmed är de
+        två panelerna samma yta per definition i stället för två kopior som
+        ska hållas i takt.
+
+        ATT SÄTTA KLASSEN I MARKUPEN LÖSER OCKSÅ PREFIXFÄLLAN. Skrevs
+        oskärpan i stället in i den scopade CSS:en nedan hade den behövt
+        upprepas för hand, och varningen i tokens.css gäller: byggets
+        optimerare slår ihop backdrop-filter med sin prefixvariant och behåller
+        bara prefixet, som Chrome inte känner igen. Hämtas ytan ur klassen
+        finns deklarationen på ett ställe och kan inte upprepas fel.
+      */}
+      <ul class="forslag glass" id="kartfilter-forslag" role="listbox" data-forslag hidden></ul>
 
       {/*
         ══ HÄR LÅG KNAPPRADEN, OCH DEN ÄR BORTA ════════════════════════════
@@ -934,6 +1009,23 @@ const LEGEND = [
   {/* ── Kartan ─────────────────────────────────────────────────────────── */}
   <section class="kartkolumn" aria-label={`Karta över ${plats}`}>
     <div class="kartram" data-kartram>
+      {/*
+        Siluetten. Ligger FÖRE duken i markupen, alltså under den, och tonas
+        aldrig själv: MapLibres duk är ogenomskinlig och tonas in ovanpå.
+        Motiveringen i sin helhet står vid `siluett` i frontmatteret.
+
+        aria-hidden, för det här är en bild av kartan som ännu inte finns.
+        Kartans innehåll når skärmläsaren genom listan bredvid, som är fullt
+        renderad från början.
+      */}
+      {siluett && (
+        <div class="siluett" data-siluett={SILUETT_VARLD} aria-hidden="true">
+          <svg viewBox={siluett.viewBox} style={siluett.stil} focusable="false">
+            <path d={siluett.d} />
+          </svg>
+        </div>
+      )}
+
       <div class="duk" data-duk></div>
 
       {/* Nålens kort. Ett element, två skepnader: ett kort vid nålen på stora
@@ -1113,6 +1205,24 @@ const LEGEND = [
     const rensa = root.querySelector<HTMLButtonElement>('[data-rensa]')!;
     const kartram = root.querySelector<HTMLElement>('[data-kartram]')!;
     const kort = root.querySelector<HTMLElement>('[data-kort]')!;
+
+    /*
+     * ══ SILUETTEN, DE TVÅ FALL BYGGET INTE KAN RÄKNA ═══════════════════════
+     *
+     * Banan är placerad vid bygget mot sidans öppningsvy, alltså center och
+     * zoom, se `siluett` i frontmatteret. Den placeringen gäller på varje
+     * bredd så länge kameran är just den. Två fall bryter mot det.
+     *
+     * FÖRSTA FALLET: ADRESSEN BÄR ETT UTSNITT. Då öppnar kartan där och inte
+     * på Sverige, se `startVy` i kartbygget nedan. Siluetten tas då bort
+     * direkt, tidigast möjliga ögonblick i den här modulen, för en kontur på
+     * fel plats är sämre än en tom ruta. Kvar blir kartfärgen som förut.
+     *
+     * ANDRA FALLET är arkläget, och det räknas om i stället för att tas bort.
+     * Se `stallSiluett` vid kartbygget, där arkets höjd redan är uppmätt.
+     */
+    const siluett = root.querySelector<HTMLElement>('[data-siluett]');
+    if (siluett && /(^|&)map=/.test(location.hash.replace(/^#/, ''))) siluett.remove();
     const kortInne = root.querySelector<HTMLElement>('[data-kort-inne]')!;
     const kortStang = root.querySelector<HTMLButtonElement>('[data-kort-stang]')!;
     const fel = root.querySelector<HTMLElement>('[data-fel]')!;
@@ -4629,6 +4739,71 @@ const LEGEND = [
         const arkRuta = ark.getBoundingClientRect();
         return Math.max(0, Math.round(ram.bottom - arkRuta.top));
       })();
+
+      /**
+       * ══ SILUETTEN I ARKLÄGET ═════════════════════════════════════════════
+       *
+       * Banan ligger placerad mot `vy`, alltså mot center och zoom, och den
+       * placeringen håller på varje bredd DÄR KAMERAN ÄR JUST DEN. I arket är
+       * den det inte: kameran passar då in `oppningsLada` i strimman ovanför
+       * arket, se noten strax ovan, och den inpassningen kan bara räknas när
+       * arkets höjd är känd. Den är känd nu, på raden ovanför, alltså räknas
+       * de fyra talen om här och siluetten tänds med `data-stalld`. Se
+       * mediefrågan vid `.siluett` i stilarna.
+       *
+       * RÄKNINGEN ÄR MAPLIBRES EGEN, inte en efterhärmning: lådan passas in i
+       * den rektangel marginalerna lämnar, och kamerans center förskjuts med
+       * halva skillnaden mellan motstående marginaler, vilket är exakt vad
+       * `cameraForBounds` gör. Talen 32 och `arkTacker + 32` är samma tal som
+       * skickas till `fitBoundsOptions` nedan, och de två får aldrig glida
+       * isär.
+       */
+      if (siluett && arkLage && oppningsLada && arkTacker > 0) {
+        const svg = siluett.firstElementChild as SVGElement | null;
+        const varld = Number(siluett.dataset.siluett);
+        const lada = (svg?.getAttribute('viewBox') ?? '').split(' ').map(Number);
+        const bredd = duk.clientWidth;
+        const hojd = duk.clientHeight;
+
+        if (svg && varld > 0 && lada.length === 4 && bredd > 0 && hojd > 0) {
+          /* Web Mercator i samma enheter som banan. Se mercator() i
+             lib/riket.ts; funktionen kan inte importeras hit, eftersom den
+             modulen läser en JSON-fil på 7 kB som aldrig ska ned till
+             besökaren. Formeln är fem rader och står därför två gånger. */
+          const merc = (lon: number, lat: number): [number, number] => {
+            const s = Math.sin((lat * Math.PI) / 180);
+            return [
+              ((lon + 180) / 360) * varld,
+              (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * varld,
+            ];
+          };
+
+          const [vast, syd] = merc(oppningsLada[0], oppningsLada[1]);
+          const [ost, nord] = merc(oppningsLada[2], oppningsLada[3]);
+          const marginal = { topp: 32, sida: 32, botten: arkTacker + 32 };
+
+          /* Högsta zoom där lådan ryms i den rektangel marginalerna lämnar.
+             En värld är 512 px gånger två upphöjt till zoomen. */
+          const zoom = Math.min(
+            Math.log2((bredd - marginal.sida * 2) / (((ost - vast) / varld) * 512)),
+            Math.log2((hojd - marginal.topp - marginal.botten) / (((syd - nord) / varld) * 512)),
+          );
+          const k = (512 * 2 ** zoom) / varld;
+
+          /* Lådans mitt ska hamna i den lämnade rektangelns mitt, alltså
+             ligger kamerans center en halv marginalskillnad därifrån. Sidorna
+             är lika, så bara den lodräta leden flyttar något. */
+          const cx = (vast + ost) / 2;
+          const cy = (nord + syd) / 2 - (marginal.topp - marginal.botten) / 2 / k;
+
+          const av = (n: number) => `${Math.round(n * 10) / 10}px`;
+          svg.style.setProperty('--sil-w', av(lada[2] * k));
+          svg.style.setProperty('--sil-h', av(lada[3] * k));
+          svg.style.setProperty('--sil-x', av((lada[0] - cx) * k));
+          svg.style.setProperty('--sil-y', av((lada[1] - cy) * k));
+          siluett.dataset.stalld = '';
+        }
+      }
       /* Ringen bara när fragmentet kom utifrån. Se skrivFragment: vår egen
          återskrivning bär en flagga i history.state, och den överlever en
          omladdning av samma historikpost. */
@@ -6371,88 +6546,115 @@ const LEGEND = [
   .filterfalt :global(.chip-bort svg) { width: 10px; height: 10px; }
 
   /*
-   * ══ FÖRSLAGSLISTAN, RAD FÖR RAD MOT BOOLI ═══════════════════════════════
+   * ══ FÖRSLAGSLISTAN ÄR SIDHUVUDETS PANEL ═════════════════════════════════
    *
-   * Ägaren 2026-08-26: "det ser ej ut som booli, ser ut som ngn basic variant."
-   * Uppmätt på booli.se 2026-08-25, och vad vi hade mot varje tal:
+   * Ägaren 2026-08-27: "är det inte konstigt att sökbaren för vanliga sök i
+   * headern, och kartsöken är annorlunda, dom har liksom olika ui, rutan när
+   * man söker och får upp alternativ är också annorlunda, en är typ glas
+   * (vilket jag gillar), den andra inte."
    *
-   *     listan     640 bred            hade 640            ✓
-   *                16 px under fältet  hade 16             ✓
-   *                vit                 hade var(--card)    ✓
-   *                ram #CCCCCC         hade --hairline, alltså #E6E6E6  ✗
-   *                radie 6             hade --r-card, alltså 12         ✗
-   *                shadow-l            hade --shadow-pop, som bär en
-   *                                    1px-ring OVANPÅ ramen            ✗
-   *                overflow hidden     hade det            ✓
-   *                i dokumentflödet    hade det            ✓
-   *     raderna    41 px, sista 40     hade 42, sista 41   ✗
-   *                avdelare 1 px       hade 1 px           ✓
-   *     raden      px-3 py-2 text-sm   hade 12 px, 14 px   ✓
-   *                tabindex -1         hade ingen          ✗
-   *     namnet     x 37                hade 37             ✓
-   *                matchat i vikt 600  hade ingen fetstil  ✗
-   *     typen      högerställd, 651    hade 651            ✓
-   *                14 px, vikt 400     hade 14, 400        ✓
+   * Han har rätt, och det gick att mäta. Uppmätt 2026-08-27 i bygget, med
+   * sidhuvudets .panel i SiteSearch.astro till vänster och den här listan till
+   * höger:
    *
-   * De sju kryssen är rättade här och i `stallForslag`.
+   *                          sidhuvudet                kartan
+   *     bakgrund             vit 82 %                  vit 100 %
+   *     oskärpa              saturate 180 % blur 24    ingen
+   *     kant                 1 px svart 10 %           1 px svart 9,8 %
+   *     radie                12                        12
+   *     skugga               0 10 34 svart 14 %        0 0 0 1 ring + 0 8 30
+   *                          + glans inuti             ingen glans
+   *     luft i panelen       12                        0
+   *     avstånd till fältet  8                         16
+   *     radhöjd              40 vid en rad             40
+   *     radens radie         10                        0
+   *     radens luft          8                         12 i sidled, 0 i höjd
+   *     namnet               14/24 vikt 500            14/14 vikt 400
+   *     träffen i namnet     vikt 700                  vikt 600
+   *     andraledet           13/18 #56565B             14/14 #6E6E73
+   *     avdelare             ingen                     1 px mellan raderna
+   *     förvald rad          brand 6 % med radie 10    #FCFCFD kant i kant
    *
-   * RAMEN. #CCCCCC skrivs som rgba(0,0,0,.2), vilket komposterar till exakt
-   * den färgen mot vitt. Alfa och inte hexadecimalt av samma skäl som
-   * --hairline är alfa: en listruta med en fast ljusgrå ram blir osynlig den
-   * dag ytan under är mörk. --hairline själv duger inte, den ligger på .098 och
-   * är gjord för en avdelare INNE i en yta; det här är kanten på en ruta som
-   * ligger ovanpå kolumnen och den behöver hålla emot skuggan.
+   * Nitton rader, och tolv skilde sig. Det är två gränssnitt och inte ett.
    *
-   * RADIEN. Boolis 6 finns inte i vår skala. --r-control är 10 och bärs redan
-   * av fältet listan hänger under, alltså samma val som chippet och fältet
-   * gjorde med deras uppmätta 4. En ruta som hänger under ett fält ska ha
-   * fältets rundning och inte kortets.
+   * ── BOOLI-TALEN SOM STOD HÄR ÄR INTE BORTKASTADE, DE ÄR PASSERADE ───────
    *
-   * SKUGGAN. --shadow-pop är `0 0 0 1px --hairline` PLUS ett fall. Ringen
-   * ligger utanpå ramen och gav två linjer i olika grå ovanpå varandra,
-   * vilket är precis den suddiga kant som får en ruta att se billig ut. Bara
-   * fallet tas därför, och det är Boolis shadow-l.
+   * Här stod en tabell mot booli.se med sjutton rader: deras ram #CCCCCC,
+   * radie 6, shadow-l, rader på 41 px. Den räkningen gjordes när det HÄR
+   * fältet var enda förlagan, och den ledde redan då bort från Boolis tal på
+   * tre punkter, eftersom sajtens egna vägde tyngre.
    *
-   * I DOKUMENTFLÖDET och inte absolut positionerad, precis som deras. Vår
-   * listkolumn skrollar i sin egen spalt, och en absolut panel hade klippts av
-   * spaltens kant i samma sekund den blev längre än det som fick plats.
+   * Nu finns en närmare förlaga än Booli, och det är vår egen panel tio
+   * centimeter längre upp på samma skärm. Två paneler på samma sida som
+   * svarar på samma sorts fråga ska vara samma panel. Booli avgör alltjämt
+   * formen på det som inte finns hos oss, till exempel att listan ligger i
+   * DOKUMENTFLÖDET och inte svävar, se nedan.
+   *
+   * ── YTAN KOMMER UR .glass I MARKUPEN ────────────────────────────────────
+   *
+   * Bakgrund, oskärpa, kant, radie och skugga står INTE här. Klassen `glass`
+   * sitter på elementet i markupen ovan och hämtar allt fem ur tokens.css,
+   * exakt som SiteSearch.astro gör. Skriv aldrig tillbaka dem här: en scopad
+   * `.forslag` väger två klasser mot `.glass` ena, alltså hade varje rad här
+   * tyst tagit över och de två panelerna glidit isär igen.
+   *
+   * Kvar i den här regeln är bara det som är listans eget: att den är en
+   * lista, dess plats i flödet och dess luft.
+   *
+   * ── LÄSBARHETEN, MÄTT OCH INTE ANTAGEN ──────────────────────────────────
+   *
+   * Frågan var om glaset går att lägga över en KARTA. Den frågan uppstår
+   * aldrig här: listan ligger i listkolumnen och inte på kartan, uppmätt
+   * 2026-08-27 till x 48..640 medan kartrutan börjar på x 688. Under panelen
+   * ligger sidans egen botten, alltså samma underlag som sidhuvudets panel har.
+   *
+   * Fyllningen är 82 procent --card, vilket ger ytan ett golv på #D1D1D1 hur
+   * mörkt det än vore under, se räkningen i styles/kartram.css. Mot sidans
+   * botten hamnar den i praktiken på vitt. --text ligger då på 16,8:1 och
+   * --glass-ink-quiet, som lagret sätter i stället för den vanliga grå, på
+   * 7,3:1. Båda med marginal över 4,5:1.
+   *
+   * ── I DOKUMENTFLÖDET, OCH DET ÄNDRAS INTE ───────────────────────────────
+   *
+   * Sidhuvudets panel svävar med `position: absolute` och z-index 50. Den här
+   * gör det inte, och det är den enda uppmätta skillnaden som står kvar med
+   * flit: listkolumnen skrollar i sin egen spalt, och en absolut panel hade
+   * klippts av spaltens kant i samma sekund den blev längre än det som fick
+   * plats. Det är också Boolis lösning. Ytan är densamma; var den hänger är
+   * en fråga om vilken spalt den hänger i.
+   *
+   * Avståndet till fältet går däremot från 16 till 8 px, alltså sidhuvudets
+   * `top: calc(100% + var(--s-2))` uttryckt som en marginal.
    */
   .forslag {
     list-style: none;
-    margin: var(--s-4) 0 0;
-    padding: 0;
-    /*
-     * RAMEN OCH RADIEN FÖLJER FÄLTET, inte Boolis ruta.
-     *
-     * Boolis lista har ram #CCCCCC och radie 6 under ett fält med radie 4.
-     * Vårt fält är sedan 2026-08-26 sidhuvudets piller, se .filterfalt, och
-     * en fyrkant med en annan ram under ett piller läser som två element som
-     * inte hör ihop. --r-card, alltså 12, är sajtens rundning för en yta som
-     * ligger ovanpå en annan, och den är också det närmaste ett piller en
-     * rektangel kan komma utan att bli en tablett.
-     *
-     * Ramen tas ur --hairline plus ringen i --shadow-pop, alltså samma recept
-     * som varje annan panel på sajten, i stället för Boolis rgba(0,0,0,.2).
-     * Den mörka ramen fanns för att hålla emot en tung skugga; med sajtens
-     * egen ring behövs den inte, och två olika grå på samma kant är precis
-     * den suddighet ändringen skulle bort från.
-     */
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-card);
-    background: var(--card);
-    box-shadow: var(--shadow-pop);
-    overflow: hidden;
+    margin: var(--s-2) 0 0;
+    /* Sidhuvudets panelluft. Raderna blir därmed piller INNE i en yta i
+       stället för remsor som går kant i kant, och det är den enskilt största
+       skillnaden ögat läser mellan de två panelerna. */
+    padding: var(--s-3);
   }
 
   .forslag[hidden] { display: none; }
-  .forslag :global(li + li) { border-top: 1px solid var(--hairline); }
 
-  /* 40 och inte 41. Boolis rad MÄTER 41 med sin avdelare inräknad, och den
-     sista mäter 40 eftersom den inte har någon. Vår 41 plus avdelaren gav 42,
-     alltså en pixel för mycket per rad och nio för hela listan. */
+  /*
+   * AVDELARNA ÄR BORTA.
+   *
+   * De hörde till en lista där raderna gick kant i kant och behövde skiljas
+   * åt av en linje. Sidhuvudets panel har inga: raderna är fristående piller
+   * med luft emellan, och luften gör linjens hela arbete. Två rader linjer i
+   * samma panelfamilj hade varit den tolfte skillnaden av nitton.
+   */
+
   /* Både knappen och länken. Verksamhetsraden är ett <a> och de andra två är
      <button>, se `stallForslag`, och de två får aldrig se olika ut: typen står
-     redan i ordet till höger och behöver ingen andra signal. */
+     redan i ordet till höger och behöver ingen andra signal.
+
+     HÖJDEN RÄKNAS UR LUFTEN OCH INTE UR ETT TAL. Sidhuvudets rad är
+     `padding: var(--s-2)` runt en 24-radig text, alltså 8 + 24 + 8 = 40 vid en
+     rad. Vår rad MÄTTE redan 40 med `height: 40px` och en 14-radig text, så
+     ingenting flyttar sig i höjdled; skillnaden är att talet nu följer av
+     samma två tokens som sidhuvudets i stället för att stå skrivet. */
   .forslag :global(button),
   .forslag :global(a) {
     display: flex;
@@ -6460,52 +6662,56 @@ const LEGEND = [
     justify-content: space-between;
     gap: var(--s-3);
     width: 100%;
-    height: 40px;
-    padding-inline: var(--s-3);
+    padding: var(--s-2);
     border: 0;
+    border-radius: var(--r-control);
     background: none;
-    font: 400 var(--fs-body-s) / 1 var(--font-sans);
+    font: 500 var(--fs-body-s) / var(--lh-body-s) var(--font-sans);
     color: var(--text);
     text-align: left;
     text-decoration: none;
     cursor: pointer;
   }
 
+  /*
+   * HOVRING OCH FÖRVALD RAD ÄR SAMMA TON, OCH DEN ÄR SIDHUVUDETS.
+   *
+   * Här stod --canvas, alltså sajtens tonade yta. Sidhuvudets panel tonar i
+   * stället raden med sex procent märkesblått, och skälet håller bättre: på
+   * ett glaslager är --canvas nästan samma vita som ytan själv, medan en
+   * kulör syns även när fyllningen är genomskinlig.
+   *
+   * Att de två betyder samma sak, "det här händer om du fortsätter", och
+   * därför ska ha samma ton stod redan i den gamla noten. Tonen är bara
+   * hämtad från rätt förlaga nu.
+   *
+   * :global, eftersom raderna byggs med createElement och därför inte bär
+   * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
+   */
   .forslag :global(button:hover),
-  .forslag :global(a:hover) { background: var(--canvas); }
-
-  /*
-   * DEN FÖRVALDA RADEN, alltså den Enter tar.
-   *
-   * Boolis lista har en ljusgrå bakgrund på första raden i samma sekund den
-   * öppnar, uppmätt 2026-08-26: rgb(240,240,240) mot genomskinligt på de åtta
-   * andra. Vi hade ingen markering alls, alltså var nio rader nio rader utan
-   * besked om vad Enter skulle göra.
-   *
-   * --canvas och inte deras #F0F0F0. Den grå är Boolis fältfyllning och därmed
-   * en färg som inte längre finns hos oss, se noten i tokens.css. --canvas är
-   * sajtens egen tonade yta och samma ton som hovringen ovan, vilket är rätt:
-   * markeringen och hovringen betyder samma sak, "det här händer om du
-   * fortsätter", och två toner för samma besked hade sagt att de skiljer sig.
-   *
-   * :global, eftersom raderna byggs med createElement och därför inte bär
-   * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
-   */
+  .forslag :global(a:hover),
   .forslag :global(button.vald),
-  .forslag :global(a.vald) { background: var(--canvas); }
+  .forslag :global(a.vald) {
+    background: color-mix(in srgb, var(--brand) 6%, transparent);
+  }
 
   /*
-   * HELA NAMNET I VIKT 600, ledet efter kommatecknet i 400.
+   * HELA NAMNET I VIKT 700, ledet efter kommatecknet i 500.
    *
-   * Här stod Boolis prefixfetstil, alltså att bara de tecken man skrivit blev
-   * feta. Ägaren 2026-08-26: "östermalm blir bara fetstilat för jag skrev
-   * det... som att liksom, 'du skrev detta'". Se den långa noten i skriptet
-   * där `vikMedKarta` låg.
+   * Talen är sidhuvudets: `.list .name` är 500 och `.list .name b` är 700.
+   * Här stod 400 och 600, alltså samma steg om 200 en nivå längre ned, och
+   * det är just den sortens skillnad som får två paneler att läsa som två
+   * gränssnitt.
+   *
+   * Att BOOLI fetar bara det man skrivit och vi hela namnet står kvar, och det
+   * är ett avgjort beslut. Ägaren 2026-08-26: "östermalm blir bara fetstilat
+   * för jag skrev det... som att liksom, 'du skrev detta'". Se den långa noten
+   * i skriptet där `vikMedKarta` låg.
    *
    * :global, eftersom raderna byggs med createElement och därför inte bär
    * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
    */
-  .forslag :global(b) { font-weight: 600; }
+  .forslag :global(b) { font-weight: 700; }
 
   /* Namnet får krympa, typetiketten aldrig. Ett långt "Hässelby Villastad,
      Stockholm" ska klippas i sin egen ände och inte knuffa ut ordet Område
@@ -6518,8 +6724,15 @@ const LEGEND = [
     white-space: nowrap;
   }
 
+  /* Andraledet till höger. Sidhuvudets `.meta`, alltså bildtextens grad och
+     inte brödtextens, och den tysta färgen. Inne i glaset skriver .glass om
+     --text-secondary till --glass-ink-quiet, alltså #56565B i stället för
+     #6E6E73, och den här raden får det utan att veta om det. Det är hela
+     poängen med att ytan kommer ur klassen. */
   .forslag :global(.forslagstyp) {
     flex: none;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     color: var(--text-secondary);
   }
 
@@ -7188,6 +7401,117 @@ const LEGEND = [
   }
 
   .duk { position: absolute; inset: 0; }
+
+  /*
+   * ══ SILUETTEN ════════════════════════════════════════════════════════════
+   *
+   * Sveriges kontur, ritad i första bildrutan ur sidans egen HTML. Varför den
+   * finns och varför den bara finns på rikskartan står vid `siluett` i
+   * frontmatteret.
+   *
+   * ── FÄRGERNA ÄR KARTANS EGNA OCH INTE TVÅ NYA TAL ──────────────────────
+   *
+   * Båda står i public/kartstil/prikko.json: `background`-lagret målar
+   * #F2F1EC under all mark, och `water`-lagret målar #A8D3F0. Siluetten
+   * målar därför land i landfärgen och resten i vattenfärgen, alltså exakt
+   * de pixlar kartan själv lägger en bråkdel senare. Samma hårdkodning och
+   * samma skyldighet som .kartram i styles/kartram.css: ändras de två lagren
+   * i stilfilen ska raderna här ändras samma dag.
+   *
+   * DET SOM INTE STÄMMER ÄR GRANNARNA. Norge, Danmark och Finland är land
+   * hos MapLibre och vatten här, eftersom vi bara har Sveriges kontur.
+   * Uppmätt vid 1440 x 900 täcker de ungefär en fjärdedel av rutan, och de
+   * går alltså från blått till beige under intoningen. Det är priset, och det
+   * är billigare än alternativen: en tom yta säger ingenting alls, och en
+   * landfärgad botten hade gjort siluetten osynlig, eftersom Sverige då fått
+   * samma färg som allt annat.
+   *
+   * Att grannarna dessutom SKUGGAS av riksmasken när den kommer, se
+   * OMRÅDESSKUGGAN i skriptet, är en tredje förändring som redan låg live och
+   * som siluetten varken förvärrar eller lagar.
+   */
+  .siluett {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #A8D3F0;
+  }
+
+  /*
+   * BANAN HÄNGER PÅ RUTANS MITT OCH INTE PÅ DESS KANT.
+   *
+   * Det är hela skälet till att siluetten går att placera utan att känna
+   * rutans mått. MapLibre lägger kamerans center i rutans mitt, alltså är
+   * `left: 50%` och `top: 50%` samma punkt som `vy.lng`, `vy.lat`, och de
+   * fyra talen nedan är avståndet därifrån i pixlar vid `vy.zoom`. De sätts
+   * som egenskaper på elementet, se `siluett.stil` i frontmatteret och
+   * `stallSiluett` i skriptet.
+   *
+   * preserveAspectRatio behövs inte: bredd och höjd är räknade ur samma
+   * viewBox och samma skala, alltså har rutan redan banans proportioner.
+   */
+  .siluett svg {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    width: var(--sil-w);
+    height: var(--sil-h);
+    /*
+     * `max-width: none` ÄR INTE VALFRI, och den kostade en mätning att hitta.
+     *
+     * tokens.css sätter `img, svg { max-width: 100%; height: auto }`, alltså
+     * regeln som hindrar en bild från att spränga sin spalt. Banan är LÄNGRE
+     * än rutan med flit: den bär hela Sverige, och rutan visar bara den del
+     * som ryms. Utan raden här klipptes bredden till rutans, medan höjden stod
+     * kvar, och kartan blev ihoptryckt i sidled. Uppmätt i arkläget vid
+     * 375 x 812: 516,8 px bana klämd till 375, alltså 27 procent för smal, med
+     * höjden orörd.
+     */
+    max-width: none;
+    margin-left: var(--sil-x);
+    margin-top: var(--sil-y);
+    fill: #F2F1EC;
+  }
+
+  /*
+   * SILUETTEN TONAS ALDRIG SJÄLV.
+   *
+   * Duken är ogenomskinlig och ligger ovanpå, alltså räcker det att den tonas
+   * in: under övergången ser man kartan gradvis täcka en yta som redan har
+   * rätt form och rätt färger. Tonades båda samtidigt hade de mötts på halva
+   * täckningen var och gett en grumlig sekund i stället för en ren.
+   *
+   * Släckningen är fördröjd exakt lika länge som dukens intoning, alltså
+   * ligger siluetten kvar tills det finns något som täcker den, och tas sedan
+   * ur bildlagren helt.
+   */
+  .split.live .siluett {
+    visibility: hidden;
+    transition: visibility 0s linear 200ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .split.live .siluett { transition: none; }
+  }
+
+  /*
+   * ARKET RÄKNAS I WEBBLÄSAREN, ALLTSÅ INTE HÄR.
+   *
+   * Under 900 px öppnar kartan inte på `vy` utan på en låda inpassad i den
+   * strimma arket lämnar, se `arkTacker` i skriptet. Den inpassningen beror på
+   * arkets höjd, som sätts av skriptet, och kan därför varken vara känd vid
+   * bygget eller skrivas som en mediefråga. Siluetten är dold tills skriptet
+   * har räknat om de fyra talen och satt märket, se `stallSiluett`.
+   *
+   * Det är ingen stor förlust just här: utan `ark`-klassen är sidan ett
+   * vanligt dokument med listan först och kartan under den, alltså syns den
+   * tomma rutan inte i första bildrutan på telefon till att börja med.
+   */
+  @media (max-width: 900px) {
+    .siluett { display: none; }
+    .siluett[data-stalld] { display: block; }
+  }
 
   .fel {
     position: absolute;

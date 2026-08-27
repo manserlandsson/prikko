@@ -121,3 +121,151 @@ export function swedenOutline(): Riksgrans {
 export function swedenSource(): RiketSource {
   return riksgrans.sources.osm;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * SILUETTEN, alltså samma kontur ritad som en SVG-bana i stället för en mask.
+ *
+ * Kartrutan står tom i ungefär en sekund vid laddning. Ägaren har tagit upp
+ * det tre gånger, senast 2026-08-27: "jag ser även som min screenshot på
+ * load... är typ i en sekund, kan du ta bort det helt och hållet".
+ *
+ * En karta går inte att rita omedelbart. MapLibre är en dynamisk import, och
+ * efter den kommer stilen, teckensnitten, sprajten och de första rutorna.
+ * Sveriges kontur går däremot att rita i första bildrutan, för den ligger
+ * redan i det här bygget och kostar bara några hundra byte i sidans HTML.
+ *
+ * Funktionerna nedan körs vid BYGGET, i Karta.astros frontmatter. Ingenting av
+ * det här hamnar hos besökaren som kod, bara som en färdig bana.
+ *
+ * ── Enheterna ────────────────────────────────────────────────────────────
+ *
+ * Banan ritas i en värld på 262 144 px, alltså MapLibres zoom 9 med 512-rutor.
+ * Skälet är att heltal då räcker: en enhet är 153 meter, och vid rikskartans
+ * öppningszoom 5,1 är den 0,067 skärmpixlar. Banan blir därför både exakt och
+ * kort, eftersom relativa drag mellan grannpunkter blir ensiffriga tal.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** Världens bredd i de enheter siluettens bana är ritad i. MapLibres zoom 9. */
+export const SILUETT_VARLD = 262144;
+
+/**
+ * Web Mercator, samma projektion MapLibre använder, i SILUETT_VARLD-enheter.
+ *
+ * Måste stämma på decimalen med bibliotekets egen, annars ligger siluetten
+ * bredvid kartan i stället för under den.
+ */
+export function mercator(lon: number, lat: number): [number, number] {
+  const s = Math.sin((lat * Math.PI) / 180);
+  return [
+    ((lon + 180) / 360) * SILUETT_VARLD,
+    (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * SILUETT_VARLD,
+  ];
+}
+
+export interface Siluett {
+  /** SVG-bana, absolut start och relativa drag, i SILUETT_VARLD-enheter. */
+  d: string;
+  /** Banans låda i samma enheter, som en färdig viewBox-sträng. */
+  viewBox: string;
+  /** Lådan var för sig, för den som ska räkna ut var banan hamnar. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Douglas-Peucker, för siluetten och ingenting annat.
+ *
+ * TOLERANSEN ÄR VALD I SKÄRMPIXLAR OCH INTE I METER. 12 enheter är 0,80 px vid
+ * öppningszoomen 5,1, alltså under en pixel: skillnaden mot den fulla konturen
+ * går inte att se, och den syns dessutom bara under den sekund siluetten
+ * ligger framme. Uppmätt utfall: 434 punkter blir 375, och banan går från
+ * 1 538 till 1 367 byte gzippat.
+ *
+ * Konturen är REDAN förenklad en gång, med 600 meters tolerans i
+ * pipeline/riket.py. Det här är alltså inte samma förenkling en gång till utan
+ * en andra, grövre, som bara den här användningen tål. Masken använder
+ * fortfarande den fulla konturen.
+ */
+function fornkla(punkter: number[][], tolerans: number): number[][] {
+  if (punkter.length < 3) return punkter;
+  const [x1, y1] = punkter[0];
+  const [x2, y2] = punkter[punkter.length - 1];
+  const namnare = Math.hypot(y2 - y1, x2 - x1);
+  let storst = 0;
+  let index = 0;
+  for (let i = 1; i < punkter.length - 1; i += 1) {
+    const [x, y] = punkter[i];
+    const avstand = namnare
+      ? Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1) / namnare
+      : Math.hypot(x - x1, y - y1);
+    if (avstand > storst) {
+      storst = avstand;
+      index = i;
+    }
+  }
+  if (storst <= tolerans) return [punkter[0], punkter[punkter.length - 1]];
+  return [
+    ...fornkla(punkter.slice(0, index + 1), tolerans).slice(0, -1),
+    ...fornkla(punkter.slice(index), tolerans),
+  ];
+}
+
+/** 12 enheter, alltså 0,80 px vid rikskartans öppningszoom. Se fornkla(). */
+const SILUETT_TOLERANS = 12;
+
+/**
+ * Sveriges kontur som en SVG-bana.
+ *
+ * Bara de yttre ringarna, alltså fastlandet och Gotland. Masken behöver dem
+ * som HÅL i en världspolygon och bryr sig därför om vindningen; en fylld bana
+ * gör det inte, och `fill-rule` spelar ingen roll så länge ringarna inte
+ * ligger inuti varandra. De gör de inte, se noten om ringarna längst upp.
+ */
+export function swedenSilhouette(): Siluett {
+  const ringar = riksgrans.outer.map((ring) =>
+    fornkla(
+      ring.map(([lon, lat]) => mercator(lon, lat)),
+      SILUETT_TOLERANS,
+    ).map(([x, y]) => [Math.round(x), Math.round(y)]),
+  );
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const delar: string[] = [];
+
+  for (const ring of ringar) {
+    /* Sista punkten är den första igen, och Z sluter ringen åt oss. */
+    const sist = ring.length - 1;
+    const punkter =
+      ring[0][0] === ring[sist][0] && ring[0][1] === ring[sist][1] ? ring.slice(0, sist) : ring;
+    let px = 0;
+    let py = 0;
+    punkter.forEach(([x, y], i) => {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      if (i === 0) {
+        delar.push(`M${x} ${y}`);
+      } else if (x !== px || y !== py) {
+        delar.push(`l${x - px} ${y - py}`);
+      }
+      px = x;
+      py = y;
+    });
+    delar.push('Z');
+  }
+
+  return {
+    d: delar.join(''),
+    viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`,
+    x: minX,
+    y: minY,
+    w: maxX - minX,
+    h: maxY - minY,
+  };
+}
