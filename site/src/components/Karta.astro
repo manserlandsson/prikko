@@ -878,21 +878,21 @@ const LEGEND = [
       {initial.map((e) => (
         <li>
           <a href={path(base, e.slug)}>
+            <FaceRef verdict={e.verdict} size={36} />
             <span class="k-bild">
-              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="320" height="116" />}
-              <FaceRef verdict={e.verdict} size={40} />
+              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="64" height="64" />}
             </span>
             <span class="k-text">
               <b>{e.name}</b>
-              <span class="k-typ text-secondary">{e.types[0] ?? 'Livsmedelsverksamhet'}</span>
-              <span class="k-dom" data-v={e.verdict ?? 'none'}>
-                {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
-              </span>
-              <span class="k-fakta text-muted">
-                <span>{e.inspections.length === 1 ? '1 kontroll' : `${formatNumber(e.inspections.length)} kontroller`}</span>
+              <span class="k-meta">
+                <span class="k-dom" data-v={e.verdict ?? 'none'}>
+                  {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
+                </span>
+                <span class="k-typ">{e.types[0] ?? 'Livsmedelsverksamhet'}</span>
                 {latestInspectionDate(e) && (
                   <span class="k-datum">{formatDate(latestInspectionDate(e)!)}</span>
                 )}
+                <span>{e.inspections.length === 1 ? '1 kontroll' : `${formatNumber(e.inspections.length)} kontroller`}</span>
               </span>
             </span>
           </a>
@@ -2808,6 +2808,42 @@ const LEGEND = [
       forslag.hidden = traff.length === 0;
       filterFalt.setAttribute('aria-expanded', String(traff.length > 0));
 
+      /*
+       * ══ BESKEDET VID TAKET ═══════════════════════════════════════════════
+       *
+       * Taket är tolv, se OMRADESTAK. Före den här raden hände ingenting alls
+       * vid val nummer tretton: `satOmrade` klippte listan och sidan sa inte
+       * ett ord. Det är samma fel som taket självt var, alltså något som inte
+       * händer utan besked.
+       *
+       * ── TVÅ VÄGAR, OCH DEN TYSTARE FÖRLORAR ────────────────────────────
+       *
+       * Den ena vägen är att sluta ERBJUDA områden när taket är nått. Den
+       * kostar ingen rad och är tystare, men den gör en fungerande sökning
+       * till en trasig: man skriver "Vasastaden", området finns, och listan är
+       * tom. Ett uteblivet svar är den svåraste sortens fel att förstå, och
+       * det var precis det här ändringen skulle bort från.
+       *
+       * Den andra vägen är att erbjuda dem ändå och låta en rad säga vad som
+       * gäller. Den kostar en rad, men bara i det läge den behövs: raden finns
+       * inte förrän tolv är valda, alltså kostar den noll i varje vanligt
+       * besök. Den vinner.
+       *
+       * TEXTEN SÄGER VAD SOM GÄLLER OCH INTE VARFÖR, docs/18. Ingen förklaring
+       * av masken, ingen uppmaning att ta bort ett område först, och inget ord
+       * om adressen. Fyra ord.
+       *
+       * Raden är inte en `option`. Piltangenterna hoppar över den och Enter
+       * kan inte välja den, eftersom den inte är ett val.
+       */
+      if (omradeVal.length >= OMRADESTAK && traff.length > 0) {
+        const besked = document.createElement('li');
+        besked.className = 'forslag-besked';
+        besked.setAttribute('role', 'presentation');
+        besked.textContent = `Högst ${RAKNEORD[OMRADESTAK] ?? OMRADESTAK} områden.`;
+        forslag.appendChild(besked);
+      }
+
       traff.forEach((t, i) => {
         const li = document.createElement('li');
         /*
@@ -3419,6 +3455,26 @@ const LEGEND = [
          * klass. Se noten över <ol class="rader"> för varför: den minsta
          * skillnad syns som ett hopp när kartan vaknar och byter ut raderna.
          */
+        /*
+         * MÄRKET FÖRST, alltså före bildytan och inte inuti den. Se
+         * MÄRKETS PLATS i stilarna för varför, och mallen ovan för att
+         * ordningen måste vara densamma på båda ställena.
+         */
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'face');
+        svg.setAttribute('width', '36');
+        svg.setAttribute('height', '36');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('aria-hidden', 'true');
+        /* focusable="false" står i FaceRef.astro och måste stå här också.
+           Attributet påverkar inte måtten men de två formerna ska vara
+           identiska, annars är regeln ovan inte längre sann någonstans. */
+        svg.setAttribute('focusable', 'false');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
+        svg.appendChild(use);
+        a.appendChild(svg);
+
         const bild = document.createElement('span');
         bild.className = 'k-bild';
 
@@ -3431,25 +3487,10 @@ const LEGEND = [
           img.alt = '';
           img.loading = 'lazy';
           img.decoding = 'async';
-          img.width = 320;
-          img.height = 116;
+          img.width = 64;
+          img.height = 64;
           bild.appendChild(img);
         }
-
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('class', 'face');
-        svg.setAttribute('width', '40');
-        svg.setAttribute('height', '40');
-        svg.setAttribute('viewBox', '0 0 100 100');
-        svg.setAttribute('aria-hidden', 'true');
-        /* focusable="false" står i FaceRef.astro och måste stå här också.
-           Attributet påverkar inte måtten men de två formerna ska vara
-           identiska, annars är regeln ovan inte längre sann någonstans. */
-        svg.setAttribute('focusable', 'false');
-        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', `#pk-face-${FACE_BY_V[p.v]}`);
-        svg.appendChild(use);
-        bild.appendChild(svg);
         a.appendChild(bild);
 
         const text = document.createElement('span');
@@ -3461,16 +3502,28 @@ const LEGEND = [
         b.textContent = p.namn;
         text.appendChild(b);
 
-        const typ = document.createElement('span');
-        typ.className = 'k-typ text-secondary';
-        typ.textContent = p.typ || 'Livsmedelsverksamhet';
-        text.appendChild(typ);
+        /*
+         * METARADEN, radens andra och sista våning.
+         *
+         * Skiljetecknen ritas av CSS och inte här, se .k-meta i stilarna. Det
+         * är inte kosmetik: en punkt som byggs med en textnod i den ena formen
+         * och skrivs i mallen i den andra är precis den sortens skillnad som
+         * ger ett hopp när kartan vaknar, och den syns inte i en granskning
+         * eftersom båda formerna LÄSER likadant.
+         */
+        const meta = document.createElement('span');
+        meta.className = 'k-meta';
 
         const dom = document.createElement('span');
         dom.className = 'k-dom';
         dom.dataset.v = ['clean', 'minor', 'major', 'none'][p.v] ?? 'none';
         dom.textContent = LABEL[p.v];
-        text.appendChild(dom);
+        meta.appendChild(dom);
+
+        const typ = document.createElement('span');
+        typ.className = 'k-typ';
+        typ.textContent = p.typ || 'Livsmedelsverksamhet';
+        meta.appendChild(typ);
 
         /*
          * FAKTARADEN, Boolis "91,5 m² 3 rum vån 3 7 039 kr/mån" på vår data.
@@ -3487,21 +3540,19 @@ const LEGEND = [
          * uppgift binder ihop radens två kanter. Uppmätt före ändringen:
          * 44,2 procent av radens bredd bar innehåll.
          */
-        const fakta = document.createElement('span');
-        fakta.className = 'k-fakta text-muted';
-        const antal = document.createElement('span');
-        antal.textContent = p.k === 1 ? '1 kontroll' : `${p.k.toLocaleString('sv-SE')} kontroller`;
-        fakta.appendChild(antal);
-
         const datum = datumText(p.d);
         if (datum) {
           const d = document.createElement('span');
           d.className = 'k-datum';
           d.textContent = datum;
-          fakta.appendChild(d);
+          meta.appendChild(d);
         }
-        text.appendChild(fakta);
 
+        const antal = document.createElement('span');
+        antal.textContent = p.k === 1 ? '1 kontroll' : `${p.k.toLocaleString('sv-SE')} kontroller`;
+        meta.appendChild(antal);
+
+        text.appendChild(meta);
         a.appendChild(text);
 
         li.appendChild(a);
@@ -7042,6 +7093,20 @@ const LEGEND = [
      --text-secondary till --glass-ink-quiet, alltså #56565B i stället för
      #6E6E73, och den här raden får det utan att veta om det. Det är hela
      poängen med att ytan kommer ur klassen. */
+  /*
+   * Beskedet vid taket. Ligger i samma panel som raderna och ska läsa som en
+   * upplysning och inte som ett val: ingen hovring, ingen markering, ingen
+   * pekare. Samma grad och samma tysta bläck som `.note` i SiteSearch.astro,
+   * alltså sidhuvudets motsvarande rad, av samma skäl som hela panelen är
+   * sidhuvudets.
+   */
+  .forslag :global(.forslag-besked) {
+    padding: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
   .forslag :global(.forslagstyp) {
     flex: none;
     font-size: var(--fs-caption);
@@ -7278,16 +7343,41 @@ const LEGEND = [
    */
   .rader :global(a) {
     display: grid;
-    /* Två spalter, som Boolis. Bilden är fast, texten tar resten. Den tredje
-       spalten med bedömningen är borta: bedömningen är numera radens tredje
-       textvåning och datumet är högerställt i den fjärde, alltså når raden
-       högerkanten utan en egen spalt för det. */
-    grid-template-columns: 104px minmax(0, 1fr);
+    /*
+     * ══ TRE SPALTER: MÄRKET, BILDYTAN, TEXTEN ═════════════════════════════
+     *
+     * Utförande C ur brand/_prov-kartkort-2.html. Ägaren 2026-08-28: "Nej vi
+     * kör C." och "tror C blir bra om vi kan sätta ikonen i mitten av rutan
+     * (den är typ mot nedre delen nu), och lite större bild."
+     *
+     * ── MÄRKETS PLATS, OCH DEN ÄR MÄTT ──────────────────────────────────
+     *
+     * Märket låg sist i C när ägaren valde formen, alltså vid högerkanten.
+     * Tre placeringar renderades och mättes i provet, uppmätt i en 688 px
+     * kolumn:
+     *
+     *     märket sist      märkets x 603, namnets 127   efter namnet
+     *     märket först     märkets x  49, namnets 177   128 px före namnet
+     *     märket i hörnet  märkets x  53, namnets 127   före, men på motivet
+     *
+     * Den som skummar tio rader ska se bedömningen innan hen läst ett namn.
+     * Sist faller på det: 476 px efter namnet i läsordningen. Hörnet klarar
+     * ordningen men täcker 28 x 28 av en 64 x 64 ruta, alltså 19 procent av
+     * just det motiv som ändringen förstorade, och ytfyllnaden mätt i äkta
+     * bläck sjunker från 16,7 till 15,2 procent. Kvar står märket först.
+     *
+     * SPALTORDNINGEN ÄR ITERATION 1:s, och det ska stå här. Iteration 1 föll
+     * på "korten är sjukt ful". Det som skiljer är inte ordningen utan talen:
+     * raden är 92 px och inte 149, bildytan 64 px och inte 320, och bildytans
+     * andel av radens bredd 9,3 procent och inte 46,5.
+     */
+    grid-template-columns: 28px 48px minmax(0, 1fr);
     column-gap: var(--s-3);
-    /* start och inte center: i den kompakta formen är bilden LÄGRE än texten,
-       tvärtom mot den breda, och en centrerad bild hade flutit mitt i en
-       textspalt. */
-    align-items: start;
+    /* center i BÅDA formerna nu. Bildytan är kvadratisk och högre än de två
+       textvåningarna i båda, alltså finns ingen form kvar där texten är den
+       högre av de två. Regeln som stod här delade formerna i två och behövs
+       inte längre. */
+    align-items: center;
     padding: var(--s-3) var(--kartgutter);
     color: var(--text);
   }
@@ -7354,8 +7444,8 @@ const LEGEND = [
   .rader :global(.k-bild) {
     position: relative;
     display: block;
-    width: 104px;
-    height: 78px;
+    width: 48px;
+    height: 48px;
     border-radius: var(--r-control);
     overflow: hidden;
     background-color: var(--bild-tom);
@@ -7393,9 +7483,46 @@ const LEGEND = [
      * Andelen och inte två fasta tal, så att motivet skalar med båda
      * radformerna av sig självt: 0,58 av 116 är 67, av 78 är 45.
      */
-    background-position: center bottom;
-    background-size: auto 58%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23D0D0D8' d='M12 12h24v28H12z'/%3E%3Cpath fill='%23ADADB5' d='M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23C6C6CE' d='M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23ADADB5' d='M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%239E9EA7' d='M19 29h10v11H19z'/%3E%3Crect fill='%23BCBCC4' x='7' y='39.4' width='34' height='1.8' rx='.9'/%3E%3C/svg%3E");
+    /*
+     * ══ MOTIVET STÅR MITT I RUTAN, OCH DET FYLLER DEN ═════════════════════
+     *
+     * Här stod `center bottom` och 58 procent. De två talen kom ur utförande
+     * H, där rutan var 320 x 116 och markisen skulle stå på en mark. I en
+     * kvadrat på 64 px finns ingen mark att stå på, och ägaren såg det:
+     * "sätt ikonen i mitten av rutan (den är typ mot nedre delen nu), och
+     * lite större bild".
+     *
+     * ── VIEWBOX ÄR FLYTTAD, OCH DET ÄR DÄRFÖR `center` FUNGERAR ─────────
+     *
+     * Ritningen ligger inte mitt i sin egen ruta. Bläcket spänner x 7 till 41
+     * och y 12 till 41,2 av 48, alltså är dess mittpunkt 24 i sidled men 26,6
+     * i höjdled. Med `viewBox='0 0 48 48'` centrerade `center` den TOMMA
+     * rutan och la motivet 5,4 procent för lågt. `0 2.6 48 48` flyttar rutan
+     * i stället för ritningen, alltså är bläckets mitt nu rutans mitt och
+     * `center` betyder det man ser.
+     *
+     * ── VARFÖR 96 OCH INTE 108 ─────────────────────────────────────────
+     *
+     * Sex steg renderades i provet, mätt som bläckets andel av rutans sida:
+     *
+     *     58 % mot botten   41,1 %   sidoluft 18,9 px, 34,1 över och 7,3 under
+     *     58 % centrerat    41,1 %   20,7
+     *     72 %              51,0 %   15,7
+     *     84 %              59,5 %   13,0
+     *     96 %              68,0 %   10,2
+     *     108 %             76,5 %    7,5
+     *
+     * Rutan bär --r-control, alltså 10 px radie. Vid 96 procent är sidoluften
+     * 10,2 px, precis utanför hörnbågen. Vid 108 är den 7,5 och markisens
+     * hörn hamnar inne i rundningen, alltså tuschar motivet kanten. Där
+     * tippar det, och 96 är sista steget före.
+     *
+     * Andelen och inte två fasta tal, så att motivet skalar med båda
+     * radformerna av sig självt: 0,96 av 64 är 61, av 48 är 46.
+     */
+    background-position: center;
+    background-size: auto 96%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23D0D0D8' d='M12 12h24v28H12z'/%3E%3Cpath fill='%23ADADB5' d='M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23C6C6CE' d='M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23ADADB5' d='M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%239E9EA7' d='M19 29h10v11H19z'/%3E%3Crect fill='%23BCBCC4' x='7' y='39.4' width='34' height='1.8' rx='.9'/%3E%3C/svg%3E");
   }
 
   .rader :global(.k-bild img) {
@@ -7404,37 +7531,39 @@ const LEGEND = [
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Bilden kan vara i vilket format som helst; ytan är alltid 320 x 116 och
-       det är ytan raden räknar med. */
+    /* Bilden kan vara i vilket format som helst; ytan är alltid kvadratisk
+       och det är ytan raden räknar med. */
     display: block;
   }
 
   /*
-   * Märket i bildens nedre vänstra hörn, 12 px från båda kanterna. Boolis
-   * etikett "Snart till salu" ligger på exakt de talen, uppmätt.
+   * MÄRKET, radens första spalt.
    *
-   * Absolut och ovanpå bilden, alltså syns det även när ett riktigt foto
-   * landat. En vit ring runt om så att ett grönt ansikte mot en grön fasad
-   * inte försvinner: fotografiet är okänt och märket måste hålla i alla.
+   * Här låg det absolut positionerat i bildytans nedre vänstra hörn, med en
+   * vit ring runt om så att ett grönt ansikte mot en grön fasad skulle hålla.
+   * Ringen behövs inte längre: märket ligger på radens egen vita yta och inte
+   * på ett okänt fotografi, och en ring runt ett märke som redan står ensamt
+   * är bara en till linje.
+   *
+   * Radien är --r-control i båda formerna. Provet skalade den, 9 px på det
+   * breda märket och 8 på det smala, men en pixels rundning är inte ett tal
+   * värt att skriva två gånger, och tokenet finns.
    */
-  .rader :global(.k-bild svg.face) {
-    position: absolute;
-    left: 6px;
-    bottom: 6px;
+  .rader :global(svg.face) {
+    flex: none;
     width: 28px;
     height: 28px;
     border-radius: var(--r-control);
-    box-shadow: 0 0 0 2px var(--card), 0 1px 3px rgba(0, 0, 0, .25);
   }
 
   .rader :global(.k-text) {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    /* Fyra våningar med Boolis luft mellan blocken, nedskalad: deras 18 px
-       mellan sex rader i 172 blir 4 mellan fyra rader i 116, annars spränger
-       texten bildytan den ska stå jämnhög med. */
-    gap: 4px;
+    /* Två våningar nu, namnet och metaraden, alltså behövs knappt någon luft
+       mellan dem: raden binds ihop av att de står tätt. Här stod 4 px för
+       fyra våningar. */
+    gap: 2px;
   }
 
   /* Boolis hovring, ordagrant: rubriken stryks under och ingenting annat
@@ -7456,120 +7585,111 @@ const LEGEND = [
     white-space: nowrap;
   }
 
-  /* Förklaringsraden, Boolis grå "Kedjehus · Hedensbyn · Skellefteå". */
-  .rader :global(.k-typ) {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
+  /*
+   * ══ METARADEN, RADENS ANDRA OCH SISTA VÅNING ═══════════════════════════
+   *
+   * Här låg tre block: .k-typ, .k-dom och .k-fakta, alltså tre egna våningar
+   * plus namnet. Utförande C har två våningar, och de tre uppgifterna står
+   * därför på en rad med punkter emellan, som Boolis grå "Kedjehus ·
+   * Hedensbyn · Skellefteå".
+   *
+   * ETT ENDA KLIPP OCH INTE FYRA. Raden klipps som en sträng, alltså tappar
+   * en lång rad sina sista uppgifter i stället för att varje uppgift klipps
+   * för sig. Ordningen är därför den viktigaste först: bedömningen, typen,
+   * datumet och sist antalet kontroller.
+   *
+   * BEDÖMNINGEN STÅR FÖRST, och det är samma skäl som gav märket första
+   * spalten. Den som skummar ska möta beskedet före resten, både som färg och
+   * som ord.
+   */
+  .rader :global(.k-meta) {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   /*
-   * Bedömningen, radens andra ankare och tredje våning. Boolis pris sitter på
-   * samma plats i ordningen och bär samma vikt.
+   * SKILJETECKNEN RITAS HÄR OCH SKRIVS ALDRIG I MARKUPEN.
    *
-   * 17 px i vikt 600 och inte 14: den ska ha samma tyngd som namnet ovanför,
-   * annars är den bara ännu en grå rad. Priset hos dem är 16/600 mot en
-   * rubrik i 16/400, alltså är bedömningen hos oss till och med tyngre i
-   * förhållande till namnet än priset är hos dem. Det är rätt: hela sajten
-   * finns för bedömningen.
+   * Raden byggs i två former, en på servern och en med createElement, och en
+   * punkt som är en textnod i den ena och ett tecken i mallen i den andra är
+   * precis den skillnad som ger ett hopp när kartan vaknar. Den syns dessutom
+   * inte i en granskning, eftersom båda formerna LÄSER likadant. Ett ::before
+   * kan inte glida isär, av samma skäl som platshållarmotivet är en bakgrund.
+   */
+  .rader :global(.k-meta > span + span::before) {
+    content: ' · ';
+    color: var(--text-muted);
+  }
+
+  /*
+   * Bedömningen, radens andra ankare.
    *
    * FÄRGEN ÄR TEXTFÄRGEN ur tokens.css och inte nålens. Gult som text på vitt
    * är i praktiken oläsligt, se kommentaren vid KART_FARG i lib/kartbas.ts,
    * och det är precis därför --verdict-*-ink finns. Den gula bläckfärgen är
    * ändå för ljus, så anmärkningsraden får sajtens vanliga textfärg:
-   * bedömningen syns redan i märket i bildens hörn, och en rad som inte går
+   * bedömningen syns redan i märket i första spalten, och en rad som inte går
    * att läsa är sämre än en rad utan färg.
    */
   .rader :global(.k-dom) {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
     font-weight: 600;
     color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .rader :global(.k-dom[data-v='clean']) { color: var(--verdict-clean-ink); }
   .rader :global(.k-dom[data-v='major']) { color: var(--verdict-major-ink); }
 
   /*
-   * FAKTARADEN, radens fjärde våning och den som når högerkanten.
-   *
-   * Boolis motsvarighet är "91,5 m² 3 rum vån 3 7 039 kr/mån" med
-   * mäklarloggan högerställd i samma rad. Hos oss står antalet kontroller till
-   * vänster och datumet till höger.
-   *
-   * DATUMET TILL HÖGER ÄR INTE DEKORATION. Före ändringen slutade allt
-   * innehåll mitt i raden och 210,8 px stod tomma, se noten över .rader a.
-   * En högerställd sista uppgift binder ihop radens två kanter, och den är
-   * dessutom den enda uppgiften man jämför lodrätt mellan rader.
-   *
-   * `gap` och `justify-content` och inte `float`: klipps namnet på smal skärm
-   * ska de två ändå aldrig krocka.
-   */
-  .rader :global(.k-fakta) {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-3);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-
-  .rader :global(.k-fakta > span) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .rader :global(.k-datum) { flex: none; }
-
-  /*
    * ══ DEN BREDA RADEN, FRÅN 1280 ═════════════════════════════════════════
    *
    * Talet är kolumnens och inte fönstrets, se noten över .rader a: först vid
    * 1280 är `--kartlista` 688 px, alltså 640 innanför innerkanterna, och det
-   * är den bredd bildens 320 är uträknade mot.
+   * är den bredd radens mått är uträknade mot.
    *
    * Här ligger allt som skiljer den breda formen från grundformen, och
    * ingenting annat.
    */
   @media (min-width: 1280px) {
     .rader :global(a) {
-      grid-template-columns: 320px minmax(0, 1fr);
-      column-gap: var(--s-4);
-      /* center och inte start: här är bilden HÖGRE än texten, alltså ska
-         texten stå mitt i bildens höjd. */
-      align-items: center;
-      /* 24 px in från kanten OCH uppifrån, Boolis tal rakt av. */
-      padding: var(--s-4) var(--kartgutter);
+      grid-template-columns: 36px 64px minmax(0, 1fr);
+      column-gap: 14px;
+      /*
+       * 14 px och inte --s-3 eller --s-4, och det är det enda skrivna talet i
+       * hela raden. Det är BUNDET till bildytans 64: raden ska mäta 92 px, som
+       * är det tal utförande C mättes och valdes på, och 64 plus 14 plus 14 är
+       * 92. Tokenens 12 hade gett 88 och 16 hade gett 96. Ändras bildytan ska
+       * det här talet räknas om, inte tvärtom.
+       */
+      padding: 14px var(--kartgutter);
     }
 
     .rader :global(.k-bild) {
-      width: 320px;
-      height: 116px;
+      width: 64px;
+      height: 64px;
     }
 
-    /* Märket 40 px och 12 px från kanterna, alltså Boolis etikettplacering.
-       I den kompakta rutan på 104 x 78 hade 40 px tagit en tredjedel av
-       bredden och halva höjden. */
-    .rader :global(.k-bild svg.face) {
-      left: 12px;
-      bottom: 12px;
-      width: 40px;
-      height: 40px;
+    /* Märket följer bildytan upp. 36 mot 64 är samma förhållande som 28 mot
+       48 i grundformen, alltså läser de två formerna likadant. */
+    .rader :global(svg.face) {
+      width: 36px;
+      height: 36px;
     }
 
-    /* Namnet och bedömningen upp ett steg. 17 px kräver en spalt på minst
-       300; i den kompakta formen är den 195 och klipper varannan rad. */
-    .rader :global(b),
-    .rader :global(.k-dom) {
+    /* Namnet upp ett steg. 17 px kräver en spalt på minst 300; i den kompakta
+       formen är den smalare och klipper varannan rad. Metaraden går samtidigt
+       från bildtextens grad till brödtextens mindre, alltså 13 till 14. */
+    .rader :global(b) {
       font-size: var(--fs-body);
       line-height: var(--lh-body);
+    }
+
+    .rader :global(.k-meta) {
+      font-size: var(--fs-body-s);
+      line-height: var(--lh-body-s);
     }
   }
 
