@@ -235,9 +235,16 @@ export const KARTA_I_DOKUMENT = {
 } as const;
 
 /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
- *  koden: adressen ska vara densamma i dev och i bygget. */
+ *  koden: adressen ska vara densamma i dev och i bygget.
+ *
+ *  `rel="stylesheet"` I VAKTEN ÄR INTE PYNT. Kartsidan bär numera en
+ *  `<link rel="preload" as="style">` på exakt samma adress, se resurshintarna
+ *  i Karta.astro. En vakt som bara frågar efter `href` hittar den, tror att
+ *  arket redan ligger där och lägger aldrig in det riktiga. Uppmätt
+ *  2026-08-28: noll stilmallar på sidan, MapLibres knappikoner borta och
+ *  upphovsraden oformaterad, utan ett fel i konsolen. */
 export function laddaMaplibreCss(): void {
-  if (document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) return;
+  if (document.querySelector(`link[rel="stylesheet"][href="${MAPLIBRE_CSS}"]`)) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = MAPLIBRE_CSS;

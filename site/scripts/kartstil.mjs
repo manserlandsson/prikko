@@ -212,6 +212,45 @@ function sprakom(lager) {
   return true;
 }
 
+/**
+ * ══ INGEN KURSIV STIL, OCH DET ÄR EN VIKTFRÅGA ═══════════════════════════
+ *
+ * Ägaren 2026-08-28: "ta bort dom kursiva teckensnitten också."
+ *
+ * Liberty sätter Noto Sans Italic på nio lager: vattendrag, sjönamn i punkt
+ * och linje, fyra POI-lager, samt `label_other` och `label_state`. Det är
+ * kartografisk konvention, kursivt för vatten, och den konventionen kostar en
+ * HEL TECKENSNITTSFAMILJ till.
+ *
+ * Uppmätt genom en loggande mellanhand mot rikskartan 2026-08-28, alltså vad
+ * webbläsaren faktiskt hämtade för att rita öppningsvyn:
+ *
+ *   Noto Sans Regular   0-255, 256-511, 512-767    299 527 byte
+ *   Noto Sans Italic    0-255, 256-511             212 313 byte
+ *   Noto Sans Bold      0-255                       81 170 byte
+ *
+ * Kursiven var alltså 212 kB av 593, i två förfrågningar, och de låg på
+ * kritiska vägen: MapLibre kan inte lägga ut en etikett innan glyferna finns,
+ * och `load` väntar på utlägget.
+ *
+ * ETIKETTERNA STÅR KVAR. Det som byts är stilen, inte texten: lagren pekas om
+ * till den upprätta varianten. En karta utan sjönamn hade varit en annan och
+ * sämre karta, och det var inte det han bad om.
+ *
+ * Fetstilen rörs inte. Den bär ortnamnen, alltså det man orienterar sig på,
+ * och den är ett intervall och inte två.
+ */
+function upprattom(lager) {
+  const font = lager.layout?.['text-font'];
+  if (!Array.isArray(font)) return false;
+
+  const utan = font.map((namn) => namn.replace(/\s*Italic$/, ' Regular').replace(/\s+/g, ' ').trim());
+  if (utan.join('|') === font.join('|')) return false;
+
+  lager.layout['text-font'] = utan;
+  return true;
+}
+
 const svar = await fetch(KALLA);
 if (!svar.ok) throw new Error(`${KALLA} svarade ${svar.status}`);
 const stil = await svar.json();
@@ -227,6 +266,7 @@ stil.layers = stil.layers.filter((l) => l.source !== 'ne2_shaded');
 for (const lager of stil.layers) fargom(lager);
 
 const svenska = stil.layers.filter(sprakom).length;
+const upprattade = stil.layers.filter(upprattom).length;
 
 stil.name = 'Prikko';
 stil.metadata = {
@@ -240,7 +280,9 @@ await writeFile(fil, JSON.stringify(stil));
 
 const otraffade = stil.layers.filter((l) => !REGLER.some(([m]) => m.test(l.id)));
 const trafffar = stil.layers.length - otraffade.length;
-console.log(`${fil}: ${stil.layers.length} lager, ${trafffar} omfärgade, ${svenska} på svenska`);
+console.log(
+  `${fil}: ${stil.layers.length} lager, ${trafffar} omfärgade, ${svenska} på svenska, ${upprattade} avkursiverade`,
+);
 // Utan den här listan går det inte att veta om en oträffad är avsiktlig eller
 // ett nytt lager som OpenFreeMap lagt till sedan sist.
 for (const l of otraffade) console.log(`  oträffad: ${l.id} (${l.type})`);

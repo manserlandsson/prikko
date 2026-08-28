@@ -89,9 +89,7 @@ import { linkedAreas, municipalityArea } from '../lib/omraden';
  * som SiteSearch.astro gör det, se `data-index` på roten.
  */
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
-/* Siluetten. Körs vid bygget och följer aldrig med ned till besökaren som
-   kod, bara som en färdig bana. Se SILUETTEN längst ned i lib/riket.ts. */
-import { mercator, SILUETT_VARLD, swedenSilhouette } from '../lib/riket';
+
 import { VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
@@ -158,56 +156,6 @@ interface Props {
 
 const { kommun, data, vy, vylada } = Astro.props;
 const base = kommun ? `/${kommun.slug}` : '';
-
-/**
- * ══ SILUETTEN, ALLTSÅ EN KARTA I FÖRSTA BILDRUTAN ══════════════════════════
- *
- * Ägaren 2026-08-27, med skärmbild av /karta/ vid laddning: "jag ser även som
- * min screenshot på load... är typ i en sekund, kan du ta bort det helt och
- * hållet". Tredje gången han tar upp det. Bilden visar hela kartkolumnen som
- * ett tomt beige fält medan vänsterkolumnen står klar.
- *
- * De två tidigare lagningarna gjorde tomrummet snyggare och inte borta:
- * kartfärgen i stället för vitt på ramen, och teckenförklaringen och
- * kontrollerna gömda tills kartan finns. Kvar blev en färgad yta utan
- * innehåll, och en färgad yta utan innehåll är fortfarande ett hål.
- *
- * En riktig karta går inte att rita omedelbart. MapLibre är en dynamisk
- * import, och efter den kommer stilen, sprajten, teckensnitten och rutorna.
- * SVERIGES KONTUR går däremot att rita direkt: den ligger redan i bygget som
- * två ringar och 434 punkter, se lib/riket.ts, och som en SVG-bana i sidans
- * egen HTML kostar den ingen hämtning alls.
- *
- * ── BARA DÄR EN VY ÄR GIVEN, alltså bara rikskartan ──────────────────────
- *
- * Kommunkartorna passar in en LÅDA, och den inpassningen beror på rutans
- * pixelmått, som bygget inte känner. Där hade siluetten hamnat bredvid kartan
- * i stället för under den. Det är heller ingen förlust: på kommunernas zoom
- * ligger hela rutan inne i Sverige, alltså är hela ytan landfärgad redan i
- * dag, vilket är precis vad siluetten hade ritat.
- *
- * Center och zoom räcker däremot HELT UTAN att veta rutans mått. Kameran
- * lägger centret i rutans mitt och skalan följer av zoomen, alltså kan banan
- * hängas upp på `left: 50%` och `top: 50%` med ett fast pixelavstånd, och den
- * ligger rätt på varje bredd. Se `.siluett` i stilarna.
- */
-const siluett = (() => {
-  if (!vy) return null;
-  const bana = swedenSilhouette();
-  /* MapLibres skala: världen är 512 px gånger två upphöjt till zoomen. */
-  const k = (512 * 2 ** vy.zoom) / SILUETT_VARLD;
-  const [cx, cy] = mercator(vy.lng, vy.lat);
-  const av = (n: number) => `${Math.round(n * 10) / 10}px`;
-  return {
-    d: bana.d,
-    viewBox: bana.viewBox,
-    /* Fyra tal, som egenskaper och inte som färdiga regler, så att skriptet
-       kan skriva om dem i arkläget. Se `stallSiluett` längre ned. */
-    stil:
-      `--sil-w:${av(bana.w * k)};--sil-h:${av(bana.h * k)};` +
-      `--sil-x:${av((bana.x - cx) * k)};--sil-y:${av((bana.y - cy) * k)}`,
-  };
-})();
 
 /** Vyns namn i klartext. Står i rubriken, i kartans etikett och i tomläget. */
 const plats = kommun ? kommun.city : 'Sverige';
@@ -1121,23 +1069,6 @@ const LEGEND = [
   {/* ── Kartan ─────────────────────────────────────────────────────────── */}
   <section class="kartkolumn" aria-label={`Karta över ${plats}`}>
     <div class="kartram" data-kartram>
-      {/*
-        Siluetten. Ligger FÖRE duken i markupen, alltså under den, och tonas
-        aldrig själv: MapLibres duk är ogenomskinlig och tonas in ovanpå.
-        Motiveringen i sin helhet står vid `siluett` i frontmatteret.
-
-        aria-hidden, för det här är en bild av kartan som ännu inte finns.
-        Kartans innehåll når skärmläsaren genom listan bredvid, som är fullt
-        renderad från början.
-      */}
-      {siluett && (
-        <div class="siluett" data-siluett={SILUETT_VARLD} aria-hidden="true">
-          <svg viewBox={siluett.viewBox} style={siluett.stil} focusable="false">
-            <path d={siluett.d} />
-          </svg>
-        </div>
-      )}
-
       <div class="duk" data-duk></div>
 
       {/* Nålens kort. Ett element, två skepnader: ett kort vid nålen på stora
@@ -1341,23 +1272,6 @@ const LEGEND = [
     const kartram = root.querySelector<HTMLElement>('[data-kartram]')!;
     const kort = root.querySelector<HTMLElement>('[data-kort]')!;
 
-    /*
-     * ══ SILUETTEN, DE TVÅ FALL BYGGET INTE KAN RÄKNA ═══════════════════════
-     *
-     * Banan är placerad vid bygget mot sidans öppningsvy, alltså center och
-     * zoom, se `siluett` i frontmatteret. Den placeringen gäller på varje
-     * bredd så länge kameran är just den. Två fall bryter mot det.
-     *
-     * FÖRSTA FALLET: ADRESSEN BÄR ETT UTSNITT. Då öppnar kartan där och inte
-     * på Sverige, se `startVy` i kartbygget nedan. Siluetten tas då bort
-     * direkt, tidigast möjliga ögonblick i den här modulen, för en kontur på
-     * fel plats är sämre än en tom ruta. Kvar blir kartfärgen som förut.
-     *
-     * ANDRA FALLET är arkläget, och det räknas om i stället för att tas bort.
-     * Se `stallSiluett` vid kartbygget, där arkets höjd redan är uppmätt.
-     */
-    const siluett = root.querySelector<HTMLElement>('[data-siluett]');
-    if (siluett && /(^|&)map=/.test(location.hash.replace(/^#/, ''))) siluett.remove();
     const kortInne = root.querySelector<HTMLElement>('[data-kort-inne]')!;
     const kortStang = root.querySelector<HTMLButtonElement>('[data-kort-stang]')!;
     const fel = root.querySelector<HTMLElement>('[data-fel]')!;
@@ -5090,9 +5004,14 @@ const LEGEND = [
     }
 
     /** Stilmallen läggs in som <link> och inte som import, av samma skäl som
-     *  koden: adressen ska vara densamma i dev och i bygget. */
+     *  koden: adressen ska vara densamma i dev och i bygget.
+     *
+     *  `rel="stylesheet"` I VAKTEN ÄR INTE PYNT, se laddaMaplibreCss i
+     *  lib/kartbas.ts: sidans egen `<link rel="preload" as="style">` ligger på
+     *  samma adress, och en vakt som bara frågar efter `href` hittar den och
+     *  hoppar över det riktiga arket. */
     function laddaCss() {
-      if (document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) return;
+      if (document.querySelector(`link[rel="stylesheet"][href="${MAPLIBRE_CSS}"]`)) return;
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = MAPLIBRE_CSS;
@@ -5245,70 +5164,6 @@ const LEGEND = [
         return Math.max(0, Math.round(ram.bottom - arkRuta.top));
       })();
 
-      /**
-       * ══ SILUETTEN I ARKLÄGET ═════════════════════════════════════════════
-       *
-       * Banan ligger placerad mot `vy`, alltså mot center och zoom, och den
-       * placeringen håller på varje bredd DÄR KAMERAN ÄR JUST DEN. I arket är
-       * den det inte: kameran passar då in `oppningsLada` i strimman ovanför
-       * arket, se noten strax ovan, och den inpassningen kan bara räknas när
-       * arkets höjd är känd. Den är känd nu, på raden ovanför, alltså räknas
-       * de fyra talen om här och siluetten tänds med `data-stalld`. Se
-       * mediefrågan vid `.siluett` i stilarna.
-       *
-       * RÄKNINGEN ÄR MAPLIBRES EGEN, inte en efterhärmning: lådan passas in i
-       * den rektangel marginalerna lämnar, och kamerans center förskjuts med
-       * halva skillnaden mellan motstående marginaler, vilket är exakt vad
-       * `cameraForBounds` gör. Talen 32 och `arkTacker + 32` är samma tal som
-       * skickas till `fitBoundsOptions` nedan, och de två får aldrig glida
-       * isär.
-       */
-      if (siluett && arkLage && oppningsLada && arkTacker > 0) {
-        const svg = siluett.firstElementChild as SVGElement | null;
-        const varld = Number(siluett.dataset.siluett);
-        const lada = (svg?.getAttribute('viewBox') ?? '').split(' ').map(Number);
-        const bredd = duk.clientWidth;
-        const hojd = duk.clientHeight;
-
-        if (svg && varld > 0 && lada.length === 4 && bredd > 0 && hojd > 0) {
-          /* Web Mercator i samma enheter som banan. Se mercator() i
-             lib/riket.ts; funktionen kan inte importeras hit, eftersom den
-             modulen läser en JSON-fil på 7 kB som aldrig ska ned till
-             besökaren. Formeln är fem rader och står därför två gånger. */
-          const merc = (lon: number, lat: number): [number, number] => {
-            const s = Math.sin((lat * Math.PI) / 180);
-            return [
-              ((lon + 180) / 360) * varld,
-              (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * varld,
-            ];
-          };
-
-          const [vast, syd] = merc(oppningsLada[0], oppningsLada[1]);
-          const [ost, nord] = merc(oppningsLada[2], oppningsLada[3]);
-          const marginal = { topp: 32, sida: 32, botten: arkTacker + 32 };
-
-          /* Högsta zoom där lådan ryms i den rektangel marginalerna lämnar.
-             En värld är 512 px gånger två upphöjt till zoomen. */
-          const zoom = Math.min(
-            Math.log2((bredd - marginal.sida * 2) / (((ost - vast) / varld) * 512)),
-            Math.log2((hojd - marginal.topp - marginal.botten) / (((syd - nord) / varld) * 512)),
-          );
-          const k = (512 * 2 ** zoom) / varld;
-
-          /* Lådans mitt ska hamna i den lämnade rektangelns mitt, alltså
-             ligger kamerans center en halv marginalskillnad därifrån. Sidorna
-             är lika, så bara den lodräta leden flyttar något. */
-          const cx = (vast + ost) / 2;
-          const cy = (nord + syd) / 2 - (marginal.topp - marginal.botten) / 2 / k;
-
-          const av = (n: number) => `${Math.round(n * 10) / 10}px`;
-          svg.style.setProperty('--sil-w', av(lada[2] * k));
-          svg.style.setProperty('--sil-h', av(lada[3] * k));
-          svg.style.setProperty('--sil-x', av((lada[0] - cx) * k));
-          svg.style.setProperty('--sil-y', av((lada[1] - cy) * k));
-          siluett.dataset.stalld = '';
-        }
-      }
       /* Ringen bara när fragmentet kom utifrån. Se skrivFragment: vår egen
          återskrivning bär en flagga i history.state, och den överlever en
          omladdning av samma historikpost. */
@@ -5433,6 +5288,19 @@ const LEGEND = [
          hörn ger antingen en krock eller en ihopfälld attributionsknapp.
          Attributionen är ett licensvillkor och får inte fällas ihop. */
       karta.addControl(new AttributionControl({ compact: false }), 'bottom-left');
+
+      /*
+       * KARTYTAN FINNS, ÄVEN OM DEN ÄR TOM. Klassen visar MapLibres duk, se
+       * noten vid `.split:not(.stil)` i stilarna: från och med nu målar
+       * stilens `background`-lager samma #F2F1EC som ramen redan har, alltså
+       * är duken inte längre ett vitt lock. Brickorna ritas in i den en och en
+       * medan de kommer, vilket är hela skillnaden mot att kartan dyker upp
+       * färdig i ett hopp.
+       *
+       * `once` och inte `on`: stilen laddas om vid varje `setStyle`, och
+       * klassen ska sättas en gång och sedan ligga.
+       */
+      karta.once('style.load', () => root!.classList.add('stil'));
 
       karta.on('load', async () => {
         /*
@@ -8127,219 +7995,59 @@ const LEGEND = [
   }
 
   /*
-   * TECKENFÖRKLARINGEN OCH MAPLIBRES KONTROLLER VÄNTAR PÅ KARTAN.
+   * ══ INGENTING TONAS IN, OCH DET ÄR HELA POÄNGEN ══════════════════════════
    *
-   * Se noten vid `root.classList.add('live')` i skriptet: ramen och
-   * kontrollerna ritas i första bildrutan, kartbotten kommer först när stilen
-   * och de första rutorna hämtats, och under den sekunden förklarar
-   * teckenförklaringen färgerna på nålar som inte finns.
+   * Ägaren 2026-08-28, efter att laddningen gått från 3,1 till 1,2 sekunder:
+   * "fortsatt, loaden är dum...." Alltså inte tiden längre, utan formen.
    *
-   * Gäller i BÅDA lägena och ligger därför utanför brytpunkten. På bred skärm
-   * svävar rutan på kartan, i arket står den under den, och i inget av lägena
-   * ska den säga något om en yta som är tom.
+   * Här stod en intoning på 200 ms över duken, teckenförklaringen och
+   * kontrollerna. EN ÖVERGÅNG GÖR BYTET TILL EN HÄNDELSE. Ögat är byggt för
+   * att fånga rörelse, och en yta som mjukt växer fram säger "något laddades
+   * nyss" på ett sätt som en yta som bara är där aldrig gör. Det är därför
+   * ingen kartsajt gör det: hos Google, Booli och Hitta har ytan kartans
+   * grundfärg och brickorna dyker upp allt eftersom, utan övergång.
+   *
+   * ── DUKEN VISAS VID `style.load` OCH INTE VID `load` ────────────────────
+   *
+   * Det här är den andra halvan, och utan den hjälper inte borttagen
+   * intoning. MapLibres WebGL-duk är OGENOMSKINLIG och målar VITT tills
+   * stilen ritats. Uppmätt 2026-08-27 genom att sätta ramen till rött med
+   * kartan halvladdad: ingen röd pixel syntes. Därför var duken gömd ända
+   * till `load`, och `load` betyder att grundkartan är FÄRDIG. Kartan kunde
+   * alltså aldrig komma annat än på en gång, som ett byte.
+   *
+   * `style.load` är ögonblicket stilen är tolkad, alltså när stilens eget
+   * `background`-lager målar #F2F1EC, samma färg som ramen redan har. Från
+   * den sekunden är duken inte längre ett vitt lock utan en yta med rätt
+   * färg, och brickorna ritas in i den en och en allteftersom de kommer.
+   *
+   * Uppmätt 2026-08-28, rikskartan, `style.load` mot `load`:
+   *
+   *     snabb lina     472 och 999 ms      mot 609-1121 ms för hela kartan
+   *     långsam lina   1 731 och 1 768 ms  mot 3 600-4 400 ms
+   *
+   * På den långsamma linan visas alltså kartytan två sekunder tidigare än
+   * förut, och de två sekunderna fylls med brickor i stället för att stå tomma
+   * bakom ett lock. Verifierat med bild: mitt i förloppet ligger södra Sverige
+   * ritat och norra ännu inte, med nålarna redan på.
+   *
+   * TECKENFÖRKLARINGEN VÄNTAR FORTFARANDE PÅ `live`, och skälet är oförändrat:
+   * den förklarar färgerna på nålar, och nålarna finns inte förrän då. Samma
+   * för MapLibres kontroller, som annars hade zoomat i en tom yta. Skillnaden
+   * är bara att de nu dyker upp i stället för att tona fram.
    *
    * `visibility` och inte `display`: en yta som går från `none` till `flex`
    * mäter om sig själv och allt under den hoppar, en som går från dold till
-   * synlig gör det inte. Elementen har alltså sina slutgiltiga positioner
-   * hela tiden och ingenting flyttar sig när kartan kommer.
-   *
-   * SJÄLVA DUKEN STÅR MED I LISTAN, och det är den mätning som avgjorde att
-   * ramens bakgrund inte räckte. MapLibres WebGL-duk är OGENOMSKINLIG: den
-   * målar vitt tills stilen ritats, alltså låg den som ett vitt lock över den
-   * kartfärg ramen just fått. Uppmätt 2026-08-27 genom att sätta ramen till
-   * rött med kartan halvladdad: ingen röd pixel syntes. Duken tonas därför in
-   * i samma rörelse som allt annat, och under tiden är det ramens #F2F1EC man
-   * ser, alltså exakt den färg duken själv målar en bråkdel senare.
+   * synlig gör det inte. Elementen har alltså sina slutgiltiga positioner hela
+   * tiden och ingenting flyttar sig när kartan kommer.
    */
+  .split:not(.stil) .kartram :global(.maplibregl-canvas),
   .split:not(.live) .under,
-  .split:not(.live) .kartram :global(.maplibregl-canvas),
   .split:not(.live) .kartram :global(.maplibregl-control-container) {
-    opacity: 0;
     visibility: hidden;
-  }
-
-  .split.live .under,
-  .split.live .kartram :global(.maplibregl-canvas),
-  .split.live .kartram :global(.maplibregl-control-container) {
-    transition: opacity 200ms ease;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .split.live .under,
-    .split.live .kartram :global(.maplibregl-canvas),
-    .split.live .kartram :global(.maplibregl-control-container) {
-      transition: none;
-    }
   }
 
   .duk { position: absolute; inset: 0; }
-
-  /*
-   * ══ SILUETTEN ════════════════════════════════════════════════════════════
-   *
-   * Sveriges kontur, ritad i första bildrutan ur sidans egen HTML. Varför den
-   * finns och varför den bara finns på rikskartan står vid `siluett` i
-   * frontmatteret.
-   *
-   * ── FÄRGERNA ÄR KARTANS EGNA OCH INTE TVÅ NYA TAL ──────────────────────
-   *
-   * Båda står i public/kartstil/prikko.json: `background`-lagret målar
-   * #F2F1EC under all mark, och `water`-lagret målar #A8D3F0. Siluetten
-   * målar därför land i landfärgen och resten i vattenfärgen, alltså exakt
-   * de pixlar kartan själv lägger en bråkdel senare. Samma hårdkodning och
-   * samma skyldighet som .kartram i styles/kartram.css: ändras de två lagren
-   * i stilfilen ska raderna här ändras samma dag.
-   *
-   * DET SOM INTE STÄMMER ÄR GRANNARNA. Norge, Danmark och Finland är land
-   * hos MapLibre och vatten här, eftersom vi bara har Sveriges kontur.
-   * Uppmätt vid 1440 x 900 täcker de ungefär en fjärdedel av rutan, och de
-   * går alltså från blått till beige under intoningen. Det är priset, och det
-   * är billigare än alternativen: en tom yta säger ingenting alls, och en
-   * landfärgad botten hade gjort siluetten osynlig, eftersom Sverige då fått
-   * samma färg som allt annat.
-   *
-   * Att grannarna dessutom SKUGGAS av riksmasken när den kommer, se
-   * OMRÅDESSKUGGAN i skriptet, är en tredje förändring som redan låg live och
-   * som siluetten varken förvärrar eller lagar.
-   */
-  /*
-   * ══ SILUETTEN SYNS BARA NÄR VÄNTAN BLIR LÅNG ═════════════════════════════
-   *
-   * Ägaren 2026-08-28, fjärde gången om samma sak: "ser fortfarande loading
-   * screenen.... herregud." Hans invändning mot siluetten står i samma
-   * andetag och den är riktig: ETT BYTE MELLAN TVÅ BILDER SYNS MER ÄN ETT
-   * STILLA FÄLT. En kontur som ritas och en halv sekund senare byts mot en
-   * karta är två händelser där noll hade räckt.
-   *
-   * Invändningen mot att bara ta bort den är lika riktig: ett tomt fält i tre
-   * sekunder är värre än en siluett i tre sekunder.
-   *
-   * DE TVÅ MOTSÄGER INTE VARANDRA, DE GÄLLER OLIKA UPPKOPPLINGAR. Uppmätt
-   * 2026-08-28 efter att resurshintarna och förhämtningen kom på plats,
-   * rikskartan, fyra körningar mot samma rigg med 40 ms latens:
-   *
-   *     kartan uppe        609, 640, 778, 1121 ms   median 709
-   *     nålarna ritade     926, 953, 1099, 1437 ms  median 1026
-   *
-   * Före ändringarna låg samma tal på 819 till 3 041 respektive 1 160 till
-   * 3 727. På en bandbreddsbegränsad lina, 2 MB/s, gick nålarna från 3 112 ms
-   * till 1 221.
-   *
-   * Alltså: på en snabb lina hinner ingen se siluetten som något annat än ett
-   * blink, och blinket ÄR felet. På en långsam lina finns kvarten kvar där
-   * något är bättre än ingenting, och den kvarten är inte vår att ta bort:
-   * grundkartan väger 2,64 MB hos OpenFreeMap, se noten vid resurshintarna,
-   * och den siffran ändras inte av något vi gör.
-   *
-   * SVARET ÄR EN FÖRDRÖJNING OCH INTE ETT VAL. Siluetten ligger osynlig i
-   * 1 200 ms. Hinner kartan upp före det syns den aldrig, och sidan visar ett
-   * stilla fält i kartans egen grundfärg, se .kartram i styles/kartram.css.
-   * Dröjer det längre än så tonas den fram, och då är den enda bilden på en
-   * yta som annars hade stått tom i sekunder.
-   *
-   * 1 200 ms är valt UR MÄTNINGEN och inte på känsla: den långsammaste av de
-   * fyra körningarna hade kartan uppe på 1 121 ms. Tröskeln ligger alltså
-   * strax ovanför den, så att en normal laddning aldrig utlöser den.
-   */
-  .siluett {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    background: #A8D3F0;
-    opacity: 0;
-    animation: siluett-fram 200ms linear 1200ms forwards;
-  }
-
-  @keyframes siluett-fram {
-    to { opacity: 1; }
-  }
-
-  /*
-   * BANAN HÄNGER PÅ RUTANS MITT OCH INTE PÅ DESS KANT.
-   *
-   * Det är hela skälet till att siluetten går att placera utan att känna
-   * rutans mått. MapLibre lägger kamerans center i rutans mitt, alltså är
-   * `left: 50%` och `top: 50%` samma punkt som `vy.lng`, `vy.lat`, och de
-   * fyra talen nedan är avståndet därifrån i pixlar vid `vy.zoom`. De sätts
-   * som egenskaper på elementet, se `siluett.stil` i frontmatteret och
-   * `stallSiluett` i skriptet.
-   *
-   * preserveAspectRatio behövs inte: bredd och höjd är räknade ur samma
-   * viewBox och samma skala, alltså har rutan redan banans proportioner.
-   */
-  .siluett svg {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    display: block;
-    width: var(--sil-w);
-    height: var(--sil-h);
-    /*
-     * `max-width: none` ÄR INTE VALFRI, och den kostade en mätning att hitta.
-     *
-     * tokens.css sätter `img, svg { max-width: 100%; height: auto }`, alltså
-     * regeln som hindrar en bild från att spränga sin spalt. Banan är LÄNGRE
-     * än rutan med flit: den bär hela Sverige, och rutan visar bara den del
-     * som ryms. Utan raden här klipptes bredden till rutans, medan höjden stod
-     * kvar, och kartan blev ihoptryckt i sidled. Uppmätt i arkläget vid
-     * 375 x 812: 516,8 px bana klämd till 375, alltså 27 procent för smal, med
-     * höjden orörd.
-     */
-    max-width: none;
-    margin-left: var(--sil-x);
-    margin-top: var(--sil-y);
-    fill: #F2F1EC;
-  }
-
-  /*
-   * SILUETTEN TONAS ALDRIG SJÄLV.
-   *
-   * Duken är ogenomskinlig och ligger ovanpå, alltså räcker det att den tonas
-   * in: under övergången ser man kartan gradvis täcka en yta som redan har
-   * rätt form och rätt färger. Tonades båda samtidigt hade de mötts på halva
-   * täckningen var och gett en grumlig sekund i stället för en ren.
-   *
-   * Släckningen är fördröjd exakt lika länge som dukens intoning, alltså
-   * ligger siluetten kvar tills det finns något som täcker den, och tas sedan
-   * ur bildlagren helt.
-   */
-  .split.live .siluett {
-    visibility: hidden;
-    transition: visibility 0s linear 200ms;
-  }
-
-  /*
-   * Intoningen avbryts INTE här, och det är avsiktligt. Kommer kartan mitt i
-   * de 200 millisekundrarna hade en avbruten intoning slagit tillbaka blått
-   * till beige innan duken hunnit täcka något, alltså precis det byte mellan
-   * två bilder hela fördröjningen finns för att slippa. Siluetten får ligga
-   * kvar på sin opacitet tills `visibility` släcker den.
-   */
-
-  @media (prefers-reduced-motion: reduce) {
-    .split.live .siluett { transition: none; }
-    /* Fördröjningen står kvar, bara toningen tas bort: den som bett om mindre
-       rörelse har inte bett om en tom yta i tre sekunder. */
-    .siluett { animation-duration: 1ms; }
-  }
-
-  /*
-   * ARKET RÄKNAS I WEBBLÄSAREN, ALLTSÅ INTE HÄR.
-   *
-   * Under 900 px öppnar kartan inte på `vy` utan på en låda inpassad i den
-   * strimma arket lämnar, se `arkTacker` i skriptet. Den inpassningen beror på
-   * arkets höjd, som sätts av skriptet, och kan därför varken vara känd vid
-   * bygget eller skrivas som en mediefråga. Siluetten är dold tills skriptet
-   * har räknat om de fyra talen och satt märket, se `stallSiluett`.
-   *
-   * Det är ingen stor förlust just här: utan `ark`-klassen är sidan ett
-   * vanligt dokument med listan först och kartan under den, alltså syns den
-   * tomma rutan inte i första bildrutan på telefon till att börja med.
-   */
-  @media (max-width: 900px) {
-    .siluett { display: none; }
-    .siluett[data-stalld] { display: block; }
-  }
 
   .fel {
     position: absolute;
