@@ -99,6 +99,21 @@ import { latestEdition } from '../lib/utmarkelser';
    ramens fyra rader och sin egen typografi för kontrollerna, alltså exakt den
    divergens kartram.css finns för att hindra. */
 import '../styles/kartram.css';
+/*
+ * Kartstilen läses HÄR, vid bygget, bara för att resurshintarna längre ned ska
+ * kunna peka på rätt brickvärd utan att adressen skrivs av för hand. Filen
+ * följer inte med ned till besökaren som kod: MapLibre hämtar den som en
+ * statisk fil vid start, se `style` i kartbygget.
+ */
+import kartstil from '../../public/kartstil/prikko.json';
+
+/** Stilens adress hos oss. Samma sträng som `KARTSTIL` i lib/kartbas.ts. */
+const KARTSTIL = '/kartstil/prikko.json';
+
+/** TileJSON:en stilens vektorkälla pekar på, och värden den ligger hos. */
+const brickJson: string | null =
+  (kartstil as { sources?: Record<string, { url?: string }> }).sources?.openmaptiles?.url ?? null;
+const brickvard = brickJson ? new URL(brickJson).origin : null;
 
 interface Props {
   /**
@@ -510,6 +525,80 @@ const LEGEND = [
   { v: 3, verdict: null, label: 'Ingen bedömning', count: data.counts[3] },
 ];
 ---
+
+{/*
+ * ══ RESURSHINTAR: KARTAN SKA BÖRJA HÄMTAS FÖRE SKRIPTET, INTE EFTER ══════
+ *
+ * Uppmätt mot prikko.se 2026-08-28, rikskartan, 1280 x 800, kall cache:
+ *
+ *     162 ms   HTML färdighämtad
+ *     420 ms   HTML färdigtolkad
+ *     553 ms   modulskriptet börjar köra, FÖRST NU begärs maplibre-gl.mjs
+ *     644 ms   maplibre-gl.mjs hämtad
+ *     723 ms   maplibre-gl-shared.mjs hämtad, i ETT ANDRA hopp efter den
+ *
+ * Alltså: hela HTML-svaret låg i webbläsaren efter 162 ms, och kartmotorn
+ * började inte hämtas förrän 391 ms senare. Skälet är att ett modulskript
+ * är fördröjt per definition, och att `import()` inuti det inte kan hittas
+ * av förladdningsskannern.
+ *
+ * De här raderna kan den hitta. Skannern läser hela svaret så fort det
+ * kommit och bryr sig inte om att de står i kroppen och inte i huvudet:
+ * hämtningen börjar vid 170 ms i stället för 553.
+ *
+ * `maplibre-gl-shared.mjs` står med SEPARAT, och det är inte överflödigt.
+ * Den är maplibre-gl.mjs:s egen statiska import, alltså hittas den först när
+ * den modulen är hämtad OCH tolkad, vilket är de 79 ms mellan 644 och 723
+ * ovan. Med en egen rad hämtas de två samtidigt.
+ *
+ * Arbetaren står med av samma skäl: den begärs när kartan konstrueras, och
+ * det är ett tredje hopp i samma kedja.
+ *
+ * `preconnect` mot brickvärden betalar DNS och TLS medan MapLibre hämtas.
+ * Uppmätt kostnad för den uppkopplingen när den ligger på kritiska vägen:
+ * 145 ms för den första förfrågan mot värden.
+ *
+ * ══ BRICKVÄRDENS TRE FÖRSTA SVAR HÄMTAS OCKSÅ FÖRE SKRIPTET ══════════════
+ *
+ * De tre står med av samma skäl som MapLibre, och de ligger EFTER varandra i
+ * originalet: stilen pekar på en TileJSON med `url`, TileJSON:en pekar på
+ * brickorna, och sprajten begärs när stilen tolkats. Uppmätt genom en
+ * loggande mellanhand 2026-08-28, rikskartan:
+ *
+ *     /planet                  19 kB, hämtad TVÅ gånger, 103 och 127 ms
+ *     ofm@2x.json + ofm@2x.png  147 kB
+ *     sex teckensnittsintervall 592 kB
+ *     sex vektorbrickor på z5   1 901 kB
+ *
+ * ADRESSEN TILL BRICKORNA SKRIVS INTE UT HÄR, och det är avsiktligt.
+ * TileJSON:en svarar med en DATERAD sökväg, /planet/20260823_080002_pt/, och
+ * OpenFreeMap byter den när planeten byggs om. Att baka in den hade tagit
+ * bort ett hopp och lagt in ett tyst sönderfall i stället. `preload` av
+ * TileJSON:en tar bort samma hopp utan det priset: den cachas en dag hos oss,
+ * `cache-control: public, max-age=86400`, så både stilens och arbetarens
+ * hämtning av den besvaras ur webbläsarens cache.
+ *
+ * ADRESSEN LÄSES UR STILFILEN och skrivs inte av. Byter `sources` källa i
+ * scripts/kartstil.mjs ska hinten följa med, annars förladdar vi en fil ingen
+ * ber om.
+ *
+ * SPRAJTEN OCH TECKENSNITTEN STÅR INTE MED, trots att de väger mer. MapLibre
+ * väljer `ofm@2x` eller `ofm` efter skärmens punkttäthet, och den vet vi inte
+ * vid bygget: en hint på fel variant kostar 147 kB för ingenting på varje 1x-
+ * skärm. Teckensnittsintervallen beror på vilka namn brickorna råkar bära och
+ * är samma sorts gissning.
+ *
+ * RUTARKIVET STÅR INTE HELLER HÄR. En `preload` av det hade hämtat hela filen
+ * på 3,00 MB, och PMTiles läser bara 16 kB av den vid start. Den hämtningen
+ * startas i stället med en räckviddsförfrågan i skriptet, se `start()`.
+ */}
+{brickvard && <link rel="preconnect" href={brickvard} crossorigin />}
+<link rel="modulepreload" href="/maplibre/maplibre-gl.mjs" />
+<link rel="modulepreload" href="/maplibre/maplibre-gl-shared.mjs" />
+<link rel="modulepreload" href="/maplibre/maplibre-gl-worker.mjs" />
+<link rel="preload" href="/maplibre/maplibre-gl.css" as="style" />
+<link rel="preload" href={KARTSTIL} as="fetch" crossorigin />
+{brickJson && <link rel="preload" href={brickJson} as="fetch" crossorigin />}
 
 <div
   class="split"
@@ -1149,6 +1238,7 @@ const LEGEND = [
      inte in biblioteket. Färgerna stod här som egna kopior, med samma tal och
      samma kommentar som KartaPuff och OmradeKarta bar var sin av. */
   import {
+    forhamtaRutHuvud,
     KART_BRAND,
     KART_FARG,
     KART_SPRAK,
@@ -3078,8 +3168,33 @@ const LEGEND = [
      *
      * Ägaren fick talet 1,24 MB innan han valde det nationella flödet och
      * svarade "ja betalr megabyten".
+     *
+     * ══ MEN INTE I SAMMA ANDETAG SOM KARTMOTORN ══════════════════════════
+     *
+     * Raden stod förut här, alltså rakt av när skriptet kördes. Uppmätt på
+     * prikko.se 2026-08-28, rikskartan: de nio filerna begärdes 551 ms in,
+     * exakt samma millisekund som maplibre-gl.mjs, och Stockholms fil ensam
+     * väger 242 kB brotlat. De låg alltså och delade uppkoppling med de
+     * 254 kB kartmotor och de 1,9 MB grundbrickor besökaren faktiskt kom för.
+     *
+     * "Blockerar ingenting" ovan är sant om huvudtråden och falskt om
+     * bandbredden. Hämtningen väntar därför tills kartan är uppe. Det som står
+     * i kolumnen under tiden är oförändrat: de sextio serverrenderade raderna
+     * ligger kvar precis som förut, och `ritaOm` byter ut dem när filerna
+     * landat.
+     *
+     * VÄNTAN HAR EN BORTRE GRÄNS. Kommer kartan aldrig upp, för att WebGL
+     * saknas eller för att en brickvärd är nere, ska listan ändå bli
+     * filtrerbar. Två sekunder är taget som "längre än en fungerande karta
+     * någonsin tar", och det värsta utfallet av att gränsen löser ut i onödan
+     * är att vi är tillbaka där vi stod före den här ändringen.
      */
-    hamtaUrval(urvalsKommuner()).then(() => ritaOm?.());
+    let kartanUppe: () => void = () => {};
+    const kartanFinns = new Promise<void>((klar) => {
+      kartanUppe = klar;
+      window.setTimeout(klar, 2000);
+    });
+    kartanFinns.then(() => hamtaUrval(urvalsKommuner()).then(() => ritaOm?.()));
 
     filterFalt.addEventListener('blur', () => {
       window.setTimeout(() => {
@@ -4988,6 +5103,27 @@ const LEGEND = [
       laddaCss();
 
       /*
+       * ══ TVÅ SAKER STARTAS FÖRE VÄNTAN PÅ MAPLIBRE ════════════════════════
+       *
+       * Båda gick förut igång först i `load`-hanteraren, alltså efter att
+       * grundkartan var ritad, och båda är oberoende av MapLibre. Uppmätt på
+       * prikko.se 2026-08-28, rikskartan: rutarkivets huvud begärdes 1 215 ms
+       * in och brickan 1 256 ms in, för att källan läggs in i `load`.
+       *
+       * Nålarna kan inte ritas före grundkartan, men de två hämtningarna kan
+       * ligga bredvid den i stället för efter.
+       */
+      const arkiv = root!.dataset.url!;
+      const rutHuvud = forhamtaRutHuvud(arkiv);
+      /* Nålarnas bilder rasteriseras ur SVG i en canvas, alltså inget nät och
+         ingen MapLibre. Uppmätt kostnad i load-hanteraren: 25 ms. */
+      const ansiktsbilder = Promise.all(FACE_KEYS.map((k) => faceBitmap(k)));
+      /* Felet tas om hand i load-hanteraren, men löftet finns till dess. Utan
+         den här raden blir ett misslyckande en obehandlad avvisning i
+         konsolen innan någon hunnit fråga efter svaret. */
+      ansiktsbilder.catch(() => {});
+
+      /*
        * Två moduler, hämtade på olika sätt, och skillnaden är inte godtycklig.
        *
        * MapLibre kommer från /maplibre/ som statiska filer, av skälet överst i
@@ -5018,8 +5154,7 @@ const LEGEND = [
        * `helaFilen`-hjälpare som deklarerades och aldrig anropades. Den var
        * död kod och är inte återskapad i kartbas.ts.
        */
-      const arkiv = root!.dataset.url!;
-      registreraRutprotokoll(maplibre, pmtiles, arkiv);
+      registreraRutprotokoll(maplibre, pmtiles, arkiv, rutHuvud);
 
       /*
        * `Map` byter namn här, och det är ingen stilfråga.
@@ -5324,9 +5459,22 @@ const LEGEND = [
          * hanteraren skulle kasta.
          */
         root!.classList.add('live');
+        /*
+         * Listans urvalsfiler får hämtas när kartan STÅR STILL, inte när den
+         * laddat. Se `kartanFinns` ovan.
+         *
+         * `idle` och inte den här raden, och skillnaden är uppmätt: vid `load`
+         * har rutarkivets bricka precis begärts, och de nio filerna la sig i
+         * vägen för den. Nålarna kom då 329 ms efter att källan lagts in i
+         * stället för 40. `idle` betyder att allt som skulle ritas är ritat,
+         * alltså att nålarna sitter där.
+         */
+        karta.once('idle', () => kartanUppe());
         let ansikten = true;
         try {
-          const bitmaps = await Promise.all(FACE_KEYS.map(faceBitmap));
+          /* Rasteriseringen startades i `start()`, se noten där. Här väntar vi
+             bara in den, och den är i regel klar sedan länge. */
+          const bitmaps = await ansiktsbilder;
           FACE_KEYS.forEach((key, i) => {
             if (!karta.hasImage('face-' + key)) {
               karta.addImage('face-' + key, bitmaps[i], { pixelRatio: 2 });
@@ -6925,7 +7073,14 @@ const LEGEND = [
   .filterfalt :global(.chip-fler) {
     padding-inline: var(--s-2);
     border: 1px solid var(--hairline);
-    font: inherit;
+    /* SAMMA GRAD SOM ETT CHIP, uttryckligen och inte ärvd. `font: inherit`
+       stod här och ärvde sidans 16 px, medan chippet bredvid sätter
+       --fs-body-s, alltså 14. Ägaren: "varför är +2 i sökrutan större text än
+       bokstäverna på typ östermalm". Den ÄR ett chip och ska bära chippets
+       grad; att ärva är att låta en annan fils tal bestämma. */
+    font-family: inherit;
+    font-size: var(--fs-body-s);
+    font-weight: inherit;
     font-variant-numeric: tabular-nums;
     color: var(--text-secondary);
     cursor: pointer;
@@ -8047,11 +8202,56 @@ const LEGEND = [
    * OMRÅDESSKUGGAN i skriptet, är en tredje förändring som redan låg live och
    * som siluetten varken förvärrar eller lagar.
    */
+  /*
+   * ══ SILUETTEN SYNS BARA NÄR VÄNTAN BLIR LÅNG ═════════════════════════════
+   *
+   * Ägaren 2026-08-28, fjärde gången om samma sak: "ser fortfarande loading
+   * screenen.... herregud." Hans invändning mot siluetten står i samma
+   * andetag och den är riktig: ETT BYTE MELLAN TVÅ BILDER SYNS MER ÄN ETT
+   * STILLA FÄLT. En kontur som ritas och en halv sekund senare byts mot en
+   * karta är två händelser där noll hade räckt.
+   *
+   * Invändningen mot att bara ta bort den är lika riktig: ett tomt fält i tre
+   * sekunder är värre än en siluett i tre sekunder.
+   *
+   * DE TVÅ MOTSÄGER INTE VARANDRA, DE GÄLLER OLIKA UPPKOPPLINGAR. Uppmätt
+   * 2026-08-28 efter att resurshintarna och förhämtningen kom på plats,
+   * rikskartan, fyra körningar mot samma rigg med 40 ms latens:
+   *
+   *     kartan uppe        609, 640, 778, 1121 ms   median 709
+   *     nålarna ritade     926, 953, 1099, 1437 ms  median 1026
+   *
+   * Före ändringarna låg samma tal på 819 till 3 041 respektive 1 160 till
+   * 3 727. På en bandbreddsbegränsad lina, 2 MB/s, gick nålarna från 3 112 ms
+   * till 1 221.
+   *
+   * Alltså: på en snabb lina hinner ingen se siluetten som något annat än ett
+   * blink, och blinket ÄR felet. På en långsam lina finns kvarten kvar där
+   * något är bättre än ingenting, och den kvarten är inte vår att ta bort:
+   * grundkartan väger 2,64 MB hos OpenFreeMap, se noten vid resurshintarna,
+   * och den siffran ändras inte av något vi gör.
+   *
+   * SVARET ÄR EN FÖRDRÖJNING OCH INTE ETT VAL. Siluetten ligger osynlig i
+   * 1 200 ms. Hinner kartan upp före det syns den aldrig, och sidan visar ett
+   * stilla fält i kartans egen grundfärg, se .kartram i styles/kartram.css.
+   * Dröjer det längre än så tonas den fram, och då är den enda bilden på en
+   * yta som annars hade stått tom i sekunder.
+   *
+   * 1 200 ms är valt UR MÄTNINGEN och inte på känsla: den långsammaste av de
+   * fyra körningarna hade kartan uppe på 1 121 ms. Tröskeln ligger alltså
+   * strax ovanför den, så att en normal laddning aldrig utlöser den.
+   */
   .siluett {
     position: absolute;
     inset: 0;
     overflow: hidden;
     background: #A8D3F0;
+    opacity: 0;
+    animation: siluett-fram 200ms linear 1200ms forwards;
+  }
+
+  @keyframes siluett-fram {
+    to { opacity: 1; }
   }
 
   /*
@@ -8108,8 +8308,19 @@ const LEGEND = [
     transition: visibility 0s linear 200ms;
   }
 
+  /*
+   * Intoningen avbryts INTE här, och det är avsiktligt. Kommer kartan mitt i
+   * de 200 millisekundrarna hade en avbruten intoning slagit tillbaka blått
+   * till beige innan duken hunnit täcka något, alltså precis det byte mellan
+   * två bilder hela fördröjningen finns för att slippa. Siluetten får ligga
+   * kvar på sin opacitet tills `visibility` släcker den.
+   */
+
   @media (prefers-reduced-motion: reduce) {
     .split.live .siluett { transition: none; }
+    /* Fördröjningen står kvar, bara toningen tas bort: den som bett om mindre
+       rörelse har inte bett om en tom yta i tre sekunder. */
+    .siluett { animation-duration: 1ms; }
   }
 
   /*

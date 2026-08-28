@@ -260,7 +260,21 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
     samma ordning som data-URI:n i Karta.astro bär, eftersom båda genereras ur
     samma lista.
   */}
-  <svg class="motiv" viewBox="0 0 48 48" width={sida} height={sida} aria-hidden="true">
+  {/*
+    VIEWBOXEN ÄR FLYTTAD 2,6 ENHETER NED, OCH DET ÄR DÄRFÖR MOTIVET STÅR MITT
+    I RUTAN.
+
+    Ritningen ligger inte mitt i sin egen ruta. Bläcket spänner x 7..41 och
+    y 12..41,2 av 48, alltså är dess mittpunkt 24 i sidled men 26,6 i höjdled.
+    Med `viewBox="0 0 48 48"` centrerade rutnätets `place-items: center` den
+    TOMMA RUTAN och la ritningen 2,6 av 48 för lågt, alltså 5,4 procent av
+    ytans höjd. `0 2.6 48 48` flyttar rutan i stället för ritningen.
+
+    SAMMA TAL SOM KARTANS DATA-URI, och det är inget sammanträffande: det är
+    samma ritning ur samma modul, och den dagen de två står olika är det den
+    här noten som ska ha sagt att de inte får.
+  */}
+  <svg class="motiv" viewBox="0 2.6 48 48" width={sida} height={sida} aria-hidden="true">
     {motivFormer.map((f) => (
       <path class={`m-${f.ton}`} fill-rule={f.evenodd ? 'evenodd' : undefined} d={f.d} />
     ))}
@@ -353,22 +367,27 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
     object-fit: cover;
   }
 
-  /* I kortläget skalas motivet med ytan i stället för att ligga fast, av samma
-     skäl som ANDEL finns. Talet är ANDEL uttryckt mot bredden i stället för
-     mot höjden: ytan är 3:2, alltså är höjden två tredjedelar av bredden, och
-     0,42 · 2/3 = 28 procent. Ändras ANDEL måste det här talet ändras med.
-
-     I radläget sätts måttet i stället som attribut på elementet, eftersom
-     rutan då har en känd sida i px. */
+  /*
+   * STORLEKEN ÄR EN ANDEL AV YTANS HÖJD, OCH TALET STÅR EN GÅNG.
+   *
+   * Här stod `width: 28%`, alltså ANDEL uttryckt mot BREDDEN: ytan är 3:2, så
+   * 0,42 · 2/3 = 0,28. Två tal för en storlek, med en kommentar som bad
+   * läsaren räkna om det ena när det andra ändrades. Det är precis den sortens
+   * par som glider isär, och det behövdes inte: höjden är ytans korta sida i
+   * båda formerna, och en procent på höjden BETYDER därför ANDEL rakt av.
+   *
+   * Samma sak som kartans `background-size: auto 96%` säger om sin ruta, och
+   * nu i samma sorts tal, så att de två går att jämföra utan att räkna.
+   *
+   * Regeln gäller BÅDA formerna. I radläget står måttet dessutom som attribut
+   * på elementet, eftersom rutan då har en känd sida i px, och attributen
+   * finns kvar så att en yta inte hoppar innan stilmallen kommit.
+   */
   .motiv {
     grid-area: 1 / 1;
     display: block;
-    width: 28%;
-    height: auto;
-  }
-
-  .bildyta.rad .motiv {
     width: auto;
+    height: 42%;
   }
 
   /*

@@ -283,8 +283,49 @@ export function laddaMaplibre(): Promise<any> {
  * Funktionen är ren och rör ingen DOM, vilket är skälet till att den kunde
  * flyttas hit utan att någon karta märkte det.
  */
-export function rutkalla(url: string) {
+/**
+ * Hur många byte av arkivet som hämtas i FÖRVÄG.
+ *
+ * PMTiles läser huvudet på 127 byte och därefter rotkatalogen, och de två
+ * ligger alltid först i filen. 16 kB är PMTiles egen förvalda gräns för
+ * rotkatalogen, alltså det som säkert räcker för båda utan att hämta mer.
+ * Uppmätt mot vårt eget arkiv 2026-08-28: läsaren begärde exakt 0-16383 och
+ * sedan en bricka, alltså två förfrågningar, inte tre.
+ */
+export const RUT_HUVUD = 16384;
+
+/** Vad förhämtningen gav. `helFil` när värden struntade i räckvidden och
+ *  skickade allt, se motiveringen i `rutkalla`. */
+export type RutHuvud = { helFil: boolean; data: ArrayBuffer };
+
+/**
+ * DE FÖRSTA 16 kB AV ARKIVET, HÄMTADE INNAN NÅGON BETT OM DEM.
+ *
+ * Skälet är en mätning, rikskartan 2026-08-28: rutarkivet rördes inte förrän
+ * kartan var färdigladdad, alltså 1 215 ms in, eftersom källan läggs in i
+ * `load`-hanteraren och `load` betyder att grundkartan redan är ritad. Nålarna
+ * kunde alltså tidigast komma två förfrågningar senare.
+ *
+ * Anropas den här först i `start()` går huvudet på tråden samtidigt som
+ * MapLibre hämtas, och när PMTiles frågar ligger det redan i minnet.
+ *
+ * Funktionen kastar aldrig. Går förhämtningen fel läser `rutkalla` som förut,
+ * och det enda som gått förlorat är den vinsten.
+ */
+export function forhamtaRutHuvud(url: string): Promise<RutHuvud | null> {
+  return fetch(url, { headers: { Range: `bytes=0-${RUT_HUVUD - 1}` } })
+    .then(async (svar) => {
+      if (!svar.ok) return null;
+      return { helFil: svar.status === 200, data: await svar.arrayBuffer() };
+    })
+    .catch(() => null);
+}
+
+export function rutkalla(url: string, forhamtat?: Promise<RutHuvud | null>) {
   let hel: Promise<ArrayBuffer> | null = null;
+  /* Förhämtningen, tills den lästs färdigt. Nollas aldrig: PMTiles läser
+     huvudet och rotkatalogen i två steg och båda ligger inom samma 16 kB. */
+  let huvud: Promise<RutHuvud | null> | null = forhamtat ?? null;
 
   return {
     getKey: () => url,
@@ -292,6 +333,22 @@ export function rutkalla(url: string) {
       if (hel) {
         const buf = await hel;
         return { data: buf.slice(offset, offset + length) };
+      }
+
+      if (huvud) {
+        const h = await huvud;
+        if (h?.helFil) {
+          /* Värden struntade i räckvidden redan vid förhämtningen. Då är
+             hela filen redan här, och resten läses ur den. */
+          hel = Promise.resolve(h.data);
+          return { data: h.data.slice(offset, offset + length) };
+        }
+        if (h && offset + length <= h.data.byteLength) {
+          return { data: h.data.slice(offset, offset + length) };
+        }
+        /* Läsningen ligger utanför de förhämtade byten. Släpp den, allt
+           härefter går över nätet som förut. */
+        huvud = null;
       }
 
       const svar = await fetch(url, {
@@ -327,10 +384,15 @@ export function rutkalla(url: string) {
  * kommer från /maplibre/ som statiska filer, se modulkommentaren, och en
  * statisk import härifrån hade dragit in hela kartmotorn i modulgrafen.
  */
-export function registreraRutprotokoll(maplibre: any, pmtiles: any, url: string): void {
+export function registreraRutprotokoll(
+  maplibre: any,
+  pmtiles: any,
+  url: string,
+  forhamtat?: Promise<RutHuvud | null>,
+): void {
   if ((window as any).__prikkoPmtiles) return;
   const protokoll = new pmtiles.Protocol();
-  protokoll.add(new pmtiles.PMTiles(rutkalla(url) as any));
+  protokoll.add(new pmtiles.PMTiles(rutkalla(url, forhamtat) as any));
   maplibre.addProtocol('pmtiles', protokoll.tile);
   (window as any).__prikkoPmtiles = true;
 }

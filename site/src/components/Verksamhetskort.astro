@@ -64,14 +64,47 @@
  * andra form, och ägaren har pekat ut risken med den: en tom ruta läses som
  * ett foto som inte laddat.
  *
- * Rutan är därför inte tom och inte grå. Den bär en av tre lugna toner och
- * matkategorins ikon i stor grad, alltså en yta som ser AVSIKTLIG ut. Tonen
- * väljs på kategorin och inte slumpvis, så att samma sorts ställe får samma
- * ton genom hela rutnätet.
+ * HÄR STOD ATT KORTET RITADE SIN EGEN TOMMA YTA, och det stycket står kvar
+ * oredigerat nedan, eftersom en fil som skriver om sin egen historia inte går
+ * att lita på. Så här löd det:
  *
- * Ingen av de tre tonerna ligger nära en bedömningsfärg. Grönt är uteslutet
- * i synnerhet: en grön platta bakom ett märke som också kan vara grönt hade
- * gjort ytan till en andra bedömning.
+ *     "Rutan är därför inte tom och inte grå. Den bär en av tre lugna toner
+ *     och matkategorins ikon i stor grad, alltså en yta som ser AVSIKTLIG ut.
+ *     Tonen väljs på kategorin och inte slumpvis, så att samma sorts ställe
+ *     får samma ton genom hela rutnätet.
+ *
+ *     Ingen av de tre tonerna ligger nära en bedömningsfärg. Grönt är
+ *     uteslutet i synnerhet: en grön platta bakom ett märke som också kan
+ *     vara grönt hade gjort ytan till en andra bedömning."
+ *
+ * ── VAD SOM GICK FEL, 2026-08-28 ────────────────────────────────────────
+ *
+ * Ägaren om rutnätet på kategoriflikarna: "dessa bilder ser katastrof ut...
+ * ikonen är inte ens centrerad, och varför i dessa skumma färger."
+ *
+ * Han har rätt, och felet är inte de tre tonerna i sig utan att DEN HÄR FILEN
+ * RITADE EN ANDRA PLATSHÅLLARE. Uppmätt i bygget före ändringen:
+ *
+ *     tonplattorna    ton-blast #EDF4FC..#E2ECF8, ton-sand #F7F2E9..#EFE7D9,
+ *                     ton-dis #F2F1F6..#E9E8F0
+ *     ikonen          matkategorins glyf i --brand #007BE0 på 16 procents
+ *                     opacitet, i en ruta på 64 px
+ *
+ * Kartans listrader och Bildyta.astro ritar samtidigt fem GRÅ kategorimotiv
+ * ur lib/platshallarmotiv.ts. Två komponenter ritade alltså samma sak i två
+ * paletter, vilket är exakt det fel ägaren redan fångat en gång på
+ * verksamhetssidan: "så ska det väl ej va".
+ *
+ * Kortet ritar därför ingen egen yta längre. Det ber Bildyta.astro om den,
+ * precis som varje annan yta på sajten gör, och tonplattorna och den blå
+ * ikonen är borta. Kvar av stycket ovan står dess enda bärande krav, och det
+ * uppfylls fortfarande: ingen ton i den grå paletten ligger nära en
+ * bedömningsfärg, och grönt förekommer inte i den alls.
+ *
+ * ATT IKONEN LÅG HÖGT VAR INGEN BUGG UTAN GLYFEN. Rutan på 64 px låg mitt i
+ * bandet, uppmätt cyRel 0,500, men matkategoriernas tecken är tunga upptill
+ * och lämnade luft under sig. Ett motiv med en marklinje har inte det
+ * problemet, se Bildyta.astro.
  *
  * ══ HOVRING ═════════════════════════════════════════════════════════════
  *
@@ -81,20 +114,15 @@
  * Ednia lägger till en svag ram. Ett kort som lyfter och skuggar på hovring
  * är inte förlagans grepp utan mallens.
  */
+import Bildyta from './Bildyta.astro';
 import FaceRef from './FaceRef.astro';
-import Kategoriikon from './Kategoriikon.astro';
-import Matikon from './Matikon.astro';
 import {
-  categoriesOf,
   formatDate,
   isIndexable,
   latestInspectionDate,
   missingReason,
-  visbarBild,
   type Establishment,
-  type TopCategoryId,
 } from '../lib/data';
-import { matkategorierFor, MATKATEGORI_ORDNING } from '../lib/matkategori';
 import { MISSING, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 
@@ -114,54 +142,26 @@ const date = latestInspectionDate(e);
 const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 
 /**
- * Bilden visas bara när den får visas, och grinden bor i lib/db.ts.
+ * FOTOT, LICENSGRINDEN OCH PLATSHÅLLAREN VÄLJS INTE HÄR LÄNGRE.
  *
- * En bild vars licens vi inte kan skriva ut på verksamhetssidan får inte
- * heller stå på kortet: då finns ingen resurs att hänvisa till, och hela
- * §3(a)(2)-resonemanget i filhuvudet faller.
+ * Alla tre bor i Bildyta.astro sedan 2026-08-28, och det är hela poängen med
+ * ändringen: `visbarBild` stod i fyra kopior en gång och blev en, och samma
+ * sak gällde ritningen. Kortet skickar verksamheten och säger om ytan är
+ * sidans LCP-kandidat; komponenten avgör resten.
  *
- * Villkoret stod här som `e.image.licence` rakt av, och det var för hårt.
- * En bild vi tagit själva har ingen licenskod och behöver ingen, så när
- * källan `prikko` tillkom 2026-08-27 hade ägarens tolv foton på Holy Smoke
- * visats på verksamhetssidan men ersatts av en platshållare på varje kort.
- * Se `visbarBild` i lib/db.ts, som är samma grind för alla fyra ytor.
+ * Kortet vann tre saker på det, och två av dem är fel som fanns här:
+ *
+ *   MAPILLARYS LOGOTYP RITADES ALDRIG. Villkoren avsnitt 11 kräver att
+ *   logotypen visas där bilden visas, och den här filen ritade en <img> rakt
+ *   av. Bildyta vägrar rita en Mapillary-bild utan sin logotyp.
+ *
+ *   EN TRASIG BILD LÄMNADE EN TOM RUTA. Bildyta ritar motivet under fotot i
+ *   samma rutnätscell, alltså står platshållaren kvar av sig själv när en
+ *   URL slutar svara.
+ *
+ *   MOTIVET ÄR SAJTENS EGET och samma ritning som kartans listrader, ur
+ *   lib/platshallarmotiv.ts.
  */
-const foto = visbarBild(e.image);
-
-/** Första matkategorin, alltså den mest förekommande. Styr ikon och ton. */
-const kategorier = matkategorierFor(e);
-const kategori = kategorier[0] ?? null;
-
-/**
- * TVÅ NIVÅER AV IKON, OCH DEN ANDRA ÄR INTE EN RESERVUTGÅNG UTAN ETT KRAV.
- *
- * 12 120 av 16 047 har ingen OSM-träff och alltså ingen matkategori. Ritade
- * de alla `alla`-ikonen blev raden "Senast kontrollerade" åtta identiska
- * rutor med samma staplade lager i, vilket är precis den platshållarkänsla
- * hela bildbandet finns till för att undvika. Uppmätt på skärm 2026-08-21.
- *
- * Toppkategorin finns däremot på 15 961 av 16 047, alltså nästan alla, och
- * dess fem former är redan ritade i Kategoriikon.astro: bestick, kopp,
- * kasse, byggnad, låda. En kasse på en butik och ett bestick på en krog är
- * dessutom SANT, till skillnad från en generisk bunt.
- */
-const topp: TopCategoryId | null = categoriesOf(e).categories[0] ?? null;
-
-/**
- * Tre toner. Nyckeln är kategorins plats i sin tabell, modulo tre, och inte
- * en hash på slug: samma sorts ställe ska ha samma ton, annars blir rutnätet
- * konfetti. Toppkategorierna får sin egen ordning så att de fem inte alla
- * hamnar på samma ton.
- */
-const TONER = ['ton-blast', 'ton-sand', 'ton-dis'] as const;
-const TOPPORDNING: TopCategoryId[] = ['restaurang', 'cafe', 'butik', 'skola', 'ovrigt'];
-
-const tonindex = kategori
-  ? MATKATEGORI_ORDNING.indexOf(kategori)
-  : topp
-    ? TOPPORDNING.indexOf(topp)
-    : 2;
-const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
 ---
 
 <a
@@ -169,32 +169,20 @@ const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
   href={path(e.municipality.slug, e.slug)}
   rel={isIndexable(e) ? undefined : 'nofollow'}
 >
-  <span class:list={['band', !foto && ton]}>
-    {foto ? (
-      <img
-        src={foto.url}
-        alt=""
-        width="600"
-        height="400"
-        loading={tidig ? 'eager' : 'lazy'}
-        fetchpriority={tidig ? 'high' : undefined}
-        decoding="async"
-      />
-    ) : (
-      <span class="tomikon">
-        {kategori ? (
-          <Matikon namn={kategori} size={64} />
-        ) : (
-          <Kategoriikon namn={topp ?? 'ovrigt'} size={64} />
-        )}
-      </span>
-    )}
+  {/*
+    Bandet ÄR bildytan, och märket ligger i dess slot.
 
+    Komponenten är 3:2, `position: relative` och `overflow: hidden`, alltså
+    exakt de tre egenskaper `.band` bar innan. Att märket ligger i sloten och
+    inte bredvid är villkoret för att det ska kunna ligga PÅ fotot: det är
+    bildytan som är dess innehållsblock.
+  */}
+  <Bildyta e={e} tidig={tidig}>
     {/* Märket på en vit platta. Se .marke för varför plattan är kvadratisk. */}
     <span class="marke">
       <FaceRef verdict={e.verdict} size={32} />
     </span>
-  </span>
+  </Bildyta>
 
   <span class="text">
     <span class="namn">{e.name}</span>
@@ -218,49 +206,18 @@ const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
     overflow: hidden;
   }
 
-  /* Bandet är 3:2 och inte kvadratiskt. Airbnbs kortbild mäter 182 × 173,
-     alltså nästan kvadrat, men deras kort bär ett fotografi av ett rum och
-     vårt bär i 98,7 procent av fallen en tonplatta. En hög tonplatta är en
-     stor tom yta; en låg är en list. `aspect-ratio` och inte fast höjd, så
-     att bandet följer kortets bredd i varje spaltantal. */
-  .band {
-    position: relative;
-    display: block;
-    aspect-ratio: 3 / 2;
-    /* Neutralt grått och inte --brand-wash, se tokens.css. Ytan syns bara
-       innan fotot landat, och en platshållare ska inte påstå en färg. */
-    background: var(--bild-platshallare);
-    overflow: hidden;
-  }
+  /* BANDETS EGNA REGLER ÄR BORTA, ALLIHOP, och det ska stå varför.
+     ────────────────────────────────────────────────────────────────────────
+     Här låg `.band` med sitt 3:2, sin `--bild-platshallare`, sin `img` med
+     `object-fit: cover`, tre tonplattor och en `.tomikon` på 16 procents
+     opacitet. Varenda rad av det finns i Bildyta.astro, och den ritar det i
+     sajtens grå palett i stället för i tre egna toner. Se filhuvudet.
 
-  .band img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  /* De tre tonerna. Ingen är nära en bedömningsfärg, se filhuvudet.
-     Övertoningen går snett och är svag, tre till fyra steg mellan ändarna:
-     en platt fyllning läser som ett fel i renderingen, en tydlig övertoning
-     läser som dekor. */
-  .ton-blast { background: linear-gradient(135deg, #EDF4FC 0%, #E2ECF8 100%); }
-  .ton-sand  { background: linear-gradient(135deg, #F7F2E9 0%, #EFE7D9 100%); }
-  .ton-dis   { background: linear-gradient(135deg, #F2F1F6 0%, #E9E8F0 100%); }
-
-  /* Ikonen är stor och svag, alltså en vattenstämpel och inte en ikon man
-     ska läsa. Den sitter till höger om mitten så att brickan i nedre vänstra
-     hörnet aldrig hamnar ovanpå ett streck. */
-  .tomikon {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-left: 12%;
-    color: var(--brand);
-    opacity: .16;
-  }
+     BANDET ÄR FORTFARANDE 3:2 OCH DET ÄR FORTFARANDE MÄTT. Airbnbs kortbild
+     mäter 182 × 173, alltså nästan kvadrat, men deras kort bär ett fotografi
+     av ett rum och vårt bär i 98,7 procent av fallen en platshållare. En hög
+     platshållare är en stor tom yta; en låg är en list. Talet bor numera i
+     komponenten, som bär samma resonemang i sin egen not. */
 
   /* Märket på en vit platta i bandets nedre vänstra hörn.
      ────────────────────────────────────────────────────────────────────────
@@ -280,19 +237,55 @@ const ton = TONER[((tonindex % TONER.length) + TONER.length) % TONER.length];
 
      Kvadratisk platta alltså, och radien följer märkets egen. `FACE_RAM_RADIE`
      i lib/face.ts är 17 av 100, alltså 17 procent av sidan. Märket är 32 px
-     och har därmed 5,4 px radie. Plattan är 42 px, alltså 5 px fyllning runt
-     om, och för att kurvorna ska löpa parallellt måste dess radie vara
-     5,4 + 5 = 10,4. `--r-control` är 10. Ritar man om märkets ram måste det
-     här talet räknas om. */
+     och har därmed 5,4 px radie.
+
+     ── RINGEN ÄR 3 PX OCH INTE 5, 2026-08-28 ─────────────────────────────
+
+     Ägaren: "bedömningsmärkena har för tjock border här tycker jag."
+
+     Uppmätt i bygget före ändringen: plattan 42 px kring ett märke på 32,
+     alltså 5 px vit ring, plus hårlinjen i skuggan. Tre tunnare prövades på
+     skärm i rutnätet, och 3 px är det steg där ringen fortfarande läser som
+     en ring i stället för som en kant:
+
+         5 px   ringen är bredare än märkets egen hörnradie och läser som en
+                bricka märket ligger i
+         3 px   en ring. Plattan 38 px, alltså 22,5 procent av bandets höjd
+                vid 1440 mot 24,9 förut
+         2 px   håller mot foto men börjar läsa som en kontur
+         1 px   försvinner mot ljus fasad, alltså faller hela skälet
+
+     RINGEN FÅR INTE TAS BORT HÄR, till skillnad från på kartans listrader.
+     Där ligger märket på radens egen vita yta och behöver ingen kant. Här
+     ligger det PÅ ett fotografi, och det svåraste fallet är ett rent grönt
+     märke mot en grön fasad: plattans #00B92B mot en solbelyst grön vägg,
+     mätt #6FBF73, ger 1,18:1, alltså ingen kontur alls. Den vita ringen ger
+     2,63:1 mot märket och 2,24:1 mot fasaden, och de två talen är
+     oberoende av ringens BREDD. Det bredden avgör är om ringen syns, inte om
+     den räcker.
+
+     Märket ritas på ett tjugotal ytor och den här regeln gäller BARA den här.
+     Klassen är Astro-omfångad till kortet, och ingen annan yta lägger märket
+     på ett foto.
+
+     RADIEN ÄR RÄKNAD OCH INTE VALD, och därför är den skriven som räkningen.
+     Kurvorna löper parallellt bara om plattans radie är märkets plus ringen,
+     alltså 32 · 0,17 + 3 = 8,44. `--r-control` gick att skriva så länge
+     summan råkade bli 10,4; nu gör den inte det, och ett fast tal hade blivit
+     fel dagen någon rör märkets storlek eller ringen. */
   .marke {
+    /* Ringens bredd, en gång. Storleken nedan och radien läser båda den. */
+    --ring: 3px;
+    --marke-sida: 32px;
+
     position: absolute;
     left: var(--s-3);
     bottom: var(--s-3);
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: var(--r-control);
+    width: calc(var(--marke-sida) + var(--ring) * 2);
+    height: calc(var(--marke-sida) + var(--ring) * 2);
+    border-radius: calc(var(--marke-sida) * .17 + var(--ring));
     background: var(--card);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 1px 3px rgba(0, 0, 0, .16);
   }
