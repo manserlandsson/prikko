@@ -69,6 +69,7 @@ import FaceSprite from './FaceSprite.astro';
 import Kategoriikon from './Kategoriikon.astro';
 import Maskot from './Maskot.astro';
 import {
+  categoriesOf,
   formatDate,
   formatNumber,
   latestInspectionDate,
@@ -412,6 +413,28 @@ const kategorier = TOP_CATEGORIES.map((c) => ({
   name: c.name,
   bit: kategoriBitar()[c.slug],
 }));
+
+/**
+ * Kategorislugen som bildytans platshållare ritar sitt motiv efter.
+ *
+ * SERVERNS HALVA av det som `ritaLista` gör med bitmasken. De två formerna av
+ * raden måste sätta samma attribut, annars byter motivet ut sig i samma
+ * sekund som kartan vaknar, och det är precis det hopp raden i övrigt är byggd
+ * för att undvika. Se noten över <ol class="rader">.
+ *
+ * FÖRSTA TRÄFFEN I TOP_CATEGORIES ORDNING och inte alla. 238 verksamheter hör
+ * hemma i två toppkategorier, främst Stockholm där "1. Café" och
+ * "1. Restaurang" står på samma rad. Företrädet är `displayCategory`:s, alltså
+ * ritar raden samma kategori som den redan skriver ut som etikett.
+ *
+ * `undefined` när kategorin är okänd, alltså inget attribut och därmed
+ * markisen ur stilmallens grundvärde. Okänt är inte övrigt, se noten vid
+ * `kategoriBitar` i lib/kartrutor.ts.
+ */
+function katSlug(e: Parameters<typeof categoriesOf>[0]): string | undefined {
+  const ids = categoriesOf(e).categories;
+  return TOP_CATEGORIES.find((c) => ids.includes(c.id))?.slug;
+}
 
 /*
  * Utmärkelseikonen i nålens kort är den riktiga ritningen, samma fil som
@@ -892,8 +915,8 @@ const LEGEND = [
                 <span>{e.inspections.length === 1 ? '1 kontroll' : `${formatNumber(e.inspections.length)} kontroller`}</span>
               </span>
             </span>
-            <span class="k-bild">
-              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="64" height="64" />}
+            <span class="k-bild" data-kat={katSlug(e)}>
+              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="60" height="60" />}
             </span>
           </a>
         </li>
@@ -3478,6 +3501,22 @@ const LEGEND = [
         const bild = document.createElement('span');
         bild.className = 'k-bild';
 
+        /*
+         * MOTIVET FÖLJER RADENS KATEGORI, och attributet måste sättas här av
+         * precis samma skäl som klassen ovan: mallen sätter det med `katSlug`
+         * i frontmatteret, och en rad som ritas olika i de två formerna byter
+         * bild i samma sekund som kartan vaknar.
+         *
+         * FÖRSTA SATTA BITEN, alltså KATEGORIER i sin egen ordning, som är
+         * TOP_CATEGORIES ordning. Ordboken kommer ur sidans HTML och är samma
+         * tabell som kategoriraden filtrerar med, alltså finns ingen andra
+         * tabell som kan glida isär från den. Ingen bit alls betyder okänd
+         * kategori, och då sätts inget attribut: stilmallens grundvärde är
+         * markisen, som är det varje rad ritade före 2026-08-28.
+         */
+        const kat = KATEGORIER.find((k) => (p.kat & k.bit) !== 0);
+        if (kat) bild.dataset.kat = kat.slug;
+
         /* Riktigt foto på 366 av 16 047. Adressen kommer ur rutan, se `b` i
            lib/kartrutor.ts. Saknas den ligger den ritade platshållaren kvar,
            och den bor i CSS och inte i markupen, alltså finns den redan. */
@@ -3487,8 +3526,8 @@ const LEGEND = [
           img.alt = '';
           img.loading = 'lazy';
           img.decoding = 'async';
-          img.width = 64;
-          img.height = 64;
+          img.width = 60;
+          img.height = 60;
           bild.appendChild(img);
         }
 
@@ -7370,15 +7409,43 @@ const LEGEND = [
      * på "korten är sjukt ful". Det som skiljer är inte ordningen utan talen:
      * raden är 92 px och inte 149, bildytan 64 px och inte 320, och bildytans
      * andel av radens bredd 9,3 procent och inte 46,5.
+     *
+     * ── RUTAN ETT STEG MINDRE, 2026-08-28 ───────────────────────────────
+     *
+     * Ägaren: "kan ikonen till höger, eller den fyrkant vara lite lite lite
+     * lite mindre också, alltså minimalt mindre." Fyra gånger lite är ett
+     * STEG och inte en omritning, och beställningen gällde KVADRATEN och inte
+     * listan. Luften tas därför tillbaka i samma steg, se `padding` nedan,
+     * och radhöjden står stilla på 92 px i den breda formen och 72 i den
+     * kompakta. Ändringen syns som en mindre ruta och inte som en tätare
+     * lista.
+     *
+     * Bildytan är alltså 60 px och inte 64 i den breda formen, och 46 och
+     * inte 48 i den kompakta. Talen är valda ur fem renderade steg i
+     * brand/_prov-bildyta.html, mätt på riktigt bläck. Motiveringen står vid
+     * `padding` i den breda formen, eftersom det är där talet faller ut.
      */
-    grid-template-columns: 28px minmax(0, 1fr) 48px;
+    grid-template-columns: 28px minmax(0, 1fr) 46px;
     column-gap: var(--s-3);
     /* center i BÅDA formerna nu. Bildytan är kvadratisk och högre än de två
        textvåningarna i båda, alltså finns ingen form kvar där texten är den
        högre av de två. Regeln som stod här delade formerna i två och behövs
        inte längre. */
     align-items: center;
-    padding: var(--s-3) var(--kartgutter);
+    /*
+     * 13 px och inte --s-3, och det är den kompakta formens enda skrivna tal.
+     * Det är BUNDET till bildytans 46: raden ska mäta 72 px, och 46 plus 13
+     * plus 13 är 72. Tokenens 12 hade gett 70 och 16 hade gett 78. Ändras
+     * bildytan ska det här talet räknas om, inte tvärtom.
+     *
+     * FYRTIOSEX ÄR SISTA STEGET SOM RUTAN STYR HÖJDEN. Textens två våningar
+     * mäter 24 plus 2 plus 18, alltså 44 px, och en ruta under 44 gör texten
+     * till radens högsta element. Höjden hade fortfarande gått att hålla på
+     * 72, men då av ett annat tal, och regeln om att bildytan är högre än
+     * texten i BÅDA formerna hade slutat gälla. Se den regeln i noten om
+     * align-items ovan.
+     */
+    padding: 13px var(--kartgutter);
     color: var(--text);
   }
 
@@ -7444,8 +7511,8 @@ const LEGEND = [
   .rader :global(.k-bild) {
     position: relative;
     display: block;
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     border-radius: var(--r-control);
     overflow: hidden;
     background-color: var(--bild-tom);
@@ -7523,6 +7590,82 @@ const LEGEND = [
     background-position: center;
     background-size: auto 96%;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23D0D0D8' d='M12 12h24v28H12z'/%3E%3Cpath fill='%23ADADB5' d='M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23C6C6CE' d='M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%23ADADB5' d='M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z'/%3E%3Cpath fill='%239E9EA7' d='M19 29h10v11H19z'/%3E%3Crect fill='%23BCBCC4' x='7' y='39.4' width='34' height='1.8' rx='.9'/%3E%3C/svg%3E");
+  }
+
+  /*
+   * ══ MOTIVET FÖLJER VERKSAMHETENS SORT ═══════════════════════════════════
+   *
+   * Ägaren 2026-08-28: "kanske olika ikoner, samma stil beroende på om det är
+   * restaurang, butik, eller vilka filter vi nu har? ser ju att det står olika
+   * liksom."
+   *
+   * ── DATAN FANNS REDAN, OCH DEN KOSTAR NOLL NYA BYTE ──────────────────
+   *
+   * Kategorin ligger som en bitmask i vektorrutan, fältet `props.c`, satt av
+   * `KATEGORI_BIT` i lib/kartrutor.ts och läst till radens `kat` här ovan.
+   * Kategoriraden i kontrollbandet filtrerar redan på precis den masken.
+   * Rutarkivet behövde alltså inte en enda ny byte för det här.
+   *
+   * ATTRIBUTET ÄR KATEGORINS SLUG och inte ett eget namn, av samma skäl som
+   * bitarna skickas ned i `data-kategorier` i stället för att räknas ut igen:
+   * klienten har redan ordboken i `KATEGORIER` och kan svara på "vilken
+   * kategori har den här masken" utan en andra tabell. Två tabeller som säger
+   * samma sak kan glida isär; en kan det inte.
+   *
+   * FYRA REGLER OCH INTE SEX. Markisen ovan är grundvärdet, alltså har varken
+   * restaurangerna eller de 155 raderna med okänd kategori en egen rad här.
+   * Det är de två som ska rita precis det som redan stod på varje rad.
+   *
+   * ── VARFÖR DET HÄR INTE ÄR SAMMA FEL SOM ÅTERTOGS EN GÅNG ────────────
+   *
+   * Noten i Bildyta.astro säger att motivet inte får säga något om
+   * verksamheten, och räknar tre skäl. Två försvann med markisen: opaciteten
+   * och de tre bakgrundstonerna. Det tredje var att påståendet vilade på en
+   * OSM-kategori som saknades för 12 120 av 16 047 rader. DEN SIFFRAN GÄLLER
+   * INTE DET HÄR FÄLTET: kategorin kommer ur kommunernas egna verksamhetstyper
+   * genom tabellen i lib/categories.ts och saknas för 155 av 13 692 rader med
+   * koordinat, alltså 1,1 procent i stället för 75,5. Raden skriver dessutom
+   * redan ut typen i klartext i sin metarad, se .k-typ. Ritningen upprepar
+   * alltså ett påstående som redan står på raden i stället för att lägga till
+   * ett nytt.
+   *
+   * ── FORMERNA BOR I lib/platshallarmotiv.ts ───────────────────────────
+   *
+   * Ritningarna står där med sina mått och sina skäl, och strängarna nedan är
+   * genererade ur den filen med `motivDataUri`. Ändras en path där ska raden
+   * här bytas ut mot en ny generering samma dag. Tonerna är hårdkodade av
+   * samma skäl som markisen ovan: en data-URI är ett eget dokument och kan
+   * varken läsa en variabel eller ärva en klass.
+   *
+   * ── VILLKOREN VARJE MOTIV ÄR MÄTT MOT ────────────────────────────────
+   *
+   * Bläcket håller sig innanför x 7..41 av 48, alltså samma bredd som
+   * markisen, och det är det talet som gör att 96 procent inte tuschar
+   * hörnbågen. Bläckets höjd är 28,2 till 29,2 enheter med mitten på y 26,6,
+   * alltså ser de fem lika stora ut i samma lista.
+   *
+   * SKILJBARA I DEN KOMPAKTA FORMEN, som är den minsta: rutan 46 px och
+   * bläcket 32. Skillnaden ligger i motivets ÖVERKANT, som ögat läser först,
+   * och i den mörka massan därunder: markisens vågiga utsprång och smala höga
+   * dörr, koppens runda siluett med öra, butikens raka skyltband över en bred
+   * liggande ruta, skolans triangel över två fönster kring en dörr, och
+   * lagrets tre sågtandsspetsar över en bred port. Rastrerat och jämfört par
+   * för par i gråskala, se brand/_prov-bildyta.html: svagaste paret är skolan
+   * mot övrigt.
+   *
+   * INGET AV DEM ÄR MASKOTEN, docs/24 §2, och inget av dem är ett djur.
+   */
+  .rader :global(.k-bild[data-kat='cafeer-och-bagerier']) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23ADADB5' fill-rule='evenodd' d='M33 18.5a6.5 6.5 0 1 1 0 13a6.5 6.5 0 1 1 0-13zM33 22.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z'/%3E%3Cpath fill='%23D0D0D8' d='M14 13h20l-2.5 22h-15z'/%3E%3Cpath fill='%239E9EA7' d='M14 13h20v4.5H14z'/%3E%3Cpath fill='%23C6C6CE' d='M8 35h32l-3 4.4h-26z'/%3E%3Cpath fill='%23BCBCC4' d='M7.9 39.4h32.2a.9.9 0 0 1 0 1.8H7.9a.9.9 0 0 1 0-1.8z'/%3E%3C/svg%3E");
+  }
+  .rader :global(.k-bild[data-kat='butiker']) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23D0D0D8' d='M11 17h26v23H11z'/%3E%3Cpath fill='%23ADADB5' d='M9 12h30v5H9z'/%3E%3Cpath fill='%239E9EA7' d='M14 22h20v11H14z'/%3E%3Cpath fill='%23C6C6CE' d='M14 22h20v4H14z'/%3E%3Cpath fill='%23BCBCC4' d='M7.9 39.4h32.2a.9.9 0 0 1 0 1.8H7.9a.9.9 0 0 1 0-1.8z'/%3E%3C/svg%3E");
+  }
+  .rader :global(.k-bild[data-kat='skolor-och-omsorg']) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23ADADB5' d='M7 22.5 L24 12 L24 22.5z'/%3E%3Cpath fill='%23C6C6CE' d='M24 12 L41 22.5 L24 22.5z'/%3E%3Cpath fill='%23D0D0D8' d='M10 22.5h28v17.5H10z'/%3E%3Cpath fill='%239E9EA7' d='M13 26h5v5h-5zM21 26h6v14h-6zM30 26h5v5h-5z'/%3E%3Cpath fill='%23BCBCC4' d='M7.9 39.4h32.2a.9.9 0 0 1 0 1.8H7.9a.9.9 0 0 1 0-1.8z'/%3E%3C/svg%3E");
+  }
+  .rader :global(.k-bild[data-kat='ovrigt']) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 2.6 48 48'%3E%3Cpath fill='%23D0D0D8' d='M10 20h28v20H10z'/%3E%3Cpath fill='%23ADADB5' d='M10 20 L19.333 13 L19.333 20z'/%3E%3Cpath fill='%23C6C6CE' d='M19.333 20 L28.667 13 L28.667 20z'/%3E%3Cpath fill='%23ADADB5' d='M28.667 20 L38 13 L38 20z'/%3E%3Cpath fill='%239E9EA7' d='M16 26h16v14H16z'/%3E%3Cpath fill='%23BCBCC4' d='M7.9 39.4h32.2a.9.9 0 0 1 0 1.8H7.9a.9.9 0 0 1 0-1.8z'/%3E%3C/svg%3E");
   }
 
   .rader :global(.k-bild img) {
@@ -7655,21 +7798,54 @@ const LEGEND = [
    */
   @media (min-width: 1280px) {
     .rader :global(a) {
-      grid-template-columns: 36px minmax(0, 1fr) 64px;
+      grid-template-columns: 36px minmax(0, 1fr) 60px;
       column-gap: 14px;
       /*
-       * 14 px och inte --s-3 eller --s-4, och det är det enda skrivna talet i
-       * hela raden. Det är BUNDET till bildytans 64: raden ska mäta 92 px, som
-       * är det tal utförande C mättes och valdes på, och 64 plus 14 plus 14 är
-       * 92. Tokenens 12 hade gett 88 och 16 hade gett 96. Ändras bildytan ska
-       * det här talet räknas om, inte tvärtom.
+       * ══ SEXTIO OCH SEXTON, OCH BÅDA TALEN FÖLJER AV VARANDRA ═══════════
+       *
+       * Här stod bildytan 64 och luften 14, med noten att 14 var radens enda
+       * skrivna tal och att tokenens 16 hade gett 96 px rad. Ägaren 2026-08-28
+       * bad om en mindre kvadrat, inte om en lägre lista, alltså ska summan
+       * stå kvar på 92.
+       *
+       * SEXTIO ÄR DET STEG SOM LÖSER BÅDA. 60 plus 16 plus 16 är 92, alltså
+       * blir luften --s-4 och radens enda skrivna tal försvinner. Fem steg
+       * renderades i brand/_prov-bildyta.html med radhöjden bunden i varje:
+       *
+       *     ruta 64   luft 14      bläck 44 px   sidoluft 10   i dag
+       *     ruta 62   luft 15      bläck 42 px   sidoluft 10   luften blir ett skrivet tal till
+       *     ruta 60   luft --s-4   bläck 42 px   sidoluft  9   VALT
+       *     ruta 58   luft 17      bläck 40 px   sidoluft  9
+       *     ruta 56   luft 18      bläck 38 px   sidoluft  9   börjar läsa som en ikon
+       *
+       * Bläcket och sidoluften är RASTRERADE och inte räknade: motivet ritades
+       * i varje rutstorlek och pixlarna som skiljer sig från ytans ton mättes.
+       * 62 ger samma 42 px bläck som 60 och är alltså ett steg som syns i
+       * koden utan att synas på skärmen.
+       *
+       * Fyra gånger "lite" är ett steg, och 60 är 6,3 procent mindre. 56 är
+       * 12,5 och tar bildytan förbi den punkt där den slutar läsa som en
+       * bildplats: de 366 raderna som HAR ett foto ska fortfarande visa ett
+       * begripligt fotografi, och en 56 px ruta bredvid ett 36 px märke är en
+       * ikon till och inte en bild.
+       *
+       * HÖRNBÅGEN HÅLLER, OCH DET ÄR MÄTT PÅ BLÄCK OCH INTE PÅ RUTAN. Motivet
+       * ritas i 96 procent av rutan, alltså 42 px bläck i en 60 px ruta, och
+       * sidoluften blir 9 px mot --r-control:s 10. Noten vid background-size
+       * nedan sa att 96 valdes just för att sidoluften vid 64 blev 10,2 px,
+       * "precis utanför hörnbågen". Det talet gällde den breda formen ensam:
+       * DEN KOMPAKTA FORMEN HAR HELA TIDEN LEGAT PÅ 7 PX mot samma 10 px
+       * radie, och den formen är i drift och sedd. Ingenting klipps heller i
+       * något av stegen, och det är geometri och inte en åsikt: bläckets
+       * ytterpunkter i sidled ligger på motivets mitthöjd, medan hörnbågen bor
+       * i rutans fyra hörn. 96 procent står därför kvar oförändrat.
        */
-      padding: 14px var(--kartgutter);
+      padding: var(--s-4) var(--kartgutter);
     }
 
     .rader :global(.k-bild) {
-      width: 64px;
-      height: 64px;
+      width: 60px;
+      height: 60px;
     }
 
     /* Märket följer bildytan upp. 36 mot 64 är samma förhållande som 28 mot

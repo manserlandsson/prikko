@@ -54,7 +54,8 @@
  * vad ett fotografi föreställer, och den bedömningen ska göras en gång av en
  * människa och inte en gång per yta.
  */
-import { egenBild, visbarBild, type Establishment } from '../lib/data';
+import { categoriesOf, egenBild, TOP_CATEGORIES, visbarBild, type Establishment } from '../lib/data';
+import { motivForSlug } from '../lib/platshallarmotiv';
 
 interface Props {
   e: Establishment;
@@ -180,13 +181,38 @@ const visaFoto = foto !== null && !(kraverLogo && !MAPILLARY_LOGO);
  * över en butiksfront är ett neutralt föremål och påstår ingenting om
  * verksamheten under den.
  */
-const KAPPOR = [
-  /* Vänster kappa: fästet (12,12) till (20,12), underkanten (8,20) till
-     (18,667, 20), och en halvcirkel med r 5,333 tillbaka. */
-  'M8 20 L12 12 L20 12 L18.667 20a5.333 5.333 0 0 1-10.667 0z',
-  'M18.667 20 L20 12 L28 12 L29.333 20a5.333 5.333 0 0 1-10.667 0z',
-  'M29.333 20 L28 12 L36 12 L40 20a5.333 5.333 0 0 1-10.667 0z',
-];
+
+/**
+ * ══ OCH SEDAN 2026-08-28 FÖLJER MOTIVET VERKSAMHETENS SORT ══════════════
+ *
+ * Ägaren: "kanske olika ikoner, samma stil beroende på om det är restaurang,
+ * butik, eller vilka filter vi nu har? ser ju att det står olika liksom."
+ *
+ * STYCKET LÄNGST UPP SÄGER MOTSATSEN OCH DET STÅR KVAR OREDIGERAT, eftersom
+ * en fil som skriver om sin egen historia inte går att lita på. Läs det som
+ * det var: tre fel räknades upp, och det bärande var att påståendet vilade på
+ * en OSM-kategori som saknades för 12 120 av 16 047 rader.
+ *
+ * DET TALET GÄLLER INTE FÄLTET SOM ANVÄNDS HÄR. `categoriesOf` läser
+ * kommunernas EGNA verksamhetstyper genom tabellen i lib/categories.ts, och
+ * den saknas för 155 av 13 692 rader med koordinat, alltså 1,1 procent i
+ * stället för 75,5. Kortet och raden skriver dessutom redan ut typen i
+ * klartext bredvid bilden. Ritningen upprepar alltså något som redan står
+ * skrivet i stället för att lägga till ett nytt påstående, och de två andra
+ * felen, opaciteten och de tre bakgrundstonerna, försvann med markisen och är
+ * inte tillbaka.
+ *
+ * MARKISEN ÄR KVAR OCH ÄR OFÖRÄNDRAD. Den bär restaurangerna, alltså 39,1
+ * procent av kartlistans rader, och den bär varje rad vars kategori vi inte
+ * känner. Ägarens val 2026-08-27 står därmed kvar på de rader det gällde.
+ *
+ * FORMERNA BOR I lib/platshallarmotiv.ts, med sina mått och sina skäl. Här
+ * väljs bara vilken uppsättning som ritas, och tonen sätts som en klass så
+ * att talen fortsätter bo i tokens.css.
+ */
+const motivFormer = motivForSlug(
+  TOP_CATEGORIES.find((c) => categoriesOf(e).categories.includes(c.id))?.slug,
+);
 
 /**
  * Motivets andel av ytans KORTASTE sida.
@@ -228,16 +254,16 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
     Kostnaden är omkring 200 byte per kort som har ett foto, alltså per 2,3
     procent av korten, och de är identiska och komprimeras därefter.
   */}
+  {/*
+    RITORDNINGEN LIGGER I LISTAN och inte här: formerna kommer i den ordning
+    de ska målas, bakifrån och fram, och marklinjen är alltid sist. Det är
+    samma ordning som data-URI:n i Karta.astro bär, eftersom båda genereras ur
+    samma lista.
+  */}
   <svg class="motiv" viewBox="0 0 48 48" width={sida} height={sida} aria-hidden="true">
-    {/* Fasaden först: markisen ligger framför den och dörren i den. */}
-    <path class="m-fasad" d="M12 12h24v28H12z" />
-    {KAPPOR.map((d, i) => (
-      <path class:list={['m-markis', i === 1 && 'ljus']} d={d} />
+    {motivFormer.map((f) => (
+      <path class={`m-${f.ton}`} fill-rule={f.evenodd ? 'evenodd' : undefined} d={f.d} />
     ))}
-    <path class="m-dorr" d="M19 29h10v11H19z" />
-    {/* Marklinjen. Bredare än huset, så att huset står PÅ något i stället för
-        att sluta i luften. Det var den enda uppgift strecket hade kvar. */}
-    <rect class="m-bas" x="7" y="39.4" width="34" height="1.8" rx=".9" />
   </svg>
 
   {visaFoto && (
@@ -360,7 +386,7 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
    */
   .m-fasad { fill: var(--bild-tom-fasad); }
   .m-markis { fill: var(--bild-tom-markis); }
-  .m-markis.ljus { fill: var(--bild-tom-markis-ljus); }
+  .m-markis-ljus { fill: var(--bild-tom-markis-ljus); }
   .m-dorr { fill: var(--bild-tom-dorr); }
   .m-bas { fill: var(--bild-tom-bas); }
 
