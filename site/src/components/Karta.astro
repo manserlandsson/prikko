@@ -7731,30 +7731,38 @@ const LEGEND = [
   }
 
   /*
-   * VÄGEN VIDARE. En knapp i kolumnens fulla bredd, som Boolis egen
-   * "Visa fler" men utan deras sidnummer bredvid.
+   * "Visa fler" är en RAD I LISTAN, inte en knapp ovanpå den.
    *
-   * Sekundär och inte primär: den är listans fortsättning och inte sidans
-   * viktigaste handling. Samma hårlinje och samma radie som ett kort, alltså
-   * läser den som en rad till i listan snarare än som en knapp ovanpå den.
+   * Ägaren 2026-08-28 med skärmbild: "denna knapp är ju skitskum också."
+   * Den var en inramad pillerknapp i nästan full spaltbredd, med egen kant,
+   * egen radie och egen yta, i en kolumn där varje annan rad är ramlös och
+   * skild av en enda hårlinje. Alltså det enda inramade i hela spalten,
+   * placerat sist där ögat lämnar sidan.
    *
-   * Indraget är --kartgutter, som varje annan rad i kolumnen, så att den
-   * står på sidhuvudets vänsterkant.
+   * Samma invändning som fällde de inramade korten allra först, se
+   * kommentaren vid .rader. Vi tog bort ramen från trettio kort och lämnade
+   * kvar den på det trettioförsta elementet.
+   *
+   * Nu: full bredd, hårlinje över som varje radskarv, ingen ram, ingen radie,
+   * ingen egen yta. Texten i märkesfärgen, eftersom raden är en handling och
+   * blått är sajtens handlingsfärg. Höjden följer radernas egen luft.
    */
   .visa-fler {
     display: block;
-    width: calc(100% - 2 * var(--kartgutter, var(--s-4)));
-    margin: var(--s-3) var(--kartgutter, var(--s-4)) var(--s-5);
-    padding: var(--s-3);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
-    background: var(--card);
+    width: 100%;
+    margin: 0;
+    padding: var(--s-4) var(--kartgutter, var(--s-4));
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+    border-radius: 0;
+    background: none;
     font: 500 var(--fs-body-s) / 1.2 var(--font-sans);
-    color: var(--text);
+    color: var(--brand-ink);
+    text-align: center;
     cursor: pointer;
   }
 
-  .visa-fler:hover { background: var(--canvas); }
+  .visa-fler:hover { background: var(--canvas); text-decoration: underline; }
   .visa-fler[hidden] { display: none; }
 
   .listfot {
