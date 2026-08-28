@@ -236,6 +236,48 @@ const motivFormer = motivForSlug(
  * fyller 29,2 av 48, alltså 60,8 procent. Skillnaden är en procentenhet, och
  * det motiv som stod här och det som står här nu är därför lika stora på
  * skärmen vid samma andel. Prövat i båda listradens former, se rapporten.
+ *
+ * ══ OCH DET ÖVERLEVDE RÄKNINGEN OCKSÅ, 2026-08-28 ═══════════════════════
+ *
+ * Kartans listrad ritar samma motiv i 96 procent av rutans höjd, och det är
+ * frestande att skriva samma tal här. DET GÅR INTE, och skälet är att ytorna
+ * har olika form och olika grannar.
+ *
+ * Kartans ruta är en KVADRAT på 46 px utan något annat i sig, och 96 valdes
+ * som sista steget innan bläcket tuschar rutans hörnbåge. Den här ytan är
+ * 3:2 och bär bedömningsmärket i sitt nedre vänstra hörn. Hörnbågen är därför
+ * inte det som binder: vid 0,42 är sidoluften 65,5 px på det smalaste kortet
+ * mot en radie på 12, alltså två tiopotenser fel för att kunna vara gränsen.
+ * DET SOM BINDER ÄR MÄRKET.
+ *
+ * Uppmätt i webbläsaren mot bygget, kortet i sin smalaste form, alltså två
+ * spalter vid 375 px, där bildytan är 163,5 × 109 och märkets platta slutar
+ * 50 px från vänsterkanten:
+ *
+ *     andel   bläckets bredd   bläckets vänsterkant   glapp till märket
+ *     0,42          32,4 px            65,5 px             15,5 px
+ *     0,52          40,1              61,7                 11,7
+ *     0,62          47,9              57,8                  7,8
+ *     0,72          55,6              54,0                  4,0
+ *     0,96          74,1              44,7                 -5,3
+ *
+ * Kartans 96 lägger alltså bläcket 5,3 px OVANPÅ bedömningsmärket. Taket är
+ * det steg där glappet är märkets eget avstånd till kanten, --s-3 alltså 12
+ * px, och det inträffar vid 0,51.
+ *
+ * 0,42 STÅR KVAR OCH ÄR NU RÄKNAT OCH INTE BARA SETT. Två skäl:
+ *
+ *   Ägaren valde det på skärm ur fyra renderade steg, och han har inte klagat
+ *   på storleken. Han klagade på FÄRGEN och på att motivet låg högt, och båda
+ *   de sakerna är lagade utan att röra det här talet.
+ *
+ *   Taket 0,51 gäller vid 375 px. Rutnätet står kvar på två spalter hela vägen
+ *   ned, och vid 320 px är kortet 136 px brett: där ger 0,42 ett glapp på
+ *   4,5 px och 0,51 bara 1,6. Ett tak som håller på en skärmbredd och inte på
+ *   nästa är inget tak.
+ *
+ * Vid 1440 px, alltså fem spalter och en bildyta på 253 × 168,7, är bläcket
+ * 50,2 × 43,1 px och glappet till märket 51,4 px.
  */
 const ANDEL = 0.42;
 const sida = storlek === 'rad' ? px * ANDEL : undefined;
@@ -343,8 +385,33 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
      en stor tom yta; en låg är en list. `aspect-ratio` och inte fast höjd, så
      att bandet följer kortets bredd i varje spaltantal. */
   .bildyta {
+    /*
+     * ANDELEN, alltså motivets ruta mätt mot ytans KORTA sida. Talet är
+     * `ANDEL` i frontmattern och det står i två filer med flit: en CSS-regel
+     * kan inte läsa en konstant, och att skriva ut den som en inline-stil på
+     * varje yta hade kostat omkring fjorton byte gånger 404 kort på
+     * startsidan. Ändras det ena ska det andra ändras i samma andetag, och de
+     * är skrivna som SAMMA tal just för att en avvikelse ska synas.
+     */
+    --andel: .42;
+
     position: relative;
     display: grid;
+    /*
+     * ETT SPÅR I VAR RIKTNING, OCH BÅDA ÄR `minmax(0, 1fr)`.
+     *
+     * Här stod ingenting, alltså ett implicit spår med `auto`. Ett auto-spår
+     * växer efter sitt största barn, och ett fotografi som INTE gick att hämta
+     * har ingen känd storlek: webbläsaren ger då den trasiga bilden sitt eget
+     * mått. Uppmätt i bygget: en 3:2-yta på 168,7 px fick en rad på 180 px, och
+     * motivet under bilden hamnade 5,5 px under ytans mitt i stället för i den.
+     *
+     * `1fr` binder spåret till ytans egen höjd i stället för till innehållet,
+     * och `minmax(0, …)` hindrar minimistorleken att göra samma sak baklänges.
+     * Ytan är därmed lika hög med, utan och med en trasig bild.
+     */
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
     aspect-ratio: 3 / 2;
     overflow: hidden;
@@ -368,26 +435,33 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
   }
 
   /*
-   * STORLEKEN ÄR EN ANDEL AV YTANS HÖJD, OCH TALET STÅR EN GÅNG.
+   * STORLEKEN, OCH VARFÖR DEN MÄTS PÅ BREDDEN NÄR TALET GÄLLER HÖJDEN.
    *
-   * Här stod `width: 28%`, alltså ANDEL uttryckt mot BREDDEN: ytan är 3:2, så
-   * 0,42 · 2/3 = 0,28. Två tal för en storlek, med en kommentar som bad
-   * läsaren räkna om det ena när det andra ändrades. Det är precis den sortens
-   * par som glider isär, och det behövdes inte: höjden är ytans korta sida i
-   * båda formerna, och en procent på höjden BETYDER därför ANDEL rakt av.
+   * Här stod `width: 28%` med en kommentar som bad läsaren räkna om talet för
+   * hand när `ANDEL` ändrades: 0,42 · 2/3 = 0,28. Ett par som är dömt att
+   * glida isär. Nu står andelen som ett tal och omräkningen som en räkning.
    *
-   * Samma sak som kartans `background-size: auto 96%` säger om sin ruta, och
-   * nu i samma sorts tal, så att de två går att jämföra utan att räkna.
+   * HÖJD I PROCENT PRÖVADES FÖRST OCH GÅR INTE, och det ska stå varför, så
+   * att ingen försöker igen. Ytans höjd kommer ur `aspect-ratio`, alltså ur
+   * dess bredd, och en procentuell HÖJD på ett barn i den rutan är därmed
+   * cirkulär. Uppmätt i webbläsaren mot bygget: `height: 42%` gav en ruta på
+   * 75,4 px i en yta på 168,7, alltså 44,7 procent, och rutnätets rad svällde
+   * till 180 px så att motivet hamnade 5,5 px UNDER ytans mitt. Det är precis
+   * det fel ändringen skulle laga.
    *
-   * Regeln gäller BÅDA formerna. I radläget står måttet dessutom som attribut
-   * på elementet, eftersom rutan då har en känd sida i px, och attributen
-   * finns kvar så att en yta inte hoppar innan stilmallen kommit.
+   * Bredden är definit i båda formerna och har inte det problemet. `2/3` är
+   * kortets `aspect-ratio` skriven som en räkning, och raden är kvadratisk och
+   * behöver den inte.
    */
   .motiv {
     grid-area: 1 / 1;
     display: block;
-    width: auto;
-    height: 42%;
+    width: calc(var(--andel) * 100% * 2 / 3);
+    height: auto;
+  }
+
+  .bildyta.rad .motiv {
+    width: calc(var(--andel) * 100%);
   }
 
   /*

@@ -65,7 +65,15 @@
 
      Neutralt grått gör inget anspråk alls, och det är hela poängen med en
      platshållare. Två steg mörkare än --canvas så att bandet syns mot kortet
-     innan bilden kommit. */
+     innan bilden kommit.
+
+     TOKENEN HAR INGEN KONSUMENT SEDAN 2026-08-28, och den står ändå kvar.
+     Dess enda brukare var .band i Verksamhetskort.astro, och det kortet ber
+     numera Bildyta.astro om sin yta, som ritar --bild-tom nedan. Kvar står
+     tokenen som HALVAN AV EN SKILLNAD: noten nedan och den i Karta.astro
+     definierar båda --bild-tom genom att säga vad den INTE är, och tar man
+     bort det ena talet blir den andra meningen obegriplig. Den dag en yta
+     behöver ett äkta laddningsläge igen är det här den ska hämtas. */
   --bild-platshallare: #F1F1F3;
 
   /* DEN TOMMA BILDYTAN ÄR NÅGOT ANNAT ÄN LADDNINGSLÄGET OVAN, och de två får
