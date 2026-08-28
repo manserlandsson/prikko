@@ -879,9 +879,6 @@ const LEGEND = [
         <li>
           <a href={path(base, e.slug)}>
             <FaceRef verdict={e.verdict} size={36} />
-            <span class="k-bild">
-              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="64" height="64" />}
-            </span>
             <span class="k-text">
               <b>{e.name}</b>
               <span class="k-meta">
@@ -894,6 +891,9 @@ const LEGEND = [
                 )}
                 <span>{e.inspections.length === 1 ? '1 kontroll' : `${formatNumber(e.inspections.length)} kontroller`}</span>
               </span>
+            </span>
+            <span class="k-bild">
+              {e.image?.url && <img src={e.image.url} alt="" loading="lazy" decoding="async" width="64" height="64" />}
             </span>
           </a>
         </li>
@@ -3491,7 +3491,6 @@ const LEGEND = [
           img.height = 64;
           bild.appendChild(img);
         }
-        a.appendChild(bild);
 
         const text = document.createElement('span');
         text.className = 'k-text';
@@ -3554,6 +3553,7 @@ const LEGEND = [
 
         text.appendChild(meta);
         a.appendChild(text);
+        a.appendChild(bild);
 
         li.appendChild(a);
         frag.appendChild(li);
@@ -7371,7 +7371,7 @@ const LEGEND = [
      * raden är 92 px och inte 149, bildytan 64 px och inte 320, och bildytans
      * andel av radens bredd 9,3 procent och inte 46,5.
      */
-    grid-template-columns: 28px 48px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr) 48px;
     column-gap: var(--s-3);
     /* center i BÅDA formerna nu. Bildytan är kvadratisk och högre än de två
        textvåningarna i båda, alltså finns ingen form kvar där texten är den
@@ -7655,7 +7655,7 @@ const LEGEND = [
    */
   @media (min-width: 1280px) {
     .rader :global(a) {
-      grid-template-columns: 36px 64px minmax(0, 1fr);
+      grid-template-columns: 36px minmax(0, 1fr) 64px;
       column-gap: 14px;
       /*
        * 14 px och inte --s-3 eller --s-4, och det är det enda skrivna talet i
