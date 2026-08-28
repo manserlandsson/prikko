@@ -1192,6 +1192,28 @@ const LEGEND = [
    */
   const SAMMA_PLATS = 3e-5;
 
+  /**
+   * ══ TAKET PÅ ANTALET VALDA OMRÅDEN, OCH DET GÄLLER I BÅDA ÄNDAR ═════════
+   *
+   * Här fanns ett tak, men bara i den ena änden. `lasFragment` klippte
+   * adressen vid fem områden medan gränssnittet lät ägaren välja tio, alltså
+   * kunde en delad länk tappa fem av tio val utan att säga något. Två tak som
+   * inte är samma tak är sämre än inget tak.
+   *
+   * TALET ÄR TOLV, OCH DET KOMMER UR HOPFÄLLNINGEN. Fältet visar de chip som
+   * ryms och räknar resten som "+N", se stallChippar. Vid 688 px ryms tre
+   * namn av Stockholms längd, alltså är siffran ensiffrig upp till tolv val.
+   * Från trettonde valet står det "+10" i fältet, och en tvåsiffrig räknare
+   * har slutat berätta vad man valt; den säger bara "många".
+   *
+   * Den gamla motiveringen, att varje område kostar en omritning av kartan,
+   * håller inte: masken sätts med `setData` EN gång per ändring oavsett hur
+   * många ytor den bär, och konturfilen hämtas per KOMMUN och inte per område.
+   * Kostnaden som verkligen växer med antalet är alltså inte kartans utan
+   * fältets, och det är därför fältet får sätta talet.
+   */
+  const OMRADESTAK = 12;
+
   const root = document.querySelector<HTMLElement>('[data-karta]');
 
   if (root) {
@@ -1846,8 +1868,94 @@ const LEGEND = [
      * "verksamheter" när de är på. Att räkna upp dem här hade gett "12 träffar
      * i caféer i Jönköping", alltså en plats som inte finns.
      */
+    /**
+     * Kommunens ORT för ett valt område, alltså "Stockholm" och inte
+     * "Stockholms stad".
+     *
+     * `Omrade.kn` bär kommunens formella namn, som är rätt i en lista där man
+     * ska välja men fel i en mening. Orten står i KOMMUNVAL, och db.ts säger
+     * uttryckligen att den aldrig får härledas ur det formella namnet.
+     */
+    let ORTER: Map<string, string> | null = null;
+    function ortAv(nyckel: string): string | null {
+      /* Byggs vid första anropet och inte vid genomläsningen: KOMMUNVAL
+         deklareras längre ned i samma skript, och en const som läses före sin
+         deklaration kastar. */
+      if (!ORTER) ORTER = new Map(KOMMUNVAL.map((k) => [k.s, k.n]));
+      const o = OMRADESREG.get(nyckel);
+      return o ? ORTER.get(o.k) ?? null : null;
+    }
+
+    /** "A", "A och B", "A, B och C". Svensk uppräkning, inte `join(' och ')`. */
+    function ochLista(delar: string[]): string {
+      if (delar.length <= 1) return delar[0] ?? '';
+      return `${delar.slice(0, -1).join(', ')} och ${delar[delar.length - 1]}`;
+    }
+
+    /** Räkneord upp till tolv, alltså upp till OMRADESTAK. Se `omradesOrd`. */
+    const RAKNEORD = [
+      'noll', 'ett', 'två', 'tre', 'fyra', 'fem', 'sex',
+      'sju', 'åtta', 'nio', 'tio', 'elva', 'tolv',
+    ];
+
+    /**
+     * ══ RESULTATRADENS TRAPPA ════════════════════════════════════════════
+     *
+     * Raden är sidans H1. Före den här ändringen fogade den ihop namnen med
+     * `join(' och ')` och lät varje namn bära sin kommun, vilket i ägarens
+     * skärmbild 2026-08-28 blev en enda mening på sex rader med nio "och" på
+     * rad:
+     *
+     *     "4 495 verksamheter i Östermalm, Stockholms stad och Södermalm,
+     *      Stockholms stad och Gamla stan, Stockholms stad och ..."
+     *
+     * Två fel i samma mening. Kommunen stod tio gånger, och tio namn stod
+     * uppräknade i en rad som är 640 px bred.
+     *
+     * ── VARFÖR GRÄNSEN GÅR VID TRE ──────────────────────────────────────
+     *
+     * Registret, uppmätt 2026-08-28 ur `data-omraden` i den byggda sidan:
+     * 64 områden i sex kommuner, medellängd 9,2 tecken, median 9, längst
+     * "Hässelby Villastad" på 18. Noll namn förekommer i mer än en kommun,
+     * alltså gör krockregeln i `chipNamn` ingenting i dag.
+     *
+     * Trappan är därför: ett, två eller tre namn skrivs ut, fyra eller fler
+     * räknas.
+     *
+     * ── KOMMUNEN SKRIVS EN GÅNG, ELLER INGEN ────────────────────────────
+     *
+     * Vid uppräkning står ingen kommun alls. Chippen i fältet en rad ovanför
+     * säger redan vilka områden det gäller, och docs/18 säger att det som står
+     * en rad bort inte ska skrivas igen. Vid räkning står kommunen en gång,
+     * för då finns inga namn kvar som säger var man är.
+     *
+     * Ligger områdena i FLERA kommuner blir "i tio områden i Stockholm" osant.
+     * Två kommuner skrivs då ut båda, tre eller fler räknas de också. Raden
+     * säger alltid något sant och aldrig ett tal utan plats.
+     *
+     * SEO tar ingen skada. Raden skrivs om av skriptet först när en besökare
+     * har valt något; den serverrenderade formen, alltså den som indexeras,
+     * har inget urval och bär platsen i klartext som förut.
+     */
+    function omradesOrd(): string {
+      const namn = omradeVal.map(bartNamn);
+      if (namn.length <= 3) return ochLista(namn);
+
+      const orter = [...new Set(omradeVal.map(ortAv).filter((x): x is string => x !== null))];
+      const antal = namn.length <= 12 ? RAKNEORD[namn.length] : String(namn.length);
+      const var_ =
+        orter.length === 1
+          ? ` i ${orter[0]}`
+          : orter.length === 2
+            ? ` i ${orter[0]} och ${orter[1]}`
+            : orter.length > 2
+              ? ` i ${orter.length <= 12 ? RAKNEORD[orter.length] : orter.length} kommuner`
+              : '';
+      return `${antal} områden${var_}`;
+    }
+
     function urvalsOrd(): string {
-      if (omradeVal.length) return omradeVal.map(omradesNamn).join(' och ');
+      if (omradeVal.length) return omradesOrd();
       /*
        * TOM när urvalet är sidans egen plats, och det är inte en förkortning
        * utan en rättelse. Uppmätt i webbläsaren på /karta/ innan raden fanns:
@@ -1877,8 +1985,11 @@ const LEGEND = [
       /* Områdena med, sedan de filtrerar listan. Tomtexten är den enda plats
          som säger VARFÖR vyn är tom, och ett område som tömt den utan att
          nämnas hade gjort raden till en gåta. */
-      for (const nyckel of omradeVal) delar.push(omradesNamn(nyckel));
-      return delar.join(' och ');
+      /* Samma trappa som resultatraden, se omradesOrd. Tomtexten är den enda
+         plats som säger VARFÖR vyn är tom, och tio namn i rad hade gjort den
+         raden till samma gåta som resultatraden var. */
+      if (omradeVal.length) delar.push(omradesOrd());
+      return ochLista(delar);
     }
 
     /**
@@ -1891,6 +2002,9 @@ const LEGEND = [
      */
 
     const chippar = root.querySelector<HTMLElement>('[data-chippar]')!;
+    /* Fältet självt, för hopfällningen: den räknar mot fältets faktiska
+       bredd och inte mot ett skrivet tal. Se stallChippar. */
+    const filterFaltRuta = root.querySelector<HTMLElement>('[data-filterfalt]')!;
     const forslag = root.querySelector<HTMLUListElement>('[data-forslag]')!;
 
     /**
@@ -2071,6 +2185,58 @@ const LEGEND = [
       return VISA_KOMMUN ? `${o.n}, ${o.kn}` : o.n;
     }
 
+    /** Bara områdets namn, utan kommunled. Se `chipNamn`. */
+    function bartNamn(nyckel: string): string {
+      return KOMMUNREG.get(nyckel)?.n ?? OMRADESREG.get(nyckel)?.n ?? nyckel;
+    }
+
+    /**
+     * ══ CHIPPET BÄR BARA NAMNET ══════════════════════════════════════════
+     *
+     * Ägaren 2026-08-28, med Boolis fält bredvid vårt: "dels för att vi visar
+     * att det är stockholms stad i rutan, istället ska det bara synas i
+     * sökbaren men inte när man väl valt den, då räcker ex. Östermalm."
+     *
+     * Skälet är värt att skriva ned, för det är inte samma fråga som i
+     * listan. Kommunledet finns i FÖRSLAGSLISTAN för att man ska kunna VÄLJA
+     * rätt: det skiljer Östermalm i Stockholm från Östermalm i Luleå. När
+     * valet är gjort är den frågan besvarad, och ledet är bara vikt i ett fält
+     * som ska rymma mer. Boolis chip säger "Södermalm" och ingenting annat.
+     *
+     * Ägarens värsta fall, uppmätt ur hans skärmbild: tio valda områden i
+     * Stockholm, alltså ", Stockholms stad" sexton tecken gånger tio, och
+     * samma kommun utskriven tio gånger i ett fält som svällt till fem rader.
+     *
+     * ── UNDANTAGET, OCH DET MÅSTE FINNAS ────────────────────────────────
+     *
+     * Två VALDA områden kan heta likadant i olika kommuner. Då säger fältet
+     * samma sak två gånger och kvittensen blir en gåta, alltså kommer ledet
+     * tillbaka på BÅDA. Krocken räknas bland de valda och inte i hela
+     * registret: att det finns ett andra Centrum någonstans spelar ingen roll
+     * så länge man inte valt det.
+     *
+     * I dag krockar noll av de 64 namnen, alltså gör undantaget ingenting.
+     * Det står här för den dag beståndet växer, och det kostar en Map.
+     */
+    function krockandeNamn(): Set<string> {
+      const raknat = new Map<string, number>();
+      for (const nyckel of omradeVal) {
+        const n = bartNamn(nyckel);
+        raknat.set(n, (raknat.get(n) ?? 0) + 1);
+      }
+      const ut = new Set<string>();
+      for (const [n, antal] of raknat) if (antal > 1) ut.add(n);
+      return ut;
+    }
+
+    /** Etiketten på ett chip. Kommunledet bara när två valda krockar. */
+    function chipNamn(nyckel: string, krock: Set<string>): string {
+      const n = bartNamn(nyckel);
+      if (!krock.has(n)) return n;
+      const o = OMRADESREG.get(nyckel);
+      return o ? `${o.n}, ${o.kn}` : n;
+    }
+
     /**
      * En slug ur en adress blir en nyckel, eller ingenting.
      *
@@ -2108,35 +2274,146 @@ const LEGEND = [
      * märket och tillståndet glider isär, vilket är precis det fel som gjorde
      * att en delad adress kunde visa Östermalm bredvid en oskuggad karta.
      */
+    /**
+     * Är chippen utfällda? Nollställs vid varje ändring av urvalet, eftersom
+     * ett nytt val är en ny fråga om vad som får plats.
+     */
+    let chipUtfallt = false;
+
+    /** Textfältets golv i px. Samma tal som `flex-basis` i .filterfalt input. */
+    const CHIP_TEXTRUM = 208;
+
+    function byggChip(nyckel: string, krock: Set<string>): HTMLElement {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+
+      const text = chipNamn(nyckel, krock);
+      const namn = document.createElement('span');
+      /* textContent, aldrig innerHTML: namnen kommer ur OSM och SCB. */
+      namn.textContent = text;
+      chip.appendChild(namn);
+
+      const bort = document.createElement('button');
+      bort.type = 'button';
+      bort.className = 'chip-bort';
+      bort.setAttribute('aria-label', `Ta bort ${text}`);
+      bort.innerHTML =
+        '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+        '<path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>';
+      bort.addEventListener('click', (e) => {
+        e.preventDefault();
+        valjOmrade(nyckel, false);
+      });
+      chip.appendChild(bort);
+      return chip;
+    }
+
+    /**
+     * ══ FÄLTET VÄXER INTE, DET FÄLLER IHOP ═══════════════════════════════
+     *
+     * Ägaren 2026-08-28: "Sen om man väljer mer än 2-3 grejer, ska det bli +1
+     * så man fortsatt har plats att tex skriva in en restaurang." Och om sitt
+     * värsta fall, tio valda områden i Stockholm: "Detta ser ju ej bra ut
+     * liksom haha."
+     *
+     * Uppmätt före: fältet svällde till fem rader chip plus en rad för texten,
+     * eftersom .filterfalt bryter raden när chippen inte får plats. Boolis
+     * tredje chip är i stället "2 områden +", alltså en hopfällning som lämnar
+     * plats kvar att skriva i.
+     *
+     * ── TALET RÄKNAS, DET SKRIVS INTE ───────────────────────────────────
+     *
+     * Här står inget "efter tre chip". Ett sådant tal hade varit fel på minst
+     * en bredd, eftersom chippen är olika breda: "Gamla stan" och
+     * "Ladugårdsgärdet" skiljer mer än en faktor två. Gränsen räknas i stället
+     * mot FÄLTETS FAKTISKA BREDD, chip för chip, och blir därför olika vid
+     * 1440 och 375 utan att någon skrivit två tal.
+     *
+     * Villkoret är regeln som redan står i filen: textfältet ska ha minst
+     * 208 px kvar, se `flex: 1 1 208px` på .filterfalt input. Chip läggs till
+     * så länge de plus "+N" plus 208 ryms på EN rad. Fältets höjd kan därmed
+     * inte växa, vilket är hela beställningen.
+     *
+     * Mätningen görs på elementen efter att de lagts in, alltså på det som
+     * faktiskt ritas, och inte på en uppskattning av textbredd.
+     */
     function stallChippar() {
       chippar.replaceChildren();
-      for (const nyckel of omradeVal) {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
+      if (!omradeVal.length) return;
 
-        const text = omradesNamn(nyckel);
-        const namn = document.createElement('span');
-        /* textContent, aldrig innerHTML: namnen kommer ur OSM och SCB.
-           Kommunen står med på rikskartan, alltså "Östermalm, Stockholm", av
-           samma skäl som i förslaget: chippet är kvittensen på valet, och en
-           kvittens som säger mindre än frågan gjorde är ingen kvittens. */
-        namn.textContent = text;
-        chip.appendChild(namn);
+      const krock = krockandeNamn();
+      const alla = omradeVal.map((nyckel) => byggChip(nyckel, krock));
+      for (const chip of alla) chippar.appendChild(chip);
 
-        const bort = document.createElement('button');
-        bort.type = 'button';
-        bort.className = 'chip-bort';
-        bort.setAttribute('aria-label', `Ta bort ${text}`);
-        bort.innerHTML =
-          '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
-          '<path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>';
-        bort.addEventListener('click', (e) => {
+      const fler = document.createElement('button');
+      fler.type = 'button';
+      fler.className = 'chip chip-fler';
+      fler.setAttribute('aria-expanded', String(chipUtfallt));
+      chippar.appendChild(fler);
+
+      if (chipUtfallt) {
+        /* Utfällt: allt syns och knappen fäller ihop igen. Fältet får växa
+           här, för det är vad besökaren just bad om. */
+        fler.textContent = 'Visa färre';
+        fler.setAttribute('aria-label', 'Visa färre områden');
+        fler.onclick = (e) => {
           e.preventDefault();
-          valjOmrade(nyckel, false);
-        });
-        chip.appendChild(bort);
-        chippar.appendChild(chip);
+          chipUtfallt = false;
+          stallChippar();
+        };
+        return;
       }
+
+      const cs = getComputedStyle(filterFaltRuta);
+      const gap = parseFloat(cs.columnGap) || 0;
+      const inne =
+        filterFaltRuta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const luppRuta = filterFaltRuta.querySelector<HTMLElement>('.lupp');
+      const lupp = luppRuta ? luppRuta.offsetWidth + gap : 0;
+      const plats = inne - lupp - CHIP_TEXTRUM;
+
+      /* Knappen mäts med sin BREDASTE möjliga text, alltså med alla chip
+         gömda, så att den aldrig blir bredare än det som räknades med. */
+      fler.textContent = `+${alla.length}`;
+      const flerBredd = fler.offsetWidth;
+
+      let brukat = 0;
+      let synliga = 0;
+      for (let i = 0; i < alla.length; i += 1) {
+        const behov = alla[i].offsetWidth + (i ? gap : 0);
+        const kvarEfter = alla.length - i - 1;
+        const flerBehov = kvarEfter > 0 ? flerBredd + gap : 0;
+        if (brukat + behov + flerBehov > plats) break;
+        brukat += behov;
+        synliga += 1;
+      }
+
+      /*
+       * MINST ETT CHIP SYNS ALLTID. På en mycket smal skärm med ett mycket
+       * långt namn kan räkningen ovan landa på noll, och ett fält som bara
+       * säger "+1" har tappat kvittensen helt. Chippet klipps hellre med
+       * ellips, vilket .chip redan gör med `max-width: 100%`.
+       */
+      if (synliga === 0) synliga = 1;
+
+      const gomda = alla.length - synliga;
+      for (let i = synliga; i < alla.length; i += 1) alla[i].hidden = true;
+
+      if (gomda === 0) {
+        fler.remove();
+        return;
+      }
+
+      fler.textContent = `+${gomda}`;
+      fler.setAttribute(
+        'aria-label',
+        gomda === 1 ? 'Visa ett område till' : `Visa ${gomda} områden till`,
+      );
+      fler.onclick = (e) => {
+        e.preventDefault();
+        chipUtfallt = true;
+        stallChippar();
+      };
     }
 
     /**
@@ -4129,9 +4406,10 @@ const LEGEND = [
            * och det som inte står där faller bort här och når aldrig vare sig
            * nätet eller markupen.
            *
-           * Taket på fem är inte en smakfråga: varje område kostar en yta i
-           * masken, och en adress med femtio i hade ritat om kartan femtio
-           * gånger.
+           * TAKET ÄR `OMRADESTAK` OCH INTE ETT EGET TAL. Här stod fem, medan
+           * gränssnittet inte hade något tak alls, alltså tappade en delad
+           * länk tyst allt över fem. Räkningen bakom talet står vid
+           * konstanten.
            */
           ut.omrade = decodeURIComponent(varde)
             .split(',')
@@ -4139,7 +4417,7 @@ const LEGEND = [
             .filter(Boolean)
             .map(tillNyckel)
             .filter((x): x is string => x !== null)
-            .slice(0, 5);
+            .slice(0, OMRADESTAK);
         }
       }
       return ut;
@@ -4460,7 +4738,9 @@ const LEGEND = [
      * någon annanstans hade kastat bort just det hen delade.
      */
     function satOmrade(nycklar: string[], val: { skrivFragment?: boolean; flyg?: boolean } = {}) {
-      omradeVal = nycklar;
+      /* Ett nytt urval är en ny fråga om vad som får plats i fältet. */
+      chipUtfallt = false;
+      omradeVal = nycklar.slice(0, OMRADESTAK);
       stallChippar();
 
       /*
@@ -6541,6 +6821,39 @@ const LEGEND = [
     height: var(--h-tap);
     transform: translate(-50%, -50%);
   }
+
+  /*
+   * "+N", alltså hopfällningen. Samma yta som ett chip, för den ÄR ett chip:
+   * den står i samma rad, bär samma höjd och samma radie, och skillnaden är
+   * att den räknar i stället för att namnge. Boolis motsvarighet, "2 områden
+   * +", är också ett chip och inte en knapp bredvid raden.
+   *
+   * Ingen kryssknapp, alltså bär den sin egen luft på båda sidor: chippets
+   * padding är `4px 0 4px 8px` eftersom kryssknappen bär högerkanten, och den
+   * finns inte här.
+   */
+  .filterfalt :global(.chip-fler) {
+    padding-inline: var(--s-2);
+    border: 1px solid var(--hairline);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .filterfalt :global(.chip-fler:hover) {
+    color: var(--text);
+    border-color: var(--tone-quiet);
+  }
+
+  .filterfalt :global(.chip-fler:focus-visible) {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /* Ett gömt chip tar ingen plats. `hidden` ensamt räcker inte: .chip sätter
+     display och varje egen display-regel vinner över webbläsarens. */
+  .filterfalt :global(.chip[hidden]) { display: none; }
 
   .filterfalt :global(.chip-bort:hover) { color: var(--text); }
   .filterfalt :global(.chip-bort svg) { width: 10px; height: 10px; }
