@@ -2127,7 +2127,7 @@ const LEGEND = [
      *                              ordstart, och "Södermalm" börjar på
      *                              "Söder". En rad här hade varit död kod.
      *   Gamla Stan → Gamla stan    MATCHAR REDAN. Jämförelsen är gemener,
-     *                              se `vikOm`, så versalen spelar ingen roll.
+     *                              se `normalise`, så versalen spelar ingen roll.
      *   Kungsholmen                Inget alias. Namnet är detsamma i tal.
      *   City → Norrmalm            AVVISAT. City är ett vardagligt område utan
      *                              fastställd gräns och sammanfaller inte med
@@ -2444,44 +2444,69 @@ const LEGEND = [
     }
 
     /**
-     * Förslagen medan man skriver.
+     * ══ DE SKRIVNA TECKNEN LYFTS, INTE HELA NAMNET ═════════════════════════
      *
-     * Prefix på ordstart, inte substräng. "malm" ska inte föreslå Östermalm:
-     * den som skriver malm menar Malmen eller Malmvägen, och ett förslag som
-     * träffar mitt i ett ord känns som en gissning. Samma regel som
-     * lib/sokforslag.ts håller för kommunerna, och skälet står där.
+     * DET HÄR ÄR EN VÄNDNING. Fram till nu stod hela namnet i vikt 700 och
+     * ledet efter kommatecknet i 500, och den gamla noten på den här platsen
+     * försvarade det med ägarens ord 2026-08-26: "östermalm blir bara
+     * fetstilat för jag skrev det... som att liksom, 'du skrev detta'".
+     *
+     * Han har sett båda i drift och valt om 2026-08-28. Den motiveringen
+     * gäller alltså inte längre och står inte kvar någonstans i filen.
+     *
+     * Vad han köper i stället är Boolis rad, uppmätt på deras: söker man
+     * "östermalm" står "Östermalm" i tyngre vikt och "sgatan" i lättare. Det
+     * lyftet växer medan man skriver, alltså visar raden VAR i namnet man är
+     * och hur mycket som återstår:
+     *
+     *     "öster"      Öster|malm      Öster|malmsgatan
+     *     "östermalm"  Östermalm       Östermalm|sgatan
+     *
+     * Skillnaden mot förut är att raderna nu går att skilja åt PÅ AVSTÅND.
+     * Med hela namnet fetat såg Östermalm och Östermalmsgatan likadana ut ända
+     * ut i sista tecknet, och den enda skillnaden låg i längden.
+     *
+     * ── INGEN TECKENKARTA BEHÖVS, OCH DET ÄR HELA POÄNGEN ─────────────────
+     *
+     * Den gamla lösningen bar en `vikMedKarta` som vek tecken för tecken och
+     * höll en väg tillbaka till originalet. Den fanns bara för att den lokala
+     * vikningen använde NFKD, som INTE bevarar längden: en ligatur blir två
+     * tecken och ett index räknat i den vikta strängen pekar då fel i
+     * originalet.
+     *
+     * `normalise` ur lib/sokforslag.ts har inte det problemet. Den viker till
+     * gemener och skalar av diakriterna med NFD, alltså är "å" ett tecken före
+     * och efter, och modulen skriver ut att egenskapen ska hållas: "Därför kan
+     * ett index som räknats i den här strängen skäras ur originalet". Ett
+     * index ur den vikta strängen skär alltså rätt i den skrivna, och kartan
+     * är onödig.
+     *
+     * DEN LOKALA VIKNINGEN ÄR SAMTIDIGT BORTA. Den gjorde nästan samma sak som
+     * `normalise`, och två vikningar i samma fält är två sätt att svara på
+     * frågan "matchar det här". Nu viker matchningen och lyftet med SAMMA
+     * funktion, alltså kan de aldrig peka på olika tecken. Prefix på ordstart
+     * gäller oförändrat, se `traffIndex`, och skälet står där.
      */
-    function vikOm(t: string) {
-      return t
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-    }
 
     /**
-     * ══ HÄR LÅG `vikMedKarta`, OCH DEN ÄR BORTTAGEN ════════════════════════
+     * Namnet delat i tre: före träffen, träffen, efter träffen.
      *
-     * Den vek tecken för tecken och höll en karta tillbaka till originalet, så
-     * att bara de tecken man RÅKAT SKRIVA kunde fetstilas med accenter och
-     * versaler i behåll. Det är Boolis beteende, uppmätt på deras rad: söker
-     * man "östermalm" står "Östermalm" i vikt 600 och "sgatan" i 400.
+     * PREFIX PÅ ORDSTART, samma regel som avgjorde att raden alls finns. Att i
+     * stället ta första förekomsten var som helst hade kunnat lyfta mitt i ett
+     * ord: "Sjöbrogatan Bro" på frågan "bro" hade fått lyftet i Sjöbro medan
+     * raden ligger i listan för Bro, alltså en rad som pekar på fel ställe i
+     * sig själv.
      *
-     * Ägaren 2026-08-26 avvisade det: "östermalm blir bara fetstilat för jag
-     * skrev det... som att liksom, 'du skrev detta'".
-     *
-     * Han har rätt, och skälet håller. Fetstil på det man själv nyss skrev
-     * upprepar inmatningen och säger ingenting nytt. Fetstil på HELA NAMNET
-     * säger däremot vilken del av raden som ÄR träffen och vilken del som är
-     * dess adress i världen, och det är den enda uppdelning läsaren behöver
-     * för att välja rad. Raden blir alltså
-     *
-     *     Östermalm, Stockholms stad          med Östermalm helt fet
-     *     Östermalmsgatan, Stockholms stad    med Östermalmsgatan helt fet
-     *
-     * Med det behövs ingen teckenkarta: namnet skrivs i ett <b> och ledet
-     * efter kommatecknet i ett vanligt textnod. Startindexet räknas fortfarande
-     * fram, men bara för RANGORDNINGEN, se `rangordna`.
+     * Träffen är tom när frågan inte finns i namnet. Det händer på riktigt: en
+     * kommun kan ligga i listan för sitt FORMELLA namn, "Stockholms stad",
+     * medan raden visar "Stockholm". Då lyfts ingenting, vilket är sant.
      */
+    function lyftDelar(namn: string, q: string): [string, string, string] {
+      if (!q) return [namn, '', ''];
+      const i = (' ' + normalise(namn)).indexOf(' ' + q);
+      if (i < 0) return [namn, '', ''];
+      return [namn.slice(0, i), namn.slice(i, i + q.length), namn.slice(i + q.length)];
+    }
 
     /** Antal förslag på bred skärm. Boolis lista visar nio rader, uppmätt
      *  2026-08-25, och talet spelar roll först nu: med hela landets 64 områden
@@ -2516,9 +2541,9 @@ const LEGEND = [
      * och skuggar, verksamheten är en länk till sin egen sida. Se
      * `kommunforslag` i frontmatteret och `valjForslag` nedan.
      *
-     * `namn` fetstilas i sin helhet, `led` står i vanlig vikt efter ett
-     * kommatecken, `slag` är ordet till höger. `start` är index för träffen i
-     * det vikta namnet och används bara för att rangordna.
+     * `namn` är det som lyfts prefixvis, se `lyftDelar`, `led` står efter ett
+     * kommatecken och lyfts aldrig, `slag` är ordet till höger. `start` är
+     * index för träffen i det vikta namnet och används bara för att rangordna.
      *
      * `href` finns bara på verksamheter. De andra två har ingen adress att gå
      * till: de gör något med den karta man redan står på.
@@ -2558,7 +2583,7 @@ const LEGEND = [
     function traffIndex(strangar: string[], q: string): number {
       let bast = -1;
       for (const t of strangar) {
-        const i = (' ' + vikOm(t)).indexOf(' ' + q);
+        const i = (' ' + normalise(t)).indexOf(' ' + q);
         if (i < 0) continue;
         if (bast < 0 || i < bast) bast = i;
       }
@@ -2732,7 +2757,7 @@ const LEGEND = [
 
     function stallForslag() {
       const skrivet = filterFalt.value.trim();
-      const q = vikOm(skrivet);
+      const q = normalise(skrivet);
       /* Arket och inte bredden i sig: samma brytpunkt som .split.ark, så att
          taket följer den layout som faktiskt gäller. */
       const tak = window.matchMedia('(max-width: 899px)').matches
@@ -2892,17 +2917,29 @@ const LEGEND = [
         knapp.tabIndex = -1;
 
         /*
-         * HELA NAMNET I VIKT 600, ledet efter kommatecknet i 400.
+         * DE SKRIVNA TECKNEN I VIKT 700, resten av namnet och ledet i 500.
+         * Motiveringen står vid `lyftDelar` ovan.
          *
-         * Se den långa noten där `vikMedKarta` låg för varför det inte är
-         * Boolis prefixfetstil. textContent hela vägen: namnen kommer ur OSM,
-         * SCB och kommunernas egna register och har inte passerat någon
-         * sanering.
+         * TEXTCONTENT HELA VÄGEN, och det är inte en detalj. Sidhuvudets panel
+         * markerar sina rader med `mark()` ur lib/sokforslag.ts, som bygger en
+         * HTML-sträng och sätter den med innerHTML; den funktionen escapar
+         * varje bit och är säker, men den letar första förekomsten var som
+         * helst i strängen och inte på ordstart, se noten vid `lyftDelar`.
+         * Här byggs de tre delarna som noder i stället, alltså kan namnen ur
+         * OSM, SCB och kommunernas register aldrig tolkas som markup oavsett
+         * vad de innehåller.
          */
         const namn = document.createElement('span');
-        const stark = document.createElement('b');
-        stark.textContent = t.namn;
-        namn.appendChild(stark);
+        const [fore, lyft, efter] = lyftDelar(t.namn, q);
+        if (lyft) {
+          if (fore) namn.append(document.createTextNode(fore));
+          const stark = document.createElement('b');
+          stark.textContent = lyft;
+          namn.appendChild(stark);
+          if (efter) namn.append(document.createTextNode(efter));
+        } else {
+          namn.append(document.createTextNode(t.namn));
+        }
         if (t.led) namn.append(document.createTextNode(`, ${t.led}`));
 
         const slag = document.createElement('span');
@@ -7122,17 +7159,18 @@ const LEGEND = [
   }
 
   /*
-   * HELA NAMNET I VIKT 700, ledet efter kommatecknet i 500.
+   * DE SKRIVNA TECKNEN I VIKT 700, resten av raden i 500.
    *
    * Talen är sidhuvudets: `.list .name` är 500 och `.list .name b` är 700.
    * Här stod 400 och 600, alltså samma steg om 200 en nivå längre ned, och
    * det är just den sortens skillnad som får två paneler att läsa som två
    * gränssnitt.
    *
-   * Att BOOLI fetar bara det man skrivit och vi hela namnet står kvar, och det
-   * är ett avgjort beslut. Ägaren 2026-08-26: "östermalm blir bara fetstilat
-   * för jag skrev det... som att liksom, 'du skrev detta'". Se den långa noten
-   * i skriptet där `vikMedKarta` låg.
+   * NU LIGGER ÄVEN <b> PÅ SAMMA TECKEN i båda panelerna. Sidhuvudet har alltid
+   * fetat bara det man skrivit, se `mark()` i lib/sokforslag.ts, medan kartans
+   * fält fetade hela namnet. De två talen var alltså lika och de två raderna
+   * såg ändå olika ut. Motiveringen för den skillnaden, och ägarens vändning
+   * bort från den, står vid `lyftDelar` i skriptet.
    *
    * :global, eftersom raderna byggs med createElement och därför inte bär
    * något Astro-scope. Fällan har slagit till fem gånger i den här filen.
