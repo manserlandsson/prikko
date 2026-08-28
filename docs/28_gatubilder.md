@@ -1,7 +1,8 @@
 # 28. Gatubilder: vad som finns, vad Google kostar, vad Mapillary täcker
 
-Datum: 2026-08-13. Alla tal om vårt eget bestånd är körda mot databasen och mot
-`site/src/data/*.json` samma dag. Alla licensvillkor är hämtade ur källans egen
+Datum: 2026-08-13, rättad 2026-08-28. Alla tal om vårt eget bestånd är körda mot
+databasen och mot `site/src/data/*.json` samma dag, utom täckningstalen i del C,
+som är omräknade 2026-08-26 och rättade här den 28:e. Alla licensvillkor är hämtade ur källans egen
 text samma dag och citeras ordagrant på den punkt som avgör. Där jag inte kunnat
 mäta står det utskrivet.
 
@@ -9,6 +10,17 @@ Rapport 13 är utredningen bakom bildfrågan i stort och upprepas inte här. Den
 här rapporten svarar på tre saker som stod öppna i den: vad Google faktiskt
 kostar och tillåter i dag, hur stor Mapillarys täckning är kommun för kommun,
 och var bilderna ska ligga när R2 inte är uppsatt.
+
+> ## STATUS 2026-08-27: GATUBILDER ÄR AVSTÄLLDA
+>
+> Ägaren gick igenom granskningskön och **avvisade alla 48 kandidater**. Ingen
+> gatubild är publicerad och ingen ska publiceras förrän urvalsproblemet i
+> **del C8** är löst. Skälet är inte täckningen, som tvärtom visade sig vara
+> högre än rapporten först skrev, utan vad bilderna föreställer.
+>
+> Resten av rapporten står kvar, för mätningarna är riktiga och kostar
+> ingenting att läsa om. Det som är omkullkastat är slutsatsen i del E, och
+> den är omskriven där.
 
 ---
 
@@ -28,13 +40,22 @@ dessutom inte det man tror: en engångshämtning av HELA beståndet skulle kosta
 42 dollar. Det är förbudet mot att lagra bilden som gör den till en avgift per
 sidvisning, och då växer notan med precis det vi bygger sajten för att få.
 
-**Mapillary bär funktionen, men ojämnt.** Mätt i dag på 480 verksamheter, 60 ur
-var och en av de åtta kommuner som har koordinater: **49,2 procent** av de 8 808
-publikvända verksamheterna med koordinat får en gatubild inom trettio meter,
-alltså omkring **4 330 sidor**. Spannet mellan kommunerna är från 58,3 procent i
-Stockholm till 5,0 i Karlstad, och Stockholm står ensamt för 78 procent av alla
+**Mapillary bär funktionen, men ojämnt.** **60,0 procent** av de 8 830
+publikvända verksamheterna med koordinat har en gatubild inom trettio meter,
+alltså 5 298 rader av 8 830. Spannet mellan kommunerna går från 75,4 procent i
+Stockholm till 3,6 i Karlstad, och Stockholm står ensamt för 82 procent av alla
 bilder funktionen ger. Det ska sägas rakt ut: det här är en Stockholmsfunktion
 med utlöpare, inte en rikstäckande funktion.
+
+**Talet är RÄKNAT och inte skattat, och det är därför det ändrats.** Här stod
+49,2 procent, mätt på ett stratifierat urval om sextio rader per kommun, alltså
+480 mätpunkter. Sedan dess är varenda rad frågad, och skillnaden sitter nästan
+helt i Stockholm. Hela jämförelsen står i C2.
+
+**Och taket gäller kandidater, inte publicerbara foton.** Sextio procent är
+andelen rader där geometrin säger att en kamera stod nära nog och pekade åt
+rätt håll. Hur många av dem som visar en fasad någon känner igen är en annan
+fråga, och svaret på den är det som stängde spåret. Se C8.
 
 **Lagringen är löst utan ägarens nycklar.** Supabase Storage är inkopplad,
 provkörd hela vägen och skriver mot en publik hink. R2 är fortfarande målet och
@@ -99,7 +120,7 @@ gång och lagra dem, precis som vi gör med Mapillary:
 |---|---|---|---|
 | hela beståndet | 15 983 | 5 983 | **41,88 USD, en gång** |
 | publikvända | 10 070 | 70 | 0,49 USD |
-| publikvända med koordinat | 8 808 | 0 | **0 USD** |
+| publikvända med koordinat | 8 830 | 0 | **0 USD** |
 
 Det är värt att stanna vid. Den arkitektur vi faktiskt vill ha kostar noll
 kronor hos Google. Priset har aldrig varit spärren.
@@ -221,12 +242,20 @@ mer tid på spåret.
 
 ## Del C. Mapillary och Panoramax: den mätta täckningen
 
-Kört 2026-08-13 med `python3 pipeline/matt_troskel.py 60 --per-kommun`, alltså
+**Två mätningar ligger i den här delen och de ska inte blandas ihop.** C1 är
+kurvan över hur grindarna påverkar utfallet, mätt på ett urval 2026-08-13. C2
+och C3 är täckningen, RÄKNAD på varje rad 2026-08-26. Det är räkningen som är
+rapportens tal; urvalet står kvar för att kurvan bara finns där.
+
+Urvalet kördes med `python3 pipeline/matt_troskel.py 60 --per-kommun`, alltså
 **60 slumpade publikvända verksamheter med koordinat ur var och en av de åtta
 kommuner som har koordinater, 480 mätpunkter, noll fel.** Grindarna importeras
 från `prikko.imagery` och är alltså exakt de som körs skarpt.
 
 ### C1. Kurvan, och varför den mäts i två riktningar
+
+Talen här är URVALETS och ovägda, alltså väger Kristinehamn lika tungt som
+Stockholm i varje ruta. Kurvans FORM är det som är intressant, inte dess nivå.
 
 Raderna är hur nära bilden måste vara. Kolumnerna är hur mycket kameran får
 peka fel. Alla tal har dessutom dagsljuskravet och bort med 360-utvikningar.
@@ -242,56 +271,85 @@ peka fel. Alla tal har dessutom dagsljuskravet och bort med 360-utvikningar.
 
 Den fetmarkerade rutan är läget som körs: 30 meter och ±45 grader.
 
-### C2. Rikssiffran, som inte är samma sak som urvalets
+### C2. Rikssiffran, och skillnaden mellan att skatta och att räkna
 
-**Urvalet är stratifierat, alltså inte proportionellt mot beståndet.** Det är
-med avsikt: proportionellt hade Stockholm varit 65 procent av mätpunkterna, och
-frågan "räcker Mapillary i en mindre ort" hade inte gått att besvara. Priset är
-att 31,5 procent i tabellen ovan inte är rikssiffran, eftersom Svenljunga och
-Stockholm väger lika i den.
+**Talet i den här rapporten var en skattning och är nu en räkning.** Metoden är
+hela skillnaden, så båda står skrivna.
 
-Vägt mot varje kommuns verkliga storlek:
+**Urvalet, 2026-08-13.** 480 mätpunkter, sextio slumpade rader ur var och en av
+de åtta kommuner som har koordinater, en fråga till graph-API:t per punkt.
+Stratifierat och alltså inte proportionellt mot beståndet, med avsikt:
+proportionellt hade Stockholm varit 65 procent av mätpunkterna och frågan
+"räcker Mapillary i en mindre ort" hade inte gått att besvara. Priset är att
+31,5 procent i C1 inte är rikssiffran, eftersom Kristinehamn och Stockholm
+väger lika i den. Vägt mot kommunernas verkliga storlek gav urvalet **49,2
+procent**, och det är det tal som stod i den här rapporten fram till nu.
 
-> **49,2 procent av de 8 808 publikvända verksamheterna med koordinat får en
-> gatubild. Det är omkring 4 330 sidor.**
+**Räkningen, 2026-08-26.** Varenda rad, ingen slump. `pipeline/gatubildsko.py`
+hämtar Mapillarys vektorrutor i stället för att fråga om en punkt i taget: 640
+rutor räckte för hela målgruppen, alltså 13,8 rader per anrop i stället för ett
+anrop per rad. Noll fel och noll rutor utan täckning. Grindarna importeras ur
+`prikko.imagery` och är därför ordagrant de som körs skarpt.
 
-Räknat mot alla 15 983 verksamhetssidor är det 27 procent, och mot de 10 070
-publikvända 43 procent. Skillnaden mellan de talen är inte täckning utan
-koordinater och verksamhetstyp, se C4.
+> **5 298 av 8 830 publikvända verksamheter med koordinat har en gatubild inom
+> trettio meter, alltså 60,0 procent.**
 
-**Talet är lägre än det som står i rapport 13, och den skillnaden är inte
-verklig.** Där står 63,0 procent inom 30 meter, mätt på 200 verksamheter med
-ett proportionellt urval. Det urvalet var till två tredjedelar Stockholm, så
-talet var i praktiken Stockholms tal. Här är Stockholm 58,3 procent, alltså i
-samma härad. Det är alltså inte täckningen som fallit, det är mätningen som
-blivit ärlig. **Rapport 13 ska läsas med 49,2 procent i stället för 63,0.**
+Räknat mot hela beståndet, 16 047 rader vid räkningen, är det 33 procent.
+Skillnaden mellan de två talen är inte täckning utan koordinater och
+verksamhetstyp, se C4.
+
+**Att räkningen ligger ÖVER urvalet har två skäl, och bara det ena är brus.**
+Skillnaden sitter nästan helt i Stockholm, som är 65 procent av beståndet och
+där urvalet gav 58,3 procent mot räkningens 75,4. Med n = 60 ligger det
+95-procentiga intervallet kring 58,3 på ungefär 46 till 71 procent, alltså
+hamnar räkningens tal strax utanför. Resten är en verklig vinst: graph-API:t
+sorterar inte sitt svar efter avstånd utan returnerar en godtycklig delmängd
+inom `SEARCH_LIMIT`, medan en vektorruta bär allt som finns i den. Rutvägen är
+prövad mot punktvägen på 80 rader i fyra kommuner och missade aldrig något
+punktvägen hittade, alltså är den en övermängd och inte ett närmevärde. Hela
+provningen står i noten överst i `gatubildsko.py`.
+
+**Rapport 13 hade 63,0 procent, och det talet var i praktiken Stockholms.** Det
+var mätt på 200 verksamheter med ett proportionellt urval som till två
+tredjedelar var Stockholm. Räkningen ger Stockholm 75,4, så rapport 13 låg för
+lågt även för sin egen kommun. **Rapport 13 ska läsas med 60,0 procent i
+stället för 63,0.**
 
 ### C3. Per kommun, och det är här den viktiga upplysningen ligger
 
-Vid 30 meter och ±45 grader, alltså skarpt läge:
+Vid 30 meter och ±45 grader, alltså skarpt läge. Talen är RÄKNADE, alltså varje
+publikvänd rad med koordinat och inte sextio slumpade. Urvalets tal står i
+högerspalten för den som vill se hur långt en skattning på n = 60 kan hamna
+från sitt eget bestånd.
 
-| kommun | mätt | täckning | bestånd | ungefär antal bilder |
-|---|---|---|---|---|
-| Stockholm | 35/60 | **58,3 %** | 5 756 | 3 358 |
-| Uppsala | 32/60 | 53,3 % | 572 | 305 |
-| Örebro | 29/60 | 48,3 % | 437 | 211 |
-| Linköping | 22/60 | 36,7 % | 675 | 248 |
-| Jönköping | 13/60 | 21,7 % | 726 | 158 |
-| Oskarshamn | 12/60 | 20,0 % | 117 | 23 |
-| Kristinehamn | 5/60 | 8,3 % | 79 | 7 |
-| Karlstad | 3/60 | **5,0 %** | 446 | 22 |
+| kommun | med gatubild | av bestånd | täckning | urvalet gav |
+|---|---:|---:|---:|---:|
+| Stockholm | 4 350 | 5 771 | **75,4 %** | 58,3 % |
+| Örebro | 232 | 437 | 53,1 % | 48,3 % |
+| Uppsala | 269 | 580 | 46,4 % | 53,3 % |
+| Linköping | 285 | 673 | 42,3 % | 36,7 % |
+| Oskarshamn | 26 | 117 | 22,2 % | 20,0 % |
+| Jönköping | 113 | 726 | 15,6 % | 21,7 % |
+| Kristinehamn | 7 | 79 | 8,9 % | 8,3 % |
+| Karlstad | 16 | 447 | **3,6 %** | 5,0 % |
+| **hela beståndet** | **5 298** | **8 830** | **60,0 %** | 49,2 % |
 
-Spannet är från 58,3 till 5,0 procent, alltså mer än tio gånger. **Mapillarys
+Spannet är från 75,4 till 3,6 procent, alltså mer än tjugo gånger. **Mapillarys
 täckning är en lokalfråga och kan aldrig utlovas jämnt över landet.** Det ska
 sägas rakt ut innan funktionen presenteras för någon som inte bor i Stockholm.
 
-Karlstad är den överraskningen. Kommunen har alla 693 rader geokodade och 446
-publikvända, men Mapillary har nästan ingenting inom trettio meter. Där ger
-gatubildsvägen 22 bilder av 446 möjliga.
+Karlstad är överraskningen och den blev värre av räkningen, inte bättre.
+Kommunen har alla sina rader geokodade och 447 publikvända, men Mapillary har
+nästan ingenting inom trettio meter. Där ger gatubildsvägen 16 bilder av 447
+möjliga.
 
-Sammanlagt är Stockholm 78 procent av alla bilder funktionen någonsin kommer
-att ge. Det säger något om vad funktionen är: en Stockholmsfunktion med
-utlöpare.
+Sammanlagt är Stockholm 82 procent av alla bilder funktionen någonsin kommer
+att ge, alltså en högre andel än urvalet trodde. Det säger något om vad
+funktionen är: en Stockholmsfunktion med utlöpare.
+
+**Fyra kommuner saknas ur tabellen** av samma skäl som förut: Borgholm,
+Höganäs, Lomma och Svenljunga har noll koordinater och därmed ingen fråga att
+ställa. Se C4.
 
 ### C4. Fyra kommuner får ingenting, och det beror inte på Mapillary
 
@@ -327,12 +385,59 @@ beståndet, alltså i stor utsträckning i samma kommuner där Mapillary redan �
 stark. **Den är inte mätt tillsammans med Mapillary här**, så jag skriver ingen
 kombinerad siffra. Den kostar ingenting och den är redan inkopplad.
 
-### C7. Vad talet betyder för beslutet
+### C7. Vad talet betyder för beslutet, och vad det inte betyder
 
 Rapport 13 satte upp tolkningen i förväg: över 40 procent inom 30 meter betyder
-"bygg klart gatubildsvägen, det är den bästa affären i rapporten". 49,2 procent
-ligger över den gränsen, och beslutet står därmed fast utan att någon behöver
-tolka om något.
+"bygg klart gatubildsvägen, det är den bästa affären i rapporten". 60,0 procent
+ligger med god marginal över den gränsen.
+
+**Tröskeln var ändå fel fråga, och det syntes först när bilderna låg på bordet.**
+Den mäter täckning, alltså om det finns en bild att hämta. Den mäter ingenting
+om vad bilden föreställer. Se C8.
+
+### C8. RESERVATIONEN, som är viktigare än talet
+
+**60 procent är ett tak för KANDIDATER, inte ett tal för publicerbara foton.**
+Varje procent i tabellerna ovan betyder exakt en sak: det fanns en Mapillarybild
+inom trettio meter, tagen i dagsljus, inte en 360-utvikning, med kompassen inom
+45 grader mot verksamhetens koordinat. Det är geometri. Grindarna vet att
+kameran pekade mot punkten. **De vet inte att det är rätt port.**
+
+Skälet är vad Mapillary till övervägande del ÄR i Sverige: bilder tagna genom
+en vindruta av någon som körde förbi. En sådan bild pekar per definition framåt
+längs gatan. Att kameran råkade ha verksamheten inom 45 grader betyder då ofta
+att verksamheten låg snett framåt i bilden, inte att den är bildens motiv.
+
+**Vad kön faktiskt innehöll.** Av de fjorton första kandidaterna i
+`brand/_granska-gatubilder.html` var ungefär tre igenkännbara fasader. Resten
+var vindrutebilder rakt ned för en gata, ren asfalt, eller en närbild på en
+menytavla. Syftet är "aha, det är DEN restaurangen", och en bild av vägbanan
+utanför svarar inte på det.
+
+**Ägaren gick igenom hela arket 2026-08-27 och avvisade alla 48 kandidater.**
+Noll godkända. `gatubildsko.py tillampa` har därför aldrig körts, och
+`site/src/data/*.json` bär ingen gatubild.
+
+**Det som fattas är ett urval och inte en källa.** Frågan "finns det en bild
+här" är löst, billigt och exakt, och den ska inte utredas igen. Frågan "visar
+den här bilden stället" är öppen, och tills den har ett svar är spåret
+avställt. Vägarna som är tänkbara, ingen av dem prövad:
+
+- En hårdare vinkelgrind. ±45 grader är valt för täckning. En verklig
+  fasadbild kräver snarare att kameran pekar nära vinkelrätt mot husraden. Vad
+  en sådan grind kostar går att räkna direkt ur
+  `pipeline/data/interim/gatubilds_ko.json`, som bär `avvikelse_grader` och
+  `avstand_m` för varje av de 5 298 raderna. Att LÅTA en hårdare grind välja en
+  annan bild per rad kräver att rutorna hämtas om, alltså 640 anrop.
+- Motivbedömning per bild i stället för per geometri. Det är den enda vägen som
+  faktiskt svarar på frågan, och den kostar en modell eller en människa per rad.
+- Kön kvar men mycket kortare, alltså bara de kandidater som klarar en
+  hårdare grind. Ett ark på 48 bilder som ger noll godkända är inte en kö, det
+  är ett urvalsfel som lastas över på en människa.
+
+**Bygg inte om det här utan att först lösa urvalet.** Täckningstalet lockar,
+för 60 procent låter som en färdig funktion. Det är den mätningen som är
+färdig, inte funktionen.
 
 ---
 
@@ -399,15 +504,17 @@ körs skarpt.
 | minst | 28,9 kB |
 | störst | 142,9 kB |
 
-Med 4 330 bilder och 63,1 kB i snitt:
+Med 5 298 kandidater och 63,1 kB i snitt. Talet stod på 4 330 här och följer
+räkningen i C2. Det är ett tak och inte en prognos: ingen av kandidaterna är
+godkänd och spåret är avställt, se C8.
 
 | | |
 |---|---|
-| bilder att lagra | **omkring 4 330** |
-| lagring totalt | **omkring 273 MB** |
-| andel av Supabases gratisnivå på 1 GB | 27 % |
-| andel av R2:s gratisnivå på 10 GB | 2,7 % |
-| skrivningar vid första körningen | 4 330 av R2:s 1 000 000 per månad |
+| bilder att lagra, som mest | **5 298** |
+| lagring totalt | **omkring 334 MB** |
+| andel av Supabases gratisnivå på 1 GB | 33 % |
+| andel av R2:s gratisnivå på 10 GB | 3,3 % |
+| skrivningar vid första körningen | 5 298 av R2:s 1 000 000 per månad |
 | filer i Cloudflare Pages-bygget | **0** |
 
 Även om täckningen mot förmodan skulle fördubblas ryms beståndet i båda
@@ -434,19 +541,28 @@ snart ägaren har tio minuter.
 
 ## Del E. Rekommendation
 
+**0. Spåret är avställt sedan 2026-08-27, och det ändrar punkt 2 och 3.**
+Ägaren avvisade alla 48 kandidater i granskningskön. Punkterna nedan står kvar
+i sin ordning eftersom skälen bakom dem inte har ändrats, men punkt 2 är
+omskriven och punkt 3 väntar på punkt 2. Se C8.
+
 **1. Lägg ned Google. Slutgiltigt.** Tre spärrar, var och en tillräcklig, alla
 kontrollerade i primärkällan i dag. Det gäller även den gratis Embed-vägen.
 Frågan är utredd två gånger nu och svaret är detsamma. Den ska inte utredas en
 tredje gång.
 
-**2. Kör Mapillary med Panoramax som reserv, mot Supabase, nu.** Kedjan är
-byggd, rättad och provkörd på riktiga bilder. Det som återstår är ett kommando,
-och det är ägarens att ge: hämtningen skriver några hundra megabyte till hans
-lagring och några tusen rader i hans databas. Se F3.
+**2. Kör INTE hämtningen. Lös urvalet först.** Här stod "kör Mapillary med
+Panoramax som reserv, mot Supabase, nu", och kedjan är fortfarande byggd,
+rättad och provkörd. Det som saknades var att någon tittade på bilderna.
+Granskningskön gjorde det, och utfallet var noll godkända av 48. Att hämta hem
+5 298 bilder som till största delen visar asfalt hade kostat lagring, trafik
+och trovärdighet på en gång. Nästa steg är en hårdare grind mätt mot de rutor
+som redan ligger sparade, inte ett hämtningskommando. Se C8.
 
-**3. Flytta till R2 när ägaren har tio minuter.** Det är en klickväg och fem
-rader i en fil, och nästa körning byter lagring av sig själv. Skälet är
-trafiktaket och ingenting annat.
+**3. Flytta till R2 när det finns bilder att flytta.** Det är en klickväg och
+fem rader i en fil, och nästa körning byter lagring av sig själv. Skälet är
+trafiktaket och ingenting annat. Ingen bild är publicerad i dag, så punkten
+väntar på punkt 2 och har ingen brådska.
 
 **4. Sänk inte trettiometersgränsen för att köpa täckning.** Frestelsen kommer
 att finnas, eftersom kurvan stiger snabbt över trettio meter. Men syftet är
@@ -465,9 +581,11 @@ dessutom bättre än en bild av fasaden.
 
 Allt annat är gjort. Det här är det som ingen annan kan göra.
 
-### F1. Cloudflare R2, tio minuter, och det enda som verkligen betyder något
+### F1. Cloudflare R2, tio minuter
 
-Skälet är trafiktaket i del D3, inte lagringsutrymmet.
+Skälet är trafiktaket i del D3, inte lagringsutrymmet. Punkten stod som rapportens
+viktigaste och är det inte längre: utan godkända bilder finns ingen trafik att
+ta tak på. Den ligger kvar för den dag urvalet är löst.
 
 1. `dash.cloudflare.com` → R2 Object Storage → Create bucket.
    Namn: **`prikko-bilder`**. Location: Automatic. Create bucket.
@@ -510,7 +628,12 @@ Skriptet klarar sig utan det nu, eftersom det läser `site/.env` som reserv, men
 de två raderna "command not found" står kvar tills citattecknen finns, och de
 ser ut som ett fel varje gång miljön läses in.
 
-### F3. Beslutet om den skarpa körningen
+### F3. Beslutet om den skarpa körningen, som är fattat och blev nej
+
+**Beslutet är taget 2026-08-27 och svaret är nej.** Ägaren granskade de 48
+kandidaterna och godkände ingen, se C8. Kommandot nedan står kvar som
+dokumentation av hur körningen går till den dag urvalet är löst, och ska inte
+köras innan dess.
 
 Att hämta hem hela beståndet skriver några hundra megabyte till ägarens
 Supabase-lagring och skriver några tusen rader i `public.images`. Det är hans

@@ -1,112 +1,151 @@
 ---
 /**
- * Verksamhetstyperna på kommunsidan. Ett rutnät, inte en rullrad.
+ * Verksamhetstyperna på kommunsidan och områdessidan. En rullrad, inte ett
+ * rutnät.
  *
- * ## Varför den finns, alltså vad som var fel
+ * ## Varför den ändrades, alltså vad som var fel
  *
- * Typerna och stadsdelarna delade Filterrad.astro, och det var felet. De två
- * är inte samma problem. Typerna är sex stycken, ett fast och känt antal som
- * är exakt detsamma i varje kommun. Stadsdelarna är trettio i Stockholm och
- * varierar per kommun. En rullrad är rätt för det andra fallet och fel för
- * det första, och mätningen säger varför.
+ * Rutnätet var tre spalter på dator och två på telefon, och på telefon kostade
+ * det tre våningar. Uppmätt i frysta byggen 2026-08-28, blockets höjd och hur
+ * långt ned första verksamheten i registret hamnade, före och efter:
  *
- * Uppmätt i webbläsaren 2026-08-14 på /stockholm/, spårets clientWidth mot
- * dess scrollWidth:
+ *   sida                        bredd   block        första verksamheten
+ *   /stockholm/                   375   152 → 40     1 005 → 893
+ *   /stockholm/                  1440    96 → 40       593 → 537
+ *   /linkoping/                   375   152 → 40       969 → 857
+ *   /linkoping/                  1440    96 → 40       593 → 537
+ *   /oskarshamn/                  375   152 → 40     1 085 → 973
+ *   /oskarshamn/                 1440    96 → 40       601 → 545
+ *   /stockholm/omrade/sodermalm   375   152 → 40     1 131 → 1 019
+ *   /stockholm/omrade/sodermalm  1440    96 → 40     1 172 → 1 116
+ *   /linkoping/omrade/ryd         375   152 → 40     1 095 → 983
+ *   /linkoping/omrade/ryd        1440    96 → 40     1 172 → 1 116
  *
- *   fönster   huvudspalt   typernas bredd   överskott
- *   1440      696          546              0
- *   1024      640          546              0
- *    768      736          546              0
- *    375      343          498            155
+ * Hundrafemtiotvå pixlar var det största enskilda blocket mellan kartan och
+ * listan på telefon, och sex val är inte hundrafemtiotvå pixlar värda. Booli
+ * löser samma sak med en rullrad, och sajten har redan två: kartsidans
+ * kategorirad i Karta.astro och stadsdelarnas rad i Filterrad.astro.
  *
- * Raden rullade alltså ALDRIG på dator. Den låg vänsterställd i ett spår som
- * var 94 till 190 pixlar bredare än innehållet, med en död lucka till höger,
- * och den bar samma form som stadsdelsraden strax under, som rullar på
- * riktigt. Två olika saker såg likadana ut, och den ena ljög. På telefon var
- * det värre: 155 pixlar låg utanför kanten, alltså "Övrigt" och halva "Skolor
- * och omsorg", och där döljer komponenten sina rullknappar med flit. Det som
- * fattades var alltså inte en pil, utan att raden fick bryta.
+ * KOMPONENTEN LIGGER PÅ TVÅ SIDTYPER OCH INTE TRE. Kommunhubbens sida 1 och
+ * områdeshubbens sida 1. Startsidan har en egen kategorirad med radioknappar
+ * och `:has()`, se .katrad i pages/index.astro, och kategorisidan använder
+ * Filterrad. Sida 2 och framåt visar ingen av dem.
  *
- * ## Varför sex i bredd inte går, räknat
+ * ## Varför rutnätet en gång valdes, och varför det skälet inte längre bär
  *
- * Etiketterna är uppmätta till 31, 76, 111, 41, 106 och 36 pixlar. Sex
- * spalter i en huvudspalt på 696 med 24 px luft ger 96 px per cell, och den
- * bredaste etiketten är 111. Sex i bredd är alltså inte en smaksak utan
- * omöjligt utan avhuggning. Tre spalter ger 216 px per cell, vilket rymmer
- * varje etikett på en rad med marginal, och sex poster i tre spalter blir två
- * jämna våningar utan luckor. På telefon blir det två spalter, 163 px per
- * cell, och 111 ryms fortfarande.
+ * Den gamla noten här räknade så: huvudspalten är 696 px vid 1440, sex spalter
+ * ger 96 px per cell, och den bredaste etiketten är 111. Sex i bredd var alltså
+ * omöjligt utan avhuggning, och tre spalter i två våningar var det som rymdes.
+ *
+ * Två av talen stämmer inte längre, och det är hela skillnaden.
+ *
+ * SPALTEN ÄR 912 OCH INTE 696. Uppmätt 2026-08-28 på /stockholm/ vid 1440:
+ * nav-elementets förälder är 912 px bred. Layouten har vuxit sedan mätningen
+ * 2026-08-14.
+ *
+ * EN RULLRAD HAR INGEN CELLBREDD. Rutnätet delade spalten i lika delar och
+ * tvingade varje etikett in i sin del. En rad låter varje val bli exakt så
+ * brett som det behöver, och det som inte ryms rullas fram. Räkningen "111 ryms
+ * inte i 96" gäller bara rutnätet.
+ *
+ * ## Att raden ryms är räknat och inte hoppats
+ *
+ * Etiketternas bredd vid 14 px, uppmätt med Range.getBoundingClientRect på
+ * /stockholm/ 2026-08-28:
+ *
+ *   Alla 25,4   Restauranger 86,8   Caféer och bagerier 126,8
+ *   Butiker 46,0   Skolor och omsorg 119,8   Övrigt 40,5
+ *
+ * Talen under dem mäter 31,2 var. Cellen är ikonen 24 plus luften 12 plus den
+ * bredare av etikett och tal, och de sex cellerna är uppmätta till
+ *
+ *   67,2 + 122,8 + 162,8 + 82,0 + 155,8 + 76,5 = 667,1
+ *
+ * Med 24 px mellan sex celler blir raden 787 px i en spalt på 912. Den rullar
+ * alltså inte vid 1440, och den ska inte göra det: sex val som ryms ska synas.
+ *
+ * Vid 375 är raden lika bred, alltså 787 px, i en spalt på 343. Där rullar den
+ * på riktigt, och det är hela vinsten: 787 px innehåll som förut bröts på tre
+ * våningar ligger nu på en.
+ *
+ * OMRÅDESSIDAN HAR EN SMALARE SPALT och det ska stå här. Uppmätt på
+ * /stockholm/omrade/sodermalm/ vid 1440: spalten är 664 och fem val blir 687,
+ * alltså rullar raden 23 px även på dator där. Luften kunde ha krympt till 16
+ * för att slippa det, men då hade raden fått ett annat mått än stadsdelsraden
+ * som ligger rakt under den på kommunsidan. Tjugotre pixlars rullning på en
+ * sidtyp är billigare än två rader som inte längre är byggda lika.
+ *
+ * DET HÄR ÄR SKILLNADEN MOT DET SOM EN GÅNG VAR FEL. Den gamla raden såg
+ * rullbar ut, rullade aldrig på dator, och dolde sina rullknappar på telefon
+ * där 155 pixlar faktiskt låg utanför kanten. Den här raden har inga
+ * rullknappar alls, precis som kartsidans, och på telefon rullas den med
+ * fingret. En rad som ligger vänsterställd i en bredare spalt är inget
+ * påstående; en dold knapp är det.
  *
  * ## Formen, och vad referenserna faktiskt gör
  *
- * Uppmätt i webbläsaren 2026-08-14, inte skrivet ur minnet.
+ * Uppmätt i webbläsaren 2026-08-14, och det som står här står kvar för att
+ * cellens innehåll är oförändrat. Det enda som bytts är behållaren.
  *
  * BOOLI, /sok/slutpriser. Närmaste motsvarigheten till vårt fall: tre val med
- * antal i en spalt på 640. Rutnät med lika breda spalter, `grid-cols-3`, inte
- * en rullrad. Etikett 14/24 i vikt 400 i vila och 600 aktiv, antal 12/16 i
- * `#767676`, alltså alltid mindre och ljusare än etiketten. Markering: 2 px
- * baslinje som byter från `#e6e6e6` till accentfärgen. Inga ikoner.
+ * antal i en spalt på 640. Etikett 14/24 i vikt 400 i vila och 600 aktiv, antal
+ * 12/16 i `#767676`, alltså alltid mindre och ljusare än etiketten. Markering:
+ * 2 px baslinje som byter från `#e6e6e6` till accentfärgen. Inga ikoner.
  *
- * BOOLI, startsidan. Bostadstyperna ligger i ett 3×2-rutnät som bryter rad
- * och aldrig rullar. Men varje post är en inramad `<label>` runt en
- * `<input type=checkbox>`, alltså ett formulär, och det är precis vad vår rad
- * inte får se ut som. Formen tas inte med. De döljer dessutom hela rutnätet
- * under 768 px, vilket vi inte gör: en funktion som försvinner på telefon är
- * ingen funktion.
+ * BOOLI, startsidan. Bostadstyperna ligger i ett rutnät, men varje post är en
+ * inramad `<label>` runt en `<input type=checkbox>`, alltså ett formulär, och
+ * det är precis vad vår rad inte får se ut som. Formen tas inte med. De döljer
+ * dessutom hela rutnätet under 768 px, vilket vi inte gör: en funktion som
+ * försvinner på telefon är ingen funktion.
  *
- * HITTA.SE. Piller med kant och radie, 14/22 i vikt 600, utan antal, och
- * raden rullar under 848 px. Alltså en pillervägg, som ägaren redan
- * underkänt, plus rullningen vi just tagit bort. Inget att hämta.
+ * HITTA.SE. Piller med kant och radie, 14/22 i vikt 600, utan antal, och raden
+ * rullar under 848 px. Alltså en pillervägg, som ägaren redan underkänt.
  *
  * EDNIA. Ikon 24 över etikett 12/16, markering är färgskifte plus 2 px
- * understreck, ingen viktändring. Raden rullar på riktigt: 29 kategorier,
- * 3 347 px innehåll i ett 1 280 px spår. Det är rätt form för en LÅNG lista,
- * alltså för stadsdelarna, och den ligger kvar i Filterrad.astro.
+ * understreck. Deras rad rullar på riktigt: 29 kategorier, 3 347 px innehåll i
+ * ett 1 280 px spår.
  *
- * Vi tar alltså Boolis rutnät och dess typografi, Ednias ikoner och
- * understreck, och ingen av pillren.
+ * Vi tar Boolis typografi, Ednias ikoner och understreck, och ingen av pillren.
  *
  * Ikon till vänster, etikett och tal staplade till höger. Inga rutor, ingen
- * ram, ingen fyllning, ingen radie. Booli skiljer avsnitt med hårlinje och
- * luft och aldrig med en färgad ruta, och deras klickbara data bär
- * understrykning och inte kant. Se docs/19_formsystem.md.
+ * ram, ingen fyllning, ingen radie. Booli skiljer avsnitt med hårlinje och luft
+ * och aldrig med en färgad ruta, och deras klickbara data bär understrykning
+ * och inte kant. Se docs/19_formsystem.md.
  *
- * Booli lägger antalet till HÖGER om etiketten med 8 px mellanrum. Vi staplar
- * det under, och det är mätt och inte tyckt: på telefon är cellen 163 px, och
- * ikon 24 plus luft 12 plus etikett 111 plus luft 8 plus tal 30 är 185. Inline
- * spricker alltså på telefon medan staplat landar på 147. Ett mått som håller
- * hela vägen är bättre än två layouter.
+ * Talet står UNDER etiketten och inte bredvid, till skillnad från Boolis
+ * slutprisflikar. Skälet var en gång rutnätets cell på 163 px, och det skälet
+ * är borta med rutnätet. Kvar står ett annat: staplat är cellen 40 px hög och
+ * raden blir en enda våning på 40, medan inline hade gjort varje cell 40 px
+ * BREDARE och skjutit "Övrigt" utanför kanten även vid 1440. Räknat på talen
+ * ovan blir raden 787 staplad och 1 016 inline, i en spalt på 912.
  *
- * Formen är samtidigt sidans egen: fördelningsraden rakt ovanför
- * (KommunOversikt.astro) är ett rutnät av celler med tal och etikett, byggt
- * på samma sätt. Skillnaden dem emellan är att den bär färgprickar och den
- * här bär våra ikoner.
+ * ## Vad raden ÄR
  *
- * ## Vad rutnätet ÄR
+ * Riktiga länkar till riktiga adresser. Sajten kör inget JavaScript i
+ * normalfallet, och registret under är sidindelat i hundra rader, så en
+ * kryssruta hade bara filtrerat den sida man råkar stå på. Utan JavaScript
+ * fungerar varenda val och tabb når varenda val.
  *
- * Riktiga länkar till riktiga adresser, precis som förut. Sajten kör inget
- * JavaScript i normalfallet, och registret under är sidindelat i hundra rader,
- * så en kryssruta hade bara filtrerat den sida man råkar stå på. Utan
- * JavaScript fungerar varenda val och tabb når varenda val. Här finns inget
- * skript alls, till skillnad från rullraden: ett rutnät som ryms behöver
- * varken piltangenter eller rullknappar.
+ * HÄR FINNS INGET SKRIPT, och det är oförändrat efter bytet till en rad.
+ * Filterrad.astro har piltangenter och två rullknappar; den bär upp till trettio
+ * stadsdelar och behöver dem. Sex val som ryms i spalten på dator behöver
+ * varken pil eller knapp, och `overflow-x: auto` rullar med fingret på telefon
+ * utan en rad kod.
  *
- * En typ utan egen sida tonas ned i stället för att döljas. Siffran är sann
- * och är svaret; det är bara adressen som inte förtjänar att finnas.
+ * En typ utan egen sida tonas ned i stället för att döljas. Siffran är sann och
+ * är svaret; det är bara adressen som inte förtjänar att finnas.
  *
  * ## Aktivt val
  *
- * Understreck, halvfet etikett och `aria-current="page"`. Tre bärare, ingen
- * av dem en färg i sig, av samma tillgänglighetsskäl som gör att
- * bedömningsmärkena bär både min, färg och textetikett.
+ * Understreck, halvfet etikett och `aria-current="page"`. Tre bärare, ingen av
+ * dem en färg i sig, av samma tillgänglighetsskäl som gör att bedömningsmärkena
+ * bär både min, färg och textetikett.
  *
- * Vikten är en riktig bärare här. I rullraden var den det inte: `.etikett`
- * stod på 600 i grundläget OCH på 600 i det aktiva, så av de tre bärarna
- * fanns i praktiken två. Grundläget är 400 och det aktiva 600.
+ * Vikten är en riktig bärare här. Grundläget är 400 och det aktiva 600.
  *
  * Understrecket är märkesblått och inte svart, av samma skäl som i
- * Filterrad.astro: valt läge är blått i sökpanelen, i kartan och i
- * pagineringen, och en svart list bredvid dem ser lånad ut.
+ * Filterrad.astro: valt läge är blått i sökpanelen, i kartan och i pagineringen,
+ * och en svart list bredvid dem ser lånad ut.
  */
 import Kategoriikon from './Kategoriikon.astro';
 import { formatNumber } from '../lib/data';
@@ -132,39 +171,85 @@ const { items, label } = Astro.props;
 ---
 
 <nav class="kategorival" aria-label={label}>
-  {items.map((val) => {
-    const inner = (
-      <>
-        <span class="ikon"><Kategoriikon namn={val.ikon} /></span>
-        <span class="etikett">{val.label}</span>
-        <span class="tal">{formatNumber(val.count)}</span>
-      </>
-    );
-    return val.href ? (
-      <a class="val" href={val.href} aria-current={val.current ? 'page' : undefined}>
-        {inner}
-      </a>
-    ) : (
-      <span class="val av">{inner}</span>
-    );
-  })}
+  {/* Rullningen ligger på en egen behållare inuti navigeringen och inte på
+      navigeringen själv, samma uppdelning som Filterrad.astro. Skälet är
+      måttet: spåret bär luft plus lika stor negativ marginal för fokusringens
+      skull, se noten vid .spar, och den negativa marginalen hade annars runnit
+      ut i sidans egen luft runt komponenten. Områdessidan har en synlig rubrik
+      åtta pixlar ovanför raden, och de åtta pixlarna hade ätits upp. */}
+  <div class="spar">
+    {items.map((val) => {
+      const inner = (
+        <>
+          <span class="ikon"><Kategoriikon namn={val.ikon} /></span>
+          <span class="etikett">{val.label}</span>
+          <span class="tal">{formatNumber(val.count)}</span>
+        </>
+      );
+      return val.href ? (
+        <a class="val" href={val.href} aria-current={val.current ? 'page' : undefined}>
+          {inner}
+        </a>
+      ) : (
+        <span class="val av">{inner}</span>
+      );
+    })}
+  </div>
 </nav>
 
 <style>
   /*
-   * Tre spalter, och de är räknade och inte satta på känsla. Se
-   * huvudkommentaren: bredaste etiketten är 111 px, sex spalter ger 96 och
-   * tre ger 216.
+   * Raden. En våning som rullar i sidled när den inte ryms, alltså kartsidans
+   * form. Bredderna är räknade i huvudkommentaren: 787 px innehåll i en spalt
+   * på 912 vid 1440, och 787 i 343 vid 375.
    *
-   * `repeat(3, 1fr)` och inte `auto-fit` med `minmax`: auto-fit hade gett
-   * fyra spalter i en huvudspalt på 696, alltså fyra poster på första raden
-   * och två på andra. Sex poster har bara tre snygga uppdelningar, och två av
-   * dem ryms inte.
+   * `align-items: center` och inte `flex-end`: alla sex cellerna är exakt 40 px
+   * höga, eftersom ikonen är 24 och de två textraderna 24 plus 16. Det finns
+   * ingen ojämn underkant att räta ut, till skillnad från Filterrad.astro där
+   * ett val utan tal annars hamnar femton pixlar lägre än sina grannar.
+   *
+   * LUFTEN OCH DEN NEGATIVA MARGINALEN HÖR IHOP och är inte pynt. En
+   * rullningsbehållare klipper allt utanför sin padding-box, och här ligger två
+   * saker utanför elementet: träffytans `::after` på minus två pixlar och
+   * sajtens fokusring, som står 2 px utanför med 2 px offset. Utan luften kapas
+   * ringen på det val som har tangentbordsfokus, alltså precis den besökare
+   * regeln finns för. Marginalen tar tillbaka luften så att radens höjd i
+   * flödet är oförändrade 40 px. Samma grepp som `.spar` i Filterrad.astro,
+   * och behållaren heter likadant här.
    */
-  .kategorival {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--s-4) var(--s-6);
+
+  /* `flow-root` och inte block: den upprättar en formateringskontext, och utan
+     den kollapsar spårets negativa marginaler genom navigeringens över- och
+     underkant och flyttar hela komponenten åtta pixlar upp i sidan. Med den är
+     navigeringens höjd exakt spårets marginallåda, alltså 40 px, medan spårets
+     luft sticker ut osynligt åt båda hållen. */
+  .kategorival { display: flow-root; }
+
+  .spar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-block: var(--s-2);
+    margin-block: calc(var(--s-2) * -1);
+    /* Rullningslisten är dold, inte rullningen. På dator rullar raden inte
+       alls, på telefon rullas den med fingret. */
+    scrollbar-width: none;
+  }
+
+  .spar::-webkit-scrollbar { display: none; }
+
+  /*
+   * Kedjad rullning stoppas BARA för mus, ordagrant samma undantag som
+   * Filterrad.astro gör och av samma skäl: `overscroll-behavior` på ett vågrätt
+   * spår hindrar även den lodräta kedjan i flera webbläsare, och då fastnar
+   * sidans rullning så fort fingret råkar landa i raden. Raden ligger mitt i en
+   * lång sida som man rullar förbi tio gånger oftare än man använder den.
+   */
+  @media (pointer: fine) {
+    .spar { overscroll-behavior-x: contain; }
   }
 
   /*
@@ -178,18 +263,22 @@ const { items, label } = Astro.props;
     grid-template-columns: auto 1fr;
     align-items: center;
     column-gap: var(--s-3);
+    /* Ingen krympning och ingen växt i raden: cellen ska vara exakt så bred
+       som sitt innehåll, annars jämnas de sex ut mot varandra och rutnätets
+       problem är tillbaka i en rad. */
+    flex: 0 0 auto;
     /* Etiketten är sajtens vanliga bläck. Talet under är tyst, se .tal. */
     color: var(--text);
-    min-width: 0;
   }
 
   /* Träffytan, 44 px, oberoende av cellens 40.
      Cellen är 40 hög av innehållet: ikonen 24, etiketten 14/24 och talet
-     12/16. Uppmätt i bygget 2026-08-18. Att växa raden hade spätt ut
-     rutnätet, alltså hänger träffytan 2 px utanför i stället, med ett
-     genomskinligt ::after. Samma grepp som kartknapparna, se kartram.css.
-     Bara lodrätt: spaltluften är 24 px och en yta som hänger ut åt sidorna
-     hade mötts på mitten mellan två grannar. */
+     12/16. Uppmätt i bygget 2026-08-18 och oförändrat efter bytet till en rad.
+     Att växa cellen hade växt hela radens höjd, alltså hänger träffytan 2 px
+     utanför i stället, med ett genomskinligt ::after. Samma grepp som
+     kartknapparna, se kartram.css. Bara lodrätt: luften mellan valen är 24 px
+     och en yta som hänger ut åt sidorna hade mötts på mitten mellan två
+     grannar. De två pixlarna ryms i radens padding-block, se noten där. */
   .val::after {
     content: '';
     position: absolute;
@@ -233,6 +322,11 @@ const { items, label } = Astro.props;
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
     font-weight: 400;
+    /* En rad, alltid. Rutnätet lät etiketten bryta när cellen var för smal;
+       en rullrad har ingen för smal cell, och ett brutet "Caféer och
+       bagerier" hade gjort hela raden två våningar hög för ett enda vals
+       skull. */
+    white-space: nowrap;
     text-decoration: none;
     text-decoration-thickness: 2px;
     text-underline-offset: 3px;
@@ -265,22 +359,8 @@ const { items, label } = Astro.props;
   .val.av .tal { color: var(--text-muted); }
   .val.av:hover .etikett { text-decoration: none; }
 
-  /*
-   * Två spalter på telefon. Tre hade gett 98 px per cell och brutit
-   * "Caféer och bagerier" på tre rader.
-   *
-   * Luften krymper med, och det är mätt. I 343 px huvudspalt ger 16 px
-   * spaltluft och 12 px ikonluft en textspalt på 127,5, och den längsta
-   * etiketten är 127. En halv pixels marginal är ingen marginal. 12 och 8 ger
-   * 133,5, alltså sex pixlar att andas på.
-   *
-   * Etiketten får bryta rad om den ändå inte ryms. Rutnätet jämnar ut
-   * radhöjden själv, så det blir en högre våning och inget avhugget ord.
-   * Etikettgraden krymper INTE här: docs/19_formsystem.md, bara de två
-   * översta graderna gör det.
-   */
-  @media (max-width: 560px) {
-    .kategorival { grid-template-columns: repeat(2, 1fr); gap: var(--s-4) var(--s-3); }
-    .val { column-gap: var(--s-2); }
-  }
+  /* HÄR LÅG TVÅ SPALTER PÅ TELEFON, och den regeln är borta med rutnätet.
+     Raden har ingen brytpunkt alls: samma mått vid 375 som vid 1440, och det
+     enda som skiljer är att spalten är för smal vid 375 så att raden rullar.
+     En rullrad som byter form vid en viss bredd är två rader att underhålla. */
 </style>

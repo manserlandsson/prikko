@@ -1,13 +1,13 @@
 ---
 /**
- * Kommunhubben — hela sidan, delad mellan sida 1 och resten av serien.
+ * Kommunhubben. Hela sidan, delad mellan sida 1 och resten av serien.
  *
  * Bär den interna länkgrafen: utan den här sidan är varje restaurangsida
- * föräldralös, och Google hittar dem bara via sitemap — vilket är en svagare
+ * föräldralös, och Google hittar dem bara via sitemap, vilket är en svagare
  * signal än en riktig länk från en sida med kontext.
  *
  * Sidan är indelad i riktiga sidor (se lib/pagination.ts). Sida 1 ligger på
- * /[kommun] och har ingen egen /sida/1 — annars hade vi publicerat samma
+ * /[kommun] och har ingen egen /sida/1. Annars hade vi publicerat samma
  * innehåll på två URL:er.
  *
  * ## Ordningen i huvudspalten
@@ -103,8 +103,8 @@ const limits = sourceLimits(kommun.slug);
 
 /*
  * Kategorierna. Filtret är länkar till egna sidor, inte kryssrutor: sajten kör
- * inget JavaScript, och listan är dessutom sidindelad — en kryssruta hade bara
- * nått de hundra raderna på just den här sidan. Se KategoriHub.astro.
+ * inget JavaScript, och listan är dessutom sidindelad, så en kryssruta hade
+ * bara nått de hundra raderna på just den här sidan. Se KategoriHub.astro.
  *
  * Bara kategorier kommunen faktiskt har verksamheter i visas, och bara i
  * kommuner där filtret kan filtrera. Här stod tidigare ett chip per kategori
@@ -157,7 +157,7 @@ const density = currentPage === 1 ? tathet(kommun.slug, kommun.code) : null;
 
 /**
  * Sida 1 bär kommunens profil. Sidorna 2 och framåt är fortsättningen på ett
- * register och ska inte upprepa den — dels vore det samma innehåll på 86
+ * register och ska inte upprepa den. Dels vore det samma innehåll på 86
  * URL:er i Stockholms fall, dels är den som bläddrat sig till sida 12 redan
  * förbi frågan "hur ser kommunen ut".
  */
@@ -326,7 +326,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     </p>
 
     {/* Två spalter från och med här. Huvudspalten bär det man läser uppifrån
-        och ner, sidopanelen det man vill ha kvar i blickfånget — samma
+        och ner, sidopanelen det man vill ha kvar i blickfånget. Samma
         uppdelning som restaurangsidan, så sidtyperna känns igen. */}
     <div class="layout">
       <div class="main">
@@ -374,12 +374,13 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
             {categories && (
               <section aria-labelledby="kategorier">
                 <h2 id="kategorier" class="visually-hidden">Verksamheter efter typ</h2>
-                {/* Ett rutnät och inte filterraden. De sex typerna är ett fast
-                    och känt antal som är detsamma i varje kommun, och mätt i
-                    webbläsaren rullade raden aldrig på dator: 546 px innehåll
-                    i ett spår på 640 till 736. Se Kategorival.astro för hela
-                    mätningen. Stadsdelarna nedanför är det motsatta fallet och
-                    behåller rullraden. */}
+                {/* En rullrad utan skript, och inte samma komponent som
+                    stadsdelarna nedanför. De sex typerna är ett fast och känt
+                    antal som är detsamma i varje kommun: 787 px innehåll i en
+                    spalt på 912 vid 1440, alltså rullar raden inte på dator men
+                    på telefon. Stadsdelarna är upp till trettio och behöver
+                    piltangenter och rullknappar. Se Kategorival.astro för hela
+                    mätningen. */}
                 <Kategorival
                   label={`Verksamheter efter typ i ${city}`}
                   items={[
@@ -588,7 +589,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
 <style>
   /* Bredden var 780 px i en behållare på 1080. Det gav en smal pelare med
-     tomma marginaler på båda sidor — samma intryck som en textsida, fast
+     tomma marginaler på båda sidor, alltså samma intryck som en textsida, fast
      innehållet är ett register. Nu används hela bredden, och läslängden
      hålls nere av att listan ligger i en spalt bredvid panelen. */
   .page {
@@ -658,7 +659,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   }
 
   /* Mellanrummet mellan blocken i huvudspalten sätts en gång här i stället
-     för av varje block. :global krävs — Astros scopeade selektorer korsar
+     för av varje block. :global krävs, för Astros scopeade selektorer korsar
      inte komponentgränser, och halva innehållet är egna komponenter. */
   .main > :global(* + *) { margin-top: var(--s-6); }
 
@@ -693,7 +694,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   /* Måtten, tangentbordet och markeringen av aktivt val bor i komponenterna:
      Filterrad.astro för stadsdelarnas rullrad, som också används på
-     områdessidan, och Kategorival.astro för typernas rutnät. */
+     områdessidan, och Kategorival.astro för typernas rad. */
 
   /* Dämpad, inte varnande. Det är en upplysning om datan, inte ett larm. */
   .limits {
