@@ -49,6 +49,7 @@ import vtpbf from 'vt-pbf';
 import { TOP_CATEGORIES } from './categories';
 import { categoriesOf, establishments, latestInspectionDate, municipalities } from './data';
 import { TILE_LAYER } from './kartbas';
+import { matkategori, matkategorierFor } from './matkategori';
 import { writePMTiles } from './pmtiles';
 import { slugify } from './slug';
 
@@ -346,6 +347,34 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
     const type = e.types[0];
     if (type) props.ty = type;
 
+    /*
+     * MATKATEGORIERNAS NAMN, och bara som SÖKTEXT.
+     *
+     * Ägaren 2026-08-26: "kan jag skriva typ 'östermalm' och sedan nästa entry
+     * 'kebab' och få upp alla kebabställen". Kartan kunde inte det. Fritexten
+     * läste namnet och kommunens egen typ, alltså träffade "kebab" bara de
+     * ställen som har ordet i sitt NAMN, 67 stycken, och inte de 91 som är
+     * taggade `cuisine=kebab` i OpenStreetMap.
+     *
+     * Fältet är avsiktligt inte en bitmask som `c`. Kartans kategorifilter
+     * bygger på TOP_CATEGORIES därför att fem bitar täcker hela beståndet,
+     * och det gör matkategorierna inte: 4 623 av 13 692 nålar bär en, alltså
+     * 33,8 procent, mätt 2026-08-30 och nedskrivet i docs/37. Ett FILTER på
+     * den täckningen påstår fullständighet det inte har, och en ruta märkt
+     * "Kebab" som döljer två tredjedelar av kebabställena är ett osant
+     * påstående besökaren inte kan se igenom.
+     *
+     * En SÖKNING påstår ingenting sådant. Den som skriver "kebab" får både de
+     * som heter kebab och de som är taggade kebab, vilket är mer än förut och
+     * utan att någon sida klassar en namngiven verksamhet på svag grund.
+     *
+     * Kostnaden är därför ett strängfält på en tredjedel av punkterna i
+     * stället för tjugo bitar på alla, och ordningen i strängen är tabellens
+     * så att den är läsbar i en diff.
+     */
+    const matnamn = matkategorierFor(e).map((id) => matkategori(id).namn);
+    if (matnamn.length > 0) props.mk = matnamn.join(' ');
+
     let kat = 0;
     for (const id of categoriesOf(e).categories) kat |= KATEGORI_BIT.get(id) ?? 0;
     if (kat) props.c = kat;
@@ -574,6 +603,7 @@ function build(): TileSet {
           nm: 'String',
           s: 'String',
           ty: 'String',
+          mk: 'String',
           c: 'Number',
           dt: 'Number',
           k: 'Number',

@@ -1213,6 +1213,15 @@ const LEGEND = [
     d: number;
     /** Kommunens egen benämning på verksamheten. Tom när källan saknar den. */
     typ: string;
+    /**
+     * Matkategoriernas namn, mellanslagsseparerade, eller tom sträng.
+     *
+     * BARA SÖKTEXT. Fältet visas aldrig och filtrerar aldrig som ruta, se
+     * skälet i lib/kartrutor.ts där det sätts: 4 623 av 13 692 nålar bär en
+     * matkategori, och ett filter på den täckningen påstår fullständighet det
+     * inte har. Sökningen påstår ingenting sådant.
+     */
+    mk: string;
     /** Antal kontroller i historiken. */
     k: number;
     /** Har utmärkelse. */
@@ -1354,6 +1363,7 @@ const LEGEND = [
         kommun: KOMMUNER[props.m] ?? KOMMUNER[0],
         d: props.dt ?? 0,
         typ: props.ty ?? '',
+        mk: props.mk ?? '',
         k: props.k ?? 0,
         u: props.u === 1,
         b: props.b ?? '',
@@ -1629,7 +1639,10 @@ const LEGEND = [
      * man ser i kartan och det man skrivit. Matchningen är ordstart utan
      * skiftlägeskänslighet, med svenska tecken intakta: "sus" träffar
      * "Sushi Yama" och "Café Susanne", inte "Rakhusets". Varje ord i frågan
-     * måste träffa var sin ordstart i namnet eller typen.
+     * måste träffa var sin ordstart i namnet, i kommunens typ eller i
+     * matkategoriernas namn. Det sista ledet är skälet till att "kebab"
+     * numera hittar både de som HETER kebab och de som ÄR taggade kebab, se
+     * `mk` i Punkt och i lib/kartrutor.ts.
      *
      * `traffar` är radnumren som matchar, null när fältet är tomt. Null och
      * inte en full mängd: tomt filter ska vara gratis att testa mot, och
@@ -1859,7 +1872,9 @@ const LEGEND = [
        */
       const punkter = urvalsPunkter();
       if (!sokbar || sokbarFor !== urvalsKommuner().join(',')) {
-        sokbar = new Map(punkter.map((p) => [p.i, ' ' + normalisera(p.namn + ' ' + p.typ)]));
+        sokbar = new Map(
+          punkter.map((p) => [p.i, ' ' + normalisera(p.namn + ' ' + p.typ + ' ' + p.mk)]),
+        );
         sokbarFor = urvalsKommuner().join(',');
       }
       const ut = new Set<number>();
