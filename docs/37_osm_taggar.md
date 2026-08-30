@@ -752,3 +752,85 @@ kommun.
    åtminstone märkt.
 4. **Rör inte tröskeln i §6 utan att läsa hela stycket.** Den gäller filter,
    fullständighetstal och rangordningar. Den gäller inte en visning.
+
+---
+
+## Namnet som källa: mätt 2026-08-30, och underkänt som kategorikälla
+
+Frågan kom ur ägarens beställning: "kan jag skriva typ 'östermalm' och sedan
+nästa entry 'kebab' och få upp alla kebabställen". Det förutsätter att vi vet
+vilka ställen som är kebabställen. Vi vet det om 30,1 procent av beståndet.
+
+### Nuläget
+
+| Mått | Antal | Andel |
+|---|---|---|
+| Verksamheter totalt | 16 044 | |
+| Med koordinat | 13 692 | 85,3 % |
+| Med minst en matkategori | 4 822 | 30,1 % |
+| Med koordinat och kategori | 4 623 | 33,8 % av nålarna |
+
+Per kommun varierar det från 0,0 procent i Höganäs och 4,7 i Borgholm till
+39,2 i Lomma och 36,9 i Stockholm. Uppsala ligger på 10,8.
+
+De tunnaste kategorierna är små i absoluta tal: kebab 91, glass 53,
+mellanöstern 48, grill 61, indiskt 72, thai 76.
+
+### Tre vägar prövade
+
+**1. Ord ur verksamhetsnamnet.** Ett grovt prov med femton ordlistor lyfte
+täckningen från 30,1 till 39,4 procent, alltså ungefär 1 500 verksamheter.
+Kebab gick från 91 till omkring 123, pizza från 455 till 583, sushi från 172
+till 278.
+
+Vägen är ändå fel, och skälet står redan i huvudkommentaren i
+`src/lib/matkategori.ts`: en gissning ur namnet är osynlig när den är fel.
+"Kina Palatset" kan vara en thairestaurang. Skillnaden mot en OSM-tagg är att
+taggen är någons iakttagelse på plats och går att rätta vid källan.
+
+**2. Kedjeidentiteten som brygga.** Den här vägen är principiellt riktig:
+`chainIdFor()` i `src/lib/kedjeregister.ts` matchar på hela ord från namnets
+början och är redan en tabell och ingen heuristik. Att säga att Pressbyrån är
+en kiosk är inte en gissning ur bokstäverna, det är en uppslagning i ett
+register.
+
+Och kedjans kategori behöver inte ens skrivas för hand. Den går att härleda ur
+vår egen data: bland de medlemmar OSM redan har klassat, vilken kategori
+dominerar? Mätt över alla 54 kedjor med två grindar, minst hälften av
+medlemmarna belagda och minst sjuttio procent samstämmiga, faller apotek, gym,
+biografer och lågprisvaruhus ut av sig själva eftersom OSM bara sett några få
+av deras lägen. Grindarna sköter alltså urvalet utan att någon behöver tycka.
+
+**Vägen underkändes ändå på sin storlek.** 1 577 verksamheter bär en
+kedjeidentitet, 647 av dem saknar kategori, och efter grindarna återstår
+omkring 280 nya. Det är 1,7 procentenheter, från 30,1 till 31,8. En ny
+härledningsregel att underhålla och försvara är inte värd 280 rader.
+
+Mätningen sparas här så att ingen gör om den. Om kedjeregistret växer eller
+OSM-täckningen ändras kan slutsatsen bli en annan, och då är metoden ovan
+färdig att köra igen.
+
+**3. Söket i stället för filtret.** Det är svaret på ägarens fråga, och det är
+en annan sorts lösning.
+
+Ett FILTER påstår fullständighet. En ruta märkt "Kebab" som döljer två
+tredjedelar av kebabställena är ett osant påstående, och besökaren kan inte se
+att det är osant.
+
+En SÖKNING påstår ingenting sådant. Den som skriver "kebab" och får varje
+ställe som heter kebab plus varje ställe som är taggat kebab har fått ett
+ärligt svar på det den frågade. Ordet i namnet får bära, men som träff och
+inte som klassning, och ingen sida påstår därmed att en namngiven verksamhet
+tillhör en kategori vi inte har belägg för.
+
+Slutsatsen är alltså att kategoriraden ska stå kvar som den är, byggd på
+belagda taggar, och att den fria sökningen ska bära den andra halvan.
+
+### Ett mätfel att känna till
+
+McDonald's hamnar i Snabbmat och inte i Burgare. Av de 25 klassade
+McDonald's-raderna säger 72 procent snabbmat och bara 24 procent burgare,
+eftersom OSM:s kartläggare sätter `amenity=fast_food` nästan alltid och
+`cuisine=burger` sällan. Samma sak gäller flera kedjor. Det är en lucka i
+källan och inte i vår kod, och den ska rättas i OpenStreetMap om den ska
+rättas.
