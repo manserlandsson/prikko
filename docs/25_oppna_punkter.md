@@ -18,7 +18,7 @@ Senast genomgången: 2026-08-12.
 | R2-nycklar | Behövs för gatubilderna. Läggs i `~/.prikko-env`. | Din åtgärd |
 | Geotorget | `GEOTORGET_USERNAME=maga0001` plus lösenord i `~/.prikko-env` när den juridiska granskningen landat. | Din åtgärd |
 | SCB:s företagsregister | Ett mejl till `scbforetag@scb.se` för att få certifikat till arbetsställe-API:et, plus två frågor som avgör om funktionen alls går att bygga. Färdig lydelse i `35_scb_foretagsregistret.md` avsnitt 6. Villkoren måste godkännas av en namngiven person, så en agent kan inte göra det. | Din åtgärd |
-| Utgivningsbevis | 3 000 kr. Skjuts upp tills vidare. | Uppskjuten |
+| Utgivningsbevis | 4 000 kr enligt 3 § förordningen (2024:1170), inte 3 000. Ansökan är färdigskriven i `docs/47_utgivningsbevis.md` och behöver bara ägarens uppgifter och en underskrift. | Din åtgärd |
 | GitHub Actions | Pushar startar fortfarande inga körningar. Kolla fliken. | Din åtgärd |
 | Migadu | Mejlen är inte färdigflyttad. | Din åtgärd |
 | Resend-nyckel | `RESEND_API_KEY` som GitHub-hemlighet. Bevakningarna fyller kontot varje natt utan den; nyckeln lägger bara till mejlet. Ingen kodändring behövs, nattjobbet väljer gren själv. | Din åtgärd |
