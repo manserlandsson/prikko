@@ -397,3 +397,160 @@ G1 till G4, D3 till D8, B9, B10, B12, E2, E3, A6, A7, A9.
   princip: sidor köps för sökning, aldrig för funktioner.
 - **Ingen AI-genererad text eller bild som innehåll.** Kvalitetsgrinden i
   projektbibeln avsnitt 6 gäller.
+
+---
+
+## 6. Omprövning 2026-08-30, kväll: tre rapporter som flyttar listan
+
+Fyra spår återkom samma dag: `42_oppna_data_sveptet.md`, `43_kommunmaskinen.md`,
+`44_marknaden_2026.md` och kartläggningen av ärendesystemen. Tillsammans ändrar
+de rangordningen på ett sätt jag inte hade förutsett i morse.
+
+### 6.1 Staten föreslår att kommunerna slutar med livsmedelskontroll
+
+**SOU 2025:64, "En ny kontrollorganisation i livsmedelskedjan", överlämnad
+4 juni 2025.** Utredningen vill flytta hela livsmedelskontrollen från 270
+myndigheter till två, med ikraftträdande **1 januari 2028**. Ordagrant ur
+sammanfattningen: "Den största omställningen kommer ske för kommunerna, som
+inte längre ska utföra livsmedelskontroll."
+
+Remissens status är inte belagd och står som öppen punkt. Men förslaget finns,
+och det är den enda rörelsen i den här frågan i Sverige på tjugo år.
+
+**Vad det gör med projektet, ärligt läst.**
+
+Det underminerar vallgraven vi tänkt bygga. Hela poängen med
+offentlighetsmaskinen i A2 är att datan är utspridd på 290 håll och att det är
+segt att samla ihop, alltså att segheten är skyddet. En nationell myndighet med
+ett register tar bort både segheten och skyddet, och den kommer med all
+sannolikhet att publicera själv.
+
+Men det dödar inte Prikko. Det **flyttar** vallgraven, från åtkomst till
+varumärke, produkt och spridning. Frankrike har haft ett nationellt statligt
+API med 73 278 poster i flera år, och där finns ändå tredjepartskartor,
+en tävling om att bygga på datan, och nitton registrerade återanvändningar.
+Myndigheten publicerar en fil. Någon annan bygger det folk faktiskt använder.
+
+**Alltså tre följdbeslut, och de gäller från i dag.**
+
+1. **Bygg täckning billigt, inte uttömmande.** Förbunden och de största
+   kommunerna, alltså punkt A3 och de två nya källorna nedan. Ett program för
+   att beta av 290 kommuner för hand skulle bli klart ungefär när det slutat
+   behövas. A2 byggs som verktyg och lydelse, inte som ett tvåårigt fälttåg.
+2. **Höj pelare B och C.** Spridning och intäkt var punkt tre och framåt i
+   morse. De är nu det enda som är hållbart oavsett vad utredningen leder till.
+3. **Var den som står först när filen kommer.** Om 2028 ger ett nationellt
+   register vinner den som redan har varumärket, sidorna, sökordet och
+   besökarna. Det är ett argument för att flytta fram tidsplanen, inte skjuta
+   upp den.
+
+### 6.2 Öppna data-svepet gav nästan ingenting, och det är ett svar
+
+**Noll svenska kommuner publicerar i NSÖD-formatet.** Beviset är starkare än
+frånvaron av datamängder: specifikationens egen uppföljningsfil har en enda
+kommunflik, Lund, med noll klara och tretton ej påbörjade punkter. Verktyget
+har aldrig fyllts i av någon.
+
+Punkt A1 var listans etta i morse med motiveringen att den kunde flerdubbla
+projektet på en vecka. Den motiveringen höll inte. Två källor finns ändå:
+
+| Kommun | Vad | Tal | Haken |
+|---|---|---|---|
+| Norrköping | `ecos.xml`, 7,4 MB | 1 022 verksamheter, 4 451 kontroller, 25 083 kontrollpunkter, avvikelser i klartext | Ingen licens angiven, senaste kontrollen 3 januari 2024 |
+| Göteborg | CSV, CC0 1.0, ändrad i går | 5 076 verksamheter, koordinater på 4 892 | Noll kontrollresultat |
+
+Bägge ger 22 142 verksamheter mot dagens 16 044, alltså 38 procent fler.
+Norrköpings fil hittades inte via söksidan, som är död, utan i kommunens
+filarkiv genom deras egen sitemap. **Metodlärdomen är att leta efter filen och
+inte efter sidan**, och den ska gälla för resten av landet.
+
+### 6.3 Kommunmaskinen är kartlagd, och två spärrar är belagda
+
+**23 kommunalförbund täcker 63 kommuner**, alltså 40 brev vi slipper skriva,
+9 479 anläggningar och 8,8 procent av befolkningen. Registret ligger i
+`pipeline/data/kommuner.json` med källa per fält, och 269 av 290 har en
+funktionsadress.
+
+**154 kommuner är dessutom kopplade till sitt ärendesystem**, mätt ur
+kommunernas egna platsannonser via Arbetsförmedlingens API, vilket är en bättre
+källa än leverantörernas tystnad: 68 Ecos, 62 EDP Vision, 35 Castor. Det är en
+golvsiffra och inte en marknadsandel.
+
+Två spärrar är nu belagda och ändrar brevet:
+
+- **Formatkravet är dött.** Vi kan inte kräva digitalt format. Högsta
+  domstolen sa nej i NJA 2023 s. 498, regeringen bekräftade tolkningen i
+  prop. 2023/24:73, och det finns ingen väg att överklaga en formatvägran.
+- **Risken är papper, inte avgifter.** Ett elektroniskt uttag kostar sannolikt
+  ingenting, men Skinnskatteberg lämnade 2025 ut 15 000 sidor för omkring
+  30 000 kronor. Papperspärren hör därför hemma i brevets första stycke.
+
+Ett hoppfullt tal på andra sidan: Jens Nylander har redan fått ut strukturerad
+data ur 271 kommuner, med nio av tio utan problem. Planeringssiffran 60 procent
+i `20_kommunexpansion.md` är förmodligen för pessimistisk.
+
+### 6.4 Affärsmodellen i bibeln är bakvänd
+
+Ingen av de fyra privata sajterna på brittisk hygiendata tar betalt för en
+företagsprofil. De säljer **efterlevnadsverktyg och utbildning**, och de riktar
+sig mot verksamheter med **låga** betyg. En av dem skriver rakt ut på sin
+prissida att tjänsten är gratis tills kunden når högsta betyg.
+
+Och exakt vår affär är redan byggd och såld. Hazel Analytics skördade
+amerikanska hälsomyndigheters kontrolldata, Ecolab köpte bolaget 2023, och
+samma data driver i dag nästan 700 000 Yelp-sidor, där de räknar fram ett eget
+betyg när myndigheten saknar ett och märker det som uppskattat. Det är ett
+prejudikat för vår svåraste fråga, alltså normaliseringen mellan kommuner som
+bedömer olika.
+
+Prisunderlaget i Sverige: 250 till 750 kronor i månaden för en företagsprofil.
+Det som säljs är **placering i sökresultatet**, vilket är den enda intäktsform
+vi aldrig kan ta. C1 och C2 måste därför byggas om i huvudet: vi säljer verktyg
+och synlighet utanför sökresultatet, aldrig ordningen i det.
+
+### 6.5 Danmark strök belöningen och byggde en kanal i stället
+
+Elitesmileyn är avskaffad, beslut 2020 och genomfört 2022 och 2023. Det de
+satsade på i stället är distribution, och det är exakt pelare B:
+
+- Verksamheten **måste** länka till sin smileysida från all digital
+  marknadsföring.
+- Entrémärket bär en **QR-kod**.
+
+Auckland har samma grepp i sin föreskrift från 2020: skyltkravet gäller även
+verksamhetens egna digitala kanaler. Två länder oberoende av varandra har
+alltså kommit fram till att märket ska leda tillbaka till källan.
+
+Vi kan inte ålägga någon något. Men vi kan göra märket värt att sätta upp, och
+QR-koden är en rad kod. **B2, B3 och B4 flyttas upp**, och de får en QR-kod.
+
+Danmarks fil bär dessutom CVR-nummer på 98,2 procent av raderna, alltså precis
+den organisationskoppling `12_datapairing_och_orgnr.md` finns till för att vi
+saknar. Frankrike har samma sak med SIRET. Två av två.
+
+### 6.6 Tre rättelser till bibeln
+
+- **FHRS har ingen schema.org.** Noll ld+json, noll itemprop, noll og-taggar
+  på verksamhetssidan. `11_master_projektbibel.md` avsnitt 5 påstår motsatsen.
+  Vi har redan mer strukturerad data än förlagan.
+- **Rätten att svara används nästan aldrig.** 8 ifyllda av 36 273
+  verksamheter i sexton brittiska myndigheters filer. E2 är alltså inte en
+  funktion besökare efterfrågar, den är ett skydd vi behöver ha.
+- **Livsmedelskollen är sämre än vi trott.** 2,0 av 5 i 82 recensioner på
+  Google Play, inte bara 2,6 i 17 hos Apple, och klagomålen handlar om att
+  sökningen inte fungerar.
+
+### 6.7 Den nya vågen 1
+
+| # | Punkt | Ändring |
+|---|---|---|
+| 1 | Norrköping och Göteborg in | Konkret, +38 procent, ingen väntar på oss |
+| 2 | A0 Filtaket | Oförändrat, blockerar allt ovan |
+| 3 | B2 till B4 med QR-kod | Upp från plats fyra. Två länder har oberoende valt samma grepp |
+| 4 | B1 Publikt API, i LIVES-format | Upp. Formatet finns, Montreal använder det |
+| 5 | H1 Begär ut kontrollen | Upp från plats elva. Enda täckningsvägen som skalar utan oss |
+| 6 | E1 Utgivningsbeviset | Oförändrat |
+| 7 | C1 och C2 omtänkta | Verktyg och utbildning, inte placering |
+| 8 | B6 Flöden, B11 Indexering, E5 Drift | Oförändrat |
+| 9 | SOU 2025:64 följas | Ny. Remissvar och riksdagsbehandling avgör tidsplanen |
+| ~ | A2 som fälttåg | NED. Byggs som verktyg och lydelse, inte som tvåårigt projekt |
