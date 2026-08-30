@@ -260,6 +260,86 @@ månad i stället för sex är det en plattform. Annars är det en sajt.
 **G4. Tester för pipelinen.** En trasig hämtare ska falla i ett test och inte
 på sajten.
 
+### H. Det som den internationella genomgången tillförde
+
+Fyndet står i `docs/44_marknaden_2026.md`. Fyra av punkterna är nya för
+projektet och en av dem hör hemma i den översta vågen.
+
+**H1. Begär ut kontrollen, som funktion på sajten. NY OCH STOR.**
+
+Tyskland har en plattform som heter Topf Secret, driven av foodwatch och
+FragDenStaat sedan januari 2019. Den gör en enda sak: den låter en besökare
+med två klick begära ut kontrollrapporten för ett namngivet ställe, enligt
+konsumentinformationslagen VIG. Volymen är **över 56 000 framställningar fram
+till 2022**, hanterade av omkring 400 myndigheter, och Bundesverwaltungsgericht
+slog 29 augusti 2019 fast i mål 7 C 29.17 att det inte är rättsmissbruk att
+vidarebefordra det man fått ut till en organisation.
+
+Det är samma maskin som vår A2, fast driven av efterfrågan i stället för av
+oss, och den är gratis.
+
+**Och den svenska varianten är starkare än den tyska.** Tyskarna fick slåss i
+domstol för en rätt vi haft sedan 1766. Offentlighetsprincipen kräver ingen
+motivering, tillåter anonymitet och kräver att myndigheten svarar skyndsamt.
+Det Topf Secret behövde ett rättsfall för är i Sverige utgångsläget.
+
+Formen: på en verksamhetssida där vår senaste kontroll är gammal, eller där vi
+inte har någon alls, står en knapp som skriver begäran åt besökaren. Den
+skickas i besökarens eget namn eller i vårt, och svaret göder registret.
+
+Vad det ger på en gång:
+- **Täckning som växer där efterfrågan finns**, alltså precis där den är värd
+  mest, i stället för i den ordning vi råkar orka.
+- **Ett skäl att komma tillbaka.** Ett svar som dyker upp är ett mejl vi får
+  skicka utan att sälja något.
+- **Spridning.** Den som begärt ut något berättar det.
+- **Ett svar på 2 501 verksamheter utan kontroll nyare än två år**, som i dag
+  bara är en tystnad på sidan.
+
+Vad som måste utredas innan den byggs: spärr mot missbruk, hur kommunerna
+faktiskt reagerar på volym, och om vi ska skicka i vårt namn eller besökarens.
+Bibelns avsnitt 7b nämner redan goodwill mot myndigheter som ett värde, och en
+maskin som pumpar tusen begäranden i veckan kan förbruka den.
+
+**H2. LIVES, ett färdigt öppet schema för exakt vår datamodell.**
+Yelp tog fram det 2012 tillsammans med San Francisco och New York. Montreal
+publicerar i det i dag, under CC BY 4.0, med filerna `feed_info.csv`,
+`businesses.csv` och `violations.csv`. Standarden har inte uppdaterats sedan
+2015, men den finns, den är etablerad och vem som helst får ansluta.
+
+Det gör två saker för oss. Vår egen normalisering får en genomtänkt
+fältuppsättning gratis i stället för en påhittad, och B1 blir billigare: att
+publicera i ett format andra redan kan läsa är värt mer än att publicera i ett
+eget.
+
+**H3. Identitetsnyckeln, belagd av Frankrike.**
+Alim'confiance är ett statligt API med 73 278 poster, daglig extraktion, och
+verksamheten identifierad med **SIRET**, alltså organisationsnumret, plus
+färdiga koordinater. Det är hela skillnaden mot att para ihop på namn och
+adress som vi tvingas göra. Det bekräftar att arbetet i
+`12_datapairing_och_orgnr.md` är rätt investering och inte en utvikning.
+
+**H4. Hur länge en dålig kontroll ska synas.**
+Irland avpublicerar differentierat efter åtgärdstyp: stängningsbeslut och
+förbättringsförelägganden ligger kvar tre månader efter att de hävts,
+förbudsbeslut en månad. Tyskland har dessutom ett författningsdomstolsavgörande
+på att publicering utan tidsgräns strider mot näringsfriheten,
+BVerfG 21 mars 2018 i mål 1 BvF 1/13.
+
+Vi har ingen uttalad regel alls. Historiken ligger kvar så länge källan har
+den. Det är förmodligen rätt, eftersom vi speglar allmänna handlingar och inte
+utfärdar sanktioner, men det ska vara ett skrivet beslut och inte en
+underlåtenhet. Hör ihop med E1.
+
+**H5. En riskvarning värd att känna till.**
+Berlins transparenslag upphävdes 28 februari 2026, och Verwaltungsgericht
+Berlin förbjöd stadsdelen Pankow att fortsätta publicera sin smileylista.
+Domstolen fann att stadsdelen varken kunde stödja sig på den egna lagen eller
+direkt på artikel 11.3 i EU:s kontrollförordning 2017/625. Det gäller en
+MYNDIGHETS egen publicering och inte en privat aktör som återpublicerar redan
+utlämnade handlingar, vilket är en annan sak juridiskt, men det visar att
+grunden inte är självklar. Skickas vidare till E1.
+
 ---
 
 ## 4. Rangordningen
@@ -281,6 +361,7 @@ göras utan ägarens medverkan, och blir den värdelös om den görs för sent.
 | 8 | E1 Utgivningsbevisets ansökan | Största risken, minsta kostnaden |
 | 9 | B11 Indexeringsmätningen | Vi vet inte om sexton tusen sidor ens finns i Google |
 | 10 | E5 Driftövervakning | Vi vet inte om sajten står upp |
+| 11 | H1 Begär ut kontrollen | Täckningsmaskin driven av efterfrågan, och Sverige har bättre lagstöd än Tyskland |
 
 **Våg 2, kräver våg 1 eller ett kort besked**
 

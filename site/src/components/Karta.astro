@@ -675,6 +675,35 @@ const LEGEND = [
         />
 
         {/*
+          RENSKNAPPEN, och den finns för att webbläsarens egen är ful.
+
+          Fältet är `type="search"`, och Chrome och Safari ritar då sin egen
+          kryssknapp i högerkanten så fort det står något i fältet. Ägaren
+          2026-08-30: "kryss-ikonen är också ful, matchar ej vårt tema." Den
+          är webbläsarens och inte vår: fet, svart och i en form som inte
+          finns någon annanstans på sajten.
+
+          Den är släckt i stilarna och ersatt av den här, som bär exakt samma
+          kryss som chippens `.chip-bort`, alltså 10 px, `stroke-width` 1.8
+          och runda ändar, i --text-secondary. Samma kryss på samma yta ska se
+          likadant ut.
+
+          Typen står kvar som `search`. Den bär Escape-rensning på skrivbordet
+          och rätt tangentbord på telefonen, och det är knappen som var fel,
+          inte typen.
+        */}
+        <button type="button" class="nolla" data-nolla hidden aria-label="Rensa sökningen">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path
+              d="M4 4l8 8M12 4l-8 8"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+
+        {/*
           LUPPEN LIGGER SIST I MARKUPEN, alltså i fältets HÖGERKANT.
 
           Den låg först, på x 41 i en kolumn där kategoriradens första ikon,
@@ -1278,6 +1307,7 @@ const LEGEND = [
     const visaFler = root.querySelector<HTMLButtonElement>('[data-visa-fler]')!;
     const filterFalt = root.querySelector<HTMLInputElement>('[data-filter]')!;
     const rensa = root.querySelector<HTMLButtonElement>('[data-rensa]')!;
+    const nolla = root.querySelector<HTMLButtonElement>('[data-nolla]')!;
     const kartram = root.querySelector<HTMLElement>('[data-kartram]')!;
     const kort = root.querySelector<HTMLElement>('[data-kort]')!;
 
@@ -2322,8 +2352,22 @@ const LEGEND = [
      */
     let chipUtfallt = false;
 
-    /** Textfältets golv i px. Samma tal som `flex-basis` i .filterfalt input. */
-    const CHIP_TEXTRUM = 208;
+    /**
+     * Textfältets golv i px, LÄST UR STILEN och inte skrivet här.
+     *
+     * Talet stod som en kopia av `flex-basis` på .filterfalt input, och en
+     * kopia kan inte följa med en mediefråga. När golvet blev 128 på smal
+     * skärm hade räkningen här fortsatt reservera 208, alltså gömt chip som
+     * hade fått plats. Nu finns talet en gång, som --chip-textrum, och båda
+     * sidor läser samma värde.
+     *
+     * Läses vid varje anrop och inte en gång: `stallChippar` körs om vid
+     * ändrad bredd, och det är just då talet kan ha bytts av mediefrågan.
+     */
+    function chipTextrum(): number {
+      const varde = getComputedStyle(filterFaltRuta).getPropertyValue('--chip-textrum');
+      return parseFloat(varde) || 208;
+    }
 
     function byggChip(nyckel: string, krock: Set<string>): HTMLElement {
       const chip = document.createElement('span');
@@ -2410,9 +2454,30 @@ const LEGEND = [
       const gap = parseFloat(cs.columnGap) || 0;
       const inne =
         filterFaltRuta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      /*
+       * PLATSEN ATT LÄGGA CHIP PÅ, och den räknas olika i arket.
+       *
+       * PÅ BRED SKÄRM delar chippen rad med textfältet, luppen och
+       * rensknappen. Det som blir över är fältets innermått minus de tre och
+       * minus textens golv. Rensknappen är gömd när fältet är tomt och mäter
+       * då noll av sig själv, alltså behövs inget villkor för den.
+       *
+       * I ARKET har chippen en egen rad, se .chippar i mediefrågan längst ned.
+       * Då är platsen hela radens bredd, och varken luppen eller texten står i
+       * vägen. Skillnaden mätt vid 375: 118 px blir 322, alltså ryms två eller
+       * tre namn i stället för ett.
+       *
+       * Villkoret läses ur den FAKTISKA layouten och inte ur en brytpunkt
+       * skriven en andra gång. Grundformen är `display: contents`, alltså har
+       * behållaren ingen egen bredd; i arket är den en flexrad med en.
+       */
       const luppRuta = filterFaltRuta.querySelector<HTMLElement>('.lupp');
-      const lupp = luppRuta ? luppRuta.offsetWidth + gap : 0;
-      const plats = inne - lupp - CHIP_TEXTRUM;
+      const nollaRuta = filterFaltRuta.querySelector<HTMLElement>('.nolla');
+      const lupp =
+        (luppRuta ? luppRuta.offsetWidth + gap : 0) +
+        (nollaRuta && !nollaRuta.hidden ? nollaRuta.offsetWidth + gap : 0);
+      const egenRad = getComputedStyle(chippar).display !== 'contents';
+      const plats = egenRad ? chippar.clientWidth : inne - lupp - chipTextrum();
 
       /* Knappen mäts med sin BREDASTE möjliga text, alltså med alla chip
          gömda, så att den aldrig blir bredare än det som räknades med. */
@@ -3055,6 +3120,7 @@ const LEGEND = [
          handfull av tolvhundra, bredvid en karta som just flugit dit. */
       filterFalt.value = '';
       filterVarde = '';
+      stallNolla();
       tillampa?.();
       forslag.hidden = true;
       filterFalt.setAttribute('aria-expanded', 'false');
@@ -3084,6 +3150,7 @@ const LEGEND = [
       if (pa) {
         filterFalt.value = '';
         filterVarde = '';
+        stallNolla();
         tillampa?.();
       }
       satOmrade(nytt, { flyg: pa });
@@ -3177,7 +3244,35 @@ const LEGEND = [
      */
     let tillampa: (() => void) | null = null;
 
+    /**
+     * Rensknappens synlighet, och den styrs av VÄRDET och ingenting annat.
+     *
+     * Det är webbläsarens egen regel för `type="search"`, alltså den besökaren
+     * redan känner: krysset finns när det står något i fältet och inte annars.
+     * Att låta den bero på fokus hade gjort den borta i det läge man oftast
+     * vill rensa, nämligen efter att ha läst resultatet och tappat fokus.
+     *
+     * Chippen räknas om, för knappen tar 22 px plus mellanrum ur samma rad.
+     */
+    function stallNolla() {
+      const skaSynas = filterFalt.value.length > 0;
+      if (nolla.hidden === !skaSynas) return;
+      nolla.hidden = !skaSynas;
+      stallChippar();
+    }
+
+    nolla.addEventListener('click', () => {
+      filterFalt.value = '';
+      stallNolla();
+      tillampa?.();
+      stallForslag();
+      /* Fokus tillbaka i fältet: den som rensar ska kunna skriva vidare utan
+         att sikta en gång till, och på telefon ska tangentbordet stå kvar. */
+      filterFalt.focus();
+    });
+
     filterFalt.addEventListener('input', () => {
+      stallNolla();
       /*
        * Registret hämtas HÄR och inte vid sidladdning, och inte heller vid
        * fokus som sidhuvudets panel gör. Skälet är att fältet står mitt i en
@@ -3198,6 +3293,7 @@ const LEGEND = [
        som lämnar hälften av det som stängde vägen kvar är ingen väg ut. */
     rensa.addEventListener('click', () => {
       filterFalt.value = '';
+      stallNolla();
       katMask = 0;
       stallKatvalen();
       /* ALLA TRE, och området numera med. Knappen syns bara när vyn är tom
@@ -3267,6 +3363,7 @@ const LEGEND = [
 
       if (ev.key === 'Escape' && filterFalt.value) {
         filterFalt.value = '';
+        stallNolla();
         tillampa?.();
         stallForslag();
         // Stanna här: dokumentlyssnaren längre ned stänger annars nålens
@@ -3293,6 +3390,10 @@ const LEGEND = [
         filterVarde = frag.q.trim();
         tillampa?.();
       }
+      /* Utanför villkoret: en delad länk med `q` sätter värdet redan innan
+         den här lyssnaren körs, alltså är värdena lika och krysset hade
+         saknats på just den sida där fältet kommer ifyllt. */
+      stallNolla();
     });
 
     // ── Kategoriraden ────────────────────────────────────────────────────
@@ -6475,6 +6576,27 @@ const LEGEND = [
     display: flex;
     align-items: center;
     gap: var(--s-2);
+    /*
+     * TEXTFÄLTETS GOLV, som en variabel för att den läses på TVÅ ställen.
+     *
+     * `flex-basis` nedan sätter den i stilen, och `stallChippar()` i skriptet
+     * läser samma tal ur `getComputedStyle` för att räkna hur många chip som
+     * ryms. Talet stod förut på båda ställena, 208 i CSS och `CHIP_TEXTRUM`
+     * i skriptet, och på 375 px gick den räkningen sönder utan att någon av
+     * kopiorna var fel: fältet har 324 px inuti, luppen tar 46, och 324 minus
+     * 46 minus 208 är 70 px att lägga chip i. Ett chip som heter
+     * "Östermalm, Stockholm" är omkring 150, alltså rymdes inget alls,
+     * regeln "minst ett chip syns alltid" tvingade in det ändå, och då fanns
+     * inte 208 kvar åt texten. Fältet bröt raden och blev två.
+     *
+     * Ägaren 2026-08-30: "på mobil så stackas det ej bra om man skriver in
+     * flera, sökrutan blir bara jättestor."
+     *
+     * 208 är Boolis tal och gäller på deras bredd. Golvet är därför 128 på
+     * smal skärm, mätt så att ett chip på halva fältet plus "+N" plus texten
+     * ryms på EN rad vid 375. Ett tal och inte två kopior av det.
+     */
+    --chip-textrum: 208px;
     /* Chippen faller nedåt när de inte får plats. Se noten vid .chip: på
        375 px har fältet 343 att röra sig på och luppen tar 38 av dem, alltså
        ryms ett chip plus ett skrivbart textfält och inte två. */
@@ -6551,7 +6673,7 @@ const LEGEND = [
      något man skriver i utan en chipbehållare med en sladd efter sig, och
      `flex-wrap` lägger då raden nedåt i stället. */
   .filterfalt input {
-    flex: 1 1 208px;
+    flex: 1 1 var(--chip-textrum);
     min-width: 0;
     /* 38 och inte 28: sidhuvudets input är `height: 100%` i ett fält på 44
        med 3 px luft, alltså 38, och luppen bredvid är 38. Tre höjder i samma
@@ -6567,6 +6689,66 @@ const LEGEND = [
 
   .filterfalt input:focus { outline: none; }
   .filterfalt input::placeholder { color: var(--text-muted); }
+
+  /*
+   * WEBBLÄSARENS EGEN KRYSSKNAPP ÄR SLÄCKT.
+   *
+   * `type="search"` ger en `::-webkit-search-cancel-button` i Chrome och
+   * Safari så fort fältet har ett värde. Den är ritad av webbläsaren, bär
+   * varken vår grad, vår färg eller vår streckbredd, och den syns bara i
+   * hälften av webbläsarna. Två sökfält på samma sajt fick alltså olika
+   * kryss beroende på vad besökaren råkade sitta i.
+   *
+   * Dekorationen tas med, den ritar en andra lupp i äldre Safari.
+   */
+  .filterfalt input::-webkit-search-cancel-button,
+  .filterfalt input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /*
+   * VÅR EGEN, och den bär chippens kryss: 10 px, streck 1.8, runda ändar,
+   * --text-secondary. Ytan är 22 x 18 som `.chip-bort`, med en genomskinlig
+   * träffyta på --h-tap centrerad över, av samma skäl som där.
+   *
+   * Den står FÖRE luppen och inte efter. Luppen bär fältets högerkant och är
+   * den form ögat känner igen på håll, se noten vid markupen, och en knapp
+   * utanför den hade flyttat den kanten varje gång man skrev ett tecken.
+   */
+  .nolla {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .nolla::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--h-tap);
+    height: var(--h-tap);
+    transform: translate(-50%, -50%);
+  }
+
+  .nolla:hover { color: var(--text); }
+  .nolla svg { width: 10px; height: 10px; }
+  .nolla[hidden] { display: none; }
+
+  .nolla:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: var(--r-control);
+  }
 
   /* Rensknappen i tomläget. En riktig knapp med kant, inte en textlänk: den
      är det enda handlingsbara som syns när filtret tömt vyn. */
@@ -8578,6 +8760,69 @@ const LEGEND = [
      * inte förhandlingsbart.
      */
     .split.ark .filterfalt input { font-size: 16px; }
+
+    /*
+     * ══ CHIPPEN FÅR EN EGEN RAD I ARKET ════════════════════════════════════
+     *
+     * Ägaren 2026-08-30: "på mobil så stackas det ej bra om man skriver in
+     * flera, sökrutan blir bara jättestor."
+     *
+     * ── EN RAD ÄR OMÖJLIG, OCH DET ÄR MÄTT ────────────────────────────────
+     *
+     * Uppmätt i webbläsaren vid 375, inte räknat på papper: fältet är 343 px
+     * brett och har 322 innanför sina kanter. Luppen tar 38, rensknappen 22,
+     * mellanrummen 8 var, chippet "Hässelby Villastad" 150 och "+2" 35.
+     * Textfältet ska ha minst 208 för att gå att skriva i, och Boolis tal
+     * gäller deras bredd. Summan är 405 mot 322 tillgängliga.
+     *
+     * Även med textgolvet nedskruvat till 128 blir summan 325. Det finns
+     * alltså ingen inställning där ett chip, en räknare och ett skrivbart
+     * fält står på samma rad vid 375. Grundformens `flex-wrap` bröt raden
+     * någonstans i mitten, och resultatet såg ut som ett misstag därför att
+     * det var ett: brytpunkten låg där chippen råkade ta slut.
+     *
+     * ── ALLTSÅ TVÅ RADER, MEN AVSIKTLIGA ──────────────────────────────────
+     *
+     * Chippen får hela sin egen rad överst, textfältet med rensknappen och
+     * luppen står på den andra. Höjden är därmed densamma vid ett chip som
+     * vid tio, eftersom hopfällningen räknar mot chippradens bredd och inte
+     * mot vad som blir över efter texten.
+     *
+     * Två saker vinns på köpet. Chippen får 322 px i stället för 118, alltså
+     * ryms två eller tre namn synliga i stället för ett plus "+N". Och
+     * textfältet får hela sin bredd tillbaka, alltså 246 px, vilket är mer än
+     * Boolis 208 och mer än det hade haft i någon av de andra lösningarna.
+     *
+     * `:empty` och inte ett villkor i skriptet: utan valda områden finns
+     * ingen rad, och fältet är exakt det enkla fält det var förut.
+     */
+    .split.ark .filterfalt .chippar {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: var(--s-2);
+      width: 100%;
+      min-width: 0;
+      /* Chippens rad står mot fältets vänsterkant och textraden under, alltså
+         ska raden inte bära den högerpadding som finns för luppens skull. */
+      margin-right: calc(-1 * 3px);
+    }
+
+    .split.ark .filterfalt .chippar:empty { display: none; }
+
+    /* Ett enskilt chip får inte spränga sin rad. Det klipps med ellips,
+       vilket .chip redan gör, och taket gäller raden och inte fältet. */
+    .split.ark .filterfalt :global(.chip) { max-width: 100%; }
+
+    /*
+     * ARKETS ÖVERKANT, och fyra pixlar är fokusringen.
+     *
+     * `.filterfalt:has(input:focus-visible)` ritar `outline: 2px` med
+     * `outline-offset: 2px`, alltså fyra pixlar ovanför fältets kant. Arket
+     * klipper sitt innehåll för att hålla sina rundade hörn, och rullytan
+     * hade `padding-top: 0`, så ringens överkant kapades rakt av så fort
+     * fältet fick fokus. Ägaren 2026-08-30: "det vita döljer typ toppen".
+     */
+    .split.ark .arkinne { padding-top: 4px; }
 
     /*
      * ══ RADEN I ARKET ══════════════════════════════════════════════════════
