@@ -1,0 +1,211 @@
+---
+/**
+ * Kontrollserien i löpande text: fyra meningar som bara gäller det här stället.
+ *
+ * ── VARFÖR KOMPONENTEN FINNS ────────────────────────────────────────────────
+ * `docs/51_klickdjupet.md` §8 mätte att 61 procent av brödtexten på en
+ * verksamhetssida står ordagrant på minst nio av tio andra, och att
+ * verksamheterna har lägst andel eget innehåll av sajtens åtta sidtyper. Mätt
+ * om i `docs/53_egen_text_per_sida.md` på bygget 2026-08-31, med 15 365
+ * verksamheter i sitemapen: 1 004 ord i medianen, 145 unika åttaordssekvenser,
+ * alltså 14,7 procent eget.
+ *
+ * Blockindelningen i samma dokument visade att de tre största blocken räknat i
+ * tecken är sajtens sidfot (1 105), omdömesrutan (776) och nyckeltalen med
+ * sina tips (652). Två av de tre står ordagrant på kedjesidorna också, och de
+ * är fyra av fyra indexerade. Alltså är det inte boilerplaten som skiljer
+ * sidtyperna åt, utan hur mycket EGET en sida bär. Den här komponenten arbetar
+ * på täljaren.
+ *
+ * ── VAD DEN FÅR OCH INTE FÅR GÖRA ───────────────────────────────────────────
+ * Varje mening är en mall som fylls med värden ur kontrollerna. Ingen mening
+ * är formulerad per sida av en språkmodell, och ingen mening får bli osann på
+ * någon av de 15 365. Därför har varje mening ett villkor, och den uteblir
+ * hellre än att gissa: en kontroll utan datum, en `prenotified` som är null
+ * eller ett spann som är för kort ger färre meningar, aldrig en luddigare.
+ *
+ * Meningarna säger vad KOMMUNEN har publicerat på ADRESSEN. De säger aldrig
+ * något om verksamhetens ålder, aldrig något om hur stället ligger till mot
+ * grannarna, och aldrig något om vad talen borde ha varit. Kontrollerna är
+ * registrerade på lokalen och inte på företaget, se `facts` i sidmallen och
+ * avsnittet "Historiken följer lokalen, inte företaget" på /metodik/.
+ *
+ * ── UTFALLET, MÄTT ÖVER HELA BESTÅNDET ──────────────────────────────────────
+ * Simulerat mot site/src/data 2026-08-31, alla 17 066 poster:
+ *
+ *   1 574 poster (9,2 %) saknar publicerad kontroll och får inget block alls.
+ *   2 720 får två meningar, 5 106 tre och 7 666 fyra.
+ *   Median 232 tecken, medel 212, kortast 99 och längst 312.
+ *
+ * Talet 232 ska ställas mot sidans hela brödtext på omkring 6 600 tecken.
+ */
+import { formatDate, formatNumber, type Inspection } from '../lib/data';
+
+interface Props {
+  inspections: Inspection[];
+  /** Kommunens namn i den form den själv använder, "Stockholms stad". */
+  kommun: string;
+  /**
+   * Adressleden, färdigskrivet av sidmallen: "på Folkungagatan 67" eller
+   * "på adressen" när kommunen inte lämnat någon. Skickas in i stället för att
+   * byggas här, så att det finns EN definition av ledet på sidan. Samma sträng
+   * står i tipset vid bedömningen.
+   */
+  plats: string;
+}
+
+const { inspections, kommun, plats } = Astro.props;
+
+const TYP_EN: Record<Inspection['type'], string> = {
+  0: 'en planerad kontroll',
+  1: 'ett återbesök',
+  2: 'en händelsestyrd kontroll',
+};
+const TYP_ETT: Record<Inspection['type'], string> = {
+  0: 'planerad kontroll',
+  1: 'återbesök',
+  2: 'händelsestyrd kontroll',
+};
+const TYP_FLER: Record<Inspection['type'], string> = {
+  0: 'planerade kontroller',
+  1: 'återbesök',
+  2: 'händelsestyrda kontroller',
+};
+
+/**
+ * Svenskt ordningstalssuffix. "var 2:a månad", "var 3:e", "var 12:e",
+ * "var 21:a". Elfte och tolfte är undantagen som gör att sista siffran inte
+ * räcker som regel.
+ */
+function suffix(n: number): string {
+  const tva = n % 100;
+  if (tva === 11 || tva === 12) return 'e';
+  const en = n % 10;
+  return en === 1 || en === 2 ? 'a' : 'e';
+}
+
+const meningar: string[] = [];
+
+/*
+ * Datumen läses ur en egen sortering och inte ur listans ordning.
+ *
+ * Lagret lämnar kontrollerna nyast först, och resten av sidan litar på det.
+ * Här kostar det ingenting att inte göra det: ISO-datum sorterar som strängar,
+ * och en mening som påstår "den första den X" måste vara sann även den dag
+ * exporten byter ordning på en rad. En kontroll utan datum fäller hela
+ * blocket, för då går varken första eller senaste att påstå. Noll poster i
+ * beståndet bär i dag en kontroll utan datum, så villkoret kostar ingen sida.
+ */
+const datum = inspections.map((i) => i.date).filter(Boolean).sort();
+const n = inspections.length;
+const har = n > 0 && datum.length === n;
+
+if (har) {
+  const forsta = datum[0];
+  const sista = datum[n - 1];
+
+  // 1. Perioden. Två fulla datum är det som gör meningen till just den här
+  //    verksamhetens: av 15 365 sidor delar knappt någon båda ändarna.
+  if (n === 1) {
+    meningar.push(`${kommun} har publicerat en kontroll ${plats}, den ${formatDate(forsta)}.`);
+  } else if (forsta === sista) {
+    // 51 poster i beståndet har flera kontroller som alla ligger på samma dag.
+    // "Den första den X och den senaste den X" hade lästs som ett fel i datan.
+    meningar.push(
+      `${kommun} har publicerat ${formatNumber(n)} kontroller ${plats}, ` +
+        `samtliga den ${formatDate(forsta)}.`,
+    );
+  } else {
+    meningar.push(
+      `${kommun} har publicerat ${formatNumber(n)} kontroller ${plats}, ` +
+        `den första den ${formatDate(forsta)} och den senaste den ${formatDate(sista)}.`,
+    );
+  }
+
+  /*
+   * 2. Takten. Snittet är spannet delat på antalet mellanrum, alltså n minus
+   *    ett, och det avrundas till hela månader. Ordet "i snitt" bär
+   *    avrundningen; ett decimaltal här hade varit en precision vi inte har,
+   *    eftersom kommunens publiceringsfönster inte är verksamhetens historik.
+   *
+   *    Två villkor. MINST TRE kontroller, för med två är "snittet" bara
+   *    avståndet mellan de två och meningen låtsas vara en takt. MINST ETT ÅR
+   *    mellan ändarna, av samma skäl. Och snittet skrivs bara ut från två
+   *    månader och uppåt, för "var 1:a månad" är inte svenska för det som
+   *    händer.
+   */
+  const dagar = (Date.parse(sista) - Date.parse(forsta)) / 86_400_000;
+  if (n >= 3 && dagar >= 365) {
+    const manader = Math.round(dagar / 30.437 / (n - 1));
+    if (manader >= 2) {
+      meningar.push(`Det blir i snitt en kontroll var ${manader}:${suffix(manader)} månad.`);
+    }
+  }
+
+  // 3. Formerna. Tidslinjen bär redan varje rads etikett; det här är summan av
+  //    dem, och summan står ingen annanstans på sidan. Nyckeltalet "Återbesök"
+  //    räknar samma typ 1, så talen kan aldrig skilja sig åt.
+  const antal: Record<number, number> = { 0: 0, 1: 0, 2: 0 };
+  for (const i of inspections) antal[i.type] = (antal[i.type] ?? 0) + 1;
+  const typer = ([0, 1, 2] as const).filter((t) => antal[t] > 0);
+
+  if (n === 1) {
+    // "Det var" och inte "Kontrollen var": ordet kontroll står redan två gånger
+    // i meningen före, och tre gånger på två rader läser som en mall.
+    meningar.push(`Det var ${TYP_EN[inspections[0].type]}.`);
+  } else if (typer.length === 1) {
+    meningar.push(`Samtliga är ${TYP_FLER[typer[0]]}.`);
+  } else {
+    const delar = typer.map(
+      (t) => `${formatNumber(antal[t])} ${antal[t] === 1 ? TYP_ETT[t] : TYP_FLER[t]}`,
+    );
+    meningar.push(`Av dem är ${delar.slice(0, -1).join(', ')} och ${delar.at(-1)}.`);
+  }
+
+  /*
+   * 4. Anmälan. `prenotified` är null där kommunen inte lämnar uppgiften, och
+   *    meningen skrivs bara när den är känd för VARJE kontroll. Ett tal som
+   *    tyst räknar på en delmängd hade varit osant på precis de sidor där
+   *    källan är tunnast. 68 673 av beståndets 73 335 kontroller bär
+   *    uppgiften, alltså 93,6 procent.
+   */
+  const kanda = inspections.filter((i) => i.prenotified !== null && i.prenotified !== undefined);
+  if (kanda.length === n) {
+    const oanmalda = inspections.filter((i) => i.prenotified === false).length;
+    const foranmalda = n - oanmalda;
+    if (n === 1) {
+      meningar.push(oanmalda === 1 ? 'Den gjordes oanmäld.' : 'Den var föranmäld.');
+    } else if (oanmalda === n) {
+      meningar.push('Samtliga gjordes oanmälda.');
+    } else if (foranmalda === n) {
+      meningar.push('Samtliga var föranmälda.');
+    } else {
+      meningar.push(
+        `${formatNumber(oanmalda)} av dem gjordes ${oanmalda === 1 ? 'oanmäld' : 'oanmälda'} ` +
+          `och ${formatNumber(foranmalda)} ${foranmalda === 1 ? 'föranmäld' : 'föranmälda'}.`,
+      );
+    }
+  }
+}
+---
+
+{meningar.length > 0 && <p class="serie">{meningar.join(' ')}</p>}
+
+<style>
+  /*
+   * Stycket är prosa och ingen bildtext. Det står under rubriken
+   * "Kontrollhistorik" och över tidslinjen, alltså läses det som ingången till
+   * listan under, och då ska det ha brödtextens storlek och radavstånd.
+   *
+   * 62ch är samma radlängd som presentationen i Foretagsuppgifter.astro. En
+   * rad på hela huvudkolumnens 680 px hade blivit omkring 95 tecken, vilket är
+   * över det spann där ögat hittar tillbaka till nästa rad.
+   */
+  .serie {
+    max-width: 62ch;
+    margin: var(--s-3) 0 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--text-secondary);
+  }
+</style>

@@ -53,6 +53,20 @@ function detail(i: Inspection): string {
     )}
   </div>
 
+  {/* Ingången till listan, i löpande text.
+
+      Sidmallen skickar in Kontrollserien.astro här i stället för att sätta ut
+      den som ett eget avsnitt efter historiken. Skälet är att stycket ÄR en
+      sammanfattning av tabellen under: period, takt, kontrollformer och
+      anmälan. Ett eget avsnitt hade krävt en egen rubrik, och en andra rubrik
+      om kontroller tio centimeter från den första säger inte vad den nya
+      handlar om. Här står prosan där någon som just sett rubriken börjar läsa,
+      och tidslinjen kommer direkt under den. Se docs/53_egen_text_per_sida.md.
+
+      Slotten är tom på varje annan anropare, och avsnittet ser då ut precis som
+      förut. */}
+  <slot />
+
   {inspections.length === 0 ? (
     <p class="empty text-secondary">
       Kommunen har inte registrerat någon livsmedelskontroll för den här

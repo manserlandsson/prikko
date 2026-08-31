@@ -57,6 +57,7 @@ import ControlBreakdown from '../../components/ControlBreakdown.astro';
 import FollowUp from '../../components/FollowUp.astro';
 import RecurringIssues from '../../components/RecurringIssues.astro';
 import InspectionHistory from '../../components/InspectionHistory.astro';
+import Kontrollserien from '../../components/Kontrollserien.astro';
 import Bilder from '../../components/Bilder.astro';
 import Fordelning from '../../components/Fordelning.astro';
 import Nyckeltal from '../../components/Nyckeltal.astro';
@@ -942,7 +943,21 @@ const breadcrumbs = {
 
         <RecurringIssues issues={recurring} />
 
-        <InspectionHistory inspections={e.inspections} />
+        {/* Kontrollserien i löpande text, som ingång till tidslinjen.
+
+            Blocket är sidans svar på `docs/51_klickdjupet.md` §9.4: höj det
+            EGNA innehållet i stället för att skriva mer. Fyra meningar byggda
+            av kontrollernas datum, antal, former och anmälan, alltså av
+            uppgifter som redan står på sidan som etiketter i en lista men
+            aldrig som prosa. Median 232 tecken, och 1 574 poster utan
+            publicerad kontroll får ingenting alls. Villkoren och nämnarna står
+            i Kontrollserien.astro.
+
+            `plats` skickas in och byggs inte där, så adressledet har en enda
+            definition på sidan: samma sträng står i tipset vid bedömningen. */}
+        <InspectionHistory inspections={e.inspections}>
+          <Kontrollserien inspections={e.inspections} kommun={kommun.name} plats={plats} />
+        </InspectionHistory>
 
         {/* Kartan som egen sektion i huvudkolumnen med adressen under, som
             hos booli. Efter historiken: den hör till fakta om stället men
@@ -1242,9 +1257,28 @@ const breadcrumbs = {
           <div class="panel" data-nosnippet>
             <h2 class="panel-title">
               Bäst i närheten
+              {/* Tipset är kortat från fyra meningar till två, och skälet är
+                  mätt i docs/53_egen_text_per_sida.md.
+
+                  Meningarna som gick bort var "Båda talen står på varje rad, så
+                  ordningen går att pröva" och "Listan visar bara de utan
+                  anmärkningar, och vi publicerar aldrig den omvända". Den
+                  första är meta om meningen före den: raden VISAR båda talen,
+                  och att beskriva att den gör det säger inget en läsare inte
+                  ser. Den andra är ett löfte om vad Prikko aldrig gör, alltså
+                  policy och inte en förklaring av listan, och den står nu i
+                  "Vad vi inte gör" på /metodik/ i stället. Att listan bara
+                  innehåller ställen utan anmärkningar står kvar i första
+                  meningen här, så inget en läsare behöver har försvunnit.
+
+                  Kostnaden var 133 tecken ordagrant lika på de 78 procent av
+                  verksamhetssidorna som bär panelen, alltså omkring 104 tecken
+                  per sida i medel. Det är två procent av sidans brödtext, och
+                  det ska läsas som det lilla det är: nästan all boilerplate på
+                  sidan är sådan som måste stå kvar. */}
               <InfoTip
                 label="bäst i närheten"
-                text={`Verksamheter inom ${BEST_NEARBY_M} meter som fick inga anmärkningar vid sin senaste kontroll. Flest kontroller bakom bedömningen står först, och vid lika många den närmaste. Båda talen står på varje rad, så ordningen går att pröva. Listan visar bara de utan anmärkningar, och vi publicerar aldrig den omvända.`}
+                text={`Verksamheter inom ${BEST_NEARBY_M} meter som fick inga anmärkningar vid sin senaste kontroll. Flest kontroller bakom bedömningen står först, och vid lika många den närmaste.`}
               />
             </h2>
 
