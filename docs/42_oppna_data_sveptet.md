@@ -10,6 +10,79 @@ Där något inte gick att belägga står det som overifierat.
 
 ---
 
+## 0. RÄTTELSE 2026-08-31: grupp A är inte tom, Stockholm ligger i den
+
+**Vad som stod.** Avsnitt 1 skriver att noll svenska kommuner publicerar
+kontrollresultat med fri licens, och att grupp A "är tom, och det är en mätning
+och inte en lucka". Avsnitt 3.2 rad 3 avfärdar Stockholms datamängd
+*Tillsynsverksamheter - Livsmedel* med orden "Ecos 2, veckovis. Redan inläst
+via annan väg | Inget nytt". Avsnitt 9 skriver av Stockholms datamängd på
+`resources.stockholm.se` med "Anropet svarade inte. Saknar betydelse, Stockholm
+är redan inläst".
+
+**Vad som är sant.** Den datamängden är ett ArcGIS-lager med **289 742 rader,
+en per rapporteringspunkt vid ett kontrolltillfälle, på 8 146 anläggningar**,
+med datum från 2018-01-02 till 2025-10-21, koordinater, riskklass och utfall
+per punkt. Villkoren står i Stockholms egen metadatapost och är **CC0 1.0**,
+med full licenstext och åtkomstbegränsningen satt till "Inga begränsningar".
+Det är kontrollresultat, per verksamhet, med fri licens. **Grupp A innehåller
+alltså en kommun och 8 146 anläggningar, inte noll.**
+
+Beståndet är samtidigt mindre värt än talen antyder, och hela mätningen ligger
+i **`docs/52_stockholmslagret.md`**. Kort: 94,5 procent av anläggningarna och
+95,5 procent av kontrollerna har vi redan, lagret slutade uppdateras
+**2025-10-22** trots att katalogen lovar veckovis, och det saknar varje
+anläggnings-id som går att para mot vårt. Rekommendationen där är att inte
+hämta det, utan att använda det som underlag för ett brev.
+
+**Hur felet uppstod.** Tre saker föll samman, och den tredje är den som ska
+läras av.
+
+1. **Titeln avfärdade beståndet.** "Tillsynsverksamheter - Livsmedel" lät som
+   en anläggningslista, och Stockholm var redan inläst. Posten sorterades på
+   den slutsatsen i stället för på sitt innehåll.
+2. **Identifieraren i posten går inte att hämta.**
+   `https://resources.stockholm.se/data/76f2c008-...` är en URI och inte en
+   adress. Värdnamnet svarar inte alls, vilket avsnitt 9 noterade korrekt och
+   drog fel slutsats av.
+3. **Distributionslänken följdes aldrig.** Den ligger inte på URI:n utan i
+   metadataposten bakom `dcat:landingPage`, och den pekar på
+   `open-data-sthlm-miljo.hub.arcgis.com`. **Och den länken svarar 404**,
+   eftersom katalogen pekar på sublager 0 medan tjänsten bara har lager 41.
+   Även den som följde länken hade alltså kommit fram till ingenting.
+
+Punkt 3 är metodlärdomen, och den är spegelvänd mot avsnitt 10:s. Där gällde
+"leta efter datafilen och inte efter sidan". Här gäller **följ distributionen
+till tjänsten även när titeln säger att du redan har beståndet, och sluta inte
+för att katalogens länk är trasig.**
+
+**Två fel till som rättas på köpet.** Avsnitt 5.3 skriver att ArcGIS Online
+"genomsöktes inte om, eftersom R9 gjorde det uttömmande 2026-08-03 och fann
+exakt fyra svenska livsmedelskällor, alla redan inlästa". Det här lagret gör
+femte, och det var publicerat sedan 2024-04-22. Den sökningen var alltså inte
+uttömmande. Och avsnitt 3.2:s "nolltal som betyder mest" står kvar som tal,
+ingen av de 290 kommunerna utom Linköping, Göteborg och Stockholm har en
+livsmedelsdatamängd på dataportal.se, men slutsatsen om vad Stockholms post
+innehåller var fel.
+
+Talen i avsnitt 1 rättas till:
+
+| Grupp | Vad det är | Kommuner | Verksamheter |
+|---|---|---:|---:|
+| **A** | Kontrollresultat per verksamhet, fri licens | **1** (Stockholm) | **8 146** |
+| **B** | Eget format, kontrollresultat | 1 (Norrköping) | 1 022 |
+| **C** | Bara anläggningslista, inga kontroller | 1 (Göteborg) | 5 076 |
+| **D** | Finns, men licensen hindrar oss | 0 | 0 |
+
+**Beståndssiffrorna i avsnitt 7 ändras inte.** Stockholms 8 146 är inte ny
+täckning, de är 8 146 anläggningar vi redan publicerar. Summan 22 142 i
+avsnitt 7.1 och andelen 26,0 procent i 7.2 står kvar oförändrade.
+
+Rapporten nedan står kvar som den skrevs, med hänvisning hit, eftersom en
+rapport som skrivs om i efterhand inte går att lita på.
+
+---
+
 ## 1. Slutsatsen först
 
 **Två källor finns, ingen av dem är den vi hoppades på, och tillsammans är de
@@ -22,9 +95,14 @@ värda 5 895 verksamheter.**
 | **C** | Bara anläggningslista, inga kontroller | 1 (Göteborg) | 5 076 |
 | **D** | Finns, men licensen hindrar oss | 0 | 0 |
 
+*Rättad 2026-08-31: grupp A innehåller Stockholm med 8 146 anläggningar och fri
+licens. Se avsnitt 0 för den rättade tabellen.*
+
 Tre saker är värda att säga rakt ut.
 
-**Grupp A är tom, och det är en mätning och inte en lucka.** Den nationella
+**Grupp A är tom, och det är en mätning och inte en lucka.**
+*(Fel. Se avsnitt 0 och `docs/52`. Nolltalet gäller NSÖD-formatet, inte fri
+licens.)* Den nationella
 specifikationen finns, den är färdig, den heter *Livsmedelskontroller som
 öppna data v2.0* och den togs fram av NSÖD och ÖDIS ovanpå Sambruks och SKL:s
 arbete från 2016. Noll svenska kommuner publicerar i den. NSÖD:s **egen**
@@ -129,7 +207,7 @@ livsmedelsinspektion, livsmedelsanläggning eller kontrollresultat.
 |---|---|---|---|---|
 | 1 | Livsmedelskontroller | Linköpings kommun | **Kontrolldata per verksamhet.** Redan inläst | Inget nytt |
 | 2 | Livsmedelsverksamheter | Göteborgs Stad | **Anläggningslista, CC0.** Se 3.3 | Grupp C |
-| 3 | Tillsynsverksamheter - Livsmedel | Stockholms stad | Ecos 2, veckovis. Redan inläst via annan väg | Inget nytt |
+| 3 | Tillsynsverksamheter - Livsmedel | Stockholms stad | Ecos 2, veckovis. Redan inläst via annan väg | ~~Inget nytt~~ **Fel, se avsnitt 0** |
 | 4 | Restauranger med serveringstillstånd | Göteborgs Stad | Alkoholtillstånd, CC0. Se 3.4 | Sidokälla |
 | 5 | Livsmedelskontroller som öppna data, specifikation | Sambruk | **NSÖD-specen själv.** Se avsnitt 4 | Format |
 | 6 | Specifikation för Livsmedelsinspektioner | Sambruk | Dokumentation på GitHub | Format |
@@ -323,6 +401,44 @@ de övriga 270.
 
 ArcGIS Online genomsöktes inte om, eftersom R9 gjorde det uttömmande
 2026-08-03 och fann exakt fyra svenska livsmedelskällor, alla redan inlästa.
+*Det var ett misstag och R9:s sökning var inte uttömmande: ett femte lager fanns
+publicerat sedan 2024-04-22. Se avsnitt 0 och 5.4.*
+
+### 5.4 Stockholms egen portal, svept om 2026-08-31
+
+Tillagt efter rättelsen i avsnitt 0. Portalsvepet i 5.2 slog upp sju
+värdnamnsmönster per kommun och missade Stockholm helt, eftersom stadens
+öppna data varken ligger på `oppnadata.stockholm.se` eller på ett EntryScape.
+De ligger på tre ställen, och alla tre svepptes nu.
+
+| Var | Metod | Poster | Livsmedelsträffar |
+|---|---|---:|---:|
+| Miljöförvaltningens ArcGIS-hubb | `/api/feed/dcat-us/1.1.json` | **109** datamängder | **1** |
+| Samma förvaltnings ArcGIS-organisation | `arcgis.com/sharing/rest/search?q=owner:sthlm_miljo2023` | **157** poster | **3** |
+| Stadens GeoNetwork | `dataportalen.stockholm.se/dataportalen/srv/api/records/<uuid>` | posten i avsnitt 0 | 1 |
+| Sveriges dataportal, filtrerat på Stockholm | 17 sökningar | 21 stockholmsposter | 1 |
+
+**Resultat: tre livsmedelslager hos miljöförvaltningen, inte ett.**
+
+1. **Livsmedelstillsyn**, 289 742 rader, CC0, katalogförd. Rättelsen i
+   avsnitt 0, hela mätningen i `docs/52_stockholmslagret.md`.
+2. **Rätt skylt 2026**, 5 847 rader, senast ändrad **2026-07-24**, alltså
+   levande. Bär `AnlaggningId` som **är** e-tjänstens guid, alltså vårt eget
+   id, med 5 416 träffar mot `site/src/data/stockholm.json`. Ingen katalogpost,
+   **ingen licens**.
+3. **Inventering av livsmedelsanläggningar**, 13 095 rader, senast ändrad
+   2025-07-20, samma nyckel, 7 316 träffar mot oss. Ingen katalogpost,
+   **ingen licens**.
+
+Nummer 2 och 3 ser ut att vara arbetsmaterial för fältinventering. De är
+läsbara utan inloggning, men ingen har skrivit några villkor för dem. Enligt
+`docs/prikko-licens-lasas-som-den-star` läser vi villkoren som de står, och
+här står ingenting, precis som för Norrköpings `ecos.xml` i 6.4. **Frånvaro av
+licens är inte ett ja, och vi hämtar dem inte.** Att de finns är däremot ett
+argument i brevet till Stockholm, se `docs/52` avsnitt 8.3.
+
+Utanför miljöförvaltningen finns inget. Stadens övriga poster på Sveriges
+dataportal är baskartor och stadskartor från stadsbyggnadskontoret.
 
 ---
 
@@ -549,7 +665,7 @@ högen.
 | Malmö kör Castor | Slutsats dragen ur ett exempel i specen. **Spekulation** |
 | De 270 kommuner uppdraget inte namngav | Endast täckta via dataportal.se och portalsvepet, inte via sitemap |
 | Webbsökning | Kunde inte köras, budgeten var slut. Se 5.3 |
-| Stockholms datamängd på `resources.stockholm.se` | Anropet svarade inte. Saknar betydelse, Stockholm är redan inläst |
+| Stockholms datamängd på `resources.stockholm.se` | ~~Anropet svarade inte. Saknar betydelse~~ **Utredd 2026-08-31, se avsnitt 0 och `docs/52`** |
 
 ---
 
