@@ -162,6 +162,30 @@ class EcosMunicipality:
 #: `check_modified` läser fortfarande `Last-Modified` vid varje hämtning och
 #: larmar när `source_modified` inte stämmer, alltså märks en ny version också
 #: som en avvikelse och inte bara som tystnad.
+#:
+#: ══ DET FINNS INGEN NYARE FIL, OCH DET ÄR GENOMSÖKT ══════════════════════
+#:
+#: Sökt 2026-08-31, så att ingen behöver göra om det:
+#:
+#: - **Inuti XML:en finns ingen generationsstämpel.** Taggarna är `insps`,
+#:   `insp`, `inspid`, `dnr`, `namn`, `besadr`, `hdatum`, `anmald`,
+#:   `bedomning` och `kontroll`. Enda datumet är `hdatum`, alltså
+#:   kontrolldatum per rad, och det nyaste är 2024-01-03. Filen kan alltså
+#:   inte avslöja sin egen ålder, bara sitt innehålls.
+#: - **Sitemapen bär exakt en ecos-fil till**, `out_Ecos.xml` från
+#:   1493729749039, alltså 2017. Den är äldre och inte nyare.
+#: - **Ingen sida på norrkoping.se länkar filen.** Den förekommer en enda gång
+#:   i hela sitemapen, i sig själv. Sidan om livsmedelsverksamhet nämner den
+#:   inte, och kommunens egen sökning ger noll träffar på `ecos`,
+#:   `livsmedelskontroll` och `kontrollresultat`.
+#: - **Wayback har ingen version av adressen alls.**
+#:
+#: Filen är alltså en föräldralös rest från en avvecklad tjänst.
+#: `Livsmedelskontrollen.vm` och `.js` finns kvar i filarkivet men innehåller
+#: ingen datakälla, alltså är även sidan som en gång läste filen borta.
+#:
+#: Slutsatsen: en färskare fil finns inte att hitta, den måste efterfrågas.
+#: Brevet ligger i `docs/20_kommunexpansion.md` §9.5.
 MUNICIPALITIES: Dict[str, EcosMunicipality] = {
     "norrkoping": EcosMunicipality(
         code="0581",
