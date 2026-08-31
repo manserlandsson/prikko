@@ -1245,3 +1245,144 @@ vet.
 9. **Om Livsmedelsakademin, Svensk Certifiering, Företagsuniversitetet, SGS,
    RISE eller Visita säljer hygienutbildning direkt till restauranger.** Inga
    belägg hittades. Det betyder inte att de saknas.
+
+---
+
+## 11. Hazel Analytics, hela fallet, mätt 2026-08-31
+
+Avsnitt 3 byggde på det som gick att läsa snabbt. Det här är genomgången i sin
+helhet, och den ändrar tre saker: prisbilden, storleken på bolaget, och vad
+LIVES faktiskt är i dag.
+
+### 11.1 Bolaget var litet, självfinansierat och lönsamt
+
+Grundat 2014 av fyra personer, varav två är författarna till den studie som
+skapade hela marknaden: Jin och Leslie skrev *"The Effect of Information on
+Product Quality: Evidence from Restaurant Hygiene Grade Cards"* i Quarterly
+Journal of Economics 2003, alltså den om betygsskyltarna i Los Angeles. De
+skrev forskningen, byggde sedan bolaget som sålde in i den, och levererade
+sedan datan till plattformen som citerar deras uppsats.
+
+**Hela den registrerade externa finansieringen är omkring 113 000 dollar**,
+tre Form D hos SEC: 59 dollar 2015, 69 000 i lån 2017, 43 588 i eget kapital
+2017. Ingen riskkapitalrunda någonsin. Bolaget skrev själva upprepade gånger
+på Hacker News att de var lönsamma, ägda av de anställda och utan externa
+ägare, med "lönsamma sedan 2018" 2021. Ungefär femton anställda vid
+försäljningen.
+
+**Det är den viktigaste enskilda uppgiften i hela genomgången.** Affären
+byggdes av ett femtonmannabolag på hundratusen dollar. Det är en storlek som
+är nåbar.
+
+### 11.2 Priset var publikt en gång, och det är fyra dollar
+
+Från deras egen prissida, arkiverad 18 januari 2016:
+
+> "We charge $4 per month for the first 100 facilities, and it gets cheaper
+> from there." Och: "Hazel only charges for facilities we cover, so you don't
+> pay for any restaurant outside of our data coverage area."
+
+**Fyra dollar per anläggning och månad, alltså 48 dollar per plats och år**,
+med mängdrabatt, och betalning bara för de anläggningar de faktiskt täcker.
+Vid de 100 000 platser de senare påstod sig täcka blir det omkring fem
+miljoner dollar i årlig återkommande intäkt på 2016 års listpris, vilket
+stämmer med ett lönsamt femtonmannabolag.
+
+Prissidan i december 2021 har inga tal alls, bara tre produkter med "Contact
+Sales" och "Request a Demo". **Resan är alltså transparent självbetjäning 2016
+till offertaffär 2021 till offertaffär under Ecolab i dag.**
+
+### 11.3 Köpeskillingen går inte att få fram, men den går att avgränsa
+
+Ecolab skriver "no additional transaction terms will be disclosed", och ordet
+Hazel förekommer noll gånger i deras 10-K för 2023 och 2024. Sökning i hela
+EDGAR ger fem träffar på namnet, tre egna Form D och två Yelp-filningar, och
+noll från Ecolab.
+
+Tre inramningar ur Ecolabs egna rapporter:
+- Första halvåret 2023 betalade de **105 miljoner dollar** för förvärv netto,
+  och första kvartalet hade noll. Alla tre förvärv under andra kvartalet ryms
+  alltså i det talet.
+- Av dem namnger de bara Chemlink. Hazel är en av **två "immateriella"**
+  förvärv de inte tycker är värda att nämna.
+- Goodwill som lades till segmentet under året: 39,3 miljoner, återigen för
+  alla tre.
+
+**Den som anger ett pris för Hazel gissar.** Det försvarbara påståendet är att
+det var ett av två oväsentliga förvärv i ett kvartal på omkring 105 miljoner,
+gjort av ett bolag som tagit in 113 000 dollar.
+
+**Och det var ingen budgivning.** Ecolab var Hazels exklusiva världsomspännande
+kanal sedan 2017 och lanserade produkten under eget varumärke i maj 2018 utan
+att nämna Hazel alls. De köpte alltså ut sin enda leverantör efter sex år som
+återförsäljare. Varumärket HDI är fem år äldre än förvärvet.
+
+### 11.4 Två betyg på samma data, och det är etikavsnittets kärna
+
+Det här är fyndet som hör hemma i avsnitt 6 om intressekonflikten.
+
+**Det interna "Hazel Score" är en percentil.** Ur deras egen produktblad:
+antalet avvikelser viktas, kritiska och ovanliga tyngre, alla inspektioner i
+en jurisdiktion rangordnas, och var och en får en percentilplacering noll till
+hundra. Motiveringen är att myndighetens egna betyg är för milda: över nittio
+procent av inspektionerna i Los Angeles får A, och över nittio procent av
+poängen i de jurisdiktioner som använder skalan noll till hundra ligger över
+80.
+
+**Det publika betyget på Yelp är något annat.** Ur Ecolabs egen FAQ: antalet
+avvikelser räknas, kritiska dubbelt, och summan blir en poäng av hundra, med
+tillägget att de ser till att fördelningen i varje jurisdiktion "follows a
+fixed distribution that's representative of average health department
+behavior" och att de vill undvika att vara "overly harsh or lenient".
+
+Alltså: **konsumenten ser ett medvetet milt absolut tal, den betalande kunden
+ser en sträng percentil. Samma underliggande data, två motsatta kalibreringar,
+valda för två olika publiker.** Och Hazel skriver själva att deras percentil
+inte bör ersätta myndighetens betyg och inte nödvändigtvis bör användas för att
+belöna eller bestraffa en restaurangägare.
+
+Det är precis den konflikt avsnitt 6 namnger, och här är den byggd i produkt av
+någon som redan sålt bolaget. **Vi ska inte ha två kalibreringar.** Om vi
+någonsin visar ett tal för en betalande kund ska det vara samma tal besökaren
+ser.
+
+### 11.5 LIVES är kapat, och det gäller vårt eget API-beslut
+
+Räknat i Yelps egen registersida över LIVES-flöden, 2026-08-31: **247
+jurisdiktioner listade, 237 levererade av Hazel eller Ecolab HDI, och bara tio
+kommuner som fortfarande publicerar ett eget flöde.** Yelp kallar det
+fortfarande LIVES.
+
+Standarden togs fram 2013 för att kommuner skulle publicera direkt till en
+öppen plattform. Tretton år senare går nittiosex procent av röret genom en
+kommersiell mellanhand ägd av ett börsnoterat kemibolag, och myndigheternas
+eget deltagande har krympt till tio län. Specifikationen har inte uppdaterats
+sedan 2015.
+
+**Följden för `docs/55` och punkt B1:** argumentet "ett etablerat format som
+andra redan kan läsa" är svagare än det såg ut. Vi kan låna fältuppsättningen,
+för den är genomtänkt och Montreal använder den under CC BY 4.0, men vi går
+inte med i ett levande ekosystem. Om vi använder formen ska det stå att vi
+lånar den och inte att vi ansluter oss.
+
+### 11.6 Jämförbara priser, för den dag frågan blir vår
+
+| Affär | Datum | Pris | Multipel |
+|---|---|---|---|
+| Digi International köper Jolt | 2025-08-18 | 145,5 miljoner dollar | omkring 7 gånger årlig återkommande intäkt |
+| Veralto köper TraceGains | 2024-10-07 | 350 miljoner dollar | omkring 11,7 gånger omsättning |
+| Rentokil köper Steritech | 2015-10-02 | 425 miljoner dollar | omkring 2,8 gånger omsättning |
+
+Och en varning: HDScores, Yelps tidigare leverantör, startades med 20 000
+dollar, byggde en databas på över en miljon anläggningar, förlorade
+Yelp-avtalet till Hazel 2022 och **lades ned utan att köpas**. Två
+självfinansierade bolag konkurrerade om samma enda ankarkund. Det ena såldes
+till en strategisk köpare, det andra försvann.
+
+### 11.7 Vad som inte gick att belägga
+
+Köpeskillingen, Hazels omsättning, betalningsriktningen i Yelp-avtalet, Ecolabs
+prislista efter 2016, och exakt när de fyra dollarna togs bort från prissidan.
+Arkivets uppspelningsservrar svarade 503 under större delen av arbetet, så
+ögonblicksbilderna från 2019 och 2020 är olästa. En omgång till när arkivet är
+friskt daterar övergången exakt.
