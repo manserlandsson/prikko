@@ -167,9 +167,14 @@ varsamt och enligt deras regler.
 **B10. Delningsbilder.** En bild per verksamhet och per kommun som ser rätt ut
 när någon delar länken. Punkt 8 i `17_produktfunktioner.md`.
 
-**B11. Indexeringsspåret.** IndexNow, Search Console, Bing, och en mätning av
-hur många av våra sidor som faktiskt är indexerade. Vi har byggt 16 766 sidor
-och aldrig mätt hur många Google tagit in.
+**B11. Indexeringsspåret. MÄTT 2026-08-31, se `49_indexeringen.md`.**
+Ungefär **1 400 av 14 260 sidor** är i Google, alltså omkring tio procent.
+Verksamhetssidorna, som är 13 546 av 16 766, ligger på 1 av 12 i stickprovet.
+Kedjesidorna är 4 av 4. Åtta av nio sidindelade adresser saknas.
+
+Slutsatsen ändrar prioriteringen: **bygg inte fler sidor förrän de vi har är
+inne.** Defekten är genomsökningsdjupet och inte tekniken, och det som
+återstår är Search Console, som bara ägaren kan koppla.
 
 **B12. Kommunlänkarna.** En kommun länkar gärna till en tjänst som visar deras
 egen data snyggt. Tolv mejl, tolv backlänkar med hög tyngd.
