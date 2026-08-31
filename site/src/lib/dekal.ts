@@ -171,6 +171,9 @@
  * och lib/marke.ts går inte att importera dit eftersom den använder Vites
  * `import.meta.glob` som esbuild inte känner till.
  */
+import { textOutline, textWidth } from './kontur';
+import { WORDMARK_RATIO, WORDMARK_VIEWBOX, wordmarkSvg } from './wordmark';
+
 export const DEKAL_INK = '#007BE0';
 
 /** Texten på dekalen. Nästan svart och inte svart: ren svart bränner i tryck. */
@@ -188,35 +191,31 @@ export const DEKAL_MUTED = '#5B5B66';
 export const DEKAL_QR = '#000000';
 
 /**
- * Typsnittsstacken i de nedladdade filerna.
+ * Typsnittet i de nedladdade filerna: KONTURER, inte text.
  *
- * Instrument Sans först, för den som har den installerad, och sedan Helvetica
- * och Arial. Det är ett medvetet avsteg från sajtens typografi och skälet är
- * att filen lämnar oss: en SVG kan bara bära vårt typsnitt genom att ha hela
- * fontfilen inbakad som base64, vilket är över hundra kilobyte i en fil som
- * ska mejlas, och utan den byter mottagarens program ändå ut typsnittet mot
- * något det har. Då är det bättre att välja utbytet själv än att låta
- * tryckeriet göra det.
+ * Här stod en `font-family`-lista med Instrument Sans först och Helvetica och
+ * Arial som reserv, och en kommentar om att det är bättre att välja utbytet
+ * själv än att låta tryckeriet göra det. Det var fel på två sätt.
  *
- * Följden hanteras med automatisk storleksanpassning i `line()` och INTE med
- * `textLength`, som var den första lösningen. Skälet är mätt: librsvg, alltså
- * renderaren i sharp och i en mängd tryckeriverktyg, IGNORERAR `textLength`
- * helt. Mätning 2026-08-31 på fem rader ur de här filerna, renderade i 300 dpi
- * och uppmätta på bläckets utbredning:
+ * FÖRST: vi valde inte utbytet, vi valde bara reservlistan. Mätt på den här
+ * maskinen med sharp och librsvg blev varje rad HELVETICA, eftersom Instrument
+ * Sans inte är installerad som systemfont. En dekal i ett skyltfönster med
+ * vårt ordmärke satt i Helvetica är inte vårt ordmärke.
  *
- *   deklarerad 86 mm  ->  59,6 mm ritade
- *   deklarerad 58 mm  ->  54,2 mm ritade
- *   deklarerad 74 mm  ->  68,4 mm ritade
- *   deklarerad 74 mm  ->  63,4 mm ritade
+ * SEDAN: den vägen tryckerier faktiskt använder prövades aldrig. Att göra om
+ * text till konturer, alltså till `<path>`, tar bara de glyfer som används och
+ * inte hela fonten. Det är några kilobyte, det ger identisk fil i varje
+ * renderare, och det gör radbredden EXAKT i stället för uppskattad.
  *
- * Attributet hade alltså skyddat i en webbläsare och inte i det program filen
- * faktiskt hamnar i, vilket är sämre än inget skydd eftersom det ser ut som
- * ett skydd. Samma mätning gav teckenbredderna som `estimeradBredd` bygger på:
- * kvoten mellan ritad bredd och tecken gånger teckengrad låg på 0,441 till
- * 0,518 i den fallbackfont librsvg valde. Talen nedan är 0,52 och 0,56, alltså
- * med marginal uppåt för en bredare font som DejaVu Sans på en Linuxmaskin.
+ * Så ser det ut nu. Glyferna kommer ur src/typsnitt/instrument-sans-400.ts,
+ * som genereras av scripts/importera-typsnitt.mjs, och sätts av lib/kontur.ts.
+ * Ordmärket kommer ur lib/wordmark.ts, samma ritning som sidhuvudet visar.
+ *
+ * Priset står i kontur.ts och ska nämnas här också: bara vikt 400 finns, för
+ * fonten levereras bara som variabel och den går inte att instansiera med de
+ * verktyg som redan finns i trädet. Hierarkin sätts därför med STORLEK och
+ * FÄRG i stället för med fetstil.
  */
-const FONT = "'Instrument Sans','Helvetica Neue',Helvetica,Arial,sans-serif";
 
 /* -------------------------------------------------------------------------- */
 /* Måtten                                                                      */
@@ -348,48 +347,57 @@ export function xml(value: string): string {
 interface LineOptions {
   /** Önskad teckengrad i millimeter. Krymps om raden inte får plats. */
   size: number;
-  weight?: number;
   fill?: string;
   /** Ytan raden får uppta, i millimeter. Aldrig bredden den ska uppta. */
   max: number;
 }
 
 /**
- * Radens bredd, uppskattad ur teckenantal och teckengrad.
+ * En centrerad textrad, satt som konturer.
  *
- * Uppskattad och inte uppmätt, eftersom en exakt mätning kräver fontens
- * bredduppgifter och de finns inte i en Cloudflare-funktion. Talen kommer ur
- * mätningen som står i FONT-kommentaren ovan och ligger med marginal över det
- * uppmätta, alltså överskattar funktionen hellre än underskattar. En
- * överskattning kostar en aning mindre text; en underskattning kostar en text
- * som växer ut ur dekalen.
+ * Krympningen finns kvar men vilar inte längre på en gissning. `textWidth`
+ * summerar glyfernas egna teckenbredder ur fonttabellen, alltså är talet exakt
+ * och kommer ur samma tabell som sedan ritar raden. Den gamla varianten
+ * multiplicerade teckenantal med 0,52 och lade på tolv procents marginal för
+ * att inte underskatta; den marginalen kostade läsbarhet på varenda rad som
+ * krympte i onödan.
+ *
+ * Krympningen behövs fortfarande av ett enda skäl, och det är certifikatets
+ * namnrad. Beståndets längsta namn är 45 tecken, vilket i 11 mm blir 176 mm på
+ * en yta som är 150.
+ *
+ * Saknar något tecken glyf faller raden tillbaka på ett vanligt `<text>`.
+ * Skälet står i kontur.ts: rätt innehåll i fel typsnitt är den mindre skadan
+ * mot ett namn med ett hål i.
  */
-function estimeradBredd(text: string, size: number, weight: number): number {
-  return text.length * size * (weight >= 600 ? 0.56 : 0.52);
+function line(x: number, y: number, text: string, o: LineOptions): string {
+  const bredd = textWidth(text, o.size);
+  const size = bredd > o.max ? round(o.size * (o.max / bredd)) : o.size;
+  const k = textOutline(text, x, y, size, o.fill ?? DEKAL_TEXT);
+
+  if (k.missing.length > 0) {
+    return (
+      `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" ` +
+      `font-family="Helvetica,Arial,sans-serif" fill="${o.fill ?? DEKAL_TEXT}">` +
+      `${xml(text)}</text>`
+    );
+  }
+
+  return k.markup;
 }
 
 /**
- * En centrerad textrad som krymper i stället för att sticka ut.
+ * Ordmärket, centrerat på `cx` med sin överkant på `y`.
  *
- * Får raden inte plats sänks teckengraden tills den gör det. Det är fulare än
- * att klämma ihop bokstäverna, men det är det enda som fungerar i ALLA
- * renderare: `textLength` ignoreras av librsvg, mätt, se FONT ovan.
- *
- * Det viktigaste fallet är certifikatets namnrad. Det längsta namnet i
- * beståndet är 45 tecken, och 45 tecken i 11 mm fetstil uppskattas till 277 mm
- * på ett papper som är 210. Utan krympningen hade det namnet ritats tvärs över
- * pappersgränsen i varje program som inte stöder `textLength`, alltså i det
- * program tryckeriet använder.
+ * Ritningen kommer ur lib/wordmark.ts och inte ur en `<text>`. Skälet står i
+ * den filen: ett ordmärke ÄR sin form, och ett ordmärke i Helvetica är ett
+ * annat ordmärke.
  */
-function line(x: number, y: number, text: string, o: LineOptions): string {
-  const weight = o.weight ?? 400;
-  const est = estimeradBredd(text, o.size, weight);
-  const size = est <= o.max ? o.size : round(o.size * (o.max / est));
-
+function wordmark(cx: number, y: number, width: number, color: string): string {
+  const height = width / WORDMARK_RATIO;
   return (
-    `<text x="${x}" y="${y}" text-anchor="middle" font-family="${FONT}" ` +
-    `font-size="${size}" font-weight="${weight}" ` +
-    `fill="${o.fill ?? DEKAL_TEXT}">${xml(text)}</text>`
+    `<svg x="${round(cx - width / 2)}" y="${round(y)}" width="${round(width)}" ` +
+    `height="${round(height)}" viewBox="${WORDMARK_VIEWBOX}">${wordmarkSvg(color)}</svg>`
   );
 }
 
@@ -444,15 +452,15 @@ function round4(n: number): number {
  * myndighetsbeslut, eftersom en blå krans i ett fönster annars läses som en
  * kontrollskylt. Se docs/24_maskotprogram.md § 2 och emblemsidans villkor.
  */
-const ORD: Record<MarkeTyp, { ovan?: string; rubrik: string; fot: string }> = {
+const ORD: Record<MarkeTyp, { rubrik: string; fot: string }> = {
   hanvisning: {
-    /* Överst, i stället för en ritning. Se `dekalGroup`. */
-    ovan: 'prikko.se',
     rubrik: 'Se kommunens kontroller av oss',
-    fot: 'Alla kontroller, som de står i kommunens rapport.',
+    /* Foten bär adressen, eftersom ordmärket överst är "prikko" utan toppdomän.
+       En dekal i ett fönster måste säga vart man ska gå, också för den som inte
+       vill skanna. */
+    fot: 'Skanna koden, eller sök upp oss på prikko.se',
   },
   utmarkelse: {
-    /* Ingen rad överst: där står kransen, och den bär redan ordet. */
     rubrik: 'Skanna och se kontrollerna bakom',
     fot: 'Ett erkännande från Prikko, inte ett myndighetsbeslut.',
   },
@@ -495,6 +503,11 @@ function head(title: string, mm: string, url: string, print: string): string {
     `     ${print}\n` +
     `     Färg: sRGB #007BE0. SVG kan inte bära CMYK. Separera med tryckeriets\n` +
     '     egen profil. QR-koden ska tryckas i ren svart, aldrig i djupsvart.\n' +
+    /* Raden är till för tryckeriet och inte för oss. "Behöver filen ett
+       typsnitt?" är den första frågan varje prepress ställer om en vektorfil,
+       och svaret här är nej: all text är konturer och ingen font behöver
+       skickas med eller installeras. */
+    '     Typsnitt: inga. All text är konturer, alltså behövs ingen font.\n' +
     `     Koden leder till ${url}\n` +
     '     Villkoren för att använda märket: https://prikko.se/utmarkelser/emblem/ -->\n'
   );
@@ -535,11 +548,12 @@ function dekalGroup(arg: DekalArg, id?: string): string {
     /* Kransen är bred, 507 gånger 236, alltså 60 mm ger 27,9 mm höjd. */
     parts.push(drawing(arg.ritning, cx, 9.5, 60));
     parts.push(qrGroup(arg.qrPath, arg.qrModules, cx - qr / 2, 40.5, qr));
-    parts.push(line(cx, 84, ord.rubrik, { size: 3.4, weight: 500, max: 84 }));
-    parts.push(
-      line(cx, 89.5, 'prikko.se', { size: 4.4, weight: 700, fill: DEKAL_INK, max: 84 }),
-    );
-    parts.push(line(cx, 93.2, ord.fot, { size: 2.5, fill: DEKAL_MUTED, max: 84 }));
+    parts.push(line(cx, 84, ord.rubrik, { size: 3.6, max: 84 }));
+    /* Adressen, inte ordmärket. Kransen ovanför bär redan ordmärket, och två
+       ordmärken på samma dekal är ett för mycket. Här ska det stå vart man
+       går, alltså en adress satt i vår egen text. */
+    parts.push(line(cx, 89.6, 'prikko.se', { size: 4.8, fill: DEKAL_INK, max: 84 }));
+    parts.push(line(cx, 93.6, ord.fot, { size: 2.5, fill: DEKAL_MUTED, max: 84 }));
   } else {
     /*
      * HÄNVISNINGSMÄRKET BÄR INGET ANSIKTE, OCH DET ÄR EN REGEL OCH INTE ETT
@@ -568,12 +582,13 @@ function dekalGroup(arg: DekalArg, id?: string): string {
      * ser ut som en adress.
      */
     const stor = DEKAL.qrStor;
-    parts.push(
-      line(cx, 24, ord.ovan ?? '', { size: 10, weight: 700, fill: DEKAL_INK, max: 84 }),
-    );
-    parts.push(line(cx, 36, ord.rubrik, { size: 4.4, weight: 700, max: 84 }));
-    parts.push(qrGroup(arg.qrPath, arg.qrModules, cx - stor / 2, 42, stor));
-    parts.push(line(cx, 91, ord.fot, { size: 2.9, fill: DEKAL_MUTED, max: 84 }));
+    /* ORDMÄRKET, som ritning. Här stod ordet "prikko.se" som en `<text>`, och
+       det blev Helvetica hos varje mottagare utan vårt typsnitt installerat.
+       Bredden 46 mm ger 17,1 mm höjd ur ritningens egen proportion 159:59. */
+    parts.push(wordmark(cx, 12, 46, DEKAL_INK));
+    parts.push(line(cx, 39, ord.rubrik, { size: 4.6, max: 84 }));
+    parts.push(qrGroup(arg.qrPath, arg.qrModules, cx - stor / 2, 45, stor));
+    parts.push(line(cx, 92, ord.fot, { size: 3, fill: DEKAL_MUTED, max: 84 }));
   }
 
   return `<g${id ? ` id="${id}"` : ''}>${parts.join('')}</g>`;
@@ -674,7 +689,7 @@ export function arkDocument(arg: DekalArg): string {
     `<defs>${dekalGroup(arg, 'pk-dekal')}</defs>` +
     copies.join('') +
     line(A4.width / 2, A4.height - 12, 'Skriv ut i 100 procent, utan skalning. Klipp längs de streckade linjerna.', {
-      size: 3,
+      size: 3.2,
       fill: DEKAL_MUTED,
       max: 170,
     }) +
@@ -723,7 +738,6 @@ export function certifikatDocument(arg: CertifikatArg): string {
 
   parts.push(line(cx, 122, 'Utmärkelse för genomgående skötsamhet', {
     size: 5,
-    weight: 500,
     fill: DEKAL_MUTED,
     max: 150,
   }));
@@ -731,10 +745,16 @@ export function certifikatDocument(arg: CertifikatArg): string {
   /*
    * Namnet. 150 mm är ytan det får ta, alltså ramens 182 minus 16 mm luft på
    * var sida, och `line` sänker teckengraden i stället för att låta namnet
-   * växa ut ur ramen. Det längsta namnet i beståndet är 45 tecken, vilket i
-   * 11 mm fetstil uppskattas till 277 mm och alltså krymps till omkring 6 mm.
+   * växa ut ur ramen. Talet är nu UPPMÄTT och inte uppskattat: beståndets
+   * längsta namn, 45 tecken, är 176,4 mm i 12 mm och krymps därför till
+   * 10,2 mm. Den gamla uppskattningen sa 277 mm för samma namn i 11 mm och
+   * hade krympt det till 6, alltså nästan hälften för litet.
+   *
+   * Vikten är 400 och inte 700, se lib/kontur.ts. Ett stort namn i brandblått
+   * med luft omkring bär ett diplom utan fetstil; det är dessutom så de flesta
+   * graverade diplom ser ut.
    */
-  parts.push(line(cx, 140, arg.name, { size: 11, weight: 700, fill: DEKAL_INK, max: 150 }));
+  parts.push(line(cx, 140, arg.name, { size: 12, fill: DEKAL_INK, max: 150 }));
 
   parts.push(line(cx, 158, 'hade den längsta obrutna raden av kontroller utan en enda', {
     size: 4.2,
@@ -752,7 +772,6 @@ export function certifikatDocument(arg: CertifikatArg): string {
 
   parts.push(line(cx, 232, 'Skanna och se dagens bedömning', {
     size: 3.6,
-    weight: 500,
     max: 150,
   }));
   parts.push(

@@ -42,7 +42,13 @@ som alla får hämta.
    `docs/24` § 2, och det är fel av ett tyngre skäl: ett ansikte i ett
    restaurangfönster ÄR ett betyg, eftersom Danmark har lärt Europa att det är
    det. § 5.3.
-7. **Bygget kostar två filer, inte 34 386.** Dekalerna sätts ihop av
+7. **All text i filerna är KONTURER, inte text.** Första versionen satte
+   texten som `<text>` med Instrument Sans först i en reservlista. Rastrerad på
+   en maskin utan typsnittet installerat blev varenda rad Helvetica, alltså
+   vårt ordmärke satt i någon annans typsnitt, på en dekal i ett skyltfönster.
+   Nu ritas ordmärket ur `lib/wordmark.ts` och texten ur en genererad
+   glyftabell. Priset är att bara vikt 400 finns, och varför står i § 8.
+8. **Bygget kostar två filer, inte 34 386.** Dekalerna sätts ihop av
    `site/functions/api/marke.ts` vid begäran. Det enda som tillkommer i bygget
    är `/utmarkelser/senaste.json` och sidan `/dekal/`. § 6.2.
 
@@ -490,10 +496,9 @@ att slippa. Funktionen avvisar `form=certifikat` med `typ=hanvisning`.
 **Vår egen CMYK-blandning i filen.** Vilken som är rätt beror på profilen, och
 ett tal vi hittar på blir fel på hälften av jobben. § 3.4.
 
-**Instrument Sans inbakad i filerna.** Ett typsnitt i en SVG kräver hela
-fontfilen som base64, alltså över hundra kilobyte i en fil som ska mejlas.
-Filerna använder i stället Helvetica och Arial som reserv. Att välja utbytet
-själv är bättre än att låta tryckeriet göra det.
+**Instrument Sans inbakad som base64 i varje fil.** Hela fontfilen i varje
+dekal är över hundra kilobyte, och rätt avvägt att avvisa. Men det var fel
+SLUTSATS, se § 8: den väg tryckerier faktiskt använder prövades aldrig.
 
 **`textLength` som skydd mot att texten växer ut ur dekalen.** Det var den
 första lösningen, och den var mätt fel. **librsvg ignorerar `textLength` helt**,
@@ -514,23 +519,158 @@ skydd. Det är dessutom ett skydd som kan bli fel åt andra hållet: `textLength
 tvingar EXAKT bredd, alltså sträcker det ut en kort rad lika gärna som det
 klämmer ihop en lång.
 
-Ersättningen är automatisk storleksanpassning: `line()` uppskattar radens bredd
-ur teckenantal och teckengrad och sänker graden tills raden får plats. Fulare,
-men det fungerar i varje renderare. Samma mätning gav bredduppgifterna: kvoten
-mellan ritad bredd och tecken gånger teckengrad låg på 0,441 till 0,518, och
-koden räknar med 0,52 och 0,56 för att överskatta hellre än underskatta.
-
-Det viktigaste fallet är certifikatets namnrad. Beståndets längsta namn är 45
-tecken, vilket i 11 mm fetstil uppskattas till 277 mm på ett papper som är 210.
-Utan krympningen hade det namnet ritats tvärs över pappersgränsen i varje
-program som inte stöder `textLength`.
+**Den uppskattade radbredden som ersatte den.** Den räknade teckenantal gånger
+teckengrad gånger 0,52, med tolv procents påslag för att inte underskatta. Den
+fungerade, men den löste fel problem och den kostade läsbarhet: certifikatets
+längsta namn uppskattades till 277 mm när det i verkligheten är 176, alltså
+krympte raden till nästan hälften av vad som fick plats. Ersatt av en exakt
+bredd ur fontens egna teckenbredder, se § 8.
 
 **Att stödja bara SVG utan A4-ark.** En verksamhet med en kontorsskrivare och
 ingen tryckeribudget är merparten av beståndet.
 
 ---
 
-## 8. Det som inte är mätt
+## 8. Typsnittet: konturer, och vad det kostade
+
+### 8.1 Felet
+
+Filerna satte all text som `<text>` med
+`font-family="'Instrument Sans','Helvetica Neue',Helvetica,Arial,sans-serif"`,
+och § 7 kallade det "att välja utbytet själv i stället för att låta tryckeriet
+göra det". **Det stämde inte.** Vi valde inte utbytet, vi valde bara
+reservlistan, och den listan ger Helvetica på varje maskin som inte har
+Instrument Sans installerad som systemfont. Rastrerat med sharp på ägarens
+maskin: Helvetica, varje rad.
+
+Värst av allt gällde det ORDMÄRKET. Hänvisningsdekalen satte "prikko.se" som en
+`<text>` i 10 mm fetstil. Ett ordmärke ÄR sin form. Ett ordmärke satt i
+Helvetica är inte vårt ordmärke i fel typsnitt, det är ett annat ordmärke, och
+den filen är gjord för att sitta i ett skyltfönster.
+
+### 8.2 Ordmärket
+
+Ritningen fanns redan i repot, som `<path>` i
+`site/src/components/Wordmark.astro`. Den ligger nu i `site/src/lib/wordmark.ts`
+i stället, och komponenten läser därifrån. Flytten var nödvändig och inte
+kosmetisk: dekalen sätts ihop av `functions/api/marke.ts`, som Cloudflare Pages
+bundlar för sig med esbuild, och en `.astro`-fil går inte att importera dit.
+Alternativet hade varit att skriva av kurvorna, alltså två ordmärken så fort
+någon rättar det ena.
+
+Komponenten är oförändrad utåt: samma props, samma DOM, samma klass `eye-right`
+som sidhuvudets blinkning hakar i.
+
+### 8.3 Brödtexten
+
+Vägen som aldrig prövades är den tryckerier faktiskt använder: **gör om texten
+till konturer.** Bara de glyfer som används, inte hela fonten.
+
+Tre frågor skulle besvaras, och svaren är:
+
+**Finns fontfilen i repot?** Ja. `@fontsource-variable/instrument-sans` ligger
+i beroendena och levererar tolv `.woff2`, varav
+`instrument-sans-latin-wght-normal.woff2` täcker U+0000 till U+00FF, alltså å,
+ä, ö och é. Licensen är SIL OFL 1.1, som uttryckligen tillåter att glyfer bakas
+in i ett dokument.
+
+**Går glyferna att läsa utan ett nytt beroende?** Ja, och det var en
+överraskning. `fontkitten` ligger redan i `node_modules`, inte för att vi bett
+om den utan för att **Astro** drar in den genom `@capsizecss/unpack` och
+`fontace`. Den packar upp woff2, läser cmap, glyf och hmtx, och ger både
+`glyph.path.toSVG()` och `glyph.advanceWidth`.
+
+**Vid bygget eller i funktionen?** Ingetdera. Utdraget sker EN gång, av
+`site/scripts/importera-typsnitt.mjs`, och resultatet checkas in som
+`site/src/typsnitt/instrument-sans-400.ts`. Exakt samma mönster som
+`scripts/importera-marke.mjs` och `src/marks/`. Skälen:
+
+* I funktionen finns ingen fontparser och ingen anledning att packa upp en
+  woff2 vid varje hämtning av en dekal.
+* Vid bygget vore det arbete för ett resultat som är identiskt varje gång.
+* Som incheckad modul är den granskningsbar, den kan inte fälla ett bygge, och
+  den fortsätter fungera även om Astro byter bibliotek. Det sista är hela
+  skälet till att lånet av `fontkitten` är försvarbart: **bara skriptet slutar
+  gå att köra, aldrig sajten.** Först den dag någon vill dra ut nya tecken
+  behöver frågan lösas, och då är svaret en rad i `package.json`.
+
+Tabellen är 321 glyfer och 90 kB, alltså hela latin plus latin-ext. Bara 78
+tecken behövs för dagens 254 vinnare, 13 kommunnamn och samtliga fasta rader,
+men ett framtida verksamhetsnamn med ett Č i ska inte bli ett hål i ett
+diplom.
+
+### 8.4 Vad det kostade: bara vikt 400
+
+**Det här är den punkt där ett beslut behöver fattas av ägaren.**
+
+Instrument Sans levereras från fontsource bara som VARIABEL font, med en
+viktaxel från 400 till 700. Att läsa vikt 500 eller 700 ur den kräver att
+fontens `gvar`-deltan appliceras.
+
+`fontkitten` har ett `getVariation()`, och **det fungerar inte för woff2**.
+Mätt 2026-08-31: metoden bygger en ny `TTFFont` ur `this.stream.buffer`, vilket
+för en woff2 är den brotlipackade behållaren och inte en TTF. Fonten som kommer
+tillbaka saknar `maxp`, `cmap` och `glyf`, och varje uppslag kastar. Att i
+stället konstruera den interna klassen direkt med variationskoordinater kastar
+på privata fält. Fonten har `fvar`, `gvar` och `HVAR`, alltså är det biblioteket
+som saknar förmågan och inte filen som saknar datan.
+
+Alltså finns bara standardinstansen, alltså vikt 400.
+
+**Följden är gjord till en formfråga i stället för en brist:** hierarkin sätts
+med STORLEK och FÄRG i stället för med fetstil. Certifikatets namn står i 12 mm
+brandblått med luft omkring i stället för 11 mm fetstil, vilket är så de flesta
+graverade diplom faktiskt ser ut. Dekalernas rubriker är en halv millimeter
+större än förut.
+
+**Vill vi ha riktig fetstil krävs ett nytt beroende, och det är ett val:**
+
+| Alternativ | Vad det är | Kostnad |
+|---|---|---|
+| `fontkit` | fontkittens stora syskon, riktigt stöd för variabla fonter | ett nytt paket, omkring 1 MB, bara som devDependency eftersom utdraget sker offline |
+| `@fontsource/instrument-sans` | den statiska varianten, en fil per vikt | ett nytt paket, men då kan `fontkitten` läsa varje viktfil direkt eftersom problemet bara gäller instansiering av variabla fonter |
+
+Den andra raden är den billigare och den mer robusta: den tar bort behovet av
+variabelstöd helt i stället för att lägga till det. Ingen av dem hamnar i
+Workern, eftersom utdraget sker i skriptet.
+
+### 8.5 Vad konturerna gav gratis
+
+**Radbredden är nu exakt.** `textWidth` summerar glyfernas egna teckenbredder
+ur samma tabell som sedan ritar raden, alltså kan talet inte skilja sig från
+ritningen. Krympningen finns kvar men bara för certifikatets namnrad, och den
+är inte längre grov: beståndets längsta namn är 176,4 mm i 12 mm och krymps
+till 10,2 mm. Den gamla uppskattningen sa 277 mm och hade krympt samma namn
+till 6.
+
+**Filen ser likadan ut överallt.** Det finns ingen font att sakna.
+
+### 8.6 Priset i byte
+
+| Fil | Före, med `<text>` | Efter, med konturer |
+|---|---:|---:|
+| Hänvisningsdekal | 4 567 B | 29 144 B |
+| Hänvisningsark, A4 | 5 001 B | 49 412 B |
+| Utmärkelsedekal | 15 958 B | 43 221 B |
+| Certifikat | 17 261 B | 144 085 B |
+| Funktionens bunt | 25,8 kB | 119,7 kB |
+
+Certifikatet är åtta gånger större, och det är den enda siffran som är värd att
+tänka på. Den är ändå försvarbar: ett tryckfärdigt A4 som PDF ligger normalt på
+200 kB till ett par megabyte, alltså är 144 kB i underkant för vad ett tryckeri
+förväntar sig. Vill vi ned finns en känd väg som inte är tagen: lägga varje unik
+glyf en gång i `<defs>` och instansiera med `<use>`. Den skulle ungefär tredela
+certifikatet men gör filen svårare att öppna i program med svagt `<use>`-stöd,
+och den ska inte tas förrän någon klagat på storleken.
+
+**Varken kerning eller ligaturer läses.** Fonten har en `GPOS`-tabell med
+parvisa justeringar som den här koden hoppar över, så par som "Av" och "To" står
+någon tusendels em glesare än i en webbläsare. Det syns inte i de storlekar
+filerna använder, men det ska stå skrivet och inte upptäckas.
+
+---
+
+## 9. Det som inte är mätt
 
 1. **Ingen tryckt dekal har skannats med en telefon.** All avläsning är gjord på
    rastrerade filer. Ett provexemplar ska tryckas och skannas på 30, 40 och 50
@@ -544,14 +684,21 @@ ingen tryckeribudget är merparten av beståndet.
 4. **A5-uppgiften för det danska märket** vilar på Dansk Erhvervs sida och på
    sökträffar mot en PDF hos Fødevarestyrelsen som just nu svarar 404.
 5. **Ingen källa alls finns om avläsning genom glas.** § 3.3.
-6. **Tryckeriernas storlekstabell i § 3.2 vilar på fyra hämtade produktsidor
+6. **Fetstil finns inte i filerna, och det är ett öppet beslut.** Hierarkin
+   bärs av storlek och färg. Vill vi ha vikt 500 och 700 krävs ett nytt
+   beroende, och de två alternativen med sina kostnader står i § 8.4. Beslutet
+   är ägarens.
+7. **Kerning läses inte.** Fonten har `GPOS`, koden hoppar över den. Några
+   tusendels em per par, osynligt i de här storlekarna, men det är en
+   avvikelse mot hur samma text ser ut på sajten. § 8.6.
+8. **Tryckeriernas storlekstabell i § 3.2 vilar på fyra hämtade produktsidor
    och ingenting mer.** Den första versionen av den utredningen innehöll en
    uppdiktad leverantörstabell som drogs tillbaka av den som skrev den, och
    siffrorna som står kvar är de som hämtades om, en sida i taget. Det är
    tillräckligt för att välja ett mått, men det är fyra sidor och inte en
    marknadsöversikt. Innan en riktig order läggs ska den tryckerioffert som
    faktiskt ska användas läsas i original.
-7. **Ingen har frågat en verksamhet om de vill ha det här.** Hela bygget vilar
+9. **Ingen har frågat en verksamhet om de vill ha det här.** Hela bygget vilar
    på att två länder oberoende av varandra valde samma grepp, vilket är ett
    argument om vad som fungerar och inte ett belägg för att svenska
    restaurangägare vill ha ett frivilligt märke. Den mätningen är billig och
