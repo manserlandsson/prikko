@@ -29,6 +29,9 @@ import { formatDate, formatNumber } from '../../../lib/data';
 import { SITE } from '../../../lib/site';
 import { absolute, path } from '../../../lib/urls';
 import { latestEdition } from '../../../lib/utmarkelser';
+import { markDocument } from '../../../lib/marke';
+import { encodeQr, qrPath } from '../../../lib/qr';
+import { A4, CERTIFIKAT, DEKAL, dekalDocument, ritning } from '../../../lib/dekal';
 import {
   EMBED_WIDTH,
   emblemFiles,
@@ -62,6 +65,37 @@ const template = emblemSnippet({
   name: '',
   year,
 });
+
+/**
+ * Förhandsvisningen av dekalen, ritad HÄR och inte hos funktionen.
+ *
+ * Sidan är statisk, alltså finns ingen funktion att fråga när den byggs. Bilden
+ * ritas i stället ur exakt samma två moduler som `/api/marke` kör, lib/qr.ts
+ * och lib/dekal.ts, och kan därför inte visa något annat än det man laddar ner.
+ * Vore den ritad för hand vid sidan av skulle de glida isär, vilket är samma
+ * fel `marke.svg.ts` finns till för att undvika.
+ *
+ * QR-koden i förhandsvisningen leder till prikko.se och inte till en verklig
+ * verksamhet. Bilden står på en sida alla ser, och en kod som pekar ut ett
+ * enskilt ställe hade gjort just det stället till exempel för alla andra.
+ * Texten under bilden säger vad koden blir i den riktiga filen.
+ *
+ * Som `data:`-URI och inte som inbakad SVG. Ritningen bär id:n a till g för
+ * sina masker, och de id:na är globala i ett HTML-dokument. Inbakad hade
+ * märket alltså kunnat krocka med vad som helst annat på sidan; i en `<img>`
+ * är den ett eget dokument.
+ */
+const exempelUrl = `${SITE.url}/`;
+const exempelKod = encodeQr(exempelUrl);
+const exempelDekal = dekalDocument({
+  typ: 'utmarkelse',
+  ritning: ritning(markDocument(year, absolute('utmarkelser', year))),
+  qrPath: qrPath(exempelKod),
+  qrModules: exempelKod.size,
+  url: exempelUrl,
+  year,
+});
+const exempelSrc = `data:image/svg+xml;base64,${Buffer.from(exempelDekal).toString('base64')}`;
 
 const description =
   `Den blå lagerkransen med årtalet står för Prikkos utmärkelse för genomgående skötsamhet. ` +
@@ -131,14 +165,30 @@ const jsonLd = {
     <section id="hamta">
       <h2>Hämta</h2>
 
-      <div
+      {/* Väljaren är ett FORMULÄR och inte bara ett fält.
+          Knapparna längre ned hämtar dekalen och certifikatet från
+          /api/marke, och de behöver verksamheten. Ett GET-formulär med
+          `action` på funktionen gör att de fungerar UTAN JavaScript: valet
+          hamnar i frågesträngen av sig självt. Knapparna står i ett annat
+          avsnitt och hör hit genom `form="hamtform"`, vilket är det enda
+          sättet att ha en knapp utanför sitt formulär utan att flytta
+          layouten efter tekniken. */}
+      <form
+        id="hamtform"
         class="valj"
+        method="get"
+        action="/api/marke"
         data-emblem
         data-placeholder={PLACEHOLDER}
         data-origin={SITE.url}
       >
+        <input type="hidden" name="typ" value="utmarkelse" />
         <label for="verksamhet">Verksamhet</label>
-        <select id="verksamhet" name="verksamhet">
+        {/* `required` gör att webbläsaren själv stoppar en tom hämtning i
+            stället för att funktionen svarar 400. Funktionens svar finns kvar
+            som spärr, men ett felmeddelande från servern är fel plats att
+            upptäcka att man glömt välja. */}
+        <select id="verksamhet" name="v" required>
           <option value="">Välj i listan</option>
           {groups.map((g) => (
             <optgroup label={g.city}>
@@ -149,9 +199,11 @@ const jsonLd = {
           ))}
         </select>
         <p class="caption text-muted hint">
-          Står inte verksamheten här har den inte utmärkelsen i {year} års utgåva.
+          Står inte verksamheten här har den inte utmärkelsen i {year} års
+          utgåva. Fönsterdekalen som bara hänvisar till kontrollhistoriken
+          finns ändå, till alla: <a href={path('dekal')}>se dekalen</a>.
         </p>
-      </div>
+      </form>
 
       <h3>Koden till en webbplats</h3>
       <p class="text-secondary">
@@ -177,6 +229,90 @@ const jsonLd = {
         SVG till webben, PNG till tryck och sociala medier. Filerna är desamma
         för alla i utgåvan: det som skiljer ett emblem från ett annat är länken
         det sitter i.
+      </p>
+    </section>
+
+    {/* ---------------------------------------------------------------------
+        I FÖNSTRET
+
+        Avsnittet står EFTER filerna och koden, inte före. Den som kommer hit
+        från sigillet på sin egen sida vill oftast ha snutten till webbplatsen,
+        och det är den de får först. Den som vill ha papper letar efter papper
+        och scrollar.
+
+        Måtten skrivs ut och kommer ur lib/dekal.ts, inte ur den här filen.
+        Ett tal som står på en sida och ett annat i ritningen är samma fel som
+        drabbade sökregistrets cachetid: filen sa en sak och verkligheten en
+        annan, och ingen upptäckte det.
+        --------------------------------------------------------------------- */}
+    <section id="fonster">
+      <h2>I fönstret och på väggen</h2>
+      <p class="text-secondary">
+        Danmark och Storbritannien kräver båda att verksamheter visar sitt
+        kontrollresultat vid entrén, och det danska märket bär en QR-kod till
+        myndighetens egen sida. Vi kan inte kräva något av någon. Men dekalen
+        finns, den bär en kod som leder till verksamhetens sida hos oss, och
+        den är gratis.
+      </p>
+
+      <div class="parad">
+        <img
+          class="prov"
+          src={exempelSrc}
+          width="240"
+          height="240"
+          alt={`Fönsterdekalen: märket för ${year}, en QR-kod och raden prikko.se.`}
+        />
+        <div>
+          <h3>Dekalen</h3>
+          <ul class="matt">
+            <li>
+              <strong>{DEKAL.trim} × {DEKAL.trim} mm</strong> skuret, alltså
+              måttet ett tryckeri tar emot som standard för fönsterdekal.
+            </li>
+            <li>
+              <strong>{DEKAL.bleed} mm utfall</strong> runt om, så filen är
+              {' '}{DEKAL.trim + DEKAL.bleed * 2} × {DEKAL.trim + DEKAL.bleed * 2} mm
+              med skärmärken i hörnen.
+            </li>
+            <li>
+              <strong>QR-koden är {DEKAL.qr} mm</strong> med tyst zon, ren svart
+              på vitt. Den leder till verksamhetens egen sida.
+            </li>
+            <li>
+              SVG i sRGB. Ett tryckeri separerar själv med sin egen profil, och
+              måtten står i filens huvud.
+            </li>
+          </ul>
+          <p class="caption text-muted">
+            Koden i bilden går till prikko.se. I din fil går den till din sida.
+          </p>
+        </div>
+      </div>
+
+      <h3>Certifikatet</h3>
+      <p class="text-secondary">
+        Ett A4 stående, {A4.width} × {A4.height} mm med {CERTIFIKAT.margin} mm
+        marginal, med verksamhetens namn, meningen om vad utmärkelsen avser och
+        datumet utgåvan frystes. Att skriva ut och sätta i en ram. Namnet hämtas
+        ur utgåvan och inte ur adressen: ett papper med ett företagsnamn på är
+        ett påstående, och påståendet ska gå att slå upp.
+      </p>
+
+      <p class="knapprad">
+        <button type="submit" form="hamtform" name="form" value="dekal" class="btn-primary">
+          Hämta dekalen
+        </button>
+        <button type="submit" form="hamtform" name="form" value="ark" class="btn-ghost">
+          Dekalen på ett A4
+        </button>
+        <button type="submit" form="hamtform" name="form" value="certifikat" class="btn-ghost">
+          Hämta certifikatet
+        </button>
+      </p>
+      <p class="caption text-muted">
+        Välj verksamheten i listan ovan först. Arket är två dekaler i verklig
+        storlek på ett A4, att skriva ut i 100 procent och klippa ut.
       </p>
     </section>
 
@@ -349,6 +485,51 @@ const jsonLd = {
 
   .btn-ghost:hover { background: var(--canvas); }
 
+  /* Bilden och måtten sida vid sida, och under varandra när spalten är smal.
+     Samma brytpunkt som .visning ovan, eftersom de två raderna ska vika sig
+     samtidigt: två block som bryter vid olika bredder ser ut som ett fel. */
+  .parad {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-6);
+    margin-top: var(--s-4);
+  }
+
+  .parad h3 { margin-top: 0; }
+
+  /* Ramen runt provet är sidans och inte dekalens. Dekalen är vit hela vägen
+     ut i utfallet, alltså osynlig mot en vit sida, och utan ram ser den ut som
+     en lös bild i luften. */
+  .prov {
+    flex: none;
+    width: 240px;
+    height: auto;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: #fff;
+  }
+
+  .matt {
+    margin: 0 0 var(--s-3);
+    padding-left: var(--s-4);
+  }
+
+  .matt li {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .btn-primary {
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    padding: 9px 18px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .knapprad { flex-wrap: wrap; }
+
   .filer {
     list-style: none;
     margin: 0 0 var(--s-4);
@@ -386,6 +567,12 @@ const jsonLd = {
   }
 
   @media (max-width: 560px) {
+    .parad {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--s-4);
+    }
+
     .visning {
       flex-direction: column;
       align-items: flex-start;

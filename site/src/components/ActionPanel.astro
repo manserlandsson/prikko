@@ -46,6 +46,27 @@ const params = new URLSearchParams({
 
 const ownerHref = `/konto/verksamhet/?${params}`;
 const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pathname)}`;
+
+/**
+ * Vägen till fönsterdekalen, med verksamheten ifylld.
+ *
+ * Nyckeln räknas ur sidans egen sökväg och inte ur en ny prop. `/stockholm/ag/`
+ * ÄR nyckeln så snart snedstrecken är av, och en prop till hade varit ett
+ * andra ställe där kommun och slug kan råka skilja sig från adressen de sitter
+ * på.
+ *
+ * Länken går till /dekal/ och inte rakt på /api/marke, alltså till sidan som
+ * förklarar vad märket är och vad det inte är innan filen laddas ner. Ett
+ * märke som hämtas utan att någon läst villkoren hamnar förr eller senare i ett
+ * fönster med ordet "godkänd" bredvid sig.
+ *
+ * Raden ligger i ÄGARENS ruta och inte i handlingsraden, av samma skäl som
+ * står i huvudet: den som driver stället letar aktivt, besökaren ska slippa.
+ * Kostnaden är en `<a>` på 16 044 sidor, alltså omkring 110 byte rå per sida
+ * och i praktiken ingenting efter komprimering, eftersom raden är identisk på
+ * alla utom två tecken.
+ */
+const dekalHref = `/dekal/?v=${encodeURIComponent(Astro.url.pathname.replace(/^\/|\/$/g, ''))}`;
 ---
 
 {/* Rubriken sade "Stämmer inte uppgifterna?" och knappen under den "Rätta en
@@ -64,6 +85,7 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
 
 <p class="owner caption">
   <a href={ownerHref}>Driver du verksamheten? Svara på en kontroll</a>
+  <a href={dekalHref}>Sätt upp märket i fönstret</a>
 </p>
 
 <style>
@@ -108,7 +130,13 @@ const correctionHref = `/ratta/?${params}&sida=${encodeURIComponent(Astro.url.pa
     text-decoration: none;
   }
 
+  /* Två rader och inte en, med luft emellan. De vänder sig till samma person
+     men gäller olika saker, och som en enda rad med punkt emellan läses de som
+     en mening. */
   .owner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
     margin-top: var(--s-3);
     padding-top: var(--s-3);
     border-top: 1px solid var(--hairline);

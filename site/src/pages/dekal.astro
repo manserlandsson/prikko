@@ -1,0 +1,396 @@
+---
+/**
+ * Dekalen till fönstret: märket som ALLA får sätta upp.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR DEN HÄR SIDAN FINNS VID SIDAN AV /utmarkelser/emblem/
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * `lib/emblem.ts` säger att emblemet hör till utgåvans 254 vinnare. Den
+ * gränsen är rätt för UTMÄRKELSEN och rörs inte här.
+ *
+ * Men 254 av 17 066 är 1,5 procent. De övriga 16 812 har ingenting att sätta
+ * upp, och merparten av dem har inte en enda anmärkning: de har bara inte den
+ * längsta obrutna raden i sin kommun, vilket är en jämförelse mot grannen och
+ * inte ett omdöme om dem. Ett program som bara belönar toppen når inte ut, och
+ * spridning är hela poängen med ett märke.
+ *
+ * Alltså finns en andra sak att hämta, och den är medvetet INTE en utmärkelse.
+ * Den säger var kontrollhistoriken finns och ingenting om vad som står i den.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * DEN ABSOLUTA REGELN, OCH VARFÖR JUST DEN HÄR FORMEN KLARAR DEN
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Vi delar aldrig ut ett märke som säger att någon är dålig, och märkets
+ * frånvaro får aldrig bli ett påstående. Se docs/24_maskotprogram.md § 2.
+ *
+ * Ett märke som bara de skötsamma får bryter mot andra halvan av regeln. Så
+ * fort villkoret finns blir grannen utan märke en verksamhet som inte
+ * kvalificerade sig, och då har vi publicerat ett negativt omdöme genom att
+ * inte publicera något. Det är exakt den mekanism som gjorde det dynamiska
+ * emblemet omöjligt, se lib/emblem.ts avsnitt 2.
+ *
+ * Hänvisningsmärket klarar regeln därför att det inte har något villkor alls.
+ * Varje verksamhet med en sida hos oss kan hämta det, oavsett vad kontrollen
+ * visade, och det står på sidan. Då säger frånvaron bara att någon inte hämtat
+ * det, vilket är ett påstående om en nedladdning och inte om en verksamhet.
+ *
+ * Två saker följer, och båda är byggda:
+ *
+ *   MÄRKET BÄR INGET ANSIKTE. Ett ansikte i ett restaurangfönster läses som
+ *   ett betyg, eftersom Danmark har lärt Europa att det är det. Skälet står
+ *   utförligt i lib/dekal.ts vid `dekalGroup`.
+ *
+ *   MÄRKET BÄR INGET NAMN. Det behöver inget: det sitter på dörren till den
+ *   verksamhet det gäller, och koden leder dit. Ett märke utan namn kan
+ *   dessutom inte bli fel den dag stället byter ägare.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * VARFÖR VERKSAMHETEN VÄLJS I ETT TEXTFÄLT OCH INTE I EN LISTA
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Emblemsidan har en `<select>` med 254 rader. Här hade motsvarigheten haft
+ * 17 066, alltså en fil på ungefär en halv megabyte som ingen orkar bläddra i.
+ *
+ * Vägen hit är i stället verksamhetens EGEN sida: rutan "Något som inte
+ * stämmer?" bär raden "Sätt upp märket i fönstret", och den länken har
+ * adressen med sig. Fältet nedan står då redan ifyllt. Det är samma princip
+ * som styr resten av sajten, att en funktion sker där man står och inte kostar
+ * en egen sida.
+ *
+ * Fältet är ändå ett riktigt textfält och inte ett dolt. Utan JavaScript
+ * fylls inget i automatiskt, och då ska man kunna skriva dit adressen själv;
+ * ett dolt fält hade gjort sidan död för den som stängt av skript.
+ */
+import Base from '../layouts/Base.astro';
+import { establishments, formatNumber } from '../lib/data';
+import { SITE } from '../lib/site';
+import { absolute, path } from '../lib/urls';
+import { encodeQr, qrPath } from '../lib/qr';
+import { A4, DEKAL, dekalDocument } from '../lib/dekal';
+
+const antal = establishments().length;
+
+/**
+ * Förhandsvisningen, ritad ur samma moduler som `/api/marke` kör.
+ *
+ * Koden pekar på prikko.se och inte på en verklig verksamhet, av samma skäl
+ * som på emblemsidan: bilden står på en sida alla ser.
+ */
+const exempelUrl = `${SITE.url}/`;
+const exempelKod = encodeQr(exempelUrl);
+const exempelSrc = `data:image/svg+xml;base64,${Buffer.from(
+  dekalDocument({
+    typ: 'hanvisning',
+    qrPath: qrPath(exempelKod),
+    qrModules: exempelKod.size,
+    url: exempelUrl,
+  }),
+).toString('base64')}`;
+
+const description =
+  'Fönsterdekalen med QR-kod till verksamhetens kontrollhistorik hos Prikko. ' +
+  `Alla ${formatNumber(antal)} verksamheter kan hämta den, oavsett vad kontrollen visade. ` +
+  `Tryckfärdig SVG, ${DEKAL.trim} × ${DEKAL.trim} mm, och ett A4 att skriva ut hemma.`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Dekalen till fönstret',
+  description,
+  inLanguage: 'sv-SE',
+  url: absolute('dekal'),
+  publisher: { '@type': 'Organization', name: SITE.legalName },
+};
+---
+
+<Base title="Dekalen till fönstret" description={description} jsonLd={jsonLd}>
+  <article class="container page">
+    <header>
+      <h1>Dekalen till fönstret</h1>
+      <p class="lede text-secondary">
+        En dekal med en QR-kod som leder till verksamhetens sida hos oss, där
+        kommunens kontroller står i sin helhet. Alla
+        {' '}{formatNumber(antal)} verksamheter kan hämta den.
+      </p>
+    </header>
+
+    <section class="parad">
+      <img
+        class="prov"
+        src={exempelSrc}
+        width="260"
+        height="260"
+        alt="Fönsterdekalen: raden prikko.se, meningen Se kommunens kontroller av oss, och en QR-kod."
+      />
+      <div>
+        <h2>Vad den säger, och vad den inte säger</h2>
+        <p>
+          Den säger var kontrollhistoriken finns. Den säger ingenting om hur
+          kontrollerna gick, och den är därför inte en utmärkelse och inte ett
+          godkännande.
+        </p>
+        <p>
+          Det är avsiktligt. Ett märke som bara vissa får blir ett märke vars
+          frånvaro säger något om alla andra, och sådana märken delar vi inte
+          ut. Den här får alla, oavsett vad senaste kontrollen visade.
+        </p>
+        <p>
+          Har verksamheten dessutom Prikkos utmärkelse finns ett märke till,
+          med lagerkrans och årtal:
+          {' '}<a href={path('utmarkelser', 'emblem')}>se emblemet</a>.
+        </p>
+      </div>
+    </section>
+
+    <section id="hamta">
+      <h2>Hämta</h2>
+
+      {/* GET mot funktionen, alltså inget skript krävs för att knapparna ska
+          fungera. Skriptet längst ned fyller bara i fältet i förväg när man
+          kommit hit från sin egen sida. */}
+      <form class="valj" method="get" action="/api/marke" data-dekal>
+        <input type="hidden" name="typ" value="hanvisning" />
+        <label for="v">Verksamhetens adress hos oss</label>
+        <input
+          id="v"
+          name="v"
+          type="text"
+          inputmode="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="kommun/verksamhet"
+          pattern="[a-z0-9\-]+/[a-z0-9\-]+"
+          required
+        />
+        <p class="caption text-muted hint">
+          Står i adressfältet på verksamhetens sida. På
+          {' '}<code>prikko.se/stockholm/ag/</code> är det
+          {' '}<code>stockholm/ag</code>. Enklast är att klicka på
+          {' '}<em>Sätt upp märket i fönstret</em> på sidan, så står det redan
+          här.
+        </p>
+
+        <p class="knapprad">
+          <button type="submit" name="form" value="dekal" class="btn-primary">
+            Hämta dekalen
+          </button>
+          <button type="submit" name="form" value="ark" class="btn-ghost">
+            Dekalen på ett A4
+          </button>
+        </p>
+      </form>
+    </section>
+
+    <section id="matt">
+      <h2>Måtten</h2>
+      <ul class="matt">
+        <li>
+          <strong>{DEKAL.trim} × {DEKAL.trim} mm</strong> skuret. Måttet finns
+          som färdig fönsterdekalstorlek hos tryckerier som levererar till
+          Sverige, alltså behöver ingen beställa ett specialformat.
+        </li>
+        <li>
+          <strong>{DEKAL.bleed} mm utfall</strong> runt om, så filen är
+          {' '}{DEKAL.trim + DEKAL.bleed * 2} × {DEKAL.trim + DEKAL.bleed * 2} mm
+          med skärmärken i hörnen och {DEKAL.safe} mm skyddsmarginal innanför
+          skärlinjen.
+        </li>
+        <li>
+          <strong>QR-koden är {DEKAL.qrStor} mm</strong> med tyst zon, ren svart
+          på ogenomskinligt vitt. Ren svart och inte djupsvart, eftersom en
+          fyrfärgssvart kod blir suddig i kanterna så fort passningen glider.
+        </li>
+        <li>
+          <strong>A4-arket</strong> är {A4.width} × {A4.height} mm med två
+          dekaler i verklig storlek. Skriv ut i 100 procent, aldrig med
+          "anpassa till sidan", och klipp längs den streckade linjen.
+        </li>
+        <li>
+          Filen är SVG i sRGB. SVG kan inte bära CMYK, så måtten och en
+          uppmaning att separera med tryckeriets egen profil står i filens
+          huvud i stället för att vi gissar en blandning.
+        </li>
+      </ul>
+      <p class="caption text-muted">
+        Sätts dekalen på insidan av rutan behövs en variant med limmet på
+        trycksidan. Tryckerierna kallar det självhäftande framsida eller
+        omvänt tryck, och de speglar filen åt en.
+      </p>
+    </section>
+
+    <section id="villkor">
+      <h2>Villkor</h2>
+      <ol class="villkor">
+        <li>
+          <strong>Vem.</strong> Alla verksamheter som har en sida hos oss. Inget
+          villkor, ingen ansökan, ingen kostnad, och ingenting går att köpa.
+        </li>
+        <li>
+          <strong>Märket hör till adressen.</strong> Koden leder till en bestämd
+          verksamhet på en bestämd adress. Den följer inte med till ett annat
+          ställe eller en annan enhet i samma kedja.
+        </li>
+        <li>
+          <strong>Skriv inte att den betyder något den inte betyder.</strong>
+          {' '}Dekalen är en hänvisning. Skriv inte att verksamheten är godkänd,
+          certifierad, kontrollerad eller utmärkt av oss.
+        </li>
+        <li>
+          <strong>Ritningen ändras inte.</strong> Inte färgen, inte
+          proportionerna, inte koden. Ingen beskärning och ingen egen text i
+          eller ovanpå märket.
+        </li>
+        <li>
+          <strong>Vi kan säga ifrån.</strong> Används märket i strid med
+          punkterna ovan ber vi att det tas ned.
+        </li>
+      </ol>
+      <p class="caption text-muted">
+        <a href={path('villkor')}>Villkor för att använda Prikko</a> ·
+        {' '}<a href={path('metodik')}>Så räknar vi</a> ·
+        {' '}<a href={path('ratta')}>Rätta en uppgift</a>
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .page {
+    max-width: var(--w-read);
+    padding-block: var(--s-12) var(--s-16);
+  }
+
+  h1 {
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+  }
+
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  section { margin-top: var(--s-12); }
+  section h2 { margin-bottom: var(--s-4); }
+  section p { line-height: var(--lh-body); }
+  section p + p { margin-top: var(--s-4); }
+
+  /* Samma form som emblemsidans .parad, och samma brytpunkt. De två sidorna
+     ligger bredvid varandra i webbkartan och länkar till varandra; ser de
+     olika ut läser man dem som två olika saker. */
+  .parad {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-6);
+  }
+
+  .parad h2 {
+    font-size: var(--fs-h-s);
+    line-height: var(--lh-h-s);
+    margin-bottom: var(--s-3);
+  }
+
+  .parad p {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  .parad p + p { margin-top: var(--s-3); }
+
+  .prov {
+    flex: none;
+    width: 260px;
+    height: auto;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: #fff;
+  }
+
+  .valj label {
+    display: block;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    margin-bottom: var(--s-2);
+  }
+
+  .valj input[type='text'] {
+    width: 100%;
+    max-width: 420px;
+    padding: 11px var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    background: var(--card);
+    color: var(--text);
+    font: 400 var(--fs-body-s)/1.4 var(--font-sans);
+  }
+
+  .hint { margin-top: var(--s-2); }
+  .hint code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  .knapprad {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+  }
+
+  .btn-primary {
+    border: 1px solid transparent;
+    border-radius: var(--r-pill);
+    padding: 9px 18px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 9px 18px;
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .btn-ghost:hover { background: var(--canvas); }
+
+  .matt, .villkor {
+    margin: 0 0 var(--s-4);
+    padding-left: var(--s-4);
+  }
+
+  .matt li, .villkor li {
+    margin-top: var(--s-3);
+    line-height: var(--lh-body);
+  }
+
+  @media (max-width: 560px) {
+    .parad {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--s-4);
+    }
+  }
+</style>
+
+<script>
+  /**
+   * Fyller fältet ur adressen, när man kommit hit från sin egen sida.
+   *
+   * Värdet kontrolleras mot samma form som funktionen kräver innan det skrivs
+   * in. Det är inte ett skydd, funktionen har sitt eget, utan en artighet: ett
+   * fält som fyllts med skräp ur en länk ser ut som ett fel i sidan.
+   */
+  const form = document.querySelector<HTMLFormElement>('[data-dekal]');
+  const field = document.getElementById('v') as HTMLInputElement | null;
+  const wanted = new URLSearchParams(location.search).get('v');
+
+  if (form && field && wanted && /^[a-z0-9-]+\/[a-z0-9-]+$/.test(wanted)) {
+    field.value = wanted;
+  }
+</script>
