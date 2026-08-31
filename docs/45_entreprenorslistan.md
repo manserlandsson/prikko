@@ -282,7 +282,15 @@ på sajten.
 
 ### H. Det som den internationella genomgången tillförde
 
-Fyndet står i `docs/44_marknaden_2026.md`. Fyra av punkterna är nya för
+**RÄTTAD KÄLLHÄNVISNING 2026-08-31.** Här stod att fyndet står i
+`docs/44_marknaden_2026.md`. Det gör det inte: den filen innehåller ingenting
+om Tyskland, noll träffar på Topf Secret, foodwatch eller ens ordet. Materialet
+kom ur en separat internationell genomgång vars rapport aldrig blev en egen
+fil. Den verifierade versionen finns nu i `docs/50_begar_ut_kontrollen.md` med
+källa per påstående, och den ska läsas i stället för avsnittet nedan där de
+skiljer sig.
+
+Fyra av punkterna är nya för
 projektet och en av dem hör hemma i den översta vågen.
 
 **H1. Begär ut kontrollen, som funktion på sajten. NY OCH STOR.**
@@ -351,14 +359,23 @@ den. Det är förmodligen rätt, eftersom vi speglar allmänna handlingar och in
 utfärdar sanktioner, men det ska vara ett skrivet beslut och inte en
 underlåtenhet. Hör ihop med E1.
 
-**H5. En riskvarning värd att känna till.**
-Berlins transparenslag upphävdes 28 februari 2026, och Verwaltungsgericht
-Berlin förbjöd stadsdelen Pankow att fortsätta publicera sin smileylista.
-Domstolen fann att stadsdelen varken kunde stödja sig på den egna lagen eller
-direkt på artikel 11.3 i EU:s kontrollförordning 2017/625. Det gäller en
-MYNDIGHETS egen publicering och inte en privat aktör som återpublicerar redan
-utlämnade handlingar, vilket är en annan sak juridiskt, men det visar att
-grunden inte är självklar. Skickas vidare till E1.
+**H5. En riskvarning, och den är svagare än vad som först stod här.**
+
+**RÄTTAD 2026-08-31.** Här stod att Verwaltungsgericht Berlin i februari 2026
+förbjöd stadsdelen Pankow att publicera sin smileylista, och att domstolen fann
+att varken den egna lagen eller artikel 11.3 i EU:s kontrollförordning
+2017/625 bar publiceringen. **Någon sådan dom går inte att belägga**, se
+`docs/50` §2 och §10.
+
+Det som faktiskt hände är två skilda saker. Berlins transparenslag upphävdes,
+kungjort i delstatens författningssamling 16 februari 2026. Och VG Berlin
+avgjorde ett mål om smileylistan 16 december 2024, i mål VG 14 L 228/24, alltså
+mer än ett år tidigare och inte i februari 2026.
+
+Slutsatsen står ändå kvar, fast med mindre kraft: grunden för att en MYNDIGHET
+ska publicera är inte självklar ens i ett land som lagstiftat om den. Det säger
+mindre om en privat aktör som återpublicerar redan utlämnade handlingar, vilket
+är en annan sak juridiskt. Skickas vidare till E1.
 
 ---
 
@@ -434,8 +451,17 @@ myndigheter till två, med ikraftträdande **1 januari 2028**. Ordagrant ur
 sammanfattningen: "Den största omställningen kommer ske för kommunerna, som
 inte längre ska utföra livsmedelskontroll."
 
-Remissens status är inte belagd och står som öppen punkt. Men förslaget finns,
-och det är den enda rörelsen i den här frågan i Sverige på tjugo år.
+**TIDSPLANEN ÄR INTE LÄNGRE 2028, och det ändrar följdbesluten nedan.**
+Regeringen tillsatte 15 maj 2026 en ny utredning som redovisar 5 januari 2027,
+alltså är datumet 1 januari 2028 i praktiken övergivet och någon ny
+ikraftträdandedag finns inte. Se `docs/50_begar_ut_kontrollen.md`. Reformen är
+inte avblåst, men den är senare och osäkrare än vad som stod här, **vilket gör
+A2 mer värd och inte mindre**: fönstret där utspridd data är en vallgrav är
+längre än ett och ett halvt år.
+
+Remissens status är i övrigt inte belagd och SKR:s remissvar gick inte att
+lokalisera. Men förslaget finns, och det är den enda rörelsen i den här frågan
+i Sverige på tjugo år.
 
 **Vad det gör med projektet, ärligt läst.**
 

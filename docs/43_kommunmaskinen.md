@@ -366,10 +366,17 @@ hänskjuts till myndigheten och att ett skriftligt beslut med besvärshänvisnin
 meddelas. Utan skriftligt myndighetsbeslut finns ingenting att överklaga.
 Överklagandet är avgiftsfritt och kräver inget ombud.
 
-**En kommun får inte parkera vår begäran för att den är stor.** JO dnr 384-2025:
-"Skyndsamhetskravet måste uppfyllas i varje enskilt ärende, oaktat att
-myndigheten samtidigt handlägger andra ärenden om att lämna ut allmänna
-handlingar."
+**En kommun får inte parkera vår begäran för att den är stor.**
+
+**RÄTTAD KÄLLA 2026-08-31.** Här stod diarienumret JO dnr 384-2025, och det
+går inte att belägga hos JO. Rättssatsen står kvar, den bärs bara av ett annat
+beslut: **JO dnr 5301-2019**, meddelat 22 oktober 2020. Se
+`docs/50_begar_ut_kontrollen.md` §10, där hela kontrollen av lagrummen i det
+här avsnittet är gjord om.
+
+Innebörden är densamma. Skyndsamhetskravet gäller i varje enskilt ärende, och
+att myndigheten samtidigt handlägger andra utlämnandeärenden är inte ett skäl
+att låta vårt vänta.
 
 ### 5.6 De får inte fråga vilka vi är
 
