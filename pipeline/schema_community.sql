@@ -38,40 +38,53 @@
 -- användare skriver kommer in i ett bygge utan att en människa i redaktionen
 -- har släppt fram det.
 --
--- Allt användarskrivet är `pending` när det skapas, MED ETT UNDANTAG som står
--- utskrivet nedan: ett betyg utan text. Ingen inloggad roll får ändra
--- `status`, för det finns ingen update-policy. Bara service_role, som går
--- förbi RLS och bara används av pipelinen och modereringsverktyget, kan flytta
--- en rad till `published` i efterhand.
+-- Allt användarskrivet är `pending` när det skapas, UTAN UNDANTAG. Ingen
+-- inloggad roll får ändra `status`, för det finns ingen update-policy. Bara
+-- service_role, som går förbi RLS och bara används av pipelinen och
+-- modereringsverktyget, kan flytta en rad till `published` i efterhand.
 --
 -- ---------------------------------------------------------------------------
--- UNDANTAGET: BETYG UTAN TEXT
+-- UNDANTAGET SOM STOD HÄR ÄR STÄNGT (2026-08-31)
 -- ---------------------------------------------------------------------------
--- Här stod tidigare "förhandsgranskning utan undantag". Det stämmer inte
--- längre, och den här filen är det dokument som ska kunna visas för en
--- myndighet, så den ska säga vad som faktiskt gäller.
+-- Stängt med migrationen community_reviews_no_auto_publish, som också flyttade
+-- tillbaka de 7 rader automatiken hunnit släppa ut till kön. Filen är
+-- idempotent och beskriver läget efter den migrationen.
 --
--- Ett omdöme som BARA är ett betyg, alltså en siffra mellan ett och fem utan
--- en enda rad text, publiceras direkt. Allt som bär text granskas av en
--- människa först, precis som förut.
+-- Mellan 2026-08-03 och 2026-08-31 publicerades ett omdöme som BARA var ett
+-- betyg, alltså en siffra utan en rad text, direkt av triggern längre ner.
+-- Argumentet var att en siffra inte kan bära förtal, namngiven personal eller
+-- ett påstående en verksamhet har rätt att bemöta, och det argumentet är
+-- fortfarande riktigt i sak. Det är bara inte det kriteriet lyder.
 --
--- Skälet är att förhandsgranskningen har ett bestämt syfte: att fånga förtal,
--- namngiven personal och påståenden som en verksamhet har rätt att bemöta. En
--- siffra kan inte bära något av det. Det finns ingenting i en fyra att läsa,
--- och en kö av siffror ger ingen redaktionell bedömning. Den kostar däremot
--- lika många klick som en kö av texter, och det farliga är inte tiden utan
--- vanan: den som klickar igenom hundra siffror slutar läsa texterna ordentligt.
+-- Kriteriet för utgivningsbevis är att innehållet i databasen inte kan ändras
+-- av någon ANNAN än redaktionen, och Mediemyndighetens blankett skärper det på
+-- sidan 5: finns innehåll som publiceras utan att redaktionen godkänt det i
+-- förväg kan bevis inte utfärdas, och den omodererade delen måste avskiljas
+-- och bilda en egen databas. Ett betyg som en utomstående får publicerat utan
+-- att en människa sett det är precis det, och ett omdömessnitt som ändras av
+-- utomstående ändrar dessutom vad sidan visar. Se docs/47_utgivningsbevis.md
+-- avsnitt 2.4.
 --
--- Undantaget gäller INTE åtskillnaden mot kontrolldatan. Ett publicerat betyg
--- ligger fortfarande i schemat `community`, det når fortfarande aldrig ett
--- bygge, och det räknas fortfarande aldrig ihop till ett tal bredvid
--- hygienbedömningen.
+-- Det andra skälet är EU-domstolens dom 9 juli 2026 i mål C-199/24. Domstolen
+-- kräver för journalistiska ändamål att materialet är föremål för ett visst
+-- bearbetningsarbete FÖRE publicering och att påståenden granskas före
+-- publicering. Sedan den domen är granskningen inte en formalitet i en
+-- ansökan, den är försvaret om IMY frågar.
 --
--- Beslutet är ägarens och taget medvetet. Villkoret för det var tre spärrar,
--- alla i databasen: ett betyg per konto och verksamhet, fem omdömen per konto
--- och dygn, och ett dygns ålder på kontot innan något publiceras direkt. Se
--- community.set_review_status() längre ner, och community.rating_signals som
--- är efterhandsgranskningen.
+-- KOSTNADEN ÄR MÄTT OCH DEN ÄR LITEN. Uppmätt 2026-08-31 över hela beståndet:
+-- 20 omdömen sedan 2026-08-03, varav 13 utan text. 7 av de 13 släpptes fram av
+-- automatiken, resten låg redan hos en människa. Fördelat per vecka är det 4,3
+-- omdömen och 3,3 betyg utan text, och kön innehöll en enda post den dag
+-- ändringen gjordes. Automatiken byggdes alltså mot en kö som inte finns.
+-- Skulle den kön en dag bli verklig är svaret fler händer eller ett bättre
+-- verktyg, inte att öppna dörren igen: kriteriet väger tyngre än klicken.
+--
+-- De tre spärrar som var villkoret för undantaget står kvar och gör fortsatt
+-- nytta, nu som skydd för kön i stället för för publiceringen: ett betyg per
+-- konto och verksamhet, fem omdömen per konto och dygn, och
+-- community.rating_signals som pekar ut mönster i det som publicerats.
+-- Åldersgränsen på ett dygn är däremot borta, för den fanns bara för att avgöra
+-- vad som fick gå ut direkt.
 --
 -- OREDIGERAT betyder inte omodererat. Sidfoten och metodiksidan lovar att
 -- verksamhetens svar publiceras oredigerat. Det löftet hålls genom att
@@ -738,8 +751,9 @@ create trigger reviews_visited_month
 -- ---------------------------------------------------------------------------
 -- Statusen sätts av databasen, aldrig av det som skickas in
 -- ---------------------------------------------------------------------------
--- Se UNDANTAGET längst upp i filen för varför betyg utan text publiceras
--- direkt. Det här är mekanismen.
+-- ALLT BLIR `pending`. Se avsnittet om det stängda undantaget längst upp i
+-- filen för vad som gällde fram till 2026-08-31 och varför det inte gäller
+-- längre. Det här är mekanismen.
 --
 -- Statusen får aldrig komma utifrån. Kunde den skickas in vore
 -- förhandsgranskningen borta i samma ögonblick som någon skickade
@@ -761,19 +775,19 @@ create trigger reviews_visited_month
 --     skyddar också modereringskön från att svämma över, och en översvämmad kö
 --     är exakt det som gör en granskare slarvig.
 --
---     Taket gäller inte redaktionen, se community.quota_exempt(). Åldersgränsen
---     nedan gäller däremot alla: den avgör om en rad publiceras direkt, och det
---     är ingen kvot utan en regel om innehåll.
+--     Taket gäller inte redaktionen, se community.quota_exempt().
 --
---   Åldersgräns på kontot. Ett dygn. Det är den minsta gräns som överlever att
---     någon skaffar konton och sprutar betyg i samma sittning. Yngre konton
---     AVVISAS INTE, deras betyg landar som `pending`. Ett nytt konto ska inte
---     mötas av ett fel det inte kan göra något åt, och att bli läst av en
---     människa är samma sak som händer alla som skriver en text.
+-- ÅLDERSGRÄNSEN PÅ KONTOT ÄR BORTA, och det är inte en försvagning. Ett dygns
+-- ålder var villkoret för att ett betyg skulle få gå ut UTAN att någon läst
+-- det. Nu läser någon allt, och då är gränsen bara en fråga utan verkan: ett
+-- betyg från ett tio minuter gammalt konto och ett från ett tio år gammalt
+-- hamnar i samma kö.
 --
--- `security definer` behövs för att läsa auth.users. Rollen `authenticated` har
--- ingen läsrätt där, och ska inte få det. Sökvägen är pinnad och varje namn
--- utskrivet, vilket är vad som gör en definer-funktion ofarlig.
+-- `security definer` står kvar, men skälet är ett annat än förut. Funktionen
+-- läser inte längre auth.users. Den räknar dygnets omdömen för kontot, och det
+-- talet ska vara det sanna talet och inte det anroparens radsäkerhet råkar
+-- visa. Sökvägen är pinnad och varje namn utskrivet, vilket är vad som gör en
+-- definer-funktion ofarlig.
 create or replace function community.set_review_status()
 returns trigger
 language plpgsql
@@ -781,7 +795,6 @@ security definer
 set search_path to ''
 as $$
 declare
-    kontots_alder interval;
     senaste_dygnet integer;
     -- Redaktionen räknas inte. Se community.quota_exempt() längre upp.
     fri boolean := community.quota_exempt();
@@ -801,31 +814,21 @@ begin
             using errcode = 'check_violation';
     end if;
 
-    select now() - u.created_at into kontots_alder
-    from auth.users u
-    where u.id = new.user_id;
-
-    if new.body is null
-       and kontots_alder is not null
-       and kontots_alder >= interval '24 hours' then
-        new.status := 'published';
-        -- Vem som släppte fram raden. Villkoret
-        -- review_published_requires_moderator kräver ett svar, och svaret ska
-        -- vara sant: det var regeln och inte en människa.
-        new.moderated_by := 'automatik: betyg utan text';
-        new.moderated_at := now();
-    else
-        new.status := 'pending';
-        new.moderated_by := null;
-        new.moderated_at := null;
-    end if;
+    -- INGEN GREN. Här stod ett villkor som satte `published` direkt när
+    -- `body` var null och kontot var minst ett dygn gammalt. Att det är borta
+    -- är hela ändringen: en rad utan gren kan inte få ett undantag som någon
+    -- glömmer bort, och den som läser funktionen ser på tre rader att ingenting
+    -- går ut utan att en människa flyttat det. Se avsnittet längst upp i filen.
+    new.status := 'pending';
+    new.moderated_by := null;
+    new.moderated_at := null;
 
     return new;
 end;
 $$;
 
 comment on function community.set_review_status() is
-    'Sätter status vid insättning. Betyg utan text publiceras direkt, allt annat granskas.';
+    'Sätter status vid insättning. Allt blir pending, utan undantag, och taket är fem per dygn.';
 
 drop trigger if exists reviews_set_status on community.reviews;
 create trigger reviews_set_status
@@ -870,9 +873,15 @@ alter view community.published_reviews set (security_invoker = true);
 -- ---------------------------------------------------------------------------
 -- Efterhandsgranskning av betyg
 -- ---------------------------------------------------------------------------
--- "Publicera nu och moderera på signal" fungerar bara om någon faktiskt ser
--- signalen. Vyn är den signalen, och den läses av pipeline/moderate.py med
--- kommandot `signaler`.
+-- Vyn byggdes när betyg utan text gick ut direkt: "publicera nu och moderera
+-- på signal" fungerar bara om någon faktiskt ser signalen. Den automatiken är
+-- stängd sedan 2026-08-31, och vyn står ändå kvar, för den svarar på en fråga
+-- förhandsgranskningen inte kan svara på.
+--
+-- En granskare ser en rad i taget. Tre ettor på samma verksamhet under ett dygn
+-- ser ut som tre rimliga ettor när de kommer var för sig, och som något helt
+-- annat när de läggs bredvid varandra. Vyn är den blicken, och den läses av
+-- pipeline/moderate.py med kommandot `signaler`.
 --
 -- Två mönster, båda sådana som en enskild rad aldrig avslöjar:
 --
@@ -923,7 +932,7 @@ create or replace view community.rating_signals as
     having count(*) >= 3 and max(r.rating) = 1;
 
 comment on view community.rating_signals is
-    'Mönster värda en blick sedan betyg utan text publiceras direkt. Läses av moderate.py.';
+    'Mönster i publicerade betyg som en rad i taget inte visar. Läses av moderate.py.';
 
 revoke all on community.rating_signals from anon, authenticated;
 grant select on community.rating_signals to service_role;
@@ -943,11 +952,15 @@ grant select on community.rating_signals to service_role;
 -- in allas publicerade omdömen. Se varningen vid reviews_read_published och
 -- ownRows() i site/src/lib/community.ts.
 --
--- Automatiskt publicerade betyg räknas INTE. Ett betyg utan text publiceras
--- direkt av community.set_review_status(), och en notis om det hade kommit i
--- samma sekund som man tryckte skicka. Klockan ska bära vad någon annan
--- gjort, inte vad man just gjorde själv. Etiketten 'automatik: …' sätts av
--- samma funktion och är kopplingen mellan de två reglerna.
+-- Automatiskt publicerade betyg räknas INTE. Fram till 2026-08-31 publicerade
+-- community.set_review_status() ett betyg utan text direkt, och en notis om det
+-- hade kommit i samma sekund som man tryckte skicka. Klockan ska bära vad någon
+-- annan gjort, inte vad man just gjorde själv.
+--
+-- Automatiken är stängd och ingen ny rad får etiketten 'automatik: …'. Filtret
+-- står kvar ändå, av två skäl: det kostar ingenting, och det är det enda som
+-- håller en gammal rad borta från klockan om någon skulle publicera om den. Se
+-- reviewNotices() i site/src/lib/community.ts, som bär samma filter.
 create or replace function community.unread_notices()
 returns integer
 language sql
@@ -1374,15 +1387,17 @@ create policy owner_responses_read_own on community.owner_responses
 
 -- Omdömen: skapas som pending, läses av sin författare i alla lägen och av
 -- alla andra bara när de är publicerade.
--- Policyn kan INTE kräva `status = 'pending'`.
+-- Policyn kräver INTE `status = 'pending'`.
 --
 -- RLS-villkoret prövas mot raden som den ska lagras, alltså efter att
--- before-triggern kört. Med det gamla villkoret hade varje automatiskt
--- publicerat betyg fällts av sin egen policy.
+-- before-triggern kört. Så länge automatiken fanns hade ett sådant villkor
+-- fällt varje automatiskt publicerat betyg med sin egen policy.
 --
 -- Att status, moderated_by och moderated_at inte längre nämns här är ingen
 -- lucka: community.set_review_status() skriver över alla tre vid varje
--- insättning, och en trigger går inte att kringgå med en rättighet.
+-- insättning, och en trigger går inte att kringgå med en rättighet. Villkoret
+-- `status = pending` vore riktigt igen sedan automatiken stängdes, men det
+-- skulle säga samma sak två gånger och på det svagare av de två ställena.
 drop policy if exists reviews_insert on community.reviews;
 create policy reviews_insert on community.reviews
     for insert to authenticated

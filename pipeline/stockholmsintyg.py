@@ -44,13 +44,26 @@ besked om vad som ska läggas till. Kontrollen ersätter inte regeln, den gör
 regeln omöjlig att glömma. Se `krav_pa_export`.
 
 
-═══ PERSONNUMMER ═════════════════════════════════════════════════════════════
+═══ PERSONNUMMER OCH PERSONNAMN ══════════════════════════════════════════════
 
 Fältet heter "Person/Organisationsnummer" och bär innehavarens personnummer
 när verksamheten drivs som enskild firma. Sådana nummer skrivs aldrig till
 site/src/data. `prikko.stockholmsintyg.raden` sållar dem, och `prov` skriver
 ut hur många i urvalet som fastnade i sållet, för det talet är en del av
 beslutsunderlaget.
+
+SAMMA SÅLL GÄLLER NAMNET SEDAN 2026-08-31. Fältet "Livsmedelsföretagare" bär
+innehavarens namn på precis de rader där numret hålls inne, och `operator`
+sållas därför på samma villkor. Se `utan_personuppgifter` i modulen och
+mätningen i dess docstring för varför regeln inte försöker gissa vilka namn
+som är personers.
+
+Sållet sitter på TVÅ ställen med avsikt. `raden` städar det som skrivs till
+cachen, och `tillampa` städar en gång till det som skrivs till site/src/data.
+Det andra steget är inte överflödigt: cachen i data/interim skrevs 2026-08-27,
+alltså innan regeln fanns, och den bar 498 namn. Ett spår som bara städade
+läsningen hade krävt 8 520 nya anrop mot stadens e-tjänst för att städa en fil
+vi redan har.
 """
 
 from __future__ import annotations
@@ -172,6 +185,7 @@ def prov(path: Path, antal: int, fro: int) -> int:
 
     idag = datetime.date.today()
     personnummer = 0
+    namn = 0
     for rad in rader:
         i = funna.get(rad["id"])
         if i is None:
@@ -179,13 +193,17 @@ def prov(path: Path, antal: int, fro: int) -> int:
         publicerbar = intyg.raden(i, idag)
         if publicerbar["orgnr"] is None and i.nummer:
             personnummer += 1
+        if publicerbar["operator"] is None and i.livsmedelsforetagare:
+            namn += 1
         print(f"\n{rad['name']}  ·  {rad.get('address') or 'ingen adress'}")
         print(f"  {intyg.intygslank(rad['id'])}")
         for etikett, varde in (
             ("status", "Aktiv" if i.aktiv else "Inaktiv"),
             ("orgnr", publicerbar["orgnr"] or "hålls inne"),
             ("företagsform", publicerbar["companyForm"]),
-            ("företagare", i.livsmedelsforetagare),
+            # Vad raden BLIR och inte vad sidan sade. Den som ska besluta om
+            # publicering ska se det som skulle publicerats.
+            ("företagare", publicerbar["operator"] or "hålls inne"),
             ("postnummer", f"{i.postnummer} {i.ort}"),
             ("registrerad", i.registreringsdatum),
             ("omfattning", i.omfattning),
@@ -202,6 +220,7 @@ def prov(path: Path, antal: int, fro: int) -> int:
         f"\n{len(funna)} intyg av {len(rader)}, "
         f"{sum(1 for i in funna.values() if not i.aktiv)} inaktiva, "
         f"{personnummer} med personnummer som hålls inne, "
+        f"{namn} med företagarnamn som hålls inne, "
         f"{len(saknade)} utan intyg, {len(fel)} fel",
         file=sys.stderr,
     )
@@ -240,9 +259,15 @@ def hamta(path: Path, antal: Optional[int], fro: int) -> int:
 
     inaktiva = sum(1 for i in funna.values() if not i.aktiv)
     utan_orgnr = sum(1 for r in payload["intyg"].values() if r["orgnr"] is None)
+    utan_namn = sum(
+        1
+        for id_, r in payload["intyg"].items()
+        if r["operator"] is None and funna[id_].livsmedelsforetagare
+    )
     print(
         f"{len(funna)} intyg skrivna till {CACHEFIL}. "
         f"{inaktiva} inaktiva, {utan_orgnr} utan publicerbart orgnr, "
+        f"{utan_namn} med företagarnamn som hålls inne, "
         f"{len(saknade)} utan intyg, {len(fel)} fel.",
         file=sys.stderr,
     )
@@ -286,8 +311,29 @@ def tillampa(path: Path) -> int:
     if hinder:
         raise SystemExit(hinder)
 
-    cache = json.loads(CACHEFIL.read_text(encoding="utf-8"))["intyg"]
+    kladd = json.loads(CACHEFIL.read_text(encoding="utf-8"))
+    cache = {
+        id_: intyg.utan_personuppgifter(rad) for id_, rad in kladd["intyg"].items()
+    }
     payload = json.loads(path.read_text(encoding="utf-8"))
+
+    # SÅLLET GÅR FÖRE SKRIVNINGEN, OCH ÖVER CACHEN OCKSÅ. Cachen skrevs
+    # 2026-08-27, alltså innan `operator` sållades, och bar då 498 namn på
+    # innehavare av enskild firma. Att städa den här i stället för att hämta om
+    # 8 520 sidor är samma beslut som `hamta` tog när den valde att lägga den
+    # PUBLICERBARA raden i cachen och inte allt sidan sade: det som aldrig
+    # skrivs till disk kan inte läcka därifrån.
+    stadade = sum(
+        1
+        for id_, rad in cache.items()
+        if rad != kladd["intyg"][id_]
+    )
+    if stadade:
+        kladd["intyg"] = cache
+        CACHEFIL.write_text(
+            json.dumps(kladd, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+        print(f"{stadade} rader städades i {CACHEFIL}", file=sys.stderr)
 
     skrivna = 0
     for e in payload["establishments"]:
@@ -300,7 +346,18 @@ def tillampa(path: Path) -> int:
         path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8"
         )
-    print(f"{skrivna} rader fick {FALTNAMN} i {path}", file=sys.stderr)
+
+    kvar = sum(
+        1
+        for e in payload["establishments"]
+        if (e.get(FALTNAMN) or {}).get("operator")
+        and not (e.get(FALTNAMN) or {}).get("orgnr")
+    )
+    print(
+        f"{skrivna} rader fick {FALTNAMN} i {path}. "
+        f"{kvar} rader bär ett namn utan organisationsnummer.",
+        file=sys.stderr,
+    )
     return 0
 
 

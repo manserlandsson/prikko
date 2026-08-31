@@ -177,13 +177,18 @@ export type SourceType =
  * PERSONNUMMER när det inte finns någon juridisk person. Pipelinen håller
  * inne numret och låter `companyForm` bära upplysningen i stället. Se
  * `ar_personnummer` i pipeline/prikko/stockholmsintyg.py.
+ *
+ * `operator` SAKNAS PÅ SAMMA RADER, av samma skäl. Fältet är kommunens
+ * "Livsmedelsföretagare", och utan juridisk person är det innehavarens namn.
+ * 498 rader i stockholm.json bar ett sådant namn fram till 2026-08-31. Se
+ * `utan_personuppgifter` i samma modul.
  */
 export interface Registration {
   /** Bara ett BOLAGS nummer, aldrig en fysisk persons. Se ovan. */
   orgnr?: string | null;
   /** 'aktiebolag' | 'enskild' | 'stat_kommun' | 'ideell_forening' | ... */
   companyForm?: string | null;
-  /** Livsmedelsföretagaren: den juridiska person som driver stället. */
+  /** Livsmedelsföretagaren. Bara ett BOLAGS namn, aldrig en fysisk persons. */
   operator?: string | null;
   postalCode?: string | null;
   city?: string | null;
@@ -340,7 +345,22 @@ export interface Establishment {
 
 interface Dataset {
   municipality: Municipality;
-  source: { url: string; fetchedAt: string };
+  source: {
+    url: string;
+    fetchedAt: string;
+    /**
+     * När KÄLLAN senast ändrades, ISO-datum. Valfritt, och står bara där
+     * källan själv svarar på frågan.
+     *
+     * `fetchedAt` säger när VI läste filen och ingenting om hur gammalt
+     * materialet är. Skillnaden är noll i en kommun vars tjänst svarar med
+     * dagens läge, och den är allt i en kommun vars fil ligger stilla:
+     * Norrköpings Ecos-utdrag hämtas i dag och skrevs 2024-03-17. Fältet
+     * finns för att kommunsidan ska kunna säga det utan att besökaren
+     * behöver klicka sig vidare. Se pipeline/fetch_ecos.py.
+     */
+    modifiedAt?: string;
+  };
   /** Skrivs av pipeline/narhet.py, bara när filen faktiskt bär en sådan uppgift. */
   narhet?: { checkedAt: string };
   /**

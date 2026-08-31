@@ -16,15 +16,14 @@
  *
  *   1. Egen databas i egen mening. Omdömen ligger i schemat `community`, utan
  *      en enda främmande nyckel till kontrolldatan. Se schema_community.sql.
- *   2. Förhandsgranskning av allt som bär text. Ett omdöme med en enda rad
- *      text är osynligt för alla utom sin författare tills en människa släppt
- *      fram det, och det är en radsäkerhetspolicy, inte en regel i den här
- *      filen. Ett omdöme som BARA är ett betyg publiceras direkt: en siffra
- *      mellan ett och fem kan inte bära förtal, namngiven personal eller ett
- *      påstående som går att bemöta. Beslutet är ägarens och står motiverat
- *      under UNDANTAGET i pipeline/schema_community.sql, tillsammans med de
- *      tre spärrar som är villkoret för det. Statusen sätts av en trigger i
- *      databasen, aldrig av något den här filen skickar.
+ *   2. Förhandsgranskning av allt, utan undantag. Ett omdöme är osynligt för
+ *      alla utom sin författare tills en människa släppt fram det, och det är
+ *      en radsäkerhetspolicy, inte en regel i den här filen. Ett betyg utan
+ *      text gick fram till 2026-08-31 ut direkt, och gör det inte längre:
+ *      kriteriet för utgivningsbevis gäller om innehållet kan ändras av någon
+ *      annan än redaktionen, inte om en siffra kan bära förtal. Se det stängda
+ *      undantaget i pipeline/schema_community.sql. Statusen sätts av en trigger
+ *      i databasen, aldrig av något den här filen skickar.
  *   3. Aldrig i ett bygge. Listan nedan är tom i HTML-filen och fylls i
  *      webbläsaren. Den grundlagsskyddade databasen är det statiska bygget, och
  *      ingenting en besökare skrivit kommer in i det.
@@ -97,7 +96,7 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
       Besökarnas omdömen
       <InfoTip
         label="omdömen"
-        text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme med text läses av redaktionen innan det publiceras. Ett omdöme som bara är ett betyg publiceras direkt."
+        text="Vad besökare tycker om stället. Det är åsikter, inte kontrollresultat, och de påverkar aldrig hygienbedömningen. Varje omdöme läses av redaktionen innan det publiceras, både betyget och texten."
       />
     </h2>
 
@@ -367,9 +366,10 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
           <button type="button" class="btn-quiet" id="review-cancel">Avbryt</button>
         </div>
 
-        {/* Raden måste säga vad som faktiskt händer, och de två fallen är
-            olika sedan betyg utan text publiceras direkt. Att lova granskning
-            av allt vore enklare att skriva och osant. */}
+        {/* Raden måste säga vad som faktiskt händer. Här stod två meningar,
+            en för texten och en för betyget, eftersom betyget gick ut direkt.
+            Sedan automatiken stängdes 2026-08-31 är det ett enda fall igen,
+            och då ska det stå som ett fall och inte som två. */}
         {/* Tre fall och tre meningar, för de tre sakerna man kan skicka beter
             sig olika. Bilden fick sin mening när den blev fristående: utan den
             hade ett foto sett ut att gå direkt ut, som betyget gör.
@@ -379,9 +379,9 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
             förklara vad som händer med en text man inte kan skriva. */}
         <p class="konto-legal">
           <span id="review-legal-review">
-            Skriver du en text publiceras omdömet först sedan redaktionen läst
-            den, och publiceras då ordagrant. Vi ändrar aldrig i din text.
-            Sätter du bara ett betyg syns det direkt.
+            Omdömet publiceras först sedan redaktionen läst det, och det gäller
+            även ett omdöme som bara är ett betyg. Har du skrivit en text
+            publiceras den ordagrant. Vi ändrar aldrig i din text.
           </span>
           Bilder granskas innan de visas. Du kan ta bort det du skickat när du
           vill från <a href="/konto/">ditt konto</a>. Läs
@@ -1427,14 +1427,15 @@ const { establishmentId, establishmentName, municipalitySlug } = Astro.props;
         /*
          * Kvittensen LÄSES, den antas inte.
          *
-         * Här stod tidigare "Väntar. Tack. Omdömet är inskickat" oavsett vad
-         * som hänt. Det är inte längre sant: ett betyg utan text publiceras
-         * direkt av databasen, och att då säga att det väntar på granskning
-         * vore fel om något man kan gå och kontrollera själv.
+         * Här stod en gång "Väntar. Tack. Omdömet är inskickat" oavsett vad som
+         * hänt, och det blev osant den dagen betyg utan text började publiceras
+         * direkt. Automatiken är stängd sedan 2026-08-31, så svaret är åter
+         * "Väntar" för varje omdöme, men kvittensen ska ändå inte anta det.
          *
          * refreshMine() hämtar raden som den faktiskt blev och målar
          * "Väntar" eller "Klart" efter det. Vem som avgör står kvar där det
-         * hör hemma, i databasen.
+         * hör hemma, i databasen. Den som en dag ändrar regeln igen behöver
+         * då inte komma ihåg att också ändra en mening här.
          */
         if (!reviewId) {
           /* Bara bilder. Det finns inget omdöme att läsa tillbaka, och

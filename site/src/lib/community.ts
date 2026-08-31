@@ -698,8 +698,8 @@ export async function myReview(
  * resten, och den här funktionen kontrollerar det inte en gång till.
  *
  * STATUSEN SKICKAS INTE HÄRIFRÅN, och ska aldrig göra det. En trigger i
- * databasen sätter den: ett betyg utan text publiceras direkt, allt som bär
- * text väntar på att en människa läst det. Skulle den här funktionen skicka
+ * databasen sätter den, och sedan 2026-08-31 sätter den samma sak för alla:
+ * `pending`, tills en människa läst raden. Skulle den här funktionen skicka
  * med en status ignoreras den, vilket är hela poängen med att regeln bor där
  * och inte här.
  *
@@ -846,9 +846,11 @@ export async function notices(): Promise<NoticeRow[]> {
 /**
  * Egna omdömen som fått ett besked, nyast först.
  *
- * `moderated_by=not.like.automatik:*` fäller de betyg som publicerats direkt
- * av community.set_review_status(). En notis om dem hade kommit i samma
- * sekund som man tryckte skicka, och klockan ska bära vad någon annan gjort.
+ * `moderated_by=not.like.automatik:*` fäller de betyg som publicerades direkt
+ * av community.set_review_status() fram till 2026-08-31. En notis om dem hade
+ * kommit i samma sekund som man tryckte skicka, och klockan ska bära vad någon
+ * annan gjort. Automatiken är stängd och ingen ny rad bär etiketten, men
+ * filtret kostar ingenting och håller en gammal rad borta om den publiceras om.
  * Filtret står som villkor och inte i utsökningen med flit: moderatorns
  * identitet ska inte lämna databasen bara för att den behövde läsas.
  *

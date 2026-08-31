@@ -72,12 +72,49 @@ finns i site/src/data, prövat med `IngetPersonnummerILevererad` i
 pipeline/tests/test_stockholmsintyg.py, som söker igenom varje sträng i varje
 sparad rad och inte bara `orgnr`.
 
-NAMNET ÄR OCKSÅ EN PERSONUPPGIFT. Fältet "Livsmedelsföretagare" bär
-innehavarens namn i klartext på samma rader, uppmätt på 451 av dem: "Pierre
-Oanes", "Åsa Johansson Ef Niddes Café". Numret hålls inne här i pipelinen,
-namnet hålls inne på sidan, se `registerrader` i site/src/lib/registrering.ts.
-Att hålla inne det ena och skriva ut det andra vore att hålla inne halva
-uppgiften.
+## NAMNET HÅLLS INNE AV SAMMA SPÄRR SOM NUMRET
+
+Fältet "Livsmedelsföretagare" bär innehavarens namn i klartext på precis de
+rader där numret hålls inne: "Pierre Oanes", "Åsa Johansson Ef Niddes Café",
+"Dana Halanova Ef". Att hålla inne numret och skriva ut namnet vore att hålla
+inne halva uppgiften.
+
+Fram till 2026-08-31 stod namnet ändå kvar i den levererade raden, och skyddet
+var en `if`-sats i site/src/lib/registrering.ts. Den grinden gör rätt och står
+kvar, men en grind i en renderingsfil skyddar bara den komponent som råkar
+läsa fältet genom den. `operator` sållas därför nu här, på samma ställe och
+med samma villkor som numret: finns inget publicerbart organisationsnummer
+följer inget namn med. Se `raden` och `utan_personuppgifter`.
+
+## VARFÖR REGELN INTE FÖRSÖKER SKILJA PERSON FRÅN FÖRETAG
+
+Den försiktiga vägen är vald efter mätning och inte av bekvämlighet. Frågan
+var om en regel kan skilja en fysisk person från en juridisk i fältet utan att
+fela åt något håll. Uppmätt på de 498 rader i site/src/data/stockholm.json som
+saknar publicerbart organisationsnummer, och samtliga 498 bar ett värde:
+
+    355  bär en firmamarkör: "Ef", "med firma", "mf", "med f:a"
+      0  av de 355 har markören först i strängen, alltså står ett namn före den
+    101  innehåller ett branschord: kiosk, livs, café, pizzeria, tobak
+     77  av de 101 bär markören också, alltså både bransch och namn
+     47  är ordagrant verksamhetens eget namn
+    119  har varken markör eller branschord
+
+Båda riktningarna felar. Ett branschord betyder inte att strängen är fri från
+en person: 77 av de 101 bär ett namn framför sig, och "Åsa Johansson Ef Niddes
+Café" är hela problemet i en rad. Och de 119 utan markör är inte personnamn
+heller, de är en blandning: "Pierre Oanes" och "Andreas Nordell" står bredvid
+"CupGood", "Fairvanilla Stockholm" och "Specialpedagogiska Skolmyndigheten".
+
+En regel som ska bli säker måste alltså kunna dela en sträng i en persondel
+och en firmadel, och det är namnigenkänning och inte en regel. Samma
+asymmetri som för numret gäller: att missa ett företagsnamn kostar ett tomt
+fält, att publicera ett personnamn kostar allt. Alltså hålls alla 498 inne.
+
+Priset är noll på sidan. `registerrader` krävde redan ett organisationsnummer
+för raden "Drivs av", så ingen av de 498 skrevs ut i något bygge. Det som
+försvinner är möjligheten för en framtida komponent att skriva ut dem utan att
+någon märker det.
 
 ## VAD MODULEN INTE GÖR
 
@@ -463,19 +500,39 @@ def foretagsform(nummer: Optional[str]) -> Optional[str]:
     return FORETAGSFORM.get(siffror[0])
 
 
+def utan_personuppgifter(rad: dict) -> dict:
+    """Raden med varje uppgift om en fysisk person borttagen.
+
+    EN SPÄRR OCH INTE EN GRIND, och villkoret är ett enda: utan publicerbart
+    organisationsnummer finns ingen juridisk person att namnge, och då bär
+    "Livsmedelsföretagare" innehavarens eget namn. 498 av 8 514 rader är
+    sådana, se mätningen i modulens docstring.
+
+    Funktionen är idempotent och skriven för att tåla en rad som redan är
+    sållad. Den egenskapen är poängen: `raden` går genom den när intyget läses,
+    och `tillampa` i pipeline/stockholmsintyg.py går genom den en gång till när
+    en rad ur cachen skrivs till site/src/data. En cache som skrevs innan
+    regeln fanns städas alltså av den som läser den, i stället för att 8 520
+    sidor hämtas om ur stadens e-tjänst för en regel vi redan kan tillämpa.
+    """
+    if rad.get("orgnr") or rad.get("operator") is None:
+        return rad
+    return {**rad, "operator": None}
+
+
 def raden(intyg: Intyg, kontrollerad: date) -> dict:
     """Intyget i den form en verksamhetsrad kan bära.
 
-    ORGANISATIONSNUMRET SKRIVS BARA NÄR DET ÄR ETT BOLAGS. Se modulens
-    docstring. `foretagsform` bär ändå upplysningen att verksamheten drivs som
-    enskild firma, vilket är det läsaren har nytta av, utan att numret följer
-    med.
+    ORGANISATIONSNUMRET SKRIVS BARA NÄR DET ÄR ETT BOLAGS, OCH NAMNET FÖLJER
+    NUMRET. Se modulens docstring. `foretagsform` bär ändå upplysningen att
+    verksamheten drivs som enskild firma, vilket är det läsaren har nytta av,
+    utan att vare sig numret eller innehavaren röjs.
 
     `checkedAt` av samma skäl som i `hours` och `contact`: uppgiften är hämtad
     vid en tidpunkt och kan ha ändrats sedan dess, och en rad utan det datumet
     går inte att åldras.
     """
-    return {
+    return utan_personuppgifter({
         "orgnr": None if ar_personnummer(intyg.nummer or "") else intyg.nummer,
         "companyForm": foretagsform(intyg.nummer),
         "operator": intyg.livsmedelsforetagare,
@@ -496,7 +553,7 @@ def raden(intyg: Intyg, kontrollerad: date) -> dict:
         ),
         "frequency": intyg.kontrollfrekvens,
         "checkedAt": kontrollerad.isoformat(),
-    }
+    })
 
 
 # ---------------------------------------------------------------------------

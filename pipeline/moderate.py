@@ -52,10 +52,10 @@ Vad som händer vid publicering:
   omdome   raden blir läsbar för anon genom vyn community.published_reviews.
            Omdömen går ALDRIG in i ett bygge; de hämtas i webbläsaren.
 
-           Ett omdöme som bara är ett BETYG, utan en rad text, syns aldrig i
-           kön: det publiceras direkt av en trigger i databasen. Se UNDANTAGET
-           i schema_community.sql för varför, och kör `signaler` för att se de
-           mönster som är värda en blick i efterhand.
+           ÄVEN ETT BETYG UTAN TEXT LIGGER I KÖN sedan 2026-08-31. Fram till
+           dess släppte en trigger fram det direkt. Se det stängda undantaget
+           i schema_community.sql för varför det inte gör det längre, och kör
+           `signaler` för de mönster en rad i taget inte visar.
   anspråk  personen får rätt att svara på kontroller för just den
            verksamheten. Ange alltid hur du kontrollerade det.
   bild     filen kopieras till den publika bucketen och raden blir läsbar
@@ -392,11 +392,13 @@ def cmd_queue(db: Supabase) -> int:
 
 
 def cmd_signals(db: Supabase) -> int:
-    """Efterhandsgranskning av betyg som publicerats direkt.
+    """Mönster i publicerade betyg som en rad i taget inte visar.
 
-    Ett betyg utan text går ut utan att någon läst det, se UNDANTAGET i
-    schema_community.sql. Det är försvarbart bara så länge någon tittar efter
-    mönster i efterhand, och det här kommandot är den blicken.
+    Kommandot byggdes när betyg utan text gick ut utan att någon läst dem. Den
+    automatiken är stängd sedan 2026-08-31, se schema_community.sql, och
+    kommandot står ändå kvar: en granskare ser en rad i taget, och tre ettor på
+    samma verksamhet under ett dygn ser ut som tre rimliga ettor när de kommer
+    var för sig.
 
     Vyn pekar ut, den dömer inte. Läs raderna med `visa omdome <id>` och avslå
     eller radera det som inte håller.

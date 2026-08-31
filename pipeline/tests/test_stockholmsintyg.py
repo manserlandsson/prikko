@@ -395,8 +395,14 @@ class Raden(unittest.TestCase):
         rad = si.raden(si.las(html, "x"), date(2026, 8, 25))
         self.assertIsNone(rad["orgnr"])
         self.assertEqual(rad["companyForm"], "enskild")
-        # Uppgiften som ÄR nyttig följer ändå med.
-        self.assertEqual(rad["operator"], "Firma X")
+        # NAMNET FÖLJER NUMRET. Formen bär upplysningen att stället drivs som
+        # enskild firma, och det är den enda av de tre som får publiceras.
+        self.assertIsNone(rad["operator"])
+
+    def test_foretagarnamnet_skrivs_ut_nar_det_ar_ett_bolags(self):
+        """Andra sidan av regeln: 7 990 rader bär både nummer och namn."""
+        rad = si.raden(si.las(ALLEGRINE, "x"), date(2026, 8, 25))
+        self.assertEqual(rad["operator"], "Restaurang Kammakargatan 22 AB")
 
     def test_hela_raden_ar_json_utan_datumobjekt(self):
         """Raden ska gå rakt in i site/src/data utan en egen serialiserare."""
@@ -405,6 +411,46 @@ class Raden(unittest.TestCase):
         rad = si.raden(si.las(ALLEGRINE, "x"), date(2026, 8, 25))
         self.assertEqual(json.loads(json.dumps(rad)), rad)
 
+
+class UtanPersonuppgifter(unittest.TestCase):
+    """Sållet som `tillampa` kör en gång till på vägen ut ur cachen.
+
+    Prövas för sig, eftersom det är det enda som städar en cache skriven
+    innan regeln fanns. Cachen 2026-08-27 bar 498 namn.
+    """
+
+    def test_namnet_faller_utan_organisationsnummer(self):
+        self.assertIsNone(
+            si.utan_personuppgifter({"orgnr": None, "operator": "Pierre Oanes"})[
+                "operator"
+            ]
+        )
+
+    def test_namnet_star_kvar_med_organisationsnummer(self):
+        rad = si.utan_personuppgifter(
+            {"orgnr": "559130-2442", "operator": "Restaurang Kammakargatan 22 AB"}
+        )
+        self.assertEqual(rad["operator"], "Restaurang Kammakargatan 22 AB")
+
+    def test_idempotent(self):
+        """Sållet körs två gånger på varje rad. Andra gången ska vara gratis."""
+        en_gang = si.utan_personuppgifter({"orgnr": None, "operator": "Pierre Oanes"})
+        self.assertEqual(si.utan_personuppgifter(en_gang), en_gang)
+
+    def test_ovriga_falt_rors_inte(self):
+        """Bara `operator` faller. Formen och datumen är inte personuppgifter."""
+        rad = si.utan_personuppgifter(
+            {
+                "orgnr": None,
+                "operator": "Pierre Oanes",
+                "companyForm": "enskild",
+                "postalCode": "11140",
+                "registeredAt": "2018-02-09",
+            }
+        )
+        self.assertEqual(rad["companyForm"], "enskild")
+        self.assertEqual(rad["postalCode"], "11140")
+        self.assertEqual(rad["registeredAt"], "2018-02-09")
 
 class IngetPersonnummerILevererad(unittest.TestCase):
     """Sållet prövas mot HELA det incheckade beståndet, inte mot ett urval.
@@ -485,6 +531,72 @@ class IngetPersonnummerILevererad(unittest.TestCase):
                         reg.get("orgnr"),
                         "enskild firma får aldrig bära ett nummer",
                     )
+
+
+class IngetPersonnamnILevererad(unittest.TestCase):
+    """Samma prov som för personnumret, för namnet.
+
+    Skälet att det här står som ett EGET prov mot hela beståndet och inte bara
+    som ett prov på `raden`: sållet kan vara riktigt och ändå kringgås. Fältet
+    skrevs till site/src/data av `tillampa`, som läser en cache, och den cachen
+    fylldes 2026-08-27, innan regeln fanns. Ett prov på funktionen hade varit
+    grönt medan filen bar 498 namn.
+
+    Regeln som prövas är den som gäller överallt annars också: utan
+    publicerbart organisationsnummer finns ingen juridisk person att namnge,
+    och "Livsmedelsföretagare" är då innehavarens eget namn. Se
+    `utan_personuppgifter` och `registerrader` i site/src/lib/registrering.ts.
+
+    Faller provet gäller samma ordning som ovan: raderna tas bort ur filen
+    först, och rättas sedan. Ett namn som en gång stått i ett bygge går inte
+    att ta tillbaka.
+    """
+
+    DATA = Path(__file__).resolve().parents[2] / "site" / "src" / "data"
+
+    def test_ingen_rad_bar_ett_namn_utan_organisationsnummer(self):
+        filer = sorted(self.DATA.glob("*.json"))
+        self.assertTrue(filer, f"hittade inga datafiler i {self.DATA}")
+
+        granskade = 0
+        traffar = []
+        for path in filer:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rad in payload.get("establishments", []):
+                reg = rad.get("registration")
+                if not reg:
+                    continue
+                granskade += 1
+                if reg.get("operator") and not reg.get("orgnr"):
+                    traffar.append((path.name, rad.get("id")))
+
+        self.assertEqual(
+            traffar,
+            [],
+            f"företagarnamn utan organisationsnummer i {len(traffar)} av "
+            f"{granskade} registerrader: {traffar[:5]}",
+        )
+
+    def test_raderna_som_bar_ett_namn_bar_ocksa_ett_nummer(self):
+        """Provet ovan är grönt även på en tom fil. Det här är inte det.
+
+        Uppmätt 2026-08-31: 7 990 av 8 514 rader bär både nummer och namn, och
+        498 bär varken eller. Blir den första siffran noll är det inte längre
+        integritet, då har fältet slutat komma fram.
+        """
+        med_bada = 0
+        for path in sorted(self.DATA.glob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for rad in payload.get("establishments", []):
+                reg = rad.get("registration") or {}
+                if reg.get("operator"):
+                    with self.subTest(id=rad.get("id")):
+                        self.assertTrue(
+                            reg.get("orgnr"),
+                            "ett namn kräver ett organisationsnummer",
+                        )
+                    med_bada += 1
+        self.assertGreater(med_bada, 7000)
 
 
 if __name__ == "__main__":

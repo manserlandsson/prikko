@@ -25,7 +25,7 @@ produktplanen som R4 pekade ut har visat sig ha en konkret motsvarighet i koden.
 | Giltighet | 10 år, förnybart |
 | Var | E-tjänst hos Mediemyndigheten, elva steg, inloggning krävs |
 | Betalning | Bankgiro 787-6949, märkt med domänadressen. Ingen annan väg finns. |
-| Hinder i dag | **Ett.** Betyg utan text publiceras utan förhandsgranskning. Se avsnitt 2.4. |
+| Hinder i dag | **Inget.** Betyg utan text gick ut utan granskning fram till 2026-08-31. Stängt, se "Vad som stängdes". |
 | Räcker beviset? | Nej, inte mot dataskyddsförordningen. Det har det inte gjort sedan 9 juli 2026. Se avsnitt 3. |
 
 ---
@@ -156,7 +156,7 @@ utan massmedial karaktär.
 | Namnet inte förväxlingsbart | Noll träffar i registret | Uppfyllt |
 | Anknytning till Sverige | Bolag, ägare, redaktion och data är svenska | Uppfyllt |
 | Ansvarig utgivare finns | **Finns inte.** Ingen är utsedd | **Åtgärd krävs** |
-| Innehållet kan inte ändras av någon annan än redaktionen | Nästan. En ström bryter mot det | **Åtgärd krävs, se 2.4** |
+| Innehållet kan inte ändras av någon annan än redaktionen | Uppfyllt sedan 2026-08-31 | Uppfyllt, se 2.4 och "Vad som stängdes" |
 
 ### 2.2 Verksamheten kan ha en utgivare
 
@@ -206,7 +206,7 @@ Att uppge "Sverige" om ett globalt CDN vore en oriktig uppgift i en ansökan om
 utgivningsbevis, vilket är straffsanktionerat enligt 3 kap. 25 § lagen
 (1991:1559).
 
-### 2.4 Databasregeln: den enda punkt där Prikko inte uppfyller kravet i dag
+### 2.4 Databasregeln: den punkt där Prikko inte uppfyllde kravet
 
 Kriteriet lyder att innehållet inte kan ändras av någon annan än redaktionen.
 Blanketten skärper det på sidan 5: finns innehåll som publiceras utan att
@@ -221,7 +221,9 @@ hämtas i webbläsaren. `pipeline/moderate.py` formulerar det själv rätt: "Det
 verktyget ÄR redaktionen i utgivningsbevisets mening." Två utfall finns, publicera
 ordagrant eller avslå. Ingen ändringsväg.
 
-**Men det finns ett undantag, och det är ett riktigt problem.**
+**Men det fanns ett undantag, och det var ett riktigt problem. Väg A nedan är
+gjord 2026-08-31, se "Vad som stängdes". Avsnittet står kvar som det skrevs,
+eftersom det är motiveringen till ändringen.**
 
 I `pipeline/schema_community.sql`, under rubriken "UNDANTAGET: BETYG UTAN TEXT",
 publiceras ett omdöme **automatiskt** om det saknar text och kontot är minst 24
@@ -255,7 +257,8 @@ namngiven verksamhet, och den ytan vill man inte ha inne i den skyddade database
 när IMY:s fyra pågående tillsyner landar.
 
 Fram tills A är gjord måste steg 6 i ansökan besvaras med **ja**, och det gör
-ansökan sämre. Gör ändringen först.
+ansökan sämre. Gör ändringen först. **A är gjord 2026-08-31 med migrationen
+`community_reviews_no_auto_publish`. B är fortfarande inte gjord.**
 
 **En andra sak värd att nämna i samma steg:** verksamhetens egna svar
 (`ownerComment`, via `community.owner_responses`) skrivs av utomstående men
@@ -431,6 +434,10 @@ någon märker det. **Åtgärd: släpp aldrig `operator` in i den levererade JSO
 när `orgnr` saknas. Flytta grinden till normaliseringen och skriv ett test som
 det som redan finns för personnummer.**
 
+**Gjort 2026-08-31. Spärren sitter i `utan_personuppgifter`, alla 498 namn är
+borta ur både datafil och cache, och provet heter `IngetPersonnamnILevererad`.
+Se "Vad som stängdes".**
+
 **H2. Verksamhetens namn maskeras inte.** Heter stället "Anna Svenssons Gatukök"
 publiceras det namnet. Det är rätt: det är skylten på dörren, det är den uppgift
 kommunen använder, och att maskera den vore att göra sajten oanvändbar. Men det
@@ -582,6 +589,146 @@ Justitiekanslern som filter är billigt även med dataskyddsdelen borträknad. M
 skriv om `docs/11` avsnitt 8. Meningen "utgivningsbevis leder till grundlagsskydd
 vid publicering av namngivna verksamheter" är inte längre sann på det sätt den
 skrevs, och den formuleringen får inte styra fler beslut.
+
+---
+
+## Vad som stängdes
+
+Datum: 2026-08-31. Båda hålen i avsnitt 2.4 och 3.3 är stängda i kod. Talen
+nedan är mätta före och efter, på samma sätt som personnummerarbetet mättes,
+och ingenting här är uppskattat.
+
+### A. 491 personnamn i byggunderlaget (hål H1)
+
+**Före.** `site/src/data/stockholm.json` bar 498 rader utan publicerbart
+organisationsnummer, och samtliga 498 bar ett namn i `registration.operator`.
+491 av dem har `companyForm === "enskild"`, alltså enskild firma. De 7 övriga
+är rader där staden skrivit "Enskild firma. Se övrigt." i sifferfältet. Samma
+498 namn låg dessutom i pipelinens cache, `pipeline/data/interim/stockholmsintyg.json`.
+Skyddet var en `if`-sats i `site/src/lib/registrering.ts`.
+
+**Frågan först: går regeln att göra säker?** Nej, och det är mätt och inte
+antaget. Uppmätt på de 498 värdena:
+
+| Vad strängen bär | Antal |
+|---|---|
+| Firmamarkör: "Ef", "med firma", "mf", "med f:a" | 355 |
+| Av de 355 där markören står först, alltså utan namn före sig | 0 |
+| Branschord: kiosk, livs, café, pizzeria, tobak | 101 |
+| Av de 101 som också bär firmamarkör | 77 |
+| Ordagrant verksamhetens eget namn | 47 |
+| Varken markör eller branschord | 119 |
+
+Båda riktningarna felar. Ett branschord betyder inte att strängen är fri från
+en person: 77 av de 101 bär ett namn framför sig, och "Åsa Johansson Ef Niddes
+Café" är hela problemet i en rad. Och de 119 utan markör är inte personnamn
+heller, de är blandade: "Pierre Oanes" och "Andreas Nordell" står bredvid
+"CupGood", "Fairvanilla Stockholm" och "Specialpedagogiska Skolmyndigheten".
+En regel som skulle bli säker måste kunna dela en sträng i en persondel och en
+firmadel, och det är namnigenkänning och inte en regel.
+
+**Alltså den försiktiga vägen**, samma asymmetri som gäller numret: att missa
+ett företagsnamn kostar ett tomt fält, att publicera ett personnamn kostar
+allt. Villkoret är därför numrets eget: finns inget publicerbart
+organisationsnummer följer inget namn med.
+
+**Efter.** Spärren sitter i `utan_personuppgifter` i
+`pipeline/prikko/stockholmsintyg.py` och körs på två ställen: `raden` städar
+det som skrivs till cachen, och `tillampa` städar en gång till det som skrivs
+till `site/src/data`. Det andra steget behövdes: cachen fylldes 2026-08-27,
+alltså innan regeln fanns, och ett såll bara i läsningen hade krävt 8 520 nya
+anrop mot stadens e-tjänst för att städa en fil vi redan hade.
+
+| Mätning | Före | Efter |
+|---|---|---|
+| Namn i `registration.operator` utan orgnr, `site/src/data/stockholm.json` | 498 | **0** |
+| Samma i `pipeline/data/interim/stockholmsintyg.json` | 498 | **0** |
+| Rader som bär både namn och organisationsnummer, alltså ett bolags namn | 7 990 | 7 990 |
+| Av de 498 namnen som återfinns i den byggda HTML:en | 50 | **50** |
+
+Den sista raden är den som ska läsas noga. 50 av de 498 strängarna finns kvar
+i bygget, och samtliga 50 av det enda skäl som återstår: de är ordagrant
+verksamhetens EGET namn, alltså skylten på dörren. Det är hål H2 i avsnitt 3.3
+och inte H1, och H2 ska enligt samma avsnitt inte maskeras utan bäras av en
+skriven intresseavvägning. Noll av de 498 publiceras längre som en uppgift om
+vem som driver stället. Mätningen är gjord med `grep -F` över hela utgåvan,
+17 801 sidor, mot samtliga 498 värden i både rå och HTML-flyktad form. Två
+träffar utöver de 50 visade sig vara namn på verksamheter i andra kommuner,
+"Kriminalvården häktet" i Norrköping och "Namaste Uppsala", alltså sammanträffanden
+och inte fältet.
+
+Grinden i `registrering.ts` står kvar. Två lager är rätt här av samma skäl som
+för personnumren: en spärr i pipelinen så att uppgiften aldrig når ett bygge,
+och en grind i renderingen så att den inte skrivs ut om den ändå gör det. Ett
+fält som är tomt i dag kan fyllas av nästa kommun.
+
+Provet heter `IngetPersonnamnILevererad` i
+`pipeline/tests/test_stockholmsintyg.py` och är byggt som
+`IngetPersonnummerILevererad`: det går över varje datafil och inte över ett
+urval, och det har en andra halva som fäller ett grönt utfall på en tom fil.
+
+### B. Betyg utan text publicerades utan förhandsgranskning
+
+**Före.** `community.set_review_status()` satte `status = 'published'` direkt
+för ett omdöme utan text när kontot var minst ett dygn gammalt, och skrev
+`moderated_by = 'automatik: betyg utan text'`.
+
+**Kön, mätt före ändringen.** Frågan var om automatiken fanns för att kön
+annars blir ohanterlig. Det gör den inte:
+
+| Mätning 2026-08-31 | Tal |
+|---|---|
+| Omdömen totalt sedan 2026-08-03 | 20 |
+| Varav utan text | 13 |
+| Av de 13 som släpptes fram av automatiken | 7 |
+| Poster i granskningskön den dagen | 1 |
+| Omdömen per vecka, fyra veckor | 4,3 |
+| Betyg utan text per vecka | 3,3 |
+
+Tre betyg i veckan är ingen kö. Automatiken byggdes mot en volym som inte
+finns, och även om den en dag blir verklig är svaret fler händer eller ett
+bättre verktyg. Kriteriet väger tyngre än klicken.
+
+**Efter.** Migrationen `community_reviews_no_auto_publish` tar bort grenen i
+triggern helt: funktionen sätter `pending`, `moderated_by = null` och
+`moderated_at = null` för varje insättning, utan villkor. Samma migration
+flyttar tillbaka de 7 rader automatiken hunnit släppa ut till kön, eftersom ett
+omdöme som ingen läst inte ska stå kvar publicerat bara för att regeln som
+släppte fram det är borta.
+
+| Mätning | Före | Efter |
+|---|---|---|
+| Publicerade omdömen som ingen människa godkänt | 7 | **0** |
+| Poster i granskningskön | 1 | 8 |
+| Publicerade omdömen totalt | 19 | 12 |
+| Grenar i `set_review_status()` som kan sätta `published` | 1 | **0** |
+
+Åldersgränsen på ett dygn är borta med grenen. Den fanns bara för att avgöra
+vad som fick gå ut direkt, och när ingenting går ut direkt är den en fråga utan
+verkan. Taket på fem omdömen per konto och dygn står kvar, nu som skydd för kön
+i stället för för publiceringen, och `community.rating_signals` står också kvar:
+en granskare ser en rad i taget, och tre ettor på samma verksamhet under ett
+dygn ser ut som tre rimliga ettor när de kommer var för sig.
+
+**Vad som följde med i samma ändring.** Fyra ytor påstod att ett betyg utan
+text publiceras direkt, och ett påstående som blivit osant är värre än inget:
+`Reviews.astro` (infotexten vid rubriken och den juridiska raden i formuläret),
+`integritetspolicy.astro` under "Vad som blir synligt för andra",
+`site/src/lib/community.ts` och `pipeline/moderate.py`. Granskningsvyn i
+`konto/granska.astro` behövde inget: den ritade redan "Text ingen, bara betyg"
+och stjärnorna för en rad utan text.
+
+**Följden för ansökan.** Steg 6 i avsnitt 7.4 kan nu besvaras med **Nej**, och
+raden "Hinder i dag" i Kort svar är avförd. Väg B i avsnitt 2.4, att avskilja
+hela community-delen med en förklarande text, är fortfarande klok och är
+fortfarande inte gjord.
+
+### Verifierat med
+
+- `python3 pipeline/tests/test_stockholmsintyg.py`, 34 prov, samtliga gröna.
+- `cd site && npm run build`, 17 801 sidor, utan fel.
+- `grep -F` över hela utgåvan mot 498 namn, resultatet ovan.
+- `select` mot `community.reviews` före och efter migrationen.
 
 ---
 
@@ -794,9 +941,7 @@ Kan innehållet ändras av någon annan än redaktionen, t.ex. genom
 artikelkommentarer som inte förhandsgranskas?
 ```
 
-**Svaret beror på om åtgärden i avsnitt 2.4 är gjord.**
-
-**Efter att automatiken för betyg utan text stängts av, svara:**
+**Åtgärden i avsnitt 2.4 är gjord 2026-08-31, alltså gäller det här svaret.**
 
 ```
 Nej.
@@ -817,9 +962,14 @@ webbläsare. Delen är märkt med en förklarande text om att den inte omfattas 
 utgivningsbeviset.
 ```
 
-**Är automatiken inte avstängd måste svaret vara ja**, och då ska den omodererade
-delen beskrivas och avskiljas enligt blankettens anvisning. Det är sämre. Gör
-ändringen först.
+Hade automatiken stått kvar måste svaret ha varit ja, och då skulle den
+omodererade delen ha beskrivits och avskilts enligt blankettens anvisning.
+
+**Sista stycket i fritexten förutsätter väg B**, alltså den förklarande texten
+vid omdömesavsnittet i avsnitt 8.2. Den är inte skriven ännu. Skriv antingen
+texten först eller stryk stycket, för en uppgift i en ansökan om
+utgivningsbevis som inte stämmer är straffsanktionerad enligt 3 kap. 25 § lagen
+(1991:1559).
 
 ```
 I vilken ort drivs verksamheten?                    [FYLL I, sannolikt Täby]
@@ -1060,10 +1210,11 @@ metodiksida som ändras utan spår.
 1. Skaffa en postadress åt bolaget som tål att stå publikt. Blockerar både
    ansökan och `villkor.astro`.
 2. Skapa `utgivare@prikko.se` och kontrollera att den fungerar.
-3. Stäng av automatiken för betyg utan text i `community.set_review_status()`.
-   Utan den ändringen måste steg 6 besvaras med ja.
-4. Flytta grinden för `registration.operator` från `registrering.ts` till
-   pipelinen, med test. Se hål H1 i avsnitt 3.3.
+3. ~~Stäng av automatiken för betyg utan text i `community.set_review_status()`.~~
+   Gjord 2026-08-31 med migrationen `community_reviews_no_auto_publish`.
+4. ~~Flytta grinden för `registration.operator` från `registrering.ts` till
+   pipelinen, med test.~~ Gjord 2026-08-31, och grinden i `registrering.ts`
+   står kvar som andra lager.
 5. Skriv intresseavvägningen enligt artikel 6.1 f.
 6. Beställ bilagorna: registreringsbevis (Bolagsverket), personbevis
    (Skatteverket), konkursfrihetsbevis (Bolagsverket), förvaltarfrihetsbevis

@@ -44,11 +44,18 @@ export function registerrader(r: Registration, name: string): Registerrad[] {
    * och inte en teknikalitet.
    *
    * Pipelinen håller inne numret när det är en fysisk persons, se
-   * `ar_personnummer`. Men kommunens fält "Livsmedelsföretagare" bär i samma
-   * fall personens NAMN, och uppmätt över hela Stockholm 2026-08-27 står det
-   * på 451 rader i klartext: "Pierre Oanes", "Åsa Johansson Ef Niddes Café",
-   * "Dana Halanova Ef". Att hålla inne numret och skriva ut namnet är att
-   * hålla inne halva uppgiften.
+   * `ar_personnummer`. Kommunens fält "Livsmedelsföretagare" bär i samma fall
+   * personens NAMN: "Pierre Oanes", "Åsa Johansson Ef Niddes Café", "Dana
+   * Halanova Ef". Att hålla inne numret och skriva ut namnet är att hålla inne
+   * halva uppgiften.
+   *
+   * SEDAN 2026-08-31 KOMMER NAMNET INTE ENS HIT. `utan_personuppgifter` i
+   * pipeline/prikko/stockholmsintyg.py sållar `operator` på samma villkor som
+   * numret, och 498 rader i stockholm.json som bar ett namn står nu som null.
+   * Villkoret nedan står ändå kvar, och ska stå kvar. Det är samma två lager
+   * som gäller personnumret: en spärr i pipelinen så att uppgiften aldrig når
+   * ett bygge, och en grind här så att den inte skrivs ut om den ändå gör det.
+   * Ett fält som är tomt i dag kan fyllas av en annan kommun i morgon.
    *
    * En enskild firma HAR ingen juridisk person, alltså är innehavarens namn
    * en personuppgift. Det är samma slutsats som docs/12 avsnitt C drar om
