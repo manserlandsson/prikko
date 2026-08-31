@@ -173,8 +173,23 @@ Verksamhetssidorna, som är 13 546 av 16 766, ligger på 1 av 12 i stickprovet.
 Kedjesidorna är 4 av 4. Åtta av nio sidindelade adresser saknas.
 
 Slutsatsen ändrar prioriteringen: **bygg inte fler sidor förrän de vi har är
-inne.** Defekten är genomsökningsdjupet och inte tekniken, och det som
-återstår är Search Console, som bara ägaren kan koppla.
+inne.**
+
+**Orsaken var inte den jag först skrev.** Klickdjupet är mätt i
+`51_klickdjupet.md` och frikänner både navigationen och sidindelningen: median
+3 klick, max 5, noll onåbara sidor, median 8 inlänkar, och mer intern länkning
+än hitta.se och booli.se har. Slutsatsen om sidindelningen i `49` var ett
+urvalsfel i min egen mätning och är rättad där.
+
+Kvar som förklaring står innehållet: **61 procent av brödtexten på en
+verksamhetssida står ordagrant på minst nio av tio andra**, och verksamheterna
+har lägst andel eget innehåll av alla åtta sidtyper. Plus åldern, två månader
+utan inlänkar utifrån.
+
+Två åtgärder följer, och båda kräver ägaren: **släck `prikko.pages.dev`**, som
+serverar hela sajten en andra gång med `Allow: /`, och **koppla Search
+Console**, eftersom skillnaden mellan "Crawled, currently not indexed" och
+"Discovered, currently not indexed" avgör om vi ska vänta eller bygga.
 
 **B12. Kommunlänkarna.** En kommun länkar gärna till en tjänst som visar deras
 egen data snyggt. Tolv mejl, tolv backlänkar med hög tyngd.

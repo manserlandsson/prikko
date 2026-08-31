@@ -18,10 +18,21 @@ det säger mer än talet.
    1 av 12 slumpvis dragna är indexerad. De två som ligger i Google av dem jag
    sett med egna ögon är AG i Stockholm och Zocalo i Uppsala, alltså namn som
    söks av andra skäl. Indexeringen är selektiv och lutar mot kända namn.
-3. **Sidindelningen är där genomsökningen dör.** Åtta av nio provade sidor med
-   `/sida/N/` i adressen saknas i Google. Den enda som fanns var
-   `/stockholm/sida/83/`, alltså inte ens en av de tidiga. Och de två
-   områdessidor som föll bort av fyra var just de två med sidnummer.
+3. **RÄTTAD 2026-08-31: sidindelningen är INTE där genomsökningen dör.**
+   Här stod att åtta av nio provade `/sida/N/`-adresser saknas i Google och att
+   det pekade ut sidindelningen som defekten. **Det var ett urvalsfel i min
+   egen mätning**, och det är utrett i `51_klickdjupet.md`. Sidindelade
+   adresser är 407 av sitemapens 14 260, alltså 2,9 procent, men i de skikt
+   jag drog ur är de 71 procent av kategorierna, 85 av kommunerna och 42 av
+   områdena. Väntat antal sidindelade i ett urval om 28 var därför ungefär 8,
+   och observerat blev 9. Talet "åtta av nio saknades" säger alltså ingenting
+   om sidindelning, bara att större delen av mitt urval var sidindelat och att
+   större delen av mitt urval saknades.
+
+   Beviskedjan pekar dessutom åt andra hållet, och båda leden är mina egna
+   mätningar: `/stockholm/sida/83/` ligger på klickdjup 4 och ÄR indexerad,
+   medan `/linkoping/forskolan-skogsmyran/` ligger på djup 2 med åtta inlänkar
+   och INTE är det.
 4. **Kedjesidorna är fyra av fyra.** De är 53 stycken, de har ett eget namn i
    adressen, och de svarar på en fråga ingen annan sida hos oss svarar på.
    Det är mönstret som fungerar.
@@ -111,14 +122,31 @@ prioritera nya sidtyper, och det gäller även de 5 076 verksamheter Göteborg
 skulle kunna ge. Se `45_entreprenorslistan.md` avsnitt 6.2, där slutsatsen om
 Göteborg redan lutar åt att läsa in dem utan egna sidor.
 
-**Sidindelningen är den konkreta defekten.** En verksamhetssida nås i dag
-huvudsakligen genom en listsida med sidnummer, och webbkartan länkar bara 205
-av dem. Google följer inte den kedjan tillräckligt djupt. Vägen framåt är att
-korta avståndet från startsidan till en verksamhet, inte att skriva fler
-listsidor.
+**Sidindelningen är INTE defekten, och navigationen är inte heller det.**
+Det stod här, och det är mätt bort samma dag i `51_klickdjupet.md`. Länkgrafen
+byggd ur den renderade HTML:en ger klickdjup med median 3 och max 5, noll
+onåbara indexerbara sidor, och medianen 8 inlänkar per verksamhetssida. Bara
+165 av 13 546 har en enda inlänk. Vi har dessutom MER intern länkning än
+förlagorna: en verksamhetssida hos oss länkar omkring 33 andra, medan
+hitta.se och booli.se länkar noll från en företagssida och allabolag.se en.
 
-**Kedjesidorna visar vad som fungerar** och är därmed argumentet för att
-bygga kedjeregistret nationellt, punkt A10.
+Det som återstår som förklaring är innehållet och åldern. **61 procent av
+brödtexten på en verksamhetssida står ordagrant på minst nio av tio andra**,
+och verksamheterna har lägst andel eget innehåll av alla åtta sidtyper, 20,7
+procent mot kedjornas 43,6. Domänen är två månader gammal och har inga
+inlänkar utifrån.
+
+**Kedjesidorna visar vad som fungerar**, och nu vet vi varför: de har mest
+eget innehåll av alla sidtyper. Det är argumentet för att bygga kedjeregistret
+nationellt, punkt A10.
+
+**Och en konkret defekt hittades ändå.** `prikko.pages.dev` svarar 200 och
+serverar hela sajten med `Allow: /` och utan noindex, alltså erbjuds Google
+28 520 adresser i stället för 14 260. Sidorna bär rätt `canonical` mot
+prikko.se, vilket är den vanliga dämpningen och gör att skadan sannolikt är
+begränsad, men en kanonisk länk är en signal och inte en spärr, och
+genomsökningen kostar lika mycket oavsett. Adressen ska släckas, och det
+kräver Cloudflares kontrollpanel.
 
 **Search Console först.** Allt ovan är en uppskattning som kan ersättas med
 ett facit den dag ägaren kopplar kontot. Det är den billigaste punkten på hela
