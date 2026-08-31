@@ -1,4 +1,4 @@
--- Prikko — redaktionens behörighet (Supabase/Postgres)
+-- Prikko, redaktionens behörighet (Supabase/Postgres)
 --
 -- Kör detta EFTER schema.sql och schema_community.sql. Idempotent: kan köras om.
 --
@@ -152,10 +152,12 @@ comment on function community.is_admin() is
 
 -- Vem som fattade beslutet, som text.
 --
--- Går till kolumnen `moderated_by`, som redan bär 'automatik: betyg utan text'
--- för raderna en trigger släppt fram. En admins beslut ska bära en människa, och
--- adressen ur token är det närmaste ett namn vi har. Faller den tillbaka på
--- uuid:t är raden fortfarande spårbar, vilket är hela kravet.
+-- Går till kolumnen `moderated_by`. Den bar fram till 2026-08-31 också
+-- 'automatik: betyg utan text' för de rader en trigger släppte fram. Den
+-- automatiken är stängd, se schema_community.sql, så varje nytt värde i
+-- kolumnen är en människa. Adressen ur token är det närmaste ett namn vi har,
+-- och faller den tillbaka på uuid:t är raden fortfarande spårbar, vilket är
+-- hela kravet.
 --
 -- INTE definer. Funktionen läser bara anroparens egen token.
 create or replace function community.admin_actor()
@@ -659,7 +661,7 @@ end;
 $$;
 
 comment on function community.admin_signals() is
-    'Mönster värda en blick sedan betyg utan text publiceras direkt. Samma vy som moderate.py signaler.';
+    'Mönster i publicerade betyg som en rad i taget inte visar. Samma vy som moderate.py signaler.';
 
 -- ---------------------------------------------------------------------------
 -- Rättigheter
