@@ -137,15 +137,41 @@ class EcosMunicipality:
 #: 2026-08-03 och det finns ingen levande sida hos kommunen som beskriver
 #: beståndet. Att peka på en sida som svarar 404 vore sämre än att peka på
 #: filen, som svarar 200.
+#:
+#: ══ ADRESSEN BÄR NODEN OCH INTE VERSIONEN, SEDAN 2026-08-31 ══════════════
+#:
+#: Här stod den fullständiga adressen med tidsstämpeln `1710704675524` i sig.
+#: Talet är millisekunder och betyder 2024-03-17, alltså den dag filen laddades
+#: upp, och det är en versionsbeteckning. **Laddar kommunen upp ett nytt utdrag
+#: får det en ny tidsstämpel**, och en hämtare som håller fast vid den gamla
+#: hade läst marsfilen från 2024 i evighet utan att någonsin ta fel.
+#:
+#: Sitevision, som driver norrkoping.se, löser det åt oss. Adressen med
+#: nodens id och en godtycklig tidsstämpel svarar `301` och pekar på den
+#: AKTUELLA versionen. Verifierat 2026-08-31:
+#:
+#:     /download/18.5ff942e1184b3f255e22527f/0/ecos.xml
+#:       -> 301 Location: /download/.../1710704675524/ecos.xml
+#:       -> 200, 7 434 345 byte, byteidentisk med den direkta hämtningen
+#:
+#: `0` och inte den riktiga stämpeln är alltså det som gör hämtaren självgående.
+#: Vi vet fortfarande inte om kommunen NÅGONSIN laddar upp ett nytt utdrag, och
+#: sitemapen innehåller ingen nyare fil, bara `out_Ecos.xml` från 2017. Men den
+#: dagen den kommer hämtar vi den utan att någon behöver upptäcka det.
+#:
+#: `check_modified` läser fortfarande `Last-Modified` vid varje hämtning och
+#: larmar när `source_modified` inte stämmer, alltså märks en ny version också
+#: som en avvikelse och inte bara som tystnad.
 MUNICIPALITIES: Dict[str, EcosMunicipality] = {
     "norrkoping": EcosMunicipality(
         code="0581",
         name="Norrköpings kommun",
         city="Norrköping",
         slug="norrkoping",
+        #: Nollan är avsiktlig, se noten ovan. Följ omdirigeringen.
         data_url=(
             "https://norrkoping.se/download/18.5ff942e1184b3f255e22527f"
-            "/1710704675524/ecos.xml"
+            "/0/ecos.xml"
         ),
         source_url=(
             "https://norrkoping.se/download/18.5ff942e1184b3f255e22527f"
