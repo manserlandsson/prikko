@@ -266,6 +266,20 @@ const START_PAGES = new Set([
      ska inte innehålla en sida som säger att den inte handlar om utmärkelsen.
      Se docs/48_market_som_lamnar_sajten.md § 5. */
   'dekal',
+  /* Dokumentationen för det publika API:et och flödena, /api/.
+
+     Bara SIDAN står här. Datarutterna, `/api/v1/**.json` och `/flode/*.xml`,
+     är endpoints och inte sidor: @astrojs/sitemap räknar upp de renderade
+     HTML-sidorna, så de når aldrig `sidtyp()` och kan inte falla ned i
+     restgruppen. Samma sak gäller redan `/sok-index/*.json`,
+     `/kartlista/*.json` och `/llms.txt`, som ingen av dem står i den här
+     filen och ingen av dem har fällt vakten.
+
+     Att den ändå ligger bland toppsidorna och inte i en egen grupp är ett
+     val: en grupp i Search Console med en enda URL säger ingenting som
+     `start` inte redan säger. Byggs API:et ut med fler skrivna sidor är en
+     egen grupp rätt då. Se docs/55_publikt_api.md. */
+  'api',
 ]);
 
 function sidtyp(pathname) {

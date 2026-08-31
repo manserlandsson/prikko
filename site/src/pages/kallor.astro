@@ -380,12 +380,32 @@ const jsonLd = {
     {/* id:t är en måladress: `license` i sidans Dataset-schema pekar hit, så
         att det strukturerade påståendet och den synliga texten är samma sak.
         Byt det inte utan att ändra licenceUrl ovan. */}
+    {/* Texten sa fram till 2026-08-31 "vill du använda datan i egna
+        sammanhang, hör av dig", vilket var sant så länge det inte fanns något
+        att hämta. Nu finns /api/, och en sida som ber om ett mejl bredvid ett
+        öppet API säger emot sig själv. Villkoret står därför utskrivet här
+        också, i samma två lager som lib/api.ts beskriver. */}
     <section id="licens">
       <h2>Licens</h2>
       <p>
-        Underlaget är allmänna handlingar. Normaliseringen och bedömningen är
-        Prikkos eget arbete. <a href="/metodik/">Metodiken är publicerad</a>.
-        Vill du använda datan i egna sammanhang, hör av dig.
+        Kommunernas underlag är allmänna handlingar och bär varken upphovsrätt
+        eller katalogskydd, eftersom 9 § upphovsrättslagen undantar yttranden
+        av svenska myndigheter och 49 § tredje stycket låter det undantaget
+        gälla även för en sammanställning. Vi äger alltså ingenting av
+        uppgifterna och kan inte licensiera dem.
+      </p>
+      <p>
+        Normaliseringen, identifierarna och bedömningen är Prikkos eget arbete,
+        och det arbetet är fritt att använda med attribution,
+        {' '}<a href="https://creativecommons.org/licenses/by/4.0/deed.sv" rel="nofollow">
+          CC BY 4.0</a>. <a href="/metodik/">Metodiken är publicerad</a>, och
+        {' '}<a href="/api/">datan går att hämta maskinellt</a> med villkoren
+        utskrivna i varje svar.
+      </p>
+      <p>
+        Bilderna och uppgifterna ur OpenStreetMap står under andra villkor och
+        omfattas inte. De redovisas var för sig ovan, och de ingår inte i
+        API:et.
       </p>
     </section>
   </article>

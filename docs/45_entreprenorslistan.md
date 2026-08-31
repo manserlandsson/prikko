@@ -121,7 +121,21 @@ Den finns i huvudet men inte på sajten.
 
 ### B. Spridning, alltså att datan lämnar sajten
 
-**B1. Publikt API och öppna data från oss.** Storbritanniens FHRS gör detta och
+**B1. Publikt API och öppna data från oss. STEG ETT BYGGT 2026-08-31, se
+`55_publikt_api.md`.** `/api/v1/` med nuläget per
+kommun, dokumenterat på `/api/`, vårt eget arbete under CC BY 4.0. Två
+avvikelser från lydelsen nedan: **hela** materialet publiceras inte, eftersom
+C4 räknar det som en intäktsström, och LIVES valdes bort av skäl som står i
+`55` §2.
+
+**Levererat i två steg.** Steg ett är index, kommunrutterna, båda flödena och
+dokumentationssidan, alltså 29 filer, och det går in nu. Steg två är
+uppslagningen per verksamhet, 17 066 filer, som är skriven och verifierad men
+avstängd med konstanten `PER_VERKSAMHET` tills kontot går till Workers Paid.
+Skälet är att gratisplanens tak på 20 000 avvisar utgåvan TYST: vår egen grind
+varnar men fäller inte förrän vid 98 000.
+
+Ursprunglig lydelse: Storbritanniens FHRS gör detta och
 det är därför alla citerar dem. Vi publicerar hela vårt normaliserade material
 under en fri licens med tydlig attribution. *Värde: backlänkar, citeringar,
 och att vi blir källan i stället för en av flera speglar. Kostnad: låg, vi har
@@ -149,8 +163,11 @@ reservationer. **Aldrig en lista på de sämsta, och aldrig en rangordning av
 kommuner.** Formen måste därför vara "så ser kontrollen ut hos er" och inte
 "här är skammen". *Värde: den billigaste nationella räckvidd som finns.*
 
-**B6. Flöden.** RSS och Atom per kommun och per område. Nya kontroller, nya
-verksamheter. *Värde: färskhetssignal till sökmotorer och en riktig
+**B6. Flöden. BYGGT 2026-08-31, se `55_publikt_api.md` §6.** Atom per kommun
+plus ett för riket, `/flode/{kommun}.xml`. Atom och inte RSS, och per kommun
+och inte per område: en flödesadress är en prenumeration och 148 områdesflöden
+hade varit 148 filer som ingen ännu bett om. Nya verksamheter står inte i
+flödet, bara nya kontroller. *Värde: färskhetssignal till sökmotorer och en riktig
 prenumerationsväg utan konto.*
 
 **B7. Nyhetsbrevet.** Veckans kontroller i din stad. Bygger på bevakningen som
@@ -329,7 +346,15 @@ faktiskt reagerar på volym, och om vi ska skicka i vårt namn eller besökarens
 Bibelns avsnitt 7b nämner redan goodwill mot myndigheter som ett värde, och en
 maskin som pumpar tusen begäranden i veckan kan förbruka den.
 
-**H2. LIVES, ett färdigt öppet schema för exakt vår datamodell.**
+**H2. LIVES, ett färdigt öppet schema för exakt vår datamodell. PRÖVAT OCH
+AVVISAT 2026-08-31, se `55_publikt_api.md` §2.** Formatet bygger på ett
+poängtal svensk kontroll inte har, saknar identitet per kontroll, och är till
+sin form en zip med fem CSV-filer. Ekosystemet är dessutom inte levande: 237
+av de 247 flöden Yelp listar levereras av Ecolab, och båda kommunerna som tog
+fram formatet finns i den gruppen. Fältnamnen är i stället lånade ur den
+svenska NSÖD-specifikationen. Ursprunglig lydelse nedan.
+
+**H2 som den skrevs.**
 Yelp tog fram det 2012 tillsammans med San Francisco och New York. Montreal
 publicerar i det i dag, under CC BY 4.0, med filerna `feed_info.csv`,
 `businesses.csv` och `violations.csv`. Standarden har inte uppdaterats sedan

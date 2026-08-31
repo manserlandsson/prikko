@@ -69,3 +69,66 @@
 
 /sok-index/*
   Cache-Control: public, max-age=31536000, immutable
+
+# ---------------------------------------------------------------------------
+# DET PUBLIKA API:ET OCH FLÖDENA
+# ---------------------------------------------------------------------------
+#
+# Rutterna sätter samma huvuden i sitt `Response`, och de kastas. Det är felet
+# hela filen handlar om, och de tre ytorna nedan är de första som är skrivna
+# med det känt i stället för upptäckt efteråt.
+#
+# ## CORS är det enda som gör API:et användbart
+#
+# `Access-Control-Allow-Origin: *` finns bara här och kan bara finnas här. Utan
+# den kan ingen webbsida någon annan bygger hämta ett av våra svar: webbläsaren
+# vägrar läsa det, och felet syns bara i konsolen hos den som försöker. Ett API
+# vars hela poäng är att andra bygger på det, och som ingen kan anropa, är ett
+# API som inte finns.
+#
+# Stjärnan är rätt värde och inte en förenkling. Svaren är publika, de bär
+# ingen cookie och ingen inloggning, alltså finns ingenting att skydda mot en
+# annan domän. `Allow-Methods` och `Allow-Headers` behövs inte: en enkel GET
+# utan egna huvuden utlöser ingen preflight.
+#
+# ## Regeln heter /api/v1/* och INTE /api/*
+#
+# Det är avsiktligt och det är en fälla vi redan gått i en gång i annan form.
+# `/api/` är dokumentationssidan, alltså HTML. Ett mönster på `/api/*` hade
+# matchat även den och satt `application/json` på ett HTML-dokument, vilket
+# gör att webbläsaren laddar ner sidan i stället för att visa den. Datan
+# ligger därför under `/api/v1/` och dokumentationen ovanför.
+#
+# `site/functions/api/marke.ts` och `ratta.ts` ligger också under /api/. De är
+# Pages Functions och rörs inte av den här filen, men de är ett andra skäl att
+# hålla mönstret smalt.
+#
+# ## `.json` och `.xml` cachas INTE på kanten, och det vet vi
+#
+# Mätningen högst upp i filen gäller ordagrant här: `/sok-index/*.json` svarade
+# DYNAMIC trots `max-age=31536000, immutable`, eftersom Cloudflares kant cachar
+# ur en fast lista av filändelser och `.json` inte står på den. Samma sak
+# gäller `.xml`. `Cache-Control` nedan styr alltså webbläsarens cache och inte
+# kantens, och varje anrop går till origin.
+#
+# Det är acceptabelt HÄR och var det inte för kartan. Kartan gick sönder för
+# att PMTiles läser med `Range` och en DYNAMIC-förfrågan svarar med hela filen.
+# Ett API-anrop hämtar hela dokumentet ändå, så det som kostar är svarstid och
+# inte funktion. Att byta ändelse för att blidka kanten är inte ett alternativ:
+# `.json` är en del av adressen, och adressen är löftet.
+#
+# En timme och inte ett år, av samma skäl som `/kartlista/`: adresserna bär
+# ingen hash över sitt innehåll, så en ändrad bedömning måste kunna synas.
+
+/api/v1/*
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Origin: *
+
+# Atom och inte `application/xml`. Ändelsen `.xml` får Pages att gissa fel, och
+# det är typen som avgör om en webbläsare erbjuder prenumeration eller visar
+# ett träd. CORS står med för att en webbsida ska kunna läsa flödet direkt.
+/flode/*
+  Content-Type: application/atom+xml; charset=utf-8
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Origin: *

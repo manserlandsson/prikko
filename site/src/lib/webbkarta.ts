@@ -401,6 +401,10 @@ function omSection(): MapSection {
           ...(hasNationalPage()
             ? [{ href: path('nytt-och-borta'), label: 'Nytt och borta' }]
             : []),
+          // Öppna data står bland källorna och inte bland verktygen: den
+          // som undrar var uppgifterna kommer ifrån är samma person som
+          // undrar om de går att hämta maskinellt.
+          { href: path('api'), label: 'Öppna data, API och flöden' },
           { href: path('ratta'), label: 'Rätta en uppgift' },
           { href: path('hjalp'), label: 'Hjälp och vanliga frågor' },
           { href: path('kontakt'), label: 'Kontakt' },
