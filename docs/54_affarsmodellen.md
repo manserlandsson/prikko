@@ -1386,3 +1386,51 @@ prislista efter 2016, och exakt när de fyra dollarna togs bort från prissidan.
 Arkivets uppspelningsservrar svarade 503 under större delen av arbetet, så
 ögonblicksbilderna från 2019 och 2020 är olästa. En omgång till när arkivet är
 friskt daterar övergången exakt.
+
+### 11.8 Ett prisspår till, och en motsägelse mellan två genomgångar
+
+Två oberoende genomgångar av samma fråga gav olika svar, och skillnaden är
+värd att skriva ned innan den blir ett falskt faktum.
+
+**Den andra genomgången skriver att Hazel höll en prissida från 2016 till 2023
+och aldrig satte ett tal på den.** Det stämmer inte. Den läste
+ögonblicksbilden från september 2022, som mycket riktigt bara har "Contact
+Sales". Den första genomgången läste bilden från **18 januari 2016**, som bär
+de fyra dollarna ordagrant. Båda har rätt om sin egen bild och fel om den
+andras.
+
+**Slutsatsen är alltså den i 11.2 och står fast:** priset var publikt 2016 och
+borta 2021. Det som fortfarande är okänt är vilket år det försvann, och
+arkivets uppspelning låg nere under båda körningarna.
+
+**Ett publicerat jämförelsepris finns, och det är det närmaste vi kommer.**
+RizePoint säljer efterlevnadsprogram per plats och publicerar sina tal öppet:
+
+| Nivå | Platser | Årsvis | Månadsvis |
+|---|---:|---:|---:|
+| Basic | 20 | gratis | gratis |
+| Standard | 100 | 399 dollar i månaden | 459 |
+| Growth | 500 | 999 dollar i månaden | 1 149 |
+| Growth | 1 000 | 1 999 dollar i månaden | 2 299 |
+
+Det blir omkring **två dollar per plats och månad vid 500 till 1 000 platser**,
+alltså 24 dollar per plats och år, och omkring fyra dollar vid hundra platser.
+Samma storleksordning som Hazels 2016 års lista, och den bekräftar att fyra
+dollar var ett rimligt tal och inte en felläsning.
+
+**Priset för Ecolab HDI är ett belagt negativt.** Inte på leverantörens sajt,
+inte hos någon återförsäljarkatalog, inte i någon upphandlingsdatabas, inte i
+någon SEC-filning. Behöver någon ett tal måste det komma ur en offert.
+
+**Och ett fynd som säger något om branschen.** Hazels egen sida med
+kundberättelser innehöll aldrig en enda kund. Ögonblicksbilden från februari
+2023 listar fem poster och samtliga är mediegenomgångar eller akademiska
+samarbeten: Star Tribune, Harvard Business Review, ESPN och UCLA Anderson.
+Rubriken hade fortfarande platshållartexten "A description here!" kvar. Ett
+bolag som byggde exakt vår affär och sålde den till ett börsnoterat kemibolag
+körde en kundberättelsesida i åratal utan att sätta en kund på den.
+
+**En fälla i sökningen, för nästa gång:** träffar på "Hazel Analytics" i
+upphandlingsdatabaser är nästan uteslutande **Hazel Health**, en
+telemedicinleverantör till amerikanska skolor. Namnkrocken ger annars ett
+påhittat pris.
