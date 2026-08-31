@@ -30,6 +30,7 @@ from export_supabase import (  # noqa: E402
     MIN_COORDINATES_LOST,
     FILBLOCK,
     FILFALT,
+    KONTROLLFALT,
     SOURCEFALT,
     behall_block,
     coordinate_collapse,
@@ -37,6 +38,7 @@ from export_supabase import (  # noqa: E402
     export,
     filblock,
     filkallfalt,
+    filkontroller,
     filradering,
 )
 
@@ -279,7 +281,12 @@ class FalskSupabase:
     så att provet gäller just det som gick sönder.
     """
 
-    def __init__(self, verksamheter: list, bilder: list | None = None) -> None:
+    def __init__(
+        self,
+        verksamheter: list,
+        bilder: list | None = None,
+        kontroller: list | None = None,
+    ) -> None:
         self.tabeller = {
             "municipalities": [
                 {
@@ -294,7 +301,7 @@ class FalskSupabase:
             ],
             "establishments": verksamheter,
             "assessments": [],
-            "inspections": [],
+            "inspections": kontroller or [],
             "control_areas": [],
             "images": bilder or [],
         }
@@ -464,6 +471,25 @@ EXPORTENS_EGNA_BLOCK = {"municipality", "source", "establishments"}
 
 #: Nycklar exporten själv bygger INUTI `source`.
 EXPORTENS_EGNA_KALLFALT = {"url", "fetchedAt"}
+
+#: Nycklar exporten själv bygger på varje KONTROLL, ur `inspections` och
+#: `control_areas`. Allt annat som står på en kontroll i de incheckade
+#: filerna bor bara där och måste stå i KONTROLLFALT.
+#:
+#: `ownerComment` hör HIT och inte i KONTROLLFALT: kolumnen `owner_comment`
+#: finns i pipeline/schema.sql och pipeline/moderate.py skriver den, alltså
+#: bygger exporten fältet från grunden. Ett indraget svar ska kunna försvinna.
+EXPORTENS_EGNA_KONTROLLFALT = {
+    "id",
+    "date",
+    "assessment",
+    "type",
+    "prenotified",
+    "audit",
+    "onSite",
+    "ownerComment",
+    "areas",
+}
 
 
 class Filfalten(unittest.TestCase):
@@ -657,6 +683,149 @@ class Bildlistan(unittest.TestCase):
         ])
         self.assertEqual([b["source"] for b in ut["images"]], ["prikko", "wikimedia"])
         self.assertEqual(ut["images"][1]["licence"], "CC-BY-SA-4.0")
+
+
+def kontroll(id: str, verksamhet: str = "F-1", **extra) -> dict:
+    """En rad ur `inspections` som PostgREST lämnar den."""
+    return {
+        "id": id,
+        "establishment_id": verksamhet,
+        "inspected_at": "2026-05-04",
+        "assessment": 0,
+        "type": 0,
+        "prenotified": False,
+        "audit": False,
+        "on_site": True,
+        **extra,
+    }
+
+
+class Kontrollfalten(unittest.TestCase):
+    """Diarienumret ska överleva exporten.
+
+    Sjätte gången samma fel, och den första på KONTROLLNIVÅ. `caseNumber` är
+    numret besökaren behöver för att begära ut kontrollrapporten hos kommunen,
+    och det är hela vägen från en dom till ett dokument. Tabellen
+    `inspections` i pipeline/schema.sql har ingen kolumn för det och
+    pipeline/load_supabase.py skriver det inte, så exporten byggde varje
+    kontroll utan det.
+
+    Uppmätt 2026-08-31 i site/src/data: 4 398 av Norrköpings 4 398 kontroller
+    bär ett diarienummer, och de hade raderats i nästa nattkörning. Fyra
+    hämtare skriver fältet (fetch_ecos, fetch_karlstad, fetch_linkoping,
+    fetch_uppsala) och Linköpings hämtare räknade 2 519 vid sin senaste
+    körning, alltså kommer talet att växa så fort en hämtning checkas in.
+
+    Provet fäller på koden som fanns före rättelsen, och det är beviset.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.path = self.dir / "orebro.json"
+
+    def skriv_gardagens(self, kontroller: list) -> None:
+        self.path.write_text(
+            json.dumps(
+                {
+                    "municipality": {"code": "1880", "name": "Örebro kommun",
+                                     "city": "Örebro", "slug": "orebro"},
+                    "source": {"url": "", "fetchedAt": ""},
+                    "establishments": [{"id": "F-1", "inspections": kontroller}],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+    def exportera(self, kontroller: list) -> list:
+        export(FalskSupabase([rad("F-1")], kontroller=kontroller), self.dir)
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        return payload["establishments"][0]["inspections"]
+
+    def test_diarienumret_foljer_med_ur_gardagens_fil(self):
+        self.skriv_gardagens([{"id": "I-1", "caseNumber": "2024-1234"}])
+        self.assertEqual(self.exportera([kontroll("I-1")])[0]["caseNumber"],
+                         "2024-1234")
+
+    def test_rapportlanken_foljer_med(self):
+        """Kristinehamn, Höganäs och Svenljunga har inga kontrollpunkter alls.
+        Rapporten är där det enda stället avvikelserna står."""
+        self.skriv_gardagens([{"id": "I-1", "reportUrl": "https://exempel.invalid/r.pdf"}])
+        self.assertEqual(self.exportera([kontroll("I-1")])[0]["reportUrl"],
+                         "https://exempel.invalid/r.pdf")
+
+    def test_noll_oppna_avvikelser_foljer_med(self):
+        """NOLL är ett mätvärde och inte ett saknat värde.
+
+        Oskarshamns fördelning 2026-08-02 är 0 → 183, 1 → 38, 2 → 12, 3 → 5,
+        4 → 2, 5 → 1. En bevarandeloop som frågar `if forra.get(namn)` hade
+        alltså tappat 183 av 241 kontroller, alltså just de rena.
+        """
+        self.skriv_gardagens([{"id": "I-1", "openDeviations": 0}])
+        self.assertEqual(self.exportera([kontroll("I-1")])[0]["openDeviations"], 0)
+
+    def test_faltet_star_sist_pa_kontrollen(self):
+        """Samma plats som hämtarna ger det, alltså efter `areas`.
+
+        Nyckelordningen ligger i filen. Skriver de två vägarna fältet på olika
+        ställen ger varje bytt väg en diff utan en enda faktisk ändring, precis
+        som för `geoSource` och för FILBLOCK.
+        """
+        self.skriv_gardagens([{"id": "I-1", "caseNumber": "2024-1234"}])
+        nycklar = list(self.exportera([kontroll("I-1")])[0])
+        self.assertEqual(nycklar[-2:], ["areas", "caseNumber"])
+
+    def test_kontroll_som_lamnat_databasen_aterupplivas_inte(self):
+        """Bevarandet sker på kontrollens id och lägger aldrig till rader.
+
+        Slutar kommunen lämna ut en kontroll ska den försvinna. Gårdagens fil
+        får bära fält, aldrig kontroller.
+        """
+        self.skriv_gardagens([
+            {"id": "I-1", "caseNumber": "2024-1234"},
+            {"id": "I-2", "caseNumber": "2024-5678"},
+        ])
+        kvar = self.exportera([kontroll("I-1")])
+        self.assertEqual([i["id"] for i in kvar], ["I-1"])
+
+    def test_kontrollerna_ur_gardagens_fil_lases_pa_sitt_eget_id(self):
+        tidigare = {
+            "F-1": {"id": "F-1", "inspections": [{"id": "I-1", "caseNumber": "A"}]},
+            "F-2": {"id": "F-2", "inspections": [{"id": "I-2", "caseNumber": "B"}]},
+            "F-3": {"id": "F-3"},
+        }
+        self.assertEqual(
+            {id: i["caseNumber"] for id, i in filkontroller(tidigare).items()},
+            {"I-1": "A", "I-2": "B"},
+        )
+
+
+class Kontrollfalten_i_filerna(unittest.TestCase):
+    """Samma regel som Filfalten, en nivå längre in.
+
+    `inspections` står i EXPORTENS_EGNA, alltså gick provet där förbi varje
+    nyckel INUTI en kontroll. Exporten bygger kontrollen från grunden ur
+    `inspections` och `control_areas`, så allt annat raderas tyst.
+    """
+
+    DATA = Path(__file__).resolve().parents[2] / "site" / "src" / "data"
+
+    def test_varje_falt_pa_kontrollerna_ar_kant(self):
+        kanda = EXPORTENS_EGNA_KONTROLLFALT | set(KONTROLLFALT)
+        okanda = {}
+        filer = sorted(self.DATA.glob("*.json"))
+        self.assertTrue(filer, f"hittade inga datafiler i {self.DATA}")
+        for path in filer:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for verksamhet in payload["establishments"]:
+                for i in verksamhet.get("inspections") or []:
+                    for namn in i.keys() - kanda:
+                        okanda.setdefault(namn, path.name)
+        self.assertEqual(
+            okanda,
+            {},
+            f"fält utan plats i KONTROLLFALT, de raderas av nästa nattkörning: {okanda}",
+        )
 
 
 if __name__ == "__main__":

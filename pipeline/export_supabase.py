@@ -7,8 +7,9 @@ läser.
 Varför inte låta Astro hämta direkt vid bygget: 130 000 rader över HTTP vid
 varje bygge gör bygget nätverksberoende, långsamt och svårt att reproducera i
 CI. En exporterad snapshot ger samma innehåll, byggtiden förblir 30 sekunder,
-och ett bygge kan köras utan nät. Dynamiska funktioner — omdömen, bevakning,
-appen — läser däremot databasen i realtid, där den hör hemma.
+och ett bygge kan köras utan nät. De dynamiska funktionerna läser däremot
+databasen i realtid, där de hör hemma. Det gäller omdömen, bevakning och
+appen.
 
     export SUPABASE_URL=...
     export SUPABASE_SERVICE_KEY=...      # eller anon, läsning räcker
@@ -42,6 +43,16 @@ På filens toppnivå, se `FILBLOCK`, ett licensblock per källa:
     narhet                      täcker stop och parking
     openstreetmap               täcker hours och contact
     geocoding                   täcker de härledda kartnålarna
+
+På kontrollerna, se `KONTROLLFALT`:
+
+    caseNumber                  diarienumret att begära ut rapporten på
+    reportUrl                   länken till kommunens egen rapport
+    openDeviations              antal öppna avvikelser, Oskarshamn
+
+Inuti `source`, se `SOURCEFALT`:
+
+    modifiedAt                  när KÄLLAN senast ändrades
 
 Allt detta bärs över i dag, och kartnålarna har dessutom en grind, se
 `coordinate_collapse`. Någon grind per fält byggs inte: raderingen är alltid
@@ -78,7 +89,7 @@ from typing import Optional
 PAGE = 1000
 
 #: Decimaler att behålla i koordinaterna. Sex ger ungefär elva centimeters
-#: upplösning — långt mer än en kartnål behöver.
+#: upplösning, alltså långt mer än en kartnål behöver.
 #:
 #: Varför avrundning alls: databasrundturen ger tillbaka flyttal med en
 #: decimal mindre än de skrevs (58.39034461245975 blir 58.3903446124597).
@@ -91,7 +102,7 @@ PAGE = 1000
 #: brus ska inte dränka den.
 #:
 #: Fjorton signifikanta siffror var dessutom falsk precision till att börja
-#: med — ingen kommun mäter sin verksamhet på nanometern.
+#: med, för ingen kommun mäter sin verksamhet på nanometern.
 COORDINATE_DECIMALS = 6
 
 
@@ -124,7 +135,7 @@ class Supabase:
         """Hämta alla rader. PostgREST sidindelar vid 1 000.
 
         Sorteringen MÅSTE ske på en unik kolumn. Med offset-paginering på en
-        icke-unik kolumn — som `inspected_at`, där tusentals rader delar datum —
+        icke-unik kolumn, till exempel `inspected_at` där tusentals rader delar datum,
         är radordningen odefinierad mellan sidorna, så rader kan dyka upp två
         gånger eller hoppas över. Det gav elva felplacerade kontroller innan
         det upptäcktes.
@@ -294,6 +305,49 @@ FILFALT = (
     "decisions",
 )
 
+#: Fält på KONTROLLERNA som bara bor i FILEN.
+#:
+#: Sjätte gången samma fälla, och den första en nivå längre in än raderna.
+#: `inspections` byggs från grunden ur tabellerna `inspections` och
+#: `control_areas`, alltså raderas varje annan nyckel på en kontroll tyst, och
+#: ingenting klagar eftersom en kontroll utan diarienummer är fullt
+#: publicerbar.
+#:
+#:     caseNumber      diarienumret besökaren behöver för att begära ut
+#:                     kontrollrapporten hos kommunen. Skrivs av fetch_ecos,
+#:                     fetch_karlstad, fetch_linkoping och fetch_uppsala.
+#:     reportUrl       länken till kommunens egen rapport. Skrivs av
+#:                     fetch_hoganas, fetch_kristinehamn och fetch_svenljunga,
+#:                     alla tre kommuner UTAN kontrollpunkter, så rapporten är
+#:                     där det enda stället avvikelserna står.
+#:     openDeviations  hur många avvikelser som är öppna efter kontrollen.
+#:                     Skrivs av fetch_oskarshamn, se prikko/sources/
+#:                     oskarshamn.py om varför kolumnen väntar på en andra
+#:                     källa.
+#:
+#: Uppmätt 2026-08-31 i site/src/data: 4 398 av Norrköpings 4 398 kontroller
+#: bär ett diarienummer, och de är i dag de enda som gör det. Övriga tre fält
+#: står på noll rader, för ingen av de hämtningarna har checkats in ännu.
+#: Linköpings hämtare räknade 2 519 diarienummer vid sin körning 2026-08-25,
+#: så talet blir 6 917 så snart den hämtningen tar sig hit. Fälten hör hemma i
+#: listan redan nu: den som checkar in en hämtning ska inte behöva veta att
+#: exporten raderar arbetet inom ett dygn.
+#:
+#: DE HÖR HIT OCH INTE I EXPORTENS EGNA, och frågan är alltid densamma: har
+#: fältet en kolumn i Supabase? Här är svaret nej för alla tre.
+#: pipeline/schema.sql ger `inspections` kolumnerna id, establishment_id,
+#: inspected_at, type, assessment, prenotified, audit, on_site, owner_comment,
+#: source_modified_at och fetched_at, och `inspection_rows` i
+#: pipeline/load_supabase.py skriver ingen av de tre. Gårdagens fil kan alltså
+#: inte vinna över databasen, för databasen har ingenting att vinna med. Det
+#: är precis motsatsen till `images`, som prövades mot FILFALT 2026-08-27 och
+#: hör hemma i exportens egna just för att tabellen finns: där HADE gårdagens
+#: fil vunnit, och en borttagen bild aldrig kunnat försvinna.
+#:
+#: Får något av fälten en kolumn ska det STRYKAS härifrån i samma ändring, och
+#: exporten läsa det ur databasen i stället.
+KONTROLLFALT = ("caseNumber", "reportUrl", "openDeviations")
+
 
 def filblock(path: Path) -> dict:
     """Licensblocken ur föregående export.
@@ -322,6 +376,25 @@ def filkallfalt(path: Path) -> dict:
         return {}
     source = payload.get("source") or {}
     return {namn: source[namn] for namn in SOURCEFALT if source.get(namn)}
+
+
+def filkontroller(tidigare: dict) -> dict:
+    """Föregående exports kontroller, per KONTROLLENS id. Se KONTROLLFALT.
+
+    Tar `filradering`s karta och inte sökvägen, för kontrollerna ligger inuti
+    verksamhetsraderna som redan är lästa. En andra läsning av samma fil hade
+    gett samma svar till dubbel kostnad.
+
+    Nyckeln är kontrollens id och inte verksamhetens. En verksamhet får nya
+    kontroller varje natt, och att para ihop dem på verksamheten hade satt
+    fjolårets diarienummer på årets kontroll.
+    """
+    return {
+        i["id"]: i
+        for rad in tidigare.values()
+        for i in (rad.get("inspections") or [])
+        if i.get("id")
+    }
 
 
 def behall_block(block: dict, bevarade: dict, antal_harledda: int) -> bool:
@@ -434,6 +507,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         tidigare = filradering(sokvag)
         forra_block = filblock(sokvag)
         forra_kalla = filkallfalt(sokvag)
+        forra_kontroll = filkontroller(tidigare)
         antal_harledda = 0
 
         for e in by_municipality.get(m["code"], []):
@@ -570,6 +644,30 @@ def export(client: Supabase, out_dir: Path) -> None:
                 if forra.get(namn):
                     rad[namn] = forra[namn]
                     bevarade[namn] += 1
+
+        # Samma sak en nivå längre in, på KONTROLLERNA. Se KONTROLLFALT.
+        #
+        # Uppslaget sker på kontrollens id, aldrig på verksamhetens, och det
+        # lägger bara till fält på kontroller databasen redan gett oss. En
+        # kontroll som kommunen slutat lämna ut kommer alltså inte tillbaka.
+        #
+        # `is not None` och inte sanningsvärdet, till skillnad från loopen
+        # ovan. Oskarshamns `openDeviations` är ett ANTAL, och noll öppna
+        # avvikelser är ett mätvärde och inte ett saknat. Fördelningen
+        # 2026-08-02 är 0 → 183, 1 → 38, 2 → 12, 3 → 5, 4 → 2, 5 → 1, så
+        # `if forra.get(namn)` hade tappat 183 av 241 kontroller, alltså just
+        # de rena. Se pipeline/prikko/sources/oskarshamn.py.
+        #
+        # Fälten hakas på EFTER `areas` och inte i literalen ovan, eftersom
+        # det är där hämtarna skriver dem. Skriver de två vägarna fältet på
+        # olika ställen ger varje bytt väg en diff utan en enda faktisk
+        # ändring, precis som för `geoSource` och för FILBLOCK:s ordning.
+        for rad in records:
+            for kontroll in rad["inspections"]:
+                forra_i = forra_kontroll.get(kontroll["id"], {})
+                for namn in KONTROLLFALT:
+                    if forra_i.get(namn) is not None:
+                        kontroll[namn] = forra_i[namn]
 
         # Licensblocken följer med när, och bara när, filen faktiskt bär den
         # data de handlar om. De står EFTER `source` och i FILBLOCK:s ordning,

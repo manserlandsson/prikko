@@ -771,12 +771,8 @@ Varav 30 nya för Ecos och 17 för Göteborg.
    det är det verkliga taket 20 000, och grinden fäller aldrig innan
    Cloudflare avvisar utgåvan. Uppgraderingen är steg ett i `docs/46` §6 och
    den här ändringen är steg två.
-3. **`caseNumber` raderas av nattkörningen, och det är ett fynd bredvid
-   uppdraget.** Norrköpings 4 398 diarienummer och Linköpings 2 519 skrivs
-   till datafilen men saknar motpart i `export_supabase.py`, som bygger varje
-   kontroll från grunden. Samma sak gäller Kristinehamns `report_url`. Felet
-   fanns före det här arbetet och är inte lagat här, eftersom det ligger i
-   exportens kontrollblock och inte i FILFALT.
+3. ~~**`caseNumber` raderas av nattkörningen.**~~ Lagat 2026-08-31 med
+   `KONTROLLFALT`, se §12.
 4. **Geokoda Norrköping.** Besöksadresserna bär husnummer, så
    `pipeline/geocode.py` kan sätta nålar på samma sätt som för Örebro och
    Uppsala. Utan det får Norrköping inga kartnålar. Ett eget steg, inte en
@@ -788,3 +784,129 @@ Varav 30 nya för Ecos och 17 för Göteborg.
    underlaget i §10.
 7. **Verifiera Ecos-adaptern mot en andra kommun.** Återanvändbarheten är i
    dag en hypotes byggd på en fil. Systemkartan kommer med genväg A.
+
+## 12. Kontrollnivån: `caseNumber` och dess syskon
+
+Punkt 3 i §11.4 stod som ett fynd bredvid uppdraget. Det är lagat här, och
+avsnittet finns för att mätningen och syskonlistan ska stå någonstans.
+
+### 12.1 Felet
+
+`export_supabase.py` bygger varje kontroll från grunden ur tabellerna
+`inspections` och `control_areas`. Ett fält på en kontroll som saknar kolumn i
+Supabase raderas alltså tyst i nästa nattkörning, och ingenting klagar, för en
+kontroll utan diarienummer är fullt publicerbar.
+
+Det är samma fälla som `FILFALT` (verksamhetsraderna), `FILBLOCK`
+(filens toppnivå) och `SOURCEFALT` (inuti `source`) finns för, en fjärde nivå
+längre in. Den slank förbi provet av exakt samma skäl som `SOURCEFALT` gjorde
+en vecka tidigare: `inspections` står i `EXPORTENS_EGNA`, så provet gick förbi
+varje nyckel INUTI en kontroll.
+
+Felet har aldrig slagit till, eftersom GitHub Actions ligger nere på en
+betalspärr sedan 27 augusti. Det blir skarpt samma dag spärren lyfts.
+
+### 12.2 Mätningen, 2026-08-31
+
+Räknat i `site/src/data/*.json`, alltså de incheckade filerna:
+
+    kommun          kontroller   med caseNumber
+    norrkoping           4 398            4 398
+    alla övriga         68 937                0
+    SUMMA               73 335            4 398
+
+Talet 6 917 stämmer alltså inte mot filerna i dag. Det är summan av
+Norrköpings 4 398 och Linköpings 2 519, och Linköpings tal kommer ur
+hämtarens egen utskrift vid körningen 2026-08-25, inte ur en incheckad fil.
+`fetch_linkoping.py` skriver `caseNumber` på varje kontroll, men den
+hämtningen har inte checkats in, så fältet står på noll rader i
+`linkoping.json`. Samma sak gäller Kristinehamns `reportUrl`: hämtaren skriver
+det, filen bär det inte.
+
+Det som faktiskt skulle raderas nästa natt är alltså 4 398 diarienummer.
+6 917 är vad det blir så snart Linköpings hämtning tar sig in, och 6 917 är
+därför rätt tal att bygga för.
+
+### 12.3 Vilken sida `caseNumber` hamnar på
+
+Regeln har två sidor och de ger motsatt svar. Ett fält som byggs från grunden
+ur en Supabase-kolumn ska INTE bevaras, för då vinner gårdagens fil över
+databasen och en borttagen uppgift kan aldrig försvinna. Det är skälet till
+att `images` prövades mot `FILFALT` 2026-08-27 och underkändes. Ett fält utan
+kolumn ska bevaras, annars raderar det sitt eget arbete inom ett dygn.
+
+`caseNumber` saknar kolumn. `inspections` i `pipeline/schema.sql` har id,
+establishment_id, inspected_at, type, assessment, prenotified, audit, on_site,
+owner_comment, source_modified_at och fetched_at, och `inspection_rows` i
+`pipeline/load_supabase.py` skriver inget diarienummer. Databasen har alltså
+ingenting att vinna med, och fältet hör hemma i bevarandelistan.
+
+`ownerComment` är motexemplet på samma nivå och stannar i exportens egna:
+kolumnen `owner_comment` finns och `pipeline/moderate.py` skriver den, så ett
+indraget svar ska kunna försvinna.
+
+### 12.4 Syskonen
+
+Genomgång av vad varje hämtare skriver på en kontroll mot vad exporten känner
+till. Tre fält saknade täckning, och alla tre är lagade:
+
+    fält            skrivs av                          kolumn   rader i dag
+    caseNumber      ecos, karlstad, linkoping,         nej            4 398
+                    uppsala
+    reportUrl       hoganas, kristinehamn, svenljunga  nej                0
+    openDeviations  oskarshamn                         nej                0
+
+`reportUrl` väger tyngre än raden noll antyder. De tre kommunerna publicerar
+inga kontrollpunkter alls, så rapporten är det enda stället avvikelserna står.
+
+`openDeviations` bär en egen fälla. Värdet är ett ANTAL, och noll öppna
+avvikelser är ett mätvärde och inte ett saknat värde. Fördelningen i
+Oskarshamn 2026-08-02 är 0 → 183, 1 → 38, 2 → 12, 3 → 5, 4 → 2, 5 → 1.
+`FILFALT`-loopen frågar `if forra.get(namn)`, och den formen hade tappat 183
+av 241 kontroller, alltså just de rena. Loopen på kontrollnivå frågar därför
+`is not None`.
+
+### 12.5 Vad som lämnas
+
+**`skipped` och `unreadableReports`.** Tio hämtare skriver `skipped` på filens
+toppnivå och Kristinehamn dessutom `unreadableReports`. Ingen av dem står i
+någon incheckad fil, alltså har exporten redan tagit bort dem, och det är
+rätt. Talen beskriver hur en hämtning gick, inte vad beståndet är, och ett
+körningsmått som fryser i filen till nästa hämtning är sämre än inget mått.
+De hör hemma i hämtarens utskrift, där de redan står.
+
+**`riskClass`, `registeredAt`, `operator` och `decisions`** står kvar i
+`FILFALT` oförändrade. `risk_class` har visserligen en kolumn i
+`establishments`, men exporten läser den inte, så bevarandet är i dag det enda
+som håller fältet vid liv. Att flytta det till exportens egna kräver att
+exporten börjar läsa kolumnen, och det är en egen ändring.
+
+**Kolumnerna byggs inte.** Att i stället ge `inspections` en `case_number` är
+den uppenbara lösningen och den är större än den ser ut: den berör
+`schema.sql`, `load_supabase.py` och alla kommuner. `oskarshamn.py` säger
+redan varför sin egen kolumn väntar på att en andra källa levererar samma
+mått. Bevarandelistan är det som gör att arbetet inte hinner raderas medan det
+beslutet tas, och `KONTROLLFALT` säger uttryckligen att ett fält som får en
+kolumn ska strykas därifrån i samma ändring.
+
+### 12.6 Lagningen
+
+`KONTROLLFALT` och `filkontroller()` i `pipeline/export_supabase.py`, byggda
+efter samma mönster som `SOURCEFALT` och `filkallfalt()`. Uppslaget sker på
+KONTROLLENS id och aldrig på verksamhetens: en verksamhet får nya kontroller
+varje natt, och en hopparning på verksamheten hade satt fjolårets diarienummer
+på årets kontroll. Bevarandet lägger bara till fält på kontroller databasen
+redan gett oss, så en kontroll kommunen slutat lämna ut kommer inte tillbaka.
+
+Fälten hakas på efter `areas`, vilket är där hämtarna skriver dem. Samma skäl
+som för `geoSource` direkt efter `lng` och för `FILBLOCK`:s ordning: skriver
+de två vägarna fältet på olika ställen ger varje bytt väg en diff utan en enda
+faktisk ändring.
+
+Sju nya prov i `pipeline/tests/test_export_koordinater.py`. Fyra av dem faller
+på koden som fanns före rättelsen och är beviset. Ett av dem är regeln framåt:
+det ställer varje nyckel på varje kontroll i de incheckade filerna mot
+`KONTROLLFALT`, precis som de tre proven som redan gör det för raderna,
+toppnivån och `source`.
+
+    python3 -m pytest pipeline/tests/ -q     → 1 295 godkända
