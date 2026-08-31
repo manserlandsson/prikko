@@ -346,6 +346,13 @@ function utmarkelseSection(): MapSection {
           /* Emblemsidan hör hit och inte till "Om Prikko". Den som söker upp
              den söker på märket, alltså på utmärkelsen. */
           { href: path('utmarkelser', 'emblem'), label: 'Emblemet' },
+          /* Dekalsidan står bredvid emblemsidan trots att den INTE handlar om
+             utmärkelsen, och det är ett medvetet val. Den som letar efter ett
+             märke att sätta i fönstret letar på ett ställe, inte på två, och
+             sidorna länkar till varandra i båda riktningarna. Skillnaden mellan
+             dem, alltså att dekalen inte påstår något om kvalitet, står på
+             sidorna själva och behöver inte en egen rubrik här. */
+          { href: path('dekal'), label: 'Dekalen till fönstret' },
         ],
       },
       ...all.map((e) => ({

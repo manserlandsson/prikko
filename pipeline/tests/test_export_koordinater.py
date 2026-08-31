@@ -30,11 +30,13 @@ from export_supabase import (  # noqa: E402
     MIN_COORDINATES_LOST,
     FILBLOCK,
     FILFALT,
+    SOURCEFALT,
     behall_block,
     coordinate_collapse,
     count_coordinates,
     export,
     filblock,
+    filkallfalt,
     filradering,
 )
 
@@ -460,6 +462,9 @@ EXPORTENS_EGNA = {
 #: Nycklar exporten själv bygger på filens toppnivå.
 EXPORTENS_EGNA_BLOCK = {"municipality", "source", "establishments"}
 
+#: Nycklar exporten själv bygger INUTI `source`.
+EXPORTENS_EGNA_KALLFALT = {"url", "fetchedAt"}
+
 
 class Filfalten(unittest.TestCase):
     """Det som bara bor i filen måste räknas upp i exporten.
@@ -515,6 +520,55 @@ class Filfalten(unittest.TestCase):
             {},
             f"block utan plats i FILBLOCK, de raderas av nästa nattkörning: {okanda}",
         )
+
+    def test_varje_falt_i_source_ar_kant(self):
+        """Samma fälla som blocken, en nivå längre in.
+
+        `source` står i EXPORTENS_EGNA_BLOCK, alltså gick provet ovan förbi
+        varje nyckel INUTI blocket. Exporten bygger det från grunden med `url`
+        och `fetchedAt` ur `municipalities`, så allt annat raderas tyst.
+        Norrköpings `modifiedAt` är det första sådana fältet, och det är just
+        den uppgift som säger att kommunens bestånd är två och ett halvt år
+        gammalt.
+        """
+        kanda = EXPORTENS_EGNA_KALLFALT | set(SOURCEFALT)
+        okanda = {}
+        for path in self._filer():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for namn in (payload.get("source") or {}).keys() - kanda:
+                okanda.setdefault(namn, path.name)
+        self.assertEqual(
+            okanda,
+            {},
+            f"fält utan plats i SOURCEFALT, de raderas av nästa nattkörning: {okanda}",
+        )
+
+    def test_kallfalten_bars_over_ur_gardagens_fil(self):
+        dir = Path(tempfile.mkdtemp())
+        path = dir / "norrkoping.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "municipality": {"slug": "norrkoping"},
+                    "source": {
+                        "url": "https://exempel.invalid/ecos.xml",
+                        "fetchedAt": "2026-08-31T12:00:00",
+                        "modifiedAt": "2024-03-17",
+                    },
+                    "establishments": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(filkallfalt(path), {"modifiedAt": "2024-03-17"})
+
+    def test_kallfalten_ur_en_fil_utan_dem_ar_tomma(self):
+        dir = Path(tempfile.mkdtemp())
+        path = dir / "orebro.json"
+        path.write_text(
+            json.dumps({"source": {"url": "x", "fetchedAt": "y"}}), encoding="utf-8"
+        )
+        self.assertEqual(filkallfalt(path), {})
 
     def test_blockordningen_ar_filernas(self):
         """FILBLOCK måste stå i samma ordning som de incheckade filerna, annars

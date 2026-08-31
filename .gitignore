@@ -27,6 +27,12 @@ venv/
 # Datadumpar från pipelinen (kan vara stora; hör hemma i Supabase/objektlagring)
 pipeline/data/raw/
 pipeline/data/interim/
+# Underlag: hämtade bestånd som INTE blir sidor, se docs/20 §10. Göteborgs
+# lista är 2,2 MB och uppdateras dagligen hos kommunen, så en incheckad kopia
+# hade blivit en daglig diff av en ögonblicksbild som ändå är inaktuell. Filen
+# är CC0 och ett kommando bort: python3 pipeline/fetch_goteborg.py --out ...
+# Se också docs/46_filtaket.md §5 om arkivets tillväxt.
+pipeline/data/underlag/
 *.sqlite
 *.db
 

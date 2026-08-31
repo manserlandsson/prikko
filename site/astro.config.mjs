@@ -22,11 +22,12 @@ import { noindexPaths } from './src/lib/webbkarta.ts';
 
 /**
  * Renderingsstrategi (se docs/adr/0001-rendering-strategi.md):
- * Vi kör statiskt (SSG) nu. När sidantalet passerar ~15 000 byter vi till
- * hybrid på Cloudflare Workers — hubbar/leaderboards förrenderas, restaurang-
- * sidornas långa svans SSR:as på edge med cache. Det bytet ska vara ett
- * adapter-tillägg plus `export const prerender = false` på svanssidorna,
- * inget omskrivet datalager. Håll därför all dataåtkomst i src/lib/.
+ * Vi kör statiskt (SSG). Gränsen "~15 000 sidor" som stod här är mätt bort:
+ * docs/46_filtaket.md §1 visar att Pages tar 100 000 filer på den betalda
+ * planen och att hela riket ryms på omkring 97 400, alltså behövs hybriden
+ * inte i år. Den är fortfarande rätt slutstation, men den är INTE det
+ * adaptertillägg plus `export const prerender = false` som ADR 0001 lovar,
+ * se docs/46 §1 punkt 5. Håll därför all dataåtkomst i src/lib/.
  */
 
 /**
@@ -259,6 +260,12 @@ const START_PAGES = new Set([
   'integritetspolicy',
   'hjalp',
   'kontakt',
+  /* Dekalsidan hör till toppsidorna och INTE till utmärkelserna, trots att den
+     ligger bredvid emblemsidan i webbkartan. Hänvisningsmärket är uttryckligen
+     inte en utmärkelse, och en grupp i Search Console som heter utmarkelser
+     ska inte innehålla en sida som säger att den inte handlar om utmärkelsen.
+     Se docs/48_market_som_lamnar_sajten.md § 5. */
+  'dekal',
 ]);
 
 function sidtyp(pathname) {
@@ -519,34 +526,74 @@ const INNEHALL = fileURLToPath(new URL('src/content/', import.meta.url));
  *
  * ## Varför grinden finns
  *
- * Pages tar 20 000 filer per utgåva. Passeras taket avvisas hela utgåvan, och
- * det upptäcks först i deploysteget, alltså efter tio minuters bygge och utan
- * att något i vår egen kod sagt ifrån. Sajten står då kvar på gårdagens
- * utgåva medan allt ser grönt ut hos oss.
+ * Passeras taket avvisas hela utgåvan, och det upptäcks först i deploysteget,
+ * alltså efter tio minuters bygge och utan att något i vår egen kod sagt
+ * ifrån. Sajten står då kvar på gårdagens utgåva medan allt ser grönt ut hos
+ * oss.
  *
- * Taket är dessutom vår hårdaste begränsning på tillväxt, hårdare än datan
- * och hårdare än mallarna. `docs/30_programmatisk_seo.md` §3 räknade ut att
- * ett nationellt bestånd är omkring 96 000 filer, alltså nästan fem gånger
- * det gratisplanen tar. Se den paragrafen innan någon planerar en ny sidtyp.
+ * ## Taket är 100 000 och inte 20 000
+ *
+ * Här stod tidigare att Pages tar 20 000 filer och att 100 000 är något
+ * Workers Static Assets kan men Pages inte kan. Det är fel, och felet är mätt:
+ * `docs/46_filtaket.md` §4.1 läste Cloudflares egen gränssida och fann att den
+ * ger exakt samma två tal för båda plattformarna. **Pages tar 100 000 filer på
+ * den betalda planen**, priset är 5 dollar i månaden och ändringen är ett
+ * klick. Ingen migration, ingen hybrid, inget byte av värd.
+ *
+ * Talet 20 000 hann stå i fyra dokument och blockera fyra beslut innan någon
+ * kontrollerade det. Se docs/46 §1 punkt 1.
  *
  * ## De två talen
  *
- * Bygget låg på 16 934 filer 2026-08-18. En kommun i Stockholms storlek är
- * omkring 8 500 sidor, en liten kommun några hundra.
+ * Flyttade 2026-08-31 från 18 000 och 19 500, enligt rekommendationen i
+ * docs/46 §6. Bygget låg då på 17 011 filer före Norrköping.
  *
- * VARNING vid 18 000 ger drygt tusen filers förvarning, alltså tid att välja
- * mellan att flytta till Workers och att skjuta upp en sidtyp.
+ * VARNING vid 90 000 går vid ungefär kommun nummer 180.
  *
- * FEL vid 19 500 stoppar bygget medan det fortfarande finns 500 filers
- * marginal. Att fälla här är hårdare än att låta Cloudflare avvisa utgåvan,
- * och det är meningen: ett rött bygge går att läsa, en avvisad utgåva ser ut
- * som att ingenting hände.
+ * FEL vid 98 000 lämnar 2 000 filers marginal, alltså samma andel av taket
+ * som 19 500 lämnade av 20 000. Att fälla här är hårdare än att låta
+ * Cloudflare avvisa utgåvan, och det är meningen: ett rött bygge går att
+ * läsa, en avvisad utgåva ser ut som att ingenting hände.
  *
- * Workers Static Assets tar 100 000 filer på den betalda planen, 5 dollar i
- * månaden. Den dagen taket flyttas ska talen här flyttas med.
+ * Prognosen för full nationell täckning är 96 940 till 97 413 filer, alltså
+ * INUTI varningsområdet och strax under felet. **Grinden kommer att varna
+ * under resten av utbyggnaden, och det är meningen.** Sista tiondelen av
+ * landet ska kopplas in med en människa som tittar på talet. Det finns inte
+ * plats för en sidtyp till ovanpå riket; se docs/46 §3.2 innan någon planerar
+ * en.
+ *
+ * ## Grinden förutsätter den betalda planen
+ *
+ * Talen nedan gäller Workers Paid. Ligger kontot kvar på gratisplanen är det
+ * verkliga taket 20 000, och då fäller grinden aldrig innan Cloudflare
+ * avvisar utgåvan. Uppgraderingen är det första av de två stegen i docs/46
+ * §6, och det andra är den här ändringen.
  */
-const FILTAK_VARNING = 18_000;
-const FILTAK_FEL = 19_500;
+const FILTAK_VARNING = 90_000;
+const FILTAK_FEL = 98_000;
+
+/**
+ * GRATISPLANENS TAK, och det gäller tills någon uppgraderat kontot.
+ *
+ * De två talen ovan förutsätter Workers Paid. Uppgraderingen är fem dollar i
+ * månaden och ett klick, men den är inte gjord, och en kommentar som säger
+ * "grinden förutsätter den betalda planen" fäller ingenting vid byggtid.
+ *
+ * Utan den här raden hade nästa kommun tagit oss förbi 20 000 med alla vakter
+ * gröna, och felet hade synts först i deploysteget som en avvisad utgåva
+ * medan sajten stod kvar på gårdagens. Det är precis det tysta läge hela
+ * grinden finns för att förhindra, se "Varför grinden finns" ovan.
+ *
+ * Raden varnar och fäller inte, eftersom den som redan uppgraderat inte ska
+ * stoppas av ett tal vi inte kan läsa av från kontot. Den ska bort samma dag
+ * uppgraderingen är gjord, och då är hela stycket sant igen.
+ *
+ * Bygget 2026-08-31 med tretton kommuner ligger på 18 048 filer, alltså
+ * 1 952 kvar. Norrköping kostade 1 037. Nästa kommun av den storleken går
+ * över.
+ */
+const FILTAK_GRATIS = 20_000;
+const GRATIS_VARNING = 19_000;
 
 function filtaksgrind() {
   return {
@@ -562,23 +609,41 @@ function filtaksgrind() {
 
         if (filer >= FILTAK_FEL) {
           throw new Error(
-            `${filer} filer i utgåvan. Cloudflare Pages tar 20 000 och grinden\n` +
-              `  fäller vid ${FILTAK_FEL} för att lämna marginal.\n\n` +
-              '  Antingen flyttar sajten till Workers Static Assets, som tar\n' +
-              '  100 000 filer på den betalda planen, eller så tas en sidtyp\n' +
-              '  bort. Se docs/30_programmatisk_seo.md §3 och docs/adr/0001.',
+            `${filer} filer i utgåvan. Cloudflare Pages tar 100 000 på den\n` +
+              `  betalda planen och grinden fäller vid ${FILTAK_FEL} för att\n` +
+              '  lämna marginal.\n\n' +
+              '  Det finns ingen plan under den här: hela riket ryms på\n' +
+              '  omkring 97 400 filer, alltså är det här taket slut. En sidtyp\n' +
+              '  måste bort, eller så ska svansen renderas på edge.\n' +
+              '  Se docs/46_filtaket.md §3.2 och §5.',
           );
+        }
+
+        if (filer >= GRATIS_VARNING && filer < FILTAK_VARNING) {
+          logger.warn(
+            `${filer} filer i utgåvan, och gratisplanens tak är ${FILTAK_GRATIS}. ` +
+              'Är kontot kvar på gratisplanen avvisas den här utgåvan av Cloudflare ' +
+              'utan att något i vår kod säger ifrån. Uppgradera till Workers Paid, ' +
+              'fem dollar i månaden, och ta sedan bort GRATIS_VARNING här. ' +
+              'Se docs/46_filtaket.md §6.',
+          );
+          if (process.env.GITHUB_ACTIONS) {
+            console.log(
+              `::warning title=Gratisplanens tak::${filer} filer mot ${FILTAK_GRATIS}. ` +
+                'Uppgradera kontot till Workers Paid.',
+            );
+          }
         }
 
         if (filer >= FILTAK_VARNING) {
           logger.warn(
             `${filer} filer i utgåvan, ${kvar} kvar till grinden vid ${FILTAK_FEL}. ` +
-              'Dags att bestämma om sajten ska flytta till Workers.',
+              'Sista kommunerna ska kopplas in med en människa som tittar på talet.',
           );
           if (process.env.GITHUB_ACTIONS) {
             console.log(
               `::warning title=Filtaket närmar sig::${filer} filer, ${kvar} kvar ` +
-                `till ${FILTAK_FEL}. Cloudflare Pages tar 20 000.`,
+                `till ${FILTAK_FEL}. Cloudflare Pages tar 100 000 på betald plan.`,
             );
           }
           return;

@@ -487,6 +487,24 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 <dd>{formatDate(source.fetchedAt.slice(0, 10))}</dd>
               </div>
             )}
+            {/* Källans egen ålder, och bara när källan svarar på frågan.
+
+                "Hämtat" säger när vi läste, inte hur gammalt materialet är.
+                För de kommuner vars tjänst svarar med dagens läge är de två
+                samma dag och raden uteblir. För Norrköping är de två och ett
+                halvt år isär: filen hämtas i natt och skrevs 2024-03-17.
+                Utan raden hade sidan visat ett färskt hämtdatum över ett
+                bestånd som står stilla, alltså sagt fel utan att ljuga.
+
+                Ingen ny form: raden ligger i samma dl som källa, hämtdatum
+                och senaste kontroll, och ovanför "Senaste kontroll", så att
+                de tre datumen läses i den ordning de hänger ihop. */}
+            {source?.modifiedAt && (
+              <div>
+                <dt>Källan uppdaterad</dt>
+                <dd>{formatDate(source.modifiedAt)}</dd>
+              </div>
+            )}
             {latestInKommun && (
               <div>
                 <dt>Senaste kontroll</dt>

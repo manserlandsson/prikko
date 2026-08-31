@@ -217,6 +217,23 @@ def filradering(path: Path) -> dict:
 #: licensbrott och inte en saknad rad.
 FILBLOCK = ("narhet", "openstreetmap", "geocoding")
 
+#: Fält INUTI `source` som bara bor i FILEN.
+#:
+#: Samma fälla som FILBLOCK, en nivå längre in, och den slank förbi provet
+#: nedan eftersom `source` självt står i EXPORTENS_EGNA_BLOCK. Exporten bygger
+#: blocket från grunden med `url` och `fetchedAt` ur `municipalities`, alltså
+#: raderas varje annan nyckel tyst.
+#:
+#:     modifiedAt      när KÄLLAN senast ändrades, inte när vi hämtade den.
+#:                     Skrivs av pipeline/fetch_ecos.py och står i dag på
+#:                     norrkoping.json med värdet 2024-03-17. Kommunsidan
+#:                     visar det som "Källan uppdaterad" bredvid "Hämtat", och
+#:                     det är hela skälet att en besökare kan se att
+#:                     Norrköpings bestånd är två och ett halvt år gammalt
+#:                     utan att klicka. Utan raden här hade sidan efter en
+#:                     natt visat ett färskt hämtdatum över en frusen kommun.
+SOURCEFALT = ("modifiedAt",)
+
 #: Fält på verksamhetsraderna som bara bor i FILEN.
 #:
 #: LISTAN MÅSTE VÄXA NÄR ETT NYTT SÅDANT FÄLT TILLKOMMER, och det är ingen
@@ -293,6 +310,18 @@ def filblock(path: Path) -> dict:
     except ValueError:
         return {}
     return {namn: payload[namn] for namn in FILBLOCK if payload.get(namn)}
+
+
+def filkallfalt(path: Path) -> dict:
+    """Fälten inuti `source` som bara bor i filen. Se SOURCEFALT."""
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    source = payload.get("source") or {}
+    return {namn: source[namn] for namn in SOURCEFALT if source.get(namn)}
 
 
 def behall_block(block: dict, bevarade: dict, antal_harledda: int) -> bool:
@@ -404,6 +433,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         sokvag = out_dir / f"{m['slug']}.json"
         tidigare = filradering(sokvag)
         forra_block = filblock(sokvag)
+        forra_kalla = filkallfalt(sokvag)
         antal_harledda = 0
 
         for e in by_municipality.get(m["code"], []):
@@ -562,6 +592,9 @@ def export(client: Supabase, out_dir: Path) -> None:
             "source": {
                 "url": m.get("source_url") or "",
                 "fetchedAt": m.get("last_fetched_at") or "",
+                # Fält utan kolumn i Supabase bärs över ur gårdagens fil, av
+                # samma skäl som FILFALT och FILBLOCK. Se SOURCEFALT.
+                **forra_kalla,
             },
             **block,
             "establishments": records,
