@@ -24,9 +24,14 @@ Räknat över samtliga 224 rapporter 2026-08-03:
      11  läsbara men utan resultatmening eller kontrolldatum
 
 Det finns ingen väg runt det utan OCR, och OCR går inte att köra i en tom
-container. Följden är att **47 av 107 verksamheter blir obedömda**: 22 har
-ingen läsbar rapport alls, 8 har en oläsbar SENASTE rapport, och 17 har bara
-rapporter äldre än treårsfönstret.
+container. Följden är att **31 av 107 verksamheter blir obedömda**: 22 har
+ingen läsbar rapport alls, 8 har en oläsbar SENASTE rapport, och 1 har bara
+rapporter äldre än färskhetsfönstret.
+
+Den sista siffran var 17 så länge fönstret var tre år. Med fem år, alltså
+version 5 av `grading.py`, ryms 16 av dem, och det är enda skälet till att
+talet i rubriken gick från 47 till 31. De inskannade bilderna utan textlager
+ligger kvar precis som förut, för dem löser inget fönster.
 
 De 8 är den viktiga gruppen. När den nyaste rapporten inte går att läsa
 publiceras INGET omdöme, trots att en äldre rapport finns och går att tolka.

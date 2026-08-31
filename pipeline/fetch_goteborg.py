@@ -54,6 +54,7 @@ from prikko.sources.goteborg import (  # noqa: E402
     normalize_establishment,
     parse,
 )
+from prikko.grading import MODEL_VERSION  # noqa: E402
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
@@ -140,7 +141,9 @@ def build(text: str, modified: Optional[str], limit: Optional[int]) -> dict:
                 "verdict": None,
                 "distinction": False,
                 "reason": "no_inspections",
-                "modelVersion": 4,
+                # Läses ur grading.py och skrivs inte för hand. Talet stod som
+                # en fyra och blev fel i samma stund modellen gick till fem.
+                "modelVersion": MODEL_VERSION,
                 "uncertain": False,
                 "inspections": [],
                 # Två uppgifter sajtens verksamhetsrad inte har något fält

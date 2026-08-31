@@ -136,7 +136,7 @@ import { awardTarget, barRange, capitalise, latestEdition, numeral } from '../li
 
 // MÅSTE vara samma tal som MODEL_VERSION i pipeline/prikko/grading.py.
 // CI stoppar bygget om de glider isär, se .github/workflows/kontroll.yml.
-const MODEL_VERSION = 4;
+const MODEL_VERSION = 5;
 
 const levels = [
   {
@@ -157,7 +157,7 @@ const levels = [
   {
     verdict: null,
     label: 'Ingen bedömning',
-    when: 'Det saknas kontroll, eller så är den senaste äldre än tre år. Detta betyder aldrig att hygienen är dålig.',
+    when: 'Det saknas kontroll, eller så är den senaste äldre än fem år. Detta betyder aldrig att hygienen är dålig.',
   },
 ];
 
@@ -189,7 +189,7 @@ const avsnitt = [
  * Raderna är valda för att köra hela modellen i grading.py på en gång, och
  * varje rad är kontrollerad mot koden:
  *
- *   assess() sorterar de tre inom treårsfönstret, nyast först.
+ *   assess() sorterar de tre inom femårsfönstret, nyast först.
  *   Den senaste har assessment = 1 (mindre anmärkningar), alltså MINOR.
  *   _is_persisting() är sant på tecken 1, latest.type == FOLLOWUP. Tecken 2
  *   är också sant, eftersom föregående kontroll har avvikelser; vart och ett
@@ -205,7 +205,7 @@ const avsnitt = [
  * det ingen roll att kontrollen innan hade en hygienavvikelse.
  *
  * Kontrollerna är namngivna efter sin ordning och inte daterade. Ett datum
- * skrivet för hand faller ur treårsfönstret av sig självt när sidan blir ett
+ * skrivet för hand faller ur femårsfönstret av sig självt när sidan blir ett
  * år gammal, och då hade exemplet slutat stämma utan att någon rört det.
  */
 const exempelKontroller = [
@@ -471,7 +471,7 @@ const jsonLd = {
         <h2>Ett räkneexempel</h2>
         <p>
           Verksamheten nedan är påhittad. Den har tre kontroller, alla inom
-          treårsfönstret.
+          femårsfönstret.
         </p>
 
         <table class="exempel">
@@ -543,14 +543,22 @@ const jsonLd = {
       <section id="utan-bedomning">
         <h2>När vi vägrar bedöma</h2>
         <p>
-          Saknas kontroll, eller är den senaste äldre än tre år, sätter vi ingen
+          Saknas kontroll, eller är den senaste äldre än fem år, sätter vi ingen
           bedömning alls. Vi gissar aldrig.
         </p>
         <p>
-          Tre år är inte godtyckligt: Livsmedelsverkets kontroller sprids normalt
-          över en treårscykel, så en äldre kontroll säger inget om nuläget. Att
-          publicera ”allvarliga brister” om en verksamhet som åtgärdade allt för
-          fem år sedan vore både orättvist och missvisande.
+          Fem år är valt mot vad den här sidan ändå berättar. Utan bedömning står
+          kontrollen kvar i klartext på verksamhetens sida, med sitt datum och
+          med vad kommunen noterade. Att hålla inne färgen ändrade alltså aldrig
+          vad du fick veta, den gjorde bara verksamheten osynlig på kartan, i
+          listorna och i sorteringen. Datumet följer med bedömningen överallt där
+          den visas, både i listraden och på kartan, så ett äldre underlag kan
+          inte läsas som ett besked om nuläget.
+        </p>
+        <p>
+          Bortom fem år slutar vi ändå. Att publicera ”allvarliga brister” om en
+          verksamhet som åtgärdade allt för åtta år sedan vore både orättvist och
+          missvisande.
         </p>
         <p class="callout">
           Ingen bedömning betyder aldrig dålig hygien. Det betyder att vi saknar
@@ -577,7 +585,7 @@ const jsonLd = {
         <p>
           En verksamhet med rent resultat vid <strong>samtliga {chipWord} senaste
           kontrollerna</strong> märks som ren historik. Kontrollerna ska ligga inom
-          treårsfönstret, samma fönster som avgör om vi alls bedömer.
+          femårsfönstret, samma fönster som avgör om vi alls bedömer.
         </p>
         <p>
           {capitalise(chipWord)} kontroller är också ett krav. Finns bara en

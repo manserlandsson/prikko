@@ -53,3 +53,11 @@ avgör utmärkelsen.** Kontrollhistoriken visas dessutom alltid separat på sida
   rakt av i AI-svar: "… fick inga anmärkningar vid den senaste hygienkontrollen."
 - Juridiskt står vi närmare myndighetens egen slutsats, vilket är hela poängen.
 - `MODEL_VERSION` höjd till 2. Publicerade bedömningar bär sin version.
+
+## Senare ändring
+
+Raden `null` i tabellen ovan sade "saknas eller äldre än tre år". Gränsen är
+**fem år** sedan `MODEL_VERSION = 5` (2026-08-31). Beslutet här, alltså tre
+nivåer som speglar källan, står orört; det är bara hur gammalt underlaget får
+vara som flyttats. Skälet och de mätta talen står i modulhuvudet till
+`pipeline/prikko/grading.py`.

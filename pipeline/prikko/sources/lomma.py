@@ -549,7 +549,7 @@ def normalize_inspections(listing: Listing, establishment_id: str) -> list:
     if not ISO_DATE.match(when):
         # En post har "2025-11-?" — dagen är inte skriven. Att avrunda till
         # månadens första eller sista dag vore att hitta på ett kontrolldatum,
-        # och datumet avgör om omdömet ens får publiceras (treårsfönstret).
+        # och datumet avgör om omdömet ens får publiceras (färskhetsfönstret).
         raise UnknownSourceValue(
             f"Oläsbart kontrolldatum {when!r} för {establishment_id}"
         )

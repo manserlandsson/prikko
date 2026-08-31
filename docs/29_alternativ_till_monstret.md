@@ -258,9 +258,11 @@ byggs bara om någon skulle söka på något för att hamna där.
 
 Och urvalet hade inte gått att fylla. Svaret på "alternativ till X i Y" skulle
 enligt beställningen vara närliggande ställen med **ren historik**, alltså minst
-tre kontroller inom tre år, samtliga utan anmärkning. Den regeln är omöjlig i
-fyra av tolv kommuner, av utlämnandeskäl och inte av hygienskäl. Räknat på samma
-bestånd:
+tre kontroller inom färskhetsfönstret, samtliga utan anmärkning. Den regeln är
+omöjlig i fyra av tolv kommuner, av utlämnandeskäl och inte av hygienskäl.
+Fönstret gick från tre år till fem i version 5 av modellen utan att ändra det:
+taket i tabellen nedan är hur djupt kommunen alls lämnar ut, och det tar inget
+fönster bort. Räknat på samma bestånd:
 
 | Kommun | Djupaste historik | Ställen med minst tre kontroller |
 |---|---|---|

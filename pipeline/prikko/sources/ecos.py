@@ -71,10 +71,19 @@ inledning skriver ut.
 Filen ändrades senast 2024-03-17 och den senaste kontrollen är daterad
 2024-01-03. Det gör Ecos-utdraget till vårt äldsta bestånd med god marginal,
 och det får INTE hanteras genom att tumma på färskhetsfönstret. Det hanteras av
-att fönstret får verka: med `FRESHNESS_WINDOW_DAYS` på tre år bär 272 av 1 022
-verksamheter en bedömning, och de övriga 750 får `stale_inspections`,
-no-indexeras och räknas som "Ingen bedömning" på kommunsidan. Det är rätt
-utfall, och det är sajtens egen befintliga mekanik som ger det.
+att fönstret får verka: vad talet än står på räknas de som hamnar utanför som
+`stale_inspections`, no-indexeras och redovisas som "Ingen bedömning" på
+kommunsidan. Det är rätt utfall, och det är sajtens egen befintliga mekanik som
+ger det.
+
+Fönstret gick från tre år till fem i version 5 av `grading.py`, och Norrköping
+är den kommun där det syns mest: 272 av 1 022 bar en bedömning med tre år,
+953 gör det med fem, och de obedömda går från 750 till 69. Ändringen gjordes
+inte för Norrköpings skull utan av skälet som står i `grading.py`, att sidan
+säger kontrollens utfall i klartext även utan bedömning. Att den slår hårdast
+här är en följd och inte ett motiv, och det ska stå så: hade motivet varit att
+lyfta ett enskilt bestånd hade det varit precis det tummande stycket ovanför
+förbjuder.
 
 `SOURCE_MODIFIED` bärs vidare till datafilen just därför. Hämtdatumet säger när
 VI läste filen, inte när KOMMUNEN skrev den, och på ett bestånd som ligger

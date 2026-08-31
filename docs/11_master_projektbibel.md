@@ -40,6 +40,60 @@ En snabb, snygg, SEO-först konsumentsajt som samlar kommunernas offentliga livs
 - **Modell:** Norges "sämsta punkten avgör" som förklarbar grund; visa **historik (3 senaste)** som Danmark; **topp-märke** för konsekvent bäst (Elite-Smiley-morot).
 - **Normalisering:** kommuner bedömer olika (likvärdighetsproblemet staten ej löst), så normalisera för det, publicera hela metodiken öppet. Det = din IP + juridiska/förtroendeskydd. Obs betygsinflation (Stanford-forskning) → var transparent.
 
+### 4b. Färskhetsfönstret: fem år, inte tre (beslutat 2026-08-31, modellversion 5)
+
+`FRESHNESS_WINDOW_DAYS` i `pipeline/prikko/grading.py` gick från `3 * 365` till
+`5 * 365`. Talet avgör hur gammal den senaste kontrollen får vara för att vi
+alls ska sätta en bedömning.
+
+**Skälet.** Det gamla skälet var Livsmedelsverkets treårscykel. Cykeln finns
+kvar som fakta, men den beskriver kommunens planering och inte vad en läsare
+får veta hos oss, så den kan inte bära talet. Det som bär är vad sidan gör utan
+bedömning: den säger redan resultatet i klartext, till exempel "Vid kontrollen
+den 23 januari 2023 redovisar Norrköpings kommun 8 granskade områden utan en
+enda avvikelse". Att hålla inne märket ändrade alltså aldrig vad läsaren fick
+veta. Det gjorde bara verksamheten osynlig på kartan, i listorna och i
+sorteringen, alltså på precis de ytor där man letar. Datumet följer dessutom med
+märket överallt där märket visas, både i listraden och i kartkortet, så ett
+äldre underlag kan inte läsas som ett påstående om nuläget.
+
+**Talen, hela beståndet om 17 066 verksamheter, mätt 2026-08-31:**
+
+| | Före (tre år) | Efter (fem år) |
+|---|---:|---:|
+| Bedömda | 13 764 (80,7 %) | 15 365 (90,0 %) |
+| Inga anmärkningar | 12 146 | 13 591 |
+| Brister | 1 245 | 1 362 |
+| Brister som kvarstår | 373 | 412 |
+| Ingen bedömning | 3 302 | 1 701 |
+| Märkningen ren historik | 1 493 | 2 951 |
+
+De **1 601 nya bedömda** blir 1 445 inga anmärkningar, 142 brister och 14
+brister som kvarstår. Störst effekt i Stockholm (700) och Norrköping (681),
+därefter Örebro (91) och Linköping (49). Fyra kommuner rör sig inte alls:
+Borgholm, Jönköping, Karlstad och Uppsala, eftersom deras obedömda saknar
+kontroll helt i stället för att ha en gammal.
+
+**Två följder som inte var självklara och som ska stå här:**
+
+1. **25 redan bedömda skärps** från "Brister" till "Brister som kvarstår", 18 i
+   Stockholm, 5 i Svenljunga och 2 i Örebro. Alla 25 är upprepningar och inte
+   återbesök: föregående kontroll låg tidigare utanför fönstret, så modellen
+   såg bara en rad och kunde inte se mönstret. Nu ryms båda. Avståndet mellan
+   kontrollerna är 238 till 1 335 dagar. Ett bredare fönster ger alltså inte
+   bara fler och mildare omdömen, det ger ett fåtal strängare, och det är rätt:
+   mönstret fanns där hela tiden. Ingen får en mildare bedömning.
+2. **Märkningen ren historik nästan fördubblas**, från 1 493 till 2 951, alltså
+   från 10,8 till 19,2 procent av de bedömda. Ingen förlorar den. Ribban
+   skiljer fortfarande ut något som `clean` inte kan, men den är inte längre
+   var tionde utan var femte, och rekommendationen i docs/26 §6 om att bygga en
+   positiv lista på just den ribban är därför svagare än när den skrevs. Se
+   noteringen där.
+
+Utmärkelsen, alltså årsutgåvan med årtal, **räknas inte om**. Den är fryst i
+`site/src/editions/2026.json` och läses därifrån. Ändringen syns i den först
+när nästa utgåva fryses med `node scripts/utmarkelser.mjs`.
+
 ---
 
 ## 5. Internationella modeller (stjäl detta)

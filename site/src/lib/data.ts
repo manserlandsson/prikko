@@ -604,9 +604,9 @@ function cleanIndex(slug: string): CleanIndex {
  * TVÅ OCH INTE TRE. "Färskast kontroll" prövades som mellanliggande nyckel och
  * togs bort igen, av två skäl som båda håller. Det första är att den knappt
  * skiljer något: en `clean`-bedömning kan aldrig vila på en kontroll äldre än
- * tre år, eftersom modellen slutar bedöma vid den gränsen och verksamheten då
- * faller ur listan helt. Alla i listan ligger alltså redan inom samma treårs-
- * fönster. Det andra är att raden på sidan bär antal kontroller och avstånd,
+ * fem år, eftersom modellen slutar bedöma vid den gränsen och verksamheten då
+ * faller ur listan helt. Alla i listan ligger alltså redan inom samma
+ * femårsfönster. Det andra är att raden på sidan bär antal kontroller och avstånd,
  * alltså exakt de två nycklarna. En tredje nyckel hade avgjort ordningen på
  * något läsaren inte kan se på raden, och en ordning som inte går att läsa ut
  * ur sidan är en ordning läsaren inte kan pröva.

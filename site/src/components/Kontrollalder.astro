@@ -36,9 +36,10 @@
  * ## Åren som visas
  *
  * De åtta senaste med uppgift, nyast överst. Åtta för att bedömningen vilar på
- * ett treårsfönster, se docs/03, och tre år räcker inte för att se en svans:
- * det man vill kunna avläsa är just hur många som ligger UTANFÖR fönstret.
- * Äldre än så samlas i en sista rad så att summan alltid går ihop.
+ * ett femårsfönster, se docs/03, och fem år räcker inte för att se en svans:
+ * det man vill kunna avläsa är just hur många som ligger UTANFÖR fönstret. Åtta
+ * rader lämnar tre år bortom fönstret, vilket är den svansen. Äldre än så samlas
+ * i en sista rad så att summan alltid går ihop.
  */
 import Stapel from './Stapel.astro';
 import InfoTip from './InfoTip.astro';
@@ -85,8 +86,8 @@ const rows = [
 ];
 
 /*
- * Tre år räcker inte för en fördelning som ska läsas som en fördelning. Samma
- * hållning som Kontrolltakt.astro: hellre ingen ruta än en ruta med två
+ * Två staplar räcker inte för en fördelning som ska läsas som en fördelning.
+ * Samma hållning som Kontrolltakt.astro: hellre ingen ruta än en ruta med två
  * staplar, som inte säger något men ser ut att göra det.
  */
 const visa = rows.length >= 3;
@@ -105,7 +106,7 @@ const summa = arPerVerksamhet.length;
 
     <p class="ingress text-secondary">
       Året för varje verksamhets senaste kontroll. Bedömningen vilar på ett
-      treårsfönster, så raderna längst ned är de vars uppgift ligger utanför
+      femårsfönster, så raderna längst ned är de vars uppgift ligger utanför
       det.
     </p>
 

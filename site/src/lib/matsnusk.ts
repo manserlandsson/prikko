@@ -143,7 +143,7 @@ export function isConsumerRemark(area: ControlArea): boolean {
  * verksamheten i normalfallet hunnit få en ny kontroll. Att den inte syns
  * hos oss säger då mer om kommunens publicering än om köket, och en lista
  * som pekar ut namngivna verksamheter får inte vila på det. Bedömningens
- * eget treårsfönster (grading.py) gäller fortfarande på verksamhetssidan;
+ * eget femårsfönster (grading.py) gäller fortfarande på verksamhetssidan;
  * matsnusklistan ställer ett hårdare krav för att den ställer ut raderna
  * bredvid varandra.
  */

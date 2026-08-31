@@ -24,6 +24,7 @@ from prikko.grading import (  # noqa: E402
     MINOR_REMARKS,
     MODEL_VERSION,
     NO_REMARKS,
+    REASON_ASSESSED,
     REASON_NO_INSPECTIONS,
     REASON_STALE,
     ROUTINE,
@@ -290,17 +291,20 @@ class Distinction(unittest.TestCase):
     def test_a_long_clean_run_outside_the_window_earns_nothing_here(self):
         """Fönstret styr märkningen, hur lång den obrutna serien än är.
 
-        Fem rena kontroller i rad, varav bara två ligger inom treårsfönstret.
+        Fem rena kontroller i rad, varav bara två ligger inom femårsfönstret.
         Årsutgåvan skulle ge utmärkelsen; märkningen ges inte, eftersom den
         beskriver nuläget och nuläget är två kontroller djupt.
+
+        Dagtalen flyttades ut när fönstret gick från 1 095 till 1 825 dagar. Det
+        testet mäter är förhållandet två inne och tre ute, inte talen i sig.
         """
         result = assess(
             [
                 insp(10, NO_REMARKS),
-                insp(700, NO_REMARKS),
-                insp(1300, NO_REMARKS),
-                insp(1900, NO_REMARKS),
-                insp(2500, NO_REMARKS),
+                insp(1000, NO_REMARKS),
+                insp(2100, NO_REMARKS),
+                insp(2900, NO_REMARKS),
+                insp(3700, NO_REMARKS),
             ],
             TODAY,
         )
@@ -331,15 +335,30 @@ class InsufficientEvidence(unittest.TestCase):
         self.assertEqual(result.reason, REASON_NO_INSPECTIONS)
         self.assertFalse(result.publishable)
 
-    def test_inspections_older_than_three_years_do_not_assess(self):
-        result = assess([insp(1200, MAJOR_REMARKS)], TODAY)
+    def test_inspections_older_than_five_years_do_not_assess(self):
+        result = assess([insp(2000, MAJOR_REMARKS)], TODAY)
         self.assertIsNone(result.verdict)
         self.assertEqual(result.reason, REASON_STALE)
+
+    def test_an_inspection_four_years_old_is_still_assessed(self):
+        """Fönstret är fem år sedan version 5, inte tre.
+
+        Fyra år ligger mellan det gamla talet och det nya, alltså utanför det
+        ena och innanför det andra. Skulle någon dra tillbaka fönstret till
+        1 095 dagar faller provet här, och inte först när en besökare möter en
+        sida som säger fem år bredvid en bedömning som räknats på tre.
+
+        1 601 verksamheter i beståndet bytte sida vid just den gränsen, mätt
+        2026-08-31. Se modulens inledning om version 5.
+        """
+        result = assess([insp(4 * 365, NO_REMARKS)], TODAY)
+        self.assertEqual(result.verdict, CLEAN)
+        self.assertEqual(result.reason, REASON_ASSESSED)
 
     def test_stale_is_distinguished_from_never_inspected(self):
         """Besökaren har rätt att veta vilket av fallen det är."""
         self.assertNotEqual(
-            assess([insp(1200, NO_REMARKS)], TODAY).reason,
+            assess([insp(2000, NO_REMARKS)], TODAY).reason,
             assess([], TODAY).reason,
         )
 

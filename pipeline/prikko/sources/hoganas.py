@@ -332,7 +332,7 @@ def parse_report(url: str, filename: str) -> Report:
         # `cReal Food, Höganäs, 14 nov 20204, grön.pdf` har årtalet 20204 och
         # ett månadsnamn i stället för siffror. Att gissa 2024 eller 2020 vore
         # att hitta på ett kontrolldatum, och datumet avgör om omdömet ens får
-        # publiceras (treårsfönstret).
+        # publiceras (färskhetsfönstret).
         raise UnknownSourceValue(f"Inget läsbart datum i filnamnet {filename!r}")
     try:
         inspected_at = date.fromisoformat(dates[0].replace(".", "-"))

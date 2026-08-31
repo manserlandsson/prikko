@@ -22,6 +22,7 @@ import {
   capitalise,
   editionFacts,
   editions,
+  freshnessYears,
   latestEdition,
   numeral,
 } from '../../lib/utmarkelser';
@@ -51,9 +52,9 @@ const revision = awardRevision(latest.year);
  * Längsta rena serien i hela utgåvan, med de år den tog.
  *
  * Talen står tillsammans med avsikt. Enbart serielängden hade inte visat något:
- * ett fönster på tre år rymmer sexton kontroller i Stockholm, där de tätast
- * kontrollerade verksamheterna har 28 inom fönstret. Det är tiden serien
- * spänner över som den gamla regeln stängde ute.
+ * det borttagna fönstret rymde sexton kontroller i Stockholm, där de tätast
+ * kontrollerade verksamheterna hade 28 inom det. Det är tiden serien spänner
+ * över som den gamla regeln stängde ute.
  */
 const longestEntry = facts.listed
   .flatMap((m) => m.qualified)
@@ -134,10 +135,17 @@ const jsonLd = {
       <h2>Vad som krävs</h2>
       <p>
         Kontroller i rad utan en enda anmärkning, och en kontroll som är färsk
-        nog att bedöma, alltså gjord de senaste tre åren. Hur lång tid raden tog
-        spelar ingen roll: en verksamhet som kontrollerats en gång om året i
-        åtta år räknas lika som en som hunnit lika många på halva tiden.
+        nog att bedöma, alltså gjord de senaste
+        {' '}{numeral(freshnessYears(latest.year))} åren räknat som
+        färskhetsfönstret stod när {latest.year} års utgåva frystes. Hur lång tid
+        raden tog spelar ingen roll: en verksamhet som kontrollerats en gång om
+        året i åtta år räknas lika som en som hunnit lika många på halva tiden.
       </p>
+      {/* Talet läses ur utgåvefilen, se freshnessYears i lib/utmarkelser.ts, och
+          det är därför meningen säger "när utgåvan frystes". Fönstret i
+          grading.py gick från tre år till fem den 31 augusti 2026 medan 2026 års
+          utgåva frystes den 3 augusti på tre år. Skrevs talet för hand skulle
+          sidan påstå ett krav som listan under den inte uppfyller. */}
       <p>
         Hur många kontroller som krävs är däremot inte samma tal i hela landet.
         Det avgörs av kommunens egen data, och landar i {latest.year} års utgåva

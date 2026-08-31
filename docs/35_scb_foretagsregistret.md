@@ -232,6 +232,14 @@ två år. 922, 5,7 procent, ingen nyare än tre år.** Det är beställningens
 oro mätt: vi visar kontroller från 2023 och tidigare på ställen som kan ha
 stängt.
 
+**Färskhetsfönstret skärper det här, det mildrar det inte.** Fönstret gick från
+tre år till fem den 31 augusti 2026, se bibeln §4b. De 922 stod tidigare utan
+bedömning och var därmed no-indexerade; nu bär de ett omdöme, syns på kartan och
+går att sortera på. Argumentet nedan för en NOT i stället för avpublicering blir
+alltså viktigare och inte mindre viktigt, eftersom fler av de tveksamma sidorna
+numera bär ett synligt märke. Noten är fortfarande rätt svar, men den behöver nu
+finnas på fler sidor än när den här mätningen gjordes.
+
 Och den avgörande siffran, den som visar att `deactivate_missing` inte täcker
 hålet:
 

@@ -25,7 +25,7 @@
  * metodiksidan och utgåvesidan fick därför två svar på samma fråga. Nu:
  *
  *   REN HISTORIK   Nuläget, satt av `distinction` i pipeline/prikko/grading.py:
- *                  minst HISTORY_DEPTH kontroller inom treårsfönstret, alla utan
+ *                  minst HISTORY_DEPTH kontroller inom femårsfönstret, alla utan
  *                  anmärkning. Det är chipet på verksamhetssidan, och det
  *                  försvinner samma dag kommunen hittar en avvikelse.
  *
@@ -47,15 +47,23 @@ const here = dirname(fileURLToPath(import.meta.url));
 const DATA = join(here, '..', 'src', 'data');
 const OUT = join(here, '..', 'src', 'editions');
 
-/** Speglar FRESHNESS_WINDOW_DAYS i pipeline/prikko/grading.py. */
-const WINDOW_DAYS = 3 * 365;
+/**
+ * Speglar FRESHNESS_WINDOW_DAYS i pipeline/prikko/grading.py.
+ *
+ * Talet gick från tre år till fem i augusti 2026. Vakten om chipet längre ner
+ * jämför mot `distinction` i datan och stannar bygget om de två glider isär, så
+ * en glömd ändring här blir ett stopp och inte en utgåva som motsäger
+ * verksamhetssidan.
+ */
+const WINDOW_DAYS = 5 * 365;
 /** Speglar HISTORY_DEPTH i samma modul. Chipets ribba, inte utmärkelsens. */
 const HISTORY_DEPTH = 3;
 
 /**
  * Vilken modell som räknade fram utgåvan.
  *
- *   1  Fem kontroller inom ett fönster på WINDOW_DAYS.
+ *   1  Fem kontroller inom ett fönster på 1 095 dagar, alltså det dåvarande
+ *      WINDOW_DAYS.
  *   2  Fem kontroller i rad, utan fönster, hos en verksamhet med bedömning.
  *   3  Kontroller i rad, utan fönster, med en ribba som HÄRLEDS PER KOMMUN ur
  *      kommunens egen data. Se AWARD_TARGET.
@@ -138,7 +146,7 @@ const AWARD_TARGET = 0.03;
  * Ribban går aldrig under det här, hur grund kommunens historik än är.
  *
  * Skälet är att utmärkelsen måste säga MER än märkningen "ren historik", som
- * kräver tre kontroller utan anmärkning inom treårsfönstret. En ribba på tre
+ * kräver tre kontroller utan anmärkning inom femårsfönstret. En ribba på tre
  * hade gjort de två nästan utbytbara i just de kommuner där skillnaden är
  * svårast att förklara, och de två har redan blandats ihop en gång.
  *
@@ -265,7 +273,7 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
     }
 
     /* Färskhetskravet, läst ur pipelinens eget svar. `verdict` sätts bara när
-       den senaste kontrollen ligger inom treårsfönstret; utan bedömning finns
+       den senaste kontrollen ligger inom färskhetsfönstret; utan bedömning finns
        inget att utmärka. Se AWARD_TARGET för varför utgåvan inte räknar om det. */
     if (e.verdict === null) continue;
 
@@ -348,7 +356,7 @@ for (const file of readdirSync(DATA).filter((f) => f.endsWith('.json')).sort()) 
      * serielängder inte jämförs mellan kommuner.
      */
     maxHistory,
-    /** Samma tak räknat inom treårsfönstret. Chipets tak, inte utmärkelsens. */
+    /** Samma tak räknat inom färskhetsfönstret. Chipets tak, inte utmärkelsens. */
     deepestWindow,
     /** Verksamheter som alls kontrollerats awardRun gånger, med aktuell bedömning. */
     pool,

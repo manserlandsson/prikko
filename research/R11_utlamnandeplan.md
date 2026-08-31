@@ -588,7 +588,7 @@ Anmärkningar till mallen:
 | Fält | Varför |
 |---|---|
 | Verksamhets-id | Kopplingen. Sambruk-specen saknar den, se R1 |
-| Kontrolldatum | Färskhetsfönstret är tre år |
+| Kontrolldatum | Färskhetsfönstret är fem år |
 | Resultat eller bedömning i er egen skala | Blir `assessment` |
 | Kontrollorsak: planerad, uppföljande eller händelsestyrd | Blir `type` |
 

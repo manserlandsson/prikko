@@ -24,6 +24,7 @@ import {
   edition,
   editionFacts,
   editions,
+  freshnessYears,
   numeral,
   runGroups,
   topGroups,
@@ -237,7 +238,8 @@ const jsonLd = {
       <h2>Hur utgåvan är gjord</h2>
       <p>
         {capitalise(rangeWords)} kontroller i rad utan anmärkning beroende på
-        kommun, och en kontroll gjord de senaste tre åren, räknat ur
+        kommun, och en kontroll gjord de senaste
+        {' '}{numeral(freshnessYears(e.year))} åren, räknat ur
         {' '}{formatNumber(e.totals.establishments)} verksamheter i
         {' '}{e.totals.municipalities} kommuner. Utgåvan står still; nuläget står
         på varje verksamhets egen sida.

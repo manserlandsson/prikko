@@ -324,8 +324,11 @@ class TestFarskhet(unittest.TestCase):
         self.assertEqual(result.reason, REASON_ASSESSED)
 
     def test_kontroll_utanfor_fonstret_ger_ingen(self):
+        # 2022-05-11 låg utanför så länge fönstret var tre år. Med fem år
+        # ligger det inne, och Ecos-beståndets äldsta rader är det som nu
+        # faller utanför.
         result = assess(
-            [Inspection("I-1", date(2022, 5, 11), NO_REMARKS)], date(2026, 8, 31)
+            [Inspection("I-1", date(2021, 1, 5), NO_REMARKS)], date(2026, 8, 31)
         )
         self.assertIsNone(result.verdict)
         self.assertEqual(result.reason, REASON_STALE)

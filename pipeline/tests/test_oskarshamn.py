@@ -434,8 +434,8 @@ class EndToEnd(unittest.TestCase):
         self.assertFalse(result.publishable)
 
     def test_an_inspection_older_than_the_window_gives_no_verdict(self):
-        # Sex av sju "Godtagbar" ligger före 2023-08-03 och faller ur
-        # treårsfönstret. De ska bli obedömda, inte gröna.
+        # Kontrollen är från 2019 och faller ur färskhetsfönstret oavsett om
+        # det står på tre år eller fem. Den ska bli obedömd, inte grön.
         result = self.verdict(variant(OLD_MODEL, TillsynsDatum="2019-07-17"))
         self.assertIsNone(result.verdict)
         self.assertEqual(result.reason, REASON_STALE)

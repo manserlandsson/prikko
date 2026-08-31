@@ -487,11 +487,17 @@ befintliga mekanismer gör det synligt utan att besökaren klickar, och ingen
 ny form uppfanns.
 
 **Färskhetsfönstret får verka.** `grading.py` sätter ingen bedömning när
-senaste kontrollen är äldre än `FRESHNESS_WINDOW_DAYS`, alltså tre år. Av
-1 022 verksamheter får **272** en bedömning och **750** får
-`stale_inspections`. De 750 no-indexeras av `isIndexable()` och räknas som
-"Ingen bedömning" i fördelningsraden på kommunsidan. Det var inte en åtgärd
+senaste kontrollen är äldre än `FRESHNESS_WINDOW_DAYS`. Med tre år, som var
+talet när det här skrevs, fick **272** av 1 022 verksamheter en bedömning och
+**750** fick `stale_inspections`. De no-indexeras av `isIndexable()` och räknas
+som "Ingen bedömning" i fördelningsraden på kommunsidan. Det var inte en åtgärd
 utan en mätning: sajtens egen mekanik gav rätt utfall utan att röras.
+
+Fönstret står på **fem år** sedan version 5 av modellen, och Norrköping är den
+kommun som påverkas mest av det. Samma mätning om 2026-08-31: **953** bär en
+bedömning och **69** får `stale_inspections`. Mekaniken är oförändrad, det är
+bara gränsen som flyttats, och skälet står i `pipeline/prikko/grading.py`. Att
+Norrköping vinner mest på ändringen var en följd och inte ett motiv.
 
 **Ett nytt fält i källblocket: `source.modifiedAt`.** `fetchedAt` säger när VI
 läste filen och ingenting om hur gammalt materialet är. Skillnaden är noll i
@@ -773,10 +779,7 @@ Varav 30 nya för Ecos och 17 för Göteborg.
    den här ändringen är steg två.
 3. ~~**`caseNumber` raderas av nattkörningen.**~~ Lagat 2026-08-31 med
    `KONTROLLFALT`, se §12.
-4. **Geokoda Norrköping.** Besöksadresserna bär husnummer, så
-   `pipeline/geocode.py` kan sätta nålar på samma sätt som för Örebro och
-   Uppsala. Utan det får Norrköping inga kartnålar. Ett eget steg, inte en
-   del av hämtningen.
+4. ~~**Geokoda Norrköping.**~~ Gjort 2026-08-31, 622 nålar av 1 022, se §13.
 5. **Mappa Göteborgs 47 typvärden**, den dag kommunen publiceras. Se §10.3.
 6. **Göteborgs serveringstillståndsfil**, `catalog.goteborg.se/store/6/resource/49543`,
    1 043 rader under CC0 med verksamhetsutövarens juridiska namn. Det är den
@@ -910,3 +913,240 @@ det ställer varje nyckel på varje kontroll i de incheckade filerna mot
 toppnivån och `source`.
 
     python3 -m pytest pipeline/tests/ -q     → 1 295 godkända
+
+## 13. Norrköpings kartnålar: källan lästes först, sedan OpenStreetMap
+
+*Mätt 2026-08-31. Punkt 4 i §11.4 är utförd här.*
+
+Norrköping kopplades in som kommun nummer tretton med 1 022 verksamheter och
+**noll koordinater**. Kommunen fanns därför inte på rikskartan, hade ingen
+kartsida och kunde inte träffas av "använd min plats". Den var den enda av de
+tretton som saknade nålar helt: Borgholm, Lomma och Svenljunga saknar dem
+också, men där är skälet mätt sedan tidigare och står i `pipeline/geocode.py`.
+
+### 13.1 Frågan som ställdes först: bär källan en koordinat vi kastar?
+
+Innan något geokodades räknades hela `ecos.xml` igen, inte den normaliserade
+datafilen. Filen hämtades om 2026-08-31, 7 434 345 byte, `Last-Modified`
+2024-03-17, alltså exakt den fil §9.2 mätte. Varje elementväg och varje
+XML-attribut räknades:
+
+| I filen | Antal |
+|---|---:|
+| `insps` | 1 |
+| `insps/insp` | 4 451 |
+| `insp/inspid`, `dnr`, `namn`, `besadr`, `hdatum`, `anmald`, `bedomning` | 4 451 var |
+| `insp/kontroller/kontroll` | 25 083 |
+| `kontroll/status`, `chklistrubrik_text`, `kontrollpunkt` | 25 083 var |
+| Distinkta elementvägar i hela filen | **12** |
+| XML-attribut, någonstans i hela filen | **0** |
+
+Tolv elementvägar och noll attribut är hela utdraget. Det finns alltså **ingen
+koordinat, ingen fastighetsbeteckning och inget organisationsnummer** att
+mappa, och `prikko/sources/ecos.py` läser redan varenda fält som finns.
+Uppgiften var inte en fältmappning, och §9.2:s påstående om vad filen inte
+innehåller står sig efter en oberoende omräkning.
+
+Kvar som ortsangivelse finns bara `besadr`:
+
+| Besöksadressen på de 1 022 | Antal |
+|---|---:|
+| Bär gatunamn och husnummer | 966 |
+| Bär ett namn utan husnummer | 34 |
+| Saknas helt | 22 |
+
+De 34 är gårdar, skolor och anläggningar som kommunen skrivit som namn i
+stället för adress: "Stora agetomta", "Kuddby Skola", "Kolmårdens Djurpark",
+"Manheims säteri". Det är samma sorts uppgift som Borgholms och Svenljungas
+ortnamn och behandlas likadant, alltså inte alls: utan husnummer finns ingen
+punkt att peka på, se `parse_address` och resonemanget om ortmittpunkter i
+`pipeline/geocode.py`.
+
+### 13.2 Geokodningen, samma väg och samma licens som Uppsala
+
+    python3 pipeline/geocode.py site/src/data/norrkoping.json
+
+Ingen ny kod och inget nytt mönster. `--kalla auto` valde OpenStreetMap
+eftersom det inte finns något Lantmäteriuttag för 0581, och eftersom
+Norrköping saknar post i `MUNICIPALITIES` kom rimlighetsramen ur
+kommungränsens omslutande rektangel. Det är precis den väg `build_index` redan
+är byggd för, och undantagslistan i `prikko/geocode.py` växte alltså inte.
+
+Två Overpass-frågor totalt, samma takt som för Uppsala och Örebro: en på
+`ref:scb=0581` för kommungränsen och en för kommunens samtliga adresspunkter.
+Ingen adress slogs upp en och en. Uttaget ligger i
+`pipeline/data/interim/osm_addresses_0581.json`, versionshanteras inte, och
+gör körningen reproducerbar utan ett enda nytt nätanrop.
+
+| Mått | Tal |
+|---|---:|
+| Adresspunkter i OSM-uttaget | 9 889 |
+| Gator de ligger på | 675 |
+| Ram ur kommungränsen | 63,7 km från 58,626, 16,593 |
+| Adressrader att slå upp | 1 000 |
+| Distinkta cachenycklar de blev | 834 |
+| Nya rader i `geocode_cache.json` | 834 |
+
+Cachen bar **noll** Norrköpingsadresser före körningen, så uttaget var
+nödvändigt. Efter den bär den 3 295 poster mot 2 461, och nästa körning rör
+inte nätet.
+
+Att träffarna hamnar i Norrköping och inte i grannkommunen är säkrat i frågan
+och inte i efterhand: adressfrågan är avgränsad med `(area:...)` mot
+kommunrelationens polygon, alltså kan en träff bara vara en adresspunkt som
+OpenStreetMap placerat inne i Norrköpings kommun. Rimlighetskontrollen i
+`verify` är ett andra lager ovanpå det, inte det enda.
+
+Det är också efterprövat och inte bara resonerat. Kommungränsen hämtades en
+gång till som geometri, kedjades till en ring på 1 691 punkter och varje nål
+prövades mot den med strålkorsning:
+
+    nålar 622, utanför kommungränsen 0
+
+Noll utanför. Det vanliga geokodningsfelet, en nål i havet eller i
+grannkommunen, finns alltså inte här, och de grå nålarna som på kommunkartan
+ser ut att ligga nära Söderköping ligger på Norrköpingssidan av gränsen.
+
+### 13.3 Utfallet: 622 av 1 022
+
+| Utfall | Antal | Andel |
+|---|---:|---:|
+| **Fick koordinat** | **622** | **61 %** |
+| Numret finns inte på gatan i OSM | 201 | 20 % |
+| Gatan finns inte i OSM | 142 | 14 % |
+| Adressen bär inget husnummer | 34 | 3 % |
+| Ingen adress i källan | 22 | 2 % |
+| Samma adress på punkter längre isär än 250 m | 1 | 0 % |
+
+De 501 cachenycklar som fick en koordinat bär 622 verksamheter, eftersom flera
+ställen delar adress. Hötorget 1 är två.
+
+Utfallet ligger över de två kommuner som gjorts på samma sätt, och det är
+värt att notera att 61 procent inte är ett undantag utan det normala:
+
+| Kommun | Verksamheter | Nål | Andel |
+|---|---:|---:|---:|
+| **Norrköping** | 1 022 | **622** | **61 %** |
+| Uppsala | 1 854 | 986 | 53 % |
+| Örebro | 1 233 | 645 | 52 % |
+
+De 343 som har en riktig gatuadress men ingen nål faller på OpenStreetMaps
+täckning och inte på vår kod. Det är den enda posten som kan flyttas utan att
+kommunen gör något, och Lantmäteriets belägenhetsadresser är vägen: registret
+är fullständigt där OSM är ojämnt, se källavsnittet i `pipeline/geocode.py`.
+
+### 13.4 Precisionen är märkt, och den är ärlig
+
+| `geoPrecision` | Antal | Vad det betyder |
+|---|---:|---|
+| `address` | 506 | OpenStreetMap har exakt det husnumret |
+| `approximate` | 116 | numret saknas, grannporten på samma sida av gatan fick duga, som mest två nummer bort |
+
+19 procent ungefärliga mot Uppsalas 16 (158 av 986). Gränsen på två nummer är
+mätt och inte satt på känsla, se tabellen vid `MAX_NUMBER_GAP_SAME_SIDE`:
+fyra nummer bort hamnar var åttonde nål i fel kvarter.
+
+Varje verksamhet bär också `geoSource: "osm"`, och det är det fältet sajten
+faktiskt läser. Tre ställen svarar på det, och de gör det på tre olika sätt:
+
+- **Verksamhetssidans egen karta** ritar nålen med **streckad** vit kontur,
+  konventionen för en punkt som inte är fastställd. Se `Platskarta.astro`,
+  som är den enda anroparen av `faceSvg(key, streckad)` i `kartnal.ts`.
+- **Kommunkartan och rikskartan** ritar alla nålar lika. `kartrutor.ts`
+  sätter i stället `derived` på kommunen, sant bara när INGEN av dess
+  koordinater kommer från kommunen själv, och `Karta.astro` skriver då ut det
+  i klartext under kartan: "Platserna i Norrköping är beräknade ur adressen
+  och kan ligga några tiotal meter fel." Raden syntes i den visuella
+  kontrollen nedan, alltså är flaggan verkligen satt för Norrköping.
+- **Upphovsraden** på verksamhetssidan räknar upp OpenStreetMap som
+  koordinatens källa, se `geoSource` i `Sidupphov.astro`.
+
+### 13.5 Licensen
+
+Datafilen fick blocket `geocoding`, ordagrant det Uppsala och Örebro bär:
+
+    "geocoding": {
+      "method": "derived",
+      "source": "OpenStreetMap via Overpass API",
+      "licence": "ODbL 1.0",
+      "attribution": "© OpenStreetMap contributors"
+    }
+
+Villkoren står i `PROVENANCE` i `pipeline/geocode.py` och ingen annanstans, så
+en fil kan aldrig bära fel villkor för sina koordinater. OSMF:s riktlinje för
+geokodning säger att ett enskilt geokodningssvar är ett oväsentligt utdrag som
+får lagras utan att utlösa share-alike, medan attribution krävs där koordinaten
+visas. Vi lagrar 622 koordinater och aldrig adressregistret i sin helhet.
+
+Det här är alltså en annan licensfråga än den i §9.3. Den handlar om
+kontrollresultaten från Norrköpings kommun, den här om punkten de ritas på.
+
+### 13.6 Bygget och den visuella kontrollen
+
+    cd site && npm run build -- --outDir dist-nkkarta
+
+Jämförelsetalen är mätta i `site/dist-nk`, den senaste utgåva som byggdes med
+Norrköping inne men utan nålar, alltså den enda ärliga föregångaren.
+
+| Mått | Före (`dist-nk`) | Efter (`dist-nkkarta`) |
+|---|---:|---:|
+| Verksamheter på rikskartan | 13 692 | **14 314** |
+| Kartsidor i sitemapen | 10 | **11** |
+| URL:er i sitemapen | 14 546 | 14 547 |
+| Byggda sidor | 17 802 | 17 803 |
+| Filer i utgåvan | 18 051 | 18 053 |
+| Rutarkivet | 3 245 825 byte | 3 407 510 byte, 1 912 rutor, z0 till z14 |
+
+Skillnaden på rikskartan är 622, alltså exakt de nya nålarna och inget annat.
+Rutarkivet växte med 161 685 byte för dem, alltså 260 byte per nål.
+`/norrkoping/karta/` finns nu och byggs för första gången; sidan görs bara för
+kommuner som har koordinater, se `getStaticPaths` i `[kommun]/karta.astro`.
+Alla byggvakter gick igenom: sitemapgrinden, länkgrinden på 17 803 sidor,
+CSS-grinden och rutarkivsgrinden.
+
+**Kontrollen gjordes med bild och inte med tal.** Kartan renderas aldrig i
+`astro dev`, så den byggda katalogen kopierades och serverades på egen port,
+och skärmbild togs för att tvinga fram bildrutor. Tre saker sågs efter:
+
+1. `/norrkoping/karta/` öppnar på kommunens utsnitt med 622 verksamheter, och
+   klustren ligger över Norrköpings tätort med utlöpare mot Kolmården i norr
+   och Arkösund i skärgården. Inget kluster ligger i Bråviken, och
+   polygonprovet i 13.2 säger att inget ligger i en grannkommun heller.
+2. Vid zoom 17 i innerstaden sitter nålarna på husen längs Nya Rådstugugatan,
+   Olai Kyrkogata och Flemminggatan. Ingen ligger i Motala ström.
+3. Rikskartan `/karta/` visar samma bestånd på rätt plats i landet, och dess
+   totalsiffra gick från 13 692 till 14 314.
+
+Ytterpunkterna stämmer också med kommunens faktiska utsträckning: sydligast
+Arkösunds vandrarhem på 58,476, nordligast Simonstorps förskola på 58,782,
+västligast Mosstorpskolan på 15,908 och östligast sjöräddningsskolan på Arkö
+på 16,963.
+
+### 13.7 Vad som återstår
+
+1. **De 343 med gatuadress men utan nål.** Enda vägen är en fullständigare
+   adresskälla, alltså Lantmäteriets belägenhetsadresser under CC BY 4.0.
+   Koden finns redan och väljs av `auto` så fort uttaget för 0581 ligger i
+   `data/interim/`, se `fetch_belagenhetsadresser.py`. Ingen ny kod, bara en
+   behörighet i Geotorget.
+2. **`geoPrecision` läses inte av någon sida.** Fältet skrivs, det finns i
+   `db.ts`, och kartan skiljer på härledd och lämnad koordinat via
+   `geoSource`. Men skillnaden mellan husets punkt och grannportens syns inte
+   för besökaren någonstans. De 116 ungefärliga behandlas i dag exakt som de
+   506 exakta. Det är ett medvetet läge och inte en lucka, men det ska stå.
+3. **Närhetstalen och öppettiderna saknas för Norrköping.** Både
+   `pipeline/narhet.py` och OSM-blocket för öppettider och kontaktuppgifter
+   kräver en koordinat, och tills nu fanns ingen. Nu går båda att köra, och
+   `osm_narhet_0581.json` finns ännu inte.
+4. **Områdesytorna saknas.** `site/src/data/omraden/` bär tolv kommuner och
+   inte Norrköping, så stadsdelsfiltret på kartan har inget att filtrera på.
+5. **En omkörning av `fetch_ecos.py` nollar koordinaterna.** Hämtaren skriver
+   filen från grunden och sätter `lat` och `lng` till `null`, precis som den
+   ska: den vet bara vad källan säger. `geocode.py` ska därför köras efter
+   varje hämtning, och det kostar inget nätanrop eftersom cachen bär
+   adresserna. Nattkörningen via Supabase är ett annat fall och behöver ingen
+   åtgärd: `filradering` i `export_supabase.py` bär tillbaka koordinaten ur
+   den förra filen när databasen saknar den, och `FILBLOCK` bär tillbaka
+   `geocoding`-blocket. Det är också verifierat i praktiken här, eftersom
+   `norrkoping.json` skrevs om av en parallell session efter geokodningen och
+   alla 622 nålar stod kvar.

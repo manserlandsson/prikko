@@ -253,7 +253,15 @@ def years(today: date) -> List[int]:
 
     Rapporteringen för ett kontrollår ska vara inne senast 31 januari året
     efter. Före februari är alltså förrförra året det senaste som säkert är
-    inlämnat. Färskhetsfönstret på sajten är tre år, så tre årgångar räcker.
+    inlämnat.
+
+    Tre årgångar, inte fem, trots att färskhetsfönstret i `prikko/grading.py`
+    är fem år sedan version 5. Talet följer inte fönstret utan handläggarens
+    arbete: årsuttaget ur verksamhetssystemet är en fil per rapporteringsår,
+    och tre filer är en begäran någon hinner besvara på en eftermiddag. Brevet
+    ber dessutom uttryckligen om hela beståndet när det är enklare än att
+    filtrera på datum, så en myndighet som vill ge mer hindras inte. Vi
+    publicerar allt vi får som ryms i fönstret; vi ber bara inte om det.
     """
     latest = today.year - 1 if today.month > 1 else today.year - 2
     return [latest, latest - 1, latest - 2]

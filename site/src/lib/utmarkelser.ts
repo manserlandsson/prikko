@@ -4,7 +4,7 @@
  * ## Två ribbor med två namn, och de får aldrig blandas ihop
  *
  * REN HISTORIK är nuläget: `distinction` i pipeline/prikko/grading.py, alltså
- * minst historyDepth kontroller inom treårsfönstret, samtliga utan anmärkning.
+ * minst historyDepth kontroller inom femårsfönstret, samtliga utan anmärkning.
  * Det är chipet på verksamhetssidan och det räknas om vid varje bygge. Den här
  * filen rör det inte.
  *
@@ -102,7 +102,10 @@ export interface EditionMunicipality {
   awardRun?: number;
   /** Djupaste historik kommunen lämnar ut. Taket för hur lång en serie kan bli. */
   maxHistory: number;
-  /** Samma tak räknat inom treårsfönstret. Chipets tak, inte utmärkelsens. */
+  /**
+   * Samma tak räknat inom det färskhetsfönster som gällde vid frysningen, se
+   * windowDays. Chipets tak, inte utmärkelsens.
+   */
   deepestWindow: number;
   /** Verksamheter som alls kontrollerats awardRun gånger, med aktuell bedömning. */
   pool: number;
@@ -314,6 +317,23 @@ export function awardTarget(year: number | string): number {
   return edition(year).awardTarget ?? 0;
 }
 
+/**
+ * Färskhetskravet i utgåvan, skrivet i hela år.
+ *
+ * Läses ur utgåvefilen och aldrig ur grading.py. Färskhetsfönstret gick från
+ * tre år till fem i augusti 2026, och en fryst utgåva ska säga vad som gällde
+ * den dagen den frystes. Står talet i stället för hand på sidan blir 2026 års
+ * lista osann i samma stund fönstret ändras nästa gång, precis som awardModel
+ * en gång sade 2 när modellen var 3.
+ *
+ * windowDays är reservvärdet: de två har alltid varit samma tal, och utgåvor
+ * frysta innan freshnessDays fanns bär bara det ena.
+ */
+export function freshnessYears(year: number | string): number {
+  const ed = edition(year);
+  return Math.round((ed.freshnessDays ?? ed.windowDays) / 365);
+}
+
 /** Utgåvans modell. Se awardModel i Edition för vad talen betyder. */
 export function awardModel(year: number | string): number {
   return edition(year).awardModel ?? 1;
@@ -339,7 +359,8 @@ export function standings(year: number | string): EditionStanding[] {
      *
      * Taket är `maxHistory`, alltså djupaste historik kommunen alls lämnar ut.
      * Här stod tidigare `deepestWindow`, som var rätt så länge serien måste
-     * rymmas inom treårsfönstret. Utan fönster är det hela historiken som sätter
+     * rymmas inom det dåvarande treårsfönstret. Utan fönster är det hela
+     * historiken som sätter
      * taket, och de två skiljer sig: i Stockholm 113 mot 28. Är taket lägre än
      * ribban kan ingen nå den, och det är ett faktum om utlämnandet och inte ett
      * omdöme om verksamheterna.

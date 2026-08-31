@@ -131,7 +131,7 @@ export const MISSING: Record<MissingReason, VerdictPresentation> = {
   stale_inspections: {
     label: 'Ingen aktuell kontroll',
     sentence:
-      'har ingen hygienkontroll de senaste tre åren, så nuläget går inte att bedöma',
+      'har ingen hygienkontroll de senaste fem åren, så nuläget går inte att bedöma',
     colorVar: 'var(--verdict-none-ink)',
     glyph: '–',
   },

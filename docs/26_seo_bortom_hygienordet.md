@@ -420,17 +420,40 @@ duger inte som urval, och beståndet visar exakt varför:
 | Med tillräckligt underlag för en bedömning | 13 579 | 85,0 % av alla |
 | Bedömda utan anmärkning | 11 976 | **88,2 % av de bedömda** |
 
-Ett urval som släpper in 88,2 procent är ingen lista över de bästa. Det är
-listan. Och kvaliteten på den skulle vara sämre än talet antyder: **3 223 av de
-11 976, alltså 26,9 procent, har exakt en kontroll bakom sig.** Var fjärde
+Talen i tabellen är mätta före version 5 av modellen, se nedan; ordningen
+mellan dem står sig. Ett urval som släpper in 88,2 procent är ingen lista över
+de bästa. Det är listan. Och kvaliteten på den skulle vara sämre än talet
+antyder: **3 223 av de 11 976, alltså 26,9 procent, har exakt en kontroll bakom
+sig.** Var fjärde
 plats på en fräschlista byggd på `clean` vore ett ställe kommunen tittat på en
 enda gång.
 
 **Ren historik** är den regel som redan löser det. Den kräver minst tre
-kontroller inom ett treårsfönster, samtliga utan anmärkning
+kontroller inom färskhetsfönstret, samtliga utan anmärkning
 (`HISTORY_DEPTH = 3` i `pipeline/prikko/grading.py` och `site/src/lib/data.ts`).
-Den uppfylls av 1 537 verksamheter, alltså 11,3 procent av de bedömda, och per
-definition av noll verksamheter med färre än tre kontroller.
+Den uppfylldes av 1 537 verksamheter, alltså 11,3 procent av de bedömda, när
+tabellen ovan mättes.
+
+**Talet gäller inte längre, och det ändrar rekommendationen nedan.** Fönstret
+gick från tre år till fem i version 5 av modellen. Fler kontroller ryms då i
+fönstret, alltså når fler upp till tre rena, och ribban släpper igenom mer.
+Mätt på hela beståndet 2026-08-31, efter omräkningen:
+
+| | Antal | Andel |
+|---|---|---|
+| Verksamheter totalt | 17 066 | |
+| Med tillräckligt underlag för en bedömning | 15 365 | 90,0 % av alla |
+| Bedömda utan anmärkning | 13 591 | 88,2 % av de bedömda |
+| Ren historik | 2 951 | **19,2 % av de bedömda** |
+
+Ren historik gick alltså från drygt var tionde bedömd till nästan var femte.
+Regeln skiljer fortfarande ut något, och den skiljer fortfarande ut det som
+`clean` inte kan: av de 13 591 rena har 3 497, alltså 25,7 procent, exakt en
+kontroll bakom sig, och ingen av dem kan nå ren historik. Men 19,2 procent är
+inte längre "de bästa" i den bemärkelse §6 använder ordet, och en positiv lista
+byggd på enbart den ribban blir bredare än beställningen tänkte sig. Antingen
+ska listan säga rakt ut att den är bred, eller så ska den bära utmärkelsens
+ribba i stället. Det beslutet är inte fattat här.
 
 **Utmärkelsen** är den hårdare, frysta årsutgåvan: kontroller i rad utan
 anmärkning, med en ribba härledd ur varje kommuns egen fördelning så att märket

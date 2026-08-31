@@ -501,7 +501,7 @@ const regel =
       : e.verdict === 'major'
         ? 'Nivån läses ur mönstret och inte ur kommunens ordval: antingen kallade kommunen bristerna allvarliga, eller så stod de kvar vid ett återbesök.'
         : missingReason(e) === 'stale_inspections'
-          ? 'Vi sätter ingen bedömning när den senaste kontrollen är äldre än tre år. Det betyder aldrig att hygienen är dålig.'
+          ? 'Vi sätter ingen bedömning när den senaste kontrollen är äldre än fem år. Det betyder aldrig att hygienen är dålig.'
           : 'Utan publicerad kontroll sätter vi ingen bedömning. Det betyder aldrig att hygienen är dålig.';
 
 const bedomningTips = [omfattning, regel, grund].filter(Boolean).join(' ');

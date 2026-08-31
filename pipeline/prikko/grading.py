@@ -10,7 +10,7 @@ gäller tre regler för den här modulen:
    publicerat omdöme går att härleda i efterhand.
 3. Den vägrar gissa. Otillräckligt eller för gammalt underlag ger ingen
    bedömning alls — aldrig en dålig. Ett påstått "allvarliga brister" på en
-   restaurang som åtgärdade allt för fem år sedan är både orättvist och den
+   restaurang som åtgärdade allt för åtta år sedan är både orättvist och den
    mest berättigade klagomålsgrund någon kan ha mot oss.
 
 ## Varför tre nivåer och inte en bokstavsskala
@@ -133,6 +133,43 @@ Uppmätt effekt (2026-08-04, hela beståndet): 8 verksamheter mildras från
 "Brister som kvarstår" till "Brister" — 6 i Stockholm, 2 i Örebro. Ingen
 verksamhet får en sämre bedömning. Metodiksidan beskriver samma regel utåt
 och måste ändras i samma commit som det här talet.
+
+## Version 5: färskhetsfönstret är fem år, och skälet är inte kontrollcykeln
+
+Fram till version 4 var fönstret tre år, och skälet som stod här var att
+Livsmedelsverkets kontroller sprids över en treårscykel. Cykeln är fortfarande
+ett faktum, men den beskriver kommunens planering och inte vad en läsare får
+veta hos oss, så den kan inte längre bära talet.
+
+Skälet som bär är vad sidan gör utan bedömning. Den redovisar redan utfallet i
+klartext, till exempel "Vid kontrollen den 23 januari 2023 redovisar
+Norrköpings kommun 8 granskade områden utan en enda avvikelse". Att hålla inne
+märket ändrade alltså aldrig vad läsaren fick veta. Det gjorde bara
+verksamheten osynlig på kartan, i listorna och i sorteringen, alltså på precis
+de ytor där man letar. Och datumet följer med märket överallt där märket visas,
+både i listraden och i kartkortet, så ett äldre underlag kan inte läsas som ett
+påstående om nuläget.
+
+Uppmätt effekt (2026-08-31, hela beståndet om 17 066 verksamheter):
+
+    bedömda            13 764 (80,7 %)  ->  15 365 (90,0 %)
+    ren historik        1 493            ->   2 951
+
+De 1 601 nya blir 1 445 clean, 142 minor och 14 major. Ingen förlorar
+märkningen "ren historik", och ingen får en mildare bedömning.
+
+VERKAN ÅT FEL HÅLL, som är värd att känna till: 25 redan bedömda skärps från
+"Brister" till "Brister som kvarstår", 18 i Stockholm, 5 i Svenljunga och 2 i
+Örebro. Alla 25 är upprepningar, inte återbesök. Föregående kontroll låg
+tidigare utanför fönstret, så `recent` hade bara en rad och `_is_persisting()`
+kunde inte se mönstret; nu ryms båda och upprepningen blir synlig. Avståndet
+mellan de två kontrollerna är 238 till 1 335 dagar, alltså inget vi hittat på
+för att fylla fönstret. Ett bredare fönster ger alltså inte bara fler och
+mildare omdömen, det ger också ett fåtal strängare, och det är avsikten:
+mönstret fanns där hela tiden.
+
+Metodiksidan beskriver samma regel utåt och måste ändras i samma commit som
+det här talet.
 """
 
 from __future__ import annotations
@@ -141,11 +178,14 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Sequence, Tuple
 
-MODEL_VERSION = 4
+MODEL_VERSION = 5
 
-# Livsmedelsverkets kontroller sprids normalt över en treårscykel. Är senaste
-# kontrollen äldre än så säger den inget om nuläget.
-FRESHNESS_WINDOW_DAYS = 3 * 365
+# Fem år, eftersom sidan säger resultatet i klartext även utan bedömning. Att
+# hålla inne märket gjorde bara verksamheten osynlig på kartan och i listorna,
+# och datumet följer alltid med märket. Se modulens inledning om version 5 för
+# de mätta talen. Livsmedelsverkets treårscykel är fortfarande sann, men den
+# är inte längre skälet till just det här talet.
+FRESHNESS_WINDOW_DAYS = 5 * 365
 
 # Hur många kontroller som vägs in. Tre är Danmarks Smiley-praxis och räcker
 # för att skilja engångsmiss från mönster.
