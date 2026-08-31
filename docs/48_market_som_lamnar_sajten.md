@@ -703,3 +703,30 @@ filerna använder, men det ska stå skrivet och inte upptäckas.
    argument om vad som fungerar och inte ett belägg för att svenska
    restaurangägare vill ha ett frivilligt märke. Den mätningen är billig och
    borde göras: tio samtal.
+
+
+---
+
+## 10. Fetstilsbeslutet, avgjort 2026-08-31
+
+**Inget nytt beroende. Vikt 400 räcker, och hierarkin bärs av storlek och
+färg.**
+
+Frågan uppstod för att `fontkitten`, som redan ligger i `node_modules` genom
+Astro, inte kan läsa variationsaxlar ur en woff2. Fonten har `fvar`, `gvar` och
+`HVAR`, så bristen är bibliotekets och inte filens. Två vägar fanns: `fontkit`
+på omkring en megabyte, eller `@fontsource/instrument-sans` med statiska
+viktfiler, som `fontkitten` läser utan problem. Ingen av dem hade hamnat i
+Workern, eftersom utdraget sker i importskriptet.
+
+**Skälet att avstå är att felet inte syns i artefakten.** Certifikatet
+renderades och betraktades: kransen bär blicken, "Utmärkelse för genomgående
+skötsamhet" står i grått, verksamhetens namn i 12 mm brandblått, och
+brödtexten i svart. Hierarkin är läsbar utan att en enda rad är fet. Att lägga
+till ett paket för en vikt på ett dokument är fel pris för det.
+
+**Vad som ändrar beslutet.** Ett långt namn krymps till 10,2 mm, och vid den
+graden kan blått i vikt 400 bli tunt på papper. Ser ägaren det på en utskrift
+är beslutet ett paket bort, och paketet är `@fontsource/instrument-sans`, inte
+`fontkit`: det är billigare, det tar bort behovet av variabelstöd helt, och det
+är samma utgivare som den variabla font vi redan beror på.
