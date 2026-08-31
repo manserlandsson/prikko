@@ -4,96 +4,79 @@ Ett ställe för allt som är sagt men inte klart. Uppdateras löpande. En punkt
 stryks inte förrän den är verifierad i den byggda sajten, inte när koden är
 skriven.
 
-Senast genomgången: 2026-08-12.
+Senast genomgången: 2026-08-31.
 
 ---
 
 ## Väntar på dig
 
-| Punkt | Vad som behövs | Läge |
+Fyra av dem är kontoärenden och tar tillsammans under en timme. De blockerar
+mer än allt annat på listan.
+
+| Punkt | Vad som behövs | Vad den låser upp |
 |---|---|---|
-| Heron på startsidan | Vektorvarianten med mat är din beställning från 7 augusti. Fotovarianten finns kvar och är en prop bort. Säg vilken. | Ditt val |
-| Grön nyans på grävlingen | Fem platta steg ligger i `brand/_prov-gront.html`, steg 3 är dagens. | Ditt val |
-| Ordmärket | Variant C sätter ansiktet före ordet och är enda vägen till centralitet. Variant A lämnar formen orörd. `brand/ordmarke-forslag.html`. | Ditt val |
-| R2-nycklar | Behövs för gatubilderna. Läggs i `~/.prikko-env`. | Din åtgärd |
-| Geotorget | `GEOTORGET_USERNAME=maga0001` plus lösenord i `~/.prikko-env` när den juridiska granskningen landat. | Din åtgärd |
-| SCB:s företagsregister | Ett mejl till `scbforetag@scb.se` för att få certifikat till arbetsställe-API:et, plus två frågor som avgör om funktionen alls går att bygga. Färdig lydelse i `35_scb_foretagsregistret.md` avsnitt 6. Villkoren måste godkännas av en namngiven person, så en agent kan inte göra det. | Din åtgärd |
-| Utgivningsbevis | 4 000 kr enligt 3 § förordningen (2024:1170), inte 3 000. Ansökan är färdigskriven i `docs/47_utgivningsbevis.md` och behöver bara ägarens uppgifter och en underskrift. | Din åtgärd |
-| GitHub Actions | Pushar startar fortfarande inga körningar. Kolla fliken. | Din åtgärd |
-| Migadu | Mejlen är inte färdigflyttad. | Din åtgärd |
-| Resend-nyckel | `RESEND_API_KEY` som GitHub-hemlighet. Bevakningarna fyller kontot varje natt utan den; nyckeln lägger bara till mejlet. Ingen kodändring behövs, nattjobbet väljer gren själv. | Din åtgärd |
+| **GitHub Actions, betalning** | Kontot är spärrat: "recent account payments have failed or your spending limit needs to be increased". Nattjobbet har inte kört sedan 18 augusti och byggrinden har inte testat en commit sedan 27 augusti. Utrullningen berörs INTE, Cloudflare Pages bygger direkt ur repot. | Färsk data varje natt, och en grind som fångar fel innan de går live |
+| **Cloudflare Pages till Workers Paid** | 5 dollar i månaden, ett klick. Taket går från 20 000 filer till 100 000, samma tal för båda plattformarna, se `46_filtaket.md`. | 17 066 färdigbyggda API-filer som ligger avstängda bakom en konstant, plus varje kommun efter den fjortonde |
+| **Search Console** | Koppla domänen. | Ersätter hela uppskattningen i `49_indexeringen.md` med ett facit. Skillnaden mellan "Crawled, currently not indexed" och "Discovered" avgör om vi ska vänta eller bygga |
+| **Släck `prikko.pages.dev`** | I Cloudflares kontrollpanel. Adressen serverar hela sajten en andra gång med `Allow: /`. | Halverar antalet adresser vi erbjuder Google, från 28 520 till 14 260 |
+| **Skicka de tjugo breven** | Ligger färdiga i `pipeline/data/begaran/`, ett per fil, i sändordning. Steg noll är att kontrollera att `mans@prikko.se` tar emot post. | 25 117 anläggningar, 27 kommuner. Täckningen går från 20,2 till 47,3 procent |
+| **Brevet till Stockholm** | Färdig lydelse i `52_stockholmslagret.md` §8.3.1. Ber om tre saker: att tillsynslagret börjar uppdateras igen, att `AnlaggningId` följer med, och att en trasig katalogslänk rättas. | 114 rapporteringspunkter i klartext i stället för 15 bokstäver, på alla 8 520 stockholmsrader |
+| **Brevet till Norrköping** | Färdig lydelse i `20_kommunexpansion.md` §9.5. | En färsk fil. Den vi läser är från 17 mars 2024 och är en föräldralös rest, ingen sida länkar den |
+| **Utgivningsbeviset** | 4 000 kronor, inte 3 000. Ansökan är färdigskriven i `47_utgivningsbevis.md`. | Grundlagsskydd. Se dock EU-domstolens avgörande C-199/24 från 9 juli 2026: beviset undantar inte från dataskyddsförordningen, de journalistiska kriterierna måste uppfyllas ändå |
+| Geotorget | `GEOTORGET_USERNAME=maga0001` plus lösenord i `~/.prikko-env`. | Örebros 588 saknade nålar |
+| R2-nycklar | I `~/.prikko-env`. | Gatubilderna, som är parkerade |
+| Resend-nyckel | Som GitHub-hemlighet. Notiserna skrivs varje natt utan den. | Bara mejlet |
+| Migadu | Mejlen är inte färdigflyttad. | |
+| Bolagsordningen | Magoed AB:s registrerade verksamhetsföremål handlar om underkläder och modekonsulting. Publicistisk databasverksamhet ryms inte i den. | Stoppar inte ansökan, men bör städas hos Bolagsverket |
 
 ---
 
-## Agenter arbetar just nu
+## Avgjort i dag, och vad som ändrades
 
-Ingen. Kön är tom och allt är pushat, se listan längst ned.
+**Färskhetsfönstret är fem år.** 15 365 av 17 066 bedömda i stället för
+13 764, alltså 90 procent i stället för 80,7. Modellversion 5. Trettiosex
+filer bar en text som sa "tre år", inklusive sex artiklar.
+
+**Norrköping är kommun nummer tretton**, via en Ecos-adapter skriven för
+formatet och inte för kommunen. 622 av 1 022 fick koordinat genom geokodning
+på adress.
+
+**Filtaket var fel i fyra dokument.** 100 000 och inte 20 000, på betalplanen.
+
+**Bibelns affärsmodell är förbjuden.** En självbetjänad betald yta där kunden
+ändrar sidan kostar utgivningsbeviset. Första betalda produkten blir
+kedjebevakning. Se `54_affarsmodellen.md`.
+
+**Indexeringen är mätt för första gången:** ungefär en sida av tio. Både
+klickdjupet och sidindelningen är frikända, se `51_klickdjupet.md`. Kvar som
+förklaring står innehållet och åldern.
+
+**LIVES-formatet är prövat och avvisat.** 237 av 247 jurisdiktioner i Yelps
+register levereras av en kommersiell part.
 
 ---
 
 ## Kvar att ta tag i, ingen på det än
 
-- **Kontroller per år.** En linje över tid saknas som form. Statistikagenten
-  frågade om den ska byggas och fick aldrig svar.
-- **Företagsverifiering.** Du nedprioriterade den uttryckligen: att allt
-  fungerar och ser ut som Booli går före.
-- **Noten om nedlagda verksamheter.** Utredd och avgjord i
-  `35_scb_foretagsregistret.md`, men inte byggd, och den ska inte byggas förrän
-  två saker landat: certifikatet från SCB, och det nya API:et som ersätter det
-  nuvarande i september 2026. Designen är låst: en not på sidan när SCB säger
-  att arbetsstället inte längre är verksamt, aldrig avpublicering, och
-  ingenting alls när SCB bara saknar stället. Talen som motiverar den: 2 501 av
-  16 047 publicerade verksamheter saknar kontroll nyare än två år, och
-  kommunerna har själva avpublicerat 59 rader någonsin.
-
-  **SPÄRREN GÄLLER INTE STOCKHOLM SEDAN 2026-08-25.** Stadens
-  registreringsintyg svarar `Status: Aktiv` eller `Inaktiv` per anläggnings-id,
-  utan certifikat, utan avtal och utan adressmatchning. Det är kommunens eget
-  besked om sin egen registrering, alltså ett starkare underlag än SCB:s
-  arbetsställeregister, och det täcker 8 520 av 16 047 rader.
-
-  Provfallet är `F-0180-c6a477fa-3ad7-4c0b-9935-785b0db8553a`, Pressbyrån
-  4308139 på Klarabergsviadukten 49. Raden fanns i vårt uttag 2026-08-17 och är
-  borta ur kommunens i dag. Intyget svarar fortfarande, och säger
-  "Pressbyrån 4308139/ Upphörd" och "Inaktiv". Ett påhittat id ger i stället
-  "Inget data kunde hittas", alltså degraderar spåret tyst och säkert.
-
-  Designen ändras inte av detta: en not, aldrig avpublicering, ingenting alls
-  när källan bara saknar stället. Det som ändras är att Stockholm inte behöver
-  vänta på september. Läsaren finns i `pipeline/prikko/stockholmsintyg.py`,
-  hämtaren i `pipeline/stockholmsintyg.py`.
-
-  **UNDERLAGET FINNS PÅ PLATS SEDAN 2026-08-27.** `registration` står i
-  `FILFALT`, hela Stockholm är hämtat och `tillampa` har skrivit 8 514 rader
-  till `site/src/data/stockholm.json`. Status är läst på var och en: **30 rader
-  är inte längre aktiva**, 27 som `Inaktiv` och 3 som `Upphörd/Skrotad`, ett
-  tredje statusvärde som inte fanns i urvalet på 150. Matchningströskeln i
-  `35_scb_foretagsregistret.md` §5.4 gäller dessutom INTE här: intyget slås upp
-  på vårt eget anläggnings-id, så det finns ingen adressmatchning som kan bli
-  fel företag.
-
-  Kvar innan noten kan byggas är bara ytan, och den är inte liten. §5.1 kräver
-  att verksamheten bär **samma markering i listor, sök och karta**, annars är
-  noten "en fälla man bara ser om man klickar in". Det rör
-  `Verksamhetskort.astro`, `EstablishmentList.astro`, `sok.astro` och
-  `Karta.astro`. Sidan visar därför i dag ingenting om status, se
-  `site/src/components/Foretagsregister.astro`, där också de elva andra
-  utelämnade fälten står med skäl.
-- **Bevakningslistan på kontot visar bara namn och stad.** Vad en bevakning ÄR
-  är avgjort, se `17_produktfunktioner.md`, avsnittet "Vad en bevakning gör":
-  en lista på kontot, med mejlet som tillägg. Notiserna skrivs numera varje
-  natt utan mejlnyckel. Kvar är att raden på `/konto/` bär bedömning och
-  senaste kontrolldatum och länkar till verksamheten i stället för till en
-  sökning. Punkt 7 i rapport 17.
-- **Sidindelning av kunskapsingången.** `/artiklar/` listar samtliga artiklar i
-  ett svep. Vid 23 artiklar är sidan 12 500 px lång, och den växte från 19 till
-  23 under ett arbetspass. Vid ungefär trettio behövs sidindelning. Mönstret
-  finns redan i `[kommun]/sida/[page].astro`, men det är en NY rutt och måste
-  därför klassificeras i `sidtyp()` i `astro.config.mjs`, annars faller den i
-  restgruppen och byggvakten fäller bygget. Kategorisidor är däremot avgjorda
-  och ska inte byggas, skälet står i huvudkommentaren i
-  `src/pages/artiklar/index.astro`.
-- **Mejlkampanjen till 275 kommuner** enligt offentlighetsprincipen.
+- **Korta verksamhetssidan.** `53_egen_text_per_sida.md` mätte att taket för
+  egen text är omkring 1 240 tecken på en sida som bär 6 600, alltså räcker
+  det inte att skriva mer. Kedjesidan når 43,2 procent eget innehåll på 731
+  ord medan verksamhetssidan ligger på 24,4 på 1 093. Nämnaren är halva
+  skillnaden. Största posten som går att ta bort är omdömesrutan, 776 tecken,
+  och den kräver att 1 100 rader skript skrivs om.
+- **Utmärkelserna kan inte frysas om.** Klockvakten fäller på tolv dagars
+  glapp mot gränsen sju. Antingen hämta om datan eller höj `CLOCK_DRIFT_DAYS`
+  medvetet. En torrkörning visar 13 nya vinnare och noll borttagna, alla i
+  Norrköping.
+- **`pipeline/begaran.py` ber om tre årgångar.** Motiveringen var kopplad till
+  treårsfönstret och är omskriven, men antalet är orört eftersom det ändrar
+  brev som går till myndigheter.
+- **Kontroller per år som linje.** Aldrig besvarad.
+- **Företagsverifiering.** Nedprioriterad av dig.
+- **Bevakningslistan på kontot** ska bära bedömning och datum.
+- **Sidindelning av `/artiklar/`** vid ungefär trettio artiklar.
+- **1 079 tankstreck** i 150 filer.
+- **Mejlkampanjen till resten av kommunerna** efter de tjugo första.
 
 ---
 
