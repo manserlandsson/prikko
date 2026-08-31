@@ -1400,8 +1400,24 @@ de fyra dollarna ordagrant. Båda har rätt om sin egen bild och fel om den
 andras.
 
 **Slutsatsen är alltså den i 11.2 och står fast:** priset var publikt 2016 och
-borta 2021. Det som fortfarande är okänt är vilket år det försvann, och
-arkivets uppspelning låg nere under båda körningarna.
+borta senast 2019.
+
+**Fönstret är nu så snävt arkivet tillåter.** Ögonblicksbilden från 20 augusti
+2019 hämtades i en tredje omgång och har **inget tal alls**, bara en delning i
+små och stora kunder med "Request an Invite" och "Contact Sales". Arkivet har
+prissidan i januari 2016, en 404 i februari samma år, och sedan ingenting förrän
+augusti 2019, alltså ett treårigt hål som spänner över en hel ombyggnad av
+sajten. Närmare går inte att komma.
+
+**Och det treåriga hålet är exakt de år som avgjorde bolaget.** Under det
+spannet skrev Hazel avtalet som gjorde Ecolab till exklusiv världsomspännande
+kanal (2017), Ecolab lanserade produkten under eget varumärke (maj 2018), och
+bolaget blev lönsamt (2018). **Priset försvann från sajten samtidigt som de
+fick en kanal.** Uppflyttningen och kanalavtalet är samma händelse.
+
+Det är den lärdom som är vår: den som säljer själv sätter ett pris på sidan,
+den som säljer genom någon annan slutar. Vilket av de två vi vill vara är ett
+val och inte en följd.
 
 **Ett publicerat jämförelsepris finns, och det är det närmaste vi kommer.**
 RizePoint säljer efterlevnadsprogram per plats och publicerar sina tal öppet:
