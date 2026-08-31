@@ -513,7 +513,7 @@ handlingar.
 | Fråga | Läge |
 |---|---|
 | Verksamhetssystem per kommun | Se avsnitt 6. Löses av genväg A, inte av gissningar |
-| Medlemskretsen i 16 av 23 förbund | Härledd ur rapporten för 2024, inte omläst mot egna sidor |
+| Medlemskretsen i 15 av 23 förbund | Härledd ur rapporten för 2024, inte omläst mot egna sidor. Dalslands fyra bekräftades 2026-08-31, se 10.4 |
 | Två stympade myndighetsnamn | "byggnadsnämnd Norberg Fagersta Avesta" och "och räddningsnämnd Nordanstig Hudiksvall" |
 | 20 kommuner utan adress | Se 3.2. Ska läsas fram för hand |
 | Om öppna data-lagens frist och avgiftstak går att åberopa | Lagtexten talar för, HD:s beslut 2025 talar emot. Behåll meningen, förlita er inte på den |
@@ -529,15 +529,223 @@ handlingar.
 1. **Skicka genväg A till Livsmedelsverket.** En begäran, systemkartan för alla
    250 myndigheter. Billigast i hela planen och oberoende av sajtens status.
    `python3 pipeline/begaran.py livsmedelsverket`
-2. **Rätta R11 avsnitt 1.4 och brevmallen efter avsnitt 5.2.** Formatkravet är
-   dött och mallen ska inte fortsätta luta sig mot det.
-3. **Lägg in papperspärren i `request_letter`.** Den enda ändringen som faktiskt
-   sparar pengar.
-4. **Ta bort alla beräknade fält ur det vi ber om**, med HFD 2025 not. 20 som
-   skäl.
+2. ~~**Rätta brevmallen efter avsnitt 5.2.**~~ Gjort 2026-08-31, se 10.3.
+   Formatkravet är borta ur både `request_letter` och genväg B. R11 avsnitt 1.4
+   är fortfarande orättad.
+3. ~~**Lägg in papperspärren i `request_letter`.**~~ Gjort 2026-08-31, se 10.3.
+   Den står i andra stycket, före listan över vad vi ber om.
+4. ~~**Ta bort alla beräknade fält ur det vi ber om.**~~ Gjort 2026-08-31, se
+   10.3. Brevet säger nu uttryckligen att vi inte ber om uträknade tal.
 5. **Läs fram de 20 saknade adresserna för hand** och skriv in dem i
    `kommunkontakter.csv` med datum och källa.
-6. **Verifiera de 16 återstående förbunden** mot deras egna sidor. 38 kommuner,
-   och varje bekräftad medlemskrets sparar ett brev.
+6. **Verifiera de 15 återstående förbunden** mot deras egna sidor. 34 kommuner,
+   och varje bekräftad medlemskrets sparar ett brev. Dalsland är avbetat, se 10.4.
 7. **Hör av er till Jens Nylander.** Han har löst exakt det formatproblem vi
    står inför, för 271 kommuner, och han är den enda i landet som har.
+
+---
+
+## 10. Första omgången: ordningen, adresserna och rutinen
+
+*Skrivet 2026-08-31. Ordningen är räknad ur registret, varje adress i omgången
+är läst på myndighetens egen webbplats samma dag, och breven ligger färdiga i
+`pipeline/data/begaran/`. Ingenting är skickat. Det är ägarens knapp.*
+
+### 10.1 Ordningen: störst först vinner, och det var inte givet
+
+Frågan var vilken ordning som ger flest nya anläggningar per skickat brev.
+Svaret är generatorns förval, och skälet är att anläggningstalet i registret
+redan är per myndighet. En gemensam nämnds tal rymmer alla medlemskommuner.
+Varje brev ger alltså exakt sin myndighets tal, oberoende av de andra breven,
+och då är den giriga ordningen optimal för varje prefix: de k största breven
+ger mest efter k skickade brev, för alla k.
+
+Förbundsspåret i `docs/45` punkt A3 vinner därför inte den här mätningen. Så
+här ser de två ordningarna ut över de sex första breven:
+
+| Ordning | Anläggningar | Per brev | Kommuner | Per brev |
+|---|---:|---:|---:|---:|
+| Störst först | 13 342 | 2 224 | 11 | 1,8 |
+| Förbunden först | 4 092 | 682 | 21 | 3,5 |
+
+**Förbunden ger 3,3 gånger färre anläggningar per brev och nästan dubbelt så
+många kommuner per brev.** Vilket som är rätt beror på vad man mäter. Vårt mått
+är täckning av anläggningar, alltså sidor på sajten och verksamheter en
+besökare kan söka på, och då förlorar förbundsspåret. Förbunden ska läsas som
+det `docs/45` faktiskt skriver i A3, att de är billigast per kommun, inte som
+en instruktion att skicka dem först. De kommer med ändå på egen förtjänst:
+Miljösamverkan östra Skaraborg är fjärde brev och Ystad-Österlen sextonde.
+
+**Södertörn bär inte tio kommuner.** Påståendet i `docs/45` A3 håller inte i
+någon del. Förbundet hade tre ägarkommuner, inte tio, och det är avvecklat:
+smohf.se skriver 2026-08-31 att verksamheten gick över till Haninge, Tyresö och
+Nynäshamn den 1 juli 2026. Den gemensamma myndighet som bär flest kommuner är
+Miljösamverkan östra Skaraborg med sex.
+
+### 10.2 De tjugo första breven
+
+| # | Myndighet | Kommuner | Anläggningar | Andel |
+|---:|---|---:|---:|---:|
+| 1 | Miljöförvaltningen, Göteborgs Stad | 1 | 5 418 | 5,84 % |
+| 2 | Miljöförvaltningen, Malmö stad | 1 | 3 150 | 3,40 % |
+| 3 | Miljöförvaltningen, Helsingborgs stad | 1 | 1 509 | 1,63 % |
+| 4 | Miljösamverkan östra Skaraborg | 6 | 1 105 | 1,19 % |
+| 5 | Miljö- och hälsoskyddsförvaltningen i Västerås | 1 | 1 094 | 1,18 % |
+| 6 | Bygg- och miljöförvaltningen, Halmstads kommun | 1 | 1 066 | 1,15 % |
+| 7 | Samhällsbyggnadsförvaltningen, Lunds kommun | 1 | 1 051 | 1,13 % |
+| 8 | Miljö- och byggnämnden, Region Gotland | 1 | 970 | 1,05 % |
+| 9 | Miljö- och hälsoskyddsnämnden i Umeå | 1 | 969 | 1,04 % |
+| 10 | Miljöförvaltningen, Borås Stad | 1 | 931 | 1,00 % |
+| 11 | Räddningstjänst- och tillståndsnämnden i Eskilstuna | 1 | 914 | 0,99 % |
+| 12 | Miljönämnden i Södertälje | 1 | 861 | 0,93 % |
+| 13 | Miljö- och hälsoskyddsnämnden i Kristianstad | 1 | 829 | 0,89 % |
+| 14 | Miljö- och hälsoskyddsnämnden i Solna | 1 | 810 | 0,87 % |
+| 15 | Miljönämnden i Sundsvall | 1 | 798 | 0,86 % |
+| 16 | Ystad-Österlenregionens miljöförbund | 3 | 785 | 0,85 % |
+| 17 | Miljö- och byggnämnden i Växjö | 1 | 747 | 0,81 % |
+| 18 | Bygg- och miljönämnden i Norrtälje | 1 | 713 | 0,77 % |
+| 19 | Miljö- och hälsoskyddsnämnden i Varberg | 1 | 700 | 0,75 % |
+| 20 | Samhällsbyggnadsnämnden i Kalmar | 1 | 697 | 0,75 % |
+| | **Summa** | **27** | **25 117** | **27,1 %** |
+
+Besvaras alla tjugo går täckningen från 20,2 procent av rikets anläggningar
+till 47,3. Det är en optimistisk räkning, för den förutsätter att alla svarar
+och att allt går att läsa in, men storleksordningen är rätt: **tjugo mejl är
+värda mer än allt annat som står på entreprenörslistan.**
+
+**Urvalet är litet, och det är begränsningen.** De tjugo är valda ur 34
+myndigheter, inte ur 250, eftersom bara 34 har en mottagare som är läst för
+hand. De 269 adresserna i `kommuner.json` är krypta och inte verifierade, och
+avsnitt 10.4 visar varför skillnaden spelar roll. Att läsa fram de återstående
+216 är det enskilt största arbetet som står mellan oss och full täckning.
+
+**En blind fläck i ordningen.** Haninge, Tyresö och Nynäshamn saknar
+anläggningstal, eftersom Södertörns 1 087 anläggningar i rapporten för 2024
+inte går att dela upp på de tre. De sorteras därför som noll och hamnar sist,
+trots att de rimligen hör hemma runt plats 25. Talet ska hämtas ur nästa
+rapport eller frågas efter i brevet.
+
+### 10.3 Vad brevet inte längre säger
+
+Generatorns brev hade båda de spärrar som avsnitt 5.2 och 5.4 kräver saknade
+eller brutna. Det som ändrades:
+
+| Vad | Före | Nu | Varför |
+|---|---|---|---|
+| Papperspärren | Fanns inte alls, och brevet erbjöd PDF utan förbehåll | Andra stycket, före listan över vad vi ber om | JO dnr 1922-2024, se 5.4. Enda posten som kan bli fyrsiffrig |
+| Formatkravet | "enligt lagen (2022:818) ..., och jag ber därför att uppgifterna lämnas i befintligt digitalt format" | Öppna data-meningen står kvar, ordet "därför" och kravet är borta | NJA 2023 s. 498 och prop. 2023/24:73, se 5.2. Lagen bär inte formatet |
+| Uträknade tal | Brevet bad inte om dem, men sa det inte heller | "Jag ber inte om några sammanställda eller uträknade tal, bara om uppgifterna som de står" | HFD 2025 not. 20, se 5.3 |
+| Överklagbarheten | Saknades | "Kan någon del inte lämnas ut ber jag om ett skriftligt beslut med besvärshänvisning" | OSL 6 kap. 3 §, läst mot lagtext 2026-08-31 |
+| Antalet kommuner | Hårdkodat "tolv" | Räknas ur registret, blev tretton | Siffran hade redan hunnit bli fel |
+| Kopieadressen | "Kopia" skrevs ut även när den var samma adress som "Till" | Skrivs bara när den skiljer sig | Två mejl till samma brevlåda ser slarvigt ut |
+
+Samma formatpåstående stod i genväg B till Livsmedelsverket och är borttaget
+där också. Genväg B har dessutom fått papperspärren, för den begäran är den
+största av alla.
+
+**De tre rättsliga spärrarna är nu tester.** `TestSparrar` i
+`pipeline/tests/test_begaran.py` faller om brevet börjar kräva ett format, om
+papperspärren hamnar under listan över vad vi ber om, eller om någon börjar be
+om andelar och genomsnitt. En spärr som bara står som en kommentar kommer
+tillbaka nästa gång någon skriver om en mening.
+
+### 10.4 Adresserna: tjugo lästa en och en, och en var fel
+
+Varje mottagare i omgången är läst på myndighetens egen webbplats 2026-08-31.
+**Nitton av tjugo stämde. En var fel.**
+
+**Norrtälje pekade på fel myndighet.** I registret stod
+`miljokontoret@srmh.se`, och källan var `vaxholm.se`, alltså en annan
+myndighets sida. Södra Roslagens miljö- och hälsoskyddsnämnd är gemensam nämnd
+för Täby och Vaxholm, och i Norrtälje utövar kontoret bara tillsyn enligt
+alkohol- och tobakslagen och kontroll av vissa receptfria läkemedel, inte
+livsmedelskontroll (taby.se om SRMH, läst 2026-08-31). Registret motsade
+dessutom sig självt: anteckningen på raden för SRMH sa redan att begäran ska gå
+till kommunens egen nämnd. Norrtälje publicerar ingen egen adress till bygg-
+och miljökontoret, så mottagaren är nu `kontaktcenter@norrtalje.se`, läst på
+norrtalje.se.
+
+Tre ändringar till gjordes utanför de tjugo:
+
+- **Nacka** flyttades från `info@nacka.se` till `registrator@nacka.se`. Nackas
+  egen kontaktsida skriver att begäran om allmänna handlingar ska gå dit. Den
+  gamla adressen var inte fel, den var bara sämre än den kommunen själv anvisar.
+- **Dalslands miljö- och energiförbund** och **Västra Mälardalens
+  Myndighetsförbund** fick de adresser som stod verifierade i avsnitt 4.1 men
+  aldrig hade skrivits in i kontaktfilen. Båda hade dessutom avhuggna namn i
+  registret, och namnen är nu lästa ur förbundens egna sidor. De två breven
+  hamnar på plats 30 och 33 och är alltså inte med i den här omgången, men de
+  finns nu att skicka.
+
+**Tre adresser i omgången är svagare än de andra, och det är inga fel.**
+Halmstad och Kristianstad publicerar ingen egen adress till förvaltningen alls,
+bara kommunens allmänna, och Solnas adress är den som anvisas för att begära ut
+handlingar i bygglovsärenden medan livsmedelskontrollen ligger hos en annan
+nämnd. Alla tre är fullgoda mottagare enligt tryckfrihetsförordningen, de
+kostar bara ett internt steg. Det står i anteckningsfältet på respektive rad.
+
+**Vad felprocenten betyder för resten av landet.** En på tjugo var fel bland de
+adresser som lästs fram för hand. De 269 krypta adresserna i `kommuner.json` är
+lästa av ett skript som inte kan se skillnad på en myndighets sida och en
+grannmyndighets, vilket är precis det fel Norrtälje var. Räkna alltså inte med
+att de är bättre än de handlästa, räkna med att de är sämre, och läs varje
+adress innan brevet går.
+
+### 10.5 Rutinen när svaren kommer
+
+All spårning ligger i `pipeline/data/utlamnanden.csv`, en rad per myndighet.
+Generatorn skriver raden när brevet skrivs och sätter `utfall` till `utkast`.
+Allt därefter fylls i för hand, och det är med avsikt: ett svar ska läsas av en
+människa innan det bokförs.
+
+**Varje dag ett brev går:** skriv datum i `skickat` och sätt `utfall` till
+`vantar`. Kommer ett diarienummer i mottagningsbekräftelsen, skriv in det i
+`diarienummer`. Det numret gör att påminnelsen hamnar i rätt ärende hos dem i
+stället för att bli ett nytt.
+
+**Varannan dag:** `python3 pipeline/begaran.py status`. Den skriver täckningen,
+antalet ärenden per utfall, och vem som behöver följas upp i dag. Kommandot
+läser bara filerna och skickar ingenting.
+
+**Schemat, räknat från `skickat`:**
+
+| Dag | Åtgärd | Kommando |
+|---:|---|---|
+| 7 | Vänlig påminnelse i samma tråd | `paminnelse KOD --steg 7` |
+| 21 | Fyraveckorsfristen i 5 kap. 1 § öppna data-lagen | `paminnelse KOD --steg 21` |
+| 30 | Begär skriftligt beslut enligt 5 kap. 2 § och myndighetens prövning enligt OSL 6 kap. 3 § | `paminnelse KOD --steg 30` |
+| 45 | Beslutspunkt: överklaga eller lägg åt sidan | inget brev |
+
+Steg 45 skriver samma text som steg 30, och skriptet säger till om det. Skicka
+det bara om steg 30 aldrig gick i väg. Att mejla samma påminnelse två gånger är
+sämre än tystnad.
+
+`status` hoppar över den som redan svarat, och den påminner aldrig två gånger
+inom en vecka. Skriv därför in datum i `paminnelse_1` och `paminnelse_2` när
+en påminnelse går, annars fortsätter samma rad att dyka upp.
+
+**Vad varje sorts svar betyder:**
+
+| Svar | `utfall` | Vad som görs |
+|---|---|---|
+| Filen kom, allt vi bad om | `komplett` | Fyll i `format`, `omfattning`, `period_fran`, `period_till` och `fil`. Sedan bygger vi inläsaren |
+| Något kom, inte allt | `delvis` | Samma, och skriv i `anteckning` vad som fattas. Fråga efter resten i samma tråd |
+| De frågar något | `dialog` | Svara samma dag. En fråga är en handläggare som vill lösa det |
+| De vill ha betalt först | `avgiftskrav` | Skriv beloppet i `avgift_kr` och sätt `avgift_status`. Se 5.1: en avgift kräver en beslutad taxa som omfattar elektroniskt utlämnande. Betala aldrig för en utskrift |
+| Nej | `avslag` | Har vi ett skriftligt beslut med besvärshänvisning? Utan det finns inget att överklaga, begär det då först |
+| De pekar vidare | `hanvisad` | Notera vart, och lägg raden åt sidan tills genvägen är prövad |
+
+**Kolumnen `villkor` är obligatorisk och inte valfri.** Kommer materialet med
+ett förbehåll enligt TF 2 kap. 19 § ska det stå där innan något publiceras. Se
+5.4 om NJA 2025 s. 123: det troliga motståndet är inte avslag utan förbehåll,
+och ett förbehåll som upptäcks efter publicering är upptäckt för sent.
+
+### 10.6 Det som fortfarande inte är gjort
+
+| Fråga | Läge |
+|---|---|
+| Verifierad mottagare för 216 av 250 myndigheter | Största arbetet som återstår. Krypningens adresser räcker inte, se 10.4 |
+| Anläggningstal för Haninge, Tyresö och Nynäshamn | Går inte att dela ur rapporten för 2024. Ordningen är blind för dem tills talet finns |
+| Medlemskretsen i 15 av 23 gemensamma myndigheter | Dalslands fyra medlemmar bekräftades 2026-08-31. Västra Mälardalens egen sajt räknar inte upp sina medlemmar, så den raden vilar fortfarande på rapporten |
+| Om brevlådan i signaturen tar emot post | Okänt. `SENDER_EMAIL` står tom i koden med avsikt, och steg 0 i följesedeln är att skicka ett testmejl enligt `docs/13` |
+| Året för Skinnskattebergsutlämnandet | Avsnitt 1 i det här dokumentet skriver 2024 och avsnitt 5.4 skriver att JO:s beslut kom 11 april 2025. Rättssatsen berörs inte, men årtalet ska läsas om mot JO dnr 1922-2024 |

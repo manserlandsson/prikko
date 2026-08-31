@@ -7,7 +7,9 @@
     python3 pipeline/begaran.py livsmedelsverket      # de två genvägsbreven
     python3 pipeline/begaran.py status                # vad väntar, vad brådskar
 
-**Skriptet skickar ingenting.** Det skriver textfiler till `data/begaran/`.
+**Skriptet skickar ingenting.** Det skriver textfiler till `data/begaran/`,
+ett brev per fil med mottagare och ämnesrad överst, plus `00-las-mig.txt` som
+säger vad ägaren ska göra med dem.
 Att skicka är ägarens beslut, ett mejl i taget, från ägarens egen adress. Ett
 skript som både formulerar och skickar 249 myndighetsframställningar är ett
 massutskick oavsett vad det heter, och ett massutskick är precis vad den här
@@ -181,6 +183,36 @@ def thousands(value: str) -> str:
         return value
 
 
+#: Räkneord upp till tjugo. Ett litet tal skrivet med siffror mitt i en mening
+#: ser ut som ett formulärfält, och brevet ska se skrivet ut.
+NUMERALS = (
+    "noll", "en", "två", "tre", "fyra", "fem", "sex", "sju", "åtta", "nio",
+    "tio", "elva", "tolv", "tretton", "fjorton", "femton", "sexton",
+    "sjutton", "arton", "nitton", "tjugo",
+)
+
+
+def numeral(value: int) -> str:
+    return NUMERALS[value] if 0 <= value < len(NUMERALS) else thousands(str(value))
+
+
+def loaded_count(register: Iterable[dict]) -> int:
+    """Antalet kommuner vi redan läst in, räknat ur registret.
+
+    Talet stod tidigare utskrivet i brevtexten. En hårdkodad siffra i ett brev
+    är en siffra som blir fel, och den blev det: den sa tolv sedan den
+    trettonde kommunen lästes in. Kommuner räknas, inte myndigheter, eftersom
+    det är kommuner mottagaren känner igen.
+    """
+    return len({
+        name
+        for row in register
+        if (row.get("status") or "") == "inlast"
+        for name in (row.get("kommuner") or "").split(";")
+        if name
+    })
+
+
 # ---------------------------------------------------------------------------
 # Brevet
 # ---------------------------------------------------------------------------
@@ -267,7 +299,7 @@ def years(today: date) -> List[int]:
     return [latest, latest - 1, latest - 2]
 
 
-def request_letter(row: dict, today: Optional[date] = None) -> Letter:
+def request_letter(row: dict, loaded: int, today: Optional[date] = None) -> Letter:
     today = today or date.today()
     reported = years(today)
     where = municipality_list(row) or row.get("myndighet", "")
@@ -292,7 +324,17 @@ def request_letter(row: dict, today: Optional[date] = None) -> Letter:
         "Hej,",
         f"jag begär ut uppgifter om livsmedelskontrollen i {where}. Vi samlar "
         f"kommunernas offentliga kontrollresultat till en jämförbar sajt för "
-        f"konsumenter och har hittills läst in tolv kommuner: {SENDER_SITE}.",
+        f"konsumenter och har hittills läst in {numeral(loaded)} kommuner: "
+        f"{SENDER_SITE}.",
+        # Papperspärren står här och inte längre ned. JO dnr 1922-2024:
+        # Skinnskatteberg lämnade ut drygt 15 000 sidor för omkring 30 000
+        # kronor utan att varna först. Det är den enda posten i kalkylen som
+        # kan bli fyrsiffrig, och den avväpnas bara om spärren står så tidigt
+        # att den läses innan någon går till skrivaren.
+        "Allt vi ber om finns digitalt, och vi vill inte ha papperskopior. "
+        "Skulle uttaget bli en stor utskrift, hör av er först så avgränsar vi "
+        "begäran i stället. Helst tar vi emot XML, CSV, Excel eller JSON, men "
+        "en PDF-fil går också bra eftersom vi läser sådana redan.",
         "Två saker behövs:",
         f"1. Kontrollerna. Enklast för er är sannolikt samma XML-fil som ni "
         f"laddade upp till Livsmedelsverkets myndighetsrapportering för "
@@ -311,15 +353,18 @@ def request_letter(row: dict, today: Optional[date] = None) -> Letter:
         f"Ni rapporterade {thousands(facilities)} anläggningar i registret till "
         f"Livsmedelsverket, så uttaget är av den storleksordningen."
         if facilities else None,
-        "Är det enklare att exportera hela beståndet än att filtrera på datum, "
-        "gör gärna det. Vi sorterar själva.",
-        "Vi ber i första hand om ett maskinläsbart format: XML, CSV, Excel "
-        "eller JSON. Går det inte tar vi emot PDF, vi läser sådana redan.",
+        # HFD 2025 not. 20: att räkna fram ett värde ur uppgifter som redan
+        # finns är inte en rutinbetonad åtgärd, och då är sammanställningen
+        # inte en allmän handling. Vi ber alltså om råposter och räknar själva.
+        "Jag ber inte om några sammanställda eller uträknade tal, bara om "
+        "uppgifterna som de står. Är det enklare att exportera hela beståndet "
+        "än att filtrera på datum, gör gärna det. Vi sorterar själva.",
         "Vi behöver inte organisationsnummer, och inga personuppgifter utöver "
         "det företagsnamn och den besöksadress som redan är offentliga. "
         "Dricksvattenanläggningar kan lämnas utanför.",
         "Tar ni ut en avgift ber jag er meddela beloppet innan uttaget görs, så "
-        "tar jag ställning först.",
+        "tar jag ställning först. Kan någon del inte lämnas ut ber jag om ett "
+        "skriftligt beslut med besvärshänvisning.",
         "Uppgifterna publiceras på prikko.se med kommunen som källa och med "
         "kontrolldatum. Hela bedömningsmetoden är publik, varje verksamhet kan "
         "publicera ett eget svar intill sin kontroll, och vi rättar fel så "
@@ -327,8 +372,7 @@ def request_letter(row: dict, today: Optional[date] = None) -> Letter:
         "Rättslig grund: 2 kap. tryckfrihetsförordningen. Begäran görs också "
         "som en begäran om tillgängliggörande av data för vidareutnyttjande "
         "enligt lagen (2022:818) om den offentliga sektorns tillgängliggörande "
-        "av data, och jag ber därför att uppgifterna lämnas i befintligt "
-        "digitalt format.",
+        "av data.",
         "Vill ni hellre publicera uppgifterna som öppna data än att skicka dem "
         "till mig går det lika bra. Sambruk och NSÖD har tagit fram en "
         "nationell specifikation för just livsmedelsinspektioner."
@@ -339,9 +383,11 @@ def request_letter(row: dict, today: Optional[date] = None) -> Letter:
     parts = [body, "", signature(), ""]
 
     span = f"{reported[2]} till {reported[0]}"
+    to = (row.get("mottagare") or "").strip()
+    registrar = (row.get("registrator") or "").strip()
     return Letter(
-        to=(row.get("mottagare") or "").strip(),
-        cc=(row.get("registrator") or "").strip(),
+        to=to,
+        cc=registrar if registrar and registrar != to else "",
         subject=f"Begäran om utlämnande av allmän handling: livsmedelskontroller {span}",
         body="\n".join(parts),
     )
@@ -384,9 +430,11 @@ def reminder_letter(row: dict, stage: int, today: Optional[date] = None) -> Lett
             f"offentlighets- och sekretesslagen, med besvärshänvisning.",
         )
 
+    to = (row.get("mottagare") or "").strip()
+    registrar = (row.get("registrator") or "").strip()
     return Letter(
-        to=(row.get("mottagare") or "").strip(),
-        cc=(row.get("registrator") or "").strip(),
+        to=to,
+        cc=registrar if registrar and registrar != to else "",
         subject=f"Påminnelse: begäran om utlämnande{reference}",
         body="\n".join([text, "", signature(), ""]),
     )
@@ -460,8 +508,10 @@ def shortcut_letters(recipient: str, today: Optional[date] = None) -> List[Lette
             "",
             "Rättslig grund: 2 kap. tryckfrihetsförordningen, samt lagen (2022:818)",
             "om den offentliga sektorns tillgängliggörande av data, eftersom detta",
-            "är en begäran om tillgängliggörande av data för vidareutnyttjande. Jag",
-            "ber därför att uppgifterna lämnas i befintligt digitalt format.",
+            "är en begäran om tillgängliggörande av data för vidareutnyttjande.",
+            "",
+            "Vi vill inte ha papperskopior. Skulle uttaget bli en stor utskrift,",
+            "hör av er först så avgränsar vi begäran i stället.",
             "",
             "Blir uttaget omfattande hör gärna av er, så avgränsar vi det",
             "tillsammans. Tar ni ut en avgift ber jag er meddela beloppet innan",
@@ -491,17 +541,85 @@ def eligible(register: Iterable[dict], tracking: Dict[str, dict]) -> List[dict]:
     return sorted(rows, key=lambda r: -int(r.get("anlaggningar") or 0))
 
 
-def write_letters(rows: Sequence[dict], out: Path, tracking_path: Path) -> None:
+#: Filen som ligger överst i katalogen och säger vad ägaren ska göra. Den
+#: skrivs om vid varje omgång, eftersom en instruktion som beskriver förra
+#: omgången är sämre än ingen instruktion alls.
+README = "00-las-mig.txt"
+
+
+def batch_readme(rows: Sequence[dict], tracking_path: Path,
+                 coverage: float, names: Sequence[str]) -> str:
+    """Följesedeln till omgången: vad som ligger här och vad som ska göras."""
+    lines = [
+        f"Omgång skriven {date.today().isoformat()}",
+        "",
+        f"{len(rows)} brev, "
+        f"{thousands(str(sum(int(r.get('anlaggningar') or 0) for r in rows)))} "
+        f"anläggningar, {coverage:.1f} procent av landets bestånd.",
+        "",
+        "SÅ HÄR GÖR DU",
+        "",
+        "0. Kontrollera först att brevlådan i signaturen tar emot post. Skicka",
+        f"   ett testmejl till {SENDER_EMAIL or 'mans@prikko.se'} och se att det",
+        "   kommer fram, se docs/13. Ett brev med en svarsadress som studsar är",
+        "   värre än inget brev: myndigheten svarar, svaret försvinner, och vi",
+        "   tror att de tigit.",
+        "1. Öppna filerna i nummerordning. Numret är prioriteringen: störst",
+        "   först, räknat i anläggningar. Hoppa gärna över en om du vill, men",
+        "   börja uppifrån.",
+        "2. Varje fil har Till, eventuell Kopia och Ämne på de första raderna.",
+        "   Klistra in dem i mejlet och brödtexten under. Skicka från din egen",
+        f"   adress, {SENDER_EMAIL or 'mans@prikko.se'}, ett mejl i taget.",
+        "3. Skicka inte allt på en dag. Fem till åtta om dagen räcker: kommer",
+        "   svaren utspritt hinner du läsa dem, och en handläggare som ringer",
+        "   en kollega i grannkommunen ska inte höra att alla fick samma mejl",
+        "   samma förmiddag.",
+        f"4. Fyll i datum i kolumnen skickat i {tracking_path}",
+        "   direkt när mejlet gått, och sätt utfall till vantar. Kommer det",
+        "   ett diarienummer i svaret, skriv in det också. Utan skickat-datum",
+        "   kan ingenting följas upp, för då vet skriptet inte när tystnaden",
+        "   började.",
+        "5. Kör  python3 pipeline/begaran.py status  ungefär varannan dag. Den",
+        "   säger vem som behöver en påminnelse och vilken sorts påminnelse.",
+        "",
+        "TRE SAKER SOM INTE SKA GÖRAS",
+        "",
+        "- Fyll aldrig i en kommuns e-tjänst maskinellt. Anvisar de en e-tjänst",
+        "  klistrar du in texten där för hand, eller mejlar ändå: ingen är",
+        "  skyldig att använda en e-tjänst för att begära ut en allmän handling.",
+        "- Betala aldrig för en pappersutskrift. Brevet ber uttryckligen om att",
+        "  bli varnad först, så kommer det ett prisbesked är svaret att vi tar",
+        "  filen i stället.",
+        "- Svara aldrig på frågan vem du är som villkor för utlämnandet. Att",
+        "  frivilligt berätta är bra och står redan i brevet. Att kräva det är",
+        "  förbjudet enligt 2 kap. 18 § tryckfrihetsförordningen.",
+        "",
+        "BREVEN",
+        "",
+    ]
+    lines.extend(names)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_letters(rows: Sequence[dict], out: Path, tracking_path: Path,
+                  loaded: int) -> None:
     out.mkdir(parents=True, exist_ok=True)
     tracking = {r["myndighet_kod"]: r for r in read_rows(tracking_path)}
 
     coverage = 0.0
-    for row in rows:
-        letter = request_letter(row)
-        # Filnamnet bär första kommunen och inte myndighetens namn, eftersom
-        # ägaren letar efter Göteborg och inte efter Miljöförvaltningen.
-        first = (row.get("kommuner") or row.get("myndighet", "")).split(";")[0]
-        name = f"{row['myndighet_kod']}-{slug(first)}.txt"
+    listing: List[str] = []
+    for order, row in enumerate(rows, start=1):
+        letter = request_letter(row, loaded)
+        # Filnamnet bär kommunen och inte myndighetens namn, eftersom ägaren
+        # letar efter Göteborg och inte efter Miljöförvaltningen. En gemensam
+        # nämnd är undantaget: där är förbundets namn det han känner igen, och
+        # "essunga" för Miljösamverkan östra Skaraborg hade bara varit den
+        # kommun som råkade stå först i registret. Numret först gör att
+        # katalogen sorterar sig i den ordning breven ska gå.
+        names = [n for n in (row.get("kommuner") or "").split(";") if n]
+        first = names[0] if len(names) == 1 else row.get("myndighet", "")
+        name = f"{order:02d}-{row['myndighet_kod']}-{slug(first)}.txt"
         (out / name).write_text(letter.render(), encoding="utf-8")
         entry = tracking.setdefault(row["myndighet_kod"], {"myndighet_kod": row["myndighet_kod"]})
         entry.update({
@@ -515,8 +633,15 @@ def write_letters(rows: Sequence[dict], out: Path, tracking_path: Path) -> None:
         })
         entry.setdefault("utfall", "utkast")
         coverage += float(row.get("andel_anlaggningar") or 0)
+        listing.append(
+            f"  {name}  {row['myndighet']}, "
+            f"{thousands(row.get('anlaggningar') or '')} anläggningar"
+        )
         print(f"{out / name}  {row['myndighet']}  {row.get('anlaggningar')} anläggningar")
 
+    (out / README).write_text(
+        batch_readme(rows, tracking_path, coverage, listing), encoding="utf-8"
+    )
     write_tracking(tracking_path, list(tracking.values()))
     print(
         f"\n{len(rows)} brev skrivna. Skickade och besvarade ger de "
@@ -645,9 +770,19 @@ def main() -> None:
         if not (row.get("skickat") or "").strip():
             parser.error(f"{args.kod} har inget skickat-datum, det finns inget att påminna om")
         letter = reminder_letter(row, args.steg)
+        args.ut.mkdir(parents=True, exist_ok=True)
         path = args.ut / f"{args.kod}-paminnelse-{args.steg}.txt"
         path.write_text(letter.render(), encoding="utf-8")
         print(path)
+        if args.steg == 45:
+            # Steg 45 i schemat är ett beslut och inte ett brev. Texten är
+            # med avsikt densamma som steg 30, så att den som ändå vill
+            # skicka en sista gång slipper skriva om den. Skickar man den
+            # två gånger blir det ett upprepat mejl, och det är sämre än
+            # tystnad.
+            print("Steg 45 är beslutspunkten: överklaga eller lägg åt sidan. "
+                  "Brevet är samma text som steg 30, så skicka det bara om "
+                  "steg 30 aldrig gick i väg.", file=sys.stderr)
         return
 
     by_code = {r["myndighet_kod"]: r for r in register}
@@ -664,7 +799,7 @@ def main() -> None:
                   "redan skickade.", file=sys.stderr)
             return
 
-    write_letters(rows, args.ut, args.sparning)
+    write_letters(rows, args.ut, args.sparning, loaded_count(register))
 
 
 if __name__ == "__main__":
