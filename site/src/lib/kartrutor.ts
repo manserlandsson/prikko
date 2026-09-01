@@ -50,6 +50,7 @@ import { TOP_CATEGORIES } from './categories';
 import { categoriesOf, establishments, latestInspectionDate, municipalities } from './data';
 import { TILE_LAYER } from './kartbas';
 import { matkategori, matkategorierFor } from './matkategori';
+import { avregistrerad } from './registrering';
 import { writePMTiles } from './pmtiles';
 import { slugify } from './slug';
 
@@ -386,6 +387,21 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
     if (e.distinction) props.u = 1;
 
     /*
+     * KOMMUNEN HAR INTE LÄNGRE STÄLLET REGISTRERAT, se docs/35 §5.1.
+     *
+     * Nålen står kvar och tas aldrig bort, av samma skäl som sidan inte
+     * avpubliceras: en nål som försvinner är ett besked ingen kan läsa, och
+     * tystnad är inte ett besked. Det den gör i stället är att tonas ned och
+     * bära märket i listraden och i nålkortet. Kartan dämpar den med
+     * `icon-opacity`, se `nalar` i Karta.astro, och skälet står där.
+     *
+     * Fältet sätts bara när det är sant, som `u` och `b` ovan: 30 av 14 314
+     * nålar bär det, och en nyckel med en nolla på de andra 14 284 är ren vikt
+     * i en fil som hämtas medan man panorerar.
+     */
+    if (avregistrerad(e)) props.av = 1;
+
+    /*
      * Bildens adress, och bara när den finns.
      *
      * Listraderna i den delade vyn bär sedan 2026-08-26 en bildyta, och 366 av
@@ -608,6 +624,7 @@ function build(): TileSet {
           dt: 'Number',
           k: 'Number',
           u: 'Number',
+          av: 'Number',
           h: 'Number',
           n: 'Number',
           cluster: 'Boolean',

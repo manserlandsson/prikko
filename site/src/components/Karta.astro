@@ -90,7 +90,8 @@ import { linkedAreas, municipalityArea } from '../lib/omraden';
  */
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
 
-import { VERDICT } from '../lib/site';
+import { avregistrerad } from '../lib/registrering';
+import { AVREGISTRERAD, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 import { latestEdition } from '../lib/utmarkelser';
 /* Ramen och MapLibres kontroller. Den här filen bar tidigare en egen kopia av
@@ -971,6 +972,19 @@ const LEGEND = [
             <span class="k-text">
               <b>{e.name}</b>
               <span class="k-meta">
+                {/* MÄRKET FÖRE BEDÖMNINGEN, alltså ett undantag från regeln
+                    vid .k-meta i stilarna om att beskedet står först.
+
+                    Undantaget har samma grund som ordningen på
+                    verksamhetssidan, där noten ligger före bedömningen:
+                    beskedet om registret ändrar hur bedömningen ska läsas,
+                    och det som ändrar läsningen måste komma före det som
+                    läses. Platsen är dessutom tvingad av att raden klipps
+                    från höger: både <b> och .k-meta står med `nowrap` och
+                    `ellipsis`, alltså hade ett märke längre bak försvunnit på
+                    just de rader där namnet är långt, och ett märke som
+                    ibland inte syns är den fälla docs/35 §5.1 stänger. */}
+                {avregistrerad(e) && <span class="k-avreg">{AVREGISTRERAD.heading}</span>}
                 <span class="k-dom" data-v={e.verdict ?? 'none'}>
                   {e.verdict ? VERDICT[e.verdict].label : 'Ingen bedömning'}
                 </span>
@@ -1217,7 +1231,7 @@ const LEGEND = [
    * astro:, se noten överst i filen.
    */
   import { collect, indexFailed, loadIndex, normalise, searchIndex } from '../lib/sokforslag';
-  import { VERDICT } from '../lib/site';
+  import { AVREGISTRERAD, VERDICT } from '../lib/site';
 
   const MAPLIBRE_URL = '/maplibre/maplibre-gl.mjs';
   const MAPLIBRE_CSS = '/maplibre/maplibre-gl.css';
@@ -1225,6 +1239,44 @@ const LEGEND = [
   /** Etiketter per bedömningssiffra i datafilen. */
   const LABEL = [VERDICT.clean.label, VERDICT.minor.label, VERDICT.major.label, 'Ingen bedömning'];
   const FACE_BY_V: FaceKey[] = ['clean', 'minor', 'major', 'none'];
+
+  /**
+   * ══ NÅLEN FÖR ETT STÄLLE KOMMUNEN INTE LÄNGRE HAR REGISTRERAT ═══════════
+   *
+   * Uttrycket dämpar nålen till 45 procent och lämnar alla andra på 1. Tre
+   * frågor avgjordes här, och de förtjänar var sitt stycke.
+   *
+   * ── NÅLEN TAS INTE BORT ─────────────────────────────────────────────────
+   *
+   * En karta är ett påstående om en plats, och det är just därför nålen ska
+   * stå kvar. Att ta bort den är att avpublicera i kartan, och docs/35 §5.1
+   * säger aldrig avpublicering: den som drar över kvarteret och undrar vad som
+   * hände med stället på hörnet får då ingenting alls, och ingenting är inget
+   * besked. §5.1 kräver dessutom uttryckligen att verksamheten "stannar i
+   * kartan och i sökningen, men med samma markering".
+   *
+   * ── NÅLEN BYTER INTE FÄRG ───────────────────────────────────────────────
+   *
+   * Att rita den grå, alltså som `face-none`, hade varit det enklaste. Det är
+   * också det enda som är direkt osant: grått betyder "ingen bedömning" på hela
+   * sajten, och 23 av de 30 HAR en bedömning som vilar på en kontroll inom
+   * femårsfönstret. En femte färg löser det inte heller, den lägger bara till
+   * en nivå i en skala där varje steg betyder något om hygienen.
+   *
+   * ── DÄRFÖR OPACITET, OCH DÄRFÖR 0,45 ────────────────────────────────────
+   *
+   * Dämpning säger "inte aktuell" utan att säga något om hur stället sköttes,
+   * vilket är exakt vad noten säger i ord. Talet är valt mot kartbotten och
+   * inte mot vitt: vid 0,6 är skillnaden mot en granne knappt läsbar på en
+   * ljus gata, och vid 0,3 börjar en gul nål försvinna i en gul väg, alltså
+   * skulle markeringen bli en avpublicering i praktiken.
+   *
+   * Lagret `nal-lyft` bär INTE uttrycket. Den nål man pekar på eller har valt
+   * ska poppa ut i full styrka, av samma skäl som den poppar ut ur
+   * områdesskuggan: dämpningen beskriver bakgrunden, inte det man tittar på.
+   * Kortet som öppnas bär märket i ord i stället.
+   */
+  const AVREG_OPACITET = ['case', ['==', ['get', 'av'], 1], 0.45, 1] as any;
 
   interface Punkt {
     /** Radnummer i datafilen, och nålens id på kartan. Det är den kopplingen
@@ -1255,6 +1307,14 @@ const LEGEND = [
     k: number;
     /** Har utmärkelse. */
     u: boolean;
+    /**
+     * Kommunen har inte längre stället registrerat, se docs/35 §5.1.
+     *
+     * 30 av 14 314 nålar, uppmätt 2026-08-31. Fältet styr tre saker: nålens
+     * dämpning, märket i listraden och märket i nålkortet. Se `av` i
+     * lib/kartrutor.ts, där det sätts.
+     */
+    av: boolean;
     /** Bildens adress i vår objektlagring, eller tom. 366 av 16 047 har en,
      *  se `b` i lib/kartrutor.ts. Tom betyder den ritade platshållaren. */
     b: string;
@@ -1396,6 +1456,7 @@ const LEGEND = [
         mk: props.mk ?? '',
         k: props.k ?? 0,
         u: props.u === 1,
+        av: props.av === 1,
         b: props.b ?? '',
         kat: props.c ?? 0,
       };
@@ -3734,6 +3795,17 @@ const LEGEND = [
         const meta = document.createElement('span');
         meta.className = 'k-meta';
 
+        /* Märket först i metaraden, före bedömningen. Skälet i sin helhet står
+           vid samma rad i mallen ovan, och de två formerna måste bära det på
+           exakt samma plats: en rad som ritas olika i mallen och i skriptet
+           byter utseende i samma sekund som kartan vaknar. */
+        if (p.av) {
+          const av = document.createElement('span');
+          av.className = 'k-avreg';
+          av.textContent = AVREGISTRERAD.heading;
+          meta.appendChild(av);
+        }
+
         const dom = document.createElement('span');
         dom.className = 'k-dom';
         dom.dataset.v = ['clean', 'minor', 'major', 'none'][p.v] ?? 'none';
@@ -4098,6 +4170,23 @@ const LEGEND = [
 
       const mitt = e('div', 'kort-mitt');
       const mittText = e('div', 'kort-mitt-text');
+
+      /*
+       * MÄRKET ÖVER BEDÖMNINGEN I NÅLKORTET.
+       *
+       * Kortet är det enda stället på kartan där hela beskedet får plats i
+       * ord, och det är därför nålen inte behöver bära mer än sin dämpning:
+       * den som undrar varför en nål är blek klickar på den och får svaret
+       * här. Egen rad och inte inline efter bedömningen, av samma skäl som på
+       * verksamhetssidan: det som ändrar hur bedömningen ska läsas står före
+       * den, inte efter.
+       */
+      if (p.av) {
+        const av = e('p', 'kort-avreg');
+        av.textContent = AVREGISTRERAD.heading;
+        mittText.appendChild(av);
+      }
+
       const bedomning = e('span', 'kort-bedomning');
       bedomning.textContent = LABEL[p.v];
       bedomning.style.color = INK[p.v];
@@ -5637,6 +5726,7 @@ const LEGEND = [
                   // Droppens spets ligger på adressen, inte märkets mitt.
                   'icon-anchor': 'bottom',
                 },
+                paint: { 'icon-opacity': AVREG_OPACITET },
               }
             : {
                 id: 'nalar',
@@ -5649,6 +5739,11 @@ const LEGEND = [
                   'circle-stroke-width': 2,
                   'circle-stroke-color': '#fff',
                   'circle-color': ['match', ['get', 'v'], 0, KART_FARG[0], 1, KART_FARG[1], 2, KART_FARG[2], KART_FARG[3]],
+                  /* Reservlagret ritas när ansiktena inte gick att rastrera.
+                     Dämpningen måste gälla där också, annars är markeringen
+                     borta i precis det läge där kartan redan är fattigare. */
+                  'circle-opacity': AVREG_OPACITET,
+                  'circle-stroke-opacity': AVREG_OPACITET,
                 },
               },
         );
@@ -8045,6 +8140,27 @@ const LEGEND = [
   .rader :global(.k-dom[data-v='major']) { color: var(--verdict-major-ink); }
 
   /*
+   * Märket för en verksamhet kommunen inte längre har registrerad.
+   *
+   * Samma pillret som kommunhubbens lista, startsidans kort och sökningen bär,
+   * och samma skäl till att det är grått och ofyllt: raden bär redan ett
+   * bedömningsansikte och ett bedömningsord, och varje färg i den skalan
+   * betyder något om hygienen. Regeln står i sin helhet i
+   * EstablishmentList.astro och orden i lib/site.ts.
+   *
+   * Skiljetecknet efter pillret ritas av regeln ovan och skrivs inte här,
+   * precis som för radens övriga uppgifter.
+   */
+  .rader :global(.k-avreg) {
+    display: inline-block;
+    padding: 0 7px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  /*
    * ══ DEN BREDA RADEN, FRÅN 1280 ═════════════════════════════════════════
    *
    * Talet är kolumnens och inte fönstrets, se noten över .rader a: först vid
@@ -8491,6 +8607,24 @@ const LEGEND = [
   .kort :global(.kort-mitt-text) { min-width: 0; }
 
   .kort :global(.kort-marke) { flex: none; }
+
+  /*
+   * Märket för en verksamhet kommunen inte längre har registrerad, överst i
+   * kortets mittsektion.
+   *
+   * Egen rad och inte ett pillret som i listorna: kortet har ingen konkurrens
+   * om bredden, alltså behöver ordet ingen ram för att hålla ihop, och en ram
+   * runt en ensam rad i en låda som redan har en ram är en linje för mycket.
+   * Formen är alltså densamma som .kort-fakta bär, med den skillnaden att
+   * märket står FÖRE bedömningen. Skälet står vid raden som bygger det.
+   */
+  .kort :global(.kort-avreg) {
+    margin: 0 0 2px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
 
   .kort :global(.kort-bedomning) {
     display: block;

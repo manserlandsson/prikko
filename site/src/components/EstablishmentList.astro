@@ -6,7 +6,8 @@
 import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
 import { formatDate, isIndexable, latestInspectionDate, type Establishment } from '../lib/data';
-import { VERDICT } from '../lib/site';
+import { avregistrerad } from '../lib/registrering';
+import { AVREGISTRERAD, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 
 interface Props {
@@ -27,7 +28,18 @@ const { items, kommunSlug } = Astro.props;
         <a href={path(kommunSlug, e.slug)} rel={isIndexable(e) ? undefined : 'nofollow'}>
           <FaceRef verdict={e.verdict} size={38} />
           <span class="info">
-            <b>{e.name}</b>
+            {/* MÄRKET LIGGER I NAMNRADEN, inte i metaraden under.
+
+                Metaraden bär adress och kontrolldatum, alltså uppgifter om
+                stället. Att registreringen upphört är en uppgift om RADEN
+                man tittar på, och den ska mötas i samma ögonkast som namnet.
+                Inuti <b> och inte som syskon: elementet är display:block, så
+                ett syskon hade hamnat på egen rad medan pillret nu flyter
+                efter namnet och bryter först när det inte får plats. */}
+            <b>
+              {e.name}
+              {avregistrerad(e) && <span class="avreg">{AVREGISTRERAD.heading}</span>}
+            </b>
             <span class="meta text-secondary">
               {/* Karlstad publicerar ingen adress. Utan filtret blir raden
                   " · kontrollerad 17 juni 2026" med en hängande punkt. */}
@@ -99,6 +111,34 @@ const { items, kommunSlug } = Astro.props;
 
   .meta {
     font-size: var(--fs-caption);
+  }
+
+  /*
+   * ══ MÄRKET FÖR EN VERKSAMHET SOM INTE LÄNGRE ÄR REGISTRERAD ════════════
+   *
+   * GRÅTT OCH OFYLLT, och det är ett krav och inte smak. Raden bär redan en
+   * färgskala i ansiktet till vänster och i bedömningsordet till höger, och
+   * varje färg i den betyder något om HYGIENEN. Ett fyllt pillret i en fjärde
+   * färg hade lästs in i samma skala och blivit ett omdöme vi inte har täckning
+   * för. Kanten är --hairline, samma linje som skiljer raderna åt, och texten
+   * är --text-secondary, alltså exakt metaradens ton.
+   *
+   * VIKT 500 OCH INTE 600. Namnet bredvid står i 600, och två halvfeta ord
+   * intill varandra ger inget företräde åt namnet, som är det man letar efter.
+   */
+  .avreg {
+    display: inline-block;
+    margin-left: var(--s-2);
+    padding: 0 8px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-caption);
+    line-height: 18px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    /* Namnet klipps aldrig mitt i märket. */
+    white-space: nowrap;
+    vertical-align: 1px;
   }
 
   .verdict {

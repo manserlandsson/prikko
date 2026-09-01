@@ -25,6 +25,7 @@
 import { createHash } from 'node:crypto';
 import { establishments, municipalities } from './data';
 import { linkedAreas } from './omraden';
+import { avregistrerad } from './registrering';
 import { utsnitt } from './kartrutor';
 
 /** Ordningen speglar VERDICTS. -1 = ingen bedömning. */
@@ -48,13 +49,33 @@ function build(): string {
   const kommunIndex = new Map(kommuner.map((m, i) => [m.slug, i]));
   const verdictIndex = new Map(VERDICTS.map((v, i) => [v, i]));
 
-  const rows = establishments().map((e) => [
+  const alla = establishments();
+
+  const rows = alla.map((e) => [
     e.name,
     e.address ?? '',
     e.slug,
     kommunIndex.get(e.municipality.slug) ?? 0,
     e.verdict ? (verdictIndex.get(e.verdict) ?? -1) : -1,
   ]);
+
+  /*
+   * DE AVREGISTRERADE SOM EN LISTA RADNUMMER, inte som ett sjätte fält.
+   *
+   * Sökträffen måste bära samma märke som listorna och kartan, annars är
+   * noten på sidan "en fälla man bara ser om man klickar in", se docs/35 §5.1.
+   * Frågan är bara vad det kostar i en fil som ligger på varje sidvisning.
+   *
+   * Mätt på beståndet 2026-08-31: 30 rader av 17 066 är avregistrerade, alltså
+   * 0,18 procent. Ett sjätte fält per rad hade skrivit `,0` sjuttontusen
+   * gånger, ungefär 34 kB, för att bära trettio ettor. Den här listan är 30 tal
+   * och under 200 byte.
+   *
+   * Formen är radnummer mot `e` ovan, av samma skäl som kommunen är ett index:
+   * slugarna finns redan i registret och behöver inte upprepas. Klienten gör
+   * listan till en Set en gång, se `loadIndex` i lib/sokforslag.ts.
+   */
+  const avreg = alla.flatMap((e, i) => (avregistrerad(e) ? [i] : []));
 
   return JSON.stringify({
     /*
@@ -99,6 +120,10 @@ function build(): string {
     ),
     v: VERDICTS,
     e: rows,
+    /* Radnummer mot `e`, se `avreg` ovan. Nyckeln får inte heta `n`: den är
+       tagen i kartans rutor för antalet på samma adress, och två register som
+       använder samma bokstav för olika saker blandas ihop förr eller senare. */
+    a: avreg,
   });
 }
 

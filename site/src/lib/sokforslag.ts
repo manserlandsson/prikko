@@ -59,6 +59,12 @@ export interface Suggestion {
    */
   verdict?: number;
   /**
+   * Kommunen har inte längre verksamheten registrerad, se docs/35 §5.1.
+   * Bara verksamheter kan bära den; en kommun eller en handling lämnar den
+   * odefinierad, precis som `verdict`.
+   */
+  avreg?: boolean;
+  /**
    * Extra sökord utöver etiketten, bara på sajtens egna sidor. "betyg" ska
    * hitta metodiken fast ordet inte står i rubriken. Skickas med i JSON till
    * klienten och normaliseras där.
@@ -443,6 +449,30 @@ export function suggestionInner(s: Suggestion, q: string): string {
   const badge =
     s.kind === 'place' ? faceSvg(s.verdict) : glyphSvg(GLYPHS[s.kind]);
 
+  /*
+   * MÄRKET FÖR EN VERKSAMHET SOM INTE LÄNGRE ÄR REGISTRERAD.
+   *
+   * FÖRST I METARADEN, och den platsen är räknad och inte vald. Både .name
+   * och .meta står med `white-space: nowrap` och `text-overflow: ellipsis` i
+   * båda panelerna, alltså klipps raden från HÖGER. Ett märke efter namnet
+   * hade därför försvunnit på precis de rader där namnet är långt, och ett
+   * märke som ibland inte syns är exakt den fälla §5.1 finns för att stänga.
+   * Först i metaraden överlever det varje klippning.
+   *
+   * Kommunhubbens lista lägger det efter namnet i stället, och det är samma
+   * regel och inte en avvikelse: den raden bryter i stället för att klippa,
+   * alltså kan märket inte falla bort där.
+   *
+   * Strängen är AVREGISTRERAD.heading i lib/site, upprepad här av exakt samma
+   * skäl som VERDICT_LABEL ovan: modulen buntas till webbläsaren på 14 711
+   * sidor och lib/site drar in mer än ett klientskript ska bära för en sträng.
+   * Ändras ordet där ska det ändras här, och tvärtom.
+   *
+   * INTE mark(): märket är vårt eget ord och inte data ur registret, alltså
+   * ska en sökning på "registrerad" inte fetstila halva pillret.
+   */
+  const avreg = s.avreg ? '<span class="avreg">Inte längre registrerad</span>' : '';
+
   // Bedömningen i ord, bara för verksamheter. Ansiktet är aria-hidden, och
   // utan det här hade en skärmläsare fått namnet och adressen men aldrig
   // omdömet — alltså allt utom det sajten finns för.
@@ -450,8 +480,11 @@ export function suggestionInner(s: Suggestion, q: string): string {
     s.kind === 'place'
       ? `<span class="visually-hidden">. ${escapeHtml(verdictWord(s.verdict))}</span>`
       : '';
+  /* Märket står redan som synlig text i metaraden och läses därför upp av sig
+     självt. Ingen extra visually-hidden-rad alltså: den hade sagt samma sak
+     två gånger i samma listrad. */
 
-  return `<span class="mark" aria-hidden="true">${badge}</span><span class="body"><span class="name">${mark(s.label, q)}</span><span class="meta">${mark(s.meta, q)}</span></span>${spoken}`;
+  return `<span class="mark" aria-hidden="true">${badge}</span><span class="body"><span class="name">${mark(s.label, q)}</span><span class="meta">${avreg}${mark(s.meta, q)}</span></span>${spoken}`;
 }
 
 /**
@@ -530,6 +563,14 @@ export interface SearchIndex {
   /** [slug, ort] och en etta på de kommuner som har en kartsida. Se
    *  lib/search-index.ts för varför den tredje platsen finns. */
   kommuner: Array<[string, string] | [string, string, number]>;
+  /**
+   * Radnumren för de verksamheter kommunen inte längre har registrerade.
+   *
+   * En Set och inte listan som den kom, eftersom uppslaget sker en gång per
+   * ritad rad. Registret bär dem som en lista av radnummer i stället för som
+   * ett fält per rad, och talen som motiverar det står i lib/search-index.ts.
+   */
+  avreg: Set<number>;
 }
 
 const index: SearchIndex = {
@@ -538,6 +579,7 @@ const index: SearchIndex = {
   nameEnd: new Int32Array(0),
   kommuner: [],
   omraden: [],
+  avreg: new Set(),
 };
 /** Kommunernas orter som söknycklar, vikta en gång i stället för per fråga. */
 let kommunKey: string[] = [];
@@ -578,6 +620,11 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
       index.kommuner = data.k;
       index.rows = data.e;
       index.omraden = data.o ?? [];
+      /* `?? []` och inte `data.a`: ett dokument ur besökarens cache kan peka
+         på ett register som byggdes innan nyckeln fanns, och en sökning som
+         kastar är ett värre fel än en sökning utan märke. Samma hållning som
+         reservadressen ovan. */
+      index.avreg = new Set<number>(data.a ?? []);
       kommunKey = index.kommuner.map(([, city]) => foldKey(city));
       /* Vikta en gång, som kommunerna. 148 rader, alltså inget att optimera,
          men samma mönster gör att en läsare slipper undra varför de skiljer. */
@@ -813,6 +860,7 @@ function gather(q: string, keep: number, term: string): Groups {
       href: `/${kommuner[row[3]][0]}/${row[2]}/`,
       kind: 'place',
       verdict: row[4],
+      avreg: index.avreg.has(i),
     });
 
     if (at === 0) offer(namePrefix, keep, name, make);

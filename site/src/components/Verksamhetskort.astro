@@ -123,7 +123,8 @@ import {
   missingReason,
   type Establishment,
 } from '../lib/data';
-import { MISSING, VERDICT } from '../lib/site';
+import { avregistrerad } from '../lib/registrering';
+import { AVREGISTRERAD, MISSING, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 
 interface Props {
@@ -186,6 +187,18 @@ const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
 
   <span class="text">
     <span class="namn">{e.name}</span>
+    {/* MÄRKET PÅ EGEN RAD, till skillnad från i listorna där det flyter efter
+        namnet. Skälet är `.namn` ovan: den är en -webkit-box klippt vid två
+        rader, alltså hade ett pillret inuti kunnat klippas bort helt av ett
+        långt namn. Ett märke som ibland försvinner är sämre än inget märke,
+        eftersom det är just de fallen §5.1 kallar en fälla.
+
+        FÖRE bedömningsraden och inte efter. Kortet läses uppifrån, och
+        beskedet om registret ändrar hur bedömningen under det ska läsas,
+        precis som noten gör det på verksamhetssidan. */}
+    {avregistrerad(e) && (
+      <span class="avreg-rad"><span class="avreg">{AVREGISTRERAD.heading}</span></span>
+    )}
     <span class="dom" style={`color: ${dom.colorVar}`}>{dom.label}</span>
     <span class="ort text-secondary">
       {[e.municipality.city, date && formatDate(date)].filter(Boolean).join(' · ')}
@@ -313,6 +326,32 @@ const dom = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Märket för en verksamhet kommunen inte längre har registrerad. Samma
+     pillret som i EstablishmentList.astro och i kartans listrader, och samma
+     skäl till att det är grått och ofyllt: kortets enda färg är märket i
+     bandets hörn, och den färgen betyder något om hygienen. En fjärde färg
+     här hade lästs in i samma skala. Regeln står i sin helhet där.
+
+     Egen radbärare, så att pillret inte sträcks till kortets bredd av
+     flexkolumnen ovanför. */
+  .avreg-rad {
+    display: flex;
+    margin: 2px 0;
+  }
+
+  .avreg {
+    padding: 0 8px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-caption);
+    line-height: 18px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .dom,

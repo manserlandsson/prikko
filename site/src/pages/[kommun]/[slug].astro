@@ -45,8 +45,9 @@ import Oppettider from '../../components/Oppettider.astro';
 import Kontaktuppgifter from '../../components/Kontaktuppgifter.astro';
 import Foretagsregister from '../../components/Foretagsregister.astro';
 import Sidupphov from '../../components/Sidupphov.astro';
+import Avregistrerad from '../../components/Avregistrerad.astro';
 import { harNagot } from '../../lib/kontakt';
-import { registerrader } from '../../lib/registrering';
+import { avregistrerad, registerrader } from '../../lib/registrering';
 import OppetPille from '../../components/OppetPille.astro';
 import Foretagsuppgifter from '../../components/Foretagsuppgifter.astro';
 import Foretagsbilder from '../../components/Foretagsbilder.astro';
@@ -747,6 +748,21 @@ const breadcrumbs = {
 
     <div class="layout">
       <main class="main">
+        {/* NOTEN OM REGISTRET STÅR FÖRE BEDÖMNINGEN, och det är en ordning
+            och inte en placering.
+
+            docs/35 §5.1 kräver att den ligger "högt på sidan, före
+            kontrollhistoriken, eftersom den ändrar hur allt under den ska
+            läsas". Före själva bedömningen är en skärpning av det kravet:
+            bedömningen är sidans starkaste påstående, och "Inga anmärkningar"
+            om ett ställe som kommunen inte längre har registrerat läses fel
+            om beskedet om registret kommer efteråt.
+
+            Villkoret är `active === false` och aldrig `!active`. Halva
+            beståndet saknar intyg helt, och frånvaro är inte nedläggning. Se
+            `avregistrerad` i lib/registrering.ts och docs/35 §5.2. */}
+        {avregistrerad(e) && <Avregistrerad e={e} />}
+
         {/* Bedömningen där booli har priset: en tyst etikett, ett stort
             besked, och svarsmeningen under. Metodiklänken är deras
             "Se Boolis värdering" — vägen till hur talet blev till. */}

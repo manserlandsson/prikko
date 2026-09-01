@@ -10,12 +10,35 @@
  * de tolv andra inte får det, står i sin helhet i
  * site/src/components/Foretagsregister.astro. Här bor bara mekaniken.
  */
-import type { Registration } from './db';
+import type { Establishment, Registration } from './db';
 import { formatDate } from './data';
 
 export interface Registerrad {
   label: string;
   value: string;
+}
+
+/**
+ * Säger kommunen att den egna registreringen inte längre gäller?
+ *
+ * TRE TILLSTÅND OCH INTE TVÅ, och att hålla isär dem är hela funktionen:
+ *
+ *   true        Intyget svarade `Inaktiv` eller `Upphörd/Skrotad`. Noten och
+ *               märket visas. 30 rader, uppmätt 2026-08-31 mot stadens
+ *               levande intyg, 27 respektive 3.
+ *   false       Intyget svarade `Aktiv`. Ingenting visas, av den enkla
+ *               anledningen att det inte finns något att säga. 8 484 rader.
+ *   undefined   Vi har inget intyg. 8 552 rader, alltså halva beståndet:
+ *               Stockholm är i dag den enda kommun som lämnar uppgiften.
+ *
+ * DET SISTA FALLET FÅR ALDRIG BLI EN LEDTRÅD. docs/35 §5.2 avgör det, och
+ * satsen `=== false` är hela genomförandet: frånvaro är inte nedläggning, och
+ * en yta som viskar "vi hittar inte den här" lägger ett tvivel på ett företag
+ * utan att ha något att grunda det på. `!r.active` hade gjort exakt det på
+ * 8 552 sidor.
+ */
+export function avregistrerad(e: Establishment): boolean {
+  return e.registration?.active === false;
 }
 
 /** Bolagsformen i löptext. Bara de former som får en egen rad, se nedan. */

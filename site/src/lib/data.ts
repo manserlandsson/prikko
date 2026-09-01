@@ -83,6 +83,26 @@ export type {
  * tunna sidorna ner hela domänen vid Googles bedömning av skalat innehåll
  * (bibeln §6) — och med tiotusentals sidor är det en reell risk.
  */
+/*
+ * ── EN AVREGISTRERAD VERKSAMHET FALLER INTE UT HÄR, OCH DET ÄR PRÖVAT ─────
+ *
+ * Frågan ställdes när noten om nedlagda verksamheter byggdes 2026-08-31: ska
+ * en sida om ett ställe kommunen inte längre har registrerat ligga kvar i
+ * sitemapen? Svaret är ja, och villkoret nedan är därför oförändrat.
+ *
+ * Skälet är notens eget skäl, se docs/35 §5.1: SIDAN ÄR DET ENDA STÄLLET
+ * NOTEN KAN LÄSAS. Den som googlar "har X i Vasastan stängt" ska landa på en
+ * sida som svarar. Att lyfta ut sidan ur indexet är att ta bort svaret på
+ * precis den fråga funktionen finns för, alltså en avpublicering i allt utom
+ * namnet, och en funktion får aldrig kosta en sida.
+ *
+ * Grinden gör dessutom redan sitt jobb på de tunna av dem utan att veta något
+ * om registret: 7 av de 30 saknar bedömning, 5 med noll kontroller och 2 med
+ * kontroller äldre än femårsfönstret, och de faller på raden nedan som vilken
+ * annan tunn sida som helst. Kvar i indexet står 23 sidor som var och en bär
+ * en publicerad kontrollhistorik, alltså faktisk information. Se
+ * docs/35 §9.
+ */
 export function isIndexable(e: Establishment): boolean {
   return e.verdict !== null && e.inspections.length > 0;
 }

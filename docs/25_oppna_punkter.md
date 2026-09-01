@@ -82,6 +82,15 @@ register levereras av en kommersiell part.
 
 ## Nyligen stängt
 
+- Noten om nedlagda verksamheter, med hela ytan. Avgjord och mätt i
+  `35_scb_foretagsregistret.md` §9. Kommunen svarar `Inaktiv` på 27 rader och
+  `Upphörd/Skrotad` på 3, hämtat om 2026-08-31 mot stadens levande intyg. Noten
+  säger vad kommunen säger och aldrig att stället stängt, de två statusvärdena
+  säger samma sak åt läsaren, och samma märke står i listor, sök, på kortet och
+  på kartan. Sidorna ligger kvar i sitemapen, eftersom sidan är det enda stället
+  noten kan läsas, och nålen står kvar dämpad i stället för att tas bort.
+  SCB-spåret i samma rapport är orört och gäller de tolv kommuner som inte
+  lämnar någon registeruppgift.
 - Prickrutan på kommunsidan. Ägaren: "bara prickar men går ej att klicka, samt
   att det är kraftigt överlapp med vår riktiga robusta kartvy." Rutan ritar nu
   samma arkiv, samma nålar och samma klusterdelning som kartvyn, ett klick på en

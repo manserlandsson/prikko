@@ -435,3 +435,212 @@ Skrivet så att nästa läsare vet exakt var golvet slutar.
   inte mätas utan certifikat. Alla tal i avsnitt 3 är om vårt eget bestånd.
 - **Aviseringstjänstens pris** är okänt. Den behövs inte, veckovisa hela uttag
   per kommun ryms med marginal i takgränsen.
+
+---
+
+## 9. Noten är byggd, och den är byggd på Stockholm
+
+**Datum:** 2026-08-31. Alla tal nedan är körda mot `site/src/data/` samma dag,
+och statusvärdena är hämtade om från stadens levande intyg samma dag, ett GET
+per anläggnings-id.
+
+Avsnitt 5 skrevs mot SCB och skulle vänta på ett certifikat. Den väntan gäller
+inte längre för Stockholm, och skälet står i `docs/25_oppna_punkter.md`:
+stadens registreringsintyg svarar `Status` per anläggnings-id, utan certifikat
+och utan avtal. Designen i 5.1 ändras inte av det. Det som ändras är att den
+går att bygga.
+
+### 9.1 Läget, mätt om
+
+| | |
+|---|---|
+| Verksamheter i beståndet | 17 066 i 13 kommuner |
+| Rader med registeruppgift | 8 514, alla i Stockholm |
+| Rader utan registeruppgift | 8 552, alltså halva beståndet |
+| Kommunen svarar `Aktiv` | 8 484 |
+| **Kommunen svarar något annat** | **30** |
+
+De trettio, per statusvärde, avlästa ordagrant ur intyget 2026-08-31:
+
+| Statusvärde | Antal |
+|---|---|
+| `Inaktiv` | 27 |
+| `Upphörd/Skrotad` | 3 |
+
+Samma tal som 2026-08-27, och det är i sig en uppgift: ingen av de trettio har
+gått tillbaka till `Aktiv`, ingen ny har tillkommit, och inget id svarade
+"Inget data kunde hittas". De tre `Upphörd/Skrotad` är LDM Transport &
+Logistics AB, Kanaans Trädgårdscafe och Sätra Tobak.
+
+Färskhetsfönstret är fem år sedan modell 5, och det ändrar bilden av vilka de
+trettio är:
+
+| | |
+|---|---|
+| Har en kontroll inom femårsfönstret, alltså en bedömning | 23 |
+| Saknar bedömning | 7 |
+| ...därav utan en enda publicerad kontroll | 5 |
+| ...därav med kontroller äldre än fönstret | 2, senast 2020-09-21 och 2020-12-03 |
+
+Bedömningarna på de 23: 21 utan anmärkning, 1 med brister, 1 med brister som
+kvarstår. Alla 30 har en koordinat, alltså står alla 30 på kartan.
+
+Norrköping tillkom med 622 koordinater men utan registeruppgift, och kommunen
+kan därför aldrig få en markering. Det är inte en lucka utan hela poängen med
+§5.2: predikatet frågar `active === false` och aldrig `!active`.
+
+### 9.2 Lydelsen
+
+Orden bor i `AVREGISTRERAD` i `site/src/lib/site.ts` och skrivs ingen
+annanstans. Noten på verksamhetssidan lyder, med kommunens formella namn
+insatt:
+
+> **Inte längre registrerad**
+>
+> Stockholms stad anger att verksamheten inte längre är registrerad som
+> livsmedelsverksamhet. Registret säger inte om stället har stängt, bytt ägare
+> eller registrerats på nytt. Kontrollerna nedan gäller tiden då verksamheten
+> var registrerad.
+>
+> Källa: Stockholms stads registreringsintyg, läst 27 augusti 2026.
+
+Tre saker i lydelsen är beslut och inte formuleringar:
+
+1. **Ledet är kommunens, inte vårt.** "Stockholms stad anger" och inte "har
+   stängt". Vi rapporterar vad ett register säger, vi gissar inte vad som hänt
+   på gatan. Det är samma skiljelinje som 5.1 punkt 4 drar.
+2. **Förbehållet står alltid.** En avregistrering har minst tre andra
+   förklaringar än nedläggning: ägarbyte där den nya ägaren registrerats som en
+   ny anläggning, flytt, eller en post staden städat. Utan meningen läser
+   besökaren "stängt", och då har noten sagt något vi inte har täckning för.
+3. **Sista meningen står bara där den är sann.** Fem av de trettio har noll
+   kontroller, och "Kontrollerna nedan" pekar där på tomrum.
+
+Källraden bär datumet intyget lästes och aldrig dagens datum, av samma skäl som
+`checkedAt` finns på `hours` och `contact`: en uppgift utan tidpunkt går inte
+att åldra.
+
+### 9.3 `Inaktiv` och `Upphörd/Skrotad` säger samma sak
+
+Skillnaden bärs inte vidare till sajten. Tre skäl:
+
+1. **Läsarens fråga är en.** Står stället kvar i kommunens register? Båda
+   värdena svarar nej. "Skrotad" är stadens ord om en POST i ett diarium, inte
+   om ett ställe på en gata, och att skriva ut det ordet om en namngiven
+   verksamhet är att låna en administrativ ton vi inte behöver.
+2. **Slutsatsen är redan dragen, och av en människa.** `STATUS` i
+   `pipeline/prikko/stockholmsintyg.py` översätter båda till `False`, och
+   skälet står där: alla tre `Upphörd/Skrotad` bär ordet "Upphörd" redan i
+   verksamhetens namn. Att bära skillnaden till sajten hade krävt att fältet
+   `active` blev en sträng, alltså en ändring i datamodellen för en skillnad
+   ingen läsare kan använda.
+3. **Tre rader av trettio.** Varje extra formulering är ännu en mening som
+   måste hållas sann, och den här hade mötts av nästan ingen.
+
+### 9.4 Markeringen, och varför den är densamma på alla ytor
+
+§5.1 kräver samma markering i listor, sök och karta, annars är noten "en fälla
+man bara ser om man klickar in". Märket är därför ordagrant notens egen rubrik,
+**Inte längre registrerad**, som ett grått ofyllt pillret. Ingen färg, ingen
+ikon, ingen fyllning: sidan bär redan en färgskala där varje steg betyder något
+om hygienen, och ett märke i en fjärde färg hade lästs in i den skalan och
+blivit en bedömning vi inte har täckning för. Samma regel som håller "God
+efterlevnad" ute ur `Foretagsregister.astro`.
+
+| Yta | Var märket står | Varför just där |
+|---|---|---|
+| Verksamhetssidan | Not högst upp i huvudkolumnen, före bedömningen | Beskedet ändrar hur bedömningen ska läsas, alltså kommer det före den |
+| Kommunhubbens lista | Efter namnet | Raden bryter i stället för att klippa, alltså kan märket inte falla bort |
+| Startsidans kort | Egen rad under namnet, före bedömningen | Namnet är klippt vid två rader, så ett märke inuti hade kunnat klippas bort helt |
+| Sökpanelen och /sok | Först i metaraden | Namnraden klipps från höger, alltså överlever märket bara om det står först |
+| Kartans listrad | Först i metaraden, före bedömningen | Samma klippning, och samma ordning som på verksamhetssidan |
+| Kartans nålkort | Egen rad över bedömningen | Kortet är enda stället på kartan där hela beskedet ryms i ord |
+
+Sökregistret bär de trettio som en lista radnummer och inte som ett fält per
+rad. Talet som avgjorde det: 30 av 17 066 är 0,18 procent, alltså hade ett
+sjätte fält skrivit `,0` sjuttontusen gånger, ungefär 34 kB, för att bära
+trettio ettor. Listan är under 200 byte, och filen ligger på varje sidvisning.
+
+### 9.5 Indexeringen: sidorna ligger kvar i sitemapen
+
+**Beslut: `isIndexable()` i `lib/data.ts` är oförändrad, och därmed
+`noindexPaths()` i `lib/webbkarta.ts`.** Sitemapvakten går igenom oförändrad,
+16 096 URL:er varav 15 365 verksamhetssidor.
+
+Argumentet för att lyfta ut dem är att sidan kan handla om något som inte finns.
+Det håller inte, av tre skäl som alla är notens egna:
+
+1. **Sidan är det enda stället noten kan läsas.** Den som googlar "har X i
+   Vasastan stängt" ska landa på en sida som svarar. Att ta sidan ur indexet är
+   att ta bort svaret på precis den fråga funktionen finns för, alltså en
+   avpublicering i allt utom namnet. §5.1 punkt 1.
+2. **En funktion får aldrig kosta en sida.** §5.1 punkt 2, och
+   `docs/49_indexeringen.md`.
+3. **Sidan handlar inte om ingenting.** Kontrollerna är allmänna handlingar om
+   en period som faktiskt inträffade, och 23 av de 30 bär en publicerad
+   kontrollhistorik inom femårsfönstret. Det är faktisk information i
+   kvalitetsgrindens mening.
+
+Grinden gör dessutom redan sitt jobb på de tunna av dem utan att veta något om
+registret: de 7 utan bedömning faller på `verdict !== null &&
+inspections.length > 0` som vilken annan tunn sida som helst. Kvar i indexet
+står 23 sidor som var och en har något att svara med.
+
+### 9.6 Kartan: nålen står kvar, dämpad
+
+**Beslut: nålen tas inte bort och byter inte färg. Den ritas med
+`icon-opacity` 0,45 och bär märket i listraden och i nålkortet.**
+
+En karta är ett påstående om en plats, och det är just därför nålen ska stå
+kvar. Att ta bort den är att avpublicera i kartan: den som drar över kvarteret
+och undrar vad som hände med stället på hörnet får då ingenting alls, och
+ingenting är inget besked. §5.1 säger det rakt ut, att verksamheten "stannar i
+kartan och i sökningen, men med samma markering".
+
+Att rita nålen grå, alltså som `face-none`, prövades och förkastades. Grått
+betyder "ingen bedömning" på hela sajten, och 23 av de 30 HAR en bedömning. En
+femte färg löser ingenting, den lägger bara till en nivå i en skala där varje
+steg betyder något om hygienen.
+
+Talet 0,45 är valt mot kartbotten och inte mot vitt. Vid 0,6 är skillnaden mot
+en granne knappt läsbar på en ljus gata, och vid 0,3 börjar en gul nål försvinna
+i en gul väg, alltså blir markeringen en avpublicering i praktiken. Lagret
+`nal-lyft` bär inte dämpningen: den nål man pekar på eller väljer poppar ut i
+full styrka, av samma skäl som den poppar ut ur områdesskuggan.
+
+**En känd gräns, och den är mätt.** 13 av de 30 delar adress med minst en annan
+verksamhet. Nålarna i en sådan stapel ritas ovanpå varandra, alltså kan en
+dämpad nål ligga under en granne i full färg och inte synas som dämpad. Det är
+staplingens egen effekt och inte något den här funktionen infört, och den är
+täckt på den yta som finns för just stapeln: kortets bläddring visar var och en
+för sig, och den som är avregistrerad bär märket i ord. De 17 som ligger ensamma
+på sin adress syns dämpade direkt i kartan.
+
+### 9.7 Vad som är verifierat, och hur
+
+Bygget kördes i en egen worktree med `--outDir dist-nedlagda`, 17 805 sidor.
+
+- **Noten:** 30 sidor bär den, alltså exakt de trettio. Läst i den byggda
+  HTML:en, och sidan utan kontroller saknar riktigt den sista meningen.
+- **Listorna:** märket står i kommunhubbens listor, områdes-, kategori- och
+  kedjesidor. Sett i bild på `/kedja/sushi-yama/`.
+- **Sökningen:** registret bär nyckeln `a` med 30 radnummer.
+- **Kartan:** alla 30 nålarna bär `av: 1` i rutarkivet, läst genom att
+  avkoda varje ruta upp till z12. Dämpningen är sedd i bild på Hi Mala Town,
+  Tulegatan 37, bredvid grannar i full färg.
+- **Sitemapvakten:** går igenom oförändrad.
+
+Kartan går inte att se i `astro dev`, den kräver ett riktigt bygge, och
+`astro build` utan npm-hooken `prebuild` lägger inte maplibre i `public/`.
+Kör `node scripts/kopiera-maplibre.mjs` först, annars svarar kartan "Kartan gick
+inte att ladda" av ett skäl som inte har med koden att göra.
+
+### 9.8 Vad som INTE är byggt, och varför
+
+- **SCB-spåret.** Avsnitt 5 till 8 står oförändrade. Noten vilar i dag på
+  kommunens eget intyg, vilket är ett starkare underlag än SCB:s
+  arbetsställeregister och utan certifikat, men det finns bara i Stockholm.
+  Rekommendationen i avsnitt 7 gäller fortfarande för de andra tolv kommunerna.
+- **Ingenting när källan bara saknar stället.** §5.2 oförändrad, och det är
+  8 552 rader.
+- **Ingen avpublicering, någonsin.** §5.1 oförändrad.

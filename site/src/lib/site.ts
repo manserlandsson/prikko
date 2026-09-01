@@ -138,6 +138,72 @@ export const MISSING: Record<MissingReason, VerdictPresentation> = {
 };
 
 /**
+ * ══ NOTEN OM EN VERKSAMHET SOM INTE LÄNGRE ÄR REGISTRERAD ═════════════════
+ *
+ * Orden står här och ingen annanstans, av samma skäl som VERDICT gör det:
+ * noten skrivs på fem ytor, verksamhetssidan, kommunhubbens lista,
+ * startsidans kort, sökningen och kartan, och fem formuleringar av samma
+ * besked är fem påståenden som kan glida isär.
+ *
+ * ── VAD NOTEN FÅR SÄGA, OCH VAD DEN ALDRIG FÅR SÄGA ──────────────────────
+ *
+ * Underlaget är kommunens EGET registreringsintyg, uppslaget på vårt eget
+ * anläggnings-id, se pipeline/prikko/stockholmsintyg.py. Intyget svarar
+ * `Status: Aktiv`, `Inaktiv` eller `Upphörd/Skrotad`. Det är alltså kommunens
+ * besked om sin egen registrering, och det är precis det noten återger.
+ *
+ * Den säger DÄRFÖR INTE att stället har stängt. Vi vet inte det, och en
+ * avregistrering har minst tre andra förklaringar: ägarbyte där den nya
+ * ägaren registrerat sig som en ny anläggning, flytt, eller en post staden
+ * städat. Att skriva "stängt" hade varit att gissa i stället för att
+ * rapportera, vilket är själva skiljelinjen i docs/35 §5.1.
+ *
+ * Den säger inte heller något om hygienen. Kontrollerna på sidan är allmänna
+ * handlingar om en period som faktiskt inträffade, och de dras inte tillbaka.
+ * De dateras.
+ *
+ * ── `Inaktiv` OCH `Upphörd/Skrotad` SÄGER SAMMA SAK HÄR ──────────────────
+ *
+ * Skillnaden mellan de två värdena bärs inte vidare till sajten, och det är
+ * ett beslut och inte en förlust. Tre skäl:
+ *
+ *   1. För läsaren är frågan EN: står stället kvar i kommunens register?
+ *      Båda värdena svarar nej. "Skrotad" är stadens ord om en POST i ett
+ *      diarium, inte om ett ställe på en gata.
+ *   2. Pipelinen drog redan den slutsatsen, och skälet är läst av en
+ *      människa: alla tre `Upphörd/Skrotad` bär ordet "Upphörd" redan i
+ *      verksamhetens namn. Se `STATUS` i pipeline/prikko/stockholmsintyg.py.
+ *   3. Tre rader av trettio är en formulering nästan ingen möter, och varje
+ *      extra formulering är ännu en mening som måste hållas sann.
+ *
+ * ── MÄRKET ÄR NOTENS EGEN RUBRIK ─────────────────────────────────────────
+ *
+ * `mark` är ordagrant `heading`. Det är avsiktligt: docs/35 §5.1 kräver samma
+ * markering i listor, sök och karta, annars är noten "en fälla man bara ser
+ * om man klickar in". Två snarlika formuleringar hade varit två markeringar.
+ */
+export const AVREGISTRERAD = {
+  /** Notens rubrik, och märket i listor, sök och karta. */
+  heading: 'Inte längre registrerad',
+  /**
+   * Första meningen. Kommunens formella namn sätts in, alltså "Stockholms
+   * stad" och aldrig "Stockholm": det är ett myndighetsbesked och ska bära
+   * myndighetens namn.
+   */
+  sentence: (kommun: string) =>
+    `${kommun} anger att verksamheten inte längre är registrerad som livsmedelsverksamhet.`,
+  /** Förbehållet. Står alltid, eftersom det är det läsaren annars gissar. */
+  caveat:
+    'Registret säger inte om stället har stängt, bytt ägare eller registrerats på nytt.',
+  /**
+   * Bara på sidor som faktiskt HAR en kontroll under sig. Fem av de trettio
+   * har noll kontroller, och "Kontrollerna nedan" om ingenting är en mening
+   * som pekar på tomrum.
+   */
+  history: 'Kontrollerna nedan gäller tiden då verksamheten var registrerad.',
+} as const;
+
+/**
  * Märkningen på verksamhetssidan: de tre senaste kontrollerna utan anmärkning.
  * Den påverkar aldrig nivån, bara erkännandet.
  *

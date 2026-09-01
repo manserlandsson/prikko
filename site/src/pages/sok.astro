@@ -26,7 +26,7 @@ import { coverage, formatNumber, municipalities } from '../lib/data';
 import { FACE_SPRITE_ID } from '../lib/face';
 import { siteCommandList } from '../lib/kommandon';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
-import { VERDICT } from '../lib/site';
+import { AVREGISTRERAD, VERDICT } from '../lib/site';
 import { path } from '../lib/urls';
 
 const total = coverage();
@@ -70,6 +70,7 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       data-index-fallback={SEARCH_INDEX_FALLBACK_URL}
       data-sprite={FACE_SPRITE_ID}
       data-labels={JSON.stringify(labels)}
+      data-avreg={AVREGISTRERAD.heading}
     >
       <label for="q" class="visually-hidden">Sök på namn eller adress</label>
       <input
@@ -260,6 +261,20 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
 
   .results :global(.info span) {
     font-size: var(--fs-caption);
+    color: var(--text-secondary);
+  }
+
+  /* Märket för en verksamhet kommunen inte längre har registrerad. Samma
+     pillret som panelen, kommunhubbens lista, kortet och kartans listrader
+     bär; regeln om varför det är grått och ofyllt står i
+     EstablishmentList.astro och orden i lib/site.ts. */
+  .results :global(.avreg) {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 7px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-weight: 500;
     color: var(--text-secondary);
   }
 
@@ -497,6 +512,8 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
   if (form && input && results && status && kommunBlock && kommunRows && sidorBlock && sidorRows) {
     const spriteId = form.dataset.sprite!;
     const labels: string[] = JSON.parse(form.dataset.labels!);
+    /** Märket för en avregistrerad verksamhet, ur AVREGISTRERAD i lib/site. */
+    const avregEtikett = form.dataset.avreg!;
 
     /** Sidorna, kartorna och artiklarna, ur JSON i dokumentet. */
     const pages: Suggestion[] = JSON.parse(
@@ -613,9 +630,25 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
           const key = v < 0 ? 'none' : ['clean', 'minor', 'major'][v];
           const label = v < 0 ? 'Ingen kontroll' : labels[v];
           const ink = v < 0 ? 'var(--verdict-none-ink)' : INK[v];
+          /*
+           * Märket för en verksamhet kommunen inte längre har registrerad.
+           *
+           * Resultatsidan bygger sina rader själv och delar alltså inte
+           * `suggestionInner` med panelen, se noten över listan: raden här har
+           * en tredje spalt med bedömningen i klartext som panelen saknar.
+           * Märket måste därför skrivas på båda ställena, och det ska stå på
+           * SAMMA plats i raden, alltså först i metaraden. Skälet står i
+           * lib/sokforslag.ts: raden klipps från höger.
+           *
+           * Etiketten kommer ur `avregEtikett` i dokumentets data-attribut,
+           * inte ur en sträng här. Sidans övriga etiketter tas redan den vägen
+           * (data-labels), och ett ord skrivet av för hand i ett klientskript
+           * är ett ord som glider från lib/site.ts.
+           */
+          const avreg = s.avreg ? `<span class="avreg">${escapeHtml(avregEtikett)}</span>` : '';
           return `<li><a href="${escapeHtml(s.href)}">
             <svg class="face" viewBox="0 0 100 100" aria-hidden="true"><use href="#${spriteId}-${key}"/></svg>
-            <span class="info"><b>${escapeHtml(s.label)}</b><span>${escapeHtml(s.meta)}</span></span>
+            <span class="info"><b>${escapeHtml(s.label)}</b><span>${avreg}${escapeHtml(s.meta)}</span></span>
             <span class="verdict" style="color:${ink}">${label}</span>
           </a></li>`;
         })

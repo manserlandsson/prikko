@@ -1,0 +1,109 @@
+---
+/**
+ * Noten om att kommunen inte längre har verksamheten registrerad.
+ *
+ * ══ VARFÖR EN NOT OCH INTE EN AVPUBLICERING ═══════════════════════════════
+ *
+ * Avgjort i docs/35_scb_foretagsregistret.md §5.1 och oförändrat sedan dess.
+ * Det bärande skälet är det första: SIDAN ÄR DET ENDA STÄLLET NOTEN KAN
+ * LÄSAS. Den som googlar "har X i Vasastan stängt" ska landa på en sida som
+ * svarar. En avpublicerad sida svarar ingenting, och då får frågan sitt svar
+ * av tre år gamla omdömen någon annanstans. Att ta bort sidan tar bort svaret.
+ *
+ * Därtill: en funktion får aldrig kosta en sida, se docs/25 och
+ * docs/49_indexeringen.md. Kontrollerna är dessutom fortfarande sanna, de är
+ * allmänna handlingar om en period som faktiskt inträffade. Vi drar inte
+ * tillbaka dem, vi daterar dem.
+ *
+ * ══ VARFÖR HÖGST UPP I HUVUDKOLUMNEN ══════════════════════════════════════
+ *
+ * §5.1: "Noten ska ligga högt på sidan, före kontrollhistoriken, eftersom den
+ * ändrar hur allt under den ska läsas."
+ *
+ * Den ligger därför FÖRE bedömningen och inte bara före historiken. Det är en
+ * skärpning av kravet och den är avsiktlig: bedömningen är sidans starkaste
+ * påstående, och "Inga anmärkningar" om ett ställe som inte längre står i
+ * registret läses fel om beskedet om registret kommer efteråt. Ordningen är
+ * alltså: vad registret säger i dag, sedan vad kontrollerna visade.
+ *
+ * ══ FORMEN ÄR SAJTENS EGEN, INTE EN VARNING ═══════════════════════════════
+ *
+ * Vit yta, hårlinje, --r-card och --shadow-sm, alltså exakt samma låda som
+ * varje annan panel på sidan. INGEN gul remsa, ingen ikon, ingen färg.
+ *
+ * Det är ett krav och inte smak. Sidan bär redan en färgskala, och varje färg
+ * i den betyder något om HYGIENEN. En not i gult eller rött hade lagts in i
+ * den skalan av läsaren och blivit en fjärde bedömningsnivå, och den nivån
+ * finns inte: vi säger ingenting om hur stället sköttes, vi säger vad som står
+ * i kommunens register. Samma skäl som håller "God efterlevnad" ute ur
+ * Foretagsregister.astro.
+ *
+ * ══ ORDEN BOR I lib/site.ts ═══════════════════════════════════════════════
+ *
+ * Rubriken här är ordagrant märket i listor, sök och karta, och den likheten
+ * är hela poängen med §5.1:s krav på samma markering överallt. Två snarlika
+ * formuleringar hade varit två markeringar. Skriv därför aldrig av strängarna
+ * hit, och läs resonemanget om `Inaktiv` mot `Upphörd/Skrotad` där.
+ */
+import { formatDate, type Establishment } from '../lib/data';
+import { AVREGISTRERAD } from '../lib/site';
+
+interface Props {
+  e: Establishment;
+}
+
+const { e } = Astro.props;
+
+/* Datumet intyget lästes, aldrig dagens datum. Uppgiften är hämtad vid en
+   tidpunkt och kan ha ändrats sedan dess, precis som `hours` och `contact`,
+   och en notis om ett register utan datum går inte att åldra. Saknas fältet
+   skrivs ingen källrad; en källa utan tidpunkt är en halv källa. */
+const last = e.registration?.checkedAt ?? null;
+---
+
+<aside class="avreg" aria-label="Uppgift ur kommunens register">
+  <p class="rubrik">{AVREGISTRERAD.heading}</p>
+  <p class="text">
+    {AVREGISTRERAD.sentence(e.municipality.name)}
+    {' '}{AVREGISTRERAD.caveat}
+    {/* Bara när det finns kontroller under noten. Fem av de trettio har noll,
+        och en mening om "kontrollerna nedan" pekar där på tomrum. */}
+    {e.inspections.length > 0 && <> {AVREGISTRERAD.history}</>}
+  </p>
+  <p class="kalla text-secondary">
+    Källa: {e.municipality.name}s registreringsintyg{last && <>, läst {formatDate(last)}</>}.
+  </p>
+</aside>
+
+<style>
+  .avreg {
+    background: var(--card);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
+    padding: var(--s-4);
+    margin-bottom: var(--s-6);
+  }
+
+  /* Samma rubriknivå som panelerna i sidopanelen, se Kontaktuppgifter.astro.
+     Inte en <h2>: noten är en upplysning om sidan och inte ett avsnitt i den,
+     och en rubrik i dispositionen hade lagt sig före "Bedömning" i
+     innehållsförteckningen som skärmläsare bygger. */
+  .rubrik {
+    margin: 0 0 var(--s-2);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+  }
+
+  .text {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .kalla {
+    margin: var(--s-2) 0 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+  }
+</style>

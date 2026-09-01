@@ -925,6 +925,28 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 
   .list :global(.meta b) { font-weight: 700; color: var(--text); }
 
+  /*
+   * Märket för en verksamhet kommunen inte längre har registrerad, först i
+   * metaraden. Samma pillret som kommunhubbens lista, kortet och kartans
+   * listrader bär, och samma skäl till att det är grått och ofyllt: raden bär
+   * redan ett bedömningsansikte, och varje färg i den skalan betyder något om
+   * hygienen. Regeln står i sin helhet i EstablishmentList.astro, och orden i
+   * lib/site.ts.
+   *
+   * `inline-block` med en marginal höger om sig, inte en punkt: metaradens
+   * skiljetecken skrivs av panelen som text, och ett pillret följt av " · "
+   * hade lagt punkten tätt intill kanten på ramen.
+   */
+  .list :global(.avreg) {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 7px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
   /* Sista raden går till /sok. En handling, inte en träff, och avskild som
      en sådan: hårlinje ovanför, en rad i stället för två, och namnet i
      dämpad färg så att den inte konkurrerar med verkliga träffar. */
