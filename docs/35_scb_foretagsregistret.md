@@ -644,3 +644,154 @@ inte att ladda" av ett skäl som inte har med koden att göra.
 - **Ingenting när källan bara saknar stället.** §5.2 oförändrad, och det är
   8 552 rader.
 - **Ingen avpublicering, någonsin.** §5.1 oförändrad.
+
+### 9.9 Nattjobbet nollställde noten, och skälet var två fält med samma namn
+
+**Datum:** 2026-09-01. Noten byggdes 08-31 och var borta ur drift 09-01, utan
+att en rad sajtkod ändrats.
+
+| Commit | Rader | `registration` | `active: false` |
+|---|---:|---:|---:|
+| `8d4d5d63` sista exporten före natten | 8 520 | 8 514 | **30** |
+| `f1a4183b` nattjobbet 09-01 09:28 UTC | 8 537 | 8 466 | **0** |
+
+#### Mekanismen
+
+Verksamheten togs inte ur filen fält för fält. **Hela raden försvann.** Ingen
+av de trettio finns kvar i `f1a4183b`, varken på sitt id eller på sin slug, och
+ingen rad som blev kvar tappade sin registeruppgift. De 48 uppgifter som
+saknades satt på 48 av de 49 rader som utgick i sin helhet.
+
+Kedjan har tre led:
+
+1. **Staden slutar lämna ut anläggningen samma dag som intyget säger `Inaktiv`.**
+   Livsmedelskollen svarar med det registrerade beståndet, och en avregistrerad
+   anläggning står inte i det. Nattens hämtning gav 49 rader färre än
+   databasens publicerade bestånd.
+2. **`deactivate_missing` i `pipeline/load_supabase.py` skrev `active = 0` på
+   dem.** Spärren `MAX_MISSING_SHARE` gick inte i gång: 49 av 8 520 är 0,57
+   procent mot taket 426 rader, alltså precis det bortfall spärren är byggd för
+   att SLÄPPA igenom som verkliga nedläggningar.
+3. **`export()` i `pipeline/export_supabase.py` utelämnar varje rad med
+   `active = 0` innan den bygger filen.** Raden nådde därför aldrig
+   bevarandeslingan, och noten hade ingen sida att stå på.
+
+Korrelationen är fullständig och den är inte en slump: **30 av 30**
+avregistrerade rader utgick, medan slumpen hade gett 0,17 av dem. Det är samma
+händelse sedd två gånger.
+
+#### Vilken fälla det var, och vilken det inte var
+
+FILFALT-kommentaren varnar för två fällor, och det här är ingendera. Båda
+prövades först:
+
+- **Fältet byggs från grunden i pipelinen och hör inte i bevarandelistan.**
+  Nej. `registration` har ingen kolumn i Supabase. `pipeline/schema.sql` ger
+  `establishments` inget fält för organisationsnummer, riskklass eller
+  registerstatus, `load_supabase.py` skriver ingen av dem, och den enda vägen
+  in i filen är `raden()` i `pipeline/prikko/stockholmsintyg.py` via
+  `tillampa`. Gårdagens fil kan alltså inte vinna över databasen, för databasen
+  har ingenting att vinna med. Det är samma svar som `caseNumber` fick och
+  motsatsen till det `images` fick. **`registration` ska stå kvar i FILFALT.**
+- **Ett booleskt `false` är falsy, och `if forra.get(namn)` hoppar över det.**
+  Nej. Bevarandeslingan frågar på FILFALT-namnet, alltså på `registration`, och
+  det är en ordbok. En icke-tom ordbok är sann, och hela blocket bärs över med
+  `active`, `compliance` och `certified` inuti sig. Reproducerat: en rad med
+  `registration.active: false` som ligger kvar i databasen behåller sitt
+  `false` genom exporten, både före och efter rättelsen.
+
+Fällan var en tredje: **två fält heter `active` och betyder olika saker.**
+
+| Fält | Vem det tillhör | Vad det betyder |
+|---|---|---|
+| `establishments.active` | oss | publiceringsflagga, `0` eller `2`, se `deactivate_missing` |
+| `registration.active` | kommunen | står anläggningen kvar i stadens register |
+
+En avregistrering sätter båda, och publiceringsflaggan vann. Det som §5.3 kallar
+"en avpublicerad rad har ingen sida att sätta en not på" var skrivet mot SCB och
+mot fallet att kommunen INTE har något besked. Nu har kommunen skrivit ut
+beskedet själv, och då är frånvaron förklarad i stället för misstänkt.
+
+#### Lagningen
+
+`export()` läser gårdagens filer FÖRE avpubliceringsfiltret och håller kvar den
+avpublicerade rad kommunen själv skrivit ut som avregistrerad. Villkoret är så
+smalt det kan vara, se `filavregistrerade`:
+
+- Predikatet är `registration.active is False` och aldrig `not active`,
+  ordagrant samma tre tillstånd som `avregistrerad` i
+  `site/src/lib/registrering.ts`. Frånvaro av intyg gäller 8 552 rader, alltså
+  halva beståndet, och `not` hade hållit kvar varje avpublicerad rad i landet.
+- En rad som bara försvann behandlas som förr. Vi vet inte om det var en
+  nedläggning eller en ruta i rutnätet som svarade fel, och 19 av nattens 49
+  var av det slaget.
+- Filen läses en gång och inte två. Kartan skickas vidare in i kommunslingan,
+  som förr läste den själv. `stockholm.json` är 16 MB.
+
+Detta är §5.1 och §9.5 tillämpade på det fall som faktiskt inträffade: en not på
+sidan, aldrig en avpublicering, eftersom sidan är det enda stället noten kan
+läsas.
+
+Provet står i `Avregistrerade` i `pipeline/tests/test_export_koordinater.py`,
+samma mönster som `Kontrollfalten`. Två av sju prov faller på koden som fanns
+före rättelsen, och det är beviset. De fem andra är grindar åt andra hållet: en
+avpublicerad rad UTAN intyg, och en med `Aktiv`, ska fortsätta utgå.
+
+#### Syskonen: vilka fler fält stod i samma läge
+
+Frågan är två och de har olika svar.
+
+**Inuti `registration` är alla sexton fälten i exakt samma läge, och det är
+radens läge.** Blocket bärs som en enhet, alltså föll allt med raden, och
+allt kommer tillbaka med den. Ingen enskild nyckel behöver egen behandling.
+Uppmätt 2026-09-01 i `stockholm.json`:
+
+| Fält | Typ | Läge |
+|---|---|---|
+| `active` | boolesk | `false` på 30, hela funktionen |
+| `compliance` | boolesk | `false` på 4 180 av 8 466 |
+| `certified` | boolesk | `false` på 8 282 av 8 466 |
+| `frequency` | tal | inget värde är noll i dag, men noll är ett mätvärde |
+| `activities` | lista | tom på 854 rader |
+| `businessTypes` | lista | tom på 3 rader |
+| `orgnr`, `operator`, `postalCode`, `city`, `scope`, `riskDecidedAt`, `companyForm` | text | `null` på mellan 1 och 598 rader |
+| `registeredAt`, `focus`, `checkedAt` | text | står på alla 8 466 |
+
+`compliance` och `certified` är de två som hade fallit om `registration` någon
+gång bryts upp i ett fält per uppgift. `test_falska_syskonfalt_i_registration_overlever`
+finns för att den dagen ska mötas av ett rött prov och inte av en tyst radering.
+
+**På FILFALT-nivån är riskerna prövade och tomma i dag.** `registeredAt`,
+`operator`, `riskClass` och `decisions` står på noll rader i hela
+`site/src/data`, alltså finns ingen mätning som visar problemet. `riskClass` är
+den att hålla ögonen på: den är ett TAL, och en riskklass noll hade tappats av
+`if forra.get(namn)` på precis det sätt som `openDeviations` en gång tappade
+183 av 241 rena kontroller. Linköpings hämtning är den som får talet att växa.
+
+#### Återställningen
+
+De trettio raderna ligger kvar i Supabase med `active = 0`, historiken orörd och
+sluggen reserverad, alltså skrivs de ut av den rättade exporten nästa gång den
+kör mot databasen:
+
+    python3 pipeline/export_supabase.py --out site/src/data
+
+Datafilen är återställd redan nu ur den sista exporten före natten,
+`8d4d5d63`, och 2 131 rader lades till utan att en enda togs bort. Att den
+återställningen är trogen är kontrollerat och inte antaget:
+`python3 pipeline/stockholmsintyg.py tillampa site/src/data/stockholm.json`
+skrev **0 rader**, alltså bär de återlagda raderna exakt det intygscachen i
+`pipeline/data/interim/stockholmsintyg.json` säger. Ingen sida hämtades om ur
+stadens e-tjänst.
+
+Verifierat i ett riktigt bygge, `--outDir dist-status`, 17 872 sidor:
+
+- **Noten:** 30 sidor bär `aria-label="Uppgift ur kommunens register"`, alltså
+  exakt de trettio. Kanaans Trädgårdscafe, som saknar kontroller, saknar
+  riktigt sista meningen.
+- **Märket:** 121 sidor bär rubriken, alltså de trettio plus listorna, sök- och
+  kategorisidorna som visar dem.
+- **Sökregistret:** nyckeln `a` bär 30 radnummer igen.
+- **Grindarna:** sitemapvakten 16 115 URL:er, döda länkar noll, rutarkivet
+  läsbart, filtaket 18 150 av 100 000.
+- `python3 -m pytest pipeline/tests/ -q`: 1 310 gröna.

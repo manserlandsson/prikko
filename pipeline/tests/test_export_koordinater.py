@@ -36,6 +36,7 @@ from export_supabase import (  # noqa: E402
     coordinate_collapse,
     count_coordinates,
     export,
+    filavregistrerade,
     filblock,
     filkallfalt,
     filkontroller,
@@ -825,6 +826,135 @@ class Kontrollfalten_i_filerna(unittest.TestCase):
             okanda,
             {},
             f"fält utan plats i KONTROLLFALT, de raderas av nästa nattkörning: {okanda}",
+        )
+
+
+class Avregistrerade(unittest.TestCase):
+    """Noten om en avregistrerad verksamhet ska överleva nattkörningen.
+
+    Sjunde gången samma fel, och den första som inte gäller ett FÄLT utan hela
+    RADEN. Två fält heter `active` och betyder olika saker:
+    `establishments.active` är vår publiceringsflagga, `registration.active` är
+    kommunens besked om sitt eget register. En avregistrering sätter båda, för
+    Stockholm slutar lämna ut anläggningen i Livsmedelskollen samma dag som
+    intyget börjar svara `Inaktiv`.
+
+    Uppmätt på nattkörningen 2026-09-01 09:28 UTC: 49 av 8 520 stockholmsrader
+    saknades i utlämningen och avpublicerades av `deactivate_missing`, under
+    spärren på 426. Trettio av dem var precis de trettio som bar
+    `registration.active: false`. Filen gick från 8 514 registeruppgifter till
+    8 466 och från 30 noter till noll, och noten som byggdes dagen innan visade
+    ingenting alls i drift trots att sajtkoden var riktig.
+
+    docs/35 §5.1 och §9.5 avgör vilken flagga som vinner: en not på sidan, inte
+    en avpublicering, eftersom sidan är det enda stället noten kan läsas.
+
+    Proven faller på koden som fanns före rättelsen, och det är beviset.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.path = self.dir / "orebro.json"
+
+    def skriv_gardagens(self, verksamheter: list) -> None:
+        self.path.write_text(
+            json.dumps(
+                {
+                    "municipality": {"code": "1880", "name": "Örebro kommun",
+                                     "city": "Örebro", "slug": "orebro"},
+                    "source": {"url": "", "fetchedAt": ""},
+                    "establishments": verksamheter,
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+    def exportera(self, verksamheter: list) -> list:
+        export(FalskSupabase(verksamheter), self.dir)
+        return json.loads(self.path.read_text(encoding="utf-8"))["establishments"]
+
+    def test_avregistrerad_rad_behalls_nar_kommunen_slutat_lamna_ut_den(self):
+        """Det som gick sönder natten till 2026-09-01, på en rad i stället för 30."""
+        self.skriv_gardagens([{"id": "F-1", "registration": {"active": False}}])
+        self.assertEqual([e["id"] for e in self.exportera([rad("F-1", active=0)])],
+                         ["F-1"])
+
+    def test_noten_foljer_med_pa_den_behallna_raden(self):
+        """Raden utan sin registeruppgift är en sida utan besked.
+
+        `registration` står i FILFALT, alltså bär bevarandeslingan den, men den
+        slingan når bara rader exporten faktiskt bygger. Kvarhållningen är
+        villkoret för att bevarandet ska ha någon rad att verka på.
+        """
+        self.skriv_gardagens([
+            {"id": "F-1", "registration": {"active": False, "checkedAt": "2026-08-27"}}
+        ])
+        kvar = self.exportera([rad("F-1", active=0)])[0]
+        self.assertEqual(kvar["registration"]["active"], False)
+        self.assertEqual(kvar["registration"]["checkedAt"], "2026-08-27")
+
+    def test_avpublicerad_utan_intyg_utelamnas_fortfarande(self):
+        """Frånvaro är inte nedläggning. Se docs/35 §5.2 och §5.3.
+
+        En rad som bara försvann ur utlämningen kan vara en nedläggning eller
+        en ruta i rutnätet som svarade fel, och vi vet inte vilket. Den
+        avpubliceras som förr. Undantaget gäller bara raden kommunen SJÄLV
+        skrivit ut som avregistrerad.
+        """
+        self.skriv_gardagens([{"id": "F-1"}])
+        self.assertEqual(self.exportera([rad("F-1", active=0)]), [])
+
+    def test_aktivt_intyg_haller_inte_kvar_raden(self):
+        """`Aktiv` i intyget säger ingenting om varför raden försvann."""
+        self.skriv_gardagens([{"id": "F-1", "registration": {"active": True}}])
+        self.assertEqual(self.exportera([rad("F-1", active=0)]), [])
+
+    def test_publicerad_rad_rors_inte(self):
+        """NULL räknas som publicerad, precis som vyns coalesce(active, 2)."""
+        self.skriv_gardagens([])
+        self.assertEqual(
+            [e["id"] for e in self.exportera([rad("F-1"), rad("F-2", active=2)])],
+            ["F-1", "F-2"],
+        )
+
+    def test_falska_syskonfalt_i_registration_overlever(self):
+        """`compliance` och `certified` är booleska och står på `false` i mängd.
+
+        Uppmätt 2026-09-01 i stockholm.json: `compliance` är false på 4 180 av
+        8 466 rader och `certified` på 8 282. De bärs som nycklar INUTI
+        `registration`, och en icke-tom ordbok är sann, så bevarandeslingans
+        `if forra.get(namn)` når dem aldrig. Provet finns för att den
+        egenskapen ska vara prövad och inte antagen: bryts `registration` någon
+        gång upp i ett fält per uppgift faller det här direkt.
+        """
+        self.skriv_gardagens([
+            {"id": "F-1", "registration": {"active": True, "compliance": False,
+                                           "certified": False, "frequency": 0}}
+        ])
+        registrering = self.exportera([rad("F-1")])[0]["registration"]
+        self.assertEqual(registrering["compliance"], False)
+        self.assertEqual(registrering["certified"], False)
+        self.assertEqual(registrering["frequency"], 0)
+
+    def test_predikatet_ar_is_false_och_aldrig_falsy(self):
+        """Samma tre tillstånd som `avregistrerad` i site/src/lib/registrering.ts.
+
+        Halva beståndet, 8 552 rader, saknar intyg helt. `not rad.get("active")`
+        hade hållit kvar varenda avpublicerad rad i de kommunerna och gjort
+        avpubliceringen verkningslös överallt utom i Stockholm.
+        """
+        self.assertEqual(
+            filavregistrerade({
+                "orebro": {
+                    "F-1": {"registration": {"active": False}},
+                    "F-2": {"registration": {"active": True}},
+                    "F-3": {"registration": {}},
+                    "F-4": {"registration": {"active": None}},
+                    "F-5": {},
+                }
+            }),
+            {"F-1"},
         )
 
 

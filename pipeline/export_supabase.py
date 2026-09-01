@@ -397,6 +397,28 @@ def filkontroller(tidigare: dict) -> dict:
     }
 
 
+def filavregistrerade(tidigare_per_kommun: dict) -> set:
+    """Id på de rader kommunen SJÄLV skrivit ut som avregistrerade.
+
+    Läser gårdagens filer och inte databasen, av samma skäl som FILFALT finns:
+    `registration` har ingen kolumn i Supabase, den bor bara i filen. Se
+    `registration` i FILFALT och pipeline/stockholmsintyg.py.
+
+    `is False` OCH ALDRIG `not`, ordagrant samma predikat som `avregistrerad`
+    i site/src/lib/registrering.ts. Tre tillstånd och inte två: `False` är
+    kommunens besked att registreringen upphört, `True` att den gäller, och
+    frånvaro att vi inte har något intyg alls. Det sista gäller 8 552 rader,
+    alltså halva beståndet, och `not rad.get("active")` hade dragit in var och
+    en av dem. Se docs/35 §5.2.
+    """
+    return {
+        eid
+        for rader in tidigare_per_kommun.values()
+        for eid, rad in rader.items()
+        if (rad.get("registration") or {}).get("active") is False
+    }
+
+
 def behall_block(block: dict, bevarade: dict, antal_harledda: int) -> bool:
     """Bär filen fortfarande den data blocket handlar om?
 
@@ -444,6 +466,15 @@ def export(client: Supabase, out_dir: Path) -> None:
     areas = client.all_rows("control_areas", order="id")
     images = client.all_rows("images", order="id")
 
+    # Gårdagens filer läses HÄR och inte först i kommunslingan, eftersom
+    # avpubliceringsfiltret nedan behöver dem. Kartan skickas sedan vidare in i
+    # slingan, så varje fil läses en gång och inte två. Det är samma hushållning
+    # som `filkontroller` gör en nivå längre in, och den är inte gratis:
+    # stockholm.json är 16 MB och ligger på varje nattkörning.
+    tidigare_per_kommun = {
+        m["slug"]: filradering(out_dir / f"{m['slug']}.json") for m in municipalities
+    }
+
     # `active = 0` betyder att kommunen slutat lämna ut verksamheten, se
     # deactivate_missing i load_supabase.py. Raden ligger kvar i databasen med
     # sin historik och sin slug reserverad, men den ska inte byggas till en
@@ -452,10 +483,48 @@ def export(client: Supabase, out_dir: Path) -> None:
     # det här hade avpubliceringen inte synts på sajten alls.
     #
     # NULL räknas som publicerad, precis som vyns coalesce(active, 2).
-    retired = sum(1 for e in establishments if e.get("active") == 0)
-    if retired:
-        establishments = [e for e in establishments if e.get("active") != 0]
-        print(f"  {retired} avpublicerade verksamheter utelämnas", file=sys.stderr)
+    #
+    # ETT UNDANTAG, OCH DET ÄR NOTEN OM AVREGISTRERADE VERKSAMHETER.
+    #
+    # De två fälten heter samma sak och betyder olika saker.
+    # `establishments.active` är VÅR publiceringsflagga, 0 eller 2.
+    # `registration.active` är KOMMUNENS besked om sitt eget register, läst ur
+    # Stockholms registreringsintyg. En avregistrering sätter i praktiken båda:
+    # staden slutar lämna ut anläggningen i Livsmedelskollen samma dag som
+    # intyget börjar svara `Inaktiv`, alltså avpublicerade nattjobbet raden
+    # exakt när den fått något att säga.
+    #
+    # Uppmätt på nattkörningen 2026-09-01 09:28 UTC: 49 av 8 520 stockholmsrader
+    # saknades i utlämningen, under spärren på 426, och avpublicerades. TRETTIO
+    # av dem var precis de trettio som bar `registration.active: false`, alltså
+    # 30 av 30. Filen gick från 8 514 registeruppgifter till 8 466 och från 30
+    # noter till noll, och noten som byggdes dagen innan visade ingenting alls.
+    #
+    # docs/35 §5.1 och §9.5 avgör vilken av flaggorna som ska vinna: "En not på
+    # sidan. Inte avpublicering", eftersom sidan är det enda stället noten kan
+    # läsas. §5.3 sade motsatsen, men den skrevs mot SCB och mot fallet att
+    # kommunen INTE har något besked. Har kommunen skrivit ut beskedet själv är
+    # frånvaron förklarad, och då är den ingen misstanke om trasig hämtning.
+    #
+    # Villkoret är därför så smalt det kan vara: bara raden vars intyg vi läst
+    # och som staden själv skrivit `Inaktiv` eller `Upphörd/Skrotad` om hålls
+    # kvar. En rad som bara försvann behandlas som förr, för då vet vi inte om
+    # det var en nedläggning eller en ruta i rutnätet som svarade fel.
+    noterade = filavregistrerade(tidigare_per_kommun)
+    avpublicerade = [e for e in establishments if e.get("active") == 0]
+    behallna = [e["id"] for e in avpublicerade if e["id"] in noterade]
+    utelamnade = {e["id"] for e in avpublicerade if e["id"] not in noterade}
+    if utelamnade:
+        establishments = [e for e in establishments if e["id"] not in utelamnade]
+        print(
+            f"  {len(utelamnade)} avpublicerade verksamheter utelämnas",
+            file=sys.stderr,
+        )
+    if behallna:
+        print(
+            f"  {len(behallna)} avregistrerade verksamheter behålls, de bär noten",
+            file=sys.stderr,
+        )
 
     print(
         f"  {len(municipalities)} kommuner · {len(establishments)} verksamheter · "
@@ -504,7 +573,7 @@ def export(client: Supabase, out_dir: Path) -> None:
         # Koordinater och öppettider bor i FILEN, inte i databasen. Se
         # `filradering` för varför, och varför det inte är en nödlösning.
         sokvag = out_dir / f"{m['slug']}.json"
-        tidigare = filradering(sokvag)
+        tidigare = tidigare_per_kommun[m["slug"]]
         forra_block = filblock(sokvag)
         forra_kalla = filkallfalt(sokvag)
         forra_kontroll = filkontroller(tidigare)
