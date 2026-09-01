@@ -193,19 +193,32 @@ if (har) {
 
 <style>
   /*
-   * Stycket är prosa och ingen bildtext. Det står under rubriken
-   * "Kontrollhistorik" och över tidslinjen, alltså läses det som ingången till
-   * listan under, och då ska det ha brödtextens storlek och radavstånd.
+   * GRADEN ÄR BLOCKETS EGEN OCH INTE SIDANS BRÖDTEXT, rättat 2026-09-01.
    *
-   * 62ch är samma radlängd som presentationen i Foretagsuppgifter.astro. En
-   * rad på hela huvudkolumnens 680 px hade blivit omkring 95 tecken, vilket är
-   * över det spann där ögat hittar tillbaka till nästa rad.
+   * Här stod `--fs-body`, alltså 17 px, med motiveringen att stycket är prosa
+   * och därför ska ha brödtextens storlek. Motiveringen var riktig i allmänhet
+   * och fel på just den här platsen. Ägaren såg det direkt: stycket var större
+   * än allt annat omkring sig.
+   *
+   * Mätt i InspectionHistory.astro, som stycket står inuti: varenda rad där är
+   * `--fs-body-s` eller `--fs-caption`. Även raden bredvid rubriken,
+   * "Bedömningen vilar på de 3 senaste", är mindre. Ett stycke på 17 px mitt i
+   * ett block byggt på 14 läser som en annan sida som klistrats in.
+   *
+   * 14 px och 24 px radavstånd är alltså inte en nedgradering av prosan, det
+   * är blockets grad. Regeln framåt: en ny komponent ärver graden från den
+   * komponent den står INUTI, inte från sidans generella brödtext.
+   *
+   * 62ch är samma radlängd som presentationen i Foretagsuppgifter.astro. Vid
+   * 14 px blir den kortare i pixlar än förut, vilket är rätt håll: en rad på
+   * hela huvudkolumnens 680 px hade blivit omkring 95 tecken, över det spann
+   * där ögat hittar tillbaka till nästa rad.
    */
   .serie {
     max-width: 62ch;
     margin: var(--s-3) 0 0;
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
     color: var(--text-secondary);
   }
 </style>
