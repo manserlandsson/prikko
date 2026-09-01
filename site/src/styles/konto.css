@@ -541,6 +541,26 @@ a.konto-main:hover b { color: var(--brand-ink); text-decoration: underline; }
 .verdict-minor { color: var(--verdict-minor-ink); }
 .verdict-major { color: var(--verdict-major-ink); }
 
+/* Ingen bedömning, alltså "Ingen kontroll" eller "Ingen aktuell kontroll".
+   Grått och utanför den tregradiga skalan, samma `--verdict-none-ink` som
+   märket på verksamhetssidan bär. Skälet är att avsaknad av underlag ALDRIG
+   får läsas som ett dåligt betyg: hade etiketten fått gult eller rött bläck
+   hade var tionde bevakning sett ut som en anmärkning. #6E6E73 mot --card
+   ger 5,07:1, samma tal som står uträknat i lib/face-klassisk.ts, alltså över
+   AA för liten text.
+
+   NOT OM DEN GULA, uppmätt i bild på den här listan 2026-09-01. Raderna
+   ovanför står på 4,6:1 (grönt och rött) och den här på 5,07:1, medan
+   .verdict-minor står på 1,53:1 eftersom --verdict-minor-ink ÄR märkets
+   #FECB00. Följden syns i bilden: "Ingen aktuell kontroll", som betyder att
+   vi inte vet något, är läsbarare än "Brister", som betyder något. tokens.css
+   accepterar det talet med skälet att "ansiktet står alltid intill" och att
+   färgen aldrig bär betydelsen ensam, och på den här raden står inget
+   ansikte. Rättas INTE här: den gula är ägarens beslut taget två gånger, två
+   mörkare gula är redan underkända, och att välja en tredje åt honom vore att
+   riva ett designbeslut i en CSS-fil. Se docs/17. */
+.verdict-none { color: var(--verdict-none-ink); }
+
 /* Notiser.
    Raden är kontosidans vanliga listrad plus en prick. Ingen egen ram, ingen
    fyllning på olästa rader: en tonad bakgrund hade gjort listan randig, och

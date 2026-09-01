@@ -431,6 +431,26 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     major: 'Brister som kvarstår',
   };
 
+  /*
+   * De två orden för ett ställe UTAN bedömning, ordagrant som MISSING i
+   * lib/site.ts skriver dem på verksamhetssidan.
+   *
+   * De behövs för att `verdict: null` inte är ett besked utan två, och för att
+   * fallet inte är ovanligt: 1 602 av 17 129 rader i ögonblicksbilden
+   * 2026-09-01 har ingen registrerad kontroll alls och 147 har bara kontroller
+   * äldre än femårsfönstret i grading.py. Var tionde verksamhet i beståndet
+   * kan alltså bevakas utan att ha en bedömning, och raden hade då stått med
+   * enbart namn och stad, alltså precis den tomma rad som skulle bort.
+   *
+   * "Ingen aktuell kontroll" är inte ett dåligt betyg och får aldrig läsas som
+   * ett. Den grå etiketten bär `--verdict-none-ink`, samma bläck som märket på
+   * verksamhetssidan, och står därför utanför den tregradiga skalan.
+   */
+  const MISSING_LABEL: Record<string, string> = {
+    no_inspections: 'Ingen kontroll',
+    stale_inspections: 'Ingen aktuell kontroll',
+  };
+
   /**
    * Bevakningarna, med läget hos varje ställe.
    *
@@ -477,6 +497,10 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
          bär. Kopian på bevakningsraden är en reserv och inte sanningen. */
       const name = state?.name ?? row.establishment_name;
 
+      /* Etiketten byggs före raden: den kan bli null, och då ska raden ha två
+         barn och inte ett tomt tredje som tar plats i mellanrummet. */
+      const tagg = state ? stateTag(state) : null;
+
       li.append(
         main(
           name,
@@ -486,9 +510,7 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
           state ? `/${state.municipality_slug}/${state.slug}/` : searchUrl(name),
         ),
         side(
-          ...(state?.verdict && VERDICT_LABEL[state.verdict]
-            ? [verdictTag(state.verdict)]
-            : []),
+          ...(tagg ? [tagg] : []),
           quietButton('Sluta bevaka', async () => {
             await unfollow(row.establishment_id);
             li.remove();
@@ -503,11 +525,29 @@ const cities = Object.fromEntries(municipalities().map((m) => [m.slug, m.city]))
     raknare('antal-bevakningar', rows.length);
   }
 
-  /** Bedömningen som etikett, samma form som statusetiketterna på sidan. */
-  function verdictTag(verdict: string): HTMLSpanElement {
+  /**
+   * Lägesetiketten, alltså bedömningen eller skälet till att den saknas.
+   *
+   * Samma form som statusetiketterna på sidan i övrigt. Etiketten sätts ALLTID
+   * när uppslagningen gav ett läge, också när bedömningen är null. En rad utan
+   * etikett betyder därför en enda sak, att vi inte kunde slå upp stället, och
+   * ett tomt fält som betyder två saker går inte att läsa.
+   *
+   * Förvalet när `reason` bär ett ord vi inte känner igen är `no_inspections`,
+   * samma förval som exporten sätter, se PlaceState i lib/community.ts. Ett
+   * OKÄNT verdict ger däremot ingen etikett alls: att gissa en fjärde
+   * bedömning till en av de tre orden vore att skriva ett besked kommunen inte
+   * lämnat.
+   */
+  function stateTag(state: PlaceState): HTMLSpanElement | null {
+    const label = state.verdict
+      ? VERDICT_LABEL[state.verdict]
+      : MISSING_LABEL[state.reason] ?? MISSING_LABEL.no_inspections;
+    if (!label) return null;
+
     const span = document.createElement('span');
-    span.className = `status-tag verdict-${verdict}`;
-    span.textContent = VERDICT_LABEL[verdict];
+    span.className = `status-tag verdict-${state.verdict ?? 'none'}`;
+    span.textContent = label;
     return span;
   }
 

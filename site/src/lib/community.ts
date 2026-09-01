@@ -926,6 +926,24 @@ export async function placeNames(ids: string[]): Promise<Map<string, PlaceName>>
 export interface PlaceState extends PlaceName {
   /** Kommunens bedömning, eller null när ingen finns. ALDRIG ett besökarbetyg. */
   verdict: 'clean' | 'minor' | 'major' | null;
+  /**
+   * Varför bedömningen ser ut som den gör, vyns `assessment_reason`.
+   *
+   * Fältet finns för att `verdict: null` är TVÅ olika besked och inte ett.
+   * `no_inspections` betyder att kommunen aldrig registrerat en kontroll,
+   * `stale_inspections` att den senaste ligger utanför femårsfönstret i
+   * pipeline/prikko/grading.py (FRESHNESS_WINDOW_DAYS = 5 * 365). Mätt i
+   * ögonblicksbilden 2026-09-01: 1 602 av 17 129 rader är det första och 147
+   * det andra, alltså saknar var tionde verksamhet i beståndet bedömning. En
+   * bevakningsrad som inte kan säga vilket av de två fallen det är hade
+   * ljugit i tio procent av fallen genom att tiga.
+   *
+   * Aldrig undefined: saknas assessments-raden helt räknas den som
+   * `no_inspections`, samma förval som exporten sätter på rad 668 i
+   * pipeline/export_supabase.py. Två vägar från samma databas som gissar
+   * olika hade blivit två olika sajter.
+   */
+  reason: 'assessed' | 'no_inspections' | 'stale_inspections';
   /** Datum för senaste kontrollen som 'ÅÅÅÅ-MM-DD', eller null. */
   latest_inspection: string | null;
 }
@@ -941,6 +959,40 @@ export interface PlaceState extends PlaceName {
  * visas. Men en bedömning ÄNDRAS, och en kopia av den i kontodatabasen hade
  * blivit en andra sanning som ingen uppdaterar. Läget hämtas därför där det
  * räknas fram, i den redaktionella databasen, vid varje visning.
+ *
+ * ---------------------------------------------------------------------------
+ * DATABASEN OCH INTE DEN BYGGDA SAJTEN, OCH SKÄLEN ÄR TRE
+ * ---------------------------------------------------------------------------
+ * Kontot läser Supabase i realtid medan verksamhetssidorna byggs statiskt ur
+ * `site/src/data/*.json`, alltså kan de två i princip säga olika saker om
+ * samma ställe. Frågan är vilken av dem bevakningsraden ska tro på, och svaret
+ * är databasen:
+ *
+ *  1. SNAPSHOTEN ÄR EN KOPIA AV DEN HÄR DATABASEN, inte en andra källa.
+ *     Nattjobbet .github/workflows/uppdatera-data.yml skriver Supabase i
+ *     steget "Skriv till Supabase" och exporterar filerna i nästa steg, i
+ *     SAMMA körning. De två kan alltså skilja sig med högst ett bygge, och
+ *     där de skiljer sig är databasen den färskare av dem.
+ *  2. DET FINNS INGET STATISKT DOKUMENT ATT LÄSA. Rutten
+ *     /api/v1/verksamhet/<kommun>/<slug>.json är avstängd, `PER_VERKSAMHET`
+ *     är false i lib/api.ts, eftersom den kostar 17 066 filer mot Cloudflare
+ *     Pages tak på 20 000 där vi ligger på 15 500. Alternativet hade varit
+ *     att baka in beståndet i kontosidans paket, alltså 17 000 rader
+ *     byggdata på en sida som är noindex och kräver inloggning.
+ *  3. UPPSLAGNINGEN SKER ÄNDÅ. Bevakningsraden bär `establishment_id` och
+ *     ingen slug, och slugen finns bara i den redaktionella databasen. Ett
+ *     anrop dit måste göras för att raden ska kunna länka till stället, och
+ *     då är bedömningen gratis i samma svar.
+ *
+ * DEN ENDA KÄNDA GLIPAN, och den är mätt: vyn filtrerar på
+ * `coalesce(active, 2) = 2` medan exporten behåller de avregistrerade rader
+ * som bär noten om att kommunen svarat Inaktiv, 30 stycken i Stockholm
+ * 2026-09-01. En bevakning av en sådan rad får inget läge här och faller
+ * tillbaka på namn, stad och sökningen. Att i stället läsa `establishments`
+ * direkt vore att gå förbi vyn som väljer sina kolumner uttryckligen, och
+ * den vyn finns just för att en ny kolumn aldrig ska bli publik av misstag,
+ * se pipeline/schema.sql. Glipan är 0,18 procent av beståndet och priset för
+ * det är lägre än priset för att kringgå vyn.
  *
  * TVÅ FRÅGOR OCH INTE EN PER RAD. Vyn bär bedömningen men inte datumet, för
  * den slår ihop anläggning och bedömning och inte anläggning och kontroll.
@@ -958,9 +1010,12 @@ export async function placeStates(ids: string[]): Promise<Map<string, PlaceState
 
   const list = encodeURIComponent(unique.map((id) => `"${id}"`).join(','));
 
-  const places: Array<PlaceName & { verdict: PlaceState['verdict'] }> =
+  const places: Array<
+    PlaceName & { verdict: PlaceState['verdict']; assessment_reason: string | null }
+  > =
     (await readPublic(
-      `publishable_establishments?select=id,name,slug,municipality_slug,verdict&id=in.(${list})`,
+      'publishable_establishments?select=id,name,slug,municipality_slug,verdict,' +
+        `assessment_reason&id=in.(${list})`,
     )) ?? [];
 
   const latest = new Map<string, string>();
@@ -982,9 +1037,13 @@ export async function placeStates(ids: string[]): Promise<Map<string, PlaceState
   }
 
   return new Map(
-    places.map((row) => [
+    places.map(({ assessment_reason, ...row }) => [
       row.id,
-      { ...row, latest_inspection: latest.get(row.id)?.slice(0, 10) ?? null },
+      {
+        ...row,
+        reason: (assessment_reason as PlaceState['reason']) ?? 'no_inspections',
+        latest_inspection: latest.get(row.id)?.slice(0, 10) ?? null,
+      },
     ]),
   );
 }

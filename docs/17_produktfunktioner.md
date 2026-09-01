@@ -293,5 +293,134 @@ Kvar att göra, i den ordningen:
    stället för till en sökning. Punkt 7 ovan. Kräver ingen ny tabell:
    `publishable_establishments` bär `verdict` och `slug`, och namnet slås
    redan upp av `placeNames()` i `site/src/lib/community.ts`.
+   GJORD 2026-09-01, se avsnittet sist i filen.
 2. **Mejlet slås på** den dag `RESEND_API_KEY` ligger i GitHub-hemligheterna.
    Ingen kodändring behövs; nattjobbet väljer gren på om nyckeln finns.
+
+---
+
+## Bevakningsraden bär läget, och områdesbevakningen byggdes inte
+
+Tillagt 2026-09-01. Punkt 1 i listan ovan är gjord. Punkt 2 väntar fortfarande
+på nyckeln.
+
+### Vad raden bär nu
+
+Namn, stad, senaste kontrolldatum, kommunens bedömning som etikett, och en
+länk till verksamheten i stället för till en sökning. Ordningen är senaste
+kontroll först, alltså det listan är till för.
+
+Det som saknades och som byggdes i den här omgången är FALLET UTAN BEDÖMNING.
+`verdict: null` är två besked och inte ett, och det är inte ett kantfall:
+i ögonblicksbilden 2026-09-01 har 1 602 av 17 129 rader ingen registrerad
+kontroll alls och 147 har bara kontroller äldre än femårsfönstret i
+`pipeline/prikko/grading.py`. Var tionde verksamhet i beståndet går alltså att
+bevaka utan att ha en bedömning, och för dem stod raden kvar med enbart namn
+och stad, alltså precis den tomma rad som skulle bort.
+
+Raden hämtar därför `assessment_reason` ur vyn och skriver ut skälet med
+verksamhetssidans egna ord, `Ingen kontroll` eller `Ingen aktuell kontroll`, i
+grått bläck utanför den tregradiga skalan. Avsaknad av underlag får aldrig
+läsas som ett dåligt betyg. Saknas assessments-raden helt räknas den som
+`no_inspections`, samma förval som exporten sätter på rad 668 i
+`pipeline/export_supabase.py`, så att de två vägarna från samma databas inte
+gissar olika.
+
+Verifierat i bild mot ett bygge, sex rader som täcker varje fall: `clean`,
+`minor`, `major`, utanför femårsfönstret med datum 2018, utan kontroll och
+utan datum, samt en avregistrerad som faller tillbaka på sökningen.
+
+### Var bedömningen läses ifrån, och varför
+
+**Ur Supabase, inte ur den byggda sajten.** Kontot läser i realtid medan
+sidorna byggs statiskt, så frågan måste besvaras och inte antas. Tre skäl, i
+fallande vikt:
+
+1. **Snapshoten är en kopia av databasen, inte en andra källa.** Nattjobbet
+   `.github/workflows/uppdatera-data.yml` skriver Supabase och exporterar
+   `site/src/data/*.json` i samma körning, stegen "Skriv till Supabase" och
+   "Exportera ögonblicksbild till bygget". De kan skilja sig med högst ett
+   bygge, och där de skiljer sig är databasen den färskare.
+2. **Det finns inget statiskt dokument att läsa.**
+   `/api/v1/verksamhet/<kommun>/<slug>.json` är avstängd, `PER_VERKSAMHET` är
+   `false`, eftersom rutten kostar 17 066 filer mot Cloudflare Pages tak på
+   20 000 där vi ligger på 15 500. Alternativet vore att baka in beståndet i
+   kontosidans paket: 17 000 rader byggdata på en sida som är `noindex` och
+   kräver inloggning.
+3. **Uppslagningen sker ändå.** Bevakningsraden bär `establishment_id` och
+   ingen slug, och slugen finns bara i den redaktionella databasen. Anropet
+   måste göras för att raden ska kunna länka till stället, och bedömningen är
+   gratis i samma svar.
+
+Den enda kända glipan är mätt: vyn filtrerar på `coalesce(active, 2) = 2`
+medan exporten behåller de avregistrerade rader som bär noten om att kommunen
+svarat Inaktiv, 30 stycken i Stockholm 2026-09-01. En bevakning av en sådan rad
+får inget läge och faller tillbaka på namn, stad och sökningen. Att i stället
+läsa `establishments` direkt vore att gå förbi vyn som väljer sina kolumner
+uttryckligen, och den vyn finns just för att en ny kolumn aldrig ska bli publik
+av misstag. 0,18 procent av beståndet är ett lägre pris än det.
+
+### Ett ägarbeslut som blottas av raden, och som inte rörts
+
+Etiketten `Brister` ligger på 1,53:1 mot vitt, eftersom `--verdict-minor-ink`
+ÄR märkets `#FECB00`. Grönt och rött ligger på 4,6:1 och den grå på 5,07:1.
+Följden syns i bilden på listan: **"Ingen aktuell kontroll", som betyder att vi
+inte vet något, är läsbarare än "Brister", som betyder något.**
+
+`tokens.css` accepterar talet med skälet att ansiktet alltid står intill och
+att färgen aldrig bär betydelsen ensam. På bevakningsraden står inget ansikte,
+alltså är det skälet inte uppfyllt här. Det är samma undantag som
+`lib/face-klassisk.ts` redan noterar för kartnålen ovald och vald.
+
+Inte rättat, och det är avsiktligt. Den gula är ägarens beslut taget två
+gånger, `#8E7200` och `#A4560B` är redan underkända, och att välja en tredje
+gul åt honom i en CSS-fil vore att riva ett designbeslut i tysthet. Talen för
+en väg finns om han vill gå den: en mörk bärnsten omkring `#BE8A00` ger 3,08:1.
+Alternativet utan ny färg är att sätta märket intill ordet på den här raden,
+alltså återställa villkoret `tokens.css` skrev ned.
+
+### Områdesbevakning: byggd nej, och skälet är mätt
+
+`docs/31` §6.4 föreslår att man bevakar ett område i stället för ett ställe.
+Prövad mot tre frågor och avförd på den första.
+
+**1. Vad skulle notisen säga? Den kan inte skrivas.** Uppmätt på Stockholms 87
+områdespolygoner mot kontrolldatan, nya kontroller MED anmärkningar:
+
+    fönster        totalt   områden med minst en   median   störst
+    30 dagar            8            6 av 87            1        2  (Vasastaden)
+    90 dagar          198           41 av 87            2       40  (Norrmalm)
+    365 dagar       1 352           73 av 87            5      190  (Norrmalm)
+
+Södermalm ger 175 på ett år, alltså omkring femton namngivna verksamheter i
+månaden. Med namn är det en månatlig lista över andra människors kök som
+misslyckats, alltså exakt den värstinglista som är förbjuden och som `docs/31`
+§6.4 varnade för i samma stycke som den föreslog funktionen. Utan namn blir det
+"femton nya kontroller med anmärkningar på Södermalm", ett tal ingen kan handla
+på och som dessutom uttalar sig om stadsdelen. Det finns ingen tredje
+formulering. Och för resten av staden faller den åt andra hållet: medianområdet
+får fem på ett år, fjorton områden får noll, alltså tiger funktionen i ett år
+för de flesta. Antingen spam eller tystnad, inget däremellan.
+
+**2. Vad kostar den?** Mer än `docs/31` §6.4 räknade. Bevakningar lagras per
+verksamhet, så ett område kräver en migrering på produktionsdatabasen och en
+gren i `notify.py`, vilket §6.4 sade. Det som inte stod där är att
+`notify.py` inte kan veta vilket område en verksamhet ligger i:
+`establishments.district` är tom i alla 15 921 rader, och punkt-i-polygon körs
+i dag bara vid bygget, i `site/src/lib/omraden.ts`. Nattjobbet skulle alltså
+behöva polygonfilerna och prövningen på sin sida också. Täckningen är dessutom
+ojämn: 1 340 av 8 567 stockholmsverksamheter, 15,6 procent, ligger utanför varje
+polygon, och bara 64 områden i 6 av 13 kommuner når `MIN_AREA_PAGE = 25`. Den
+som bevakar sitt kvarter kan alltså få tystnad för att hans ställe ligger i
+glappet, utan att kunna se det.
+
+**3. Finns efterfrågan?** 21 bevakningar från fem personer på 27 dagar, nio
+konton, noll utskickade notismejl. Den bevakning vi HAR har aldrig levererat
+sitt löfte en enda gång, eftersom `RESEND_API_KEY` inte är inlagd. Att bygga en
+andra bevakningstyp innan den första fått fyra rätt är fel ordning.
+
+**Rekommendationen: bygg den inte.** Gör i stället ordningen i punkt 2 färdig,
+alltså lägg in nyckeln och låt bevakningen per verksamhet mejla en gång. Faller
+det ut väl och ber någon om ett område, tas frågan upp igen med tal på hur ofta
+listan faktiskt lästes. `docs/31` §6.4 skrivs inte om, den får en hänvisning
+hit.

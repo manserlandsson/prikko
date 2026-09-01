@@ -530,6 +530,15 @@ en veckas fördröjning. Funktionen får byggas, men bara som **en lista på kon
 med samma ordning som `docs/17` slog fast för bevakningen: listan är funktionen,
 mejlet är en påminnelse om listan.
 
+**Prövad och avförd 2026-09-01, se sista avsnittet i `docs/17`.** Gränsen ovan
+höll inte när volymen mättes: Södermalm ger 175 nya anmärkningar på ett år och
+Norrmalm 190, alltså femton namngivna verksamheter i månaden, medan
+medianområdet får fem på ett år och fjorton av 87 får noll. Med namn blir listan
+den värstinglista stycket varnar för, utan namn säger den ingenting, och för de
+flesta områden tiger den. Kostnaden är också högre än vad som står här:
+`district` är tom i databasen och punkt-i-polygon körs bara vid bygget, så
+nattjobbet saknar helt begreppet område.
+
 ### 6.5 Öppna data, som FHRS
 
 **Efterfrågan:** ingen konsumentefterfrågan alls, och det är hela poängen. FHRS
