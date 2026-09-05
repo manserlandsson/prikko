@@ -8,6 +8,13 @@ node_modules/
 # MapLibre kopieras hit ur node_modules av scripts/kopiera-maplibre.mjs
 # (predev/prebuild). Se skriptets huvud för varför det inte paketeras.
 public/maplibre/
+# Delningsbildens underlag skrivs hit ur typsnittsfilerna av
+# scripts/bygg-delningsbild-underlag.mjs (prebuild). Till skillnad från
+# og-default.png, som brand-images.mjs checkar in därför att den bara ändras
+# när MÄRKET gör det, hämtar den här filen sin teckenuppsättning ur beståndet
+# och ändras alltså varje gång en ny kommun tar in ett tecken vi inte hade.
+# 92 kB binärnära JSON i historiken för det vore en diff utan innehåll.
+public/delningsbild/
 
 # logs
 npm-debug.log*

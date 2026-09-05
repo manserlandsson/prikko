@@ -204,6 +204,195 @@ filbudgeten är löst, inte tills någon orkar.
 
 ---
 
+### 8b. Byggt 2026-09-05: ett kort per SIDA, ritat i kanten
+
+Punkten ovan står kvar oredigerad eftersom den var rätt ställd fråga med fel
+avgränsning. Den föreslog tolv bilder, en per kommun, och skrev att
+verksamhetsnivån var blockerad av filbudgeten. Filbudgeten var verklig.
+Slutsatsen var det inte: den förutsatte att en bild måste vara en fil.
+
+**Vad som mättes först.** I `site/dist` 2026-09-05 bar **16 742 av 16 767
+byggda sidor exakt samma `og-default.png`**. De 25 som hade en egen bild var
+artiklarna med sina illustrationer. Titel och beskrivning var unika per sida,
+bilden var det inte. Per sidtyp:
+
+| Sidtyp | Sidor med standardbilden |
+|---|---:|
+| Verksamhet | 16 044 |
+| Kommunens kategorisidor | 256 |
+| Kommunens listsidor (`/sida/n`) | 154 |
+| Områdessidor | 148 |
+| Kedjesidor | 53 |
+| Anmärkningslistor | 22 |
+| Kommunhubbar | 12 |
+| Kartsidor | 9 |
+| Rapporter | 8 |
+| Utmärkelser | 6 |
+| Övrigt (statiska sidor, konto, start) | 30 |
+
+Standardbilden är 1 200 x 630 och väger 23 031 byte, skriven av
+`scripts/brand-images.mjs`. Måtten var alltså redan rätt, se nedan. Det som
+saknades var att bilden sa något om SIDAN.
+
+**Formen: `/dela/<sidans sökväg>.png`, en Pages Function.** Sidan sätter
+`og:image` till sin egen sökväg under `/dela/`, och
+`functions/dela/[[vag]].ts` ritar bilden när någon ber om den. Ritverket står
+i `src/lib/delningsbild.ts`: en egen rasterare för bokstavskonturer och en
+egen PNG-skrivare, båda i ren TypeScript utan beroenden, eftersom en
+Workers-isolat varken har sharp, canvas eller systemtypsnitt.
+
+**Filkostnaden, som var hela frågan.**
+
+| Väg | Nya filer | Utgåvan blir | Mot taket 20 000 |
+|---|---:|---:|---|
+| Ingenting (läget före) | 0 | 18 171 | 91 % |
+| En PNG per verksamhet vid bygget | 17 146 | 35 317 | **177 %** |
+| En bild per sida vid bygget | 17 868 | 36 039 | **180 %** |
+| En bild per kommun och kategori | 257 | 18 428 | 92 % |
+| **Ritad i kanten, valt** | **1** | **18 172** | **91 %** |
+
+Den enda filen är `public/delningsbild/underlag.json`, 92 kB, som bär
+bokstävernas konturer i vikt 400 och 600 plus ordmärket som täckningsmask.
+Bygget gick från 18 171 till 18 172 filer, kontrollerat i `dist-og`.
+
+**SVG i stället för PNG hjälper inte, och det är inte en åsikt om storlek.**
+Taket räknar filer och inte byte, alltså kostar en SVG per verksamhet exakt
+lika mycket som en PNG per verksamhet. Dessutom ritar ingen av de sex ytor
+sajten faktiskt delas på en SVG i en förhandsvisning: Slacks egen formatlista
+är png, jpg, jpeg och gif, och Meta, LinkedIn, Apple och WhatsApp nämner den
+inte heller. SVG var aldrig ett alternativ.
+
+**Vad kortet bär.** Ögonbryn "HYGIENKONTROLL" i märkesblått, verksamhetens
+namn i 74 px halvfet, adress och ort under, en hårlinje, och nederst
+"SENASTE KONTROLLEN" över datumet. Ordmärket uppe till vänster, den
+brandblå listen nederst som standardbilden redan har. Sidor som inte är
+verksamheter, alltså kommunhubbar, kategorier, områden, kedjor och rapporter,
+får sin egen titel och beskrivning i samma form. Samma kod, samma kostnad,
+och därför fick alla 17 868 sidor kort och inte bara de 17 146
+verksamheterna.
+
+**Orden hämtas ur sidan, aldrig ur adressen.** Funktionen läser verksamhetens
+egen byggda sida och plockar namn och adress ur dess JSON-LD, datumet ur dess
+`last-modified`. Samma regel som `functions/api/marke.ts` redan skriver ut,
+och av samma skäl: kunde texten skickas in i frågesträngen hade vem som helst
+kunnat beställa ett Prikkokort med vilket företagsnamn och vilket påstående
+som helst på, och den bilden hade burit vårt ordmärke.
+
+**BEDÖMNINGSMÄRKET ÄR INTE MED, och det var kortets svåraste beslut.**
+
+Kortet säger inte hur det gick. Det bär namn, plats och datum, alltså
+uppgifter som är sanna oavsett bedömning. Fyra skäl, i fallande ordning:
+
+1. **Bilden lämnar sidan.** På verksamhetssidan står märket bland
+   kontrollhistoriken, avvikelsernas ordalydelse, kommunens besked och
+   verksamhetens eget svar. I en chatt står det ensamt. Ett rött märke som
+   säger "Brister" utan en enda av de raderna intill är ett negativt
+   påstående om ett namngivet företag, publicerat av oss på en yta där ingen
+   kan läsa vidare.
+2. **Sajten har redan erkänt problemet på en annan yta.** `docs/24` § 2
+   skriver att undantaget från WCAG 1.4.11 håller därför att bedömningens
+   TEXT står intill märket på 19 av 21 ritställen. Kartnålen är det ena
+   undantaget. En delningsbild hade blivit det andra, och det värre: den
+   visas nedskalad till några hundra pixlar.
+3. **Maskotgränsen.** `docs/24` § 2: maskoten får aldrig stå bredvid en
+   bedömning av en namngiven verksamhet. Kortet bär ordmärket, alltså
+   avsändaren. Med en bedömning på samma yta hade avsändaren stått bredvid en
+   bedömning av ett namngivet företag. Utan bedömning finns frågan inte, och
+   maskoten står ändå aldrig här: ordmärket är inte figuren.
+4. **Frånvaron hade börjat betyda något.** Ett kort med grönt märke som delas
+   och ett kort utan märke som inte delas blir en rangordning byggd av
+   delningsstatistik. Samma fälla som `lib/emblem.ts` avsnitt 2 beskriver för
+   det dynamiska emblemet.
+
+Priset är att kortet inte lockar lika hårt. Det är avsiktligt: kortet ska få
+någon att öppna en länk om ett bestämt ställe, inte ersätta sidan.
+
+**Vad som valdes bort, med skäl.**
+
+- **En bild per kommun, alltså punkt 8 som den skrevs.** Tolv filer och
+  billigt, men det löser bara 12 sidor av 16 742. Verksamhetssidan är den
+  sidtyp som faktiskt delas.
+- **En bild per kommun och kategori, 257 filer.** Ryms i budgeten, men två
+  restauranger i samma stadsdel hade fått exakt samma bild. Då är bilden
+  fortfarande inte unik per sida, och det var hela bristen.
+- **Bedömningen i färg eller ord.** Se de fyra skälen ovan.
+- **Antal kontroller på kortet.** Neutralt och intressant, men det står inte
+  i sidans huvud och hade krävt en egen datafil eller en ny metatagg. Namn,
+  plats och datum räcker för att göra kortet unikt.
+- **Ett foto av stället.** Booli, Hemnet och Yelp skickar alla ett rått foto.
+  Vi kan inte: bara 366 av 16 044 verksamheter har en bild, och de vi har är
+  Commonsbilder med attributionskrav som inte går att bära i en
+  förhandsvisning.
+- **Verksamhetens namn i frågesträngen.** Enkelt och förbjudet, se ovan.
+- **Halvfet ur den variabla typsnittsfilen.** `fontkitten` läser konturer ur
+  en woff2 men bara i axelns förvalsläge; `getVariation()` bygger en TTFFont
+  ur en woff2-ström och den fonten kastar direkt. Stammen är 82 enheter vid
+  vikt 400 och 130 vid 600, alltså 6,1 mot 9,6 px i rubrikstorlek, och
+  tokens.css säger uttryckligen att Booli kör 600 på varje rubrik. Därför
+  ligger `@fontsource/instrument-sans` som devDependency: den bär de statiska
+  vikterna och körs bara vid bygget.
+
+**Måtten, mot vad plattformarna faktiskt kräver.** Hämtat 2026-09-05.
+
+| Plattform | Krav | 1 200 x 630 PNG |
+|---|---|---|
+| Meta | rek. 1200 x 630, minst 600 x 315 för stort kort, max 8 MB | klarar |
+| LinkedIn | minst 1200 x 627, 1,91:1, max 5 MB | klarar |
+| iMessage | minst 900 px bred, huvudresurs max 1 MB | klarar |
+| WhatsApp | minst 300 px bred, högst 4:1, under 600 kB | klarar |
+| Slack | inget mått dokumenterat, format png/jpg/jpeg/gif | klarar |
+| X | 2:1 och under 5 MB enligt andrahandskällor | klarar |
+
+X gick inte att belägga vid källan: `developer.x.com` svarar 402 och
+`docs.x.com` har ingen kvarvarande Cards-sida. Talen kommer från
+andrahandskällor och ska läsas som sådana.
+
+Uppmätt över hundra slumpade sidor ur bygget väger kortet 13,7 till 32,9 kB,
+19,9 kB i medel. Apples TN3156 avråder från text i förhandsvisningsbilder
+eftersom de skalas olika. Kortet svarar med få ord i stor grad: namnet är
+74 px på 1 200, alltså omkring 22 px när Slack ritar kortet på 360.
+
+**Vad som är verifierat, och vad som inte är det.** Bygget kördes till
+`dist-og` och funktionen kördes lokalt i workerd via `wrangler pages dev`,
+alltså i samma motor som i drift. Hundra slumpade sidor ur bygget hämtades:
+100 procent svarade 200 med `Content-Type: image/png`, och alla hundra
+avkodades av libvips som 1200 x 630 sRGB. Sidorna kontrollerades i bild vid
+1440 och 375 och taggarna lästes ur den renderade DOM:en:
+
+    og:image        https://prikko.se/dela/stockholm/ag.png
+    og:image:width  1200
+    og:image:height 630
+    og:image:type   image/png
+    og:image:alt    Hygienkontroll på AG, Stockholm
+    twitter:card    summary_large_image
+
+Måtten skrivs bara ut för vårt eget kort. Artiklarnas egna illustrationer har
+egna mått, och en tagg som ljuger om dem är värre än ingen tagg: Yelp
+deklarerar 2000 x 1500 för en fil som är 1000 x 750, uppmätt 2026-09-05.
+`og:image:alt` var GitHubs enda tillägg som ingen av de fyra jämförbara
+sajterna hade.
+
+**Det som INTE gick att verifiera: Facebooks Sharing Debugger, LinkedIns Post
+Inspector och en riktig Slack-unfurl.** Alla tre kräver en publik adress, och
+rutten finns bara lokalt. Det som återstår efter utrullning är att klistra in
+en verksamhets-URL i vart och ett av de tre och se att kortet dyker upp.
+
+**Två risker som är kända och hanterade.**
+
+1. **En trasig rutt hade varit värre än ingen rutt**, eftersom taggen nu står
+   på 17 868 sidor. Varje väg ut som inte är en färdig bild är därför en
+   302 till `/og-default.png` med `Cache-Control: no-store`, alltså exakt det
+   läge sajten hade före, och aldrig cachad.
+2. **Processorbudgeten.** Gratisplanen ger 10 ms per anrop. Ritningen tar 1
+   till 4 ms och PNG-skrivningen 3 till 5, uppmätt på det längsta namnet i
+   beståndet. Marginalen finns men är inte stor, och det är skälet till att
+   bilden är indexerad med 256 färger i stället för fullfärg: fullfärg är
+   2,27 MB rådata i stället för 756 kB. Svaret läggs dessutom i
+   `caches.default`, så att omhämtningar från Facebook, Slack och Apple inte
+   kostar en ny ritning.
+
+---
+
 ## Diagram som INTE ska byggas
 
 Prövade mot regel 1 (besvarar diagrammet en fråga listan inte besvarar?) och
@@ -231,7 +420,10 @@ avförda:
   ligger i rapport 15 som fas två. Största kända kvalitetslyftet, men
   bryggan byggs först.
 - **Kedjesidor.** Samma orgnr-beroende, rapport 15 avsnitt 3.
-- **Delningsbilder per verksamhet.** Blockerad av filbudgeten, se punkt 8.
+- ~~**Delningsbilder per verksamhet.** Blockerad av filbudgeten, se punkt 8.~~
+  Avparkerad och byggd 2026-09-05, se punkt 8b. Filbudgeten var verklig och
+  slutsatsen fel: bilden ritas i kanten och kostar en fil i stället för
+  17 146.
 - **Aggregerade omdömesbetyg.** Avgjort i rapport 15: inte förrän volymen
   betyder något, och aldrig bredvid hygienbedömningen.
 

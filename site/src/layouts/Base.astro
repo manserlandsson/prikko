@@ -27,7 +27,14 @@ interface Props {
   noindex?: boolean;
   /** JSON-LD, ett eller flera objekt. Renderas server-side. */
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
-  /** Absolut eller rotrelativ sökväg till delningsbild. */
+  /**
+   * Egen delningsbild. Sätts BARA av sidor som har en riktig bild att visa,
+   * alltså artiklarna med sina illustrationer.
+   *
+   * Lämnas den osatt får sidan sitt eget kort ur `/dela/...`, se nedan. Det
+   * är inte en reservväg utan huvudvägen: 16 742 av 16 767 byggda sidor bar
+   * samma og-default.png 2026-09-05, och 25 hade en egen.
+   */
   ogImage?: string;
   /** ISO-datum då sidans DATA senast uppdaterades (färskhet = AEO-signal). */
   dataUpdated?: string;
@@ -68,7 +75,7 @@ const {
   description,
   noindex = false,
   jsonLd,
-  ogImage = '/og-default.png',
+  ogImage,
   dataUpdated,
   prev,
   next,
@@ -79,7 +86,30 @@ const {
 
 // Kanonisk URL: alltid utan query/hash, alltid mot produktionsdomänen.
 const canonical = new URL(Astro.url.pathname, SITE.url).href;
-const ogImageUrl = new URL(ogImage, SITE.url).href;
+
+/*
+ * DELNINGSBILDEN
+ * ─────────────────────────────────────────────────────────────────────────
+ * Mätt i site/dist 2026-09-05: 16 742 av 16 767 byggda sidor pekade på samma
+ * `/og-default.png`. Titel och beskrivning var unika per sida, bilden var det
+ * inte, alltså såg en länk till ett kök i Vasastan likadan ut som en länk till
+ * startsidan i varje chatt och varje Slack-kanal. Delningsknappen fanns redan,
+ * se `navigator.share` i Handlingsrad.astro.
+ *
+ * Sidan får därför sitt eget kort på `/dela/<sökväg>.png`, ritat av
+ * `functions/dela/[[vag]].ts` när någon ber om det. Varför ritad och inte
+ * byggd: en bild per sida är 17 868 nya filer ovanpå de 18 171 utgåvan redan
+ * har, alltså 36 039 mot gratisplanens tak på 20 000. Rutten kostar i stället
+ * en enda fil. Skälet och avvägningen står i `lib/delningsbild.ts` och i
+ * docs/17 punkt 8b.
+ *
+ * Sökvägen speglar sidans egen: `/stockholm/ag/` blir `/dela/stockholm/ag.png`
+ * och startsidan blir `/dela/start.png`. Funktionen läser sedan sidan tillbaka
+ * ur bygget och hämtar orden därifrån, aldrig ur adressen.
+ */
+const kortVag = `/dela${Astro.url.pathname.replace(/\/$/, '') || '/start'}.png`;
+const egenBild = ogImage !== undefined;
+const ogImageUrl = new URL(ogImage ?? kortVag, SITE.url).href;
 
 /*
  * Title-mönster: sidan leder, varumärket följer. Undvik dubblering på
@@ -130,6 +160,25 @@ const structuredData = jsonLd
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageUrl} />
+    {/* Måtten skrivs bara ut för vårt eget kort, som alltid är 1200 x 630 och
+        alltid PNG. Artiklarnas egna bilder har sina egna mått, och en tagg som
+        ljuger om dem är värre än ingen tagg: Yelp deklarerar 2000 x 1500 för en
+        fil som är 1000 x 750, uppmätt 2026-09-05.
+
+        Måtten är inte kosmetik. Facebook och LinkedIn kan visa kortet direkt
+        vid första delningen i stället för att vänta på att bilden hämtats, och
+        1200 x 630 ligger över varje dokumenterat minimum: Meta 600 x 315,
+        LinkedIn 1200 x 627, iMessage 900 px bredd, WhatsApp 300 px. */}
+    {!egenBild && (
+      <>
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
+      </>
+    )}
+    {/* Alternativtexten säger vad bilden visar, alltså sidans egen rubrik.
+        Ingen av de fyra jämförbara sajterna har den, GitHub har det. */}
+    <meta property="og:image:alt" content={title} />
     <meta name="twitter:card" content="summary_large_image" />
 
     {dataUpdated && <meta name="last-modified" content={dataUpdated} />}
