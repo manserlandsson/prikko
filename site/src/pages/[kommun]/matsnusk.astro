@@ -1,7 +1,6 @@
 ---
 /**
- * Matsnusklistan: verksamheter där brister i livsmedelshanteringen
- * kvarstod efter kommunens uppföljning.
+ * Matsnusklistan: verksamheter där brister i livsmedelshanteringen kvarstår.
  *
  * ## Egen sidtyp, inte en skärpning av /[kommun]/anmarkningar
  *
@@ -56,15 +55,22 @@ const source = sourceFor(kommun.slug)!;
 const fetched = source.fetchedAt.slice(0, 10);
 
 /*
- * Självbärande första mening, formulerad som referat: "hade brister som inte
- * var åtgärdade vid uppföljningen" är kommunens konstaterande återgivet, inte
- * vårt omdöme. Samma påstående som VERDICT.major.sentence i site.ts gör på
- * varje verksamhetssida; formuleringarna får inte glida isär.
+ * Självbärande första mening, formulerad som referat.
+ *
+ * Här stod "som inte var åtgärdade vid kommunens uppföljning" fram till
+ * 2026-09-05, och den kommentar som stod här noterade själv att påståendet
+ * var detsamma som VERDICT.major.sentence i site.ts gjorde. Båda var falska
+ * på de rader vars grund är upprepning: av Stockholms 64 rader är 51 sådana,
+ * av Örebros 92 är 9 det. Där finns ingen uppföljning alls.
+ *
+ * Meningen bär numera etiketten, som är sann på alla tre grunderna, och
+ * lämnar grunden till raden. Varje rad skriver ut sin egen i `groundText()`
+ * nedan, och den har alltid skiljt på de tre. Se lib/omdome.ts för talen.
  */
 const answer =
-  `${formatNumber(rows.length)} verksamheter i ${city} hade brister i hanteringen av ` +
-  `livsmedel som inte var åtgärdade vid kommunens uppföljning. Samtliga konstaterade ` +
-  `vid kontroller de senaste tolv månaderna.`;
+  `${formatNumber(rows.length)} verksamheter i ${city} har brister i hanteringen av ` +
+  `livsmedel som kvarstår. Samtliga konstaterade vid kontroller de senaste tolv ` +
+  `månaderna, och varje rad säger vad den bedömningen vilar på.`;
 
 const jsonLd = [
   {

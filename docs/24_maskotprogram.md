@@ -227,8 +227,8 @@ tas in med öppna ögon om vad den kostar i uttröttning.
 3. **I en bedömningsfärg.** Aldrig grön, gul eller röd. Se ovan.
 4. **På matsnusklistan.** Ett namngivet undantag, eftersom frågan ställdes och
    kommer att ställas igen. Matsnusk är en bedömning av namngivna verksamheter
-   och den hårdaste vi gör: den listar ställen där brister kvarstod efter
-   kommunens uppföljning. En grävling bredvid namnet på en sådan restaurang gör
+   och den hårdaste vi gör: den listar ställen där bristerna inte var en
+   engångsnotering. En grävling bredvid namnet på en sådan restaurang gör
    vårt allvarligaste påstående till ett skämt, och det är exakt den invändning
    en verksamhet skulle använda mot oss den dagen de hör av sig. Ingen figur på
    matsnusk, i helfigur eller på annat sätt.

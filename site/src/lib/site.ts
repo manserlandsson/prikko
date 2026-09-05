@@ -69,10 +69,17 @@ export const SITE = {
  * försvara, och det riskerade dessutom att låta som råttor och salmonella när
  * det i praktiken kan gälla en oåtgärdad allergenmärkning.
  *
- * "Brister som kvarstår" säger exakt det vi kan bevisa: kommunen påpekade
- * något, kom tillbaka, och det var inte åtgärdat. Sant, verifierbart, och
- * mer användbart för besökaren än en gradering — det säger något om
- * verksamhetens vilja att rätta till, inte bara om ett ögonblick.
+ * "Brister som kvarstår" säger exakt det vi kan bevisa: bristerna var inte
+ * en engångsnotering. Sant, verifierbart, och mer användbart för besökaren
+ * än en gradering, eftersom det säger något om verksamhetens vilja att rätta
+ * till och inte bara om ett ögonblick.
+ *
+ * ETIKETTEN bär de tre grunderna lika bra; MENINGEN gör det inte. Här stod
+ * fram till 2026-09-05 att kommunen "kom tillbaka, och det var inte
+ * åtgärdat", och det var en beskrivning av EN av tre grunder. På 130 av 403
+ * sidor finns inget återbesök alls, bara en upprepning från kontrollen före.
+ * Etiketten står därför kvar oförändrad, och meningen väljs numera per sida
+ * ur grunden. Se MAJOR_SENTENCE i lib/omdome.ts, där talen står.
  *
  * Speglar källdatans tre steg ett till ett
  * (Sambruk `assessment` 0/1/2). Se pipeline/prikko/grading.py för varför det
@@ -115,7 +122,14 @@ export const VERDICT: Record<Verdict, VerdictPresentation> = {
   },
   major: {
     label: 'Brister som kvarstår',
-    sentence: 'har brister som inte åtgärdats vid kommunens uppföljning',
+    /*
+     * RESERVTEXT, och bara det. Den riktiga meningen väljs per sida ur
+     * grunden i lib/omdome.ts, eftersom en fast mening om en uppföljning var
+     * falsk på 130 av 403 sidor. Den här står bara om en sida med `major`
+     * saknar kontroller helt, vilket bedömningen inte tillåter, och är
+     * därför skriven som det mildaste sanna påståendet.
+     */
+    sentence: 'fick anmärkningar vid den senaste hygienkontrollen',
     colorVar: 'var(--verdict-major-ink)',
     glyph: '✕',
   },

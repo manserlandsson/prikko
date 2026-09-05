@@ -91,12 +91,45 @@ interface Props {
   followUp: FollowUp | null;
   /** Kommunens formella namn. Utfallet tillskrivs den, aldrig oss. */
   kommun: string;
+  /**
+   * Senaste kontrollen på sidan, som ISO-datum. Bedömningen överst vilar på
+   * den, och blocket måste kunna säga när det självt handlar om något
+   * betydligt äldre. Se STALE_FOLLOW_UP_DAYS nedan.
+   */
+  latest: string | null;
 }
 
-const { followUp: f, kommun } = Astro.props;
+const { followUp: f, kommun, latest } = Astro.props;
 
 const brist = (n: number) => (n === 1 ? 'brist' : 'brister');
 const avvikelse = (n: number) => (n === 1 ? 'avvikelse' : 'avvikelser');
+
+/**
+ * Hur mycket äldre än sidans senaste kontroll uppföljningen får vara innan
+ * blocket säger det självt.
+ *
+ * Felet blocket löser står överst på Riche i Stockholm: bedömningen gällde
+ * kontrollen den 17 februari 2026 och det här blocket handlade om den enda
+ * uppföljningen i historiken, den 28 november 2019, utan att något band ihop
+ * de två. Sex år och tre månader emellan, och inget på skärmen sade det.
+ *
+ * Uppmätt över site/src/data 2026-09-05, 4 866 sidor som ritar blocket:
+ *
+ *     senare kontroll finns alls   2 777 (57,1 %)   median 176 dagar
+ *     mer än 365 dagar senare      1 879 (38,6 %)   max 3 090 dagar
+ *     mer än 730 dagar senare      1 226 (25,2 %)
+ *
+ * Ett år är valt, inte 180 som FOLLOW_UP_DAYS i data.ts. De två talen svarar
+ * på olika frågor: FOLLOW_UP_DAYS avgör om två kontroller hör ihop, det här
+ * talet om läsaren riskerar att läsa blocket som ett besked om nuläget. Under
+ * ett år ligger uppföljningen inom ett ordinarie kontrollintervall (medianen
+ * mellan två kontroller i beståndet är 267 dagar, se HISTORY_GAP_DAYS i
+ * data.ts) och står redan bredvid sitt datum. Över ett år gör den inte det.
+ *
+ * Vid 180 dagar hade 2 428 sidor (49,9 %) fått tillägget, alltså varannan,
+ * och en brasklapp som står på varannan sida slutar läsas.
+ */
+const STALE_FOLLOW_UP_DAYS = 365;
 
 /**
  * Får kontrollen före stå med?
@@ -145,11 +178,44 @@ if (f && f.explicit) {
       : f.visit.assessment === 1
         ? 'noterade anmärkningar igen'
         : 'fann brister som kvarstod';
+  /*
+   * Avståndet i klartext.
+   *
+   * "kom tillbaka 0 dagar senare" stod här fram till 2026-09-05 och gällde
+   * 488 av de 3 907 sidor som ritar den här grenen; 186 fick "1 dag senare".
+   * Noll dagar betyder att kommunen registrerat båda kontrollerna på samma
+   * datum, och då är "kom tillbaka" dessutom mer än datan bär: vi vet att
+   * registret har två rader, inte att någon gick ut och in igen. Därför
+   * "registrerade ett återbesök samma dag", som är vad vi faktiskt ser.
+   */
+  const when =
+    f.days === 0
+      ? `${kommun} registrerade ett återbesök samma dag`
+      : f.days === 1
+        ? `${kommun} kom tillbaka dagen efter, den ${formatDate(f.visit.date)},`
+        : `${kommun} kom tillbaka ${f.days} dagar senare, den ` +
+          `${formatDate(f.visit.date)},`;
   answer =
     `${f.raised} ${avvikelse(f.raised)} noterades vid kontrollen den ` +
-    `${formatDate(f.before!.date)}. ${kommun} kom tillbaka ${f.days} ` +
-    `${f.days === 1 ? 'dag' : 'dagar'} senare, den ${formatDate(f.visit.date)}, ` +
-    `och ${outcome}.`;
+    `${formatDate(f.before!.date)}. ${when} och ${outcome}.`;
+}
+
+/*
+ * Uppföljningen är väsentligt äldre än den kontroll sidans besked vilar på.
+ *
+ * Tillägget står i blockets egen text och inte som en ny yta: en ruta till
+ * hade varit ett tredje besked på samma skärm om samma verksamhet. Det påstår
+ * ingenting om utfallet, bara att en senare kontroll finns och var den står.
+ */
+const staleDays =
+  f !== null && latest !== null
+    ? Math.round((Date.parse(latest) - Date.parse(f.visit.date)) / 86_400_000)
+    : 0;
+
+if (staleDays > STALE_FOLLOW_UP_DAYS) {
+  answer +=
+    ` Kommunen har kontrollerat verksamheten senare än så, senast den ` +
+    `${formatDate(latest!)}. Det som står överst på sidan gäller den kontrollen.`;
 }
 ---
 

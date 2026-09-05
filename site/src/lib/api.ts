@@ -407,7 +407,17 @@ export function kodlista() {
     verdict: {
       clean: 'Inga anmärkningar vid den senaste kontrollen.',
       minor: 'Anmärkningar vid den senaste kontrollen.',
-      major: 'Brister som inte åtgärdats vid kommunens uppföljning.',
+      /*
+       * Tre grunder, inte en. Här stod "Brister som inte åtgärdats vid
+       * kommunens uppföljning", vilket beskrev en av dem: 130 av 403
+       * verksamheter har ingen uppföljning alls i datan, bara avvikelser
+       * också vid kontrollen före. Kodlistan är API:ets enda förklaring av
+       * vad tvåan betyder och måste räkna upp alla tre. Se lib/omdome.ts.
+       */
+      major:
+        'Brister som stod kvar. Antingen fann kommunen dem vid ett återbesök, ' +
+        'eller gav sitt allvarligaste omdöme, eller så fanns avvikelser redan ' +
+        'vid kontrollen före. Vilket av de tre går att läsa ur inspections.',
       null: 'Otillräckligt underlag. Se `reason`. Aldrig detsamma som en dålig bedömning.',
     },
     reason: {

@@ -96,6 +96,7 @@ import {
 } from '../../lib/data';
 import { chainFor } from '../../lib/kedjor';
 import { JAMFOR_NYHET_SYNS, compareHref, compareSuggestions } from '../../lib/jamfor';
+import { majorSentence } from '../../lib/omdome';
 import { linkedAreaOf } from '../../lib/omraden';
 import { MISSING, SITE, VERDICT } from '../../lib/site';
 import { absolute, path } from '../../lib/urls';
@@ -122,6 +123,15 @@ const source = sourceFor(kommun.slug)!;
 const omrade = linkedAreaOf(e);
 
 const presentation = e.verdict ? VERDICT[e.verdict] : MISSING[missingReason(e)];
+
+/*
+ * Meningen för "Brister som kvarstår" är en funktion av grunden, inte en
+ * konstant. Skärpningen sker på tre olika grunder i grading.py och bara en av
+ * dem är ett återbesök; se lib/omdome.ts för talen och för de tre meningarna.
+ * `presentation.sentence` är reservtexten och används för de två andra
+ * nivåerna som förut.
+ */
+const sentence = majorSentence(e) ?? presentation.sentence;
 const latest = latestInspectionDate(e);
 const latestInspection = e.inspections[0];
 const stats = statistics(e);
@@ -360,7 +370,7 @@ let detail: string;
 
 if (e.verdict !== null && latest) {
   // Bedömd. Datumet hör till kontrollen meningen handlar om.
-  answer = `${e.name} ${presentation.sentence} den ${formatDate(latest)}.`;
+  answer = `${e.name} ${sentence} den ${formatDate(latest)}.`;
   detail =
     areas > 0
       ? 'Se vilka kontrollområden som granskades och hela kontrollhistoriken.'
@@ -370,7 +380,7 @@ if (e.verdict !== null && latest) {
   // något om nuläget, och då är datumet ett eget påstående, inte ett led i
   // meningen om att bedömningen uteblir.
   answer =
-    `${e.name} ${presentation.sentence}. ` +
+    `${e.name} ${sentence}. ` +
     `Den senaste kontrollen gjordes den ${formatDate(latest)}.`;
   detail =
     areas > 0
@@ -379,7 +389,7 @@ if (e.verdict !== null && latest) {
 } else {
   // Ingen kontroll alls. Ingen historik att hänvisa till, alltså ingen svans
   // om kontrollområden. Den var det som gjorde beskrivningen självmotsägande.
-  answer = `${e.name} ${presentation.sentence}.`;
+  answer = `${e.name} ${sentence}.`;
   detail = `Verksamheten finns i kommunens register, men ${kommun.name} har inte publicerat någon kontroll av den.`;
 }
 
@@ -849,9 +859,14 @@ const breadcrumbs = {
               vad som konstaterats. Den fanns bara för märkets skull: ett sigill
               utan förklaring intill är en anklagelse utan grund. Utan märket
               säger den ingenting som inte redan står i svarsmeningen ovanför,
-              som lyder "har brister som inte åtgärdats vid kommunens
-              uppföljning den 25 juni 2026". Två meningar i rad om samma sak är
-              precis det ägaren kallade överförklarat. */}
+              som på en sida med kvarstående brister lyder till exempel "fick
+              anmärkningar vid kommunens återbesök den 25 juni 2026". Två
+              meningar i rad om samma sak är precis det ägaren kallade
+              överförklarat.
+
+              Meningen citeras med "till exempel" sedan 2026-09-05, för den
+              är inte längre en konstant: den väljs ur grunden för skärpningen
+              och har tre lydelser. Se lib/omdome.ts. */}
           <p class="method caption">
             <a href="/metodik/">Så sätts bedömningen</a>
           </p>
@@ -955,7 +970,7 @@ const breadcrumbs = {
         {/* Efter vad kontrollen visade, före vad som återkommer: sidan läses
             som en berättelse i tid. Vad hittades, blev det åtgärdat, och
             händer det om och om igen. */}
-        <FollowUp followUp={uppfoljning} kommun={kommun.name} />
+        <FollowUp followUp={uppfoljning} kommun={kommun.name} latest={latest} />
 
         <RecurringIssues issues={recurring} />
 

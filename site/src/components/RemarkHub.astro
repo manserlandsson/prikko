@@ -48,8 +48,17 @@ const { kommun, items, currentPage, lastPage, start, total, assessed, major, fet
 const city = kommun.city;
 const base = `/${kommun.slug}/anmarkningar`;
 
-// Självbärande första mening, skriven för att kunna citeras rakt av.
-const answer = `${formatNumber(total)} av ${formatNumber(assessed)} kontrollerade verksamheter i ${city} hade anmärkningar vid sin senaste hygienkontroll, varav ${formatNumber(major)} där bristerna kvarstår efter uppföljning.`;
+/*
+ * Självbärande första mening, skriven för att kunna citeras rakt av.
+ *
+ * Svansen sade "varav N där bristerna kvarstår efter uppföljning" fram till
+ * 2026-09-05. Uppföljningen är bara en av tre grunder för nivån: 130 av 403
+ * verksamheter i beståndet har ingen uppföljning alls i datan, bara
+ * avvikelser också vid kontrollen före. Etiketten bär alla tre och används
+ * därför rakt av här; grunden per verksamhet står på verksamhetssidan. Se
+ * lib/omdome.ts.
+ */
+const answer = `${formatNumber(total)} av ${formatNumber(assessed)} kontrollerade verksamheter i ${city} hade anmärkningar vid sin senaste hygienkontroll, varav ${formatNumber(major)} med brister som kvarstår.`;
 
 const title =
   currentPage === 1
@@ -194,7 +203,7 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
       {hasMatsnuskPage(kommun.slug) && (
         <p>
           <a href={path(kommun.slug, 'matsnusk')}>
-            Matsnusk i {city}: verksamheter där bristerna kvarstod efter uppföljning
+            Matsnusk i {city}: verksamheter där bristerna kvarstår
           </a>
         </p>
       )}

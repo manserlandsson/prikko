@@ -1,14 +1,18 @@
 /**
- * Matsnusklistan: verksamheter där brister i livsmedelshanteringen
- * kvarstod efter kommunens uppföljning.
+ * Matsnusklistan: verksamheter där brister i livsmedelshanteringen kvarstår.
  *
  * ## Vad listan är
  *
  * Spegelbilden av utmärkelsen. Utmärkelsen samlar dem som klarat tre
- * kontroller i rad utan anmärkning; den här listan samlar dem där kommunen
- * påpekade brister, kom tillbaka, och konstaterade att de inte var åtgärdade.
- * Varje rad är ett referat av kommunens egna kontrollrader, aldrig ett omdöme
- * från oss.
+ * kontroller i rad utan anmärkning; den här listan samlar dem där bristerna
+ * inte var en engångsnotering. Varje rad är ett referat av kommunens egna
+ * kontrollrader, aldrig ett omdöme från oss.
+ *
+ * "Kom tillbaka och konstaterade att de inte var åtgärdade" stod här fram
+ * till 2026-09-05 och beskrev bara en av de tre grunder `ground` nedan
+ * skiljer på. Av Stockholms 64 rader vilar 51 på upprepning, alltså utan
+ * något återbesök. Raderna har alltid skrivit ut rätt grund var för sig; det
+ * var sammanfattningarna ovanför dem som drog alla tre över en kam.
  *
  * Namnet Matsnusk är ägarens beslut (2026-08-05), samma ord som SVT använder
  * om sina granskningar. Ordet är LISTANS namn och står i rubrik och adress.
@@ -35,8 +39,9 @@
  * ## De fyra kraven för en rad
  *
  * 1. KVARSTOD. Bedömningen är "Brister som kvarstår" (verdict major), alltså
- *    att avvikelsen överlevt kommunens uppföljning eller att kommunens egen
- *    bedömning på senaste kontrollen är den allvarligaste. Inte "Brister".
+ *    att kommunens egen bedömning på senaste kontrollen är den allvarligaste,
+ *    att avvikelsen överlevt ett återbesök, eller att avvikelser fanns även
+ *    vid kontrollen före. Inte "Brister".
  * 2. KONSUMENTNÄRA, BEVISAT. Minst en avvikelse vid senaste kontrollen ligger
  *    i ett lagstiftningsområde som rör livsmedlen eller hanteringen av dem,
  *    enligt Livsmedelsverkets egen indelning. Rent administrativa avvikelser
