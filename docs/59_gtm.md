@@ -854,3 +854,201 @@ någon, och det är det mått R3 §4 använde för Scores on the Doors.
 
 **Vad det kräver av ägaren:** ett utskick. Han läser materialet och trycker
 skicka.
+
+---
+
+## 14. Vad som byggdes, 2026-09-05
+
+Steg 2 och steg 3 i §13 är utförda. Båda är de steg som inte kräver något av
+ägaren, och ingenting av det som byggts skickar något.
+
+### 14.1 Rörelsen är synlig: från 8 sidor till 17 881
+
+**Talen är räknade i två riktiga byggen av samma data**, inte uppskattade. Ett
+bygge på oförändrad kod och ett på den nya, båda 2026-09-05, båda med
+`--outDir` i en worktree.
+
+| Mått | Före | Efter |
+|---|---:|---:|
+| HTML-sidor i bygget | 17 893 | 17 893 |
+| Filer i utgåvan | 18 171 | 18 171 |
+| **Sidor som länkar `/nytt-och-borta/`** | **8** | **17 881** |
+
+**Talet 4 av 16 767 i §1.5 och §4.4 var rätt när det mättes** mot bygget från
+2026-08-28. I dag är utgångsläget 8 av 17 893: tre kommuner ligger över
+`MIN_MOVEMENT_PAGE` i stället för en, och tre av de åtta länkarna var
+rörelsesidorna själva. Talet i §4.4 står kvar som en mätning av det bygget och
+räknas inte om.
+
+De tolv sidor som inte länkar rörelsen efter ändringen är kartsidorna och
+`/konto/notiser/`, alltså de sidor som inte bär sidfot.
+
+**Tre ytor, och ingen ny sida.**
+
+1. **Sidfoten**, `site/src/components/Footer.astro`. Raden "Nytt och borta i
+   registren" i Prikkokolumnen, mellan Utmärkelser och Källor. Villkoret är
+   riksvyns eget `hasNationalPage()`, så länken kan inte peka på en sida som
+   inte byggts. **17 881 sidor.**
+2. **Kommunsidan**, `site/src/components/KommunHub.astro`. En panel i
+   sidospalten efter "Senast kontrollerade", med kommunens två tal och
+   perioden, och länken under. Panelen ligger i spalten och inte sist i bandet
+   "{stad} i siffror", vilket är skillnaden mellan att synas på sida 1 och att
+   synas på hela den sidindelade serien: **117 sidor** i stället för 3, varav
+   86 i Stockholm.
+3. **Startsidan**, `site/src/pages/index.astro`. Ett block mellan korten och
+   "Att läsa", med rikets två tal och en länk per kommun som har en sida.
+   **1 sida.**
+
+**Villkoret att en funktion aldrig får kosta en sida är hållet.** Inga nya
+rutter, inga nya filer, samma 18 171 filer i utgåvan före och efter.
+Byggrindarna passerade: inga döda interna länkar bland 17 892 byggda sidor.
+
+**Hållningen i länktexterna är sidans egen.** Modulen säger "tillkommit" och
+"försvunnit", aldrig "nyöppnat" och "stängt", och skälet står i huvudet på
+`site/src/lib/rorelse.ts`. Startsidans block skriver dessutom ut reservationen
+i klartext: uppgiften är att ett anläggnings-id dök upp eller slutade lämnas
+ut, inte att någon öppnat eller stängt.
+
+**Ingen av ytorna bär ett tal per kommun bredvid ett annat.** Startsidans
+lista är namn utan tal, i bokstavsordning och aldrig i storleksordning, och
+kommunens tal står på kommunens egen sida. Skälet är samma som huvudet på
+`site/src/pages/nytt-och-borta/[...riket].astro` redan skriver ut: talen
+speglar kommunens utlämningstakt minst lika mycket som vad som händer i
+lokalerna, så en tabell över dem vore en rangordning av registerskötsel.
+
+Verifierat i bild vid 1440 och 375 på alla tre ytorna, samt på sida 5 av
+Stockholmsserien för att se att panelen följer med.
+
+### 14.2 Pressmaskinen är byggd och oskickad
+
+`pipeline/press.py`, byggd på mönstret i `pipeline/begaran.py`.
+
+```
+python3 pipeline/press.py status                       # vilka kommuner har material
+python3 pipeline/press.py --epost <adress> granska     # formkontrollen, utan filer
+python3 pipeline/press.py --epost <adress> utskick     # skriv filerna
+```
+
+**Skriptet kan inte skicka.** Det importerar inget nätverksbibliotek, det slår
+inte upp någon adress, och det har ingen mottagarlista. Det skriver textfiler
+till `pipeline/data/press/`, en per kommun, plus `00-las-mig.txt`. Katalogen är
+gitignorerad av samma skäl som `begaran/`: filerna ska skrivas om mot färsk
+data varje gång, och ett utskick med gamla tal hör inte hemma i historiken.
+Till-raden är ofylld i varje fil, och `SENDER_EMAIL` är tom, så ett utskick
+går inte ens att skriva färdigt utan att ägaren anger sin adress.
+
+**Ett utskick i dag: tre kommuner.** Stockholm, Jönköping och Uppsala, alltså
+exakt de som har en publicerad rörelsesida. Urvalet är inte en bedömning utan
+en följd av regel fyra: utan sida finns ingen adress där redaktionen kan slå
+upp talen.
+
+**Vad ett utskick innehåller.** Rörelsen i perioden med reservationen i
+brödtexten och inte i en fotnot, kontrollbilden i perioden räknat som de
+verksamheter vars senaste kontroll ligger i fönstret och vad de kontrollerna
+visade, kontrollbilden i hela registret som kommunsidan visar den, en lista
+med tolv tal och en adress till vart och ett, ett avsnitt som säger vad
+utskicket inte är, och vägarna vidare till rättelse och till API:et. För
+Stockholm 2026-09-05: 54 tillkomna och sju försvunna, 411 verksamheter
+kontrollerade i perioden varav 397 utan anmärkningar och 14 med, och 8 567
+verksamheter i registret.
+
+**Talen läses ur `site/src/data/`, alltså exakt de filer sajten byggs av.** Det
+är hela grunden för regel fyra: räknade skriptet själv ur databasen skulle
+utskicket och sajten kunna säga olika saker samma dag. Följden står som steg
+noll i läs-mig-filen: bygg och lägg ut sajten först, skriv utskicken sedan.
+
+**De fyra reglerna är byggda i koden och inte skrivna i en instruktion.**
+
+1. **Ingen rangordning av kommuner.** Ett utskick bär bara sin egen kommuns
+   tal, och `granska()` fäller ett utskick som nämner en annan kommun, med
+   både ortnamn och myndighetsnamn prövade. Urvalet är mekaniskt och går inte
+   att handplocka. Innehållsförteckningen i `00-las-mig.txt` bär medvetet inga
+   tal alls: tre kommuner med varsitt tal under varandra är en jämförelse även
+   när den ligger i ägarens egen katalog.
+2. **Ingen lista sorterad på utfall och ingen namngiven verksamhet.**
+   `granska()` prövar texten mot varje verksamhetsnamn i kommunen, och en
+   ordlista fäller "sämst", "värst", "topplista", "värsting", "matsnusk" och
+   deras släktingar. Ordlistan fällde det första utkastet på sex ord i just
+   det avsnitt som skulle förklara att materialet inte är en skamlista, och
+   meningarna skrevs om i stället för att ordet ströks ur listan.
+3. **Ingen verksamhet i rubriken.** Ämnesraden byggs av en mall som bara
+   känner ortnamnet, perioden och ett tal: "Så ser livsmedelskontrollen ut i
+   Stockholm: 54 verksamheter har tillkommit sedan 8 augusti". Formkontrollen
+   prövar att raden följer mallen och kör namnkontrollen på hela texten,
+   ämnesraden inräknad.
+4. **Varje tal går att slå upp, med länk.** Talen bor i en lista av `Fakta`
+   med etikett, värde och adress, och både brödtexten och avsnittet "Så
+   kontrollerar ni varje tal" renderas ur samma lista. Ett tal utan adress går
+   alltså inte att skriva. Utöver det letar `granska()` upp varje siffergrupp
+   i brödtexten och kräver att den finns bland fakta. Adresserna är
+   `/[kommun]/nytt-och-borta/` för rörelsen, `/[kommun]/` för fördelningen,
+   `/api/v1/kommun/<kommun>.json` för kontrollerna i perioden och `/kallor/`
+   för utlämningarna.
+
+**Ingenting är skickat**, och `00-las-mig.txt` säger att första utskicket ska
+gå till en enda kommun, i enlighet med §13 steg 5.
+
+### 14.3 Vem mottagaren är
+
+Utrett 2026-09-05 med sökningar, utan att hämta en enda kontaktuppgift och
+utan att kontakta någon. Slutsatsen ligger i `00-las-mig.txt` i kort form.
+
+**Det är två olika redaktioner på samma tidning, och vårt material hör till
+den ena.** Hygienkontroller ligger på **nyhetsdesken**, hos den som bevakar
+kommunen och begär ut handlingar. Öppningar och nedläggningar ligger på
+**näringslivs- eller företagsdesken**, som ofta redan har ett veckoformat för
+nya bolag ur Bolagsverket. Ett utskick som blandar de två hamnar hos fel
+person.
+
+**Formatet finns redan, och redaktionerna gör arbetet för hand.** Bonnier News
+Locals titlar driver stående ämnessidor på materialet: Hudiksvalls Tidnings
+"Restaurangkollen" har löpt från åtminstone 2024 till augusti 2026, och
+Arbetarbladet har en motsvarande samlingssida med artiklar från 2018 och
+framåt. NWT Media gör samma sak i Värmland och Skaraborg, och
+Mariestads-Tidningen beskrev 2025-05-05 öppet sin metod: samtliga
+förelägganden 2020 till mars 2025 utbegärda för tre kommuner.
+**Tidsserien är alltså den dyra delen för dem och den billiga delen för oss.**
+
+**Den lucka vi kan äga är etableringslistan, inte kontrollistan.**
+Jönköpings-Posten publicerar veckovis nya företagare och konkurser ur
+Bolagsverket, och Folkbladet gör "hela listan" på nystartade företag i en
+kommun. Ingen svensk redaktion hittades som gör motsvarande återkommande lista
+på **nyregistrerade livsmedelsanläggningar hos kommunens miljökontor**.
+Bolagsverkets lista fångar bolag och inte matställen, missar verksamhetsbyten
+inom samma bolag, och en livsmedelsverksamhet ska dessutom anmälas till
+kommunen innan den startar.
+
+**Mottagaren är en funktion och inte en person.** Tidningarnas egna tipssidor
+anvisar i tur och ordning ett tipsformulär, en allmän tipsadress till
+redaktionen och nyhetschefen per telefon på vardagar. Skriv därför till
+nyhetschefen eller redaktionens tipsfunktion. En namngiven reporter som är
+ledig läser inte mejlet på tre veckor.
+
+**Ett skäl att vara försiktig med en mottagartyp.** SVT:s regionala
+redaktioner gör samma material men som jämförelse mellan kommuner, till
+exempel Skåneredaktionens artikel 2025-04-25 om Malmö, som själv landar i att
+skillnaden mot Göteborg och Stockholm delvis förklaras av olika arbetssätt och
+inte av smutsigare kök. Det är precis den formen vi inte levererar. Skicka
+gärna, men säg nej till att ta fram jämförelsen åt dem.
+
+**Skamlisterisken är dokumenterad i formaten själva.** Nya
+Kristinehamns-Posten har publicerat både "här är alla som klarade
+livsmedelskontrollerna" och "alla restauranger som inte klarade
+livsmedelskontrollen", alltså samma dataset i två motsatta vinklar. En
+granskande desk vill ha en utpekad verksamhet, och levererar vi en färdig
+sortering blir produkten en värstinglista med vårt namn på.
+**Slutsatsen är att skicka förändringen och aldrig domen.**
+
+Två invändningar till som en påläst reporter kommer att göra, och som därför
+ska besvaras innan de ställs. Jämförbarheten mellan kommuner håller inte:
+prop. 2005/06:214 slår fast att omdömena måste betyda samma sak i Ystad som i
+Haparanda och att bedömningsgrunderna måste vara enhetliga, vilket de inte är
+i dag. Och pressetiken skyddar personen men inte bolaget: Medieombudsmannen
+prövar juridiska personers anmälningar bara i fråga om genmäle och rättelse,
+medan en enskild firma med en ägare i en liten kommun ligger nära gränsen för
+oförsvarlig publicitetsskada. Risken bärs av redaktionen, men ryktesdelen bärs
+av källan.
+
+**Inga kontaktuppgifter är hämtade och ingen är kontaktad.** Det finns ingen
+adressbok i repot, och ägaren slår upp adressen själv på redaktionens egen
+tipssida.

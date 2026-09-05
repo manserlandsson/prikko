@@ -69,7 +69,7 @@ import {
 import { kontrollen } from '../lib/kontrollen';
 import { linkedAreas } from '../lib/omraden';
 import { pageUrl } from '../lib/pagination';
-import { hasMovementPage } from '../lib/rorelse';
+import { hasMovementPage, movement } from '../lib/rorelse';
 import { SITE } from '../lib/site';
 import { tathet } from '../lib/tathet';
 import { absolute, path } from '../lib/urls';
@@ -192,6 +192,25 @@ const unseenAnchor =
  */
 const recent = currentPage === 1 ? recentlyInspected(kommun.slug, 5) : [];
 const source = sourceFor(kommun.slug);
+
+/**
+ * Rörelsen, som en panel i spalten och inte bara som en rad i fördjupningen.
+ *
+ * Länken fanns redan, sist i bandet "{stad} i siffror", alltså efter tio
+ * skärmhöjder register och bara på sida 1. Räknat i det byggda 2026-09-05
+ * länkades sidtypen från 8 av 17 893 sidor, se docs/59 §4.4, och tre av de
+ * åtta var rörelsesidorna själva. Panelen ligger i stället i sidopanelen, som
+ * finns på hela den sidindelade serien: Stockholm ensamt är 86 sidor.
+ *
+ * Talen står i panelen och inte bara i länken, av samma skäl som
+ * rörelsesidans egen svarsmening: två tal utan period betyder ingenting,
+ * och "tillkommit" och "försvunnit" är vad vi har observerat. Aldrig
+ * "nyöppnat" och "stängt", se huvudet på lib/rorelse.ts.
+ *
+ * Villkoret är sidtypens eget, hasMovementPage, så att panelen aldrig kan
+ * länka till en sida som inte byggts.
+ */
+const rorelse = hasMovementPage(kommun.slug) ? movement(kommun.slug) : null;
 
 /**
  * Ren historik i kommunen, sida 1.
@@ -468,6 +487,28 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {/* Rörelsen står efter "Senast kontrollerade" och före källpanelen.
+            De två första är båda färskhet: den ena vad som kontrollerats
+            senast, den andra vad som tillkommit och försvunnit. Källpanelen
+            svarar på var uppgifterna kommer ifrån och hör därför sist. */}
+        {rorelse && (
+          <section class="panel">
+            <h2 class="panel-title">Nytt och borta i {city}</h2>
+            <p class="rorelse-svar">
+              {formatNumber(rorelse.arrived)} verksamheter har tillkommit i
+              registret och {formatNumber(rorelse.departed)} har försvunnit ur
+              det{rorelse.observedFrom
+                ? `, räknat från ${formatDate(rorelse.observedFrom)}.`
+                : '.'}
+            </p>
+            <p class="panel-foot">
+              <a href={path(base, 'nytt-och-borta')}>
+                Se vad som tillkommit och försvunnit
+              </a>
+            </p>
           </section>
         )}
 
@@ -854,6 +895,15 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   }
 
   .recent-info span { font-size: var(--fs-micro); line-height: var(--lh-micro); }
+
+  /* Samma grad som panelens övriga brödtext, alltså --fs-caption. Panelen
+     är 400 px bred och två meningar i brödgrad hade blivit fyra rader som
+     tar lika mycket höjd som "Senast kontrollerade" med fem namn i. */
+  .rorelse-svar {
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
 
   .facts { margin: 0; }
 

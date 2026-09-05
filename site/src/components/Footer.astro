@@ -28,6 +28,7 @@
  */
 import { establishments, municipalities } from '../lib/data';
 import { chains } from '../lib/kedjor';
+import { hasNationalPage } from '../lib/rorelse';
 import { SITE } from '../lib/site';
 import { path } from '../lib/urls';
 import Wordmark from './Wordmark.astro';
@@ -168,6 +169,19 @@ const withRemarks = bySize
         <li><a href="/artiklar/">Artiklar</a></li>
         <li><a href="/rapporter/">Rapporter</a></li>
         <li><a href="/utmarkelser/">Utmärkelser</a></li>
+        {/* Rörelsen är den enda sidtyp på sajten som säger något nytt varje
+            månad: 112 verksamheter tillkom och sju försvann på 28 dagar,
+            räknat 2026-09-05. Den var byggd och länkad från 8 av 17 893
+            sidor, se docs/59 §4.4, alltså i praktiken omöjlig att hitta.
+            Sidfoten är den billigaste vägen till varje sida sajten har, och
+            det är samma skäl som gav kommunerna och kedjorna sina kolumner.
+
+            Villkoret är riksvyns eget: sidan byggs bara när loggen bär minst
+            MIN_NATIONAL_PAGE händelser, och en länk till en sida som inte
+            byggts fäller byggrinden. Samma grind står i lib/webbkarta.ts. */}
+        {hasNationalPage() && (
+          <li><a href="/nytt-och-borta/">Nytt och borta i registren</a></li>
+        )}
         <li><a href="/kallor/">Källor och uppdatering</a></li>
         <li><a href="/om/">Om Prikko</a></li>
         <li><a href="/ratta/">Rätta en uppgift</a></li>

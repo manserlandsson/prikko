@@ -79,6 +79,11 @@ import {
   type MatkategoriId,
 } from '../lib/matkategori';
 import { bildmotiv, bildmotivAntal } from '../lib/bildmotiv';
+import {
+  hasNationalPage,
+  movementMunicipalities,
+  nationalMovement,
+} from '../lib/rorelse';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
@@ -877,6 +882,33 @@ const artiklar = artikelposter
   .sort((a, b) => b.published.localeCompare(a.published))
   .slice(0, ARTIKLAR);
 
+/*
+ * ══ RÖRELSEN, OCH VARFÖR DEN STÅR PÅ STARTSIDAN ═══════════════════════════
+ *
+ * Sajten har exakt ett flöde som ändrar sig i en takt en människa kan läsa:
+ * 112 verksamheter tillkom i kommunernas register och sju försvann på 28
+ * dagar, räknat 2026-09-05. Allt annat vi har rör sig en gång vartannat år
+ * per rad. Sidtypen var byggd och länkad från 8 av 17 893 sidor, se docs/59
+ * §4.4, alltså den enda återkommande anledningen att öppna Prikko låg
+ * gömd sist på kommunsidan.
+ *
+ * TALEN ÄR RIKETS OCH ALDRIG KOMMUNENS. Blocket räknar `nationalMovement()`
+ * på precis samma sätt som riksvyn själv gör, så att de två aldrig kan säga
+ * olika saker. Kommunlänkarna står som NAMN utan tal, och det är villkoret
+ * för att blocket över huvud taget får finnas: ett tal per kommun bredvid ett
+ * annat är en rangordning av hur kommunerna sköter sina register, vilket är
+ * samma fel som att rangordna dem på kontrollresultat. Skälet står utskrivet
+ * i huvudet på pages/nytt-och-borta/[...riket].astro och ska inte härledas om.
+ *
+ * Orden är "tillkommit" och "försvunnit", aldrig "nyöppnat" och "stängt". Vi
+ * har observerat att ett anläggnings-id dök upp eller slutade lämnas ut, och
+ * ingenting mer. Se huvudet på lib/rorelse.ts.
+ */
+const rorelseposter = hasNationalPage() ? nationalMovement() : [];
+const rorelseNya = rorelseposter.filter((e) => e.kind === 'ny').length;
+const rorelseBorta = rorelseposter.length - rorelseNya;
+const rorelsekommuner = movementMunicipalities();
+
 const description = `Prikko samlar ${formatNumber(total.establishments)} livsmedelsverksamheter från ${total.municipalities} kommuner och visar hur var och en klarade sin senaste hygienkontroll.`;
 
 const jsonLd = [
@@ -1067,6 +1099,45 @@ const jsonLd = [
       </div>
     </div>
   </section>
+
+  {/* ══ Rörelsen ══════════════════════════════════════════════════════
+      Före artiklarna och efter korten. Korten är vad vi har, rörelsen är
+      vad som ÄNDRAT SIG sedan sist, och artiklarna är läsning. Den som kom
+      hit i går och kommer igen i dag har bara en anledning på hela sajten,
+      och den ska inte ligga under tolv artikelkort.
+
+      Ingen egen sida byggs. Blocket är länkar till sidor som redan finns,
+      och villkoret hasNationalPage() är riksvyns eget: byggs den inte finns
+      ingen adress att peka på. */}
+  {rorelseposter.length > 0 && (
+    <section class="container block rorelse">
+      <div class="blockhuvud">
+        <h2>Nytt och borta</h2>
+        <a href="/nytt-och-borta/">Hela landet</a>
+      </div>
+
+      <p class="rorelsesvar">
+        {formatNumber(rorelseNya)} verksamheter har tillkommit i kommunernas
+        register och {formatNumber(rorelseBorta)} har försvunnit ur dem.
+        Uppgiften är att ett anläggnings-id dök upp i kommunens utlämning
+        eller slutade lämnas ut, inte att någon öppnat eller stängt.
+      </p>
+
+      {/* NAMN OCH INGA TAL. Se resonemanget i frontmattern: en kommun med
+          ett tal bredvid en annan kommun med ett tal är en rangordning,
+          oavsett vad rubriken säger. Kommunens egna tal står på kommunens
+          egen sida, ett klick bort. Ordningen är bokstavsordning, alltså den
+          municipalities() ger överallt annars, och aldrig antal händelser:
+          en lista sorterad på rörelse hade varit rangordningen i förklädnad. */}
+      <ul class="rorelselankar">
+        {rorelsekommuner.map((m) => (
+          <li>
+            <a href={`/${m.slug}/nytt-och-borta/`}>Nytt och borta i {m.city}</a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 
   {/* ══ Artiklarna ════════════════════════════════════════════════════*/}
   {artiklarKlara && artiklar.length > 0 && (
@@ -1896,6 +1967,36 @@ const jsonLd = [
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     white-space: nowrap;
+  }
+
+  /* ── Rörelsen ────────────────────────────────────────────────────────
+     Blocket är två meningar och en länkrad, alltså sidans lättaste avsnitt,
+     och det ska väga så. Ingen ruta, ingen ram: hårlinjen från .block är
+     hela avgränsningen, precis som artikelblocket under. */
+  .rorelsesvar {
+    max-width: var(--w-read);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* Länkarna står på en rad som bryter, inte i en kolumn. Tre kommuner i
+     dag och sannolikt tretton när loggen mognat: en kolumn hade blivit en
+     stapel av tretton nästan identiska rader, medan en brytande rad håller
+     sig på två våningar även då. Gluggen är 8 lodrätt och 24 vågrätt, samma
+     par som .policy i sidfoten använder för samma sorts rad. */
+  .rorelselankar {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-6);
+  }
+
+  .rorelselankar a {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
   }
 
   /* ── Artiklarna ──────────────────────────────────────────────────────
