@@ -158,7 +158,13 @@ jobs:
     needs: hamta
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Sextio och inte trettio, sedan IndexNow-steget tillkom. Trettio räckte så
+    # länge jobbet slutade vid commiten; nu väntar sista steget på att
+    # Cloudflare Pages ska rulla ut bygget innan det anmäler adresserna, och
+    # den väntan är satt till 25 minuter i pipeline/indexnow.py. Stegen före
+    # den tar normalt en kvart. Med trettio hade jobbet dött mitt i väntan i
+    # stället för att låta steget falla mjukt och skriva varför.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -243,6 +249,23 @@ jobs:
             python3 pipeline/notify.py --notiser --skicka
           fi
 
+      # MÅSTE ligga före commiten, av exakt samma skäl som notissteget ovan.
+      # Steget jämför arbetskopian med HEAD, alltså nattens export mot
+      # gårdagens incheckade ögonblicksbild. Efter commiten är de två samma sak
+      # och listan blir tom varje natt, tyst.
+      #
+      # Här räknas bara fram VAD som ändrats. Anmälan sker sist i jobbet,
+      # eftersom en anmälan säger "hämta den här adressen nu" och sidan inte är
+      # utrullad förrän Cloudflare Pages byggt den nya commiten.
+      #
+      # Ingen hemlighet behövs. IndexNow-nyckeln är publik med flit och ligger
+      # i site/public/, se huvudet på pipeline/indexnow.py.
+      - name: Räkna fram vilka adresser som ändrats
+        continue-on-error: true
+        run: |
+          mkdir -p data
+          python3 pipeline/indexnow.py andrade --ut data/indexnow-urler.txt
+
       - name: Sammanfatta förändringen
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
@@ -300,6 +323,29 @@ jobs:
               git pull --rebase origin main
             done
           fi
+
+      # EFTER commiten, och det är hela poängen med placeringen.
+      #
+      # Steget väntar tills prikko.se serverar nattens bygge och anmäler sedan
+      # de adresser föregående steg räknade fram. Anmäls de före utrullningen
+      # hämtar roboten gårdagens sida, och för en ny verksamhet en 404.
+      #
+      # continue-on-error av samma skäl som notissteget: datan är produkten,
+      # anmälan är en tjänst ovanpå. En slutpunkt som inte svarar får inte
+      # färga natten röd, och adresserna kommer med i morgondagens körning
+      # eftersom de fortfarande skiljer sig från gårdagens incheckning då.
+      #
+      # Ligger FÖRE frysgrinden nedan, som avslutar jobbet med exit 1. En
+      # kommun som frös ska inte hindra att de tolv friska anmäls.
+      - name: Anmäl de ändrade adresserna till IndexNow
+        continue-on-error: true
+        timeout-minutes: 35
+        run: |
+          if [ ! -s data/indexnow-urler.txt ]; then
+            echo "Ingen lista att anmäla. Föregående steg skrev ingen fil."
+            exit 0
+          fi
+          python3 pipeline/indexnow.py anmal data/indexnow-urler.txt
 
       # SIST, och det är hela poängen med steget.
       #
