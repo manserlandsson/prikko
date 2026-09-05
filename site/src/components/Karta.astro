@@ -32,9 +32,13 @@
  * på det anropet. De måste: miljontals objekt, priser som beror på datum,
  * tillgänglighet som ändras.
  *
- * Vi frågar ingen. Punkterna ligger i en förgenererad rutpyramid, och rutorna
- * för utsnittet är redan hämtade när listan ritas. Ingen omladdning, inget
- * skelett, ingen väntan: listan följer med medan man drar.
+ * Vi frågar ingen. Urvalet ligger redan i minnet, hela kommunen eller hela
+ * landet, hämtat en gång som /kartlista/<kommun>.json. Ingen omladdning, inget
+ * skelett, ingen väntan: listan byts i samma bildruta som fingret släpps.
+ *
+ * Att den byts vid `moveend` och inte vid `move` är ett annat beslut och har
+ * inget med hämtning att göra. Sextio kort byggda med createElement per
+ * bildruta är det som gör en dragning ryckig, se `utsnittBytte` nedan.
  *
  * ## Var klustringen tog vägen
  *
@@ -555,6 +559,10 @@ const LEGEND = [
   data-url={rutor.url}
   data-keys={JSON.stringify(rutor.keys)}
   data-bounds={data.bounds.join(',')}
+  {/* Medianläget i vyn, se `karna` i lib/kartrutor.ts. Kameran faller
+      tillbaka på det när lådan ovanför är så vid att rutorna kommer klustrade,
+      alltså när öppningsvyn annars hade blivit ett lager blå bubblor. */}
+  data-karna={data.karna.join(',')}
   data-vy={vy ? `${vy.zoom}/${vy.lat}/${vy.lng}` : undefined}
   data-vylada={vylada ? vylada.join(',') : undefined}
   data-city={plats}
@@ -3652,9 +3660,15 @@ const LEGEND = [
     /**
      * Ritar listan ur URVALET.
      *
-     * @param rader_  Hela urvalet efter filter och sortering, alltså varje rad
-     *                som hör till valet. Funktionen ritar de `visade` första
-     *                och låter knappen ta besökaren vidare.
+     * @param rader_  Raderna som ligger i KARTUTSNITTET efter filter och
+     *                sortering. Funktionen ritar de `visade` första och låter
+     *                knappen ta besökaren vidare.
+     * @param utanfor Hur många rader som hör till urvalet men ligger utanför
+     *                bilden. Noll betyder att kameran rymmer hela urvalet, och
+     *                då säger rubriken samma sak som förut. Talet finns för att
+     *                en tom lista aldrig får läsa som "det här finns inte" när
+     *                sanningen är "det ligger inte här", vilket är exakt det
+     *                fel ägaren fick på "allegrine".
      *
      * Parametern heter `rader_` med understreck eftersom `rader` är <ol> i
      * DOM:en några rader upp. Att skugga elementet hade varit en tyst fälla i
@@ -3681,7 +3695,7 @@ const LEGEND = [
     /** Vilken lista `visade` räknar i. Byts den är raderna andra rader. */
     let listForm = '';
 
-    function ritaLista(rader_: Punkt[]) {
+    function ritaLista(rader_: Punkt[], utanfor = 0) {
       /*
        * Nollställningen bor HÄR och ingen annanstans.
        *
@@ -3914,6 +3928,34 @@ const LEGEND = [
        * kvar när man drar kartan någon annanstans.
        */
       /*
+       * ══ OCH SEDAN 2026-09-05 SÄGER DEN BÅDA TALEN NÄR DE SKILJER SIG ════
+       *
+       * Listan följer kartutsnittet igen, se `uppdatera`. Rubriken måste då
+       * svara på TVÅ frågor och inte en: hur många ligger i bilden, och hur
+       * många finns det i det man valt.
+       *
+       * Ett tal räcker inte, och det är inte en stilfråga. Söker man
+       * "allegrine" på rikskartan medan kameran står i Uppsala matchar
+       * `raknaTraffar()` fortfarande raden i Stockholm, men den ligger utanför
+       * bilden. En rubrik som bara sade "0 träffar" hade upprepat exakt det
+       * fel som fixades 2026-08-27: sant om utsnittet, falskt om sajten.
+       *
+       * Airbnb löser samma sak genom att BYTA UT platsen mot kartan. Uppmätt
+       * hos dem 2026-09-05: rubriken lyder "Över 1 000 boenden inom
+       * kartområde" och platsrutan i sökfältet säger "Boenden inom
+       * kartområdet" i stället för Stockholm. De behöver inget andra tal,
+       * eftersom de inte har något urval bakom kartan att jämföra mot.
+       *
+       * Vi har det, och då ska det stå: "12 träffar i kartutsnittet, av 31 i
+       * Stockholm." Meningen är sann i båda ändarna och säger dessutom vad man
+       * ska göra åt saken utan att instruera någon.
+       *
+       * NÄR KAMERAN RYMMER HELA URVALET står ingenting extra. Det är
+       * huvudfallet vid sidladdning, och en rubrik som sade "8 567 i
+       * kartutsnittet, av 8 567 i Stockholm" hade varit två tal för att säga
+       * en sak.
+       */
+      /*
        * "TRÄFFAR" BARA NÄR NÅGOT SÖKTS, inte när något valts.
        *
        * `harFilter()` är sant även för ett kommunchip, eftersom chippet
@@ -3928,6 +3970,26 @@ const LEGEND = [
       const sokt = traffar !== null;
       const totalt = rader_.length;
       const hela = urvalKlart();
+
+      /** Hela urvalet efter filter, alltså det som finns oavsett var kameran
+       *  står. Summan och inte ett andra varv över punkterna: `uppdatera`
+       *  räknade redan båda mängderna och skickade skillnaden hit. */
+      const iUrvalet = totalt + utanfor;
+
+      /**
+       * Platsen i ord, ALLTID namngiven.
+       *
+       * `urvalsLed()` är med flit tom när urvalet är sidans egen plats, se
+       * noten där: H1:n bredvid säger redan Stockholm. Det duger inte i en
+       * mening som ställer två tal mot varandra. "av 8 567" utan plats säger
+       * av 8 567 vad, och var.
+       */
+      const platsOrd = urvalsOrd() || (root.dataset.city ?? '');
+
+      /** Ordet för en rad: sökningens "träff" eller urvalets "verksamhet",
+       *  i rätt numerus. Står i tre av rubrikens fyra grenar. */
+      const radOrd = (n: number) =>
+        sokt ? (n === 1 ? 'träff' : 'träffar') : n === 1 ? 'verksamhet' : 'verksamheter';
 
       /*
        * Kommunraderna, bara på rikskartan, och bara när INGET är valt.
@@ -3946,15 +4008,35 @@ const LEGEND = [
        */
       if (kommuner) kommuner.hidden = omradeVal.length > 0 || filterVarde !== '' || katMask !== 0;
 
-      if (totalt === 0) {
+      if (totalt === 0 && utanfor > 0 && hela) {
+        /*
+         * TOM BILD, MEN INTE ETT TOMT URVAL, och det är den gren hela
+         * omskrivningen 2026-09-05 finns för.
+         *
+         * Kameran står någon annanstans än raderna. Att då skriva "Inga
+         * verksamheter i Stockholm" vore osant om sajten och sant bara om
+         * rutan, alltså precis det fel som fixades 2026-08-27 och som en
+         * kamerastyrd lista annars för tillbaka.
+         *
+         * Texten säger därför var de tog vägen och vad man gör åt det, och den
+         * räknar dem. Ett tal är skillnaden mellan ett besked och en ursäkt.
+         */
+        satTal(null, sokt ? 'Ingen träff i kartutsnittet.' : 'Ingenting i kartutsnittet.');
+        underrubrik.textContent =
+          `${utanfor.toLocaleString('sv-SE')} ${radOrd(utanfor)}` +
+          `${platsOrd ? ` i ${platsOrd}` : ''} ligger utanför bilden. ` +
+          'Zooma ut eller dra tillbaka kartan.';
+        underrubrik.hidden = false;
+      } else if (totalt === 0) {
         satTal(null, hela ? `Inga verksamheter${urvalsLed()}.` : 'Hämtar listan…');
         /*
          * TOMTEXTEN FÅR ALDRIG SÄGA ATT NÅGOT SAKNAS NÄR REGISTRET HAR EN
          * TRÄFF. Det var precis den meningen ägaren fick på "allegrine", och
          * den var sann om utsnittet och falsk om sajten.
          *
-         * Ordet "utsnittet" är borta ur den här texten av samma skäl som ur
-         * rubriken: listan är inte ett utsnitt längre.
+         * Den här grenen gäller numera bara när urvalet SJÄLVT är tomt, alltså
+         * när ingenting hade synts hur man än drog kartan. Fallet "finns, men
+         * inte i bilden" tas av grenen ovanför.
          */
         underrubrik.textContent = !hela
           ? 'Listan fylls på medan kommunernas filer landar.'
@@ -3967,9 +4049,10 @@ const LEGEND = [
       } else {
         satTal(
           totalt,
-          sokt
-            ? `${totalt === 1 ? 'träff' : 'träffar'}${urvalsLed()}.`
-            : `${totalt === 1 ? 'verksamhet' : 'verksamheter'}${urvalsLed()}.`,
+          utanfor > 0
+            ? `${radOrd(totalt)} i kartutsnittet, av ${iUrvalet.toLocaleString('sv-SE')}` +
+              `${platsOrd ? ` i ${platsOrd}` : ''}.`
+            : `${radOrd(totalt)}${urvalsLed()}.`,
         );
         underrubrik.hidden = true;
       }
@@ -3978,8 +4061,12 @@ const LEGEND = [
          betytt att de två kan hamna i otakt, alltså en grävling som säger att
          här finns ingenting bredvid en rubrik som räknar fyrtio verksamheter.
 
+         `utanfor` med i villkoret sedan listan följer kartan: grävlingen säger
+         att kommunen är tom, och en kamera som råkat hamna över åkermark är
+         inte en tom kommun. Rubriken ovanför säger redan vad som gäller.
+
          Elementet finns bara på kommunernas kartor, se markupen. */
-      if (tomvy) tomvy.hidden = totalt !== 0;
+      if (tomvy) tomvy.hidden = totalt !== 0 || utanfor > 0;
 
       /*
        * Foten säger hur långt man kommit, knappen tar en vidare.
@@ -5468,6 +5555,105 @@ const LEGEND = [
          */
       });
 
+      /**
+       * ══ ÖPPNINGSVYN FÅR INTE VARA ETT LAGER BLÅ BUBBLOR ═══════════════════
+       *
+       * Ägaren 2026-09-05: "jag tycker standardvyn ska vara inzoomad på
+       * ställen som visar även med bild typ".
+       *
+       * Bokstavligen går det inte. 359 av 14 376 nålar bär en bild, alltså
+       * 2,5 procent, och en vy som söker upp en av dem visar en nästan tom
+       * karta. Men han pekar på något mätbart: kartan öppnar på klumpar i
+       * stället för på verksamheter.
+       *
+       * ── TALET SOM AVGÖR, OCH DET ÄR RÄKNAT ──────────────────────────────
+       *
+       * `CLUSTER_MAX_ZOOM` i lib/kartrutor.ts är 8. Supercluster klustrar
+       * rutor för zoom till och med maxzoomen, och MapLibre begär rutan på
+       * GOLVET av kartans zoom. Första nivån som ger råa nålar är därför ruta
+       * z9, alltså kartzoom 9,0. Under det är varje nål en bubbla med en
+       * siffra i, hur mycket den än liknar en karta över verksamheter.
+       *
+       * Öppningszoomen är `fitBounds` av kommunens låda, alltså ett tal som
+       * beror på kartrutans form. Uppmätt ur `data-bounds` i det byggda bygget,
+       * med 32 px marginal:
+       *
+       *     kommun          1440 (751x835)      375 (375x812)
+       *     hoganas         11,04  z11          10,17  z10
+       *     jonkoping        9,33  z9            8,19  z8   klustrad
+       *     karlstad         9,49  z9            8,35  z8   klustrad
+       *     kristinehamn     9,50  z9            9,40  z9
+       *     linkoping        9,85  z9            8,74  z8   klustrad
+       *     norrkoping       8,88  z8 klustrad   7,74  z7   klustrad
+       *     orebro          10,32  z10           9,18  z9
+       *     oskarshamn       9,59  z9            8,49  z8   klustrad
+       *     stockholm       10,57  z10           9,43  z9
+       *     uppsala          9,58  z9            8,44  z8   klustrad
+       *
+       * SEX AV TIO kommunkartor öppnade alltså på en klustrad ruta på telefon,
+       * och Norrköping gjorde det på bred skärm också. Det är precis den vägg
+       * av likadana numrerade klumpar ägaren beskriver, och den var inte ett
+       * beslut utan en följd av att lådan bestämde zoomen.
+       *
+       * ── VARFÖR MEDIANEN OCH INTE LÅDANS MITT ────────────────────────────
+       *
+       * Att bara zooma in till 9,0 och behålla lådans mitt räcker inte.
+       * Norrköpings låda är en grad bred i longitud och 0,186 grader hög,
+       * alltså dragen österut av skärgården, och dess mitt ligger ute i
+       * vattnet. Uppmätt andel av kommunens verksamheter som syns vid zoom 9,0
+       * i en ruta på 375 x 812:
+       *
+       *     centrerat på lådans mitt   Norrköping 54,8 %, Oskarshamn 89,9 %
+       *     centrerat på medianen      Norrköping 97,9 %, Oskarshamn 97,5 %
+       *
+       * Sämsta fallet med medianen är Jönköping på 90,1 % vid 375 och 99,6 %
+       * vid 1440. Kameran flyttas alltså till `data-karna`, se lib/kartrutor.ts.
+       *
+       * ── VAD SOM INTE GÖRS ───────────────────────────────────────────────
+       *
+       * Ingen prioritering av VILKA nålar som ritas först. Ett urval som
+       * ritade de gröna före de röda vore en tyst rangordning av
+       * verksamheter, och sådana publicerar sajten inte. Det som ändras här
+       * är kameran och ingenting annat: varenda nål i rutan ritas, i samma
+       * ordning som förut.
+       *
+       * Golvet gäller BARA kommunkartorna, alltså grenen med `bounds` ovan.
+       * Rikskartan skickar `vy` och `vylada` och rörs inte: den sidan heter
+       * Sverige och ska öppna på Sverige, se pages/karta.astro. Ett fragment i
+       * adressen vinner också alltid, av samma skäl som överallt annars: den
+       * som delat ett utsnitt har bett om just det.
+       */
+      const NALZOOM = 9;
+      const karnaDel = (root!.dataset.karna ?? '').split(',').map(Number);
+      if (
+        !startVy &&
+        !oppningsVy &&
+        !oppningsLada &&
+        karnaDel.length === 2 &&
+        karnaDel.every((n) => Number.isFinite(n)) &&
+        karta.getZoom() < NALZOOM
+      ) {
+        const karna = { lng: karnaDel[0], lat: karnaDel[1] };
+        karta.jumpTo({ center: karna, zoom: NALZOOM });
+        /*
+         * Arket täcker underkanten på telefon, och ett center hamnar mitt i
+         * RUTAN och inte mitt i strimman. Samma fel som `arkTacker` finns för
+         * ovanför, och det löses här på samma sätt fast tvärtom: kameran
+         * flyttas till den punkt som just nu ligger `arkTacker / 2` px NEDANFÖR
+         * mitten, vilket lyfter kärnan lika mycket och lägger den mitt i det
+         * som syns.
+         *
+         * Räknat i pixlar och inte i grader, eftersom en grad longitud är
+         * olika många pixlar på olika latituder. `jumpTo` och inte `easeTo`:
+         * ingenting har ritats än, alltså finns ingen rörelse att se.
+         */
+        if (arkTacker > 0) {
+          const mitt = karta.project(karna);
+          mitt.y += arkTacker / 2;
+          karta.jumpTo({ center: karta.unproject(mitt) });
+        }
+      }
+
       /*
        * Helskärm på ramen, inte på dokumentet.
        *
@@ -6061,6 +6247,54 @@ const LEGEND = [
          * dyra ligger sist av samma skäl som förut: `traffar.has` är ett
          * uppslag och punkt-i-polygon är det som kostar.
          */
+        /*
+         * ══ OCH NU FÖLJER LISTAN KARTAN IGEN, SOM ETT TREDJE VILLKOR ══════
+         *
+         * Ägaren 2026-09-05: "vår kartby sökgrej, den uppdateras ju ej när man
+         * skrollar ... men om jag drar runt i stockholm ska ju det visa
+         * annorlunda eller, kolla hur airbnb gör det."
+         *
+         * Det här ser ut som en återgång till det som togs bort 2026-08-27,
+         * och det är det inte. Skillnaden är vad som är URVAL och vad som är
+         * FILTER, och den skillnaden fanns inte förut.
+         *
+         * FÖRE 08-27: rutorna VAR listan. Ett kommunval kunde inte överleva en
+         * panorering, eftersom raderna för kommunen helt enkelt inte fanns i
+         * webbläsaren när kameran stod någon annanstans. En sökning på
+         * "allegrine" kunde bara träffa det som råkade ligga i bild.
+         *
+         * NU: urvalet ligger i minnet, hela kommunen eller hela landet, och
+         * kartutsnittet är ett villkor OVANPÅ det. Ett chip står kvar när man
+         * drar. `raknaTraffar()` räknar fortfarande över HELA urvalet, alltså
+         * hittar sökningen Allegrine även när kameran står i Uppsala, och
+         * rubriken säger då att träffarna ligger utanför bilden i stället för
+         * att påstå att de inte finns. Se `ritaLista`.
+         *
+         * ── VARFÖR AUTOMATISKT OCH INTE EN KNAPP ────────────────────────────
+         *
+         * De två skolorna är "uppdatera medan man drar" och "visa en knapp som
+         * säger sök i det här området". Airbnb hade förr båda, med en kryssruta
+         * som mindes valet.
+         *
+         * Uppmätt hos dem 2026-09-05 i webbläsaren vid 1440 x 900: kryssrutan
+         * finns inte längre. En genomsökning av varje `input[type=checkbox]`,
+         * `[role=checkbox]` och `[role=switch]` på sökresultatsidan gav exakt
+         * fem träffar, och alla fem var bekvämlighetsfilter (husdjur, wifi,
+         * parkering, kök, tvättmaskin). Ingen knapp för "sök i det här
+         * området" finns heller. Adressen bär i stället `search_by_map=true`
+         * och `search_type=user_map_move`, alltså deras eget namn på saken:
+         * kartrörelsen ÄR sökningen.
+         *
+         * Vi hade dessutom inte kunnat bygga kryssrutan. Ett val som ska
+         * minnas mellan besök är lagring i webbläsaren, och docs/14 säger att
+         * ingenting icke-nödvändigt lagras utan samtycke och att ingen
+         * samtyckesruta byggs. En kryssruta som glömmer sig vid varje
+         * sidladdning är sämre än ingen kryssruta.
+         *
+         * Detta gäller alltså ALLTID och går inte att stänga av. Priset är att
+         * man inte kan titta på kartan utan att listan byts, och det priset
+         * betalar Airbnb också.
+         */
         function uppdatera() {
           /*
            * Träffarna räknas om varje gång, och det är billigare än det låter.
@@ -6077,20 +6311,76 @@ const LEGEND = [
             filtreraNalar();
           }
 
-          const valda = urvalsPunkter().filter(
+          /*
+           * URVALET efter de två filtren, alltså allt som hör till valet
+           * oavsett var kameran står. Talet behövs för att rubriken ska kunna
+           * säga hur många som ligger UTANFÖR bilden, och det är den enda
+           * anledningen till att mängden delas i två steg.
+           */
+          const hela = urvalsPunkter().filter(
             (p) => (traffar === null || traffar.has(p.i)) && iOmrade(p),
           );
+
+          /*
+           * Kartutsnittet, läst EN gång per omritning.
+           *
+           * `getBounds()` går över kameran och projektionen, alltså inte något
+           * man vill anropa en gång per punkt. De fyra talen plockas därför ut
+           * här och jämförelsen nedan är fyra tal mot fyra tal.
+           *
+           * Kanterna tas i normaliserad ordning i stället för att lita på att
+           * väst är mindre än öst. En karta som dragits runt jorden kan lämna
+           * en longitud utanför -180..180, och en jämförelse som antar
+           * ordningen hade tömt listan tyst i stället för att visa något.
+           */
+          const b = karta ? karta.getBounds() : null;
+          const valda = b
+            ? (() => {
+                const v = Math.min(b.getWest(), b.getEast());
+                const o = Math.max(b.getWest(), b.getEast());
+                const sy = Math.min(b.getSouth(), b.getNorth());
+                const no = Math.max(b.getSouth(), b.getNorth());
+                return hela.filter(
+                  (p) => p.lng >= v && p.lng <= o && p.lat >= sy && p.lat <= no,
+                );
+              })()
+            : hela;
 
           /*
            * "Närmast" mäts från kartans mitt EN gång per omritning, inte per
            * bildruta. Att läsa mitten är rätt: frågan "vad ligger närmast"
            * måste ha en punkt att mätas från, och kartans mitt är den enda
-           * besökaren ser. Att sortera om medan man drar vore däremot precis
-           * den kamerastyrning som just togs bort, och det gör den inte
-           * längre, eftersom `move` inte anropar hit.
+           * besökaren ser. Sedan listan följer utsnittet igen sorteras den om
+           * vid varje `moveend`, alltså när rörelsen STANNAT och aldrig medan
+           * den pågår.
            */
           sortera(valda, karta ? karta.getCenter() : null);
-          ritaLista(valda);
+          ritaLista(valda, hela.length - valda.length);
+        }
+
+        /**
+         * Panoreringen ritar om listan, och den gör det när rörelsen STANNAT.
+         *
+         * `moveend` och inte `move`, och det är samma tal som `MAX_RADER`
+         * valdes efter: sextio kort byggda med createElement per bildruta är
+         * det som gör en dragning ryckig. `moveend` avfyras en gång per gest
+         * och en gång till när tröghetsrullningen tagit slut, alltså två
+         * omritningar för en dragning i stället för sextio.
+         *
+         * Ingen extra fördröjning ovanpå det. `planeraSkrivning` bredvid har
+         * en på 250 ms, men den skriver historik och inte DOM, och en lista
+         * som väntar en fjärdedels sekund efter att fingret släppts känns som
+         * en laggande sida.
+         *
+         * `visade` nollas, alltså tillbaka till sextio kort. Har man tryckt
+         * "Visa 60 till" fem gånger står trehundra kort i kolumnen, och att
+         * bygga om trehundra kort vid varje panorering är precis den kostnad
+         * talet sextio finns för att hålla nere. Det är också vad Airbnb gör:
+         * en kartrörelse är en ny sökning och en ny sökning börjar om.
+         */
+        function utsnittBytte() {
+          visade = MAX_RADER;
+          uppdatera();
         }
 
         /*
@@ -6110,17 +6400,14 @@ const LEGEND = [
          */
 
         /*
-         * ══ KAMERAN RÖR INTE LÄNGRE LISTAN ═══════════════════════════════
+         * ══ KAMERAN RÖR LISTAN VID `moveend` OCH ALDRIG VID `move` ════════
          *
-         * Båda de här lyssnarna anropade `uppdatera()`, alltså ritade om hela
-         * listan per bildruta under en dragning. Det var meningen så länge
-         * listan VAR utsnittet. Nu är den urvalet, och en kamera som skriver
-         * om listan är precis det fel som togs bort.
+         * `move` avfyras en gång per bildruta, alltså sextio gånger i sekunden
+         * under en dragning, och gör därför bara ett: räknar upp `version`.
          *
-         * `version` räknas fortfarande upp, och det måste den: den är
-         * nycklen till `punktKalla()`, alltså till KARTANS mängd, som
-         * nålkortet och adressgrupperna läser. Den mängden byts varje gång en
-         * ruta landar och har ingenting med listan att göra.
+         * `version` är nycklen till `punktKalla()`, alltså till KARTANS mängd,
+         * som nålkortet och adressgrupperna läser. Den mängden byts varje gång
+         * en ruta landar och har ingenting med listan att göra.
          *
          * `filtreraNalar` körs vid nya rutor och inte vid varje rörelse. En ny
          * ruta bär nålar som aldrig sett filtret; en panorering inom redan
@@ -6137,10 +6424,25 @@ const LEGEND = [
           if (traffar !== null) filtreraNalar();
         });
 
-        /* Adressen följer vyn. `moveend` och inte `move`, se planeraSkrivning:
-           en replaceState per bildruta är arbete i huvudtråden som ingen bett
-           om och som syns i dragningen. */
-        karta.on('moveend', planeraSkrivning);
+        /*
+         * Adressen OCH listan följer vyn, båda vid `moveend`.
+         *
+         * Adressen bär redan utsnittet, i formen `map=<zoom>/<lat>/<lng>`, och
+         * den formen räcker. Airbnb skickar i stället fyra hörntal,
+         * `ne_lat/ne_lng/sw_lat/sw_lng`, och det gör de för att deras SERVER
+         * utför sökningen: en server har ingen kartruta att härleda utsnittet
+         * ur och måste få rektangeln skickad till sig. Vår sökning ligger i
+         * webbläsaren och läser kartans egna kanter i samma sekund, alltså är
+         * kamerans läge det enda som behöver delas.
+         *
+         * En rektangel HADE dessutom kunnat säga emot `map=`. Två uppsättningar
+         * tal för samma sak i samma fragment är en fråga om vilken som vinner,
+         * och den frågan behöver inte finnas.
+         */
+        karta.on('moveend', () => {
+          planeraSkrivning();
+          utsnittBytte();
+        });
 
         uppdatera();
 

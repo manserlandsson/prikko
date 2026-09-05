@@ -1693,7 +1693,6 @@ const jsonLd = [
       var(--kant-ljus)  312deg,
       var(--kant-halv)  352deg,
       var(--kant-dis)   360deg);
-    animation: kartvarv 6s linear infinite;
     /* NEGATIVT, och det är hela knepet. `isolation: isolate` på knappen gör
        den till ett eget stapelsammanhang, och där målas barn med negativt
        z-index UNDER elementets eget innehåll men över dess bakgrund. Etiketten
@@ -1720,55 +1719,32 @@ const jsonLd = [
     transform: scale(1.04);
   }
 
-  /* Hovringen snabbar bara upp varvet, den startar inget nytt. Ringen snurrar
-     redan, så en ny animation hade ryckt till. */
-  .kartknapp:hover::before { animation-duration: 1.4s; }
-
-  /* RULLNINGEN DRIVER RINGEN.
+  /* RINGEN SNURRAR INTE, OCH DET ÄR ETT BESLUT 2026-09-05.
      ──────────────────────────────────────────────────────────────────────
-     Ägaren 2026-08-24: "kanske att snurren på bordern liksom snurrar på
-     skroll hade varit coolt eller något?"
+     Här låg en roterande kon-gradient i tre lager: sex sekunder per varv som
+     grundläge, 1,4 sekunder vid hovring, och en rullningsdriven variant på
+     åtta varv över dokumentet bakom `@supports (animation-timeline: scroll())`.
+     Rullningsvarianten var ägarens egen beställning från 24 augusti, "kanske
+     att snurren på bordern liksom snurrar på skroll hade varit coolt".
 
-     Den går inte att missa, den startar inte av sig själv så WCAG 2.2.2 faller
-     bort, och `scroll()` körs av kompositören utan en enda rullhanterare.
+     Han har sett den i drift och avgjort om 2026-09-05: "kan du ta bort
+     animationen på kartknappen på hem, jag gillar den inte."
 
-     Åtta varv över dokumentet, alltså ungefär ett varv per 590 px.
+     Gradienten står kvar och ger ringen ett stillastående ljusdrag. Den har
+     ingen skarv att dölja: `--kant-dis` står på både 0 och 360 grader, alltså
+     möts ändarna i samma ton och en frusen kon ser inte avklippt ut.
 
-     TVÅ REGLER OCH BARA LÅNGFORMER. Kortformen plus tidslinjen i samma regel
-     minifierades ihop till `animation: linear kartvarv-skroll scroll(root)`,
-     och `animation-timeline` ingår inte i kortformen i någon webbläsare, så
-     hela deklarationen kastades. `:not(:root)` skiljer selektorerna åt så att
-     minifieraren inte kan slå ihop dem igen. `animation-duration: auto` binder
-     varvet till rullsträckan i stället för till tid.
-
-     Firefox saknar rullningstidslinjer och behåller de sex sekunderna ovan. */
-  @supports (animation-timeline: scroll()) {
-    .kartknapp::before {
-      animation-name: kartvarv-skroll;
-      animation-duration: auto;
-      animation-timing-function: linear;
-      animation-iteration-count: 1;
-    }
-
-    .kartknapp:not(:root)::before {
-      animation-timeline: scroll(root block);
-    }
-  }
-
-  @keyframes kartvarv { to { rotate: 360deg; } }
-  @keyframes kartvarv-skroll { to { rotate: 2880deg; } }
+     Det som ströks var `animation` på ::before, hovringens `animation-duration`,
+     hela `@supports`-blocket och båda `@keyframes`. Ingenting annat i knappen
+     ändrades, alltså är plattan, ringens 2 px och `z-index`-lagren desamma. */
 
   }
 
   @media (prefers-reduced-motion: reduce) {
+    /* Bara hovringens skalning återstår att stänga av. Undantaget för ringen
+       låg här tidigare och behövs inte längre: ingen vinkel rör sig för
+       någon, se noten vid .kartknapp::before. */
     .kartknapp { transition: none; }
-    /* Ingen vinkel rör sig. Ringen står kvar på 0 grader, vilket är exakt
-       samma bild som slutläget efter varvet, alltså syns det inte att något
-       togs bort. */
-    /* Träffar båda: den eviga reserven OCH den rullningsdrivna, eftersom
-       `animation: none` slår ut namnet oavsett vilken tidslinje som driver. */
-    .kartknapp::before,
-    .kartknapp:hover::before { animation: none; }
   }
 
   .merrad {

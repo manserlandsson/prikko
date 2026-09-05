@@ -200,8 +200,19 @@ function translate(message: string, code?: string): string {
     return 'Den inloggningen är inte påslagen.';
   if (m.includes('unable to validate email') || m.includes('invalid format'))
     return 'E-postadressen ser inte riktig ut.';
-  if (m.includes('for security purposes') || m.includes('rate limit') || code === 'over_email_send_rate_limit')
-    return 'För många försök. Vänta en minut och prova igen.';
+  /* Två skilda spärrar som satt ihop i ett svar, trots att de kräver olika
+     saker av besökaren.
+     "For security purposes, you can only request this after N seconds" är
+     minsta tiden MELLAN två koder till samma adress. Där är "vänta en minut"
+     rätt besked, och knappen räknar numera ned den tiden själv.
+     `over_email_send_rate_limit` är däremot sajtens tak för hur många mejl
+     hela projektet får skicka per timme. Det taket rör sig inte för att en
+     enskild besökare väntar en minut, så beskedet skickade in folk i en
+     slinga av försök som alla var dömda att misslyckas. */
+  if (m.includes('for security purposes') || m.includes('you can only request this after'))
+    return 'Vänta en minut innan du begär en ny kod.';
+  if (m.includes('rate limit') || code === 'over_email_send_rate_limit')
+    return 'Det går inte att skicka fler koder just nu. Försök igen om en stund.';
   if (m.includes('duplicate key') && m.includes('reviews'))
     return 'Du har redan skrivit ett omdöme om den här verksamheten.';
   if (m.includes('duplicate key') && m.includes('owner_responses'))
@@ -275,11 +286,21 @@ async function authPost(path: string, body: unknown, token?: string): Promise<an
  * som väntar på något som kanske aldrig kommer.
  *
  * ---------------------------------------------------------------------------
- * ÄGARENS STEG INNAN DETTA FUNGERAR
+ * VAD SOM FAKTISKT SKICKAS, MÄTT OCH INTE ANTAGET
  * ---------------------------------------------------------------------------
- * Supabase skickar som förval en LÄNK och inte en kod. Mallen måste ändras:
- *   Authentication → Email Templates → Magic Link → lägg in {{ .Token }}
- * Utan det kommer mejlet fram, men utan siffror att skriva in.
+ * Här stod tidigare att ägaren måste byta ut Supabas förvalda mall, som
+ * skickar en länk i stället för en kod. Det steget ÄR gjort. Mätt 2026-09-05
+ * på ett mottaget mejl, med rubrikerna lästa i klartext:
+ *
+ *   Från:    Prikko <no-reply@prikko.se>
+ *   Ämne:    Din kod till Prikko
+ *   Väg ut:  Resend, alltså Amazon SES i eu-west-1
+ *   Innehåll: sex siffror, ingen inloggningslänk alls
+ *   dkim=pass (d=prikko.se), spf=pass, dmarc=pass
+ *
+ * Mejlet skickas alltså, det är undertecknat och det klarar mottagarnas
+ * kontroller. Det som återstår är var det HAMNAR, och det ligger inte i
+ * koden. Hela mätningen och åtgärdslistan står i docs/58_registreringen.md.
  */
 export async function requestCode(email: string): Promise<void> {
   await authPost('otp', { email, create_user: true });

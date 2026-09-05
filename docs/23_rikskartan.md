@@ -775,3 +775,246 @@ tre träffar på apotek, och arket på smal skärm fungerar som förut.
   gånger.
 - `feature-state` fungerar bara i paint-egenskaper. Den lyfta nålen har därför
   ett eget lager med ett filter, eftersom `icon-size` är en layout-egenskap.
+
+## Listan följer kartan igen, och öppningsvyn slutar öppna på klumpar
+
+Datum: 2026-09-05. Allt under **Mätt** är kört i webbläsaren mot airbnb.se,
+booli.se och mot vårt eget bygge samma dag. Talen är avlästa, inte uppskattade.
+
+Ägaren samma dag: "vår kartby sökgrej, den uppdateras ju ej när man skrollar,
+och jag tycker standardvyn ska vara inzoomad på ställen som visar även med bild
+typ, men om jag drar runt i stockholm ska ju det visa annorlunda eller, kolla
+hur airbnb gör det." Han skickade en Airbnb-adress med `search_by_map=true`,
+`search_type=user_map_move` och ett `ne/sw`-utsnitt i.
+
+### Mätt: Airbnb, 1440 x 900
+
+**Adressen ÄR utsnittet.** Fyra hörntal plus zoom, och två flaggor som säger
+varför de står där:
+
+```
+?search_by_map=true&search_type=user_map_move
+ &ne_lat=59.36&ne_lng=18.14&sw_lat=59.29&sw_lng=17.98&zoom=13
+```
+
+**Talet följer utsnittet.** Samma sökning, två utsnitt, två tal:
+
+| Utsnitt | Zoom | Rubrik |
+|---|---|---|
+| 59,29 .. 59,36 / 17,98 .. 18,14 | 13 | "Över 1 000 boenden inom kartområde" |
+| 59,319 .. 59,328 / 18,060 .. 18,082 | 16 | "221 boenden inom kartområde" |
+
+**Platsen byts ut mot kartan.** Sökfältets platsruta säger inte "Stockholm"
+utan "Läge: Boenden inom kartområdet". Kartan har alltså tagit över rollen som
+sökningens plats, inte lagt sig ovanpå den.
+
+**Ingen kryssruta finns kvar.** En genomsökning av varje `input[type=checkbox]`,
+`[role=checkbox]` och `[role=switch]` på sökresultatsidan gav exakt fem
+träffar, och alla fem var bekvämlighetsfilter: Tillåter husdjur, Wifi, Gratis
+parkering, Kök, Tvättmaskin. Det finns alltså varken "sök när jag flyttar
+kartan" eller en knapp för "sök i det här området". Kartrörelsen är sökningen,
+och det är vad `search_type=user_map_move` heter efter.
+
+**Listan pagineras.** 18 kort renderade mot ett tal på 221.
+
+**Nålarna är objekt, aldrig klumpar.** Både vid zoom 12,4 över Stockholm och
+vid zoom 16 över Gamla stan ritas enskilda priskort. Ingen numrerad bubbla
+någonstans.
+
+### Mätt: Booli, 1440 x 900
+
+`booli.se/sok/till-salu?areaIds=2&mapView=1`. **Ingen rektangel i adressen
+alls.** Rubriken följer det VALDA OMRÅDET och inte kameran: "Bostäder till salu
+i Stockholms län. 13 064 till salu och 11 995 snart till salu." Kartan ritar
+länet som en polygon, alltså är området filtret och utsnittet bara en vy av
+det.
+
+### De två skiljer sig, och vi följer Airbnb i den ena halvan
+
+Booli är sajtens förlaga, men här beskriver de två olika saker. Booli beskriver
+det läge vi redan hade sedan 2026-08-27: urvalet styr listan, kameran rör den
+inte. Airbnb beskriver det ägaren beställer nu.
+
+Vi tar båda, i lager. **Urvalet är ytterst**, alltså Boolis modell: ett
+kommunchip eller ett områdeschip står kvar hur man än drar, och sökningen
+räknas över hela urvalet. **Kartutsnittet är ett villkor ovanpå**, alltså
+Airbnbs modell: listan visar det man ser.
+
+Det är inte en återgång till läget före 08-27. Den gången VAR rutorna listan,
+och därför kunde ett val inte överleva en panorering och en sökning bara träffa
+det som råkade ligga i bild. Nu ligger hela urvalet i minnet.
+
+### Automatiskt, och aldrig en knapp
+
+Två skolor finns. Vi valde automatiskt, av tre skäl i den ordning de väger:
+
+1. **Airbnb har inte längre något annat**, se mätningen ovan. Kryssrutan och
+   knappen är borta hos den förlaga ägaren pekade på.
+2. **Vi kan inte minnas ett val.** En kryssruta som ska gälla nästa besök är
+   lagring i webbläsaren, och `docs/14_samtycke_och_lagring_i_webblasaren.md`
+   säger att ingenting icke-nödvändigt lagras utan samtycke och att ingen
+   samtyckesruta byggs. En kryssruta som glömmer sig vid varje sidladdning är
+   sämre än ingen kryssruta alls.
+3. **En knapp är ett extra klick för det man redan bett om.** Den som drar
+   kartan till Södermalm har sagt vad hen vill se.
+
+Priset är att man inte kan titta på kartan utan att listan byts. Det priset
+betalar Airbnb också.
+
+### Vid `moveend`, aldrig vid `move`
+
+`move` avfyras en gång per bildruta. Sextio kort byggda med createElement per
+bildruta är precis det `MAX_RADER` sattes till sextio för att slippa. `moveend`
+avfyras en gång per gest och en gång till när tröghetsrullningen tagit slut,
+alltså två omritningar för en dragning i stället för sextio.
+
+Ingen extra fördröjning ovanpå det. `planeraSkrivning` har 250 ms, men den
+skriver historik och inte DOM. En lista som väntar en fjärdedels sekund efter
+att fingret släppts läser som en laggande sida.
+
+`visade` nollas vid varje utsnittsbyte, alltså tillbaka till sextio kort. Har
+man tryckt "Visa 60 till" fem gånger står trehundra kort i kolumnen, och att
+bygga om trehundra kort per panorering är just den kostnad talet finns för att
+hålla nere. Airbnb gör detsamma: en kartrörelse är en ny sökning.
+
+### Rubriken säger båda talen, och bara när de skiljer sig
+
+"12 träffar i kartutsnittet, av 31 i Stockholm."
+
+Ett tal räcker inte. Söker man "allegrine" på rikskartan medan kameran står i
+Uppsala matchar sökningen fortfarande raden i Stockholm, men den ligger utanför
+bilden. En rubrik som bara sade "0 träffar" hade upprepat exakt det fel som
+rättades 2026-08-27: sann om utsnittet, falsk om sajten. Uppmätt utfall i
+bygget, `/karta/#map=12/59.858/17.641&q=allegrine`:
+
+> Ingen träff i kartutsnittet.
+> 1 träff i Sverige ligger utanför bilden. Zooma ut eller dra tillbaka kartan.
+
+Rymmer kameran hela urvalet står ingenting extra. Airbnb löser samma sak genom
+att byta ut platsen mot kartan, och de behöver inget andra tal eftersom de inte
+har något urval bakom kartan att jämföra mot. Vi har det, och då ska det stå.
+
+Grävlingen i tomläget göms när utsnittet är det som tömt listan. Den säger att
+kommunen är tom, och en kamera över åkermark är inte en tom kommun.
+
+### Adressen bär redan utsnittet, och får ingen rektangel
+
+Fragmentet bär `map=<zoom>/<lat>/<lng>` och det räcker. Airbnb skickar fyra
+hörntal därför att deras SERVER utför sökningen, och en server har ingen
+kartruta att härleda rektangeln ur. Vår sökning ligger i webbläsaren och läser
+kartans egna kanter i samma sekund, alltså är kamerans läge det enda som
+behöver delas.
+
+En rektangel hade dessutom kunnat säga emot `map=`. Två uppsättningar tal för
+samma sak i samma fragment är en fråga om vilken som vinner, och den frågan
+behöver inte finnas.
+
+Verifierat: `/norrkoping/karta/#map=13.5/58.594/16.185` ger 279 av 622 både vid
+inläsning och efter en omladdning.
+
+## Öppningsvyn: premissen är fel, målet är rätt
+
+Ägaren vill att förvalet ska vara inzoomat på ställen som visas med bild.
+**Bokstavligen går det inte: 359 av 14 376 nålar bär en bild, alltså 2,5
+procent.** En vy som söker upp en av dem visar en nästan tom karta.
+
+Men han pekar på något mätbart. Kartan öppnar på klumpar i stället för på
+verksamheter.
+
+### Klusterbrytpunkten är räknad
+
+`CLUSTER_MAX_ZOOM` i `lib/kartrutor.ts` är 8. Supercluster klustrar rutor till
+och med maxzoomen, och MapLibre begär rutan på GOLVET av kartans zoom. Första
+nivån som ger råa nålar är därför ruta z9, alltså kartzoom 9,0.
+
+Öppningszoomen är `fitBounds` av kommunens låda och beror alltså på kartrutans
+form. Uppmätt ur `data-bounds` i det byggda bygget, med 32 px marginal:
+
+| Kommun | 1440, kartruta 751 x 835 | 375, kartruta 375 x 812 |
+|---|---|---|
+| Höganäs | 11,04 (z11) | 10,17 (z10) |
+| Jönköping | 9,33 (z9) | **8,19 (z8) klustrad** |
+| Karlstad | 9,49 (z9) | **8,35 (z8) klustrad** |
+| Kristinehamn | 9,50 (z9) | 9,40 (z9) |
+| Linköping | 9,85 (z9) | **8,74 (z8) klustrad** |
+| Norrköping | **8,88 (z8) klustrad** | **7,74 (z7) klustrad** |
+| Örebro | 10,32 (z10) | 9,18 (z9) |
+| Oskarshamn | 9,59 (z9) | **8,49 (z8) klustrad** |
+| Stockholm | 10,57 (z10) | 9,43 (z9) |
+| Uppsala | 9,58 (z9) | **8,44 (z8) klustrad** |
+
+**Sex av tio kommunkartor öppnade på en klustrad ruta på telefon, och
+Norrköping gjorde det på bred skärm också.** Det var inte ett beslut utan en
+följd av att lådan bestämde zoomen.
+
+### Lösningen: ett golv på zoomen, och medianen som mitt
+
+Öppnar lådan under zoom 9,0 sätts kameran i stället på 9,0 med kommunens
+MEDIANLÄGE som center. Fältet heter `karna` och räknas vid bygget, se
+`lib/kartrutor.ts`.
+
+Medianen och inte lådans mitt, och skillnaden är mätbar. Norrköpings låda
+spänner en hel grad i longitud och 0,186 grader i latitud, alltså dragen
+österut av skärgården, och dess mitt ligger i vattnet. Andel av kommunens
+verksamheter som ryms i bilden vid zoom 9,0 i en ruta på 375 x 812:
+
+| Kommun | Lådans mitt | Medianen |
+|---|---|---|
+| Norrköping | 54,8 % | 97,9 % |
+| Oskarshamn | 89,9 % | 97,5 % |
+| Jönköping | 90,2 % | 90,1 % |
+| Stockholm | 100 % | 100 % |
+
+Sämsta fallet med medianen är Jönköping på 90,1 % vid 375 och 99,6 % vid 1440.
+
+Talen ovan är räknade på en kamera som står mitt i RUTAN. På telefon skjuts
+den norrut för arkets skull, se nedan, och då faller några till utanför i
+söder: uppmätt i bygget visar Jönköping 986 av 1 129, alltså 87,3 procent.
+Skillnaden är arkets och inte medianens.
+
+**Verifierat med skärmbild och inte med tal**, eftersom kartan inte går att se
+i `astro dev`. Byggt och serverat som fryst kopia:
+
+| Sida | Bredd | Rubrik vid inläsning | Bild |
+|---|---|---|---|
+| /norrkoping/karta/ | 1440 | 617 i kartutsnittet, av 622 | enskilda nålar, noll bubblor |
+| /norrkoping/karta/ | 375 | 608 i kartutsnittet, av 622 | enskilda nålar i strimman |
+| /jonkoping/karta/ | 375 | 986 i kartutsnittet, av 1 129 | enskilda nålar i strimman |
+| /stockholm/karta/ | 1440 | 8 545 i kartutsnittet, av 8 567 | oförändrad, golvet slår inte till |
+| /karta/ | 1440 och 375 | 14 376 verksamheter | oförändrad, Sverige med bubblor |
+
+De 22 som faller utanför Stockholms öppningsvy är följden av att `bounds`
+beskär de yttersta halvprocenten, se `extent()`. Rubriken säger det, och den
+klausulen försvinner så fort man zoomar ut ett snäpp.
+
+### Arket har en egen mitt, också här
+
+Under 900 px ligger listan som ett ark över kartan, och ett center hamnar mitt
+i RUTAN och inte mitt i strimman. Uppmätt vid 375 x 812: rutan 375 x 812,
+arkets överkant på y 390, alltså `arkTacker` 422. Kameran flyttas därför till
+den punkt som ligger 211 px nedanför mitten, vilket lyfter kärnan lika mycket.
+Räknat i pixlar och inte i grader, eftersom en grad longitud är olika många
+pixlar på olika latituder.
+
+### Rikskartan rörs inte
+
+`/karta/` skickar `vy` och `vylada` och står utanför golvet. Sidan heter
+Sverige och ska öppna på Sverige, vilket är ägarens egen beställning
+2026-08-27. Vid den öppningsvyn rymmer utsnittet hela beståndet, alltså står
+rubriken kvar på "14 376 verksamheter" och ingenting ändras. Ett fragment i
+adressen vinner alltid över golvet, av samma skäl som överallt annars.
+
+### Vad som INTE gjordes
+
+- **Ingen prioritering av vilka nålar som ritas först.** Ett urval som ritade
+  de gröna före de röda vore en tyst rangordning av verksamheter, och sådana
+  publicerar sajten inte. Det som ändras är kameran och ingenting annat: varenda
+  nål i rutan ritas, i samma ordning som förut.
+- **Ingen beskärning av beståndet.** Ett försök med percentillådor gav zoom
+  över 9,0 för de flesta kommunerna men lämnade 5 till 8 procent av
+  verksamheterna utanför lådan. Kameran får flytta sig; datan får det inte.
+- **Ingen sänkning av `CLUSTER_MAX_ZOOM`.** Åttan är räknad, se noten vid
+  konstanten, och problemet låg i kameran och inte i klustringen.
+- **Ingen kryssruta och ingen knapp för "sök i det här området".** Se
+  samtyckesskälet ovan.
+- **Ingen rektangel i fragmentet.** Se skälet ovan.

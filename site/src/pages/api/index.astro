@@ -1,40 +1,107 @@
 ---
 /**
- * /api/, dokumentationen för det publika API:et och flödena.
+ * /api/, sidan om öppna data: först säljet, sedan referensen, sist prosan.
  *
  * ---------------------------------------------------------------------------
- * VARFÖR SIDAN FINNS OCH VARFÖR DEN ÄR SKRIVEN FÖR EN MÄNNISKA
+ * VARFÖR SIDAN SKREVS OM 2026-09-01
  * ---------------------------------------------------------------------------
- * `/api/v1/index.json` säger redan allt en klient behöver: adressmallarna,
- * kodlistan och täckningen. Den säger däremot ingenting om VILLKOREN, och det
- * är villkoren en människa kommer hit för. Vad får jag använda, vad måste jag
- * skriva ut, och vad finns med flit inte här.
+ * Ägarens dom på den förra formen: "APIn ser knasig ut... borde ju se mer mot
+ * kund aktig ut och mer välgjord ut, kolla hur andra har gjort sidorna", och
+ * senare "det ska se mer säljigt ut, man kontaktar oss för tillgång" samt "API
+ * sidan ska ju först vara säljande och sen en mer docs grej med kod osv".
  *
- * Sidan är därför inte en fältreferens i tabellform. Fälten står i indexet där
- * de hör hemma och kan läsas maskinellt; här står skälen.
- *
- * ---------------------------------------------------------------------------
- * VARFÖR DEN LIGGER PÅ /api/ OCH DATAN PÅ /api/v1/
- * ---------------------------------------------------------------------------
- * En nivås skillnad, och den är inte kosmetisk. `public/_headers` sätter
- * `Content-Type: application/json` på ett mönster, och ett mönster på `/api/*`
- * hade träffat den här sidan också och fått webbläsaren att ladda ner den i
- * stället för att visa den. Regeln heter därför `/api/v1/*`. Se `_headers`.
+ * Uppmätt på den förra sidan samma dag: 6 042 px hög, huvudkolumn 584 px,
+ * EXAKT ETT `<pre>`-block på hela sidan, ingen innehållsförteckning och ingen
+ * sidonavigering. Rubrikerna var essärubriker ("Formatet är vårt eget, och det
+ * är ett medvetet val"). En utvecklare som ville ha en adress fick läsa sig
+ * igenom varför vi valde bort LIVES först.
  *
  * ---------------------------------------------------------------------------
- * INGA TAL SKRIVS FÖR HAND
+ * FÖRLAGORNA, UPPMÄTTA 2026-09-01 VID 1440 PX
  * ---------------------------------------------------------------------------
- * Täckningen, kommunlistan och hämtdatumen räknas fram ur beståndet vid
- * bygget, samma väg som källsidan och /llms.txt. En dokumentationssida med
- * inskrivna tal är fel inom en vecka, och just på ett API är ett fel tal en
- * uppgift någon bygger på.
+ * Ägaren är uttrycklig om att design mäts mot riktiga sajter. Talen står i
+ * docs/55 avsnitt 10, och de tre som styrde den här filen:
+ *
+ *   Resend    Hjälterubrik 96 px vänsterställd, och TVÅ KNAPPAR bredvid
+ *             varandra på y=625: "Get started" och "Documentation". Första
+ *             kodblocket 1 022 px brett. Det är delningen ägaren beskriver,
+ *             och den löses med två knappar och inte med två sajter.
+ *   Blocket   3 361 px hel sida, h1 på 198 px, spalt 623 px, NOLL kodblock,
+ *             tre fördelskolumner med ikon, och kontakt som en länk till ett
+ *             formulär någon annanstans. Ren B2B-form.
+ *   Stripe    `curl` som FÖRSTA innehållet, 181 px från toppen, i ett fast
+ *             högerfält på 501 px. Vänsternav på 140 länkar.
+ *   Clerk     Samma rubrikordning på varje slutpunkt. Den som lärt sig
+ *             ordningen på en slutpunkt hittar direkt på nästa. Vi kopierar
+ *             principen: Adress, Autentisering, Parametrar, Exempel, Svar,
+ *             i den ordningen, varje gång, utan undantag.
+ *
+ * ---------------------------------------------------------------------------
+ * SIDBREDDEN: INGEN NY BREDD UPPFINNS
+ * ---------------------------------------------------------------------------
+ * tokens.css slår fast fyra bredder och att en femte är ett fel. Den förra
+ * sidan satte `max-width: var(--w-read)` på hela behållaren, och eftersom
+ * `.container` är border-box åt de 96 px paddingen upp brödtexten till 584.
+ *
+ * Sidan använder därför `.container` som den är, alltså --w-wide, precis som
+ * varje annan flerspaltig sida (startsida, kommun, verksamhet). Skyldigheten
+ * som följer med den bredden står i tokens.css: "varje spalt som bär löptext
+ * måste bära den gränsen själv". Det gör `.innehall > p` och listorna nedan,
+ * som är låsta till --w-read. Kod och tabeller får däremot spaltens fulla
+ * bredd, och det är avsikten: Resends första kodblock mäter 1 022 px.
+ *
+ * ---------------------------------------------------------------------------
+ * MASKOTEN ÄR BORTTAGEN, OCH DET ÄR ETT MÄTT BESLUT
+ * ---------------------------------------------------------------------------
+ * docs/24 §2 förbjuder henne bredvid en bedömning av en namngiven verksamhet,
+ * vilket inte gäller här, alltså var det en smakfråga. Tre skäl avgjorde:
+ *
+ *   1. Ingen av de sex uppmätta förlagorna har en maskot på sin API-sida eller
+ *      sin datasida. Inte Trafiklab, inte SMHI, inte Blocket, inte Stripe,
+ *      inte Resend, inte data.gouv.fr.
+ *   2. docs/24 §2 räknar upp de ytor där figuren FÅR synas, och `/api/` står
+ *      inte bland dem. Frekvensregeln i samma avsnitt: "Ju fler gånger en
+ *      användare ser figuren, desto starkare skäl krävs för att behålla den."
+ *   3. Hon stod överst och tävlade med det första kodexemplet om sidans
+ *      dyraste yta. Stripe lägger `curl` på 181 px. Vi låg på en vinkande
+ *      grävling.
+ *
+ * ---------------------------------------------------------------------------
+ * EN SIDA OCH INTE TVÅ
+ * ---------------------------------------------------------------------------
+ * Frågan var om säljet och referensen skulle skiljas åt, som Blocket gör med
+ * /for-foretag/. Svaret är nej, av tre skäl:
+ *
+ *   - `/api/v1/index.json` bär fältet `"documentation": "https://prikko.se/api/"`.
+ *     Flyttas sidan blir API:ets egen självbeskrivning osann.
+ *   - Ägarens princip är att en funktion aldrig får kosta en sida. Djuplänken
+ *     en utvecklare behöver löses med ett ankare, `/api/#referens`, och inte
+ *     med en ny rutt.
+ *   - Källsidan, /llms.txt och webbkartan pekar redan hit.
+ *
+ * Stripe löser samma delning med flikar i EN produktdel, inte med två sajter.
+ * Vår motsvarighet är ankarmenyn till vänster.
+ *
+ * ---------------------------------------------------------------------------
+ * INGA TAL OCH INGA SVAR SKRIVS FÖR HAND
+ * ---------------------------------------------------------------------------
+ * Täckningen och kommunlistan räknas fram ur beståndet vid bygget. Nytt här är
+ * att SVARSEXEMPLEN gör det också: `apiIndex()` och `kommunDokument()` nedan
+ * är samma funktioner som rutterna under `pages/api/v1/` anropar. Det som
+ * visas på sidan ÄR alltså det som serveras, och de två kan aldrig glida isär.
+ * Ett påhittat svar i en dokumentation är värre än inget svar.
  */
 import Base from '../../layouts/Base.astro';
-import Maskot from '../../components/Maskot.astro';
-import { LICENCE, API_VERSION, PER_VERKSAMHET, kodlista } from '../../lib/api';
+import {
+  LICENCE,
+  API_VERSION,
+  PER_VERKSAMHET,
+  apiIndex,
+  kodlista,
+  kommunDokument,
+} from '../../lib/api';
 import {
   coverage,
-  establishments,
   formatDate,
   formatNumber,
   municipalities,
@@ -52,25 +119,135 @@ const kommuner = municipalities()
   .map((m) => ({ ...m, source: sourceFor(m.slug) }))
   .sort((a, b) => a.city.localeCompare(b.city, 'sv'));
 
-/* Ett riktigt exempel och inte en påhittad slug. Den största kommunens första
-   verksamhet i bokstavsordning är alltid en adress som svarar, och den byts
-   av sig själv om beståndet ändras. Ett dokumenterat exempel som ger 404 är
-   det snabbaste sättet att förlora någon som just tänkt bygga något, vilket
-   är precis skälet till att hela avsnittet står bakom PER_VERKSAMHET: så
-   länge rutten inte byggs SKULLE exemplet ge 404. */
-const exempel = PER_VERKSAMHET
-  ? [...establishments('stockholm')].sort((a, b) => a.slug.localeCompare(b.slug, 'sv'))[0]
-  : null;
+/**
+ * Kontaktadressen för dataförfrågningar.
+ *
+ * DEN STÅR HÄR OCH INTE I `PUBLISHER`, med flit och tillfälligt.
+ *
+ * docs/13 rad 25 är kategorisk: "Fler adresser skapar du inte. Inga `info@`,
+ * `kontakt@`, `support@`, `press@` eller `hej@`." Av de fyra beslutade
+ * adresserna är `ratta@` fel väg hit, eftersom den lägger raden i
+ * granskningskön och kontakt.astro varnar uttryckligen för att dela den kön i
+ * två. `dataskydd@` är GDPR-vägen och finns enligt site.ts inte som brevlåda
+ * än. Kvar står `mans@prikko.se`, som docs/13 räknar som beslutad och bevakad,
+ * och som är personlig med flit: docs/54 §7.2 säger att inbound inte är den
+ * bästa kanalen utan den enda, och en personlig avsändare är sann för ett
+ * soloprojekt på ett sätt en rolladress inte är.
+ *
+ * Den flyttas till `PUBLISHER` den dag docs/13 skrivs om så att adressen står
+ * i dokumentet och inte bara i en sidmall. Att lägga den i site.ts först hade
+ * varit att smyga in ett beslut docs/13 inte fattat.
+ */
+const DATAKONTAKT = 'mans@prikko.se';
+const DATAAMNE = 'Dataförfrågan: livsmedelskontroller';
 
-const exempelUrl = exempel
-  ? `${SITE.url}/api/${API_VERSION}/verksamhet/${exempel.municipality.slug}/${exempel.slug}.json`
-  : null;
+/* Ankarmenyn byggs ur EN lista, och rubrikerna nedan läser sina namn ur
+   samma lista. En meny som säger något annat än rubriken den hoppar till är
+   det vanligaste felet på en lång dokumentationssida, och det enda säkra
+   skyddet är att de två inte får vara två texter. */
+const MENY = [
+  { id: 'kom-igang', namn: 'Kom igång', grupp: 'Öppet' },
+  { id: 'referens', namn: 'Slutpunkter', grupp: 'Öppet' },
+  { id: 'index-json', namn: 'Index', grupp: 'Öppet', under: true },
+  { id: 'kommun-json', namn: 'Kommun', grupp: 'Öppet', under: true },
+  { id: 'floden', namn: 'Flöden', grupp: 'Öppet', under: true },
+  { id: 'falt', namn: 'Fälten', grupp: 'Öppet' },
+  { id: 'koder', namn: 'Kodlistan', grupp: 'Öppet' },
+  { id: 'granser', namn: 'Gränser och drift', grupp: 'Öppet' },
+  { id: 'tillgang', namn: 'Kräver kontakt', grupp: 'Mer data' },
+  { id: 'aldrig', namn: 'Vad vi aldrig säljer', grupp: 'Mer data' },
+  { id: 'format', namn: 'Varför eget format', grupp: 'Bakgrund' },
+  { id: 'licens', namn: 'Licens', grupp: 'Bakgrund' },
+  { id: 'utanfor', namn: 'Vad som inte finns här', grupp: 'Bakgrund' },
+] as const;
 
-/* Kort etikett för tabellen, inte kodlistans hela mening. Kolumnen är 130 px
-   bred i en spalt på 584, och `codes.sourceType` är formulerad för att stå
-   ensam i ett JSON-svar. Fyrtiofem tecken där blir tre rader här, alltså en
-   tabell som är dubbelt så hög som den behöver vara. Meningarna står kvar
-   oförkortade i indexet, som är där en maskin läser dem. */
+const GRUPPER = ['Öppet', 'Mer data', 'Bakgrund'] as const;
+
+/* ---------------------------------------------------------------------------
+   SVARSEXEMPLEN, KLIPPTA UR DE RIKTIGA DOKUMENTEN
+
+   `apiIndex()` och `kommunDokument()` är rutternas egna funktioner. Det som
+   står i rutorna nedan är alltså byte för byte det klienten får, med den enda
+   skillnaden att vissa nycklar är utelämnade för att rutan ska rymmas. Var
+   utelämnandet sker skrivs ut som en kommentarrad i JSON:en, aldrig tyst.
+   --------------------------------------------------------------------------- */
+const idx = apiIndex();
+
+const svarIndex = [
+  '{',
+  `  "api": ${JSON.stringify(idx.api)},`,
+  `  "version": ${JSON.stringify(idx.version)},`,
+  `  "generated": ${JSON.stringify(idx.generated)},`,
+  '  "coverage": ' + JSON.stringify(idx.coverage, null, 2).split('\n').join('\n  ') + ',',
+  '  "endpoints": ' + JSON.stringify(idx.endpoints, null, 2).split('\n').join('\n  ') + ',',
+  `  "licence": { … },`,
+  `  "codes": { … },`,
+  `  "municipalities": [ … ${idx.municipalities.length} kommuner … ]`,
+  '}',
+].join('\n');
+
+/* Exempelkommunen väljs och skrivs inte in. Den första i bokstavsordning är
+   alltid en adress som svarar, och den byts av sig själv om beståndet ändras.
+   En dokumenterad adress som ger 404 är det snabbaste sättet att förlora
+   någon som just tänkt bygga något. */
+const exempelKommun = kommuner[0];
+const kommunDoc = kommunDokument(exempelKommun);
+
+/* Den första verksamheten som faktiskt HAR en kontroll. En post där `latest`
+   är null visar inte de tre fält som är hela poängen med svaret, och ett
+   exempel som visar tomma fält lär ut fel form. */
+const exempelPost =
+  kommunDoc.establishments.find((e) => e.latest !== null) ?? kommunDoc.establishments[0];
+
+const svarKommun = [
+  '{',
+  `  "version": ${JSON.stringify(kommunDoc.version)},`,
+  '  "municipality": ' +
+    JSON.stringify(kommunDoc.municipality, null, 2).split('\n').join('\n  ') + ',',
+  '  "source": ' + JSON.stringify(kommunDoc.source, null, 2).split('\n').join('\n  ') + ',',
+  `  "count": ${kommunDoc.count},`,
+  `  "assessed": ${kommunDoc.assessed},`,
+  '  "establishments": [',
+  '    ' + JSON.stringify(exempelPost, null, 2).split('\n').join('\n    ') + ',',
+  `    … ${kommunDoc.count - 1} till …`,
+  '  ]',
+  '}',
+].join('\n');
+
+const anropIndex = `curl -s ${SITE.url}/api/${API_VERSION}/index.json`;
+const anropKommun = `curl -s ${SITE.url}/api/${API_VERSION}/kommun/${exempelKommun.slug}.json`;
+
+/* ---------------------------------------------------------------------------
+   FÄLTTABELLEN
+
+   Det här är dokumentationens kärna och den fanns inte på den förra sidan.
+   Typerna är avlästa ur `kommunDokument()` och inte gissade: `lat` och `lng`
+   är null i beståndet där geokodning saknas, `latest` är null där ingen
+   kontroll finns, och båda måste därför stå som nullbara.
+   --------------------------------------------------------------------------- */
+const FALT = [
+  { namn: 'id', typ: 'string', text: 'Beständig identitet. Följer verksamheten även om namnet eller adressen ändras.' },
+  { namn: 'slug', typ: 'string', text: 'Verksamhetens led i adressen. Tillsammans med kommunens slug bildar den sidans URL.' },
+  { namn: 'name', typ: 'string', text: 'Namnet som kommunen registrerat det.' },
+  { namn: 'address', typ: 'string | null', text: 'Gatuadress där kommunen lämnar en. Null är vanligt.' },
+  { namn: 'types', typ: 'string[]', text: 'Verksamhetstyp i klartext, en eller flera.' },
+  { namn: 'lat', typ: 'number | null', text: 'Latitud, WGS 84. Null där verksamheten inte gått att geokoda.' },
+  { namn: 'lng', typ: 'number | null', text: 'Longitud, WGS 84. Null på samma grund som lat.' },
+  { namn: 'verdict', typ: 'string | null', text: 'Prikkos bedömning av nuläget. Se kodlistan. Null betyder otillräckligt underlag.' },
+  { namn: 'reason', typ: 'string', text: 'Varför verdict ser ut som det gör. Läs alltid det här fältet innan du tolkar ett null.' },
+  { namn: 'uncertain', typ: 'boolean', text: 'Sant när underlaget är tunt nog att bedömningen bör visas med förbehåll.' },
+  { namn: 'distinction', typ: 'boolean', text: 'Sant för verksamheter med utmärkelse i årets utgåva.' },
+  { namn: 'inspections', typ: 'number', text: 'Antal kontroller vi har registrerade. Noll är ett giltigt värde.' },
+  { namn: 'latest', typ: 'object | null', text: 'Senaste kontrollen: date, assessment och type. Null när inspections är noll.' },
+  { namn: 'url', typ: 'string', text: 'Verksamhetens sida hos oss. Den ska länkas när uppgiften återges.' },
+] as const;
+
+const LATEST = [
+  { namn: 'latest.date', typ: 'string', text: 'Kontrollens datum, ISO 8601. Kontrollens datum, aldrig vårt hämtdatum.' },
+  { namn: 'latest.assessment', typ: 'number', text: 'Utfallet vid den kontrollen. 0, 1 eller 2. Se kodlistan.' },
+  { namn: 'latest.type', typ: 'number', text: 'Kontrollens art. 0, 1 eller 2. Se kodlistan.' },
+] as const;
+
 const KALLETIKETT: Record<string, string> = {
   open_data: 'Öppen datamängd',
   reverse_engineered: 'Kommunens eget gränssnitt',
@@ -79,12 +256,11 @@ const KALLETIKETT: Record<string, string> = {
 };
 
 /**
- * Dataset-schemat med DISTRIBUTIONER, vilket är det nya här.
+ * Dataset-schemat med DISTRIBUTIONER.
  *
- * Källsidan bär redan ett `Dataset`, och det är sajtens starkaste
- * AEO-märkning. Det den aldrig kunnat bära är `distribution`, eftersom det
- * inte fanns någon nedladdningsbar form att peka på. Nu finns det, och
- * `DataDownload` med `contentUrl` är exakt det fält en sökmotor och ett
+ * Källsidan bär redan ett `Dataset`, men den har aldrig kunnat bära
+ * `distribution`, eftersom det inte fanns någon nedladdningsbar form att peka
+ * på. `DataDownload` med `contentUrl` är exakt det fält en sökmotor och ett
  * AI-svar läser för att avgöra om en datamängd går att hämta.
  *
  * `license` pekar på licensdeden och inte på en sida med text, till skillnad
@@ -134,387 +310,946 @@ const jsonLd = {
 
 <Base
   title="Öppna data, API och flöden"
-  description="Prikkos livsmedelskontroller som öppna data: ett JSON-API med nuläget per kommun och Atom-flöden med nya kontroller. Fri att använda med attribution."
+  description="Kommunernas livsmedelskontroller i ett gemensamt format. Gratis JSON-API med nuläget per kommun och Atom-flöden, utan konto och utan nyckel. Hör av dig för historik, bulkuttag och bevakning."
   jsonLd={jsonLd}
   dataUpdated={updated}
 >
-  <article class="container page">
-    <header>
-      <Maskot pose="clean" size={88} class="avsandare" />
+  <div class="container sida">
+    {/* -------------------------------------------------------------------
+        SÄLJET
+
+        Blockets form: rubrik, kort ingress, fördelsrad. Resends knapprad:
+        primär handling till vänster, den andra vägen bredvid. Ingen bild och
+        ingen maskot, eftersom vi inte har ett fotografi som säger något sant
+        och en figur tävlar med kodexemplet om toppen av sidan.
+        ------------------------------------------------------------------- */}
+    <header class="hjalte">
       <p class="eyebrow">Öppna data</p>
-      <h1>API och flöden</h1>
+      <h1>Kommunernas livsmedelskontroller, som data</h1>
       <p class="lede text-secondary">
-        Kommunernas livsmedelskontroller i ett gemensamt format, som JSON och
-        som Atom. Inget konto, ingen nyckel, ingen begränsning på antalet
-        anrop. Skriv ut varifrån uppgiften kommer, så är villkoret uppfyllt.
+        Tretton kommuner publicerar sina hygienkontroller i tretton olika
+        system. Vi läser dem alla, normaliserar dem till ett format och lägger
+        ut nuläget som JSON och nya kontroller som Atom.
+      </p>
+      <p class="knapprad">
+        <a class="btn-primary" href="#kom-igang">Kom igång, gratis</a>
+        <a class="btn-linje" href="#tillgang">Behöver du mer data?</a>
       </p>
       <p class="text-muted meta">
         {formatNumber(total.establishments)} verksamheter i {total.municipalities} kommuner,
-        {' '}{formatNumber(total.inspections)} kontroller. Senast hämtat {formatDate(updated)}.
+        bedömda ur {formatNumber(total.inspections)} kontroller.
+        Senast hämtat {formatDate(updated)}.
       </p>
     </header>
 
-    <section>
-      <h2>Adresserna</h2>
-      <p>
-        Versionen står i adressen. <code>/api/{API_VERSION}/</code> svarar med
-        den form som beskrivs här, och den formen ändras inte. Tillkommer ett
-        fält går det att lägga till utan att något går sönder; ska ett fält
-        försvinna eller byta betydelse hamnar det i <code>/api/v2/</code> vid
-        sidan av, och v1 står kvar.
-      </p>
-      <dl class="facts">
-        <div>
-          <dt>Index, täckning och kodlista</dt>
-          <dd><a href={`/api/${API_VERSION}/index.json`}>/api/{API_VERSION}/index.json</a></dd>
-        </div>
-        <div>
-          <dt>Nuläget i en kommun</dt>
-          <dd><code>/api/{API_VERSION}/kommun/&#123;kommun&#125;.json</code></dd>
-        </div>
-        {PER_VERKSAMHET && (
-          <div>
-            <dt>En verksamhet med historik</dt>
-            <dd><code>/api/{API_VERSION}/verksamhet/&#123;kommun&#125;/&#123;slug&#125;.json</code></dd>
+    {/* Fördelsraden. Blocket har tre kolumner med ikon och kort text. Vi tar
+        formen men inte ikonerna: docs/19 säger linje och luft, aldrig en
+        färgad platta, och vi har ingen ikonuppsättning som betyder något här.
+        Etiketten bär tyngden i stället, som i FactGrid. */}
+    <ul class="fordelar">
+      <li>
+        <h2>Ett format, inte tretton</h2>
+        <p>
+          Samma fältnamn, samma kodlista och samma identitet oavsett vilket
+          system kommunen råkar köra. Du skriver en läsare, inte tretton.
+        </p>
+      </li>
+      <li>
+        <h2>Färskt, och daterat</h2>
+        <p>
+          Beståndet hämtas i dygnstakt. Varje svar bär källans
+          <code>fetchedAt</code>, så du vet hur gammal uppgiften är utan att
+          fråga oss.
+        </p>
+      </li>
+      <li>
+        <h2>Utan konto och utan nyckel</h2>
+        <p>
+          Ingen registrering, ingen kvot och ingen begränsning på antalet
+          anrop. Skriv ut varifrån uppgiften kommer, så är villkoret uppfyllt.
+        </p>
+      </li>
+    </ul>
+
+    <div class="layout">
+      {/* ---------------------------------------------------------------
+          ANKARMENYN
+
+          Den förra sidan var 6 042 px utan navigering alls. Trafiklab har
+          vänsternav OCH "On this page" till höger, Stripe en vänsternav på
+          140 länkar, Clerk API-trädet till vänster. En sida i vår storlek
+          klarar sig på en enda spalt, men den måste finnas.
+
+          Den är sticky på dator och en vanlig radlista överst på telefon.
+          Se .layout i style nedan.
+          --------------------------------------------------------------- */}
+      <nav class="meny" aria-label="Innehåll på sidan">
+        {GRUPPER.map((grupp) => (
+          <div class="menygrupp">
+            <p class="menyrubrik">{grupp}</p>
+            <ul>
+              {MENY.filter((p) => p.grupp === grupp).map((p) => (
+                <li class={p.under ? 'under' : undefined}>
+                  <a href={`#${p.id}`}>{p.namn}</a>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-        <div>
-          <dt>Nya kontroller i en kommun</dt>
-          <dd><code>/flode/&#123;kommun&#125;.xml</code></dd>
-        </div>
-        <div>
-          <dt>Nya kontroller i hela landet</dt>
-          <dd><a href="/flode/riket.xml">/flode/riket.xml</a></dd>
-        </div>
-      </dl>
-      {exempel && exempelUrl && (
-        <Fragment>
-          <p>
-            En verksamhets dokument går att räkna fram ur dess sida utan att slå
-            upp något. Sidan ligger på <code>/&#123;kommun&#125;/&#123;slug&#125;/</code>,
-            dokumentet på samma två led med ett prefix och en ändelse:
-          </p>
-          <pre class="kod"><code>{absolute(exempel.municipality.slug, exempel.slug)}
-{exempelUrl}</code></pre>
-        </Fragment>
-      )}
-      <p>
-        Börja med indexet. Det bär varje kommuns adress, dess källa och
-        hämtdatum, hela kodlistan i klartext och täckningen, alltså allt som
-        behövs för att nå resten utan att gissa.
-      </p>
-    </section>
-
-    <section>
-      <h2>Formatet är vårt eget, och det är ett medvetet val</h2>
-      <p>
-        Det närmast till hands liggande alternativet var <strong>LIVES</strong>,
-        som Yelp tog fram tillsammans med San Francisco och New York och som
-        Montreal publicerar i under CC BY 4.0. Ett etablerat format som andra
-        redan kan läsa är normalt värt mer än ett eget som är en aning bättre,
-        så frågan prövades på riktigt innan den avfärdades.
-      </p>
-      <p>
-        Tre saker i formatet fällde det. LIVES bygger på ett <strong>poängtal
-        mellan noll och hundra</strong>, och svensk livsmedelskontroll har inget
-        sådant tal.
-        Fältet för icke-numeriska utfall rymmer fyra tecken, alltså varken
-        &rdquo;Brister&rdquo; eller &rdquo;Brister som kvarstår&rdquo;. LIVES
-        har vidare <strong>ingen identitet per kontroll</strong>: en avvikelse
-        kopplas till en verksamhet och ett datum, inte till kontrollen den
-        gäller, och två kontroller samma dag går då inte att hålla isär. Och
-        formatet är till sin form <strong>fem CSV-filer i en zip</strong>,
-        alltså precis den massnedladdning vi inte publicerar.
-      </p>
-      <p>
-        Och argumentet om att andra redan kan läsa formatet håller inte heller.
-        Standarden uppdaterades senast 2015. Av de 247 jurisdiktioner Yelp
-        listar levereras 237 numera av en kommersiell part, Ecolabs Health
-        Department Intelligence, och båda de kommuner som en gång tog fram
-        formatet finns i den gruppen. Att ansluta sig till LIVES i dag är
-        alltså inte att gå med i ett levande ekosystem.
-      </p>
-      <p>
-        Fältnamnen är i stället hämtade ur den <strong>svenska nationella
-        specifikationen</strong>, <em>Livsmedelskontroller som öppna data
-        v2.0</em>, framtagen av NSÖD och ÖDIS. Den har fält för precis det
-        svensk kontroll faktiskt innehåller: bedömning per kontroll,
-        kontrolltyp, om besöket var föranmält, kontrollpunkter med och utan
-        avvikelse, och verksamhetens egen replik. Vi lånar dess ordförråd, inte
-        dess dokumentform, och vi ansluter oss inte till något: ingen kommun
-        publicerar i specifikationen i dag.
-      </p>
-    </section>
-
-    <section>
-      <h2>Vad ett tal betyder</h2>
-      <p>
-        Kodlistan står i klartext i <a href={`/api/${API_VERSION}/index.json`}>indexet</a>
-        {' '}under <code>codes</code>, så en klient slipper skriva av den härifrån.
-        De tre som betyder mest:
-      </p>
-      <dl class="facts">
-        <div><dt><code>verdict</code></dt><dd>Prikkos bedömning av nuläget. Tre steg, plus <code>null</code> när underlaget inte räcker.</dd></div>
-        <div><dt><code>assessment</code></dt><dd>Utfallet vid EN kontroll. {koder.assessment[0]}, {koder.assessment[1].toLowerCase()}, {koder.assessment[2].toLowerCase()}.</dd></div>
-        <div><dt><code>type</code></dt><dd>{koder.type[0].toLowerCase()}, {koder.type[1].toLowerCase()} eller {koder.type[2].toLowerCase()}.</dd></div>
-      </dl>
-      <p>
-        <strong>Bedömningen är vår och inte kommunens.</strong> Sverige har
-        inget nationellt hygienbetyg. <code>verdict</code> räknas fram ur
-        kontrolldatan enligt en <a href="/metodik/">öppet publicerad metodik</a>,
-        och den får aldrig återges som kommunens betyg. <code>assessment</code>
-        och <code>type</code> är däremot kommunens egna uppgifter, normaliserade
-        till en gemensam skala.
-      </p>
-      <p>
-        <code>verdict: null</code> betyder att underlaget inte räcker och
-        aldrig att bedömningen är dålig. <code>reason</code> säger vilket av de
-        två fallen det är: ingen registrerad kontroll alls, eller ingen
-        kontroll de senaste fem åren.
-      </p>
-    </section>
-
-    <section>
-      <h2>Vad som inte finns här</h2>
-      <ul class="plain">
-        <li>
-          <strong>Ingen massnedladdning.</strong> Det finns ingen fil med hela
-          beståndet. Kommunfilerna bär nuläget, alltså senaste kontrollens
-          datum och utfall per verksamhet, och inte kontrollhistoriken.
-          {PER_VERKSAMHET
-            ? ' Historiken finns per verksamhet.'
-            : ' Kontrollhistoriken publiceras inte alls i dag.'}
-          {' '}Behöver du hela det normaliserade materialet på en gång är det en
-          fråga att ställa, <a href="/kontakt/">via kontaktsidan</a>, och inte
-          något vi hemlighåller: underlaget är allmänna handlingar och du kan
-          begära ut det av varje kommun själv.
-        </li>
-        <li>
-          <strong>Inga bilder.</strong> Gatubilderna kommer från Mapillary,
-          Panoramax och Wikimedia Commons, och deras villkor gäller per bild:
-          en kräver logotyp och länk, en annan fotografens namn och en länk
-          till filsidan. En URL i ett JSON-fält kan inte bära det kravet
-          vidare, och en bild som visas utan sin attribution är ett brutet
-          villkor hos oss.
-        </li>
-        <li>
-          <strong>Inga öppettider och inga kontaktuppgifter.</strong> De kommer
-          ur OpenStreetMap och står under ODbL 1.0, som är en
-          share-alike-licens. Att lägga dem i ett svar vi märker CC BY vore att
-          sätta villkor vi inte har rätt att sätta.
-        </li>
-      </ul>
-    </section>
-
-    <section id="licens">
-      <h2>Licens och attribution</h2>
-      <p>
-        Två lager, och de ska hållas isär.
-      </p>
-      <p>
-        <strong>Kommunernas underlag är fritt, och inte tack vare oss.</strong>
-        {' '}Ett kontrollresultat är ett yttrande av en svensk myndighet, och
-        9 § upphovsrättslagen (1960:729) undantar sådana från upphovsrätt.
-        Katalogskyddet i 49 § räknar i sitt tredje stycke upp 9 § bland de
-        bestämmelser som gäller även för en sammanställning, alltså skyddas
-        inte heller tabellen som helhet. Ingen behöver vårt tillstånd för de
-        uppgifterna, och vi kan inte licensiera dem.
-      </p>
-      <p>
-        <strong>Vårt eget arbete är normaliseringen, identifierarna och
-        bedömningen.</strong> Det erbjuds under
-        {' '}<a href={LICENCE.url} rel="nofollow">{LICENCE.name}</a>. Villkoret
-        är attribution, och den här raden uppfyller det:
-      </p>
-      <pre class="kod"><code>{LICENCE.attribution}</code></pre>
-      <p>
-        Länken ska vara klickbar där formatet tillåter en länk. Ta med
-        kontrolldatumet tillsammans med uppgiften: kontrollresultat ändras, och
-        en uppgift utan datum blir fel med tiden. Hittar du ett fel,
-        {' '}<a href="/ratta/">rätta det här</a>.
-      </p>
-      <h3>Kommunernas egna villkor</h3>
-      <p>
-        Ingen av de {total.municipalities} kommunerna har skrivit ett enda
-        villkor för vidareutnyttjande. Det gäller alla, inte några, och det står
-        som <code>"licence": "unstated"</code> på varje källa i svaren.
-      </p>
-      <p>
-        Tystnad är varken ett förbud eller ett tillstånd, och slutsatsen ovan
-        vilar därför inte på den utan på lagtexten. Att villkoret ändå redovisas
-        per kommun är för att den som bygger vidare ska kunna göra sin egen
-        bedömning i stället för att lita på ett medelvärde vi räknat åt hen.
-        Skulle en kommun framöver ställa ett villkor som hindrar
-        vidarelicensiering hanteras den kommunen för sig, och det syns i fältet
-        innan det syns i en text.
-      </p>
-      <table class="kallor">
-        <thead>
-          <tr><th scope="col">Kommun</th><th scope="col">Hur vi hämtar</th><th scope="col">Villkor</th><th scope="col">Hämtat</th></tr>
-        </thead>
-        <tbody>
-          {kommuner.map((m) => (
-            <tr>
-              <th scope="row">{m.city}</th>
-              <td>{KALLETIKETT[m.sourceType ?? 'reverse_engineered']}</td>
-              <td>Inga angivna</td>
-              <td>{m.source ? formatDate(m.source.fetchedAt.slice(0, 10)) : 'saknas'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <h2>Flödena</h2>
-      <p>
-        Ett flöde per kommun och ett för hela landet, med de senaste
-        kontrollerna, nyast först. Formatet är Atom 1.0 och läses av allt som
-        läser RSS. Prenumerationen kräver inget konto och ingen adress.
-      </p>
-      <p>
-        Varje post bär en beständig identitet som följer kontrollen och inte
-        adressen, alltså dyker en post inte upp som ny igen om en verksamhet
-        byter sida. Datumet är kontrollens, inte den dag vi hämtade den.
-      </p>
-      <ul class="flodeslista">
-        <li><a href="/flode/riket.xml">Hela landet</a></li>
-        {kommuner.map((m) => (
-          <li><a href={`/flode/${m.slug}.xml`}>{m.city}</a></li>
         ))}
-      </ul>
-    </section>
+      </nav>
 
-    <section>
-      <h2>Gränser och drift</h2>
-      <ul class="plain">
-        <li>
-          <strong>Ingen kvot och ingen nyckel.</strong> Svaren är statiska
-          filer bakom ett CDN. Hämta det du behöver.
-        </li>
-        <li>
-          <strong>Cachea en timme.</strong> Det är vad <code>Cache-Control</code>
-          {' '}säger, och beståndet uppdateras i dygnstakt eller långsammare. Att
-          hämta samma dokument oftare ger samma svar.
-        </li>
-        <li>
-          <strong>Anrop från en webbsida fungerar.</strong> Varje svar bär
-          <code>Access-Control-Allow-Origin: *</code>.
-        </li>
-        <li>
-          <strong>Färskheten står i datan.</strong> Varje svar bär källans
-          <code>fetchedAt</code>, och där källan själv säger när den ändrades
-          står även <code>modifiedAt</code>. De två är inte samma sak: en
-          kommuns fil kan hämtas i dag och vara skriven för två år sedan.
-        </li>
-        <li>
-          <strong>Täckningen är inte riket.</strong> Sverige har 290 kommuner
-          och de flesta publicerar ingenting. Vad som saknas står på
-          {' '}<a href="/kallor/">källsidan</a>.
-        </li>
-      </ul>
-    </section>
-  </article>
+      <div class="innehall">
+        {/* -----------------------------------------------------------
+            KOM IGÅNG
+
+            Stripe lägger `curl` 181 px från toppen. Den förra sidans enda
+            kodblock stod i licensavsnittet och var attributionsraden, alltså
+            inte ens ett anrop. Det här är sidans viktigaste block och det
+            står först.
+            ----------------------------------------------------------- */}
+        <section id="kom-igang">
+          <h2>Kom igång</h2>
+          <p>
+            Två rader i en terminal, och du har hela täckningen, adressmallarna
+            och kodlistan. Inget konto behövs och ingenting behöver godkännas
+            först.
+          </p>
+
+          <figure class="kodruta">
+            <figcaption><span class="etikett">Anrop</span></figcaption>
+            <pre class="kod"><code>{anropIndex}</code></pre>
+          </figure>
+
+          <figure class="kodruta">
+            <figcaption>
+              <span class="etikett">
+                Svar, klippt.
+                <span class="text-muted">
+                  {' '}Hela dokumentet är {formatNumber(idx.municipalities.length)} kommuner
+                  plus licens och kodlista.
+                </span>
+              </span>
+            </figcaption>
+            <pre class="kod"><code>{svarIndex}</code></pre>
+          </figure>
+
+          <p>
+            <code>endpoints</code> bär mallarna till allt annat, och
+            <code>municipalities</code> bär varje kommuns färdiga adress. Du
+            behöver alltså aldrig gissa en URL: börja i indexet och följ
+            fälten.
+          </p>
+        </section>
+
+        {/* -----------------------------------------------------------
+            REFERENSDELEN
+
+            Clerks princip: samma rubrikordning på varje slutpunkt, varje
+            gång. Adress, Autentisering, Parametrar, Exempel, Svar. Den som
+            lärt sig ordningen på den första hittar direkt på den andra.
+            ----------------------------------------------------------- */}
+        <section id="referens">
+          <h2>Slutpunkter</h2>
+          <p>
+            Versionen står i adressen. <code>/api/{API_VERSION}/</code> svarar
+            med den form som beskrivs här, och den formen ändras inte.
+            Tillkommer ett fält går det att lägga till utan att något går
+            sönder. Ska ett fält försvinna eller byta betydelse hamnar det i
+            <code>/api/v2/</code> vid sidan av, och v1 står kvar.
+          </p>
+
+          <article id="index-json" class="slutpunkt">
+            <h3>Index, täckning och kodlista</h3>
+            <dl class="spec">
+              <div><dt>Adress</dt><dd><a href={`/api/${API_VERSION}/index.json`}><code>GET /api/{API_VERSION}/index.json</code></a></dd></div>
+              <div><dt>Autentisering</dt><dd>Ingen.</dd></div>
+              <div><dt>Parametrar</dt><dd>Inga.</dd></div>
+            </dl>
+            <p>
+              Startpunkten. Bär täckningen, hela kodlistan i klartext, och per
+              kommun dess adress, källa och hämtdatum.
+            </p>
+            <figure class="kodruta">
+              <figcaption><span class="etikett">Exempel</span></figcaption>
+              <pre class="kod"><code>{anropIndex}</code></pre>
+            </figure>
+            <p class="text-muted caption">
+              Svaret står under <a href="#kom-igang">Kom igång</a>.
+            </p>
+          </article>
+
+          <article id="kommun-json" class="slutpunkt">
+            <h3>Nuläget i en kommun</h3>
+            <dl class="spec">
+              <div><dt>Adress</dt><dd><code>GET /api/{API_VERSION}/kommun/&#123;kommun&#125;.json</code></dd></div>
+              <div><dt>Autentisering</dt><dd>Ingen.</dd></div>
+              <div>
+                <dt>Parametrar</dt>
+                <dd>
+                  <code>&#123;kommun&#125;</code> är kommunens slug, alltså
+                  fältet <code>slug</code> i indexets
+                  <code>municipalities</code>.
+                </dd>
+              </div>
+            </dl>
+            <p>
+              Varje verksamhet i kommunen med sin senaste kontroll. Filen bär
+              NULÄGET, alltså exakt vad kommunens egen listsida visar, och inte
+              kontrollhistoriken.
+            </p>
+            <figure class="kodruta">
+              <figcaption><span class="etikett">Exempel</span></figcaption>
+              <pre class="kod"><code>{anropKommun}</code></pre>
+            </figure>
+            <figure class="kodruta">
+              <figcaption>
+                <span class="etikett">
+                  Svar, klippt.
+                  <span class="text-muted">
+                    {' '}En verksamhet av {formatNumber(kommunDoc.count)} i {exempelKommun.city}.
+                  </span>
+                </span>
+              </figcaption>
+              <pre class="kod"><code>{svarKommun}</code></pre>
+            </figure>
+          </article>
+
+          <article id="floden" class="slutpunkt">
+            <h3>Nya kontroller som flöde</h3>
+            <dl class="spec">
+              <div>
+                <dt>Adress</dt>
+                <dd>
+                  <code>GET /flode/&#123;kommun&#125;.xml</code><br />
+                  <a href="/flode/riket.xml"><code>GET /flode/riket.xml</code></a>
+                </dd>
+              </div>
+              <div><dt>Autentisering</dt><dd>Ingen.</dd></div>
+              <div><dt>Format</dt><dd>Atom 1.0. Läses av allt som läser RSS.</dd></div>
+            </dl>
+            <p>
+              De senaste kontrollerna, nyast först. Varje post bär en beständig
+              identitet som följer KONTROLLEN och inte adressen, alltså dyker
+              en post inte upp som ny igen om en verksamhet byter sida. Datumet
+              är kontrollens, inte den dag vi hämtade den.
+            </p>
+            <ul class="flodeslista">
+              <li><a href="/flode/riket.xml">Hela landet</a></li>
+              {kommuner.map((m) => (
+                <li><a href={`/flode/${m.slug}.xml`}>{m.city}</a></li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        {/* -----------------------------------------------------------
+            FÄLTTABELLEN
+
+            Fanns inte på den förra sidan. Trafiklab har en egen rubrik
+            "Response Data fields" med tabell, Clerk har den per slutpunkt.
+            Det är dokumentationens kärna.
+            ----------------------------------------------------------- */}
+        <section id="falt">
+          <h2>Fälten</h2>
+          <p>
+            En post under <code>establishments</code> ser likadan ut i varje
+            kommunfil.
+          </p>
+          <div class="tabellrull">
+            <table class="falt">
+              <thead>
+                <tr><th scope="col">Fält</th><th scope="col">Typ</th><th scope="col">Betyder</th></tr>
+              </thead>
+              <tbody>
+                {FALT.map((f) => (
+                  <tr>
+                    <th scope="row"><code>{f.namn}</code></th>
+                    <td><code class="typ">{f.typ}</code></td>
+                    <td>{f.text}</td>
+                  </tr>
+                ))}
+                {LATEST.map((f) => (
+                  <tr class="nastlad">
+                    <th scope="row"><code>{f.namn}</code></th>
+                    <td><code class="typ">{f.typ}</code></td>
+                    <td>{f.text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Fältnamnen är hämtade ur den svenska nationella specifikationen
+            <em>Livsmedelskontroller som öppna data v2.0</em>, framtagen av NSÖD
+            och ÖDIS. <a href="#format">Varför vi lånar dess ordförråd men inte
+            dess dokumentform</a> står längre ned.
+          </p>
+        </section>
+
+        {/* ----------------------------------------------------------- */}
+        <section id="koder">
+          <h2>Kodlistan</h2>
+          <p>
+            Listan står i klartext i
+            {' '}<a href={`/api/${API_VERSION}/index.json`}>indexet</a> under
+            <code>codes</code>, så en klient slipper skriva av den härifrån.
+          </p>
+          <div class="tabellrull">
+            <table class="falt">
+              <thead>
+                <tr><th scope="col">Fält</th><th scope="col">Värde</th><th scope="col">Betyder</th></tr>
+              </thead>
+              <tbody>
+                {Object.entries(koder.verdict).map(([k, v], i) => (
+                  <tr>
+                    {i === 0 && <th scope="row" rowspan={Object.keys(koder.verdict).length}><code>verdict</code></th>}
+                    <td><code class="typ">{k === 'null' ? 'null' : `"${k}"`}</code></td>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+                {Object.entries(koder.reason).map(([k, v], i) => (
+                  <tr class={i === 0 ? 'nyttfalt' : undefined}>
+                    {i === 0 && <th scope="row" rowspan={Object.keys(koder.reason).length}><code>reason</code></th>}
+                    <td><code class="typ">"{k}"</code></td>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+                {Object.entries(koder.assessment).map(([k, v], i) => (
+                  <tr class={i === 0 ? 'nyttfalt' : undefined}>
+                    {i === 0 && <th scope="row" rowspan={Object.keys(koder.assessment).length}><code>assessment</code></th>}
+                    <td><code class="typ">{k}</code></td>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+                {Object.entries(koder.type).map(([k, v], i) => (
+                  <tr class={i === 0 ? 'nyttfalt' : undefined}>
+                    {i === 0 && <th scope="row" rowspan={Object.keys(koder.type).length}><code>type</code></th>}
+                    <td><code class="typ">{k}</code></td>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+                {Object.entries(koder.sourceType).map(([k, v], i) => (
+                  <tr class={i === 0 ? 'nyttfalt' : undefined}>
+                    {i === 0 && <th scope="row" rowspan={Object.keys(koder.sourceType).length}><code>source.type</code></th>}
+                    <td><code class="typ">"{k}"</code></td>
+                    <td>{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p class="varning">
+            <strong>Bedömningen är vår och inte kommunens.</strong> Sverige har
+            inget nationellt hygienbetyg. <code>verdict</code> räknas fram ur
+            kontrolldatan enligt en <a href="/metodik/">öppet publicerad
+            metodik</a>, och den får aldrig återges som kommunens betyg.
+            <code>assessment</code> och <code>type</code> är däremot kommunens
+            egna uppgifter, normaliserade till en gemensam skala.
+          </p>
+          <p>
+            <code>verdict: null</code> betyder att underlaget inte räcker och
+            aldrig att bedömningen är dålig. <code>reason</code> säger vilket av
+            de två fallen det är.
+          </p>
+        </section>
+
+        {/* ----------------------------------------------------------- */}
+        <section id="granser">
+          <h2>Gränser och drift</h2>
+          <dl class="spec">
+            <div>
+              <dt>Kvot</dt>
+              <dd>Ingen. Svaren är statiska filer bakom ett CDN.</dd>
+            </div>
+            <div>
+              <dt>Cache</dt>
+              <dd>
+                <code>Cache-Control</code> säger en timme, och beståndet
+                uppdateras i dygnstakt eller långsammare. Att hämta samma
+                dokument oftare ger samma svar.
+              </dd>
+            </div>
+            <div>
+              <dt>CORS</dt>
+              <dd>
+                <code>Access-Control-Allow-Origin: *</code> på varje svar.
+                Anrop från en webbsida fungerar.
+              </dd>
+            </div>
+            <div>
+              <dt>Färskhet</dt>
+              <dd>
+                Varje svar bär källans <code>fetchedAt</code>, och där källan
+                själv säger när den ändrades även <code>modifiedAt</code>. De
+                två är inte samma sak: en kommuns fil kan hämtas i dag och vara
+                skriven för två år sedan.
+              </dd>
+            </div>
+            <div>
+              <dt>Täckning</dt>
+              <dd>
+                {total.municipalities} av Sveriges 290 kommuner. De flesta
+                publicerar ingenting. Vad som saknas står på
+                {' '}<a href="/kallor/">källsidan</a>.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* -----------------------------------------------------------
+            DET SOM KRÄVER KONTAKT
+
+            docs/54 §9.2: "Ingenting, på ungefär sex månader." Sidan tar
+            alltså emot en kontakt, den nämner inget pris och lovar ingen
+            produkt. En kontaktväg är hur vi mäter efterfrågan utan att
+            sälja.
+
+            Läsaren är kedjeinnehavaren ur §5.5: nittio privata innehavare
+            i Stockholm med fem enheter eller fler, som bär 1 063
+            verksamheter.
+
+            Kontaktvägen är en mailto och inte ett formulär. docs/14 är
+            tydlig: ett formulär som skickar in något gör påståendena i
+            /integritetspolicy och /villkor osanna och kräver att lagringen
+            dokumenteras. En mailto utlöser ingenting av det, lagrar inget i
+            webbläsaren och kostar ingen backend.
+            ----------------------------------------------------------- */}
+        <section id="tillgang">
+          <h2>Det som kräver att du hör av dig</h2>
+          <p>
+            Allt ovanför är gratis och kommer att förbli det. Fyra saker ligger
+            utanför, och de har alla samma skäl: de är för tunga för att lägga
+            ut som statiska filer åt alla.
+          </p>
+          <dl class="spec">
+            <div>
+              <dt>Hela kontrollhistoriken</dt>
+              <dd>
+                Kommunfilerna bär nuläget. Tidsserien bakom
+                {' '}{formatNumber(total.inspections)} kontroller finns, men
+                publiceras inte.
+              </dd>
+            </div>
+            <div>
+              <dt>Uttag i bulk</dt>
+              <dd>
+                Hela det normaliserade beståndet i en leverans i stället för
+                {' '}{total.municipalities} hämtningar.
+              </dd>
+            </div>
+            <div>
+              <dt>Uppslagning per verksamhet</dt>
+              <dd>
+                {PER_VERKSAMHET
+                  ? 'Ett dokument per verksamhet, med historiken.'
+                  : 'Ett dokument per verksamhet med historiken. Rutten är byggd och verifierad men inte publicerad: den kostar 17 066 filer och utgåvan ligger nära gratisplanens tak på 20 000.'}
+              </dd>
+            </div>
+            <div>
+              <dt>Bevakning av ett bestånd</dt>
+              <dd>
+                Besked när något ändras i en uppsättning verksamheter du följer,
+                i stället för att du hämtar om allt och jämför själv.
+              </dd>
+            </div>
+          </dl>
+          <p>
+            <strong>Vi säljer ingenting av det i dag.</strong> Det finns inget
+            pris, ingen prislista och ingen produkt att beställa. Det som finns
+            är en adress, och den som hör av sig får ett ärligt besked om vad
+            som går att få och när.
+          </p>
+          <p class="knapprad">
+            <a
+              class="btn-primary"
+              href={`mailto:${DATAKONTAKT}?subject=${encodeURIComponent(DATAAMNE)}`}
+            >Skriv till oss</a>
+            <span class="caption text-muted">
+              {DATAKONTAKT}. Skriv vad du vill bygga, så svarar vi på om datan
+              räcker.
+            </span>
+          </p>
+        </section>
+
+        {/* -----------------------------------------------------------
+            VAD VI ALDRIG SÄLJER
+
+            docs/54 §6.7 gör det här avsnittet obligatoriskt och inte
+            valfritt: "ingen av dem får byggas utan att konflikten står
+            skriven där kunden och besökaren kan läsa den". Punkterna är
+            §9.4 ordagrant sammanfattade.
+            ----------------------------------------------------------- */}
+        <section id="aldrig">
+          <h2>Vad vi aldrig säljer</h2>
+          <p>
+            Vi publicerar bedömningar av namngivna verksamheter och tar samtidigt
+            emot förfrågningar om data. Det är en intressekonflikt, den går inte
+            att designa bort, och därför står gränserna skrivna här i stället
+            för i ett avtal ingen läser.
+          </p>
+          <ul class="aldrig">
+            <li>
+              <strong>Ingen placering i sökresultatet.</strong> Sökordningen går
+              inte att köpa, i någon form. Det är branschens vanligaste intäkt
+              och den enda vi aldrig kan ta.
+            </li>
+            <li>
+              <strong>Inget bättre betyg för pengar.</strong> Inte heller en
+              snabbare omprövning, en mildare formulering eller en tidigare
+              borttagning av en rad.
+            </li>
+            <li>
+              <strong>Inget betalt märke och inget certifikat.</strong>
+              {' '}<a href="/utmarkelser/">Utmärkelsen</a> och dekalen är gratis
+              och kommer att förbli det. Att sälja beviset på en bra bedömning
+              är att sälja bedömningen, med ett extra steg emellan.
+            </li>
+            <li>
+              <strong>Ingen jämförelse mot en namngiven konkurrent.</strong> Den
+              som följer sina egna enheter ser dem mot varandra och mot
+              riksmedianen. Aldrig mot en namngiven annan verksamhet, även om en
+              kund ber om det.
+            </li>
+            <li>
+              <strong>Inga utgående säljbrev till den vi pekat ut.</strong> Vi
+              kontaktar inte en verksamhet med anmärkning för att sälja något.
+            </li>
+          </ul>
+        </section>
+
+        {/* -----------------------------------------------------------
+            PROSAN
+
+            Den är inte borttagen, den är flyttad. Skälen till formatvalet,
+            licensbedömningen och vad vi medvetet inte publicerar är bra
+            text och de hör hemma, men UNDER referensdelen. En läsare som
+            vill ha adressen ska inte behöva läsa varför vi valde bort
+            LIVES först, vilket är precis vad den förra sidan krävde.
+            ----------------------------------------------------------- */}
+        <section id="format">
+          <h2>Varför formatet är vårt eget</h2>
+          <p>
+            Det närmast till hands liggande alternativet var <strong>LIVES</strong>,
+            som Yelp tog fram tillsammans med San Francisco och New York och som
+            Montreal publicerar i under CC BY 4.0. Ett etablerat format som andra
+            redan kan läsa är normalt värt mer än ett eget som är en aning bättre,
+            så frågan prövades på riktigt innan den avfärdades.
+          </p>
+          <p>
+            Tre saker i formatet fällde det. LIVES bygger på ett <strong>poängtal
+            mellan noll och hundra</strong>, och svensk livsmedelskontroll har
+            inget sådant tal. Fältet för icke-numeriska utfall rymmer fyra
+            tecken, alltså varken &rdquo;Brister&rdquo; eller &rdquo;Brister som
+            kvarstår&rdquo;. LIVES har vidare <strong>ingen identitet per
+            kontroll</strong>: en avvikelse kopplas till en verksamhet och ett
+            datum, inte till kontrollen den gäller, och två kontroller samma dag
+            går då inte att hålla isär. Och formatet är till sin form <strong>fem
+            CSV-filer i en zip</strong>, alltså precis den massnedladdning vi inte
+            publicerar.
+          </p>
+          <p>
+            Och argumentet om att andra redan kan läsa formatet håller inte heller.
+            Standarden uppdaterades senast 2015. Av de 247 jurisdiktioner Yelp
+            listar levereras 237 numera av en kommersiell part, Ecolabs Health
+            Department Intelligence, och båda de kommuner som en gång tog fram
+            formatet finns i den gruppen. Att ansluta sig till LIVES i dag är
+            alltså inte att gå med i ett levande ekosystem.
+          </p>
+          <p>
+            Fältnamnen är i stället hämtade ur den svenska nationella
+            specifikationen <em>Livsmedelskontroller som öppna data v2.0</em>. Den
+            har fält för precis det svensk kontroll faktiskt innehåller: bedömning
+            per kontroll, kontrolltyp, om besöket var föranmält, kontrollpunkter
+            med och utan avvikelse, och verksamhetens egen replik. Vi lånar dess
+            ordförråd, inte dess dokumentform, och vi ansluter oss inte till
+            något: ingen kommun publicerar i specifikationen i dag.
+          </p>
+        </section>
+
+        <section id="licens">
+          <h2>Licens och attribution</h2>
+          <p>Två lager, och de ska hållas isär.</p>
+          <p>
+            <strong>Kommunernas underlag är fritt, och inte tack vare oss.</strong>
+            {' '}Ett kontrollresultat är ett yttrande av en svensk myndighet, och
+            9 § upphovsrättslagen (1960:729) undantar sådana från upphovsrätt.
+            Katalogskyddet i 49 § räknar i sitt tredje stycke upp 9 § bland de
+            bestämmelser som gäller även för en sammanställning, alltså skyddas
+            inte heller tabellen som helhet. Ingen behöver vårt tillstånd för de
+            uppgifterna, och vi kan inte licensiera dem.
+          </p>
+          <p>
+            <strong>Vårt eget arbete är normaliseringen, identifierarna och
+            bedömningen.</strong> Det erbjuds under
+            {' '}<a href={LICENCE.url} rel="nofollow">{LICENCE.name}</a>. Villkoret
+            är attribution, och den här raden uppfyller det:
+          </p>
+          <figure class="kodruta">
+            <figcaption><span class="etikett">Attribution</span></figcaption>
+            <pre class="kod"><code>{LICENCE.attribution}</code></pre>
+          </figure>
+          <p>
+            Länken ska vara klickbar där formatet tillåter en länk. Ta med
+            kontrolldatumet tillsammans med uppgiften: kontrollresultat ändras,
+            och en uppgift utan datum blir fel med tiden. Hittar du ett fel,
+            {' '}<a href="/ratta/">rätta det här</a>.
+          </p>
+
+          <h3>Kommunernas egna villkor</h3>
+          <p>
+            Ingen av de {total.municipalities} kommunerna har skrivit ett enda
+            villkor för vidareutnyttjande. Det gäller alla, inte några, och det
+            står som <code>"licence": "unstated"</code> på varje källa i svaren.
+          </p>
+          <p>
+            Tystnad är varken ett förbud eller ett tillstånd, och slutsatsen ovan
+            vilar därför inte på den utan på lagtexten. Att villkoret ändå
+            redovisas per kommun är för att den som bygger vidare ska kunna göra
+            sin egen bedömning i stället för att lita på ett medelvärde vi räknat
+            åt hen.
+          </p>
+          <div class="tabellrull">
+            <table class="falt">
+              <thead>
+                <tr><th scope="col">Kommun</th><th scope="col">Hur vi hämtar</th><th scope="col">Villkor</th><th scope="col">Hämtat</th></tr>
+              </thead>
+              <tbody>
+                {kommuner.map((m) => (
+                  <tr>
+                    <th scope="row">{m.city}</th>
+                    <td>{KALLETIKETT[m.sourceType ?? 'reverse_engineered']}</td>
+                    <td>Inga angivna</td>
+                    <td>{m.source ? formatDate(m.source.fetchedAt.slice(0, 10)) : 'saknas'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="utanfor">
+          <h2>Vad som inte finns här</h2>
+          <ul class="plain">
+            <li>
+              <strong>Inga bilder.</strong> Gatubilderna kommer från Mapillary,
+              Panoramax och Wikimedia Commons, och deras villkor gäller per bild:
+              en kräver logotyp och länk, en annan fotografens namn och en länk
+              till filsidan. En URL i ett JSON-fält kan inte bära det kravet
+              vidare, och en bild som visas utan sin attribution är ett brutet
+              villkor hos oss.
+            </li>
+            <li>
+              <strong>Inga öppettider och inga kontaktuppgifter.</strong> De
+              kommer ur OpenStreetMap och står under ODbL 1.0, som är en
+              share-alike-licens. Att lägga dem i ett svar vi märker CC BY vore
+              att sätta villkor vi inte har rätt att sätta.
+            </li>
+            <li>
+              <strong>Ingen massnedladdning som öppen fil.</strong> Underlaget är
+              allmänna handlingar och du kan begära ut det av varje kommun själv.
+              Vill du ha det normaliserade materialet på en gång är det
+              {' '}<a href="#tillgang">en fråga att ställa</a>, inte något vi
+              hemlighåller.
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
 </Base>
 
 <style>
-  /* Se om.astro för formen. Samma regel som på övriga skrivna sidor. */
-  header :global(.avsandare) {
-    float: right;
-    margin: 0 0 var(--s-3) var(--s-6);
-    shape-outside: circle(50%);
+  /* Sidan använder .container som den är, alltså --w-wide. Ingen egen bredd
+     sätts här: den förra sidan satte --w-read på behållaren och fick 584 px
+     brödtext, eftersom .container är border-box och paddingen åt 96. */
+  .sida { padding-block: var(--s-12) var(--s-16); }
+
+  /* ---------------------------------------------------------------------
+     SÄLJET
+     --------------------------------------------------------------------- */
+
+  /* Hjälten är låst till --w-read även om behållaren är bred. Resends
+     rubrik mäter 480 px vid 1440 och Blockets 623: en ingress som löper över
+     1 300 px läser ingen. */
+  .hjalte { max-width: var(--w-read); }
+
+  .hjalte h1 {
+    font-size: var(--fs-hero);
+    line-height: var(--lh-hero);
+    margin-top: var(--s-2);
   }
 
-  @media (max-width: 700px) {
-    header :global(.avsandare) {
-      float: none;
-      margin: 0 0 var(--s-3);
-    }
+  .lede {
+    margin-top: var(--s-4);
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-body);
   }
 
-  header::after {
-    content: '';
-    display: table;
-    clear: both;
+  .knapprad {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3) var(--s-4);
+    margin-top: var(--s-6);
   }
 
-  .meta { clear: right; }
-
-  .page {
-    max-width: var(--w-read);
-    padding-block: var(--s-12) var(--s-16);
+  /* Den andra knappen. Resend ställer "Get started" och "Documentation"
+     bredvid varandra, den ena fylld och den andra inte. Vi har bara
+     .btn-primary i tokens, så motparten byggs här: samma höjd, samma radie
+     och samma grad, men linje i stället för fyllning. Ingen ny färg. */
+  .btn-linje {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--h-tap);
+    padding-inline: 22px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    color: var(--text);
+    font: 600 var(--fs-body-s)/1 var(--font-sans);
   }
 
-  h1 { font-size: var(--fs-display); line-height: var(--lh-display); margin-top: var(--s-2); }
-  .lede { margin-top: var(--s-4); line-height: var(--lh-body); }
-  .meta { margin-top: var(--s-3); font-size: var(--fs-caption); }
+  .btn-linje:hover {
+    border-color: var(--brand);
+    color: var(--brand-ink);
+    text-decoration: none;
+  }
 
-  section { margin-top: var(--s-12); }
-  section h2 { margin-bottom: var(--s-4); }
-  section h3 { margin-top: var(--s-8); margin-bottom: var(--s-3); font-size: var(--fs-body); }
-  section p { line-height: var(--lh-body); }
-  section p + p { margin-top: var(--s-4); }
+  .meta { margin-top: var(--s-4); font-size: var(--fs-caption); }
+
+  /* Fördelsraden. Blockets tre kolumner, men utan platta och utan ram:
+     docs/19 säger linje och luft. Kolumnerna faller till en per rad under
+     760, alltså innan de blir smalare än en läsbar rad. */
+  .fordelar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-6) var(--s-8);
+    margin: var(--s-16) 0 0;
+    padding: var(--s-8) 0 0;
+    border-top: 1px solid var(--hairline);
+    list-style: none;
+  }
+
+  .fordelar h2 { font-size: var(--fs-h-xs); line-height: var(--lh-h-xs); }
+  .fordelar p {
+    margin-top: var(--s-2);
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    color: var(--text-secondary);
+  }
+
+  /* ---------------------------------------------------------------------
+     LAYOUTEN: MENY OCH INNEHÅLL
+     --------------------------------------------------------------------- */
+
+  .layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--s-16);
+    margin-top: var(--s-16);
+  }
+
+  .meny {
+    position: sticky;
+    top: var(--s-6);
+    align-self: start;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  .menygrupp + .menygrupp { margin-top: var(--s-6); }
+
+  .menyrubrik {
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: var(--s-2);
+  }
+
+  .meny ul { margin: 0; padding: 0; list-style: none; }
+  .meny li { margin-top: var(--s-1); }
+  .meny li.under { padding-left: var(--s-3); }
+  .meny a { color: var(--text-secondary); }
+  .meny a:hover { color: var(--brand-ink); }
+
+  /* ---------------------------------------------------------------------
+     INNEHÅLLET
+
+     Skyldigheten som följer med --w-wide: löptexten bär gränsen själv.
+     Tabeller och kodrutor gör det INTE, och det är hela poängen med att
+     sidan bytte bredd. Resends första kodblock mäter 1 022 px.
+     --------------------------------------------------------------------- */
+
+  section { scroll-margin-top: var(--s-6); }
+  section + section { margin-top: var(--s-16); }
+  .innehall h2 { margin-bottom: var(--s-4); }
+
+  .innehall p,
+  .innehall .plain,
+  .innehall .aldrig,
+  .innehall .spec { max-width: var(--w-read); }
+
+  .innehall p { line-height: var(--lh-body); }
+  .innehall p + p { margin-top: var(--s-4); }
+
+  .slutpunkt { margin-top: var(--s-12); }
+  .slutpunkt h3 { margin-bottom: var(--s-3); }
 
   .plain { margin: var(--s-4) 0 0; padding-left: var(--s-4); }
   .plain li { margin-top: var(--s-3); line-height: var(--lh-body); }
 
-  /* Samma faktalista som villkorssidan. Etiketten till vänster, värdet till
-     höger, hårlinje mellan raderna, aldrig en färgad platta. Se docs/19. */
-  .facts {
-    display: grid;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
-    overflow: hidden;
-    margin: var(--s-4) 0 0;
-  }
-
-  .facts > div {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2) var(--s-4);
-    justify-content: space-between;
-    padding: var(--s-3) var(--s-4);
-  }
-
-  .facts > div + div { border-top: 1px solid var(--hairline); }
-  .facts dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
-  .facts dd { margin: 0; font-size: var(--fs-body-s); font-weight: 600; }
-  /* Adressen får bryta var som helst. En URL på 74 tecken spränger annars
-     spalten på telefon, och det är den enda texten på sidan som gör det. */
-  .facts dd code { overflow-wrap: anywhere; }
-
-  /* Kodrutan rullar i sig själv. Sidan får aldrig rulla i sidled, och en
-     adress går inte att radbryta snyggt. */
-  .kod {
-    margin: var(--s-4) 0 0;
-    padding: var(--s-3) var(--s-4);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
-    overflow-x: auto;
-    font-size: var(--fs-body-s);
+  .aldrig { margin: var(--s-4) 0 0; padding: 0; list-style: none; }
+  .aldrig li {
+    padding: var(--s-3) 0;
+    border-top: 1px solid var(--hairline);
     line-height: var(--lh-body);
   }
 
-  .kod code { white-space: pre; }
+  .varning {
+    margin-top: var(--s-6);
+    padding-left: var(--s-4);
+    border-left: 2px solid var(--brand);
+  }
 
-  .kallor {
+  /* Etikettspalten från /hjalp/ och kontaktsidan: etikett vänster, värde
+     höger, hårlinje mellan raderna, aldrig en färgad platta. Se docs/19. */
+  .spec {
+    display: grid;
+    border-top: 1px solid var(--hairline);
+    margin: var(--s-4) 0 0;
+  }
+
+  .spec > div {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: var(--s-2) var(--s-4);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .spec dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
+  .spec dd {
+    margin: 0;
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Adressen får bryta var som helst. En URL på 74 tecken spränger annars
+     spalten på telefon, och det är den enda texten på sidan som gör det. */
+  .spec dd code { overflow-wrap: anywhere; }
+
+  /* ---------------------------------------------------------------------
+     KODRUTAN
+
+     Formen är inte uppfunnen här. Den finns redan på /utmarkelser/emblem/,
+     alltså sajtens enda andra sida med en kodruta: --card som botten,
+     hårlinje runt, --r-control, ui-monospace och --fs-caption. Skillnaden
+     mot den förra API-sidan är att DEN saknade bakgrund, och en kodruta
+     utan botten läser som ett indraget stycke och inte som kod.
+
+     Etiketten ovanför är Clerks och Stripes: varje ruta säger om den är ett
+     anrop eller ett svar, för de två ser likadana ut annars.
+     --------------------------------------------------------------------- */
+  .kodruta { margin: var(--s-4) 0 0; }
+
+  .kodruta figcaption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    margin-bottom: var(--s-2);
+  }
+
+  .kodruta .etikett {
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Kopieraknappen. Formen är .btn-ghost från /utmarkelser/emblem/, alltså
+     sajtens enda befintliga kopieraknapp, men mindre: den sitter i en etikett
+     på 12 px och en knapp i full storlek hade blivit rutans tyngsta element.
+     Versalerna tas bort, eftersom den är en handling och inte en etikett. */
+  .kodruta .kopiera {
+    flex: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    padding: 4px 12px;
+    font: 600 var(--fs-caption)/1.4 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .kodruta .kopiera:hover { border-color: var(--brand); color: var(--brand-ink); }
+
+  /* Kvittensen tar plats även när den är tom, annars hoppar kodrutan neråt
+     första gången någon klickar. Samma fel som en knapp som byter höjd med
+     sitt innehåll, se .btn-primary i tokens. */
+  .kodruta .kvittens {
+    display: block;
+    min-height: var(--lh-caption);
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
+
+  .kod {
+    margin: 0;
+    padding: var(--s-4);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow-x: auto;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-body-s);
+  }
+
+  .kod code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+
+  /* ---------------------------------------------------------------------
+     TABELLERNA
+     --------------------------------------------------------------------- */
+
+  /* Tabellen rullar i sig själv och aldrig sidan. Fälttabellen har tre
+     spalter och kommuntabellen fyra, och på 375 px ryms ingen av dem. */
+  .tabellrull { overflow-x: auto; margin-top: var(--s-4); }
+
+  .falt {
     width: 100%;
-    margin-top: var(--s-4);
     border-collapse: collapse;
     font-size: var(--fs-body-s);
     text-align: left;
   }
 
-  .kallor th,
-  .kallor td {
-    padding: var(--s-3) var(--s-3) var(--s-3) 0;
+  .falt th,
+  .falt td {
+    padding: var(--s-3) var(--s-4) var(--s-3) 0;
     border-bottom: 1px solid var(--hairline);
     vertical-align: top;
-    line-height: var(--lh-body);
+    line-height: var(--lh-body-s);
   }
 
-  .kallor thead th { color: var(--text-secondary); font-weight: 600; }
-  .kallor tbody th { font-weight: 600; white-space: nowrap; }
+  .falt thead th { color: var(--text-secondary); font-weight: 600; }
+  .falt tbody th { font-weight: 600; white-space: nowrap; }
+
+  /* Nytt fält i kodlistan får en kraftigare linje ÖVER sig, så att de fem
+     grupperna syns som fem och inte som tjugo rader i följd. */
+  .falt tbody tr.nyttfalt th,
+  .falt tbody tr.nyttfalt td { border-top: 1px solid var(--hairline); }
+
+  .falt tbody tr.nastlad th { padding-left: var(--s-4); }
+
+  .falt code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .falt .typ { color: var(--text-secondary); white-space: nowrap; }
 
   /* Tretton flöden som en radlista och inte som tretton punkter under
      varandra: listan är en uppräkning av adresser och inte en argumentation,
@@ -528,4 +1263,104 @@ const jsonLd = {
     list-style: none;
     font-size: var(--fs-body-s);
   }
+
+  /* ---------------------------------------------------------------------
+     TELEFON
+
+     Menyn slutar vara en spalt och blir en radlista överst. Den tas INTE
+     bort: en sida i den här längden utan navigering var precis felet som
+     skulle rättas, och Trafiklab behåller sin vänsternav på 375 medan de
+     fäller ihop högerspalten.
+     --------------------------------------------------------------------- */
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-8);
+    }
+
+    .meny {
+      position: static;
+      padding-bottom: var(--s-6);
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .menygrupp + .menygrupp { margin-top: var(--s-4); }
+
+    .meny ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s-2) var(--s-4);
+    }
+
+    .meny li { margin-top: 0; }
+    .meny li.under { padding-left: 0; }
+  }
+
+  /* Kvittensen tar ingen plats innan den behövs på telefon: sex tomma rader
+     på en sida som redan är 20 383 px är sex rader för mycket. Hoppet den
+     skulle orsaka finns inte här, eftersom rutan ändå ligger i ett rull. */
+  @media (max-width: 640px) {
+    .kodruta .kvittens { min-height: 0; margin-top: 0; }
+    .kodruta .kvittens:empty { display: none; }
+  }
+
+  @media (max-width: 760px) {
+    .fordelar {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-6);
+    }
+
+    .spec > div { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>
+
+<script>
+  /**
+   * Kopieraknapparna, byggda i webbläsaren och inte i markupen.
+   *
+   * VARFÖR JS SKAPAR KNAPPEN I STÄLLET FÖR ATT BARA VISA DEN
+   * Emblemsidan har EN kodruta och skriver därför sin knapp i markupen med
+   * `hidden`. Här finns sex rutor, och sex kopior av samma tre element hade
+   * varit tre gånger så mycket markup som koden de kopierar. Resultatet är
+   * detsamma på den punkt som betyder något: utan JavaScript eller utan
+   * urklipp finns ingen knapp alls, och en död knapp är sämre än ingen.
+   *
+   * Den som saknar båda markerar koden och kopierar den som vilken text som
+   * helst. Det är därför `white-space: pre` står på `.kod code`: en markering
+   * ska ge tillbaka raderna som de står.
+   */
+  const rutor = document.querySelectorAll<HTMLElement>('.kodruta');
+
+  if (typeof navigator.clipboard?.writeText === 'function') {
+    rutor.forEach((ruta) => {
+      const kod = ruta.querySelector('code');
+      const etikettrad = ruta.querySelector('figcaption');
+      if (!kod || !etikettrad) return;
+
+      const knapp = document.createElement('button');
+      knapp.type = 'button';
+      knapp.className = 'kopiera';
+      knapp.textContent = 'Kopiera';
+
+      /* Kvittensen är `role="status"`, alltså läses den upp av en skärmläsare
+         utan att flytta fokus. En knapp som byter sin egen text till
+         "Kopierat" tappar i stället sitt namn, och då vet den som kommer
+         tillbaka till knappen inte längre vad den gör. */
+      const kvittens = document.createElement('span');
+      kvittens.className = 'kvittens';
+      kvittens.setAttribute('role', 'status');
+
+      knapp.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(kod.textContent ?? '');
+          kvittens.textContent = 'Kopierat.';
+        } catch {
+          kvittens.textContent = 'Kunde inte kopiera. Markera texten i stället.';
+        }
+      });
+
+      etikettrad.append(knapp);
+      ruta.append(kvittens);
+    });
+  }
+</script>

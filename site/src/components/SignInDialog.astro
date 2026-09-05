@@ -157,6 +157,36 @@ import '../styles/konto.css';
         <button type="submit" class="btn-primary wide" data-submit>Bekräfta</button>
 
         <button type="button" class="btn-link" data-resend>Skicka en ny kod</button>
+
+        {/* Var mejlet tog vägen.
+
+            Mätningen i docs/58_registreringen.md: varje registrering till en
+            brevlåda hos Google bekräftades inom 35 sekunder, och ingen av dem
+            hos Microsoft bekräftades alls. Mejlet skickas, det är undertecknat
+            och det går igenom DMARC hela vägen, så det som återstår är att det
+            ligger i skräpposten och att ingen tittar där. Den enda del av det
+            problemet som koden kan laga på egen hand är att säga var man ska
+            leta.
+
+            Raden bär avsändare och ämnesrad ORDAGRANT. Det är dem man skriver
+            in i ett sökfält, och "ett mejl från oss" går inte att söka på.
+
+            Den står framme direkt och fälls inte ut efter en stund.
+            Utfällningen fanns här ett tag och mättes bort: raden är 53 px hög,
+            arket växer lika mycket, och eftersom ett <dialog> ligger centrerat
+            steg kodrutorna 27 px uppåt när den kom, alltså en halv rutas höjd
+            rakt under fingret på någon som skriver. Dessutom hjälper en rad
+            som dyker upp vid tjugonde sekunden ingen som gav upp vid den
+            tolfte, och det är just de vi förlorar. Bättre då att den står där
+            från början och att ingenting rör sig.
+
+            Sist i formuläret, under en linje: den är en upplysning för den som
+            saknar något, inte ett fel och inte ett steg. */}
+        <p class="hint">
+          Inget mejl? Titta i skräpposten. Det kommer från
+          {' '}<b class="nobr">no-reply@prikko.se</b> och har ämnet
+          {' '}<b>Din kod till Prikko</b>.
+        </p>
       </form>
     </div>
   </div>
@@ -473,6 +503,27 @@ import '../styles/konto.css';
 
   .btn-link:hover { text-decoration: underline; }
 
+  /* Samma grad och färg som .sent, alltså en anmärkning och inte ett larm.
+     Ett gult varningsfält hade sagt att något gått fel, och det vanliga är att
+     ingenting gått fel utan att mejlet ligger en mapp bort. */
+  .hint {
+    margin-top: var(--s-5);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--hairline);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  .hint b { font-weight: 600; color: var(--text); }
+
+  /* Adressen bryts inte mitt itu. Vid 375 px hamnade bindestrecket sist på
+     raden och "no-" stod för sig själv, vilket gör en adress man ska skriva av
+     till två strängar man får pussla ihop. Ämnesraden får däremot brytas: den
+     är vanliga ord. */
+  .hint .nobr { white-space: nowrap; }
+
   @media (max-width: 420px) {
     .code { gap: 6px; }
     .code input { width: 40px; height: 50px; }
@@ -566,6 +617,21 @@ import '../styles/konto.css';
     ) as HTMLInputElement[];
     const resend = dialog.querySelector('[data-resend]') as HTMLButtonElement;
 
+    /*
+     * Sextio sekunder är GoTrues egen spärr mellan två koder till samma
+     * adress, inte ett tal vi hittat på. Knappen låg tidigare avstängd i fem
+     * sekunder efter ett utskick, vilket betydde att den var tänd i femtiofem
+     * sekunder under vilka den garanterat gav ett fel. En knapp som ser
+     * tryckbar ut men inte är det är samma avstängda kontroll som hela den
+     * här rutan byggdes för att bli av med.
+     *
+     * Klockan startar redan när steg 2 visas, inte först vid ett omtryck.
+     * Den första koden skickades ju i samma ögonblick, så spärren löper
+     * oavsett vad rutan visar, och att låtsas något annat skulle bara flytta
+     * felet till det första trycket i stället för det andra.
+     */
+    const RESEND_WAIT = 60;
+
     const TITLES = {
       email: 'Logga in eller bli medlem',
       code: 'Bekräfta att det är du',
@@ -598,6 +664,52 @@ import '../styles/konto.css';
       for (const form of [emailStep, codeStep]) errorBox(form).hidden = true;
     }
 
+    let cooldownTimer = 0;
+    let cooldown = 0;
+    let holdUntil = 0;
+
+    /**
+     * Ritar om knappen efter klockan.
+     *
+     * `holdUntil` är kvittensen. Utan den bytte knappen text från "Skickar"
+     * rakt till en nedräkning, och den som just tryckt fick aldrig veta att
+     * det gick vägen. Kvittensen ligger några sekunder och lämnar sedan över
+     * till nedräkningen av sig själv, för intervallet tickar ändå varje
+     * sekund och behöver ingen egen timer.
+     */
+    function paintResend() {
+      if (Date.now() < holdUntil) {
+        resend.disabled = true;
+        resend.textContent = 'En ny kod är skickad';
+        return;
+      }
+      resend.disabled = cooldown > 0;
+      resend.textContent =
+        cooldown > 0 ? `Skicka en ny kod om ${cooldown} s` : 'Skicka en ny kod';
+    }
+
+    /** Startar om spärren. Kallas när koden skickats, lyckat eller inte. */
+    function startCooldown(receipt: boolean) {
+      window.clearInterval(cooldownTimer);
+      cooldown = RESEND_WAIT;
+      holdUntil = receipt ? Date.now() + 3000 : 0;
+      paintResend();
+      cooldownTimer = window.setInterval(() => {
+        cooldown -= 1;
+        paintResend();
+        if (cooldown <= 0) window.clearInterval(cooldownTimer);
+      }, 1000);
+    }
+
+    /* Klockan stannar när rutan lämnar steg 2, och när den stängs. En
+       setInterval som lever vidare efter att rutan är borta skriver till en
+       knapp ingen ser, och gör det för resten av sidans liv. */
+    function stopClocks() {
+      window.clearInterval(cooldownTimer);
+      cooldown = 0;
+      holdUntil = 0;
+    }
+
     /** Byter steg. Adressen står kvar i fältet, så tillbakapilen är gratis. */
     function goto(step: 'email' | 'code') {
       clearErrors();
@@ -610,9 +722,12 @@ import '../styles/konto.css';
          i top layer och syns alltid; det enda webbläsaren kan åstadkomma med
          att rulla fram fältet är att flytta sidan under. */
       if (step === 'email') {
+        stopClocks();
+        paintResend();
         (emailStep.elements.namedItem('email') as HTMLInputElement).focus({ preventScroll: true });
       } else {
         for (const box of boxes) box.value = '';
+        startCooldown(false);
         boxes[0].focus({ preventScroll: true });
       }
     }
@@ -641,6 +756,7 @@ import '../styles/konto.css';
 
     function finish(ok: boolean) {
       if (dialog!.open) dialog!.close();
+      stopClocks();
       unlockPage();
       const callback = done;
       const trigger = opener;
@@ -769,17 +885,16 @@ import '../styles/konto.css';
       clearErrors();
       resend.disabled = true;
       resend.textContent = 'Skickar';
+
       try {
         await requestCode(address);
-        resend.textContent = 'En ny kod är skickad';
+        startCooldown(true);
       } catch (err) {
         showError(codeStep, err instanceof CommunityError ? err.message : 'Kunde inte skicka.');
-        resend.textContent = 'Skicka en ny kod';
-      } finally {
-        setTimeout(() => {
-          resend.disabled = false;
-          resend.textContent = 'Skicka en ny kod';
-        }, 5000);
+        /* Spärren startar även när det gick fel. Det vanligaste felet HÄR är
+           just att spärren löper, och att då tända knappen igen är att bjuda
+           in till samma fel en gång till. */
+        startCooldown(false);
       }
     });
 

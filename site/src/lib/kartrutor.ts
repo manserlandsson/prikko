@@ -177,6 +177,30 @@ export interface Utsnitt {
    * eller inga alls.
    */
   derived: boolean;
+  /**
+   * MEDIANLÄGET i vyn, alltså [longitud, latitud] var för sig.
+   *
+   * Inte lådans mitt, och skillnaden är hela skälet till att fältet finns.
+   * `bounds` är en låda, och en låda styrs av sina ytterkanter: Norrköpings
+   * verksamheter spänner 15,919 till 16,941 i longitud, alltså en grad, medan
+   * latituden bara spänner 0,186. Lådans mitt hamnar därför långt öster om
+   * staden, ute i skärgården, och kameran måste zooma ut en hel nivå för att
+   * rymma en yta där nästan ingenting ligger.
+   *
+   * Medianen kan inte ha det felet: hälften av verksamheterna ligger väster
+   * om talet och hälften öster, och en enstaka udda koordinat flyttar det
+   * inte alls. Uppmätt vid zoom 9,0 i en kartruta på 375 x 812, alltså den
+   * smalaste vi har, andel av kommunens verksamheter som ryms i bilden:
+   *
+   *     centrerat på medianen   90,1 % (Jönköping) upp till 100 %
+   *     centrerat på lådans mitt Norrköping 54,8 %, Oskarshamn 89,9 %
+   *
+   * Fältet används BARA som kameraläge när lådan är så vid att rutorna kommer
+   * tillbaka klustrade, se `NALZOOM` i Karta.astro. Det är aldrig ett filter
+   * och det rangordnar ingenting: talet är räknat på var punkterna ligger och
+   * har ingen kännedom om bedömningen.
+   */
+  karna: [number, number];
 }
 
 export interface TileSet extends Utsnitt {
@@ -228,6 +252,20 @@ function extent(values: number[]): [number, number] {
     sorted[Math.floor(sorted.length * 0.005)],
     sorted[Math.ceil(sorted.length * 0.995) - 1],
   ];
+}
+
+/**
+ * Medianen, alltså talet som delar mängden i två lika stora halvor.
+ *
+ * Jämnt antal ger snittet av de två mittersta, vilket är den vanliga
+ * definitionen och det enda som gör talet stabilt när en punkt tillkommer.
+ * Se `karna` i Utsnitt för vad det används till och varför lådans mitt inte
+ * duger.
+ */
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const i = (sorted.length - 1) / 2;
+  return (sorted[Math.floor(i)] + sorted[Math.ceil(i)]) / 2;
 }
 
 /**
@@ -463,15 +501,26 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
     return [w, s, e, n];
   };
 
+  const karnan = (lngs: number[], lats: number[]): [number, number] => [
+    median(lngs),
+    median(lats),
+  ];
+
+  const rikeLngs = punkter.map((p) => p.lng);
+  const rikeLats = punkter.map((p) => p.lat);
+
   return {
     punkter,
     keys,
     set: {
       count: punkter.length,
-      bounds: utsnitt(
-        punkter.map((p) => p.lng),
-        punkter.map((p) => p.lat),
-      ),
+      bounds: utsnitt(rikeLngs, rikeLats),
+      /* Rikets median ligger i Stockholm, eftersom Stockholm är 8 567 av
+         14 376 punkter. Rikskartan använder den ALDRIG som kameraläge, se
+         SVERIGE_VY i pages/karta.astro: den sidan heter Sverige och ska öppna
+         på Sverige. Fältet finns här bara för att formen ska vara densamma
+         för riket och för en kommun. */
+      karna: karnan(rikeLngs, rikeLats),
       keys,
       counts,
       /* Rikskartan bär förbehållet bara om VARENDA läge i landet är härlett,
@@ -485,6 +534,7 @@ function collect(): { punkter: Punkt[]; keys: string[]; set: Omit<TileSet, 'body
           {
             count: v.lngs.length,
             bounds: utsnitt(v.lngs, v.lats),
+            karna: karnan(v.lngs, v.lats),
             counts: v.counts,
             derived: v.derived,
           },
