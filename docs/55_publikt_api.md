@@ -601,3 +601,266 @@ det: 8 520 verksamheter av 17 066. Jämför `kartlista/stockholm.json`, som är
 6. **Ingen historik per kommun är ett beslut som kan ompröva sig självt.**
    Visar det sig att C4 aldrig blir en affär är dumpfilen gratis att lägga
    till, och `docs/45` C4 säger uttryckligen att den kräver täckning först.
+
+---
+
+## 11. Sidans utseende, mätt mot fyra förlagor (2026-09-05)
+
+Avsnitt 1 till 10 handlar om vad `/api/` SÄGER. Det här handlar om hur den ser
+ut, och det är ett eget kapitel eftersom formen underkändes två gånger på fem
+dagar.
+
+### 11.1 Beställningen
+
+Ägaren 2026-09-01 om den första formen: "APIn ser knasig ut... borde ju se mer
+mot kund aktig ut och mer välgjord ut, kolla hur andra har gjort sidorna", och
+"det ska se mer säljigt ut, man kontaktar oss för tillgång" samt "API sidan ska
+ju först vara säljande och sen en mer docs grej med kod osv".
+
+Den omgången löste STRUKTUREN: hjälte med två knappar, fördelsrad, ankarmeny,
+och sedan Kom igång, Slutpunkter, Fälten, Kodlistan, Gränser, kontaktdelen,
+vad vi aldrig säljer, formatvalet och licensen. Sju kodblock mot tidigare ett.
+
+Ägaren 2026-09-05, efter att ha sett resultatet: "API sidan ser fortsatt sJUKT
+basic ut... otroligt ful och simpel, ser ut som en 3 åring har gjort den."
+
+Diagnosen på den domen är att strukturen var rätt och att sidan inte hade
+något UTSEENDE. Hjälten var svart text på vit botten, en blå knapp, en vit
+knapp med ram, och 660 px tomt till höger. Kodrutorna låg på `--card`, alltså
+1,01:1 mot sidans `--canvas`, med en hårlinje runt. Tolv sektioner låg efter
+varandra på samma vita yta, skilda av 64 px luft och ingenting annat.
+
+### 11.2 Förlagorna, uppmätta i webbläsaren vid 1 440 px
+
+Fyra sajter, alla utvecklarriktade, alla mätta med `getComputedStyle` och
+`getBoundingClientRect` och inte lästa av ögat. Resend rapporterade viewport
+1 600 px eftersom webbläsarzoomen låg på 90 procent, alltså är deras
+pixelbredder ungefär 11 procent generösare än de andra tres.
+
+| | Stripe (/se/payments) | Resend | Ably | Clerk |
+|---|---|---|---|---|
+| Hjältens bakgrund | `#F6F9FC` | `#000000` | `#03020D` | `#F7F7F8` |
+| Hjältens högra halva | vitt produktkort 704x500, radie 8, skugga `rgba(50,50,93,.25) 0 30px 60px -12px` | WebGL-canvas 445x377, en svart kub | webp-bild 984x780, produkt-UI i perspektiv | ingenting, hjälten är centrerad |
+| h1 px / vikt / radhöjd | 56 / 500 / 68 | 96 / 400 / 96 | 48 / 700 / 57,6 | 64 / 700 / 72 |
+| h1-bredd | 492 | 480 | 656 | 896 |
+| Kodblock | `#0C2E4E`, radie 8, ram 1 px `#0F395E`, ingen skugga, 540x539 | `#000000`, radie 4, ingen ram, ingen skugga, 1023x500 | finns inte | finns inte |
+| Kodgrad / radhöjd | 14 / 24 | 14 / 20 | ingen | ingen |
+| Syntaxfärger | 9 | 5 | 0 | 0 |
+| Radnummer | ja, `#55718D` | ja, `#464A4D` | nej | nej |
+| Flikar | 7 språk | 12 språk plus 8 ramverk | nej | nej |
+| Kopieraknapp | nej | ja | nej | ja, på promptraden |
+| Distinkta sektionsytor | 3: `#F6F9FC`, `#FFFFFF`, `#0A2540` | 1: `#000000` | 1: `#03020D` | 3: `#F7F7F8`, `#FFFFFF`, `#131316` |
+| Accentfärger | 6 | 1 | 3 | 4 |
+
+Stripes syntaxpalett i sin helhet: `#8095FF` nyckelord, `#00D4FF`
+funktionsanrop, `#FFA956` strängar, `#FFD96A` tal, `#1ABDC0` objektnycklar,
+`#A9BCCE` kommentarer, `#FFFFFF` identifierare, `#ADBDCC` brödtext, `#55718D`
+radnummer.
+
+Resends i sin helhet: `#EBECED` identifierare, `#A0A0A0` punktuation,
+`#6C6C6C` nyckelord, `#A1FCEA` strängar, `#464A4D` radnummer.
+
+### 11.3 Tre slutsatser ur talen, varav en kullkastade utgångshypotesen
+
+**Ett.** Hypotesen var att genrens konvention är ett mörkt kodkort i hjältens
+högra halva. Den håller inte. TVÅ av fyra har inget kodblock alls, någonstans
+på startsidan. Det som faktiskt är gemensamt är svagare och viktigare: hjälten
+har alltid ETT GJORT FÖREMÅL att titta på, och det får kosta. Stripe animerar
+en kassa i DOM:en, Resend renderar en kub i WebGL, Ably lägger en 984 px bild.
+Clerk, som saknar föremål, kompenserar med ett kretskortsmönster i två
+webp-lager plus två animerade canvaselement.
+
+**Två.** Ingen av de fyra använder mer än 6 accentfärger, och de två mörka
+sajterna klarar sig på 1 respektive 3. Resends kodblock har fem färger och
+läser ändå som färglagt. En syntaxpalett behöver inte vara en regnbåge.
+
+**Tre.** Kodblockets kant är alltid nästan osynlig och skuggan finns inte.
+Stripe kör 1 px `#0F395E` mot fyllningen `#0C2E4E`, alltså en ram som är ett
+snäpp LJUSARE än ytan. Resend kör helt utan.
+
+### 11.4 Vad hjälten fick, och vad den valdes framför
+
+Vi har varken ett produkt-UI att fotografera, en 3D-scen eller en
+illustrationsbudget. Fyra kandidater prövades:
+
+1. **En kartbild av täckningen.** Avfärdad. Kartan är sajtens nav, men den
+   svarar på "var finns ni" och en utvecklare frågar "vad får jag tillbaka".
+2. **Ett datablad, alltså tre stora tal.** Avfärdat som hjältens hela
+   innehåll, behållet som raden under den. Ensamt är det en påstådd storlek
+   utan bevis bredvid.
+3. **En visualisering av täckningen per kommun.** Avfärdad. Den kräver en bild
+   vi ritar själva, alltså dekor som ska underhållas, och den visar en sanning
+   sidan inte säljer: 13 av 290 kommuner är ett litet tal.
+4. **Svaret självt.** Valt.
+
+Produkten på den här sidan ÄR JSON:en, och den syntes inte en enda gång
+ovanför vikningen förut. Rutan är dessutom det billigaste möjliga beviset: den
+byggs av samma `kommunDokument()` som rutten serverar, alltså kan den inte
+ljuga. Se `svarHjalte` i `site/src/pages/api/index.astro`.
+
+**Exempelkommunen och exempelposten byttes samtidigt.** Villkoret var "första
+kommunen i bokstavsordning" plus "första posten med en kontroll". Det gav
+Borgholm och en post med `address`, `lat` och `lng` alla `null`, alltså tre av
+de sex fält hjältens ruta visar. Räknat i utgåvan den dagen:
+
+| Kommun | Poster | Med adress | Geokodade | Fullständiga |
+|---|---|---|---|---|
+| Borgholm | 406 | 251 | 0 | 0 |
+| Höganäs | 316 | 156 | 79 | 30 |
+| Jönköping | 1 136 | 1 136 | 1 136 | 1 132 |
+| Stockholm | 8 567 | 8 454 | 8 567 | 7 861 |
+
+Borgholm är först i bokstavsordning och har noll geokodade av 406. Tio av
+tretton kommuner har minst en fullständig post, alltså väljer regeln
+fortfarande och skriver inte: den tar första kommunen i bokstavsordning SOM HAR
+en post med adress, koordinat och kontroll. Fallbacken är kvar i två steg så
+att sidan aldrig går sönder på att beståndet ändrar sig. Att exemplet är
+komplett är inte att dölja nullvärdena: de förklaras på tre andra ställen på
+sidan, i fälttabellen, i kodlistan och i varningen under den.
+
+Kommunposten och inte indexet, eftersom hjälten ska visa den post som bär
+namn, adress, bedömning och kontrolldatum. Fälten är valda efter RADLÄNGD: 12
+px monospace ger ungefär 7,2 px per tecken och kortet är omkring 560 px
+invändigt, alltså 74 tecken innan rutan börjar rulla i sidled. `id`, `slug`,
+`types`, `lat`, `lng`, `uncertain` och `distinction` är utelämnade och
+ersatta med en klipprad. En hjältebild med rullningslist är en trasig
+hjältebild.
+
+### 11.5 Kodkortet: exakta värden
+
+Komponenten är `site/src/components/Kodkort.astro` och används av alla sju
+rutorna plus hjältens.
+
+| | Värde | Härledning |
+|---|---|---|
+| Yta | `#1D1D1F` | `var(--text)`. Sajtens enda mörka yta, redan i bruk som `.kartknapp::after` på startsidan. Ingen ny ton. |
+| Huvudrad | `color-mix(in srgb, #fff 6%, var(--text))`, ungefär `#2E2E30` | 1,3:1 mot kortet, alltså syns som en rad utan att bli ett eget fält |
+| Huvudradens höjd | 40 px | `--h-control`, sajtens knapp- och väljarhöjd |
+| Ring | `inset 0 0 0 1px rgb(255 255 255 / .08)` | Stripes princip: ramen är ljusare än fyllningen. `--hairline` är svart på 9,8 procent och osynlig här. |
+| Radie | 10 px | `--r-control`. Stripe 8, Resend 4. `--r-card` på 12 hade varit tre gånger Resends. |
+| Skugga, brödtext | ingen | Stripe `none`, Resend `none` |
+| Skugga, hjälten | `0 8px 30px rgb(0 0 0 / .12)` | `--shadow-pop`:s lyft. Hjältens ruta är ett föremål som ska lossna från bandet, jämför Stripes hjältekort. |
+| Grad / radhöjd | 13 / 22 px, hjälten 12 / 20 | Stripe 14/24, Resend 14/20 |
+
+Syntaxpaletten, allt på TVÅ kulörer:
+
+| Klass | Hex | Härledning | Kontrast mot `#1D1D1F` |
+|---|---|---|---|
+| `t-nyckel` | `#6BB7F5` | `hsl(207 87% 69%)`, märkesblåns kulör lyft från 43,9 procents ljushet | 7,79:1 |
+| `t-tal` | `#CAE0F2` | `hsl(207 60% 87%)`, samma kulör, urtvättad | 12,39:1 |
+| `t-strang` | `#EDEDEE` | `hsl(240 2% 93%)`, grå-axelns ljusaste | 14,38:1 |
+| `t-tom` | `#A1A1A5` | `hsl(240 2,3% 64%)`, `--tone-quiet`:s ljushet, kursiv | 6,54:1 |
+| `t-skilje` | `#84848A` | `hsl(240 2,3% 53%)` | 4,53:1 |
+| `t-klipp` | `#84848A` | samma, kursiv | 4,53:1 |
+
+**Varför bara två kulörer.** `#007BE0` ligger på exakt `hsl(207,1 100% 43,9%)`
+och `--text`, `--ink-quiet` och `--tone-quiet` ligger alla exakt på 240 grader.
+Sajten har redan fem färger som BETYDER något: grön, gul och röd är
+bedömningsskalan, mässing är utmärkelsen, blå är märket. Bibeln §14 säger
+"Grönt endast i betygsskalan". En syntaxfärgläggning som plockar in grönt för
+strängar hade gett sajten sin enda gröna text som inte betyder "utan
+anmärkning", på den sida som ska förklara vad `verdict` betyder. Resend
+använder en enda accent på hela sin sajt, alltså är sparsamheten inte ett
+avsteg från genren utan dess ytterlighet.
+
+**Vad färgen säger.** Blått är ett NAMN som går att slå upp, alltså ett
+fältnamn i fälttabellen längre ned eller en flagga i curls manual. Ljusast är
+VÄRDET. Dämpat och kursivt är FRÅNVARO, alltså `null`, `true` och `false`. Att
+`verdict: null` läser som tystare än ett riktigt värde är sant och inte
+dekoration. Svagast är STRUKTUREN, alltså klammer och komma.
+
+### 11.6 Färgläggningen sker vid bygget, och inte med Shiki
+
+Noll JavaScript i webbläsaren, som resten av sajten. Färgläggaren är
+`site/src/lib/kodfarg.ts`, 90 rader, och den valdes framför `<Code />` ur
+`astro:components`, som kör Shiki vid bygget och som alltså hade varit gratis
+i beroenden eftersom Shiki 4.4.1 redan ligger i `node_modules` som beroende
+till Astro. Tre skäl:
+
+1. **Vår JSON är inte giltig JSON.** Rutorna är klippta och klippet skrivs ut:
+   `"licence": { … },` och `… 1 061 till …`. En TextMate-grammatik läser `…`
+   som ett fel. Här får klippet en egen nivå, dämpad och kursiv, vilket är
+   precis vad det ska säga.
+2. **Shiki skriver färgerna som inline-hex i `style`.** Åtta rutor ger åtta
+   kopior av paletten i HTML:en, och paletten går inte längre att ändra på ett
+   ställe.
+3. Vi färglägger två dialekter och åtta rutor. En full TextMate-motor för det
+   är hundra gånger mer maskin än uppgiften kräver.
+
+Gränsen är utskriven i filen: skulle sidan en dag behöva TypeScript, Python
+eller en tredje dialekt är `<Code />` rätt svar och `kodfarg.ts` ska strykas.
+
+**Inga radnummer, trots att båda de kodbärande förlagorna har dem.** Rad nio i
+vår ruta är inte rad nio i dokumentet, eftersom `"codes": { … }` står där
+tvåhundra rader borde stå. Ett radnummer är ett löfte om att man kan peka på
+en rad i svaret, och det löftet kan en klippt ruta inte hålla.
+
+**Inga språkflikar.** Stripe har sju och Resend tolv plus åtta, och båda säljer
+ett SDK. Vi säljer en statisk JSON-fil bakom ett CDN. Sju flikar som alla visar
+samma curl-rad i olika omskrivning hade varit ett löfte om ett ekosystem som
+inte finns.
+
+### 11.7 Djupet: två ytor, och båda betyder något
+
+Sidan hade en yta. Nu har den två, plus kodkortens mörka.
+
+`--brand-wash`, alltså 8 procent märkesblå i vitt, markerar sidans TVÅ ställen
+där en människa ska höra av sig: säljbandet överst, som bär knappen, och
+avsnittet "Det som kräver att du hör av dig", som knappen pekar på. Elva
+avsnitt däremellan ligger på ren `--canvas` och kostar ingen kontakt. Den som
+rullar ser gränsen mellan gratis och inte gratis utan att läsa en rubrik.
+
+Bandet går i FULL BREDD och är inte ett kort inne i spalten. Clerk växlar
+ljust, mörkt, ljust över hela fönstret och Stripe har tre sektionsfärger över
+fjorton sektioner. En yta som slutar innan skärmkanten läser som ett inslag i
+dokumentet i stället för som ett annat slags sida.
+
+Sektionsrubrikerna gick från `--fs-h` till `--fs-title`, alltså 24 till 32 px.
+Uppmätt hos förlagorna: Clerk 32/600/40, Ably 40/700/48, Resend 56/400. Våra 24
+låg under allihop, och följden var att h2 och h3 låg för nära varandra för att
+läsa som två nivåer. Nu står tre grader: hjälten 48, sektionen 32, slutpunkten
+24, alla tre ur `tokens.css`.
+
+De tolv sektionerna i referensdelen fick en hårlinje över sig i stället för
+bara luft. 64 px mellan två stycken ser likadant ut som 64 px inuti ett. Tolv
+band hade blivit ett randigt dokument, alltså gör linjen samma arbete för en
+tolftedel av tyngden.
+
+Talraden under hjälten leder numera med talet: `13` kommunala system, `24`
+timmar mellan hämtningar, `0` kronor, konton och nycklar. De två första räknas
+fram ur beståndet och skrivs inte in. Ett påstående om att formatet är
+gemensamt är svagt, och "13 kommunala system, ett format" är samma påstående
+med sitt bevis i sig.
+
+### 11.8 Bredden ändrades från `--w-wide` till `--w-full`
+
+1 400 px i stället för 1 800. Ingen ny bredd uppfinns, det är ett av
+`tokens.css` fyra tal. Skälet är hjälten: den är nu ett rutnät med två
+spalter, och vid 1 800 px hamnar kodrutan 1 100 px från rubriken den
+illustrerar, alltså längre bort än hela textspalten är bred. Vid 1 400 ligger
+den 64 px från textens högerkant. Under 1 496 px fönster binder talet inte
+alls.
+
+Rutnätet faller till en spalt vid 1 100 px och inte vid 900 som resten av
+sidan. Räknat: `.container` drar av två gutters, 4vw mellan 400 och 1 200 px
+fönster och 48 därover.
+
+| Fönster | Behållare | Textspalt | Rutan |
+|---|---|---|---|
+| 1 440 | 1 304 | 680 | 560 |
+| 1 200 | 1 104 | 480 | 560 |
+| 1 100 | 1 012 | 436 | 512 |
+
+Vid 1 100 wrappar rubriken på 48 px till fyra rader. Där går gränsen.
+
+### 11.9 Maskoten är fortfarande borta
+
+Ingen av de fyra förlagorna har en figur på sin sida, och `docs/24` §2 räknar
+inte upp `/api/` bland de ytor där hon får synas. Beslutet från 2026-09-01
+står oförändrat och prövades igen i den här omgången.
+
+### 11.10 Före och efter
+
+![API-sidan före ombyggnaden, 1 440 px](../research/forlagor/api-fore-1440.png)
+
+![API-sidan efter ombyggnaden, 1 440 px](../research/forlagor/api-efter-1440.png)

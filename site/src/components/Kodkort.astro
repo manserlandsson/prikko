@@ -1,0 +1,347 @@
+---
+/**
+ * KODKORTET: sajtens kodruta, mörk.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR MÖRK, OCH VARFÖR DET INTE ÄR EN SMAKFRÅGA
+ * ---------------------------------------------------------------------------
+ * Ägaren 2026-09-05 om den vita varianten: "API sidan ser fortsatt sJUKT basic
+ * ut... otroligt ful och simpel, ser ut som en 3 åring har gjort den."
+ *
+ * Den vita rutan var --card med en hårlinje runt, alltså 1,01:1 mot sidans
+ * --canvas. Den syntes knappt, och den sa ingenting om vad den innehöll. Fyra
+ * uppmätta förlagor lägger i stället koden på en mörk yta, och skälet är inte
+ * mode: det mörka fältet är sidans ENDA yta som betyder "det här är maskinens
+ * svar och inte vår text". På en sida som växlar mellan prosa och sju
+ * kodblock är den skillnaden hela läsbarheten.
+ *
+ * ---------------------------------------------------------------------------
+ * YTAN ÄR INTE EN NY FÄRG
+ * ---------------------------------------------------------------------------
+ * Botten är `var(--text)`, alltså #1D1D1F, sajtens brödtextfärg. Den används
+ * redan som YTA på ett ställe: kartknappens platta på startsidan,
+ * `.kartknapp::after`. Det finns alltså ingen ny mörk ton i systemet, och det
+ * ska det inte heller komma.
+ *
+ * Huvudraden och kanten byggs med `color-mix` ur samma två färger som redan
+ * finns, vit och --text, och står som procenttal i stilen nedan.
+ *
+ * ---------------------------------------------------------------------------
+ * HUVUDRADEN BÄR ADRESSEN, OCH DEN GÖR TVÅ SAKER
+ * ---------------------------------------------------------------------------
+ * Genrens kodkort har en rad överst med ett filnamn eller en flik. Vi lägger
+ * ADRESSEN där, alltså `/api/v1/index.json` eller `Terminal`. Det ersätter den
+ * grå versaletiketten som stod OVANFÖR den vita rutan förut, och sparar en rad
+ * per ruta på en sida som har sju.
+ *
+ * Kopieraknappen sitter i samma rad, till höger, vilket är förlagornas plats.
+ * Den skrivs HÄR i markupen med `hidden` och inte av skriptet, till skillnad
+ * från den förra sidan: när rutan är en komponent skrivs de tre elementen en
+ * gång i källan även om sidan visar sju rutor, och då finns skälet att bygga
+ * dem i webbläsaren inte kvar. Vinsten är att stilen kan vara scopad, för ett
+ * element som JavaScript skapar bär inte komponentens scope-attribut.
+ *
+ * Utan JavaScript, eller utan urklipp, förblir knappen dold. En död knapp är
+ * sämre än ingen knapp.
+ *
+ * ---------------------------------------------------------------------------
+ * INGA RADNUMMER, TROTS ATT BÅDA FÖRLAGORNA HAR DEM
+ * ---------------------------------------------------------------------------
+ * Uppmätt 2026-09-05: Stripe numrerar i #55718D och Resend i #464A4D. Vi gör
+ * det ändå inte, och skälet är innehållet och inte formen.
+ *
+ * VÅRA JSON-RUTOR ÄR KLIPPTA. Rad nio i rutan är inte rad nio i dokumentet,
+ * eftersom `"codes": { … }` står där tvåhundra rader borde stå. Ett radnummer
+ * är ett löfte om att man kan peka på en rad i svaret, och det löftet kan
+ * rutan inte hålla. Stripes och Resends block visar hela sitt exempel och har
+ * inget sådant problem.
+ *
+ * Det gäller inte curl-raderna heller: de är en rad lång, och att numrera den
+ * med en etta är dekor.
+ *
+ * ---------------------------------------------------------------------------
+ * INGA SPRÅKFLIKAR, AV SAMMA SORTS SKÄL
+ * ---------------------------------------------------------------------------
+ * Stripe har sju flikar och Resend tolv plus åtta. Båda säljer ett SDK, och
+ * fliken svarar på "finns det ett paket för mitt språk". Vi säljer en statisk
+ * JSON-fil bakom ett CDN. Det finns inget klientbibliotek, och sju flikar som
+ * alla visar samma curl-rad i olika omskrivning hade varit ett löfte om ett
+ * ekosystem som inte finns.
+ */
+import { farglagg, type Sprak } from '../lib/kodfarg';
+
+interface Props {
+  /** Vad rutan är: "Anrop", "Svar", "Attribution". Står först i huvudraden. */
+  roll: string;
+  /** Adressen eller filnamnet till höger om rollen. Utelämnas för ren text. */
+  vag?: string;
+  /** Färgläggningens dialekt. Se lib/kodfarg.ts. */
+  sprak?: Sprak;
+  /** Koden som den ska stå, radbrytningar och allt. */
+  kod: string;
+  /** Sätts på hjältens ruta, som får mindre grad för att rymma längre rader. */
+  tat?: boolean;
+}
+
+const { roll, vag, sprak = 'text', kod, tat = false } = Astro.props;
+
+/**
+ * Kopieraknappens namn.
+ *
+ * "Kopiera" ensamt duger inte: sidan har sju kort, och sju knappar med samma
+ * namn är sju identiska rader i en skärmläsares knapplista.
+ *
+ * Adressen räcker inte heller hela vägen. Terminalkorten bär `vag="bash"`, och
+ * TVÅ av dem heter "Exempel", alltså hade båda fått namnet "Kopiera exempel,
+ * bash". Uppmätt i den byggda sidan innan den här raden skrevs. För ett
+ * terminalkort lånas därför kommandots första rad i stället, som är det enda
+ * som verkligen skiljer de två åt.
+ *
+ * Attributionsrutan har varken adress eller kommando, och den är ensam om sin
+ * roll, alltså räcker "Kopiera attribution".
+ */
+const knappmal = sprak === 'bash' ? kod.split('\n')[0] : vag;
+const knappnamn = knappmal
+  ? `Kopiera ${roll.toLowerCase()}, ${knappmal}`
+  : `Kopiera ${roll.toLowerCase()}`;
+---
+
+<figure class:list={['kodkort', tat && 'tat']}>
+  <figcaption class="huvud">
+    <span class="roll">{roll}</span>
+    {vag && <code class="vag">{vag}</code>}
+    {/* Namnet räknas fram ovanför, se `knappnamn`. */}
+    <button type="button" class="kopiera" aria-label={knappnamn} hidden>Kopiera</button>
+  </figcaption>
+  <pre class="kod"><code set:html={farglagg(kod, sprak)} /></pre>
+  <span class="kvittens" role="status"></span>
+</figure>
+
+<style>
+  /* ---------------------------------------------------------------------
+     KORTET
+
+     RADIEN ÄR --r-control OCH INTE --r-card, alltså 10 och inte 12, och det
+     är mätt och inte tyckt. Uppmätt 2026-09-05 på de två förlagor som över
+     huvud taget har ett kodblock: Stripes kort ligger på 8 px och Resends på
+     4. Ingen av dem behandlar koden som ett kort i vår mening, och 12 hade
+     varit dubbelt Resends. 10 är närmast det vi redan har.
+
+     `overflow: hidden` gör att huvudradens raka kant klipps av radien i
+     stället för att sticka ut i hörnen.
+
+     INGEN SKUGGA, och det är också mätt. Stripes kodkort har `boxShadow: none`
+     med en 1 px ram i #0F395E mot fyllningen #0C2E4E, alltså en ram som är ett
+     snäpp LJUSARE än ytan. Resend har varken ram eller skugga. Vår ring gör
+     samma sak som Stripes: vit på 8 procent i stället för --hairline, som är
+     svart på 9,8 och därför osynlig mot en nästan svart yta.
+     --------------------------------------------------------------------- */
+  .kodkort {
+    margin: var(--s-4) 0 0;
+    background: var(--text);
+    border-radius: var(--r-control);
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08);
+  }
+
+  /* HJÄLTENS RUTA LYFTER, KROPPENS GÖR DET INTE.
+     ──────────────────────────────────────────────────────────────────────
+     Skillnaden är vad rutan ÄR på sin plats. I brödtexten är den ett block i
+     ett dokument, och Stripe och Resend ger båda sina kodblock noll skugga.
+     I hjälten är den ett FÖREMÅL som ska lossna från bandet under: Stripes
+     hjältekort, det som visar kassan, bär
+     `rgba(50,50,93,.25) 0 30px 60px -12px` plus ett andra lager.
+
+     Vår motsvarighet är --shadow-pop, sajtens befintliga lyft, med ringen
+     utbytt mot den ljusa av samma skäl som ovan. Inga nya tal. */
+  .tat {
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / .08),
+      0 8px 30px rgb(0 0 0 / .12);
+  }
+
+  /* ---------------------------------------------------------------------
+     HUVUDRADEN
+
+     Höjden är --h-control, 40 px, alltså samma som sajtens knapp och väljare.
+     Ytan är ett steg ljusare än kortet, gjord av kortets egen färg och vitt,
+     och inte av en ny ton: 6 procent vit i --text landar på ungefär #2E2E30,
+     vilket ligger på 1,3:1 mot kortet. Det är precis nog för att raden ska
+     läsa som en rad utan att bli ett eget fält.
+     --------------------------------------------------------------------- */
+  .huvud {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    height: var(--h-control);
+    padding-inline: var(--s-4);
+    background: color-mix(in srgb, #fff 6%, var(--text));
+    border-bottom: 1px solid rgb(255 255 255 / .08);
+  }
+
+  .roll {
+    flex: none;
+    font-size: var(--fs-eyebrow);
+    line-height: var(--lh-eyebrow);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    /* #A1A1A5, alltså --tone-quiets ljushet på sajtens grå-axel, 240 grader.
+       6,5:1 mot kortet. --tone-quiet självt får enligt tokens.css aldrig bli
+       textfärg, och det förbudet är skrivet mot VITA ytor där den ligger på
+       2,6:1. Här är förhållandet det omvända, alltså skrivs värdet ut i stället
+       för att tokenet lånas till något det inte är avsett för. */
+    color: #a1a1a5;
+  }
+
+  /* Adressen får krympa och kapas, aldrig knuffa ut kopieraknappen. En
+     kommunadress är 38 tecken och huvudraden är 300 px på telefon. */
+  .vag {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--fs-caption);
+    color: #a1a1a5;
+  }
+
+  /* Knappen sitter längst till höger även när `.vag` saknas. */
+  .vag + .kopiera { margin-left: 0; }
+  .kopiera { margin-left: auto; }
+
+  .kopiera {
+    flex: none;
+    background: transparent;
+    color: #ededee;
+    border: 1px solid rgb(255 255 255 / .14);
+    border-radius: var(--r-pill);
+    padding: 4px 12px;
+    font: 600 var(--fs-micro)/1.4 var(--font-sans);
+    letter-spacing: .02em;
+    cursor: pointer;
+  }
+
+  .kopiera:hover { border-color: rgb(255 255 255 / .32); }
+
+  /* ---------------------------------------------------------------------
+     KODEN
+     --------------------------------------------------------------------- */
+  .kod {
+    margin: 0;
+    padding: var(--s-4);
+    overflow-x: auto;
+    color: #ededee;
+    font-size: var(--fs-caption);
+    line-height: 22px;
+  }
+
+  .tat .kod { font-size: 12px; line-height: 20px; }
+
+  .kod code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+
+  /* Rullningslisten inne i ett mörkt kort. Utan den här raden ritar Chrome en
+     ljus list på en svart botten och den blir kortets ljusaste element. */
+  .kod { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .22) transparent; }
+
+  /* ---------------------------------------------------------------------
+     PALETTEN
+
+     ALLT PÅ TVÅ KULÖRER, OCH DET ÄR ETT BESLUT MED SKÄL.
+     ──────────────────────────────────────────────────────────────────────
+     Sajten har fem färger som redan BETYDER något: grön, gul och röd är
+     bedömningsskalan, mässing är utmärkelsen, blå är märket. Bibeln §14 säger
+     "Grönt endast i betygsskalan". En syntaxfärgläggning som plockar in grönt
+     för strängar och rött för tal hade gett sajten sin enda gröna text som
+     inte betyder "utan anmärkning", på den sida som ska förklara vad
+     `verdict` betyder. Det är precis fel sida att göra det på.
+
+     Kvar står grå-axeln, 240 grader, som --text, --ink-quiet och --tone-quiet
+     alla ligger exakt på, plus märkesblåns kulör, 207 grader. Varje värde
+     nedan är ett av de två med en annan ljushet, och kontrasten är mätt mot
+     kortets #1D1D1F:
+
+       t-nyckel   #6BB7F5  hsl(207 87% 69%)  märkesblå lyft från 43,9 %   7,79:1
+       t-tal      #CAE0F2  hsl(207 60% 87%)  samma kulör, urtvättad      12,39:1
+       t-strang   #EDEDEE  hsl(240 2% 93%)   grå-axelns ljusaste         14,38:1
+       t-tom      #A1A1A5  hsl(240 2,3% 64%) --tone-quiets ljushet        6,54:1
+       t-skilje   #84848A  hsl(240 2,3% 53%) mellan quiet och text        4,53:1
+
+     ROLLERNA, alltså vad läsaren faktiskt ska kunna göra med färgen:
+       Blått är ett NAMN man kan slå upp. Fältnamnet finns i fälttabellen
+       längre ned, och terminalflaggan i curls manual. Samma färg, samma löfte.
+       Ljusast är VÄRDET, alltså det man kom hit för att läsa.
+       Dämpat är FRÅNVARO: null, true och false. Att `verdict: null` läser som
+       tystare än ett riktigt värde är sant och inte dekoration.
+       Svagast är STRUKTUREN, alltså klammer och komma, som man aldrig läser.
+     --------------------------------------------------------------------- */
+  .kod :global(.t-nyckel) { color: #6bb7f5; }
+  .kod :global(.t-strang) { color: #ededee; }
+  .kod :global(.t-tal) { color: #cae0f2; }
+  .kod :global(.t-tom) { color: #a1a1a5; font-style: italic; }
+  .kod :global(.t-skilje) { color: #84848a; }
+  .kod :global(.t-kommando) { color: #ededee; font-weight: 600; }
+  .kod :global(.t-flagga) { color: #6bb7f5; }
+
+  /* Klippet är kursivt OCH dämpat, alltså två signaler, eftersom det är den
+     enda texten i rutan som INTE är en del av svaret. En läsare som kopierar
+     rutan och kör den ska se på tecknet att raden inte hör till. */
+  .kod :global(.t-klipp) { color: #84848a; font-style: italic; }
+
+  /* ---------------------------------------------------------------------
+     KVITTENSEN
+
+     Ligger UTANFÖR kortet och under det, i sidans egen färg, eftersom den är
+     ett meddelande till läsaren och inte en del av svaret. Den tar plats även
+     tom, annars hoppar allt under kortet första gången någon klickar.
+     --------------------------------------------------------------------- */
+  .kvittens {
+    display: block;
+    min-height: var(--lh-caption);
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 640px) {
+    .kvittens { min-height: 0; margin-top: 0; }
+    .kvittens:empty { display: none; }
+    .kod { font-size: 12px; line-height: 20px; }
+  }
+</style>
+
+<script>
+  /**
+   * Kopieraknappen syns först när urklippet finns.
+   *
+   * Skriptet skapar ingenting, det bara AVDÖLJER och kopplar. Se komponentens
+   * huvudkommentar för varför det är omvänt mot den förra sidan.
+   *
+   * Kvittensen är `role="status"`, alltså läses den upp utan att fokus flyttas.
+   * Knappen byter aldrig sin egen text: en knapp som säger "Kopierat" har
+   * tappat sitt namn för den som kommer tillbaka till den med tangentbordet.
+   */
+  if (typeof navigator.clipboard?.writeText === 'function') {
+    document.querySelectorAll<HTMLElement>('.kodkort').forEach((kort) => {
+      const knapp = kort.querySelector<HTMLButtonElement>('.kopiera');
+      const kod = kort.querySelector('code');
+      const kvittens = kort.querySelector<HTMLElement>('.kvittens');
+      if (!knapp || !kod || !kvittens) return;
+
+      knapp.hidden = false;
+      knapp.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(kod.textContent ?? '');
+          kvittens.textContent = 'Kopierat.';
+        } catch {
+          kvittens.textContent = 'Kunde inte kopiera. Markera texten i stället.';
+        }
+      });
+    });
+  }
+</script>

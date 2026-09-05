@@ -17,10 +17,37 @@
  * igenom varför vi valde bort LIVES först.
  *
  * ---------------------------------------------------------------------------
+ * OCH VARFÖR DEN FICK ETT UTSEENDE 2026-09-05
+ * ---------------------------------------------------------------------------
+ * Ordningen ovan blev rätt och står orörd. Ägaren fyra dagar senare, om
+ * resultatet: "API sidan ser fortsatt sJUKT basic ut... otroligt ful och
+ * simpel, ser ut som en 3 åring har gjort den."
+ *
+ * Diagnosen är att strukturen var löst och att sidan inte hade något UTSEENDE.
+ * Uppmätt på formen han dömde: hjälten var svart text på vit botten med 660 px
+ * tomt till höger, kodrutorna låg på --card, alltså 1,01:1 mot sidans
+ * --canvas, och tolv sektioner låg efter varandra på samma vita yta skilda av
+ * 64 px luft och ingenting annat.
+ *
+ * Fyra nya förlagor mättes på UTSEENDE och inte på struktur, se docs/55 §11.
+ * Det som ändrades här:
+ *
+ *   1. Hjälten fick ett FÖREMÅL i sin högra halva, nämligen ett riktigt svar
+ *      ur API:et i ett mörkt kodkort. Se `svarHjalte` nedan för de tre
+ *      alternativ som prövades först.
+ *   2. Kodrutan blev en komponent med mörk yta, huvudrad och färglagd syntax,
+ *      byggd vid bygget och utan bibliotek i webbläsaren. Se
+ *      components/Kodkort.astro och lib/kodfarg.ts.
+ *   3. Sidan fick TVÅ ytor i stället för en, och den andra betyder något:
+ *      --brand-wash markerar de två ställen där en människa ska höra av sig.
+ *   4. Sektionerna fick en linje över sig, talraden fick sina tal, och
+ *      behållaren gick från --w-wide till --w-full.
+ *
+ * ---------------------------------------------------------------------------
  * FÖRLAGORNA, UPPMÄTTA 2026-09-01 VID 1440 PX
  * ---------------------------------------------------------------------------
  * Ägaren är uttrycklig om att design mäts mot riktiga sajter. Talen står i
- * docs/55 avsnitt 10, och de tre som styrde den här filen:
+ * docs/55 §11.2, och de tre som styrde den här filen:
  *
  *   Resend    Hjälterubrik 96 px vänsterställd, och TVÅ KNAPPAR bredvid
  *             varandra på y=625: "Get started" och "Documentation". Första
@@ -92,6 +119,7 @@
  * Ett påhittat svar i en dokumentation är värre än inget svar.
  */
 import Base from '../../layouts/Base.astro';
+import Kodkort from '../../components/Kodkort.astro';
 import {
   LICENCE,
   API_VERSION,
@@ -186,18 +214,49 @@ const svarIndex = [
   '}',
 ].join('\n');
 
-/* Exempelkommunen väljs och skrivs inte in. Den första i bokstavsordning är
-   alltid en adress som svarar, och den byts av sig själv om beståndet ändras.
-   En dokumenterad adress som ger 404 är det snabbaste sättet att förlora
-   någon som just tänkt bygga något. */
-const exempelKommun = kommuner[0];
+/* Exempelkommunen väljs och skrivs inte in. En dokumenterad adress som ger 404
+   är det snabbaste sättet att förlora någon som just tänkt bygga något.
+
+   VILLKORET SKÄRPTES 2026-09-05 FRÅN "första i bokstavsordning" TILL "första i
+   bokstavsordning som har en fullständig post", och skälet är uppmätt.
+
+   Svaret flyttade upp i hjälten, alltså är den valda posten numera det första
+   en utvecklare ser av produkten. Räknat i utgåvan den dagen, per kommun, hur
+   många poster som har både adress, koordinat och en kontroll:
+
+       Borgholm     406 poster   251 med adress     0 geokodade     0 fullständiga
+       Höganäs      316          156               79              30
+       Jönköping   1 136       1 136            1 136           1 132
+       Stockholm   8 567       8 454            8 567           7 861
+
+   Borgholm är först i bokstavsordning och har NOLL geokodade av 406. Med den
+   gamla regeln blev exemplet därför en post med `address`, `lat` och `lng`
+   alla null, alltså tre av de sex fält hjältens ruta visar. Det är en sann
+   bild av beståndet men fel bild att lära ut formen med, och `null` förklaras
+   redan på tre andra ställen på sidan: fälttabellen, kodlistan och varningen
+   under den.
+
+   Tio av tretton kommuner har minst en fullständig post, alltså väljer regeln
+   fortfarande och skriver inte. Fallbacken är kvar: skulle ingen kommun ha en
+   fullständig post får sidan sitt gamla val och går inte sönder. */
+const arKomplett = (e: { latest: unknown; address: unknown; lat: unknown }) =>
+  e.latest !== null && e.address !== null && e.lat !== null;
+
+const exempelKommun =
+  kommuner.find((m) => kommunDokument(m).establishments.some(arKomplett)) ?? kommuner[0];
 const kommunDoc = kommunDokument(exempelKommun);
 
-/* Den första verksamheten som faktiskt HAR en kontroll. En post där `latest`
-   är null visar inte de tre fält som är hela poängen med svaret, och ett
-   exempel som visar tomma fält lär ut fel form. */
+/* Den första FULLSTÄNDIGA posten i kommunen ovan, med samma villkor som styrde
+   valet av kommun. Se det uppmätta resonemanget där.
+
+   Fallbacken är kvar i två steg och kan inte tas bort. Kommunvalet garanterar
+   att en fullständig post FINNS, men bara så länge `arKomplett` är samma
+   funktion på båda ställena, och den dagen någon ändrar den ena och glömmer
+   den andra ska sidan välja näst bäst i stället för att kasta. */
 const exempelPost =
-  kommunDoc.establishments.find((e) => e.latest !== null) ?? kommunDoc.establishments[0];
+  kommunDoc.establishments.find(arKomplett)
+  ?? kommunDoc.establishments.find((e) => e.latest !== null)
+  ?? kommunDoc.establishments[0];
 
 const svarKommun = [
   '{',
@@ -216,6 +275,103 @@ const svarKommun = [
 
 const anropIndex = `curl -s ${SITE.url}/api/${API_VERSION}/index.json`;
 const anropKommun = `curl -s ${SITE.url}/api/${API_VERSION}/kommun/${exempelKommun.slug}.json`;
+
+/* ---------------------------------------------------------------------------
+   HJÄLTENS RUTA
+
+   Vad som ska fylla hjältens högra halva prövades mot tre alternativ innan
+   koden vann, och skälen är sidans egna och inte genrens:
+
+     En KARTBILD av täckningen. Avfärdad. Kartan är sajtens nav, men den säger
+     ingenting om ett API. En utvecklare som landar här frågar "vad får jag
+     tillbaka", och en karta svarar på "var finns ni". Den frågan besvaras
+     redan av talraden under knapparna och av kommuntabellen längre ned.
+
+     Ett DATABLAD, alltså tre stora tal. Avfärdat som ensam bild, men inte som
+     idé: talen finns kvar, i raden under hjälten. Som hjältens hela innehåll
+     hade de varit en påstådd storlek utan ett bevis bredvid.
+
+     En VISUALISERING av täckningen per kommun. Avfärdad. Den hade krävt en
+     bild vi ritar själva, alltså dekor som ska underhållas, och den visar en
+     sanning sidan inte säljer: 13 av 290 kommuner är ett litet tal.
+
+   Kvar står SVARET SJÄLVT. Produkten på den här sidan ÄR den här JSON:en, och
+   den syntes inte en enda gång ovanför vikningen förut. Rutan är dessutom det
+   billigaste möjliga beviset: den kan inte ljuga, eftersom den byggs av samma
+   `kommunDokument()` som rutten serverar.
+
+   KOMMUNPOSTEN OCH INTE INDEXET, och det är med flit. Indexet står redan i
+   Kom igång tjugo rader ned. Hjälten ska visa den post som bär namn, adress,
+   bedömning och kontrolldatum, alltså det någon faktiskt vill ha ut.
+
+   FÄLTEN ÄR VALDA EFTER RADLÄNGD. Rutan är 12 px monospace, alltså ungefär
+   7,2 px per tecken, och kortet är omkring 560 px brett invändigt. Det ger 74
+   tecken innan den börjar rulla i sidled, och en hjältebild med rullningslist
+   är en trasig hjältebild. `id`, `slug`, `types`, `lat`, `lng`, `uncertain`
+   och `distinction` är därför utelämnade och ersatta med en klipprad. De står
+   allihop i fälttabellen längre ned, som är det ställe de hör hemma.
+   --------------------------------------------------------------------------- */
+/* `latest` skrivs på EN rad och inte som ett nästlat objekt över fyra. Fyra
+   rader för tre korta tal är den dyraste höjden i hela rutan, och formen
+   `{ "date": …, "assessment": 0, "type": 1 }` är fortfarande giltig JSON.
+   `JSON.stringify` skulle ge samma sak utan blanksteg, alltså byggs raden för
+   hand: en ruta som ska bevisa att svaret är läsbart får inte visa det i sin
+   tätaste form. */
+const hjalteLatest = exempelPost.latest
+  ? `{ "date": ${JSON.stringify(exempelPost.latest.date)}, `
+    + `"assessment": ${exempelPost.latest.assessment}, `
+    + `"type": ${exempelPost.latest.type} }`
+  : 'null';
+
+/* HUR MÅNGA FÄLT SOM KLIPPTS BORT RÄKNAS, DEN SKRIVS INTE.
+   Raden stod som "… 7 fält till …" en stund, och den var FEL: posten bär
+   fjorton fält och rutan visar sex, alltså är åtta borta. Det är precis det
+   fel filens egen rubrik "INGA TAL OCH INGA SVAR SKRIVS FÖR HAND" varnar för,
+   och det värsta stället att ha det på är i ett svar som ska bevisa att sidan
+   och API:et aldrig glider isär. Talet räknas nu ur posten, alltså rättar det
+   sig självt den dag ett fält tillkommer. */
+const HJALTEFALT = ['name', 'address', 'verdict', 'reason', 'inspections', 'latest'] as const;
+const hjalteDolda = Object.keys(exempelPost).length - HJALTEFALT.length;
+
+const svarHjalte = [
+  '{',
+  `  "version": ${JSON.stringify(kommunDoc.version)},`,
+  `  "municipality": { "name": ${JSON.stringify(kommunDoc.municipality.name)}, `
+    + `"slug": ${JSON.stringify(kommunDoc.municipality.slug)} },`,
+  `  "count": ${kommunDoc.count},`,
+  `  "assessed": ${kommunDoc.assessed},`,
+  '  "establishments": [',
+  '    {',
+  `      "name": ${JSON.stringify(exempelPost.name)},`,
+  `      "address": ${JSON.stringify(exempelPost.address)},`,
+  `      "verdict": ${JSON.stringify(exempelPost.verdict)},`,
+  `      "reason": ${JSON.stringify(exempelPost.reason)},`,
+  `      "inspections": ${exempelPost.inspections},`,
+  `      "latest": ${hjalteLatest},`,
+  `      … ${hjalteDolda} fält till …`,
+  '    },',
+  `    … ${formatNumber(kommunDoc.count - 1)} till …`,
+  '  ]',
+  '}',
+].join('\n');
+
+/* ---------------------------------------------------------------------------
+   TALRADEN UNDER HJÄLTEN
+
+   Den var tre textkolumner utan en enda siffra, och den läste som tre stycken
+   i följd. Ablys och Blockets motsvarighet leder med talet, och skälet är
+   inte grafiskt: ett påstående om att formatet är gemensamt är svagt, och
+   "13 kommunala system, ett format" är samma påstående med sitt bevis i sig.
+
+   Det första talet räknas fram ur beståndet och skrivs inte in. Det andra är
+   pipelinens takt, samma tal som Gränser och drift anger. Det tredje är en
+   nolla, och den är sann i tre avseenden på en gång, vilket är hela poängen
+   med den.
+
+   Talen står i markupen och inte i en lista här, eftersom mittenblockets text
+   bär ett `<code>`-element och en sträng i frontmatter inte kan göra det utan
+   att `set:html` dras in för tre meningar prosa.
+   --------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------
    FÄLTTABELLEN
@@ -314,63 +470,105 @@ const jsonLd = {
   jsonLd={jsonLd}
   dataUpdated={updated}
 >
+  {/* ---------------------------------------------------------------------
+      SÄLJBANDET
+
+      HELA BREDDEN OCH EN EGEN YTA, och det är sidans enda ytbyte.
+
+      Ägaren 2026-09-05: sidan "ser ut som en 3 åring har gjort den". Formen
+      var redan rätt, alltså hjälte, knapprad, fördelsrad, ankarmeny och
+      referens i den ordning han beställt. Det som saknades var att någonting
+      på sidan såg ut som något annat än ett dokument: tjugo tusen pixlar text
+      på en enda vit yta i följd, och en hjälte där hela högra halvan var tom.
+
+      Bandet ligger på --brand-wash, alltså märkesblån blandad 8 procent i
+      vitt. Tokenet finns för precis det här och beskrivs i tokens.css som
+      ytan för "band som ska läsas som en egen sektion utan att bli ett kort".
+      Ingen ny färg uppfinns.
+
+      YTAN BETYDER NÅGOT, den är inte dekoration. Blekblått markerar sidans
+      TVÅ ställen där en människa ska höra av sig: det här bandet, som bär
+      knappen, och avsnittet "Det som kräver att du hör av dig", som bär den
+      andra. Allt däremellan är öppen data på ren botten och kostar ingen
+      kontakt. Den som rullar ser gränsen utan att läsa en rubrik.
+      --------------------------------------------------------------------- */}
+  <div class="salj">
+    <div class="container band">
+      <div class="hjaltegrid">
+        <header class="hjalte">
+          <p class="eyebrow">Öppna data</p>
+          <h1>Kommunernas livsmedelskontroller, som data</h1>
+          <p class="lede text-secondary">
+            Tretton kommuner publicerar sina hygienkontroller i tretton olika
+            system. Vi läser dem alla, normaliserar dem till ett format och
+            lägger ut nuläget som JSON och nya kontroller som Atom.
+          </p>
+          <p class="knapprad">
+            <a class="btn-primary" href="#kom-igang">Kom igång, gratis</a>
+            <a class="btn-linje" href="#tillgang">Behöver du mer data?</a>
+          </p>
+          <p class="text-secondary meta">
+            {formatNumber(total.establishments)} verksamheter i {total.municipalities} kommuner,
+            bedömda ur {formatNumber(total.inspections)} kontroller.
+            Senast hämtat {formatDate(updated)}.
+          </p>
+        </header>
+
+        {/* Produkten själv, och inte en bild av den. Se `svarHjalte` ovan för
+            varför det blev kommunposten och inte en karta eller ett datablad. */}
+        <div class="hjaltekod">
+          <Kodkort
+            roll="Svar"
+            vag={`/api/${API_VERSION}/kommun/${exempelKommun.slug}.json`}
+            sprak="json"
+            kod={svarHjalte}
+            tat
+          />
+        </div>
+      </div>
+
+      {/* Talraden. Blocket har tre kolumner med ikon, Ably leder med talet.
+          Vi tar talet och inte ikonen: docs/19 säger linje och luft, aldrig en
+          färgad platta, och vi har ingen ikonuppsättning som betyder något
+          här. Se kommentaren vid TALRADEN i frontmatter. */}
+      <ul class="fordelar">
+        <li>
+          <p class="tal">{total.municipalities}<span>kommunala system</span></p>
+          <h2>Ett format, inte tretton</h2>
+          <p>
+            Samma fältnamn, samma kodlista och samma identitet oavsett vilket
+            system kommunen råkar köra. Du skriver en läsare, inte tretton.
+          </p>
+        </li>
+        <li>
+          {/* 24 är det ENDA av de tre talen som inte räknas ur beståndet, och
+              det är för att det inte STÅR i beståndet: det är pipelinens takt,
+              alltså ett beslut och inte en mätning. Samma tal som Gränser och
+              drift anger med ordet "dygnstakt" tio skärmar längre ned. Ändras
+              takten ska båda ställena ändras, och det är skälet till att
+              enheten säger "hämtningstakt" och inte "sedan senaste hämtning",
+              som hade varit ett påstående om beståndet. */}
+          <p class="tal">24<span>timmars hämtningstakt</span></p>
+          <h2>Färskt, och daterat</h2>
+          <p>
+            Beståndet hämtas i dygnstakt. Varje svar bär källans
+            <code>fetchedAt</code>, så du vet hur gammal uppgiften är utan att
+            fråga oss.
+          </p>
+        </li>
+        <li>
+          <p class="tal">0<span>kronor, konton och nycklar</span></p>
+          <h2>Utan konto och utan nyckel</h2>
+          <p>
+            Ingen registrering, ingen kvot och ingen begränsning på antalet
+            anrop. Skriv ut varifrån uppgiften kommer, så är villkoret uppfyllt.
+          </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+
   <div class="container sida">
-    {/* -------------------------------------------------------------------
-        SÄLJET
-
-        Blockets form: rubrik, kort ingress, fördelsrad. Resends knapprad:
-        primär handling till vänster, den andra vägen bredvid. Ingen bild och
-        ingen maskot, eftersom vi inte har ett fotografi som säger något sant
-        och en figur tävlar med kodexemplet om toppen av sidan.
-        ------------------------------------------------------------------- */}
-    <header class="hjalte">
-      <p class="eyebrow">Öppna data</p>
-      <h1>Kommunernas livsmedelskontroller, som data</h1>
-      <p class="lede text-secondary">
-        Tretton kommuner publicerar sina hygienkontroller i tretton olika
-        system. Vi läser dem alla, normaliserar dem till ett format och lägger
-        ut nuläget som JSON och nya kontroller som Atom.
-      </p>
-      <p class="knapprad">
-        <a class="btn-primary" href="#kom-igang">Kom igång, gratis</a>
-        <a class="btn-linje" href="#tillgang">Behöver du mer data?</a>
-      </p>
-      <p class="text-muted meta">
-        {formatNumber(total.establishments)} verksamheter i {total.municipalities} kommuner,
-        bedömda ur {formatNumber(total.inspections)} kontroller.
-        Senast hämtat {formatDate(updated)}.
-      </p>
-    </header>
-
-    {/* Fördelsraden. Blocket har tre kolumner med ikon och kort text. Vi tar
-        formen men inte ikonerna: docs/19 säger linje och luft, aldrig en
-        färgad platta, och vi har ingen ikonuppsättning som betyder något här.
-        Etiketten bär tyngden i stället, som i FactGrid. */}
-    <ul class="fordelar">
-      <li>
-        <h2>Ett format, inte tretton</h2>
-        <p>
-          Samma fältnamn, samma kodlista och samma identitet oavsett vilket
-          system kommunen råkar köra. Du skriver en läsare, inte tretton.
-        </p>
-      </li>
-      <li>
-        <h2>Färskt, och daterat</h2>
-        <p>
-          Beståndet hämtas i dygnstakt. Varje svar bär källans
-          <code>fetchedAt</code>, så du vet hur gammal uppgiften är utan att
-          fråga oss.
-        </p>
-      </li>
-      <li>
-        <h2>Utan konto och utan nyckel</h2>
-        <p>
-          Ingen registrering, ingen kvot och ingen begränsning på antalet
-          anrop. Skriv ut varifrån uppgiften kommer, så är villkoret uppfyllt.
-        </p>
-      </li>
-    </ul>
-
     <div class="layout">
       {/* ---------------------------------------------------------------
           ANKARMENYN
@@ -415,23 +613,18 @@ const jsonLd = {
             först.
           </p>
 
-          <figure class="kodruta">
-            <figcaption><span class="etikett">Anrop</span></figcaption>
-            <pre class="kod"><code>{anropIndex}</code></pre>
-          </figure>
+          <Kodkort roll="Anrop" vag="bash" sprak="bash" kod={anropIndex} />
 
-          <figure class="kodruta">
-            <figcaption>
-              <span class="etikett">
-                Svar, klippt.
-                <span class="text-muted">
-                  {' '}Hela dokumentet är {formatNumber(idx.municipalities.length)} kommuner
-                  plus licens och kodlista.
-                </span>
-              </span>
-            </figcaption>
-            <pre class="kod"><code>{svarIndex}</code></pre>
-          </figure>
+          <Kodkort
+            roll="Svar"
+            vag={`/api/${API_VERSION}/index.json`}
+            sprak="json"
+            kod={svarIndex}
+          />
+          <p class="kodnot text-muted">
+            Klippt. Hela dokumentet är {formatNumber(idx.municipalities.length)} kommuner
+            plus licens och kodlista.
+          </p>
 
           <p>
             <code>endpoints</code> bär mallarna till allt annat, och
@@ -469,11 +662,8 @@ const jsonLd = {
               Startpunkten. Bär täckningen, hela kodlistan i klartext, och per
               kommun dess adress, källa och hämtdatum.
             </p>
-            <figure class="kodruta">
-              <figcaption><span class="etikett">Exempel</span></figcaption>
-              <pre class="kod"><code>{anropIndex}</code></pre>
-            </figure>
-            <p class="text-muted caption">
+            <Kodkort roll="Exempel" vag="bash" sprak="bash" kod={anropIndex} />
+            <p class="kodnot text-muted">
               Svaret står under <a href="#kom-igang">Kom igång</a>.
             </p>
           </article>
@@ -497,21 +687,22 @@ const jsonLd = {
               NULÄGET, alltså exakt vad kommunens egen listsida visar, och inte
               kontrollhistoriken.
             </p>
-            <figure class="kodruta">
-              <figcaption><span class="etikett">Exempel</span></figcaption>
-              <pre class="kod"><code>{anropKommun}</code></pre>
-            </figure>
-            <figure class="kodruta">
-              <figcaption>
-                <span class="etikett">
-                  Svar, klippt.
-                  <span class="text-muted">
-                    {' '}En verksamhet av {formatNumber(kommunDoc.count)} i {exempelKommun.city}.
-                  </span>
-                </span>
-              </figcaption>
-              <pre class="kod"><code>{svarKommun}</code></pre>
-            </figure>
+            <Kodkort roll="Exempel" vag="bash" sprak="bash" kod={anropKommun} />
+            {/* Rollen är "Svar, alla fält" och inte bara "Svar", och det är
+                inte kosmetik. Hjältens ruta visar SAMMA adress med sex av
+                fjorton fält, alltså hade båda korten annars fått exakt samma
+                namn på sin kopieraknapp trots att de kopierar olika text.
+                Uppmätt i den byggda sidan: sju knappar, sex unika namn. */}
+            <Kodkort
+              roll="Svar, alla fält"
+              vag={`/api/${API_VERSION}/kommun/${exempelKommun.slug}.json`}
+              sprak="json"
+              kod={svarKommun}
+            />
+            <p class="kodnot text-muted">
+              Klippt efter den första verksamheten av
+              {' '}{formatNumber(kommunDoc.count)} i {exempelKommun.city}.
+            </p>
           </article>
 
           <article id="floden" class="slutpunkt">
@@ -884,10 +1075,7 @@ const jsonLd = {
             {' '}<a href={LICENCE.url} rel="nofollow">{LICENCE.name}</a>. Villkoret
             är attribution, och den här raden uppfyller det:
           </p>
-          <figure class="kodruta">
-            <figcaption><span class="etikett">Attribution</span></figcaption>
-            <pre class="kod"><code>{LICENCE.attribution}</code></pre>
-          </figure>
+          <Kodkort roll="Attribution" kod={LICENCE.attribution} />
           <p>
             Länken ska vara klickbar där formatet tillåter en länk. Ta med
             kontrolldatumet tillsammans med uppgiften: kontrollresultat ändras,
@@ -959,18 +1147,73 @@ const jsonLd = {
 </Base>
 
 <style>
-  /* Sidan använder .container som den är, alltså --w-wide. Ingen egen bredd
-     sätts här: den förra sidan satte --w-read på behållaren och fick 584 px
-     brödtext, eftersom .container är border-box och paddingen åt 96. */
+  /* BREDDEN ÄR --w-full OCH INTE --w-wide, alltså 1 400 och inte 1 800.
+     ──────────────────────────────────────────────────────────────────────
+     Ingen ny bredd uppfinns, det här är ett av tokens.css fyra tal.
+
+     Skälet är hjälten. Den är nu ett rutnät med två spalter, text till
+     vänster och svaret till höger, och de två hör ihop. Vid 1 800 px hamnar
+     kodrutan 1 100 px från rubriken den illustrerar, alltså längre bort än
+     hela textspalten är bred. Vid 1 400 ligger den 64 px från textens
+     högerkant. Under 1 496 px fönster binder talet inte alls, eftersom
+     .container ändå får dra av två gutters på 48.
+
+     --w-full är dessutom rätt token för det här och inte ett närmevärde:
+     tokens.css kallar den "kartappen, sajtens enda helskärmsyta", alltså den
+     bredd en yta får ta när den ska vara stor utan att bli ett rutnät av
+     kort. Det är precis vad ett band med en hjälte i två spalter är.
+
+     Skyldigheten från --w-wide följer med oförändrad: varje spalt som bär
+     löptext bär gränsen själv, se .innehall p nedan. */
+  .band,
+  .sida { --container: var(--w-full); }
+
   .sida { padding-block: var(--s-12) var(--s-16); }
 
   /* ---------------------------------------------------------------------
-     SÄLJET
-     --------------------------------------------------------------------- */
+     SÄLJBANDET
 
-  /* Hjälten är låst till --w-read även om behållaren är bred. Resends
-     rubrik mäter 480 px vid 1440 och Blockets 623: en ingress som löper över
-     1 300 px läser ingen. */
+     Ytan är --brand-wash, alltså 8 procent märkesblå i vitt. Uppmätt i
+     tokens.css: 1,11:1 mot --card, brödtexten 15,1:1 mot den och den
+     sekundära grå 4,6:1, alltså över WCAG i båda.
+
+     BANDET ÄR FULL BREDD OCH INTE ETT KORT. Clerk växlar ljust, mörkt, ljust
+     över hela fönstret, Stripe har tre sektionsfärger över fjorton sektioner.
+     Ingen av dem lägger säljet i en ruta inne i spalten, och skälet är att en
+     yta som slutar innan skärmkanten läser som ett inslag i dokumentet i
+     stället för som ett annat slags sida. Det är precis vad vi ville bort
+     ifrån.
+
+     Linjen nedtill finns för de skärmar där 8 procents blått knappt syns.
+     --------------------------------------------------------------------- */
+  .salj {
+    background: var(--brand-wash);
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* 64 px över och 48 under. Uppmätt i den första utgåvan av det här bandet:
+     med 48 upptill började kodkortet 110 px från fönstrets överkant, alltså
+     46 px under sidhuvudets 64, och det såg ut att hänga i huvudet. Stripes
+     hjältekort börjar på 196 och deras rubrik på 253. Med 64 här hamnar
+     kortet på 128 och rubriken på 197. */
+  .band { padding-block: var(--s-16) var(--s-12); }
+
+  /* Hjältens rutnät. Textspalten först och rutan sedan, med det lilla
+     rutnätet: 1fr till texten och en fast maxbredd till rutan, eftersom en
+     JSON-ruta som växer med fönstret bara får mer tomrum till höger om sina
+     rader. Resends kodblock mäter 1 023 px och Stripes 540. Vår ligger på 560
+     som tak, alltså mellan de två och närmare den som faktiskt står i en
+     hjälte. */
+  .hjaltegrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+    gap: var(--s-16);
+    align-items: center;
+  }
+
+  /* Hjälten är låst till --w-read även inne i sin spalt. Uppmätta rubriker
+     2026-09-05: Resend 480 px, Stripe 492, Ably 656, Clerk 896. Vår ligger
+     under 680 och alltså inom spannet. */
   .hjalte { max-width: var(--w-read); }
 
   .hjalte h1 {
@@ -984,6 +1227,10 @@ const jsonLd = {
     font-size: var(--fs-h-xs);
     line-height: var(--lh-body);
   }
+
+  /* Rutan bär sin egen marginal uppåt i komponenten, och den ska bort här:
+     inne i rutnätet finns ingenting ovanför den att skilja den från. */
+  .hjaltekod :global(.kodkort) { margin-top: 0; }
 
   .knapprad {
     display: flex;
@@ -1015,11 +1262,21 @@ const jsonLd = {
     text-decoration: none;
   }
 
+  /* Talraden under knapparna är --text-secondary och inte --text-muted. De
+     två är samma värde i tokens.css, men mot --brand-wash i stället för mot
+     vitt ligger den på 4,56:1, alltså precis över WCAG. Namnet ska säga att
+     den är läst text och inte en viskning. */
   .meta { margin-top: var(--s-4); font-size: var(--fs-caption); }
 
-  /* Fördelsraden. Blockets tre kolumner, men utan platta och utan ram:
-     docs/19 säger linje och luft. Kolumnerna faller till en per rad under
-     760, alltså innan de blir smalare än en läsbar rad. */
+  /* ---------------------------------------------------------------------
+     TALRADEN
+
+     Tre kolumner, var och en med sitt tal överst. Talet är --fs-display, 40
+     px, alltså sajtens näst största grad och samma som en artikelrubrik. Det
+     är avsiktligt stort: raden ska gå att läsa på en meters håll medan man
+     rullar förbi, och de tre talen ska ta över den roll ikonerna har hos
+     Blocket. Ingen färgad platta och ingen ikon, se docs/19.
+     --------------------------------------------------------------------- */
   .fordelar {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1028,6 +1285,33 @@ const jsonLd = {
     padding: var(--s-8) 0 0;
     border-top: 1px solid var(--hairline);
     list-style: none;
+  }
+
+  /* Talet och enheten på samma rad, med enheten i baslinjen. `align-items:
+     baseline` och inte `center`: en fyrtiopixlars siffra och en fjortons
+     etikett som centreras mot varandra ser ut att ha halkat isär. */
+  .fordelar .tal {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin: 0 0 var(--s-3);
+    font-size: var(--fs-display);
+    line-height: var(--lh-display);
+    font-weight: 600;
+    letter-spacing: -.01em;
+
+    /* Siffrorna är tabellsiffror. Utan den här raden får nollan och trean i
+       Instrument Sans olika bredd, och tre tal under varandra i tre spalter
+       står inte på linje. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fordelar .tal span {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--text-secondary);
   }
 
   .fordelar h2 { font-size: var(--fs-h-xs); line-height: var(--lh-h-xs); }
@@ -1082,9 +1366,38 @@ const jsonLd = {
      sidan bytte bredd. Resends första kodblock mäter 1 022 px.
      --------------------------------------------------------------------- */
 
+  /* SEKTIONERNA FÅR EN LINJE ÖVER SIG OCH INTE BARA LUFT.
+     ──────────────────────────────────────────────────────────────────────
+     Den förra formen skilde tolv sektioner åt med 64 px marginal och inget
+     annat, och på en sida som är tjugo tusen pixlar hög går den skillnaden
+     inte att se: 64 px luft mellan två stycken ser likadant ut som 64 px
+     luft inuti ett. Stripe och Clerk växlar YTA mellan sektioner, men ingen
+     av dem gör det tolv gånger, och tolv band hade blivit ett randigt
+     dokument. Linjen gör samma arbete för en tolftedel av tyngden.
+
+     Luften ligger UNDER linjen och inte över den, alltså 48 px padding och
+     inte marginal. En rubrik som klistrar under sin egen avdelare läser som
+     en fortsättning på sektionen ovanför. */
   section { scroll-margin-top: var(--s-6); }
-  section + section { margin-top: var(--s-16); }
-  .innehall h2 { margin-bottom: var(--s-4); }
+  section + section {
+    margin-top: var(--s-12);
+    padding-top: var(--s-12);
+    border-top: 1px solid var(--hairline);
+  }
+  /* SEKTIONSRUBRIKEN GÅR FRÅN --fs-h TILL --fs-title, alltså 24 till 32.
+     ──────────────────────────────────────────────────────────────────────
+     Uppmätt på förlagornas sektionsrubriker 2026-09-05: Clerk 32/600/40,
+     Ably 40/700/48, Resend 56/400. Våra 24 låg under allihop, och på en sida
+     med tolv sektioner och tre nivåer blev följden att h2 och h3 var för nära
+     varandra för att läsa som två nivåer.
+
+     Nu står tre grader i stället för två och ett halvt: hjälten 48, sektionen
+     32, slutpunkten 24. Inga nya tal, alla tre finns i tokens.css. */
+  .innehall h2 {
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
+    margin-bottom: var(--s-4);
+  }
 
   .innehall p,
   .innehall .plain,
@@ -1112,6 +1425,39 @@ const jsonLd = {
     padding-left: var(--s-4);
     border-left: 2px solid var(--brand);
   }
+
+  /* ---------------------------------------------------------------------
+     DET SOM KRÄVER KONTAKT: SIDANS ANDRA BLEKBLÅA YTA
+
+     Regeln som infördes med säljbandet gäller åt båda hållen. Blekblått
+     betyder "här hör du av dig till en människa", och sidan har exakt två
+     sådana ställen: bandet överst med knappen, och det här avsnittet som
+     knappen pekar på. Elva avsnitt däremellan är öppen data på ren botten
+     och kostar ingen kontakt.
+
+     Den som rullar ser alltså gränsen mellan gratis och inte gratis utan att
+     läsa en enda rubrik, och det är en upplysning och inte en dekoration.
+     Ytan är samma --brand-wash som bandet, alltså ingen ny ton.
+
+     Linjen över sektionen tas bort och ersätts av panelens egen kant: en
+     hårlinje ovanför en färgad platta ger två avdelare på samma ställe.
+     --------------------------------------------------------------------- */
+  #tillgang {
+    border-top: 0;
+    padding: var(--s-8);
+    background: var(--brand-wash);
+    border-radius: var(--r-card);
+  }
+
+  /* Rullningsmålet flyttas ut lika mycket som panelen är indragen, annars
+     landar ankaret på rubriken i stället för på panelens överkant. */
+  #tillgang { scroll-margin-top: var(--s-8); }
+
+  /* Etikettspalten inne i panelen får sina linjer ur den mörkare änden av
+     hårlinjen: rgba svart mot #EBF4FD ger #D6DEE7, alltså samma synlighet
+     som mot vitt. Ingen ny linjefärg behövs, eftersom --hairline är alfa och
+     inte hex, och tokens.css säger uttryckligen att det är därför. */
+  #tillgang .spec > div:last-child { border-bottom: 0; }
 
   /* Etikettspalten från /hjalp/ och kontaktsidan: etikett vänster, värde
      höger, hårlinje mellan raderna, aldrig en färgad platta. Se docs/19. */
@@ -1143,77 +1489,23 @@ const jsonLd = {
   /* ---------------------------------------------------------------------
      KODRUTAN
 
-     Formen är inte uppfunnen här. Den finns redan på /utmarkelser/emblem/,
-     alltså sajtens enda andra sida med en kodruta: --card som botten,
-     hårlinje runt, --r-control, ui-monospace och --fs-caption. Skillnaden
-     mot den förra API-sidan är att DEN saknade bakgrund, och en kodruta
-     utan botten läser som ett indraget stycke och inte som kod.
+     Rutan bor numera i components/Kodkort.astro, med hela härledningen av den
+     mörka ytan och paletten skriven där. Det som är kvar här är noten UNDER
+     rutan.
 
-     Etiketten ovanför är Clerks och Stripes: varje ruta säger om den är ett
-     anrop eller ett svar, för de två ser likadana ut annars.
+     Den stod förut som en grå text INNE i etiketten ovanför rutan, och den
+     etiketten är borta: rollen sitter i kortets huvudrad tillsammans med
+     adressen. Noten hör hemma efter rutan i alla fall, eftersom den säger
+     något om det man just läst och inte om det man ska läsa.
      --------------------------------------------------------------------- */
-  .kodruta { margin: var(--s-4) 0 0; }
-
-  .kodruta figcaption {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s-3);
-    margin-bottom: var(--s-2);
-  }
-
-  .kodruta .etikett {
-    font-size: var(--fs-eyebrow);
-    line-height: var(--lh-eyebrow);
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  /* Kopieraknappen. Formen är .btn-ghost från /utmarkelser/emblem/, alltså
-     sajtens enda befintliga kopieraknapp, men mindre: den sitter i en etikett
-     på 12 px och en knapp i full storlek hade blivit rutans tyngsta element.
-     Versalerna tas bort, eftersom den är en handling och inte en etikett. */
-  .kodruta .kopiera {
-    flex: none;
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-pill);
-    padding: 4px 12px;
-    font: 600 var(--fs-caption)/1.4 var(--font-sans);
-    cursor: pointer;
-  }
-
-  .kodruta .kopiera:hover { border-color: var(--brand); color: var(--brand-ink); }
-
-  /* Kvittensen tar plats även när den är tom, annars hoppar kodrutan neråt
-     första gången någon klickar. Samma fel som en knapp som byter höjd med
-     sitt innehåll, se .btn-primary i tokens. */
-  .kodruta .kvittens {
-    display: block;
-    min-height: var(--lh-caption);
+  .kodnot {
     margin-top: var(--s-2);
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
-    color: var(--text-muted);
   }
 
-  .kod {
-    margin: 0;
-    padding: var(--s-4);
-    background: var(--card);
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-control);
-    overflow-x: auto;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-body-s);
-  }
-
-  .kod code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    white-space: pre;
-  }
+  /* Kvittensen ligger under kortet och skulle annars stöta ihop med noten. */
+  .innehall :global(.kodkort) + .kodnot { margin-top: 0; }
 
   /* ---------------------------------------------------------------------
      TABELLERNA
@@ -1272,6 +1564,41 @@ const jsonLd = {
      skulle rättas, och Trafiklab behåller sin vänsternav på 375 medan de
      fäller ihop högerspalten.
      --------------------------------------------------------------------- */
+  /* ---------------------------------------------------------------------
+     HJÄLTEN VID SMALARE FÖNSTER
+
+     Räknat och inte gissat. `.container` drar av två gutters, som är 4vw
+     mellan 400 och 1 200 px fönster och 48 därover. Textspalten blir alltså
+     fönstret minus gutters, minus rutans 560 och minus mellanrummets 64.
+
+         1 400 px fönster   1 304 behållare   680 text   rutan 560
+         1 200 px fönster   1 104 behållare   480 text   rutan 560
+         1 100 px fönster   1 012 behållare   436 text   rutan 512
+
+     Vid 1 100 wrappar rubriken på 48 px till fyra rader och ingressen till
+     sex. Där går gränsen, alltså faller rutnätet till en spalt på 1 100 och
+     inte på 900 som resten av sidan. Rutan hamnar då UNDER texten, vilket är
+     rätt ordning: den som scrollar in på telefon ska se rubriken först.
+     --------------------------------------------------------------------- */
+  @media (max-width: 1200px) {
+    .hjaltegrid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 512px);
+      gap: var(--s-12);
+    }
+  }
+
+  @media (max-width: 1100px) {
+    .hjaltegrid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--s-8);
+      align-items: start;
+    }
+
+    /* Rutan är inte längre en bild bredvid texten utan ett block under den,
+       och då ska den bära hela spaltens bredd och inte 512 av den. */
+    .hjaltekod { max-width: none; }
+  }
+
   @media (max-width: 900px) {
     .layout {
       grid-template-columns: minmax(0, 1fr);
@@ -1296,13 +1623,7 @@ const jsonLd = {
     .meny li.under { padding-left: 0; }
   }
 
-  /* Kvittensen tar ingen plats innan den behövs på telefon: sex tomma rader
-     på en sida som redan är 20 383 px är sex rader för mycket. Hoppet den
-     skulle orsaka finns inte här, eftersom rutan ändå ligger i ett rull. */
-  @media (max-width: 640px) {
-    .kodruta .kvittens { min-height: 0; margin-top: 0; }
-    .kodruta .kvittens:empty { display: none; }
-  }
+  /* Kvittensens telefonregel flyttade med rutan till Kodkort.astro. */
 
   @media (max-width: 760px) {
     .fordelar {
@@ -1311,56 +1632,22 @@ const jsonLd = {
     }
 
     .spec > div { grid-template-columns: minmax(0, 1fr); }
+
+    /* Talen krymper till --fs-title på telefon. Tre fyrtiopixlars siffror
+       under varandra i en spalt tar 200 px av en 812 px skärm och skjuter ned
+       den första rubriken under vikningen. */
+    .fordelar .tal {
+      font-size: var(--fs-title);
+      line-height: var(--lh-title);
+      margin-bottom: var(--s-2);
+    }
+
+    /* Bandets luft följer sidans: 48 upp och ned i stället för 48 och 48 plus
+       en talrad som redan bär sin egen. */
+    .band { padding-block: var(--s-8) var(--s-12); }
+
+    /* Panelen behåller sin yta men tappar hälften av indraget. 32 px padding
+       på en 375 px skärm lämnar 279 px till en etikettspalt. */
+    #tillgang { padding: var(--s-4); }
   }
 </style>
-
-<script>
-  /**
-   * Kopieraknapparna, byggda i webbläsaren och inte i markupen.
-   *
-   * VARFÖR JS SKAPAR KNAPPEN I STÄLLET FÖR ATT BARA VISA DEN
-   * Emblemsidan har EN kodruta och skriver därför sin knapp i markupen med
-   * `hidden`. Här finns sex rutor, och sex kopior av samma tre element hade
-   * varit tre gånger så mycket markup som koden de kopierar. Resultatet är
-   * detsamma på den punkt som betyder något: utan JavaScript eller utan
-   * urklipp finns ingen knapp alls, och en död knapp är sämre än ingen.
-   *
-   * Den som saknar båda markerar koden och kopierar den som vilken text som
-   * helst. Det är därför `white-space: pre` står på `.kod code`: en markering
-   * ska ge tillbaka raderna som de står.
-   */
-  const rutor = document.querySelectorAll<HTMLElement>('.kodruta');
-
-  if (typeof navigator.clipboard?.writeText === 'function') {
-    rutor.forEach((ruta) => {
-      const kod = ruta.querySelector('code');
-      const etikettrad = ruta.querySelector('figcaption');
-      if (!kod || !etikettrad) return;
-
-      const knapp = document.createElement('button');
-      knapp.type = 'button';
-      knapp.className = 'kopiera';
-      knapp.textContent = 'Kopiera';
-
-      /* Kvittensen är `role="status"`, alltså läses den upp av en skärmläsare
-         utan att flytta fokus. En knapp som byter sin egen text till
-         "Kopierat" tappar i stället sitt namn, och då vet den som kommer
-         tillbaka till knappen inte längre vad den gör. */
-      const kvittens = document.createElement('span');
-      kvittens.className = 'kvittens';
-      kvittens.setAttribute('role', 'status');
-
-      knapp.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(kod.textContent ?? '');
-          kvittens.textContent = 'Kopierat.';
-        } catch {
-          kvittens.textContent = 'Kunde inte kopiera. Markera texten i stället.';
-        }
-      });
-
-      etikettrad.append(knapp);
-      ruta.append(kvittens);
-    });
-  }
-</script>
