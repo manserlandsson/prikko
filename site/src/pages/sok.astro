@@ -612,27 +612,64 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
       // hårda mellanslag.
       const found = groups.count;
       const nice = found.toLocaleString('sv-SE');
+      /*
+       * NÄSTAN-TRÄFFARNA RÄKNAS FÖR SIG, och det är hela skälet till att de får
+       * finnas.
+       *
+       * Listan visar dem under de hela träffarna, se `ranked` i lib/sokforslag.
+       * Slogs de ihop till ett tal skulle "max hamburgare" svara "71 träffar",
+       * och de 71 är inte samma sak: två av dem bär båda orden och 69 bär bara
+       * det ena. Ett tal som blandar de två går inte att kontrollera, och då är
+       * det inget besked.
+       *
+       * Raderna räknas genom att jämföra objekten, inte genom att räkna om:
+       * `ranked` lämnar tillbaka samma objekt som klasserna byggdes av.
+       */
+      const delvisRader = new Set(groups.partial);
+      const delvisVisade = shown.filter((s) => delvisRader.has(s)).length;
+      const helaVisade = shown.length - delvisVisade;
+      const del = delvisVisade
+        ? `. Därunder ${groups.partialCount.toLocaleString('sv-SE')} rader som bara bär en del av orden`
+        : '';
       // Rättningen står FÖRE antalet, eftersom antalet annars svarar på en
       // annan fråga än den besökaren ställde. "Menade du Stensholmsvägen? 5
       // träffar" är begripligt; "5 träffar" ensamt efter en felstavning ser
       // ut som om sidan hittat det skrivna, vilket den inte gjorde. Raden
       // står bara när modulen är säker, se lib/sokforslag.
       const mean = groups.didYouMean ? `Menade du ”${groups.didYouMean}”? ` : '';
+      /*
+       * RADEN VID NOLL TRÄFFAR FÅR BARA SÄGA DET VI VET.
+       *
+       * Här stod "Inga träffar. Verksamheten kan sakna registrerad kontroll."
+       * och det var ett påstående om KOMMUNENS register, gjort i ett läge där
+       * det enda som hänt var att VÅR matchning missade. Det syntes tydligast
+       * på "max stockholm": femton MAX i Stockholm, kontroller på allihop, och
+       * sidan svarade att verksamheten kanske saknade registrerad kontroll.
+       *
+       * Vi vet att sökningen inte hittade något. Vi vet ingenting om
+       * verksamheten, för vi hittade den inte. Raden säger därför bara det
+       * första, och de hjälpsamma raderna under står kvar: prova ett kortare
+       * ord, och kommunerna vi täcker ligger längst ner.
+       */
       status!.textContent = found
-        ? found > shown.length
-          ? `${mean}${nice} träffar, de ${shown.length} närmast visas`
-          : `${mean}${nice} ${found === 1 ? 'träff' : 'träffar'}`
-        : kommunRows!.children.length || sidorRows!.children.length
-          ? `Ingen verksamhet matchar ”${text}”.`
-          : 'Inga träffar. Verksamheten kan sakna registrerad kontroll.';
+        ? found > helaVisade
+          ? `${mean}${nice} träffar, de ${helaVisade} närmast visas${del}`
+          : `${mean}${nice} ${found === 1 ? 'träff' : 'träffar'}${del}`
+        : delvisVisade
+          ? `${mean}Ingen träff på allt du skrev${del}`
+          : kommunRows!.children.length || sidorRows!.children.length
+            ? `Ingen verksamhet matchar ”${text}”.`
+            : `Sökningen hittade ingen träff på ”${text}”.`;
 
       /* Det HELT tomma läget, alltså varken verksamhet, kommun eller sida.
          Bara där. Ger sökningen en kommun har sidan svarat på frågan, och en
          grävling som säger "här finns ingenting" bredvid en rad som säger
          "Stockholm" är ett svar som motsäger sig självt. */
+      /* `shown.length` och inte `found`: nästan-träffarna är också rader på
+         skärmen, och grävlingen ska bara stå där ytan faktiskt är tom. */
       if (tomt) {
         tomt.hidden = !(
-          !found && !kommunRows!.children.length && !sidorRows!.children.length
+          !shown.length && !kommunRows!.children.length && !sidorRows!.children.length
         );
       }
 

@@ -28,14 +28,33 @@
  * hopvikt och duger inte att visa för någon, och den ändrar dessutom
  * strängens längd, vilket träffmarkeringen måste veta om. Se mark().
  *
+ * SÖKNINGEN TÅL OCKSÅ ETT ORD TILL, och det är en annan sak än stavning.
+ * Frågan matchades tidigare som en enda sträng, alltså måste orden stå i följd
+ * i registret: "max" gav 70 träffar, "max hamburgare" gav 2 av 34 möjliga och
+ * "max stockholm" gav noll fast femton MAX ligger i Stockholm. Frågan delas nu
+ * i ord som söks var för sig, se tokens() och scan(), och raderna faller i två
+ * högar: de som bär alla orden, och de som bär några. Den andra högen ligger
+ * sist och är avstängd så snart den första räcker.
+ *
+ * Registrets söksträng bär numera också verksamhetens MATKATEGORIER och dess
+ * OMRÅDE, alltså det som gör "kebab östermalm" möjligt. Se extraText().
+ *
  * Modulen buntas till webbläsaren och får därför inte röra node: eller
  * astro:. lib/face importeras för geometrin och drar bara in en typ, som
  * försvinner vid kompileringen.
  */
 import { FACE_MARKUP, FACE_PLATE, type FaceKey } from './face';
 
-/** Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex]. */
-export type Row = [string, string, string, number, number];
+/**
+ * Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex] och
+ * därefter, om raden har dem, [kategorikombination, områdesnummer].
+ *
+ * De två sista är olika ofta med, och det är avsiktligt: två tredjedelar av
+ * raderna saknar kategori och nästan hälften ligger utanför varje område med
+ * egen sida. Skälet till att de utelämnas i stället för att skrivas som nollor
+ * står i lib/search-index.ts, och kostnaden i docs/63.
+ */
+export type Row = [string, string, string, number, number, number?, number?];
 
 /**
  * Radens sort, som bestämmer dess märke.
@@ -419,25 +438,62 @@ export function groupLi(name: string): string {
 export function mark(text: string, q: string): string {
   if (!q) return escapeHtml(text);
 
-  const at = normalise(text).indexOf(q);
-  if (at >= 0) return cut(text, at, at + q.length);
+  const hela = span(text, q);
+  if (hela) return cut(text, [hela]);
 
-  const key = foldKey(q);
-  if (!key) return escapeHtml(text);
-  const n = foldInto(text, true, -1);
-  const hit = keyText(n).indexOf(key);
-  if (hit < 0) return escapeHtml(text);
-  return cut(text, keyFrom[hit], keyTo[hit + key.length - 1]);
+  /*
+   * ORD FÖR ORD när hela frågan inte står i följd.
+   *
+   * Det är samma byte som sökningen själv gör, och det syns på precis de rader
+   * den nya matchningen la till: "max stockholm" träffar "Max" i namnet och
+   * "Stockholm" i orten, alltså två ställen på olika sidor av raden. Utan det
+   * här passet ritades de raderna helt utan fetstil, och en lista där inget är
+   * markerat läser som en gissning. Se noten över `mark`.
+   */
+  const ord = q.split(' ').filter(Boolean);
+  if (ord.length < 2) return escapeHtml(text);
+
+  const spans: Array<[number, number]> = [];
+  for (const w of ord) {
+    const s = span(text, w);
+    if (s) spans.push(s);
+  }
+  if (!spans.length) return escapeHtml(text);
+
+  // Överlappande markeringar slås ihop. Två ord kan träffa samma bokstäver,
+  // till exempel "max maxi", och två <b> som griper in i varandra ger trasig
+  // markup.
+  spans.sort((a, b) => a[0] - b[0]);
+  const flat: Array<[number, number]> = [spans[0]];
+  for (let i = 1; i < spans.length; i++) {
+    const sist = flat[flat.length - 1];
+    if (spans[i][0] <= sist[1]) sist[1] = Math.max(sist[1], spans[i][1]);
+    else flat.push(spans[i]);
+  }
+  return cut(text, flat);
 }
 
-function cut(text: string, from: number, to: number): string {
-  return (
-    escapeHtml(text.slice(0, from)) +
-    '<b>' +
-    escapeHtml(text.slice(from, to)) +
-    '</b>' +
-    escapeHtml(text.slice(to))
-  );
+/** Var ett sökord sitter i texten, eller null. Se de två passen i `mark`. */
+function span(text: string, q: string): [number, number] | null {
+  const at = normalise(text).indexOf(q);
+  if (at >= 0) return [at, at + q.length];
+
+  const key = foldKey(q);
+  if (!key) return null;
+  const n = foldInto(text, true, -1);
+  const hit = keyText(n).indexOf(key);
+  if (hit < 0) return null;
+  return [keyFrom[hit], keyTo[hit + key.length - 1]];
+}
+
+function cut(text: string, spans: Array<[number, number]>): string {
+  let ut = '';
+  let vid = 0;
+  for (const [from, to] of spans) {
+    ut += escapeHtml(text.slice(vid, from)) + '<b>' + escapeHtml(text.slice(from, to)) + '</b>';
+    vid = to;
+  }
+  return ut + escapeHtml(text.slice(vid));
 }
 
 /**
@@ -560,6 +616,14 @@ export interface SearchIndex {
   nameEnd: Int32Array;
   /** Områdena: [kommunindex, slug, namn, antal]. Se search-index.ts. */
   omraden: [number, string, string, number][];
+  /**
+   * Matkategorierna som söktext, en sträng per förekommande kombination.
+   *
+   * Raden pekar in i listan med ett litet heltal, och plats noll är tom. Att
+   * det är text och inte bitar är avsiktligt: den blir en del av radens
+   * söksträng och matchas som vilket ord som helst, se `extraText`.
+   */
+  mk: string[];
   /** [slug, ort] och en etta på de kommuner som har en kartsida. Se
    *  lib/search-index.ts för varför den tredje platsen finns. */
   kommuner: Array<[string, string] | [string, string, number]>;
@@ -579,8 +643,31 @@ const index: SearchIndex = {
   nameEnd: new Int32Array(0),
   kommuner: [],
   omraden: [],
+  mk: [],
   avreg: new Set(),
 };
+
+/**
+ * Radens KATEGORIER OCH OMRÅDE som söktext, eller tom sträng.
+ *
+ * Det här är hela hål tre: "pizzeria odenplan" och "kebab östermalm" är det
+ * naturligaste sättet att leta efter mat, och båda halvorna fanns redan i
+ * huset. Kategorierna satt i kartans rutor (props.mk i lib/kartrutor.ts) och
+ * områdena på verksamhetssidan ("Restaurang · Birger Jarlsgatan 4 · Stockholm ·
+ * Östermalm"), men ingen av dem gick att nå från fritextsökningen.
+ *
+ * Texten läggs SIST i söksträngen, efter namn, adress och ort. Platsen är
+ * räknad: `nameEnd` skiljer en namnträff från en adressträff i rankningen, och
+ * ett ord som bara står i kategorin ska aldrig kunna se ut som ett namn. En
+ * träff här hamnar därför alltid i den lösa klassen, alltså under dem som
+ * heter det man skrev.
+ */
+function extraText(row: Row): string {
+  const mk = row[5] ? (index.mk[row[5]] ?? '') : '';
+  const omrade = row[6] ? (index.omraden[row[6] - 1]?.[2] ?? '') : '';
+  if (mk && omrade) return ` ${mk} ${omrade}`;
+  return mk ? ` ${mk}` : omrade ? ` ${omrade}` : '';
+}
 /** Kommunernas orter som söknycklar, vikta en gång i stället för per fråga. */
 let kommunKey: string[] = [];
 let omradeKey: string[] = [];
@@ -620,6 +707,10 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
       index.kommuner = data.k;
       index.rows = data.e;
       index.omraden = data.o ?? [];
+      /* `?? []` av samma skäl som `data.a` nedan: ett dokument ur besökarens
+         cache kan peka på ett register som byggdes innan nyckeln fanns, och en
+         sökning som kastar är ett värre fel än en sökning utan kategoriord. */
+      index.mk = data.mk ?? [];
       /* `?? []` och inte `data.a`: ett dokument ur besökarens cache kan peka
          på ett register som byggdes innan nyckeln fanns, och en sökning som
          kastar är ett värre fel än en sökning utan märke. Samma hållning som
@@ -653,10 +744,11 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
       const hay = new Array<string>(n);
       const nameEnd = new Int32Array(n);
       for (let i = 0; i < n; i++) {
-        const [name, address, , k] = index.rows[i];
+        const row = index.rows[i];
+        const [name, address, , k] = row;
         const city = index.kommuner[k][1];
         const len = foldInto(
-          address ? `${name} ${address} ${city}` : `${name} ${city}`,
+          (address ? `${name} ${address} ${city}` : `${name} ${city}`) + extraText(row),
           false,
           name.length,
         );
@@ -698,8 +790,32 @@ export interface Groups {
   kommunLoose: Suggestion[];
   loose: Suggestion[];
   /**
+   * NÄSTAN-TRÄFFARNA: rader som bär några av frågans ord men inte alla.
+   *
+   * Klassen finns för att ett ord till ska SMALNA AV och inte utplåna. "max
+   * hamburgare" är fallet den byggdes för: ordet "hamburgare" står bokstavligen
+   * i två av trettiofyra MAX-namn, alltså gav en ren OCH-sökning 2 av 34 och
+   * kastade de trettiotvå som frågan handlade om.
+   *
+   * Raderna ligger SIST i rankningen, alltid under dem som bär hela frågan, och
+   * sinsemellan efter hur sällsynta de träffade orden är. Se `offerScored`.
+   *
+   * Tom i tre lägen, och alla tre är avsiktliga: frågan är ett enda ord, hela
+   * frågan gav redan tillräckligt många träffar, eller något av orden finns
+   * inte någonstans i registret. Det sista är det som håller "sushi kalmar" och
+   * "mcdonalds göteborg" på noll: vi täcker inte de kommunerna, och att då
+   * svara med sushi i Uppsala vore att byta ett tomt svar mot ett felaktigt.
+   */
+  partial: Suggestion[];
+  /** Antal nästan-träffar i hela registret. Noll när klassen inte fylldes. */
+  partialCount: number;
+  /**
    * Antal verksamhetsträffar i HELA registret, oberoende av hur många rader
    * som sparades. /sok skriver ut talet och får inte skriva ut "40".
+   *
+   * Räknar bara rader som bär ALLA frågans ord. Nästan-träffarna räknas för
+   * sig, eftersom "2 träffar" och "34 liknande" är två olika besked och sidan
+   * inte får slå ihop dem till ett tal som ingen kan kontrollera.
    */
   count: number;
   /**
@@ -750,29 +866,203 @@ const byLength = (a: Suggestion, b: Suggestion) =>
  * de två inte samma träffar på samma ord.
  *
  * Nu prövas hela registret alltid, men objektet byggs bara för de rader som
- * faktiskt tar sig in. När klassen är full kostar en kandidat en enda
- * längdjämförelse, och 15 916 sådana är inget. Följden är att panelens sju
- * bästa är exakt /sok:s sju första: samma klass, samma ordning, samma urval,
- * bara olika djupt.
+ * faktiskt tar sig in. När klassen är full kostar en kandidat två jämförelser,
+ * och 17 146 sådana är inget. Följden är att panelens sju bästa är exakt
+ * /sok:s sju första: samma klass, samma ordning, samma urval, bara olika
+ * djupt.
+ *
+ * ORDNINGEN INOM KLASSEN har tre led, och funktionen bär alla tre därför att
+ * de hela träffarna och nästan-träffarna ska rankas av samma kod:
+ *
+ *   `score` först. För en hel träff är den ett när raden bär frågan i följd
+ *   och noll annars; för en nästan-träff är den summan av de träffade ordens
+ *   sällsynthet, se `weigh`.
+ *
+ *   `cls` sedan, alltså var träffen sitter. De hela träffarna ligger redan i
+ *   var sin klasslista och skickar därför noll.
+ *
+ *   Kortast namn sist, se `byLength`.
  */
-function offer(
-  bucket: Suggestion[],
+interface Scored {
+  item: Suggestion;
+  score: number;
+  cls: number;
+}
+
+function betterScored(a: Scored, b: Scored): boolean {
+  if (a.score !== b.score) return a.score > b.score;
+  if (a.cls !== b.cls) return a.cls < b.cls;
+  return byLength(a.item, b.item) < 0;
+}
+
+function offerScored(
+  bucket: Scored[],
   keep: number,
+  score: number,
+  cls: number,
   name: string,
   make: () => Suggestion,
 ): void {
   const n = bucket.length;
-  if (n >= keep && name.length > bucket[n - 1].label.length) return;
+  if (n >= keep) {
+    const worst = bucket[n - 1];
+    if (score < worst.score) return;
+    if (
+      score === worst.score &&
+      (cls > worst.cls || (cls === worst.cls && name.length > worst.item.label.length))
+    ) {
+      return;
+    }
+  }
 
-  const item = make();
+  const rad: Scored = { item: make(), score, cls };
   let i = n;
-  bucket.push(item);
-  while (i > 0 && byLength(item, bucket[i - 1]) < 0) {
+  bucket.push(rad);
+  while (i > 0 && betterScored(rad, bucket[i - 1])) {
     bucket[i] = bucket[i - 1];
     i--;
   }
-  bucket[i] = item;
+  bucket[i] = rad;
   if (bucket.length > keep) bucket.pop();
+}
+
+// ---- Frågans ord ----------------------------------------------------------
+
+/**
+ * FLER ORD SKA RANGORDNA, INTE UTESLUTA.
+ *
+ * Sökningen matchade tidigare hela frågan som EN sträng: "max hamburgare" lästes
+ * som bokstäverna "maks hamburgare" i följd, och eftersom registret bär "Max
+ * Hötorget", "MAX Sergels Torg" och "Max Burgers" gav ett extra beskrivande ord
+ * 2 träffar där ordet ensamt gav 70. "max stockholm" gav noll, fast femton MAX
+ * ligger i Stockholm och orten står i varenda en av deras söksträngar. Att lägga
+ * till orten är den vanligaste förfiningen en människa gör, och den slog sönder
+ * svaret.
+ *
+ * Frågan delas därför i ORD, och varje ord söks för sig:
+ *
+ *   Rader som bär ALLA orden är träffarna. De rankas som förut, i klasser efter
+ *   var träffen sitter. "max stockholm" blir därmed de MAX som ligger i
+ *   Stockholm, varken mer eller mindre.
+ *
+ *   Rader som bär NÅGRA av orden är nästan-träffar och ligger sist, se
+ *   `Groups.partial`.
+ *
+ * Åtta ord är taket. En fråga med fler är inte en sökning utan en inklistrad
+ * mening, och masken som bär vilka ord raden träffat får plats i ett heltal.
+ */
+const TOKEN_MAX = 8;
+
+function tokens(key: string): string[] {
+  const parts = key.split(' ');
+  return parts.length > TOKEN_MAX ? parts.slice(0, TOKEN_MAX) : parts;
+}
+
+/** Vilka av frågans ord raden bär, som bitar. Fylls av `scan`. */
+let hitMask = new Int32Array(0);
+/**
+ * Var varje ord träffade, som två bitar per ord: 0 namnets början, 1 ett ord i
+ * namnet, 2 längre bak, 3 ingen träff.
+ *
+ * En klass PER ORD och inte en per rad, och det är skillnaden mellan att hitta
+ * Riche och att hitta ett 7-Eleven. "birger jarlsgatan 4" bär ett ensamt "4",
+ * och den siffran står i tusen namn: "7 Eleven 4216125" träffar den mitt i sitt
+ * namn och såg därmed ut som en namnträff, medan Riche, som ligger på adressen
+ * man skrev, såg ut som en adressträff och hamnade under. Klassen väljs därför
+ * i `gather` efter radens SÄLLSYNTASTE ord, och sällsyntheten är känd först när
+ * hela svepet är gjort. Alltså måste alla klasserna sparas.
+ */
+let hitClass = new Int32Array(0);
+/**
+ * En bit per ord: slutade träffen vid ett ordslut?
+ *
+ * "max" står först i både "Max Bromma" och "Maxim", alltså i samma klass, och
+ * mellan dem avgjorde kortast namn: tre "Maxim" la sig över samtliga
+ * MAX-restauranger på "max stockholm". Ett HELT ord är en starkare träff än
+ * början på ett längre, och biten säger vilket det var. Den kan bara vara satt
+ * när ordet är färdigskrivet, alltså stör den inte den som söker medan hon
+ * skriver: "esp" slutar mitt i "espresso" i varenda rad.
+ */
+let hitWhole = new Int32Array(0);
+/** Ett för de rader som bär hela frågan i följd. Se poängen i `gather`. */
+let hitPhrase = new Uint8Array(0);
+/** Hur många rader varje ord står i, och ordets vikt i poängen. */
+const hitDf = new Int32Array(TOKEN_MAX);
+const hitWeight = new Int32Array(TOKEN_MAX);
+
+/**
+ * Ett svep över registret som räknar ut allt strängarbete på en gång.
+ *
+ * Att det är ETT svep och inte två är prestandan. Nästan-klassen behöver veta
+ * hur sällsynt varje ord är innan raderna kan rankas, alltså måste hela
+ * registret vara läst innan den första raden byggs. Passet lägger därför undan
+ * vilka ord raden bar och var den bästa träffen satt, och `gather` bygger sedan
+ * listorna ur talen utan att röra en enda sträng igen.
+ *
+ * Svarar med antalet rader som bar ALLA orden.
+ */
+function scan(toks: string[], key: string): number {
+  const { hay, nameEnd } = index;
+  const n = hay.length;
+  if (hitMask.length < n) {
+    hitMask = new Int32Array(n);
+    hitClass = new Int32Array(n);
+    hitWhole = new Int32Array(n);
+    hitPhrase = new Uint8Array(n);
+  }
+  const alla = (1 << toks.length) - 1;
+  const enda = toks.length === 1;
+  hitDf.fill(0);
+
+  let full = 0;
+  for (let i = 0; i < n; i++) {
+    const h = hay[i];
+    let mask = 0;
+    let klasser = 0;
+    let hela = 0;
+    for (let t = 0; t < toks.length; t++) {
+      const tok = toks[t];
+      const at = h.indexOf(tok);
+      if (at < 0) {
+        klasser |= 3 << (t << 1);
+        continue;
+      }
+      mask |= 1 << t;
+      hitDf[t]++;
+      const c = at === 0 ? 0 : at < nameEnd[i] && wordStart(h, at) ? 1 : 2;
+      klasser |= c << (t << 1);
+      // Slutet räcker: att träffen BÖRJAR ett ord ligger redan i klassen.
+      const slut = at + tok.length;
+      if (slut === h.length || h.charCodeAt(slut) === SPACE) hela |= 1 << t;
+    }
+    hitMask[i] = mask;
+    hitClass[i] = klasser;
+    hitWhole[i] = hela;
+    /* Hela frågan i följd. Ett ord till söks bara när raden redan bär alla
+       orden, alltså på en bråkdel av registret, och svaret på "är det här
+       samma sak som förut?" är värt det: se poängen i `gather`. */
+    hitPhrase[i] = !enda && mask === alla && h.indexOf(key) >= 0 ? 1 : 0;
+    if (mask === alla) full++;
+  }
+  return full;
+}
+
+/**
+ * Ordens vikt: ju färre rader ordet står i, desto tyngre väger det.
+ *
+ * Det är den vanliga idf-vikten, och den avgör ordningen bland nästan-träffarna.
+ * "pizzeria odenplan" är fallet som visar varför: "pizzeria" står i tusentals
+ * rader och "odenplan" i femton, alltså ska de femton ligga överst. Utan vikten
+ * hade det vanligaste ordet i frågan bestämt hela listan.
+ *
+ * Talen är heltal, tusendelar av den naturliga logaritmen, eftersom de bara
+ * jämförs med varandra och heltal jämförs billigare.
+ */
+function weigh(toks: string[], rows: number): void {
+  for (let t = 0; t < toks.length; t++) {
+    const df = hitDf[t];
+    hitWeight[t] = df > 0 ? Math.round(1000 * Math.log(rows / df)) : 0;
+  }
 }
 
 /**
@@ -780,14 +1070,21 @@ function offer(
  *
  * `keep` är hur många rader varje klass sparar. Panelen ber om sju,
  * resultatsidan om fyrtio. Talet påverkar bara djupet, aldrig ordningen.
+ *
+ * `toks` är frågans ord och `q` samma fråga som en sträng. Kommunerna och
+ * områdena matchas mot HELA strängen och inte mot orden var för sig: en kommun
+ * heter det den heter, och "max stockholm" ska ge MAX i Stockholm och inte en
+ * rad som föreslår hela kommunen.
+ *
+ * `delvis` säger om nästan-klassen ska fyllas. Beslutet fattas i `collect`.
  */
-function gather(q: string, keep: number, term: string): Groups {
-  const { rows, hay, nameEnd, kommuner } = index;
+function gather(toks: string[], q: string, keep: number, term: string, delvis: boolean): Groups {
+  const { rows, kommuner } = index;
   const kommunPrefix: Suggestion[] = [];
   const kommunLoose: Suggestion[] = [];
-  const namePrefix: Suggestion[] = [];
-  const nameWord: Suggestion[] = [];
-  const loose: Suggestion[] = [];
+  const namePrefix: Scored[] = [];
+  const nameWord: Scored[] = [];
+  const loose: Scored[] = [];
   let count = 0;
 
   for (let i = 0; i < kommuner.length; i++) {
@@ -844,11 +1141,45 @@ function gather(q: string, keep: number, term: string): Groups {
   }
   omradePrefix.sort(byLength);
 
+  /*
+   * Raderna byggs ur `scan`:s tal och inte ur strängarna igen. Masken säger
+   * vilka av frågans ord raden bar, och `alla` är masken där samtliga sitter.
+   */
+  const alla = (1 << toks.length) - 1;
+  const partial: Scored[] = [];
+  let partialCount = 0;
+
   for (let i = 0; i < rows.length; i++) {
-    const h = hay[i];
-    const at = h.indexOf(q);
-    if (at < 0) continue;
-    count++;
+    const mask = hitMask[i];
+    if (mask === 0) continue;
+    const hel = mask === alla;
+    if (!hel && !delvis) continue;
+
+    /*
+     * KLASSEN VÄLJS EFTER RADENS SÄLLSYNTASTE ORD, se `hitClass`. Poängen
+     * summerar de träffade ordens vikt, alltså står en rad som bär två
+     * sällsynta ord före en som bär ett vanligt.
+     */
+    let cls = 3;
+    let score = 0;
+    let tyngst = -1;
+    let helt = 0;
+    for (let t = 0; t < toks.length; t++) {
+      if ((mask & (1 << t)) === 0) continue;
+      const w = hitWeight[t];
+      score += w;
+      const c = (hitClass[i] >> (t << 1)) & 3;
+      if (w > tyngst || (w === tyngst && c < cls)) {
+        tyngst = w;
+        cls = c;
+        helt = (hitWhole[i] >> t) & 1;
+      }
+    }
+    /* Poängen har tre led och de väger i den här ordningen: hela frågan i
+       följd, sedan att det tyngsta ordet är ett helt ord, sedan orden själva.
+       För en hel träff är summan lika för alla rader och de två bonusarna
+       avgör; för en nästan-träff är det tvärtom. */
+    score += hitPhrase[i] * 2 + helt;
 
     const row = rows[i];
     const name = row[0];
@@ -863,18 +1194,42 @@ function gather(q: string, keep: number, term: string): Groups {
       avreg: index.avreg.has(i),
     });
 
-    if (at === 0) offer(namePrefix, keep, name, make);
-    else if (at < nameEnd[i] && wordStart(h, at)) offer(nameWord, keep, name, make);
-    else offer(loose, keep, name, make);
+    if (hel) {
+      count++;
+      /*
+       * HELA FRÅGAN I FÖLJD ÄR VÄRD ETT STEG NÄRMARE NAMNET.
+       *
+       * Ordindelningen kostade annars adressökningen dess bästa rad. "birger
+       * jarlsgatan 4" gick från 16 träffar till 22, och bland de sex nya låg
+       * "Monster Chicken, Birger Jarlsgatan" på Birger jarlsgatan 34: den bär
+       * gatan i sitt NAMN och en fyra inuti ett husnummer, alltså såg den ut
+       * som en namnträff och la sig över Riche, som ligger på precis den
+       * adress som skrevs. Uppmätt: Riche föll från plats 1 till plats 2.
+       *
+       * En rad som bär hela frågan i följd flyttas därför ett steg uppåt i
+       * klasserna och står dessutom först inom sin klass. Det är samma
+       * rangordning som fanns före ordindelningen, med de nya raderna under i
+       * stället för i vägen.
+       */
+      const rank = hitPhrase[i] && cls > 0 ? cls - 1 : cls;
+      const hink = rank === 0 ? namePrefix : rank === 1 ? nameWord : loose;
+      offerScored(hink, keep, score, 0, name, make);
+      continue;
+    }
+
+    partialCount++;
+    offerScored(partial, keep, score, cls, name, make);
   }
 
   return {
     kommunPrefix,
     omradePrefix,
-    namePrefix,
-    nameWord,
+    namePrefix: namePrefix.map((p) => p.item),
+    nameWord: nameWord.map((p) => p.item),
     kommunLoose,
-    loose,
+    loose: loose.map((p) => p.item),
+    partial: partial.map((p) => p.item),
+    partialCount,
     count,
     term,
     didYouMean: null,
@@ -890,10 +1245,21 @@ function gather(q: string, keep: number, term: string): Groups {
  */
 export function collect(q: string, keep: number): Groups {
   const key = foldKey(q);
-  // En fråga som bara består av skiljetecken viks till ingenting, och en tom
-  // nyckel finns i varje rad på plats noll. Utan den här raden hade "&&" gett
-  // sju godtyckliga verksamheter och sett ut som ett svar.
-  if (!key) {
+  /*
+   * EN NYCKEL PÅ ETT TECKEN ÄR INGET SVAR.
+   *
+   * En fråga som bara består av skiljetecken viks till ingenting, och en tom
+   * nyckel finns i varje rad på plats noll: utan den här raden gav "&&" sju
+   * godtyckliga verksamheter och såg ut som ett svar.
+   *
+   * Ett tecken är samma fel en storlek större, och det hittades när frågorna i
+   * docs/63 kördes: "zzzzz" viks till "s", eftersom z blir s och dubbletter
+   * faller bort, och "s" står i 16 674 av 17 146 rader. Sidan svarade alltså
+   * med hela registret på fem tecken nonsens. En fråga på två tecken eller mer
+   * som viks till ETT är alltid samma bokstavsljud upprepat, aldrig ett namn
+   * någon söker, och det svaret är noll.
+   */
+  if (!key || (key.length < 2 && q.length > 1)) {
     return {
       kommunPrefix: [],
       omradePrefix: [],
@@ -901,13 +1267,15 @@ export function collect(q: string, keep: number): Groups {
       nameWord: [],
       kommunLoose: [],
       loose: [],
+      partial: [],
+      partialCount: 0,
       count: 0,
       term: q,
       didYouMean: null,
     };
   }
 
-  const groups = gather(key, keep, q);
+  const groups = run(key, keep, q);
   if (groups.count >= NEAR_MIN) return groups;
 
   const fix = repair(key);
@@ -930,10 +1298,62 @@ export function collect(q: string, keep: number): Groups {
     return groups;
   }
 
-  const better = gather(fix.key, keep, fix.key);
+  const better = run(fix.key, keep, fix.key);
+  /* En rättning som inte hittar något får inte kosta oss nästan-träffarna.
+     "max burgare" är fallet: hela frasen finns ingenstans, men de trettiofyra
+     MAX-raderna gör det, och en rättad fras utan en enda träff är ett sämre
+     svar än de raderna. */
+  if (better.count === 0 && better.partial.length === 0 && groups.partial.length > 0) {
+    return groups;
+  }
   better.didYouMean = fix.didYouMean;
   return better;
 }
+
+/**
+ * Ett helt sökpass: svep, vikter och rankning.
+ *
+ * NÄR NÄSTAN-KLASSEN FYLLS, och alla tre villkoren är nödvändiga:
+ *
+ *   Frågan har mer än ett ord. Ett ensamt ord har ingen delmängd att falla
+ *   tillbaka på, och passet ska då bete sig exakt som förut.
+ *
+ *   Hela frågan gav färre än RELAX_MIN träffar. Gav den fler har besökaren
+ *   redan fått ett svar på det hon skrev, och att fylla på med rader som bara
+ *   bär hälften av orden vore att sänka listan. "max stockholm" ger 39 hela
+ *   träffar och ser därför aldrig ett enda nästan-svar.
+ *
+ *   Varje ord finns någonstans i registret. Det är det villkor som håller
+ *   "mcdonalds göteborg" och "sushi kalmar" på noll: vi täcker inte de
+ *   kommunerna, och ett ord vi aldrig sett är ett ord besökaren menade på
+ *   riktigt. Att då visa McDonald's i Örebro vore att svara på en fråga som
+ *   inte ställdes.
+ */
+function run(key: string, keep: number, term: string): Groups {
+  const toks = tokens(key);
+  const full = scan(toks, key);
+  /* Vikterna räknas ALLTID, inte bara när nästan-klassen fylls: de avgör vilket
+     av radens ord som bestämmer klassen, se `gather`. Åtta logaritmer per
+     fråga. */
+  weigh(toks, index.hay.length);
+  const delvis =
+    toks.length > 1 && full < RELAX_MIN && hitDf.every((df, t) => t >= toks.length || df > 0);
+  return gather(toks, key, keep, term, delvis);
+}
+
+/**
+ * Så många hela träffar som räcker för att nästan-träffarna ska tiga.
+ *
+ * Tio, och talet är mätt och inte tyckt. Provat mot de 49 frågorna i docs/63 i
+ * tre lägen: alltid på, tröskel tio och tröskel fyrtio. Skillnaden mellan tio
+ * och fyrtio är noll rader i de fyrtionio utfallen, eftersom ingen fråga i
+ * listan landar mellan de två. Skillnaden mot "alltid på" är däremot stor:
+ * "max odenplan" har en enda hel träff och den är rätt, och med klassen alltid
+ * påslagen följde 3 800 rader med som bar antingen "max" eller "odenplan"
+ * under den. Tröskeln finns alltså för att ett bra svar inte ska dränkas i ett
+ * sämre.
+ */
+const RELAX_MIN = 10;
 
 // ---- Avståndspasset -------------------------------------------------------
 
@@ -1143,11 +1563,30 @@ function nearest(word: string, max: number): Candidate[] {
   return top;
 }
 
-/** Hur många rader söknyckeln träffar. Räknar bara, bygger ingenting. */
+/**
+ * Hur många rader söknyckeln träffar. Räknar bara, bygger ingenting.
+ *
+ * Ord för ord och inte som en sträng, av samma skäl som sökningen själv, se
+ * `tokens`. Annars hade rättningen prövats mot en regel som inte längre gäller:
+ * "espreso huse" rättas till "espresso house", och den frasen står bara i
+ * följd i namnen. Med orden var för sig håller provet även när rättningen
+ * gäller ett ord som står i adressen eller i kategorin.
+ */
 function countRows(key: string): number {
   const hay = index.hay;
+  const toks = tokens(key);
   let n = 0;
-  for (let i = 0; i < hay.length; i++) if (hay[i].indexOf(key) >= 0) n++;
+  for (let i = 0; i < hay.length; i++) {
+    const h = hay[i];
+    let alla = true;
+    for (let t = 0; t < toks.length; t++) {
+      if (h.indexOf(toks[t]) < 0) {
+        alla = false;
+        break;
+      }
+    }
+    if (alla) n++;
+  }
   return n;
 }
 
@@ -1163,7 +1602,10 @@ function spelling(key: string): string {
   for (let i = 0; i < hay.length; i++) {
     if (hay[i].indexOf(key) < 0) continue;
     const row = rows[i];
-    const text = `${row[0]} ${row[1]} ${kommuner[row[3]][1]}`;
+    /* Kategorierna och området står med, eftersom söksträngen bär dem: utan
+       dem hade en rättning som pekade på "Östermalm" eller "pizzeria" inte
+       hittat sin egen stavning och skrivit ut den vikta nyckeln i klartext. */
+    const text = `${row[0]} ${row[1]} ${kommuner[row[3]][1]}${extraText(row)}`;
     for (const w of text.split(/[^\p{L}\p{N}]+/u)) {
       if (w && foldKey(w) === key) return w;
     }
@@ -1301,6 +1743,9 @@ export function ranked(g: Groups): Suggestion[] {
   /* Områdena direkt efter kommunerna och FÖRE verksamheterna. Den som skriver
      "Östermalm" vill till stadsdelen, inte till en pizzeria som råkar ha ordet
      i sin adress. */
+  /* Nästan-träffarna SIST och aldrig blandade med de hela. Den som skrivit tre
+     ord ska se svaret på alla tre först, och raderna som bara bär två ska ligga
+     under dem och inte emellan. */
   return [
     ...g.kommunPrefix,
     ...g.omradePrefix,
@@ -1308,6 +1753,7 @@ export function ranked(g: Groups): Suggestion[] {
     ...g.nameWord,
     ...g.kommunLoose,
     ...g.loose,
+    ...g.partial,
   ];
 }
 

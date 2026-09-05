@@ -24,12 +24,52 @@
  */
 import { createHash } from 'node:crypto';
 import { establishments, municipalities } from './data';
-import { linkedAreas } from './omraden';
+import { matkategori, matkategorierFor, type MatkategoriId } from './matkategori';
+import { areaOf, linkedAreas } from './omraden';
 import { avregistrerad } from './registrering';
 import { utsnitt } from './kartrutor';
 
 /** Ordningen speglar VERDICTS. -1 = ingen bedömning. */
 const VERDICTS = ['clean', 'minor', 'major'];
+
+/**
+ * VARDAGSORDEN FÖR EN MATKATEGORI, bara som söktext.
+ *
+ * Kategorinamnet ensamt räcker inte, och skälet är vikningen: "Pizza" viks till
+ * "pisa" och "pizzeria" till "piseria", alltså är det ena inte ett prefix av
+ * det andra och den som skriver kedjans eller sortens vardagsord får noll. Det
+ * är samma sak för Burgare och "hamburgare", som är HELA hål ett: 34 MAX i
+ * registret, ordet "hamburgare" i två av namnen.
+ *
+ * Orden är AVSIKTLIGT bara böjningar och vardagsformer av kategorins eget namn.
+ * Ingen underkategori står här: en `cuisine=japanese` är Asiatiskt och ska inte
+ * bli sökbar på "kinesiskt", för det vore ett påstående om maten som datan inte
+ * bär. Samma gräns som kartan drar mellan sökord och filter, se props.mk i
+ * lib/kartrutor.ts.
+ *
+ * Tabellen bor här och inte i lib/matkategori.ts därför att den bara har en
+ * konsument. Kategorin VET vad den heter; att den också går att söka på med
+ * ett annat ord är sökningens sak.
+ */
+const MATKATEGORI_SOKORD: Partial<Record<MatkategoriId, string>> = {
+  livsmedel: 'livsmedelsbutik matbutik mataffär',
+  snabbmat: 'gatukök',
+  'cafe-fik': 'kafé fik kaffe',
+  pizza: 'pizzeria pizzor',
+  asiatiskt: 'asiatisk asiatiska',
+  bar: 'barer',
+  burgare: 'hamburgare burger burgers',
+  italienskt: 'italiensk italienska',
+  bageri: 'bagare bageriet',
+  medelhav: 'medelhavsmat',
+  sallad: 'salladsbar',
+  thai: 'thailändskt thailändsk',
+  indiskt: 'indisk indiska',
+  konditori: 'konditoriet',
+  grill: 'grillbar',
+  mellanostern: 'mellanösterns',
+  glass: 'gelato glassbar',
+};
 
 /**
  * Registret som en enda JSON-sträng.
@@ -51,13 +91,76 @@ function build(): string {
 
   const alla = establishments();
 
-  const rows = alla.map((e) => [
-    e.name,
-    e.address ?? '',
-    e.slug,
-    kommunIndex.get(e.municipality.slug) ?? 0,
-    e.verdict ? (verdictIndex.get(e.verdict) ?? -1) : -1,
-  ]);
+  /*
+   * OMRÅDENA byggs FÖRE raderna, eftersom raderna pekar in i listan.
+   *
+   * Formen är oförändrad, se noten vid `o` längre ner. Det nya är `omradeNr`:
+   * kommun och områdesslug till platsen i listan, plus ett, så att noll kan
+   * betyda "inget område".
+   */
+  const omraden = kommuner.flatMap((m, i) =>
+    linkedAreas(m.slug).map(
+      (a) => [i, a.area.slug, a.area.name, a.count] as [number, string, string, number],
+    ),
+  );
+  const omradeNr = new Map<string, number>();
+  omraden.forEach(([k, slug], i) => omradeNr.set(`${kommuner[k].slug}/${slug}`, i + 1));
+
+  /*
+   * MATKATEGORIERNA SOM KOMBINATIONER, inte som en bitmask per rad.
+   *
+   * Klienten vill ha TEXT att söka i, inte bitar att tolka, och en verksamhet
+   * bär nästan alltid samma uppsättning kategorier som tusen andra. Tabellen
+   * blir därför en rad per FÖREKOMMANDE kombination, och raden bär ett litet
+   * heltal in i den. Mätt på beståndet 2026-09-05: 17 146 rader men bara 138
+   * skilda kombinationer, alltså som mest tre siffror per rad i stället för en
+   * bitmask på upp till sju. Tabellen själv är 7 277 byte.
+   *
+   * Plats noll är tom med flit: noll betyder "ingen kategori", vilket 12 328 av
+   * de 17 146 raderna är.
+   */
+  const mkText: string[] = [''];
+  const mkNr = new Map<string, number>();
+  const kombination = (ids: MatkategoriId[]): number => {
+    if (ids.length === 0) return 0;
+    const nyckel = ids.join(',');
+    const funnen = mkNr.get(nyckel);
+    if (funnen !== undefined) return funnen;
+    const nr = mkText.length;
+    mkText.push(
+      ids
+        .map((id) => `${matkategori(id).namn} ${MATKATEGORI_SOKORD[id] ?? ''}`.trim())
+        .join(' '),
+    );
+    mkNr.set(nyckel, nr);
+    return nr;
+  };
+
+  /*
+   * RADEN ÄR OLIKA LÅNG, och det är ett budgetbeslut och inte slarv.
+   *
+   * De två sista platserna är kategorikombinationen och området, alltså det
+   * som gör "pizzeria odenplan" och "kebab östermalm" sökbara. Ingen av dem
+   * finns på alla rader: 4 818 av 17 146 har en kategori och 7 336 ligger i ett
+   * område med egen sida, 9 347 har minst det ena. Att alltid skriva båda
+   * platserna, alltså `,0,0` på de övriga, mättes till 35 218 byte mer rått och
+   * 2 544 byte mer gzippat. Platserna utelämnas därför när de är tomma, och
+   * klienten läser dem med `?? 0`. Hela tilläggets kostnad står i docs/63.
+   */
+  const rows = alla.map((e) => {
+    const rad: Array<string | number> = [
+      e.name,
+      e.address ?? '',
+      e.slug,
+      kommunIndex.get(e.municipality.slug) ?? 0,
+      e.verdict ? (verdictIndex.get(e.verdict) ?? -1) : -1,
+    ];
+    const mk = kombination(matkategorierFor(e));
+    const omrade = omradeNr.get(`${e.municipality.slug}/${areaOf(e)?.slug}`) ?? 0;
+    if (mk || omrade) rad.push(mk);
+    if (omrade) rad.push(omrade);
+    return rad;
+  });
 
   /*
    * DE AVREGISTRERADE SOM EN LISTA RADNUMMER, inte som ett sjätte fält.
@@ -115,9 +218,16 @@ function build(): string {
      * Antalet följer med så att panelen kan skriva "Östermalm, 412
      * verksamheter" utan ett andra anrop.
      */
-    o: kommuner.flatMap((m, i) =>
-      linkedAreas(m.slug).map((a) => [i, a.area.slug, a.area.name, a.count]),
-    ),
+    o: omraden,
+    /*
+     * KATEGORITEXTERNA, en per förekommande kombination.
+     *
+     * Klienten fogar strängen till radens söktext när registret landar, se
+     * `extraText` i lib/sokforslag.ts. Att den skickas som text och inte som
+     * bitar är hela poängen: sökningen ska kunna hitta ordet utan att veta att
+     * det är en kategori, precis som den hittar ett gatunamn.
+     */
+    mk: mkText,
     v: VERDICTS,
     e: rows,
     /* Radnummer mot `e`, se `avreg` ovan. Nyckeln får inte heta `n`: den är
