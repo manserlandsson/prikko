@@ -74,7 +74,7 @@ const UPDATED = '3 augusti 2026';
   title="Kakor och lagring"
   description="Prikko har ingen spårning och ingen samtyckesruta. Här står exakt vad som lagras i din webbläsare, av vem, när det sker och varför det inte kräver ditt samtycke."
 >
-  <article class="container page">
+  <article class="container read page">
     <header>
       {/* Se villkor.astro för avvägningen. Den här av de tre sidorna är
           dessutom den enda som har ett positivt besked att ge, alltså att det
@@ -267,8 +267,10 @@ const UPDATED = '3 augusti 2026';
 
   .meta { clear: right; }
 
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

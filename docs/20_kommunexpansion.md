@@ -1150,3 +1150,158 @@ på 16,963.
    `geocoding`-blocket. Det är också verifierat i praktiken här, eftersom
    `norrkoping.json` skrevs om av en parallell session efter geokodningen och
    alla 622 nålar stod kvar.
+
+---
+
+## 14. Norrköping i nattjobbet: kommunen som aldrig uppdaterades
+
+*Tillagt 2026-09-05. Kommunen kopplades in 2026-08-31 och stod utanför den
+nattliga körningen i fem dygn utan att något klagade.*
+
+### 14.1 Vad som var fel, och hur det syntes
+
+Norrköping fanns inte i `hamta`-matrisen i
+`.github/workflows/uppdatera-data.yml`, inte i Supabase, och därmed inte i
+exporten. Filen `site/src/data/norrkoping.json` var en ren produkt av en
+manuell körning av `fetch_ecos.py` följd av `geocode.py`.
+
+Det syns i incheckningarna: nattkörningarna 1 till 5 september rörde inte
+norrkoping.json med en enda rad, medan varje annan kommunfil fick ny
+`fetchedAt` varje natt. Ingen grind märkte det, och det finns ingen som kan
+märka det: exporten skriver bara de kommuner som står i `municipalities`, och
+det som aldrig hämtats har ingen rad där.
+
+Det brådskade inte, och det är själva faran. Källan står stilla sedan
+2024-03-17 och en frusen kommun ser likadan ut vare sig den uppdateras eller
+inte. **Men en kommun som aldrig uppdateras ska inte vara det av misstag.**
+Hämtaren pekar sedan 2026-08-31 på nodadressen som omdirigerar till den
+aktuella versionen, se noten över `MUNICIPALITIES` i
+`pipeline/prikko/sources/ecos.py`, alltså plockar den upp ett nytt utdrag av
+sig själv den dag det kommer. Den egenskapen är värdelös så länge hämtaren
+aldrig körs.
+
+### 14.2 Matrisen tål nu en kommun med en annan hämtare
+
+Hämtsteget körde `pipeline/fetch_${{ matrix.kommun }}.py` rakt av, alltså kunde
+bara en kommun med en egen fil stå i matrisen. Någon `fetch_norrkoping.py`
+finns inte och ska aldrig finnas: kommandot är
+
+    python3 pipeline/fetch_ecos.py --kommun norrkoping --out data/norrkoping.json
+
+Lösningen är inte ett undantag för Norrköping utan en fråga i två led. Egen
+fil först, `pipeline/fetch_<slug>.py`. Finns ingen sådan frågas
+`MUNICIPALITIES` i `prikko/sources/ecos.py`, alltså exakt den tabell
+`--kommun` ändå validerar mot. En kommun som varken har en egen fil eller står
+i tabellen faller rött med namnet på det som saknas, i stället för att skickas
+blint till `fetch_ecos.py` och möta argparses "invalid choice" några rader
+senare.
+
+**Nästa Ecos-kommun är därför en rad och inget undantag.** Raden i
+`MUNICIPALITIES` är ändå villkoret för att kommunen ska gå att hämta
+överhuvudtaget, se §9.1, och matrisen behöver bara sluggen.
+
+Prövat lokalt över alla tretton sluggarna plus en påhittad: tolv går till sin
+egen fil, `norrkoping` till formathämtaren, och den påhittade faller.
+
+### 14.3 Följden: exporten tar över filen, och det håller
+
+Första natten upsertar `load_supabase.py` kommunen i `municipalities`, och
+därefter äger `export_supabase.py` filen. Det är den verkliga risken i hela
+ändringen, för exporten bygger varje rad från grunden ur databasen och raderar
+tyst allt som saknar kolumn där. Norrköping bär två sådana uppsättningar och
+båda är hela funktioner: 622 kartnålar och 4 398 diarienummer.
+
+Kontrollerat och inte antaget, mot en KOPIA och aldrig mot
+produktionsdatabasen. Vägen är nattjobbets egen, steg för steg:
+
+1. `fetch_ecos.py --fil pipeline/data/interim/ecos_0581.xml` gav den färska
+   hämtningen, alltså det `data/norrkoping.json` hämtsteget skriver.
+2. Raderna byggdes precis som `load_supabase.py:load()` bygger dem, alltså
+   utan `lat`, `lng`, `caseNumber` och `modifiedAt`, som ingen av dem har en
+   kolumn i Supabase.
+3. `export()` kördes mot en stubbe som svarade med de raderna, i en katalog
+   som var en kopia av `site/src/data`.
+
+**Hämtningen är identisk med den incheckade filen där den ska vara det.** Samma
+1 022 verksamhets-id, samma 1 022 sluggar, samma 4 398 kontroll-id, noll
+skillnader i bedömning. Det är väntat och det är villkoret för att resten ska
+hålla: `local_id` hashar namn och adress och `inspid` är källans eget GUID, så
+båda nyckelrymderna är stabila så länge utdraget är det. Enda skillnaden är
+att den färska filen saknar `geoSource` och `geoPrecision` på de 622, precis
+som §13.7 punkt 5 säger att den ska.
+
+**Exporten mot kopian gav en diff på TVÅ RADER i hela filen.**
+
+| Uppgift | Utfall |
+|---|---|
+| Koordinater | 622 av 622 kvar, noll rader skiljer |
+| `geoSource`, `geoPrecision` | 622 av 622 kvar |
+| Licensblocket `geocoding` | kvar, oförändrat, på samma plats |
+| `caseNumber` | 4 398 av 4 398 kvar, identiska |
+| `source.modifiedAt` | kvar med `2024-03-17` |
+| Nyckelordningen på raden | oförändrad |
+| Radordningen | oförändrad, filen är redan sorterad på id |
+
+De två raderna som ändras är `source.fetchedAt`, som är hela poängen, och ett
+`distinction` som går från `true` till `false` på Johannesskolan. Den andra är
+ingen förlust utan klockan: `assess()` räknar mot dagens datum vid varje
+hämtning, och på en frusen källa glider utmärkelserna sakta ut ur fönstret.
+125 blir 124.
+
+**Går de förlorade ska kommunen inte kopplas in.** De gör de inte, och skälet
+är att arbetet redan var gjort: `caseNumber` står i `KONTROLLFALT` och
+`modifiedAt` i `SOURCEFALT` sedan 2026-08-31, båda med Norrköping utskriven i
+kommentaren, och koordinaterna bärs av `filradering` och `FILBLOCK`.
+
+### 14.4 Tre följder till, och de är alla till det bättre
+
+**Norrköpings hämtdatum står inte längre stilla.**
+`site/scripts/utmarkelser.mjs` ankrar femårsfönstret i filens
+`source.fetchedAt` och godtar en glidning på sju dygn, se `CLOCK_DRIFT_DAYS`.
+Norrköpings `fetchedAt` stod på 2026-08-31 och rörde sig inte, alltså växte
+glappet mot dagens datum med ett dygn per dygn medan varje annan kommunfil
+följde med. Nattjobbet flyttar nu fram datumet varje natt, och Norrköping
+slutar därmed vara den fil som drar isär utmärkelseutgåvan. Om det räcker för
+att stänga punkten i `docs/25` är inte mätt här, för den punkten talar om
+tolv dygns glapp och rör mer än Norrköping.
+
+**Bevakningar i Norrköping kan börja larma.** `pipeline/notify.py` jämför
+arbetskopian med HEAD, och en fil som aldrig ändras kan aldrig ge en notis. En
+försämrad bedömning i Norrköping har alltså varit osynlig för den som bevakar
+den, och är det inte längre.
+
+**Första natten är en `seed` och publicerar ingenting.** `rorelse.py registrera`
+märker en utlämning mot en kommun utan tidigare rader som `seed`, se
+`docs`-noten i `pipeline/rorelse.py`. De 1 022 dyker alltså inte upp som
+1 022 nyöppnade verksamheter på rörelsesidan.
+
+### 14.5 Vad som INTE är löst
+
+**`geocode.py` körs inte av nattjobbet, för någon kommun.** Norrköpings 622
+nålar bärs över ur gårdagens fil, alltså överlever de. Men den dag kommunen
+lämnar ett nytt utdrag med nya verksamheter får de nya raderna ingen nål förrän
+någon kör
+
+    python3 pipeline/geocode.py site/src/data/norrkoping.json
+
+för hand. Det är samma läge som för alla tolv andra kommunerna och alltså ingen
+regression, men det är värt att veta innan det färska utdraget kommer.
+
+**Källan är nåbar i dag, men aldrig nådd från en löpare.** Mätt 2026-09-05
+svarar nodadressen `301` till versionen från 2024 och därefter `200` med
+`Last-Modified: Sun, 17 Mar 2024 19:44:35 GMT` och `Content-Length: 7 434 345`,
+alltså byte för byte samma fil som ligger i `pipeline/data/interim/`. Datumet
+stämmer med `source_modified`, så `check_modified` tiger.
+
+Det är mätt härifrån och inte från GitHubs löpare. Norrköping står INTE i
+listan över kommuner som får varna i stället för att fälla, den listan gäller
+tre värdar med ett uppmätt mönster av att inte svara mot Azure westus3. Skulle
+norrkoping.se visa sig bete sig likadant blir det synligt som en röd natt, och
+DÅ är det ett mätvärde att lägga till listan på. Att gissa in kommunen där i
+förväg vore samma fel som augustis gissning om spärrade moln-IP, se
+kommentaren i `.github/workflows/uppdatera-data.yml`.
+
+**Kommunen syns fortfarande inte i `pipeline/fetch_goteborg.py`s sällskap.**
+Göteborg har en hämtare och står inte heller i matrisen, se §10 för varför
+kommunen inte publiceras alls. Att den saknas är ett beslut och inte samma
+lucka som den här.

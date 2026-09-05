@@ -81,7 +81,7 @@ const jsonLd = {
 ---
 
 <Base title={`Utmärkelsen ${e.year}`} description={description} jsonLd={jsonLd} dataUpdated={e.asOf}>
-  <article class="container page">
+  <article class="container read page">
     <header>
       <p class="eyebrow">
         <a href={path('utmarkelser')}>Utmärkelser</a> · fryst {formatDate(e.asOf)}
@@ -255,8 +255,10 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

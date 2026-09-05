@@ -330,8 +330,24 @@ const { search = true, hem = false } = Astro.props;
       right: calc(var(--s-4) + 36px + var(--s-2));
       transform: none;
       /* Wordmarken är 97 px plus radens indrag, menyknappen 36 plus samma.
-         Fältet tar allt däremellan. */
-      inset-inline-start: 132px;
+         Fältet tar allt däremellan.
+
+         SAMMA FORMEL SOM HÖGERKANTEN, och talet var därför 11 px fel.
+         ──────────────────────────────────────────────────────────────────
+         Här stod hårda 132. Uppmätt vid 375 i bygget: wordmarken slutar på
+         113, alltså gav 132 nitton pixlars luft, medan fältet på varje ANNAN
+         sida börjar på 121, alltså åtta. Startsidans fält blev 183 px brett
+         mot 194 på metodiksidan, och de elva pixlarna föll rakt på
+         inmatningen, som är det enda i pillret som ger.
+
+         Elva pixlar är skillnaden mellan att platshållaren "Sök ställe eller
+         ort" ryms och att den kapas: strängen mäter 129 px i fältets 16 px,
+         och utan genvägsmärket får inmatningen 118 med 132 och 129 med 121.
+
+         Skrivet som högerkantens formel i stället för som ett tal, så att de
+         två kanterna inte kan glida isär igen: indrag plus märkets bredd plus
+         samma 8 px luft som står mellan fältet och hamburgaren. */
+      inset-inline-start: calc(var(--s-4) + 97px + var(--s-2));
       transition: none;
     }
 

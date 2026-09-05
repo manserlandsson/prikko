@@ -30,7 +30,7 @@ const jsonLd = {
   description="Prikko samlar svenska kommuners offentliga livsmedelskontroller och gör dem jämförbara. Oberoende, inte en myndighet, och tar inte betalt av verksamheterna vi bedömer."
   jsonLd={jsonLd}
 >
-  <article class="container page">
+  <article class="container read page">
     <header>
       {/* Maskoten som AVSÄNDARE, vilket är hela hans definition. Om-sidan är
           den renaste formen av ytan: sajten talar om sig själv, ingen
@@ -145,8 +145,10 @@ const jsonLd = {
     clear: both;
   }
 
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

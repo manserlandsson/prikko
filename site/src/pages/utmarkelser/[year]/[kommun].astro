@@ -72,7 +72,7 @@ const jsonLd = {
   jsonLd={jsonLd}
   dataUpdated={e.asOf}
 >
-  <article class="container page">
+  <article class="container read page">
     <nav class="crumbs text-secondary" aria-label="Brödsmulor">
       <a href={path('utmarkelser')}>Utmärkelser</a>
       <span aria-hidden="true">›</span>
@@ -132,8 +132,10 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-8) var(--s-16);
   }
 

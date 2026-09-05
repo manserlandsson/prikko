@@ -17,6 +17,21 @@ export interface Fact {
   unit?: string;
   /** Färgar värdet. Utelämna för neutral text. */
   color?: string;
+  /**
+   * Färgprick före etiketten, som CSS-värde, när raden är teckenförklaring
+   * till en stapel ovanför.
+   *
+   * Prickens mått är Fordelning.astro:s, ned till pixeln: 10 x 10, radie 3,
+   * 8 px före etiketten och en pixel upp så att den inte hänger under raden.
+   * Kommunhubbens och verksamhetspanelens fördelningar har den redan, och
+   * kedjesidan hade en stapel i fyra färger med en helt oprickad rad under.
+   * Färgen kunde alltså inte kopplas till någon text.
+   *
+   * Prickar bara VÄRDET som redan står i klartext bredvid; den är aldrig
+   * ensam informationsbärare, se tokens.css. Utelämnad ritas ingenting, och
+   * verksamhetssidans faktarad ser därför ut precis som förut.
+   */
+  dot?: string;
   tip?: string;
 }
 
@@ -41,6 +56,7 @@ const { title, titleTip, facts } = Astro.props;
     {facts.map((f) => (
       <div class="cell">
         <p class="label">
+          {f.dot && <span class="prick" style={`background:${f.dot}`} aria-hidden="true"></span>}
           {f.label}
           {f.tip && <InfoTip label={f.label} text={f.tip} />}
         </p>
@@ -77,6 +93,22 @@ const { title, titleTip, facts } = Astro.props;
     color: var(--text-secondary);
     display: flex;
     align-items: center;
+  }
+
+  /* Samma prick som i Fordelning.astro, samma mått av samma skäl: två
+     teckenförklaringar på samma sajt får inte ha var sin form. Betydelsen
+     står i texten bredvid, alltså bär prickens kontrast ingen information
+     och behöver inte klara 3:1.
+
+     Luften ligger på prickens marginal och inte som `gap` på raden. InfoTip
+     bär redan sina egna 6 px margin-left, och ett gap hade lagt 8 px till
+     dem och flyttat varenda informationsprick på verksamhetssidan. */
+  .prick {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    margin-right: var(--s-2);
+    border-radius: 3px;
   }
 
   .value {

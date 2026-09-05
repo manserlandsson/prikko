@@ -106,7 +106,7 @@ const jsonLd = {
 ---
 
 <Base title="Dekalen till fönstret" description={description} jsonLd={jsonLd}>
-  <article class="container page">
+  <article class="container read page">
     <header>
       <h1>Dekalen till fönstret</h1>
       <p class="lede text-secondary">
@@ -257,8 +257,10 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 
@@ -287,19 +289,24 @@ const jsonLd = {
     gap: var(--s-6);
   }
 
-  .parad h2 {
-    font-size: var(--fs-h-s);
-    line-height: var(--lh-h-s);
-    margin-bottom: var(--s-3);
-  }
+  /* MITTBLOCKET HAR SIDANS GRAD OCH INGEN EGEN, rättat 2026-09-05.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod `--fs-h-s` på rubriken och `--fs-body-s` på prosan, alltså 21 px
+     och 14 px. Uppmätt vid 1440 i bygget före rättelsen: ingressen 17 px i
+     584 px spalt, blocket 14 px i 300 px spalt, "Måtten" tillbaka på 17 px.
+     Tre grader brödtext på samma nivå i samma dokument, och rubrikerna 21
+     mot 24. Radlängden i blocket blev omkring 38 tecken, halva sajtens mått.
 
-  .parad p {
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-  }
+     Regeln som avgör står i Kontrollserien.astro: "en ny komponent ärver
+     graden från den komponent den står INUTI, inte från sidans generella
+     brödtext." Blocket står inte inuti något. Det har varken kort, ram eller
+     bottenplatta, alltså är sidan det står i, och sidans grad är 17 och 24.
 
-  .parad p + p { margin-top: var(--s-3); }
+     Reglerna är därför borta i stället för omskrivna: `section h2` och
+     `section p` några rader upp säger redan rätt sak, och en sida med två
+     ställen som sätter samma grad glider isär förr eller senare. Det tar
+     dessutom bort skillnaden mot emblemsidans .parad, som aldrig hade någon
+     egen grad och som kommentaren ovan lovar att den här ska likna. */
 
   .prov {
     flex: none;

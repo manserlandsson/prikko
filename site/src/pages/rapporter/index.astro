@@ -47,7 +47,7 @@ const jsonLd = {
   jsonLd={jsonLd}
   dataUpdated={updated}
 >
-  <article class="container page">
+  <article class="container read page">
     <header>
       {/* `hittat` får sin första yta här, och den är rätt vald och inte bara
           ledig. Läget betyder "något hittades och det är sidans poäng", och
@@ -123,8 +123,10 @@ const jsonLd = {
      ett fel. */
   .list { clear: right; }
 
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

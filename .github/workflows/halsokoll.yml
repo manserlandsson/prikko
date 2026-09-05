@@ -1,0 +1,276 @@
+name: Hälsokoll
+
+# Frågar den PUBLICERADE sajten om den är RÄTT, inte om den är uppe.
+#
+# site/scripts/halsokoll.mjs skrevs 2026-08-31 och kördes fram till 2026-09-05
+# av ingenting. Skälet var att GitHub Actions låg spärrat på en betalning, och
+# just den spärren är ett av de två fel skriptet finns för att fånga: nattjobbet
+# hade inte kört sedan 18 augusti och byggrinden inte sedan 27 augusti, sajten
+# svarade 200 hela tiden, och ingenting larmade. Ett skript som inte körs är
+# samma tystnad en gång till.
+#
+# Varje kontroll i skriptet motsvarar ett fel som faktiskt har inträffat. Läs
+# skriptets inledning innan du lägger till en.
+
+on:
+  schedule:
+    # 06:17 UTC, alltså 08:17 svensk sommartid. Talet är räknat och inte valt:
+    # nattjobbet startar 03:17 UTC, tar omkring 50 minuter från utcheckning
+    # till push, och därefter bygger Cloudflare Pages om sajten ur repot. Tre
+    # timmar ger alltså över en timmes marginal även när GitHubs köer drar ut
+    # på starten, och kollen mäter den sajt natten faktiskt lämnade efter sig.
+    #
+    # Udda minut av samma skäl som i uppdatera-data.yml.
+    #
+    # EN GÅNG OM DYGNET, OCH DET RÄCKER. Ingen kontroll i skriptet gäller ett
+    # ögonblick: färskhetsgrinden mäter i DYGN, tre för varning och tio för
+    # fel, och de andra sex frågar om ett tillstånd som består tills någon
+    # ändrar det. En andra cron-rad mitt på dagen halverar upptäcktstiden för
+    # en trasig dagsutrullning, och det är knappen att vrida på den dag det
+    # visar sig behövas.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      adress:
+        description: 'Sajt att mäta (tomt = https://prikko.se)'
+        required: false
+        type: string
+
+# INTE EFTER UTRULLNINGEN, och det är prövat och inte antaget.
+#
+# Kollen mäter den publicerade sajten, alltså kan den inte köras före en
+# deploy. Frågan är om den kan köras EFTER en, och svaret är att Actions inte
+# ser utrullningen:
+#
+#   - Cloudflare Pages bygger direkt ur repot och inte genom ett steg här, så
+#     det finns inget jobb att hänga efter.
+#   - `on: deployment_status` fungerar inte. Mätt 2026-09-05: repots
+#     deployments-API svarar med NOLL deployments, alltså skapar integrationen
+#     inga GitHub-deployments att lyssna på.
+#   - `on: check_run` skulle fungera formellt. Cloudflare rapporterar som en
+#     check run vid namn "Cloudflare Pages". Men den checken har samma
+#     `started_at` som `completed_at`, alltså säger den ingenting om när sajten
+#     är ute i kanten, och den skapas för varje förhandsutrullning på varje
+#     gren. En hälsokoll mot prikko.se efter ett grenbygge mäter fel sajt.
+#
+# Det som återstår är alltså ett schema lagt så att det ligger efter både
+# nattjobbet och Cloudflares bygge, och det är raden ovan. Priset är att en
+# trasig utrullning mitt på dagen upptäcks först nästa morgon. Det är en känd
+# lucka och den står i docs/25_oppna_punkter.md, inte bortförklarad här.
+
+permissions:
+  contents: read
+  # Larmet är ett ärende i repot. Se steget "Öppna, uppdatera eller stäng
+  # larmet" för varför just det, och inte bara ett rött kryss.
+  issues: write
+
+env:
+  # Tomt värde blir standardadressen redan här, så att skalet nedan kan citera
+  # variabeln. Ett obevakat `$ADRESS` hade ordklyvts av skalet, och `adress` är
+  # det enda i hela arbetsflödet som kommer utifrån.
+  ADRESS: ${{ github.event.inputs.adress || 'https://prikko.se' }}
+
+jobs:
+  koll:
+    name: Hälsokoll mot publicerad sajt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Ingen `npm ci`. Skriptet använder bara `fetch` och `console`, alltså
+      # inbyggda ting i Node 22, och en installation här hade gjort en kontroll
+      # av sajten beroende av att npm svarar.
+      #
+      # `shell: bash` och inte standardskalet, och det är inte kosmetik.
+      # GitHubs default är `bash -e {0}` UTAN pipefail, så `node ... | tee`
+      # hade gett tees slutkod och steget hade blivit grönt varje gång oavsett
+      # vad kollen sade. `shell: bash` ger `bash --noprofile --norc -eo
+      # pipefail`, och då är det nodes slutkod som räknas.
+      #
+      # ETT OMFÖRSÖK, OCH BARA ETT. Sju av kontrollerna går över nätet mot
+      # prikko.se och en åttonde mot prikko.pages.dev. En enskild avbruten
+      # anslutning är väntad och ska inte bli ett ärende i inkorgen; ett fel
+      # som står kvar en minut senare är däremot verkligt. Skriptet ändrar
+      # ingenting och kan köras hur ofta som helst, så omförsöket kostar bara
+      # de sekunder det tar.
+      - name: Kör hälsokollen
+        id: koll
+        continue-on-error: true
+        shell: bash
+        run: |
+          if node site/scripts/halsokoll.mjs "$ADRESS" 2>&1 | tee halsokoll.txt; then
+            exit 0
+          fi
+          echo "Kollen gav fel. Väntar 60 sekunder och frågar en gång till."
+          sleep 60
+          node site/scripts/halsokoll.mjs "$ADRESS" 2>&1 | tee halsokoll.txt
+
+      # Rapporten i klartext på körningens egen sida, oavsett utfall. Den som
+      # klickar sig hit ska slippa öppna en logg för att se vad som mättes.
+      - name: Skriv rapporten i sammanfattningen
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          # Filen finns även när kollen föll, eftersom tee skriver den ändå.
+          # Saknas den föll steget före noden, och det ska synas som text och
+          # inte som ett tomt block.
+          [ -f halsokoll.txt ] || echo "Hälsokollen hann aldrig köra." > halsokoll.txt
+          {
+            echo "## Hälsokoll mot $ADRESS"
+            echo
+            echo '```'
+            cat halsokoll.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # En VARNING fäller inte körningen, se sista steget, men den ska ändå
+      # synas på körningens sida och inte bara i loggen. Dubbletten på
+      # prikko.pages.dev är den enda varningen i dag, och den står kvar: mätt
+      # 2026-09-05 svarar adressen fortfarande 200 med `Allow: /`.
+      - name: Lyft varningarna som annoteringar
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          # `|| true` eftersom grep utan träff avslutar med 1, och en körning
+          # utan varningar är det goda utfallet och inte ett fel i steget.
+          varningar=$(grep '^  VARNING' halsokoll.txt || true)
+          [ -n "$varningar" ] || exit 0
+          printf '%s\n' "$varningar" | sed 's/^  VARNING *//' | while read -r rad; do
+            echo "::warning title=Hälsokoll::$rad"
+          done
+
+      # ETT RÖTT KRYSS ÄR INGEN ÖVERVAKNING, och därför skrivs larmet dit det
+      # syns av sig självt.
+      #
+      # Valet stod mellan tre vägar:
+      #
+      #   - Bara slutkoden. GitHub mejlar visserligen om ett schemalagt
+      #     arbetsflöde fallerar, men det är samma kanal som redan tystnade i
+      #     tolv dagar i augusti, och ett kryss på en sida ägaren inte öppnar
+      #     är precis den tystnad kollen finns för att bryta.
+      #   - Mejl genom Resend, som pipeline/notify.py redan kan. Nyckeln
+      #     RESEND_API_KEY ligger ännu inte som GitHub-hemlighet, se docs/25,
+      #     alltså hade larmet varit dött den dag det behövdes först. Vägen är
+      #     den rätta när nyckeln finns, och den kostar då ett steg till här.
+      #   - ETT ÄRENDE I REPOT. Kräver ingen hemlighet och ingen ändring i
+      #     kontots inställningar: `permissions: issues: write` ovan räcker,
+      #     vilket vi vet fungerar eftersom nattjobbet på samma sätt begär
+      #     `contents: write` och pushar. Ärendet TILLDELAS ägaren, och en
+      #     tilldelning mejlar oavsett hur bevakningen av repot står inställd.
+      #     Det försvinner inte när loggarna gallras, och det syns i appen.
+      #
+      # ETT ÄRENDE OCH INTE ETT PER NATT. Ett larm som upprepar sig varje
+      # morgon läses efter tre dagar som brus. Avtrycket är en hash av
+      # FEL-raderna: står samma fel kvar uppdateras ingenting och ingen notis
+      # går ut, medan ett NYTT fel skriver en kommentar och mejlar igen.
+      #
+      # Och det stängs av sig självt när kollen går igenom. Ett ärende som står
+      # öppet efter att felet är lagat lär ägaren att inte lita på nästa.
+      - name: Öppna, uppdatera eller stäng larmet
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UTFALL: ${{ steps.koll.outcome }}
+          AGARE: ${{ github.repository_owner }}
+          KORNING: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # BARA FÖR SKARPA ADRESSEN. En handkörning mot någon annan sajt får
+          # varken öppna ett larm om produktionen eller stänga ett som står
+          # öppet om den.
+          if [ "$ADRESS" != "https://prikko.se" ]; then
+            echo "Mätningen gällde $ADRESS och inte den skarpa sajten. Rör inte larmet."
+            exit 0
+          fi
+
+          rubrik='Hälsokollen larmar'
+
+          # Etiketten skapas en gång och finns sedan. `|| true` eftersom
+          # kommandot svarar med fel när den redan gör det.
+          gh label create halsokoll \
+            --description 'Larm från .github/workflows/halsokoll.yml' \
+            --color B60205 >/dev/null 2>&1 || true
+
+          nummer=$(gh issue list --label halsokoll --state open --limit 100 \
+            --json number,title \
+            --jq "[.[] | select(.title == \"$rubrik\")] | .[0].number // empty")
+
+          if [ "$UTFALL" != "failure" ]; then
+            if [ -n "$nummer" ]; then
+              gh issue comment "$nummer" --body \
+                "Hälsokollen går igenom igen $(date -u '+%Y-%m-%d %H:%M') UTC. Stänger larmet. [Körningen]($KORNING)"
+              gh issue close "$nummer"
+              echo "Larm #$nummer stängt."
+            else
+              echo "Kollen går igenom och inget larm står öppet."
+            fi
+            exit 0
+          fi
+
+          felrader=$(grep '^  FEL' halsokoll.txt || true)
+          if [ -z "$felrader" ]; then
+            # Ingen FEL-rad men ändå slutkod skild från noll: skriptet självt
+            # föll, till exempel för att sajten inte gick att nå alls. Det är
+            # också värt ett larm, och avtrycket får bli slutet av utskriften
+            # så att två olika kraschar räknas som två olika fel.
+            felrader="Hälsokollen kunde inte slutföras. Slutet av utskriften:
+
+          $(tail -n 20 halsokoll.txt)"
+          fi
+          avtryck=$(printf '%s' "$felrader" | sort | sha256sum | cut -c1-12)
+
+          brev=$(printf '%s\n' \
+            "Hälsokollen mot den publicerade sajten hittade fel." \
+            "" \
+            '```' \
+            "$felrader" \
+            '```' \
+            "" \
+            "Hela rapporten står i [körningens sammanfattning]($KORNING)." \
+            "" \
+            "Kollen körs av \`.github/workflows/halsokoll.yml\` och mäter med" \
+            "\`site/scripts/halsokoll.mjs\`. Varje kontroll i skriptet svarar mot" \
+            "ett fel som faktiskt har inträffat, och skriptets inledning säger vilket." \
+            "" \
+            "Ärendet stängs av sig självt nästa gång kollen går igenom." \
+            "" \
+            "<!-- avtryck: $avtryck -->")
+
+          if [ -z "$nummer" ]; then
+            url=$(gh issue create --title "$rubrik" --label halsokoll \
+              --assignee "$AGARE" --body "$brev")
+            echo "Larm öppnat: $url"
+            exit 0
+          fi
+
+          # Står samma fel kvar sedan i går ska ingen ny notis gå ut. Avtrycket
+          # letas i både texten och kommentarerna, eftersom ett fel som kommer
+          # tillbaka efter ett annat ligger i en kommentar och inte i texten.
+          if gh issue view "$nummer" --json body,comments \
+               --jq '.body, .comments[].body' | grep -qF "avtryck: $avtryck"; then
+            echo "Larm #$nummer står redan öppet för samma fel ($avtryck). Ingen notis."
+            exit 0
+          fi
+
+          gh issue comment "$nummer" --body "$brev"
+          echo "Larm #$nummer uppdaterat med ett nytt fel ($avtryck)."
+
+      # SIST, av samma skäl som i uppdatera-data.yml: larmet ska vara skrivet
+      # innan körningen faller, annars hade `if: failure()` fått styra vilka
+      # steg som hinner köra.
+      #
+      # SLUTKODEN FÅR AVGÖRA, OCH DEN ÄR AVSIKTLIG. halsokoll.mjs avslutar med
+      # 1 vid FEL och 0 vid VARNING, och skillnaden är skriven med mening: ett
+      # FEL är något som är trasigt för besökaren eller för Google just nu, en
+      # VARNING är något vi redan vet om och har beslutat att leva med tills
+      # vidare. Att lägga `continue-on-error` här hade gjort båda till samma
+      # sak, alltså till ingenting.
+      - name: Fäll körningen om något var FEL
+        if: ${{ steps.koll.outcome == 'failure' }}
+        run: exit 1

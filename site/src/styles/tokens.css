@@ -492,6 +492,21 @@
      för 680, alltså exakt de 96 px paddingen tar. */
   --container-luft: clamp(var(--s-4), 4vw, 48px);
 
+  /* Lässidans behållarmått, alltså --w-read plus den luft behållaren äter.
+     ────────────────────────────────────────────────────────────────────────
+     Varningen ovanför beskrev fällan men lämnade räkningen åt varje sida, och
+     tretton sidor räknade fel. Uppmätt i bygget vid 1440 den 2026-09-05:
+     /metodik/ läste 680 px och /kallor/, /om/, /villkor/, /utmarkelser/,
+     /cookies/, /integritetspolicy/, /dekal/, /rapporter/ samt artikel- och
+     rapportmallen läste 584, alltså 96 px smalare. Ingen av dem hade valt
+     584; alla hade skrivit `max-width: var(--w-read)` på en `.container`.
+
+     Talet är alltså inte till diskussion, det är 680 och står i --w-read.
+     Det som saknades var en plats att skriva behållarens mått EN gång.
+     Använd `.container.read` nedan, inte den här variabeln direkt: klassen
+     finns för att en lässida inte ska behöva räkna alls. */
+  --w-read-behallare: calc(var(--w-read) + 2 * var(--container-luft));
+
   /* Gamla namn. Pekar på samma värden så att ingenting flyttar sig.
      Ny kod skriver --w-wide och --w-read. */
   --container: var(--w-wide);
@@ -615,6 +630,26 @@ img, svg { max-width: 100%; height: auto; }
    * För --w-read på 680 sker det först under 776 px, och där är 4vw omkring
    * 30, alltså inte de fulla 48. */
   padding-inline: var(--container-luft);
+}
+
+/* LÄSSIDANS BEHÅLLARE. En rad här i stället för en rad per sida.
+   ──────────────────────────────────────────────────────────────────────────
+   Sajtens textsidor är en enda spalt brödtext, och den spalten är --w-read på
+   varenda en av dem. Ägaren har varit uttrycklig om att sidbredden gäller
+   hela sajten och inte sätts per sida, och tretton sidor hade ändå satt den
+   var för sig. Alla tretton satte den fel, på samma sätt: `max-width:
+   var(--w-read)` rakt på `.container`, som är border-box och därför drar av
+   sina två gutters. Utfallet var 584 px text vid 1440 mot metodiksidans 680.
+
+   Klassen är därför det enda en lässida behöver skriva. Den räknar inte, den
+   väljer inte, den lägger bara luften utanför måttet i stället för innanför.
+
+   VAR DEN INTE HÖR HEMMA: sidor med flera spalter. `/api/`, /hjalp/ och
+   /kontakt/ är `.container` i sin fulla bredd med brödtexten låst spalt för
+   spalt, och /metodik/ har ett eget rutnät med en förteckning bredvid texten.
+   De bär skyldigheten själva och ska fortsätta göra det. */
+.container.read {
+  max-width: var(--w-read-behallare);
 }
 
 .card {

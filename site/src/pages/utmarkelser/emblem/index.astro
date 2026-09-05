@@ -120,7 +120,7 @@ const jsonLd = {
   jsonLd={jsonLd}
   dataUpdated={edition.asOf}
 >
-  <article class="container page">
+  <article class="container read page">
     {/* Brödsmulor och inte en eyebrow. Utgåvans kommunsidor ser likadana ut,
         och en eyebrow som säger "Utmärkelser" ovanför en brödsmula som redan
         säger Utmärkelser är samma ord två gånger på två rader. */}
@@ -361,8 +361,10 @@ const jsonLd = {
 </Base>
 
 <style>
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

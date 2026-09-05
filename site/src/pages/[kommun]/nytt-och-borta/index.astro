@@ -104,8 +104,10 @@ function line(event: MovementEvent) {
     <nav class="crumbs" aria-label="Brödsmulor">
       <a href="/">Prikko</a>
       <span aria-hidden="true">›</span>
+      {/* Pilen hör till smulan EFTER den och skrivs aldrig sist.
+          Här stod en avslutande pil som pekade på ingenting, se
+          docs/57 punkt 16. Samma form som .crumbs i KommunHub.astro. */}
       <a href={path(kommun.slug)}>{city}</a>
-      <span aria-hidden="true">›</span>
     </nav>
 
     <h1>Nytt och borta i {city}</h1>

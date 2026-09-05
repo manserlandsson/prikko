@@ -1265,7 +1265,11 @@ const jsonLd = {
    * listan halverar dess höjd. */
   @media (max-width: 1043px) {
     .page {
-      max-width: calc(var(--w-read) + 2 * var(--container-luft));
+      /* Samma mått som `.container.read` i tokens.css, hämtat ur samma token
+         så att lässidans bredd står på ett enda ställe. Sidan behåller sin
+         egen regel i stället för klassen: `.container.read` väger två klasser
+         och hade slagit ut det tvåspaltiga taket ovanför. */
+      max-width: var(--w-read-behallare);
       display: block;
     }
 

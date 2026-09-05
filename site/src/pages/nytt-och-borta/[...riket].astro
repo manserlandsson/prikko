@@ -76,8 +76,10 @@ const jsonLd = {
 >
   <div class="container page">
     <nav class="crumbs" aria-label="Brödsmulor">
+      {/* Pilen hör till smulan EFTER den och skrivs aldrig sist.
+          Här stod en avslutande pil som pekade på ingenting, se
+          docs/57 punkt 16. Samma form som .crumbs i KommunHub.astro. */}
       <a href="/">Prikko</a>
-      <span aria-hidden="true">›</span>
     </nav>
 
     <h1>Nytt och borta</h1>

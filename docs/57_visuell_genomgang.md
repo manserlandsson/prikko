@@ -1,6 +1,19 @@
 # 57. Visuell genomgång
 
-Inventering, inte lagning. Ingenting i listan är rättat.
+Inventering, inte lagning. Ingenting i listan var rättat när den skrevs.
+
+ÖVERSTRUKNA RUBRIKER ÄR LAGADE 2026-09-05, och under var och en står vad som
+gjordes och vad det mättes till efter bygget. Punkt 3, 5, 6, 10 och 16 är hela,
+punkt 8 till hälften. Fynden står kvar oredigerade under rättelsen: de är
+mätningen som fanns, och den ska gå att läsa om igen.
+
+EN RÄTTELSE TILL SJÄLVA MÄTNINGEN, punkt 3. Genvägsmärket var redan släckt på
+en riktig pekskärm, för villkoret `(hover: hover) and (pointer: fine)` faller
+där. De 62 px mättes alltså i en vy på 375 px som ändå rapporterar en fin
+pekare, alltså en smal datorruta eller en emulering utan pekskärm. Felet finns,
+men det gällde inte telefonen; det gällde varje smal ruta med tangentbord. Nästa
+genomgång bör slå på pekskärmsemulering innan den fotograferar 375, annars mäter
+den ett läge ingen telefon har.
 
 ## Hur den är gjord
 
@@ -66,9 +79,18 @@ Enskilda nålar ritas dessutom ovanpå bubblorna, så en grön nål sitter mitt 
 diameter, annars kan två kluster aldrig undvika varandra. Bubblan är upp till
 56 px vid "8.6k" och kluster ritas i dag med mindre avstånd än så.
 
-## 3. Sökrutan på mobil: 62 px att skriva i, 48 px åt en tangentbordsgenväg
+## ~~3. Sökrutan på mobil: 62 px att skriva i, 48 px åt en tangentbordsgenväg~~
 
 **Sidtyp** alla, sidhuvudet **Bredd** 375 **Bild** `z-mobilhuvud.png`
+
+**RÄTTAT 2026-09-05.** Genvägsmärket krävde bara `(hover: hover) and (pointer:
+fine)`, alltså ett svar på vad man pekar med och inte på om fältet har råd med
+märket. Villkoret i `SiteSearch.astro` fick `and (min-width: 640px)`, samma tal
+som platshållaren redan byter vid. Startsidans dock i `Header.astro` hade
+dessutom hårda `inset-inline-start: 132px` mot fältets 121 på varje annan sida,
+och är nu skriven som högerkantens formel. Uppmätt vid 375 efter bygget:
+inmatningen 133 px mot 62, platshållaren "Sök ställe eller ort" mäter 129 och
+ryms hel. Vid 1440 syns märket som förut, med 257 px kvar åt texten.
 
 Formuläret är 183 px brett. Av det får själva inmatningsfältet **62 px**, medan
 `.palette-hint` med ⌘ och K tar **48 px** och sökknappen 34. Platshållaren
@@ -97,9 +119,18 @@ handlar om. Attributionen tar 40 av kartans 229 px höjd, 17 procent.
 punkterna utanför området tonas ned med samma opacitet som underlaget. Och
 attributionen behöver en platta, som den har på den fulla kartsidan.
 
-## 5. Åtta lässidor, två spaltbredder
+## ~~5. Åtta lässidor, två spaltbredder~~
 
 **Sidtyp** alla lässidor **Bredd** 1440
+
+**RÄTTAT 2026-09-05.** Bredden är 680 och inte 584, och den bor nu på ett enda
+ställe: `.container.read` i `tokens.css`, byggd av det nya måttet
+`--w-read-behallare`. Tretton sidor satte den var för sig och alla tretton satte
+den fel, alltså de åtta uppmätta plus `/cookies/`, `/integritetspolicy/`,
+`/dekal/`, `/rapporter/` och utmärkelsernas kommun- och emblemsidor. Var och en
+har tappat sin egen `max-width` och skriver klassen i stället. Uppmätt vid 1440
+efter bygget: brödtexten 680 px vid x = 380 på samtliga, mot metodiksidans 680.
+`/api/` och `/konto/` är inte rörda, se punkt 15 och filhuvudet i `api/index.astro`.
 
 Uppmätt brödtextbredd:
 
@@ -123,9 +154,16 @@ skrivit ner att de gick i den och rättat det. De övriga sex sitter kvar.
 `/metodik/` och `/kallor/`. (`/api/` bearbetas just nu och räknas inte som ett
 eget fynd.)
 
-## 6. Dekalsidan sätter brödtext i tre grader på en skärm
+## ~~6. Dekalsidan sätter brödtext i tre grader på en skärm~~
 
 **Sidtyp** `/dekal/` **Bredd** 1440 **Bild** `z-dekal-jamforelse.png`
+
+**RÄTTAT 2026-09-05.** Mittblockets egna `.parad h2` och `.parad p` är borta, så
+blocket ärver sidans `section h2` och `section p`. Regeln som avgör står i
+`Kontrollserien.astro`: en komponent ärver graden från den komponent den står
+inuti, och det här blocket står inte inuti något. Uppmätt vid 1440 efter bygget:
+rubriken 24 px som grannarna, prosan 17 px som ingressen, och spalten 396 px i
+stället för 300 eftersom punkt 5 gav sidan sina 680.
 
 Ovanifrån och ned: ingressen 17 px i 584 px spalt, sedan mittblockets prosa
 **14 px i 300 px spalt**, sedan "Måtten" tillbaka på 17 px i 584 px. Samma nivå i
@@ -155,9 +193,21 @@ i bild.
 Ingen ny färg föreslås här, den frågan är avgjord två gånger. Det här är bara
 platsen där den kostar mest.
 
-## 8. Kedjesidans fördelning saknar prickar och nämner inte den gröna delen
+## ~~8. Kedjesidans fördelning saknar prickar~~, och nämner inte den gröna delen
 
 **Sidtyp** kedjesida **Bredd** 1440 **Bild** `z-kedja-tabell.png`
+
+**HALVT RÄTTAT 2026-09-05.** `FactGrid.astro` har fått en valfri `dot`, med
+Fordelning.astro:s exakta mått, och kedjesidan skickar in stapelns tre färger.
+Uppmätt efter bygget: gul prick vid "Brister", röd vid "Brister som kvarstår",
+grå vid "Ingen bedömning". Verksamhetssidans faktarad skickar ingen prick och
+ser ut precis som förut.
+
+**Den gröna kategorin är INTE tillagd, och det kräver ägarens beslut.**
+`kedja/[kedja].astro` motiverar i skrift varför den saknas: huvudtalet ovanför
+stapeln ÄR den gröna mängden, och "ett tal som redan står på sidan ska inte stå
+två gånger". Att lägga in den fjärde posten motsäger alltså en skriven
+motivering, och det är inte en lagning utan en omprövning.
 
 Stapeln är 82 procent grön och 18 procent gul. Legenden under den listar
 "Brister 6", "Brister som kvarstår 0" och "Ingen bedömning 0", alltså tre
@@ -183,9 +233,15 @@ inte som en stapel utan som ett understreck av slumpmässig längd. Kolumnrubrik
 På 375 blir det värre: stapeln löper från mitten ut till högerkanten och ser ut
 som en avdelare mellan raderna.
 
-## 10. Söksidans kommunlista har inga spalter
+## ~~10. Söksidans kommunlista har inga spalter~~
 
 **Sidtyp** `/sok/` **Bredd** 1440
+
+**RÄTTAT 2026-09-05.** `flex-wrap` bytt mot `repeat(auto-fill, minmax(min(100%,
+200px), 1fr))`. Talet 200 är den längsta etiketten, "Hygienkontroller i
+Kristinehamn", som mäter omkring 195 px i 14 px. Uppmätt vid 1440 efter bygget:
+tre spår på 205,33 px, och alla tretton raderna börjar på x = 388, 617 och 847.
+Spridningen är noll där den var omkring 20 px.
 
 Tretton nästan identiska länkar, "Hygienkontroller i …", flödar med `flex-wrap`
 i stället för ett rutnät. Andra kolumnen börjar på x = **592, 582, 578, 598** och
@@ -258,10 +314,15 @@ enkelspalt. Sidan ser oavslutad ut.
 
 *En annan agent arbetar i kontosidorna, så det här är deras yta.*
 
-## 16. Hängande brödsmulepil
+## ~~16. Hängande brödsmulepil~~
 
 **Sidtyp** `/jamfor/`, `/nytt-och-borta/`, `/stockholm/nytt-och-borta/`
 **Bredd** båda **Bild** `z-jamfor-brodsmula.png`
+
+**RÄTTAT 2026-09-05.** Den avslutande pilen är borta på alla tre sidorna. Formen
+är nu KommunHub.astro:s, där pilen hör till smulan EFTER sig och därför aldrig
+kan bli sist. Uppmätt i bygget: `/jamfor/` och `/nytt-och-borta/` läser "Prikko",
+`/stockholm/nytt-och-borta/` läser "Prikko › Stockholm".
 
 Markupen är `<a>Prikko</a> <span>›</span>` och pilen pekar på ingenting. Tre
 sidor av 17 872, kontrollräknat över hela bygget.

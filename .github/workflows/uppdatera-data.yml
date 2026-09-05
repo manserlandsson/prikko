@@ -33,8 +33,23 @@ jobs:
       # går fortare. En kommun som fallerar ska inte stoppa de andra.
       fail-fast: false
       matrix:
+        # EN RAD PER KOMMUN, oavsett vilken hämtare kommunen läses av. Se
+        # hämtsteget nedan för hur en kommun utan egen fetch_<slug>.py hittas.
+        #
+        # Norrköping stod utanför listan från 2026-08-31 till 2026-09-05 och
+        # var därmed den enda av tretton kommuner som aldrig uppdaterades.
+        # Nattkörningarna 1 till 5 september rörde inte norrkoping.json med en
+        # enda rad medan varje annan kommunfil fick ny fetchedAt, och filen var
+        # alltså en ren produkt av en manuell körning av fetch_ecos.py.
+        #
+        # Det brådskade inte, för källan står stilla sedan 2024-03-17, men en
+        # kommun som aldrig uppdateras ska inte vara det av misstag. Hämtaren
+        # pekar sedan 2026-08-31 på nodadressen som omdirigerar till den
+        # AKTUELLA versionen, se MUNICIPALITIES i prikko/sources/ecos.py, så
+        # den dag kommunen lägger upp ett nytt utdrag plockas det upp av sig
+        # självt i stället för att vänta på att någon minns filen.
         kommun: [linkoping, stockholm, uppsala, jonkoping, karlstad, orebro, oskarshamn,
-                 lomma, hoganas, svenljunga, kristinehamn, borgholm]
+                 lomma, hoganas, svenljunga, kristinehamn, borgholm, norrkoping]
 
     steps:
       - uses: actions/checkout@v4
@@ -86,12 +101,49 @@ jobs:
       #
       # Lärdomen är värd att stå kvar: en gissning som skrivs ned som en
       # slutsats blir svårare att motbevisa för varje natt den får stå.
+
+      # HÄMTAREN HETER INTE ALLTID SOM KOMMUNEN, och det är sant sedan
+      # Norrköping. Steget körde förr `pipeline/fetch_${{ matrix.kommun }}.py`
+      # rakt av, alltså kunde bara en kommun med en egen fil stå i matrisen.
+      #
+      # Tolv kommuner har en sådan fil, skriven mot den enskilda kommunens
+      # sida. Norrköping har ingen och ska aldrig få en: den läses av
+      # pipeline/fetch_ecos.py, som är skriven mot FORMATET och tar kommunen
+      # som argument. Skälet står i prikko/sources/ecos.py: ecos.xml är
+      # Sokigos ärendesystems egen utdragsform och inte något Norrköpings
+      # webbredaktion satt ihop, så samma läsare bör passa varje kommun som
+      # kör Ecos.
+      #
+      # Ordningen är egen fil först, formathämtare sedan. Frågan ställs till
+      # MUNICIPALITIES i prikko/sources/ecos.py, alltså till exakt den tabell
+      # `--kommun` ändå validerar mot. DÄRFÖR ÄR NÄSTA ECOS-KOMMUN EN RAD OCH
+      # INGET UNDANTAG: raden i MUNICIPALITIES är villkoret för att kommunen
+      # ska gå att hämta överhuvudtaget, och matrisen behöver bara sin slug.
+      #
+      # En kommun som varken har en egen fil eller står i tabellen faller rött
+      # här, med namnet på det som saknas. Att i stället skicka den blint till
+      # fetch_ecos.py hade gett argparses "invalid choice" några rader senare,
+      # ett meddelande som pekar på fel sak den dagen en tredje sorts hämtare
+      # tillkommer.
+      #
+      # Slugen går genom miljön och inte genom ${{ }} inne i skalet. Värdena i
+      # matrisen är våra egna, men `kommun` från workflow_dispatch är det inte,
+      # och ett interpolerat värde är text som klistras in i skriptet före
+      # körning.
       - name: Hämta
         if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
         continue-on-error: ${{ contains(fromJSON('["orebro", "hoganas", "lomma"]'), matrix.kommun) }}
+        env:
+          KOMMUN: ${{ matrix.kommun }}
         run: |
-          python3 pipeline/fetch_${{ matrix.kommun }}.py \
-            --out data/${{ matrix.kommun }}.json
+          if [ -f "pipeline/fetch_$KOMMUN.py" ]; then
+            python3 "pipeline/fetch_$KOMMUN.py" --out "data/$KOMMUN.json"
+          elif python3 -c 'import sys; sys.path.insert(0, "pipeline"); from prikko.sources.ecos import MUNICIPALITIES; sys.exit(0 if sys.argv[1] in MUNICIPALITIES else 1)' "$KOMMUN"; then
+            python3 pipeline/fetch_ecos.py --kommun "$KOMMUN" --out "data/$KOMMUN.json"
+          else
+            echo "::error title=Ingen hämtare::$KOMMUN har varken pipeline/fetch_$KOMMUN.py eller en rad i MUNICIPALITIES i pipeline/prikko/sources/ecos.py. Lägg till kommunen i en av dem, eller ta bort den ur matrisen."
+            exit 1
+          fi
 
       - name: Spara som artefakt
         if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}

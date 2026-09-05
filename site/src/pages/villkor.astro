@@ -52,7 +52,7 @@ const UPDATED = '5 augusti 2026';
   title="Användarvillkor"
   description="Villkoren för att använda Prikko: vad tjänsten gör, vad den inte gör, vem som står bakom den och vad vi ansvarar för."
 >
-  <article class="container page">
+  <article class="container read page">
     <header>
       {/* De tre juridiska sidorna, villkor, integritetspolicy och kakor, får
           figuren i `clean` och ingenting annat. Avvägningen står i docs/24 §5d
@@ -292,8 +292,10 @@ const UPDATED = '5 augusti 2026';
      verksamma uppgift och ska stå på egen rad under rubriktexten. */
   .meta { clear: right; }
 
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

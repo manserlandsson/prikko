@@ -131,7 +131,7 @@ const jsonLd = {
   description={`Prikko bygger på ${formatNumber(total.inspections)} livsmedelskontroller från svenska kommuner. Här redovisas varje källa, hur ofta den hämtas och vilka kommuner som ännu saknas.`}
   jsonLd={jsonLd}
 >
-  <article class="container page">
+  <article class="container read page">
     <header>
       {/* `soker` och inte `clean`. Läget betyder att figuren letar med blicken
           bortåt, och den här sidan handlar om var uppgifterna hämtas ifrån.
@@ -437,8 +437,10 @@ const jsonLd = {
     clear: both;
   }
 
+  /* Bredden kommer ur `.container.read` i tokens.css och står inte här.
+     Sidan satte tidigare `max-width: var(--w-read)` rakt på behållaren, som
+     är border-box, och läste därför 584 px vid 1440 i stället för 680. */
   .page {
-    max-width: var(--w-read);
     padding-block: var(--s-12) var(--s-16);
   }
 

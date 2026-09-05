@@ -395,12 +395,24 @@ const pageRows = JSON.stringify(await siteCommandList()).replace(/</g, '\\u003c'
 
   .fallback h2 { font-size: var(--fs-h-s); line-height: var(--lh-h-s); }
 
+  /* RUTNÄT OCH INTE FLEX, rättat 2026-09-05.
+     ────────────────────────────────────────────────────────────────────────
+     Här stod `flex-wrap`, alltså bestämde varje länks egen textbredd var
+     nästa började. Uppmätt vid 1440 i bygget: andra spalten började på x =
+     592, 582, 578 och 598 på de fyra raderna, tredje på 789, 809, 791 och
+     810. Ingen rad linjerade med någon annan och spridningen var omkring
+     20 px, fast tretton nästan identiska länkar borde läsa som en tabell.
+
+     `auto-fill` och inte tre hårda spår: talet ska följa bredden och inte
+     sidtypen. 200 px är den längsta etiketten, "Hygienkontroller i
+     Kristinehamn", som mäter omkring 195 px i 14 px. I sidans 664 px
+     innehåll vid 1440 ger det tre spår på 205, och på en telefon ett. */
   .fallback ul {
     list-style: none;
     margin: var(--s-3) 0 0;
     padding: 0;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
     gap: var(--s-2) var(--s-6);
   }
 

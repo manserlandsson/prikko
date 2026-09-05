@@ -108,11 +108,18 @@ const siblings = chains().filter((c) => c.id !== k.id);
  * det största talet. Färgen bärs i stället av fördelningsstapeln ovanför, och
  * varje mängd har sin utskrivna etikett här. Färg är aldrig ensam
  * informationsbärare (tokens.css).
+ *
+ * PRICKARNA ÄR TILLAGDA 2026-09-05, se docs/57 punkt 8. Stapeln ovanför är
+ * fyra färger och raden under den var oprickad, alltså gick det inte att se
+ * vilket segment "Brister 6" hörde till. Prickarna är teckenförklaring och
+ * ingenting annat: talen står kvar ofärgade, och varje mängd står i klartext
+ * bredvid sin prick. Kommunhubben och verksamhetspanelen har haft samma
+ * prickar sedan Fordelning.astro skrevs, och det är den formen som kopieras.
  */
 const facts = [
-  { label: VERDICT.minor.label, value: formatNumber(k.minor) },
-  { label: VERDICT.major.label, value: formatNumber(k.major) },
-  { label: 'Ingen bedömning', value: formatNumber(k.unassessed) },
+  { label: VERDICT.minor.label, value: formatNumber(k.minor), dot: 'var(--verdict-minor)' },
+  { label: VERDICT.major.label, value: formatNumber(k.major), dot: 'var(--verdict-major)' },
+  { label: 'Ingen bedömning', value: formatNumber(k.unassessed), dot: 'var(--verdict-none)' },
 ];
 
 /** Fördelningsstapelns segment, i samma ordning som faktaraden läses. */

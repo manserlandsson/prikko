@@ -217,9 +217,12 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
         separata tangentrutor i fältets högerkant, ⌘ i den ena och K i den
         andra, med litet mellanrum. Skriptet byter modifierarrutans tecken
         efter plattformen (⌘ på Mac, Ctrl annars), visar märket bara på
-        enheter med hover+fin pekare och kopplar klicket till att fälla ut
-        panelen. Därför startar märket hidden och med ⌘ som degraderings-
-        tecken: utan skript finns det inte.
+        enheter med hover+fin pekare OCH bara från 640 px, och kopplar
+        klicket till att fälla ut panelen. Därför startar märket hidden och
+        med ⌘ som degraderingstecken: utan skript finns det inte.
+
+        Breddvillkoret står motiverat vid matchMedia längst ned: under 640
+        äter märket den plats platshållaren behöver.
 
         I båda lägena, även heron: panelen fälls ut ur just det här fältet,
         så märket pekar på fältets egen förmåga och inte på en främmande
@@ -1082,8 +1085,19 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
        platshållaren till "Sök ställe eller ort" på smala skärmar. */
   }
 
+  /* Fyra pixlar indrag tillbaka till texten på den smalaste skärmen.
+     ────────────────────────────────────────────────────────────────────────
+     Regeln gällde bara `.search-field`, alltså en klass, medan hero-läget
+     sätter hela `padding` med två klasser några rader upp. Specificiteten
+     avgjorde och heron behöll sina 16 px utan att någon valt det.
+
+     Talen: vid 375 får inmatningen 129 px och platshållaren "Sök ställe
+     eller ort" mäter exakt 129 i fältets 16 px. Den ryms alltså på pixeln,
+     och en platshållare utan en enda pixels slack kapas i samma stund som en
+     reservfont träder in. Med 12 px indrag blir det 133 mot 129. */
   @media (max-width: 380px) {
-    .search-field { padding-left: var(--s-3); }
+    .search-field,
+    .site-search.is-hero .search-field { padding-left: var(--s-3); }
   }
 </style>
 
@@ -1553,7 +1567,30 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     if (hint) {
       const mod = hint.querySelector<HTMLElement>('[data-palette-mod]');
       if (mod) mod.textContent = mac ? '⌘' : 'Ctrl';
-      const fine = matchMedia('(hover: hover) and (pointer: fine)');
+      /*
+       * MÄRKET KRÄVER BÅDE TANGENTBORD OCH RUM.
+       * ─────────────────────────────────────────────────────────────────────
+       * `(hover: hover) and (pointer: fine)` är sajtens enda test för mus mot
+       * finger, och det stod redan här. Det räckte inte: villkoret svarar på
+       * VAD man pekar med, inte på om fältet har råd med 48 px till.
+       *
+       * Uppmätt i bygget vid 375, startsidans fält som är 183 px brett:
+       * inmatningen får 62 px, märket 48 och knappen 34. Platshållaren "Sök
+       * ställe eller ort" mäter 129 px i fältets egna 16, alltså kapas två
+       * tredjedelar av den och kvar står "Sök stäl". Samma sak på en smal
+       * datorruta, där pekartestet ensamt säger ja.
+       *
+       * 640 är samma tal som platshållaren byter vid några hundra rader upp,
+       * alltså ETT tal för "fältet är smalt" och inte två. Utan märket får
+       * inmatningen 129 px på startsidan och 131 på övriga sidor, och då ryms
+       * strängen hel.
+       *
+       * Villkoret ligger kvar i skriptet och inte i CSS, för att det ska
+       * finnas en enda plats som avgör om märket finns.
+       */
+      const fine = matchMedia(
+        '(hover: hover) and (pointer: fine) and (min-width: 640px)'
+      );
       const sync = () => { hint.hidden = !fine.matches; };
       sync();
       fine.addEventListener('change', sync);
