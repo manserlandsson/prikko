@@ -135,7 +135,22 @@ function lastmodIndex() {
     ?.slice(0, 10);
 
   if (dataDate) {
-    for (const p of ['/', path('rapporter'), path('kallor'), path('sok'), path('webbkarta')]) {
+    for (const p of [
+      '/',
+      path('rapporter'),
+      path('kallor'),
+      path('sok'),
+      path('webbkarta'),
+      /* Kartan och rörelsesidan tillkom här 2026-09-05. De var två av 16 140
+         adresser som saknade `lastmod` helt, och det var fel av samma skäl som
+         raden ovan beskriver: ingen mening på dem är skriven. Kartan ritar
+         beståndets nålar och rörelsesidan räknar nattens tillkomna och
+         borttagna, så båda ändras exakt när datan gör det. Kommunernas egna
+         former ärver datumet genom `lastmodFor`, och det stämmer av samma
+         skäl. */
+      path('karta'),
+      path('nytt-och-borta'),
+    ]) {
       byPath.set(p, dataDate);
     }
     for (const r of REPORTS) byPath.set(path('rapporter', r.slug), dataDate);
