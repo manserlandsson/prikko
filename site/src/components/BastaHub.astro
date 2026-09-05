@@ -28,6 +28,7 @@
 import Base from '../layouts/Base.astro';
 import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
+import FactGrid from './FactGrid.astro';
 import InfoTip from './InfoTip.astro';
 import { BASTA_SEGMENT, kommunensTak, type BastaSnitt } from '../lib/basta';
 import { formatDate, formatNumber } from '../lib/data';
@@ -84,10 +85,44 @@ const tak = kommunensTak(kommun.slug);
  * vore vanligt.
  */
 const tratt = [
-  { n: snitt.iKategorin, label: `${saken} i ${city}` },
-  { n: snitt.rena, label: 'utan anmärkning vid senaste kontrollen' },
-  { n: snitt.flackfria, label: 'utan anmärkning vid varje publicerad kontroll' },
-  { n: snitt.antal, label: `av dem med minst ${formatNumber(snitt.ribba)} kontroller` },
+  { label: `Alla ${saken} i ${city}`, value: formatNumber(snitt.iKategorin) },
+  { label: 'Utan anmärkning vid senaste kontrollen', value: formatNumber(snitt.rena) },
+  { label: 'Utan anmärkning vid varje publicerad kontroll', value: formatNumber(snitt.flackfria) },
+  {
+    label: `Av dem med minst ${formatNumber(snitt.ribba)} kontroller`,
+    value: formatNumber(snitt.antal),
+  },
+];
+
+/*
+ * Ribban och kommunens tak, i SAMMA form som tratten ovanför.
+ *
+ * Blocket satte tidigare sina tal på tre sätt inom en och samma skärm: ett
+ * rutnät med lika breda spår och talet över etiketten, sedan en definitionslista
+ * med talet halvfett inne i en löpande mening, och sedan en post i full bredd
+ * med ett tredje sätt. Tre layouter staplade, uppmätt 2026-09-05.
+ *
+ * Nu bär båda blocken FactGrid, alltså sajtens enda faktarad, densamma som
+ * verksamhetssidan och kedjesidan använder: etikett över värde, kolumner skilda
+ * av luft. Varningen under ribban står kvar ordagrant, och det är den som är
+ * blockets egentliga innehåll.
+ */
+const ribba = [
+  {
+    label: 'Ribban på den här sidan',
+    value: formatNumber(snitt.ribba),
+    unit: 'kontroller utan anmärkning',
+  },
+  {
+    label: 'Djupast i listan',
+    value: formatNumber(snitt.djupast),
+    unit: 'kontroller utan anmärkning',
+  },
+  {
+    label: `Djupast som ${kommun.name} publicerar`,
+    value: formatNumber(tak),
+    unit: 'kontroller på en verksamhet',
+  },
 ];
 
 const title = `${rubrik} · ${formatNumber(snitt.antal)} ${saken}`;
@@ -172,16 +207,9 @@ const jsonLd = [
       </p>
     </section>
 
-    <section class="tratt" aria-labelledby="tratt-rubrik">
+    <section class="fakta" aria-labelledby="tratt-rubrik">
       <h2 id="tratt-rubrik" class="eyebrow">Från kategorin till listan</h2>
-      <ul>
-        {tratt.map((t) => (
-          <li>
-            <b>{formatNumber(t.n)}</b>
-            <span class="lbl">{t.label}</span>
-          </li>
-        ))}
-      </ul>
+      <FactGrid facts={tratt} />
     </section>
 
     {/* Ribban och kommunens tak, sida vid sida.
@@ -190,21 +218,16 @@ const jsonLd = [
         kommunen, och det är den uppenbara felläsningen: en hög ribba betyder
         att kommunen publicerar djup historik och kontrollerar ofta, aldrig att
         köken är renare. Samma varning som lib/utmarkelser.ts skriver ut, och av
-        samma skäl står den på sidan och inte bara i koden. */}
-    <dl class="ribba">
-      <div>
-        <dt>Ribban på den här sidan</dt>
-        <dd><b>{formatNumber(snitt.ribba)}</b> kontroller utan anmärkning</dd>
-      </div>
-      <div>
-        <dt>Djupast i listan</dt>
-        <dd><b>{formatNumber(snitt.djupast)}</b> kontroller utan anmärkning</dd>
-      </div>
-      <div>
-        <dt>Djupast som {kommun.name} publicerar</dt>
-        <dd><b>{formatNumber(tak)}</b> kontroller på en verksamhet</dd>
-      </div>
-    </dl>
+        samma skäl står den på sidan och inte bara i koden.
+
+        Raden har fått en egen rubrik, i samma grad som trattens. Två faktarader
+        i rad utan rubrik läser som en enda rad som brutits, och de svarar på
+        olika frågor: den ena hur många ställen som återstår, den andra hur
+        djupt registret går. */}
+    <section class="fakta" aria-labelledby="ribba-rubrik">
+      <h2 id="ribba-rubrik" class="eyebrow">Ribban och kommunens tak</h2>
+      <FactGrid facts={ribba} />
+    </section>
     <p class="forbehall">
       Ribban går inte att jämföra mellan kommuner. Den följer hur djup historik
       källan lämnar ut och hur ofta kommunen kontrollerar, inte hur rena köken
@@ -213,8 +236,13 @@ const jsonLd = [
     </p>
 
     <section class="listan" aria-labelledby="listan-rubrik">
+      {/* "Hela listan" och inte {rubrik} en gång till. Rubriken stod ordagrant
+          som h1 560 px längre upp, alltså samma sträng två gånger på samma
+          skärm, uppmätt 2026-09-05. Sidan har en rubrik; det här är namnet på
+          dess sista avsnitt, och avsnittets egna h3:or säger vad raderna är
+          grupperade efter. */}
       <h2 id="listan-rubrik">
-        {rubrik}
+        Hela listan
         <InfoTip
           label="ordningen i listan"
           text={`Flest kontroller först, och vid lika många den som kontrollerades senast. Båda talen står på varje rad, så ordningen går att pröva. Inom en grupp finns ingen inbördes ordning: underlaget är identiskt och raderna står i bokstavsordning. Listan visar bara de utan anmärkningar, och vi publicerar aldrig den omvända.`}
@@ -338,65 +366,23 @@ const jsonLd = [
     font-weight: 600;
   }
 
-  .tratt { margin-top: var(--s-6); }
-
-  /* Samma tvåvåningsform som fördelningsbandets teckenförklaring på
-     områdessidan: talet överst, etiketten under. En tät rad med fyra tal och
-     fyra långa etiketter går inte att läsa i ett svep. */
-  .tratt ul {
-    list-style: none;
-    margin: var(--s-2) 0 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: var(--s-3) var(--s-4);
-  }
-
-  .tratt b {
-    display: block;
-    font-size: var(--fs-h-xs);
-    line-height: var(--lh-h-xs);
-    font-weight: 600;
-    letter-spacing: -.015em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .tratt .lbl {
-    display: block;
-    color: var(--text-secondary);
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-  }
-
-  /* Tre tal under var sin etikett, utan ram. Raden är sammanhang, inte ett
-     resultat som behöver inramning. Samma form som jämförelseraden på
-     områdessidan. */
-  .ribba {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-4) var(--s-8);
-    margin: var(--s-6) 0 0;
-  }
-
-  .ribba div { margin: 0; }
-
-  .ribba dt {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-secondary);
-  }
-
-  .ribba dd {
-    margin: 0;
-    font-size: var(--fs-body-s);
-    line-height: var(--lh-body-s);
-    color: var(--text-secondary);
-  }
-
-  .ribba b {
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
+  /* TVÅ FAKTARADER, EN FORM. Rättat 2026-09-05.
+   *
+   * Här stod tre uppsättningar regler: ett rutnät med `repeat(auto-fit,
+   * minmax(170px, 1fr))` och talet över etiketten, en definitionslista med
+   * talet halvfett inne i en mening, och en tredje variant för den post som
+   * ändå hamnade ensam i full bredd.
+   *
+   * Rutnätet var dessutom det som gjorde den fjärde posten föräldralös. Sidan
+   * är --w-page, alltså 664 px innehåll vid 1440: fyra spår hade krävt 170 och
+   * fått 154, så spåren blev tre och den fjärde posten stod ensam på rad två i
+   * ett spår lika brett som de andra, vilket läser som en trasig tabell.
+   *
+   * FactGrid har inga spår att bli ensam i. Cellerna är innehållets egen bredd
+   * och luften emellan gör avgränsningen, alltså bryter raden som en rad text
+   * gör. Formen är sajtens och inte den här sidans: samma komponent bär
+   * verksamhetssidans och kedjesidans faktarader. */
+  .fakta { margin-top: var(--s-6); }
 
   .forbehall {
     margin-top: var(--s-3);

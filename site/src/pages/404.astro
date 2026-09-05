@@ -170,18 +170,38 @@ const total = coverage();
     color: var(--text-secondary);
   }
 
+  /* RUTNÄT OCH INTE EN CENTRERAD RAD SOM RADBRYTS.
+     ─────────────────────────────────────────────────────────────────────────
+     Tretton kommunpiller flödade med `flex-wrap` och `justify-content:
+     center`. Uppmätt vid 1440 den 2026-09-05: sex på rad ett, sex på rad två
+     och "Örebro" ensam och centrerad på rad tre, med 280 px tomt på var sida.
+     En pill som svävar mitt i en annars tom rad läser som ett radbrytningsfel
+     och inte som slutet på en lista.
+
+     Samma rättelse som söksidans kommunlista fick i samma genomgång: spår i
+     stället för flöde. Etiketterna är tretton stadsnamn av ungefär samma
+     längd och ska se ut som en tabell. Talet 124 är den längsta pillen,
+     "Kristinehamn", uppmätt till 120,4 px, plus fyra pixlar. Vid 1440 ger det
+     fem spår på 126,4 px, alltså 5 + 5 + 3, och den sista raden börjar i
+     första spåret i stället för mitt i ingenting.
+
+     `min(100%, 124px)` och inte bara 124: på en riktigt smal skärm ska spåret
+     få bli smalare än pillen hellre än att sticka ut ur sidan. */
   .kommuner ul {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 124px), 1fr));
     gap: var(--s-2);
     margin: var(--s-4) 0 0;
     padding: 0;
     list-style: none;
   }
 
+  /* Pillen fyller sitt spår. Med `inline-block` blev pillen innehållets bredd
+     inne i ett spår som var bredare, och då hjälper rutnätet ingenting: kanten
+     man ser är pillens och inte spårets. Etiketten står centrerad, som resten
+     av sidan. */
   .kommuner a {
-    display: inline-block;
+    display: block;
     padding: var(--s-2) var(--s-4);
     border: 1px solid var(--hairline);
     border-radius: var(--r-pill);

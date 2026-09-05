@@ -42,7 +42,7 @@
  */
 import FaceRef from './FaceRef.astro';
 import FaceSprite from './FaceSprite.astro';
-import { formatDistance, type Establishment } from '../lib/data';
+import { distanceLabel, type Establishment } from '../lib/data';
 import { FACE_SPRITE_ID } from '../lib/face';
 import { JAMFOR_URLS, compareHref, inlineNumbers } from '../lib/jamfor';
 import { SEARCH_INDEX_FALLBACK_URL, SEARCH_INDEX_URL } from '../lib/search-index';
@@ -171,7 +171,7 @@ const setup = {
                 <span class="info">
                   <b>{s.name}</b>
                   <span class="meta text-secondary">
-                    {[s.address, metres[s.slug] !== undefined ? formatDistance(metres[s.slug]) : null]
+                    {[s.address, metres[s.slug] !== undefined ? distanceLabel(metres[s.slug], e.address, s.address) : null]
                       .filter(Boolean)
                       .join(' · ')}
                   </span>

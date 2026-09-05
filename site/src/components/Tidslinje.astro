@@ -171,11 +171,28 @@ const gid = `tl-${Math.random().toString(36).slice(2, 9)}`;
         ></span>
       ))}
 
+      {/* TALEN VID ÄNDPUNKTERNA HÄNGER INÅT, inte ut över kanten.
+
+          Talet är centrerat över sin punkt med `translate(-50%)`, och vid
+          sista punkten ligger punkten i rutans högerkant. Halva talet hamnade
+          då utanför rutan. Uppmätt på `/stockholm/` vid 375: rutan slutar på
+          x = 359, kommunhubbens kontrolltakt skriver "6 942" som 33,72 px
+          brett, alltså 342,14 till 375,86, och sidans högra luft är 16 px.
+          Sidans `scrollWidth` blev 376 mot `clientWidth` 375, och det var
+          hubbens enda sidledsöverflöde. Vid 1440 stack talet ut lika mycket
+          men ryms i behållarens 48 px luft, så det syntes bara på telefon.
+
+          Första och sista talet får därför sin egen ankarpunkt: vänsterkanten
+          respektive högerkanten i stället för mitten. Samma clamp som punkten
+          själv bär, så att tal och prick håller samma ändlägen. */}
       {points.map((p, i) => p.value !== null && (allaTal || p === hogst || p === lagst) && (
         <span
-          class:list={['punkttal', { ytter: p === hogst || p === lagst }]}
+          class:list={[
+            'punkttal',
+            { ytter: p === hogst || p === lagst, forst: i === 0, sist: i === points.length - 1 },
+          ]}
           aria-hidden="true"
-          style={`left:${x(i)}%;top:${y(p.value)}%`}
+          style={`left:clamp(4px, ${x(i)}%, calc(100% - 4px));top:${y(p.value)}%`}
         >{p.display ?? p.value}</span>
       ))}
      </div>
@@ -258,6 +275,10 @@ const gid = `tl-${Math.random().toString(36).slice(2, 9)}`;
     color: var(--text);
     font-weight: 600;
   }
+
+  /* Ändpunkternas tal, se mallen. Ingen halva utanför rutan. */
+  .punkttal.forst { transform: translate(0, -100%); }
+  .punkttal.sist { transform: translate(-100%, -100%); }
 
   .axel {
     list-style: none;

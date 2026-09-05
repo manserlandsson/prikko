@@ -3,9 +3,15 @@
 Inventering, inte lagning. Ingenting i listan var rättat när den skrevs.
 
 ÖVERSTRUKNA RUBRIKER ÄR LAGADE 2026-09-05, och under var och en står vad som
-gjordes och vad det mättes till efter bygget. Punkt 3, 5, 6, 10 och 16 är hela,
-punkt 8 till hälften. Fynden står kvar oredigerade under rättelsen: de är
-mätningen som fanns, och den ska gå att läsa om igen.
+gjordes och vad det mättes till efter bygget. Punkt 1 till 6, 10 till 16, 19
+och 20 är hela, punkt 8 och 17 till hälften. Kvar står 7, 9 och 18, som alla
+tre är ägarens att avgöra, plus kategorisidans halva av 17. Fynden står kvar
+oredigerade under rättelsen: de är mätningen som fanns, och den ska gå att läsa
+om igen.
+
+TVÅ FYND VAR FELDIAGNOSTISERADE, och rättelsen står under dem: punkt 19 utgick
+från att den fulla kartsidan har en platta bakom attributionen, vilket den inte
+har, och punkt 20 pekade ut menypanelen, som inte var källan.
 
 EN RÄTTELSE TILL SJÄLVA MÄTNINGEN, punkt 3. Genvägsmärket var redan släckt på
 en riktig pekskärm, för villkoret `(hover: hover) and (pointer: fine)` faller
@@ -271,7 +277,34 @@ spridningen är omkring 20 px.
 **Vad det borde vara:** `display: grid` med tre lika spår. Länkarna är lika långa
 i innehåll och ska se ut som en tabell.
 
-## 11. "Återkommande brister" upprepar samma datum
+## ~~11. "Återkommande brister" upprepar samma datum~~
+
+**LAGAD 2026-09-05. Kontroller räknas, inte noteringar.** Av de två vägar
+beslutet lämnade öppna valdes den som gör raden sannare och inte bara kortare,
+och valet avgjordes med mätning.
+
+Svepet i `recurringIssues` lade en rad per NOTERING, och en kontroll kan bära
+flera rader som normaliseras till samma brist. Alternativet "10 juni 2026 (3)"
+hade skrivit ut upprepningen men behållit ett värre fel: `count` var antalet
+noteringar medan både rubrikens räknare och tipset säger "vid mer än en
+kontroll". På **46 rader, spridda över 43 sidor, låg SAMTLIGA noteringar på ett
+enda kontrolltillfälle**, och där påstod sidan alltså något som inte stämde. En
+parentes hade lämnat de 46 kvar och dessutom lagt ett tal utan enhet intill ett
+datum.
+
+Datumen är nu kontrolltillfällen och `count` antalet av dem, vilket är exakt
+vad fältet redan säger att det är. Talen är räknade över datafilerna med samma
+grind som sidorna byggs med.
+
+Före: 727 av 5 881 rader, 12,4 procent, upprepade minst ett datum, som mest sex
+gånger, och de låg på 652 av 3 609 sidor; räknat på bara de fyra datum raden
+hinner visa blir det 609 rader på 555 sidor. Efter faller 46 rader på 43 sidor
+bort, varav 24 sidor tappar hela blocket. Ingen av dem hade en brist som
+återkom, de hade en kontroll som noterat samma sak flera gånger.
+
+Uppmätt i det byggda utfallet: **3 588 sidor bär blocket, 5 838 rader, och noll
+rader upprepar ett datum**. Gröna Lund läser nu "10 juni 2026 · 4 juni 2025 ·
+11 juni 2024 · 7 juni 2023 · +6 till".
 
 **Sidtyp** verksamhetssida **Bredd** båda
 
@@ -285,7 +318,38 @@ minst en rad där samma datum står två gånger i följd, och som mest tre gån
 **Vad det borde vara:** slå ihop datum som återkommer, exempelvis "10 juni 2026
 (3)", eller räkna kontroller i stället för noteringar.
 
-## 12. "Nära dig" visar "0 m"
+## ~~12. "Nära dig" visar "0 m"~~
+
+**LAGAD 2026-09-05. Tröskeln är 1 meter, och ordet avgörs av adressen.**
+
+Premissen i beställningen stämde inte och det ändrar svaret: koordinaterna är
+avrundade till en MILJONDELS grad och inte en hundratusendels. Samtliga 14 384
+koordinater i beståndet är jämna miljondelar och 14 234 av dem är inte jämna
+hundratusendelar, alltså är rutnätet 0,11 m i latitud och 0,06 m i longitud.
+Noll meter betyder därför samma PUNKT och inte samma avrundning.
+
+Fördelningen över de 13 160 sidor som har en grannlista, 52 640 rader, är en
+klippa och inte en sluttning: 7 050 rader på 0 m, 412 på 1 m, sedan 46, 46, 56,
+51, 81, 51, 110, 120 och 123 upp till 10 m. Efter 1 m faller antalet nio gånger
+och planar ut. Tröskeln är alltså **1 meter**, inte 5 och inte 10: allt däröver
+är riktiga avstånd mellan riktiga adresser och ska stå kvar som tal.
+
+Ordet kan däremot inte vara "samma adress" på alla. Av de 7 462 raderna på
+1 m eller mindre delar 6 141 adress efter normalisering (82,3 procent), 655
+ligger på samma gata med olika nummer, 325 på olika gata och 341 saknar minst
+en adress. Koordinaten är en BYGGNAD och adresserna dess entréer:
+Hötorgshallen har 21 verksamheter på samma punkt, Kista galleria 20 med
+ingångar både från Hanstavägen och Brandesgången, Östermalmshallen 13. Att
+skriva "samma adress" på de 1 321 hade bytt ett tal som LÄSER fel mot ett
+påstående som ÄR fel. De får "samma plats", vilket är precis vad noll meter
+betyder och ingenting mer.
+
+Uppmätt i bygget efteråt: **noll "0 m" kvar på hela sajten**, "samma adress" på
+3 736 sidor och "samma plats" på 872. `/stockholm/irems-kok-ab/` läser nu
+"Trofo Catering Vinsta samma adress · Bromma Kebab samma adress · Livington
+hotel, roboton 40 m". Ordet sätts i `distanceLabel` i `lib/data.ts` och gäller
+grannpanelen, "Bäst i närheten" och jämförelserutan, alltså sajtens tre ställen
+som skriver ut ett avstånd.
 
 **Sidtyp** verksamhetssida **Bredd** båda
 
@@ -295,7 +359,27 @@ Det förekommer på **2 629 sidor bara i Stockholm**.
 
 **Vad det borde vara:** "samma adress" under någon tröskel, eller "under 10 m".
 
-## 13. Anmärkningssidan: tretton rader med samma röda etikett
+## ~~13. Anmärkningssidan: tretton rader med samma röda etikett~~
+
+**LAGAD 2026-09-05.** Bedömningen har flyttat från en egen spalt i högerkanten
+till metaraden, i samma grå som resten av den, och det röda bandet är därmed
+borta. Ordet är inte struket: listan är sorterad allvarligast först, så
+etiketten byter värde exakt en gång i hela listan, och den skillnaden är värd
+att kunna se. Färgen bärs av bedömningsmärket, som ligger kvar, alltså samma
+ordning som på resten av sajten där färgen aldrig är ensam bärare.
+
+Ordet VANN på flytten. Spalten doldes under 560 px, så bedömningen fanns inte
+alls i text på telefon, och märket till vänster är `aria-hidden`. Nu står den i
+klartext vid varje bredd och för varje skärmläsare, till priset av en andra
+textrad i listraden vid 375.
+
+Adressraden är samma ändring: **datumet står först**. Uppmätt över de tolv
+kommunernas 1 730 listrader saknar 181, alltså 10,5 procent, adress medan 0
+saknar datum, och Karlstad och Lomma publicerar knappt någon alls. Raden utan
+adress började därför med ett datum medan grannraderna började med en gata.
+Nu är radens första uppgift av samma slag på varenda rad och den sista också:
+`17 juni 2026 · Blockgatan 9 · Brister som kvarstår` bredvid `17 juni 2026 ·
+Brister som kvarstår`, båda ur Karlstads byggda sida.
 
 **Sidtyp** `/stockholm/anmarkningar/` **Bredd** 1440
 
@@ -308,7 +392,24 @@ I samma vy saknar rad 9, "Cafe Mito / Nutello House", adress, så dess metarad
 börjar med ett datum medan alla andra börjar med en gata. Kolumnen av adresser
 bryts på den raden.
 
-## 14. Topplistans faktablock är tre layouter staplade
+## ~~14. Topplistans faktablock är tre layouter staplade~~
+
+**LAGAD 2026-09-05. En layout, och det är sajtens egen.** Båda blocken bär nu
+`FactGrid`, alltså samma faktarad som verksamhetssidan och kedjesidan: etikett
+över värde, kolumner skilda av luft. Sidans egna två uppsättningar regler är
+borta, definitionslistan med talet halvfett inne i en mening likaså.
+
+Den föräldralösa fjärde posten följde av rutnätet. Sidan är `--w-page`, alltså
+664 px innehåll vid 1440: fyra spår hade krävt 170 px och fått 154, så spåren
+blev tre och den fjärde posten stod ensam i ett spår lika brett som de andra,
+vilket läser som en trasig tabell. FactGrid har inga spår att bli ensam i.
+Uppmätt vid 1440 efter bygget: tratten 2 + 2 rader vid x = 388 och 595, ribban
+2 + 1 vid x = 388 och 605, allt i 13 px etikett över 21 px värde. Vid 375
+staplas båda till en post per rad, samma grader.
+
+Den dubblerade rubriken är också borta: `h2` läser "Hela listan" i stället för
+`h1`:s egen sträng. Avsnittets `h3`:or säger redan vad raderna är grupperade
+efter.
 
 **Sidtyp** `/stockholm/utan-anmarkning/restauranger/` **Bredd** 1440
 
@@ -321,7 +422,26 @@ de nedre delarna sitter det halvfett inne i en löpande mening.
 På samma skärm står dessutom `h1` "Restauranger i Stockholm utan anmärkning" och
 560 px längre ned `h2` med **exakt samma sträng**.
 
-## 15. `/konto/`: ingress i 13 px direkt under en 32 px rubrik
+## ~~15. `/konto/`: ingress i 13 px direkt under en 32 px rubrik~~
+
+**LAGAD 2026-09-05, och rättelsen ligger i `styles/konto.css` och ingen
+annanstans.** Regeln som avgör är Kontrollserien.astro:s, att en komponent
+ärver graden från den komponent den står INUTI. `.konto-sub` är rätt klass på
+fel plats: inuti ett avsnitt bär den ett villkor under en `h2` och gör rätt,
+under sidans egen rubrik står den inte inuti något. Regeln
+`.konto-head .konto-sub` ger den därför sidans ingressgrad. Uppmätt vid 1440
+efter bygget: `h1` 32/43 och underraden **17/26** mot 13 px, med samma rättelse
+på `/konto/granska/`, som hade samma par.
+
+Blocket centreras nu också: `.konto-enkel` fick `margin-inline: auto` och
+ligger vid x = 340 med 760 px bredd, mot x = 48 och 205 px innehåll i en
+1 344 px behållare. Samma enkelspalt som `/sok/` och `/jamfor/`.
+
+`.konto-wide` är rättad i samma ändring, från `--w-read` till
+`--w-read-behallare`. Den satt i den border-box-fälla tretton lässidor rättades
+ur i punkt 5. Ingenting syns av det i dag: `.granska` sätter `--w-wide` på
+samma element och vinner, uppmätt till 1 344 px innehåll före och efter. Talet
+var ändå fel och är nu rätt.
 
 **Sidtyp** kontots inloggningsvy **Bredd** 1440 **Bild** `konto-1440.png`
 
@@ -349,6 +469,33 @@ sidor av 17 872, kontrollräknat över hela bygget.
 
 ## 17. Föräldralösa piller på sista raden
 
+**HALVT RÄTTAT 2026-09-05. 404 är lagad, kategorisidan står kvar, och skälet
+är mätt.**
+
+404:ans tretton kommunpiller flödade med `flex-wrap` och `justify-content:
+center`, alltså sex, sex och en centrerad ensam med 280 px tomt på var sida. De
+ligger nu i spår, samma rättelse som söksidans kommunlista fick i punkt 10 och
+av samma skäl: tretton stadsnamn av ungefär samma längd ska se ut som en
+tabell. Talet 124 är den längsta pillen, "Kristinehamn", uppmätt till 120,4 px,
+plus fyra. Uppmätt vid 1440 efter bygget: fem spår på 126,4 px och raderna
+5 + 5 + 3, alla tre med första pillen på x = 388. Vid 375 blir det två spår och
+sista raden börjar i det första. Pillen fyller sitt spår, annars är det pillens
+kant man ser och inte spårets.
+
+KATEGORISIDANS FILTERRAD FÅR INGEN SÅDAN RÄTTELSE, och det är mätt och inte
+utelämnat. Chipsen är olika breda, från 83 till 213 px, och 44 sidor har en
+sådan rad: 22 med två chips, 3 med tre, 8 med fyra, 5 med fem och 6 med sex.
+Ett rutnät måste ha ett spår som rymmer det bredaste, alltså 213 px, vilket ger
+tre spår på 216 i sidans 664. Då blir de åtta sidorna med FYRA chips 3 + 1, och
+de ligger i dag på en enda rad: rättelsen hade alltså skapat fler föräldralösa
+piller än den tog bort. De 22 sidorna med två chips hade dessutom fått två
+216 px lådor i en 664 px rad. Att i stället krympa chipsen räcker inte:
+`/stockholm/kategori/restauranger/` behöver 733 px för sina fem och har 664.
+
+Kvar står alltså en rad där ett chip kan hamna ensamt på rad två. Den läser som
+ett radbrytningsfel, men varje utväg som mätts kostar mer än den ger, och en
+remsa är punkt 18 och ägarens beslut.
+
 **Sidtyp** 404 och kategorisida **Bredd** 1440
 
 På 404 ryms tolv kommunpiller på två rader och "Örebro" hamnar ensam och
@@ -368,7 +515,32 @@ att den rullat till det valda området utan toning i vänsterkanten.
 
 Två remsor bredvid varandra på samma sida med olika affordans.
 
-## 19. Kartattributionen saknar platta i de inbäddade rutorna
+## ~~19. Kartattributionen saknar platta i de inbäddade rutorna~~
+
+**LAGAD 2026-09-05, men inte med en platta, och fyndets premiss var fel.**
+
+Den fulla kartsidan har ingen ljus platta bakom attributionen. Uppmätt i
+bygget: `background-color` är `rgba(0, 0, 0, 0)` på `/karta/`, på områdessidan,
+på platskartan och på hubbens ruta, alla fyra. Plattan är MapLibres egen och
+togs bort på ägarens uttryckliga besked, och läsbarheten bärs i stället av
+bläcket och en vit gloria. Skälet och kontrasttalen mot varje yta i kartstilen
+står vid upphovsraden i `styles/kartram.css`, och `docs/23_rikskartan.md`
+ändring 4 räknar upp plattan bland det som valdes bort. Att bygga en här hade
+varit att bygga om en fråga som redan är avgjord två gånger.
+
+Det som VAR fel stod redan uppskrivet i `docs/23` under "Kvar att göra":
+hubbens ruta körde `compact: true`. Uppmätt vid 375 före: lådan 317 x **34 px**,
+alltså två våningar som tog 17 procent av rutans 200 px höjd, och texten låg
+bakom en hopfällarknapp som en attribution aldrig får ligga bakom. Motiveringen
+i koden byggde dessutom på fel tal, att rutan är 328 px bred.
+
+Rutan är 343 px vid 375 och 400 vid 1440, och kartbladens rad är 307,3 px, samma
+rad som `/karta/` och områdeskartan redan bär. Innanför hörnets 2 x 12 px luft
+finns 319 px. Kontrollen kör därför `compact: false` som sajtens tre andra
+kartor, och uppmätt efteråt är lådan **307,3 x 15 px på en rad vid båda
+bredderna**. Ingen extra upphovsrad behövs under rutan, eftersom raden nu står
+utfälld i alla lägen; det är samma villkor som Karta.astro och OmradeHub.astro
+redan skrivit ned.
 
 **Sidtyp** kommunhubb, områdessida, platskartan **Bredd** båda
 
@@ -377,7 +549,30 @@ rutorna ligger samma text direkt på kartan, alltså grå 11 px ovanpå gröna n
 och blått vatten. På områdessidan är strängen 96 tecken lång och bryter till två
 rader.
 
-## 20. En pixels sidledsöverflöde på kommunhubben vid 375
+## ~~20. En pixels sidledsöverflöde på kommunhubben vid 375~~
+
+**LAGAD 2026-09-05. Källan var inte menypanelen.**
+
+Den stängda panelens kort och länkar mäter mycket riktigt till x = 387 och 426,
+men de ligger i en `<details>` som webbläsaren inneslutit, och att dölja hela
+menyn med `display: none` ändrade ingenting: `scrollWidth` stod kvar på 376.
+Källan hittades genom att stänga av ett delträd i taget nedåt genom sidan.
+
+Det är kontrolltaktens tidslinje. Talet vid en punkt är centrerat över den med
+`translate(-50%)`, och sista punkten ligger i rutans högerkant, så halva talet
+hamnade utanför. Uppmätt vid 375: rutan slutar på x = 359, "6 923" är 33,72 px
+brett och låg 342,14 till **375,86**, mot sidans clientWidth 375. Prickarna var
+redan klamrade in i rutan, talen var det inte. Vid 1440 stack talet ut lika
+mycket men ryms i behållarens 48 px luft, och därför syntes felet bara på
+telefon.
+
+Första och sista talet ankras nu i sin egen kant i stället för i mitten, med
+samma clamp som pricken bär. Uppmätt efter bygget: vid 375 ligger talen 20 till
+53,72 och 321,28 till 355 i en ruta 16 till 359, vid 1440 52 till 85,72 och
+770,28 till 804 i en ruta 48 till 808, alltså innanför i båda ändarna. Sidans
+`scrollWidth` är 375 mot `clientWidth` 375, och samma kontroll är gjord på
+startsidan, söksidan, anmärkningslistan, kategorisidan, topplistan, kontot och
+404, alla på 375 jämnt.
 
 **Sidtyp** kommunhubb **Bredd** 375
 

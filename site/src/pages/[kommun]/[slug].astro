@@ -80,8 +80,8 @@ import {
   mergedAreas,
   municipalities,
   sourceFor,
+  distanceLabel,
   formatDate,
-  formatDistance,
   formatNumber,
   isIndexable,
   latestInspectionDate,
@@ -1252,7 +1252,7 @@ const breadcrumbs = {
                     <FaceMark verdict={n.verdict} size={30} variant="round" />
                     <span class="near-info">
                       <b>{n.name}</b>
-                      <span class="text-muted">{formatDistance(n.metres)}</span>
+                      <span class="text-muted">{distanceLabel(n.metres, e.address, n.address)}</span>
                     </span>
                   </a>
                 </li>
@@ -1341,7 +1341,7 @@ const breadcrumbs = {
                       <span class="text-muted">
                         {n.controls === 1
                           ? '1 kontroll'
-                          : `${formatNumber(n.controls)} kontroller`} · {formatDistance(n.metres)}
+                          : `${formatNumber(n.controls)} kontroller`} · {distanceLabel(n.metres, e.address, n.address)}
                       </span>
                     </span>
                   </a>

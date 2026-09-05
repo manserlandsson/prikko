@@ -162,19 +162,35 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
               <span class="body">
                 <b>{e.name}</b>
                 <span class="meta text-secondary">
-                  {/* Adressen saknas i vissa kommuner — Karlstad publicerar
-                      ingen. Separatorerna får inte hänga löst då. */}
+                  {/*
+                    DATUMET FÖRST, OCH BEDÖMNINGEN SIST. Rättat 2026-09-05.
+
+                    Adressen stod först och saknas i vissa kommuner: Karlstad
+                    och Lomma publicerar knappt någon. Uppmätt över de tolv
+                    kommunernas 1 730 listrader: 181 av dem, 10,5 procent,
+                    saknar adress medan 0 saknar datum. Raden utan adress
+                    började alltså med ett datum medan grannraderna började med
+                    en gata, och kolumnen bröts precis där. Med datumet först är
+                    radens FÖRSTA uppgift av samma slag på varenda rad, och det
+                    som kan utebli står inuti raden i stället för i dess kant.
+
+                    Bedömningen stod som en egen spalt i högerkanten, i rött
+                    halvfett. Se `.verdict` i stilarna nedan för varför den
+                    spalten är borta och ordet står här. Sist av samma skäl som
+                    datumet står först: radens båda ändar ska vara av samma
+                    slag på alla rader.
+
+                    Separatorerna får aldrig hänga löst, därav filtret.
+                  */}
                   {[
-                    e.address,
                     date && formatDate(date),
+                    e.address,
                     e.remarks > 0 && `${e.remarks} ${e.remarks === 1 ? 'avvikelse' : 'avvikelser'}`,
+                    VERDICT[e.verdict!].label,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
                 </span>
-              </span>
-              <span class="verdict" style={`color: ${VERDICT[e.verdict!].colorVar}`}>
-                {VERDICT[e.verdict!].label}
               </span>
             </a>
           </li>
@@ -289,13 +305,25 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
   .body b { display: block; font-size: var(--fs-body-s); line-height: var(--lh-body-s); font-weight: 600; }
   .meta { display: block; font-size: var(--fs-caption); line-height: var(--lh-caption); }
 
-  .verdict {
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    font-weight: 600;
-    text-align: right;
-    flex-shrink: 0;
-  }
+  /* HÄR LÅG `.verdict`, EN EGEN SPALT I RÖTT HALVFETT.
+   *
+   * Listan är sorterad allvarligast först, så etiketten byter värde exakt en
+   * gång i hela listan och står oförändrad på varenda synlig rad: tretton
+   * "Brister som kvarstår" i rad på `/stockholm/anmarkningar/`, uppmätt
+   * 2026-09-05. Kolumnen skilde alltså inga rader åt, den drog ett rött band
+   * längs sidans högerkant och blev sidans starkaste grafiska element. Sidan
+   * heter "med anmärkningar" och ingressen har redan sagt vad listan är.
+   *
+   * Ordet är inte borttaget utan flyttat in i metaraden, i samma grå som
+   * resten av den. Det VINNER dessutom på flytten: spalten doldes under
+   * 560 px, alltså fanns bedömningen inte alls i text på telefon, och
+   * bedömningsmärket till vänster är `aria-hidden`. Nu står den i klartext
+   * vid varje bredd och för varje skärmläsare.
+   *
+   * Färgen bärs av märket, som ligger kvar. Det är samma ordning som resten
+   * av sajten: färgen är aldrig ensam bärare, och ordet behöver inte färgas
+   * för att bära. Se tokens.css.
+   */
 
   .foot {
     margin-top: var(--s-8);
@@ -305,8 +333,4 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
 
   .foot p { font-size: var(--fs-body-s); line-height: 21px; }
   .foot p + p { margin-top: var(--s-3); }
-
-  @media (max-width: 560px) {
-    .verdict { display: none; }
-  }
 </style>

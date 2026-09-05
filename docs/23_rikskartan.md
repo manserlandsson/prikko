@@ -1239,7 +1239,10 @@ lagring och en aning mer per ruta, inte en tyngre sida. Rutgrinden är grön.
 
 ### Kvar att göra, uppmätt men inte rättat
 
-- Hubbens lilla ruta kör `compact: true`, och den knappen gör att MapLibres rad
-  bryts till två rader vid 375 även utan gränsens upphov. Det är punkt 19 i
-  `docs/57_visuell_genomgang.md` och står kvar där.
+- ~~Hubbens lilla ruta kör `compact: true`~~, RÄTTAT 2026-09-05. Knappen gjorde
+  att raden bröts till två rader vid 375, uppmätt till 317 x 34 px, och bakom en
+  hopfällarknapp får en attribution inte ligga. Rutan är 343 px vid 375 och
+  400 vid 1440 medan raden är 307,3 px, så kontrollen kör nu `compact: false`
+  som sajtens tre andra kartor och lådan är 307,3 x 15 på en rad vid båda
+  bredderna. Se punkt 19 i `docs/57_visuell_genomgang.md`.
 - Kommunens egen kartsida, se ovan.

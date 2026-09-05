@@ -294,9 +294,35 @@ if (vy) {
         // Samma resonemang som på kartsidan och platskartan.
         karta.addControl(new FullscreenControl({ container: root! }), 'top-right');
         karta.addControl(new NavigationControl({ showCompass: false }), 'top-right');
-        // Kompakt attribution: rutan är 328 px bred, och den fulla raden hade
-        // lagt sig i två våningar över kartans underkant.
-        karta.addControl(new AttributionControl({ compact: true }), 'bottom-right');
+        /*
+         * UTFÄLLD UPPHOVSRAD, som sajtens tre andra kartor. Rättat 2026-09-05.
+         *
+         * Här stod `compact: true` med motiveringen att rutan är 328 px bred
+         * och att den fulla raden hade lagt sig i två våningar. Båda talen var
+         * fel. Uppmätt i bygget 2026-09-05: rutan är 343 px vid 375 och 400 px
+         * vid 1440, och kartbladens rad är 307,3 px, alltså samma rad som
+         * `/karta/` och områdeskartan redan bär. Innanför hörnets 2 x 12 px
+         * luft finns 319 px, så raden ryms.
+         *
+         * Det var KNAPPEN som bröt raden. Med `compact: true` ritar MapLibre
+         * en hopfällarknapp bredvid texten, och i utfällt läge blev lådan
+         * 317 px bred och 34 px HÖG vid 375, alltså två våningar som tog 17
+         * procent av rutans 200 px höjd. Utan knappen är lådan 307,3 x 15.
+         *
+         * Attribution är ett licensvillkor, och en hopfälld attribution
+         * garanterar ingenting: den regeln står skriven i Karta.astro och i
+         * OmradeHub.astro. Utfälld i alla lägen är alltså också det som gör
+         * att ingen extra upphovsrad behövs under rutan.
+         *
+         * Ingen platta bakom raden. Läsbarheten bärs av bläcket och den vita
+         * glorian i styles/kartram.css, med kontrasttalen mot varje yta i
+         * kartstilen, och ägaren har sagt ifrån om plattan i klartext. Se
+         * docs/23_rikskartan.md, ändring 4.
+         *
+         * Ändra ALDRIG tillbaka till true utan att samtidigt sätta en synlig
+         * upphovsrad under rutan.
+         */
+        karta.addControl(new AttributionControl({ compact: false }), 'bottom-right');
 
         karta.on('load', async () => {
           /*

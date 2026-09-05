@@ -480,6 +480,72 @@ export function formatDistance(metres: number): string {
   return metres < 1000 ? `${metres} m` : `${(metres / 1000).toFixed(1)} km`;
 }
 
+/**
+ * Avståndet där två ställen inte längre ligger på var sitt avstånd, i meter.
+ *
+ * "0 m" är sant och läser ändå som saknad data. Ägarens beslut 2026-09-05 är
+ * att skriva ut vad noll meter BETYDER, och talet nedan är mätt och inte
+ * antaget.
+ *
+ * Koordinaterna är avrundade till en miljondels grad, inte en hundratusendels:
+ * samtliga 14 384 koordinater i beståndet är jämna miljondelar och 14 234 av
+ * dem är INTE jämna hundratusendelar. Rutnätet är alltså 0,11 m i latitud och
+ * 0,06 m i longitud, och noll meter betyder därför samma punkt och inte samma
+ * avrundning.
+ *
+ * Fördelningen av grannrader över de 13 160 sidor som har en grannlista,
+ * 52 640 rader, är en klippa och inte en sluttning:
+ *
+ *   0 m   7 050 rader        4 m    56        8 m   110
+ *   1 m     412              5 m    51        9 m   120
+ *   2 m      46              6 m    81       10 m   123
+ *   3 m      46              7 m    51       20 m   458
+ *
+ * Efter 1 m faller antalet nio gånger och planar ut. Tröskeln är alltså 1 och
+ * inte 5 eller 10: allt över den är riktiga avstånd mellan riktiga adresser,
+ * och ett tal som stämmer ska stå kvar som ett tal.
+ *
+ * ADRESSEN AVGÖR ORDET, inte avståndet ensamt. De 7 462 raderna på 1 m eller
+ * mindre delar upp sig så här:
+ *
+ *   6 141  samma adress efter normalisering        82,3 %
+ *     655  samma gata, olika nummer                 8,8 %
+ *     325  olika gata                               4,4 %
+ *     341  minst en adress saknas                   4,6 %
+ *
+ * Koordinaten är en BYGGNAD och adresserna är dess olika entréer:
+ * Hötorgshallen har 21 verksamheter på samma punkt, Kista galleria 20 med
+ * ingångar både från Hanstavägen och Brandesgången, Östermalmshallen 13.
+ * Ibland är punkten bara delad och fel för minst en av dem, som "Åhléns @
+ * Dalagatan 100" och "Hemköp @ Ringvägen 100".
+ *
+ * Att skriva "samma adress" på de 1 321 hade bytt ett tal som LÄSER fel mot
+ * ett påstående som ÄR fel, och det är ett sämre byte. De får "samma plats",
+ * vilket är exakt vad noll meter betyder och ingenting mer.
+ */
+export const SAME_PLACE_M = 1;
+
+/**
+ * Avståndet till en granne, i ord när metern inte längre säger något.
+ *
+ * Se SAME_PLACE_M för talen bakom tröskeln och för varför adresserna avgör
+ * vilket av de två orden som står. Över tröskeln är svaret formatDistance:s,
+ * alltså oförändrat på 85,8 procent av alla grannrader.
+ */
+export function distanceLabel(
+  metres: number,
+  address: string | null,
+  otherAddress: string | null,
+): string {
+  if (metres > SAME_PLACE_M) return formatDistance(metres);
+  // Skiljetecken, versaler och mellanrum skiljer inte två adresser åt.
+  // "Östra Storgatan 109" och "Östra Storgatan 109 A" gör det, och de är två
+  // entréer och alltså två adresser.
+  const norm = (s: string) => s.toLowerCase().replace(/[^0-9a-zåäöéü]+/g, '');
+  const same = address && otherAddress && norm(address) === norm(otherAddress);
+  return same ? 'samma adress' : 'samma plats';
+}
+
 // ---------------------------------------------------------------------------
 // Bäst i närheten
 // ---------------------------------------------------------------------------
@@ -747,7 +813,7 @@ export interface RecurringIssue {
   dates: string[];
   /** Kvarstod den vid senaste kontrollen den noterades? */
   latestPersisting: boolean;
-  /** Längsta uppehållet mellan två noteringar av bristen, i hela dagar. */
+  /** Längsta uppehållet mellan två kontroller som noterat bristen, i dagar. */
   gapDays: number;
   /**
    * Sant när noteringarna ligger på var sin sida av ett uppehåll på minst
@@ -793,8 +859,36 @@ export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[
 
       const existing = seen.get(key);
       if (existing) {
-        existing.count += 1;
-        existing.dates.push(inspection.date);
+        /*
+         * EN RAD PER KONTROLL, INTE PER NOTERING. Rättat 2026-09-05.
+         *
+         * Svepet lägger en rad per NOTERING, och en kontroll kan bära flera
+         * rader som normaliseras till samma brist. Det stod i klartext på
+         * sidan: Gröna Lund läste "Information om livsmedel: 10 juni 2026 ·
+         * 10 juni 2026 · 10 juni 2026 · 4 juni 2025", alltså samma datum tre
+         * gånger i följd.
+         *
+         * Uppmätt över hela beståndet 2026-09-05, på de 3 609 sidor som har
+         * blocket: 727 av 5 881 rader (12,4 procent) upprepade minst ett
+         * datum, som mest sex gånger, och de låg på 652 sidor. Räknat på bara
+         * de fyra datum raden hinner visa: 609 rader på 555 sidor.
+         *
+         * Alternativet var att skriva ut upprepningen som "10 juni 2026 (3)".
+         * Det behåller ett värre fel. `count` var antalet NOTERINGAR, medan
+         * rubrikens räknare och tipset båda säger "vid mer än en kontroll".
+         * På 46 rader, spridda över 43 sidor, låg samtliga noteringar på ett
+         * ENDA kontrolltillfälle, och där påstod sidan alltså något som inte
+         * stämde. En parentes hade lämnat de 46 kvar och dessutom lagt till
+         * ett tal utan enhet intill ett datum.
+         *
+         * Jämförelsen med sist tillagda datum räcker och behöver ingen
+         * mängd: alla områden i EN kontroll gås igenom i följd, så noteringar
+         * med samma datum kan bara landa här efter varandra.
+         */
+        if (existing.dates[existing.dates.length - 1] !== inspection.date) {
+          existing.count += 1;
+          existing.dates.push(inspection.date);
+        }
       } else {
         seen.set(key, {
           description: area.description || area.group,
@@ -814,12 +908,17 @@ export function recurringIssues(e: Establishment, minCount = 2): RecurringIssue[
 
   const issues: RecurringIssue[] = [];
   for (const issue of seen.values()) {
+    /*
+     * Grinden mäter nu kontroller och inte noteringar, se svepet ovanför.
+     * Följden i beståndet 2026-09-05: 46 rader på 43 sidor faller bort, och
+     * 24 av de sidorna tappar hela blocket. Ingen av dem hade en brist som
+     * återkom, de hade en kontroll som noterat samma sak flera gånger.
+     */
     if (issue.count < minCount) continue;
-    // Samma kontrolldatum kan bära flera rader som normaliseras till samma
-    // brist. Uppehållet ska mätas mellan KONTROLLTILLFÄLLEN, annars räknas ett
-    // dubblerat datum som ett uppehåll på noll och döljer ett verkligt.
-    const unique = issue.dates.filter((d, i) => i === 0 || d !== issue.dates[i - 1]);
-    issue.gapDays = longestGap(unique);
+    // Uppehållet mäts mellan kontrolltillfällen och inte mellan noteringar,
+    // annars räknas ett dubblerat datum som ett uppehåll på noll och döljer
+    // ett verkligt.
+    issue.gapDays = longestGap(issue.dates);
     issue.straddlesGap = issue.gapDays >= HISTORY_GAP_DAYS;
     issues.push(issue);
   }

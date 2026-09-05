@@ -27,8 +27,13 @@
   padding-block: var(--s-12) var(--s-16);
 }
 
+/* Lässpalten på en kontosida. Måttet är --w-read-behallare och inte --w-read.
+   `.container` är border-box, så `--w-read` rakt på den drog av containerns två
+   gutters och gav 584 px text i stället för 680, alltså precis den fälla som
+   tretton lässidor rättades ur 2026-09-05. Skälet står i sin helhet vid
+   `.container.read` i tokens.css, och talet bor i --w-read. */
 .konto-wide {
-  max-width: var(--w-read);
+  max-width: var(--w-read-behallare);
 }
 
 /* ---------------------------------------------------------------------------
@@ -89,6 +94,12 @@
    innehållsspalten gick från 760 till 476. Uppmätt i bygget 2026-08-26. */
 .konto-enkel {
   max-width: var(--w-page);
+  /* CENTRERAD, som /sok/ och /jamfor/ centrerar sin enkelspalt.
+     Utan den här raden låg det utloggade läget kvar i containerns vänsterkant
+     medan containern var --w-wide: uppmätt vid 1440 en rubrik och en knapp vid
+     x = 48 i en behållare på 1 344 px, alltså 205 px innehåll och 1 235 px tomt
+     till höger om det. Sidan såg oavslutad ut, och det är just den bilden. */
+  margin-inline: auto;
 }
 
 /* Ramen. Rand till vänster, spalt till höger, båda centrerade som ett block.
@@ -235,6 +246,20 @@
   line-height: var(--lh-title);
 }
 
+/* INGRESSEN UNDER SIDRUBRIKEN ÄR BRÖDTEXT, inte bildtext. Rättat 2026-09-05.
+   Raden bar `.konto-sub`, alltså --fs-caption på 13 px, direkt under en rubrik
+   på 32. Sajtens minsta grad låg alltså närmast sidans största, medan varje
+   annan sidtopp går 32 eller 40 ned till 17.
+   Klassen är inte fel i sig, den var på fel plats: inuti ett avsnitt bär den ett
+   villkor under en h2 och gör rätt. Regeln som avgör är Kontrollserien.astro:s,
+   att en komponent ärver graden från den komponent den står INUTI. Den här
+   raden står inuti sidhuvudet och ärver därför sidans ingressgrad, samma som
+   `.konto-lead`. */
+.konto-head .konto-sub {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
 .konto-card {
   background: var(--card);
   border-radius: var(--r-card);
@@ -263,7 +288,12 @@
 }
 
 /* Den tysta raden under en rubrik. Mindre än .konto-lead, för det den bär är
-   ett villkor och inte en inledning. */
+   ett villkor och inte en inledning.
+
+   GÄLLER INUTI ETT AVSNITT, inte under sidans egen rubrik. Se `.konto-head
+   .konto-sub` längre ned: en komponent ärver graden från den komponent den
+   står inuti, och en rad under h1 står inte inuti något. Regeln är
+   Kontrollserien.astro:s och står skriven där. */
 .konto-sub {
   margin-top: var(--s-2);
   font-size: var(--fs-caption);
