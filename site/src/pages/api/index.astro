@@ -78,6 +78,31 @@
  *     docs/55 §12.
  *
  * ---------------------------------------------------------------------------
+ * OCH VARFÖR SIDAN FICK YTOR SAMMA DAG
+ * ---------------------------------------------------------------------------
+ * Ägaren några timmar efter det ovan: "kanske ha någon bakgrund på api
+ * headern, som apple, simpel men snygg, också dom där sifforrna under 3
+ * columner, kanske kan ha vår blåa färg, det ser liksom hemmabyggt ut hela API
+ * sidan, ser ej clean ut såsom resend, stripe osv, vet ej varför......"
+ *
+ * Det sista ledet var uppgiften, och svaret är mätt och inte gissat. Sidan
+ * hade EN yta: --canvas täckte 18 515 072 px² av första skärmen och --card
+ * 122 673, och de skiljer sig åt med 1,03:1. Förlagorna har två, och steget
+ * mellan dem är tre gånger så stort: Apple 1,089:1, Resend docs 1,07, Stripe
+ * docs 1,075. Följden av att inte ha ytor är att allt måste avgränsas med
+ * streck, och sidan ritade 208 element med synlig kant över 14,3 skärmar mot
+ * Apples noll i första skärmen.
+ *
+ * Talraden hade samma slags fel, fast som en olycka: talen stod i #6E6E73,
+ * exakt samma grå som etiketten bredvid, eftersom `.fordelar p` träffade dem.
+ * Ingen valde den färgen.
+ *
+ * Vad som ändrades: tre ytnivåer i stället för en, en hjältebakgrund i två
+ * lager, talen i --brand-ink, dokumentet på en platta, panelen nedsänkt i
+ * stället för upphöjd, och etikettspalterna i spaltens fulla bredd. Varje tal
+ * står vid sin regel i style-blocket längst ned.
+ *
+ * ---------------------------------------------------------------------------
  * FÖRLAGORNA, UPPMÄTTA 2026-09-01 VID 1440 PX
  * ---------------------------------------------------------------------------
  * Ägaren är uttrycklig om att design mäts mot riktiga sajter. Talen står i
@@ -544,7 +569,9 @@ const jsonLd = {
       läser samma yta som gulaktig. Det är simultankontrast och inte en
       felaktig token, och det försvinner när fältet gör det.
 
-      Kvar står linjen nedtill, som är den enda avgränsning bandet behöver.
+      Linjen nedtill stod kvar i några timmar och är också borta. Bandet
+      avgränsas numera av att dess vita nederkant möter dokumentets grund på
+      1,090:1, se `.salj` i style nedan.
       --------------------------------------------------------------------- */}
   <div class="salj">
     <div class="container band">
@@ -1298,7 +1325,20 @@ const jsonLd = {
   .band,
   .sida { --container: var(--w-full); }
 
-  .sida { padding-block: var(--s-12) var(--s-16); }
+  /* Dokumentets grund. Se ytresonemanget vid `.salj`: menyn och luften runt
+     texten ligger på grunden, texten själv på plattan. Det är Resends och
+     Stripes docs-form, och det är den som gör att en lång referens läser som
+     ett dokument på ett bord i stället för som tjugo tusen pixlar text.
+
+     INGET MÖRKT LÄGE FINNS ATT PRÖVA MOT. `prefers-color-scheme` förekommer
+     noll gånger i site/src, alltså har sajten bara ett läge. Sidan är
+     fotograferad i båda och bilderna är identiska pixel för pixel, vilket är
+     rätt utfall och inte ett fel: raderna ovan är skrivna i tokens så att de
+     följer med om ett mörkt läge någon gång läggs till. */
+  .sida {
+    padding-block: var(--s-12) var(--s-16);
+    background: var(--api-grund);
+  }
 
   /* ---------------------------------------------------------------------
      SÄLJBANDET
@@ -1313,9 +1353,101 @@ const jsonLd = {
      stället för som ett annat slags sida. Det är precis vad vi ville bort
      ifrån.
 
-     Linjen nedtill finns för de skärmar där 8 procents blått knappt syns.
+     Linjen nedtill fanns för de skärmar där 8 procents blått knappt syns.
+     Blått och linje är båda borta, se nästa block.
      --------------------------------------------------------------------- */
-  .salj { border-bottom: 1px solid var(--hairline); }
+
+  /* ---------------------------------------------------------------------
+     SIDAN FÅR TRE YTOR, OCH DET ÄR ROTEN TILL ALLT NEDAN
+
+     Ägaren 2026-09-05: "kanske ha någon bakgrund på api headern, som apple,
+     simpel men snygg ... det ser liksom hemmabyggt ut hela API sidan, ser ej
+     clean ut såsom resend, stripe osv, vet ej varför".
+
+     VARFÖR: sidan hade EN yta. Uppmätt i den byggda sidan vid 1 440 px innan
+     det här: --canvas täckte 18 515 072 px² av första skärmens element och
+     --card 122 673, alltså 0,7 procent, och de två skiljer sig åt med tre
+     RGB-steg, 1,03:1. Ögat läser inte en ytskillnad på 1,03. Sidan var alltså
+     ett enda ark från sidhuvudet till sidfoten, tolv sektioner långt, och det
+     enda som skilde något från något annat var 1 px streck. Då börjar sidan
+     aldrig, och då blir strecken det enda man ser.
+
+     Förlagorna gör precis tvärtom, uppmätt samma dag vid samma bredd:
+
+       Apple Developer   grund #F5F5F7, innehåll #FFFFFF, alltså 1,089:1, och
+                         NOLL element med synlig ram i första skärmen.
+       Resend docs       grund svart 3 % på vitt, innehåll #FFFFFF, 9 ramar.
+       Stripe API-docs   grund #F4F7FA, innehåll #FFFFFF, 9 ramar.
+       Vår sida          en yta, 1,03:1, 11 ramar i första skärmen och 208 i
+                         hela sidan, alltså 14,6 per skärm över 14,3 skärmar.
+
+     Alltså tre nivåer i stället för en, och ingen ny färg in i systemet:
+
+       GRUNDEN   --api-grund, --text blandad 3 % i --canvas, alltså #F5F5F6.
+                 1,090:1 mot vitt, och Apples #F5F5F7 ligger på 1,089:1. Det
+                 är samma steg, räknat och inte kopierat.
+       PLATTAN   --card, dokumentet och hjältens ljusa del.
+       FÄLTET    kodkortets #F4F4F4, orört, och det ligger numera PÅ plattan
+                 i stället för på --canvas: 1,100:1 mot 1,073 förut.
+
+     Uttrycket är byggt av --text, --canvas och --card och inte av hexkoder,
+     vilket betyder att det följer med av sig självt den dag sajten får ett
+     mörkt läge: i en mörk palett ger "--text 3 % i --canvas" en ANING ljusare
+     mörk grund, alltså rätt håll utan att raden skrivs om. Sajten har inget
+     mörkt läge i dag, se noten vid `.sida`.
+     --------------------------------------------------------------------- */
+  .salj,
+  .sida { --api-grund: color-mix(in srgb, var(--text) 3%, var(--canvas)); }
+
+  /* ---------------------------------------------------------------------
+     HJÄLTENS BAKGRUND: EN TON VID KANTEN OCH ETT LJUS BAKOM RUBRIKEN
+
+     Formen är Apples och inte Stripes. Stripe lägger en fälld gradient i
+     färg mot ett hörn; Apple lägger en yta och ett ljus, och det var Apple
+     ägaren nämnde. Två lager:
+
+       1. En ton tvärs över överkanten som klingar av nedåt och är slut på
+          34 procent av bandets höjd. Det är den som gör att sidan BÖRJAR:
+          man ser var sidhuvudet slutar och sidan tar vid.
+       2. Ett brett, mjukt ljus bakom rubriken, så att texten står på det
+          ljusaste stället i bandet i stället för på det mörkaste.
+
+     INGET BLÅTT. Bandet låg på --brand-wash i fyra timmar och dömdes ut
+     ("blåa bakgrunden på api ser ej najs ut"). Det här är samma två neutraler
+     sidan redan har, alltså kan domen inte gälla en gång till.
+
+     UPPMÄTT I FÄRDIGA PIXLAR, alltså i bilden och inte i CSS:en, vid 1 440:
+
+       överkanten tvärs hela bredden   #F6F6F7   1,08:1 mot vitt
+       bakom h1                        #FEFEFE   bläcket ligger på 16,69:1
+       bredvid kodkortet               #FAFAFB   kortet läser på 1,054:1
+       talraden och bandets nederkant  #FFFFFF   bläcket på 16,83:1
+
+     Läsbarheten går alltså UPP och inte ned: rubriken stod förut på #FCFCFD
+     och 16,41:1, och står nu på 16,69. Kravet var att bakgrunden aldrig får
+     sänka kontrasten i texten ovanpå, och den höjer den.
+
+     Kodkortet är det enda som kostar något. Det ligger 64 px in i bandet,
+     alltså mitt i tonens avklingning, och där är underlaget #FAFAFB mot
+     kortets #F4F4F4, alltså 1,054:1 i stället för 1,073 mot --canvas. Det är
+     därför tonen är BRANT och inte jämn: 34 procent till vitt i stället för
+     hela bandet. Kortet bär dessutom --shadow-pop, alltså en ring plus 30 px
+     skugga, och det är ringen som avgränsar precis som tokens.css säger.
+
+     LINJEN NEDTILL ÄR BORTA. Den fanns för att markera ett bandslut som
+     ingen yta markerade. Nu möter bandets vita nederkant grunden på 1,090:1,
+     alltså samma steg Apple avgränsar med, och Apple ritar noll linjer.
+     --------------------------------------------------------------------- */
+  .salj {
+    background:
+      radial-gradient(70% 64% at 30% 52%, var(--card) 0%, transparent 78%),
+      linear-gradient(
+        180deg,
+        var(--api-grund) 0%,
+        color-mix(in srgb, var(--api-grund) 34%, var(--card)) 8%,
+        var(--card) 34%
+      );
+  }
 
   /* 64 px över och 48 under. Uppmätt i den första utgåvan av det här bandet:
      med 48 upptill började kodkortet 110 px från fönstrets överkant, alltså
@@ -1427,6 +1559,34 @@ const jsonLd = {
     font-weight: 600;
     letter-spacing: -.01em;
 
+    /* TALET ÄR BLÅTT, OCH DEN GRÅ FÄRGEN DET HADE VAR EN OLYCKA.
+       ──────────────────────────────────────────────────────────────────
+       Ägaren 2026-09-05: "dom där sifforrna under 3 columner, kanske kan
+       ha vår blåa färg".
+
+       Uppmätt i den byggda sidan innan raden skrevs: talet stod i #6E6E73
+       och etiketten bredvid det i #6E6E73, alltså EXAKT samma värde, medan
+       rubriken direkt under stod i #1D1D1F. Radens största grad var alltså
+       radens blekaste färg, 4,95:1 mot en 16,4:1 rubrik i 17 px, och en rad
+       där tyngden ligger tvärtemot graden läser som en tabell.
+
+       Ingen valde den grå. `.fordelar p` nedan sätter --text-secondary på
+       radens brödtext, och `<p class="tal">` ÄR ett p, alltså träffades
+       talet av en regel som skrevs för styckena. Graden skrevs över av
+       `.fordelar .tal`, färgen aldrig. Det är hela mekaniken.
+
+       --brand-ink och inte --brand, och det är mätt mot den yta talet
+       faktiskt står på, alltså bandets vita nederkant och inte --canvas:
+       --brand #007BE0 ligger på 4,28:1 där och --brand-ink #0063B4 på
+       6,10:1. Bägge räcker för 40 px halvfet, men tokens.css reserverar
+       --brand som YTFÄRG och skickar text till --brand-ink, och knappen
+       "Kom igång" 130 px ovanför är redan fylld med --brand. Talen ska inte
+       låta som ännu en knapp.
+
+       Etiketten är kvar i --text-secondary, se regeln nedan: blir båda blå
+       försvinner skillnaden mellan talet och dess enhet. */
+    color: var(--brand-ink);
+
     /* Siffrorna är tabellsiffror. Utan den här raden får nollan och trean i
        Instrument Sans olika bredd, och tre tal under varandra i tre spalter
        står inte på linje. */
@@ -1526,10 +1686,37 @@ const jsonLd = {
     margin-bottom: var(--s-4);
   }
 
+  /* DOKUMENTET LIGGER PÅ EN PLATTA, se ytresonemanget vid `.salj`.
+
+     Ingen ring och ingen skugga. Plattan mot grunden är 1,090:1, alltså
+     precis det steg Apple avgränsar sina kort med, och Apple ritar noll
+     linjer i första skärmen. tokens.css motiverar ringen med att "en linje
+     läses där ett lika stort fältskillnad inte gör det", och det villkoret
+     är inte uppfyllt här: fältskillnaden läses.
+
+     Vinsten utöver ordningen är kodkorten. De ligger numera på --card i
+     stället för på --canvas, alltså 1,100:1 mot 1,073, och sidan har sju
+     stycken. */
+  .innehall {
+    background: var(--card);
+    border-radius: var(--r-card);
+    padding: var(--s-8) var(--s-12) var(--s-12);
+  }
+
   .innehall p,
   .innehall .plain,
-  .innehall .aldrig,
-  .innehall .spec { max-width: var(--w-read); }
+  .innehall .aldrig { max-width: var(--w-read); }
+
+  /* Etikettspalten SLÄPPER --w-read och tar spaltens fulla bredd, medan
+     värdet i den behåller gränsen.
+
+     Uppmätt i den byggda sidan: `.spec` mätte 680 px och kodkortet under den
+     1 040 i samma spalt, alltså två rutor med samma vänsterkant och 360 px
+     skillnad i högerkant, fem gånger om under varandra. Den trappan är en
+     stor del av det "hemmabyggda": en sida ser ordnad ut när dess block
+     slutar på samma x. Nu gör Adress, Autentisering, Parametrar och Exempel
+     det. */
+  .innehall .spec { max-width: none; }
 
   .innehall p { line-height: var(--lh-body); }
   .innehall p + p { margin-top: var(--s-4); }
@@ -1578,12 +1765,26 @@ const jsonLd = {
      Linjen över sektionen tas bort och ersätts av panelens egen kant, annars
      står två avdelare på samma ställe.
      --------------------------------------------------------------------- */
+  /* PANELEN VÄNDS: den är nedsänkt i plattan i stället för upphöjd ur den.
+
+     Rutan låg på --card med --shadow-sm, och det receptet förutsatte att
+     underlaget var --canvas. Sedan dokumentet fick sin platta ligger vitt på
+     vitt, alltså 1,00:1, och då bär ringen ensam hela avgränsningen.
+
+     Nu bär ytan den i stället: grunden mot plattan är 1,090:1, och ringen
+     kan därmed utgå. Det är fyra kanter mindre på sidan och samma betydelse
+     kvar, "elva avsnitt är öppen data och det här är det enda som kostar ett
+     mejl". Nedsänkt är dessutom rätt riktning: en ruta man ska stanna vid är
+     ett hål i dokumentet och inte ett kort ovanpå det.
+
+     Ingen kodruta ligger här, kontrollräknat: sidans sju Kodkort står i
+     hjälten, Kom igång, Slutpunkter och Licens. Det spelar roll, eftersom
+     kortets #F4F4F4 mot grundens #F5F5F6 är 1,009:1, alltså osynligt. */
   #tillgang {
     border-top: 0;
     padding: var(--s-8);
-    background: var(--card);
+    background: var(--api-grund);
     border-radius: var(--r-card);
-    box-shadow: var(--shadow-sm);
   }
 
   /* Rullningsmålet flyttas ut lika mycket som panelen är indragen, annars
@@ -1640,8 +1841,12 @@ const jsonLd = {
   .spec > div + div { border-top: 1px solid var(--hairline); }
 
   .spec dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
+
+  /* Rutan är bred, raden är det inte. Parametrarnas värde är en mening och
+     inte ett värde, och en mening som får 840 px är för lång att läsa. */
   .spec dd {
     margin: 0;
+    max-width: var(--w-read);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
   }
@@ -1785,6 +1990,18 @@ const jsonLd = {
 
     .meny li { margin-top: 0; }
     .meny li.under { padding-left: 0; }
+
+    /* Plattan går ut till skärmkanten och tappar sin radie när menyn slutar
+       vara en spalt. Skälet är bredden och inte formen: en platta med egen
+       padding inuti behållarens padding hade kostat texten 32 px i sidled på
+       en 375 px skärm, alltså 9 procent av raden, för en kant som ingen ser
+       eftersom ingenting står bredvid den. Kodkorten behöver däremot
+       fortfarande sin vita botten, alltså tas plattan inte bort. */
+    .innehall {
+      margin-inline: calc(-1 * var(--container-luft));
+      padding: var(--s-8) var(--container-luft);
+      border-radius: 0;
+    }
   }
 
   /* Kvittensens telefonregel flyttade med rutan till Kodkort.astro. */
