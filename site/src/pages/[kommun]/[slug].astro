@@ -68,6 +68,8 @@ import ArtikelBanner from '../../components/ArtikelBanner.astro';
 import Handlingsrad from '../../components/Handlingsrad.astro';
 import Anmal from '../../components/Anmal.astro';
 import { anmalningsvagar, arKonsumentvand } from '../../lib/anmalan.ts';
+import Begaran from '../../components/Begaran.astro';
+import { begaran } from '../../lib/begaran.ts';
 import Kontrolldatum from '../../components/Kontrolldatum.astro';
 import {
   BEST_NEARBY_M,
@@ -344,6 +346,21 @@ const kedja = chainFor(e);
  * Tom lista betyder ingen ruta, och då sätts ingen `.panel` heller ut.
  */
 const anmalningsvagarna = anmalningsvagar(kommun.code, e, arKonsumentvand(categoriesOf(e)));
+
+/**
+ * Brevet som besökaren själv skickar till kommunen, eller null.
+ *
+ * Null på de flesta sidor: villkoret är att senaste kontrollen är äldre än två
+ * år eller saknas, och att kommunen har en verifierad mottagaradress. Räknat i
+ * beståndet 2026-09-05 gäller det 5 153 av 17 146 verksamheter, varav 1 616
+ * aldrig haft en kontroll publicerad. Regeln och brevet bor i lib/begaran.ts,
+ * mottagarna i lib/begaran.data.ts, och avvägningen bakom hela funktionen i
+ * docs/50_begar_ut_kontrollen.md.
+ *
+ * Byggdagen och inte ett fruset datum, alltså glider raden in på fler sidor av
+ * sig själv när kontrollerna åldras.
+ */
+const begaranslank = begaran(kommun.code, kommun.city, e, latest, new Date());
 
 /**
  * Svarsmeningen. Sidans första rad, och den enda rad en språkmodell
@@ -1161,6 +1178,18 @@ const breadcrumbs = {
         {anmalningsvagarna.length > 0 && (
           <div class="panel">
             <Anmal vagar={anmalningsvagarna} />
+          </div>
+        )}
+
+        {/* Begäran om kontrollrapporten, SIST i familjen av vägar bort från
+            sajten och bara på de sidor som saknar en färsk kontroll.
+
+            Efter "Anmäl till kommunen" och inte före: den rutan gäller varje
+            sida, den här gäller de sidor där vi har minst att visa. Se
+            Begaran.astro för varför besökaren och aldrig vi är avsändare. */}
+        {begaranslank && (
+          <div class="panel">
+            <Begaran href={begaranslank.href} kommunkod={kommun.code} />
           </div>
         )}
 

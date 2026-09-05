@@ -1,0 +1,161 @@
+---
+/**
+ * Vägen till kontrollrapporten när sidan inte har någon färsk kontroll.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR RUTAN FINNS
+ * ---------------------------------------------------------------------------
+ * 5 153 av 17 146 verksamheter har ingen kontroll nyare än två år, och 1 616 av
+ * dem har ingen alls. I dag är det bara en tystnad på sidan. Rapporten är en
+ * allmän handling och går att begära ut av vem som helst, alltså är en rad som
+ * säger det ärligare än tystnaden. Hela avvägningen står i
+ * docs/50_begar_ut_kontrollen.md, som också säger vad som INTE ska byggas.
+ *
+ * ---------------------------------------------------------------------------
+ * VI ÄR ALDRIG AVSÄNDARE, OCH DET ÄR RUTANS VIKTIGASTE EGENSKAP
+ * ---------------------------------------------------------------------------
+ * Länken är en `mailto:` och öppnar besökarens EGEN mejlklient med ett färdigt
+ * brev i hens eget namn. Vi tar inte emot någon begäran, vi skickar ingen, vi
+ * lagrar ingenting om besökaren och svaret går till hen och aldrig till oss.
+ *
+ * Skälet är inte försiktighet utan en följd som är lätt att missa: en begäran
+ * om allmän handling blir SJÄLV en allmän handling hos kommunen. Skickade vi i
+ * besökarens namn skulle hens mejladress hamna i kommunens diarium och kunna
+ * begäras ut av vem som helst, och 1 kap. 7 § dataskyddslagen (2018:218) gör
+ * att GDPR inte stoppar det. Vi skulle alltså göra våra besökares adresser
+ * offentliga som en biverkning av en knapp de tryckt på för att läsa en
+ * rapport. Se docs/50 §6.
+ *
+ * ---------------------------------------------------------------------------
+ * VARFÖR HÄR NERE OCH INTE I HANDLINGSRADEN
+ * ---------------------------------------------------------------------------
+ * Samma resonemang som redan gäller Anmal.astro, som står direkt ovanför:
+ * verkan sker utanför sajten, alltså har rutan ingen sektion att höra till,
+ * och då är sidopanelen rätt plats. Handlingsraden är två knappar bred av
+ * princip och vetter mot den som vill följa eller dela.
+ *
+ * Rutan är dessutom AVSIKTLIGT den sista i sin familj. "Något som inte
+ * stämmer?" och "Anmäl till kommunen" gäller alla sidor; den här gäller de
+ * sidor där vi har minst att visa, och den ska inte ropa högre än de två som
+ * gäller alla.
+ *
+ * ---------------------------------------------------------------------------
+ * TEXTEN
+ * ---------------------------------------------------------------------------
+ * Rubriken bär verbet och knappen bär ärendets namn, exakt som i Anmal.astro.
+ * Ingen mening förklarar att kontrollen är gammal: det står redan i
+ * bedömningen högst upp på samma sida, och docs/18 säger att det som står en
+ * rad bort inte ska skrivas en gång till.
+ *
+ * Bildtexten under knappen är det enda undantaget och den får stå. En länk som
+ * öppnar ett e-postprogram i stället för en sida är den enda länken på sidan
+ * som gör det, och en oväntad programstart är värre än en rad text.
+ */
+
+interface Props {
+  /** Färdig `mailto:`, byggd i lib/begaran.ts. */
+  href: string;
+  /** Kommunkoden, för räknaren. Aldrig verksamheten, se begaran.matning.ts. */
+  kommunkod: string;
+}
+
+const { href, kommunkod } = Astro.props;
+---
+
+{/* `data-nosnippet` av samma skäl som sidopanelens övriga rutor: en väg vidare
+    är inte sidans svar, och Google har byggt ett utdrag av knappnamn förut.
+    Se Handlingsrad.astro. */}
+<div data-nosnippet>
+  <h2 class="rubrik">Begär ut kontrollen</h2>
+
+  <a class="btn-ghost" href={href} data-begaran={kommunkod}>
+    <span>Senaste kontrollrapporten</span>
+    {/* Kuvert och inte den snedställda pilen som Anmal.astro bär. Pilen betyder
+        "öppnas i en ny flik"; det här öppnar ett e-postprogram, vilket är en
+        annan sorts hopp och den enda skillnad besökaren behöver se innan hon
+        trycker. */}
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        d="M2 4h12v8H2z M2 4.5l6 4 6-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"></path>
+    </svg>
+  </a>
+
+  <p class="caption text-muted">Öppnar ett färdigt brev i ditt e-postprogram.</p>
+</div>
+
+<style>
+  /* Samma panelrubriknivå som resten av sidopanelen. Regeln står här och inte
+     i sidmallen eftersom Astros scopeade selektorer inte korsar
+     komponentgränser, se ActionPanel.astro. */
+  .rubrik {
+    font-size: var(--fs-h-xs);
+    line-height: var(--lh-h-xs);
+    font-weight: 600;
+    margin-top: var(--s-4);
+  }
+
+  /* Kopia av knappen i Anmal.astro, och det är avsiktligt en kopia och inte en
+     delad klass: Astros scopeade selektorer korsar inte komponentgränser, så
+     ett gemensamt utseende måste antingen bo i tokens.css eller upprepas.
+     Formen är panelens enda form för en väg vidare, och två rutor bredvid
+     varandra med olika knappar hade sett ut som ett misstag. */
+  .btn-ghost {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+    width: 100%;
+    margin-top: var(--s-3);
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    min-height: var(--h-tap);
+    padding: var(--s-2) 22px;
+    font: 600 var(--fs-body-s) / 1.3 var(--font-sans);
+    text-align: left;
+  }
+
+  .btn-ghost:hover {
+    background: var(--canvas);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* Ikonen krymper aldrig, texten bryts i stället. Samma regel som grannens,
+     och "Senaste kontrollrapporten" är 25 tecken, alltså nära gränsen för en
+     rad i en 300 px spalt. */
+  .btn-ghost svg {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    color: var(--text-muted);
+  }
+
+  .caption {
+    margin-top: var(--s-2);
+  }
+</style>
+
+<script>
+  /**
+   * Räkna klicket, och stå aldrig i vägen för det.
+   *
+   * Ingen `preventDefault`, ingen `await`, inget villkor före navigeringen.
+   * Webbläsaren öppnar mejlet i samma ögonblick, och räkningen får ta den tid
+   * den tar i bakgrunden. Se begaran.matning.ts för vad som skickas, vilket är
+   * kommunkoden och ingenting annat.
+   */
+  import { raknaBegaran } from '../lib/begaran.matning';
+
+  for (const lank of document.querySelectorAll<HTMLAnchorElement>('[data-begaran]')) {
+    lank.addEventListener('click', () => {
+      raknaBegaran(lank.dataset.begaran ?? '');
+    });
+  }
+</script>

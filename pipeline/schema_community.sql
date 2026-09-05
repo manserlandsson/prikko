@@ -1285,6 +1285,58 @@ where i.status = 'published'
 alter view community.published_images set (security_invoker = true);
 
 -- ---------------------------------------------------------------------------
+-- Klickräknaren bakom "Begär ut kontrollen"
+--
+-- Raden på verksamhetssidan som ger besökaren ett färdigt brev till kommunen
+-- är inte bara en tjänst, den är MÄTINSTRUMENTET. docs/50 §9 skäl 2: passerar
+-- räknaren omkring 200 klick i månaden är förstudien fel och ska göras om med
+-- riktiga tal. Utan den här tabellen förblir frågan obesvarad för alltid.
+--
+-- VAD EN RAD INNEHÅLLER, UTTÖMMANDE: en månad, en kommunkod och ett heltal.
+-- Inte vem som klickade, inte vilken verksamhet, inte vilken sida och inte
+-- klockslaget. Det finns alltså ingen personuppgift här att hitta en rättslig
+-- grund för, och sajten sätter varken kaka eller lagring i webbläsaren för att
+-- få talet, se site/src/lib/begaran.matning.ts.
+--
+-- VERKSAMHETEN UTELÄMNAS MED AVSIKT. En räknare per verksamhet hade blivit en
+-- lista över vilka ställen folk misstänker, alltså ett påstående om namngivna
+-- verksamheter, och sådana gör den här sajten aldrig. Kommunkoden räcker för
+-- det som ska besvaras: finns en efterfrågan, och var.
+--
+-- ÄRLIGT OM VAD TALET ÄR: vem som helst kan anropa funktionen upprepade
+-- gånger, precis som vem som helst kan klicka upprepade gånger. Talet är en
+-- indikation och inget bevis, och det är rätt avvägning här: ett tak per IP
+-- hade krävt att en IP-adress lagrades, alltså en personuppgift enligt
+-- C-582/14 Breyer, för att skydda ett tal som bara styr om en förstudie ska
+-- göras om. Se docs/50 §7.3, där samma avvägning görs för den stora formen.
+-- ---------------------------------------------------------------------------
+create table if not exists community.begaran_klick (
+    manad  date   not null,
+    -- Fyra siffror, samma som Municipality.code. Villkoret är spärren mot att
+    -- funktionen fylls med skräpnycklar: en kommun som inte finns ska bli ett
+    -- fel i anropet och aldrig en rad i tabellen.
+    kommun text   not null check (kommun ~ '^[0-9]{4}$'),
+    antal  bigint not null default 0,
+    primary key (manad, kommun)
+);
+
+-- Den enda vägen in, och den kan bara öka ett tal.
+--
+-- `security definer` av samma skäl som avregistreringsfunktionerna längre upp:
+-- anon har varken select eller insert på tabellen och ska inte få det.
+-- Funktionen är en smal lucka som varken kan läsa en räknare eller minska en.
+create or replace function community.rakna_begaran(kommunkod text)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+    insert into community.begaran_klick as b (manad, kommun, antal)
+    values (date_trunc('month', current_date)::date, kommunkod, 1)
+    on conflict (manad, kommun) do update set antal = b.antal + 1;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Radsäkerhet
 --
 -- Grundregeln: en inloggad användare ser och skriver sina egna rader. Alla
@@ -1301,6 +1353,10 @@ alter table community.establishment_claims enable row level security;
 alter table community.owner_responses     enable row level security;
 alter table community.reviews             enable row level security;
 alter table community.image_uploads       enable row level security;
+-- Räknaren har ingen policy alls, och det är hela skyddet: ingen roll utom
+-- service_role kan läsa den, och den enda vägen in är funktionen
+-- community.rakna_begaran, som kör som ägaren.
+alter table community.begaran_klick       enable row level security;
 
 -- Profiler: egen rad, full kontroll. Ingen kan läsa någon annans profilrad
 -- direkt; visningsnamnet når allmänheten bara genom published_reviews.
@@ -1560,6 +1616,12 @@ revoke execute on function community.follow_by_token(uuid)         from public;
 revoke execute on function community.stop_following(uuid, boolean) from public;
 grant  execute on function community.follow_by_token(uuid)         to anon, authenticated;
 grant  execute on function community.stop_following(uuid, boolean) to anon, authenticated;
+
+-- Klickräknaren. Samma mönster: stäng förvalet till PUBLIC, öppna för de två
+-- roller som ska ha den. Ingen rättighet på tabellen under, alltså kan ett
+-- anrop bara öka ett tal och aldrig läsa vad någon annan räknat.
+revoke execute on function community.rakna_begaran(text) from public;
+grant  execute on function community.rakna_begaran(text) to anon, authenticated;
 
 -- Ingen får UPPDATERA. Moderering sker uteslutande med service_role genom
 -- pipeline/moderate.py. Det här är raden som gör att `pending` inte kan bli

@@ -758,3 +758,72 @@ Supabase, community-schemat, räknat 2026-08-31: 9 konton, 21 bevakningar,
 5 personer med bevakning, 20 omdömen, 3 anspråk, 0 skickade notismejl.
 `docs/20` §6.1, `docs/35` §3.3, `docs/42` §1, `docs/43` §5 och §7, `docs/44` §2.1
 och §9, `docs/45` §H och §6, `docs/49` §1.
+
+---
+
+## 13. Byggt 2026-09-05: brevet ligger på sidan
+
+Rekommendationen i §9 är genomförd i den lilla formen, ordagrant som den står
+där. Ingen utskicksmaskin, ingen svarsinkorg, ingen maskning.
+
+**Vem som får raden.** 5 153 verksamhetssidor, räknat mot byggdagen och inte
+mot ett fruset datum, så raden glider in på fler sidor av sig själv när
+kontrollerna åldras. Uppdelningen är 1 616 utan någon kontroll alls och 3 537
+med en kontroll äldre än två år. Talen i §9 skäl 5 var 1 565 och 2 501, alltså
+har gruppen vuxit med 1 087 sidor på de dagar som gått, vilket är precis den
+tystnad raden finns för.
+
+**Brevet, som det faktiskt renderas.** Från
+`/norrkoping/borgsmoskolan/`, hämtat ur bygget:
+
+> Ämne: Begäran om allmän handling: kontrollrapport för Borgsmoskolan
+>
+> Hej,
+>
+> Jag vill ta del av en allmän handling enligt 2 kap.
+> tryckfrihetsförordningen:
+>
+> kontrollrapporten från den senaste livsmedelskontrollen av Borgsmoskolan,
+> Dalviksgatan 75, Norrköping.
+>
+> Finns ingen sådan rapport ber jag i stället om den senaste handlingen ni har
+> om livsmedelskontroll av verksamheten.
+>
+> Skicka den gärna som PDF i svar på det här mejlet.
+>
+> Med vänlig hälsning
+
+Ingen frist, inget lagrum utöver 2 kap., inget av vårt namn, och ingen
+`[ditt namn]`-markör som blivit kvar oifylld i hälften av breven. Sista
+stycket finns för de 1 616 sidor som saknar kontroll helt: utan det vore
+brevet en begäran om något som kanske inte finns, och svaret hade blivit ett
+nej i stället för en handling.
+
+**De tretton adresserna.** Alla tretton är lästa i markupen på den sida som
+står i `kalla`, en kommun i taget, och `site/scripts/kontrollera-begaran.mjs`
+gör om hela mätningen. Kontrollkörning 2026-09-05: samtliga tretton står kvar.
+Ingen kommun saknar adress, alltså finns inget fall där raden uteblir av det
+skälet, men koden bär det fallet ändå för den dag en kommun byter brevlåda.
+
+Tre av tretton är kommunens gemensamma adress och inte förvaltningens, och det
+är kommunens eget val: Linköping, Lomma och Svenljunga publicerar ingen
+förvaltningsadress. Örebro skriver `miljoavdelningen@` och inte
+`miljoforvaltningen@`, vilket är den sortens fel en gissning hade gjort.
+
+**Räknaren.** §9 skäl 2 gör den lilla formen till mätinstrumentet: passerar
+den omkring 200 klick i månaden är förstudien fel och ska göras om. Tabellen
+`community.begaran_klick` bär uttömmande **en månad, en kommunkod och ett
+heltal**. Inte vem, inte vilken verksamhet, inte vilken sida, inte klockslaget.
+
+Verksamheten utelämnas med avsikt: en räknare per verksamhet hade blivit en
+lista över vilka ställen folk misstänker, alltså ett påstående om namngivna
+verksamheter. Sådana gör den här sajten aldrig.
+
+Talet är en indikation och inget bevis, för vem som helst kan klicka flera
+gånger. Ett tak per IP hade krävt att en IP-adress lagrades, alltså en
+personuppgift enligt C-582/14 Breyer, för att skydda ett tal som bara styr om
+en förstudie ska göras om. Samma avvägning som §7.3 gör för den stora formen.
+
+**Att göra innan talet börjar ticka:** `community.begaran_klick` och
+`community.rakna_begaran` måste finnas i Supabase. Tills dess faller anropet
+tyst, vilket är avsiktligt, och raden fungerar ändå för besökaren.
