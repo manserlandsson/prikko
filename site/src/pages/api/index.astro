@@ -44,6 +44,40 @@
  *      behållaren gick från --w-wide till --w-full.
  *
  * ---------------------------------------------------------------------------
+ * OCH VARFÖR PUNKT 1, 2 OCH 3 REVS SAMMA DAG
+ * ---------------------------------------------------------------------------
+ * Ägaren några timmar senare, om resultatet ovan: "asså det ser ej bra ut...
+ * blåa bakgrunden på api ser ej najs ut, kodlådorna fine, men ska dom
+ * verkligen vara svarta? bakgrunden är typ krämvit och inte vit, och det ser
+ * liksom bara kantigt ut och skumt skrivet, plus att man ska väl visst ha
+ * konto för att få tillgång till api???? såklart..... det ser bara inte clean
+ * ut."
+ *
+ * Sex punkter, och de behandlas var för sig i koden nedan. Sammanfattat:
+ *
+ *   BLÅTT. Båda --brand-wash-ytorna är borta, se `.salj` och `#tillgang`.
+ *     Betydelsen de skulle bära, "här hör du av dig", bar inte, eftersom den
+ *     ena av dem låg under sidans hjälte och därför lästes som sidans färg.
+ *   SVART. Kodkortet är ljust, se components/Kodkort.astro. Ytan är samma två
+ *     färger blandade åt andra hållet och paletten är samma två kulörer med
+ *     ljusheten spegelvänd.
+ *   KRÄMVITT. Ingen ändring, och det är svaret och inte en undvikan. Sidan
+ *     ligger på --canvas, #FCFCFD, alltså sajtens grundyta, och den delas med
+ *     varje annan sida. Det som fick den att läsa som krämvit var det blå
+ *     fältet ovanför: 8 procent blått bredvid en neutral grå drar den grå åt
+ *     gult. Fältet är borta, alltså är effekten det också.
+ *   KANTIGT. Sidan uppfinner ingen egen radie, alla fem värden i bygget kommer
+ *     ur tokens.css. Det som ändrades är etikettspalterna, som gick från nakna
+ *     streck tvärs över spalten till kontaktsidans slutna form. Räkningen står
+ *     vid `.spec`.
+ *   SKUMT SKRIVET. Sju rubriker och fyra ingresser är omskrivna, var och en med
+ *     sitt skäl på plats i markupen. Tre rubriker sa dessutom något annat än
+ *     ankarmenyn, och de två läser numera ur samma lista.
+ *   KONTO. Se `MENY`, talraden och Kom igång. Beslutet är öppet att prova,
+ *     konto för att bygga, och vad ett konto praktiskt betyder står i
+ *     docs/55 §12.
+ *
+ * ---------------------------------------------------------------------------
  * FÖRLAGORNA, UPPMÄTTA 2026-09-01 VID 1440 PX
  * ---------------------------------------------------------------------------
  * Ägaren är uttrycklig om att design mäts mot riktiga sajter. Talen står i
@@ -182,14 +216,28 @@ const MENY = [
   { id: 'falt', namn: 'Fälten', grupp: 'Öppet' },
   { id: 'koder', namn: 'Kodlistan', grupp: 'Öppet' },
   { id: 'granser', namn: 'Gränser och drift', grupp: 'Öppet' },
-  { id: 'tillgang', namn: 'Kräver kontakt', grupp: 'Mer data' },
+  { id: 'tillgang', namn: 'Hör av dig om det här', grupp: 'Mer data' },
   { id: 'aldrig', namn: 'Vad vi aldrig säljer', grupp: 'Mer data' },
-  { id: 'format', namn: 'Varför eget format', grupp: 'Bakgrund' },
-  { id: 'licens', namn: 'Licens', grupp: 'Bakgrund' },
+  { id: 'format', namn: 'Varför formatet är vårt eget', grupp: 'Bakgrund' },
+  { id: 'licens', namn: 'Licens och attribution', grupp: 'Bakgrund' },
   { id: 'utanfor', namn: 'Vad som inte finns här', grupp: 'Bakgrund' },
 ] as const;
 
 const GRUPPER = ['Öppet', 'Mer data', 'Bakgrund'] as const;
+
+/* Och HÄR läser rubrikerna sina namn, vilket kommentaren ovanför påstod men
+   inte gjorde. Uppmätt i den byggda sidan 2026-09-05: tre av tio toppnivåer sa
+   två olika saker, värst "Kräver kontakt" i menyn mot "Det som kräver att du
+   hör av dig" i rubriken. En meny som säger något annat än rubriken den hoppar
+   till är det vanligaste felet på en lång dokumentationssida, och det enda
+   säkra skyddet är att de två inte får vara två texter.
+
+   Undernivåerna är undantagna med flit. De är etiketter under en grupp och ska
+   rymmas i en 200 px spalt, medan deras h3 får vara hela meningar: "Index" i
+   menyn och "Index, täckning och kodlista" som rubrik är inte en motsägelse
+   utan en kort och en lång form av samma sak. */
+const RUBRIK: Record<string, string> =
+  Object.fromEntries(MENY.filter((p) => !('under' in p)).map((p) => [p.id, p.namn]));
 
 /* ---------------------------------------------------------------------------
    SVARSEXEMPLEN, KLIPPTA UR DE RIKTIGA DOKUMENTEN
@@ -466,7 +514,7 @@ const jsonLd = {
 
 <Base
   title="Öppna data, API och flöden"
-  description="Kommunernas livsmedelskontroller i ett gemensamt format. Gratis JSON-API med nuläget per kommun och Atom-flöden, utan konto och utan nyckel. Hör av dig för historik, bulkuttag och bevakning."
+  description="Kommunernas livsmedelskontroller i ett gemensamt format. Gratis JSON-API med nuläget per kommun och Atom-flöden. Prova direkt med curl, skapa konto för att bygga vidare, hör av dig för historik och bulkuttag."
   jsonLd={jsonLd}
   dataUpdated={updated}
 >
@@ -481,31 +529,52 @@ const jsonLd = {
       på sidan såg ut som något annat än ett dokument: tjugo tusen pixlar text
       på en enda vit yta i följd, och en hjälte där hela högra halvan var tom.
 
-      Bandet ligger på --brand-wash, alltså märkesblån blandad 8 procent i
-      vitt. Tokenet finns för precis det här och beskrivs i tokens.css som
-      ytan för "band som ska läsas som en egen sektion utan att bli ett kort".
-      Ingen ny färg uppfinns.
+      DEN BLÅA YTAN ÄR BORTTAGEN, 2026-09-05. Bandet låg på --brand-wash, och
+      ägaren samma dag: "blåa bakgrunden på api ser ej najs ut... det ser bara
+      inte clean ut."
 
-      YTAN BETYDER NÅGOT, den är inte dekoration. Blekblått markerar sidans
-      TVÅ ställen där en människa ska höra av sig: det här bandet, som bär
-      knappen, och avsnittet "Det som kräver att du hör av dig", som bär den
-      andra. Allt däremellan är öppen data på ren botten och kostar ingen
-      kontakt. Den som rullar ser gränsen utan att läsa en rubrik.
+      Tanken var att blekblått skulle betyda "här hör du av dig till en
+      människa" och markera sidans två sådana ställen. Den betydelsen bar inte,
+      av två skäl som båda går att mäta. Bandet är 810 px högt vid 1 440 och
+      innehåller sidans hjälte, alltså läser ytan som SIDANS färg och inte som
+      en markering, och en färg som ligger på det första man ser kan inte
+      samtidigt betyda något särskilt längre ned. Och det blå fältet fick den
+      vita sidan under sig att se krämvit ut: --canvas är #FCFCFD, alltså tre
+      steg från vitt och neutralt grå, men gränsande till 8 procent blått
+      läser samma yta som gulaktig. Det är simultankontrast och inte en
+      felaktig token, och det försvinner när fältet gör det.
+
+      Kvar står linjen nedtill, som är den enda avgränsning bandet behöver.
       --------------------------------------------------------------------- */}
   <div class="salj">
     <div class="container band">
       <div class="hjaltegrid">
         <header class="hjalte">
           <p class="eyebrow">Öppna data</p>
-          <h1>Kommunernas livsmedelskontroller, som data</h1>
+          {/* Rubriken sa "Kommunernas livsmedelskontroller, som data", och
+              kommat var det enda som gjorde den svår: en bisats efter kommat
+              lovar en fortsättning som aldrig kommer. Utan det säger raden
+              samma sak, och "JSON" är dessutom mer än "data" åt den som läser
+              en API-sida. */}
+          <h1>Kommunernas livsmedelskontroller som JSON</h1>
+          {/* TALET RÄKNAS OCH SKRIVS INTE. Ingressen stod som "Tretton kommuner
+              ... i tretton olika system", alltså två handskrivna tal på den
+              sida vars egen filhuvudrubrik heter "INGA TAL OCH INGA SVAR SKRIVS
+              FÖR HAND". Den fjortonde kommunen hade gjort ingressen osann utan
+              att något gick sönder, vilket är det värsta slaget av fel. */}
           <p class="lede text-secondary">
-            Tretton kommuner publicerar sina hygienkontroller i tretton olika
-            system. Vi läser dem alla, normaliserar dem till ett format och
-            lägger ut nuläget som JSON och nya kontroller som Atom.
+            {total.municipalities} kommuner publicerar sina hygienkontroller,
+            var och en i sitt eget format. Vi läser alla
+            {' '}{total.municipalities} och ger fälten samma namn. Nuläget
+            hämtar du som JSON, nya kontroller som Atom.
           </p>
+          {/* Den andra knappen pekade på #tillgang och gör det inte längre.
+              Ankarmenyn tar redan dit, och den plats en knapp i hjälten har är
+              för dyr för ett ankare två skärmar ned. Kontot står där i stället,
+              eftersom det är steget efter "prova": se Kom igång nedan. */}
           <p class="knapprad">
-            <a class="btn-primary" href="#kom-igang">Kom igång, gratis</a>
-            <a class="btn-linje" href="#tillgang">Behöver du mer data?</a>
+            <a class="btn-primary" href="#kom-igang">Kom igång</a>
+            <a class="btn-linje" href="/konto/">Skapa konto</a>
           </p>
           <p class="text-secondary meta">
             {formatNumber(total.establishments)} verksamheter i {total.municipalities} kommuner,
@@ -534,10 +603,16 @@ const jsonLd = {
       <ul class="fordelar">
         <li>
           <p class="tal">{total.municipalities}<span>kommunala system</span></p>
-          <h2>Ett format, inte tretton</h2>
+          {/* "Ett format, inte tretton" hade talet skrivet med bokstäver, och
+              det första försöket att rätta det satte siffran i rubriken i
+              stället: "Ett format, inte 13". En rubrik som slutar på en naken
+              siffra läser som en avbruten mening. "Ett per kommun" säger samma
+              sak, låter som svenska, och är sant vid varje antal. */}
+          <h2>Ett format, inte ett per kommun</h2>
           <p>
             Samma fältnamn, samma kodlista och samma identitet oavsett vilket
-            system kommunen råkar köra. Du skriver en läsare, inte tretton.
+            system kommunen råkar köra. Du skriver en läsare, inte en per
+            kommun.
           </p>
         </li>
         <li>
@@ -549,19 +624,38 @@ const jsonLd = {
               enheten säger "hämtningstakt" och inte "sedan senaste hämtning",
               som hade varit ett påstående om beståndet. */}
           <p class="tal">24<span>timmars hämtningstakt</span></p>
-          <h2>Färskt, och daterat</h2>
+          {/* Rubriken var "Färskt, och daterat", och den läste som en
+              produktbeskrivning i två ord med ett komma som inte behövdes.
+              Den nya säger vad man faktiskt får, och den säger det som en
+              mening en människa kunde ha sagt. */}
+          <h2>Varje svar säger hur gammalt det är</h2>
           <p>
-            Beståndet hämtas i dygnstakt. Varje svar bär källans
-            <code>fetchedAt</code>, så du vet hur gammal uppgiften är utan att
+            Beståndet hämtas i dygnstakt, och varje svar bär källans
+            <code>fetchedAt</code>. Du ser alltså åldern på uppgiften utan att
             fråga oss.
           </p>
         </li>
         <li>
-          <p class="tal">0<span>kronor, konton och nycklar</span></p>
-          <h2>Utan konto och utan nyckel</h2>
+          {/* HÄR STOD "0 kronor, konton och nycklar" UNDER RUBRIKEN "Utan
+              konto och utan nyckel", med brödtexten "Ingen registrering, ingen
+              kvot och ingen begränsning på antalet anrop".
+
+              Ägaren 2026-09-05: "man ska väl visst ha konto för att få tillgång
+              till api???? såklart".
+
+              Beslutet blev inte att stänga rutterna. De bär samma uppgifter som
+              redan står öppet på verksamhets- och kommunsidorna, och en
+              inloggning framför dem hindrar mest den som vill citera oss, se
+              docs/55. Men "ingen registrering, ingen kvot, ingen gräns" är fel
+              signal, och den är borta. Nollan står kvar och betyder det den
+              alltid borde ha betytt: priset. Kontot är gratis, alltså är talet
+              sant med konto och utan. */}
+          <p class="tal">0<span>kronor, med konto eller utan</span></p>
+          <h2>Prova direkt, bygg med konto</h2>
           <p>
-            Ingen registrering, ingen kvot och ingen begränsning på antalet
-            anrop. Skriv ut varifrån uppgiften kommer, så är villkoret uppfyllt.
+            Rutterna nedan svarar på ett curl-anrop direkt, så att du ser vad du
+            får innan du bestämmer dig. Ska svaren bära något du bygger
+            {' '}<a href="/konto/">skapar du ett konto</a>.
           </p>
         </li>
       </ul>
@@ -606,11 +700,12 @@ const jsonLd = {
             står först.
             ----------------------------------------------------------- */}
         <section id="kom-igang">
-          <h2>Kom igång</h2>
+          <h2>{RUBRIK['kom-igang']}</h2>
+          {/* "Två rader i en terminal" var fel räknat: kortet under visar EN
+              rad, och den andra raden var svaret. Nu står det som det är. */}
           <p>
-            Två rader i en terminal, och du har hela täckningen, adressmallarna
-            och kodlistan. Inget konto behövs och ingenting behöver godkännas
-            först.
+            En rad i en terminal ger dig täckningen, adressmallarna och
+            kodlistan. Ingenting behöver godkännas först.
           </p>
 
           <Kodkort roll="Anrop" vag="bash" sprak="bash" kod={anropIndex} />
@@ -632,6 +727,34 @@ const jsonLd = {
             behöver alltså aldrig gissa en URL: börja i indexet och följ
             fälten.
           </p>
+
+          {/* KONTOT STÅR HÄR OCH INTE I ETT EGET AVSNITT, med flit.
+
+              Ordningen är beställd: prova först, konto sedan. Ett eget avsnitt
+              hade blivit ett stopp mellan de två, och ägarens egen princip är
+              att en funktion aldrig får kosta en sida. Här står det på det
+              enda stället där någon just har provat och undrar vad nästa steg
+              är.
+
+              Vad kontot ÄR i dag står i docs/55 §12: inloggningen finns redan,
+              den kostar en e-postadress och en engångskod, och ingenting på de
+              öppna rutterna kontrollerar den. Sidan ber alltså om något den
+              inte tvingar fram, och den meningen måste stå rakt ut i texten.
+              Ett löfte om en spärr som inte finns är sämre än ingen spärr. */}
+          <h3>Och sedan ett konto</h3>
+          <p>
+            Det räcker så länge du provar. Ska svaren bära något du bygger
+            vidare på {' '}<a href="/konto/">skapar du ett konto</a>, och det
+            kostar en e-postadress och en kod i mejlen.
+          </p>
+          <p>
+            Vi stänger inte rutterna för den som låter bli. Samma uppgifter
+            står öppet på kommunernas och verksamheternas egna sidor hos oss,
+            och en inloggning framför dem hindrar mest den som vill citera oss.
+            Kontot är hur vi vet vem som bygger på datan, inte en spärr. Det
+            {' '}<a href="#tillgang">som faktiskt kräver ett samtal</a> står
+            längre ned.
+          </p>
         </section>
 
         {/* -----------------------------------------------------------
@@ -642,7 +765,7 @@ const jsonLd = {
             lärt sig ordningen på den första hittar direkt på den andra.
             ----------------------------------------------------------- */}
         <section id="referens">
-          <h2>Slutpunkter</h2>
+          <h2>{RUBRIK['referens']}</h2>
           <p>
             Versionen står i adressen. <code>/api/{API_VERSION}/</code> svarar
             med den form som beskrivs här, och den formen ändras inte.
@@ -741,7 +864,7 @@ const jsonLd = {
             Det är dokumentationens kärna.
             ----------------------------------------------------------- */}
         <section id="falt">
-          <h2>Fälten</h2>
+          <h2>{RUBRIK['falt']}</h2>
           <p>
             En post under <code>establishments</code> ser likadan ut i varje
             kommunfil.
@@ -779,7 +902,7 @@ const jsonLd = {
 
         {/* ----------------------------------------------------------- */}
         <section id="koder">
-          <h2>Kodlistan</h2>
+          <h2>{RUBRIK['koder']}</h2>
           <p>
             Listan står i klartext i
             {' '}<a href={`/api/${API_VERSION}/index.json`}>indexet</a> under
@@ -846,11 +969,18 @@ const jsonLd = {
 
         {/* ----------------------------------------------------------- */}
         <section id="granser">
-          <h2>Gränser och drift</h2>
+          <h2>{RUBRIK['granser']}</h2>
           <dl class="spec">
+            {/* Raden sa "Ingen." och inget mer, vilket är sant om räknaren och
+                fel som signal: den läste som en inbjudan att hämta hur ofta som
+                helst. Nu säger den vad som faktiskt gäller och vad vi ber om. */}
             <div>
               <dt>Kvot</dt>
-              <dd>Ingen. Svaren är statiska filer bakom ett CDN.</dd>
+              <dd>
+                Ingen räknare. Svaren är statiska filer, alltså ser vi inte hur
+                ofta du hämtar dem. Hämta hellre en gång om dygnet än en gång i
+                minuten: oftare än så ändras de inte.
+              </dd>
             </div>
             <div>
               <dt>Cache</dt>
@@ -906,7 +1036,7 @@ const jsonLd = {
             webbläsaren och kostar ingen backend.
             ----------------------------------------------------------- */}
         <section id="tillgang">
-          <h2>Det som kräver att du hör av dig</h2>
+          <h2>{RUBRIK['tillgang']}</h2>
           <p>
             Allt ovanför är gratis och kommer att förbli det. Fyra saker ligger
             utanför, och de har alla samma skäl: de är för tunga för att lägga
@@ -971,7 +1101,7 @@ const jsonLd = {
             §9.4 ordagrant sammanfattade.
             ----------------------------------------------------------- */}
         <section id="aldrig">
-          <h2>Vad vi aldrig säljer</h2>
+          <h2>{RUBRIK['aldrig']}</h2>
           <p>
             Vi publicerar bedömningar av namngivna verksamheter och tar samtidigt
             emot förfrågningar om data. Det är en intressekonflikt, den går inte
@@ -1018,7 +1148,7 @@ const jsonLd = {
             LIVES först, vilket är precis vad den förra sidan krävde.
             ----------------------------------------------------------- */}
         <section id="format">
-          <h2>Varför formatet är vårt eget</h2>
+          <h2>{RUBRIK['format']}</h2>
           <p>
             Det närmast till hands liggande alternativet var <strong>LIVES</strong>,
             som Yelp tog fram tillsammans med San Francisco och New York och som
@@ -1058,7 +1188,7 @@ const jsonLd = {
         </section>
 
         <section id="licens">
-          <h2>Licens och attribution</h2>
+          <h2>{RUBRIK['licens']}</h2>
           <p>Två lager, och de ska hållas isär.</p>
           <p>
             <strong>Kommunernas underlag är fritt, och inte tack vare oss.</strong>
@@ -1116,7 +1246,7 @@ const jsonLd = {
         </section>
 
         <section id="utanfor">
-          <h2>Vad som inte finns här</h2>
+          <h2>{RUBRIK['utanfor']}</h2>
           <ul class="plain">
             <li>
               <strong>Inga bilder.</strong> Gatubilderna kommer från Mapillary,
@@ -1173,9 +1303,8 @@ const jsonLd = {
   /* ---------------------------------------------------------------------
      SÄLJBANDET
 
-     Ytan är --brand-wash, alltså 8 procent märkesblå i vitt. Uppmätt i
-     tokens.css: 1,11:1 mot --card, brödtexten 15,1:1 mot den och den
-     sekundära grå 4,6:1, alltså över WCAG i båda.
+     Ytan är sidans egen, alltså --canvas. Den låg på --brand-wash i fyra
+     timmar och skälet till att den inte gör det står vid `.salj` nedan.
 
      BANDET ÄR FULL BREDD OCH INTE ETT KORT. Clerk växlar ljust, mörkt, ljust
      över hela fönstret, Stripe har tre sektionsfärger över fjorton sektioner.
@@ -1186,10 +1315,7 @@ const jsonLd = {
 
      Linjen nedtill finns för de skärmar där 8 procents blått knappt syns.
      --------------------------------------------------------------------- */
-  .salj {
-    background: var(--brand-wash);
-    border-bottom: 1px solid var(--hairline);
-  }
+  .salj { border-bottom: 1px solid var(--hairline); }
 
   /* 64 px över och 48 under. Uppmätt i den första utgåvan av det här bandet:
      med 48 upptill började kodkortet 110 px från fönstrets överkant, alltså
@@ -1262,10 +1388,11 @@ const jsonLd = {
     text-decoration: none;
   }
 
-  /* Talraden under knapparna är --text-secondary och inte --text-muted. De
-     två är samma värde i tokens.css, men mot --brand-wash i stället för mot
-     vitt ligger den på 4,56:1, alltså precis över WCAG. Namnet ska säga att
-     den är läst text och inte en viskning. */
+  /* Talraden under knapparna är --text-secondary och inte --text-muted. De två
+     är samma värde i tokens.css, och valet är alltså inget annat än ett namn:
+     raden är läst text och inte en viskning. Skälet stod förut som en mätning
+     mot --brand-wash, 4,56:1, och den mätningen gäller inte längre eftersom
+     bandet ligger på --canvas. Mot den ligger den på 5,3:1. */
   .meta { margin-top: var(--s-4); font-size: var(--fs-caption); }
 
   /* ---------------------------------------------------------------------
@@ -1407,8 +1534,16 @@ const jsonLd = {
   .innehall p { line-height: var(--lh-body); }
   .innehall p + p { margin-top: var(--s-4); }
 
+  /* h3 ärver `margin: 0` ur tokens.css, och sidan satte bara marginalen NEDÅT.
+     Följden syntes i licensavsnittet: "Kommunernas egna villkor" stod klistrad
+     i stycket ovanför utan en pixel emellan, alltså läste rubriken som en rad i
+     samma stycke. 32 px är samma luft som en h2 får före sin linje. */
+  .innehall h3 { margin-top: var(--s-8); margin-bottom: var(--s-3); }
+
+  /* Slutpunktens egen rubrik står först i sin artikel, som redan bär 48 px
+     ovanför sig. Den ska inte ha 32 till. */
   .slutpunkt { margin-top: var(--s-12); }
-  .slutpunkt h3 { margin-bottom: var(--s-3); }
+  .slutpunkt h3 { margin-top: 0; }
 
   .plain { margin: var(--s-4) 0 0; padding-left: var(--s-4); }
   .plain li { margin-top: var(--s-3); line-height: var(--lh-body); }
@@ -1427,53 +1562,82 @@ const jsonLd = {
   }
 
   /* ---------------------------------------------------------------------
-     DET SOM KRÄVER KONTAKT: SIDANS ANDRA BLEKBLÅA YTA
+     DET DU HÖR AV DIG OM: SIDANS ENDA PANEL
 
-     Regeln som infördes med säljbandet gäller åt båda hållen. Blekblått
-     betyder "här hör du av dig till en människa", och sidan har exakt två
-     sådana ställen: bandet överst med knappen, och det här avsnittet som
-     knappen pekar på. Elva avsnitt däremellan är öppen data på ren botten
-     och kostar ingen kontakt.
+     Avsnittet låg på --brand-wash, som en av sidans två blekblåa ytor, och
+     den färgen är borttagen med samma dom som säljbandets.
 
-     Den som rullar ser alltså gränsen mellan gratis och inte gratis utan att
-     läsa en enda rubrik, och det är en upplysning och inte en dekoration.
-     Ytan är samma --brand-wash som bandet, alltså ingen ny ton.
+     Panelen står kvar, för arbetet den gör är sant: elva avsnitt är öppen
+     data och det här är det enda som kostar ett mejl, och den som rullar ska
+     se skillnaden utan att läsa en rubrik. Den bärs numera av sajtens eget
+     kortrecept, alltså --card, --r-card och --shadow-sm, exakt som varje kort
+     på varje annan sida. Vitt mot --canvas är 1,05:1, alltså är det RINGEN i
+     --shadow-sm som avgränsar, och tokens.css skriver ut varför den finns:
+     "en linje läses där ett lika stort fältskillnad inte gör det".
 
-     Linjen över sektionen tas bort och ersätts av panelens egen kant: en
-     hårlinje ovanför en färgad platta ger två avdelare på samma ställe.
+     Linjen över sektionen tas bort och ersätts av panelens egen kant, annars
+     står två avdelare på samma ställe.
      --------------------------------------------------------------------- */
   #tillgang {
     border-top: 0;
     padding: var(--s-8);
-    background: var(--brand-wash);
+    background: var(--card);
     border-radius: var(--r-card);
+    box-shadow: var(--shadow-sm);
   }
 
   /* Rullningsmålet flyttas ut lika mycket som panelen är indragen, annars
      landar ankaret på rubriken i stället för på panelens överkant. */
   #tillgang { scroll-margin-top: var(--s-8); }
 
-  /* Etikettspalten inne i panelen får sina linjer ur den mörkare änden av
-     hårlinjen: rgba svart mot #EBF4FD ger #D6DEE7, alltså samma synlighet
-     som mot vitt. Ingen ny linjefärg behövs, eftersom --hairline är alfa och
-     inte hex, och tokens.css säger uttryckligen att det är därför. */
-  #tillgang .spec > div:last-child { border-bottom: 0; }
+  /* Etikettspalten: etikett vänster, värde höger, aldrig en färgad platta.
+     Se docs/19.
 
-  /* Etikettspalten från /hjalp/ och kontaktsidan: etikett vänster, värde
-     höger, hårlinje mellan raderna, aldrig en färgad platta. Se docs/19. */
+     FORMEN ÄR KONTAKTSIDANS OCH INTE DEN HÄR SIDANS EGNA, och bytet är mätt.
+     Ägaren 2026-09-05: sidan "ser liksom bara kantigt ut".
+
+     ANTALET STRECK ÄR INTE DET SOM ÄNDRAS, och det är värt att skriva ut,
+     eftersom den första versionen av den här kommentaren påstod det och hade
+     fel. Uppmätt i den byggda sidan: fem etikettspalter med sammanlagt sjutton
+     rader ritar n plus ett vågräta streck i den gamla formen och lika många i
+     den nya. Räknat i element med minst en synlig kant GICK talet till och med
+     upp, från 241 till 252, eftersom en ruta har fyra sidor och ett streck har
+     en.
+
+     Det som ändras är ÄNDARNA. Den gamla formen ritade tjugotvå streck rakt
+     över spalten med två råa ändar var, alltså fyrtiofyra ställen där en linje
+     tar slut mitt i luften. Den nya har noll: varje linje slutar i en kant
+     eller i ett hörn på 10 px. Det är den skillnaden ordet "kantigt" beskriver,
+     och den syns i bild medan streckräkningen inte gör det.
+
+     Formen är kontakt.astros `.facts` och inte en ny: en rund ruta med
+     --r-control och linjer bara MELLAN raderna. Inga nya tal, inga nya färger,
+     och en form som redan står på sajten.
+
+     Paddingen får sina 16 px i sidled av samma skäl: en rad som börjar i
+     rutans kant ser ut att ha ramlat ur den. */
   .spec {
     display: grid;
-    border-top: 1px solid var(--hairline);
-    margin: var(--s-4) 0 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-control);
+    overflow: hidden;
+
+    /* Luft UNDER också, till skillnad från förut. Den öppna formen slutade i
+       ett streck som stycket under kunde ligga tätt intill; den slutna slutar i
+       en kant, och ett stycke som börjar 0 px under en kant ser ut att ligga
+       inuti rutan. Uppmätt i bilden: "Vi säljer ingenting av det i dag" låg
+       dikt an mot panelens nederkant. */
+    margin: var(--s-4) 0;
   }
 
   .spec > div {
     display: grid;
     grid-template-columns: 150px minmax(0, 1fr);
     gap: var(--s-2) var(--s-4);
-    padding: var(--s-3) 0;
-    border-bottom: 1px solid var(--hairline);
+    padding: var(--s-3) var(--s-4);
   }
+
+  .spec > div + div { border-top: 1px solid var(--hairline); }
 
   .spec dt { font-size: var(--fs-body-s); color: var(--text-secondary); }
   .spec dd {

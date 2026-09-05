@@ -864,3 +864,242 @@ står oförändrat och prövades igen i den här omgången.
 ![API-sidan före ombyggnaden, 1 440 px](../research/forlagor/api-fore-1440.png)
 
 ![API-sidan efter ombyggnaden, 1 440 px](../research/forlagor/api-efter-1440.png)
+
+---
+
+## 12. Sidan underkändes en tredje gång samma dag, och vad som gjordes åt det
+
+### 12.1 Domen
+
+Ombyggnaden i §11 låg ute några timmar. Ägaren 2026-09-05:
+
+> asså det ser ej bra ut... blåa bakgrunden på api ser ej najs ut, kodlådorna
+> fine, men ska dom verkligen vara svarta? bakgrunden är typ krämvit och inte
+> vit, och det ser liksom bara kantigt ut och skumt skrivet, plus att man ska
+> väl visst ha konto för att få tillgång till api???? såklart..... det ser bara
+> inte clean ut.
+
+Sex punkter. Ordningen på sidan, alltså hjälte, fördelsblock, ankarnavigering,
+Kom igång, Slutpunkter, Fälten, Kodlistan, Gränser, kontakt, vad vi aldrig
+säljer, formatet och licensen, är hans egen beställning och stod orörd genom
+hela omgången. Det som prövades om är ytor, färg, kanter, text och kontofrågan.
+
+### 12.2 Det blå är borta, båda ytorna
+
+`--brand-wash` bar två ytor: säljbandet överst och panelen `#tillgang`. Tanken
+i §11.7 var att blekblått skulle BETYDA "här hör du av dig till en människa",
+alltså vara upplysning och inte dekoration.
+
+Den betydelsen bar inte, av två skäl som båda går att mäta.
+
+**Bandet var 810 px högt vid 1 440 och innehöll sidans hjälte.** En färg som
+ligger under det första man ser läser som sidans färg, inte som en markering,
+och en färg som är sidans kan inte samtidigt betyda något särskilt sju skärmar
+längre ned.
+
+**Och den gjorde nästa punkt sann.** Se 12.3.
+
+Bandet ligger nu på `--canvas` med en hårlinje nedtill, vilket är den enda
+avgränsning det behöver. Panelen `#tillgang` står kvar som panel, eftersom
+arbetet den gör är sant, elva avsnitt är öppen data och det här är det enda som
+kostar ett mejl, men den bärs numera av sajtens eget kortrecept: `--card`,
+`--r-card` och `--shadow-sm`. Vitt mot `--canvas` är 1,05:1, alltså är det
+ringen i `--shadow-sm` som avgränsar, precis som `tokens.css` skriver att den
+finns för.
+
+### 12.3 Den krämvita bakgrunden är inte den här sidans fel
+
+Uppmätt i den byggda sidan: `html` ligger på `--canvas`, alltså `#FCFCFD`, och
+den ytan delas med varje annan sida på sajten. Tre steg från vitt, och neutralt
+grå: 252, 252, 253.
+
+Den läste ändå som krämvit, och skälet är simultankontrast. Ett fält på 8
+procent blått intill en neutral nästan vit yta drar den nästan vita mot gult.
+Det är ögat och inte tokenet. `--canvas` är alltså inte ändrad, och skulle inte
+ha ändrats i den här filen ens om den vore fel: den är sajtens grundyta och hör
+hemma i `tokens.css` och i bibeln §14.
+
+Med det blå fältet borta är effekten borta.
+
+### 12.4 Kodkortet är ljust
+
+Frågan "ska dom verkligen vara svarta?" prövades i bild.
+
+**Talen.** Med `#1D1D1F` som yta ligger vart och ett av sidans sju kodkort på
+15,2:1 mot sidan under. Det är inte sju kort på en sida, det är sju hål i den.
+
+**Förlagorna svarar inte entydigt.** Uppmätt 2026-09-01: Stripe kör `#0C2E4E`
+och Resend `#000000`, medan Ably och Clerk inte har ett enda kodblock. Två av
+fyra gör alltså inte valet alls. Stripes egen API-referens, fotograferad om i
+den här omgången, visar dessutom att deras kodfält är mörkt SLATE och inte
+svart, och att deras panelbruk i övrigt är vita kort med hårlinje och rundade
+hörn på en vit sida.
+
+**Vår egen sajt avgjorde.** Den är ljus rakt igenom, den har inget mörkt läge,
+och systemets enda mörka yta är kartknappens platta på startsidan. Sju svarta
+rektanglar gör koden till sidans tyngsta element i stället för till dess mest
+lästa.
+
+Kortet ligger nu på `var(--text)` blandad 5 procent i `var(--card)`, alltså
+ungefär `#F3F3F4`, och huvudraden på 10 procent, ungefär `#E8E8E9`. Ingen ny ton
+kommer in: när ytan var mörk blandades vitt i `--text`, nu blandas `--text` i
+vitt. Kortet ligger på 1,07:1 mot `--canvas` och huvudraden på 1,10:1 mot
+kortet, alltså ungefär samma två steg som den mörka rutan hade internt.
+
+Kanten går tillbaka till `--hairline`. Den var utbytt mot vit på 8 procent
+enbart för att svart på 9,8 procent är osynligt mot en nästan svart yta.
+
+**Paletten är samma två kulörer med ljusheten spegelvänd**, alltså grå-axelns
+240 grader och märkesblåns 207, mätt mot `#F3F3F4`:
+
+| Roll | Värde | Kontrast |
+| --- | --- | --- |
+| `t-strang`, alltså värdet | `var(--text)` `#1D1D1F` | 15,17:1 |
+| `t-tal` | `#143652`, hsl(207 60% 20%) | 11,27:1 |
+| `t-nyckel`, ett namn man kan slå upp | `var(--brand-ink)` `#0063B4` | 5,50:1 |
+| `t-tom`, alltså frånvaro | `#5A5A5E` | 6,44:1 |
+| `t-skilje`, alltså strukturen | `var(--text-muted)` `#6E6E73` | 4,57:1 |
+
+Tre av fem är numera token och inte handskrivna hexvärden, och det är hela
+vinsten med att vända: mot en svart yta fanns ingen av sajtens textfärger att
+låna, mot en ljus finns de allihop. Rollerna är oförändrade. Det enda som vänt
+är åt vilket håll "starkast" ligger.
+
+`Kodkort.astro` är kvar som komponent, oförändrad i allt utom färg.
+
+### 12.5 Kantigt
+
+**Sidan uppfinner ingen egen radie.** Uppmätt i den byggda sidan: fem olika
+radievärden förekommer, `10px` på 27 element, `999px` på 15, `12px` på 17,
+`50%` på 5 och `6px` på 6. De fyra första är `--r-control`, `--r-pill`,
+`--r-card` och cirklar. De sex på `6px` är `kbd.key` i sidhuvudets sökruta,
+alltså inte den här sidan.
+
+Det som var kantigt är alltså inte radierna utan linjerna. 241 element inne i
+innehållet bar minst en synlig kant, och den enskilt största posten var
+etikettspalterna, `.spec`. Den gamla formen ritade en linje över listan och en
+under varje rad, alltså n plus ett nakna streck tvärs över spalten per lista,
+och sidan har fem listor med sammanlagt sjutton rader.
+
+**Antalet streck är inte det som ändrades**, och det är värt att skriva ut
+eftersom det första försöket att formulera vinsten hade fel. Räknat i element
+med minst en synlig kant GICK talet upp, från 241 till 252, eftersom en ruta har
+fyra sidor och ett streck har en.
+
+Det som ändrades är ändarna. Den gamla formen hade tjugotvå streck med två råa
+ändar var, alltså fyrtiofyra ställen där en linje tar slut mitt i luften. Den
+nya har noll: varje linje slutar i en kant eller i ett hörn på 10 px. Formen är
+`kontakt.astro`:s `.facts` och inte en ny.
+
+De två svarta kodkorten och det blå fältet, som båda hade hårda kanter mot en
+ljus sida, står för resten av skillnaden.
+
+### 12.6 Skumt skrivet
+
+Sju rubriker och fyra ingresser är omskrivna. `/metodik/` är förlagan för tonen,
+alltså korta påståendesatser som säger vad något är: "Så räknas bedömningen
+fram", "Senaste kontrollen avgör", "När vi vägrar bedöma".
+
+| Förut | Nu | Varför |
+| --- | --- | --- |
+| Kommunernas livsmedelskontroller, som data | Kommunernas livsmedelskontroller som JSON | Kommat lovade en bisats som aldrig kom, och JSON säger mer än data på en API-sida |
+| Ett format, inte tretton | Ett format, inte ett per kommun | Talet var handskrivet. Siffran i rubriken var värre: en rubrik som slutar på en naken siffra läser som en avbruten mening |
+| Färskt, och daterat | Varje svar säger hur gammalt det är | Två ord och ett komma som inte behövdes, och ingen upplysning |
+| Utan konto och utan nyckel | Prova direkt, bygg med konto | Se 12.7 |
+| Det som kräver att du hör av dig | Hör av dig om det här | Sju ord till fyra, och en uppmaning i stället för en omskrivning |
+| Varför eget format / Varför formatet är vårt eget | Samma text på båda ställena | Menyn och rubriken sa olika saker |
+| Licens / Licens och attribution | Samma text på båda ställena | Samma fel |
+
+**Tre rubriker sa något annat än ankarmenyn.** Filens egen kommentar påstod att
+"rubrikerna nedan läser sina namn ur samma lista", och det var inte sant:
+rubrikerna stod skrivna för hand. De läser numera ur `MENY` på riktigt, för
+toppnivåerna. Undernivåerna är undantagna med flit, eftersom "Index" i en 200 px
+meny och "Index, täckning och kodlista" som rubrik är en kort och en lång form
+av samma sak och inte en motsägelse.
+
+**Fyra ingresser.** Hjältens hade två handskrivna tal, "Tretton kommuner ... i
+tretton olika system", på den sida vars eget filhuvud har rubriken "INGA TAL OCH
+INGA SVAR SKRIVS FÖR HAND". Den fjortonde kommunen hade gjort ingressen osann
+utan att något gick sönder. Kom igång sa "Två rader i en terminal" om ett kort
+som visar en rad. Kvotraden sa "Ingen." och inget mer, vilket är sant om
+räknaren och fel som signal.
+
+En rubrik till fick luft: `h3` ärver `margin: 0` ur `tokens.css` och sidan satte
+bara marginalen nedåt, alltså stod "Kommunernas egna villkor" klistrad i stycket
+ovanför.
+
+### 12.7 Kontot: beslutet, och vad det praktiskt betyder
+
+**Beslutet är öppet att prova, konto för att använda på riktigt.** Sidan sa
+"utan konto och utan nyckel" och "ingen registrering, ingen kvot och ingen
+begränsning på antalet anrop". Det är fel signal och det är borta.
+
+De öppna rutterna stängs ändå inte. Samma uppgifter står redan öppet på
+kommunernas och verksamheternas egna sidor hos oss, och en inloggning framför
+dem hindrar mest den som vill citera oss, alltså den enda spridning ett projekt
+i vår storlek kan få gratis.
+
+**Vad ett konto ÄR i dag, praktiskt.** Det finns redan och kostar ingenting att
+bygga. `SignInDialog.astro` och `/konto/` är en väg in för både ny och
+återkommande: en e-postadress, en engångskod i mejlen, inget lösenord, och ett
+konto i Supabase. Sidan behöver alltså bara be om det och länka dit, och det är
+precis vad den gör.
+
+**Ingenting kontrollerar kontot på de öppna rutterna, och det står i texten.**
+Ett löfte om en spärr som inte finns är sämre än ingen spärr. Sidan säger rakt
+ut att kontot är hur vi vet vem som bygger på datan och inte en spärr.
+
+**Skulle en nyckel gå att bygga? Ja, på ett enda ställe, och den kostar fyra
+saker.** Sajten är statiskt byggd på Cloudflare Pages, alltså kör ingen kod när
+`/api/v1/index.json` hämtas. Det enda som kör vid anrop är `site/functions/api/`,
+som redan har två Pages Functions, `marke.ts` och `ratta.ts`, och som bevisligen
+kan läsa hemligheter ur `env` och ringa ut. En nyckel MÅSTE alltså kontrolleras
+där, och då följer:
+
+1. **Dokumentet slutar vara en fil.** En kontrollerad rutt måste serveras av
+   funktionen, och `public/_headers` gäller inte för ett funktionssvar. Typ,
+   `Cache-Control` och CORS skulle behöva sättas i kod, vilket är exakt fällan
+   §8 och `_headers` egen huvudkommentar redan beskriver: ett huvud satt på fel
+   ställe kostade en trasig karta i produktion en gång.
+2. **CORS blir dyrare.** I dag gör `Access-Control-Allow-Origin: *` att en enkel
+   GET fungerar från vilken webbsida som helst utan preflight. En nyckel i ett
+   `Authorization`-huvud är inte CORS-säkrat, alltså får varje webbläsaranrop en
+   `OPTIONS` först som funktionen måste svara på. En nyckel i frågesträngen
+   slipper det och är sämre: då ligger en hemlighet i en URL, och den hamnar i
+   loggar och i referrers.
+3. **En databasfråga per anrop.** Nyckeln måste slås upp någonstans, och det
+   enda registret vi har är Supabase. Det lägger en databasrundtur framför ett
+   dokument som är identiskt för varje anropare. `.json` cachas inte på
+   Cloudflares kant, se §8, alltså går varje anrop redan till origin, men i dag
+   svarar origin med en fil.
+4. **Det gör API:et sämre än att läsa vår HTML.** Poängen med att hålla
+   rutterna öppna är att de bär samma uppgifter som våra egna sidor. En nyckel
+   framför dem gör den lata vägen till den bästa, vilket är fel incitament.
+
+**Alltså: ingen nyckel, och sidan ber i stället.** Det enklaste som är sant.
+Kontot är en räkning och inte en grind: vi får veta hur många som tänker bygga,
+och en adress att skriva till den dag något ändras. `docs/54` §7.2 säger att
+inbound inte är den bästa kanalen utan den enda, och ett gratis konto är den
+enda inbound-kanal ett API kan producera.
+
+**Den dag en nyckel ändå behövs är det inte här den ska sitta.** Historiken,
+bulkuttaget och uppslagningen per verksamhet kan aldrig bli statiska filer, se
+§4 och §5, alltså blir de en funktion i alla fall. Där kostar en nyckel
+ingenting extra, eftersom de svaren aldrig kan komma ur `_headers`.
+
+**Och en gräns som gäller oavsett.** `docs/54` §7.1: värdet i en betald produkt
+måste ligga i vad kunden får SKICKAT till sig och aldrig i vad kunden kan ändra
+på sidan, eftersom det senare är ett uteslutande villkor för utgivningsbeviset.
+Kontot som beskrivs här låser inte upp något på sidan och ändrar ingenting på
+den, alltså ligger det utanför den regeln. Och det säljs inte: `docs/54` §9.2
+säger ingenting på ungefär sex månader, och den klockan har inte gått ut.
+
+### 12.8 Efter
+
+![API-sidan efter den andra omgången, 1 440 px](../research/forlagor/api-ren-1440.png)
+
+![API-sidan efter den andra omgången, 375 px](../research/forlagor/api-ren-375.png)
+
+Stripes egen API-referens vid samma bredd, för jämförelsen i 12.4:
+
+![Stripes API-referens, 1 440 px](../research/forlagor/stripe-api-1440.png)
