@@ -43,7 +43,14 @@ artikel, rapport, utmärkelser, dekal, `/api/`, `/metodik/`, `/kallor/`,
 
 ---
 
-## 1. Kommunkartan är en enda klump, vid båda bredderna
+## ~~1. Kommunkartan är en enda klump, vid båda bredderna~~
+
+**LAGAD 2026-09-05, samma rot som punkt 2.** Klusterradien gick från 12 till
+40 px, och nålen ritas som en prick tills märket får plats. Övertäckningen i
+hubbens ruta vid 1440 gick från 20 gånger till 0,7, och märkesgrönt från
+22,5 till 6,1 procent av rutans pixlar. Vid 375 gick rutan från 46 bubblor
+till 7. Se `23_rikskartan.md`, avsnittet om att märkena blev fler än rutan
+rymde.
 
 **Sidtyp** kommunhubbens kartruta och `/stockholm/karta/`
 **Bild** `z-kommun-kartruta.png`, `z-nal.png`, `z-mobilkarta.png`, `kommunkarta-1440.png`
@@ -65,7 +72,12 @@ att man slipper klumparna. Beslutet är rätt tänkt men utfallet i bild är sä
 stad. Antingen klustring även över z9, eller mindre punkter i stället för nålar
 i den lilla rutan.
 
-## 2. Rikskartans kluster ligger ovanpå varandra i öppningsvyn
+## ~~2. Rikskartans kluster ligger ovanpå varandra i öppningsvyn~~
+
+**LAGAD 2026-09-05.** Samma rot som punkt 1: varken klusterradien eller
+glesningen visste hur stort märket är som ritas. `/karta/` gick från 30
+bubblor med 44 krockande par, varav 24 med mitten täckt och minsta avstånd
+5,8 px, till 10 bubblor med noll krock och 41,5 px minsta avstånd.
 
 **Sidtyp** `/karta/` **Bredd** 1440 **Bild** `z-kluster.png`, `rikskarta-1440.png`
 
@@ -101,7 +113,15 @@ en fjärdedel av sidhuvudets sökruta går åt till en genväg som inte kan anv�
 då från 62 till omkring 110 px, alltså 77 procent mer, utan att något annat
 flyttar sig. Det här är listans billigaste rättelse.
 
-## 4. Områdeskartans mask dämpar underlaget men inte nålarna
+## ~~4. Områdeskartans mask dämpar underlaget men inte nålarna~~
+
+**LAGAD 2026-09-05.** Masken ligger nu över utsidans punkter, i både den
+levande kartan och stillbilden. Utanför gränsen gick prickens färgstyrka från
+85 till 41 och andelen gröna pixlar från 17,3 till 10,4 procent. Innanför
+gränsen är varje tal oförändrat in på decimalen. Attributionen löstes utan
+något nytt: gränsens upphov flyttades ut ur MapLibres kontroll och står som
+egen rad under kartan, varpå MapLibres rad gick från 549 px på två rader till
+307 px på en, vid båda bredderna.
 
 **Sidtyp** områdessida **Bredd** 1440 och 375
 **Bild** `z-omradeskarta.png`, `z-omradeskarta-mobil.png`

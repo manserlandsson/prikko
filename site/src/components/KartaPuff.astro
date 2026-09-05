@@ -100,6 +100,55 @@ const city = kommun.city;
 const vy = utsnitt(kommun.slug);
 const rutor = tileSet();
 const href = path(`/${kommun.slug}`, 'karta');
+
+/**
+ * ══ ZOOMEN DÄR NÅLARNA SLUTAR LIGGA PÅ VARANDRA ═══════════════════════════
+ *
+ * Rutan är 398 x 458 px vid 1440, alltså 182 284 px². Stockholms låda passas
+ * in i den på zoom 9,665, och där är rutan oklustrad: `CLUSTER_MAX_ZOOM` är 8,
+ * så från ruta z9 ritas varenda punkt som en egen nål. Uppmätt i det byggda
+ * arkivet: 8 544 nålar i rutan, alltså 21 px² per nål, medan nålen själv är
+ * 18 x 23,75 px och tar 427 px². Tjugo gångers övertäckning.
+ *
+ * Bilden av det blir inte tät utan BLEK. Nålen bär en vit kant, och när tjugo
+ * ligger ovanpå varandra är det kanterna man ser: innerstaden, som har flest
+ * ställen, blir den ljusaste delen av kartan. Bilden säger alltså motsatsen
+ * till vad datan säger. Uppmätt 2026-09-05: 22,5 procent av rutans pixlar var
+ * märkesgrönt och 31,8 procent någon nålfärg.
+ *
+ * Talet nedan är den zoom där kommunens egna nålar precis slutar täcka
+ * varandra, räknad ur lådans yta i kartpixlar och antalet nålar:
+ *
+ *     yta(z) = (dx * 512 * 2^z) * (dy * 512 * 2^z)      dx, dy i mercator
+ *     täckning = antal * 427 / yta(z)  = 1   ger  z = ½ log2(antal * 427 / yta(0))
+ *
+ * Uppmätt över de tio kommuner som har kartruta: Oskarshamn 8,4, Höganäs 9,2,
+ * Norrköping 9,2, Karlstad 9,3, Jönköping 9,3, Uppsala 9,7, Linköping 9,9,
+ * Örebro 10,1, Stockholm 12,0. Höganäs öppnar på 11,0 och ligger alltså över
+ * sitt tal med god marginal: den rutan ritar nålar med ansikte som förut.
+ * Stockholm öppnar på 9,7 och ligger långt under sitt: den rutan ritar
+ * prickar.
+ *
+ * Antagandet står utskrivet: lådans yta, inte den yta nålarna faktiskt
+ * upptar. En kommun har tätare mitt än utkant, alltså är talet i underkant,
+ * och felet lutar åt att visa ansikten snarare än prickar. Det är rätt håll:
+ * ansiktet är sajtens och prickarna är undantaget.
+ *
+ * Golvet på 8 finns för att ingenting under z9 ändå ritar nålar, se ovan.
+ */
+const NAL_YTA = 18 * 23.75;
+const merkX = (lng: number) => (lng + 180) / 360;
+const merkY = (lat: number) => {
+  const s = Math.sin((lat * Math.PI) / 180);
+  return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+};
+
+let prickzoom = 8;
+if (vy) {
+  const [w, s, e, n] = vy.bounds;
+  const yta0 = (merkX(e) - merkX(w)) * 512 * ((merkY(s) - merkY(n)) * 512);
+  prickzoom = Math.min(14, Math.max(8, 0.5 * Math.log2((vy.count * NAL_YTA) / yta0)));
+}
 ---
 
 {vy && (
@@ -112,6 +161,7 @@ const href = path(`/${kommun.slug}`, 'karta');
       data-url={rutor.url}
       data-keys={JSON.stringify(rutor.keys)}
       data-bounds={vy.bounds.join(',')}
+      data-prickzoom={prickzoom.toFixed(2)}
       data-city={city}
     >
       <div class="duk" data-duk aria-hidden="true"></div>
@@ -324,6 +374,71 @@ const href = path(`/${kommun.slug}`, 'karta');
             paint: { 'text-color': '#fff' },
           });
 
+          /*
+           * ── NÅLEN ÄR EN PRICK TILLS DEN FÅR PLATS ────────────────────────
+           *
+           * Under `prickzoom`, alltså den zoom där kommunens nålar slutar
+           * täcka varandra, ritas varje verksamhet som en liten prick i sin
+           * bedömningsfärg i stället för som en nål med ansikte. Räkningen och
+           * talen står i frontmatter.
+           *
+           * Skälet i en mening: en nål på 18 x 23,75 px gånger 8 544 stycken
+           * är tjugo gånger rutans yta, och tjugo lager vita nålkanter ger en
+           * BLEK innerstad, alltså en bild som säger tvärtemot vad datan
+           * säger. En prick på 2,2 px radie gånger 8 544 är 0,7 gånger ytan,
+           * och då syns både stadens form och var det är tätt.
+           *
+           * TRE SAKER SOM DET HÄR INTE ÄR:
+           *
+           * - Det är inget URVAL. Varenda nål i rutan ritas, i samma ordning
+           *   som förut, och storleken är densamma för alla fyra bedömningar.
+           *   Ett urval som gömde de gula först vore en tyst rangordning, och
+           *   sådana publicerar sajten inte.
+           * - Det är ingen ny FÄRG. Pricken bär samma fyra plattfärger som
+           *   nålen, med samma vita kant och av samma skäl: utan kant drunknar
+           *   en gul punkt i en gul gata.
+           * - Det gäller BARA den här rutan. Kommunens egen kartsida är
+           *   751 x 835 px och har ett zoomgolv sedan i dag, och den vyn har
+           *   ägaren sett och godkänt. Den rörs inte här.
+           *
+           * Bytet sker med en halv zoomnivås överlappning, så att prickarna
+           * tonar bort medan ansiktena tonar in. Ett hårt byte på ett enda
+           * tal syns som en blink när man zoomar i en ruta på 398 px.
+           */
+          const PRICKZOOM = Number(root!.dataset.prickzoom) || 8;
+          const BYTE = 0.5;
+
+          const nalFarg: any = [
+            'match', ['get', 'v'],
+            0, KART_FARG[0],
+            1, KART_FARG[1],
+            2, KART_FARG[2],
+            KART_FARG[3],
+          ];
+
+          karta.addLayer({
+            id: 'nalar-prick',
+            type: 'circle',
+            source: 'verksamheter',
+            'source-layer': TILE_LAYER,
+            filter: ['!', ['has', 'point_count']],
+            maxzoom: PRICKZOOM,
+            paint: {
+              /* Växer med zoomen, så att pricken möter ansiktet ungefär i
+                 samma storlek som ansiktets platta i stället för att hoppa. */
+              'circle-radius': [
+                'interpolate', ['linear'], ['zoom'],
+                PRICKZOOM - 3, 2.2,
+                PRICKZOOM, 3.6,
+              ],
+              'circle-color': nalFarg,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#fff',
+              'circle-opacity': ['interpolate', ['linear'], ['zoom'], PRICKZOOM - BYTE, 1, PRICKZOOM, 0],
+              'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], PRICKZOOM - BYTE, 1, PRICKZOOM, 0],
+            },
+          } as any);
+
           karta.addLayer(
             ansikten
               ? {
@@ -332,6 +447,7 @@ const href = path(`/${kommun.slug}`, 'karta');
                   source: 'verksamheter',
                   'source-layer': TILE_LAYER,
                   filter: ['!', ['has', 'point_count']],
+                  minzoom: PRICKZOOM - BYTE,
                   layout: {
                     'icon-image': [
                       'match', ['get', 'v'],
@@ -345,6 +461,9 @@ const href = path(`/${kommun.slug}`, 'karta');
                     // Droppens spets ligger på adressen, inte märkets mitt.
                     'icon-anchor': 'bottom',
                   },
+                  paint: {
+                    'icon-opacity': ['interpolate', ['linear'], ['zoom'], PRICKZOOM - BYTE, 0, PRICKZOOM, 1],
+                  },
                 }
               : {
                   id: 'nalar',
@@ -352,19 +471,16 @@ const href = path(`/${kommun.slug}`, 'karta');
                   source: 'verksamheter',
                   'source-layer': TILE_LAYER,
                   filter: ['!', ['has', 'point_count']],
+                  minzoom: PRICKZOOM - BYTE,
                   paint: {
                     'circle-radius': 7,
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#fff',
-                    'circle-color': [
-                      'match', ['get', 'v'],
-                      0, KART_FARG[0],
-                      1, KART_FARG[1],
-                      2, KART_FARG[2],
-                      KART_FARG[3],
-                    ],
+                    'circle-color': nalFarg,
+                    'circle-opacity': ['interpolate', ['linear'], ['zoom'], PRICKZOOM - BYTE, 0, PRICKZOOM, 1],
+                    'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], PRICKZOOM - BYTE, 0, PRICKZOOM, 1],
                   },
-                },
+                } as any,
           );
 
           /*
@@ -432,15 +548,19 @@ const href = path(`/${kommun.slug}`, 'karta');
            * följer med i rutan bara när härledningen inte stämmer; bygget
            * jämför alltid mot den slug pipelinen satte, se lib/slug.ts.
            */
-          karta.on('click', 'nalar', (ev: any) => {
-            const p = ev.features?.[0]?.properties;
-            if (!p) return;
-            const kommunSlug = KOMMUNER[p.m] ?? KOMMUNER[0];
-            const slug = p.s ?? slugify(String(p.nm));
-            location.href = `/${kommunSlug}/${slug}/`;
-          });
+          /* Båda nållagren, eftersom bara det ena är ritat åt gången och
+             prickens hela poäng är att den fortfarande ÄR verksamheten. */
+          for (const nallager of ['nalar', 'nalar-prick']) {
+            karta.on('click', nallager, (ev: any) => {
+              const p = ev.features?.[0]?.properties;
+              if (!p) return;
+              const kommunSlug = KOMMUNER[p.m] ?? KOMMUNER[0];
+              const slug = p.s ?? slugify(String(p.nm));
+              location.href = `/${kommunSlug}/${slug}/`;
+            });
+          }
 
-          for (const lager of ['kluster', 'nalar']) {
+          for (const lager of ['kluster', 'nalar', 'nalar-prick']) {
             karta.on('mouseenter', lager, () => (karta.getCanvas().style.cursor = 'pointer'));
             karta.on('mouseleave', lager, () => (karta.getCanvas().style.cursor = ''));
           }

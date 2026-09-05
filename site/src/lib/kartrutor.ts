@@ -124,6 +124,41 @@ const EXTENT = 4096;
  * slår ihop krogar som ligger på olika gator. Tolv är mindre än en nåls egen
  * bredd, alltså slås bara det ihop som faktiskt ligger på samma punkt.
  *
+ * ══ OCH 12 TILL 40, 2026-09-05 ════════════════════════════════════════════
+ *
+ * Tolvan är fel av ett skäl som inte syns i koden: den mäter i pixlar men vet
+ * ingenting om hur stor den figur är som pixlarna sedan får bära. Bubblan
+ * ritas med radie 13 till 22 plus 1,5 px kant, alltså 29 till 47 px i
+ * diameter. En klusterradie på 12 px kan därför aldrig hålla två bubblor
+ * isär, hur många punkter de än bär.
+ *
+ * Uppmätt i det byggda arkivet 2026-09-05, med bubblornas skärmlägen räknade
+ * ur rutorna och dubbletterna ur grannrutornas buffert borttagna:
+ *
+ *     vy                              bubblor  krockande par  minsta avstånd
+ *     /karta/ 1440, z5,1, 751x835        30         44            5,8 px
+ *     /karta/ 375,  z5,1, 375x812        30         44            5,8 px
+ *     kommunhubbens ruta 375, z8,42      46        153            7,5 px
+ *
+ * Tjugofyra av de fyrtiofyra paren låg så tätt att den enas MITT täcktes av
+ * den andra, alltså är talet i den bubblan oläsbart. I hubbens lilla ruta
+ * täckte bubbeldiskarna 68 procent av rutans yta.
+ *
+ * Fyrtio är valt på mätning och inte på principen. Principen säger minst 47,
+ * alltså den största bubblans egen diameter, men 48 mätte SÄMRE än 40: ett
+ * krockande par blev kvar i hubbens ruta, och över Sverige slogs nio bubblor
+ * ihop till åtta utan att någon krock försvann. Vid 40 är utfallet noll
+ * krockande par i alla fyra vyerna, med 39 px som minsta avstånd, och kvar
+ * står 10 bubblor över Sverige mot 30 och 7 i hubbens ruta mot 46.
+ *
+ * Radien gäller BARA zoom till och med maxzoomen nedan, alltså ruta z0 till
+ * z8. Från z9 klustras ingenting, och där ändras därför ingenting: varken
+ * kommunkartornas öppningsvy, som har golv på 9,0, eller områdeskartorna, som
+ * öppnar på z11 och uppåt, rör sig en pixel av det här talet. Priset betalas
+ * på z8, där några ensamma nålar som förut stod för sig själva numera ingår i
+ * en bubbla. Det är den zoom där man ser ett helt län, alltså inte den zoom
+ * ägarens avvägning ovan handlar om.
+ *
  * Minsta antalet 5 till 3. Under tre punkter ritades de redan som egna nålar;
  * med tre går även trean och fyran fram, och en bubbla med en trea i är den
  * mest meningslösa bubblan som finns.
@@ -149,7 +184,7 @@ const EXTENT = 4096;
  * som vaktar det: den mäter tyngsta rutan uppackad vid varje bygge och fäller
  * om arkivet blir för dyrt. Talen efter ändringen står i byggets utskrift.
  */
-const CLUSTER_RADIUS_PX = 12;
+const CLUSTER_RADIUS_PX = 40;
 const CLUSTER_MIN_POINTS = 3;
 const CLUSTER_MAX_ZOOM = 8;
 

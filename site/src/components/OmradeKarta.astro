@@ -27,21 +27,28 @@
  * då direkt, utan att ögat först måste följa en tunn linje runt hela ytan.
  * Greppet är Boolis, uppmätt och inte gissat, se `masken` nedan för talen.
  *
+ * Masken ligger över punkterna UTANFÖR gränsen och under områdets egna. Det
+ * stod tvärtom här fram till 2026-09-05, med motiveringen att masken aldrig
+ * fick röra ett bedömningsmärke, och den ordningen gav en karta där utsidan
+ * bar mer färg än området sidan handlar om. Mätningen och hela resonemanget
+ * står vid `omrade-mask` i skriptet.
+ *
  * Det här ser ut att krocka med regeln längre ned, att nedtoning sker med
  * storlek och opacitet och ALDRIG med färg eftersom grått betyder "ingen
  * bedömning" överallt annars på sajten. Det gör det inte, och skillnaden är
  * hela poängen:
  *
- * - Regeln gäller **bedömningsmärkena**. En nål, en prick eller en bubbla
- *   bär en bedömning, och den betydelsen får aldrig lånas ut till en färg
- *   som betyder något annat.
- * - Masken rör **ingen enda nål**. Den ligger under varje punktlager och
- *   mörknar gator, vatten och kvarter. En grön restaurang tvärs över gatan
- *   är fortfarande grön, bara ställd på mörkare mark.
+ * - Regeln gäller **färgen på ett enskilt märke**. En nål, en prick eller en
+ *   bubbla bär en bedömning, och den betydelsen får aldrig lånas ut till en
+ *   färg som betyder något annat.
+ * - Masken är ingen märkesfärg. Den är ett skikt över en HEL YTA som lägger
+ *   sig likadant på gator, vatten, kvarter och på alla fyra bedömningarna.
+ *   Ingen prick byter färg i förhållande till en annan, och innanför gränsen
+ *   rör masken ingenting alls.
  *
- * Riv alltså inte ut masken med hänvisning till färgregeln. Rör den däremot
- * ett punktlager är det färgregeln som gäller, och då är det masken som är
- * fel byggd.
+ * Riv alltså inte ut masken med hänvisning till färgregeln. Skiljer den
+ * däremot en bedömning från en annan är det färgregeln som gäller, och då är
+ * det masken som är fel byggd.
  *
  * ## Vikten
  *
@@ -339,10 +346,10 @@ const masken = JSON.stringify({
 /**
  * Gränsens upphov, som en färdig sträng.
  *
- * Skrivs EN gång och används på två ställen: i stillbildens hörn och som
- * `attribution` på kartans gränskälla, alltså inne i MapLibres egen
- * upphovsrad. Två formuleringar av samma uppgift hade förr eller senare blivit
- * två olika uppgifter, och den ena hade då stått fel.
+ * Skrivs EN gång och står på ETT ställe: som en egen rad under kartan, se
+ * `.upphov` i mallen. Den låg förut på två, i stillbildens hörn och inbakad i
+ * MapLibres upphovsrad, och det andra bröt raden till två våningar tvärs över
+ * kartan på en telefon.
  *
  * Kartdatat är alltid OpenStreetMap genom kakelleverantören, och den delen
  * skriver MapLibre själv ur stilens TileJSON. GRÄNSEN är inte alltid det: den
@@ -374,45 +381,38 @@ const gransUpphov = kalla
     data-omrade={omradet}
     data-mask={masken}
     data-keys={JSON.stringify(rutor.keys)}
-    data-upphov={gransUpphov ?? undefined}
     data-label={label}
   >
     <div class="still" data-still>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
-        {/* Masken först, alltså under punkterna, precis som lagerordningen i
-            den levande kartan. Se `mask` i frontmatter. */}
-        <path d={mask} class="mask" fill-rule="evenodd" />
-        <path d={outline} class="kant" fill-rule="evenodd" />
-        {LAGER.map((l) => l.d && (
+        {/* Ordningen: utsidans punkter, sedan masken ÖVER dem, sedan gränsen,
+            sedan områdets egna punkter. Exakt samma ordning som lagren i den
+            levande kartan, och den ordningen är hela poängen: står de olika
+            hoppar bilden när kartan vaknar. Skälet till att masken ligger över
+            utsidans punkter står vid `omrade-mask` i skriptet. */}
+        {LAGER.filter((l) => l.ute).map((l) => l.d && (
           <path
             d={l.d}
             stroke={l.color}
-            stroke-width={l.ute ? 3 : 5}
-            stroke-opacity={l.ute ? 0.5 : 1}
+            stroke-width={3}
+            stroke-opacity={0.5}
+            stroke-linecap="round"
+            fill="none"
+          />
+        ))}
+        <path d={mask} class="mask" fill-rule="evenodd" />
+        <path d={outline} class="kant" fill-rule="evenodd" />
+        {LAGER.filter((l) => !l.ute).map((l) => l.d && (
+          <path
+            d={l.d}
+            stroke={l.color}
+            stroke-width={5}
+            stroke-opacity={1}
             stroke-linecap="round"
             fill="none"
           />
         ))}
       </svg>
-
-      {/*
-        Stillbildens upphovsrad.
-
-        Den syns bara innan kartan vaknat, och det är precis då den behövs:
-        stillbilden ritar en områdesgräns och hade annars ingen attribution
-        alls. Den som får saveData, en sämre uppkoppling än 4g eller ett fel
-        vid uppvaknandet ser BARA den här bilden, och attribution är ett
-        licensvillkor och inte en artighet.
-
-        Ingen rad om kartblad: stillbilden har inga. Den ritar en gräns och
-        våra egna punkter mot ett tomt papper, och en rad som tackar
-        OpenFreeMap för kakel som inte finns i bilden vore fel om sig själv.
-
-        Raden försvinner när kartan vaknar, och MapLibres egen upphovsrad tar
-        över i samma hörn med samma mening i sig. De två står alltså aldrig
-        samtidigt.
-      */}
-      {gransUpphov && <p class="upphov" set:html={gransUpphov} />}
 
       <button type="button" class="knapp" data-aktivera>Visa kartan</button>
     </div>
@@ -421,6 +421,32 @@ const gransUpphov = kalla
 
     <p class="fel" data-fel hidden role="alert">Kartan gick inte att ladda.</p>
   </div>
+
+  {/*
+    GRÄNSENS UPPHOV, SOM EN EGEN RAD UNDER KARTAN.
+
+    Raden låg förut på två ställen och båda låg INNE i kartan: i stillbildens
+    hörn, och som `attribution` på gränskällan, alltså inbakad i MapLibres
+    egen upphovsrad. Det andra var det som gick sönder.
+
+    Uppmätt vid 375 x 812 den 2026-09-05, med rutan 341 x 255 px:
+    "Områdesgräns © OpenStreetMap contributors | OpenFreeMap © OpenMapTiles
+    Data from OpenStreetMap" är 549 px, alltså bryter den till TVÅ rader och
+    lägger sig tvärs över södra Södermalm. Kartbladens egen rad är 307 px och
+    ryms på en rad i samma ruta, uppmätt på /karta/ vid 375.
+
+    Attribution är ett licensvillkor. En rad som täcker sjutton procent av
+    kartans höjd och ligger ovanpå tusen prickar uppfyller det sämre än en rad
+    som står under kartan i klartext, och den här står dessutom kvar i ALLA
+    lägen: före uppvaknandet, efter det, utan skript, och för den som stoppas
+    av saveData eller en sämre uppkoppling än 4g. Kartbladens egen rad bor
+    kvar hos MapLibre, för den är kartbladens och ska följa med in i
+    helskärmsläget.
+
+    ODbL för OSM-ytorna är kravet. RegSO är CC0 och kräver ingenting, men står
+    ändå: en gräns på den här sajten säger alltid var den kommer ifrån.
+  */}
+  {gransUpphov && <p class="upphov" set:html={gransUpphov} />}
 </div>
 
 {/*
@@ -497,21 +523,16 @@ const gransUpphov = kalla
     stroke-opacity: 0.75;
   }
 
-  /* Upphovsraden i stillbildens hörn, på MapLibres plats. Måtten och färgen
-     är upphovsradens i kartram.css, inklusive glorian: kartan är ljus, men
-     stillbildens gräns kan ligga över en mörknad utsida. */
+  /* Upphovsraden står under kartan och inte i ett kartöra. Grad och färg är
+     MapLibre-radens i kartram.css, så att de två läser som ett par: samma
+     uppgift om samma bild, den ena om gränsen och den andra om kartbladen.
+     Ingen gloria här, för raden ligger på sidans egen mark och inte på en
+     karta. */
   .upphov {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline-end: 0;
-    margin: 0;
-    padding: 0 5px;
+    margin: var(--s-1) 0 0;
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
-    color: var(--text);
-    text-shadow:
-      0 0 3px rgba(255, 255, 255, .95),
-      0 0 6px rgba(255, 255, 255, .75);
+    color: var(--text-secondary);
   }
 
   /* `:global` krävs och är inte slarv. Länken kommer ur `set:html`, alltså ur
@@ -687,6 +708,12 @@ const gransUpphov = kalla
          * är motiverad med att den rutan är 328 px, och det måttet finns inte
          * här.
          *
+         * Att raden RYMS är sant först sedan gränsens upphov flyttat ut ur
+         * den. Uppmätt 2026-09-05 vid 375: med gränsen inbakad var raden
+         * 549 px och bröts till två rader tvärs över kartan; utan den är den
+         * 307 px och ryms på en rad i en ruta på 341 px. Se `.upphov` i
+         * mallen.
+         *
          * Ändra ALDRIG tillbaka till true utan att samtidigt sätta tillbaka en
          * synlig upphovsrad under kartan.
          */
@@ -699,40 +726,22 @@ const gransUpphov = kalla
           });
 
           /*
-           * Masken och gränsen först, så att båda ligger UNDER punkterna.
+           * Källorna först. Lagren läggs i den ordning de ska ritas, och
+           * masken ligger inte längre först: se `omrade-mask` nedan.
            *
-           * Ordningen är hela skälet till att masken inte bryter mot
-           * färgregeln, se filhuvudet: den mörknar kartbladen och når aldrig
-           * en nål, en prick eller en bubbla.
-           *
-           * Attributionen sitter på källan och inte i en textrad: gränsen
-           * kommer ur OpenStreetMap och MapLibre väver in strängen i
-           * upphovsraden bredvid kakelleverantörens egen. Masken är härledd ur
-           * samma gräns och bär den därför inte en gång till.
+           * Gränsens attribution sitter INTE längre på källan. Den står som en
+           * egen rad under kartan i stället, och skälet står vid `.upphov` i
+           * mallen: den raden syns i alla lägen och på alla bredder, medan
+           * MapLibres upphovsrad med gränsen inbakad blev 549 px lång och
+           * bröts till två rader tvärs över kartan på en telefon.
            */
           karta.addSource('omrade', {
             type: 'geojson',
             data: { type: 'Feature', properties: {}, geometry: OMRADET },
-            attribution: root!.dataset.upphov,
           } as any);
           karta.addSource('omrade-mask', {
             type: 'geojson',
             data: { type: 'Feature', properties: {}, geometry: MASKEN },
-          });
-          karta.addLayer({
-            id: 'omrade-mask',
-            type: 'fill',
-            source: 'omrade-mask',
-            paint: { 'fill-color': MASKGRA, 'fill-opacity': MASKTACKNING },
-          });
-          /* Ingen fylld yta innanför gränsen. Skälet står vid `.kant` i
-             stilblocket: masken bär läsningen, och en tonad insida ovanpå den
-             hade lagt blått över den mark punkterna står på. */
-          karta.addLayer({
-            id: 'omrade-kant',
-            type: 'line',
-            source: 'omrade',
-            paint: { 'line-color': KART_BRAND, 'line-width': 2, 'line-opacity': 0.75 },
           });
 
           /*
@@ -811,6 +820,64 @@ const gransUpphov = kalla
             layout: bubbelText,
             paint: { 'text-color': '#fff', 'text-opacity': 0.7 },
           } as any);
+
+          /*
+           * ── MASKEN LIGGER ÖVER UTSIDANS PUNKTER, INTE UNDER ──────────────
+           *
+           * Här stod masken FÖRST av alla lager, alltså under varje punkt, och
+           * filhuvudet motiverade den ordningen med färgregeln: masken fick
+           * inte röra ett bedömningsmärke, eftersom grått betyder "ingen
+           * bedömning" överallt annars på sajten.
+           *
+           * Utfallet i bild sa något annat. Uppmätt på Södermalm vid 1440
+           * 2026-09-05, i två lika stora rutor på 160 x 70 px:
+           *
+           *     innanför gränsen   49,8 % av pixlarna gröna, prickens färg
+           *                        #00B92B, färgstyrka 185
+           *     utanför gränsen    17,3 % gröna, prickens färg #58B46C,
+           *                        färgstyrka 92
+           *
+           * Utsidan är fyra gånger så stor som insidan i rutan, alltså bar den
+           * mer grönt TOTALT än området sidan handlar om, och strålkastaren
+           * pekade åt fel håll: sidans eget område var den lugnaste delen av
+           * sin egen karta.
+           *
+           * Skälet är att opacitet och mask är två blandningar i följd, och
+           * ORDNINGEN mellan dem avgör hur mycket av prickens färg som blir
+           * kvar. Ligger masken under punkten står punkten kvar med sin halva
+           * vikt ovanpå en dämpad mark, alltså 0,5 av färgen. Ligger masken
+           * över punkten blir samma halva vikt först dämpad, alltså 0,2 av
+           * färgen. Samma två tal, tvåochenhalv gånger svagare färg.
+           *
+           * ── OCH FÄRGREGELN DÅ ───────────────────────────────────────────
+           *
+           * Regeln finns för att en FÄRG inte ska få två betydelser. Den
+           * gäller fortfarande, och det här bryter inte mot den: masken är
+           * inte en färg som läggs på ett märke för att säga något om
+           * verksamheten, den är ett skikt över en HEL YTA som lägger sig
+           * likadant på alla fyra bedömningarna, på kartbladen, på gatorna och
+           * på vattnet. Ingen prick byter färg i förhållande till en annan.
+           * Den som vill veta vad en dämpad prick är kan klicka på den, precis
+           * som förut, och zooma in tills gränsen inte längre är i vägen.
+           *
+           * Filhuvudets stycke om ordningen är omskrivet i samma ändring, så
+           * att de två inte säger emot varandra.
+           */
+          karta.addLayer({
+            id: 'omrade-mask',
+            type: 'fill',
+            source: 'omrade-mask',
+            paint: { 'fill-color': MASKGRA, 'fill-opacity': MASKTACKNING },
+          });
+          /* Ingen fylld yta innanför gränsen. Skälet står vid `.kant` i
+             stilblocket: masken bär läsningen, och en tonad insida ovanpå den
+             hade lagt blått över den mark punkterna står på. */
+          karta.addLayer({
+            id: 'omrade-kant',
+            type: 'line',
+            source: 'omrade',
+            paint: { 'line-color': KART_BRAND, 'line-width': 2, 'line-opacity': 0.75 },
+          });
 
           karta.addLayer({
             id: 'inne-nalar',

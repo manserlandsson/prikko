@@ -1018,3 +1018,228 @@ adressen vinner alltid över golvet, av samma skäl som överallt annars.
 - **Ingen kryssruta och ingen knapp för "sök i det här området".** Se
   samtyckesskälet ovan.
 - **Ingen rektangel i fragmentet.** Se skälet ovan.
+
+---
+
+## Märkena blev fler än rutan rymde, och radien visste inte hur stora de var
+
+Skrivet 2026-09-05, samma dag som avsnittet ovan och som en direkt följd av
+det. Beställningen är tre fynd ur `docs/57_visuell_genomgang.md`, punkt 1, 2
+och 4, och de tre är strukna där med en hänvisning hit.
+
+Mätningen är gjord om från början och inte övertagen. Bygge ur en egen
+worktree med `site/.env` på plats, serverat lokalt med `text/javascript` för
+`.mjs`, fotograferat med Chrome över felsökningsprotokollet vid 1440 x 900 och
+375 x 812. Bubblornas lägen är dessutom räknade direkt ur det byggda arkivet,
+utan webbläsare, med dubbletterna ur grannrutornas buffert borttagna.
+
+### Fynd 1 och 2 hade samma rot, och roten är ett tal
+
+Frågan var om hubbens smetiga kartruta och rikskartans staplade kluster är två
+fel eller ett. Det är ett, och det syns när man ställer de två mätningarna
+bredvid varandra.
+
+`CLUSTER_MAX_ZOOM` är 8, alltså går klusterbrytpunkten vid kartzoom 9,0.
+Kommunhubbens ruta passar in kommunens låda och hamnar på var sin sida om den
+brytpunkten beroende på fönstrets bredd:
+
+| Vy | Kartruta | Zoom | Ruta | Vad som ritas |
+|---|---|---|---|---|
+| Hubben, 1440 | 398 x 458 | 9,67 | z9 | 8 544 råa nålar |
+| Hubben, 375 | 341 x 198 | 8,42 | z8 | 46 bubblor |
+| `/karta/`, båda | 751 x 835 | 5,10 | z5 | 30 bubblor |
+
+Samma ruta, samma data, två helt olika bilder, och båda är trasiga. Det som
+binder ihop dem är att **ingen av de två mekanismerna vet hur stort det märke
+är som den ritar**:
+
+- Över brytpunkten finns ingen klustring alls, så rutans yta får bära hur
+  många nålar som helst. 8 544 nålar på 398 x 458 px är 21 px² per nål, och
+  nålen är 18 x 23,75 px, alltså 427 px². Tjugo gångers övertäckning.
+- Under brytpunkten fanns klustring, men med en radie på 12 px, medan bubblan
+  ritas med radie 13 till 22 plus 1,5 px kant, alltså 29 till 47 px i
+  diameter. En radie som är en tredjedel av figuren kan inte hålla två figurer
+  isär.
+
+Det är alltså samma fel uttryckt två gånger: **måttet på hur tätt märken får
+stå är satt utan hänsyn till hur stora de är.** Bilden av det är också samma
+fel två gånger, och det är värt att säga rakt ut: en vägg av överlappande
+märken visar inte var det är tätt, den visar bara att ritytan tog slut. Nålens
+vita kant gör det värre än överlappet i sig, för när tjugo nålar ligger på
+varandra är det kanterna man ser, och innerstaden, som har flest ställen, blir
+den blekaste delen av kartan.
+
+### Ändring 1: klusterradien 12 till 40 px
+
+Ett tal i `lib/kartrutor.ts`, med skälet skrivet vid konstanten. Radien gäller
+bara ruta z0 till z8, eftersom ingenting klustras däröver, så varken
+kommunkartornas öppningsvy med sitt golv på 9,0 eller områdeskartorna på z11
+och uppåt rör sig en pixel av den.
+
+Fyrtio är valt på mätning. Principen säger minst 47, alltså den största
+bubblans egen diameter, men 48 mätte sämre än 40: ett krockande par blev kvar
+i hubbens ruta och över Sverige slogs nio bubblor ihop till åtta utan att en
+enda krock försvann.
+
+Mätt med punkterna lästa ur arkivets z9-rutor och omklustrade med samma tal som
+bygget använder, så att det enda som skiljer raderna åt är radien:
+
+| Vy | | Bubblor | Krockande par | Med mitten täckt | Minsta avstånd |
+|---|---|---|---|---|---|
+| `/karta/` 1440, z5,1 | före | 30 | 44 | 24 | 5,8 px |
+| | efter | 10 | 0 | 0 | 41,5 px |
+| `/karta/` 375, z5,1 | före | 30 | 44 | 24 | 5,8 px |
+| | efter | 10 | 0 | 0 | 41,5 px |
+| Hubbens ruta 375, z8,42 | före | 46 | 153 | 45 | 7,5 px |
+| | efter | 7 | 0 | 0 | 39,2 px |
+
+Bubbeldiskarnas andel av hubbens lilla ruta faller från 68 till 13 procent.
+
+Kontrollmätt i det FÄRDIGA arkivet, alltså inte i simuleringen: `/karta/` vid
+1440 ritar 9 bubblor med noll krockande par, och hubbens ruta vid 375 ritar 7
+bubblor med ETT krockande par kvar, bubblan med 18 i som ligger 17,4 px från
+bubblan med 239 i medan radierna summerar till 34. Båda talen går att läsa i
+bild. Supercluster lovar ingen minsta separation mellan klustermitter, bara att
+punkter inom radien slås ihop, så noll krockar är ett mätt utfall och inte en
+garanti. Den dagen det blir fler är det den här tabellen som ska köras om.
+
+### Ändring 2: nålen är en prick tills den får plats
+
+Bara i kommunhubbens ruta, alltså `KartaPuff.astro`. Under `prickzoom` ritas
+varje verksamhet som en prick på 2,2 till 3,6 px radie i sin bedömningsfärg med
+vit kant, och över den ritas nålen med ansikte som förut. Bytet sker över en
+halv zoomnivå, så prickarna tonar bort medan ansiktena tonar in.
+
+`prickzoom` är den zoom där kommunens egna nålar precis slutar täcka varandra,
+räknad vid bygget ur lådans yta i kartpixlar och antalet nålar:
+
+```
+yta(z) = (dx * 512 * 2^z) * (dy * 512 * 2^z)      dx, dy i mercator
+täckning = antal * 427 / yta(z) = 1
+z = ½ log2(antal * 427 / yta(0))
+```
+
+Utfallet per kommun: Oskarshamn 8,4, Kristinehamn 8,6, Höganäs 9,2, Norrköping
+9,2, Karlstad 9,3, Jönköping 9,3, Uppsala 9,7, Linköping 9,9, Örebro 10,1,
+Stockholm 12,0. Regeln är alltså inte en gräns för hela sajten utan ett tal per
+kommun, och den slår till där tätheten kräver det. Höganäs ruta öppnar på 10,19
+och ligger över sitt tal, alltså ritar den nålar med ansikte precis som förut,
+verifierat i bild.
+
+Antagandet står utskrivet i koden: räkningen använder LÅDANS yta och inte den
+yta nålarna faktiskt upptar. En kommun är tätare i mitten än i utkanten, alltså
+är talet i underkant, och felet lutar åt att visa ansikten hellre än prickar.
+Det är rätt håll, för ansiktet är sajtens och pricken är undantaget.
+
+Uppmätt i rutan på 398 x 458 px på `/stockholm/`, andel av rutans pixlar inom
+60 steg per kanal från märkesfärgerna:
+
+| | Märkesgrönt | Gult | Rött | Grått | Summa |
+|---|---|---|---|---|---|
+| Före | 22,5 % | 1,8 % | 0,4 % | 7,0 % | 31,8 % |
+| Efter | 6,1 % | 0,4 % | 0,1 % | 2,6 % | 9,3 % |
+
+Övertäckningen går från tjugo gånger till 0,7 gånger rutans yta, och bilden
+byter innebörd: innerstaden är nu den mörkaste delen av rutan i stället för den
+blekaste, och Mälaren, Lidingö och Solna syns igen.
+
+### Ändring 3: områdesmasken dämpar det den ska dämpa
+
+Masken låg först av alla lager, alltså under varje punkt, och motiveringen var
+färgregeln: ett grått skikt fick inte röra ett bedömningsmärke, eftersom grått
+betyder "ingen bedömning" överallt annars på sajten.
+
+Utfallet i bild sa något annat. Uppmätt på `/stockholm/omrade/sodermalm/` vid
+1440 i två lika stora rutor på 160 x 70 px, en innanför gränsen och en utanför:
+
+| | Gröna pixlar | Prickens färg | Färgstyrka | Rutans färgmassa |
+|---|---|---|---|---|
+| Innanför, före och efter | 49,8 % | #00B92B | 149 | 86,9 |
+| Utanför, före | 17,3 % | #58B46C | 85 | 22,2 |
+| Utanför, efter | 10,4 % | #81A587 | 41 | 11,5 |
+
+Färgstyrka är skillnaden mellan största och minsta kanal i pricken, färgmassa
+är samma tal i medel över hela rutan. Kvoten mellan områdets färgmassa och
+utsidans går från 3,9 till 7,6, alltså dubblerad, och innanför gränsen är varje
+tal OFÖRÄNDRAT in på decimalen. Det är själva kravet: masken ska inte röra det
+område sidan handlar om.
+
+Skälet till att en flyttad lagerordning ger så mycket är att opacitet och mask
+är två blandningar i följd och att ordningen mellan dem avgör hur mycket av
+prickens färg som blir kvar. Ligger masken under punkten står punkten kvar med
+sin halva vikt ovanpå dämpad mark, alltså 0,5 av färgen. Ligger masken över
+punkten dämpas den halva vikten också, alltså 0,2 av färgen. Samma två tal,
+tvåochenhalv gånger svagare färg.
+
+Färgregeln är omskriven i filhuvudet i samma ändring, inte struken: den gäller
+FÄRGEN PÅ ETT ENSKILT MÄRKE, och masken är inte en märkesfärg utan ett skikt
+över en hel yta som lägger sig likadant på alla fyra bedömningarna, på gatorna
+och på vattnet. Ingen prick byter färg i förhållande till en annan.
+
+Stillbilden ritar om samma ordning, alltså utsidans punkter, masken, gränsen,
+områdets punkter. Ordningen är kontrollerad i den byggda markupen och inte
+antagen: står de två olika hoppar bilden i samma sekund som kartbladen kommer.
+
+### Ändring 4: attributionen är ett licensvillkor och ryms nu på en rad
+
+Områdeskartans upphovsrad låg inbakad i MapLibres egen kontroll, alltså
+"Områdesgräns © OpenStreetMap contributors | OpenFreeMap © OpenMapTiles Data
+from OpenStreetMap", 549 px lång. I en kartruta på 341 px vid 375 bröts den till
+två rader, 34 px höga, och lade sig tvärs över södra Södermalm.
+
+Sajten hade redan en lösning och den byggdes inte om: upphovsraden bär en vit
+gloria i `styles/kartram.css`, inte en platta, och skälet står där. Det som
+saknades var inte en bakgrund utan plats.
+
+Gränsens upphov flyttades därför UT ur kartan och står som en egen rad under
+den. Uppmätt efteråt: MapLibres rad är 307 px och en rad hög, 15 px, vid både
+1440 och 375, alltså samma rad som `/karta/` redan hade. Raden om gränsen står
+i klartext under rutan, syns i alla lägen, före uppvaknandet och efter det, och
+finns kvar när skriptet är avstängt, verifierat med skriptkörning avslagen.
+
+Ett licensvillkor blir alltså mer läst och inte mindre, vilket är hela skälet
+till att det inte löstes med en platta som täcker mer karta.
+
+### Vad det kostade
+
+Arkivet växer från 3,27 MB till 3,75 MB, alltså femton procent, och tyngsta
+rutan uppackad från 484 till 497 kB. Skälet står i supercluster rad 157: rutans
+buffertzon är `radius / extent`, alltså 96 av 4096 före och 320 av 4096 efter,
+så varje ruta bär en bredare kjol av grannrutans punkter. Kjolen ligger utanför
+rutans egen yta och ritas under grannens egna figurer, alltså syns den inte.
+
+Kontrollerat och inte antaget: `/stockholm/karta/` vid 1440 är PIXELIDENTISK
+före och efter, noll pixlar över tröskeln i en bilddiff över hela kartrutan på
+751 x 835. Kartan hämtar sitt utsnitt och aldrig arkivet, så kostnaden är
+lagring och en aning mer per ruta, inte en tyngre sida. Rutgrinden är grön.
+
+### Vad som valdes bort, och varför
+
+- **Klustring även över z9.** Det hade tagit tillbaka hela beslutet från
+  2026-08-25 och gjort kommunkartan till en vägg av blå bubblor igen. Ägarens
+  avvägning står i `lib/kartrutor.ts` och är hans att göra.
+- **Ett zoomtak på hubbens ruta**, alltså att tvinga den under 9,0 så att den
+  alltid visar bubblor. Det hade gett fem blå bubblor i stället för en stad,
+  och rutans egen fot säger redan "8 567 verksamheter med känd plats". Ett
+  tak hade dessutom beskurit kommunen på smal skärm och därmed gjort den foten
+  osann.
+- **Prickar även på kommunens egen kartsida.** Samma inversion finns där,
+  uppmätt till knappt sex gångers övertäckning på 751 x 835 vid zoom 10,57, och
+  den vyn har ägaren sett och godkänt så sent som i går. Den ändringen ska
+  läggas fram för honom, inte smygas in i en lagning av tre andra fynd.
+- **Kollisionsundvikande på bubblorna**, alltså `text-allow-overlap: false`.
+  Det hade tagit BORT bubblor ur bilden i stället för att flytta dem, och en
+  bubbla som försvinner för att en annan står i vägen är ett urval som ingen
+  kan se. Radien flyttar dem i stället.
+- **En platta bakom attributionen.** Se ovan: raden fick plats i stället.
+- **Alla former av rangordning.** Ingen nål gömd, ingen ritordning efter
+  bedömning, ingen storlek som beror på utfallet. Pricken är lika stor för alla
+  fyra bedömningarna, masken dämpar alla fyra lika mycket, och urvalet av vad
+  som ritas är geometriskt: ligger figuren i rutan ritas den.
+
+### Kvar att göra, uppmätt men inte rättat
+
+- Hubbens lilla ruta kör `compact: true`, och den knappen gör att MapLibres rad
+  bryts till två rader vid 375 även utan gränsens upphov. Det är punkt 19 i
+  `docs/57_visuell_genomgang.md` och står kvar där.
+- Kommunens egen kartsida, se ovan.
