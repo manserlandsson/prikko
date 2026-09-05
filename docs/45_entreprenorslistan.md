@@ -625,3 +625,59 @@ saknar. Frankrike har samma sak med SIRET. Två av två.
 | 8 | B6 Flöden, B11 Indexering, E5 Drift | Oförändrat |
 | 9 | SOU 2025:64 följas | Ny. Remissvar och riksdagsbehandling avgör tidsplanen |
 | ~ | A2 som fälttåg | NED. Byggs som verktyg och lydelse, inte som tvåårigt projekt |
+
+---
+
+## 7. Avstämning 2026-09-05: vad som är gjort, och vad vågen ser ut som nu
+
+Listan skrevs för att betas av utan att ägaren behöver säga något. Det här
+avsnittet säger var arbetet står, så att nästa omgång inte börjar om.
+
+### 7.1 Vågen 1, punkt för punkt
+
+| # | Punkt | Läge |
+|---|---|---|
+| 1 | Norrköping in | **Klart.** Egen Ecos-adapter, 1 022 verksamheter, 622 koordinater ur adresserna. Hämtningen pekar på nodadressen så en ny version plockas upp av sig själv |
+| 1 | Göteborg in | **Blockerad på ett produktbeslut, inte på kod.** 5 076 verksamheter, CC0, daglig, men noll kontrollresultat. Se `docs/42` §7.3. Brevet ligger skrivet som `01-1480-goteborg.txt` |
+| 2 | A0 Filtaket | **Kvar.** 18 172 filer av Cloudflare Pages tak på 20 000 |
+| 3 | B2 till B4 dekal och QR | **Klart.** Egen kodare, märket, certifikatet |
+| 4 | B1 Publikt API | **Klart.** JSON, Atom-flöden, egen sida, konto |
+| 5 | H1 Begär ut kontrollen | **Omskriven och under byggnad.** `docs/50` §9 avgjorde: skriv brevet åt besökaren, mät efterfrågan, ompröva vid 200 klick i månaden |
+| 6 | E1 Utgivningsbeviset | **Ägarens.** 4 000 kr, ansökan inte inlämnad |
+| 7 | C1 och C2 | Kvar |
+| 8 | B6 Flöden | **Klart** |
+| 8 | B11 Indexering | **Klart som kod.** IndexNow anmäler nattens ändringar, 202 mottaget. Mätningen av utfallet går inte att göra utifrån, se `docs/49` |
+| 8 | E5 Drift | **Klart.** `halsokoll.mjs` prövar att den publicerade sajten är RÄTT och inte bara uppe, och öppnar ett ärende med fingeravtryck |
+| 9 | SOU 2025:64 | Kvar att följa |
+
+### 7.2 Det som inte stod på listan och ändå var viktigast
+
+Fyra fynd kom ur att sajten användes som en besökare använder den, och inget
+av dem gick att se i koden.
+
+1. **Vi påstod en uppföljning som aldrig skett**, på 130 av 403 sidor med vårt
+   hårdaste omdöme, om namngivna företag. Meningen var en konstant medan
+   omdömet sattes på tre grunder. Se `docs/60_omdomets_grund.md`.
+2. **Sökningen utplånade i stället för att smalna av.** `max` ger 70 träffar,
+   `max hamburgare` ger 2 av 34, och `max stockholm` ger noll med ett svar som
+   påstår att verksamheten kan sakna registrerad kontroll. Det är osant.
+3. **Startsidan visste inte var besökaren står**, trots att sökpanelen redan
+   frågade webbläsaren om det.
+4. **Kommunsidan är sajtens största landningsyta och en telefonkatalog**,
+   elva sidor från A till Ö, medan kartan i samma kommun filtrerar på tjugo
+   matkategorier.
+
+**Lärdomen är metodisk och hör hemma i vågen framåt:** listan byggdes ur
+strategi, och fyra av de tyngsta felen fanns bara genom att öppna sajten och
+göra det en besökare gör. Nästa omgång ska börja med en sådan vandring, inte
+sluta med den.
+
+### 7.3 Det som väntar på ägaren, och bara på honom
+
+1. Släck `prikko.pages.dev`, som fortfarande svarar 200 med `Allow: /` och
+   erbjuder Google dubbelt så många adresser som sajten har.
+2. Skicka de tjugo breven i `pipeline/data/begaran/`.
+3. Svara på Göteborgsfrågan i `docs/42` §7.3.
+4. Koppla Bing Webmaster Tools, som importerar från Search Console i två
+   klick och ger IndexNow ett utgångsvärde att mätas mot.
+5. Utgivningsbeviset, DMARC-rapporterna och MX på roten.
