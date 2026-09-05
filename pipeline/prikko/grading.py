@@ -47,6 +47,12 @@ upprepas från föregående kontroll, är en kvarstående avvikelse oavsett
 kommun. Mönstret finns i alla källor; etiketterna kommer aldrig att stämma
 överens.
 
+De två tecknen är inte samma påstående, och det ska den som skriver text om
+utfallet hålla reda på. Bara det första handlar om en uppföljning; det andra
+är två kontroller i rad med anmärkning och säger ingenting om något
+återbesök. Se `_is_persisting()` längre ned, och docs/60_omdomets_grund.md
+för de 130 sidor som fick den förväxlingen utskriven i klartext.
+
 Uppmätt effekt (2026-08-02): Stockholm gick från 0 till 187 kvarstående av
 776 avvikelser. Linköping från 8 till 12 av 100 — alltså de explicit märkta
 plus fyra som etiketten missade.
@@ -323,13 +329,34 @@ class Assessment:
 
 
 def _is_persisting(recent: Sequence[Inspection]) -> bool:
-    """Har avvikelsen överlevt en uppföljning?
+    """Är avvikelsen mer än en engångsnotering?
+
+    NAMNET PÅ FRÅGAN ÄR VIKTIGT. Här stod "Har avvikelsen överlevt en
+    uppföljning?" fram till 2026-09-05, och det beskrev gren 1. Gren 2
+    innehåller ingen uppföljning över huvud taget, och funktionen kan alltså
+    inte svara på den frågan. Formuleringen läckte dessutom rakt ut på sajten:
+    varje sida med "Brister som kvarstår" påstod en uppföljning, och på 130 av
+    403 sådana sidor hade ingen skett. Se docs/60_omdomets_grund.md.
 
     Två oberoende tecken, båda hämtade ur källdata som alla kommuner har:
 
-    1. Den senaste kontrollen ÄR ett återbesök och hittade ändå avvikelser.
-       Kommunen kom tillbaka för att kontrollera åtgärden, och den räckte inte.
-    2. Föregående kontroll hade också avvikelser. Problemet upprepas.
+    1. ÅTERBESÖK. Den senaste kontrollen är märkt som ett återbesök och hittade
+       ändå avvikelser. Kommunen kom tillbaka för att kontrollera åtgärden, och
+       den räckte inte. Det här tecknet, och bara det här, handlar om en
+       uppföljning.
+
+    2. UPPREPNING. Föregående kontroll hade också avvikelser. Problemet
+       upprepas. INGEN UPPFÖLJNING FINNS I DATAN: den senaste kontrollen kan
+       vara en helt vanlig planerad kontroll, och den föregående likaså. Vad vi
+       ser är två kontroller efter varandra som båda gav anmärkning, ingenting
+       om att kommunen kommit tillbaka för att pricka av något.
+
+    De två tecknen är lika giltiga för bedömningen och ska förbli det; det är
+    hela poängen med att läsa mönstret i stället för etiketten. Men de bär
+    OLIKA PÅSTÅENDEN, och den som skriver text om utfallet måste hålla isär
+    dem. Sajten gör det numera i site/src/lib/omdome.ts, som härleder grunden
+    ur samma `inspections` och väljer en mening per gren. Ändras grenarna här
+    måste den filen ändras i samma commit.
     """
     latest = recent[0]
     if latest.type == FOLLOWUP:

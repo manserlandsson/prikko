@@ -97,10 +97,51 @@ const jsonLd = [
   },
 ];
 
-/** Referatet av varför raden står här, byggt av kommunens egen data. */
+/**
+ * Referatet av varför raden står här, byggt av kommunens egen data.
+ *
+ * GRENEN `stated` HAR TVÅ FALL, och det är en rättelse och ingen finess.
+ * Här stod "Kommunens bedömning av kontrollen är kvarstående avvikelse" fram
+ * till 2026-09-05, och den meningen var fel för Örebro. Örebro publicerar
+ * inget helhetsomdöme per kontroll; tvåan räknas fram av OSS ur
+ * kontrollpunkter märkta "Kvarstår", se `assessment_from_areas()` i
+ * pipeline/prikko/sources/orebro.py. Meningen tillskrev alltså kommunen ett
+ * omdöme den aldrig gett. Samma familj som den fasta meningen om en
+ * uppföljning som aldrig skett, se lib/omdome.ts och docs/60.
+ *
+ * VILKA KOMMUNER SOM KAN HAMNA HÄR, uppmätt över site/src/data 2026-09-05.
+ * 60 av beståndets 182 matsnuskrader har grunden `stated`:
+ *
+ *     Örebro      43   punkter märkta "Kvarstår", tvåan härledd av oss
+ *     Uppsala     11   "Avvikelse kvarstår", kommunens eget omdöme
+ *     Linköping    6   "Kvarstår", kommunens eget omdöme
+ *     Stockholm    0   deras skala saknar en tvåa helt
+ *
+ * Samtliga 60 bär minst en punkt märkt "Kvarstår". Därför säger första fallet
+ * just det, alltså kommunens egen uppmärkning på raden och inte ett omdöme om
+ * kontrollen, och det är sant i alla tre kommunerna. Ordet står dessutom i
+ * avvikelselistan direkt under meningen, som `AREA_STATUS_LABEL.persisting`,
+ * så läsaren kan pricka av påståendet mot raderna.
+ *
+ * Att alla 60 dessutom är återbesök ändrar ingenting: märkningen står på egna
+ * ben, och den är det raden vilar på. Bara Örebro och Stockholm är över
+ * MIN_MATSNUSK_PAGE, så 43 av de 60 renderas i dag.
+ *
+ * ANDRA FALLET är kommunens egen högsta nivå UTAN någon kvarstående punkt:
+ * Linköpings "Ej godtagbar", alltså underkänd, och Lommas röda prick, som
+ * kommunens läsanvisning definierar som avvikelser med föreläggande eller
+ * förbud. Noll rader i dag, eftersom Lommas två kontroller ligger 2
+ * respektive 22 dagar utanför MATSNUSK_WINDOW_DAYS. Fallet är skrivet ändå,
+ * för det kan fyllas vid nästa hämtning och den mening som passar Örebro
+ * passar inte där.
+ */
 function groundText(r: (typeof rows)[number]): string {
   if (r.ground === 'stated') {
-    return 'Kommunens bedömning av kontrollen är kvarstående avvikelse.';
+    const kvarstaende = r.remarks.filter((a) => a.status === 'persisting').length;
+    return kvarstaende > 0
+      ? `Vid kontrollen har ${kommun.name} märkt ${kvarstaende} ` +
+        `${kvarstaende === 1 ? 'avvikelse' : 'avvikelser'} som kvarstående.`
+      : `${kommun.name}s egen bedömning av kontrollen är den allvarligaste nivån.`;
   }
   if (r.ground === 'followup') {
     return 'Kontrollen var ett återbesök för att följa upp tidigare brister.';

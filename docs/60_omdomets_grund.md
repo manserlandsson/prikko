@@ -167,9 +167,9 @@ längre in i historiken, inom `HISTORY_DEPTH = 3`.
 
 Matsnusklistan var värst efter verksamhetssidan: **51 av Stockholms 64 rader
 och 9 av Örebros 92 vilar på upprepning**, alltså utan något återbesök.
-Raderna själva har alltid skrivit rätt, `groundText()` har skiljt på de tre
-sedan den skrevs. Det var sammanfattningarna ovanför dem som drog alla tre
-över en kam.
+`groundText()` har skiljt på de tre grunderna sedan den skrevs; det var
+sammanfattningarna ovanför raderna som drog alla tre över en kam. En av de tre
+radtexterna behövde ändå lagas, se avsnitt 6b.
 
 **Friat efter kontroll.** Delningsbilden bär ingen bedömning alls, med skrivet
 skäl. Dekalen ritar bara etiketten. Atom-flödena skriver källans egen
@@ -178,6 +178,67 @@ uppföljning. Metodiksidans nivåbeskrivning räknade redan upp alla tre
 grunderna. Artiklarna beskriver modellen generellt och gör det korrekt.
 `punktstatistik.ts` och `kommunprofil.ts` talar om kontrollpunkter märkta
 "Kvarstår", vilket är kommunens eget ord på en punkt, inte vårt omdöme.
+
+## 6b. Matsnusklistans radtext för kommunens tvåa
+
+Fanns kvar efter första rundan och rättades 2026-09-05 i samma vända som
+`grading.py`:s docstring, se avsnitt 6c.
+
+Raden sade **"Kommunens bedömning av kontrollen är kvarstående avvikelse"**
+för grunden `stated`. Det är fel för Örebro, som publicerar **inget
+helhetsomdöme per kontroll**. Deras tvåa räknas fram av oss i
+`assessment_from_areas()`, ur kontrollpunkter märkta "Kvarstår". Meningen
+tillskrev alltså kommunen ett omdöme den aldrig gett, vilket är exakt samma
+familj av fel som den fasta meningen om en uppföljning.
+
+Vilka kommuner som kan hamna i grenen, av beståndets 182 matsnuskrader:
+
+| Kommun | Rader med `stated` | Varifrån tvåan kommer | Renderas i dag |
+|---|---:|---|---|
+| Örebro | 43 | punkter märkta "Kvarstår", tvåan härledd av oss | ja, sidan finns |
+| Uppsala | 11 | "Avvikelse kvarstår", kommunens eget omdöme | nej, under gränsen |
+| Linköping | 6 | "Kvarstår", kommunens eget omdöme | nej, under gränsen |
+| Stockholm | 0 | deras skala saknar en tvåa helt | sidan finns |
+| **Summa** | **60** | | **43 syns** |
+
+Bara Örebro och Stockholm når `MIN_MATSNUSK_PAGE` = 25, så 43 av de 60
+renderas. Uppsalas 11 och Linköpings 6 väntar på att sin kommun ska nå
+gränsen, och texten måste hålla den dagen den gör det.
+
+**Samtliga 60 bär minst en kontrollpunkt märkt "Kvarstår."** Därför säger
+grenen numera just det, alltså kommunens egen uppmärkning på raden i stället
+för ett omdöme om kontrollen:
+
+> Vid kontrollen har Örebro kommun märkt 2 avvikelser som kvarstående.
+
+Ordet står dessutom i avvikelselistan direkt under meningen, som
+`AREA_STATUS_LABEL.persisting`, så läsaren kan pricka av påståendet mot
+raderna. Utfallet i bygget: 31 rader med 1 avvikelse, 9 med 2, 2 med 3 och 1
+med 5, alltså 43.
+
+**Ett andra fall är skrivet fast det är tomt i dag.** Kommunens egen högsta
+nivå UTAN någon kvarstående punkt är Linköpings "Ej godtagbar" och Lommas
+röda prick. Noll rader, eftersom Lommas två kontroller ligger 2 respektive 22
+dagar utanför `MATSNUSK_WINDOW_DAYS`, alltså strax utanför. Fallet får en egen
+mening, för den som passar Örebro passar inte där:
+
+> Lomma kommuns egen bedömning av kontrollen är den allvarligaste nivån.
+
+## 6c. `_is_persisting()` kallade sig själv en uppföljning
+
+Samma missvisande ord, en nivå ned. Docstringen lydde **"Har avvikelsen
+överlevt en uppföljning?"** och beskrev sedan två grenar där gren 2 inte
+innehåller någon uppföljning alls. Det är den formuleringen som läckte ut på
+sajten till att börja med, och nästa läsare hade trott att båda grenarna
+bevisar ett återbesök.
+
+Rättat till **"Är avvikelsen mer än en engångsnotering?"**, med gren 1 märkt
+ÅTERBESÖK och gren 2 märkt UPPREPNING och en utskriven mening om att ingen
+uppföljning finns i datan där. Modulhuvudets stycke om varför allvarsgraden
+härleds ur mönstret har fått samma påpekande, med hänvisning hit.
+
+**Ingen tröskel rörd, `MODEL_VERSION` kvar på 5.** Diffen mot `grading.py`
+innehåller inte en enda kodrad, bara docstring.
 
 ## 7. "Vad uppföljningen visade" och dess ålder
 
