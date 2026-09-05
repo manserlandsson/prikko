@@ -253,6 +253,43 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       sökruta, och då är det bra att den ligger för sig. */}
 {size === 'hero' && (
   <div class="var-lista glass" hidden data-var-lista role="listbox" aria-label="Välj kommun">
+    {/* ══ NÄRA MIG, FÖRST I LISTAN ═══════════════════════════════════════
+        Platsen hos båda förlagorna som löser exakt det här, uppmätt
+        2026-09-05.
+
+        hitta.se: brickan "Stockholm" öppnar rutan "Område", och dess första
+        rad heter "Nära mig" med en navigeringspil, före "Hela Sverige",
+        "Stockholm", "Göteborg", "Malmö".
+        airbnb.se: fältet "Var" öppnar "Förslag på destinationer", och första
+        raden är "I närheten" med undertexten "Hitta allt som finns i
+        närheten", 366 × 72 px, titel 14 px vikt 500 rgb(34,34,34) och
+        undertitel 14 px vikt 400 rgb(108,108,108).
+
+        Båda ställer alltså frågan EFTER en handling och som ett alternativ
+        bland platser, aldrig som en behörighetsfråga vid inladdning. Ordet
+        är en plats och inte en behörighet, av samma skäl.
+
+        LIGGER I LISTBOXEN, till skillnad från panelens "Använd min plats"
+        som ligger utanför sin. Skillnaden är att den här raden VÄLJER något
+        i listan, alltså gör exakt vad de andra raderna gör, medan panelens
+        rad byter sida. En roll ska beskriva vad saken gör.
+
+        Startar `hidden`. Saknar webbläsaren geolocation, eller saknar bygget
+        kommunpunkter, finns raden inte: samma dom som panelens platsrad
+        lyder under, och av samma skäl. */}
+    <button
+      type="button"
+      class="var-rad var-nara"
+      data-var-nara
+      role="option"
+      aria-selected="false"
+      hidden
+    >
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+        <path d="M17.5 2.5 2.9 8.1l6.1 2.9 2.9 6.1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+      </svg>
+      <span data-var-nara-text>Nära mig</span>
+    </button>
     <button type="button" class="var-rad" data-var-val="" role="option" aria-selected="true">
       Var som helst
     </button>
@@ -619,6 +656,33 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 
   .var-rad:hover { background: var(--brand-wash); }
   .var-rad[aria-selected='true'] { font-weight: 600; }
+
+  /* Nära mig-raden bär en ikon, alltså flex i stället för block. Den är den
+     enda raden i listan som utför något i stället för att välja ett namn
+     som redan står skrivet, och ikonen är hela markeringen av det: hitta.se
+     och airbnb.se skiljer sin egen närhetsrad från platsnamnen på exakt det
+     sättet och på inget annat, uppmätt 2026-09-05. Ingen avvikande färg,
+     ingen fetare vikt, ingen ruta omkring. */
+  .var-nara {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Måste skrivas ut. `[hidden] { display: none }` ligger i webbläsarens eget
+     lager och förlorar mot varje författarregel, alltså mot `display: flex`
+     två rader upp. Utan den här stod raden synlig innan skriptet hunnit
+     avgöra om webbläsaren över huvud taget kan svara på var man är. */
+  .var-rad[hidden] { display: none; }
+
+  .var-nara svg { flex: 0 0 auto; color: var(--text-secondary); }
+
+  /* Medan positionen hämtas. Raden är inte tryckbar och säger varför genom
+     att stå kvar med sin nya text, se skriptet. Ingen spinnare: väntan är
+     webbläsarens dialog plus ett par hundra millisekunder, och ett hjul som
+     hinner snurra ett halvt varv är en animering av ingenting. */
+  .var-nara[aria-disabled='true'] { color: var(--text-secondary); cursor: default; }
+  .var-nara[aria-disabled='true']:hover { background: none; }
 
   .site-search.is-hero .search-field {
     height: 56px;
@@ -1124,16 +1188,11 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
     sectionHtml,
     type Suggestion,
   } from '../lib/sokforslag';
+  /* Avståndsformeln och närhetsgränserna bor i en egen modul sedan Var-listan
+     fick sin egen "Nära mig". Motiveringen i sin helhet står där. */
+  import { narmast, NARA_METER, RACKHALL_METER, type Plats } from '../lib/avstand';
+  import { PLATS_HANDELSE, PLATS_NYCKEL } from '../lib/platsminne';
 
-  /** En kommun som besökarens position kan mätas mot. Se frontmattern. */
-  interface Plats {
-    slug: string;
-    city: string;
-    lat: number;
-    lng: number;
-    /** Har kommunen en kartsida att landa på? Fyra av tolv har det inte. */
-    karta: boolean;
-  }
 
   const root = document.querySelector<HTMLElement>('[data-sitesearch]');
 
@@ -1624,8 +1683,6 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
      *        ingen i Malmö vill dit för lunch. Kvar står täckningen, alltså
      *        beskedet om att kommunen kan komma senare.
      */
-    const NEAR_METRES = 40000;
-    const REACH_METRES = 200000;
 
     const platser = data.platser ?? [];
 
@@ -1682,18 +1739,6 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       platsVidare.hidden = vidare.length === 0;
     }
 
-    /** Avstånd i meter (haversine). Samma formel som lib/data.ts. */
-    function distance(aLat: number, aLng: number, bLat: number, bLng: number) {
-      const R = 6371000;
-      const rad = (d: number) => (d * Math.PI) / 180;
-      const dLat = rad(bLat - aLat);
-      const dLng = rad(bLng - aLng);
-      const h =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
-      return 2 * R * Math.asin(Math.sqrt(h));
-    }
-
     /**
      * Adressen en plats leder till.
      *
@@ -1728,26 +1773,33 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
           locate.disabled = false;
           locating = false;
 
-          let nearest = platser[0];
-          let best = Infinity;
-          for (const p of platser) {
-            const d = distance(coords.latitude, coords.longitude, p.lat, p.lng);
-            if (d < best) {
-              best = d;
-              nearest = p;
-            }
-          }
+          const traff = narmast(coords.latitude, coords.longitude, platser);
+          if (!traff) return;
+          const { plats: nearest, meter: best } = traff;
 
           const km = Math.round(best / 1000);
           const tackning = { href: '/kallor/#fler-kommuner', text: 'Om täckningen' };
 
-          if (best <= NEAR_METRES) {
+          if (best <= NARA_METER) {
+            /* Kommunen minns till nästa besök, och det är HELA det som
+               lagras: en slug, aldrig positionen. Se lib/platsminne.ts.
+
+               Skrivs bara i den här grenen, alltså bara när kommunen faktiskt
+               ÄR besökarens. Den som bor 130 km från Karlstad och får det
+               beskedet har inte valt Karlstad, och att minnas den åt henne
+               hade gjort startsidan till en gissning i stället för till ett
+               val hon gjort. */
+            try {
+              localStorage.setItem(PLATS_NYCKEL, nearest.slug);
+            } catch {
+              /* Lagring avstängd. Besöket fungerar ändå, det glöms bara. */
+            }
             platsSay(`Öppnar ${nearest.city}…`);
             location.assign(platsMal(nearest, coords.latitude, coords.longitude, true));
             return;
           }
 
-          if (best > REACH_METRES) {
+          if (best > RACKHALL_METER) {
             platsSay(
               `Vi täcker ingen kommun i din del av landet än. Närmast är ${nearest.city}, ungefär ${km} km bort.`,
               tackning,
@@ -1857,6 +1909,9 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
 </script>
 
 <script>
+  import { narmast, RACKHALL_METER, type Plats } from '../lib/avstand';
+  import { PLATS_HANDELSE, PLATS_NYCKEL } from '../lib/platsminne';
+
   /**
    * VAR-DELEN: kommunväljaren i det tvådelade fältet.
    *
@@ -1925,15 +1980,166 @@ const suggestData = JSON.stringify({ popular, sections, platser }).replace(/</g,
       if (!oppen) rot.dispatchEvent(new CustomEvent(VAR_OPPNAD));
     });
 
+    /* ══ VALET MINNS TILL NÄSTA BESÖK ═══════════════════════════════════
+       Förlagan är hemnets, uppmätt 2026-09-05: de håller `previousSearches` i
+       localStorage och visar den senaste som raden "Senaste: Bostäder,
+       Stockholms län" under sökknappen. Vår motsvarighet är kommunbrickan
+       först i startsidans kategorirad, se index.astro.
+
+       EN SLUG LAGRAS OCH INGENTING ANNAT. Motiveringen och löftet står i
+       lib/platsminne.ts och i cookies.astro. */
+    const minns = (slug: string | null) => {
+      try {
+        if (slug) localStorage.setItem(PLATS_NYCKEL, slug);
+        else localStorage.removeItem(PLATS_NYCKEL);
+      } catch {
+        /* Lagring avstängd. Valet gäller besöket ut och glöms sedan, vilket
+           är sämre men inte trasigt. */
+      }
+      /* Startsidan lyssnar. `storage` går bara till andra flikar, aldrig till
+         den som skrev, se lib/platsminne.ts. */
+      dispatchEvent(new CustomEvent(PLATS_HANDELSE, { detail: slug }));
+    };
+
+    /**
+     * Markerar en rad som vald och stänger listan. Delas av alla vägar in.
+     *
+     * Raden HITTAS ur slugen i stället för att skickas med. "Nära mig" vet
+     * vilken kommun det blev men inte vilken knapp som bär namnet, och en
+     * lista där ingenting står markerat efter ett val ser ut som att valet
+     * inte tog. Tom slug är "Var som helst", som också är en rad.
+     */
+    const valj = (slug: string, namn: string) => {
+      const rad = lista.querySelector(
+        slug ? `[data-var-val="${CSS.escape(slug)}"]` : '[data-var-val=""]',
+      );
+      for (const annan of lista.querySelectorAll('[data-var-val], [data-var-nara]')) {
+        annan.setAttribute('aria-selected', String(annan === rad));
+      }
+      falt.value = slug;
+      varde.textContent = namn;
+      stang();
+    };
+
     for (const rad of lista.querySelectorAll<HTMLButtonElement>('[data-var-val]')) {
       rad.addEventListener('click', () => {
-        for (const annan of lista.querySelectorAll('[data-var-val]')) {
-          annan.setAttribute('aria-selected', String(annan === rad));
-        }
-        falt.value = rad.dataset.varVal ?? '';
-        varde.textContent = rad.textContent?.trim() || 'Var som helst';
-        stang();
+        const slug = rad.dataset.varVal ?? '';
+        valj(slug, rad.textContent?.trim() || 'Var som helst');
+        /* "Var som helst" är tomt, och att välja det är att ta tillbaka sitt
+           val. Då ska minnet bort, inte stå kvar och tändas igen nästa gång. */
+        minns(slug || null);
       });
+    }
+
+    /* ══ NÄRA MIG ═══════════════════════════════════════════════════════
+       Väcks bara om webbläsaren har geolocation OCH bygget gav kommunpunkter.
+       En rad som inte kan göra sitt jobb finns inte, samma regel som panelens
+       platsrad. */
+    const nara = lista.querySelector<HTMLButtonElement>('[data-var-nara]');
+    const naraText = lista.querySelector<HTMLElement>('[data-var-nara-text]');
+    const platser: Plats[] = JSON.parse(
+      rot.querySelector<HTMLElement>('[data-suggest]')?.textContent ?? '{}',
+    ).platser ?? [];
+
+    if (nara && naraText && 'geolocation' in navigator && platser.length > 0) {
+      nara.hidden = false;
+
+      /* Raden talar OM sig själv och byter aldrig till en förklaring i en
+         annan ruta. Panelens platsrad har en egen svarsyta att skriva i; den
+         här ligger i en listbox där ett stycke brödtext mellan alternativen
+         hade varit ett främmande element. Texten går tillbaka efter fem
+         sekunder, så listan inte står kvar och minns ett nej som är löst. */
+      let ater: ReturnType<typeof setTimeout> | undefined;
+      const sag = (text: string) => {
+        naraText.textContent = text;
+        clearTimeout(ater);
+        ater = setTimeout(() => {
+          naraText.textContent = 'Nära mig';
+          nara.removeAttribute('aria-disabled');
+        }, 5000);
+      };
+
+      nara.addEventListener('click', () => {
+        if (nara.getAttribute('aria-disabled') === 'true') return;
+        nara.setAttribute('aria-disabled', 'true');
+        clearTimeout(ater);
+        naraText.textContent = 'Hämtar din plats…';
+
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            /* Koordinaterna lever exakt så länge den här raden tar. De går in
+               i `narmast` och ut som en kommun; ingenting skrivs, skickas
+               eller loggas. Projektets hårda gräns. */
+            const traff = narmast(coords.latitude, coords.longitude, platser);
+            nara.removeAttribute('aria-disabled');
+            naraText.textContent = 'Nära mig';
+
+            if (!traff) return;
+
+            if (traff.meter > RACKHALL_METER) {
+              /* Ingen kommun i den delen av landet. Ingenting väljs och
+                 ingenting minns: ett tyst byte till en stad 300 km bort hade
+                 varit ett svar på en annan fråga än den som ställdes. */
+              sag(`Ingen kommun nära dig än, närmast är ${traff.plats.city}`);
+              return;
+            }
+
+            valj(traff.plats.slug, traff.plats.city);
+            /* Minns även den som ligger mellan 40 och 200 km bort. Här, till
+               skillnad från panelens platsrad, har besökaren TRYCKT på ett
+               val i en lista av kommuner och fått en kommun tillbaka, alltså
+               är det hennes val. Panelens rad byter sida i stället och får
+               därför bara minnas det den är säker på. */
+            minns(traff.plats.slug);
+          },
+          (fel) => {
+            nara.removeAttribute('aria-disabled');
+            /* Nekat betyder två saker och besökaren kan bara åtgärda det ena.
+               Samma delning som panelens platsrad gör, med samma ord, för det
+               är samma besked. */
+            if (fel.code === fel.PERMISSION_DENIED) {
+              if (navigator.permissions?.query) {
+                navigator.permissions
+                  .query({ name: 'geolocation' })
+                  .then((p) =>
+                    sag(
+                      p.state === 'denied'
+                        ? 'Platsdelning är blockerad för sidan'
+                        : 'Du delade inte din plats',
+                    ),
+                  )
+                  .catch(() => sag('Du delade inte din plats'));
+              } else {
+                sag('Du delade inte din plats');
+              }
+            } else if (fel.code === fel.TIMEOUT) {
+              sag('Det tog för lång tid, försök igen');
+            } else {
+              sag('Din plats gick inte att avgöra');
+            }
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+        );
+      });
+    }
+
+    /* ══ VAD SOM STÅR I RUTAN NÄR SIDAN ÖPPNAS ═════════════════════════════
+       Den kommun besökaren senast valde, om hon valt någon. Hemnets "Senaste"
+       gör detsamma och gör det på samma villkor: en tidigare handling, aldrig
+       en gissning.
+
+       Raden i listan markeras med, så att den utfällda listan visar var man
+       står. Finns inte kommunen längre, alltså om bygget tappat den, händer
+       ingenting och rutan står kvar på "Var som helst". */
+    try {
+      const kom = localStorage.getItem(PLATS_NYCKEL);
+      const rad = kom
+        ? lista.querySelector<HTMLButtonElement>(`[data-var-val="${CSS.escape(kom)}"]`)
+        : null;
+      if (rad) valj(kom!, rad.textContent?.trim() || 'Var som helst');
+    } catch {
+      /* Lagring avstängd, eller en slug som inte går att använda som väljare.
+         Rutan står kvar på sitt grundläge, vilket är ett fungerande läge. */
     }
 
     document.addEventListener('click', (handelse) => {

@@ -107,7 +107,7 @@ const UPDATED = '3 augusti 2026';
     <section>
       <h2>Det som faktiskt lagras</h2>
       <p>
-        Tre poster, och ingen av dem finns för vår skull.
+        Fyra poster, och ingen av dem finns för vår skull.
       </p>
 
       <div class="scroll">
@@ -125,6 +125,11 @@ const UPDATED = '3 augusti 2026';
               <td>Vilken sida du ska tillbaka till</td>
               <td>Sessionslagring hos oss, <code>prikko.next</code></td>
               <td>Bara vid inloggning via Google eller Apple, som inte är påslaget</td>
+            </tr>
+            <tr>
+              <td>Kommunen du valt</td>
+              <td>Lokal lagring hos oss, <code>prikko.kommun</code></td>
+              <td>Först när du själv väljer en kommun</td>
             </tr>
             <tr>
               <td>Botskydd, <code>__cf_bm</code></td>
@@ -146,6 +151,18 @@ const UPDATED = '3 augusti 2026';
         Det här är lagring för en tjänst du själv bett om, och sådan kräver
         inte samtycke. Att fråga om lov att komma ihåg en inloggning man just
         genomfört vore en fråga utan mening.
+      </p>
+
+      <h3>Kommunen du valt</h3>
+      <p>
+        Väljer du en kommun i sökrutan sparas dess namn i webbläsarens lokala
+        lagring, ett enda ord som <code>orebro</code>. Nästa gång du kommer
+        till startsidan står den först i kategoriraden, så att du slipper välja
+        om. Väljer du <em>Var som helst</em> raderas den direkt.
+      </p>
+      <p>
+        Ingen position sparas, varken när du valt kommun med kartan eller med
+        <em>Nära mig</em>. Se Platstjänsten längre ned.
       </p>
 
       <h3>Kakan vi inte råder över</h3>
@@ -203,6 +220,12 @@ const UPDATED = '3 augusti 2026';
         bara för att räkna ut vilken kommun som ligger närmast. Den skickas
         aldrig till oss och sparas inte. Du kan när som helst ta tillbaka
         behörigheten i webbläsarens inställningar.
+      </p>
+      <p>
+        Din position lämnar aldrig webbläsaren. Den står inte i adressfältet,
+        skickas inte i något anrop och hamnar inte i någon logg. Det som blir
+        kvar efteråt är på sin höjd namnet på kommunen, om du valt den. En
+        kommun är inte en position: Örebro kommun är 1 373 kvadratkilometer.
       </p>
     </section>
 

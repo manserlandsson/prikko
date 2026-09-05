@@ -84,6 +84,7 @@ import {
   movementMunicipalities,
   nationalMovement,
 } from '../lib/rorelse';
+import { PLATS_HANDELSE, PLATS_NYCKEL } from '../lib/platsminne';
 import { SITE } from '../lib/site';
 import { absolute, path } from '../lib/urls';
 
@@ -587,9 +588,21 @@ function extraGrupper(e: Establishment): string {
   /* Tröskeln är per grupp: hemgruppen visar HEM_FORSTA i första vändan,
      kategorierna PER_SIDA. Ett kort kan ligga i båda och vara tidigt i den
      ena och sent i den andra. */
-  return grupperna
-    .filter((g, i) => platser[i] >= (g === 'hem' ? HEM_FORSTA : PER_SIDA))
-    .join(' ');
+  const extra = grupperna.filter(
+    (g, i) => platser[i] >= (g === 'hem' ? HEM_FORSTA : PER_SIDA),
+  );
+
+  /* Platsgruppen räknar i sin egen kommun och delar hemgruppens tal: båda
+     visar hela sidans bredd och inte en kategoriflik. Stockholm har 237 kort
+     i poolen, och utan taket hade brickan öppnat med alla 237 i markupen
+     synliga på en gång.
+
+     `platsRank` fylls längre ned i filen och är därför tom om någon flyttar
+     upp anropet. Funktionen körs vid rendering, alltså efter hela
+     frontmattern, och det är villkoret för att raden ska stämma. */
+  if ((platsRank.get(e) ?? 0) >= HEM_FORSTA) extra.push('plats');
+
+  return extra.join(' ');
 }
 
 for (const kategori of MATKATEGORIER) {
@@ -764,6 +777,105 @@ hemPlatser.forEach((plats, i) => {
  * ordningen som faktiskt hamnar i markupen.
  */
 const tidiga = new Set(hemOrdning.slice(0, 5).map((r) => r.e));
+
+// ---------------------------------------------------------------------------
+// Platsgruppen
+// ---------------------------------------------------------------------------
+
+/**
+ * EN TJUGOANDRA GRUPP I KATEGORIRADEN, OCH DEN HETER EN KOMMUN.
+ *
+ * ══ VAD SOM VAR TRASIGT ═══════════════════════════════════════════════════
+ *
+ * Startsidan visade Stockholm för alla. Uppmätt i bygget 2026-09-05 över
+ * poolens kort: 237 av 483 ligger i Stockholm, och hemgruppens sextio är
+ * 56 Stockholm, 2 Karlstad, 1 Jönköping och 1 Oskarshamn. Den som bor i
+ * Örebro möttes av Scandic Hotel Malmen.
+ *
+ * ══ VAD SOM INTE GÅR ATT GÖRA ÅT DET, OCH DET ÄR MÄTT ═════════════════════
+ *
+ * Hemgruppen går INTE att byta till besökarens kommun. Raden kräver ett
+ * daterat fotografi, och bildbeståndet är en storstadsbrist. Räknat samma dag
+ * över alla 17 146 verksamheter, kort som klarar bildgrinden och
+ * konsumentgrinden:
+ *
+ *   Stockholm 167   Uppsala 25   Jönköping 15   Linköping 7   Karlstad 7
+ *   Örebro 3        Oskarshamn 1
+ *   Norrköping, Höganäs, Kristinehamn, Lomma, Borgholm, Svenljunga:  0
+ *
+ * Nio av tretton kommuner har alltså NOLL kort i hemgruppen. En hemgrupp som
+ * bytte till Örebro hade blivit tom, och en tom rad är sämre än en
+ * stockholmsrad. Rubriken och urvalsregeln är dessutom ägarens beslut
+ * 2026-08-22 och rörs inte.
+ *
+ * ══ VAD SOM DÄREMOT GÅR, OCH VAD DET KOSTAR ═══════════════════════════════
+ *
+ * Korten finns REDAN. Kategorigrupperna plockar med tak två per kommun, se
+ * `plocka`, så poolen bär kort från hela landet även när ingen enskild flik
+ * gör det. Räknat i bygget 2026-09-05:
+ *
+ *   Stockholm 237  Linköping 65  Jönköping 40  Uppsala 39  Örebro 33
+ *   Karlstad 30    Oskarshamn 16 Kristinehamn 15
+ *   Svenljunga 4   Lomma 2       Borgholm 2    Norrköping 0   Höganäs 0
+ *
+ * En grupp som samlar en kommuns kort ur ALLA flikar kostar därför bara ett
+ * attribut per kort. Uppmätt på index.html: `data-kommun` på 483 kort är
+ * 11,3 kB rått och 0,20 kB efter gzip, mot sidans 45,0 kB. Alternativet, att
+ * skicka koordinaterna för de 14 384 verksamheter som har en, mättes samma
+ * dag till 61 till 77 kB gzip för enbart koordinatparen, och då krävs
+ * sökregistrets 373 kB gzip ovanpå för att veta vad punkterna heter.
+ * Trehundra gånger dyrare för samma svar.
+ */
+
+/**
+ * Kortets nummer inom sin EGEN kommun, räknat i poolens slutliga ordning.
+ *
+ * Måste räknas HÄR och inte tidigare. Hemgruppen skriver om sin ordning i
+ * poolen några rader upp, se `hemPlatser`, och ett nummer räknat före det
+ * hade pekat på ett annat kort än det som faktiskt hamnar i markupen.
+ */
+const platsRank = new Map<Establishment, number>();
+const platsAntal = new Map<string, number>();
+for (const rad of pool) {
+  const slug = rad.e.municipality.slug;
+  const n = platsAntal.get(slug) ?? 0;
+  platsRank.set(rad.e, n);
+  platsAntal.set(slug, n + 1);
+}
+
+/**
+ * Fem, för rutnätet är fem spalter i --w-wide.
+ *
+ * Under fem fyller gruppen inte en enda rad, och en ensam rutt under en
+ * rubrik som lovar en hel kommun läser som ett fel. Samma dom som
+ * kategorierna redan lyder under, se `if (urval.length < 4) continue`, med ett
+ * tal som är rutnätets och inte kategoriradens: en kategori lovar en sorts
+ * mat, en kommun lovar en hel stad.
+ *
+ * Talet fäller i dag Norrköping, Höganäs, Lomma, Borgholm och Svenljunga. De
+ * fem får ingen bricka på startsidan, och det är rätt svar: sökpanelens
+ * platsrad tar dem till kommunen i stället, vilket är där deras innehåll
+ * faktiskt finns.
+ */
+const PLATS_MINST = 5;
+
+/**
+ * Kommunerna brickan kan visa, som skriptet läser ur markupen.
+ *
+ * SERVERN VET INGENTING OM BESÖKAREN, och får inte veta något: sidan är
+ * statiskt byggd och HTML:en cachas för alla. Listan är därför HELA
+ * uppsättningen, och vilken av dem som gäller avgörs i webbläsaren.
+ */
+const platsKommuner = [...platsAntal]
+  .filter(([, antal]) => antal >= PLATS_MINST)
+  .map(([slug, antal]) => ({
+    slug,
+    city: pool.find((r) => r.e.municipality.slug === slug)!.e.municipality.city,
+    antal,
+  }))
+  .sort((a, b) => b.antal - a.antal);
+
+const platsData = JSON.stringify(platsKommuner).replace(/</g, '\\u003c');
 
 // ---------------------------------------------------------------------------
 // Senast kontrollerade
@@ -965,6 +1077,43 @@ const jsonLd = [
       <div class="container katinre">
         <fieldset class="katrad" data-katrad>
           <legend class="visually-hidden">Visa en sorts verksamhet</legend>
+
+          {/* ══ KOMMUNBRICKAN ═══════════════════════════════════════════
+              Först i raden, som hitta.ses egen platsbricka. Uppmätt på
+              deras kategorisida 2026-09-05: en knapp 126 × 40 px, radie 8,
+              vit platta, hårlinje rgb(224,224,224), etikett 14 px i vikt
+              500 med en nål till vänster, uppe i höger hörn över
+              träfflistan. Vår ligger i kategoriraden i stället, eftersom
+              raden ÄR sidans brickrad och en andra brickyta ovanför den
+              hade varit två navigeringar för samma sak.
+
+              STARTAR `hidden` OCH ÄR TOM. Servern vet ingenting om
+              besökaren och får inte veta något, se `platsKommuner`.
+              Skriptet skriver namnet och visar brickan bara när
+              webbläsaren själv minns en kommun. Den som aldrig svarat, och
+              den som svarat nej, får raden precis som den ser ut i dag.
+
+              Brickan ligger i en RULLANDE rad, och det är skälet att den
+              får dyka upp efter inladdningen utan att sidan hoppar: raden
+              växer i sidled inuti sitt eget spår, aldrig i höjd. Uppmätt i
+              bygget: dokumenthöjden är densamma med och utan brickan. */}
+          <input
+            class="visually-hidden"
+            type="radio"
+            name="kategori"
+            id="kat-plats"
+            data-platsval
+            hidden
+          />
+          <label class="val plats" for="kat-plats" data-platsbricka hidden>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z" />
+              <circle cx="12" cy="10" r="2.6" />
+            </svg>
+            <span class="etikett" data-platsetikett></span>
+          </label>
+          <span class="avdelare plats" aria-hidden="true" data-platsavdelare hidden></span>
+
           {grupper.map((g, i) => (
             <>
               <input
@@ -1013,6 +1162,14 @@ const jsonLd = [
           hemgrupp och våra kategorigrupper inte är samma sorts urval och
           raden annars byter innehåll utan att säga att den gjort det. */}
       <h2 class="radrubrik">
+        {/* Platsgruppens rubrik NAMNGER kommunen, och det är inte en
+            utsmyckning. Airbnbs regel, citerad i hemgruppens kommentar
+            ovan: en rad som visar en stad heter "Populära hem i X". En rad
+            som tyst bytt innehåll men behållit sin gamla rubrik ljuger, och
+            det är precis felet hemgruppen slapp genom att ta bort staden ur
+            sin egen rubrik. Texten skrivs av skriptet, av samma skäl som
+            brickan är tom: servern vet inte vilken kommun det blir. */}
+        <span data-for="plats" data-platsrubrik></span>
         <span data-for="hem">{hemRubrik}</span>
         {grupper.slice(1).map((g) => <span data-for={g.id}>{g.etikett}</span>)}
       </h2>
@@ -1022,6 +1179,7 @@ const jsonLd = [
           <li
             data-kat={[...grupperPerRad.get(rad.e)!].join(' ')}
             data-extra={extraGrupper(rad.e) || undefined}
+            data-kommun={rad.e.municipality.slug}
           >
             <Verksamhetskort e={rad.e} tidig={tidiga.has(rad.e)} />
           </li>
@@ -1457,6 +1615,17 @@ const jsonLd = [
     visibility: hidden;
   }
 
+  /* `hidden` MÅSTE skrivas ut här, och det är en fälla värd att känna till.
+     Webbläsarens egen regel `[hidden] { display: none }` ligger i UA-lagret,
+     och VARJE författarregel vinner över det oavsett specificitet. `.val` har
+     `display: flex`, alltså hade kommunbrickan stått synlig och tom trots
+     sitt `hidden`-attribut. Uppmätt i bygget innan raden fanns: en ruta på
+     56 px utan text först i kategoriraden.
+
+     Gäller inte avdelaren, som aldrig sätter display, men den står med för
+     att de två alltid ska visas och döljas tillsammans. */
+  .val[hidden], .avdelare[hidden] { display: none; }
+
   /* Avdelaren, se markupen. 48 px hög i en 67 px rad, alltså centrerad med
      luft över och under, precis som Ednias. */
   .avdelare {
@@ -1635,7 +1804,14 @@ const jsonLd = [
   .upptack:has(#kat-konditori:checked) .rutnat > li[data-kat~='konditori'],
   .upptack:has(#kat-grill:checked) .rutnat > li[data-kat~='grill'],
   .upptack:has(#kat-mellanostern:checked) .rutnat > li[data-kat~='mellanostern'],
-  .upptack:has(#kat-glass:checked) .rutnat > li[data-kat~='glass'] {
+  .upptack:has(#kat-glass:checked) .rutnat > li[data-kat~='glass'],
+  /* Platsgruppen. EN rad och inte tretton, och det är skälet att kommunen
+     står i `data-plats` på kortet i stället för i väljaren: CSS kan inte
+     jämföra ett attribut på förfadern med ett på barnet, så tretton
+     kommuner hade blivit tretton rader i vart och ett av de tre blocken
+     här nedanför. Skriptet sätter attributet på den valda kommunens kort,
+     och stilen förblir inne i Astros omfång. */
+  .upptack:has(#kat-plats:checked) .rutnat > li[data-plats] {
     display: block;
   }
 
@@ -1665,7 +1841,11 @@ const jsonLd = [
   .upptack:not(:has(#visa-fler:checked)):has(#kat-konditori:checked) .rutnat > li[data-extra~='konditori'],
   .upptack:not(:has(#visa-fler:checked)):has(#kat-grill:checked) .rutnat > li[data-extra~='grill'],
   .upptack:not(:has(#visa-fler:checked)):has(#kat-mellanostern:checked) .rutnat > li[data-extra~='mellanostern'],
-  .upptack:not(:has(#visa-fler:checked)):has(#kat-glass:checked) .rutnat > li[data-extra~='glass'] {
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-glass:checked) .rutnat > li[data-extra~='glass'],
+  /* Båda attributen behövs. `data-extra~='plats'` sitter på varje kommuns
+     kort efter dess trettionde, alltså på kort i kommuner som inte är
+     vald; `data-plats` skär ned till den valda. */
+  .upptack:not(:has(#visa-fler:checked)):has(#kat-plats:checked) .rutnat > li[data-extra~='plats'][data-plats] {
     display: none;
   }
 
@@ -1909,7 +2089,8 @@ const jsonLd = [
   .upptack:has(#kat-konditori:checked):not(:has(.rutnat > li[data-extra~='konditori'])) .merrad,
   .upptack:has(#kat-grill:checked):not(:has(.rutnat > li[data-extra~='grill'])) .merrad,
   .upptack:has(#kat-mellanostern:checked):not(:has(.rutnat > li[data-extra~='mellanostern'])) .merrad,
-  .upptack:has(#kat-glass:checked):not(:has(.rutnat > li[data-extra~='glass'])) .merrad {
+  .upptack:has(#kat-glass:checked):not(:has(.rutnat > li[data-extra~='glass'])) .merrad,
+  .upptack:has(#kat-plats:checked):not(:has(.rutnat > li[data-extra~='plats'][data-plats])) .merrad {
     display: none;
   }
 
@@ -1933,7 +2114,8 @@ const jsonLd = [
   .upptack:has(#kat-konditori:checked) .radrubrik span[data-for='konditori'],
   .upptack:has(#kat-grill:checked) .radrubrik span[data-for='grill'],
   .upptack:has(#kat-mellanostern:checked) .radrubrik span[data-for='mellanostern'],
-  .upptack:has(#kat-glass:checked) .radrubrik span[data-for='glass'] {
+  .upptack:has(#kat-glass:checked) .radrubrik span[data-for='glass'],
+  .upptack:has(#kat-plats:checked) .radrubrik span[data-for='plats'] {
     display: inline;
   }
 
@@ -2581,8 +2763,15 @@ const jsonLd = [
       const vald = document.querySelector('.katrad input:checked');
       if (!vald) return;
       const grupp = vald.id.replace(/^kat-/, '');
+      /* Platsgruppen behöver BÅDA attributen. `data-extra~="plats"` sitter på
+         varje kommuns kort efter dess trettionde, alltså även på kommuner som
+         inte är vald, och utan `[data-plats]` hade knappen räknat hela landet.
+         Uppmätt i bygget: 260 mot Stockholms 207. Samma villkor som CSS:en
+         använder, med flit: räknaren och regeln får aldrig glida isär. */
       const kvar = rutnat.querySelectorAll(
-        `li[data-extra~="${grupp}"]`,
+        grupp === 'plats'
+          ? 'li[data-extra~="plats"][data-plats]'
+          : `li[data-extra~="${grupp}"]`,
       ).length;
       ut.textContent = kvar > 0 ? `(${kvar.toLocaleString('sv-SE')})` : '';
     };
@@ -2645,3 +2834,154 @@ const jsonLd = [
   })();
 </script>
 
+
+{/* ══ KOMMUNBRICKAN ═══════════════════════════════════════════════════════
+    Startsidans hela svar på "var är besökaren".
+
+    ══ VAD FÖRLAGORNA FAKTISKT GÖR, UPPMÄTT 2026-09-05 ═════════════════════
+
+    Ingen av de fyra frågar om position vid inladdning. Inte en enda.
+
+      booli.se    frågar aldrig, någonstans. Startsidan är ett sökfält med
+                  platshållaren "Sök på en gata, ort eller kommun", och
+                  fältet öppnar en tom förslagslista. Deras enda minne är
+                  `booli.mapSettings` i localStorage, kartans utsnitt.
+      hemnet.se   frågar aldrig heller, men MINNS. `previousSearches` i
+                  localStorage, och under sökknappen står raden
+                  "Senaste: Bostäder, Stockholms län" som en understruken
+                  länk, 16 px i vikt 400 i en rad på 252 × 24 px. Under
+                  formuläret ligger "Rekommenderat för dig" med undertexten
+                  "Bostäder som matchar din senaste sökning". Raden finns
+                  kvar vid 375.
+      hitta.se    frågar aldrig på startsidan. Deras kategorisida GISSAR i
+                  stället Stockholm och skriver ut gissningen i en bricka
+                  uppe till höger, 126 × 40 px med en nål. Ett klick öppnar
+                  rutan "Område" vars FÖRSTA rad är "Nära mig", före "Hela
+                  Sverige", "Stockholm", "Göteborg", "Malmö".
+      airbnb.se   frågar aldrig. Raderna heter "Populära boenden i Sälen"
+                  och "Tillgängligt nästa månad i Åre", alltså platsen står
+                  i rubriken. Klickar man i fältet "Var" är första förslaget
+                  "I närheten / Hitta allt som finns i närheten", en rad på
+                  366 × 72 px, titel 14 px vikt 500 i rgb(34,34,34) och
+                  undertitel 14 px vikt 400 i rgb(108,108,108).
+
+    Två slutsatser, och båda styr koden här.
+
+    FÖRST: platsfrågan ställs efter en HANDLING och aldrig vid inladdning,
+    och den ställs som en rad i platsväljaren. Den ligger nu först i
+    sökfältets Var-lista, se SiteSearch.astro.
+
+    SEDAN: ingen av dem byter sidans innehåll av sig själv när de minns.
+    Hemnet visar sitt minne som en LÄNK man trycker på. Brickan här gör
+    likadant och är därför INTE förvald.
+
+    Det är också det enda som håller löftet att sidan aldrig får hoppa.
+    Skriptet kan inte köra före rutnätet: markupen är 483 kort och nästan en
+    megabyte, alltså hinner webbläsaren måla hemgruppen långt innan sista
+    `</li>` är läst, och ett urval som byts efter det är precis den blinkning
+    som är förbjuden. En bricka som dyker upp i en rad som rullar i sidled
+    kostar däremot noll pixlar i höjd.
+
+    ══ TRE LÄGEN, OCH ALLA TRE SKA SE AVSIKTLIGA UT ════════════════════════
+
+      aldrig tillfrågad   brickan finns inte, raden börjar på "Alla".
+                          Sidan är bokstavligen den som byggdes.
+      kommun vald         brickan står först i raden med kommunens namn och
+                          en nål. Ett klick filtrerar rutnätet och rubriken
+                          byter till "Ställen i Örebro".
+      nekad               samma som aldrig tillfrågad. Ett nej lämnar inget
+                          spår, varken en bricka, en förklaring eller en
+                          andra fråga.
+*/}
+<script is:inline define:vars={{ PLATS_NYCKEL, PLATS_HANDELSE, platsData }}>
+  (() => {
+    const bricka = document.querySelector('[data-platsbricka]');
+    const val = document.querySelector('[data-platsval]');
+    const avdelare = document.querySelector('[data-platsavdelare]');
+    const etikett = document.querySelector('[data-platsetikett]');
+    const rubrik = document.querySelector('[data-platsrubrik]');
+    const rutnat = document.querySelector('.rutnat');
+    if (!bricka || !val || !avdelare || !etikett || !rubrik || !rutnat) return;
+
+    /* Hela uppsättningen kommuner brickan KAN visa, byggd av servern som vet
+       hur många kort var och en har i poolen. Vilken av dem det blir avgörs
+       här och bara här. */
+    const kommuner = JSON.parse(platsData);
+
+    /* localStorage kastar i stället för att svara i privat läge hos äldre
+       Safari och när besökaren stängt av lagring. En startsida som faller på
+       ett minne den klarar sig utan är ett sämre byte än att glömma. */
+    const las = () => {
+      try {
+        return localStorage.getItem(PLATS_NYCKEL);
+      } catch {
+        return null;
+      }
+    };
+
+    /** Korten som just nu bär platsmärket, så att ett byte inte lämnar spår. */
+    let markta = [];
+
+    const stall = (slug) => {
+      for (const li of markta) li.removeAttribute('data-plats');
+      markta = [];
+
+      const kommun = kommuner.find((k) => k.slug === slug);
+      if (!kommun) {
+        /* Ingen kommun, ingen bricka. Gäller både den som aldrig valt och den
+           vars kommun ligger under PLATS_MINST kort: Norrköping har noll kort
+           i poolen, och en bricka som öppnar ett tomt rutnät är ett fel som
+           bara syns för den som råkar trycka.
+
+           Är brickan vald när den försvinner måste hemgruppen tas tillbaka,
+           annars står sidan kvar på ett urval som inte längre har någon
+           knapp. */
+        if (val.checked) {
+          const hem = document.getElementById('kat-hem');
+          if (hem) {
+            hem.checked = true;
+            /* Att sätta `checked` i kod utlöser INGEN change-händelse, och
+               räknaren på "Visa fler" lyssnar på just den. Utan raden hade
+               knappen stått kvar med platsgruppens tal medan rutnätet visade
+               hemgruppen. */
+            hem.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        bricka.hidden = true;
+        val.hidden = true;
+        avdelare.hidden = true;
+        return;
+      }
+
+      markta = [...rutnat.querySelectorAll(`li[data-kommun="${kommun.slug}"]`)];
+      for (const li of markta) li.setAttribute('data-plats', '');
+
+      etikett.textContent = kommun.city;
+      etikett.dataset.etikett = kommun.city;
+      /* Rubriken NAMNGER kommunen. Se markupen för varför den måste. */
+      rubrik.textContent = `Ställen i ${kommun.city}`;
+
+      val.hidden = false;
+      bricka.hidden = false;
+      avdelare.hidden = false;
+
+      /* Raden blev bredare. Kategoriradens eget skript räknar om pilar och
+         toning vid `resize` och vid rullning, och ingendera inträffar av att
+         en bricka dyker upp. Utan raden stod högerpilen dold på en rad som
+         nyss fått 90 px mer innehåll än den rymmer. */
+      dispatchEvent(new Event('resize'));
+    };
+
+    stall(las());
+
+    /* Väljer man kommun i sökpanelen medan man står på startsidan ska brickan
+       följa med direkt. `storage` går bara till ANDRA flikar, aldrig till den
+       som skrev, så valet meddelas med en egen händelse. Se lib/platsminne.ts. */
+    addEventListener(PLATS_HANDELSE, (e) => stall(e.detail ?? null));
+    /* Och en annan flik som byter kommun ska inte lämna den här stående på
+       ett namn som inte längre gäller. */
+    addEventListener('storage', (e) => {
+      if (e.key === PLATS_NYCKEL) stall(e.newValue);
+    });
+  })();
+</script>
