@@ -71,6 +71,12 @@
  * TILLS SCHEMAT ÄR KÖRT SVARAR ANROPET 404 och räknaren står på noll. Det
  * märks inte på sidan, och det är rätt ordning: koden får ligga före
  * migreringen, aldrig tvärtom.
+ *
+ * MEN EN TYST 404 ÄR OCKSÅ HUR ETT FEL I ANROPET SER UT. Just den tystnaden
+ * dolde ett fel i nio dagar, se kroppen nedan. En räknare som står på noll ska
+ * därför provas med ett riktigt anrop innan nollan tolkas som att ingen
+ * klickat: POST med samma rubriker och kroppen {"kommunkod": "<kod>"} ska
+ * svara 204, och testraden tas sedan bort med service_role.
  */
 
 const URL_BASE = (import.meta.env.PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
@@ -97,7 +103,14 @@ export function raknaBegaran(kommunkod: string): void {
            community.ts där samma miss en gång gjorde avfölj trasig. */
         'Content-Profile': 'community',
       },
-      body: JSON.stringify({ kommun: kommunkod }),
+      /* Nyckeln MÅSTE heta som parametern i SQL-funktionen, `kommunkod`.
+         PostgREST matchar RPC-argument på namn, och fram till 2026-09-14 stod
+         här `kommun`. Varje klick från 5 till 14 september fick då 404,
+         "Could not find the function community.rakna_begaran(kommun)", och
+         svaldes av catch nedan. Räknaren stod på noll i nio dagar av det
+         skälet och inget annat, alltså säger de dagarna ingenting om
+         efterfrågan. */
+      body: JSON.stringify({ kommunkod }),
     }).catch(() => {
       /* Nätverket. Brevet är redan på väg att öppnas. */
     });

@@ -45,6 +45,7 @@ from prikko.sources.orebro import (  # noqa: E402
     under_embargo,
 )
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
+from prikko.natverk import oppna  # noqa: E402  kakburk, se modulen
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 POLITE_DELAY_S = 0.15
@@ -63,7 +64,7 @@ def get(url: str, as_json: bool = True):
                 "User-Agent": USER_AGENT,
                 "Accept": "application/json, text/html",
             })
-            with urllib.request.urlopen(request, timeout=90) as response:
+            with oppna(request, timeout=90) as response:
                 body = response.read().decode("utf-8", "replace")
             return json.loads(body) if as_json else body
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:

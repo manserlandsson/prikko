@@ -46,6 +46,7 @@ from prikko.sources.ecos import (  # noqa: E402
     parse,
 )
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
+from prikko.natverk import oppna  # noqa: E402  kakburk, se modulen
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 ATTEMPTS = 3
@@ -58,7 +59,7 @@ def fetch(municipality: EcosMunicipality) -> tuple:
             request = urllib.request.Request(
                 municipality.data_url, headers={"User-Agent": USER_AGENT}
             )
-            with urllib.request.urlopen(request, timeout=180) as response:
+            with oppna(request, timeout=180) as response:
                 return response.read(), response.headers.get("Last-Modified")
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             if attempt == ATTEMPTS - 1:

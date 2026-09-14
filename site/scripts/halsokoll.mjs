@@ -228,7 +228,51 @@ async function kollaDubbletten() {
 
 console.log(`Hälsokoll mot ${bas}`);
 await kollaStartsidan();
+/**
+ * Datans ålder KOMMUN FÖR KOMMUN.
+ *
+ * kollaFarskhet ovan läser llms.txt, som bär det FÄRSKASTE hämtdatumet över
+ * alla källor. Det talet kan inte se en enskild kommun som fryser, och det
+ * hände: Lomma stod still från 11 september 2026 och Höganäs från 13
+ * september, medan hälsokollen sa "datan är 0 dagar gammal" varje natt. Deras
+ * jobb var dessutom gröna, eftersom de tre kommunerna på samma webbhotell har
+ * continue-on-error i nattjobbet och en tom hämtning därför färgas grön.
+ *
+ * Här läses i stället `source.fetchedAt` per kommun ur det publika
+ * indexet, alltså samma uppgift som varje kommunsida redovisar. Samma
+ * trösklar som för helheten: varning vid tre dagar, fel vid tio.
+ */
+async function kollaKommunernasFarskhet() {
+  console.log('\nDatans ålder per kommun');
+  const svar = await hamta('/api/v1/index.json');
+  if (svar.status !== 200) return trasigt(`/api/v1/index.json svarar ${svar.status}`);
+  const index = await svar.json();
+  const kommuner = index.municipalities ?? [];
+  if (kommuner.length === 0) return trasigt('/api/v1/index.json saknar kommuner');
+
+  const nu = Date.now();
+  let farska = 0;
+  for (const k of kommuner) {
+    const hamtad = k.source?.fetchedAt;
+    if (!hamtad) {
+      trasigt(`${k.city} saknar hämtdatum i indexet`);
+      continue;
+    }
+    const dagar = Math.floor((nu - Date.parse(hamtad)) / 86400000);
+    const datum = hamtad.slice(0, 10);
+    if (dagar >= FARSKHET_FEL_DAGAR) {
+      trasigt(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}`);
+    } else if (dagar >= FARSKHET_VARNING_DAGAR) {
+      varna(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}`);
+    } else {
+      farska++;
+    }
+  }
+  if (farska > 0) ok(`${farska} av ${kommuner.length} kommuner hämtade de senaste ${FARSKHET_VARNING_DAGAR} dagarna`);
+}
+
 await kollaFarskhet();
+await kollaKommunernasFarskhet();
 await kollaKartarkivet();
 await kollaSitemapen();
 await kollaRobots();

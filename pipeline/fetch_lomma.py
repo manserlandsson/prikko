@@ -40,6 +40,7 @@ from prikko.sources.lomma import (  # noqa: E402
     parse_page,
 )
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
+from prikko.natverk import oppna  # noqa: E402  kakburk, se modulen
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 POLITE_DELAY_S = 1.5
@@ -51,7 +52,7 @@ def get(url: str) -> str:
     for attempt in range(ATTEMPTS):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with oppna(request, timeout=120) as response:
                 return response.read().decode("utf-8", "replace")
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             if attempt == ATTEMPTS - 1:
