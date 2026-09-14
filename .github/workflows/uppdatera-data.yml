@@ -101,6 +101,28 @@ jobs:
       #
       # Lärdomen är värd att stå kvar: en gissning som skrivs ned som en
       # slutsats blir svårare att motbevisa för varje natt den får stå.
+      #
+      # SEPTEMBER 2026: ETT ANNAT FEL, OCH DET HAR EN KÄND ORSAK. Från 11
+      # september föll alla tre, plus Norrköping, på samma rad:
+      #
+      #   HTTP Error 307: The HTTP server returned a redirect error that
+      #   would lead to an infinite loop.
+      #
+      # Ingen tidsgräns och inget "unreachable". Alla fyra kör Sitevision bakom
+      # en F5-balanserare (kakan SiteVisionLTM), och urllib följer en 307 utan
+      # att ta med kakan servern just satt, så andra varvet får samma svar och
+      # urllib ger upp. Hämtarna använder sedan 2026-09-14 en gemensam öppnare
+      # med kakburk, se pipeline/prikko/natverk.py.
+      #
+      # Prövat samma kväll med workflow_dispatch för bara Lomma, från samma
+      # löparflotta som föll på morgonen: 153 anläggningar, inga omförsök, ingen
+      # 307. Det var Lommas första lyckade hämtning sedan 11 september.
+      #
+      # EN KÖRNING ÄR INTE ETT BEVIS, eftersom de tidigare felen var ostadiga.
+      # continue-on-error står därför kvar tills flera nätter i rad visat alla
+      # tre gröna med data. En grön natt syns numera på riktigt: halsokoll.mjs
+      # läser hämtdatum per kommun och varnar efter tre dagar, så en tom
+      # hämtning kan inte längre gömma sig bakom en grön bock.
 
       # HÄMTAREN HETER INTE ALLTID SOM KOMMUNEN, och det är sant sedan
       # Norrköping. Steget körde förr `pipeline/fetch_${{ matrix.kommun }}.py`
