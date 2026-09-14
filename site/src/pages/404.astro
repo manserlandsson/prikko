@@ -41,9 +41,39 @@ import Base from '../layouts/Base.astro';
 import Maskot from '../components/Maskot.astro';
 import { coverage, formatNumber, municipalities } from '../lib/data';
 import { path } from '../lib/urls';
+import { OTACKTA_KOMMUNER } from '../lib/rikets-kommuner';
 
 const kommuner = municipalities();
 const total = coverage();
+
+/*
+ * KOMMUNER VI INTE TÄCKER.
+ *
+ * Mätt 2026-09-14: prikko.se/goteborg/ och prikko.se/malmo/ gav den generiska
+ * "Sidan finns inte", alltså Sveriges andra och tredje stad, och samma sak för
+ * 277 av 290 kommuner. Den som skriver en kommun i adressfältet eller följer en
+ * länk dit har nästan alltid menat just det, och det sanna svaret är att vi
+ * inte täcker kommunen än, inte att en sida försvunnit.
+ *
+ * Svaret ges här och inte på 277 egna sidor. Sidor för kommuner utan data vore
+ * tunna sidor som bara finns för sökmotorer, och ägarens princip är att en
+ * funktion aldrig får kosta en sida. Statuskoden förblir 404 och sidan
+ * noindex, så ingenting nytt kan indexeras.
+ *
+ * Listan skickas bara på den här sidan, cirka 6 kB.
+ */
+const otackta = Object.fromEntries(OTACKTA_KOMMUNER);
+const tacktaSlugar = kommuner.map((m) => m.slug);
+
+// Byggkontroll: en kommun som får sidor måste försvinna ur listan, annars
+// säger 404-sidan "täcks inte" om en kommun som har sidor.
+const krock = OTACKTA_KOMMUNER.filter(([slug]) => tacktaSlugar.includes(slug));
+if (krock.length > 0) {
+  throw new Error(
+    `404.astro: ${krock.map(([s]) => s).join(', ')} står i lib/rikets-kommuner.ts ` +
+      'men täcks nu av sajten. Generera om listan.',
+  );
+}
 ---
 
 <Base
@@ -73,9 +103,23 @@ const total = coverage();
     <Maskot pose="fyrafyra" size={132} rorelse="m-spana" />
 
     <h1>Sidan finns inte</h1>
-    <p class="lede">
+    <p class="lede" data-standard>
       Verksamheten kan ha bytt namn, eller så har kommunen slutat lämna ut den.
     </p>
+
+    {/* Visas bara när adressens första led är en kommun vi inte täcker. Texten
+        påstår ingenting om kommunen själv, bara om oss: vi vet inte om den
+        publicerar sina kontroller någon annanstans, bara att den inte finns här. */}
+    <div class="otackt" data-otackt hidden>
+      <p class="lede">
+        <strong data-otackt-namn></strong> finns inte på Prikko än. Vi visar
+        livsmedelskontroller för {total.municipalities} kommuner, och en kommun
+        kommer med när dess kontroller går att hämta.
+      </p>
+      <p class="kalla">
+        <a href={path('kallor')}>Så väljs kommunerna, och vilka som saknas</a>
+      </p>
+    </div>
 
     <div class="vagar">
       <a class="knapp" href="/">Till startsidan</a>
@@ -97,7 +141,45 @@ const total = coverage();
       </ul>
     </nav>
   </div>
+
+  <script type="application/json" id="otackta-kommuner" set:html={JSON.stringify({ otackta, tackta: tacktaSlugar })} />
 </Base>
+
+<script>
+  /*
+   * Läser adressens första led och svarar ärligt om kommunen.
+   *
+   * 1. VERSALER. prikko.se/Stockholm/riche/ gav 404, eftersom sökvägar är
+   *    skiftlägeskänsliga. Är gemenversionens första led en kommun vi täcker
+   *    skickas besökaren dit. Den nya adressen har inga versaler, så det kan
+   *    aldrig bli en slinga.
+   * 2. KOMMUN VI INTE TÄCKER. Blocket med kommunens namn visas och
+   *    standardtexten döljs. Rubriken står kvar, för den är fortfarande sann.
+   */
+  const data = document.getElementById('otackta-kommuner');
+  if (data?.textContent) {
+    const { otackta, tackta } = JSON.parse(data.textContent) as {
+      otackta: Record<string, string>;
+      tackta: string[];
+    };
+    const sokvag = location.pathname;
+    const forsta = (s: string) => s.split('/').filter(Boolean)[0] ?? '';
+
+    if (sokvag !== sokvag.toLowerCase() && tackta.includes(forsta(sokvag.toLowerCase()))) {
+      location.replace(sokvag.toLowerCase() + location.search + location.hash);
+    } else {
+      const namn = otackta[forsta(sokvag).toLowerCase()];
+      const block = document.querySelector<HTMLElement>('[data-otackt]');
+      const standard = document.querySelector<HTMLElement>('[data-standard]');
+      const falt = document.querySelector<HTMLElement>('[data-otackt-namn]');
+      if (namn && block && standard && falt) {
+        falt.textContent = namn;
+        standard.hidden = true;
+        block.hidden = false;
+      }
+    }
+  }
+</script>
 
 <style>
   /* Centrerad stapel med gott om luft. En 404 ska kännas som ett lugnt
@@ -152,6 +234,19 @@ const total = coverage();
   .knapp:hover { background: var(--brand-ink); text-decoration: none; }
 
   .lank {
+    font-size: var(--fs-body-s);
+    line-height: var(--lh-body-s);
+  }
+
+  /* Kommunens namn står i brödtextens färg och inte i ledets grå, eftersom
+     det är det enda ordet i meningen besökaren själv skrev. */
+  .otackt strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .kalla {
+    margin-top: var(--s-3);
     font-size: var(--fs-body-s);
     line-height: var(--lh-body-s);
   }
