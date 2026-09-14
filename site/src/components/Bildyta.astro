@@ -365,8 +365,21 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
   Objekt kan försvinna ur lagringen, en uppladdning kan vara halv, och en URL
   som var sann vid bygget behöver inte vara det en månad senare.
 */}
-<script is:inline>
-  document.querySelectorAll('img[data-bildyta]').forEach((img) => {
+{/*
+  ETT vanligt skript och inte `is:inline`, mätt 2026-09-14.
+
+  `is:inline` kopieras ordagrant en gång per användning av komponenten.
+  Startsidan har 485 kort, så samma 421 byte stod där 485 gånger, cirka 204 kB
+  av sidans 1 051 599 byte rå HTML. Varje kopia körde dessutom
+  querySelectorAll över alla bilder på sidan, alltså växte arbetet vid
+  laddning med kvadraten på antalet kort.
+
+  Ett vanligt skript samlar Astro till ett enda, som körs en gång efter att
+  sidan tolkats. Att det nu kan köras efter att en bild redan misslyckats är
+  exakt det fallet `img.complete && img.naturalWidth === 0` nedan fångar.
+*/}
+<script>
+  document.querySelectorAll<HTMLImageElement>('img[data-bildyta]').forEach((img) => {
     const fall = () => {
       img.closest('.bildyta')?.querySelector('.logo')?.remove();
       img.remove();
