@@ -55,6 +55,26 @@ ATTEMPTS = 4
 _progress = threading.Lock()
 _done = 0
 
+#: Så många verksamheter får falla på ett oväntat fel innan hela hämtningen
+#: avbryts. Normalläget är NOLL: två lyckade nätter i september 2026 hade noll
+#: sådana felrader av 1 231 verksamheter.
+#:
+#: Talet är satt lika med MAX_MISSING_ROWS i load_supabase.py, och det är hela
+#: poängen. Förut fångade collect_facility varje fel och hoppade tyst över
+#: verksamheten, så en natt där ett nätverksfel bara bet på en del hade skrivit
+#: en fil med de verksamheterna saknade. Laddsteget avpublicerar saknade rader
+#: upp till max(10, 5 procent), för Örebro 61 stycken, alltså hade upp till 61
+#: namngivna företag kunnat markeras som borta ur registret utan larm. Med
+#: samma tal här kan ett hämtningsfel aldrig nå den zonen: vid det elfte felet
+#: skrivs ingen fil alls, gårdagens data står kvar, och halsokoll.mjs flaggar
+#: kommunen när den inte hämtats på tre dagar.
+#:
+#: Bakgrunden är 307-loopen den 12 och 13 september 2026, då varje verksamhet
+#: föll var för sig och körningen kröp fram till jobbets 45-minuterstak.
+MAX_FEL = 10
+_fel = 0
+_avbryt = threading.Event()
+
 
 def get(url: str, as_json: bool = True):
     """Hämta med omförsök och exponentiell backoff."""
@@ -76,7 +96,12 @@ def get(url: str, as_json: bool = True):
 
 def collect_facility(raw: dict, today: date) -> Optional[dict]:
     """Hämta en verksamhets historik och alla dess kontrollpunkter."""
-    global _done
+    global _done, _fel
+
+    if _avbryt.is_set():
+        # Gränsen är redan passerad. Ingen fler förfrågan mot kommunen, och
+        # ingen räknas som klar, eftersom körningen ändå avbryts i build().
+        return None
 
     try:
         establishment = normalize_establishment(raw)
@@ -101,6 +126,11 @@ def collect_facility(raw: dict, today: date) -> Optional[dict]:
         return None
     except Exception as exc:
         print(f"  ! {raw.get('Objektsnamn')!r}: {type(exc).__name__} {exc}", file=sys.stderr)
+        with _progress:
+            _fel += 1
+            if _fel > MAX_FEL and not _avbryt.is_set():
+                _avbryt.set()
+                print(f"  ! {_fel} fel, mer än gränsen på {MAX_FEL}. Avbryter.", file=sys.stderr)
         return None
     finally:
         with _progress:
@@ -128,6 +158,14 @@ def build(today: date, limit: Optional[int]) -> dict:
             result = future.result()
             if result is not None:
                 collected.append(result)
+
+    if _fel > MAX_FEL:
+        # Ingen fil. Hellre gårdagens fullständiga bestånd än i dag med hål i,
+        # se MAX_FEL.
+        raise SystemExit(
+            f"Örebro: {_fel} verksamheter gick inte att hämta, mer än gränsen på "
+            f"{MAX_FEL}. Ingen fil skrivs, så gårdagens data står kvar."
+        )
 
     skipped = len(facilities) - len(collected)
     records = []
