@@ -827,3 +827,27 @@ en förstudie ska göras om. Samma avvägning som §7.3 gör för den stora form
 **Att göra innan talet börjar ticka:** `community.begaran_klick` och
 `community.rakna_begaran` måste finnas i Supabase. Tills dess faller anropet
 tyst, vilket är avsiktligt, och raden fungerar ändå för besökaren.
+
+### 13.1 Rättelse 2026-09-14: räknaren räknade ingenting i nio dagar
+
+Avsnitt 13 beskriver räknaren som mätinstrumentet. Från publiceringen den 5
+september till den 14 september räknade den **inte ett enda klick**, och det
+berodde inte på att ingen klickade.
+
+Sidan skickade `{"kommun": "0581"}` till `community.rakna_begaran`, men
+funktionens parameter heter `kommunkod`. PostgREST matchar RPC-argument på
+namn och svarade 404, "Could not find the function
+community.rakna_begaran(kommun)", och felet svaldes av sidans `catch`. En
+kommentar i koden sa dessutom att en 404 var väntad tills schemat körts, så
+tystnaden såg ut som ett normalläge.
+
+Upptäckt när tabellen stod tom efter nio dagar och tomheten provades med ett
+riktigt anrop i stället för att tolkas. Samma anrop med rätt nyckel svarar
+204. Rättelsen publicerades 14 september, provades mot drift samma kväll, och
+testraden är borttagen.
+
+**Vad det betyder för mätningen.** Klicken från 5 till 14 september är
+förlorade och går inte att återskapa. Tröskeln i §9 skäl 2, omkring 200 klick
+i månaden, ska därför **inte** prövas mot september 2026. Första hela
+mätmånaden är oktober 2026. Den som läser september ska räkna med 16 dagar och
+inte 30, och helst låta bli.
