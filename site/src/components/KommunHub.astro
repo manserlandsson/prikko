@@ -42,6 +42,7 @@ import Kontrollen from './Kontrollen.astro';
 import Kontrolltakt from './Kontrolltakt.astro';
 import Kontrollalder from './Kontrollalder.astro';
 import Pagination from './Pagination.astro';
+import Registerfilter from './Registerfilter.astro';
 import RenHistorik from './RenHistorik.astro';
 import Tathet from './Tathet.astro';
 import Uncovered from './Uncovered.astro';
@@ -333,8 +334,11 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
     <p class="lede text-secondary">
       {currentPage === 1 ? (
         <>
-          {formatNumber(total)} verksamheter i bokstavsordning, bedömda efter
-          sin senaste hygienkontroll.
+          {/* Bokstavsordningen nämns fortfarande, men som registrets ordning och
+              inte som sidans erbjudande. Sidan erbjuder sök i hela kommunen,
+              se Registerfilter.astro. */}
+          {formatNumber(total)} verksamheter, bedömda efter sin senaste
+          hygienkontroll. Sök i hela {city} eller bläddra i bokstavsordning.
         </>
       ) : (
         <>
@@ -440,9 +444,22 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
           </div>
         )}
 
+        {/* SÖK OCH SMALNA AV, i hela kommunen och på varje sida i serien.
+            ────────────────────────────────────────────────────────────────
+            Den som bläddrat till sida 47 av Stockholm har samma fråga som
+            den som landade på sida 1: var finns pizzan. Rutan verkar därför
+            på hela registret och står på alla sidor. Skäl, förlagornas tal
+            och spärrarna står i Registerfilter.astro. */}
+        <Registerfilter kommunSlug={kommun.slug} city={city} />
+
         <EstablishmentList items={items} kommunSlug={kommun.slug} />
 
-        <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+        {/* Sidnumreringen göms medan listan är filtrerad, därför att den då
+            talar om en annan lista än den som syns. Den tas aldrig bort ur
+            HTML:en: sökmotorn och den utan skript ser serien som förut. */}
+        <div data-register-sidor>
+          <Pagination base={base} current={currentPage} last={lastPage} label={`verksamheter i ${city}`} />
+        </div>
 
         {/* UNDER registret, inte över det.
             ────────────────────────────────────────────────────────────────

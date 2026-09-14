@@ -20,7 +20,29 @@ const { items, kommunSlug } = Astro.props;
 
 <FaceSprite />
 
-<ul class="list">
+{/* MALLEN FÖR EN RAD SOM RITAS I WEBBLÄSAREN.
+    Registerfilter.astro byter listan mot kommunens hela register när någon
+    söker eller smalnar av. Raden klonas härifrån och inte ur en sträng i
+    skriptet, av två skäl: markupen kan inte glida isär från raderna nedanför,
+    och Astros scopeade klassattribut följer med, så att samma stilar gäller
+    utan att de görs globala. Fälten fylls via data-f. */}
+<template data-register-rad>
+  <li class="item">
+    <a href="/">
+      <FaceRef verdict={null} size={38} />
+      <span class="info">
+        <b>
+          <span data-f="namn"></span>
+          <span class="avreg" data-f="avreg" hidden>{AVREGISTRERAD.heading}</span>
+        </b>
+        <span class="meta text-secondary" data-f="meta"></span>
+      </span>
+      <span class="verdict" data-f="verdict"></span>
+    </a>
+  </li>
+</template>
+
+<ul class="list" data-register-lista>
   {items.map((e) => {
     const date = latestInspectionDate(e);
     return (
@@ -140,6 +162,11 @@ const { items, kommunSlug } = Astro.props;
     white-space: nowrap;
     vertical-align: 1px;
   }
+
+  /* Mallens märke bär `hidden` tills skriptet vet att raden är avregistrerad.
+     Sajten har ingen global regel för [hidden], och `display: inline-block`
+     ovan hade annars vunnit, alltså hade varje filtrerad rad burit märket. */
+  .avreg[hidden] { display: none; }
 
   .verdict {
     font-size: var(--fs-caption);

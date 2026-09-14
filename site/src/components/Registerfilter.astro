@@ -1,0 +1,705 @@
+---
+/**
+ * Sök och smalna av i hela kommunen, där man står.
+ *
+ * ══ VAD SOM VAR FEL ═════════════════════════════════════════════════════
+ *
+ * Kommunsidan är sajtens största landningsyta, och under översikten stod
+ * registret i bokstavsordning, 100 rader per sida. /orebro/ öppnade med
+ * "1 Rum och Kök", "2.0 Tvåpunktnoll", "24 Tobak". Enda sättet att smalna av
+ * var fem grova typer, alltså kunde den som landade från Google och ville ha
+ * pizza bara bläddra elva sidor.
+ *
+ * Förlagorna, uppmätta 2026-09-14 i webbläsaren:
+ *
+ *                 sortering        val      först i listan    karta
+ *   Booli, 1440   Nyast, 8 lägen   sök + Sökfilter (11 grupper)   y 317    bredvid, 752 bred
+ *   Booli, 375    samma            samma                          y 432    bakom knapp
+ *   Hemnet, 1440  Nyast först, 16  sök + Sökfilter i högerspalt   y 851    band ovanför
+ *   Hemnet, 375   samma            samma                          y 299    bakom knapp
+ *   hitta, 1440   relevans         flikar + ort                   y 176    bredvid, 442 bred
+ *   hitta, 375    relevans         samma                          y 176    ingen
+ *
+ * Ingen av de tre listar i bokstavsordning, och alla tre har ett sökfält
+ * ovanför listan. Hela docs/62_kommunsidan.md har talen.
+ *
+ * ══ VAD DEN HÄR RUTAN GÖR ═══════════════════════════════════════════════
+ *
+ * Ett sökfält, en rad matkategorier, ett områdesval där kommunen har gränser
+ * och ett val av ordning. Alla fyra verkar på HELA kommunen och inte på de
+ * hundra raderna som råkar stå på sidan: filtret hämtar kommunens register
+ * första gången besökaren rör något, och byter sedan listan på plats.
+ *
+ * ══ SPÄRRARNA, SOM ÄR SAJTENS OCH INTE RUTANS ═══════════════════════════
+ *
+ * INGENTING HÄR ORDNAR ELLER FILTRERAR PÅ BEDÖMNINGEN. Bedömningen följer
+ * med i datan därför att raden ritar ansiktet, men det finns inget val som
+ * läser den, och det ska inte tillkomma något. "Sämst först" gör varje
+ * namngiven verksamhet högst upp till något att undvika, och det är inte en
+ * sak sajten säger. Den som vill se anmärkningarna har redan sin sida,
+ * /<kommun>/anmarkningar/, med egna skäl för sin ordning.
+ *
+ * INGEN NY ADRESS. Rutan skriver aldrig i adressfältet: ingen frågesträng,
+ * ingen pushState, inget ankare. Den skapar alltså inga nya indexerbara
+ * adresser, och sidindelningen, noindex och sitemapen säger samma sak som
+ * förut. Ägaren 2026-08-07: sidor köps för SEO och inte för funktioner.
+ *
+ * ══ STANDARDLÄGET ÄR FORTFARANDE A TILL Ö, OCH DET ÄR ETT VAL ═══════════
+ *
+ * "Senast kontrollerade först" är tillåtet. Det är ett faktum om tiden och
+ * inte ett omdöme, samma princip som startsidans rad och sidopanelens
+ * "Senast kontrollerade" följer. Det finns som val här.
+ *
+ * Det är ändå inte standardläget i den byggda sidan, av tre skäl:
+ *
+ * 1. Sidindelningen ÄR ordningen. /stockholm/sida/47/ är rad 4 601 till 4 700
+ *    i en viss ordning. I kronologisk ordning flyttar varje ny kontroll alla
+ *    rader före den ett steg, så att vart och ett av Stockholms 86 sidinnehåll
+ *    byts vid varje datauppdatering. Bokstavsordningen flyttar en rad bara när
+ *    en verksamhet tillkommer eller försvinner.
+ * 2. Den bokstavsordnade listan är med flit orörlig, se recentlyInspected i
+ *    lib/kommunprofil.ts, och färskheten har redan sin plats i sidopanelen.
+ * 3. Att byta ordning i klienten vid laddning hade krävt att registret
+ *    hämtades vid VARJE sidvisning, 125 kB brotlat i Stockholm, och att
+ *    listan hoppade efter första målningen.
+ *
+ * Kronologin är alltså ett klick bort och kostar först när man tar det.
+ */
+import { formatNumber } from '../lib/data';
+import { kommunregister } from '../lib/kommunregister';
+import { VERDICT } from '../lib/site';
+
+interface Props {
+  kommunSlug: string;
+  city: string;
+}
+
+const { kommunSlug, city } = Astro.props;
+const reg = kommunregister(kommunSlug);
+const total = reg.rader.length;
+
+/**
+ * Matkategorierna som val, med sitt tal, och bara de som kommunen har.
+ *
+ * ETT URVAL OCH SÄGS SOM ETT. Kartan avstår medvetet från matkategorin som
+ * ruta, se `mk` i lib/kartrutor.ts: 4 623 av 13 692 nålar bär en, och en
+ * ruta märkt "Kebab" som döljer två tredjedelar av kebabställena är ett osant
+ * påstående. Här ÄR det ett val, därför att det är vad besökaren från Google
+ * frågar efter, men då på två villkor:
+ *
+ * - Talet står på knappen, så att "Pizza 23" aldrig läses som hela sanningen
+ *   om en stad med 1 231 ställen.
+ * - När valet är aktivt säger statusraden hur många i kommunen som alls har
+ *   en känd matkategori och uppmanar till sökning på namnet. Samma besked som
+ *   startsidans rad bär, se minnet om filtreringen.
+ *
+ * Tröskeln är tre. Två ställen är ingen kategori att välja utan två namn,
+ * och de nås lika bra genom sökfältet.
+ */
+const MIN_MAT = 3;
+const matAntal = reg.mat.map((namn, bit) => ({
+  namn,
+  bit,
+  antal: reg.rader.filter((r) => (r[6] & (1 << bit)) !== 0).length,
+}));
+/*
+ * FLEST STÄLLEN FÖRST, OCH ÅTTA SYNLIGA PÅ DATOR.
+ *
+ * Alla tjugo i tabellens ordning radbröt på tre våningar i Stockholm, 112 px,
+ * och sköt första verksamheten från y 643 i Örebro till y 753 i Stockholm vid
+ * 1440, alltså två rader i första skärmen. Ordningen efter antal är ett tal om
+ * vilken sorts ställe det finns flest av i kommunen och inget omdöme om något
+ * av dem; "Café 1 139" före "Glass 44" säger bara att staden har fler kaféer.
+ *
+ * Resten ligger bakom "Fler" på dator. På telefon rullar raden i sidled och
+ * bär alla, eftersom en rullrad inte kostar höjd.
+ */
+const SYNLIGA_MAT = 8;
+const matVal = matAntal.filter((m) => m.antal >= MIN_MAT).sort((a, b) => b.antal - a.antal || a.bit - b.bit);
+const dolda = Math.max(0, matVal.length - SYNLIGA_MAT);
+const medMat = reg.rader.filter((r) => r[6] !== 0).length;
+
+const omradeAntal = reg.omraden.map((namn, i) => ({
+  namn,
+  i,
+  antal: reg.rader.filter((r) => r[7] === i).length,
+}));
+const utanOmrade = reg.rader.filter((r) => r[7] === -1).length;
+
+/* Etiketter och färg per bedömningstal, i samma ordning som registrets `v`.
+   Ur VERDICT och inte omskrivna, så att raden i klienten säger exakt samma
+   ord som raden byggd på servern. */
+const bedomning = [
+  [VERDICT.clean.label, VERDICT.clean.colorVar, 'clean'],
+  [VERDICT.minor.label, VERDICT.minor.colorVar, 'minor'],
+  [VERDICT.major.label, VERDICT.major.colorVar, 'major'],
+  ['Ingen kontroll', 'var(--verdict-none-ink)', 'none'],
+];
+
+const placeholder = total > 150 ? 'Namn, gata eller mat, till exempel pizza' : 'Namn, gata eller mat';
+---
+
+<section
+  class="register"
+  data-register
+  data-kommun={kommunSlug}
+  data-stad={city}
+  data-total={total}
+  data-med-mat={medMat}
+  data-utan-omrade={utanOmrade}
+  data-bedomning={JSON.stringify(bedomning)}
+  aria-labelledby="register-rubrik"
+>
+  <h2 id="register-rubrik" class="visually-hidden">Sök bland verksamheterna i {city}</h2>
+
+  <div class="falt">
+    <label class="sok">
+      <span class="visually-hidden">Sök bland {formatNumber(total)} verksamheter i {city}</span>
+      <svg class="lupp" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
+        <path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+      <input
+        type="search"
+        data-sok
+        placeholder={placeholder}
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        enterkeyhint="search"
+      />
+    </label>
+
+    {omradeAntal.length > 0 && (
+      <label class="valj">
+        <span class="visually-hidden">Område</span>
+        <select data-omrade>
+          <option value="-1">Alla områden</option>
+          {omradeAntal.filter((o) => o.antal > 0).map((o) => (
+            <option value={o.i}>{o.namn} ({formatNumber(o.antal)})</option>
+          ))}
+        </select>
+      </label>
+    )}
+
+    {/* `ensam` när kommunen saknar områden. Här stod `.valj:only-of-type`,
+        och den slog aldrig: sökfältet är också en <label>, alltså fanns två
+        av typen. Uppmätt i Svenljunga vid 375: valet blev 168 px med en tom
+        halva bredvid sig. */}
+    <label class:list={['valj', { ensam: omradeAntal.length === 0 }]}>
+      <span class="visually-hidden">Ordning</span>
+      <select data-ordning>
+        <option value="az">A till Ö</option>
+        <option value="senast">Senast kontrollerade</option>
+      </select>
+    </label>
+  </div>
+
+  {matVal.length > 0 && (
+    <div class="mat" role="group" aria-label={`Mat i ${city}`} data-matrad>
+      {matVal.map((m, i) => (
+        <button
+          type="button"
+          class:list={['chip', { extra: i >= SYNLIGA_MAT }]}
+          data-mat={m.bit}
+          aria-pressed="false"
+        >
+          {m.namn} <span class="tal">{formatNumber(m.antal)}</span>
+        </button>
+      ))}
+      {dolda > 0 && (
+        <button type="button" class="chip fler" data-fler aria-expanded="false">
+          Fler <span class="tal">{dolda}</span>
+        </button>
+      )}
+    </div>
+  )}
+
+  <p class="status" data-status aria-live="polite" hidden>
+    <span data-status-text></span>
+    <button type="button" class="rensa" data-rensa>Rensa</button>
+  </p>
+</section>
+
+<style>
+  /*
+   * ══ FORMEN ══════════════════════════════════════════════════════════════
+   *
+   * Ett fält och två val på EN rad från 560 px, samma grepp som Boolis
+   * kontrollrad: sökfält, Sökfilter och sortering i ett band utan rubrik.
+   * Fältet står i sidans kontrollhöjd 44 px, alltså pekvänligt på telefon.
+   *
+   * Ingen ram runt rutan. Den ligger i kontrollbandet ovanför registret, och
+   * docs/19 säger att lugnet kommer av att ingenting är inramat.
+   */
+  .register > * + * { margin-top: var(--s-3); }
+
+  .falt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: var(--s-2);
+  }
+
+  .sok {
+    position: relative;
+    display: block;
+  }
+
+  .lupp {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+
+  input[type='search'],
+  select {
+    width: 100%;
+    height: 44px;
+    border: 0;
+    border-radius: var(--r-control);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-body-s);
+  }
+
+  input[type='search'] {
+    padding: 0 var(--s-3) 0 42px;
+  }
+
+  input[type='search']::placeholder { color: var(--text-muted); }
+
+  select {
+    padding: 0 34px 0 var(--s-3);
+    appearance: none;
+    /* Pilen som bakgrund, så att valet inte bär webbläsarens egen form och
+       ser likadant ut i Safari och Chrome. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23555' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+  }
+
+  input[type='search']:focus-visible,
+  select:focus-visible,
+  .chip:focus-visible,
+  .rensa:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Matraden rullar i sidled på telefon och radbryter på dator. Etiketterna
+   * är korta, "Pizza", "Sushi", "Bar och pub", och i en spalt på 912 ryms
+   * Stockholms rad på två våningar; på 343 hade radbrytning blivit fem.
+   */
+  .mat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    height: 32px;
+    padding: 0 var(--s-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-pill);
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-caption);
+    line-height: 30px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .chip .tal { color: var(--text-secondary); font-weight: 400; }
+
+  /* Val utöver de åtta syns först efter "Fler" på dator. Mediefrågan längst
+     ned visar dem alltid på telefon, där raden rullar i stället. */
+  .mat:not([data-alla]) .extra { display: none; }
+  .mat[data-alla] .fler { display: none; }
+
+  .fler { color: var(--brand-ink); }
+
+  .chip:hover { border-color: var(--tone-quiet, rgba(0, 0, 0, 0.25)); }
+
+  /* Valt i märkesblått och inte i en bedömningsfärg. Raden bär redan en
+     färgskala som betyder hygien, och ett grönt eller rött val hade lästs in
+     i den. */
+  .chip[aria-pressed='true'] {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 8%, var(--card));
+    color: var(--brand-ink);
+  }
+
+  .chip[aria-pressed='true'] .tal { color: var(--brand-ink); }
+
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-1) var(--s-3);
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-secondary);
+  }
+
+  .status[hidden] { display: none; }
+
+  .rensa {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: var(--brand-ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .rensa:hover { text-decoration: underline; }
+
+  @media (max-width: 559.98px) {
+    .falt { grid-template-columns: 1fr 1fr; }
+    .sok { grid-column: 1 / -1; }
+    /* Ett ensamt ordningsval, i en kommun utan områden, tar hela bredden i
+       stället för att lämna en tom halva bredvid sig. */
+    .valj.ensam { grid-column: 1 / -1; }
+
+    /* Rullraden bär alla val, så "Fler" behövs inte här. `.chip` i
+       selektorn är vikten: `.mat:not([data-alla]) .extra` ovanför väger
+       0,3,0, och en regel på 0,2,0 hade lämnat valen dolda på telefon. */
+    .mat .chip.extra { display: inline-flex; }
+    .mat .chip.fler { display: none; }
+
+    .mat {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      /* Luft för fokusringen, som annars klipps av rullspåret. */
+      padding-block: 3px;
+      margin-block: -3px;
+    }
+    .mat::-webkit-scrollbar { display: none; }
+  }
+</style>
+
+<style is:global>
+  /* Knappen under en filtrerad lista. Global därför att skriptet skapar den
+     efter registrets <ul>, alltså utanför den här komponentens scope. */
+  .register-mer {
+    display: block;
+    width: 100%;
+    margin-top: var(--s-4);
+    height: 44px;
+    border: 0;
+    border-radius: var(--r-control);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-body-s);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .register-mer:hover { color: var(--brand-ink); }
+  .register-tom {
+    padding: var(--s-6) 0;
+    font-size: var(--fs-body-s);
+    color: var(--text-secondary);
+  }
+</style>
+
+<script>
+  import { slugify } from '../lib/slug';
+
+  /**
+   * Rutans beteende. Progressiv förbättring: utan skript står sökfältet
+   * utan verkan och registret, sidindelningen och typlänkarna fungerar som
+   * förut.
+   */
+
+  type Rad = [string, string | 0, string, number, number, number, number, number, number, number];
+  interface Register {
+    epok: string;
+    mat: string[];
+    omraden: string[];
+    typer: string[];
+    rader: Rad[];
+  }
+
+  /** Hur många rader som ritas åt gången. Samma som sidindelningens 100, så
+      att en filtrerad lista och en sida i serien är lika långa. */
+  const STEG = 100;
+
+  /**
+   * Samma normalisering som kartans fritext, se `normalisera` i Karta.astro,
+   * så att "Söder" och "söder" och "Kebab-house" träffar lika på båda
+   * ytorna.
+   */
+  function normalisera(s: string): string {
+    return s
+      .toLocaleLowerCase('sv')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  }
+
+  const DAG = 86_400_000;
+  const datum = new Intl.DateTimeFormat('sv-SE', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+  const tal = new Intl.NumberFormat('sv-SE');
+
+  for (const ruta of document.querySelectorAll<HTMLElement>('[data-register]')) {
+    const kommun = ruta.dataset.kommun!;
+    const stad = ruta.dataset.stad!;
+    const total = Number(ruta.dataset.total);
+    const medMat = Number(ruta.dataset.medMat);
+    const utanOmrade = Number(ruta.dataset.utanOmrade);
+    const bedomning = JSON.parse(ruta.dataset.bedomning!) as [string, string, string][];
+
+    const sok = ruta.querySelector<HTMLInputElement>('[data-sok]')!;
+    const omrade = ruta.querySelector<HTMLSelectElement>('[data-omrade]');
+    const ordning = ruta.querySelector<HTMLSelectElement>('[data-ordning]')!;
+    const matKnappar = [...ruta.querySelectorAll<HTMLButtonElement>('[data-mat]')];
+    const status = ruta.querySelector<HTMLElement>('[data-status]')!;
+    const statusText = ruta.querySelector<HTMLElement>('[data-status-text]')!;
+    const rensa = ruta.querySelector<HTMLButtonElement>('[data-rensa]')!;
+
+    const lista = document.querySelector<HTMLUListElement>('[data-register-lista]');
+    const mall = document.querySelector<HTMLTemplateElement>('[data-register-rad]');
+    const sidor = document.querySelector<HTMLElement>('[data-register-sidor]');
+    if (!lista || !mall) continue;
+
+    /* Sidans egna rader, så att "Rensa" lämnar tillbaka exakt den byggda
+       sidan och inte en omritad kopia av den. */
+    const original = [...lista.children];
+
+    let register: Register | null = null;
+    let hamtning: Promise<Register | null> | null = null;
+    let hojstack: string[] = [];
+
+    function hamta(): Promise<Register | null> {
+      if (!hamtning) {
+        hamtning = fetch(`/kommunregister/${kommun}.json`)
+          .then((svar) => (svar.ok ? (svar.json() as Promise<Register>) : null))
+          .then((r) => {
+            if (!r) return null;
+            register = r;
+            /* Söktexten byggs en gång: namn, adress, kommunens typ och
+               matkategoriernas namn. Mellanslaget först gör att en sökning
+               träffar ordets början och inte mitten av ett annat ord. */
+            hojstack = r.rader.map((rad) => {
+              const mat = r.mat.filter((_, bit) => (rad[6] & (1 << bit)) !== 0).join(' ');
+              const typ = rad[8] >= 0 ? r.typer[rad[8]] : '';
+              return ' ' + normalisera(`${rad[0]} ${rad[2]} ${typ} ${mat}`);
+            });
+            return r;
+          })
+          .catch(() => null);
+      }
+      return hamtning;
+    }
+
+    /* Hämtningen börjar vid AVSIKT, alltså när besökaren sätter fokus i rutan
+       eller trycker i den, och inte vid sidladdning. Den som bara läser sidan
+       betalar noll byte. Den som skriver "pi" har oftast filen innan tredje
+       tecknet. */
+    ruta.addEventListener('focusin', () => void hamta(), { once: true });
+    ruta.addEventListener('pointerdown', () => void hamta(), { once: true });
+
+    let valdMat = -1;
+    let visade = 0;
+    let traffar: number[] = [];
+
+    const aktivt = () =>
+      sok.value.trim() !== '' ||
+      valdMat >= 0 ||
+      (omrade !== null && omrade.value !== '-1') ||
+      ordning.value !== 'az';
+
+    function atersall() {
+      lista!.replaceChildren(...original);
+      ta_bort_mer();
+      if (sidor) sidor.hidden = false;
+      status.hidden = true;
+    }
+
+    function ta_bort_mer() {
+      lista!.parentElement?.querySelectorAll('.register-mer, .register-tom').forEach((el) => el.remove());
+    }
+
+    function rad(i: number): HTMLLIElement {
+      const r = register!.rader[i];
+      const li = mall!.content.firstElementChild!.cloneNode(true) as HTMLLIElement;
+      const a = li.querySelector('a')!;
+      a.href = `/${kommun}/${r[1] || slugify(r[0])}/`;
+      if (r[9] & 2) a.rel = 'nofollow';
+
+      const [etikett, farg, nyckel] = bedomning[r[3]] ?? bedomning[3];
+      li.querySelector('use')!.setAttribute('href', `#pk-face-${nyckel}`);
+      li.querySelector('[data-f="namn"]')!.textContent = r[0];
+      (li.querySelector('[data-f="avreg"]') as HTMLElement).hidden = (r[9] & 1) === 0;
+
+      const delar = [r[2], r[4] ? `kontrollerad ${datum.format(Date.parse(register!.epok) + r[4] * DAG)}` : '']
+        .filter(Boolean);
+      li.querySelector('[data-f="meta"]')!.textContent = delar.join(' · ');
+
+      const v = li.querySelector<HTMLElement>('[data-f="verdict"]')!;
+      v.textContent = etikett;
+      v.style.color = farg;
+      return li;
+    }
+
+    function ritaFler() {
+      const nasta = traffar.slice(visade, visade + STEG);
+      lista!.append(...nasta.map(rad));
+      visade += nasta.length;
+
+      ta_bort_mer();
+      if (traffar.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'register-tom';
+        p.textContent = `Inget i ${stad} matchar. Pröva ett kortare ord eller ett annat område.`;
+        lista!.after(p);
+      } else if (visade < traffar.length) {
+        const knapp = document.createElement('button');
+        knapp.type = 'button';
+        knapp.className = 'register-mer';
+        const kvar = Math.min(STEG, traffar.length - visade);
+        knapp.textContent = `Visa ${tal.format(kvar)} till av ${tal.format(traffar.length - visade)}`;
+        knapp.addEventListener('click', ritaFler);
+        lista!.after(knapp);
+      }
+    }
+
+    let generation = 0;
+
+    async function tillampa() {
+      if (!aktivt()) {
+        atersall();
+        return;
+      }
+
+      const denna = ++generation;
+      if (!register) {
+        status.hidden = false;
+        statusText.textContent = `Hämtar ${stad}s ${tal.format(total)} verksamheter …`;
+        rensa.hidden = true;
+        const r = await hamta();
+        if (denna !== generation) return;
+        if (!r) {
+          statusText.textContent = 'Registret gick inte att hämta. Listan nedan är sidans egen.';
+          rensa.hidden = false;
+          return;
+        }
+      }
+      const r = register!;
+
+      const ord = normalisera(sok.value).split(' ').filter(Boolean);
+      const bit = valdMat >= 0 ? 1 << valdMat : 0;
+      const yta = omrade ? Number(omrade.value) : -1;
+
+      traffar = [];
+      for (let i = 0; i < r.rader.length; i++) {
+        const x = r.rader[i];
+        if (bit && (x[6] & bit) === 0) continue;
+        if (yta >= 0 && x[7] !== yta) continue;
+        if (ord.length && !ord.every((o) => hojstack[i].includes(' ' + o))) continue;
+        traffar.push(i);
+      }
+
+      /* KRONOLOGI OCH ALDRIG RANGORDNING. Senaste kontrollen först, ställen
+         utan kontroll sist, och vid samma datum registrets egen bokstavs-
+         ordning. Bedömningen läses inte. */
+      if (ordning.value === 'senast') {
+        traffar.sort((a, b) => r.rader[b][4] - r.rader[a][4] || a - b);
+      }
+
+      lista!.replaceChildren();
+      visade = 0;
+      ritaFler();
+      if (sidor) sidor.hidden = true;
+
+      const delar = [
+        traffar.length === total
+          ? `Alla ${tal.format(total)} i ${stad}`
+          : `${tal.format(traffar.length)} av ${tal.format(total)} i ${stad}`,
+      ];
+      if (ordning.value === 'senast') delar.push('senast kontrollerade först');
+      else delar.push('A till Ö');
+      let text = delar.join(', ') + '.';
+
+      /* Urvalets gränser sägs där urvalet görs, och bara när de gäller. */
+      if (bit) {
+        text += ` Matkategorin är känd för ${tal.format(medMat)} av ${tal.format(total)}, så sök gärna på namnet också.`;
+      }
+      /* "Saknar läge" hade varit fel för de flesta. I Örebro har 639 av
+         1 231 en koordinat, men bara 107 ligger inom en av de tolv
+         avgränsningarna; resten ligger utanför dem eller saknar punkt. */
+      if (yta >= 0 && utanOmrade > 0) {
+        text += ` ${tal.format(utanOmrade)} i ${stad} ligger utanför områdena eller saknar läge och kommer inte med här.`;
+      }
+      statusText.textContent = text;
+      rensa.hidden = false;
+      status.hidden = false;
+    }
+
+    let vantan = 0;
+    sok.addEventListener('input', () => {
+      clearTimeout(vantan);
+      vantan = window.setTimeout(tillampa, 120);
+    });
+    /* Enter i fältet ska inte skicka någonting någonstans. */
+    sok.addEventListener('keydown', (h) => {
+      if (h.key === 'Enter') {
+        h.preventDefault();
+        void tillampa();
+      }
+    });
+    omrade?.addEventListener('change', () => void tillampa());
+    ordning.addEventListener('change', () => void tillampa());
+
+    /* "Fler" visar resten av matvalen och flyttar fokus till det första av
+       dem, så att tangentbordet inte blir kvar på en knapp som försvann. */
+    const matrad = ruta.querySelector<HTMLElement>('[data-matrad]');
+    const fler = ruta.querySelector<HTMLButtonElement>('[data-fler]');
+    fler?.addEventListener('click', () => {
+      matrad?.setAttribute('data-alla', '');
+      fler.setAttribute('aria-expanded', 'true');
+      matrad?.querySelector<HTMLButtonElement>('.extra')?.focus();
+    });
+
+    for (const knapp of matKnappar) {
+      knapp.addEventListener('click', () => {
+        const bit = Number(knapp.dataset.mat);
+        valdMat = valdMat === bit ? -1 : bit;
+        for (const k of matKnappar) k.setAttribute('aria-pressed', String(Number(k.dataset.mat) === valdMat));
+        void tillampa();
+      });
+    }
+
+    rensa.addEventListener('click', () => {
+      sok.value = '';
+      if (omrade) omrade.value = '-1';
+      ordning.value = 'az';
+      valdMat = -1;
+      for (const k of matKnappar) k.setAttribute('aria-pressed', 'false');
+      generation++;
+      atersall();
+      sok.focus();
+    });
+  }
+</script>
