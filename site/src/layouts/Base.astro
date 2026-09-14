@@ -186,6 +186,12 @@ const structuredData = jsonLd
     <meta name="theme-color" content={SITE.themeColor} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    {/* Manifestet gör att sajten kan läggas på en Android-hemskärm med rätt
+        namn och ikon. Saknades helt till 2026-09-14: temafärgen och
+        iPhone-ikonen fanns, men /manifest.webmanifest svarade 404.
+        `minimal-ui` och inte `standalone`, för det här är en innehållssajt
+        där länkar delas och bakåtknappen behövs. */}
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
     {structuredData.map((data) => (
