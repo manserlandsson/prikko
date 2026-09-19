@@ -47,14 +47,16 @@ import { FACE_MARKUP, FACE_PLATE, type FaceKey } from './face';
 
 /**
  * Rad i registret: [namn, adress, slug, kommunindex, bedömningsindex] och
- * därefter, om raden har dem, [kategorikombination, områdesnummer].
+ * därefter, om raden har dem, [kategorikombination, områdesnummer,
+ * hållplatsnummer].
  *
- * De två sista är olika ofta med, och det är avsiktligt: två tredjedelar av
- * raderna saknar kategori och nästan hälften ligger utanför varje område med
- * egen sida. Skälet till att de utelämnas i stället för att skrivas som nollor
- * står i lib/search-index.ts, och kostnaden i docs/63.
+ * De tre sista är olika ofta med, och det är avsiktligt: två tredjedelar av
+ * raderna saknar kategori, nästan hälften ligger utanför varje område med egen
+ * sida och två tredjedelar har ingen hållplats som tio ställen delar. Skälet
+ * till att de utelämnas i stället för att skrivas som nollor står i
+ * lib/search-index.ts, och kostnaden i docs/63.
  */
-export type Row = [string, string, string, number, number, number?, number?];
+export type Row = [string, string, string, number, number, number?, number?, number?];
 
 /**
  * Radens sort, som bestämmer dess märke.
@@ -624,6 +626,13 @@ export interface SearchIndex {
    * söksträng och matchas som vilket ord som helst, se `extraText`.
    */
   mk: string[];
+  /**
+   * Hållplatsnamnen, vanligast först. Raden pekar in med ett tal där ett är
+   * plats noll, och bara hållplatser som minst tio ställen delar står här. Se
+   * HALLPLATS_MIN i lib/search-index.ts för varför, och `extraText` för hur
+   * namnet blir ett sökord utan att bli ett namn.
+   */
+  hallplatser: string[];
   /** [slug, ort] och en etta på de kommuner som har en kartsida. Se
    *  lib/search-index.ts för varför den tredje platsen finns. */
   kommuner: Array<[string, string] | [string, string, number]>;
@@ -644,6 +653,7 @@ const index: SearchIndex = {
   kommuner: [],
   omraden: [],
   mk: [],
+  hallplatser: [],
   avreg: new Set(),
 };
 
@@ -661,13 +671,36 @@ const index: SearchIndex = {
  * ett ord som bara står i kategorin ska aldrig kunna se ut som ett namn. En
  * träff här hamnar därför alltid i den lösa klassen, alltså under dem som
  * heter det man skrev.
+ *
+ * HÅLLPLATSEN står allra sist, och det var den som faktiskt saknades.
+ * Kategorierna var sökbara redan, men "odenplan" stod i 16 namn, noll
+ * adresser och inget område, så "pizzeria odenplan" hade ingen rad som bar
+ * båda orden. Namnet är närmaste hållplats ur lib/narhet.ts, bara när minst tio
+ * ställen delar den och bara när namnet eller adressen inte redan säger det.
+ * Samma regel om klassen gäller: ett hållplatsord kan aldrig slå ett namnord.
  */
 function extraText(row: Row): string {
-  const mk = row[5] ? (index.mk[row[5]] ?? '') : '';
-  const omrade = row[6] ? (index.omraden[row[6] - 1]?.[2] ?? '') : '';
-  if (mk && omrade) return ` ${mk} ${omrade}`;
-  return mk ? ` ${mk}` : omrade ? ` ${omrade}` : '';
+  const delar: string[] = [];
+  if (row[5]) delar.push(index.mk[row[5]] ?? '');
+  if (row[6]) delar.push(index.omraden[row[6] - 1]?.[2] ?? '');
+  if (row[7]) delar.push(index.hallplatser[row[7] - 1] ?? '');
+  const text = delar.filter(Boolean).join(' ');
+  return text ? ` ${text}` : '';
 }
+/**
+ * Var extratexten börjar i varje rads söksträng, alltså kategorin, området och
+ * hållplatsen. Lika med strängens längd när raden inte har någon.
+ *
+ * Gränsen finns för FRASBONUSEN i `scan` och ingenting annat. Uppmätt på
+ * "kebab uppsala" 2026-09-14: Döner & Co bär kategoritexten "Pizza pizzeria
+ * pizzor Kebab" och hållplatsen "Uppsala Centralstation", alltså stod
+ * "kebab upsala" i följd över skarven mellan två fält. Raden fick bonusen för
+ * hela frågan i följd, flyttades upp i namnklassen och gick förbi Holy Kebab
+ * Gränby och Amandas & Kebab house, som bär ordet i sina namn. Samma skarv
+ * fanns redan mellan kategori och område. Två ord som bara råkar stå intill
+ * varandra i två olika fält är inte frågan i följd.
+ */
+let extraStart = new Int32Array(0);
 /** Kommunernas orter som söknycklar, vikta en gång i stället för per fråga. */
 let kommunKey: string[] = [];
 let omradeKey: string[] = [];
@@ -711,6 +744,9 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
          cache kan peka på ett register som byggdes innan nyckeln fanns, och en
          sökning som kastar är ett värre fel än en sökning utan kategoriord. */
       index.mk = data.mk ?? [];
+      /* Samma `?? []`, av samma skäl: ett äldre register utan hållplatser ska
+         ge en sökning utan platsord, inte en sökning som kastar. */
+      index.hallplatser = data.h ?? [];
       /* `?? []` och inte `data.a`: ett dokument ur besökarens cache kan peka
          på ett register som byggdes innan nyckeln fanns, och en sökning som
          kastar är ett värre fel än en sökning utan märke. Samma hållning som
@@ -740,23 +776,36 @@ export function loadIndex(url: string, fallback: string | null): Promise<void> {
        * mellanslag. Karlstad publicerar ingen adress, och en fråga som spänner
        * över "namn ort" ska träffa där lika väl som i övriga elva kommuner.
        */
+      /*
+       * EXTRATEXTEN VIKS FÖR SIG och fogas på efteråt, så att gränsen till den
+       * blir känd, se `extraStart`. Strängen blir tecken för tecken densamma som
+       * när allt veks i ett svep: fälten skiljs alltid av ett mellanslag, och
+       * vikningen slår aldrig ihop något över ett mellanslag. Kostnaden är en
+       * andra vikning av en kort sträng på de rader som har en.
+       */
       const n = index.rows.length;
       const hay = new Array<string>(n);
       const nameEnd = new Int32Array(n);
+      const extra = new Int32Array(n);
       for (let i = 0; i < n; i++) {
         const row = index.rows[i];
         const [name, address, , k] = row;
         const city = index.kommuner[k][1];
         const len = foldInto(
-          (address ? `${name} ${address} ${city}` : `${name} ${city}`) + extraText(row),
+          address ? `${name} ${address} ${city}` : `${name} ${city}`,
           false,
           name.length,
         );
-        hay[i] = keyText(len);
         nameEnd[i] = keyCut;
+        const bas = keyText(len);
+        const tillagg = extraText(row);
+        const vikt = tillagg ? foldKey(tillagg) : '';
+        hay[i] = vikt ? `${bas} ${vikt}` : bas;
+        extra[i] = bas.length;
       }
       index.hay = hay;
       index.nameEnd = nameEnd;
+      extraStart = extra;
     })
     .catch(() => {
       failed = true;
@@ -1041,7 +1090,15 @@ function scan(toks: string[], key: string): number {
     /* Hela frågan i följd. Ett ord till söks bara när raden redan bär alla
        orden, alltså på en bråkdel av registret, och svaret på "är det här
        samma sak som förut?" är värt det: se poängen i `gather`. */
-    hitPhrase[i] = !enda && mask === alla && h.indexOf(key) >= 0 ? 1 : 0;
+    /* Bara INOM namn, adress och ort, se `extraStart`. Första förekomsten
+       räcker: extratexten ligger sist, så en fras som börjar före gränsen och
+       slutar efter den kan inte ha en senare förekomst som ryms före. */
+    let fras = 0;
+    if (!enda && mask === alla) {
+      const p = h.indexOf(key);
+      fras = p >= 0 && p + key.length <= extraStart[i] ? 1 : 0;
+    }
+    hitPhrase[i] = fras;
     if (mask === alla) full++;
   }
   return full;

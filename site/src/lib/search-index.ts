@@ -28,9 +28,43 @@ import { matkategori, matkategorierFor, type MatkategoriId } from './matkategori
 import { areaOf, linkedAreas } from './omraden';
 import { avregistrerad } from './registrering';
 import { utsnitt } from './kartrutor';
+import { packaUppHallplats } from './narhet';
+import { foldKey } from './sokforslag';
 
 /** Ordningen speglar VERDICTS. -1 = ingen bedömning. */
 const VERDICTS = ['clean', 'minor', 'major'];
+
+/**
+ * HÅLLPLATSEN SOM PLATSORD, bara för de hållplatser som tio ställen delar.
+ *
+ * "pizzeria odenplan" gav noll hela träffar, och det var inte kategorin som
+ * saknades. Ordet "odenplan" stod i 16 namn, i noll adresser och i inget
+ * område: Odenplan är en hållplats och inte en RegSO-stadsdel, alltså fanns
+ * det inte i registret annat än när ett ställe råkade heta så. Det enda i huset
+ * som bär ordet är närmaste hållplats ur lib/narhet.ts, och där har 67 ställen i
+ * Stockholm Odenplan, alla inom 150 meter.
+ *
+ * TRÖSKELN ÄR ETT BUDGETBESLUT. Uppskattat ur datafilerna 2026-09-14 och
+ * sedan mätt i ett riktigt bygge:
+ *
+ *     alla namngivna hållplatser    1 805 namn, 12 557 rader, cirka +36 kB gzip
+ *     minst tio rader, se nedan       285 namn,  6 024 rader,     +13 880 byte gzip
+ *
+ * Det nedre talet är registret före och efter, 405 539 mot 419 419 byte med
+ * gzip på standardnivå, och rått 1 218 074 mot 1 247 304.
+ *
+ * Det mesta av de 36 kB är numret per rad, och det betalas mest av hållplatser
+ * som ett eller två ställen har: ett gathörn med en busskur. Ingen skriver
+ * "pizzeria Kantorsgatan" och menar hållplatsen. Namnen som många ställen
+ * delar är de som fungerar som platsnamn i vardagen, Odenplan, Stureplan,
+ * Medborgarplatsen. Registret laddas av varje besökare som skriver i
+ * sökrutan, och tjugotvå kilobyte för gathörnen är inte värda det.
+ *
+ * Talet räknas på alla rader med hållplatsen, men raden BÄR bara ordet när det
+ * inte redan står i namnet eller adressen. "Hemköp Odenplan" behöver det inte,
+ * och att upprepa det kostade 2 577 nummer i onödan.
+ */
+const HALLPLATS_MIN = 10;
 
 /**
  * VARDAGSORDEN FÖR EN MATKATEGORI, bara som söktext.
@@ -147,7 +181,37 @@ function build(): string {
    * 2 544 byte mer gzippat. Platserna utelämnas därför när de är tomma, och
    * klienten läser dem med `?? 0`. Hela tilläggets kostnad står i docs/63.
    */
-  const rows = alla.map((e) => {
+  /*
+   * HÅLLPLATSERNA SOM EN LISTA NAMN, numrerad efter hur många rader som bär dem.
+   *
+   * Vanligast först, så att de namn som står på flest rader får de kortaste
+   * numren. Det är samma knep som gör kategorikombinationerna billiga, och här
+   * är det värt mer: numret skrivs på tusentals rader och talet 1 är ett tecken
+   * där talet 245 är tre. Se HALLPLATS_MIN för tröskeln och vad den sparar.
+   *
+   * Namnet packas upp med `packaUppHallplats`, alltså samma läsning som
+   * verksamhetssidans "Ta mig hit". En hållplats som den sidan inte kan läsa
+   * helt kan inte heller bli ett sökord.
+   *
+   * MINST TRE BOKSTÄVER, och regeln är mätt och inte tyckt. Första bygget med
+   * hållplatserna gav listan "A, B, Hötorget, Slussen": A, B, C och D är
+   * lägesbokstäver vid resecentrum i Jönköping, Linköping, Karlstad och
+   * Oskarshamn. De stod på 255 rader, B ensamt på 233, och fick de två
+   * kortaste numren i hela listan för ett ord som ingen söker på och som inte
+   * säger var stället ligger.
+   */
+  const hallplatsNamn = alla.map((e) => packaUppHallplats(e.stop)?.namn ?? null);
+  const hallplatsAntal = new Map<string, number>();
+  for (const namn of hallplatsNamn) {
+    if (namn) hallplatsAntal.set(namn, (hallplatsAntal.get(namn) ?? 0) + 1);
+  }
+  const hallplatser = [...hallplatsAntal]
+    .filter(([namn, antal]) => antal >= HALLPLATS_MIN && namn.replace(/[^\p{L}]/gu, '').length >= 3)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'))
+    .map(([namn]) => namn);
+  const hallplatsNr = new Map(hallplatser.map((namn, i) => [namn, i + 1]));
+
+  const rows = alla.map((e, i) => {
     const rad: Array<string | number> = [
       e.name,
       e.address ?? '',
@@ -157,8 +221,22 @@ function build(): string {
     ];
     const mk = kombination(matkategorierFor(e));
     const omrade = omradeNr.get(`${e.municipality.slug}/${areaOf(e)?.slug}`) ?? 0;
-    if (mk || omrade) rad.push(mk);
-    if (omrade) rad.push(omrade);
+    /* Hållplatsen bara när den inte redan står i namnet eller adressen, se
+       HALLPLATS_MIN. Jämfört i söknyckelns vikta form, alltså samma form som
+       sökningen själv matchar i, så att "Sankt Eriksplan" och "S:t Eriksplan"
+       inte räknas som två olika ord här men som ett ord där. */
+    const namn = hallplatsNamn[i];
+    const hallplats =
+      namn && hallplatsNr.has(namn) &&
+      !foldKey(`${e.name} ${e.address ?? ''}`).includes(foldKey(namn))
+        ? hallplatsNr.get(namn)!
+        : 0;
+    /* Platserna fylls ut med nollor bara så långt som den sista icke-tomma
+       kräver. En rad med hållplats men utan kategori och område skriver alltså
+       `,0,0,7`, och en rad utan något av de tre skriver ingenting. */
+    if (mk || omrade || hallplats) rad.push(mk);
+    if (omrade || hallplats) rad.push(omrade);
+    if (hallplats) rad.push(hallplats);
     return rad;
   });
 
@@ -228,6 +306,16 @@ function build(): string {
      * det är en kategori, precis som den hittar ett gatunamn.
      */
     mk: mkText,
+    /*
+     * HÅLLPLATSNAMNEN, vanligast först. Raden bär platsen plus ett, som
+     * områdena, så att noll kan betyda "ingen".
+     *
+     * Klienten fogar namnet till radens söktext EFTER kategorin och området,
+     * se `extraText` i lib/sokforslag.ts. Det gör ordet sökbart men aldrig till
+     * ett namnord, så att "max odenplan" fortsätter att ge Max Odenplan först
+     * och inte en MAX som bara ligger nära hållplatsen.
+     */
+    h: hallplatser,
     v: VERDICTS,
     e: rows,
     /* Radnummer mot `e`, se `avreg` ovan. Nyckeln får inte heta `n`: den är
