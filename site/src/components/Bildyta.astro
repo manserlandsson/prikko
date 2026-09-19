@@ -306,11 +306,27 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
 const BREDDER = [300, 400, 600, 900];
 const SIZES = '(max-width: 640px) 45vw, 300px';
 
+/*
+ * BESKÄRNINGEN ÄR DÄR VINSTEN LIGGER, inte bredden.
+ *
+ * Kortets ruta är 3:2 liggande, och `object-fit: cover` beskär mitt i. Med
+ * bara en bredd skickas hela bildens höjd och kortet kastar resten. Uppmätt
+ * 2026-09-19 på en stående bild, 1024 x 1536, som är startsidans tyngsta:
+ * width=400 ger 140 192 byte, medan width=400 med height=267 och cover ger
+ * 12 474. Elva gånger mindre. På en liggande bild är skillnaden 39 628 mot
+ * 17 596.
+ *
+ * Bilden på skärmen blir densamma, eftersom servern nu beskär mitt i precis
+ * som webbläsaren annars gör.
+ */
+const HOJD = (b: number) => Math.round((b * 2) / 3);
+
 function bildkallor(url: string): { src: string; srcset: string | undefined } {
   const OBJEKT = '/storage/v1/object/public/';
   if (!url.includes(OBJEKT)) return { src: url, srcset: undefined };
   const bas = url.replace(OBJEKT, '/storage/v1/render/image/public/');
-  const variant = (b: number) => `${bas}?width=${b}&quality=70`;
+  const variant = (b: number) =>
+    `${bas}?width=${b}&height=${HOJD(b)}&resize=cover&quality=70`;
   return {
     src: variant(600),
     srcset: BREDDER.map((b) => `${variant(b)} ${b}w`).join(', '),
