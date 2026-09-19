@@ -271,8 +271,35 @@ async function kollaKommunernasFarskhet() {
   if (farska > 0) ok(`${farska} av ${kommuner.length} kommuner hämtade de senaste ${FARSKHET_VARNING_DAGAR} dagarna`);
 }
 
+/**
+ * Förkopplingen till lagringens värd.
+ *
+ * Taggen renderas bara när PUBLIC_SUPABASE_URL finns vid bygget, och den är
+ * TOM i repots egen .env medan Cloudflare har den satt. En inställning som
+ * försvinner tar alltså bort raden utan att något går sönder, och sidan blir
+ * några hundra millisekunder långsammare på mobil utan att någon märker det.
+ * Därför kontrolleras den utifrån, på den publicerade sidan.
+ */
+async function kollaForkoppling() {
+  console.log('\nFörkopplingen till bildernas värd');
+  const svar = await hamta('/');
+  if (svar.status !== 200) return trasigt(`startsidan svarar ${svar.status}`);
+  const html = await svar.text();
+  const tagg = /<link[^>]*rel="preconnect"[^>]*>/i.exec(html);
+  if (!tagg) {
+    return trasigt('startsidan saknar preconnect till lagringen. Är PUBLIC_SUPABASE_URL satt i bygget?');
+  }
+  const vard = /href="(https:\/\/[^"]+)"/i.exec(tagg[0])?.[1];
+  const bilder = /https:\/\/[a-z0-9]+\.supabase\.co/i.exec(html)?.[0];
+  if (vard && bilder && !vard.startsWith(bilder)) {
+    return trasigt(`förkopplingen pekar på ${vard} men bilderna hämtas från ${bilder}`);
+  }
+  ok(`förkopplar till ${vard}`);
+}
+
 await kollaFarskhet();
 await kollaKommunernasFarskhet();
+await kollaForkoppling();
 await kollaKartarkivet();
 await kollaSitemapen();
 await kollaRobots();

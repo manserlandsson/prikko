@@ -137,6 +137,17 @@ const fullTitle =
 const structuredData = jsonLd
   ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd])
   : [];
+
+/* Lagringens ursprung, utan sökväg, för förkopplingen i huvudet. */
+const LAGRING = (() => {
+  const url = import.meta.env.PUBLIC_SUPABASE_URL;
+  try {
+    return url ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+})();
+
 ---
 
 <!doctype html>
@@ -183,6 +194,22 @@ const structuredData = jsonLd
 
     {dataUpdated && <meta name="last-modified" content={dataUpdated} />}
 
+    {/* FÖRKOPPLING TILL LAGRINGENS VÄRD.
+
+        Startsidan hänvisar 405 gånger till samma främmande värd: kortbilderna,
+        och på andra sidor även kontot, bevakningen och omdömena. Utan den här
+        raden betalar den första hämtningen därifrån en DNS-uppslagning, ett
+        TCP-handslag och ett TLS-handslag innan en enda byte kommer tillbaka.
+
+        Mätt 2026-09-19 med Lighthouse på mobil: startsidan låg på LCP 3,1
+        sekunder efter att bilderna krympts från 4 619 till 1 626 kB, och
+        Googles gräns för bra är 2,5. Det som återstod var inte vikten utan
+        uppkopplingen.
+
+        Adressen kommer ur samma inställning som allt annat som talar med
+        lagringen, så den kan inte glida isär med den. Saknas inställningen
+        skrivs ingen rad alls. */}
+    {LAGRING && <link rel="preconnect" href={LAGRING} crossorigin />}
     <meta name="theme-color" content={SITE.themeColor} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
