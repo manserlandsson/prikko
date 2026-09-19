@@ -281,6 +281,46 @@ const motivFormer = motivForSlug(
  */
 const ANDEL = 0.42;
 const sida = storlek === 'rad' ? px * ANDEL : undefined;
+/**
+ * KORTBILDEN I DEN BREDD DEN FAKTISKT VISAS.
+ *
+ * Uppmätt på prikko.se 2026-09-19: kortets bildyta är 164 x 109 CSS-pixlar på
+ * en telefon i 375 och 297 x 198 i den bredare vyn. Med dubbeltät skärm krävs
+ * alltså 327 respektive 593 fysiska pixlar. Sidan skickade 1024 pixlar och
+ * 120 kB till båda, och en av bilderna vägde 442 kB. Startsidan landade på
+ * 4 619 kB och LCP 8,8 sekunder på mobil, medan verksamhetssidan låg på 277 kB
+ * och 3,0 sekunder. Felet var alltså avgränsat till kortens bilder.
+ *
+ * Märkningen var redan rätt: mått, decoding, lat laddning på alla utom de fem
+ * över vikkanten, och fetchpriority på dem. Det som saknades var mindre filer.
+ *
+ * Supabase egen bildomvandling gör dem utan att en enda ny fil läggs i
+ * utgåvan, vilket är skälet att den vägen valdes framför att skapa varianter i
+ * pipelinen. Uppmätt på samma bild: 300 px ger 29,0 kB, 400 ger 39,6, 600 ger
+ * 56,5 och 900 ger 82,7, mot originalets 120,5 kB. Alla svar är WebP.
+ *
+ * Bara vår egen lagring skrivs om. Samtliga 371 bilder i beståndet ligger där
+ * i dag, men en adress till en främmande värd ska passera orörd i stället för
+ * att bli en trasig länk.
+ */
+const BREDDER = [300, 400, 600, 900];
+const SIZES = '(max-width: 640px) 45vw, 300px';
+
+function bildkallor(url: string): { src: string; srcset: string | undefined } {
+  const OBJEKT = '/storage/v1/object/public/';
+  if (!url.includes(OBJEKT)) return { src: url, srcset: undefined };
+  const bas = url.replace(OBJEKT, '/storage/v1/render/image/public/');
+  const variant = (b: number) => `${bas}?width=${b}&quality=70`;
+  return {
+    src: variant(600),
+    srcset: BREDDER.map((b) => `${variant(b)} ${b}w`).join(', '),
+  };
+}
+
+
+/* En gång per bild, inte en gång per attribut. */
+const kallor = visaFoto ? bildkallor(foto!.url) : null;
+
 ---
 
 <span class:list={['bildyta', storlek === 'rad' && 'rad']} style={storlek === 'rad' ? `--sida: ${px}px` : undefined}>
@@ -324,7 +364,9 @@ const sida = storlek === 'rad' ? px * ANDEL : undefined;
 
   {visaFoto && (
     <img
-      src={foto!.url}
+      src={kallor!.src}
+      srcset={kallor!.srcset}
+      sizes={kallor!.srcset ? SIZES : undefined}
       alt=""
       width="600"
       height="400"
