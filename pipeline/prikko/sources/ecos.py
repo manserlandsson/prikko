@@ -25,6 +25,25 @@ mätt faktum. Den kostar ingenting att bära, och skillnaden mot att skriva om
 en `norrkoping.py` i efterhand är att kommunspecifika antaganden aldrig hinner
 växa in i koden.
 
+## Varför tabellen har en enda rad, mätt 2026-09-28
+
+Hypotesen ovan går inte att pröva, och det är nu uppmätt och inte antaget.
+`docs/65_tackningsjakten.md` sökte efter det här formatets fingeravtryck hos
+samtliga 290 kommuner: 1 507 531 lästa sitemap-URL:er, 6 306 genomgångna
+ArcGIS-tjänster och 18 888 HTTP-anrop. Den hittade Norrköpings `ecos.xml` på
+nytt, utan att ha fått adressen i förväg, vilket säger att metoden fungerar.
+Den hittade **noll** andra Ecos-utdrag. Ett andra bestånd att läsa finns alltså
+inte publikt i dag, och tabellen nedan förblir en rad tills ett brevsvar ger
+oss det andra.
+
+Samma jakt gav däremot kartan över verksamhetssystem sina första tre rader,
+lästa ur publika fingeravtryck och inte ur en leverantörslista: Norrköping
+(filen heter `ecos.xml`), Linköping (ArcGIS-mappen heter `ecos`) och
+Smedjebacken (lagret heter `Livsmedelsanläggningar (Ecos)`). Smedjebackens
+lager bär 88 anläggningar och **ingen bedömning**, så det är inget att läsa
+här, men det är ett belägg för vilket system kommunen kör. Talet 68 som
+cirkulerat är fortfarande inte mätt av oss och används inte här.
+
 ## Vad utdraget innehåller, räknat över hela filen 2026-08-31
 
     4 451  kontrolltillfällen, alla med exakt samma åtta fält
