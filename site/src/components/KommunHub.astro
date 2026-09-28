@@ -339,6 +339,24 @@ const next = currentPage < lastPage ? pageUrl(base, currentPage + 1, SITE.url) :
               se Registerfilter.astro. */}
           {formatNumber(total)} verksamheter, bedömda efter sin senaste
           hygienkontroll. Sök i hela {city} eller bläddra i bokstavsordning.
+          {/* DATUMSTÄMPELN, tillagd 2026-09-28.
+
+              Sidans tyngsta tal, fördelningen i "{city} i siffror", står
+              omkring 200 tecken längre ned. Hämtdatumet stod bara i rutan
+              "Om uppgifterna" vid tecken 10 179 av 13 983, alltså i sista
+              fjärdedelen. Den som läser, eller hämtar, bara toppen fick
+              talen utan deras datum.
+
+              Att det faktiskt går fel är mätt: Bings utdrag för /orebro/
+              bar 2026-09-28 talen 1 232 och 312 medan sidan samma dag sa
+              1 233 och 318. Ett citat blir gammalt utan att synas när
+              datumet inte står intill talet.
+
+              Detta är en färskhetsstämpel och INTE proveniens, jämför
+              docs/18 "Skillnaden mot en datumstämpel". Raden får därför
+              aldrig växa till att också säga varifrån uppgifterna kommer;
+              det står i "Om uppgifterna" och på /kallor/. */}
+          {source?.fetchedAt && <> Uppdaterat {formatDate(source.fetchedAt.slice(0, 10))}.</>}
         </>
       ) : (
         <>

@@ -124,9 +124,15 @@ const kommunSvar =
     <h2>Två grupper</h2>
     <p>{scope}</p>
 
+    {/* Kommunantalet i bildtexten räknas, det skrevs förut. Texten löd
+        "73 840 kontroller i tolv kommuner" medan stycket om kommungolvet två
+        skärmar längre ned sa "7 av 13 kommuner faller bort", alltså sa sidan
+        emot sig själv. Talet till vänster var levande och ordet till höger
+        fruset vid tolv kommuner, och den trettonde kom till. Uppmätt
+        2026-09-28, se docs/66 §4.5. */}
     <Diagram
       titel="Andel kontroller med minst en anmärkning"
-      underlag={`${formatNumber(r.total.chainTotal + r.total.soloTotal)} kontroller i tolv kommuner.`}
+      underlag={`${formatNumber(r.total.chainTotal + r.total.soloTotal)} kontroller i ${r.municipalities} kommuner.`}
     >
       <Stapel
         label="Andel kontroller med minst en anmärkning, kedjeställen mot fristående"

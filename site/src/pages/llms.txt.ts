@@ -110,6 +110,15 @@ export const GET: APIRoute = () => {
 
   lines.push('## Innehållsförteckning');
   lines.push('');
+  /* Konventionens andra halva står först i listan, eftersom den är den enda
+     raden här som svarar på en fråga i stället för att peka vidare till en
+     sida som gör det. Se llms-full.txt.ts för vad den bär och vad den inte
+     bär. */
+  lines.push(
+    `- [${SITE.url}/llms-full.txt](${SITE.url}/llms-full.txt), samma karta plus innehållet: ` +
+      `vad bedömningen betyder, varje kommun i tal med sitt hämtdatum, och varje rapports ` +
+      `och artikels egen slutsats`,
+  );
   lines.push(
     `- [Webbkarta](${absolute('webbkarta')}), samma förteckning som den här filen fast läsbar`,
   );

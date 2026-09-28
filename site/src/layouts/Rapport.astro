@@ -70,9 +70,33 @@ const jsonLd = {
   dataUpdated={updated}
 >
   <article class="container read page">
+    {/* FÄRSKHETSSTÄMPELN STÅR HÄR OCH INTE I FOTEN, sedan 2026-09-28.
+
+        Rapportens tal räknas om vid varje bygge, publiceringsdatumet gör det
+        inte. Förut stod bara publiceringsdatumet här uppe och färskheten fem
+        tusen tecken längre ned i foten. Den som läste de första styckena såg
+        alltså ett datum intill talen, och det var fel datum: på
+        /rapporter/kedja-eller-fristaende/ stod "12 augusti 2026" bredvid
+        73 840 kontroller som hämtades den 22 september, alltså 41 dagar fel.
+
+        Det spelar roll för hur vi citeras. Mätt 2026-09-28 bar Bings utdrag
+        för /orebro/ talen 1 232 och 312 medan sidan sa 1 233 och 318. Ett tal
+        utan sitt rätta datum blir gammalt utan att det syns, och det enda
+        botemedlet är att datumet står där talet står.
+
+        Båda datumen behövs och betyder olika saker: det första är textens,
+        det andra talens. De skrivs bara ut var för sig när de skiljer sig åt,
+        eftersom två identiska datum efter varandra bara är brus.
+
+        Detta är en datumstämpel och inte proveniens, se docs/18
+        "Skillnaden mot en datumstämpel". Foten får därför fortfarande INTE
+        växa tillbaka till en källrad om varifrån talen kommer. */}
     <header>
       <p class="eyebrow">
         <a href={path('rapporter')}>Rapport</a> · {formatDate(r.published)}
+        {updated.slice(0, 10) !== r.published && (
+          <> · talen uppdaterade {formatDate(updated)}</>
+        )}
       </p>
       <h1>{r.title}</h1>
       <p class="lede text-secondary">{r.lede}</p>
@@ -80,17 +104,18 @@ const jsonLd = {
 
     <slot />
 
-    {/* En datumstämpel och tre länkar. Foten var först tre stycken med egen
-        rubrik, sedan en källrad om underlagets storlek och varifrån talen
-        räknats. Båda är strukna: en rapport ska inte redogöra för sina
-        källor mitt på sidan, den ska länka till metodiken och källsidan som
-        gör det. Datumet är ingen proveniens utan en färskhetsstämpel på
-        talen ovanför, samma sak som Ratsit och allabolag sätter på sina
-        uppgifter. Se docs/18_sprakregler.md. */}
+    {/* Tre länkar. Foten var först tre stycken med egen rubrik, sedan en
+        källrad om underlagets storlek och varifrån talen räknats. Båda är
+        strukna: en rapport ska inte redogöra för sina källor mitt på sidan,
+        den ska länka till metodiken och källsidan som gör det. Se
+        docs/18_sprakregler.md.
+
+        Datumstämpeln stod här och står nu i ingressraden, se skälet där. Den
+        ska inte sättas tillbaka på båda ställena: samma datum två gånger på
+        en sida är den upprepning docs/18 förbjuder. */}
     <section class="method">
       <p>
-        Uppdaterad {formatDate(updated)}.
-        {' '}<a href={path('metodik')}>Så räknas bedömningen fram</a> ·
+        <a href={path('metodik')}>Så räknas bedömningen fram</a> ·
         {' '}<a href={path('kallor')}>Källor och uppdatering</a> ·
         {' '}<a href={path('ratta')}>Rätta en uppgift</a>
       </p>

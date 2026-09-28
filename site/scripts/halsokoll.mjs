@@ -354,6 +354,222 @@ await kollaSitemapen();
 await kollaRobots();
 await kollaVerksamhetssida();
 await kollaDubbletten();
+await kollaCiterbarheten();
 
 console.log(`\n${fel} fel, ${varning} varningar.`);
 process.exit(fel > 0 ? 1 : 0);
+
+/* ── 9. Citerbarheten ───────────────────────────────────────────────────────
+ *
+ * Funktionen står EFTER process.exit och det är avsiktligt. Raden ovan är den
+ * enda som lagts till i den befintliga körordningen, så två grenar som båda
+ * utökar den här filen kan slås ihop utan att röra varandras kod.
+ * Funktionsdeklarationer hissas, så anropet ovan når den här ändå.
+ *
+ * ── VARFÖR DEN FINNS ──────────────────────────────────────────────────────
+ *
+ * `44_marknaden_2026.md` §6.6 mätte att svarsmotorerna citerar aggregatorn
+ * och inte myndigheten, och att positionen är ledig på svenska. Mätningen i
+ * `docs/66_citerbarheten.md` visar att vi redan står där: 2026-09-28 var
+ * prikko.se träff ett i Bing på "hygienkontroll Riche Stockholm" med vår egen
+ * svarsmening som utdrag.
+ *
+ * Den positionen kan gå förlorad utan att något ser trasigt ut. Sajten svarar
+ * 200 hela tiden, precis som när nattjobbet stod stilla i tretton dagar utan
+ * att någon märkte det. Samma sort av fel, samma sort av kontroll.
+ *
+ * ── VAD SOM KONTROLLERAS, OCH INGET ANNAT ─────────────────────────────────
+ *
+ * Fyra saker, och var och en motsvarar ett fel som antingen redan inträffat
+ * eller som ingen skulle upptäcka:
+ *
+ *   1. Robotarna som hämtar för att SVARA får 200. De släpps in i dag, men
+ *      omkopplaren sitter i Cloudflares gränssnitt och inte i repot, se
+ *      huvudet i src/pages/robots.txt.ts. En felklickad hanterad regel
+ *      stänger ute dem tyst, och robots.txt i repot ser oförändrad ut.
+ *      Träningsrobotarna (GPTBot, ClaudeBot, CCBot, Google-Extended) ska
+ *      vara blockerade och kontrolleras därför INTE här. Deras block är ett
+ *      beslut, inte ett fel.
+ *
+ *   2. /llms-full.txt svarar 200 och bär sitt innehåll. Den svarade 404 fram
+ *      till 2026-09-28, alltså är det dokumenterat att den kan saknas. En
+ *      tom eller trasig fil är värre än ingen: den ser ut att svara.
+ *
+ *   3. Bedömningen står i början av verksamhetssidans <main>. Det är den enda
+ *      uppgift hela kanalen vilar på. Skjuts den ned av ett nytt block får en
+ *      modell som klipper tidigt fel svar utan att någon sida går sönder.
+ *
+ *   4. Ingen sida skriver ut "null", "undefined" eller "NaN" i löptext. Det
+ *      är inte en teoretisk kontroll: 2026-09-28 stod "från null och framåt"
+ *      på 1 558 verksamhetssidor, i en mening som en modell mycket väl kan
+ *      citera. Felet fanns i veckor och ingen kontroll kunde se det.
+ *
+ * Det som INTE kontrolleras: om vi faktiskt blir citerade. Det går inte att
+ * mäta utifrån utan konto hos svarsmotorerna, och en kontroll som inte kan
+ * fälla är en kontroll som ljuger. Den mätningen görs för hand, och hur den
+ * går till står i docs/66.
+ */
+
+/** HTML till ren text, ungefär som en modell utan renderare läser sidan. */
+function rentext(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function kollaCiterbarheten() {
+  console.log('\nCiterbarheten');
+
+  /* Konstanterna står INNE i funktionen och inte ovanför den. Hela blocket
+     ligger efter process.exit för att inte röra körordningen, och där hissas
+     bara funktionsdeklarationer. Ett `const` på filnivå här hade legat i sin
+     temporala dödzon när anropet ovan sker, vilket det också gjorde en gång:
+     "Cannot access 'SVARSROBOTAR' before initialization". */
+
+  /** Robotar som hämtar för att SVARA. Strängarna är leverantörernas egna, se
+   *  robots.txt.ts. Träningsrobotarna står medvetet inte här: att de är
+   *  blockerade är ett beslut och inte ett fel. */
+  const SVARSROBOTAR = [
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)',
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot',
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)',
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-SearchBot/1.0; +Claude-SearchBot@anthropic.com)',
+    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)',
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+  ];
+
+  /** Sidan som provas. Samma som kollaVerksamhetssida använder, så att ett fel
+   *  går att jämföra mellan de två kontrollerna. */
+  const PROVSIDA = '/stockholm/ag/';
+
+  /**
+   * Hur långt in i <main> bedömningen får stå, i tecken.
+   *
+   * Uppmätt 2026-09-28 över fem sidor valda för långa namn och adresser:
+   * /stockholm/ag/ 100, /stockholm/riche/ 102, Örebros längsta namn 156.
+   * Taket 200 ger 44 tecken marginal mot det värsta uppmätta fallet, alltså
+   * ungefär ett tillagt ord i rubrikraden. Ett nytt BLOCK före bedömningen
+   * fäller, ett längre verksamhetsnamn gör det inte, och det är precis den
+   * skillnad kontrollen ska göra.
+   */
+  const BEDOMNING_SENAST = 200;
+
+  /** Samma sak för den självbärande svarsmeningen, alltså den rad ett citat
+   *  faktiskt lyfter. Uppmätt samma dag: 307 till 517 tecken in. */
+  const SVARSMENING_SENAST = 700;
+
+  /* ── 1. Släpps de robotar in som hämtar för att svara? ─────────────────── */
+  let stangda = 0;
+  for (const ua of SVARSROBOTAR) {
+    const namn = /compatible;?\s*([A-Za-z-]+)\//.exec(ua)?.[1] ?? ua.slice(0, 20);
+    const svar = await hamta(PROVSIDA, { headers: { 'User-Agent': ua } });
+    if (svar.status !== 200) {
+      stangda += 1;
+      trasigt(
+        `${namn} får ${svar.status} på ${PROVSIDA}. Robotar som hämtar för att SVARA ska ` +
+          'släppas in. Omkopplaren sitter i Cloudflare, AI Crawl Control.',
+      );
+    }
+  }
+  if (stangda === 0) ok(`${SVARSROBOTAR.length} svarsrobotar får 200 på ${PROVSIDA}`);
+
+  /* ── 2. Bär llms-full.txt sitt innehåll? ───────────────────────────────────
+   *
+   * Tre stickprov och inte en storlekskontroll. En fil kan bli 25 kB av bara
+   * rubriker. Det som ska finnas är citeringsvillkoren, kodlistan och
+   * kommunernas tal, alltså de tre avsnitt filen byggdes för, plus att talen
+   * bär sina hämtdatum. */
+  const full = await hamta('/llms-full.txt');
+  if (full.status !== 200) {
+    trasigt(`llms-full.txt svarar ${full.status}. Filen svarade 404 fram till 2026-09-28.`);
+  } else {
+    const text = await full.text();
+    const saknas = [
+      '## Så ska en uppgift härifrån citeras',
+      '## Vad orden betyder',
+      '## Kommunerna i tal',
+    ].filter((rubrik) => !text.includes(rubrik));
+    if (saknas.length > 0) {
+      trasigt(`llms-full.txt saknar ${saknas.join(', ')}`);
+    } else if (!/Uppgifterna hämtade \d/.test(text)) {
+      trasigt('llms-full.txt saknar hämtdatum vid kommunernas tal');
+    } else {
+      ok(`llms-full.txt svarar 200, ${(text.length / 1024).toFixed(0)} kB, alla avsnitt på plats`);
+    }
+  }
+
+  /* ── 3. Står bedömningen först i <main>? ──────────────────────────────── */
+  const sida = await hamta(PROVSIDA);
+  if (sida.status !== 200) {
+    trasigt(`${PROVSIDA} svarar ${sida.status}`);
+  } else {
+    const main = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(await sida.text())?.[1];
+    if (!main) {
+      trasigt(`${PROVSIDA} har ingen <main>, så innehållet går inte att skilja från ramen`);
+    } else {
+      const t = rentext(main);
+      const ord =
+        /(Inga anmärkningar|Brister som kvarstår|Brister|Ingen aktuell kontroll|Ingen kontroll)/.exec(
+          t,
+        );
+      if (!ord) {
+        trasigt(`${PROVSIDA} säger ingenting om bedömningen i <main>`);
+      } else if (ord.index > BEDOMNING_SENAST) {
+        trasigt(
+          `bedömningen står ${ord.index} tecken in i <main> på ${PROVSIDA}, taket är ` +
+            `${BEDOMNING_SENAST}. En modell som klipper tidigt får fel svar.`,
+        );
+      } else {
+        ok(`bedömningen står ${ord.index} tecken in i <main>`);
+      }
+
+      /* Svarsmeningen ska bära både verksamheten och ett datum. Ett citat utan
+         datum blir gammalt utan att synas, och det är hela skälet till att
+         meningen är skriven självbärande. Se VERDICT i lib/site.ts. */
+      const mening = /[^.!?]*hygienkontroll[^.!?]*\./i.exec(t.slice(0, 1500));
+      if (!mening) {
+        trasigt(`${PROVSIDA} saknar en självbärande mening om bedömningen i början av <main>`);
+      } else if (mening.index > SVARSMENING_SENAST) {
+        trasigt(
+          `svarsmeningen står ${mening.index} tecken in i <main>, taket är ${SVARSMENING_SENAST}`,
+        );
+      } else if (!/\d{1,2} [a-zåäö]+ \d{4}/.test(mening[0])) {
+        trasigt(`svarsmeningen på ${PROVSIDA} bär inget datum: "${mening[0].trim()}"`);
+      } else {
+        ok(`svarsmeningen står ${mening.index} tecken in i <main> och bär sitt datum`);
+      }
+    }
+  }
+
+  /* ── 4. Läcker ett tomt värde ut i löptexten? ──────────────────────────────
+   *
+   * Provet tas på en sida där ett fält SAKNAS, eftersom det är där en
+   * oskyddad interpolation syns. Verksamheten utan publicerad kontroll är
+   * fallet som faktiskt gick sönder. Sökningen gäller ren text ur <main> och
+   * inte HTML, så attribut, klassnamn och JSON-LD inte ger falskt utslag. */
+  for (const sokvag of ['/orebro/natu-sushi-kitchen-nyregistrerad/', PROVSIDA, '/orebro/']) {
+    const svar = await hamta(sokvag);
+    if (svar.status !== 200) {
+      varna(`${sokvag} svarar ${svar.status}, kunde inte provas för tomma värden`);
+      continue;
+    }
+    const main = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(await svar.text())?.[1] ?? '';
+    const t = rentext(main);
+    const tom = /\b(null|undefined|NaN)\b/.exec(t);
+    if (tom) {
+      trasigt(
+        `${sokvag} skriver ut "${tom[1]}" i löptext: ` +
+          `"...${t.slice(Math.max(0, tom.index - 60), tom.index + 60)}..."`,
+      );
+    } else {
+      ok(`${sokvag} skriver inget tomt värde i löptext`);
+    }
+  }
+}

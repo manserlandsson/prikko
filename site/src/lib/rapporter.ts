@@ -152,7 +152,11 @@ export const REPORTS: Report[] = [
     slug: 'tre-sorters-kontroll',
     title: 'Tre sorters kontroll, tre olika utfall',
     description:
-      'En planerad kontroll, ett återbesök och en kontroll efter en anmälan hittar inte lika ofta något. Prikko har räknat andelen med anmärkning för varje kontrolltyp i tolv kommuner.',
+      /* Ingen kommunräkning i beskrivningen. Fältet är en fast sträng medan
+         beståndet växer, och "tolv kommuner" var redan fel vid tretton. Det
+         är dessutom just den här texten Bing visar som utdrag, se docs/66
+         §2.3, alltså det tal som citeras utan att någon kan se dess ålder. */
+      'En planerad kontroll, ett återbesök och en kontroll efter en anmälan hittar inte lika ofta något. Prikko har räknat andelen med anmärkning för varje kontrolltyp i hela beståndet.',
     lede:
       'Kommunen kommer av tre olika skäl: enligt plan, för att följa upp en tidigare brist, eller för att någon hört av sig. Utfallet skiljer sig åt mellan de tre.',
     summary:
@@ -907,11 +911,16 @@ export function trendReport(): TrendReport {
  * Minsta antal kedjekontroller för att en kommun eller en kategori ska få
  * stå i jämförelsen.
  *
- * Sex av tolv kommuner har färre än tjugofem kedjekontroller i beståndet, och
- * en andel räknad på dem säger ingenting om kedjor. Samma golv används på
- * kategorierna, vilket stryker skolor och omsorg: tre kontroller i hela
- * beståndet gäller ett kedjeställe i den kategorin, och skolkök drivs inte
- * i kedja.
+ * Sju av tretton kommuner har färre än hundra kedjekontroller i beståndet,
+ * uppmätt 2026-09-28 på den byggda sidan, och en andel räknad på dem säger
+ * ingenting om kedjor. Samma golv används på kategorierna, vilket stryker
+ * skolor och omsorg: två kontroller i hela beståndet gäller ett kedjeställe
+ * i den kategorin, och skolkök drivs inte i kedja.
+ *
+ * Talen i stycket ovan sa "sex av tolv" och "tjugofem" medan konstanten stod
+ * på hundra och beståndet på tretton kommuner. Golvet höjdes utan att texten
+ * följde med, och en kommentar som beskriver fel tröskel för den konstant
+ * den sitter på är värre än ingen. Ändras talet nedan ska stycket räknas om.
  */
 export const MIN_CHAIN_INSPECTIONS = 100;
 

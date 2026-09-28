@@ -550,8 +550,15 @@ const facts = [
   /* "Kontroller" och inte "Kontroller på adressen". Att räkningen gäller
      adressen och inte företaget står i tipset, som är hela skälet till att
      tipset finns. */
+  /* Årtalet är villkorat, och det är en felrättning. `stats.oldestYear` är
+     null när adressen saknar publicerad kontroll, och mallen skrev då ut
+     "från null och framåt" i klartext. Uppmätt 2026-09-28: 1 558 av 17 130
+     verksamhetssidor, till exempel /orebro/natu-sushi-kitchen-nyregistrerad/.
+     Raden nedanför i samma rutnät ("Äldsta kontroll") hade redan sitt
+     `?? '–'`; den här hade inte. Utan årtal säger meningen samma sak, bara
+     utan att påstå ett intervall som inte finns. */
   { label: 'Kontroller', value: String(stats.total),
-    tip: `Samtliga kontroller kommunen publicerar på den här adressen, från ${stats.oldestYear} och framåt. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller. Kommunen registrerar kontrollerna på lokalen och inte på företaget.` },
+    tip: `Samtliga kontroller kommunen publicerar på den här adressen${stats.oldestYear ? `, från ${stats.oldestYear} och framåt` : ''}. Har lokalen bytt verksamhet ingår även den tidigare verksamhetens kontroller. Kommunen registrerar kontrollerna på lokalen och inte på företaget.` },
   { label: 'Utan anmärkning', value: String(stats.cleanShare), unit: '%',
     color: stats.cleanShare >= 80 ? 'var(--verdict-clean)' : undefined,
     tip: 'Andel av kontrollerna på adressen där inga avvikelser noterades.' },

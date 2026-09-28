@@ -222,8 +222,13 @@ const storstNot =
       </li>
     </ul>
     <p class="callout">
-      Serien väger ihop tolv kommuner som publicerar olika mycket, och den kan
-      därför inte brytas ner på enskilda kommuner och jämföras.
+      {/* Räknat och inte skrivet, av samma skäl som i
+          kedja-eller-fristaende.astro: "tolv" var sant när stycket skrevs och
+          blev fel när den trettonde kommunen kom till. r.municipalities
+          används redan högre upp på sidan. */}
+      Serien väger ihop {r.municipalities} kommuner som publicerar olika
+      mycket, och den kan därför inte brytas ner på enskilda kommuner och
+      jämföras.
       {' '}<a href={`${path('metodik')}#jamfor`}>Varför kommuner inte går att
       jämföra med varandra står på metodiksidan</a>.
     </p>
