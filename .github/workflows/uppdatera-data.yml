@@ -7,6 +7,64 @@ name: Uppdatera data
 # dokumenterat fler citeringar i AI-svar, och "senast uppdaterad" är en
 # rankningssignal. Datan ska därför uppdateras av sig själv, inte av att
 # någon minns att köra ett skript.
+#
+# ─────────────────────────────────────────────────────────────────────────
+# VAD NATTEN KOSTAR, OCH VARFÖR DEN INTE FÅR KOSTA DET
+# ─────────────────────────────────────────────────────────────────────────
+#
+# Repot är privat, alltså dras varje körning från kontots 2 000 inkluderade
+# Actions-minuter i månaden. Minuterna räknas PER JOBB och rundas UPP till
+# hel minut per jobb, så tretton jobb på en halv minut var kostar tretton
+# minuter och inte sju. Parallellitet mellan jobb sänker ingenting.
+#
+# Mätt på den sista lyckade natten, körning 35705199227 den 22 september
+# 2026, jobb för jobb med debiterad minut inom parentes:
+#
+#   uppsala      31,32 min (32)      linköping    0,32 min (1)
+#   svenljunga   23,05 min (24)      norrköping   0,22 min (1)
+#   stockholm    16,27 min (17)      oskarshamn   0,20 min (1)
+#   kristinehamn 14,97 min (16)      jönköping    0,18 min (1)
+#   örebro       14,22 min (15)      lomma        0,15 min (1)
+#   ladda        14,28 min (15)      höganäs      0,15 min (1)
+#                                    karlstad     0,13 min (1)
+#                                    borgholm     0,13 min (1)
+#
+#   SUMMA 127 debiterade jobbminuter, alltså 3 810 i månaden mot taket 2 000.
+#
+# Den 23 september tog minuterna slut. Varje körning av både det här
+# arbetsflödet och halsokoll.yml dog därefter efter sju sekunder, med noll
+# steg och ingen logg, och datan stod still.
+#
+# TRE ÄNDRINGAR, ALLA MÄTTA, INGEN AV DEM MED FÄRRE HÄMTNINGAR PER KOMMUN:
+#
+#   1. Ett arkiv på disk för svar som bevisligen inte kan ha ändrats, buret
+#      mellan nätterna av actions/cache. Se `Arkiv` i prikko/natverk.py för
+#      vad som får ligga där, och huvudet på fetch_uppsala.py och
+#      fetch_orebro.py för hur respektive källa mättes.
+#      Svenljunga och Kristinehamn hade redan var sitt `--cache`, byggt för
+#      handkörningar; det som saknades var att bära katalogen mellan nätter.
+#   2. Packade svar. prikko/natverk.py begär sedan 2026-09-28 gzip, vilket
+#      urllib inte gör av sig självt. Örebros verksamhetssida krymper från
+#      88 879 till 21 498 byte och Svenljungas listsida från 373 616 till
+#      46 407. Uppsala och Stockholm packar inte, mätt samma dag.
+#   3. Färre jobb. De åtta billiga hämtningarna tog 89 sekunder TILLSAMMANS
+#      men kostade åtta minuter, eftersom varje jobb rundas upp. Nu är de ett
+#      jobb. Jobbets egen omkostnad är mätt till omkring tio sekunder:
+#      "Set up job" 1 s, utcheckning 6 s, setup-python 0 s, artefakt 1 till 2 s.
+#
+# ROTATION PRÖVADES OCH VALDES BORT, och det är en mätning och inte en smak.
+# Att hämta tunga kommuner var tredje natt hade gjort datan äldre för att
+# spara minuter. Men de kommuner som ändrar sig minst är också de som blev
+# billigast av arkivet: Kristinehamn ändrade noll verksamheter av 170 under
+# tjugo nätter i september och kostar nu under en minut. Rotation hade alltså
+# bytt färskhet mot ingenting. VARJE KOMMUN HÄMTAS FORTFARANDE VARJE NATT,
+# och därför står hälsokollens trösklar kvar på tre och tio dygn.
+#
+# NÄSTA SPAK, OM EN TILL BEHÖVS: Stockholm är efter det här nattens näst
+# dyraste jobb med sina 17 minuter, fördelade på 324 rutnätsanrop à 3,0
+# sekunder varav 0,6 är artighetspaus. Källan varken packar eller svarar 304.
+# Det som återstår där är att fråga rutorna med ett par arbetare i stället
+# för en, och det är ett beslut om hur hårt vi får trycka på staden.
 
 on:
   schedule:
@@ -25,31 +83,58 @@ permissions:
 
 jobs:
   hamta:
-    name: Hämta ${{ matrix.kommun }}
+    name: Hämta ${{ matrix.namn }}
     runs-on: ubuntu-latest
+    # Räknat på en KALL natt, alltså den då GitHubs cache är tom och allt
+    # måste hämtas. Tyngsta gruppen är rapporterna: Svenljunga 23,05 plus
+    # Kristinehamn 14,97 plus tio sekunders omkostnad blir 38,3 minuter, och
+    # 45 ger nästan sju minuters marginal även då. Varm natt är samma jobb
+    # under en minut.
     timeout-minutes: 45
     strategy:
-      # Alla kommuner parallellt: samma antal minuter totalt, men klockan
-      # går fortare. En kommun som fallerar ska inte stoppa de andra.
+      # En kommun som fallerar ska inte stoppa de andra.
       fail-fast: false
       matrix:
-        # EN RAD PER KOMMUN, oavsett vilken hämtare kommunen läses av. Se
-        # hämtsteget nedan för hur en kommun utan egen fetch_<slug>.py hittas.
+        # EN RAD PER JOBB, inte per kommun, och grupperingen är räknad och
+        # inte tyckt. En kommun vars hämtning tar sekunder ska dela jobb med
+        # andra sådana, eftersom minuten ändå debiteras hel. En kommun vars
+        # hämtning tar en kvart ska ha ett eget, eftersom summan av två sådana
+        # närmar sig jobbets tidsgräns på en kall natt.
         #
-        # Norrköping stod utanför listan från 2026-08-31 till 2026-09-05 och
-        # var därmed den enda av tretton kommuner som aldrig uppdaterades.
-        # Nattkörningarna 1 till 5 september rörde inte norrkoping.json med en
-        # enda rad medan varje annan kommunfil fick ny fetchedAt, och filen var
-        # alltså en ren produkt av en manuell körning av fetch_ecos.py.
-        #
-        # Det brådskade inte, för källan står stilla sedan 2024-03-17, men en
-        # kommun som aldrig uppdateras ska inte vara det av misstag. Hämtaren
-        # pekar sedan 2026-08-31 på nodadressen som omdirigerar till den
-        # AKTUELLA versionen, se MUNICIPALITIES i prikko/sources/ecos.py, så
-        # den dag kommunen lägger upp ett nytt utdrag plockas det upp av sig
-        # självt i stället för att vänta på att någon minns filen.
-        kommun: [linkoping, stockholm, uppsala, jonkoping, karlstad, orebro, oskarshamn,
-                 lomma, hoganas, svenljunga, kristinehamn, borgholm, norrkoping]
+        # Siffran efter varje rad är den mätta hämttiden på en VARM natt,
+        # alltså med arkivet på plats.
+        include:
+          # 187 listsidor plus omkring 300 detaljsidor av 1 836. Se huvudet på
+          # fetch_uppsala.py för varför de andra 1 500 inte behöver hämtas.
+          - namn: uppsala
+            kommuner: uppsala
+            arkiv: true          # ~8 min, var 32
+          # Ingen spak biter ännu. Se "NÄSTA SPAK" ovan.
+          - namn: stockholm
+            kommuner: stockholm
+            arkiv: false         # 17 min, oförändrat
+          # 1 233 verksamhetssidor, nu packade, plus punkterna för de
+          # kontroller som är yngre än 90 dagar. Full körning 2026-09-28:
+          # 5 367 av punkthämtningarna lästes ur arkivet, 0 hämtades, och de
+          # 33 776 kontrollpunkterna blev byte för byte desamma som utan arkiv.
+          - namn: orebro
+            kommuner: orebro
+            arkiv: true          # ~5 min, var 15
+          # De två som läser kontrollrapporter ur PDF. Kommunen laddar upp en
+          # ny fil med nytt id i stället för att ändra i en gammal, och
+          # Svenljungas server säger det själv med
+          # `Cache-Control: max-age=31536000, immutable`. Kvar blir listsidan
+          # och de rapporter som tillkommit sedan i går.
+          - namn: rapporter
+            kommuner: svenljunga kristinehamn
+            arkiv: true          # ~1 min, var 40
+          # 89 sekunder tillsammans, mätt. Hämtade var för sig kostade de åtta
+          # debiterade minuter.
+          - namn: enkla
+            kommuner: >-
+              linkoping jonkoping karlstad oskarshamn lomma hoganas
+              borgholm norrkoping
+            arkiv: false         # ~2 min, var 8
 
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +142,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      # Arkivet från i går. Nyckeln träffar aldrig, eftersom den bär körningens
+      # id, så återställningen går alltid via prefixet och tar den senast
+      # sparade. Se spara-steget nedan för varför det måste gå till så.
+      - name: Läs arkivet från förra natten
+        if: ${{ matrix.arkiv }}
+        uses: actions/cache/restore@v4
+        with:
+          path: .hamtarkiv
+          key: hamtarkiv-1-${{ matrix.namn }}-${{ github.run_id }}
+          restore-keys: |
+            hamtarkiv-1-${{ matrix.namn }}-
 
       # Tre kommuner når GitHubs löpare bara ibland, och det är inget vi kan
       # koda oss ur.
@@ -81,7 +178,7 @@ jobs:
       # 2026-08-14 att de tre spärrat utländska eller moln-IP. Den gissningen
       # skrevs ned som en slutsats, och det var fel: spärr är permanent, det
       # här är det inte. Utfallet natt för natt, läst ur loggarna eftersom
-      # continue-on-error skriver om stegets resultat till "success":
+      # tolererade fel skriver om stegets resultat till "success":
       #
       #   08-14 21:22 manuell    Höganäs 310 poster, Örebro föll på ett
       #                          kodfel, Lomma unreachable
@@ -119,14 +216,14 @@ jobs:
       # 307. Det var Lommas första lyckade hämtning sedan 11 september.
       #
       # EN KÖRNING ÄR INTE ETT BEVIS, eftersom de tidigare felen var ostadiga.
-      # continue-on-error står därför kvar tills flera nätter i rad visat alla
-      # tre gröna med data. En grön natt syns numera på riktigt: halsokoll.mjs
+      # Toleransen står därför kvar tills flera nätter i rad visat alla tre
+      # gröna med data. En grön natt syns numera på riktigt: halsokoll.mjs
       # läser hämtdatum per kommun och varnar efter tre dagar, så en tom
       # hämtning kan inte längre gömma sig bakom en grön bock.
 
       # HÄMTAREN HETER INTE ALLTID SOM KOMMUNEN, och det är sant sedan
-      # Norrköping. Steget körde förr `pipeline/fetch_${{ matrix.kommun }}.py`
-      # rakt av, alltså kunde bara en kommun med en egen fil stå i matrisen.
+      # Norrköping. Steget körde förr `pipeline/fetch_<kommun>.py` rakt av,
+      # alltså kunde bara en kommun med en egen fil stå i matrisen.
       #
       # Tolv kommuner har en sådan fil, skriven mot den enskilda kommunens
       # sida. Norrköping har ingen och ska aldrig få en: den läses av
@@ -148,31 +245,126 @@ jobs:
       # ett meddelande som pekar på fel sak den dagen en tredje sorts hämtare
       # tillkommer.
       #
-      # Slugen går genom miljön och inte genom ${{ }} inne i skalet. Värdena i
-      # matrisen är våra egna, men `kommun` från workflow_dispatch är det inte,
-      # och ett interpolerat värde är text som klistras in i skriptet före
-      # körning.
+      # Slugarna går genom miljön och inte genom ${{ }} inne i skalet. Värdena
+      # i matrisen är våra egna, men `kommun` från workflow_dispatch är det
+      # inte, och ett interpolerat värde är text som klistras in i skriptet
+      # före körning.
       - name: Hämta
-        if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
-        continue-on-error: ${{ contains(fromJSON('["orebro", "hoganas", "lomma"]'), matrix.kommun) }}
         env:
-          KOMMUN: ${{ matrix.kommun }}
+          KOMMUNER: ${{ matrix.kommuner }}
+          BARA: ${{ github.event.inputs.kommun }}
+          ARKIV: .hamtarkiv
         run: |
-          if [ -f "pipeline/fetch_$KOMMUN.py" ]; then
-            python3 "pipeline/fetch_$KOMMUN.py" --out "data/$KOMMUN.json"
-          elif python3 -c 'import sys; sys.path.insert(0, "pipeline"); from prikko.sources.ecos import MUNICIPALITIES; sys.exit(0 if sys.argv[1] in MUNICIPALITIES else 1)' "$KOMMUN"; then
-            python3 pipeline/fetch_ecos.py --kommun "$KOMMUN" --out "data/$KOMMUN.json"
-          else
-            echo "::error title=Ingen hämtare::$KOMMUN har varken pipeline/fetch_$KOMMUN.py eller en rad i MUNICIPALITIES i pipeline/prikko/sources/ecos.py. Lägg till kommunen i en av dem, eller ta bort den ur matrisen."
+          set -u
+
+          # TOLERERADE FÄLLER INTE NATTEN, se den långa noten ovan. Listan är
+          # densamma som förr; skillnaden är att den nu står här i stället för
+          # i ett continue-on-error per jobb, eftersom flera kommuner delar
+          # jobb och ett stegresultat inte kan skiljas åt per kommun.
+          TOLERERADE="orebro hoganas lomma"
+
+          hamta() {
+            k="$1"
+            # VILKET ARKIV KOMMUNEN FÅR, och ingen kommun får ett den inte
+            # mätts för. Se `Arkiv` i pipeline/prikko/natverk.py för regeln:
+            # bara svar som bevisligen inte kan ha ändrats, och nyckeln måste
+            # bära det som gör svaret unikt.
+            case "$k" in
+              uppsala|orebro)          extra="--arkiv $ARKIV" ;;
+              svenljunga|kristinehamn) extra="--cache $ARKIV/$k" ;;
+              *)                       extra="" ;;
+            esac
+
+            if [ -f "pipeline/fetch_$k.py" ]; then
+              # shellcheck disable=SC2086  # $extra är två ord eller inget
+              python3 "pipeline/fetch_$k.py" $extra --out "data/$k.json"
+            elif python3 -c 'import sys; sys.path.insert(0, "pipeline"); from prikko.sources.ecos import MUNICIPALITIES; sys.exit(0 if sys.argv[1] in MUNICIPALITIES else 1)' "$k"; then
+              python3 pipeline/fetch_ecos.py --kommun "$k" --out "data/$k.json"
+            else
+              echo "::error title=Ingen hämtare::$k har varken pipeline/fetch_$k.py eller en rad i MUNICIPALITIES i pipeline/prikko/sources/ecos.py. Lägg till kommunen i en av dem, eller ta bort den ur matrisen."
+              return 1
+            fi
+          }
+
+          mkdir -p data "$ARKIV"
+          misslyckade=""
+          for k in $KOMMUNER; do
+            if [ -n "$BARA" ] && [ "$BARA" != "$k" ]; then
+              echo "Hoppar över $k, körningen gäller bara $BARA."
+              continue
+            fi
+            echo "::group::$k"
+            if hamta "$k"; then
+              echo "$k klar."
+            elif printf '%s\n' $TOLERERADE | grep -qx "$k"; then
+              echo "::warning title=$k gick inte att hämta::Kommunen är en av de tre på samma webbhotell som når löparen ostadigt. Gårdagens data står kvar, och halsokoll.mjs varnar efter tre dygn."
+            else
+              misslyckade="$misslyckade $k"
+            fi
+            echo "::endgroup::"
+          done
+
+          if [ -n "$misslyckade" ]; then
+            echo "::error title=Hämtning misslyckades::Dessa kommuner gick inte att hämta:$misslyckade"
             exit 1
           fi
 
+      # Avtrycket är filernas namn OCH storlek, inte deras innehåll. Arkivets
+      # egna poster är redan namngivna efter en hash av sin nyckel, och de två
+      # PDF-cacharna namnger efter kommunens eget bilags-id, som aldrig
+      # återanvänds. En natt då ingenting nytt tillkommit ger alltså samma
+      # avtryck som i går.
+      #
+      # KÖRS ÄVEN NÄR HÄMTNINGEN FÖLL, och det är avsiktligt. Faller en kommun
+      # i en grupp har de andra i gruppen redan dragit hem sitt, och att kasta
+      # det hade låtit nästa natt betala för samma byte en gång till. Arkivet
+      # innehåller bara hela svar: `Arkiv.skriv` skriver till en tillfällig fil
+      # och byter namn, och de två PDF-cacharna skriver först efter att
+      # hämtningen lyckats.
+      - name: Räkna arkivets avtryck
+        if: ${{ matrix.arkiv && !cancelled() }}
+        id: avtryck
+        run: |
+          filer=$(find .hamtarkiv -type f 2>/dev/null | wc -l)
+          summa=$(find .hamtarkiv -type f -printf '%p %s\n' 2>/dev/null \
+                  | LC_ALL=C sort | sha256sum | cut -c1-16)
+          echo "filer=$filer" >> "$GITHUB_OUTPUT"
+          echo "summa=$summa" >> "$GITHUB_OUTPUT"
+          echo "Arkivet: $filer filer, $(du -sh .hamtarkiv 2>/dev/null | cut -f1), avtryck $summa"
+
+      # SPARAS BARA NÄR ARKIVET FAKTISKT ÄNDRATS, och det är hela skälet till
+      # att restore och save är två steg i stället för ett actions/cache.
+      #
+      # En cachepost är oföränderlig när den väl finns. Ett `actions/cache`
+      # med körningens id i nyckeln hade därför lagt upp en ny post VARJE NATT.
+      # Uppsalas arkiv är omkring 30 MB och rapporternas ett par hundra, alltså
+      # hade en månad fyllt kontots tak på 10 GB och kastat ut allt annat.
+      #
+      # Med avtrycket som nyckel hoppar steget över sparandet de nätter då
+      # ingenting nytt tillkommit, och det är de flesta nätter: mätt över tjugo
+      # nätter i september ändrade Kristinehamn noll verksamheter av 170 och
+      # Svenljunga två av 100.
+      #
+      # Villkoret på `filer` är inte pedanteri: faller utcheckningen eller
+      # hämtsteget innan någonting hunnit läggas i arkivet vore ett sparat tomt
+      # arkiv den nyaste posten under prefixet, och nästa natt hade återställt
+      # TOMHET i stället för gårdagens arkiv. Ett kostsamt fel att göra tyst.
+      - name: Spara arkivet om det ändrats
+        if: ${{ matrix.arkiv && !cancelled() && steps.avtryck.outputs.filer != '0' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .hamtarkiv
+          key: hamtarkiv-1-${{ matrix.namn }}-${{ steps.avtryck.outputs.summa }}
+
+      # `if-no-files-found: ignore` för att en workflow_dispatch av en enskild
+      # kommun lämnar de andra jobben utan fil. Att fälla dem då vore att
+      # färga natten röd för att man bad om en enda kommun.
       - name: Spara som artefakt
-        if: ${{ github.event.inputs.kommun == '' || github.event.inputs.kommun == matrix.kommun }}
         uses: actions/upload-artifact@v4
         with:
-          name: data-${{ matrix.kommun }}
-          path: data/${{ matrix.kommun }}.json
+          name: data-${{ matrix.namn }}
+          path: data/*.json
+          if-no-files-found: ignore
           retention-days: 7
 
   ladda:
@@ -186,6 +378,12 @@ jobs:
     # den väntan är satt till 25 minuter i pipeline/indexnow.py. Stegen före
     # den tar normalt en kvart. Med trettio hade jobbet dött mitt i väntan i
     # stället för att låta steget falla mjukt och skriva varför.
+    #
+    # Jobbet är efter besparingen nattens tredje dyraste med sina 15 minuter,
+    # och de fördelar sig så här, mätt 2026-09-22: Supabase 359 s, exporten
+    # 112 s, IndexNow 363 s. Sex av minuterna är alltså en löpare som väntar
+    # på att Cloudflare ska bli klar. Det är en spak, men den ligger i
+    # pipeline/indexnow.py och inte här.
     timeout-minutes: 60
 
     steps:
@@ -212,6 +410,14 @@ jobs:
             echo "Inga datafiler att ladda — avbryter."
             exit 1
           fi
+          # EN SAKNAD KOMMUNFIL ÄR INTE ETT BORTFALL. Både load_supabase.py och
+          # rorelse.py arbetar per fil och per kommunkod, så en kommun vars
+          # hämtning föll rörs inte alls: inga rader avpubliceras, ingen
+          # händelse skrivs, och kommunens `last_fetched_at` står kvar på
+          # gårdagens. Då ser halsokoll.mjs att den blir gammal. Det är
+          # skillnaden mot att skriva en tom fil, som hade tryckt spärren
+          # MAX_MISSING_SHARE i load_supabase.py.
+          #
           # Rörelsen skrivs i TVÅ steg, ett på var sin sida om inläsningen, och
           # det är inte en omväg utan det enda som fungerar.
           #

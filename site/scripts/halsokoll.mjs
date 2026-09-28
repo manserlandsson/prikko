@@ -37,6 +37,47 @@ const UA = 'PrikkoHalsokoll/1.0 (+https://prikko.se)';
 const FARSKHET_VARNING_DAGAR = 3;
 const FARSKHET_FEL_DAGAR = 10;
 
+/**
+ * Hur ofta varje kommun HÄMTAS, i dygn, och därmed hur gammal den får bli.
+ *
+ * Talen ovan gäller helheten. Den här tabellen gäller en enskild kommun, och
+ * den finns för att trösklarna ska FÖLJA MED av sig själva om vi någon gång
+ * hämtar en kommun mer sällan. Annars byter en sådan ändring ett larm mot
+ * tystnad: kommunen blir per definition äldre än tre dygn, varningen skriker
+ * varje natt, någon höjer tröskeln för hand, och då varnar ingenting alls den
+ * dag kommunen verkligen fryser.
+ *
+ * I DAG HÄMTAS ALLA TRETTON KOMMUNER VARJE NATT, alltså är undantagen tomma
+ * och trösklarna exakt de gamla tre och tio. Kostnadssänkningen i september
+ * 2026 togs med ett arkiv och med färre jobb, inte med rotation, just för att
+ * slippa den avvägningen. Se .github/workflows/uppdatera-data.yml.
+ *
+ * Läggs en kommun in här ska den också stå i matrisen i nattjobbet med samma
+ * takt. De två talen är samma beslut på två ställen, och det ena utan det
+ * andra är ett fel.
+ */
+const HAMTTAKT_DYGN = 1;
+const HAMTTAKT_UNDANTAG = {
+  // 'exempelkommun': 3,
+};
+
+/** Trösklar för en enskild kommun, härledda ur dess hämttakt.
+ *
+ *  Samma regel som de tre och tio ovan, bara utskriven: VARNING när två
+ *  hämtningar i rad kan ha missats plus ett dygns slack för en sen start,
+ *  FEL när det gått tre missade hämtningar plus en vecka och det därför inte
+ *  kan vara annat än trasigt.
+ *
+ *  Med takten ett dygn ger regeln 1·2+1 = 3 och 1·3+7 = 10, alltså exakt de
+ *  tal som gällde innan tabellen fanns. Med takten tre dygn ger den 7 och 16. */
+function troskar(slug) {
+  const takt = HAMTTAKT_UNDANTAG[slug] ?? HAMTTAKT_DYGN;
+  return {
+    varning: takt * 2 + (FARSKHET_VARNING_DAGAR - 2),
+    fel: takt * 3 + (FARSKHET_FEL_DAGAR - 3),
+  };
+}
+
 let fel = 0;
 let varning = 0;
 
@@ -239,8 +280,8 @@ await kollaStartsidan();
  * continue-on-error i nattjobbet och en tom hämtning därför färgas grön.
  *
  * Här läses i stället `source.fetchedAt` per kommun ur det publika
- * indexet, alltså samma uppgift som varje kommunsida redovisar. Samma
- * trösklar som för helheten: varning vid tre dagar, fel vid tio.
+ * indexet, alltså samma uppgift som varje kommunsida redovisar. Trösklarna
+ * kommer ur `troskar()`, som räknar dem ur kommunens egen hämttakt.
  */
 async function kollaKommunernasFarskhet() {
   console.log('\nDatans ålder per kommun');
@@ -260,15 +301,23 @@ async function kollaKommunernasFarskhet() {
     }
     const dagar = Math.floor((nu - Date.parse(hamtad)) / 86400000);
     const datum = hamtad.slice(0, 10);
-    if (dagar >= FARSKHET_FEL_DAGAR) {
-      trasigt(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}`);
-    } else if (dagar >= FARSKHET_VARNING_DAGAR) {
-      varna(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}`);
+    const t = troskar(k.slug);
+    /* Takten står i meddelandet när den inte är varje natt, så att den som
+       läser larmet ser vilken tröskel som gällde och varför. */
+    const takt = HAMTTAKT_UNDANTAG[k.slug]
+      ? ` (hämtas var ${HAMTTAKT_UNDANTAG[k.slug]}:e dygn, tröskel ${t.fel})`
+      : '';
+    if (dagar >= t.fel) {
+      trasigt(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}${takt}`);
+    } else if (dagar >= t.varning) {
+      varna(`${k.city} har inte hämtats på ${dagar} dagar, senast ${datum}${takt}`);
     } else {
       farska++;
     }
   }
-  if (farska > 0) ok(`${farska} av ${kommuner.length} kommuner hämtade de senaste ${FARSKHET_VARNING_DAGAR} dagarna`);
+  if (farska > 0) {
+    ok(`${farska} av ${kommuner.length} kommuner hämtade inom sin egen takt`);
+  }
 }
 
 /**

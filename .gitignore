@@ -75,6 +75,11 @@ brand/mapillary-logos/
 # Diagnostik ur typklassningen, skrivs om vid varje körning.
 pipeline/unknown_types.json
 
+# Hämtarnas arkiv över svar som inte kan ha ändrats. Skrivs av `--arkiv` och
+# `--cache`, bärs mellan nätterna av actions/cache och inte av repot, och är
+# några hundra megabyte. Se `Arkiv` i pipeline/prikko/natverk.py.
+.hamtarkiv/
+
 # OS/editor
 .DS_Store
 Thumbs.db

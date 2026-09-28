@@ -6,10 +6,31 @@ historiken och ett per kontroll för punkterna — cirka 9 000 totalt.
 
     python3 pipeline/fetch_orebro.py --out site/src/data/orebro.json
 
+    --arkiv <katalog>   återanvänd punkterna för kontroller äldre än
+                        FARSKT_FONSTER_DAGAR, som inte kan ändras längre
+
 Kör snällt. Anropen görs med en handfull parallella arbetare i stället för
 alla på en gång, med paus mellan varje och tydlig user agent. Vi lever på att
 kommunerna fortsätter tycka om oss, och 9 000 anrop är tillräckligt mycket
 för att någon ska märka hur de kom in.
+
+## VAD ARKIVET TAR BORT UR NOTAN
+
+Jobbet kostade 15 av nattens 127 minuter i september 2026, fördelat på 1 233
+verksamhetssidor och 5 479 anrop om kontrollpunkter. Punkterna är det stora
+antalet, och de hör till kontroller som redan är avslutade och publicerade.
+
+Mätt i beståndet 2026-09-28: noll av 5 479 kontroller är yngre än 30 dagar,
+vilket är kommunens egen karenstid, 98 stycken är yngre än 90 dagar och
+5 381 är äldre. Arkivet tar alltså bort 98 procent av punktanropen, medan
+allt inom det färska fönstret hämtas varje natt.
+
+Verksamhetssidan hämtas ALLTID. Det är den som säger vilka kontroller som
+finns, och den svarar dessutom `Cache-Control: no-cache, no-store`. Däremot
+begär `prikko/natverk.py` sedan 2026-09-28 packade svar, och sidan krymper
+då från 88 879 till 21 498 byte, mätt på samma adress samma dag. Det är
+jobbets tyngsta post i byte räknat, och löparen står i Azure medan källan
+står i Sverige.
 """
 
 from __future__ import annotations
@@ -22,7 +43,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -45,12 +66,26 @@ from prikko.sources.orebro import (  # noqa: E402
     under_embargo,
 )
 from prikko.text import dedupe_slugs, slugify  # noqa: E402
-from prikko.natverk import oppna  # noqa: E402  kakburk, se modulen
+from prikko.natverk import Arkiv, anslut_arkiv, oppna  # noqa: E402  kakburk, se modulen
 
 USER_AGENT = "PrikkoBot/0.1 (+https://prikko.se; kontakt via prikko.se)"
 POLITE_DELAY_S = 0.15
 WORKERS = 5
 ATTEMPTS = 4
+
+#: En kontrolls punkter hämtas varje natt så länge kontrollen är yngre än så,
+#: och läses ur arkivet när den är äldre.
+#:
+#: Kommunen håller inne resultatet i 30 dagar medan verksamheten yttrar sig,
+#: se EMBARGO_DAYS i prikko/sources/orebro.py, alltså är en kontroll vi alls
+#: får läsa redan minst en månad gammal. Nittio dagar ger två månader till
+#: efter det, vilket räcker för en rättelse som kommunen gör i efterhand.
+#:
+#: Priset för varje extra dag är mätt: av 5 479 kontroller i beståndet
+#: 2026-09-28 är 0 yngre än 30 dagar, 65 yngre än 60, 98 yngre än 90 och 366
+#: yngre än 180. Fönstret kan alltså fördubblas för 268 anrop till, och en
+#: misstanke om att kommunen ändrar äldre punkter är värd den kostnaden.
+FARSKT_FONSTER_DAGAR = 90
 
 _progress = threading.Lock()
 _done = 0
@@ -94,7 +129,41 @@ def get(url: str, as_json: bool = True):
     return None
 
 
-def collect_facility(raw: dict, today: date) -> Optional[dict]:
+def punkter(entry, today: date, arkiv: Arkiv):
+    """Kontrollens punkter, ur arkivet när kontrollen är färdig för länge sedan.
+
+    Nyckeln är kontrollens eget id, som kommunen aldrig återanvänder.
+
+    Det som lagras är kommunens JSON-dokument OTOLKAT, bara omskrivet utan
+    blanktecken. Ingen rad har gått genom normalize_areas eller något annat i
+    prikko/sources/orebro.py, alltså slår en rättelse där igenom på hela
+    beståndet nästa natt och inte bara på det som råkade hämtas om.
+    """
+    gammal = entry.inspected_at <= today - timedelta(days=FARSKT_FONSTER_DAGAR)
+    nyckel = reports_url(entry.id) if gammal else None
+
+    if nyckel is not None:
+        lagrat = arkiv.las(nyckel)
+        if lagrat is not None:
+            return json.loads(lagrat.decode("utf-8"))
+
+    # get() med as_json behålls, och det är inte en detalj. ValueError står i
+    # dess omförsökslista, alltså gör ett avhugget svar att anropet görs om i
+    # stället för att fälla verksamheten. Skrivs arkivet från den RÅA kroppen
+    # i stället hamnar ett avhugget svar i arkivet och läses som giltigt varje
+    # natt därefter. Här är svaret redan tolkat när det skrivs, alltså kan
+    # bara ett helt svar lagras.
+    reports = get(reports_url(entry.id))
+    time.sleep(POLITE_DELAY_S)
+    if nyckel is not None:
+        arkiv.skriv(
+            nyckel,
+            json.dumps(reports, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        )
+    return reports
+
+
+def collect_facility(raw: dict, today: date, arkiv: Arkiv) -> Optional[dict]:
     """Hämta en verksamhets historik och alla dess kontrollpunkter."""
     global _done, _fel
 
@@ -114,8 +183,7 @@ def collect_facility(raw: dict, today: date) -> Optional[dict]:
                 # Kommunen håller inne resultatet i 30 dagar så verksamheten
                 # hinner yttra sig. Vi går inte förbi den spärren.
                 continue
-            reports = get(reports_url(entry.id))
-            time.sleep(POLITE_DELAY_S)
+            reports = punkter(entry, today, arkiv)
             normalized = normalize_inspection(entry, reports, establishment.id_national)
             if normalized is not None:
                 inspections.append(normalized)
@@ -139,7 +207,8 @@ def collect_facility(raw: dict, today: date) -> Optional[dict]:
                 print(f"  {_done} verksamheter", file=sys.stderr)
 
 
-def build(today: date, limit: Optional[int]) -> dict:
+def build(today: date, limit: Optional[int], arkiv_rot: Optional[Path]) -> dict:
+    arkiv = Arkiv(arkiv_rot, "orebro")
     facilities = get(SEARCH_URL)
     raw_count = len(facilities)
     facilities = merge_duplicates(facilities)
@@ -153,19 +222,27 @@ def build(today: date, limit: Optional[int]) -> dict:
 
     collected = []
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        futures = [pool.submit(collect_facility, f, today) for f in facilities]
+        futures = [pool.submit(collect_facility, f, today, arkiv) for f in facilities]
         for future in as_completed(futures):
             result = future.result()
             if result is not None:
                 collected.append(result)
 
     if _fel > MAX_FEL:
-        # Ingen fil. Hellre gårdagens fullständiga bestånd än i dag med hål i,
-        # se MAX_FEL.
+        # Ingen fil, OCH INGEN GALLRING. Hellre gårdagens fullständiga bestånd
+        # än i dag med hål i, se MAX_FEL. Gallrade vi här hade vi dessutom
+        # kastat arkivet för de verksamheter som aldrig hann hämtas, och nästa
+        # natt hade fått betala för det en gång till.
         raise SystemExit(
             f"Örebro: {_fel} verksamheter gick inte att hämta, mer än gränsen på "
             f"{MAX_FEL}. Ingen fil skrivs, så gårdagens data står kvar."
         )
+
+    arkiv.sammanfatta(f"punkthämtningar äldre än {FARSKT_FONSTER_DAGAR} dagar")
+    if not limit:
+        borttagna = arkiv.gallra()
+        if borttagna:
+            print(f"  arkivet gallrades på {borttagna} inaktuella svar", file=sys.stderr)
 
     skipped = len(facilities) - len(collected)
     records = []
@@ -276,9 +353,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--out", type=Path, required=True)
+    anslut_arkiv(parser)
     args = parser.parse_args()
 
-    data = build(date.today(), args.limit)
+    data = build(date.today(), args.limit, args.arkiv)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
