@@ -254,6 +254,16 @@ den exporterade filen bara visar omkring 14 försvunna per natt.
 Det här är ett eget fel i Uppsalas sidbrytning, det fanns före den här
 ändringen, och det ska lagas för sig.
 
+**EFTERSKRIFT samma dag: det är utrett och lagat, se docs/65.** Kort: kommunen
+säger själv 1 868 verksamheter och levererar 1 868 rader på 187 sidor, men
+bara omkring 1 760 av dem är olika, eftersom sidfönstren överlappar och
+svansen aldrig nås. Spärren löste ut elva av de tolv nätter Uppsala laddades,
+men den tolfte, den 21 september, kröp bortfallet under den och 82
+verksamheter avpublicerades utan att ha lagt ned. Hämtaren jämför nu mot
+kommunens eget antal och slår upp det som saknas på namn, och tre körningar i
+följd ger samma 1 868. Nattens nota för Uppsala stiger med omkring 105 anrop,
+alltså under två minuter av jobbets nio.
+
 Arkivens storlek, verkligt innehåll: Uppsala 21,8 MB på 1 753 filer, Örebro
 2,0 MB på 5 367 filer. De två PDF-cacharna ligger på ett par hundra megabyte
 tillsammans och växer bara med nytillkomna rapporter.

@@ -54,6 +54,75 @@ vad listan säger.
 
 Nattens nota blir då 187 listsidor plus omkring 300 detaljsidor i stället för
 2 023 anrop, alltså under en fjärdedel så många.
+
+## LISTAN ÄR INTE FULLSTÄNDIG NÄR MAN BARA BLÄDDRAR DEN
+
+Uppmätt 2026-09-28. Kommunen skriver själv ut antalet överst i listan,
+`<span class="count">1868</span>`, och sidorna levererar exakt 1 868 rader på
+187 sidor. Bara 1 781 av dem är olika. Två genomgångar i följd gav 1 781 och
+1 741 unika verksamheter, med 1 682 gemensamma.
+
+Orsaken står att läsa i raderna. Sida 1 slutar på ett id som sida 2 börjar
+med, sida 3 slutar på två id som dyker upp mitt på sida 4, och så vidare:
+FÖNSTREN ÖVERLAPPAR, alltså flyttar sig ordningen mellan två sidhämtningar.
+Listan sorteras på senaste kontrolldatum, och 641 av verksamheterna har ingen
+kontroll alls och därmed inget sorteringsvärde. Det är där det mesta går
+förlorat: 103 av tappet ligger på sidorna 121 och framåt, som är just de
+odaterade. Samma fel, fast i vår egen databas, står beskrivet i
+`prikko/sidbrytning.py`, och det är samma slutsats: en sidhämtning utan unik
+ordning lämnar tyst ifrån sig en ofullständig lista.
+
+Fyra vägar mättes samma dag mot kommunens gränssnitt:
+
+* FLER RADER PER SIDA. Sexton olika parameternamn prövades, från `pagesize`
+  till `itemsPerPage`. Alla ignoreras, sidan ger tio rader.
+* STABIL SORTERING. `sort`, `sortBy`, `orderBy`, `order` och `sortorder`
+  ignoreras likaså. Gränssnittet har ingen sorteringskontroll.
+* LÄSA OM TILLS TVÅ LÄSNINGAR STÄMMER. Konvergerar inte. Sex genomgångar i
+  följd av samma snitt gav exakt samma 118 av 129, gång på gång, eftersom
+  ordningen är densamma så länge man frågar likadant. Att bläddra förbi sista
+  sidan ger tomma svar: svansen går inte att nå.
+* DELA UPP LISTAN. Filtren `selectedTypes` (fyra värden) och `selectedResults`
+  (tre) är exakta uppdelningar, 1 868 i båda fallen och 1 868 i korstabellen.
+  Varje snitt är en egen fråga med en egen ordning och ett eget tapp, så
+  unionen växer: fyra typsnitt gav 548 av de 641 odaterade, plus hela snittet
+  627, plus fyra typpar 640. Unionen av allt som mättes den dagen blev exakt
+  1 868, alltså stämmer kommunens eget antal. Men det tog 385 anrop och stannade
+  på 1 864 på en enskild runda. Uppdelning ensam räcker alltså inte.
+
+## VAD SOM BÄR: KOMMUNENS EGET ANTAL SOM FACIT OCH EN NAMNKONTROLL
+
+Tre steg, och det dyra steget körs bara när de billigare inte räckt.
+
+1. BLÄDDRA LISTAN som förut, 187 sidor, och jämför med kommunens eget antal.
+   Stämmer de är listan bevisligen fullständig och resten hoppas över.
+2. NAMNKONTROLLERA DET SOM SAKNAS. En egen liggare i arkivet bär gårdagens
+   verifierade lista med namn och adress. Varje id i liggaren som inte kom med
+   i bläddringen slås upp med `?query=<namn>`, ett anrop. Trettio uppslag av
+   trettio hittade rätt verksamhet, tjugoåtta som enda träff, och två
+   skräpsökningar gav noll träffar. Listraden ur sökningen är dessutom byte
+   för byte samma rad som ur listan, kontrollerat på tolv verksamheter, så
+   arkivnyckeln håller.
+   Det som inte går att återfinna på vare sig namn eller adress är borta på
+   riktigt, och det är den enda väg en verksamhet får försvinna den här vägen.
+3. LÄS FLER SNITT om antalet fortfarande inte stämmer. Det som återstår då är
+   verksamheter som är nya sedan i går OCH föll bort i bläddringen, alltså
+   omkring en halv per natt. Snitten läses i tur och ordning tills antalet
+   stämmer, aldrig fler än de fyra i EXTRA_SNITT, och läsningen slutar så
+   snart ett snitt inte gav något nytt.
+
+En verksamhet som liggaren känner kan alltså inte längre försvinna av ett
+bläddringsfel, och en ny som missas kommer med nästa natt. Kvar står att
+kommunens antal kan ändras mitt under körningen; då stämmer det inte, och
+skriptet skriver ut hur många som saknas i stället för att jaga vidare.
+
+Försvinner `<span class="count">` ur markupen faller hämtningen med ett fel i
+stället för att lämna en halv lista. Antalet är facit för hela steget, och
+utan facit går det varken att räkna sidor eller att veta om listan blev hel.
+
+Notan: 187 sidor som förut, plus ett uppslag per saknat känt id. Mätt över tre
+körningar i följd 2026-09-28 blev det 187 plus 82, 187 plus 66 och 187 plus 70
+anrop, och alla tre gav samma 1 868 verksamheter.
 """
 
 from __future__ import annotations
@@ -64,6 +133,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date, datetime
 from pathlib import Path
@@ -102,6 +172,33 @@ GOLV_DAGAR = 7
 LISTRAD = re.compile(r'<li class="inspection[a-z-]*">.*?</li>', re.S)
 LISTRAD_ID = re.compile(r"Details\?id=(-?\d+)")
 
+#: Liggaren över gårdagens verifierade lista, id → namn och adress. Den ligger
+#: i arkivets rot och inte i `uppsala/`, eftersom `Arkiv.gallra()` tar bort
+#: allt i namnrymden som körningen inte rört. Den bärs mellan nätterna av
+#: samma actions/cache som arkivet.
+LIGGARE = "uppsala-lista.json"
+
+#: Så många sidor av en namnsökning läses innan uppslaget ges upp. Ett namn ger
+#: nästan alltid en enda träff, men en kedja delar namn med sina egna filialer.
+SOK_SIDOR = 3
+
+#: Extra snitt av listan, lästa i tur och ordning när bläddringen och
+#: namnkontrollen inte räckt fram till kommunens eget antal. Varje snitt är en
+#: EGEN fråga hos kommunen och därför en egen ordning med ett eget tapp, och
+#: det är just därför unionen växer. Ordningen är billigast först, mätt
+#: 2026-09-28: 65 sidor för de odaterade, 13 till 26 för typcellerna.
+EXTRA_SNITT = (
+    ("&selectedResults=2", "utan kontroll"),
+    ("&selectedTypes=1&selectedResults=2", "skola och omsorg, utan kontroll"),
+    ("&selectedTypes=3&selectedResults=2", "övriga, utan kontroll"),
+    ("&selectedTypes=0&selectedResults=2", "restaurang, utan kontroll"),
+)
+
+#: Fler snitt än de fyra läses aldrig, och läsningen slutar så snart ett snitt
+#: inte gav något nytt. Stämmer antalet ändå inte är de som saknas nya sedan
+#: i går, och då är det rätt att skriva ut hur många det är i stället för att
+#: fortsätta fråga kommunen.
+
 
 def get(url: str) -> str:
     request = urllib.request.Request(
@@ -122,34 +219,195 @@ def listrader(markup: str) -> dict:
     return ut
 
 
-def collect_list() -> tuple:
-    """Bläddra igenom hela listan. Returnerar (poster, listrad per id)."""
-    first = get(f"{BASE}/?ajax=1&query=&page=1")
-    total = total_hits(first) or 0
-    pages = max(1, -(-total // PER_PAGE))
-    print(f"Uppsala: {total} verksamheter på {pages} sidor", file=sys.stderr)
+def las_sida(sida: int, snitt: str = "", term: str = "") -> str:
+    return get(f"{BASE}/?ajax=1&query={urllib.parse.quote(term)}&page={sida}{snitt}")
 
-    records = parse_list_page(first)
-    rader = listrader(first)
-    for page in range(2, pages + 1):
-        try:
-            markup = get(f"{BASE}/?ajax=1&query=&page={page}")
-        except (urllib.error.URLError, TimeoutError) as exc:
-            print(f"  ! sida {page}: {exc}", file=sys.stderr)
-        else:
-            records += parse_list_page(markup)
-            rader.update(listrader(markup))
+
+def las_snitt(snitt: str) -> tuple:
+    """Bläddra igenom ett snitt av listan. Returnerar (kommunens antal, id → rad)."""
+    forsta = las_sida(1, snitt)
+    antal = total_hits(forsta) or 0
+    sidor = max(1, -(-antal // PER_PAGE))
+    rader = listrader(forsta)
+    for sida in range(2, sidor + 1):
         time.sleep(POLITE_DELAY_S)
-        if page % 25 == 0:
-            print(f"  sida {page}/{pages} · {len(records)} poster", file=sys.stderr)
+        try:
+            rader.update(listrader(las_sida(sida, snitt)))
+        except (urllib.error.URLError, TimeoutError) as exc:
+            print(f"  ! sida {sida}: {exc}", file=sys.stderr)
+        if sidor >= 50 and sida % 25 == 0:
+            print(f"  sida {sida}/{sidor} · {len(rader)} olika", file=sys.stderr)
+    return antal, rader, sidor
 
-    # Samma verksamhet kan dyka upp på flera sidor om listan ändras under tiden.
-    seen, unique = set(), []
-    for r in records:
-        if r["id"] not in seen:
-            seen.add(r["id"])
-            unique.append(r)
-    return unique, rader
+
+def sla_upp(term: str, sokt_id: str) -> tuple:
+    """Sök på ett namn eller en adress. Returnerar (id → listrad, uttömt).
+
+    Sökningen är ett eget snitt av listan, alltså en egen ordning, och den är
+    liten nog att rymmas på en sida i nästan alla fall: trettio uppslag gav 28
+    en enda träff och ingen mer än tre. Läsningen slutar så snart det sökta
+    id:t hittats, och efter SOK_SIDOR sidor oavsett.
+
+    `uttömt` säger om alla träffar hann läsas. Ett nej där betyder att ett
+    uteblivet id INTE är ett bevis för att verksamheten är borta, och då ska
+    den inte tas bort på den grunden.
+    """
+    funna: dict = {}
+    for sida in range(1, SOK_SIDOR + 1):
+        if sida > 1:
+            time.sleep(POLITE_DELAY_S)
+        try:
+            markup = las_sida(sida, "", term)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            print(f"  ! sökning {term!r}: {exc}", file=sys.stderr)
+            return funna, False
+        funna.update(listrader(markup))
+        if sokt_id in funna:
+            return funna, True
+        if (total_hits(markup) or 0) <= sida * PER_PAGE:
+            return funna, True
+    return funna, False
+
+
+def collect_list(liggare: dict) -> tuple:
+    """Hela listan, verifierad mot kommunens eget antal.
+
+    Returnerar (poster, listrad per id, kommunens antal). Se modulens
+    inledning för varför bläddringen ensam inte räcker och vad de tre stegen
+    gör.
+    """
+    antal, rader, sidor = las_snitt("")
+    if not antal:
+        # Antalet är facit för hela den här hämtningen, och utan det vet vi
+        # varken hur många sidor som finns eller om listan blev hel. Då är en
+        # tyst halv utlämning värre än ingen alls: gårdagens data står kvar.
+        raise SystemExit(
+            "Uppsala: hittade inget antal i listan (<span class=\"count\">). "
+            "Kommunen har lagt om markupen, och hämtningen kan inte "
+            "kontrollera sig själv förrän den lästs om."
+        )
+    print(
+        f"Uppsala: kommunen säger {antal} verksamheter, {sidor} sidor gav "
+        f"{len(rader)} olika",
+        file=sys.stderr,
+    )
+
+    # Steg 2. Varje känt id som bläddringen tappade slås upp på namn, och på
+    # adress om namnet ändrats. Det som inte går att återfinna är nedlagt.
+    aterfunna, nedlagda, uppslag = 0, 0, 0
+    if len(rader) < antal:
+        saknade = [i for i in liggare if i not in rader]
+        for ident in saknade:
+            post = liggare[ident]
+            uttomt = False
+            for term in (post.get("namn"), post.get("adress")):
+                if not term:
+                    continue
+                time.sleep(POLITE_DELAY_S)
+                uppslag += 1
+                funna, uttomt = sla_upp(term, ident)
+                rader.update(funna)
+                if ident in rader:
+                    break
+            if ident in rader:
+                aterfunna += 1
+            else:
+                nedlagda += 1
+                if not uttomt:
+                    # Sökningen hann inte igenom alla träffar, alltså vet vi
+                    # inte att verksamheten är borta. Den försvinner ändå ur
+                    # den här utlämningen, för utan en färsk listrad finns
+                    # ingen post att lämna. Namnet skrivs ut så att ett
+                    # mönster går att se i loggen.
+                    print(
+                        f"  ! {post.get('namn')!r} hittades inte, och sökningen "
+                        "hann inte igenom alla träffar",
+                        file=sys.stderr,
+                    )
+        if saknade:
+            print(
+                f"  namnkontroll: {len(saknade)} kända id saknades i bläddringen, "
+                f"{aterfunna} återfanns i listan och {nedlagda} finns inte kvar "
+                f"({uppslag} uppslag)",
+                file=sys.stderr,
+            )
+
+    # Steg 3. Det som återstår är nytt sedan i går OCH tappat i bläddringen.
+    for snitt, vad in EXTRA_SNITT:
+        if len(rader) >= antal:
+            break
+        time.sleep(POLITE_DELAY_S)
+        _, extra, extra_sidor = las_snitt(snitt)
+        nya = len(set(extra) - set(rader))
+        rader.update(extra)
+        print(
+            f"  snittet {vad}: {extra_sidor} sidor gav {nya} som bläddringen "
+            f"inte hade, {len(rader)} av {antal}",
+            file=sys.stderr,
+        )
+        # Gav snittet ingenting nytt går de som saknas inte att nå den vägen,
+        # och de följande snitten läser delmängder av samma block. Mätt
+        # 2026-09-28: på en varm körning gav det första snittet 1 ny och de
+        # tre följande 0, 0 och 0, alltså 58 sidor utan utbyte.
+        if not nya:
+            break
+
+    if len(rader) < antal:
+        kant = "Varje id som fanns i går är prövat" if liggare else "Liggaren var tom"
+        print(
+            f"  VARNING: {antal - len(rader)} av {antal} verksamheter gick inte "
+            f"att nå. {kant}, alltså kommer de med\n"
+            "  nästa natt. Utlämningen är kortare än kommunens register.",
+            file=sys.stderr,
+        )
+
+    # ORDNINGEN ÄR PÅ ID OCH INTE PÅ DET LISTAN RÅKADE GE. `dedupe_slugs`
+    # numrerar krockar positionellt, så en ordning som kastas om mellan två
+    # körningar flyttar sluggen mellan två likanämnda verksamheter. Listans
+    # egen ordning är just en sådan: den sorterar på senaste kontrolldatum och
+    # skiftar mellan två hämtningar. Id:t gör filen densamma varje gång.
+    ordnade = sorted(rader, key=lambda i: (int(i) if _ar_tal(i) else 0, i))
+    return parse_list_page("".join(rader[i] for i in ordnade)), rader, antal
+
+
+def _ar_tal(varde: str) -> bool:
+    try:
+        int(varde)
+    except ValueError:
+        return False
+    return True
+
+
+def las_liggare(arkiv_rot: Optional[Path]) -> dict:
+    """Gårdagens verifierade lista, id → namn och adress."""
+    if arkiv_rot is None:
+        return {}
+    fil = Path(arkiv_rot) / LIGGARE
+    try:
+        innehall = json.loads(fil.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return innehall.get("verksamheter") or {}
+
+
+def skriv_liggare(arkiv_rot: Optional[Path], records: list) -> None:
+    if arkiv_rot is None:
+        return
+    rot = Path(arkiv_rot)
+    rot.mkdir(parents=True, exist_ok=True)
+    (rot / LIGGARE).write_text(
+        json.dumps(
+            {
+                "skriven": datetime.now().isoformat(timespec="seconds"),
+                "verksamheter": {
+                    r["id"]: {"namn": r["name"], "adress": r.get("address")}
+                    for r in records
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
 
 
 def i_tur(record_id: str, today: date) -> bool:
@@ -170,9 +428,10 @@ def i_tur(record_id: str, today: date) -> bool:
 
 
 def build(limit: Optional[int], today: date, arkiv_rot: Optional[Path]) -> dict:
-    listing, rader = collect_list()
+    listing, rader, listat = collect_list(las_liggare(arkiv_rot))
     if limit:
         listing = listing[:limit]
+    levererade = []
 
     arkiv = Arkiv(arkiv_rot, "uppsala")
     records, skipped = [], 0
@@ -240,6 +499,7 @@ def build(limit: Optional[int], today: date, arkiv_rot: Optional[Path]) -> dict:
             today,
         )
 
+        levererade.append(record)
         records.append(
             {
                 "id": establishment.id_national,
@@ -301,6 +561,11 @@ def build(limit: Optional[int], today: date, arkiv_rot: Optional[Path]) -> dict:
         borttagna = arkiv.gallra()
         if borttagna:
             print(f"  arkivet gallrades på {borttagna} inaktuella sidor", file=sys.stderr)
+        # Liggaren för i morgon, och bara efter en hel körning. Den bär de
+        # verksamheter som faktiskt levereras, alltså inte det som hoppades
+        # över: en rad vi inte kunde tolka ska prövas på nytt nästa natt och
+        # inte slås upp som saknad.
+        skriv_liggare(arkiv_rot, levererade)
 
     return {
         "municipality": {
@@ -313,6 +578,11 @@ def build(limit: Optional[int], today: date, arkiv_rot: Optional[Path]) -> dict:
         },
         "source": {"url": BASE, "fetchedAt": datetime.now().isoformat(timespec="seconds")},
         "skipped": skipped,
+        # Kommunens eget antal överst i listan, och om vi nådde det. Ett nej
+        # här betyder att utlämningen är kortare än registret, och då är ett
+        # bortfall i inläsningen ett hämtningsfel och inte en nedläggning.
+        "listedCount": listat,
+        "listComplete": len(rader) >= listat,
         "establishments": records,
     }
 
