@@ -8,7 +8,7 @@
  },
  "source": {
   "url": "https://livsmedelsdata.linkoping.se/swagger/index.html",
-  "fetchedAt": "2026-10-23T08:30:52+00:00"
+  "fetchedAt": "2026-10-24T08:05:48+00:00"
  },
  "narhet": {
   "method": "derived",
@@ -3451,12 +3451,30 @@
    "lat": 58.418662,
    "lng": 15.637845,
    "image": null,
-   "verdict": null,
+   "verdict": "clean",
    "distinction": false,
-   "reason": "no_inspections",
+   "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
-   "inspections": [],
+   "inspections": [
+    {
+     "id": "I-0580-02183800-3361-4AEB-BAB8-3F7329EB4829-337B2360-CCCE-4C69-9A9E-87EF2405350F",
+     "date": "2026-10-13",
+     "assessment": 0,
+     "type": 0,
+     "prenotified": true,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      }
+     ]
+    }
+   ],
    "stop": "Stångebro|bus|190",
    "parking": "5|30"
   },
@@ -92599,12 +92617,30 @@
    "lat": 58.412525,
    "lng": 15.622169,
    "image": null,
-   "verdict": null,
+   "verdict": "minor",
    "distinction": false,
-   "reason": "no_inspections",
+   "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
-   "inspections": [],
+   "inspections": [
+    {
+     "id": "I-0580-2FDCAB02-FA80-4C0F-AC58-3E443DF9A4C2-C9220BCE-89C5-4F13-A4FB-05FBF48CA522",
+     "date": "2026-07-09",
+     "assessment": 1,
+     "type": 2,
+     "prenotified": false,
+     "audit": false,
+     "onSite": false,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "deviation"
+      }
+     ]
+    }
+   ],
    "stop": "B|bus|90",
    "parking": "2|10"
   },
@@ -104135,11 +104171,17 @@
      "id": "I-0580-3594B33B-87E4-4DAE-ABFA-167CB51661DE-4ACDA616-4791-40D0-9F2F-F2936F11883A",
      "date": "2025-12-12",
      "assessment": 0,
-     "type": 0,
+     "type": 1,
      "prenotified": true,
-     "audit": true,
+     "audit": false,
      "onSite": true,
      "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "fixed"
+      },
       {
        "code": "A01",
        "group": "Administrativa krav",
@@ -104192,7 +104234,7 @@
     },
     {
      "id": "I-0580-3594B33B-87E4-4DAE-ABFA-167CB51661DE-13816EF7-37BF-4980-81F7-6BFD758F3069",
-     "date": "2025-10-16",
+     "date": "2025-10-15",
      "assessment": 1,
      "type": 2,
      "prenotified": true,
@@ -136197,29 +136239,12 @@
    "lat": 58.414417,
    "lng": 15.663039,
    "image": null,
-   "verdict": "minor",
+   "verdict": "clean",
    "distinction": false,
    "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
-    {
-     "id": "I-0580-4376D64B-9431-4249-9836-8BA2EC24A5E7-7CAED7FF-B9E6-4B1F-874A-8351D64C6D2B",
-     "date": "2025-12-16",
-     "assessment": 1,
-     "type": 2,
-     "prenotified": true,
-     "audit": false,
-     "onSite": true,
-     "areas": [
-      {
-       "code": "A01",
-       "group": "Administrativa krav",
-       "description": "Godkännande och registrering av anläggningar och verksamheter",
-       "status": "deviation"
-      }
-     ]
-    },
     {
      "id": "I-0580-4376D64B-9431-4249-9836-8BA2EC24A5E7-E191767E-F7B2-403A-A4DB-9064A4BC8ABD",
      "date": "2025-12-16",
@@ -136270,6 +136295,23 @@
        "group": "Spårbarhet",
        "description": "Allmänna bestämmelser om spårbarhet",
        "status": "ok"
+      }
+     ]
+    },
+    {
+     "id": "I-0580-4376D64B-9431-4249-9836-8BA2EC24A5E7-7CAED7FF-B9E6-4B1F-874A-8351D64C6D2B",
+     "date": "2025-11-12",
+     "assessment": 1,
+     "type": 2,
+     "prenotified": true,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "deviation"
       }
      ]
     }
@@ -191762,6 +191804,238 @@
    "parking": "5|90"
   },
   {
+   "id": "F-0580-5F70FAE2-A8D0-4806-BFAB-5059FF0F5E34",
+   "slug": "klara-gymnasium-hamngatan",
+   "name": "Klara Gymnasium, Hamngatan",
+   "address": "Hamngatan 2B",
+   "types": [
+    "Skola och omsorg",
+    "Skolkök mottagning"
+   ],
+   "lat": 58.414064,
+   "lng": 15.629416,
+   "image": null,
+   "verdict": "clean",
+   "distinction": false,
+   "reason": "assessed",
+   "modelVersion": 5,
+   "uncertain": false,
+   "inspections": [
+    {
+     "id": "I-0580-5F70FAE2-A8D0-4806-BFAB-5059FF0F5E34-86F1E117-F15E-40E0-988F-F5751D874BE9",
+     "date": "2026-05-26",
+     "assessment": 0,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "B99",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Övrig livsmedelsinformation",
+       "status": "ok"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "ok"
+      },
+      {
+       "code": "J06",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Bekämpning av skadedjur",
+       "status": "ok"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "ok"
+      }
+     ]
+    },
+    {
+     "id": "I-0580-5F70FAE2-A8D0-4806-BFAB-5059FF0F5E34-AF730654-39FD-4CAC-9C1C-AAB505D60EFB",
+     "date": "2024-05-22",
+     "assessment": 0,
+     "type": 1,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "fixed"
+      }
+     ]
+    },
+    {
+     "id": "I-0580-5F70FAE2-A8D0-4806-BFAB-5059FF0F5E34-C8C832A0-8563-479F-A67C-8E5A6D2D15B8",
+     "date": "2024-05-20",
+     "assessment": 1,
+     "type": 1,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "deviation"
+      },
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "B02",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Obligatorisk livsmedelsinformation, innehåll och presentation",
+       "status": "ok"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "ok"
+      },
+      {
+       "code": "J06",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Bekämpning av skadedjur",
+       "status": "ok"
+      },
+      {
+       "code": "K01",
+       "group": "HACCP-baserade förfaranden",
+       "description": "Faroanalys och kritiska styrpunkter",
+       "status": "ok"
+      },
+      {
+       "code": "J09",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Material i kontakt med livsmedel (FCM)",
+       "status": "ok"
+      }
+     ]
+    },
+    {
+     "id": "I-0580-5F70FAE2-A8D0-4806-BFAB-5059FF0F5E34-C870A9A5-FB77-4631-B0DC-903A9BBA6DBA",
+     "date": "2023-10-20",
+     "assessment": 0,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "ok"
+      },
+      {
+       "code": "J06",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Bekämpning av skadedjur",
+       "status": "ok"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "ok"
+      },
+      {
+       "code": "J09",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Material i kontakt med livsmedel (FCM)",
+       "status": "deviation"
+      },
+      {
+       "code": "K01",
+       "group": "HACCP-baserade förfaranden",
+       "description": "Faroanalys och kritiska styrpunkter",
+       "status": "ok"
+      }
+     ]
+    }
+   ]
+  },
+  {
    "id": "F-0580-5F9B63E8-34D5-420E-A95B-7CA32BF1B92C",
    "slug": "hornet",
    "name": "Hörnet",
@@ -203840,11 +204114,17 @@
      "id": "I-0580-65719AF6-F998-40A3-8B59-F106C6AA917F-ACE77ED5-62CE-41B0-84C9-606C4CBF5556",
      "date": "2026-02-17",
      "assessment": 0,
-     "type": 0,
+     "type": 1,
      "prenotified": true,
-     "audit": true,
+     "audit": false,
      "onSite": true,
      "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "fixed"
+      },
       {
        "code": "A01",
        "group": "Administrativa krav",
@@ -207750,11 +208030,17 @@
      "id": "I-0580-66E71371-FB68-4210-A665-00225B166374-E210464C-E583-4417-BD49-8D37B310D5DC",
      "date": "2026-06-18",
      "assessment": 1,
-     "type": 0,
+     "type": 1,
      "prenotified": true,
      "audit": false,
      "onSite": true,
      "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "fixed"
+      },
       {
        "code": "J08",
        "group": "Grundförutsättningar, hygien",
@@ -207796,6 +208082,23 @@
        "group": "Spårbarhet",
        "description": "Allmänna bestämmelser om spårbarhet",
        "status": "ok"
+      }
+     ]
+    },
+    {
+     "id": "I-0580-66E71371-FB68-4210-A665-00225B166374-C5C2A694-AF97-4CEC-BFB9-FC6722863E29",
+     "date": "2026-04-13",
+     "assessment": 1,
+     "type": 2,
+     "prenotified": false,
+     "audit": false,
+     "onSite": false,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "deviation"
       }
      ]
     }
@@ -248783,11 +249086,17 @@
      "id": "I-0580-7D969AB6-268A-4549-8D98-99C3B4531AD1-029ED536-7B3A-4950-9897-28897FF2AE67",
      "date": "2024-04-04",
      "assessment": 0,
-     "type": 0,
+     "type": 1,
      "prenotified": false,
      "audit": false,
      "onSite": true,
      "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "fixed"
+      },
       {
        "code": "A01",
        "group": "Administrativa krav",
@@ -314437,12 +314746,72 @@
    "lat": 58.388503,
    "lng": 15.566135,
    "image": null,
-   "verdict": null,
+   "verdict": "minor",
    "distinction": false,
-   "reason": "no_inspections",
+   "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
-   "inspections": [],
+   "inspections": [
+    {
+     "id": "I-0580-A04D04B1-6DF2-4D74-9734-6658C3F05EDE-9B640FA7-1D98-4B98-8F2A-9A5E2FCCDA50",
+     "date": "2026-10-13",
+     "assessment": 1,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "deviation"
+      },
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "ok"
+      },
+      {
+       "code": "J06",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Bekämpning av skadedjur",
+       "status": "ok"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "ok"
+      },
+      {
+       "code": "H01",
+       "group": "Spårbarhet",
+       "description": "Allmänna bestämmelser om spårbarhet",
+       "status": "ok"
+      }
+     ]
+    }
+   ],
    "stop": "B|bus|140",
    "parking": "6|80"
   },
@@ -371616,12 +371985,71 @@
    "lat": 58.424918,
    "lng": 15.618379,
    "image": null,
-   "verdict": "clean",
-   "distinction": true,
+   "verdict": "minor",
+   "distinction": false,
    "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
+    {
+     "id": "I-0580-C5F78572-C054-4E74-81AC-05858E016AFB-A30DA19A-21F7-4CFD-9C7C-62A2C5909193",
+     "date": "2026-10-13",
+     "assessment": 1,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "B99",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Övrig livsmedelsinformation",
+       "status": "deviation"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "deviation"
+      },
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "ok"
+      },
+      {
+       "code": "J09",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Material i kontakt med livsmedel (FCM)",
+       "status": "ok"
+      },
+      {
+       "code": "K01",
+       "group": "HACCP-baserade förfaranden",
+       "description": "Faroanalys och kritiska styrpunkter",
+       "status": "ok"
+      }
+     ]
+    },
     {
      "id": "I-0580-C5F78572-C054-4E74-81AC-05858E016AFB-565FCC2A-92DD-440B-9279-0B94E621DF87",
      "date": "2025-08-18",
@@ -372860,6 +373288,83 @@
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
+    {
+     "id": "I-0580-C6A57BA2-BF98-4BAA-B3BD-C78EEAF1CB6E-E6F387BE-CEF6-4A44-82FF-8B9BAF92925D",
+     "date": "2026-10-13",
+     "assessment": 0,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "B01",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Allmänna krav och skyldigheter",
+       "status": "ok"
+      },
+      {
+       "code": "B02",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Obligatorisk livsmedelsinformation, innehåll och presentation",
+       "status": "ok"
+      },
+      {
+       "code": "B99",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Övrig livsmedelsinformation",
+       "status": "ok"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "ok"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "ok"
+      },
+      {
+       "code": "J06",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Bekämpning av skadedjur",
+       "status": "ok"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "ok"
+      },
+      {
+       "code": "H01",
+       "group": "Spårbarhet",
+       "description": "Allmänna bestämmelser om spårbarhet",
+       "status": "ok"
+      }
+     ]
+    },
     {
      "id": "I-0580-C6A57BA2-BF98-4BAA-B3BD-C78EEAF1CB6E-AB934364-8001-4B89-B920-24C354ACCD1B",
      "date": "2025-06-17",
@@ -424152,12 +424657,65 @@
    "lat": 58.492275,
    "lng": 15.42211,
    "image": null,
-   "verdict": "clean",
+   "verdict": "minor",
    "distinction": false,
    "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
+    {
+     "id": "I-0580-EA21CE14-D295-42C8-9EE8-85FC0AAF2F48-0911F3DC-B886-43BE-9ED2-7AEE88134FF4",
+     "date": "2026-10-13",
+     "assessment": 1,
+     "type": 0,
+     "prenotified": false,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "deviation"
+      },
+      {
+       "code": "J05",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utbildning i hygien och arbetsmetoder",
+       "status": "deviation"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "deviation"
+      },
+      {
+       "code": "A01",
+       "group": "Administrativa krav",
+       "description": "Godkännande och registrering av anläggningar och verksamheter",
+       "status": "ok"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
+       "status": "ok"
+      },
+      {
+       "code": "J07",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Vattenförsörjning",
+       "status": "ok"
+      }
+     ]
+    },
     {
      "id": "I-0580-EA21CE14-D295-42C8-9EE8-85FC0AAF2F48-D66813F0-080E-47FF-9F89-2EFB16D2D012",
      "date": "2023-11-22",
@@ -429591,12 +430149,53 @@
    "lat": 58.37938,
    "lng": 15.661431,
    "image": null,
-   "verdict": "minor",
+   "verdict": "clean",
    "distinction": false,
    "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
+    {
+     "id": "I-0580-EC7ADCC4-CAB8-4DB6-A186-7A595E2899CD-51CD7FAB-FA05-4698-8509-BDD61EEAAC08",
+     "date": "2026-10-13",
+     "assessment": 0,
+     "type": 1,
+     "prenotified": true,
+     "audit": false,
+     "onSite": false,
+     "areas": [
+      {
+       "code": "B99",
+       "group": "Allmän livsmedelsinformation",
+       "description": "Övrig livsmedelsinformation",
+       "status": "fixed"
+      },
+      {
+       "code": "J02",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "fixed"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "fixed"
+      },
+      {
+       "code": "J08",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Upprätthållande av kylkedjan och uppfyllande av temperaturkriterier",
+       "status": "fixed"
+      },
+      {
+       "code": "J09",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Material i kontakt med livsmedel (FCM)",
+       "status": "fixed"
+      }
+     ]
+    },
     {
      "id": "I-0580-EC7ADCC4-CAB8-4DB6-A186-7A595E2899CD-CA3AA6C6-8223-42B6-B598-A83F82E62BD7",
      "date": "2026-10-05",
