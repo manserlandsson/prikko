@@ -8,7 +8,7 @@
  },
  "source": {
   "url": "https://livsmedelsdata.linkoping.se/swagger/index.html",
-  "fetchedAt": "2026-10-27T08:57:23+00:00"
+  "fetchedAt": "2026-10-28T09:37:39+00:00"
  },
  "narhet": {
   "method": "derived",
@@ -318210,12 +318210,6 @@
      "onSite": true,
      "areas": [
       {
-       "code": "J03",
-       "group": "Grundförutsättningar, hygien",
-       "description": "Hygien före, under och efter processen",
-       "status": "deviation"
-      },
-      {
        "code": "J04",
        "group": "Grundförutsättningar, hygien",
        "description": "Personlig hygien",
@@ -318261,6 +318255,12 @@
        "code": "J02",
        "group": "Grundförutsättningar, hygien",
        "description": "Utformning och underhåll av lokaler och utrustning",
+       "status": "ok"
+      },
+      {
+       "code": "J03",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Hygien före, under och efter processen",
        "status": "ok"
       },
       {
@@ -323141,12 +323141,35 @@
    "lat": 58.410212,
    "lng": 15.523777,
    "image": null,
-   "verdict": "minor",
+   "verdict": "clean",
    "distinction": false,
    "reason": "assessed",
    "modelVersion": 5,
    "uncertain": false,
    "inspections": [
+    {
+     "id": "I-0580-A790A68C-C53E-4A3E-965D-7D2230CD6D1A-17D35798-F275-4F89-BDBE-DABF9987DD1D",
+     "date": "2026-10-17",
+     "assessment": 0,
+     "type": 1,
+     "prenotified": true,
+     "audit": false,
+     "onSite": true,
+     "areas": [
+      {
+       "code": "J01",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Allmänna krav på livsmedelssäkerhet",
+       "status": "fixed"
+      },
+      {
+       "code": "J04",
+       "group": "Grundförutsättningar, hygien",
+       "description": "Personlig hygien",
+       "status": "fixed"
+      }
+     ]
+    },
     {
      "id": "I-0580-A790A68C-C53E-4A3E-965D-7D2230CD6D1A-FBC1A663-E164-4209-A69E-6A53AB6E6C86",
      "date": "2026-10-09",
@@ -328056,7 +328079,7 @@
   {
    "id": "F-0580-ABF63818-3B3A-48D9-94EC-54A2CC1DDCEA",
    "slug": "gimme-sushi-svedengatan",
-   "name": "Gimme Sushi (Flott Ica Maxi)",
+   "name": "Gimme Sushi ( Ica Maxi)",
    "address": "Västra svedengatan 12",
    "types": [
     "Restaurang och servering",
@@ -378931,7 +378954,10 @@
    "slug": "nova-wine",
    "name": "Nova Wine",
    "address": "Torvingegatan 27",
-   "types": [],
+   "types": [
+    "Övriga verksamheter",
+    "Distributör"
+   ],
    "lat": 58.420186,
    "lng": 15.675941,
    "image": null,
